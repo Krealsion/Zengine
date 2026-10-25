@@ -207,17 +207,14 @@ void WorkshopWeave::arrange_place(std::int64_t x, std::int64_t y, loom::Mail& ma
         return;
     }
     const PixelRect from = managed_window_base();
-    PaneAxisProposal horizontal;
-    horizontal.base = from.x;
+    PaneWindowAxes axes = pane_window_at(from, screen_of(session_));
     if (x != from.x) {
-        horizontal.position = x;
+        axes.horizontal.position = x;
     }
-    PaneAxisProposal vertical;
-    vertical.base = from.y;
     if (y != from.y) {
-        vertical.position = y;
+        axes.vertical.position = y;
     }
-    write_window(session_.arrange.pane, horizontal, vertical, mail);
+    write_window(session_.arrange.pane, axes.horizontal, axes.vertical, mail);
 }
 
 // WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
@@ -238,16 +235,17 @@ void WorkshopWeave::write_window(const PaneRef& ref, const PaneAxisProposal& hor
         if (done.place_written) {
             apply_setup(mail);
         }
-        say(arrange_status(), false);
+        say(arrange_status() + (done.said.empty() ? "" : " -- " + done.said), false);
         return;
     }
+    // AN AXIS WRITTEN IN ANOTHER WORD THAN IT STOOD IN IS SAID, once the store has it.
     ask_layout({window_edit(*pane_of(desk, ref))},
-               [this](const LayoutEditAnswered& answered, loom::Mail&) {
+               [this, said = done.said](const LayoutEditAnswered& answered, loom::Mail&) {
                    if (!answered.accepted) {
                        say(answered.refusal, true);
                        return;
                    }
-                   say(arrange_status(), false);
+                   say(arrange_status() + (said.empty() ? "" : " -- " + said), false);
                },
                mail);
 }
@@ -302,7 +300,8 @@ void WorkshopWeave::arrange_window(const PaneWindowProposal& want, std::int64_t 
         say(ready.refusal, true);
         return;
     }
-    const PaneWindowAxes axes = pane_window_axes(want, PixelRect{base_x, base_y, base_w, base_h});
+    const PaneWindowAxes axes = pane_window_axes(want, PixelRect{base_x, base_y, base_w, base_h},
+                                                 screen_of(session_));
     write_window(session_.arrange.pane, axes.horizontal, axes.vertical, mail);
 }
 
@@ -684,7 +683,7 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool sn
             return PaneSnapLines{};
         }
         Setup after = session_.setup.active;
-        const PaneWindowAxes axes = pane_window_axes(want, base);
+        const PaneWindowAxes axes = pane_window_axes(want, base, sc);
         (void)author_pane_window(after, held, axes.horizontal, axes.vertical);
         return pane_snap_lines(session_.panes, after, sc, *kind);
     };

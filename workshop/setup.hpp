@@ -891,24 +891,61 @@ inline Written author_pane_size(Setup& s, const PaneRef& ref, const PaneSize& wi
     return Written::ok();
 }
 
-/// ONE AXIS of what a single gesture proposes for a pane's window.
+/// ONE AXIS of what a single gesture proposes for a pane's window, in the room's pixels: the near
+/// edge where the hand left it, the extent it pulled, and what the axis stands at now -- its near
+/// edge, its extent, the room's span along it and the window's step -- which the door needs to say
+/// the axis in its own word.
 // WL-ARR-06 -- agents/workshop/arrangement.md
 struct PaneAxisProposal {
     std::optional<std::int64_t> position;
     std::optional<PaneSize> extent;
     std::int64_t base = 0;
+    std::int64_t length = 0;
+    std::int64_t span = 0;
+    std::int64_t step = 1;
 };
 
 /// What authoring a window proposal did: `written` answers for the gesture as a
 /// whole, and `place_written` says whether the place moved — the caller reconciles
 /// (`apply_setup`) exactly then, because an authored place takes the pane out of the
 /// stack; with no room rationing the stack, that reconcile opens and closes nothing.
+/// `said` names each axis the hand wrote in another word than it stood in, and the word it was.
 struct WindowWritten {
     Written written;
     bool place_written = false;
+    std::string said;
 };
 
-/// AUTHOR WHAT ONE GESTURE PROPOSES FOR A PANE'S WINDOW — per axis.
+/// The share of `span` whose edge, laid from `anchor`, falls on `length` pixels: the least share
+/// reaching it from the start, the most from the end, so the floored edge is the hand's pixel for
+/// every span up to `ui::kShareWhole` pixels. Never below 1 or past the whole.
+// WL-ARR-06 -- agents/workshop/arrangement.md
+inline std::int64_t share_reaching(std::int64_t length, std::int64_t span, ui::Anchor anchor) {
+    if (span <= 0 || length >= span) {
+        return ui::kShareWhole;
+    }
+    if (length <= 0) {
+        return 1;
+    }
+    // length < span <= int64's range, and length * whole fits: length is at most kMaxPanePixels.
+    const std::int64_t whole = ui::kShareWhole;
+    const std::int64_t s = anchor == ui::Anchor::End ? length * whole / span
+                                                     : (length * whole + span - 1) / span;
+    return s < 1 ? 1 : (s > whole ? whole : s);
+}
+
+/// A share as a weaver reads it: hundredths of a percent, `33.33%`.
+inline std::string share_text(std::int64_t share) {
+    const std::int64_t hundredths = share % 100;
+    return std::to_string(share / 100) + "." + (hundredths < 10 ? "0" : "") +
+           std::to_string(hundredths) + "%";
+}
+
+/// AUTHOR WHAT ONE GESTURE PROPOSES FOR A PANE'S WINDOW — per axis, each in its own word: an
+/// anchor's offset from its own edge; a share's, or a fill's pulled at its far edge, the share
+/// whose edge is the hand's pixel. A moved centred or `default` place becomes `pixels` at the
+/// hand's corner; `fit`, `default` and a moved `fill` become the hand's extent in pixels. Every
+/// word of the weaver's that the hand changed is said (WL-ARR-06).
 // WL-ARR-05, WL-ARR-06, WL-ARR-10 -- agents/workshop/arrangement.md
 // WL-PED-05 -- agents/workshop/pane-manager.md
 inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
@@ -916,8 +953,8 @@ inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
                                         const PaneAxisProposal& vertical) {
     SetupPane* row = pane_of(s, ref);
     if (row == nullptr) {
-        return WindowWritten{Written::no("`" + ref_text(ref) + "` is not in this setup"),
-                             false};
+        return WindowWritten{Written::no("`" + ref_text(ref) + "` is not in this setup"), false,
+                             {}};
     }
     Written wide = Written::ok();
     if (horizontal.position.has_value()) {
@@ -935,39 +972,155 @@ inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
     }
     const bool h_asks = horizontal.position.has_value() || horizontal.extent.has_value();
     const bool v_asks = vertical.position.has_value() || vertical.extent.has_value();
-    const bool h_lands = h_asks && wide.accepted;
-    const bool v_lands = v_asks && tall.accepted;
+    bool h_lands = h_asks && wide.accepted;
+    bool v_lands = v_asks && tall.accepted;
     if (!h_lands && !v_lands) {
         if (!h_asks && !v_asks) {
-            return WindowWritten{Written::ok(), false};
+            return WindowWritten{Written::ok(), false, {}};
         }
-        return WindowWritten{!wide.accepted ? wide : tall, false};
+        return WindowWritten{!wide.accepted ? wide : tall, false, {}};
     }
-    const bool place_written = (h_lands && horizontal.position.has_value()) ||
-                               (v_lands && vertical.position.has_value());
-    if (place_written) {
-        // A PLACE IS ONE FIELD. The axis that settled a position writes it; the
-        // other contributes what it already stood at — its authored coordinate,
-        // or the resolved base the caller measured, in the room. A pane standing
-        // above the room (the Layouts pane in its band) has no room place on that
-        // axis, so it comes down to the room's edge, the nearest one it has.
-        const bool authored = row->place.mode == pane_unit::kPixels;
-        const auto in_room = [](std::int64_t v) { return v < 0 ? std::int64_t{0} : v; };
-        const std::int64_t x = h_lands && horizontal.position.has_value()
-                                   ? *horizontal.position
-                                   : (authored ? row->place.x : in_room(horizontal.base));
-        const std::int64_t y = v_lands && vertical.position.has_value()
-                                   ? *vertical.position
-                                   : (authored ? row->place.y : in_room(vertical.base));
-        row->place = PanePlace{pane_unit::kPixels, x, y};
+
+    // Where each axis's edges stand after the hand, in the room.
+    struct Moved {
+        std::int64_t from = 0, to = 0, length = 0;
+        bool near_moved = false, far_moved = false, lands = false;
+    };
+    const auto moved = [](const PaneAxisProposal& p, bool lands) {
+        Moved m;
+        m.lands = lands;
+        m.from = lands && p.position.has_value() ? *p.position : p.base;
+        m.length = lands && p.extent.has_value() ? p.extent->amount : p.length;
+        m.to = m.from + m.length;
+        m.near_moved = lands && m.from != p.base;
+        m.far_moved = lands && m.to != p.base + p.length;
+        return m;
+    };
+    Moved mx = moved(horizontal, h_lands);
+    Moved my = moved(vertical, v_lands);
+
+    PanePlace place = row->place;
+    PaneSize width = row->width;
+    PaneSize height = row->height;
+    std::string said;
+    const auto say = [&said](const std::string& what) {
+        said += (said.empty() ? "" : "; ") + what;
+    };
+
+    // THE PLACE. A word with a centred axis the hand moved cannot say where the hand left it, and
+    // neither can `default` once the near edge moved: both become `pixels` at the hand's corner.
+    const ui::Anchor was_x = ui::place_anchor_x(place.mode);
+    const ui::Anchor was_y = ui::place_anchor_y(place.mode);
+    const bool centred_moved = (was_x == ui::Anchor::Center && (mx.near_moved || mx.far_moved)) ||
+                               (was_y == ui::Anchor::Center && (my.near_moved || my.far_moved));
+    const bool default_moved = place.mode == pane_unit::kDefault &&
+                               ((h_lands && horizontal.position.has_value()) ||
+                                (v_lands && vertical.position.has_value()));
+    const auto in_room = [](std::int64_t v) { return v < 0 ? std::int64_t{0} : v; };
+    if (centred_moved || default_moved) {
+        // A PLACE IS ONE FIELD. Each axis the hand moved writes its edge; the other contributes
+        // where it stands, in the room. A pane above the room (the Layouts pane in its band) has
+        // no room place on that axis, so it comes down to the room's edge, the nearest one it has.
+        if (place.mode != pane_unit::kDefault) {
+            say("place now pixels -- was " + std::string(ui::place_word(place.mode)));
+        }
+        place = PanePlace{pane_unit::kPixels, in_room(mx.from), in_room(my.from)};
+    } else if (place.mode == pane_unit::kPixels) {
+        if (h_lands && horizontal.position.has_value()) {
+            place.x = mx.from;
+        }
+        if (v_lands && vertical.position.has_value()) {
+            place.y = my.from;
+        }
+    } else if (place.mode != pane_unit::kDefault) {
+        // AN ANCHORED WORD keeps its word: the offset is counted from its own edge again.
+        const auto offset = [](ui::Anchor anchor, const Moved& m, const PaneAxisProposal& p,
+                               std::int64_t& at, Written& verdict) {
+            if (!m.lands || anchor == ui::Anchor::Center) {
+                return;
+            }
+            const std::int64_t v = anchor == ui::Anchor::End ? p.span - m.to : m.from;
+            if ((anchor == ui::Anchor::End ? m.far_moved : m.near_moved)) {
+                verdict = check_pane_place_coord(v);
+                if (verdict.accepted) {
+                    at = v;
+                }
+            }
+        };
+        offset(was_x, mx, horizontal, place.x, wide);
+        offset(was_y, my, vertical, place.y, tall);
+        // AN AXIS REFUSED HERE WRITES NOTHING, its size included; the other still settles.
+        h_lands = h_lands && wide.accepted;
+        v_lands = v_lands && tall.accepted;
+        if (!h_lands && !v_lands) {
+            return WindowWritten{!wide.accepted ? wide : tall, false, {}};
+        }
+        mx.lands = h_lands;
+        my.lands = v_lands;
     }
-    if (h_lands && horizontal.extent.has_value()) {
-        row->width = *horizontal.extent;
+    const ui::Anchor now_x = ui::place_anchor_x(place.mode);
+    const ui::Anchor now_y = ui::place_anchor_y(place.mode);
+
+    // THE SIZES, each in its own word.
+    const auto size = [&say](PaneSize& at, const Moved& m, const PaneAxisProposal& p,
+                             ui::Anchor was, ui::Anchor now, const char* axis) {
+        const std::string word(ui::size_word(at.mode));
+        // `default` becomes pixels unsaid, as it always has: no word of the weaver's is lost.
+        const auto to_pixels = [&] {
+            at = PaneSize{pane_unit::kPixels, m.length};
+            if (word != "default") {
+                say(std::string(axis) + " now " + std::to_string(m.length) + " px -- was " + word);
+            }
+        };
+        if (!m.lands) {
+            // An axis the hand left alone keeps its word, unless the place it fills from moved.
+            if (at.mode == ui::kSizeFill && was != now) {
+                to_pixels();
+            }
+            return;
+        }
+        const bool pulled = p.extent.has_value();
+        switch (at.mode) {
+        case pane_unit::kPixels:
+            if (pulled) {
+                at.amount = m.length;
+            }
+            return;
+        case ui::kSizeShare:
+            if (pulled) {
+                at.amount = share_reaching(m.length, p.span, now);
+            }
+            return;
+        case ui::kSizeFill: {
+            // A FILL'S FAR EDGE is the frame's; the hand pulling it there writes the share whose
+            // edge is the hand's pixel. Its near edge pulled leaves the far edge where it was.
+            const bool far_pulled = now == ui::Anchor::End ? m.near_moved : m.far_moved;
+            if (pulled && far_pulled) {
+                at = PaneSize{ui::kSizeShare, share_reaching(m.length, p.span, now)};
+                say(std::string(axis) + " now " + share_text(at.amount) + " -- was fill");
+            } else if (!pulled || was != now) {
+                to_pixels();
+            }
+            return;
+        }
+        default:
+            if (pulled) {
+                to_pixels();
+            }
+            return;
+        }
+    };
+    size(width, mx, horizontal, was_x, now_x, "width");
+    size(height, my, vertical, was_y, now_y, "height");
+
+    const bool place_written = !(place == row->place);
+    if (const Written legal = check_pane_place(place); !legal.accepted) {
+        return WindowWritten{legal, false, {}};
     }
-    if (v_lands && vertical.extent.has_value()) {
-        row->height = *vertical.extent;
-    }
-    return WindowWritten{Written::ok(), place_written};
+    row->place = place;
+    row->width = width;
+    row->height = height;
+    return WindowWritten{Written::ok(), place_written, said};
 }
 
 /// The resets: each removes one authored difference and leaves the others.

@@ -2021,6 +2021,185 @@ struct TwoPaneRig : FineRig {
 
 } // namespace
 
+TEST_CASE("a hand pulling a share's edge writes the share whose edge is the hand's pixel, at every pixel of the widest room") {
+    // ⚔ MUTATION: `author_pane_window` writing the hand's extent as `pixels` whatever the word --
+    // the width comes back a count of pixels, and the share is gone.
+    FineRig t;
+    stage_desk(t, [](Setup& s) {
+        REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
+        REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{ui::kSizeShare, 2500},
+                                 PaneSize{pane_unit::kPixels, 120})
+                    .accepted);
+    });
+    t.key(input::scan::kUnknown);
+    const Screen sc = screen_of(t.session());
+    const PixelRect at = t.builder_rect();
+    const PixelRect right = pane_edge_cell(at, pane_edge::kRight);
+    t.press_at(right.x + 2, right.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    // ALT HELD, so no edge snaps: the edge goes where the hand leaves it.
+    motion_with(t, right.x + 2 + 37, right.y + 2, input::space::kPixels, input::mod::kAlt);
+    REQUIRE(t.builder_row()->width.mode == ui::kSizeShare);
+    const PixelRect pulled = t.builder_rect();
+    CHECK(pulled.x == at.x);
+    CHECK(pulled.x + pulled.w == at.x + at.w + 37);
+    CHECK(t.builder_row()->width.amount ==
+          share_reaching(at.w + 37, sc.room_w, ui::Anchor::Start));
+    release_at(t, right.x + 2 + 37, right.y + 2, input::space::kPixels);
+    CHECK(t.builder_row()->width.mode == ui::kSizeShare);
+
+    // EVERY PIXEL OF THE WIDEST ROOM a window lays out, from the room's left and from its right:
+    // the door's share solves back to the hand's pixel, in the solver the desk is drawn with.
+    const std::int64_t span = kScreenMaxW;
+    std::int64_t missed = 0;
+    for (const ui::Anchor anchor : {ui::Anchor::Start, ui::Anchor::End}) {
+        Setup desk = setup_of("Reach", {stock::kKind});
+        desk.panes[0].place = anchor == ui::Anchor::Start ? PanePlace{pane_unit::kPixels, 0, 0}
+                                                          : PanePlace{ui::kPlaceTopRight, 0, 0};
+        desk.panes[0].width = PaneSize{ui::kSizeShare, 5000};
+        for (std::int64_t length = kPanePxMin; length <= span; ++length) {
+            PaneAxisProposal across;
+            across.base = anchor == ui::Anchor::Start ? 0 : span - span / 2;
+            across.length = span / 2;
+            across.span = span;
+            across.extent = PaneSize{pane_unit::kPixels, length};
+            if (anchor == ui::Anchor::End) {
+                across.position = span - length; // a left pull: the right edge holds
+            }
+            REQUIRE(author_pane_window(desk, ref_of(stock::kKind), across, PaneAxisProposal{})
+                        .written.accepted);
+            ui::Element e;
+            e.place = ui_place_of(desk.panes[0].place);
+            e.width = ui_size_of(desk.panes[0].width);
+            e.height = ui::Size{pane_unit::kPixels, 100};
+            const ui::Rect r = ui::arrange({e}, ui::Room{span, 1000, 1}).items.at(0).rect;
+            if (r.w != length || (anchor == ui::Anchor::End && r.x + r.w != span)) {
+                ++missed;
+            }
+            desk.panes[0].width = PaneSize{ui::kSizeShare, 5000};
+        }
+    }
+    CHECK(missed == 0);
+}
+
+TEST_CASE("a fill pulled at its far edge, with nothing sharing its frame, writes the share whose edge is the hand's pixel, and says so") {
+    // ⚔ MUTATION: a fill pulled at its far edge written as pixels -- the width stops following the
+    // room, and nothing is said.
+    FineRig t;
+    stage_desk(t, [](Setup& s) {
+        REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
+        REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{ui::kSizeFill, 0},
+                                 PaneSize{pane_unit::kPixels, 120})
+                    .accepted);
+    });
+    t.key(input::scan::kUnknown);
+    const Screen sc = screen_of(t.session());
+    const PixelRect at = t.builder_rect();
+    REQUIRE(at.x + at.w == sc.room_w); // a fill runs to the room's far edge
+    const PixelRect right = pane_edge_cell(at, pane_edge::kRight);
+    t.press_at(right.x + 2, right.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    motion_with(t, right.x + 2 - 300, right.y + 2, input::space::kPixels, input::mod::kAlt);
+    const SetupPane* row = t.builder_row();
+    REQUIRE(row->width.mode == ui::kSizeShare);
+    const PixelRect pulled = t.builder_rect();
+    CHECK(pulled.x == 100);
+    CHECK(pulled.x + pulled.w == sc.room_w - 300);
+    CHECK(t.notice().find("width now " + share_text(row->width.amount) + " -- was fill") !=
+          std::string::npos);
+    release_at(t, right.x + 2 - 300, right.y + 2, input::space::kPixels);
+
+    // ITS NEAR EDGE PULLED LEAVES A FILL A FILL: the far edge is still the room's.
+    stage_desk(t, [](Setup& s) {
+        REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{ui::kSizeFill, 0},
+                                 PaneSize{pane_unit::kPixels, 120})
+                    .accepted);
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect again = t.builder_rect();
+    const PixelRect left = pane_edge_cell(again, pane_edge::kLeft);
+    t.press_at(left.x + 2, left.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    motion_with(t, left.x + 2 + 40, left.y + 2, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->width.mode == ui::kSizeFill);
+    CHECK(t.builder_row()->place.x == 140);
+    CHECK(t.builder_rect().x + t.builder_rect().w == sc.room_w);
+    release_at(t, left.x + 2 + 40, left.y + 2, input::space::kPixels);
+}
+
+TEST_CASE("an anchored pane pulled past its own edge is refused across and still follows the hand down") {
+    // ⚔ MUTATION: the size of an axis whose offset was refused written anyway -- the width grows
+    // though its edge could not go where the hand took it.
+    FineRig t;
+    stage_desk(t, [](Setup& s) {
+        SetupPane* row = pane_of(s, ref_of(stock::kKind));
+        row->place = PanePlace{ui::kPlaceBottomRight, 20, 60};
+        row->width = PaneSize{ui::kSizeShare, 2500};
+        row->height = PaneSize{pane_unit::kPixels, 120};
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect at = t.builder_rect();
+    const PixelRect corner = pane_edge_cell(at, pane_edge::kBottomRight);
+    t.press_at(corner.x + 1, corner.y + 1, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    // THE CORNER FORTY PIXELS PAST THE RIGHT WALL, AND TEN DOWN: the offset from the right would
+    // be -20, so the width is refused whole; the height takes the ten.
+    motion_with(t, corner.x + 1 + 40, corner.y + 1 + 10, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->place == PanePlace{ui::kPlaceBottomRight, 20, 50});
+    CHECK(t.builder_row()->width == PaneSize{ui::kSizeShare, 2500});
+    CHECK(t.builder_row()->height == PaneSize{pane_unit::kPixels, 130});
+    release_at(t, corner.x + 1 + 40, corner.y + 1 + 10, input::space::kPixels);
+}
+
+TEST_CASE("a hand moves an anchored pane in its word, a centred one into pixels, and pulls a fitted size into pixels, each said") {
+    // ⚔ MUTATION: an anchored place written as pixels from the room's top-left -- the word is
+    // gone, and the pane no longer keeps its corner when the window changes.
+    FineRig t;
+    stage_desk(t, [](Setup& s) {
+        SetupPane* row = pane_of(s, ref_of(stock::kKind));
+        row->place = PanePlace{ui::kPlaceBottomRight, 50, 40};
+        row->width = PaneSize{pane_unit::kPixels, 300};
+        row->height = PaneSize{pane_unit::kPixels, 120};
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect at = t.builder_rect();
+    t.press_at(at.x + 30, at.y + 20, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.active);
+    REQUIRE_FALSE(t.session().pane_drag.sizing);
+    motion_with(t, at.x + 30 - 70, at.y + 20 - 25, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->place == PanePlace{ui::kPlaceBottomRight, 120, 65});
+    release_at(t, at.x + 30 - 70, at.y + 20 - 25, input::space::kPixels);
+
+    // A CENTRED PLACE CANNOT SAY WHERE THE HAND LEFT IT: it becomes pixels, and is said.
+    stage_desk(t, [](Setup& s) {
+        pane_of(s, ref_of(stock::kKind))->place = PanePlace{ui::kPlaceCenter, 0, 0};
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect centred = t.builder_rect();
+    t.press_at(centred.x + 30, centred.y + 20, input::space::kPixels);
+    motion_with(t, centred.x + 30 + 11, centred.y + 20, input::space::kPixels, input::mod::kAlt);
+    const Screen sc = screen_of(t.session());
+    CHECK(t.builder_row()->place ==
+          PanePlace{pane_unit::kPixels, centred.x + 11, centred.y - sc.room_y});
+    CHECK(t.notice().find("place now pixels -- was center") != std::string::npos);
+    release_at(t, centred.x + 30 + 11, centred.y + 20, input::space::kPixels);
+
+    // A FITTED HEIGHT PULLED becomes pixels at the hand's extent, said.
+    stage_desk(t, [](Setup& s) {
+        pane_of(s, ref_of(stock::kKind))->height = PaneSize{ui::kSizeFit, 0};
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect fitted = t.builder_rect();
+    const PixelRect bottom = pane_edge_cell(fitted, pane_edge::kBottom);
+    t.press_at(bottom.x + 2, bottom.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    motion_with(t, bottom.x + 2, bottom.y + 2 + 30, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->height == PaneSize{pane_unit::kPixels, fitted.h + 30});
+    CHECK(t.notice().find("height now " + std::to_string(fitted.h + 30) + " px -- was fit") !=
+          std::string::npos);
+    release_at(t, bottom.x + 2, bottom.y + 2 + 30, input::space::kPixels);
+}
+
 TEST_CASE("a pane dragged near another pane's edge or the room's comes to it, and the edge met is marked across the room while held") {
     // ⚔ MUTATION: no snap -- the place stays where the hand left it, a few pixels short of the
     // edge, and nothing is marked.
