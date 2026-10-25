@@ -148,7 +148,7 @@ What it asks, in order:
 | run `witness-surfaces` | an exported target whose headers are not self-contained |
 | run `witness-message-drafts` | a draft library, Flow workspace or pane-canvas helper that loses what it carries when used from the installed headers |
 | run `witness-pane-menu` | the pane menu, the presenter seam or the list helpers failing a live exchange on the stranger's own bus, a forged answer included |
-| run `witness-pane-settings` | a pane's declared settings not judged and handed to it on the stranger's bus, or settings a forger hands it taken |
+| run `witness-pane-settings` | a pane's declared settings not judged, its row not asked for and handed to it by the layouts' office on the stranger's bus, or settings another office hands it taken |
 | run `kitchen-host` | a loadable artifact a consumer cannot find or load |
 | run `flow-host` on the Flow weave the copy authored and compiled | Flow authoring, generation, loading or a live operator overlay that works only inside this repository |
 | run the installed `zengine-flow --help`, and the installed `zengine-inventory-read` with no file | an installed program that does not start; the reader must answer with its usage and exit 2 |
