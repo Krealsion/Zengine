@@ -49,6 +49,16 @@ void WorkshopWeave::install_live(const LiveLayout& live, loom::Mail& mail) {
         return;
     }
     LiveDesk& d = session_.setup;
+    // ANOTHER DESK LIVE -- another layout, or a desk put live in place of this one -- puts down the
+    // menu open over the desk the weaver was on; an edit of the same desk leaves it standing.
+    if (live.id != d.id || static_cast<std::uint64_t>(live.put_live) != d.put_live) {
+        if (session_.presented.open) {
+            withdraw_menu("another desk went live", mail);
+        }
+        if (session_.context.open) {
+            close_context();
+        }
+    }
     d.owned = desk;
     d.active = std::move(desk);
     d.id = live.id;
