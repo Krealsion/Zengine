@@ -423,7 +423,6 @@ TEST_CASE("the pane arrives by a plan row and resolves a row the desk already ha
     for (const BuiltinPane& built_in : kBuiltinPanes) {
         CHECK(std::string(built_in.pane) != std::string(pane::kInfoPane));
     }
-    CHECK(kinds_placed_in(placement::kSideRegion) == 0);
 
     // THE DESK NAMED IT BEFORE THE OFFICE EXISTED: the row was authored by `default_setup`,
     // and the office's arrival RESOLVED it rather than adding it.
@@ -431,27 +430,28 @@ TEST_CASE("the pane arrives by a plan row and resolves a row the desk already ha
     CHECK(unresolved_panes(f.r.session().setup.active, f.r.session().panes).empty());
 }
 
-TEST_CASE("the shipped desk puts it at the right column, by name and not by number") {
-    // THE PLACE MOVED WITH THE OFFICE AND IS SAID AS A PLACE. No pair of coordinates can
-    // mean "the right edge, at a comfortable size" on a screen the desk does not know, so
-    // the row spells `right-column` and `bounds_of` resolves it.
+TEST_CASE("the shipped desk puts it at the room's top-right, by word and not by number") {
+    // THE PLACE MOVED WITH THE OFFICE AND IS SAID AS A WORD. No pair of coordinates can mean
+    // "the right edge, at a comfortable size" on a screen the desk does not know, so the row
+    // spells `top-right` at no offset and leaves its sizes the pane's own.
+    // ⚔ MUTATION: `default_setup` seating Info with a `default` place -- it stands down the stack.
     InfoRig f;
     f.open();
     const SetupPane* seated = pane_of(f.r.session().setup.active, pane_info_ref());
     REQUIRE(seated != nullptr);
-    CHECK(seated->place.mode == pane_unit::kRightColumn);
-    CHECK(seated->place.x == 0); // a named place carries no coordinates
-    CHECK(seated->place.y == 0);
+    CHECK(seated->place == PanePlace{ui::kPlaceTopRight, 0, 0});
+    CHECK(seated->width == PaneSize{});
+    CHECK(seated->height == PaneSize{});
 
     const Screen sc = screen_of(f.r.session());
     const PaneBounds where =
         bounds_of(f.r.session().panes, f.r.session().setup.active, f.kind, sc);
     REQUIRE(where.open);
-    CHECK(where.placed_in == placement::kSideRegion);
     CHECK(cells_covered(where.rect).w == 60); // 58 body columns plus borders
     CHECK(cells_covered(where.rect).h == 16); // 13 body rows, title and borders
-    // AND IT REACHES THE ROOM'S RIGHT EDGE, which is the whole reason the place has a name.
+    // AND IT REACHES THE ROOM'S RIGHT EDGE AND TOP, which is what the word says.
     CHECK(where.rect.x + where.rect.w == sc.room_w);
+    CHECK(where.rect.y == sc.room_y);
 }
 
 TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {

@@ -37,12 +37,9 @@ namespace pane_kind {
 inline constexpr std::int64_t kLayouts = 4;
 } // namespace pane_kind
 
-/// Where a pane kind is presented: one of three named places.
+/// Where a pane kind is presented by default: one of two named places.
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 namespace placement {
-/// The column at the workspace's right edge: fixed width, and reserving nothing.
-// WL-GEO-03 -- agents/workshop/geometry.md; WL-PANE-01 -- agents/workshop/panes-and-windows.md
-inline constexpr std::int64_t kSideRegion = 0;
 /// Over the workspace, from the canvas's top-left, stacked downwards.
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 inline constexpr std::int64_t kOverlayStack = 1;
@@ -150,10 +147,6 @@ inline constexpr std::size_t kinds_placed_in(std::int64_t where) noexcept {
     }
     return n;
 }
-
-static_assert(kinds_placed_in(placement::kSideRegion) == 0,
-              "no built-in kind declares the right column: a desk row names it, and a catalog "
-              "row that took it back would be this host deciding where a weave's pane goes");
 
 static_assert(kinds_placed_in(placement::kTopBand) == 1,
               "the top band has room for one pane: a second kind placed there would "

@@ -245,13 +245,13 @@ TEST_CASE("a fresh Workshop's setup names one pane this build does not compile")
     CHECK(resolved == std::vector<std::int64_t>{pane_kind::kLayouts});
 
     // AND THE OTHER HALF IS INFO, NAMED BY THE DESK AND ANSWERED BY A WEAVE. The row carries
-    // the right column by NAME, and it is here because a desk is where a weaver's panes are
-    // named -- not because this host knows what Info is.
+    // the room's top-right by its WORD, and it is here because a desk is where a weaver's panes
+    // are named -- not because this host knows what Info is.
     REQUIRE(waiting.size() == 1);
     CHECK(waiting[0] == info_ref());
     const SetupPane* row = pane_of(fresh, info_ref());
     REQUIRE(row != nullptr);
-    CHECK(row->place.mode == pane_unit::kRightColumn);
+    CHECK(row->place.mode == ui::kPlaceTopRight);
     CHECK(row->place.x == 0);
     CHECK(row->width.mode == pane_unit::kDefault);
 
@@ -6540,8 +6540,8 @@ TEST_CASE("Info's PLACE moves with its office, and an authored one does not") {
     const std::size_t info_at = pane_row(live, info_ref());
     REQUIRE(info_at != kNoPaneRow);
     CHECK(pane_row(live, PaneRef{"zengine.workshop", "info"}) == kNoPaneRow);
-    // ...AND THE PLACE CAME WITH IT, by NAME and carrying no coordinates.
-    CHECK(live.panes[info_at].place.mode == pane_unit::kRightColumn);
+    // ...AND THE PLACE CAME WITH IT, as the room's top-right at no offset.
+    CHECK(live.panes[info_at].place.mode == ui::kPlaceTopRight);
     CHECK(live.panes[info_at].place.x == 0);
     CHECK(live.panes[info_at].place.y == 0);
     // ...and the resulting desk is one this host would accept from a file.
@@ -7187,11 +7187,12 @@ TEST_CASE("the settings file keeps its layouts' entries until a session holds th
 
 TEST_CASE("a place and a size carry a number exactly where the word reads one: a version-5 desk converts by its words, and a number where the word reads none is refused") {
     // ⚔ MUTATION: the version-5 lift copying each number whatever its word -- a named place comes
-    // forward carrying coordinates, which this version refuses.
+    // forward carrying coordinates, which this version refuses. Version 5's `right-column` comes
+    // forward as the room's top-right at no offset.
     Setup desk = setup_of("Words", {stock::kKind, second::kKind});
     desk.panes[0].place = PanePlace{pane_unit::kPixels, cells_px(3), cells_px(2)};
     desk.panes[0].width = PaneSize{pane_unit::kPixels, cells_px(40)};
-    desk.panes[1].place = PanePlace{pane_unit::kRightColumn, 0, 0};
+    desk.panes[1].place = PanePlace{ui::kPlaceTopRight, 0, 0};
     REQUIRE(check_setup(desk).accepted);
     const setup_persist::LoadedSetup read =
         setup_persist::from_text(loom::compat::serialize(loom::to_value(v5_desk(desk))));
@@ -7205,8 +7206,9 @@ TEST_CASE("a place and a size carry a number exactly where the word reads one: a
     CHECK(six.find(pixels) != std::string::npos);
     CHECK(six.find("\"width\":{\"mode\":\"pixels\",\"amount\":\"" + std::to_string(cells_px(40)) +
                    "\"}") != std::string::npos);
-    const std::string named = "\"place\":{\"mode\":\"right-column\"}";
+    const std::string named = "\"place\":{\"mode\":\"top-right\",\"x\":\"0\",\"y\":\"0\"}";
     REQUIRE(six.find(named) != std::string::npos);
+    CHECK(six.find("right-column") == std::string::npos);
     CHECK(six.find("\"height\":{\"mode\":\"default\"}") != std::string::npos);
     // A NUMBER WHERE THE WORD READS NONE, AND ONE MISSING WHERE IT READS ONE: each refused.
     const auto refusal_of = [&six](const std::string& from, const std::string& to) {
@@ -7218,6 +7220,8 @@ TEST_CASE("a place and a size carry a number exactly where the word reads one: a
     };
     CHECK(refusal_of(named, "\"place\":{\"mode\":\"right-column\",\"x\":\"0\",\"y\":\"0\"}")
               .find("a named pane place carries no coordinates") != std::string::npos);
+    CHECK(refusal_of(named, "\"place\":{\"mode\":\"top-right\",\"x\":\"0\"}")
+              .find("a top-right pane place names both x and y") != std::string::npos);
     CHECK(refusal_of("\"height\":{\"mode\":\"default\"}",
                      "\"height\":{\"mode\":\"default\",\"amount\":\"0\"}")
               .find("a default pane height carries no amount") != std::string::npos);

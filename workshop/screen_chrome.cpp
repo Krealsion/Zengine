@@ -65,9 +65,8 @@ namespace {
 // among the open panes, so no pane shares an identity with a frame.
 constexpr std::int64_t kRoomPart = 1;
 constexpr std::int64_t kTopBandPart = 2;
-constexpr std::int64_t kRightColumnPart = 3;
-constexpr std::int64_t kStackPart = 4;
-constexpr std::int64_t kFirstPanePart = 5;
+constexpr std::int64_t kStackPart = 3;
+constexpr std::int64_t kFirstPanePart = 4;
 
 ui::Size pixels_size(std::int64_t px) { return ui::Size{ui::kSizePixels, px}; }
 
@@ -87,24 +86,19 @@ ui::Element frame_part(std::int64_t id, std::string label, std::int64_t context,
     return e;
 }
 
-/// The desk's four places on this screen, as frames: the room under the top band, where a
-/// `pixels` place is measured from; the top band, whole; the right column, the room's top-right,
-/// `workshop.side-columns` wide and the room's height; and the stack, the room's top-left, as wide
-/// as the catalog's slot and the room's height, laying its panes down a cell apart and beginning
-/// again at its top.
+/// The desk's three frames on this screen: the room under the top band, where every place word is
+/// measured from; the top band, whole; and the stack, the room's top-left, as wide as the
+/// catalog's slot and the room's height, laying its panes down a cell apart and beginning again at
+/// its top.
 // WL-GEO-03 -- agents/workshop/geometry.md
 // WL-PANE-01, WL-PANE-03 -- agents/workshop/panes-and-windows.md
 void add_desk_frames(std::vector<ui::Element>& parts, std::vector<ui::Measure>& measures,
                      const Screen& sc) {
-    const PixelRect column = placement_bounds(placement::kSideRegion, 0, sc);
     const PixelRect slot = placement_bounds(placement::kOverlayStack, 0, sc);
     parts.push_back(frame_part(kRoomPart, "room", ui::kRootContext, pixels_place(0, sc.room_y),
                                pixels_size(sc.room_w), pixels_size(sc.room_h)));
     parts.push_back(frame_part(kTopBandPart, "top band", ui::kRootContext, pixels_place(0, 0),
                                pixels_size(sc.w), pixels_size(sc.room_y)));
-    parts.push_back(frame_part(kRightColumnPart, "right column", kRoomPart,
-                               ui::Place{ui::kPlaceTopRight, 0, 0}, pixels_size(column.w),
-                               ui::Size{ui::kSizeFill, std::nullopt}));
     ui::Element stack = frame_part(kStackPart, "stack", kRoomPart, ui::Place{}, pixels_size(slot.w),
                                    ui::Size{ui::kSizeFill, std::nullopt});
     stack.flow = ui::kFlowStack;
@@ -124,12 +118,10 @@ ui::Measure pane_measure(std::int64_t where, const Screen& sc, const RuntimePane
 }
 
 /// One pane as a part: its sizes are the weaver's words, `default` -- its measure -- where they
-/// said none; it stands in the room at its place word, or, for a `default` place, in its place's
-/// frame: down the stack, in the top band, or in the right column at the offset that puts its
-/// measured width against the column's right edge, which an authored width keeps.
+/// said none; it stands in the room at its place word, or, for a `default` place, in its
+/// catalog place's frame: down the stack, or in the top band.
 // WL-PANE-01, WL-PANE-11 -- agents/workshop/panes-and-windows.md
-ui::Element pane_part(std::int64_t id, std::int64_t where, const SetupPane* authored,
-                      const ui::Measure& measure, const Screen& sc) {
+ui::Element pane_part(std::int64_t id, std::int64_t where, const SetupPane* authored) {
     ui::Element e;
     e.id = id;
     if (authored != nullptr) {
@@ -137,12 +129,9 @@ ui::Element pane_part(std::int64_t id, std::int64_t where, const SetupPane* auth
         e.height = ui_size_of(authored->height);
     }
     const std::int64_t place = authored != nullptr ? authored->place.mode : pane_unit::kDefault;
-    if (place != pane_unit::kDefault && place != pane_unit::kRightColumn) {
+    if (place != pane_unit::kDefault) {
         e.context = kRoomPart;
         e.place = ui_place_of(authored->place);
-    } else if (where == placement::kSideRegion) {
-        e.context = kRightColumnPart;
-        e.place = pixels_place(placement_bounds(where, 0, sc).w - measure.w.value_or(0), 0);
     } else if (where == placement::kTopBand) {
         e.context = kTopBandPart;
     } else {
@@ -166,7 +155,7 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
     std::vector<ui::Measure> measures;
     add_desk_frames(parts, measures, sc);
     const ui::Measure measure = pane_measure(where, sc, preference);
-    ui::Element pane = pane_part(kFirstPanePart, where, authored, measure, sc);
+    ui::Element pane = pane_part(kFirstPanePart, where, authored);
     // Projected alone, a pane in the stack stands at the slot it is given: its top `stack_y`, or
     // the slot's own where none is given.
     if (pane.context == kStackPart) {
@@ -198,8 +187,8 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
     }
     std::vector<ui::Element> parts;
     std::vector<ui::Measure> measures;
-    parts.reserve(4 + panes.open.size());
-    measures.reserve(4 + panes.open.size());
+    parts.reserve(3 + panes.open.size());
+    measures.reserve(3 + panes.open.size());
     add_desk_frames(parts, measures, sc);
     std::optional<std::size_t> asked; // the first open pane of this kind
     std::int64_t asked_where = placement_of(kind);
@@ -212,19 +201,13 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                 break;
             }
         }
-        // The desk may name the place, here and only here: a row saying `kRightColumn` names the
-        // place no coordinate can; authored extents still lay over it.
-        std::int64_t where = placement_of(p.kind);
-        if (authored != nullptr && authored->place.mode == pane_unit::kRightColumn) {
-            where = placement::kSideRegion;
-        }
+        const std::int64_t where = placement_of(p.kind);
         const ui::Measure measure = pane_measure(where, sc, panes.runtime.of_kind(p.kind));
         if (!asked && p.kind == kind) {
             asked = parts.size();
             asked_where = where;
         }
-        parts.push_back(pane_part(kFirstPanePart + static_cast<std::int64_t>(i), where, authored,
-                                  measure, sc));
+        parts.push_back(pane_part(kFirstPanePart + static_cast<std::int64_t>(i), where, authored));
         measures.push_back(measure);
     }
     if (!asked) {

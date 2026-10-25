@@ -81,7 +81,6 @@ inline constexpr const char* kSkinKey = kWorkshopSkinKey;
 inline constexpr const char* kCompletionOrderKey = "workshop.completion-order";
 inline constexpr const char* kArrangeStepKey = "workshop.arrange-step";
 inline constexpr const char* kSnapReachKey = "workshop.snap-reach";
-inline constexpr const char* kSideColumnsKey = "workshop.side-columns";
 inline constexpr const char* kStackRowsKey = "workshop.stack-rows";
 
 /// The completion's two orders: the shape's own, or its required fields before its optional ones.
@@ -163,8 +162,6 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_office_rows() {
                    {"input", "layout"}, "coarse pane resize step in cells"),
             number(kSnapReachKey, kPaneSnapReachPx, kMinSnapReachPx, kMaxSnapReachPx,
                    {"input", "layout"}, "edge snap reach in canvas pixels"),
-            number(kSideColumnsKey, kSideCols, kMinSideCols, kMaxSideCols, {"layout"},
-                   "right-column width in cells"),
             number(kStackRowsKey, kStackRows, kMinStackRows, kMaxStackRows, {"layout"},
                    "overlay stack fallback height in rows")};
 }
@@ -183,7 +180,6 @@ struct Presentation {
     bool completion_required_first = false;
     std::int64_t arrange_step_cells = kCoarseStepCells;
     std::int64_t snap_reach_px = kPaneSnapReachPx;
-    std::int64_t side_cols = kSideCols;
     std::int64_t stack_rows = kStackRows;
 };
 
@@ -525,7 +521,6 @@ inline Presentation presentation_of(const Prefs& p) {
     out.arrange_step_cells =
         measure(kArrangeStepKey, kCoarseStepCells, kMinArrangeStepCells, kMaxArrangeStepCells);
     out.snap_reach_px = measure(kSnapReachKey, kPaneSnapReachPx, kMinSnapReachPx, kMaxSnapReachPx);
-    out.side_cols = measure(kSideColumnsKey, kSideCols, kMinSideCols, kMaxSideCols);
     out.stack_rows = measure(kStackRowsKey, kStackRows, kMinStackRows, kMaxStackRows);
     return out;
 }

@@ -375,7 +375,6 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     // share resolves against is said where the tool speaks. It is the whole surface, so the
     // room runs under the pane rather than stopping short of the edge.
     CHECK(workspace_row(t.shown(), t.session(), sc) == "workspace 100x27 cells");
-    CHECK(cells_of(sc).side_x == 72);
 
     // AN EXTENT THAT CHANGES NOTHING REPAINTS NOTHING. Two different extents clamp to one
     // screen, and a weaver dragging across that boundary must not see the tool flicker.
@@ -500,7 +499,7 @@ TEST_CASE("wrapping is a presentation act: as many rows as the sentence needs") 
 // the real weave on a real bus, driven by published input; the tool is a stand-in holding
 // `zengine.builder`, so Workshop's half of the conversation is pinned here, the rest next door.
 
-TEST_CASE("a stacked pane covers the workspace, and may reach the right column") {
+TEST_CASE("a stacked pane covers the workspace, and may reach the room's right part") {
     Live t;
     (void)mount_tool(t, "zengine-snake");
     t.key(input::scan::kEscape); // an unbound key: it repaints and changes nothing
@@ -528,8 +527,8 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
             // backdrop rect, which erases the rest.
             ++stacked_rows;
             CHECK(l.text.size() == static_cast<std::size_t>(inside.w));
-            // ...and the slot reaches INTO the right column's place at this extent, which is
-            // what a room that is the whole surface buys the stack
+            // ...and the slot reaches past the room's middle at this extent, which is what a
+            // room that is the whole surface buys the stack
             // (agents/decisions/the-room-is-the-screen.md). It is still inside the room.
             CHECK(stack.x + stack.w <= cells_of(sc).room_w);
         }
@@ -544,50 +543,29 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
 // ---- the places, said once -----------------------------------------------------------
 // Not where the panes are -- the cases above pin that, cell by cell -- but where that
 // answer comes from: a kind declares a place in the catalog, `placement_bounds` turns it into
-// a rectangle, and each painter is handed the rectangle. The side region is a PLACE no
-// built-in declares; a desk row names it (`pane_unit::kRightColumn`), as Info's does.
+// a rectangle, and each painter is handed the rectangle. Every other place a pane stands at is
+// a word its desk row says, as Info's `top-right` does.
 
 TEST_CASE("a pane kind declares its place, and the place resolves to bounds") {
     // THE INTENT IS AUTHORED IN THE CATALOG. It is a fact about the kind, known
     // before anything is open and readable without a screen anywhere near it.
     CHECK(placement_of(stock::kKind) == placement::kOverlayStack);
     CHECK(placement_of(pane_kind::kLayouts) == placement::kTopBand);
-    // AND NO BUILT-IN DECLARES THE SIDE REGION AT ALL. Zero is ASSERTED rather than the line
-    // deleted: "at most one" would still be true of zero and would go on being true if a row
-    // were added back, and the place itself is not retired -- a desk row still names it.
-    CHECK(kinds_placed_in(placement::kSideRegion) == 0); // asserted at compile time too
     // AND THE TWO PLACES PARTITION THE BUILT-IN CATALOG: every COMPILE-TIME kind declares one
     // of the two, and a row declaring neither would be counted by nobody and silently resolved
     // by `placement_bounds`'s fall-through as the stack under another name -- a catalog row
     // with a third place value reddens this. It is about rows: a runtime pane has none, and
     // `placement_of` branches on `is_runtime_kind` before `builtin_pane`, placing it in the stack.
-    CHECK(kinds_placed_in(placement::kSideRegion) + kinds_placed_in(placement::kOverlayStack) +
-              kinds_placed_in(placement::kTopBand) ==
+    CHECK(kinds_placed_in(placement::kOverlayStack) + kinds_placed_in(placement::kTopBand) ==
           kBuiltinPaneCount);
 
-    // THE BOUNDS ARE RESOLVED AGAINST A SCREEN, and the side region resolves to a rectangle
-    // WITH NO KIND DECLARING IT -- which is the whole of what makes it a place rather than a
-    // pane's private constant. A desk row spelled `right-column` lands here.
-    const CellRect side = cells_covered(placement_bounds(placement::kSideRegion, 0, kMinScreen));
+    // THE BOUNDS ARE RESOLVED AGAINST A SCREEN, over a room that is the surface.
+    const CellRect band = cells_covered(placement_bounds(placement::kTopBand, 0, kMinScreen));
     const CellRect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen));
-    CHECK(side == CellRect{50, 2, 28, 16});
+    CHECK(band == CellRect{0, 0, 78, 2});
     CHECK(stack == CellRect{0, 2, 63, 9}); // 48 + (78 - 48)/2, over a room that is the surface
-
-    // AND THEY OVERLAP AT THE SMALLEST SCREEN: the stack's half-share is measured against a
-    // room that runs under the right column, so its slot runs to 62 and the column begins at
-    // 50 -- one comparison of two rectangles, where four separate constants could drift.
-    CHECK(stack.x + stack.w > side.x);
-    CHECK(stack.x + stack.w == 63);
-    CHECK(side.x == 50);
-    CHECK(side.x + side.w == cells_of(kMinScreen).w);          // the region reaches the right edge
-    CHECK(stack.y + stack.h <= cells_of(kMinScreen).notice_y); // neither reaches the bottom band
-    CHECK(side.y + side.h <= cells_of(kMinScreen).notice_y);
-    // The right column is a PLACE made into a rectangle, not a reservation taken out of the
-    // room: the room is the surface, and this column stands on it.
-    CHECK(side.x == cells_of(kMinScreen).side_x);
-    CHECK(side.w == kSideCols);
+    CHECK(stack.y + stack.h <= cells_of(kMinScreen).notice_y); // clear of the bottom band
     CHECK(cells_of(kMinScreen).room_w == cells_of(kMinScreen).w);
-    CHECK(side.x + side.w == cells_of(kMinScreen).room_w);
 }
 
 TEST_CASE("each pane is painted where the placement path says it is") {
@@ -700,22 +678,17 @@ TEST_CASE("the stack has a second slot, and the minimum screen has no room for i
     // the column has no room left for begins it again at its top instead (`bounds_of`).
 }
 
-TEST_CASE("the right column keeps its width and the stack takes half the surplus") {
+TEST_CASE("the band keeps its rows and the stack takes half the surplus") {
     // THE TWO PLACES ANSWER THE EXTENT QUESTION DIFFERENTLY, and the path is where that
-    // lives: the region is anchored to the right edge and keeps its width; the stack is
-    // anchored to the top-left corner, keeps its rows, and takes HALF of the room's surplus
-    // over its floor. The LAW -- kStackW + (room_w - kStackW)/2 -- is stated over the whole
-    // clamped width domain, because a table of six extents cannot tell a half-share from
-    // another curve.
+    // lives: the band is the screen's whole width and keeps its rows; the stack is anchored to
+    // the top-left corner, keeps its rows, and takes HALF of the room's surplus over its floor.
+    // The LAW -- kStackW + (room_w - kStackW)/2 -- is stated over the whole clamped width
+    // domain, because a table of six extents cannot tell a half-share from another curve.
     const Screen big = screen_of(cells_px(100), cells_px(30));
-    const CellRect side = cells_covered(placement_bounds(placement::kSideRegion, 0, big));
+    const CellRect band = cells_covered(placement_bounds(placement::kTopBand, 0, big));
     const CellRect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, big));
-    CHECK(side.x == cells_of(big).side_x);
-    CHECK(side.w == kSideCols);
-    CHECK(side.x + side.w == cells_of(big).w);
-    CHECK(side.h > cells_covered(placement_bounds(placement::kSideRegion, 0, kMinScreen)).h);
-    // The side region is byte-identical to the minimum screen's, WIDTH included.
-    CHECK(side.w == cells_covered(placement_bounds(placement::kSideRegion, 0, kMinScreen)).w);
+    CHECK(band.w == cells_of(big).w);
+    CHECK(band.h == cells_covered(placement_bounds(placement::kTopBand, 0, kMinScreen)).h);
     // The stack is not. Its column, rows and height are; its width follows the room: 100
     // columns of surface is a room of 100, a surplus of 52 over the slot's floor, half of it 26.
     const CellRect min_stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen));
@@ -724,11 +697,8 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
     CHECK(stack.h == min_stack.h);
     CHECK(stack.w == 74);
     CHECK(stack.w > min_stack.w);
-    // ...and it stops inside the ROOM rather than short of the right column. At this extent
-    // the slot's last two columns are over the right column's place, which is what a room that
-    // is the whole surface buys the stack -- and is legible, because a pane wears a boundary.
+    // ...and it stops inside the ROOM, which is the whole surface.
     CHECK(stack.x + stack.w <= cells_of(big).room_w);
-    CHECK(stack.x + stack.w == side.x + 2);
 
     // THE LAW, OVER EVERY WIDTH THIS COMPOSITION LAYS OUT, at three heights so that a
     // height creeping into the width would be named here rather than discovered later.

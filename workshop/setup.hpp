@@ -82,10 +82,6 @@ inline constexpr std::int64_t kDefault = ui::kSizeDefault; ///< the developer's 
 /// AN ABSOLUTE COUNT OF CANVAS PIXELS: one window pixel each, twelve to a terminal's cell.
 // WL-GEO-06 -- agents/workshop/geometry.md; WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kPixels = ui::kSizePixels;
-/// The right column, named: a place a desk asks for, carrying no coordinates. Why a place is a
-/// unit: agents/decisions/the-room-is-the-screen.md.
-// WL-SETUP-03 -- agents/workshop/setup-file.md
-inline constexpr std::int64_t kRightColumn = 100;
 static_assert(kDefault == ui::kPlaceDefault && kPixels == ui::kPlacePixels,
               "`default` and `pixels` are one number in both of ui's lists");
 } // namespace pane_unit
@@ -331,13 +327,6 @@ inline Written check_pane_place(const PanePlace& p) {
     if (p.mode == pane_unit::kDefault) {
         if (p.x != 0 || p.y != 0) {
             return Written::no("a default pane place carries no coordinates");
-        }
-        return Written::ok();
-    }
-    // A named place carries no coordinates either: they would be a second answer.
-    if (p.mode == pane_unit::kRightColumn) {
-        if (p.x != 0 || p.y != 0) {
-            return Written::no("a named pane place carries no coordinates");
         }
         return Written::ok();
     }
@@ -1009,7 +998,7 @@ inline bool reset_pane_height(Setup& s, const PaneRef& ref) {
     return true;
 }
 
-/// A fresh Workshop's setup: the default panes, then Info in the right column.
+/// A fresh Workshop's setup: the default panes, then Info at the room's top-right.
 // WL-LAYOUT-03 -- agents/workshop/layouts.md; WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Setup default_setup() {
     Setup s;
@@ -1018,14 +1007,14 @@ inline Setup default_setup() {
     for (const std::int64_t kind : kDefaultPanes) {
         (void)add_pane(s, pane_ref_of(kind));
     }
-    // Info opens at the right edge because this desk row says so: the one place this host names a
-    // weave's office, as a row a weaver may move or delete like any other. An office that never
-    // arrives leaves an unresolved row (`unresolved_panes`).
+    // Info opens at the room's top-right, at the size it asks for, because this desk row says so:
+    // the one place this host names a weave's office, as a row a weaver may move or delete like any
+    // other. An office that never arrives leaves an unresolved row (`unresolved_panes`).
     const PaneRef info{kInfoPaneProvider, kInfoPaneKey};
     if (add_pane(s, info)) {
         for (SetupPane& row : s.panes) {
             if (row.ref == info) {
-                row.place.mode = pane_unit::kRightColumn;
+                row.place = PanePlace{ui::kPlaceTopRight, 0, 0};
             }
         }
     }
