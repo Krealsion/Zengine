@@ -53,7 +53,7 @@ headers.
 - `workshop/default-load-plan.json` names `zengine-operators-basic`; `workshop/CMakeLists.txt` stages it; `cmake/ZengineInstall.cmake`
   installs it and the headers.
 - Doors over the catalog: `zengine.powers` (`workshop/powers_door.hpp`) and `zengine.sources`
-  (`workshop/sample_door.hpp`). `workshop/session_persist.hpp` looks conversions up, and
+  (`workshop/sample_door.hpp`). `workshop/layouts/session_persist.hpp` looks conversions up, and
   `workshop/session_migration_provider.cpp` supplies them.
 - Other consumers: the Timer (`timer/normalize.hpp`, `timer/timer.cpp`), `flow/`, `maker/` and
   `introspection/introspection.cpp`.

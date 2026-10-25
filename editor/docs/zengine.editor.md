@@ -58,7 +58,7 @@ To switch holders, ask the switch from Workshop's Terminal,
 ([`EditorSwitchRequested`](zengine.editor-switch.md#editorswitchrequested)).
 
 Each layout keeps the Editor's settings, set in Info or by message
-([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)), and each
+([`PaneSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#panesettingcommitrequested)), and each
 holder declares its own: the standard Editor's `tab-width` and `status`, pinned, `wheel-lines` and
 `undo-depth`, within the byte budget; Neovim's `profile`, pinned, `clean` or `user` for its next
 start where `ZENGINE_NEOVIM_PROFILE` names none, and `status`. A value one cannot use keeps the

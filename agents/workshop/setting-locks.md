@@ -2,9 +2,11 @@
 
 Register `WL-LOCK`: a lock on a setting, in one layout or everywhere, the doors it holds against and
 the hand that unlocks it; every layout's rows read at one revision and written in one batch; and
-what Workshop's settings file keeps for a layout by its name. One law per heading; cite by ID.
-Router: [`../workshop.md`](../workshop.md). A row's settings and the other settings doors are
+what a layout keeps for itself in its desk. One law per heading; cite by ID. Router:
+[`../workshop.md`](../workshop.md). A row's settings and the other settings doors are
 [`settings.md`](settings.md) (`WL-SETTING`).
+
+Retired: WL-LOCK-04.
 
 ## WL-LOCK-01 — A lock holds a setting in one layout or everywhere, and every write door refuses or passes over it
 
@@ -41,27 +43,29 @@ MEANS
 
 WHY — `agents/decisions/a-lock-holds-a-setting-in-a-layout-or-everywhere.md`
 
-## WL-LOCK-04 — The settings file keeps a layout's locks, pins and baseline under its name, and they follow a rename
+## WL-LOCK-05 — A layout's locks, pins and baseline are its desk's, and a replaced desk keeps its locks
 
-LAW — Workshop's settings file keeps a layout's locks and pin lists under `<office>/<pane>@<layout>` and its baseline under `@<layout>`; a rename carries them, and a removal takes them.
+LAW — A layout keeps its locks, its pin lists and its baseline in its desk; `r` and `SetupApplyRequested` never take a lock away, and are refused whole when they would change a locked value, naming each.
 
 MEANS
-- a layout's name is judged as a layout is named, spaces and all; a layout's lock holds no value; a baseline keeps a theme's name and its fingerprint alone;
-- a name another layout still holds keeps what is kept under it.
+- a rename keeps them, a copy takes its own, a removal takes them away; a layout's lock holds no value, and a baseline keeps a theme's name and its fingerprint alone;
+- a replacing desk keeps every lock the live one holds, a lock it brings joining them; a row it drops that a lock in this layout holds is a change.
 
 DOES NOT MEAN
-- that two layouts sharing a name keep apart: what is kept under a name is both of theirs.
+- that a lock is taken away by a replacement that leaves its value: the lock stays, and its value with it.
 
 WHY — `agents/decisions/a-lock-holds-a-setting-in-a-layout-or-everywhere.md`
 
 ## Proven by
 
 ### WL-LOCK-01
-`workshop/settings_seam_vocabulary.hpp` PaneSettingLockRequested PaneSettingLockActed SettingLock
+`workshop/settings_seam_vocabulary.hpp` PaneSettingLockRequested PaneSettingLockAnswered SettingLock
 kLockScopeLayout kLockScopeEverywhere
-`workshop/weave_settings.cpp` locks_on pin_everywhere_locks on(PaneSettingLockRequested)
 `workshop/prefs_persist.hpp` put_lock drop_lock layout_target
-`workshop/screen.hpp` locked_setting_refusal kLockedInLayout SettingsSubject::locked_here
+`workshop/layouts/owner.cpp` on(PaneSettingLockRequested)
+`workshop/layouts/store.cpp` locks_on pin_everywhere_locks lock
+`workshop/setup.hpp` SetupLock
+`workshop/setup_persist.hpp` WorkshopSetupLock
 `tests/test_workshop_panes_settings.cpp` "a lock in one layout freezes its row there: both commit
 doors refuse it, every reading says it, and another layout still writes it" "an everywhere lock pins
 the value its layout holds into every layout that seats the pane, and a pane seated later wears it"
@@ -70,7 +74,9 @@ its layout, no such layout, a key nothing takes, a pane its layout does not seat
 setting is locked everywhere alone, and its lock freezes the office's commit"
 
 ### WL-LOCK-02
-`workshop/weave_settings.cpp` weavers_act on(PaneSettingLockRequested)
+`workshop/weave_settings.cpp` weavers_act on(WeaversActRequested)
+`workshop/layouts/owner.cpp` on(WeaversActAnswered) on(PaneSettingLockRequested)
+`workshop/layouts/store.cpp` lock
 `tests/test_workshop_panes_settings.cpp` "only the weaver unlocks: a pane on the weaver's current
 act does, and an office's ask, a forged number and a stale act are refused"
 `tests/test_workshop_panes_guests.cpp` "a guest whose row has `settings` locks a setting, reads every
@@ -79,22 +85,23 @@ layout and writes a batch, and never unlocks; without it Loom's grant refuses al
 unlocks it, and reads every layout"
 
 ### WL-LOCK-03
-`workshop/settings_seam_vocabulary.hpp` LayoutSettingsRequested LayoutSettingsShown LayoutSettings
+`workshop/settings_seam_vocabulary.hpp` LayoutSettingsRequested LayoutSettingsAnswered LayoutSettings
 LayoutPaneSettings DeclaredSettings LayoutTheme SettingsWriteRequested SettingWrite LayoutThemeWrite
-SettingsWritten SettingWriteResult
-`workshop/weave_settings.cpp` layout_settings_reading layout_settings_revision
-on(LayoutSettingsRequested) on(SettingsWriteRequested)
+SettingsWriteAnswered SettingWriteResult
+`workshop/layouts/owner.cpp` on(LayoutSettingsRequested) on(SettingsWriteRequested)
+`workshop/layouts/store.cpp` layout_settings_reading layout_settings_revision read_layouts write
+`workshop/setup.hpp` layout_theme_name_problem
 `tests/test_workshop_panes_settings.cpp` "every layout is read at once: each row with its locks, what
 each pane and office takes, the everywhere locks, the live one and one revision" "a batch is judged
 whole at its revision: a stale one, a value not taken, a layout not held or a bad baseline writes
 nothing" "a batch writes what it can across layouts, says each write's outcome, keeps baselines, and
 hands the live rows and offices it moved"
 
-### WL-LOCK-04
-`workshop/prefs_persist.hpp` layout_target_problem layout_theme_name_problem layout_theme_of
-set_layout_theme move_layout_entries kept_problem kMaxLayoutThemes
-`workshop/weave_settings.cpp` move_layout_prefs
-`workshop/weave_session.cpp` commit_layout_rename drop_layout
-`tests/test_workshop_panes_settings.cpp` "the settings file keeps a layout's locks, pins and baseline
-under its name, spaces and all, and judges each" "what the settings file keeps for a layout follows
-the layout's rename, and goes when the layout is removed"
+### WL-LOCK-05
+`workshop/setup.hpp` SetupLock SetupPins Setup::locks Setup::pins Setup::theme
+`workshop/layouts/store.cpp` replacement_refused kept_locks
+`tests/test_workshop_panes_settings.cpp` "what a layout keeps for itself is its desk's: a rename keeps
+it, a copy takes its own, a removal takes it away" "a layout is named by its id: a lock by id lands
+on it after it moved, and two layouts of one name keep their own"
+`tests/test_workshop_demo.cpp` "a desk put live keeps every lock: `r` and an agent's desk are
+refused whole naming each locked value they would change, and a lock the desk brings joins"

@@ -127,7 +127,8 @@ LAW — A toggle names a pane by its keys; the host judges it against the desk w
 
 MEANS
 - the shipped desktop's `desktop.panes` (`Ctrl+p`) is this toggle on its own Pane Manager;
-- two toggles queued before any reading reaches the presenter end where they began.
+- two toggles queued before any reading reaches the presenter end where they began;
+- one arriving while an edit is with the layouts' owner waits for its answer, and is judged then.
 
 DOES NOT MEAN
 - that a launch toggles: the terminal and hotkeys rows still show or focus (WL-DESK-03).
@@ -259,8 +260,8 @@ unloads nothing: a launch finds its unsaved source exactly as it was"
 
 ### WL-DESK-13
 `workshop/desktop_seam_vocabulary.hpp` PaneToggleRequested PaneToggleAnswered
-`workshop/weave.hpp` on(PaneToggleRequested)
-`workshop/weave_desktop.cpp` on(PaneToggleRequested) launch_pane close_pane
+`workshop/weave.hpp` on(PaneToggleRequested) judge_toggle WorkshopWeave::settle_waiters_
+`workshop/weave_desktop.cpp` on(PaneToggleRequested) judge_toggle launch_pane close_pane
 `workshop/desktop-pane/vocabulary.hpp` kActionPanes
 `tests/test_workshop_panes_desktop.cpp` "WL-DESK-13: Ctrl+P is a strict visibility toggle judged by
 the host -- open becomes closed, closed becomes open and focused, whatever the desktop last heard"

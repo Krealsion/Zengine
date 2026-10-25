@@ -167,7 +167,7 @@ and no auto-fit. Detail in [pane geometry](panes.md#pane-geometry). The
 <!-- value kStackRows -->9<!-- /value --> rows and the <!-- value kCoarseStepCells -->4<!-- /value -->-cell
 step are Workshop's settings
 `workshop.stack-rows` and `workshop.arrange-step`, one value for every layout
-([Workshop's own settings](zengine.workshop.md#officesettingsrequested)).
+([Workshop's own settings](zengine.layouts.md#officesettingsrequested)).
 
 The outermost part of that rectangle is the pane's visible edge. On a terminal that is one
 cell on each side, so the default pane shows 46 columns by 7 rows; in a window it is one

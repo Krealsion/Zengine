@@ -177,7 +177,7 @@ WHY — `agents/decisions/escape-is-back.md`
 ### WL-ARR-01
 `workshop/screen.hpp` PaneGesture Session::pane_drag kPaneEdgeBandPx
 `workshop/screen_arrange.cpp` pane_edge_at
-`workshop/weave_arrange.cpp` take_pane_hold arrange_motion
+`workshop/weave_arrange.cpp` take_pane_hold arrange_motion commit_drag
 `workshop/weave_pointer.cpp` pointer_moved
 `tests/test_workshop_panes_window.cpp` "one press claims one gesture, and crossing anything does not
 move it" "outside arrangement, an addressed pane behind another clicks through nothing" "unchanged
@@ -211,7 +211,7 @@ places while it holds is the window's to judge"
 `workshop/screen_gestures.cpp` pane_window_proposal
 `workshop/screen.hpp` pane_edge::kBottomRight PaneWindowProposal
 `workshop/setup.hpp` author_pane_window
-`workshop/weave_arrange.cpp` arrange_resize arrange_window
+`workshop/weave_arrange.cpp` arrange_resize arrange_window write_window
 `tests/test_workshop_screen.cpp` "every edge resizes pixel-fine and preserves its opposite anchor"
 "the reported top-edge defect is dead -- the bottom edge holds still" "a right or bottom resize
 leaves a default place reactive"
@@ -220,7 +220,7 @@ leaves a default place reactive"
 `workshop/setup.hpp` author_pane_window check_pane_place_coord PaneAxisProposal
 `workshop/screen_gestures.cpp` pane_window_proposal
 `workshop/screen.hpp` PaneWindowProposal
-`workshop/weave_arrange.cpp` arrange_place arrange_resize arrange_window
+`workshop/weave_arrange.cpp` arrange_place arrange_resize arrange_window write_window
 `tests/test_workshop_screen.cpp` "a refused anchored resize writes neither the place nor the size"
 "a move blocked at the left wall still follows the hand down" "a move past two walls at once writes
 nothing" "a refused nudge does not author a reactive place" "a corner resize blocked on one axis

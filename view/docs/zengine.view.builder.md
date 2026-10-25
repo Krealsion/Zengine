@@ -58,7 +58,7 @@ and [`view.export`](#viewexport) it as an app. Each command but
 command does nothing.
 
 Each layout keeps three settings for the pane, set in Info or by message
-([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)):
+([`PaneSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#panesettingcommitrequested)):
 `snap-reach`, pinned, in pixels, and `new-width` and `new-height`, the size [`view.new`](#viewnew)
 makes a view at. A value one cannot use keeps its default and is said to Workshop.
 
