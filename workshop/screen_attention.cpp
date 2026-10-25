@@ -24,19 +24,13 @@ std::vector<Condition> attention_conditions(const Session& s,
     std::vector<Condition> out = s.conditions.rows;
     const Screen sc = screen_of(s);
 
-    // DERIVED: a setting a pane was handed and said it cannot use. The pane holds the word against
-    // the revision it was handed, so the condition goes when a newer revision is handed.
-    for (const ExternalPane& pane : s.panes.external) {
-        const RuntimePane* named = s.panes.runtime.of_kind(pane.kind);
-        if (named == nullptr) {
-            continue;
-        }
-        const PaneRef ref{named->provider, named->pane};
-        for (const ExternalPane::UnusedSetting& u : pane.settings_unused) {
-            out.push_back(Condition{pane_setting_unused_key(ref, u.key),
-                                    "`" + ref_text(ref) + "` cannot use its setting " + u.key,
-                                    u.why, graphics::role::kAccent, std::string()});
-        }
+    // DERIVED: a setting a pane was handed and said it cannot use, as the layouts' owner keeps the
+    // word against the revision it was handed: the condition goes when a newer revision is handed.
+    for (const RowSettingUnused& u : s.setup.unused) {
+        const PaneRef ref{u.provider, u.pane};
+        out.push_back(Condition{pane_setting_unused_key(ref, u.key),
+                                "`" + ref_text(ref) + "` cannot use its setting " + u.key, u.why,
+                                graphics::role::kAccent, std::string()});
     }
 
     // DERIVED: a pane the weaver authored, that this build can resolve, and of which no cell

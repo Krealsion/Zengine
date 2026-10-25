@@ -11,6 +11,8 @@
 #include "office_manual.hpp"
 #include "workshop_support.hpp"
 
+#include <algorithm>
+
 #include "workshop/host_pump.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
@@ -145,6 +147,7 @@ class CanvasEditor
 public:
     std::vector<gfx::AreaRoom> rooms;
     std::vector<std::string> heard; ///< "settings" or "room", in the order they came
+    std::vector<std::string> handed_by; ///< the office each hand-off was authored as
     std::vector<WindowPointer> pointers;
     std::string row = "no document";
     bool hold_prepare = false;
@@ -174,7 +177,10 @@ public:
             pointers.push_back(*p);
         }
     }
-    void on(const PaneSettings&, loom::Mail&) { heard.push_back("settings"); }
+    void on(const PaneSettings&, loom::Mail& mail) {
+        heard.push_back("settings");
+        handed_by.push_back(std::string(mail.authored_role()));
+    }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(CanvasEditor&, loom::Mail&)> once;
@@ -1139,20 +1145,21 @@ TEST_CASE("a canvas room that moves while the document is prepared refuses its a
     CHECK(o.editor->state().applied == applied);
 }
 
-TEST_CASE("a managed opening hands its pane's settings before the room it seats it in") {
+TEST_CASE("a pane a managed opening seats is handed its row by the layouts' owner") {
     // THE EDITOR TAKES ITS SETTINGS, and is off the desk when the open is asked: the opening seats
-    // it, the showing's repaint hands its settings, and the rooms it is seated in follow.
+    // it, the seat is asked of the layouts' owner, and the owner hands it its row.
     PictureOpen o("open-settings-first");
     REQUIRE(hand_close(o.r, PaneRef{kEditorRole, "editor"}).closed);
     o.editor->heard.clear();
+    o.editor->handed_by.clear();
     o.ask_b();
     REQUIRE(o.asker->opens.size() == 1);
     REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
-    REQUIRE_FALSE(o.editor->heard.empty());
-    CHECK(o.editor->heard.front() == "settings");
+    CHECK(std::count(o.editor->heard.begin(), o.editor->heard.end(), "settings") == 1);
+    CHECK(o.editor->handed_by == std::vector<std::string>{kLayoutsRole});
 }
 
-TEST_CASE("a managed opening's owed rooms follow its pane's settings when the next delivery repaints nothing") {
+TEST_CASE("a managed opening's owed rooms go out when the next delivery repaints nothing, and its row is handed") {
     // A MESSAGE WORKSHOP TAKES AND ANSWERS WITH NOTHING, queued right behind its admission answer:
     // the delivery after the showing is that one, so the rooms it owes go out before any repaint.
     PictureOpen o("open-owed-rooms");
@@ -1173,8 +1180,8 @@ TEST_CASE("a managed opening's owed rooms follow its pane's settings when the ne
     REQUIRE(queued);
     REQUIRE(o.asker->opens.size() == 1);
     REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
-    REQUIRE_FALSE(o.editor->heard.empty());
-    CHECK(o.editor->heard.front() == "settings");
+    CHECK(std::count(o.editor->heard.begin(), o.editor->heard.end(), "room") >= 1);
+    CHECK(std::count(o.editor->heard.begin(), o.editor->heard.end(), "settings") == 1);
 }
 
 TEST_CASE("a layout renamed while an opening prepares keeps its name through the publication") {
@@ -1221,7 +1228,7 @@ TEST_CASE("a setting written while an opening prepares survives its publication"
     o.serve();
     REQUIRE(o.asker->opens.size() == 1);
     REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
-    const SetupPane* row = pane_of(o.r.session().setup.active, dial);
+    const SetupPane* row = pane_of(o.r.run().active, dial);
     REQUIRE(row != nullptr);
     CHECK(row->settings == std::vector<PaneSetting>{PaneSetting{"legend", false, {}, {}}});
     CHECK(seat->handed.back().settings == row->settings);

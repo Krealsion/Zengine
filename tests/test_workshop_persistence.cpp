@@ -1959,7 +1959,7 @@ void arrange_and_close(const std::string& session_path, const std::string& setup
     t.ready();
     t.extent_px(cells_px(width), cells_px(height));
     t.key(input::scan::kR);
-    REQUIRE(t.session().setup.active == desk);
+    REQUIRE(t.run().active == desk);
     REQUIRE(t.session().screen_w == cells_px(width));
     REQUIRE(t.session().screen_h == cells_px(height));
     t.key(input::scan::kQ);
@@ -6724,9 +6724,9 @@ TEST_CASE("a layout's settings come back with its desk after a restart") {
     Live back;
     back.host.session_path = session;
     back.ready();
-    CHECK(back.session().setup.active == desk);
-    REQUIRE(pane_of(back.session().setup.active, ref_of(stock::kKind)) != nullptr);
-    CHECK(pane_of(back.session().setup.active, ref_of(stock::kKind))->settings ==
+    CHECK(back.run().active == desk);
+    REQUIRE(pane_of(back.run().active, ref_of(stock::kKind)) != nullptr);
+    CHECK(pane_of(back.run().active, ref_of(stock::kKind))->settings ==
           pane_of(desk, ref_of(stock::kKind))->settings);
 }
 

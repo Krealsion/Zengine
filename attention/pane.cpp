@@ -99,12 +99,13 @@ std::string stamp_of(const StandingCondition& c) {
 using Drawing = ws::PaneDrawingFacet<pane::kAttentionPane, pane::kAttentionPaneRole,
                                      zengine::manual::pages::zengine_attention::kManual>;
 using Actions = ws::PaneActionFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
+/// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+using Settings = ws::PaneSettingsFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
 
 class AttentionPaneWeave
-    : public zengine::With<Drawing, Actions>::Weave<
-          AttentionPaneWeave, pane::AttentionPaneState,
-          loom::Accept<StandingConditions, ws::v2::PaneSettings>,
-          loom::Emit<ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>> {
+    : public zengine::With<Drawing, Actions, Settings>::Weave<
+          AttentionPaneWeave, pane::AttentionPaneState, loom::Accept<StandingConditions>,
+          loom::Emit<ws::v2::PaneSettingsDeclared>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{pane::kAttentionPane, pane::kAttentionPaneName,
@@ -207,23 +208,17 @@ public:
         say(mail);
     }
 
-    /// THE SETTING THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
-    /// against the revision it was handed at. Held as a plain member, never reload state.
-    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kAttentionPane) {
-            return;
-        }
-        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
-        ws::say_settings_unused(mail, pane::kAttentionPaneRole, taken);
+    /// THE SETTING THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed it and its facet
+    /// took it whole. Held as a plain member, never reload state.
+    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
         const bool was = detail_shown_;
         detail_shown_ = taken.flag(pane::kSettingDetail);
         if (detail_shown_ != was) {
-            say(mail); // draws nothing until a room is granted, so the first picture has it
+            say(mail);
         }
     }
-
-private:
-    // ---- Offering and declaring ---------------------------------------------------------
+    /// ...THE FIRST THE LIFE HOLDS: the room it drew nothing in, drawn now.
+    void on_settings_held(loom::Mail& mail) { say(mail); }
 
     /// THE SETTING THE PANE TAKES, with its default, how a weaver finds it and what it does.
     static std::vector<ws::v2::PaneSettingRow> setting_rows() {
@@ -235,6 +230,9 @@ private:
         detail.summary = "show the selected item detail block";
         return {detail};
     }
+
+private:
+    // ---- Offering and declaring ---------------------------------------------------------
 
     /// What this pane answers to: three rows in every state, `attention.up`, `attention.down` and
     /// `attention.dismiss` (Up, Down, `d`), the ids a weaver's keymap names. No modes, so one
@@ -311,8 +309,12 @@ private:
     Drawing& room() { return this->template facet<Drawing>(); }
     const Drawing& room() const { return this->template facet<Drawing>(); }
 
-    /// The picture shown, wherever the pane stands.
-    void say(loom::Mail& mail) { room().show(*this, mail); }
+    /// The picture shown, wherever the pane stands, once the pane holds its row.
+    void say(loom::Mail& mail) {
+        if (this->template facet<Settings>().held()) {
+            room().show(*this, mail);
+        }
+    }
 
 public:
     /// WHAT THE PANE SHOWS, one row a line of the room's text high: the notice, the glance, and the

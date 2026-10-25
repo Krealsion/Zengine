@@ -34,7 +34,6 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     }
     refresh_setup_name(); // a name editor's window is only true against the room it has now
     note_manuals();       // ...and which panes wear a `?`, against the holders there are now
-    hand_settings(mail);  // ...and each pane's settings, before its area is placed
     // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
     // pure projection of what it is handed, and what it is handed is this repaint's
     // reading of the living realization owner — never a member, never a field of the

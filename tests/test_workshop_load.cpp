@@ -39,6 +39,7 @@
 #include "graphics/vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
+#include "layouts_stand_in.hpp"
 
 #include <zen/admission.hpp>
 #include <zen/kernel/control.hpp>
@@ -6473,6 +6474,8 @@ struct EditorReloadRig {
                          workshop::PresentationAdmitted::zen_version);
         host_id = rig.bus.register_weave(std::move(seat), std::move(say),
                                          std::string(HostSeat::kOffice));
+        // ...AND THE LAYOUTS' OFFICE BESIDE IT, so the Editor holds a row and draws.
+        (void)zengine::testing::mount_layouts_stand_in(rig.bus);
         host->zen_set_self(host_id);
         auto reader = std::make_unique<LoadPokeSeat>();
         poker = reader.get();

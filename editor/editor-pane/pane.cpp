@@ -67,9 +67,12 @@ namespace input = zengine::input;
 
 // =============================================================================
 
+/// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+using Settings = ws::PaneSettingsFacet<pane::kEditorPane, pane::kEditorPaneRole>;
+
 class EditorPaneWeave
     : public zengine::With<ws::PaneManualFacet<
-          pane::kEditorPane, zengine::manual::pages::zengine_editor::kManual>>::Weave<
+          pane::kEditorPane, zengine::manual::pages::zengine_editor::kManual>, Settings>::Weave<
           EditorPaneWeave, pane::EditorPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneKey, PaneTextInput,
                        PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
@@ -82,7 +85,7 @@ class EditorPaneWeave
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
                        graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
-                       graphics::AreaWheelTurned, graphics::AreaHoldEnded, ws::v2::PaneSettings>,
+                       graphics::AreaWheelTurned, graphics::AreaHoldEnded>,
           loom::Emit<PaneOffered, ws::v3::PaneActions,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                      PaneQuitAnswered, SourceOpened, ws::v3::SourcePrepared,
@@ -92,7 +95,7 @@ class EditorPaneWeave
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
                      ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, graphics::Drawn, graphics::RoomAsked,
-                     ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>,
+                     ws::v2::PaneSettingsDeclared>,
           loom::WeaveBase, loom::Claims<EditorDocument>> {
 public:
     using Base = Weave;
@@ -182,22 +185,53 @@ public:
         }
     }
 
-    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
-    /// against the revision it was handed at. The tab stop and the undo steps are the buffer's, so
-    /// every document this pane holds or prepares wears them (`wear`). Held as plain members, never
-    /// reload state: a reloaded image is handed them again before its room.
-    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kEditorPane) {
-            return;
-        }
-        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
-        ws::say_settings_unused(mail, pane::kEditorPaneRole, taken);
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed them and its
+    /// facet took them whole. The tab stop and the undo steps are the buffer's, so every document
+    /// this pane holds or prepares wears them (`wear`). Held as plain members, never reload state:
+    /// a reloaded image asks for them again, and draws no room before it holds them.
+    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
         tab_width_ = taken.number(pane::kSettingTabWidth);
         status_shown_ = taken.flag(pane::kSettingStatus);
         wheel_lines_ = taken.number(pane::kSettingWheelLines);
         undo_depth_ = static_cast<std::size_t>(taken.number(pane::kSettingUndoDepth));
-        say(mail); // draws nothing until a room is granted, so the first picture has them
+        say(mail);
     }
+
+    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
+    /// the tab stop and the status row, pinned; the wheel's lines a notch; the undo steps kept,
+    /// which the byte budget bounds whatever it says.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow tab;
+        tab.key = pane::kSettingTabWidth;
+        tab.number = ws::kEditorTabStop;
+        tab.low = ws::kEditorTabStopLow;
+        tab.high = ws::kEditorTabStopHigh;
+        tab.tags = {"editing", "text"};
+        tab.pinned = true;
+        tab.summary = "columns between tab stops";
+        ws::v2::PaneSettingRow status;
+        status.key = pane::kSettingStatus;
+        status.flag = true;
+        status.tags = {"chrome"};
+        status.pinned = true;
+        status.summary = "show the status row";
+        ws::v2::PaneSettingRow wheel;
+        wheel.key = pane::kSettingWheelLines;
+        wheel.number = ws::kEditorWheelLines;
+        wheel.low = ws::kEditorWheelLinesLow;
+        wheel.high = ws::kEditorWheelLinesHigh;
+        wheel.tags = {"input", "scroll"};
+        wheel.summary = "lines scrolled per wheel notch";
+        ws::v2::PaneSettingRow undo;
+        undo.key = pane::kSettingUndoDepth;
+        undo.number = static_cast<std::int64_t>(ws::kEditorUndoDepth);
+        undo.low = static_cast<std::int64_t>(ws::kEditorUndoDepthLow);
+        undo.high = static_cast<std::int64_t>(ws::kEditorUndoDepth);
+        undo.tags = {"editing", "limits"};
+        undo.summary = "maximum undo steps kept";
+        return {tab, status, wheel, undo};
+    }
+
 
     /// WHERE THIS RUN BEGAN, asked of `zengine.project` -- the one host fact a relative
     /// spelling needs, and the door Files asks for the same reason (WL-FILES-02).
@@ -498,41 +532,6 @@ private:
         (void)mail.as_role(pane::kEditorPaneRole)
             .send_to_role(ws::kLayoutsRole,
                           ws::v2::PaneSettingsDeclared{pane::kEditorPane, setting_rows()});
-    }
-
-    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
-    /// the tab stop and the status row, pinned; the wheel's lines a notch; the undo steps kept,
-    /// which the byte budget bounds whatever it says.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow tab;
-        tab.key = pane::kSettingTabWidth;
-        tab.number = ws::kEditorTabStop;
-        tab.low = ws::kEditorTabStopLow;
-        tab.high = ws::kEditorTabStopHigh;
-        tab.tags = {"editing", "text"};
-        tab.pinned = true;
-        tab.summary = "columns between tab stops";
-        ws::v2::PaneSettingRow status;
-        status.key = pane::kSettingStatus;
-        status.flag = true;
-        status.tags = {"chrome"};
-        status.pinned = true;
-        status.summary = "show the status row";
-        ws::v2::PaneSettingRow wheel;
-        wheel.key = pane::kSettingWheelLines;
-        wheel.number = ws::kEditorWheelLines;
-        wheel.low = ws::kEditorWheelLinesLow;
-        wheel.high = ws::kEditorWheelLinesHigh;
-        wheel.tags = {"input", "scroll"};
-        wheel.summary = "lines scrolled per wheel notch";
-        ws::v2::PaneSettingRow undo;
-        undo.key = pane::kSettingUndoDepth;
-        undo.number = static_cast<std::int64_t>(ws::kEditorUndoDepth);
-        undo.low = static_cast<std::int64_t>(ws::kEditorUndoDepthLow);
-        undo.high = static_cast<std::int64_t>(ws::kEditorUndoDepth);
-        undo.tags = {"editing", "limits"};
-        undo.summary = "maximum undo steps kept";
-        return {tab, status, wheel, undo};
     }
 
     /// A DOCUMENT WEARS THE LAYOUT'S TAB STOP AND UNDO STEPS, live or prepared: a lower depth
@@ -938,7 +937,8 @@ private:
     // WL-EDIT-18 -- agents/workshop/editor-transfers.md
     void say(loom::Mail& mail) {
         wear(e_); // whichever document is live now wears the layout's settings, shown or not
-        if (!window_.in_window() || !activation_.activated()) {
+        if (!window_.in_window() || !activation_.activated() ||
+            !this->template facet<Settings>().held()) {
             return;
         }
         Composition c =

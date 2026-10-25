@@ -412,8 +412,6 @@ class WorkshopWeave
                                           zengine::workshop::v2::PaneActions,
                                           zengine::workshop::v3::PaneActions,
                                           zengine::workshop::v4::PaneActions,
-                                          // a value a pane cannot use, of the row it was handed
-                                          zengine::workshop::PaneSettingUnused,
                                           // the layouts' owner: the live layout, what an edit,
                                           // Workshop's own settings and the save came to, and its
                                           // one question of the judge
@@ -502,8 +500,6 @@ class WorkshopWeave
                                         zengine::graphics::SurfacePlacementRemembered,
                                         zengine::graphics::WindowShaped,
                                         zengine::workshop::PaneCatalogRequested,
-                                        zengine::workshop::PaneSettings,
-                                        zengine::workshop::v2::PaneSettings,
                                         zengine::workshop::LayoutEditRequested,
                                         zengine::workshop::OfficeSettingsDeclared,
                                         zengine::workshop::OfficeSettingCommitRequested,
@@ -904,13 +900,6 @@ public:
     // WL-KEY-08 -- agents/workshop/keyboard.md
     std::string unsaid_gaps(std::int64_t kind);
 
-    /// A PANE'S WORD THAT IT CANNOT USE A SETTING IT WAS HANDED, kept against that revision.
-    void on(const PaneSettingUnused& unused, loom::Mail& mail);
-
-    /// THE REVISION THE LIVE LAYOUT'S ROW FOR `ref` STANDS AT, as the store last minted it for
-    /// the live layout this desk presents; 0 when it has no such row.
-    std::int64_t settings_revision(const PaneRef& ref) const;
-
     // ---- Workshop's own settings, kept by the layouts' owner (WL-SETTING) ---------------------
 
     /// WORKSHOP'S OWN OFFICE-WIDE SETTINGS DECLARED, as any office declares its own: once, to the
@@ -1100,9 +1089,6 @@ public:
     /// nothing written. The name is judged first; an accepted write reseats the desk.
     void on(const PaneCommitRequested& asked, loom::Mail& mail);
 
-    /// HOW FAR A SETTINGS WRITE GOT PAST THE STORE: handed to the pane's holder, or why not.
-    std::string settings_handed(const PaneRef& ref) const;
-
     /// NAME WHAT THE SUBJECT'S ROWS ADDRESS AFRESH, AND REBUILD THEM, when the live desk or the
     /// settings the rows were built from moved since they were named -- asked before every reading
     /// and every judgement, so a commit is never judged against a name the facts have left.
@@ -1257,9 +1243,6 @@ private:
     std::int64_t routed_ = 0;
     std::uint64_t shown_by_ = 0;
     bool repaint_owed_ = false;
-    /// ...and the settings the publication owes the pane it seated, said at the end of the
-    /// delivery before its area is placed.
-    bool settings_owed_ = false;
     /// THE MANAGED OPENING'S SEAT, painted when its presentation was published and owed to the
     /// layouts' store until this desk next speaks.
     std::optional<PaneRef> seat_owed_;
@@ -1514,11 +1497,7 @@ private:
     void say(std::string text, bool bad);
 
 
-    // ---- THE EXTERNAL PANE'S SETTINGS AND KEYS ------------------------------------------------
-
-    /// HAND EACH SEATED PANE WHOSE HOLDER TAKES THEM ITS ROW'S SETTINGS, when they differ from what
-    /// that holder last heard.
-    void hand_settings(loom::Mail& mail);
+    // ---- THE EXTERNAL PANE'S KEYS -------------------------------------------------------------
 
     /// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind`.
     std::int64_t keyboard_pane() const;

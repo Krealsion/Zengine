@@ -978,20 +978,17 @@ private:
             }
         }
         std::vector<workshop::ShownProperty> rows;
-        for (std::size_t i = 0; i < host_.properties.size(); ++i) {
-            if (i == insert && !settings_rows_.empty()) {
-                rows.push_back(workshop::ShownProperty{"SETTINGS", std::string(), false, true});
+        // HOW FAR THE ROW'S HAND-OFF GOT, AS ITS OWNER SAYS IT, and then its SETTINGS: both before
+        // the interior, the fact while the live layout seats the pane.
+        const auto put_settings = [&] {
+            if (settings_ && settings_->revision != 0 && !settings_->said.empty()) {
+                rows.push_back(
+                    workshop::ShownProperty{"Settings", settings_->said, false, false});
                 origin_.push_back(kSection);
-                for (std::size_t k = 0; k < settings_rows_.size(); ++k) {
-                    rows.push_back(workshop::ShownProperty{settings_rows_[k].key,
-                                                           settings_rows_[k].value, true, false});
-                    origin_.push_back(-1 - static_cast<std::int64_t>(k));
-                }
             }
-            rows.push_back(host_.properties[i]);
-            origin_.push_back(static_cast<std::int64_t>(i));
-        }
-        if (insert == host_.properties.size() && !settings_rows_.empty()) {
+            if (settings_rows_.empty()) {
+                return;
+            }
             rows.push_back(workshop::ShownProperty{"SETTINGS", std::string(), false, true});
             origin_.push_back(kSection);
             for (std::size_t k = 0; k < settings_rows_.size(); ++k) {
@@ -999,6 +996,16 @@ private:
                                                        settings_rows_[k].value, true, false});
                 origin_.push_back(-1 - static_cast<std::int64_t>(k));
             }
+        };
+        for (std::size_t i = 0; i < host_.properties.size(); ++i) {
+            if (i == insert) {
+                put_settings();
+            }
+            rows.push_back(host_.properties[i]);
+            origin_.push_back(static_cast<std::int64_t>(i));
+        }
+        if (insert == host_.properties.size()) {
+            put_settings();
         }
         known_.properties = std::move(rows);
     }

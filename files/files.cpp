@@ -206,18 +206,19 @@ using Rows = ws::PaneRowsFacet<files::kProjectFilesPane, files::kFilesRole,
 using Asks = ws::AskFacet<files::kProjectFilesPane, files::kFilesRole, FilesAsk>;
 using Actions = ws::PaneActionFacet<files::kProjectFilesPane, files::kFilesRole>;
 using Menu = ws::PaneMenuFacet<files::kProjectFilesPane, files::kFilesRole>;
+/// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+using Settings = ws::PaneSettingsFacet<files::kProjectFilesPane, files::kFilesRole>;
 
 class FilesWeave
-    : public zengine::With<Rows, Asks, Actions, Menu>::Weave<
+    : public zengine::With<Rows, Asks, Actions, Menu, Settings>::Weave<
           FilesWeave, files::FilesState,
           loom::Accept<PaneKey, PaneTextInput, ProjectRoot, RecipeOutcome, SourceOpened,
                        zengine::builder::BuildStatus, zengine::launcher::Launched, gfx::ClipboardCopy,
-                       gfx::ClipboardText, ws::v2::PaneSettings>,
+                       gfx::ClipboardText>,
           loom::Emit<ProjectRootRequested, RecipeUseRequested, RecipeAuthorRequested,
                      OpenSourceRequested, zengine::builder::StatusRequested, zengine::launcher::Launch,
                      ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
-                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
-                     ws::PaneSettingUnused>> {
+                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{files::kProjectFilesPane, files::kProjectFilesName,
@@ -232,24 +233,42 @@ public:
                           ws::v2::PaneSettingsDeclared{files::kProjectFilesPane, setting_rows()});
     }
 
-    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
-    /// against the revision it was handed at. A listing held to fewer or more entries is walked
-    /// again, keeping the row the weaver was on. Held as plain members, never reload state.
-    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != files::kProjectFilesPane) {
-            return;
-        }
-        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
-        ws::say_settings_unused(mail, files::kFilesRole, taken);
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed them and its
+    /// facet took them whole. A listing held to fewer or more entries is walked again, keeping the
+    /// row the weaver was on. Held as plain members, never reload state.
+    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
         wheel_rows_ = taken.number(files::kSettingWheelRows);
         const auto listed = static_cast<std::size_t>(taken.number(files::kSettingListedEntries));
         if (listed != listed_entries_) {
             listed_entries_ = listed;
             if (settled_) {
                 relist();
-                say(mail); // draws nothing until a room is granted, so the first picture has it
+                say(mail);
             }
         }
+    }
+    /// ...THE FIRST THE LIFE HOLDS: the room it drew nothing in, drawn now.
+    void on_settings_held(loom::Mail& mail) { say(mail); }
+
+    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
+    /// the wheel's rows a notch, pinned, and the entries one listing holds.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow wheel;
+        wheel.key = files::kSettingWheelRows;
+        wheel.number = kFilesWheelRows;
+        wheel.low = kFilesWheelRowsLow;
+        wheel.high = kFilesWheelRowsHigh;
+        wheel.tags = {"input", "scroll"};
+        wheel.pinned = true;
+        wheel.summary = "rows scrolled per wheel notch";
+        ws::v2::PaneSettingRow listed;
+        listed.key = files::kSettingListedEntries;
+        listed.number = static_cast<std::int64_t>(ws::kMaxListedEntries);
+        listed.low = static_cast<std::int64_t>(ws::kFewestListedEntries);
+        listed.high = static_cast<std::int64_t>(ws::kMaxListedEntries);
+        listed.tags = {"limits"};
+        listed.summary = "the most entries one directory listing holds";
+        return {wheel, listed};
     }
 
     /// The window gives the pane's area its room, the one beat on which this tool draws. The listing is re-enumerated on it
@@ -969,27 +988,6 @@ public:
 private:
     // ---- Announcing ---------------------------------------------------------------------
 
-    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
-    /// the wheel's rows a notch, pinned, and the entries one listing holds.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow wheel;
-        wheel.key = files::kSettingWheelRows;
-        wheel.number = kFilesWheelRows;
-        wheel.low = kFilesWheelRowsLow;
-        wheel.high = kFilesWheelRowsHigh;
-        wheel.tags = {"input", "scroll"};
-        wheel.pinned = true;
-        wheel.summary = "rows scrolled per wheel notch";
-        ws::v2::PaneSettingRow listed;
-        listed.key = files::kSettingListedEntries;
-        listed.number = static_cast<std::int64_t>(ws::kMaxListedEntries);
-        listed.low = static_cast<std::int64_t>(ws::kFewestListedEntries);
-        listed.high = static_cast<std::int64_t>(ws::kMaxListedEntries);
-        listed.tags = {"limits"};
-        listed.summary = "the most entries one directory listing holds";
-        return {wheel, listed};
-    }
-
     /// What this pane answers to right now, re-declared whenever the mode changes. A mode is a
     /// declaration, not a keyboard context of Workshop's: a pane's rows join one map under its
     /// runtime handle and the collision law refuses a second row on a taken gesture, so the pane
@@ -1481,7 +1479,8 @@ private:
     /// `say` would be one no weaver ever reads.
     void say(loom::Mail& mail) {
         room().begin();
-        if (!room().granted() || rows() <= 0 || columns() <= 0) {
+        if (!room().granted() || rows() <= 0 || columns() <= 0 ||
+            !this->template facet<Settings>().held()) {
             room().hold(); // nothing is published, so no row can name anything
             return;
         }

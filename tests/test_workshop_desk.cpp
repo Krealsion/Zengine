@@ -3405,15 +3405,24 @@ TEST_CASE("each graphics area wears its pane row's `workshop.skin`, else Worksho
     // THE PANE'S ROW, `classic`: its area and its frame alone move back, and the pane is handed
     // none of it.
     from = d.directory->chosen.size();
+    std::vector<v2::PaneSettings> rows_handed;
+    const loom::ObserverId tap = d.r.bus.add_observer([&rows_handed](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
+            ev.schema_name == v2::PaneSettings::zen_name && ev.authored_role == kLayoutsRole) {
+            rows_handed.push_back(loom::from_value<v2::PaneSettings>(*ev.payload));
+        }
+    });
     const PaneSettingCommitAnswered own = d.pane_skin("classic");
+    d.r.bus.remove_observer(tap);
     REQUIRE_MESSAGE(own.accepted, own.refusal);
-    CHECK(own.handed == "stored");
+    CHECK(own.handed == "stored and handed");
     CHECK(d.chosen_since(from, &said) == Skins{{pane, "classic"}, {frame, "classic"}});
     CHECK(said == 2);
-    const ExternalPane* held = d.r.session().panes.external_pane(d.kind);
-    REQUIRE(held != nullptr);
-    REQUIRE(held->settings_heard.has_value());
-    CHECK(find_pane_setting(*held->settings_heard, "workshop.skin") == nullptr);
+    // ...THE ROW'S NEW REVISION HANDED BY ITS OWNER, without Workshop's own word on it.
+    REQUIRE_FALSE(rows_handed.empty());
+    for (const v2::PaneSettings& h : rows_handed) {
+        CHECK(find_pane_setting(h.settings, "workshop.skin") == nullptr);
+    }
 
     // WORKSHOP'S OWN BACK TO `classic` moves Workshop's areas alone: the row already says it.
     from = d.directory->chosen.size();
