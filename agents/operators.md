@@ -468,7 +468,7 @@ identity                 <=>  zengine.migrate.<family>.v<from>-to-v<to>
 - **The OWNER keeps custody.** The seam takes an `Unverified` somebody else parsed under
   somebody else's size law and hands back a candidate. Which owner asks, for which target, at
   which moment, and what happens to the answer afterwards are all the owner's —
-  `workshop/session_persist.hpp` is the first one, and [workshop.md](workshop.md) has its law.
+  `workshop/layouts/session_persist.hpp` is the first one, and [workshop.md](workshop.md) has its law.
 
 ## Do not assume
 

@@ -51,7 +51,7 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-06 — Per-layout is the value's own fields and nothing else
 
-LAW — Participation, authored place, extent, front order, a pane's settings and the name are per-layout; everything else is one Workshop-global truth a switch does not copy, clear or revalidate.
+LAW — Participation, place, extent, front order, a pane's settings, the name, the locks, pins and baseline are per-layout; all else is one Workshop-global truth a switch does not copy, clear or revalidate.
 
 MEANS
 - the catalog, providers and their state (the Editor's document among them), the marks;
@@ -130,28 +130,32 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ### WL-LAYOUT-01
 `workshop/setup.hpp` Setup
-`workshop/layout_shelf.hpp` SetupState::active SetupState SetupState::active_link SetupState::shelved
-SetupState::active_at SetupState::naming Layout SetupLink
+`workshop/layouts/run.hpp` SetupState::active SetupState SetupState::active_link SetupState::shelved
+SetupState::active_at Layout SetupLink
 `workshop/screen.hpp` Session::setup
+`workshop/layouts/owner.cpp` send_live on(LayoutEditRequested)
+`workshop/live_desk.hpp` LiveDesk
+`workshop/weave_session.cpp` on(LiveLayout) install_live ask_layout on(LayoutEditAnswered)
 `tests/test_workshop_screen.cpp` "a layout is a Setup and the run is the shelf plus the live value"
 `tests/test_workshop_persistence.cpp` "the run and the lifted-active representation are one fact"
 
 ### WL-LAYOUT-02
-`workshop/layout_shelf.hpp` link_status SetupLink SetupLink::known
-`workshop/weave_session.cpp` link_note
+`workshop/layouts/run.hpp` link_status SetupLink SetupLink::known
+`workshop/layouts/store.cpp` link_note
+`workshop/setup.hpp` setup_link
 `tests/test_workshop_screen.cpp` "the three verdicts, and what makes a fresh desk `none`"
 `tests/test_workshop_persistence.cpp` "the standing verdict performs no filesystem read"
 
 ### WL-LAYOUT-03
 `workshop/setup.hpp` default_setup
-`workshop/layout_shelf.hpp` SetupState::active_at activate_layout add_layout remove_layout SetupState
+`workshop/layouts/run.hpp` SetupState::active_at activate_layout add_layout remove_layout SetupState
 `workshop/weave_session.cpp` new_layout drop_layout
 `tests/test_workshop_screen.cpp` "switching never reorders the run, and the live value never
 doubles" "new is BLANK and appended, and it is a value of its own" "removing takes the next
 neighbour, the previous only at the end"
 
 ### WL-LAYOUT-04
-`workshop/layout_shelf.hpp` duplicate_layout move_layout rename_layout layout_run install_layout_run
+`workshop/layouts/run.hpp` duplicate_layout move_layout rename_layout layout_run install_layout_run
 `workshop/weave_session.cpp` commit_layout_rename duplicate_layout shift_layout
 `tests/test_workshop_screen.cpp` "duplicate copies the desk exactly and always clears the
 association" "rename writes one layout's name and touches nothing else" "moving a layout changes
@@ -159,13 +163,14 @@ order and nothing else"
 
 ### WL-LAYOUT-05
 `workshop/weave_session.cpp` switch_layout apply_setup
-`workshop/layout_shelf.hpp` activate_layout
+`workshop/layouts/run.hpp` activate_layout
+`workshop/layouts/owner.cpp` on(SetupApplyRequested)
 `tests/test_workshop_host.cpp` "a switch returns membership, geometry and front order as authored"
 `tests/test_workshop_panes_window.cpp` "leaving a layout withdraws a presentation and unloads
 nothing"
 
 ### WL-LAYOUT-06
-`workshop/setup.hpp` Setup SetupPane::settings
+`workshop/setup.hpp` Setup SetupPane::settings check_layout_own
 `workshop/weave_session.cpp` switch_layout
 `tests/test_workshop_host.cpp` "a switch touches no Workshop-global fact" "a new layout is blank and
 duplicates no Workshop-global state"
@@ -175,7 +180,7 @@ once, and only when they differ"
 ### WL-LAYOUT-07
 `workshop/weave_session.cpp` apply_setup
 `workshop/panes.hpp` close_kind
-`workshop/layout_shelf.hpp` SetupState::shelved
+`workshop/layouts/run.hpp` SetupState::shelved
 `tests/test_workshop_panes_window.cpp` "a pane in two layouts is one pane, one provider, one room"
 "an inactive layout's rows are dormant, not maintained"
 `tests/test_workshop_panes_settings.cpp` "a layout switch hands a pane its new layout's settings
@@ -189,29 +194,29 @@ CURRENT data"
 
 ### WL-LAYOUT-09
 `workshop/weave_session.cpp` switch_layout save_setup restore_setup
-`workshop/session_persist.hpp` WorkshopLayout
+`workshop/layouts/session_persist.hpp` WorkshopLayout
 `tests/test_workshop_persistence.cpp` "`s` writes the live layout and leaves the shelf alone" "`r`
 restores into the live layout and clears no shelf" "the whole layout run rides the session, and
 comes back"
 
 ### WL-LAYOUT-10
 `workshop/keymap.hpp` layout.rename setup.name setup.restore
-`workshop/weave_session.cpp` open_layout_rename commit_layout_rename setup_artifact save_setup
-restore_setup
+`workshop/weave_session.cpp` open_layout_rename commit_layout_rename save_setup restore_setup
 `workshop/weave.hpp` HostContext::setup_path
-`workshop/layout_shelf.hpp` LayoutNaming rename_layout
+`workshop/layouts/run.hpp` rename_layout
+`workshop/live_desk.hpp` LayoutNaming
 `tests/test_workshop_host.cpp` "a double-click on a tab renames THAT layout, and writes no file"
 `tests/test_workshop_persistence.cpp` "`s` establishes the association only after a successful
 write" "`r` establishes on success and changes nothing on refusal"
 
 ### WL-LAYOUT-11
-`workshop/layout_shelf.hpp` adopt_known_setup SetupLink
+`workshop/layouts/run.hpp` adopt_known_setup SetupLink
 `workshop/weave_session.cpp` save_setup restore_setup
 `tests/test_workshop_persistence.cpp` "two layouts sharing one artifact cannot both claim `current`"
 `tests/test_workshop_screen.cpp` "switching carries the association, sharing keeps it honest"
 
 ### WL-LAYOUT-12
-`workshop/layout_shelf.hpp` SetupState::shelved SetupState::active_at layout_run install_layout_run
+`workshop/layouts/run.hpp` SetupState::shelved SetupState::active_at layout_run install_layout_run
 `tests/test_workshop_persistence.cpp` "the run and the lifted-active representation are one fact"
 "installing a run touches nothing else the session owns" "every position in the run is a position a
 session can be saved at"

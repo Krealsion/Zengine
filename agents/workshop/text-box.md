@@ -132,7 +132,7 @@ WHY — `agents/decisions/the-line-is-a-window.md`
 
 ### WL-TEXT-01
 `component/text_box.hpp` TextBox TextBox::first_visible TextBox::caret
-`workshop/layout_shelf.hpp` LayoutNaming
+`workshop/live_desk.hpp` LayoutNaming
 `tests/test_component.cpp` "component: a TextBox is a value with no identity and no policy"
 `tests/test_workshop_document.cpp` "the name editor selects with the same keys and says it in
 characters" "the real Composer's fields speak the vocabulary across the seam"

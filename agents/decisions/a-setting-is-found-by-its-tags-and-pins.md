@@ -9,7 +9,7 @@ way to the rest, without the host deciding what a tag means.
 
 **Decision.** Workshop keeps each pane's pin list, edited by message (`PaneSettingPinRequested`):
 Workshop-wide by default, or per layout, falling back to the declaration's own pins, kept in its
-settings file and never handed to the pane. A reading of a pane's row (`PaneSettingsShown`) says the
+settings file and never handed to the pane. A reading of a pane's row (`PaneSettingsAnswered`) says the
 list in pin order. Finding a setting by its tags is the editor's: `component/tab_strip.hpp` derives
 the tabs -- pinned, all, each tag, kept -- and what a width shows of them, a window grown outward
 from the active tab, counting what it leaves out. The editor is the settings pane, not the

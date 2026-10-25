@@ -7,7 +7,7 @@ as any pane, in the Pane Manager (<!-- key desktop.panes -->`ctrl+p`<!-- /key --
 
 ## About
 
-The quick setup keeps one setting of its own, office-wide, in Workshop's settings file:
+The quick setup keeps one office-wide setting at [`zengine.layouts`](zengine.layouts.md):
 `answered`, set by **Done** or **Skip**. At a start where Workshop keeps a settings file and
 `answered` is not set, it shows itself in front, holding the keys. A run with no settings file
 (`--isolated` without a `--prefs` path), or a settings file Workshop refused at launch, keeps no
@@ -28,8 +28,8 @@ owner's words:
   Workshop](../../editor/docs/neovim.md#switch-while-you-work)).
 - **Ready-to-use setups** names the pages that tell each one and how to start it ([demo
   setups](demo-setups.md)) and your first five minutes ([getting started](getting-started.md)).
-- **Done** and **Skip** write `answered` through Workshop's settings and put the pane down when
-  Workshop has answered. A settings file that will not take the write is said, and the pane is put
+- **Done** and **Skip** write `answered` through `zengine.layouts` and put the pane down when it
+  has answered. A settings file that will not take the write is said, and the pane is put
   down all the same.
 
 On a weaver's host with a guest door, only your own hand reaches the quick setup, as only yours
@@ -74,8 +74,8 @@ Chooses the item under the cursor.
   the other choice, or confirms the consent it asked
   ([`EditorSwitchConfirmed`](../../editor/docs/zengine.editor-switch.md#editorswitchconfirmed)); the
   switch's answer is shown under the box. On Done or Skip, writes `answered`
-  ([`OfficeSettingCommitRequested`](zengine.workshop.md#officesettingcommitrequested)) and, when
-  Workshop has answered, puts the pane down
+  ([`OfficeSettingCommitRequested`](zengine.layouts.md#officesettingcommitrequested)) and, when
+  that is answered, puts the pane down
   ([`PaneCloseRequested`](zengine.workshop.md#panecloserequested)).
 - **Refuses:** `the editor switch is still under way`; the switch's refusal, as it says it; a
   settings write Workshop refused, as `not kept: <its words>`.

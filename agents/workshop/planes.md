@@ -103,7 +103,7 @@ begins"
 `workshop/panes.hpp` Panes::selected selected_pane kNoPaneKind
 `workshop/weave_arrange.cpp` enter_arrange_pane
 `workshop/weave_external.cpp` unselect_pane
-`workshop/weave_seam.cpp` on(PaneRevealRequested)
+`workshop/weave_seam.cpp` on(PaneRevealRequested) revealed
 `tests/test_workshop_screen.cpp` "the selection lift never reaches the file, and no session starts
 with one" "contextual Arrange lifts the pane it addressed, not the one in front" "every pane a
 weaver can point at can be arranged, and the refusals are blind"

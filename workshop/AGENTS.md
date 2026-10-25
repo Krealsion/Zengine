@@ -17,10 +17,11 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `screen.hpp`, `screen_*.cpp` | the screen: session facts and gestures, composed into a canvas |
 | `panes.hpp` | the pane catalog |
 | `keymap.hpp`, with its parts `gesture_grammar.hpp` and `keymap_join.hpp` | the action catalog and the keymap; how a key is written and read; override admission and the joins of a pane's and an application's rows |
-| `setup.hpp`, with its parts `setup_reconcile.hpp` and `layout_shelf.hpp` | the setup: its value, its checks and its edits; what the live panes make of it; the layouts a session holds |
+| `setup.hpp`, with its part `setup_reconcile.hpp` | the setup: its value, its checks and its edits; what the live panes make of it |
+| `layouts/` | the desk's owner, `zengine.layouts`, mounted in-process: the run of layouts and its store (`run.hpp`, `store.hpp`), the office (`owner.hpp`), its vocabulary, and the session it alone writes (`session_persist.hpp`, `session_history.hpp`); its law: layouts, tab-run, session-restore, settings, setting-locks |
 | `pane_vocabulary.hpp` | the pane protocol, installed: `zengine-pane-vocabulary`, `zengine::pane` |
 | `*_seam_vocabulary.hpp`, `pane_doors.hpp` | the seams to loaded panes and guests; the doors |
-| `*_persist.hpp` | the files: setup, session, keymap, preferences, recipes, load plan |
+| `*_persist.hpp` | the files: setup, keymap, preferences, recipes, load plan, and Workshop's window file |
 | `load_*.hpp`, `*-load-plan.json` | load plan and executor (`zengine-workshop-load`); the plans |
 | `guests.hpp`, `guest_door.hpp` | the guests file and the guest door: `zengine-workshop-guests` |
 | `develop.cpp`, `prepare-runtime.cmake` | the development launch: `zengine-workshop-develop` |
@@ -77,6 +78,7 @@ program with its files); the subjects are in the
 | [regions](../agents/workshop/regions.md) | `workshop_screen`, `workshop_host`, `workshop_panes_project` (builder) |
 | [session](../agents/workshop/session.md) | `workshop_persistence`, `workshop_panes_editor` (editor), `workshop_document` |
 | [session-restore](../agents/workshop/session-restore.md) | `workshop_persistence`, `surface` |
+| [window-file](../agents/workshop/window-file.md) | `workshop_persistence`, `graphics` |
 | [setting-locks](../agents/workshop/setting-locks.md) | `workshop_panes_settings` (settings), `workshop_panes_hand` (guests), `workshop_panes_terminal` (terminal) |
 | [settings](../agents/workshop/settings.md) | `workshop_panes_settings` (settings), `workshop_panes_editor` (opening), `workshop_persistence` |
 | [setup-file](../agents/workshop/setup-file.md) | `workshop_panes_seam` (window, seam), `workshop_persistence`, `workshop_screen` |

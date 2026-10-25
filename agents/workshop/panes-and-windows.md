@@ -253,6 +253,8 @@ stays there, and the band says so and how to bring it back"
 `workshop/screen_pane_state.cpp` pane_state_of pane_state_word pane_state_remedy pane_is_covered
 `workshop/screen.hpp` pane_state PaneProjection
 `workshop/weave_session.cpp` unresolved_note
+`workshop/layouts/owner.cpp` on(PaneInventory)
+`workshop/layouts/store.cpp` unresolved_clause
 `tests/test_workshop_panes_window.cpp` "every setup-named pane has exactly one management row, in
 every state" "two panes that each cover HALF of a third leave nothing of it showing" "coverage is
 the UNION of what is in front, not containment by one pane"

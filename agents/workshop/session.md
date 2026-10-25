@@ -5,11 +5,13 @@ the roots. What a session holds and how it comes back is in
 [`session-restore.md`](session-restore.md). One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
-## WL-SESSION-01 — Workshop writes the desk, the room and the window, and reads them back
+## WL-SESSION-01 — The weaver's files live in three ownership domains, each file one writer's
 
-LAW — The weaver-facing files live in three ownership domains: project (`--setup`), configuration (`--keymap`, `--prefs`), state (`--session`, `--marks`); plans ship beside the binary.
+LAW — The weaver-facing files live in three ownership domains: project (`--setup`), configuration (`--keymap`, `--prefs`), state (`--session`, its window file, `--marks`); plans ship beside the binary.
 
 MEANS
+- one writer a file: the session and the settings file are the layouts' owner's, the window file, the keymap and the marks Workshop's;
+
 - project files follow the launch directory; configuration follows the weaver; state, the machine;
 - a mark is an absolute path, so the marks file is state, and its own file, not a prefs field.
 
@@ -50,7 +52,7 @@ WHY — `agents/decisions/three-ownership-domains.md`
 
 ## WL-SESSION-13 — One door writes the session, and only on an orderly close
 
-LAW — The quit key, the interrupt chord and the medium's close request all reach one quit, which asks the room and then saves the session before it stops the bus; no autosave, no background writer.
+LAW — The quit key, the interrupt chord and the window's close request reach one quit, which asks the room, writes the window file and asks the owner to save the session before it stops the bus; no autosave.
 
 MEANS
 - crash durability is not claimed: `write_file` does not fsync; a killed run loses its session;
@@ -128,7 +130,7 @@ silently" "a legacy session as large as the session reader takes is imported who
 one or a taken root is left alone"
 
 ### WL-SESSION-04
-`workshop/session_persist.hpp` WorkshopSession setup_in
+`workshop/layouts/session_persist.hpp` WorkshopSession setup_in
 `workshop/setup_persist.hpp` WorkshopSetup setup_in
 `workshop/weave.hpp` HostContext::session_path
 `tests/test_workshop_persistence.cpp` "an automatic save never touches the file a weaver named" "a
@@ -136,14 +138,16 @@ restored session never touches the file a weaver named, either" "the three files
 and each refuses the others"
 
 ### WL-SESSION-13
-`workshop/weave_run.cpp` quit finish_quit on(WorkshopQuitRequested) answer_quit_ask
+`workshop/weave_run.cpp` quit finish_quit on(WorkshopQuitRequested) answer_quit_ask end_quit
 `workshop/setup_control.hpp` WorkshopQuitRequested
-`workshop/weave_session.cpp` save_last_session
+`workshop/weave_session.cpp` save_last_session on(SessionSaveAnswered)
 `workshop/weave_handlers.cpp` on(SurfaceCloseRequested)
 `workshop/weave.hpp` HostContext::session_path
 `workshop/persist.hpp` write_file
 `graphics/vocabulary.hpp` SurfaceCloseRequested
-`workshop/session_persist.hpp` save_file
+`workshop/layouts/session_persist.hpp` save_file
+`workshop/layouts/owner.cpp` on(SessionSaveRequested)
+`workshop/layouts/store.cpp` save_session
 `tests/test_workshop_panes_editor.cpp` "a guest's quit is answered in the words of what kept
 Workshop open, and Ack once it ends"
 `tests/test_workshop_persistence.cpp` "the second session replaces the first, room and desk both" "a
@@ -152,8 +156,8 @@ write that fails leaves the last good session where it was"
 had"
 
 ### WL-SESSION-15
-`workshop/weave.hpp` WorkshopWeave::session_refused_
 `workshop/weave_session.cpp` save_last_session kSessionWallKey
+`workshop/layouts/store.cpp` save_session
 `tests/test_workshop_persistence.cpp` "a session this run could not read is never written over" "the
 file survives the run that could not read it, and opens later"
 

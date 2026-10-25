@@ -259,7 +259,7 @@ notice stands in for the status row"
 `workshop/weave_managed.cpp` on(PresentationTrialRequested) on(v3::PresentationAdmitRequested)
 on(ManagedOpenSettled) on_claim_published show_presentation
 trial_room trial_room_stands
-`workshop/weave_seam.cpp` on(PaneRevealRequested)
+`workshop/weave_seam.cpp` on(PaneRevealRequested) revealed
 `workshop/screen.hpp` stack_slots_that_fit
 `workshop/open_seam_vocabulary.hpp` PanePresentation ManagedOpenSettled
 `tests/test_workshop_panes_opening.cpp` "a canvas room that moves while the document is prepared

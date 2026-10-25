@@ -202,7 +202,7 @@ set a pane's settings by message:
   version cannot hold it, so such an entry there is refused.
 - **`settings`**, a power: reading one pane's row of the live layout and writing one of its
   settings at the revision read, by message (`PaneSettingsRequested`, `PaneSettingCommitRequested`,
-  [Workshop's manual](../../workshop/docs/zengine.workshop.md#panesettingsrequested)); the same for
+  [`zengine.layouts`](../../workshop/docs/zengine.layouts.md#panesettingsrequested)); the same for
   one office's office-wide settings (`OfficeSettingsRequested`, `OfficeSettingCommitRequested`), a
   pane's pin list (`PaneSettingPinRequested`), a lock (`PaneSettingLockRequested`; an unlock is the
   weaver's and Workshop refuses a guest's), and every layout's rows read and written in one batch

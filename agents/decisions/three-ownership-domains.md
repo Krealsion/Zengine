@@ -54,4 +54,4 @@ starts, and said once; `--pane` retired with the Pane Creator, and is an unknown
 [WL-SESSION-01](../workshop/session.md), [WL-SESSION-02](../workshop/session.md),
 [WL-SESSION-03](../workshop/session.md), [WL-SESSION-04](../workshop/session.md),
 [WL-SESSION-13](../workshop/session.md), [WL-SESSION-15](../workshop/session.md),
-[WL-SESSION-18](../workshop/session.md).
+[WL-SESSION-18](../workshop/session.md), [WL-SESSION-21](../workshop/window-file.md).

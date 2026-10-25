@@ -462,7 +462,8 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
 - **Three kinds and no more**: a switch, a count or step, a word. A choice among words is a text
   the pane restricts, a fraction a whole number of a finer unit, a set one flag per member, and a
   colour a role's name. A further kind would move every file format that carries a setting.
-- **A pane declares the settings it takes** (`PaneSettingsDeclared`, beside its offer): each a
+- **A pane declares the settings it takes** (`PaneSettingsDeclared`, beside its offer, to
+  [`zengine.layouts`](zengine.layouts.md), the office that keeps the layouts): each a
   key, its default in the field of its kind, and what it takes — a text one of its `choices` (or
   any text when it names none), a number from `low` to `high`. The declaration is judged whole
   under the office stamp, a refusal is said in the band and leaves the settings in force, a later
@@ -472,7 +473,7 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   to `kMaxSettingTags` tags of its own (words like `chrome` or `scroll`, never `pinned`, `all` or
   `kept`, which an editor's tab strip spells for itself), whether it is among the pane's default
   pins (`kMaxDefaultPins` at most), and a one-line `summary` -- and at most `kMaxDeclaredTags`
-  distinct tags between them. Workshop judges these by form and never acts on them.
+  distinct tags between them. The layouts' owner judges these by form and never acts on them.
 - **Workshop hands a seated pane its row's settings** (`PaneSettings`) when the office's holder
   accepts the shape, declared or not: before any room it grants the pane -- at the top of every
   repaint, and before the rooms a managed opening seats it in -- so the first picture is drawn
@@ -489,13 +490,14 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
 - **A row is read and written by message** (`workshop/settings_seam_vocabulary.hpp`):
   `PaneSettingsRequested` answers the live layout's row for one pane -- its revision, the counted
   declaration, what it keeps, its pins and the band's sentence -- and `PaneSettingCommitRequested`
-  writes one setting at the revision read, through the same setter Info's rows use, or refuses in
-  words with nothing written. An office asks, and so may this Workshop's Terminal and a guest whose
-  row has `settings`; the Terminal's line spells every field, `clear=false` included:
+  writes one setting at the revision read, or refuses in words with nothing written; both are
+  `zengine.layouts`'s, and Info's rows read and write through them. An office asks, and so may this
+  Workshop's Terminal and a guest whose row has `settings`; the Terminal's line spells every field,
+  `clear=false` included:
 
   ```text
-  ask @zengine.workshop PaneSettingsRequested 1 provider=zengine.terminal pane=terminal
-  ask @zengine.workshop PaneSettingCommitRequested 1 provider=zengine.terminal pane=terminal revision=$r1.revision clear=false key=wheel-rows number=5
+  ask @zengine.layouts PaneSettingsRequested 1 provider=zengine.terminal pane=terminal
+  ask @zengine.layouts PaneSettingCommitRequested 1 provider=zengine.terminal pane=terminal revision=$r1.revision clear=false key=wheel-rows number=5
   ```
 
 ## A weave may offer a pane
@@ -1094,9 +1096,10 @@ files keep following the project:
                                      once, never read
 --setup      workshop-setup.json     a desk you NAMED, with `s`,      (launch directory)
                                      and read back with `r`
---session    workshop-session.json   the desk you were USING, the     (per-user state root)
-                                     room it was in, and where the
-                                     window sat
+--session    workshop-session.json   the layouts you were USING,      (per-user state root)
+                                     each with its id
+(beside it)  workshop-session.window.json  the room the desk was in, and   (per-user state root)
+                                     where the window sat
 --marks      workshop-marks.json     the filesystem PLACES you asked  (per-user state root)
                                      to be able to come back to
 ```
@@ -1110,14 +1113,16 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
-  The session format is **version <!-- value session_persist::kFormatVersion -->12<!-- /value -->**: the room in canvas pixels, the weaver's whole ordered
-  run of layouts — each an ordinary saved setup, its panes' settings included, with the Setup
-  file it is related to, if any —
-  which position was live, the desktop placement and the OS window's own room beside it, and
-  which authored choice held each office the plan lets you switch (the Editor's `standard` or
-  `neovim`). The file is a header line holding everything but the layouts, with their count, then
-  one line for each layout; each line is a value read on its own, so no one read holds the whole
-  run. Older versions do **not** load through
+  The session format is **version <!-- value session_persist::kFormatVersion -->12<!-- /value -->**: the weaver's whole ordered run of layouts — each an
+  ordinary saved setup, its panes' settings, locks, pins and baseline included, with the id the
+  layouts' owner minted for it and the Setup file it is related to, if any — which position was
+  live, the id the next layout takes, and which authored choice held each office the plan lets you
+  switch (the Editor's `standard` or `neovim`). The file is a header line holding everything but
+  the layouts, with their count, then one line for each layout; each line is a value read on its
+  own, so no one read holds the whole run. [`zengine.layouts`](zengine.layouts.md) alone writes
+  it. The room, the desktop placement and the OS window's own room are Workshop's **window
+  file** beside it, which Workshop alone writes; while none stands, a session before version 12
+  is read for them once. Older versions do **not** load through
   roads this reader carries — it admits one shape and nothing else. What reads them is a
   *conversion*, contributed by an ordinary operator provider the arrangement mounts
   (`zengine-workshop-session-history`): one direct edge from each older version, which keeps the
@@ -1127,10 +1132,10 @@ directory they happened to be browsing when they quit is deliberately not rememb
   and desks before version 7, kept in cells and sub-units, land on the pixels the window painted
   them at; a desk before version 8 holds no settings; a session before version 9 remembers no choice;
   and one before version 10 keeps no OS window's room; a session before version 11 was one value,
-  and comes back whole. Without the provider such a file is refused
+  and comes back whole; and one before version 12 numbers its layouts in order. Without the provider such a file is refused
   by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->12<!-- /value -->.
-- **The viewport is one level above the desk**, and that is the whole reason the session is not
-  simply a second setup: the same desk is worth having in a big window and in a small one, so how
+- **The viewport is the window file's, not the session's**, and that is the whole reason it is
+  not kept with the desks: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is
   `{width, height}` in canvas pixels, its own shape rather than the window's `WindowOffered` — that
   is a message free to grow a field whenever a window has something new to say, and the text metric
@@ -1146,7 +1151,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
 - **Position and maximized state ARE persisted, opaquely, and the medium is the
   judge.** The graphics vocabulary's placement pair closed the old deliberate omission: the
   medium reports where its *normal* window sits (its own desktop units, maximized state
-  beside it), Workshop remembers the last report in the session — coordinates it cannot
+  beside it), Workshop remembers the last report in its window file — coordinates it cannot
   interpret and does not try to — and offers it back once at restore. The medium then
   validates against the displays that exist *now*: a position wholly on a display restores
   verbatim, any other moves in only until the whole window is on one, and with no display
@@ -1158,7 +1163,8 @@ directory they happened to be browsing when they quit is deliberately not rememb
   The order changes no seating: every resolved pane is seated, whatever the room.
 - **Written on an orderly close, by the one door.** `q`, `Ctrl`+`c` and the close the window that
   shows the desk says (`SurfaceCloseRequested`, as that window's office) all reach `quit()`,
-  which writes the session before it stops the bus. No autosave, no dirty
+  which writes the window file and asks `zengine.layouts` to write the session before it stops
+  the bus. No autosave, no dirty
   tracking, no background writer — and no crash durability, which is not claimed here or in
   `persist::write_file`.
 - **Four distinct answers, not one boolean.** No previous session (silent — a first launch is

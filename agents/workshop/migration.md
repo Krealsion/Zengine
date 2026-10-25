@@ -111,19 +111,20 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 ## Proven by
 
 ### WL-MIG-01
-`workshop/session_persist.hpp` kFormatVersion loaded_from
-`workshop/session_history.hpp` conversions
+`workshop/layouts/session_persist.hpp` kFormatVersion format_refused
+`workshop/layouts/session_history.hpp` conversions
 `workshop/session_migration_provider.cpp` conversions
 `workshop/CMakeLists.txt` zengine-workshop-session-history
 `tests/test_workshop_persistence.cpp` "the session reader owns no historical shape and no
 conversion" "the shipped artifact supplies exactly the conventional edges"
 
 ### WL-MIG-02
-`workshop/session_history.hpp` v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 conversions session_v1_to_v3
+`workshop/layouts/session_history.hpp` v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 conversions session_v1_to_v3
 session_v3_to_v4 session_v4_to_v5 session_v5_to_v6 session_v6_to_v7 session_v7_to_v8
 session_v8_to_v9 session_v9_to_v10 session_v10_to_v11 v3::WorkshopSession v4::WorkshopSession
 v5::WorkshopSession v6::WorkshopSession v7::WorkshopSession v8::WorkshopSession v9::WorkshopSession
-v10::WorkshopSession session_v2_to_v3 session_v1_to_v11 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5
+v10::WorkshopSession session_v2_to_v3 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5 WorkshopSession
+desk_v5_to_v6 session_v11_to_v12 session_v10_to_v12
 `tests/test_workshop_persistence.cpp` "a retired shape's wire identity is the identity it was
 written at" "three DIRECT edges, and no chain to walk even if one wanted to" "a conversion owns
 yesterday's semantics and does not rewrite history" "a version-8 session converts with every field
@@ -131,41 +132,42 @@ kept and no choice remembered" "a version-9 session converts with every field ke
 window's room" "a version-10 session comes forward whole and is written back in lines"
 
 ### WL-MIG-03
-`workshop/session_history.hpp` session_v5_to_v6 desk_v5_to_v6 v5::WorkshopSession names_layouts
-`workshop/session_persist.hpp` WorkshopSession
+`workshop/layouts/session_history.hpp` session_v5_to_v6 desk_v5_to_v6 v5::WorkshopSession names_layouts
+`workshop/layouts/session_persist.hpp` WorkshopSession
 `workshop/setup.hpp` kMaxSetupPanes
 `tests/test_workshop_persistence.cpp` "a real version-5 session comes back with nothing lost" "an
 explicit historical row is preserved, never duplicated" "a full desk refuses the conversion rather
 than losing either fact"
 
 ### WL-MIG-04
-`workshop/session_persist.hpp` kFormatVersion
+`workshop/layouts/session_persist.hpp` kFormatVersion
 `tests/test_workshop_persistence.cpp` "the session reader owns no historical shape and no
 conversion"
 
 ### WL-MIG-05
-`workshop/session_history.hpp` absent_placement absent_link session_v1_to_v3 session_v3_to_v4
+`workshop/layouts/session_history.hpp` absent_placement absent_link session_v1_to_v3 session_v3_to_v4
 session_v4_to_v5
 `tests/test_workshop_persistence.cpp` "a version-3 session becomes exactly one layout, live at zero"
 "all three vintages arrive as one layout at position zero" "a version-4 session opens with its run
 whole and every link none"
 
 ### WL-MIG-06
-`workshop/session_persist.hpp` op::migrate schema_of kFormatVersion could_not_convert from_text
+`workshop/layouts/session_persist.hpp` op::migrate schema_of kFormatVersion could_not_convert
+from_text converted_in
 `tests/test_workshop_persistence.cpp` "nothing but a historical claim of THIS shape asks for a
 conversion" "a current session bypasses conversion entirely" "an old session with no conversion live
 refuses and changes nothing"
 
 ### WL-MIG-07
-`workshop/session_persist.hpp` current_in forged_version WorkshopSession::format_version
-`workshop/session_history.hpp` mismatched_version
+`workshop/layouts/session_persist.hpp` current_in forged_version WorkshopSession::format_version
+`workshop/layouts/session_history.hpp` mismatched_version
 `tests/test_workshop_persistence.cpp` "an old session's OWN law still runs -- the conversion skips
 no check" "a current-version file whose own field says otherwise is a forgery" "an unreadable
 session names its version by NUMBER"
 
 ### WL-MIG-08
 `workshop/weave.hpp` HostContext::conversions
-`workshop/session_persist.hpp` op::migrate from_text load_file
+`workshop/layouts/session_persist.hpp` op::migrate from_text load_file converted_in
 `tests/test_workshop_persistence.cpp` "with the conversion mounted, the desk comes back through the
 weave" "unmounting the artifact takes the conversion with it"
 
@@ -178,11 +180,14 @@ window"
 
 ### WL-MIG-10
 `workshop/weave_session.cpp` save_last_session restore_last_session
+`workshop/layouts/store.cpp` restore
 `tests/test_workshop_persistence.cpp` "reading an old session does not rewrite it; the next close
 does" "the weaver sees no loss, and the next run spends no conversion"
 
 ### WL-MIG-11
-`workshop/session_history.hpp` session_v7_to_v8 desk_v4_to_v5 absent_v4_desk v7::WorkshopSession
+`workshop/layouts/session_history.hpp` session_v7_to_v8 desk_v4_to_v5 absent_v4_desk
+v7::WorkshopSession WorkshopSession
 `workshop/setup_persist.hpp` v4::to_current
+`workshop/layouts/session_persist.hpp` whole_of_lines
 `tests/test_workshop_persistence.cpp` "a version-7 session converts with every desk and remembered
 value keeping no settings"

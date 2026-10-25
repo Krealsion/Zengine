@@ -7,7 +7,7 @@ Office-wide settings are [`settings.md`](settings.md); the editor switch is
 
 ## WL-FIRST-01 — The quick setup shows once, at a start that keeps a settings file
 
-LAW — `zengine.first-run` keeps one office-wide setting, `answered`, in Workshop's settings file, and asks for its `setup` pane at a start whose settings are kept and unanswered, on a fresh desk, once a run.
+LAW — `zengine.first-run` keeps one office-wide setting, `answered`, at the layouts' owner, and asks for its `setup` pane at a start whose settings are kept and unanswered, on a fresh desk, once a run.
 
 MEANS
 - a run with no settings file (`--isolated` without `--prefs`), a file refused at launch and settings withheld show nothing by itself;
@@ -15,7 +15,7 @@ MEANS
 - clearing `answered` shows it at the next start.
 
 DOES NOT MEAN
-- that the weave keeps a file of its own: what it remembers is Workshop's to keep.
+- that the weave keeps a file of its own: what it remembers is the layouts' owner's to keep.
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
@@ -47,13 +47,13 @@ WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 ## Proven by
 
 ### WL-FIRST-01
-`workshop/first-run/first_run.cpp` FirstRun keeps_settings on(OfficeSettingsShown) on(PaneInventory)
+`workshop/first-run/first_run.cpp` FirstRun keeps_settings on(OfficeSettingsAnswered) on(PaneInventory)
 `workshop/first-run/setup.hpp` kAnsweredKey fresh_desk
 `tests/test_workshop_panes_first_run.cpp` "WL-FIRST-01: the quick setup shows itself once at a start
 that keeps settings and has not answered, and never where none are kept"
 
 ### WL-FIRST-02
-`workshop/first-run/first_run.cpp` choose on(PaneSettingActed)
+`workshop/first-run/first_run.cpp` choose
 `workshop/first-run/setup.hpp` lines_of stepped
 `tests/test_workshop_panes_first_run.cpp` "WL-FIRST-02: Done writes answered and puts the pane down,
 and the next start shows nothing" "WL-FIRST-02: the quick setup's lines name the box, the pages and
