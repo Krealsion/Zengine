@@ -442,6 +442,78 @@ cells_covered(bounds_of(panes, setup_for(panes), p.kind, sc).rect);
     }
 }
 
+TEST_CASE("an anchored pane keeps its corner where its word puts it, at every size of the window") {
+    // ⚔ MUTATION: `pane_part` reading every place word as `pixels` -- the pane stands at its
+    // offsets from the room's top-left, and its corner leaves the room's bottom-right.
+    Live t;
+    pick(t, second::kKind);
+    stage_desk(t, [](Setup& desk) {
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref_of(second::kKind)) {
+                row.place = PanePlace{ui::kPlaceBottomRight, 24, 36};
+                row.width = PaneSize{pane_unit::kPixels, 240};
+                row.height = PaneSize{ui::kSizeShare, 2500};
+            }
+        }
+    });
+    // Two terminal rooms and a window's, whose face sets type.
+    const std::int64_t sizes[][4] = {{cells_px(80), cells_px(30), 0, 0},
+                                     {cells_px(120), cells_px(44), 0, 0},
+                                     {1913, 1031, 8, 18}};
+    for (const auto& size : sizes) {
+        CAPTURE(size[0]);
+        CAPTURE(size[1]);
+        t.extent_px(size[0], size[1], size[2], size[3]);
+        const Screen sc = screen_of(t.session());
+        const std::int64_t step = chrome_grain(sc);
+        const PaneBounds b =
+            bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
+        REQUIRE(b.open);
+        // ITS OWN BOTTOM-RIGHT STANDS 24 IN FROM THE ROOM'S RIGHT AND 36 UP FROM ITS FLOOR.
+        CHECK(b.resolved.x + b.resolved.w == sc.room_w - 24);
+        CHECK(b.resolved.y + b.resolved.h == sc.room_y + sc.room_h - 36);
+        CHECK(b.resolved.w == 240);
+        // ...and a quarter of the room tall, its far edge floored to the window's step.
+        CHECK(b.resolved.h >= sc.room_h / 4);
+        CHECK(b.resolved.h <= sc.room_h / 4 + step);
+    }
+}
+
+TEST_CASE("a centred pane stands in the middle of the room, and a fill runs to the room's far edge") {
+    // ⚔ MUTATION: a `center` place read as `default` -- the pane stands down the stack.
+    Live t;
+    pick(t, second::kKind);
+    stage_desk(t, [](Setup& desk) {
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref_of(second::kKind)) {
+                row.place = PanePlace{ui::kPlaceCenter, 0, 0};
+                row.width = PaneSize{ui::kSizeShare, 5000};
+                row.height = PaneSize{pane_unit::kPixels, cells_px(4)};
+            }
+        }
+    });
+    const Screen sc = screen_of(t.session());
+    const PaneBounds b = bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
+    REQUIRE(b.open);
+    const std::int64_t step = chrome_grain(sc);
+    CHECK(b.resolved.x == sc.room_w / 4 / step * step);
+    CHECK(b.resolved.x + b.resolved.w == sc.room_w * 3 / 4 / step * step);
+    CHECK(b.resolved.y - sc.room_y == (sc.room_h - cells_px(4)) / 2 / step * step);
+    // A FILL FROM A LEFT OFFSET runs to the room's right edge, whatever the window.
+    stage_desk(t, [](Setup& desk) {
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref_of(second::kKind)) {
+                row.place = PanePlace{ui::kPlaceLeft, 60, 0};
+                row.width = PaneSize{ui::kSizeFill, 0};
+            }
+        }
+    });
+    const PaneBounds filled =
+        bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
+    CHECK(filled.resolved.x == 60);
+    CHECK(filled.resolved.x + filled.resolved.w == sc.room_w);
+}
+
 TEST_CASE("occupancy is resolved against the screen, not remembered from one") {
     // A BIGGER SURFACE MOVES THE SIDE REGION, and the cells it occupies move with
     // it -- because the occupancy answer is `bounds_of` on the CURRENT screen and

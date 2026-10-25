@@ -175,6 +175,9 @@ TEST_CASE("a refused VALUE writes nothing, on either axis") {
 TEST_CASE("an unknown mode word names what it found and what would have worked") {
     const Setup good = two_overlays();
     const std::string valid = setup_persist::to_text(good);
+    const char* const kPlaces =
+        "default, pixels, top, top-right, left, center, right, bottom-left, bottom or bottom-right";
+    const char* const kSizes = "default, pixels, share, fit or fill";
 
     struct Case {
         const char* what;
@@ -186,21 +189,30 @@ TEST_CASE("an unknown mode word names what it found and what would have worked")
     cases.push_back({"an unknown PLACE word",
                      forged_setup(good, "\"place\":{\"mode\":\"default\"",
                                   "\"place\":{\"mode\":\"furlongs\""),
-                     "furlongs", "default, right-column or pixels"});
+                     "furlongs", kPlaces});
+    // THE SPELLING IS ONE: `centre` is not `center`, and the refusal says which is.
+    cases.push_back({"a place word spelled another way",
+                     forged_setup(good, "\"place\":{\"mode\":\"default\"",
+                                  "\"place\":{\"mode\":\"centre\""),
+                     "centre", kPlaces});
     // `right-column` IS NOT A SIZE, and this is where that is said: it names a place, and
     // offering it to a size is offering a word this field's vocabulary does not have.
     cases.push_back({"a PLACE word offered to a size",
                      forged_setup(good, "\"width\":{\"mode\":\"default\"",
                                   "\"width\":{\"mode\":\"right-column\""),
-                     "right-column", "default or pixels"});
+                     "right-column", kSizes});
+    cases.push_back({"a point of the room offered to a size",
+                     forged_setup(good, "\"width\":{\"mode\":\"default\"",
+                                  "\"width\":{\"mode\":\"top-right\""),
+                     "top-right", kSizes});
     cases.push_back({"an unknown WIDTH word",
                      forged_setup(good, "\"width\":{\"mode\":\"default\"",
                                   "\"width\":{\"mode\":\"ems\""),
-                     "ems", "default or pixels"});
+                     "ems", kSizes});
     cases.push_back({"an unknown HEIGHT word",
                      forged_setup(good, "\"height\":{\"mode\":\"default\"",
                                   "\"height\":{\"mode\":\"\""),
-                     "", "default or pixels"});
+                     "", kSizes});
 
     for (const Case& c : cases) {
         CAPTURE(c.what);

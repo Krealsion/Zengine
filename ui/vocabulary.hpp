@@ -75,6 +75,26 @@ inline constexpr std::string_view place_word(std::int64_t mode) noexcept {
                : std::string_view{};
 }
 
+/// The size a word names, or none for a word the list does not have.
+inline constexpr std::optional<std::int64_t> size_named(std::string_view word) noexcept {
+    for (std::size_t i = 0; i < kSizeWords.size(); ++i) {
+        if (kSizeWords[i] == word) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return std::nullopt;
+}
+
+/// The place a word names, or none for a word the list does not have.
+inline constexpr std::optional<std::int64_t> place_named(std::string_view word) noexcept {
+    for (std::size_t i = 0; i < kPlaceWords.size(); ++i) {
+        if (kPlaceWords[i] == word) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return std::nullopt;
+}
+
 /// Whether a size's word reads `amount`: `pixels` and `share` do, and no other.
 inline constexpr bool size_reads_amount(std::int64_t mode) noexcept {
     return mode == kSizePixels || mode == kSizeShare;
