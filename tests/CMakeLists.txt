@@ -871,7 +871,7 @@ zengine_doctest_test(inventory zengine-inventory-tests)
 # offending type in the fixtures' own tree (tests/compile_negative/) and is judged on its
 # diagnostic, beside a control that must build.
 zengine_compile_test(ui_authored_extent_required zengine-cn-ui-extent
-                     "a resolvable dimension must be an authored Extent")
+                     "a resolvable dimension must be an authored Size")
 
 zengine_compile_test(ui_resolved_geometry_refused zengine-cn-ui-resolved
                      "no resolved rectangle may live on an authored element")

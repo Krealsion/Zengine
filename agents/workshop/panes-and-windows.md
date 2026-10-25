@@ -12,7 +12,7 @@ Retired: WL-PANE-14, WL-PANE-15.
 LAW — Three places: the right column, the overlay stack and the top band. Each is a named rectangle a pane resolves into, none is reserved out of the room, and an authored override is spent in all three.
 
 MEANS
-- `project_pane` lays an override over whatever rectangle a place answered, for every place;
+- each place is a frame `bounds_of` stands its panes in and solves (`ui::arrange`), an override's pixels spent over its answer;
 - `kinds_placed_in` pins the right column and the top band at one catalog DEFAULT each.
 
 DOES NOT MEAN
@@ -25,7 +25,7 @@ WHY — `agents/decisions/the-room-is-the-screen.md`
 LAW — A band-anchored or authored pane takes no stack slot; a stacked pane the column has no height left for begins the column again at its top, so every resolved row is seated and no door refuses for room.
 
 MEANS
-- `bounds_of` spends each preferred height (or the fallback) plus the gap down the column;
+- the stack is a column `ui::arrange` lays (`kFlowStack`), each pane's slot its preferred height (or the fallback) and the gap below;
 - a pane taller than the room stands at the column's top;
 - a launch, a reveal and a managed open seat their pane in front, the newest by rank.
 
@@ -171,7 +171,7 @@ WHY — `agents/decisions/preferred-pane-space.md`
 ### WL-PANE-01
 `workshop/panes.hpp` kSideRegion kOverlayStack kTopBand kinds_placed_in placement kBuiltinPanes
 placement_of
-`workshop/screen_chrome.cpp` project_pane
+`workshop/screen_chrome.cpp` project_pane bounds_of pane_part add_desk_frames
 `workshop/screen_reveal.cpp` paint_pane_affordances
 `workshop/weave_arrange.cpp` take_pane_hold
 `tests/test_workshop_host.cpp` "a pane kind declares its place, and the place resolves to bounds"
@@ -179,7 +179,10 @@ placement_of
 
 ### WL-PANE-03
 `workshop/setup_reconcile.hpp` seat_panes StackCapacity Seating
-`workshop/screen_chrome.cpp` bounds_of
+`workshop/screen_chrome.cpp` bounds_of add_desk_frames
+`ui/layout.hpp` arrange
+`ui/vocabulary.hpp` kFlowStack
+`tests/test_ui.cpp` "a column lays its parts down a slot each, a gap apart, and begins again at its top"
 `workshop/screen.hpp` stack_slots_that_fit
 `workshop/weave_desktop.cpp` launch_pane
 `workshop/weave_seam.cpp` on(PaneRevealRequested)
@@ -257,7 +260,7 @@ the UNION of what is in front, not containment by one pane"
 ### WL-PANE-11
 `workshop/setup.hpp` author_pane_place author_pane_size author_pane_window PanePlace
 `workshop/screen.hpp` canvas_of_room room_of_canvas
-`workshop/screen_chrome.cpp` project_pane
+`workshop/screen_chrome.cpp` project_pane pane_part
 `workshop/screen_pane_subject.cpp` pane_window_base
 `tests/test_workshop_panes_window.cpp` "an authored place is measured from the room's top-left, not
 an offset from the default" "each axis is independent -- a place edit freezes no size, and back" "a
@@ -295,7 +298,7 @@ arranging"
 `workshop/setup_reconcile.hpp` preferred_extent admit_pane_offer PaneBody
 `workshop/pane_vocabulary.hpp` kMaxPaneBodyPx
 `workshop/screen.hpp` stack_capacity
-`workshop/screen_chrome.cpp` project_pane bounds_of
+`workshop/screen_chrome.cpp` project_pane bounds_of pane_measure
 `view/view.hpp` offered
 `tests/test_workshop_demo.cpp` "pane comfort budgets body text with chrome in both real medium
 metrics" "pane comfort survives offer refresh and rejects malformed preferences" "pane comfort: the

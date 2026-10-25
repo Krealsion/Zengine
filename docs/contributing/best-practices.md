@@ -380,11 +380,11 @@ Its law, pages and suites: [`input/AGENTS.md`](../../input/AGENTS.md).
 
 Its law, pages and suites: [`ui/AGENTS.md`](../../ui/AGENTS.md).
 
-- **The fence keeps resolved numbers out of an authored type, by type and by name**, each half a
+- **The fence keeps solved numbers out of an authored type, by type and by name**, each half a
   compile entry beside its control, and the name half is not airtight. [The fence](../../ui/docs/ui.md#the-fence)
-- **Resolution is total over every value.** [Resolution is total](../../ui/docs/ui.md#resolution-is-total)
+- **Solving is total over every value.** [Solving is total](../../ui/docs/ui.md#solving-is-total)
 - **A broken chain is absent**, never guessed. [A broken chain is absent](../../ui/docs/ui.md#a-broken-chain-is-absent)
-- **Extent arithmetic runs the sanitizer lane too.** [The sanitizer lane](build-and-test.md#the-sanitizer-lane)
+- **Solving's arithmetic runs the sanitizer lane too.** [The sanitizer lane](build-and-test.md#the-sanitizer-lane)
 
 ## The Timer and activation (`timer/`, `activation/`)
 

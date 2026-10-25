@@ -1396,7 +1396,7 @@ namespace {
 /// A POINTER BUTTON AT A PLACE IN THE BUILDER'S OWN ROOM, as the terminal medium reports it.
 void bp_button(PaneRig& r, std::int64_t kind, std::int64_t button, bool pressed, std::int64_t row,
                std::int64_t column) {
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     r.hand_moment(input::PointerButton{button, pressed, body.x + column,
                                        body.y + kExternalHeaderRows + row, input::space::kCells,
                                        input::mod::kNone});
@@ -2383,7 +2383,7 @@ TEST_CASE("the wheel walks the Builder's recipe list, three rows a notch, and me
     BuilderRig b("bld-wheel");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}, {"three", "c"}, {"four", "d"}});
     b.open();
-    const ui::Rect body = external_body_rect(b.r.session(), b.kind);
+    const CellRect body = external_body_rect(b.r.session(), b.kind);
     // ON THE FACTS a notch walks nothing: there is no list there.
     const std::string facts = b.text();
     b.r.wheel_cell(-1.0, body.x + 2, body.y + 2);
@@ -3469,7 +3469,7 @@ struct HeaderMarks {
     std::int64_t manual_x = 0, gear_x = 0, y = 0;
 };
 HeaderMarks header_marks(BuilderRig& b, std::int64_t kind) {
-    const ui::Rect rect = external_body_rect(b.r.session(), kind);
+    const CellRect rect = external_body_rect(b.r.session(), kind);
     HeaderMarks out;
     out.y = rect.y;
     out.manual_x = rect.x + rect.w - 1;
@@ -3506,7 +3506,7 @@ void focus_manual(BuilderRig& b) {
     const std::int64_t kind = manual_kind(b);
     REQUIRE(kind != kNoPaneKind);
     if (b.r.session().panes.keyboard != kind) {
-        const ui::Rect rect = external_body_rect(b.r.session(), kind);
+        const CellRect rect = external_body_rect(b.r.session(), kind);
         b.r.press_cell(rect.x, rect.y);
         REQUIRE(b.r.session().panes.keyboard == kind);
     }

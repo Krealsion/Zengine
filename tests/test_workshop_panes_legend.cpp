@@ -215,7 +215,7 @@ struct LegendRig {
     }
     /// A DRAFT ON A SETTINGS ROW, its text replaced by `typed`.
     void draft(const std::string& key, const std::string& typed) {
-        const ui::Rect body = external_body_rect(r.session(), info());
+        const CellRect body = external_body_rect(r.session(), info());
         r.press_cell(body.x, body.y);
         press_info(info_row([&key](const std::string& row) { return row.compare(1, key.size() + 1, key + " ") == 0; },
                             true));
@@ -430,7 +430,7 @@ TEST_CASE("a press aimed at the Terminal's picture from before its legend hid is
                                                   loom::WeaveId{}, 0));
     (void)t.r.bus.pump_pending(); // the hand sends the commit
     (void)t.r.bus.pump_pending(); // Workshop writes it and queues the hand-off
-    const ui::Rect body = external_body_rect(t.r.session(), t.terminal());
+    const CellRect body = external_body_rect(t.r.session(), t.terminal());
     t.r.press_cell(body.x + 3, body.y + 2); // a row the legend's going moves
     REQUIRE_FALSE(t.legend_shown());
     bool refused = false;
@@ -457,7 +457,7 @@ TEST_CASE("a legend value the Terminal cannot use is kept as stored, and said in
     // THE PANE KEEPS ITS DEFAULT AND SAYS WHY WHERE THE SETTING SHOWS, ON A ROW NO KEY CLEARS.
     const std::string said = "legend takes on or off, not a text `hiden` -- on";
     CHECK(t.legend_row() == said);
-    const ui::Rect body = external_body_rect(t.r.session(), t.terminal());
+    const CellRect body = external_body_rect(t.r.session(), t.terminal());
     t.r.press_cell(body.x, body.y + body.h - 1); // into the Terminal: its keys go to it
     t.r.text("x");
     CHECK(t.legend_row() == said);

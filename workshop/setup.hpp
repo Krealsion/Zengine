@@ -11,8 +11,6 @@
 #include "panes.hpp"
 #include "property.hpp"
 
-#include "ui/layout.hpp" // `ui::kMinCells` -- the one-cell floor an authored extent has
-
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -87,10 +85,10 @@ inline constexpr std::int64_t kRightColumn = 3;
 /// medium's cell changes.
 inline constexpr std::int64_t kSavedCellPx = 12;
 
-/// THE SMALLEST AUTHORED EXTENT, in canvas pixels: one cell, the bound the setup law has always
-/// enforced.
+/// THE SMALLEST AUTHORED EXTENT, in canvas pixels: one cell, the terminal window's step, so every
+/// window can show an extent a weaver authors.
 // WL-GEO-06 -- agents/workshop/geometry.md
-inline constexpr std::int64_t kPanePxMin = ui::kMinCells * kSavedCellPx;
+inline constexpr std::int64_t kPanePxMin = kSavedCellPx;
 
 /// WHERE A WEAVER PUT A PANE -- one fact, both coordinates.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md

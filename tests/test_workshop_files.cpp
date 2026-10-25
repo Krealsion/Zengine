@@ -162,7 +162,7 @@ struct ProjectRig {
         const Session& s = session();
         // THE LAYOUTS PANE, which is on every desk and takes no keyboard -- a weave's pane
         // takes the keys, the opposite of what this helper is for.
-        const ui::Rect band =
+        const CellRect band =
             cells_covered(bounds_of(s.panes, s.setup.active, pane_kind::kLayouts, screen_of(s)).rect);
         t.press_canvas(band.x + band.w - 1, band.y);
         REQUIRE(keyboard_context(session()) == KeyContext::kCommand);

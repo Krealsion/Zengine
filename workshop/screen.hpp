@@ -27,8 +27,6 @@
 #include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
 #include "workshop/screen_planes.hpp"
 #include "workshop/pane_text_fit.hpp"
-#include "ui/layout.hpp"
-#include "ui/vocabulary.hpp"
 #include "pane_text_fit.hpp"
 
 #include <zen/terminal/session.hpp> // the participant this host holds, for the door
@@ -237,9 +235,32 @@ struct PixelRect {
     }
 };
 
+/// A rectangle of whole cells: what a terminal shows of a pixel rectangle, and what a cell-counted
+/// layout says before it becomes pixels. Workshop's own, distinct from the pixel rectangle.
+struct CellRect {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+
+    friend bool operator==(const CellRect&, const CellRect&) = default;
+
+    /// Whether the cell is inside. Total over every value: an empty or inverted rectangle
+    /// contains nothing, and the far edge is compared in unsigned arithmetic, so a rectangle whose
+    /// right edge is past the int64 range answers without signed overflow.
+    constexpr bool contains(std::int64_t cx, std::int64_t cy) const noexcept {
+        if (w <= 0 || h <= 0 || cx < x || cy < y) {
+            return false;
+        }
+        using U = std::uint64_t;
+        return (static_cast<U>(cx) - static_cast<U>(x)) < static_cast<U>(w) &&
+               (static_cast<U>(cy) - static_cast<U>(y)) < static_cast<U>(h);
+    }
+};
+
 /// A cell rectangle in canvas pixels — exact, saturating, the one door a cell-counted layout
 /// walks through on its way to being arrangement truth.
-inline constexpr PixelRect pixels_of_cells(const ui::Rect& r) noexcept {
+inline constexpr PixelRect pixels_of_cells(const CellRect& r) noexcept {
     return PixelRect{graphics::px_of_cells(r.x), graphics::px_of_cells(r.y),
                      graphics::px_of_cells(r.w), graphics::px_of_cells(r.h)};
 }
@@ -247,13 +268,13 @@ inline constexpr PixelRect pixels_of_cells(const ui::Rect& r) noexcept {
 /// THE CELLS A PIXEL RECTANGLE COVERS — the cell-grain quantization law as a rectangle:
 /// [floor(left), floor(right)) per axis.
 // WL-GEO-06 -- agents/workshop/geometry.md
-inline constexpr ui::Rect cells_covered(const PixelRect& f) noexcept {
+inline constexpr CellRect cells_covered(const PixelRect& f) noexcept {
     const std::int64_t x0 = graphics::cell_of_pixel(f.x);
     const std::int64_t y0 = graphics::cell_of_pixel(f.y);
     if (f.w <= 0 || f.h <= 0) {
-        return ui::Rect{x0, y0, 0, 0};
+        return CellRect{x0, y0, 0, 0};
     }
-    return ui::Rect{x0, y0, graphics::cell_of_pixel(graphics::add_cells(f.x, f.w)) - x0,
+    return CellRect{x0, y0, graphics::cell_of_pixel(graphics::add_cells(f.x, f.w)) - x0,
                     graphics::cell_of_pixel(graphics::add_cells(f.y, f.h)) - y0};
 }
 

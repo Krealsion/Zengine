@@ -278,7 +278,7 @@ TEST_CASE("a visible pane occupies the pointer space it covers") {
     (void)mount_tool(t, "zengine-snake");
     open_stock_pane(t);
     const Screen sc = screen_of(t.session());
-    const ui::Rect pane_rect =
+    const CellRect pane_rect =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
     const std::int64_t wx = 10;
     const std::int64_t wy = 5;
@@ -337,16 +337,16 @@ TEST_CASE("the columns the pane took are its own, and the band is the weaver's")
 
     const Screen sc = screen_of(t.session());
     REQUIRE(cells_of(sc).room_w == 200);
-    const ui::Rect pane_rect =
+    const CellRect pane_rect =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
-    REQUIRE(pane_rect == ui::Rect{0, 2, 124, 9});
+    REQUIRE(pane_rect == CellRect{0, 2, 124, 9});
 
     // ---- INSIDE THE WIDE SLOT. Workspace column 60 is past a 48-column slot and inside this
     // one: the pane's.
     REQUIRE(pane_rect.contains(60 + kRoomCellX, 3 + kRoomCellY));
     // ...AND OUTSIDE A 48-COLUMN SLOT (`kStackW`), said against that constant rather than
     // `kMinScreen`'s slot, which is 63 columns wide because the room is the surface.
-    REQUIRE_FALSE(ui::Rect{kRoomCellX, kRoomCellY, kStackW, kStackRows}
+    REQUIRE_FALSE(CellRect{kRoomCellX, kRoomCellY, kStackW, kStackRows}
                       .contains(60 + kRoomCellX, 3 + kRoomCellY));
 
     // IT IS PAINTED, and the paint is the whole rectangle: one opaque backdrop at the pane's
@@ -356,7 +356,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     const ScreenCanvas c = paint(t.session());
     CHECK(has_rect(c, pane_rect.x, pane_rect.y, pane_rect.w, pane_rect.h, kPaneChrome));
     CHECK_FALSE(has_rect(c, pane_rect.x, pane_rect.y, kStackW, pane_rect.h, kPaneChrome));
-    const ui::Rect body = pane_body_cells(pane_rect);
+    const CellRect body = pane_body_cells(pane_rect);
     std::size_t padded = 0;
     for (const ScreenLabel& l : cell_text_of(c)) {
         const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
@@ -429,12 +429,12 @@ TEST_CASE("what a pane is painted at and what it occupies are one resolved truth
     // it occupies, and "inside the occupied space" is satisfied by a backdrop over half of it.
     REQUIRE(all_rects(only_panes).size() == panes.open.size());
     for (const OpenPane& p : panes.open) {
-        const ui::Rect pb =
+        const CellRect pb =
 cells_covered(bounds_of(panes, setup_for(panes), p.kind, sc).rect);
         CHECK(has_rect(only_panes, pb.x, pb.y, pb.w, pb.h, kPaneChrome));
     }
     for (const ScreenRect& r : all_rects(only_panes)) {
-        const ui::Rect cells = covered_cells(r);
+        const CellRect cells = covered_cells(r);
         CHECK(occupied_at(panes, setup_for(panes), sc, cells.x, cells.y).occupied);
         CHECK(occupied_at(panes, setup_for(panes), sc, cells.x + cells.w - 1,
                           cells.y + cells.h - 1)
@@ -452,14 +452,14 @@ TEST_CASE("occupancy is resolved against the screen, not remembered from one") {
     // `right-column` is what puts a pane in it.
     open_at_right_column(t, second::kKind);
     const Screen small = screen_of(t.session());
-    const ui::Rect side_small =
+    const CellRect side_small =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind, small).rect);
     REQUIRE(occupied_at(t.session().panes, t.session().setup.active, small, side_small.x, 4).occupied);
 
     t.extent_px(cells_px(100), cells_px(33));
     const Screen big = screen_of(t.session());
     REQUIRE(cells_of(big).w == 100);
-    const ui::Rect side_big =
+    const CellRect side_big =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind, big).rect);
     CHECK(side_big.x == cells_of(big).side_x);
     CHECK(side_big.x > side_small.x);
@@ -502,7 +502,7 @@ TEST_CASE("a closed pane occupies nothing, and neither does a screen with none o
     CHECK(swept.disagreed == 0);
     // Including the cells the two places WOULD have had, the stack's asked at its slot's own
     // first cell.
-    const ui::Rect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
+    const CellRect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
     CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, stack.x, stack.y).occupied);
     CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, cells_of(sc).side_x, 0).occupied);
 
@@ -545,9 +545,9 @@ TEST_CASE("the cells just outside a pane are ordinary workspace, on every edge")
     open_at_right_column(t, second::kKind);
     open_stock_pane(t);
     const Screen sc = screen_of(t.session());
-    const ui::Rect stack =
+    const CellRect stack =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
-    const ui::Rect side =
+    const CellRect side =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect);
 
     // The four edges of each place, in canvas cells: inside, then one cell out.
@@ -620,10 +620,10 @@ TEST_CASE("a pane may lie over a pane, and the boundary is what makes it legible
     // 1. THEY OVERLAP AT ALL, because a weaver may put a pane anywhere. Two panes in the
     //    overlay stack's slots is the arrangement a fresh session already produces.
     const Screen sc = screen_of(t.session());
-    const ui::Rect a =
+    const CellRect a =
         cells_covered(bounds_of(t.session().panes, t.session().setup.active,
                                 stock::kKind, sc).rect);
-    const ui::Rect b =
+    const CellRect b =
         cells_covered(bounds_of(t.session().panes, t.session().setup.active,
                                 pane_kind::kLayouts, sc).rect);
     CHECK(a.w > 0);
@@ -758,7 +758,7 @@ TEST_CASE("an overlapping pane is painted where it is hit, in both front orders"
     // for the rest of this case.
     const Screen sc = screen_of(s);
     REQUIRE(author_pane_place(s.setup.active, ref_of(stock::kKind), 0, 0).accepted);
-    const ui::Rect manager =
+    const CellRect manager =
         pane_body_cells(bounds_of(s.panes, s.setup.active, second::kKind, sc).rect);
     REQUIRE(manager.w > 0);
     const std::int64_t x = manager.x;
@@ -871,7 +871,7 @@ TEST_CASE("a clipped default resize begins from the full resolved size") {
         // asserted: a case that stopped at `base_w` would witness what the gesture
         // remembered rather than what it authored, which is the half a weaver actually sees.
         REQUIRE(reset_pane_width(live(t).setup.active, builder));
-        const ui::Rect vis =
+        const CellRect vis =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session())).rect);
         t.press_at(vis.x + vis.w - 1, vis.y + vis.h - 1,
@@ -919,7 +919,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
         CHECK(row->width.amount == 0);
 
         REQUIRE(reset_pane_height(live(t).setup.active, builder));
-        const ui::Rect vis =
+        const CellRect vis =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session())).rect);
         // THE MIDDLE OF THE BOTTOM RUN, which is the cell on that edge and on neither of the
@@ -961,7 +961,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
         REQUIRE(where.rect.h > 2);
 
         // BOTH AXES PARTICIPATE, because a corner names two of them.
-        const ui::Rect vis_cells = cells_covered(where.rect);
+        const CellRect vis_cells = cells_covered(where.rect);
         t.press_at(vis_cells.x + vis_cells.w - 1,
                    vis_cells.y + vis_cells.h - 1,
                    input::space::kCells);
@@ -1006,7 +1006,7 @@ TEST_CASE("a release ends a pane gesture whatever mode sees it") {
     enter_arrange_desk(t);
     select_pane(t, builder);
     const Screen sc = screen_of(t.session());
-    const ui::Rect rect =
+    const CellRect rect =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
     REQUIRE(rect.w > 4);
 
@@ -1041,7 +1041,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     // hand reaches for is wherever it is now.
     enter_arrange_desk(t);
     select_pane(t, builder);
-    const ui::Rect now = cells_covered(
+    const CellRect now = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -1062,7 +1062,7 @@ TEST_CASE("a removed target leaves no stale selection, submode or heading") {
     enter_arrange_desk(t);
     select_pane(t, builder);
     const Screen sc = screen_of(t.session());
-    const ui::Rect rect =
+    const CellRect rect =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
     t.press_at(rect.x + 1, rect.y + 1, input::space::kCells);
     REQUIRE(t.session().pane_drag.active);
@@ -1711,7 +1711,7 @@ TEST_CASE("the arrangement's visible statement is the ring on the pane itself") 
     }
     // AND NO REGION OPENED OVER THE STACK'S FIRST SLOT: the statement is on the pane, not in a
     // pane covering another one.
-    const ui::Rect box = cells_covered(placement_bounds(placement::kOverlayStack, 0, screen_of(t.session())));
+    const CellRect box = cells_covered(placement_bounds(placement::kOverlayStack, 0, screen_of(t.session())));
     for (const ScreenPlane& l : paint(t.session()).layers) {
         for (const ScreenRegion& r : l.texts) {
             const bool roster_region = covered_cells(r).x == box.x &&
@@ -1817,7 +1817,7 @@ TEST_CASE("a pane with room for the header and nothing else still says whose it 
     const Screen sc = screen_of(s);
     // FOUR CELLS: two of chrome around two of interior, which is one prose row of an 18-pixel
     // face -- and the header takes it whole.
-    const ui::Rect tiny{0, 1, 48, 2 + 2 * kChromeCells};
+    const CellRect tiny{0, 1, 48, 2 + 2 * kChromeCells};
     const ExternalBodyPlace body = external_body_place(
         pixels_of_cells(tiny), sc,
         external_title_rows(panes, kFirstRuntimeKind, /*titles_shown=*/true));
@@ -1839,7 +1839,7 @@ TEST_CASE("a pane with room for the header and nothing else still says whose it 
 
     // AND WITH NO ROW OF TYPE AT ALL the painter says nothing rather than drawing a header
     // into a rectangle that cannot hold one.
-    const ui::Rect none{0, 1, 48, 1};
+    const CellRect none{0, 1, 48, 1};
     CHECK(fit_region(cells_px(none.x), cells_px(none.y), cells_px(none.w), cells_px(none.h), 8, 18).graphical() == false);
     ScreenCanvas flat;
     paint_external(plane(flat), panes, kFirstRuntimeKind, PixelRect{}, sc,
@@ -2753,10 +2753,10 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
     const PixelRect fine = bounds_of(t.session().panes, t.session().setup.active,
                                     stock::kKind, sc)
                               .rect;
-    const ui::Rect covered = cells_covered(fine);
+    const CellRect covered = cells_covered(fine);
     // floor(78/12) = 6; floor((78 + 248)/12) = 27 -> 21 covered columns. floor(82/12) = 6;
     // floor((82 + 65)/12) = 12 -> 6 covered rows.
-    CHECK(covered == ui::Rect{6, 6, 21, 6});
+    CHECK(covered == CellRect{6, 6, 21, 6});
 
     // THE PAINTED BYTES SIT ON EXACTLY THOSE CELLS: the pane's backdrop begins at the
     // covered corner in the cell rasterization, and the column before it is not the
@@ -2796,7 +2796,7 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
     const PixelRect exact = bounds_of(t.session().panes, t.session().setup.active,
                                      stock::kKind, screen_of(t.session()))
                                .rect;
-    CHECK(cells_covered(exact) == ui::Rect{6, 6, 20, 5});
+    CHECK(cells_covered(exact) == CellRect{6, 6, 20, 5});
 }
 
 TEST_CASE("a version-2 whole-cell setup loads at exactly its old picture") {
@@ -3250,7 +3250,7 @@ TEST_CASE("which parts of a pane's window the weaver has not authored") {
 TEST_CASE("the contextual surface is painted where it is hit") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -3287,7 +3287,7 @@ TEST_CASE("the contextual surface is painted where it is hit") {
 TEST_CASE("an open group paints its own rows and its own way out") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -3370,7 +3370,7 @@ TEST_CASE("the popup shifts to stay usable inside the room, at every boundary") 
     open_at_right_column(t, second::kKind);
     const Screen sc = screen_of(t.session());
     const std::int64_t floor_y = kRoomCellY + cells_of(sc).room_h;
-    const ui::Rect corner_pane = cells_covered(
+    const CellRect corner_pane = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect);
 
     // NEAR THE FAR (RIGHT) EDGE: the menu may not fit rightward of the press, so it shifts
@@ -3407,7 +3407,7 @@ TEST_CASE("the keyboard entrance has no pointer and invents none") {
     // The deterministic non-pointer placement: the overlay stack's own corner, the home
     // of every keyboard surface on this screen -- and still content-sized.
     const Screen sc = screen_of(t.session());
-    const ui::Rect slot = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
+    const CellRect slot = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
     const PixelRect at = context_bounds(t.session(), sc);
     CHECK(gfx::cell_of_pixel(at.x) == slot.x);
     CHECK(gfx::cell_of_pixel(at.y) == slot.y);
@@ -3421,7 +3421,7 @@ TEST_CASE("entering a group stays at the anchor, and the popup resizes to it") {
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(90),
                               cells_px(20))
                 .accepted);
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -3493,7 +3493,7 @@ TEST_CASE("shortcut annotations teach only truthful surrounding bindings") {
     // A PANE ROW NEVER ANNOTATES: its actions live in the arrangement scopes, which are
     // not the interaction the weaver returns to when this surface closes.
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -3536,20 +3536,20 @@ TEST_CASE("shortcut annotations teach only truthful surrounding bindings") {
 TEST_CASE("a pane's interior is its outer rectangle less one cell of chrome") {
     // ⚔ MUTATION: delete the border -- `pane_interior` answering its own argument. Every
     // number below moves, in both directions, so the picture and the room move together.
-    const PixelRect outer = pixels_of_cells(ui::Rect{4, 3, 20, 9});
-    CHECK(cells_covered(pane_interior(outer, kChromePx)) == ui::Rect{5, 4, 18, 7});
+    const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
+    CHECK(cells_covered(pane_interior(outer, kChromePx)) == CellRect{5, 4, 18, 7});
 
     // ...AND THE INVERSE IS EXACT, which is what a content-sized surface asks for.
-    const ui::Rect grown = cells_covered(chrome_outer_of(0, 0, cells_px(18), cells_px(7)));
+    const CellRect grown = cells_covered(chrome_outer_of(0, 0, cells_px(18), cells_px(7)));
     CHECK(grown.w == 20);
     CHECK(grown.h == 9);
-    CHECK(cells_covered(pane_interior(pixels_of_cells(grown), kChromePx)) == ui::Rect{1, 1, 18, 7});
+    CHECK(cells_covered(pane_interior(pixels_of_cells(grown), kChromePx)) == CellRect{1, 1, 18, 7});
 
     // A PANE TOO SMALL FOR ITS OWN CHROME HAS NO INTERIOR, and says so with an empty
     // rectangle rather than a negative one -- ⚔ MUTATION: dropping the guard, which would
     // hand every `w <= 0` consumer a wrapped-around width instead of "nowhere".
-    for (const ui::Rect tiny : {ui::Rect{0, 0, 2, 9}, ui::Rect{0, 0, 20, 2},
-                                ui::Rect{0, 0, 1, 1}, ui::Rect{0, 0, 0, 0}}) {
+    for (const CellRect tiny : {CellRect{0, 0, 2, 9}, CellRect{0, 0, 20, 2},
+                                CellRect{0, 0, 1, 1}, CellRect{0, 0, 0, 0}}) {
         CAPTURE(tiny.w);
         CAPTURE(tiny.h);
         const PixelRect none = pane_interior(pixels_of_cells(tiny), kChromePx);
@@ -3571,9 +3571,9 @@ TEST_CASE("the border a weaver sees and the room a pane spends are one subtracti
 
     // WHAT IS PAINTED: one rect at the OUTER bounds, and the region inside it.
     const ScreenCanvas c = paint(t.session());
-    const ui::Rect cells = cells_covered(outer);
+    const CellRect cells = cells_covered(outer);
     CHECK(has_rect(c, cells.x, cells.y, cells.w, cells.h, kPaneChrome));
-    const ui::Rect inside = pane_body_cells(outer);
+    const CellRect inside = pane_body_cells(outer);
     const std::vector<ScreenRegion> at = regions_at(c, inside.x, inside.y);
     REQUIRE(at.size() == 1);
     CHECK(covered_cells(at.front()) == inside);
@@ -3606,7 +3606,7 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
     open_at_right_column(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
-    const ui::Rect side = cells_covered(
+    const CellRect side = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect);
     REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind),
                               gfx::px_of_cells(side.x - 4),
@@ -3642,7 +3642,7 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
     // AND THE PAINT AGREES WITH IT: the plane carrying the Builder's backdrop is after the one
     // carrying the right-column pane's. ⚔ MUTATION: lifting the hit order and not the paint
     // order, the exact defect "what I see in front is what my pointer reaches" forbids.
-    const ui::Rect builder_cells =
+    const CellRect builder_cells =
         cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                                 screen_of(t.session()))
                           .rect);
@@ -3651,7 +3651,7 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
     std::int64_t last_builder = -1;
     for (std::size_t li = 0; li < painted.layers.size(); ++li) {
         for (const ScreenRect& r : painted.layers[li].rects) {
-            const ui::Rect at = covered_cells(r);
+            const CellRect at = covered_cells(r);
             if (at.x == side.x && at.y == side.y && at.w == side.w) {
                 last_info = static_cast<std::int64_t>(li);
             }
@@ -3681,7 +3681,7 @@ TEST_CASE("the selected pane wears its own chrome, and only it") {
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
     const auto chrome_of = [&](std::int64_t kind) {
-        const ui::Rect at =
+        const CellRect at =
             cells_covered(bounds_of(t.session().panes, t.session().setup.active, kind,
                                     screen_of(t.session()))
                               .rect);
@@ -3692,7 +3692,7 @@ TEST_CASE("the selected pane wears its own chrome, and only it") {
         }
         return gfx::role::kNone;
     };
-    const ui::Rect builder = cells_covered(
+    const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
 
     CHECK(chrome_of(stock::kKind) == kPaneChrome);
@@ -3729,7 +3729,7 @@ TEST_CASE("the selection lift never reaches the file, and no session starts with
     // the same row is each pane's own at every extent.
     for (const std::int64_t kind : {stock::kKind, second::kKind, stock::kKind}) {
         CAPTURE(kind);
-        const ui::Rect at = cells_covered(
+        const CellRect at = cells_covered(
             bounds_of(t.session().panes, t.session().setup.active, kind, sc).rect);
         // Each pane's own far corner: the stack's slot at its left edge, the right column's
         // pane at its right, so neither press can land in the columns the two share -- where
@@ -3761,7 +3761,7 @@ TEST_CASE("a transient surface stays over the pane it covers, selected or not") 
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
-    const ui::Rect builder = cells_covered(
+    const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
     t.press_canvas(builder.x, builder.y);
     REQUIRE(t.session().panes.selected == stock::kKind);
@@ -3769,13 +3769,13 @@ TEST_CASE("a transient surface stays over the pane it covers, selected or not") 
     // THE CHROME (title row) opens the host's pane menu; the body is empty by default (WL-CTX-08).
     t.right_press_canvas(builder.x + 2, builder.y);
     REQUIRE(t.menu().open);
-    const ui::Rect popup = cells_covered(context_bounds(t.session(), screen_of(t.session())));
+    const CellRect popup = cells_covered(context_bounds(t.session(), screen_of(t.session())));
     const ScreenCanvas c = paint(t.session());
     std::int64_t last_pane = -1;
     std::int64_t last_popup = -1;
     for (std::size_t li = 0; li < c.layers.size(); ++li) {
         for (const ScreenRect& r : c.layers[li].rects) {
-            const ui::Rect at = covered_cells(r);
+            const CellRect at = covered_cells(r);
             if (at.x == builder.x && at.y == builder.y && at.w == builder.w) {
                 last_pane = static_cast<std::int64_t>(li);
             }
@@ -3799,7 +3799,7 @@ TEST_CASE("the contextual surface is its actions, and its width is theirs") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
-    const ui::Rect builder = cells_covered(
+    const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
     t.right_press_canvas(builder.x + 1, builder.y + 1);
     REQUIRE(t.menu().subject == context_subject::kPane);
@@ -3827,7 +3827,7 @@ TEST_CASE("the contextual surface is its actions, and its width is theirs") {
     for (const std::string& row : shown) {
         widest = row.size() > widest ? row.size() : widest;
     }
-    const ui::Rect popup = cells_covered(bounds);
+    const CellRect popup = cells_covered(bounds);
     CHECK(popup.w == static_cast<std::int64_t>(widest) + 2 * kChromeCells);
     const std::string retired = "ACTIONS -- " + ref_text(ref_of(stock::kKind));
     CHECK(popup.w < static_cast<std::int64_t>(retired.size()));
@@ -3854,7 +3854,7 @@ TEST_CASE("no ordinary pane spends a row teaching a key the keymap already owns"
     }
     for (const std::int64_t kind : {stock::kKind, second::kKind}) {
         CAPTURE(kind);
-        const ui::Rect body =
+        const CellRect body =
             pane_body_cells(bounds_of(t.session().panes, t.session().setup.active, kind,
                                       screen_of(t.session()))
                                 .rect);
@@ -3923,12 +3923,12 @@ TEST_CASE("the chrome a pane wears is one unit of the face in front of the weave
 
     // THE PANE ITSELF: one authored rectangle, two boundaries, and the outer rectangle is
     // the same object on both faces.
-    const PixelRect outer = pixels_of_cells(ui::Rect{4, 3, 20, 9});
+    const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
     const PaneInside on_tui = pane_inside(outer, tui);
     const PaneInside on_sdl = pane_inside(outer, sdl);
     CHECK(on_tui.chrome_px == kChromePx);
     CHECK(on_sdl.chrome_px == gfx::kCellPx / gfx::kCellPx);
-    CHECK(cells_covered(on_tui.rect) == ui::Rect{5, 4, 18, 7}); // the cell-chrome picture, unmoved
+    CHECK(cells_covered(on_tui.rect) == CellRect{5, 4, 18, 7}); // the cell-chrome picture, unmoved
     CHECK(on_sdl.rect.w > on_tui.rect.w);
     CHECK(on_sdl.rect.h > on_tui.rect.h);
 }
@@ -3938,7 +3938,7 @@ TEST_CASE("the graphical boundary is one device pixel, drawn INSIDE the pane") {
     // the pixel outside it. The authored rectangle is the outer rectangle; the ring is
     // subtracted from it, and every number below is a pixel of the shipped face.
     const Screen sdl = sdl_screen();
-    const PixelRect outer = pixels_of_cells(ui::Rect{4, 3, 20, 9});
+    const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
     const PixelRect inside = pane_inside(outer, sdl).rect;
 
     const std::int64_t left = outer.x;
@@ -3967,7 +3967,7 @@ TEST_CASE("the interior a window no longer reserves goes back to the pane") {
     // derived from the ACTUAL post-chrome pixels, so a body that kept the cell inset shows up
     // as fewer rows than the arithmetic says.
     const Screen sdl = sdl_screen();
-    const PixelRect outer = pixels_of_cells(ui::Rect{4, 3, 20, 9});
+    const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
 
     const ProsePlace thin = prose_place(outer, sdl);
     REQUIRE(thin.present);
@@ -3999,8 +3999,8 @@ TEST_CASE("a face that describes an interior in CELLS pays the cell") {
     // interior would spill over its own left and top edge. ⚔ MUTATION: `pane_inside` returning
     // the thin candidate unconditionally fails every symmetric-ring check below, on exactly
     // the faces that cannot draw the pixel.
-    const PixelRect outer = pixels_of_cells(ui::Rect{4, 3, 20, 9});
-    const ui::Rect box = cells_covered(outer);
+    const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
+    const CellRect box = cells_covered(outer);
 
     struct Face {
         const char* what;
@@ -4015,7 +4015,7 @@ TEST_CASE("a face that describes an interior in CELLS pays the cell") {
         INFO(face.what);
         const PaneInside in = pane_inside(outer, face.sc);
         CHECK(in.chrome_px == kChromePx);
-        const ui::Rect body = cells_covered(in.rect);
+        const CellRect body = cells_covered(in.rect);
         CHECK(body.x == box.x + 1);
         CHECK(body.y == box.y + 1);
         CHECK(body.w == box.w - 2); // ...a ring on all FOUR sides, in the unit that face
@@ -4028,11 +4028,11 @@ TEST_CASE("a face that describes an interior in CELLS pays the cell") {
     // window pays a pixel for a pane it can set in type.
     const Screen tall =
         screen_of(screen_session(kScreenMinW, kScreenMinH, 8, 40, gfx::kCellPx));
-    const PixelRect small = pixels_of_cells(ui::Rect{4, 3, 20, 3});
+    const PixelRect small = pixels_of_cells(CellRect{4, 3, 20, 3});
     const PaneInside cramped = pane_inside(small, tall);
     CHECK_FALSE(cramped.fit.graphical());
     CHECK(cramped.chrome_px == kChromePx);
-    const PaneInside roomy = pane_inside(pixels_of_cells(ui::Rect{4, 3, 20, 12}), tall);
+    const PaneInside roomy = pane_inside(pixels_of_cells(CellRect{4, 3, 20, 12}), tall);
     REQUIRE(roomy.fit.graphical());
     CHECK(roomy.chrome_px == chrome_grain(tall));
     CHECK(roomy.chrome_px < kChromePx);
@@ -4051,12 +4051,12 @@ TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") 
     REQUIRE_FALSE(outer.empty());
 
     const ScreenCanvas c = paint(t.session());
-    const ui::Rect box = cells_covered(outer);
+    const CellRect box = cells_covered(outer);
     CHECK(has_rect(c, box.x, box.y, box.w, box.h, kPaneChrome)); // the whole pane, once
 
     // ON A TERMINAL the interior it publishes leaves a one-CELL ring...
-    const ui::Rect body = pane_body_cells(outer);
-    CHECK(body == ui::Rect{box.x + 1, box.y + 1, box.w - 2, box.h - 2});
+    const CellRect body = pane_body_cells(outer);
+    CHECK(body == CellRect{box.x + 1, box.y + 1, box.w - 2, box.h - 2});
     const std::vector<ScreenRegion> at = regions_at(c, body.x, body.y);
     REQUIRE(at.size() == 1);
     CHECK(covered_cells(at.front()) == body);
@@ -4090,8 +4090,8 @@ TEST_CASE("selected and ordinary differ in INK, and in nothing else") {
     const PixelRect outer =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect;
     REQUIRE_FALSE(outer.empty());
-    const ui::Rect box = cells_covered(outer);
-    const ui::Rect body = pane_body_cells(outer, sc);
+    const CellRect box = cells_covered(outer);
+    const CellRect body = pane_body_cells(outer, sc);
 
     const auto picture = [&](const ScreenCanvas& c) {
         // `regions_at` keys on the region's own published corner, which on this face is the
@@ -4130,22 +4130,22 @@ TEST_CASE("selected and ordinary differ in INK, and in nothing else") {
 
 TEST_CASE("a content-sized surface reserves the coarsest boundary, once") {
     // THE CONTEXTUAL POPUP asks for a rectangle to hold its rows INSIDE its chrome, and that
-    // is ONE whole-cell `ui::Rect` shown on whichever face draws it -- so it reserves the
+    // is ONE whole-cell `CellRect` shown on whichever face draws it -- so it reserves the
     // boundary the COARSEST face spends, and a graphical face hands the difference to the
     // popup's interior; a popup sized for pixels would cut a row off itself on a terminal.
     // ⚔ MUTATION: a medium-specific `chrome_outer_of`, making the popup's placement depend on
     // the face.
-    const ui::Rect grown = cells_covered(chrome_outer_of(0, 0, cells_px(18), cells_px(7)));
+    const CellRect grown = cells_covered(chrome_outer_of(0, 0, cells_px(18), cells_px(7)));
     CHECK(grown.w == 18 + 2 * kChromeCells);
     CHECK(grown.h == 7 + 2 * kChromeCells);
     CHECK(cells_covered(pane_interior(pixels_of_cells(grown), kChromePx)) ==
-          ui::Rect{1, 1, 18, 7}); // exact on the face that reserved it
+          CellRect{1, 1, 18, 7}); // exact on the face that reserved it
 
     // AND THE POPUP'S RECTANGLE IS THE SAME RECTANGLE ON BOTH FACES. ⚔ MUTATION: anchoring
     // the contextual surface to a pane's BODY rather than to the pane.
     Live t;
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect pane = cells_covered(
+    const CellRect pane = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -4214,7 +4214,7 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     open_at_right_column(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
-    const ui::Rect side = cells_covered(
+    const CellRect side = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect);
     REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind),
                               gfx::px_of_cells(side.x - 4),
@@ -4268,16 +4268,16 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     CHECK(t.session().panes.keyboard == keyboard_before);
 
     // THE ARRANGEMENT OPERATION ADDRESSES THE SAME PANE the selection names.
-    const ui::Rect before = cells_covered(
+    const CellRect before = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
-    const ui::Rect info_before = cells_covered(
+    const CellRect info_before = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                   screen_of(t.session()))
             .rect);
     t.key(input::scan::kLeft);
-    const ui::Rect after = cells_covered(
+    const CellRect after = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -4307,7 +4307,7 @@ TEST_CASE("every pane a weaver can point at can be arranged, and the refusals ar
     // THE PANE IN THE RIGHT COLUMN IS AUTHORED: its occupant is a desk row.
     open_at_right_column(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -4315,7 +4315,7 @@ TEST_CASE("every pane a weaver can point at can be arranged, and the refusals ar
     REQUIRE(t.session().panes.selected == stock::kKind);
 
     // ONE: Arrange on the right column's pane, through the weaver's own gesture, is accepted.
-    const ui::Rect side = cells_covered(
+    const CellRect side = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                   screen_of(t.session()))
             .rect);
@@ -4335,7 +4335,7 @@ TEST_CASE("every pane a weaver can point at can be arranged, and the refusals ar
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
     CHECK(sized.open);
     CHECK(sized.rect.w == 300);
-    const ui::Rect sized_cells = cells_covered(sized.rect);
+    const CellRect sized_cells = cells_covered(sized.rect);
     CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, sized_cells.x,
                       sized_cells.y)
               .kind == second::kKind);
@@ -4359,7 +4359,7 @@ TEST_CASE("the arrangement desk's pointer takes what is visibly in front") {
     const PaneBounds second_at = bounds_of(t.session().panes, t.session().setup.active,
                                             stock::kKind, screen_of(t.session()));
     REQUIRE(second_at.open);
-    const ui::Rect files = cells_covered(second_at.rect);
+    const CellRect files = cells_covered(second_at.rect);
     REQUIRE(files.w > 4);
     REQUIRE(place_at_canvas(live(t), ref_of(second::kKind),
                               gfx::px_of_cells(files.x + 2),
@@ -4376,7 +4376,7 @@ TEST_CASE("the arrangement desk's pointer takes what is visibly in front") {
 
     // SELECTED: a press on a strip only the Builder covers lifts it, and the lift reaches
     // the overlap -- which is the state every other arrangement case is missing.
-    const ui::Rect builder = cells_covered(
+    const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                   screen_of(t.session()))
             .rect);
@@ -5027,7 +5027,7 @@ TEST_CASE("a press answers a painted tab and nothing else on the band") {
     const BandStatus row = band_status(s, sc);
     // ⚠ THE TOP BAND, because that is where the run is painted. A press resolved against the
     // bottom band's origin would be the stale-geometry lie this case exists to refuse.
-    const ui::Rect b = cells_covered(top_band_bounds(sc));
+    const CellRect b = cells_covered(top_band_bounds(sc));
     REQUIRE(b.y == 0);
     REQUIRE(band_tab_row(s, sc) == 0);
     REQUIRE(row.tabs.size() == 3);
@@ -5103,7 +5103,7 @@ TEST_CASE("an omitted tab has no span and cannot be pressed") {
     for (const LayoutTab& tab : row.tabs) {
         CHECK(tab.at < layout_count(s.setup) - row.after);
     }
-    const ui::Rect b = cells_covered(top_band_bounds(sc));
+    const CellRect b = cells_covered(top_band_bounds(sc));
     for (std::int64_t c = 0; c < cells_of(sc).w; ++c) {
         const LayoutTabPress hit =
             band_tab_at(s, sc, input::space::kCells, b.x + c,
@@ -5257,9 +5257,9 @@ TEST_CASE("every owner of the body agrees about where it begins") {
     open_stock_pane(t);
     const Screen sc = screen_of(t.session());
 
-    const ui::Rect slot = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
+    const CellRect slot = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
     CHECK(slot.y == kRoomCellY); // the stack begins at the body's own top
-    const ui::Rect side = cells_covered(placement_bounds(placement::kSideRegion, 0, sc));
+    const CellRect side = cells_covered(placement_bounds(placement::kSideRegion, 0, sc));
     CHECK(side.y == kRoomCellY);
     CHECK(side.y + side.h == kRoomCellY + cells_of(sc).room_h);
     CHECK(gfx::cell_of_pixel(overlay_column(sc).y) == kRoomCellY);
@@ -5268,7 +5268,7 @@ TEST_CASE("every owner of the body agrees about where it begins") {
     // Builder, and the cell directly above it -- the reserved top row's last -- answers with
     // the pane standing THERE: a boundary between two panes, checkable by one rule, and not
     // between a pane and a hole.
-    const ui::Rect builder = cells_covered(
+    const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
     CHECK(builder.y == kRoomCellY);
     CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, builder.x, builder.y)
@@ -5381,7 +5381,7 @@ TEST_CASE("the closing marker belongs to the layout it closes") {
     CHECK(row.text.substr(static_cast<std::size_t>(row.tabs[1].column),
                           static_cast<std::size_t>(row.tabs[1].columns)) == ">Code<");
 
-    const ui::Rect b = cells_covered(top_band_bounds(sc));
+    const CellRect b = cells_covered(top_band_bounds(sc));
     const auto press = [&](std::int64_t column) {
         return band_tab_at(s, sc, input::space::kCells, b.x + column,
                            b.y);
@@ -5496,7 +5496,7 @@ TEST_CASE("the Layouts pane's developer default IS the historical rectangle") {
         CHECK(layouts_body(s, sc).rows == kTopRows);
         if (metric.first == 0) {
             // ...where text is a cell, the two cell rows it has always been.
-            CHECK(cells_covered(where.rect) == ui::Rect{0, 0, cells_of(sc).w, kTopRows});
+            CHECK(cells_covered(where.rect) == CellRect{0, 0, cells_of(sc).w, kTopRows});
         }
     }
 }
@@ -5531,7 +5531,7 @@ TEST_CASE("a two-cell pane keeps its content and drops its boundary") {
     // ...AND A PANE WITH ROOM FOR A BOUNDARY STILL PAYS ONE, on the same face. The rung is
     // a floor for a rectangle that cannot hold an edge, not a repeal of the edge.
     const PaneInside roomy =
-        pane_inside(pixels_of_cells(ui::Rect{0, 0, 40, 9}), screen_of(cells));
+        pane_inside(pixels_of_cells(CellRect{0, 0, 40, 9}), screen_of(cells));
     CHECK(roomy.chrome_px == kChromePx);
 }
 
@@ -5551,9 +5551,9 @@ TEST_CASE("authored geometry moves the Layouts pane, and the tabs with it") {
                              PaneSize{pane_unit::kPixels, cells_px(40)},
                              PaneSize{pane_unit::kPixels, cells_px(4)})
                 .accepted);
-    const ui::Rect moved = cells_covered(
+    const CellRect moved = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc).rect);
-    CHECK(moved == ui::Rect{10, 20, 40, 4});
+    CHECK(moved == CellRect{10, 20, 40, 4});
 
     // THE PRESS INVERSE FOLLOWED IT. A tab press at the pane's new first interior row lands
     // on a tab; the reserved top row answers nothing at all.

@@ -472,9 +472,9 @@ TEST_CASE("a default width still takes half the surplus after a place edit") {
         s.screen_w = cells_px(w);
         s.screen_h = cells_px(40);
         const Screen sc = screen_of(s);
-        const ui::Rect got =
+        const CellRect got =
 cells_covered(bounds_of(s.panes, s.setup.active, stock::kKind, sc).rect);
-        const ui::Rect reactive = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
+        const CellRect reactive = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
         CHECK(got.w == reactive.w);
         CHECK(got.w == kStackW + (cells_of(sc).room_w - kStackW) / 2);
         CHECK(got.h == reactive.h);
@@ -846,10 +846,10 @@ TEST_CASE("hit order is the exact reverse of paint order") {
 
     // THE POINTER ANSWERS WITH THE FRONT-MOST PANE ON A CELL, and the front-most is the LAST
     // painted. Asked of the Info column, which only Info covers, and then of the stack.
-    const ui::Rect side =
+    const CellRect side =
 cells_covered(bounds_of(s.panes, s.setup.active, second::kKind, sc).rect);
     CHECK(occupied_at(s.panes, s.setup.active, sc, side.x, side.y).occupied);
-    const ui::Rect stack =
+    const CellRect stack =
 cells_covered(bounds_of(s.panes, s.setup.active, stock::kKind, sc).rect);
     CHECK(occupied_at(s.panes, s.setup.active, sc, stack.x, stack.y).occupied);
 
@@ -979,13 +979,13 @@ TEST_CASE("two panes that each cover HALF of a third leave nothing of it showing
     const Screen sc = screen_of(s);
     const CatalogRow row_under{stock::kKind, under, "Builder", ""};
     // NEITHER HALF CONTAINS IT...
-    const ui::Rect mine =
+    const CellRect mine =
 cells_covered(bounds_of(s.panes, setup, stock::kKind, sc).rect);
-    const ui::Rect ra =
+    const CellRect ra =
 cells_covered(bounds_of(s.panes, setup, left.kind, sc).rect);
-    const ui::Rect rb =
+    const CellRect rb =
 cells_covered(bounds_of(s.panes, setup, right.kind, sc).rect);
-    REQUIRE(mine == ui::Rect{0, 20, 8, 2});
+    REQUIRE(mine == CellRect{0, 20, 8, 2});
     CHECK_FALSE((ra.contains(mine.x, mine.y) &&
                  ra.contains(mine.x + mine.w - 1, mine.y + mine.h - 1)));
     CHECK_FALSE((rb.contains(mine.x, mine.y) &&
@@ -1030,7 +1030,7 @@ TEST_CASE("coverage is the UNION of what is in front, not containment by one pan
     // coverage, not about the place the front pane is in. The front pane is placed first, away
     // from the stack's own corner, so the case has room to move the covered one two cells left.
     REQUIRE(author_pane_place(setup, over, cells_px(10), cells_px(6)).accepted);
-    const ui::Rect side = cells_covered(bounds_of(s.panes, setup, second::kKind, sc).rect);
+    const CellRect side = cells_covered(bounds_of(s.panes, setup, second::kKind, sc).rect);
     REQUIRE(side.w > 0);
     REQUIRE(author_pane_place(setup, under, cells_px(side.x), cells_px(side.y)).accepted);
     REQUIRE(author_pane_size(setup, under, PaneSize{pane_unit::kPixels, cells_px(4)},
@@ -1113,7 +1113,7 @@ TEST_CASE("the keyboard alone reaches every window operation") {
     // MOVE AND SIZE ARE ONE STATE: the arrows place the addressed pane with no submode entered
     // and nothing to leave before sizing it.
     const Screen sc = screen_of(t.session());
-    const ui::Rect before =
+    const CellRect before =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active,
                                       stock::kKind, sc).rect);
     for (int step = 0; step < 4; ++step) {
@@ -1271,7 +1271,7 @@ TEST_CASE("a hand and a key author the same setup values") {
     enter_arrange_desk(handed);
     select_pane(handed, ref_of(stock::kKind));
     const Screen sc = screen_of(handed.session());
-    const ui::Rect rect =
+    const CellRect rect =
 cells_covered(bounds_of(handed.session().panes, handed.session().setup.active,
                                     stock::kKind, sc).rect);
     // TAKE HOLD IN THE MIDDLE OF THE PANE and put the hand three right and two down. The
@@ -1299,7 +1299,7 @@ TEST_CASE("one press claims one gesture, and crossing anything does not move it"
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
-    const ui::Rect rect =
+    const CellRect rect =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active,
                                     stock::kKind, sc).rect);
     const std::int64_t gx = rect.x + 2;
@@ -1311,7 +1311,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
     // CROSS THE INFO COLUMN -- another presentation entirely -- and the gesture is still the
     // Builder's, because a motion reads the pane that CLAIMED THE PRESS and never asks what
     // is under the pointer now.
-    const ui::Rect side =
+    const CellRect side =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                                     sc).rect);
     // ...kept in the room, where a place is measured from.
@@ -1349,7 +1349,7 @@ TEST_CASE("outside arrangement, an addressed pane behind another clicks through 
     // second's own corner, in pixels of the cells the second covers, so the two share a run
     // of cells.
     const Screen sc = screen_of(t.session());
-    const ui::Rect side =
+    const CellRect side =
         cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                                 sc).rect);
     REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind), cells_px(side.x),
@@ -1365,7 +1365,7 @@ TEST_CASE("outside arrangement, an addressed pane behind another clicks through 
     // ...AND THE PRIORITY WAS THE MODE'S ALONE. A press inside the covered stand-in is answered
     // by the VISIBLE pane on top of it, which is what stops arrangement interest from becoming a
     // click-through. The observable is which pane the press selected, at a cell both cover.
-    const ui::Rect back =
+    const CellRect back =
         cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                                 screen_of(t.session())).rect);
     const std::int64_t at_x = side.x + 2;
@@ -1422,7 +1422,7 @@ TEST_CASE("clearing the selected pane clears its gesture safely") {
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
-    const ui::Rect rect =
+    const CellRect rect =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active,
                                     stock::kKind, sc).rect);
     t.press_at(rect.x + 1, rect.y + 1, input::space::kCells);
@@ -1768,7 +1768,7 @@ TEST_CASE("a right press over a provider's pane crosses the seam not at all") {
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect head = external_body_rect(r.session(), kind);
+    const CellRect head = external_body_rect(r.session(), kind);
     const std::int64_t keyboard_before = r.session().panes.keyboard;
     const std::int64_t said_before = seat->said;
 
@@ -1800,7 +1800,7 @@ TEST_CASE("input spent on the open surface reaches no provider") {
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     // THE CHROME (title row) opens the surface (WL-CTX-08).
-    const ui::Rect head = external_body_rect(r.session(), kind);
+    const CellRect head = external_body_rect(r.session(), kind);
     r.right_press_cell(head.x + 1, head.y);
     REQUIRE(r.session().context.open);
     const std::size_t presses_before = seat->presses.size();
@@ -1838,7 +1838,7 @@ TEST_CASE("the one-pane scope is bound -- another pane cannot be drawn into it")
     // here, and an unresolved row has no rectangle.
     open_pane(t, ref_of(second::kKind));
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -1850,7 +1850,7 @@ TEST_CASE("the one-pane scope is bound -- another pane cannot be drawn into it")
 
     // A PRESS ON ANOTHER PANE is consumed with the sentence naming the state -- the Pane
     // Manager is not drawn in, nothing is dragged, and the binding does not move.
-    const ui::Rect side = cells_covered(
+    const CellRect side = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                   screen_of(t.session()))
             .rect);
@@ -1873,7 +1873,7 @@ TEST_CASE("the one-pane scope is bound -- another pane cannot be drawn into it")
     CHECK(t.session().pane_drag.pane == ref_of(stock::kKind));
     t.release(0, 0);
     // ...and its edge sizes it, in the same state, with nothing left or re-entered.
-    const ui::Rect now = cells_covered(
+    const CellRect now = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -1912,7 +1912,7 @@ TEST_CASE("the desk manipulates panes directly, and a press is its own targeting
 
     // PRESS THE FIRST PANE'S BODY: it is dragged by that very press -- no selection
     // stood as a prerequisite -- and it becomes the keyboard's target by the same press.
-    const ui::Rect hello_rect = cells_covered(
+    const CellRect hello_rect = cells_covered(
         bounds_of(r.session().panes, r.session().setup.active, hello_kind,
                   screen_of(r.session()))
             .rect);
@@ -1924,7 +1924,7 @@ TEST_CASE("the desk manipulates panes directly, and a press is its own targeting
 
     // PRESS THE SECOND PANE'S EDGE: sized directly, target follows the press -- more
     // than one pane manipulated with nobody ever "selected first".
-    const ui::Rect b = cells_covered(
+    const CellRect b = cells_covered(
         bounds_of(r.session().panes, r.session().setup.active, stock::kKind,
                   screen_of(r.session()))
             .rect);
@@ -1982,7 +1982,7 @@ TEST_CASE("an arrow steps the AUTHORED value, not the medium's floor") {
 
     // ...AND ONE ARROW MOVES WHAT WAS AUTHORED, not the number this medium can say back --
     // through the contextual door, which selects its subject.
-    const ui::Rect slot = cells_covered(shown);
+    const CellRect slot = cells_covered(shown);
     t.right_press_canvas(slot.x + 1, slot.y + 1);
     REQUIRE(t.menu().pane == ref_of(stock::kKind));
     t.key(input::scan::kReturn);
@@ -2116,7 +2116,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
             REQUIRE(offered != nullptr);
             const std::int64_t kind = offered->kind;
             REQUIRE(p.session().panes.has(kind));
-            const ui::Rect body = external_body_rect(p.session(), kind);
+            const CellRect body = external_body_rect(p.session(), kind);
             p.press_cell(body.x, body.y); // the keys go to the pane
             REQUIRE(p.session().panes.keyboard == kind);
             // THE WINDOW THAT SHOWS THE PANE'S AREA IS ASKED, and only it.
@@ -2286,7 +2286,7 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
         effective_pane_order(r.session().setup.active, r.session().panes);
     CHECK(lifted.back() == kind);
     const Screen sc = screen_of(r.session());
-    const ui::Rect box = cells_covered(external_pane_rect(r.session(), kind));
+    const CellRect box = cells_covered(external_pane_rect(r.session(), kind));
     CHECK(occupied_at(r.session().panes, r.session().setup.active, sc, box.x, box.y).kind ==
           kind);
 

@@ -825,7 +825,7 @@ TEST_CASE("the Powers list past its window is reached by the wheel, through the 
 
     // WHEEL DOWN, ONE NOTCH AT A TIME, TO THE TAIL. The row the cursor ends on was not on the
     // screen when it began: that is the hidden row the marker stood for.
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     const std::int64_t cx = body.x + 4;
     const std::int64_t cy = body.y + kExternalHeaderRows + 1; // the list's first row
     for (std::int64_t i = 0; i < total + 1; ++i) {

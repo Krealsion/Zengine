@@ -18,7 +18,7 @@ input                             doctest           always  56
 # A tripwire in this suite reads graphics/ as text (VM-WALL-11).
 graphics                          doctest           always  89
 graphics                          doctest           sdl     7
-ui                                doctest           always  22
+ui                                doctest           always  30
 component                         doctest           always  48
 editor                            doctest           always  20
 # Tripwires in this suite read workshop/workshop.cpp, workshop/load_execute.hpp,
@@ -88,7 +88,7 @@ timer_activation_hook_compiles    compile-positive  always
 timer_missing_using_refused       compile-negative  always  using TimedWeave::on|cannot convert argument 1 from 'const zengine::timer::TimerFired'
 timer_missing_using_no_binding_refused compile-negative always using TimedWeave::on|cannot convert argument 1 from 'const zengine::timer::TimerFired'
 timer_cursor_bypass_refused       compile-negative  always  (discards|loses) qualifiers
-ui_authored_extent_required       compile-negative  always  a resolvable dimension must be an authored Extent
+ui_authored_extent_required       compile-negative  always  a resolvable dimension must be an authored Size
 ui_resolved_geometry_refused      compile-negative  always  no resolved rectangle may live on an authored element
 ui_authored_element_compiles      compile-positive  always
 graphics_change_outside_list_refused compile-negative always is not one of the element's changes

@@ -1581,7 +1581,7 @@ TEST_CASE("an application row is joined, is requested above the modes, and reach
     const std::int64_t kind = live_offer_pane(t, "zengine.hello", "hello", "Hello");
     REQUIRE(kind != kNoPaneKind);
     open_pane(t, PaneRef{"zengine.hello", "hello"});
-    const ui::Rect body = cells_covered(
+    const CellRect body = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, kind, screen_of(t.session()))
             .rect);
     t.press_canvas(body.x + 1, body.y + 1);
@@ -1684,7 +1684,7 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
     open_pane(t, PaneRef{"zengine.hello", "hello"});
     // PICKED UP THE WAY A WEAVER PICKS A PANE UP, so what is put down below is a selection this
     // desk actually made; then the keys are put down, so Escape is command mode's.
-    const ui::Rect body = cells_covered(
+    const CellRect body = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, kind, screen_of(t.session()))
             .rect);
     t.press_canvas(body.x + 1, body.y + 1);
@@ -1870,7 +1870,7 @@ void manager_here(PaneRig& r) {
     }
     const RuntimePane* row = r.session().panes.runtime.find(kDesktopRole, dp::kLauncherPane);
     REQUIRE(row != nullptr);
-    const ui::Rect body = external_body_rect(r.session(), row->kind);
+    const CellRect body = external_body_rect(r.session(), row->kind);
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
 }
 

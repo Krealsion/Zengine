@@ -369,7 +369,7 @@ struct EditorRig {
         std::int64_t above = 0;
     };
     Aim aim() {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         return Aim{body.x, body.y + kExternalHeaderRows, chrome()};
     }
     void enqueue_press_doc(const Aim& at, std::int64_t row, std::int64_t col) {
@@ -765,16 +765,16 @@ struct EditorRig {
     }
     void motion_doc(std::int64_t row, std::int64_t col) {
         const std::int64_t at = chrome() + row;
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.motion_cell(body.x + pane_cell_of(r.session(), kind, at, col), body.y + kExternalHeaderRows + at);
     }
     void release_doc(std::int64_t row, std::int64_t col) {
         const std::int64_t at = chrome() + row;
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.release_cell(body.x + pane_cell_of(r.session(), kind, at, col), body.y + kExternalHeaderRows + at);
     }
     void wheel(double dy) {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.wheel_cell(dy, body.x + 2, body.y + kExternalHeaderRows + chrome());
     }
 
@@ -1703,7 +1703,7 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     // consumed as nothing -- which is exactly what the weaver's hands did; the point is that it
     // was replayed at all.) A press held through the ask is replayed too, and points the keys.
     e.enqueue_key(input::scan::kQ);
-    const ui::Rect body = external_body_rect(e.r.session(), e.kind);
+    const CellRect body = external_body_rect(e.r.session(), e.kind);
     e.enqueue(input::PointerButton{1, true, body.x + 2, body.y + kExternalHeaderRows + 1,
                                    input::space::kCells, input::mod::kNone});
     e.enqueue_text("?");
@@ -2190,7 +2190,7 @@ TEST_CASE("in a terminal, a press on a character past the caret puts the caret b
     e.open_file("a.cpp", "abcdefgh\n");
     // THE TERMINAL'S OWN ROW, read where it is drawn now: a caret moves no character from its cell.
     const auto cell_showing = [&e](char glyph) {
-        const ui::Rect body = external_body_rect(e.r.session(), e.kind);
+        const CellRect body = external_body_rect(e.r.session(), e.kind);
         const std::int64_t y = body.y + kExternalHeaderRows + e.chrome();
         const DeskShown shown = e.r.windows.shown();
         REQUIRE(y < static_cast<std::int64_t>(shown.rows.size()));
@@ -2458,7 +2458,7 @@ TEST_CASE("a sweep in a pane that lost its seat is lost with it, and a motion af
     e.r.session().panes.keyboard = kNoPaneKind; // the keys put down with no gesture
     e.r.pick(editor_ref()); // the pane is closed mid-sweep, through the close door
     REQUIRE_FALSE(e.r.session().panes.has(e.kind));
-    const ui::Rect body = external_body_rect(e.r.session(), e.kind);
+    const CellRect body = external_body_rect(e.r.session(), e.kind);
     e.r.motion_cell(body.x + 2, body.y + 3);
     // Back, and the selection is the sweep's: a motion the pane never saw moved none of it.
     e.r.pick(editor_ref());
@@ -2474,7 +2474,7 @@ TEST_CASE("a press begins a sweep only where it named a row of the body") {
     EditorRig e("edit-press-header");
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
-    const ui::Rect body = external_body_rect(e.r.session(), e.kind);
+    const CellRect body = external_body_rect(e.r.session(), e.kind);
     e.r.press_cell(body.x, body.y); // the host's own header row
     CHECK(e.r.session().panes.keyboard == e.kind);
     e.motion_doc(1, 2); // held over the document's rows: a header press swept nothing
