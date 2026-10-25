@@ -409,7 +409,8 @@ The spelling line, `key for <id>: `, while [`hotkeys.commit`](#hotkeyscommit) wa
 The desk reads and writes no file. The keymap file the Hotkeys pane names is Workshop's, which reads
 it at launch and writes each change you make here
 ([the keymap file](hotkeys.md#the-keymap-file)). Which pane a row opens is the inventory Workshop
-holds; where panes sit is the setup Workshop keeps ([setups](setups.md)).
+holds; where panes sit is the live layout [`zengine.layouts`](zengine.layouts.md) keeps
+([setups](setups.md)).
 
 ## See also
 

@@ -8,7 +8,7 @@ descriptions add what a setup file alone does not store -- fixture values, toolb
 **How-to, plus an explicit current-state verdict.** How Workshop persists an arrangement, how
 you get it back, and what does not come back on its own.
 
-## The three files
+## The files
 
 Workshop keeps its persisted things apart, on purpose, in separate files; the ones about
 what you are looking at are these:
@@ -16,14 +16,16 @@ what you are looking at are these:
 | file | argument | holds |
 |---|---|---|
 | the **setup** | `--setup`, default `workshop-setup.json` | one desk you deliberately kept: which panes, where, how big, in what order, and each pane's settings |
-| the **last session** | `--session`, default `workshop-session.json` | the desk you were actually using when you left, plus how much room the surface had |
+| the **last session** | `--session`, default `workshop-session.json` | the desks you were actually using when you left: every layout, in order, and which one you were on |
+| the **window file** | beside the session, `workshop-session.window.json` | how much room the window had, where it stood on the desktop, and whether it was maximized |
 | a **pane you made** | the view file you saved in the [View Builder](../../view/docs/view-builder.md) | what is *inside* a pane you made: the view's elements — never where it sits, which is the desk's |
 
 They are separate because they answer different questions. The setup is a room you chose to keep
-and gave a name. The last session is the room you happened to be in — written when Workshop
+and gave a name. The last session is where you happened to be — written when Workshop
 leaves, read when it arrives, by nobody's gesture. A pane you made is a thing you built; a desk
 only says where it participates. Closing a window should not rewrite a desk you saved under a
-name, and sharing a pane you made should not import somebody else's desk.
+name, and sharing a pane you made should not import somebody else's desk. The window file is the
+window's own: a desk never carries the room it was shown in.
 
 > **An old object document is not one of them.** A `workshop.json` (`--document`) holding the
 > prototype object canvas's rectangles is no file Workshop uses. If one is in your project, Workshop names it once at startup and leaves it exactly as it is — never read,
@@ -214,14 +216,15 @@ zengine-workshop --setup layouts/inspect.json
 ## The last session
 
 **You do not save this and you do not load it.** When Workshop closes normally — `q`, `Ctrl`+`c`
-or the window's close box, all one door — it writes the desk you were on and the room you were
-in to the `--session` file. When it starts, it reads that file back.
+or the window's close box, all one door — it writes the room you were in to the window file,
+then every layout to the `--session` file. When it starts, it reads both back.
 
 ```text
 launch  ->  the surface says hello
         ->  Workshop paints once, at its floor size
-        ->  the last session is read
+        ->  the window file is read
         ->  the room is restored
+        ->  the last session is read
         ->  the desk is rebuilt INTO that room
         ->  work
 ```
@@ -236,7 +239,7 @@ What comes back:
 | which panes were open | yes — per layout |
 | where each was placed, and how big | yes — the authored values, exactly as saved |
 | which pane was in front | yes |
-| the size of the Workshop window | yes, **to the pixel** — see below |
+| the size of the Workshop window | yes, **to the pixel**, from the window file — see below |
 | the window's screen position | **yes**, on a graphical run — validated against the monitors that exist now; see [limitations](limitations.md#the-window-comes-back-where-you-left-it-into-the-desktop-that-exists-now) |
 | whether it was maximized | **yes**, beside the *normal* size and place unmaximizing returns to |
 
@@ -266,23 +269,25 @@ and the terminal's size stands.
 
 ### When it cannot be honoured
 
-Four different things can happen, and they are four different sentences:
+Each of these is its own case, and its own sentence:
 
 | situation | what Workshop does |
 |---|---|
 | there is no session file yet | opens with the defaults, and says **nothing** — a first launch is not an error |
+| the window file cannot be read | opens at the default size and says so; the desk comes back |
 | the file exists and cannot be read or understood | says why, names the reason, opens with the default setup, and **leaves your file exactly as it is — including on the way out** |
 | the file was written by an **older** Workshop | reads it through a conversion, if this arrangement has one — see below |
 | the file claims **this** version but says something impossible — no layouts, more layouts than a run holds, an active position that is not one of them, a desk that is not a legal setup | refuses it as the current-version file it claims to be, names the fact that is wrong, and **does not go looking for a conversion** |
-| the file is fine but the saved size is not one this Workshop opens at | restores the **desk**, opens at the default size, and names the value it declined |
+| the window file's size is not one this Workshop opens at | restores the **desk**, opens at the default size, and names the value it declined |
 | a pane in it is a reference this build cannot present | restores everything else, keeps the reference, and names the first unresolved one |
 
 A saved size is honoured only if it is inside the band Workshop is honest at — 78x22 to
 640x400 cells. Outside it the size is **declined, not clamped**: clamping a nonsense width into
 the band would still open a window nobody chose, on a display Workshop cannot see.
 
-**Crash recovery is not claimed.** The session is written on an orderly close. A Workshop that
-is killed loses the session it was in, and the previous file is still there.
+**Crash recovery is not claimed.** The window file and the session are written on an orderly
+close. A Workshop that is killed loses the session it was in, and the previous files are still
+there.
 
 ### A session written by an older Workshop
 
@@ -335,7 +340,7 @@ They are deliberately different promises, and keeping them apart is why there ar
 | written by | you, with `s` | Workshop, on close |
 | read by | you, with `r` | Workshop, on start |
 | has a name you chose | yes | it carries whatever name the desk had |
-| holds the window size | no | yes |
+| holds the window size | no | no -- the window file beside it does |
 | how many desks | exactly one | all the layouts you were using, in order, with the live one marked |
 | holds which file a desk is related to | no -- a Setup file never names another file | yes, per layout |
 | how many files | one per run, chosen by `--setup`; keep as many files as you like | one |
@@ -372,9 +377,9 @@ Source-traced, precisely:
 | persisting which panes are open | **yes** | the pane list, in both |
 | persisting pane order (depth) | **yes** | the rank permutation, in both |
 | persisting a pane's settings | **yes** | per layout, in the pane's row, in both |
-| persisting the window's size | **yes** | the session's viewport, in pixels — the *normal* window's room |
-| persisting the window's position and maximized state | **yes** | remembered opaquely from the medium's own reports; the medium validates them against live displays at restore |
-| **restoring the desk and the room at launch** | **yes** | automatic, from the `--session` file |
+| persisting the window's size | **yes** | the window file's viewport, in pixels — the *normal* window's room |
+| persisting the window's position and maximized state | **yes** | in the window file, remembered opaquely from the medium's own reports; the medium validates them against live displays at restore |
+| **restoring the desk and the room at launch** | **yes** | automatic, from the `--session` file and the window file beside it |
 | **reopening the source you were editing** | **no** | the Editor starts empty; open it again from Files or the Builder's `e` |
 
 So the actual workflow every session is now:
