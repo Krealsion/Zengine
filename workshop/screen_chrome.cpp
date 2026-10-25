@@ -123,24 +123,23 @@ ui::Measure pane_measure(std::int64_t where, const Screen& sc, const RuntimePane
                        preferred.height ? preferred.height : own.h};
 }
 
-/// One pane as a part: its sizes are the weaver's `pixels` where they gave one and `default` --
-/// its measure -- where they did not; it stands in the room at its `pixels` place, or in its
-/// place's frame: down the stack, in the top band, or in the right column at the offset that
-/// puts its measured width against the column's right edge, which an authored width keeps.
+/// One pane as a part: its sizes are the weaver's words, `default` -- its measure -- where they
+/// said none; it stands in the room at its place word, or, for a `default` place, in its place's
+/// frame: down the stack, in the top band, or in the right column at the offset that puts its
+/// measured width against the column's right edge, which an authored width keeps.
 // WL-PANE-01, WL-PANE-11 -- agents/workshop/panes-and-windows.md
 ui::Element pane_part(std::int64_t id, std::int64_t where, const SetupPane* authored,
                       const ui::Measure& measure, const Screen& sc) {
     ui::Element e;
     e.id = id;
-    if (authored != nullptr && authored->width.mode == pane_unit::kPixels) {
-        e.width = pixels_size(authored->width.amount);
+    if (authored != nullptr) {
+        e.width = ui_size_of(authored->width);
+        e.height = ui_size_of(authored->height);
     }
-    if (authored != nullptr && authored->height.mode == pane_unit::kPixels) {
-        e.height = pixels_size(authored->height.amount);
-    }
-    if (authored != nullptr && authored->place.mode == pane_unit::kPixels) {
+    const std::int64_t place = authored != nullptr ? authored->place.mode : pane_unit::kDefault;
+    if (place != pane_unit::kDefault && place != pane_unit::kRightColumn) {
         e.context = kRoomPart;
-        e.place = pixels_place(authored->place.x, authored->place.y);
+        e.place = ui_place_of(authored->place);
     } else if (where == placement::kSideRegion) {
         e.context = kRightColumnPart;
         e.place = pixels_place(placement_bounds(where, 0, sc).w - measure.w.value_or(0), 0);

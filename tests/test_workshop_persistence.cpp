@@ -18,6 +18,7 @@
 #include "workshop/decoded_cells.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 
 // ============================================================================
@@ -2408,6 +2409,128 @@ TEST_CASE("a session round-trips, and a second save is byte-identical") {
     CHECK(read.layouts.front().id == 1);
     CHECK(read.next_id == 2);
     CHECK(session_persist::to_text(read.layouts, read.active, read.next_id) == first);
+}
+
+namespace {
+
+/// A desk that says every place word and every size word, each number where its word reads one.
+Setup every_word_desk() {
+    Setup desk;
+    desk.name = "Words";
+    const auto size_at = [](std::size_t i) {
+        const auto mode = static_cast<std::int64_t>(i % ui::kSizeWords.size());
+        const std::int64_t amount =
+            mode == ui::kSizeShare ? 2500 + static_cast<std::int64_t>(i)
+                                   : (mode == ui::kSizePixels ? 120 + static_cast<std::int64_t>(i) : 0);
+        return PaneSize{mode, amount};
+    };
+    for (std::size_t i = 0; i < ui::kPlaceWords.size(); ++i) {
+        const auto mode = static_cast<std::int64_t>(i);
+        SetupPane row;
+        row.ref = PaneRef{"zengine.words", "place-" + std::to_string(i)};
+        row.place = PanePlace{mode, ui::place_reads_x(mode) ? 10 + mode : 0,
+                              ui::place_reads_y(mode) ? 20 + mode : 0};
+        row.width = size_at(i);
+        row.height = size_at(i + 2);
+        row.front = mode;
+        desk.panes.push_back(std::move(row));
+    }
+    return desk;
+}
+
+} // namespace
+
+TEST_CASE("every place and size word survives the setup file and the session byte for byte") {
+    // ⚔ MUTATION: `place_out` writing a word's coordinates whatever the word -- a centred axis
+    // comes back carrying an offset, which the file refuses, so the desk does not come back.
+    const Setup desk = every_word_desk();
+    REQUIRE_MESSAGE(check_setup(desk).accepted, check_setup(desk).refusal);
+    const std::string text = setup_persist::to_text(desk);
+    // EACH WORD IS WRITTEN AS ITS WORD, never as the number this build holds it by.
+    for (const std::string_view word : ui::kPlaceWords) {
+        CHECK(text.find("\"place\":{\"mode\":\"" + std::string(word) + "\"") != std::string::npos);
+    }
+    for (const std::string_view word : ui::kSizeWords) {
+        CHECK(text.find("{\"mode\":\"" + std::string(word) + "\"") != std::string::npos);
+    }
+    CHECK(text.find("\"place\":{\"mode\":\"center\"}") != std::string::npos);
+    CHECK(text.find("\"place\":{\"mode\":\"top\",\"y\":\"22\"}") != std::string::npos);
+    CHECK(text.find("\"place\":{\"mode\":\"right\",\"x\":\"16\"}") != std::string::npos);
+    const setup_persist::LoadedSetup read = setup_persist::from_text(text);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.setup == desk);
+    CHECK(setup_persist::to_text(read.setup) == text);
+
+    // ...AND INSIDE A SESSION, which holds the same rows.
+    const std::string session = session_text(one_layout(desk), 0);
+    const session_persist::LoadedSession held = session_persist::from_text(session);
+    REQUIRE_MESSAGE(held.outcome.accepted, held.outcome.refusal);
+    CHECK(live_layout(held) == desk);
+    CHECK(session_persist::to_text(held.layouts, held.active, held.next_id) == session);
+
+    // A WORD COSTS NO DECODED CELL A PIXEL WOULD NOT: the fullest desk, every row at its bounds,
+    // its places and sizes cycling through every word, decodes in no more cells than the same desk
+    // in pixels, and inside the budget.
+    Setup full = setup_of("Full", {});
+    fill_to_every_bound(full);
+    const std::int64_t in_pixels = decoded_cells(loom::to_value(setup_persist::to_setup(full)));
+    for (std::size_t i = 0; i < full.panes.size(); ++i) {
+        const auto mode = static_cast<std::int64_t>(i % ui::kPlaceWords.size());
+        full.panes[i].place = PanePlace{mode, ui::place_reads_x(mode) ? kMaxPanePixels : 0,
+                                        ui::place_reads_y(mode) ? kMaxPanePixels : 0};
+        const auto size = static_cast<std::int64_t>(i % ui::kSizeWords.size());
+        full.panes[i].width = PaneSize{size, size == ui::kSizeShare ? ui::kShareWhole
+                                             : (size == ui::kSizePixels ? kMaxPanePixels : 0)};
+    }
+    REQUIRE_MESSAGE(check_setup(full).accepted, check_setup(full).refusal);
+    const std::int64_t in_words = decoded_cells(loom::to_value(setup_persist::to_setup(full)));
+    CHECK(in_words <= in_pixels);
+    CHECK(in_words <= kDecodedCellBudget);
+    CHECK(decoded_cells(loom::to_value(setup_persist::to_setup(desk))) <= kDecodedCellBudget);
+}
+
+TEST_CASE("a word's numbers out of its range are refused in the weaver's words, by the file and by the owner") {
+    // ⚔ MUTATION: `check_pane_size` taking any share -- a share past the whole room is stored.
+    const Setup good = every_word_desk();
+    const auto refused = [&good](const std::function<void(SetupPane&)>& edit) {
+        Setup bad = good;
+        edit(bad.panes[3]);
+        return check_setup(bad).refusal;
+    };
+    CHECK(refused([](SetupPane& r) { r.width = PaneSize{ui::kSizeShare, 12500}; }) ==
+          "a pane width's share is 1 to 10000 ten-thousandths of the room (5000 is half) -- not "
+          "12500");
+    CHECK(refused([](SetupPane& r) { r.height = PaneSize{ui::kSizeShare, 0}; }) ==
+          "a pane height's share is 1 to 10000 ten-thousandths of the room (5000 is half) -- not 0");
+    CHECK(refused([](SetupPane& r) { r.place = PanePlace{ui::kPlaceTop, 5, 0}; }) ==
+          "a `top` pane place is centred across, so it carries no x");
+    CHECK(refused([](SetupPane& r) { r.place = PanePlace{ui::kPlaceCenter, 0, 3}; }) ==
+          "a `center` pane place is centred down, so it carries no y");
+    CHECK(refused([](SetupPane& r) { r.width = PaneSize{ui::kSizeFill, 2}; }) ==
+          "a fill pane width carries no amount");
+    CHECK(refused([](SetupPane& r) { r.height = PaneSize{ui::kSizeFit, 1}; }) ==
+          "a fit pane height carries no amount");
+    CHECK(refused([](SetupPane& r) { r.place = PanePlace{ui::kPlaceBottomRight, 0, -1}; }) ==
+          "a pane place cannot be negative");
+    CHECK(refused([](SetupPane& r) { r.place = PanePlace{42, 0, 0}; })
+              .find("a pane place is default, pixels, top") == 0);
+    // THE FILE SAYS ITS OWN: a number where the word reads none, and one missing where it reads it.
+    const std::string text = setup_persist::to_text(good);
+    const auto forged = [&text](const std::string& from, const std::string& to) {
+        std::string bad = text;
+        const std::size_t at = bad.find(from);
+        REQUIRE(at != std::string::npos);
+        bad.replace(at, from.size(), to);
+        return setup_persist::from_text(bad).outcome.refusal;
+    };
+    CHECK(forged("\"place\":{\"mode\":\"top\",\"y\":\"22\"}",
+                 "\"place\":{\"mode\":\"top\",\"x\":\"1\",\"y\":\"22\"}")
+              .find("a top pane place names its y and no x: it is centred on that axis") !=
+          std::string::npos);
+    CHECK(forged("\"place\":{\"mode\":\"center\"}", "\"place\":{\"mode\":\"center\",\"x\":\"0\"}")
+              .find("a center pane place carries no coordinates") != std::string::npos);
+    CHECK(forged("\"place\":{\"mode\":\"right\",\"x\":\"16\"}", "\"place\":{\"mode\":\"right\"}")
+              .find("a right pane place names its x and no y") != std::string::npos);
 }
 
 TEST_CASE("a session file holds the run and nothing of the window, and nothing runtime") {

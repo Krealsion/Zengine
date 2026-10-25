@@ -185,6 +185,18 @@ TEST_CASE("each word is spelled by one table, and reads exactly its own numbers"
     CHECK(sizes.size() == kSizeWords.size());
     CHECK(places.size() == kPlaceWords.size());
 
+    // ...and the same table reads a word back to its number, every word and only those.
+    for (std::size_t i = 0; i < kSizeWords.size(); ++i) {
+        CHECK(size_named(kSizeWords[i]) == static_cast<std::int64_t>(i));
+    }
+    for (std::size_t i = 0; i < kPlaceWords.size(); ++i) {
+        CHECK(place_named(kPlaceWords[i]) == static_cast<std::int64_t>(i));
+    }
+    CHECK_FALSE(size_named("percent").has_value());
+    CHECK_FALSE(place_named("centre").has_value());
+    CHECK_FALSE(place_named("right-column").has_value());
+    CHECK_FALSE(size_named("").has_value());
+
     // A size reads its amount where the word counts something, and nowhere else.
     CHECK(size_reads_amount(kSizePixels));
     CHECK(size_reads_amount(kSizeShare));

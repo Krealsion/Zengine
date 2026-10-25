@@ -12,7 +12,10 @@
 #include "property.hpp"
 #include "settings_seam_vocabulary.hpp" // a layout's baseline, and how long a pin list is
 
+#include "ui/vocabulary.hpp"
+
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -70,17 +73,21 @@ struct PaneRef {
 
 // ---- THE AUTHORED WINDOW: the smallest difference from a default --------------
 
-/// THE UNITS A PANE'S AUTHORED WINDOW MAY BE SAID IN, and there is not a third.
+/// THE WORDS A PANE'S AUTHORED WINDOW IS SAID IN are `ui`'s: a place is one of `ui::kPlaceWords`
+/// and each size one of `ui::kSizeWords`, numbered and spelled by that one table. The two this host
+/// names most get names of its own here.
 // WL-SETUP-03, WL-SETUP-04 -- agents/workshop/setup-file.md
 namespace pane_unit {
-inline constexpr std::int64_t kDefault = 0; ///< the developer's answer, whatever it becomes
+inline constexpr std::int64_t kDefault = ui::kSizeDefault; ///< the developer's answer
 /// AN ABSOLUTE COUNT OF CANVAS PIXELS: one window pixel each, twelve to a terminal's cell.
 // WL-GEO-06 -- agents/workshop/geometry.md; WL-SETUP-04 -- agents/workshop/setup-file.md
-inline constexpr std::int64_t kPixels = 2;
+inline constexpr std::int64_t kPixels = ui::kSizePixels;
 /// The right column, named: a place a desk asks for, carrying no coordinates. Why a place is a
 /// unit: agents/decisions/the-room-is-the-screen.md.
 // WL-SETUP-03 -- agents/workshop/setup-file.md
-inline constexpr std::int64_t kRightColumn = 3;
+inline constexpr std::int64_t kRightColumn = 100;
+static_assert(kDefault == ui::kPlaceDefault && kPixels == ui::kPlacePixels,
+              "`default` and `pixels` are one number in both of ui's lists");
 } // namespace pane_unit
 
 /// A cell as a setup or a session file counts it, in pixels: the files' own number, which no
@@ -95,7 +102,8 @@ inline constexpr std::int64_t kPanePxMin = kSavedCellPx;
 /// WHERE A WEAVER PUT A PANE -- one fact, both coordinates.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md
 struct PanePlace {
-    /// `kDefault`, `kPixels` or `kRightColumn`
+    /// A place word (`ui::kPlaceWords`); `x` and `y` are its offsets, inward from the edges it
+    /// names, and 0 on an axis the word reads none of.
     std::int64_t mode = pane_unit::kDefault;
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -106,8 +114,8 @@ struct PanePlace {
 /// HOW BIG A WEAVER MADE ONE AXIS OF A PANE.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PaneSize {
-    std::int64_t mode = pane_unit::kDefault; ///< `kDefault` or `kPixels`
-    std::int64_t amount = 0;
+    std::int64_t mode = pane_unit::kDefault; ///< a size word (`ui::kSizeWords`)
+    std::int64_t amount = 0;                 ///< `pixels`' count, `share`'s ten-thousandths, else 0
 
     friend bool operator==(const PaneSize&, const PaneSize&) = default;
 };
@@ -301,7 +309,24 @@ inline Written check_pane_place_coord(std::int64_t v) {
     return Written::ok();
 }
 
-/// A PLACE: default with nothing said, a named place, or pixels from the room's top-left.
+/// One of ui's word lists as a weaver reads it: `a, b or c`.
+template <std::size_t N>
+inline std::string word_list(const std::array<std::string_view, N>& words) {
+    std::string out;
+    for (std::size_t i = 0; i < N; ++i) {
+        out += i == 0 ? "" : (i + 1 == N ? " or " : ", ");
+        out += words[i];
+    }
+    return out;
+}
+
+/// Every word a pane's place may be said in, and every word a size may: two closed lists.
+// WL-SETUP-04 -- agents/workshop/setup-file.md
+inline std::string pane_place_words() { return word_list(ui::kPlaceWords); }
+inline std::string pane_size_words() { return word_list(ui::kSizeWords); }
+
+/// A PLACE: one of ui's place words, with an offset on each axis the word reads, inward from the
+/// edge it names, and 0 on each it does not: `default` and a centred axis read none.
 inline Written check_pane_place(const PanePlace& p) {
     if (p.mode == pane_unit::kDefault) {
         if (p.x != 0 || p.y != 0) {
@@ -316,24 +341,34 @@ inline Written check_pane_place(const PanePlace& p) {
         }
         return Written::ok();
     }
-    if (p.mode != pane_unit::kPixels) {
-        return Written::no("a pane place is default, right-column or pixels");
+    const std::string_view word = ui::place_word(p.mode);
+    if (word.empty()) {
+        return Written::no("a pane place is " + pane_place_words());
     }
-    const Written x = check_pane_place_coord(p.x);
-    if (!x.accepted) {
-        return x;
+    for (const bool across : {true, false}) {
+        const std::int64_t v = across ? p.x : p.y;
+        const bool reads = across ? ui::place_reads_x(p.mode) : ui::place_reads_y(p.mode);
+        if (!reads && v != 0) {
+            return Written::no("a `" + std::string(word) + "` pane place is centred " +
+                               (across ? "across, so it carries no x" : "down, so it carries no y"));
+        }
+        if (reads) {
+            if (const Written legal = check_pane_place_coord(v); !legal.accepted) {
+                return legal;
+            }
+        }
     }
-    return check_pane_place_coord(p.y);
+    return Written::ok();
 }
 
-/// ONE AXIS OF A SIZE: default, or a count of pixels.
+/// ONE AXIS OF A SIZE: one of ui's size words; `pixels` counts at least a cell and at most
+/// `kMaxPanePixels`, `share` 1 to `ui::kShareWhole` ten-thousandths of the room, and every other
+/// word carries no amount.
 // WL-SETUP-03 -- agents/workshop/setup-file.md
 inline Written check_pane_size(const PaneSize& s, const char* which) {
-    if (s.mode == pane_unit::kDefault) {
-        if (s.amount != 0) {
-            return Written::no(std::string("a default pane ") + which + " carries no amount");
-        }
-        return Written::ok();
+    const std::string_view word = ui::size_word(s.mode);
+    if (word.empty()) {
+        return Written::no(std::string("a pane ") + which + " is " + pane_size_words());
     }
     if (s.mode == pane_unit::kPixels) {
         if (s.amount < kPanePxMin) {
@@ -346,7 +381,19 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
         }
         return Written::ok();
     }
-    return Written::no(std::string("a pane ") + which + " is default or pixels");
+    if (s.mode == ui::kSizeShare) {
+        if (s.amount < 1 || s.amount > ui::kShareWhole) {
+            return Written::no(std::string("a pane ") + which + "'s share is 1 to " +
+                               std::to_string(ui::kShareWhole) +
+                               " ten-thousandths of the room (5000 is half) -- not " +
+                               std::to_string(s.amount));
+        }
+        return Written::ok();
+    }
+    if (s.amount != 0) {
+        return Written::no("a " + std::string(word) + " pane " + which + " carries no amount");
+    }
+    return Written::ok();
 }
 
 /// WHAT A ROW'S SETTINGS MAY BE, judged by form alone: each one a setting (`pane_setting_problem`),
@@ -507,9 +554,51 @@ inline Written check_layout_own(const Setup& s) {
     return Written::ok();
 }
 
+/// A row's place and sizes as ui's authored values: each number present where its word reads it.
+inline ui::Place ui_place_of(const PanePlace& p) {
+    ui::Place out{p.mode, std::nullopt, std::nullopt};
+    if (ui::place_reads_x(p.mode)) {
+        out.x = p.x;
+    }
+    if (ui::place_reads_y(p.mode)) {
+        out.y = p.y;
+    }
+    return out;
+}
+
+inline ui::Size ui_size_of(const PaneSize& s) {
+    return ui::Size{s.mode, ui::size_reads_amount(s.mode) ? std::optional<std::int64_t>(s.amount)
+                                                          : std::nullopt};
+}
+
+/// THE DESK'S INTENT AS ui's PARTS, with no room: the room a frame, and each row a part standing
+/// in it by its words. `ui::problem` judges it; nothing solves it.
+// WL-SETUP-07 -- agents/workshop/setup-file.md
+inline std::vector<ui::Element> desk_intent(const Setup& s) {
+    std::vector<ui::Element> parts;
+    parts.reserve(s.panes.size() + 1);
+    ui::Element room;
+    room.id = 1;
+    room.label = "the room";
+    parts.push_back(room);
+    for (std::size_t i = 0; i < s.panes.size(); ++i) {
+        const SetupPane& row = s.panes[i];
+        ui::Element e;
+        e.id = static_cast<std::int64_t>(i) + 2;
+        e.label = ref_text(row.ref);
+        e.context = room.id;
+        e.place = ui_place_of(row.place);
+        e.width = ui_size_of(row.width);
+        e.height = ui_size_of(row.height);
+        parts.push_back(std::move(e));
+    }
+    return parts;
+}
+
 /// THE WHOLE-SETUP LAW, asked once on a complete candidate.
 /// It judges the name, every row, how many there are, whether any two name the
-/// same pane, whether the ranks are a permutation, and how many settings the rows keep.
+/// same pane, whether the ranks are a permutation, how many settings the rows keep, and what ui
+/// finds wrong with the desk's intent alone (`ui::problem`).
 // WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Written check_setup(const Setup& s) {
     const Written named = check_setup_name(s.name);
@@ -551,6 +640,9 @@ inline Written check_setup(const Setup& s) {
         return Written::no("a setup keeps at most " + std::to_string(kMaxPaneSettingsPerDesk) +
                            " settings, locks and pins over all its panes -- this one keeps " +
                            std::to_string(units));
+    }
+    if (const std::string wrong = ui::problem(desk_intent(s)); !wrong.empty()) {
+        return Written::no(wrong);
     }
     return Written::ok();
 }
