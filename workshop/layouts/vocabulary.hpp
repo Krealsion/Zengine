@@ -7,7 +7,8 @@
 // The layouts' owner and its presenter: the live layout as the owner sends it to the one office
 // that presents it, every change the presenter's gestures make asked of the owner, the session
 // written at an orderly close, and the one question the owner asks the presenter -- whether a
-// gesture is the weaver's current act.
+// gesture is the weaver's current act. Each pane's own settings go from the owner to the pane
+// (workshop/pane_settings.hpp), never through the presenter.
 // Workshop law: agents/workshop/layouts.md, agents/workshop/session-restore.md
 
 #include "workshop/pane_settings.hpp"
@@ -32,19 +33,22 @@ struct LiveTab {
     friend bool operator==(const LiveTab&, const LiveTab&) = default;
 };
 
-/// ONE LIVE ROW'S SETTINGS REVISION, as the owner minted it: the number a hand-off of the row's
-/// settings is made at, and the number a commit of one of them is accepted at.
-struct RowRevision {
+/// A SETTING A LIVE ROW'S PANE SAID IT CANNOT USE, of the settings it was last handed, and why.
+struct RowSettingUnused {
     std::string provider;
     std::string pane;
-    std::int64_t revision = 0;
-    ZEN_SHAPE(RowRevision, 1, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(revision));
-    friend bool operator==(const RowRevision&, const RowRevision&) = default;
+    std::string key;
+    std::string why;
+    ZEN_SHAPE(RowSettingUnused, 1, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(key),
+              ZEN_FIELD(why));
+    friend bool operator==(const RowSettingUnused&, const RowSettingUnused&) = default;
 };
 
 /// THE LIVE LAYOUT AS ITS PRESENTER NEEDS IT, from the owner to the presenter's office: sent on
 /// every change of the run or of the live layout, and before the answer to every edit. Whole
-/// every time: the presenter replaces its copy with it and never edits that copy.
+/// every time: the presenter replaces its copy with it and never edits that copy. Each row of
+/// `desk` carries Workshop's own `workshop.` keys alone: a pane's own settings are handed to the
+/// pane by the owner, and the presenter holds none of them.
 struct LiveLayout {
     std::int64_t revision = 0;   ///< moves on any change of the run or of the live layout
     std::int64_t put_live = 0;   ///< moves each time another desk is put live
@@ -55,20 +59,17 @@ struct LiveLayout {
     std::vector<LiveTab> tabs; ///< every layout, the live one included, in the weaver's order
     std::string said;            ///< the owner's sentence about what moved, for the notice, or empty
     bool bad = false;            ///< ...and whether it is a refusal
-    /// THE ROW `said` IS ABOUT, when it is a setting written: the presenter says after it how far
-    /// that row's hand-off got.
-    std::string said_provider;
-    std::string said_pane;
     bool restored = false;       ///< `said` is the head of the last session's restore
     std::string restore_tail;    ///< ...and what the restore says after the room, or empty
     std::string session_refused; ///< the session file the owner would not read, why; held all run
     std::string settings_refused; ///< ...and the settings file
-    std::vector<RowRevision> revisions; ///< each live row's settings revision
-    ZEN_SHAPE(LiveLayout, 1, ZEN_FIELD(revision), ZEN_FIELD(put_live), ZEN_FIELD(id),
+    std::vector<RowSettingUnused> unused; ///< what each live row's pane said it cannot use
+    /// Version 2: no row's settings revision, which is the owner's to hand; a row's own settings
+    /// stay with the owner; what a pane cannot use is said.
+    ZEN_SHAPE(LiveLayout, 2, ZEN_FIELD(revision), ZEN_FIELD(put_live), ZEN_FIELD(id),
               ZEN_FIELD(position), ZEN_FIELD(desk), ZEN_FIELD(link_path), ZEN_FIELD(tabs),
-              ZEN_FIELD(said), ZEN_FIELD(bad), ZEN_FIELD(said_provider), ZEN_FIELD(said_pane),
-              ZEN_FIELD(restored), ZEN_FIELD(restore_tail), ZEN_FIELD(session_refused),
-              ZEN_FIELD(settings_refused), ZEN_FIELD(revisions));
+              ZEN_FIELD(said), ZEN_FIELD(bad), ZEN_FIELD(restored), ZEN_FIELD(restore_tail),
+              ZEN_FIELD(session_refused), ZEN_FIELD(settings_refused), ZEN_FIELD(unused));
 };
 
 /// The words a `LayoutEdit` is said in: a row of the live layout seated or taken off, its window

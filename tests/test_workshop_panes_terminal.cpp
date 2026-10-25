@@ -355,6 +355,50 @@ TEST_CASE("the manual the Terminal answers names exactly the commands it declare
     check_answered_manual(reader, pane::kTerminalPane, declared);
 }
 
+/// AN OFFICE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
+struct ForgerState {
+    ZEN_SHAPE(ForgerState, 1);
+};
+class RowForger
+    : public loom::WeaveBase<RowForger, ForgerState, loom::Accept<>, loom::Emit<v2::PaneSettings>> {};
+
+TEST_CASE("the Terminal draws nothing in a window's room before it holds its row, takes a row from "
+          "the layouts' owner alone, and draws whole once it holds one") {
+    // ⚔ MUTATION: a pane that draws its room before it holds a row -- the room alone draws it.
+    PaneRig r;
+    zengine::testing::LayoutsStandIn* layouts =
+        zengine::testing::mount_layouts_stand_in(r.bus, /*hold=*/true);
+    REQUIRE(layouts != nullptr);
+    (void)r.mount_watcher();
+    REQUIRE(r.load(pane::kTerminalPaneStem, WORKSHOP_SO_TERMINAL_PANE, pane::kTerminalPaneRole)
+                .valid());
+    CHECK(layouts->asks == 1); // it asked once, as it arrived
+    const std::string area = pane_area(pane::kTerminalPaneRole, pane::kTerminalPane);
+    zengine::testing::pane_window::Window window(r.bus);
+    window.room(area, pane::kTerminalPaneRole, 40, 10);
+    CHECK(window.weave().heard.empty());
+    // ...A ROW ANOTHER OFFICE HANDS IS NOT ITS ROW, and draws nothing either.
+    // ⚔ MUTATION: a pane that takes a row from any office.
+    auto forger = std::make_unique<RowForger>();
+    RowForger* raw = forger.get();
+    loom::Grant hands;
+    hands.allow_to_any(v2::PaneSettings::zen_name, v2::PaneSettings::zen_version);
+    const loom::WeaveId forger_id =
+        r.bus.register_weave(std::move(forger), std::move(hands), std::string("test.forger"));
+    raw->zen_set_self(forger_id);
+    (void)r.bus.office_send_to_role_as(
+        forger_id, "test.forger", pane::kTerminalPaneRole,
+        loom::Message(loom::to_value(v2::PaneSettings{pane::kTerminalPane, 9, {}}), forger_id, {}, 0));
+    r.bus.drain_until_idle();
+    CHECK(window.weave().heard.empty());
+    // ...AND THE OWNER'S ROW DRAWS THE ROOM IT ALREADY HAD, whole.
+    layouts->release(r.bus);
+    r.bus.drain_until_idle();
+    REQUIRE(window.weave().heard.size() == 1);
+    CHECK(window.weave().heard[0].whole);
+    CHECK(layouts->asks == 1);
+}
+
 TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
     SUBCASE("a graphics window that shows its area shows it with Workshop seating it nowhere: "
             "drawn for the window's room, Workshop told none of it, the room asked once a life, "
@@ -2301,7 +2345,7 @@ template <class Shape> Shape typed_answer(TerminalRig& t, const std::string& lin
 
 /// WHAT THE LIVE LAYOUT KEEPS FOR THE TERMINAL.
 std::vector<PaneSetting> kept_settings(TerminalRig& t) {
-    const SetupPane* row = pane_of(t.r.session().setup.active, pane_terminal_ref());
+    const SetupPane* row = pane_of(t.r.run().active, pane_terminal_ref());
     return row != nullptr ? row->settings : std::vector<PaneSetting>{};
 }
 
@@ -2346,7 +2390,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     CHECK(shown.rows[2].tags == std::vector<std::string>{"chrome", "text"});
     CHECK(shown.pins == std::vector<std::string>{"legend"});
     CHECK(shown.settings.empty());
-    CHECK(shown.said.empty());
+    CHECK(shown.said == "stored and handed");
     CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
 
     // SIX ROWS A NOTCH, AND THE PROMPT A `$`, each at the revision the last answer gave.
@@ -2354,7 +2398,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
         typed_answer<PaneSettingCommitAnswered>(t, commit_line(shown.revision, "key=wheel-rows number=6"));
     REQUIRE_MESSAGE(six.accepted, six.refusal);
     CHECK(six.revision > shown.revision);
-    CHECK(six.handed == "stored");
+    CHECK(six.handed == "stored and handed");
     const PaneSettingCommitAnswered dollar =
         typed_answer<PaneSettingCommitAnswered>(t, commit_line(six.revision, "key=prompt text=\"$\""));
     REQUIRE_MESSAGE(dollar.accepted, dollar.refusal);

@@ -21,16 +21,12 @@ void WorkshopWeave::on(const LiveLayout& live, loom::Mail& mail) {
         return; // the live layout is its owner's to say, and nobody else's picture is this desk
     }
     install_live(live, mail);
-    // THE OWNER'S SENTENCE, said here: the restore's with the room it opened in, a written
-    // setting's with how far its hand-off got, any other as it is.
+    // THE OWNER'S SENTENCE, said here: the restore's with the room it opened in, any other as it
+    // is -- a written setting's says how far its hand-off got.
     if (live.restored) {
         say_restored(live, mail);
     } else if (!live.said.empty()) {
-        std::string said = live.said;
-        if (!live.said_provider.empty()) {
-            said += "; " + settings_handed(PaneRef{live.said_provider, live.said_pane});
-        }
-        say(said, live.bad);
+        say(live.said, live.bad);
     }
     // ONE GESTURE, ONE PICTURE: a picture its owner sends before answering this desk's edit is
     // painted with the answer, so what the gesture's continuation does is in the same repaint.
@@ -71,7 +67,7 @@ void WorkshopWeave::install_live(const LiveLayout& live, loom::Mail& mail) {
     d.link = d.active_at < d.tabs.size() ? d.tabs[d.active_at].link : setup_link::kNone;
     d.put_live = static_cast<std::uint64_t>(live.put_live);
     d.revision = live.revision;
-    d.revisions = live.revisions;
+    d.unused = live.unused;
     if (!live.session_refused.empty() && !session_refusal_said_) {
         // The notice is the event, said once; the condition is what stays true all run.
         session_refusal_said_ = true;
@@ -94,10 +90,9 @@ void WorkshopWeave::install_live(const LiveLayout& live, loom::Mail& mail) {
     if (seat_owed_) {
         (void)add_pane(d.active, *seat_owed_);
     }
-    // THE PANES FOLLOW THE DESK: whatever it seats is opened, whatever it no longer seats closes,
-    // and each seated pane is handed its row's settings before any room.
+    // THE PANES FOLLOW THE DESK: whatever it seats is opened, whatever it no longer seats closes.
+    // Each seated pane's settings are the owner's to hand it.
     apply_setup(mail);
-    hand_settings(mail);
 }
 
 // WL-LAYOUT-01 -- agents/workshop/layouts.md

@@ -16,7 +16,7 @@ input                             doctest           always  56
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 # A tripwire in this suite reads graphics/ as text (VM-WALL-11).
-graphics                          doctest           always  89
+graphics                          doctest           always  90
 graphics                          doctest           sdl     7
 ui                                doctest           always  30
 component                         doctest           always  48
@@ -64,14 +64,14 @@ workshop_panes_inspect            doctest           always  112
 workshop_panes_info               doctest           always  179
 workshop_panes_settings           doctest           always  57
 # Tripwires in this part read the Terminal pane's source and CMake file as text (VM-WALL-11).
-workshop_panes_terminal           doctest           always  66
+workshop_panes_terminal           doctest           always  67
 # Tripwires in this part read the Builder pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_project            doctest           always  195
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp and the
 # Editor pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_editor             doctest           always  128
 # The shapes this tree publishes, and their census against tests/shapes.txt.
-workshop_shapes                   doctest           always  4
+workshop_shapes                   doctest           always  5
 # Tripwires in this suite read workshop/workshop.cpp and workshop/layouts/session_persist.hpp as text
 # (VM-WALL-11).
 workshop_persistence              doctest           always  178

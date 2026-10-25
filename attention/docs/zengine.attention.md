@@ -103,8 +103,8 @@ what is true changes, and to a pane newly offered: every condition true now, in 
 an empty list when nothing is. Each publication replaces the last one whole; the pane hears it only
 from `zengine.workshop`. An observer follows the same publication instead of reading the pane
 ([`workshop/attention_seam_vocabulary.hpp`](../../workshop/attention_seam_vocabulary.hpp)); what
-you hide is the pane's own and is said to no one. The pane tells Workshop `PaneSettingUnused` when
-a layout hands it a setting it cannot use.
+you hide is the pane's own and is said to no one. The pane tells the layouts' owner `PaneSettingUnused`
+when a layout hands it a setting it cannot use.
 
 ## Shows
 

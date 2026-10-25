@@ -136,9 +136,12 @@ public:
         return b.shown.empty() ? std::string("(no key)") : b.shown;
     }
 
+    /// THE LAYOUT'S `help`, as the pane's row was handed: whether the table is said again -- it
+    /// moved, or it is the first row this life holds, before which the pane draws nothing.
     bool show_help(bool shown) {
-        const bool moved = help_shown_ != shown;
+        const bool moved = help_shown_ != shown || !held_;
         help_shown_ = shown;
+        held_ = true;
         return moved;
     }
 
@@ -370,7 +373,7 @@ public:
     void say_keys(const Declared& keys_rows_decl, loom::Mail& mail) {
         const std::int64_t room_rows = keys_canvas_.rows();
         const std::int64_t room_columns = keys_canvas_.columns();
-        if (!keys_canvas_.granted() || room_rows <= 0 || room_columns <= 0) {
+        if (!held_ || !keys_canvas_.granted() || room_rows <= 0 || room_columns <= 0) {
             return;
         }
         std::vector<ws::TextRow> out;
@@ -807,9 +810,10 @@ private:
     double keys_wheel_ = 0.0;
     std::string keys_notice_;
     std::string refind_id_;
-    /// WHETHER THE FOOTER'S HELP LINES SHOW: the layout's `help` setting, handed again after a
-    /// reload, so never reload state.
+    /// WHETHER THE FOOTER'S HELP LINES SHOW: the layout's `help` setting, asked for again after a
+    /// reload, so never reload state; and whether this life holds its row yet.
     bool help_shown_ = true;
+    bool held_ = false;
     /// THE ONE MENU THIS PANE ASKED FOR AND HAS NOT HEARD ANSWERED. Image-local, and never in
     /// `DesktopState`: a successor must not accept its predecessor's menu (`menu_answered`).
     pane_menu::Asked keys_asked_;

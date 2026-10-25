@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The layouts' owner: each door asked of the store, judged for its asker, answered to that asker;
-// and what the store moved sent after it -- the presenter's picture, each office's settings.
+// and what the store moved sent after it -- each pane's row, the presenter's picture, each
+// office's settings.
 // Workshop law: agents/workshop/layouts.md, agents/workshop/settings.md,
 // agents/workshop/setting-locks.md
 
@@ -63,8 +64,6 @@ void LayoutsOwner::send_live(loom::Mail& mail, const StoreEffects& fx) {
     LiveLayout live = store_.live_layout();
     live.said = fx.said;
     live.bad = fx.bad;
-    live.said_provider = fx.said_provider;
-    live.said_pane = fx.said_pane;
     // THE RESTORE'S OWN SENTENCE, ONCE: the presenter says it with the room it opened in.
     if (!restore_said_ && (restored_.present || !restored_.folded.empty())) {
         restore_said_ = true;
@@ -87,9 +86,29 @@ void LayoutsOwner::send_live(loom::Mail& mail, const StoreEffects& fx) {
     }
 }
 
+// WL-SETTING-04 -- agents/workshop/settings.md
+void LayoutsOwner::hand_rows(loom::Mail& mail) {
+    for (const PaneHandOff& owed : store_.pane_hand_offs()) {
+        // TO THE HOLDER ITSELF, so what is recorded is who heard it; Workshop's own keys stay here.
+        const loom::Ticket sent =
+            owed.revisions
+                ? mail.as_role(kLayoutsRole).send(owed.holder, owed.value)
+                : mail.as_role(kLayoutsRole)
+                      .send(owed.holder, PaneSettings{owed.value.pane, owed.value.settings});
+        if (sent.valid()) {
+            store_.pane_handed(owed); // nothing recorded otherwise, so the next settle hands again
+        }
+    }
+}
+
 void LayoutsOwner::settle(loom::Mail& mail, bool picture) {
-    const StoreEffects fx = store_.take_effects();
-    if (fx.live_moved || picture || !fx.said.empty()) {
+    // EACH PANE'S ROW FIRST, so a written setting's sentence says how far its hand-off got.
+    hand_rows(mail);
+    StoreEffects fx = store_.take_effects();
+    if (!fx.said_provider.empty()) {
+        fx.said += "; " + store_.handed_fact(PaneRef{fx.said_provider, fx.said_pane});
+    }
+    if (fx.live_moved || picture || !fx.said.empty() || fx.unused_moved) {
         send_live(mail, fx);
     }
     // EACH DECLARING OFFICE'S HOLDER, WORKSHOP'S AMONG THEM, IS HANDED ITS SETTINGS AT EACH
@@ -170,6 +189,8 @@ void LayoutsOwner::on(const PaneInventory& said, loom::Mail& mail) {
         names.push_back(CatalogName{PaneRef{p.office, p.pane}, p.name, p.available});
     }
     store_.set_catalog(std::move(names));
+    // A PANE NOW OFFERED IS HANDED ITS ROW.
+    settle(mail);
 }
 
 // WL-LOCK-02 -- agents/workshop/setting-locks.md
@@ -265,6 +286,32 @@ void LayoutsOwner::on(const OfficeSettingsDeclared& declared, loom::Mail& mail) 
     settle(mail);
 }
 
+// ---- A row's settings, handed to its pane -------------------------------------------------------
+
+// WL-SETTING-04 -- agents/workshop/settings.md
+void LayoutsOwner::on(const PaneSettingsAsked& asked, loom::Mail& mail) {
+    read_host();
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return; // personal speech asks for no pane's row (the offer's rule)
+    }
+    // THE LIFE THAT ASKS HOLDS NOTHING IT WAS HANDED: a reloaded image keeps the weave's id, so
+    // only its word says so. It is handed its row now, when the live layout seats it.
+    store_.pane_asked(PaneRef{std::string(office), asked.pane});
+    settle(mail);
+}
+
+// WL-SETTING-08 -- agents/workshop/settings.md
+void LayoutsOwner::on(const PaneSettingUnused& unused, loom::Mail& mail) {
+    read_host();
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return; // personal speech says nothing about a pane (the offer's rule)
+    }
+    store_.keep_unused(office, mail.sender(), unused);
+    settle(mail);
+}
+
 // ---- The settings doors -------------------------------------------------------------------------
 
 // WL-SETTING-07 -- agents/workshop/settings.md
@@ -272,8 +319,9 @@ void LayoutsOwner::on(const PaneSettingsRequested& asked, loom::Mail& mail) {
     read_host();
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
-    PaneSettingsAnswered shown = store_.read_pane(refused, asked);
     settle(mail);
+    // READ AFTER THE HAND-OFFS, so the row's sentence says how far its own got.
+    PaneSettingsAnswered shown = store_.read_pane(refused, asked);
     (void)mail.answer(std::move(shown));
 }
 
@@ -284,6 +332,10 @@ void LayoutsOwner::on(const PaneSettingCommitRequested& asked, loom::Mail& mail)
     state_.withheld += refused.empty() ? 0 : 1;
     PaneSettingCommitAnswered acted = store_.commit_pane(refused, asked);
     settle(mail);
+    if (acted.accepted && !acted.handed.empty()) {
+        // HOW FAR THE WRITE GOT, once its hand-off was asked for.
+        acted.handed = store_.handed_fact(PaneRef{asked.provider, asked.pane});
+    }
     (void)mail.answer(std::move(acted));
 }
 
@@ -386,7 +438,9 @@ loom::Grant layouts_grant() {
     grant.allow_to_any(LayoutSettingsAnswered::zen_name, LayoutSettingsAnswered::zen_version);
     grant.allow_to_any(SettingsWriteAnswered::zen_name, SettingsWriteAnswered::zen_version);
     grant.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
-    // ...EACH DECLARING OFFICE ITS SETTINGS...
+    // ...EACH PANE ITS ROW, AND EACH DECLARING OFFICE ITS SETTINGS...
+    grant.allow_to_any(PaneSettings::zen_name, PaneSettings::zen_version);
+    grant.allow_to_any(v2::PaneSettings::zen_name, v2::PaneSettings::zen_version);
     grant.allow_to_any(OfficeSettings::zen_name, OfficeSettings::zen_version);
     // ...AND THE PRESENTER ITS PICTURE, THE INVENTORY ASKED AND THE ONE QUESTION.
     grant.allow_to_role(LiveLayout::zen_name, LiveLayout::zen_version, kWorkshopProvider);

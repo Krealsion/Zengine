@@ -1304,7 +1304,7 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
     const PaneSettingsAnswered read = with.guest->shown.back();
     CHECK(read.revision > 0);
     CHECK(read.settings == std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
-    CHECK(read.said.empty());
+    CHECK(read.said == "stored; not handed: nothing holds `test.dial` now");
     PaneSettingCommitRequested clear;
     clear.provider = dial.provider;
     clear.pane = dial.pane;
@@ -1314,7 +1314,7 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
     ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, clear); });
     REQUIRE(with.guest->acted.size() == 1);
     CHECK_MESSAGE(with.guest->acted.back().accepted, with.guest->acted.back().refusal);
-    CHECK(pane_of(r.session().setup.active, dial)->settings.empty());
+    CHECK(pane_of(r.run().active, dial)->settings.empty());
 
     // WITHOUT IT: Loom's grant refuses the ask, and Workshop never hears it.
     stage_desk(r, [&](Setup& desk) {
@@ -1347,7 +1347,7 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
     REQUIRE(past.guest->acted.size() == 1);
     CHECK_FALSE(past.guest->acted.back().accepted);
     CHECK(past.guest->acted.back().refusal.rfind("settings commit withheld: guest 'reader'", 0) == 0);
-    CHECK(pane_of(r.session().setup.active, dial)->settings ==
+    CHECK(pane_of(r.run().active, dial)->settings ==
           std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
 }
 
@@ -1412,7 +1412,7 @@ TEST_CASE("a guest whose row has `settings` locks a setting, reads every layout 
               "unlocking is the weaver's -- from the Terminal, or from a pane on the weaver's own "
               "current act");
     }
-    CHECK(pane_of(r.session().setup.active, dial)->settings ==
+    CHECK(pane_of(r.run().active, dial)->settings ==
           std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
 
     // WITHOUT IT: Loom's grant refuses all three asks, and Workshop never hears them.

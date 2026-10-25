@@ -316,10 +316,10 @@ inline std::set<std::string> census_ids(const std::vector<std::string>& lines) {
 
 // ---- The press witness: each declared action, pressed, sends nothing its row does not declare
 
-/// THE PANE PROTOCOL, by name in every version: what a pane says to Workshop about itself -- its
-/// offer, rows, menus, its answer to a manual's ask, a setting it cannot use, and the approval it
-/// asks before an act -- and what it draws in a graphics window. A press's causes are every other
-/// send.
+/// THE PANE PROTOCOL, by name in every version: what a pane says about itself to Workshop and the
+/// layouts' owner -- its offer, rows, menus, its answer to a manual's ask, its row asked for, a
+/// setting it cannot use, and the approval it asks before an act -- and what it draws in a
+/// graphics window. A press's causes are every other send.
 inline bool pane_protocol(const std::string& shape) {
     static const std::set<std::string> kSaid{
         PaneOffered::zen_name,           PaneActions::zen_name,
@@ -328,7 +328,8 @@ inline bool pane_protocol(const std::string& shape) {
         PaneEscapeUnspent::zen_name,     PaneRevealRequested::zen_name,
         PaneManageRequested::zen_name,   PaneOperationRequested::zen_name,
         PaneDocumentShown::zen_name,     PaneSettingsDeclared::zen_name,
-        PaneSettingUnused::zen_name,     zengine::graphics::Drawn::zen_name};
+        PaneSettingsAsked::zen_name,     PaneSettingUnused::zen_name,
+        zengine::graphics::Drawn::zen_name};
     return kSaid.count(shape) == 1;
 }
 

@@ -284,7 +284,7 @@ struct RuntimeCatalog {
 };
 
 /// AN OPEN EXTERNAL PANE'S VIEW OF THE PANE IT PRESENTS -- what Workshop knows of it beside its
-/// catalog row: where its area was last placed, the settings handed to its office, and its chrome.
+/// catalog row: where its area was last placed, and its chrome.
 /// Nothing of what the pane draws: that is the pane's, in its own area. Session, not document.
 // WL-PANE-06 -- agents/workshop/panes-and-windows.md
 struct ExternalPane {
@@ -302,23 +302,6 @@ struct ExternalPane {
     bool title_waits = false;
     /// The generation the managed opening that seated it admitted (0 if none).
     std::int64_t content_generation = 0;
-    /// THE SETTINGS LAST HANDED TO THE OFFICE'S HOLDER for this presentation, and that holder.
-    /// Nothing until the first hand-off, which is not the empty list a hand-off may carry.
-    // WL-SETTING-04 -- agents/workshop/settings.md
-    std::optional<std::vector<PaneSetting>> settings_heard;
-    loom::WeaveId settings_holder{};
-    /// ...the revision they were handed at, when the holder takes `v2::PaneSettings`; 0 otherwise.
-    std::int64_t settings_revision = 0;
-    struct UnusedSetting {
-        std::string key;
-        std::int64_t revision = 0;
-        std::string why;
-    };
-    /// A SETTING THE HOLDER SAID IT CANNOT USE (`PaneSettingUnused`), against the revision it was
-    /// handed at: one per key, at most `kMaxPaneSettingsPerRow`, gone when a newer revision is
-    /// handed or the pane is offered again.
-    // WL-SETTING-08 -- agents/workshop/settings.md
-    std::vector<UnusedSetting> settings_unused;
     /// WHETHER THIS PANE WEARS ITS `?` AND ITS GEAR: its holder takes `PaneDocumentRequested` now,
     /// and the application declares the row that shows a manual. Read again before every paint,
     /// so it is the live holder's answer; nothing of the manual is kept.

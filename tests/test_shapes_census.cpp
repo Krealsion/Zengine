@@ -28,6 +28,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <regex>
 #include <set>
 #include <sstream>
@@ -99,52 +100,79 @@ void sink_write(void* ctx, const std::uint8_t* data, std::size_t len) {
 }
 
 /// ONE WEAVE LIBRARY'S MANIFEST, read as the Kernel reads it at load: its doors, state, claims
-/// and sentences, and the referenced shapes they nest. Empty, with `why`, when it cannot be read:
-/// a weave that makes nothing is named in the words it refused in, as the Kernel's load says them.
-std::vector<Shape> manifest_shapes(const std::string& path, std::string& why) {
+/// and sentences, and the referenced shapes they nest. None, with `why`, when it cannot be read: a
+/// weave that makes nothing is named in the words it refused in, as the Kernel's load says them.
+std::optional<loom::Value> read_manifest(const std::string& path, std::string& why) {
     zengine::op::ImageShare image{path};
     if (!image.open()) {
         why = "does not open";
-        return {};
+        return std::nullopt;
     }
     using Abi = const ZenWeaveAbi* (*)();
     const auto entry = reinterpret_cast<Abi>(image.symbol("zen_weave_abi"));
     const ZenWeaveAbi* abi = entry != nullptr ? entry() : nullptr;
     if (abi == nullptr) {
         why = "exports no zen_weave_abi";
-        return {};
+        return std::nullopt;
     }
     loom::MakingWords words;
     void* instance = abi->create(words.sink());
     if (instance == nullptr) {
         why = "creates no weave to describe: " + loom::making_refused(words);
-        return {};
+        return std::nullopt;
     }
     std::string bytes;
     const ZenStatus status = abi->describe(instance, ZenByteSink{&bytes, &sink_write});
     abi->destroy(instance);
     if (status != ZEN_OK) {
         why = "describe failed";
-        return {};
+        return std::nullopt;
     }
     const loom::Admission admitted = loom::admit(loom::parse(bytes), loom::manifest_schema());
     if (!admitted.ok()) {
         why = "manifest refused: " + admitted.first_error().message();
+        return std::nullopt;
+    }
+    return admitted.value();
+}
+
+/// ...ITS SHAPES: every door, claim and sentence, and its state.
+std::vector<Shape> manifest_shapes(const std::string& path, std::string& why) {
+    const std::optional<loom::Value> manifest = read_manifest(path, why);
+    if (!manifest) {
         return {};
     }
-    const loom::Value& manifest = admitted.value();
     loom::Registry deps;
     loom::SchemaClaimScope scope;
-    loom::decode_referenced(manifest, deps, scope);
+    loom::decode_referenced(*manifest, deps, scope);
     std::vector<Shape> out;
     for (const char* section : {"accepted", "claims", "emits"}) {
-        if (const loom::Cell* list = manifest.get(section)) {
+        if (const loom::Cell* list = manifest->get(section)) {
             for (const loom::Cell& c : list->as_list()) {
                 out.push_back(loom::decode_schema(*c.as_message(), deps));
             }
         }
     }
-    out.push_back(loom::decode_schema(*manifest.get("state")->as_message(), deps));
+    out.push_back(loom::decode_schema(*manifest->get("state")->as_message(), deps));
+    return out;
+}
+
+/// ...AND THE NAMES ONE SECTION LISTS, `accepted` or `emits`.
+std::set<std::string> manifest_names(const std::string& path, const char* section,
+                                     std::string& why) {
+    const std::optional<loom::Value> manifest = read_manifest(path, why);
+    if (!manifest) {
+        return {};
+    }
+    loom::Registry deps;
+    loom::SchemaClaimScope scope;
+    loom::decode_referenced(*manifest, deps, scope);
+    std::set<std::string> out;
+    if (const loom::Cell* list = manifest->get(section)) {
+        for (const loom::Cell& c : list->as_list()) {
+            out.insert(loom::decode_schema(*c.as_message(), deps)->name());
+        }
+    }
     return out;
 }
 
@@ -264,4 +292,37 @@ TEST_CASE("a weave the census cannot make is named in the words it refused to be
                             "zengine-window-sdl: SDL_Init(",
                             0) == 0,
                   why);
+}
+
+TEST_CASE("every weave that takes a pane's row asks the layouts' owner for it, and none hands one") {
+    // ⚔ MUTATION: a pane office that takes `PaneSettings` without the settings facet -- it never
+    // asks for its row, and draws no room.
+    const std::string takes = ::zengine::workshop::PaneSettings::zen_name;
+    const std::string asks = ::zengine::workshop::PaneSettingsAsked::zen_name;
+    std::set<std::string> taking;
+    for (const std::string& path : lines_of(ZENGINE_CENSUS_WEAVES)) {
+        std::string why;
+        const std::set<std::string> accepted = manifest_names(path, "accepted", why);
+        const std::set<std::string> emitted = manifest_names(path, "emits", why);
+        const std::string stem = std::filesystem::path(path).stem().string();
+        CAPTURE(stem);
+        if (!why.empty()) {
+            MESSAGE(stem << " is not read here: " << why);
+            continue;
+        }
+        // THE OWNER, NEVER A LOADED WEAVE, HANDS A PANE ITS ROW.
+        CHECK(emitted.count(takes) == 0);
+        if (accepted.count(takes) == 1) {
+            taking.insert(stem);
+            CHECK(emitted.count(asks) == 1);
+        }
+    }
+    // ...ONE WAY FOR ALL: every pane office that takes a row is among them.
+    for (const char* office : {"zengine-attention-pane", "zengine-files", "zengine-introspection",
+                               "zengine-editor-pane", "zengine-neovim-editor",
+                               "zengine-terminal-pane", "zengine-desktop-pane",
+                               "zengine-view-builder"}) {
+        CAPTURE(office);
+        CHECK(taking.count(office) == 1);
+    }
 }

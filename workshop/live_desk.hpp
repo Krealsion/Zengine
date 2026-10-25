@@ -46,7 +46,9 @@ struct LiveDesk {
     // WL-INFO-14 -- agents/workshop/info-body.md
     std::uint64_t put_live = 0;
     std::int64_t revision = 0;      ///< the `LiveLayout` it is
-    std::vector<RowRevision> revisions;
+    /// What each live row's pane said it cannot use of what the owner handed it.
+    // WL-SETTING-08 -- agents/workshop/settings.md
+    std::vector<RowSettingUnused> unused;
     LayoutNaming naming;
 };
 
@@ -79,16 +81,6 @@ inline LayoutEdit window_edit(const SetupPane& row) {
     e.width = setup_persist::size_out(row.width);
     e.height = setup_persist::size_out(row.height);
     return e;
-}
-
-/// The settings revision the owner minted for the live row of `ref`, or 0 for none.
-inline std::int64_t row_revision(const LiveDesk& d, const PaneRef& ref) noexcept {
-    for (const RowRevision& r : d.revisions) {
-        if (r.provider == ref.provider && r.pane == ref.pane) {
-            return r.revision;
-        }
-    }
-    return 0;
 }
 
 } // namespace zengine::workshop

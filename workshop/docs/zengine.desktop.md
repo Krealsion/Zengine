@@ -376,8 +376,8 @@ The desk shows what Workshop says: the panes there are (`PaneInventory`), the ke
 (`KeymapShown`) and Workshop's verdict on each of its declarations (`ActionsJudged`,
 `ActionsWithdrawn`), each from `zengine.workshop`. An observer follows those instead of reading
 these panes. A declaration Workshop refused shows as `keys refused: <its reason>` in the pane it was
-about; one withdrawn, `keys withdrawn: <its reason>`. The desk tells Workshop `PaneSettingUnused`
-when a layout hands one of its panes a setting it cannot use.
+about; one withdrawn, `keys withdrawn: <its reason>`. The desk tells the layouts' owner
+`PaneSettingUnused` when a layout hands one of its panes a setting it cannot use.
 
 ## Shows
 

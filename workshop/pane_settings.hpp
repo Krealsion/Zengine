@@ -4,11 +4,11 @@
 #define ZENGINE_WORKSHOP_PANE_SETTINGS_HPP
 
 // A pane's settings: the choices a pane makes about how it presents itself, which the layouts'
-// owner keeps per layout in the pane's setup row and Workshop hands back to it. A setting is a key
-// and a value of one of three kinds -- a flag, a number or a text -- in that kind's own field,
-// exactly one present. A pane declares the settings it takes to the layouts' owner, which judges
-// a weaver's edit against them and keeps what it stores; Workshop hands a seated pane its row's
-// settings. What a setting means is the pane's.
+// owner keeps per layout in the pane's setup row and hands back to it. A setting is a key and a
+// value of one of three kinds -- a flag, a number or a text -- in that kind's own field, exactly
+// one present. A pane declares the settings it takes to the layouts' owner, which judges a
+// weaver's edit against them, keeps what it stores, and hands a seated pane its row's settings,
+// which the pane asks for when it arrives. What a setting means is the pane's.
 // Reference: workshop/docs/workshop-panes.md#a-panes-settings.
 
 #include <zen/weave/shape.hpp>
@@ -88,13 +88,33 @@ struct PaneSettingsDeclared {
     ZEN_SHAPE(PaneSettingsDeclared, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
 
-/// Workshop -> the office's holder, when it accepts this: the settings the live layout keeps for
-/// this pane, in key order, sent before any room the pane is granted. None is every setting at
-/// its default; a pane reads the ones it declared and passes over the rest.
+/// The layouts' owner -> the office's holder, when it accepts this: the settings the live layout
+/// keeps for this pane, in key order, without Workshop's own `workshop.` keys. None is every
+/// setting at its default; a pane reads the ones it declared and passes over the rest, and draws
+/// no room before it holds them.
 struct PaneSettings {
     std::string pane;
     std::vector<PaneSetting> settings;
     ZEN_SHAPE(PaneSettings, 1, ZEN_FIELD(pane), ZEN_FIELD(settings));
+};
+
+/// Provider -> the layouts' owner, as the office: hand this pane its row now. Sent once in each
+/// life of the weave that holds the office, after the first message that life delivers, since a
+/// life that has just arrived holds nothing it was handed.
+struct PaneSettingsAsked {
+    std::string pane;
+    ZEN_SHAPE(PaneSettingsAsked, 1, ZEN_FIELD(pane));
+};
+
+/// Provider -> the layouts' owner, as the office: a setting it was handed at `revision` and cannot
+/// use, and why.
+struct PaneSettingUnused {
+    std::string pane;
+    std::int64_t revision = 0;
+    std::string key;
+    std::string why;
+    ZEN_SHAPE(PaneSettingUnused, 1, ZEN_FIELD(pane), ZEN_FIELD(revision), ZEN_FIELD(key),
+              ZEN_FIELD(why));
 };
 
 namespace v2 {
@@ -125,8 +145,9 @@ struct PaneSettingsDeclared {
     ZEN_SHAPE(PaneSettingsDeclared, 2, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
 
-/// Workshop -> the office's holder, when it accepts this version: v1's settings, and the revision
-/// of the live layout's row they were handed at, which the pane names when it speaks about them.
+/// The layouts' owner -> the office's holder, when it accepts this version: v1's settings, and the
+/// revision of the live layout's row they were handed at, which the pane names when it speaks
+/// about them.
 struct PaneSettings {
     std::string pane;
     std::int64_t revision = 0;
@@ -508,7 +529,7 @@ inline const PaneSetting* find_pane_setting(const std::vector<PaneSetting>& all,
 // ---- Workshop's own word on a row: the skin its area is painted in -------------------------
 
 /// THE ONE `workshop.` KEY A ROW KEEPS: the painter skin its pane's graphics area wears, over the
-/// Workshop-wide one. Workshop reads it, and never hands it to the pane.
+/// Workshop-wide one. Workshop reads it, and it is never handed to the pane.
 inline constexpr const char* kWorkshopSkinKey = "workshop.skin";
 inline constexpr const char* kSkinClassic = "classic";
 inline constexpr const char* kSkinBlock = "block";

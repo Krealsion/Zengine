@@ -82,22 +82,23 @@ struct IntrospectionState {
 /// pane keys; any other key is refused.
 using Office = ws::MultiPaneFacet<kIntrospectionRole, kLoadedPane,
                                   zengine::manual::pages::zengine_introspection::kManual>;
+/// Powers' row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+using Settings = ws::PaneSettingsFacet<kPowersPane, kIntrospectionRole>;
 
 class IntrospectionWeave
-    : public zengine::With<Office>::Weave<
+    : public zengine::With<Office, Settings>::Weave<
           IntrospectionWeave, IntrospectionState,
           loom::Accept<ws::PaneKey,
                        ws::PaneTextInput, ws::PaneActionRequested, loom::Result,
                        ws::PaneOperationAnswered, ws::PaneCarryAnswered, loom::Refused,
                        ws::ResolvedArrangement, ws::v2::ResolvedArrangement, ws::PowersFound,
                        ws::PowerDescribed, ws::SourceSampled, gfx::ClipboardCopy,
-                       gfx::ClipboardText, ws::v2::PaneSettings>,
+                       gfx::ClipboardText>,
           loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::PanePassRequested,
                      intro::LoadedSelected, loom::ListLoaded, ws::ArrangementRequested,
                      ws::DescribePower, ws::SampleRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
-                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
-                     ws::PaneSettingUnused>> {
+                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared>> {
 public:
     // ---- What its office calls --------------------------------------------------------------
 
@@ -125,18 +126,14 @@ public:
         }
         (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, powers_.actions());
         (void)mail.as_role(kIntrospectionRole)
-            .send_to_role(ws::kLayoutsRole, ws::v2::PaneSettingsDeclared{kPowersPane, powers_settings()});
+            .send_to_role(ws::kLayoutsRole,
+                          ws::v2::PaneSettingsDeclared{kPowersPane, setting_rows()});
     }
 
-    /// THE SETTINGS THIS LAYOUT KEEPS FOR POWERS, taken whole: its chrome widths, a value it cannot
-    /// use said back against the revision it was handed at. Loaded and Project declare none, and
-    /// pass over what they are handed. Held by the seat, never reload state.
-    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
-        if (!workshop_said(mail) || handed.pane != kPowersPane) {
-            return;
-        }
-        const ws::SettingsTaken taken = ws::take_pane_settings(powers_settings(), handed);
-        ws::say_settings_unused(mail, kIntrospectionRole, taken);
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR POWERS, as the layouts' owner handed them and its facet
+    /// took them whole: its chrome widths. Loaded and Project declare none, and are handed none.
+    /// Held by the seat, never reload state.
+    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
         powers_.take_widths(intro::ChromeWidths{taken.number(intro::kSettingViewColumns),
                                                 taken.number(intro::kSettingCompositeColumns),
                                                 taken.number(intro::kSettingGap)},
@@ -145,7 +142,7 @@ public:
 
     /// THE SETTINGS POWERS TAKES, each with its default, how a weaver finds it and what it does: its
     /// chrome row's two control columns, each at least its label, and the gap between segments.
-    static std::vector<ws::v2::PaneSettingRow> powers_settings() {
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
         namespace d = intro::detail;
         const auto columns = [](const char* key, std::int64_t label, bool pinned, const char* says) {
             ws::v2::PaneSettingRow row;

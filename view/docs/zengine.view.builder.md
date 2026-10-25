@@ -270,8 +270,8 @@ what it rested on goes.
 ## Follow
 
 The View Builder publishes nothing. Its asks go to the view host, which answers it alone, and what
-it made of each is on its notice. It tells Workshop `PaneSettingUnused` when a layout hands it a
-setting it cannot use. To follow a running view, follow the view: it is a participant of
+it made of each is on its notice. It tells the layouts' owner `PaneSettingUnused` when a layout hands
+it a setting it cannot use. To follow a running view, follow the view: it is a participant of
 its own, publishing its intents' shapes to whoever accepts them
 ([the view renderer](view.md#the-view-renderer)).
 

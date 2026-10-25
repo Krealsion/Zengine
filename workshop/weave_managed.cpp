@@ -146,12 +146,6 @@ void WorkshopWeave::after_delivery(loom::Mail& mail) {
                    },
                    mail, false);
     }
-    if (settings_owed_) {
-        // THE PANE'S SETTINGS BEFORE THE AREA IT WAS SEATED IN, whatever this delivery was: the
-        // repaint owed below comes after them, and hands nothing its holder has already heard.
-        settings_owed_ = false;
-        hand_settings(mail);
-    }
     if (repaint_owed_) {
         repaint_owed_ = false;
         repaint(mail);
@@ -368,7 +362,6 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     presentation_claimed_ = true;
     trial_ = Trial{};
     repaint_owed_ = true;
-    settings_owed_ = true;
     return true;
 }
 
