@@ -651,15 +651,29 @@ TEST_CASE("pane comfort survives offer refresh and rejects malformed preferences
     REQUIRE(p.runtime.entries.size() == 1);
 }
 
-TEST_CASE("pane comfort: `fit` follows a re-offer and `default` keeps the first, and a measure that comes back is held") {
+namespace {
+/// The OS window's room, its device unit one canvas pixel; `screen_of` alone is the terminal's.
+Screen os_window_of(std::int64_t w, std::int64_t h) {
+    Screen sc = screen_of(w, h);
+    sc.cell_px = zengine::graphics::kCellPx;
+    sc.text_advance_px = 8;
+    sc.text_line_px = 18;
+    return sc;
+}
+} // namespace
+
+TEST_CASE("pane comfort: `fit` follows a pane switching between two sizes each time, in both windows, and `default` keeps the first") {
     // ⚔ MUTATION: `pane_measure` reading the first offer for `fit` -- the fitted pane stays as tall
     // as its first offer asked, whatever it asks now.
+    // ⚔ MUTATION: every re-offer held in the OS window -- the accordion shut there stays open.
     Panes p;
     Setup setup;
     setup.name = "Comfort";
     setup.panes.clear();
-    const auto fits = admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 7, 54);
-    const auto stays = admit_pane_offer(p.runtime, "test.pane", {"stays", "Stays", "list"}, 7, 54);
+    const PaneBody open{320, 208, 0}, shut{320, 48, 0};
+    const auto fits = admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 0, 0, open);
+    const auto stays =
+        admit_pane_offer(p.runtime, "test.pane", {"stays", "Stays", "list"}, 0, 0, open);
     REQUIRE(fits.written.accepted);
     REQUIRE(stays.written.accepted);
     for (const auto& [key, x] : {std::pair{"fits", 0}, std::pair{"stays", 60}}) {
@@ -672,50 +686,125 @@ TEST_CASE("pane comfort: `fit` follows a re-offer and `default` keeps the first,
     }
     REQUIRE(check_setup(setup).accepted);
     reconcile(p, setup);
-    const auto sc = screen_of(cells_px(140), cells_px(44));
-    const auto tall = [&](std::int64_t kind) { return bounds_of(p, setup, kind, sc).resolved.h; };
-    const std::int64_t first = tall(fits.kind);
-    CHECK(tall(stays.kind) == first); // one offer: `fit` and `default` read the same measure
-    // THE PANE SAYS ITS CONTENT GREW, by offering again: `fit` follows, `default` does not.
-    REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 20, 54).refreshed);
-    REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"stays", "Stays", "list"}, 20, 54).refreshed);
-    const std::int64_t grown = tall(fits.kind);
-    CHECK(grown > first);
-    CHECK(tall(stays.kind) == first);
-    CHECK_FALSE(p.runtime.of_kind(fits.kind)->fit_held);
-    // A MEASURE THAT COMES BACK -- the one before the latest -- IS HELD where it is: a pane whose
-    // measure follows its room would otherwise answer every grant with the other one.
-    // ⚔ MUTATION: no hold -- the fitted pane shrinks back to its first height.
-    REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 7, 54).refreshed);
-    CHECK(p.runtime.of_kind(fits.kind)->fit_held);
-    CHECK(tall(fits.kind) == grown);
-    // ...and a measure it has not said before is taken, and nothing is held.
-    REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 12, 54).refreshed);
-    CHECK_FALSE(p.runtime.of_kind(fits.kind)->fit_held);
-    CHECK(tall(fits.kind) > first);
-    CHECK(tall(fits.kind) < grown);
-    CHECK(tall(stays.kind) == first);
+    const Screen windows[] = {os_window_of(cells_px(140), cells_px(44)),
+                              screen_of(cells_px(140), cells_px(44))};
+    REQUIRE(stack_capacity(windows[0]).grain == 1);
+    REQUIRE(stack_capacity(windows[1]).grain == zengine::graphics::kCellPx);
+    for (const Screen& sc : windows) {
+        CAPTURE(sc.cell_px);
+        const auto tall = [&](std::int64_t kind) {
+            return bounds_of(p, setup, kind, sc).resolved.h;
+        };
+        const auto offer = [&](const PaneBody& body) {
+            REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 0, 0, body)
+                        .refreshed);
+            REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"stays", "Stays", "list"}, 0, 0,
+                                     body)
+                        .refreshed);
+        };
+        offer(open);
+        const std::int64_t opened = tall(fits.kind);
+        CHECK(tall(stays.kind) == opened); // the first offer: `fit` and `default` read the same
+        // THE ACCORDION SHUTS, OPENS AND SHUTS: `fit` follows each switch at once, either way...
+        offer(shut);
+        const std::int64_t shutted = tall(fits.kind);
+        CHECK(shutted < opened);
+        offer(open);
+        CHECK(tall(fits.kind) == opened);
+        offer(shut);
+        CHECK(tall(fits.kind) == shutted);
+        offer(open);
+        CHECK(tall(fits.kind) == opened);
+        // ...and `default` keeps the first offer through all of it.
+        CHECK(tall(stays.kind) == opened);
+    }
+}
+
+TEST_CASE("pane comfort: a re-offer within one pixel of what `fit` stands on is held in the OS window alone, and the terminal window follows it") {
+    // ⚔ MUTATION: no hold -- the OS window's pane follows a one-pixel wobble.
+    // ⚔ MUTATION: the terminal window holding too -- it stays where the wobble began.
+    // ⚔ MUTATION: a hold of two pixels -- an offer two pixels off is held.
+    Panes p;
+    Setup setup;
+    setup.name = "Wobble";
+    setup.panes.clear();
+    const auto fits = admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 0, 0,
+                                       PaneBody{320, 204, 0});
+    REQUIRE(fits.written.accepted);
+    SetupPane row;
+    row.ref = {"test.pane", "fits"};
+    row.place = {pane_unit::kPixels, 0, 0};
+    row.width = {ui::kSizeFit, 0};
+    row.height = {ui::kSizeFit, 0};
+    setup.panes.push_back(row);
+    REQUIRE(check_setup(setup).accepted);
+    reconcile(p, setup);
+    const Screen os = os_window_of(cells_px(140), cells_px(44));
+    const Screen terminal = screen_of(cells_px(140), cells_px(44));
+    const auto size = [&](const Screen& sc) { return bounds_of(p, setup, fits.kind, sc).resolved; };
+    const auto offer = [&](std::int64_t w, std::int64_t h) {
+        REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 0, 0,
+                                 PaneBody{w, h, 0})
+                    .refreshed);
+    };
+    const PixelRect os_at = size(os);
+    const PixelRect terminal_at = size(terminal);
+    // A PIXEL TALLER, then a pixel narrower and a pixel shorter: the OS window stands where it
+    // was; the terminal follows each offer, rounded up to the cells that hold it -- 204 pixels
+    // are whole cells, 205 are not.
+    offer(320, 205);
+    CHECK(size(os) == os_at);
+    CHECK(size(terminal).h > terminal_at.h);
+    offer(319, 203);
+    CHECK(size(os) == os_at);
+    CHECK(size(terminal).w == terminal_at.w);
+    CHECK(size(terminal).h == terminal_at.h);
+    // TWO PIXELS FROM WHERE IT STANDS is no wobble: followed, on the axis that moved and the other.
+    offer(320, 206);
+    CHECK(size(os).h == os_at.h + 2);
+    CHECK(size(os).w == os_at.w);
+    offer(322, 206);
+    CHECK(size(os).w == os_at.w + 2);
+    // ...and the next wobble is judged from there.
+    offer(321, 207);
+    CHECK(size(os).w == os_at.w + 2);
+    CHECK(size(os).h == os_at.h + 2);
 }
 
 TEST_CASE("pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer") {
     // ⚔ MUTATION: `pane_fit_note` saying nothing of a held measure -- the weaver sees a pane that
-    // stopped following its content and is not told why.
+    // stopped following its offer and is not told why.
     Session s;
-    const auto offered = admit_pane_offer(s.panes.runtime, "test.pane", {"fits", "Fits", "list"}, 7, 54);
+    s.cell_px = zengine::graphics::kCellPx;
+    s.text_advance_px = 8;
+    s.text_line_px = 18;
+    const auto offered = admit_pane_offer(s.panes.runtime, "test.pane", {"fits", "Fits", "list"},
+                                          0, 0, PaneBody{320, 208, 0});
     REQUIRE(offered.written.accepted);
     const PaneRef ref{"test.pane", "fits"};
     REQUIRE(add_pane(s.setup.active, ref));
     pane_of(s.setup.active, ref)->height = PaneSize{ui::kSizeFit, 0};
     CHECK(pane_fit_note(s, ref).empty()); // it follows its latest offer, which is all there is
-    REQUIRE(admit_pane_offer(s.panes.runtime, "test.pane", {"fits", "Fits", "list"}, 20, 54).refreshed);
-    CHECK(pane_fit_note(s, ref).empty());
-    REQUIRE(admit_pane_offer(s.panes.runtime, "test.pane", {"fits", "Fits", "list"}, 7, 54).refreshed);
+    const auto offer = [&](std::int64_t h) {
+        REQUIRE(admit_pane_offer(s.panes.runtime, "test.pane", {"fits", "Fits", "list"}, 0, 0,
+                                 PaneBody{320, h, 0})
+                    .refreshed);
+    };
+    offer(48);
+    CHECK(pane_fit_note(s, ref).empty()); // a switch is followed, and nothing is held
+    offer(49);
     const std::string held = pane_fit_note(s, ref);
-    CHECK(held.find("fit: its measure follows its room -- held at ") == 0);
+    CHECK(held.find("fit: held at ") == 0);
+    CHECK(held.find(" -- its latest offer is within a pixel of it") != std::string::npos);
     const PreferredExtent now =
         fit_extent(s.panes.runtime.find("test.pane", "fits"), stack_capacity(screen_of(s)));
     bool projected = false;
     CHECK(held.find(geometry_amount_text(now.height, s.cell_px, projected)) != std::string::npos);
+    // THE TERMINAL WINDOW HOLDS NOTHING, so it has nothing to say.
+    s.cell_px = 0;
+    s.text_advance_px = 0;
+    s.text_line_px = 0;
+    CHECK(pane_fit_note(s, ref).empty());
     // A PANE THAT OFFERED NOTHING stands at its default, and says so.
     const PaneRef editor = ref_of(stock::kKind);
     REQUIRE(add_pane(s.setup.active, editor));

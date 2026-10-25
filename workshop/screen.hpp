@@ -1229,7 +1229,7 @@ std::string pane_window_text(const SetupPane* row, std::int64_t cell_px);
 bool pane_window_reads_words(const SetupPane* row);
 
 /// WHAT A `fit` AXIS STANDS ON, where it is not the pane's latest offer: a pane that offered
-/// nothing, or one whose measure follows its room and is held; empty otherwise.
+/// nothing, or, in the OS window, an offer its latest is within a pixel of; empty otherwise.
 std::string pane_fit_note(const Session& s, const PaneRef& ref);
 
 
