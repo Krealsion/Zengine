@@ -253,11 +253,13 @@ std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
     if (mode == pane_unit::kPixels) {
         text += "@" + amount(row->place.x) + "," + amount(row->place.y) + " ";
     } else if (mode != pane_unit::kDefault) {
-        // A PLACE WORD, and the offsets it reads.
+        // A PLACE WORD, and the offsets it reads: a share place's as shares.
         text += "@" + std::string(ui::place_word(mode));
         const bool reads_x = ui::place_reads_x(mode);
         const bool reads_y = ui::place_reads_y(mode);
-        if (reads_x && reads_y) {
+        if (ui::place_reads_share(mode)) {
+            text += " " + share_text(row->place.x) + "," + share_text(row->place.y);
+        } else if (reads_x && reads_y) {
             text += " " + amount(row->place.x) + "," + amount(row->place.y);
         } else if (reads_x || reads_y) {
             text += " " + amount(reads_x ? row->place.x : row->place.y);

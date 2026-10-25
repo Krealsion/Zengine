@@ -144,7 +144,7 @@ LAW — A window says each axis in its word, `-` for `default`, followed by ` --
 
 MEANS
 - the clause names the unclipped ask — the rectangle a gesture measures from;
-- a share reads `50.00%`, then `fit`, `fill`, and a place its word and the offsets it reads;
+- a share reads `50.00%`, then `fit`, `fill`, and a place its word and the offsets it reads, a share place's as shares;
 - a window in pixels on every axis carries no such clause: its numbers are where it is.
 
 WHY — `agents/decisions/the-face-reports-the-unit.md`

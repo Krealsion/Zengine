@@ -530,6 +530,44 @@ TEST_CASE("Info's typed axes take a word as well as a number, and each reads bac
     CHECK(t.row().width == PaneSize{});
 }
 
+TEST_CASE("Info's X and Y take a share place as a size's share is typed, and read it back") {
+    // ⚔ MUTATION: `write_pane_axis` reading `33.33%` on a place axis as a count of the face's
+    // unit -- it is refused, and no share place can be typed.
+    TypedAxes t;
+    REQUIRE(t.type(0, "4").accepted);
+    REQUIRE(t.type(1, "6").accepted);
+    REQUIRE(t.row().place == PanePlace{pane_unit::kPixels, cells_px(4), cells_px(6)});
+    const Screen sc = screen_of(t.s);
+    // A SHARE ON ONE AXIS makes the place a share: the other axis the share reaching where the
+    // pane stands on it, so nothing moves there.
+    REQUIRE_MESSAGE(t.type(1, "33.33%").accepted, t.type(1, "33.33%").refusal);
+    CHECK(t.row().place ==
+          PanePlace{ui::kPlaceShare, share_placing(cells_px(4), sc.room_w), 3333});
+    CHECK(t.reads(1) == "share 33.33%");
+    // ...each reads back as it was typed, and is taken again as it reads.
+    REQUIRE(t.type(1, "share 33.33%").accepted);
+    CHECK(t.row().place.y == 3333);
+    REQUIRE(t.type(0, "share 5000").accepted);
+    CHECK(t.row().place == PanePlace{ui::kPlaceShare, 5000, 3333});
+    CHECK(t.reads(0) == "share 50.00%");
+    // `share` ALONE keeps the pane where it stands, in shares.
+    REQUIRE(t.type(0, "share").accepted);
+    CHECK(t.row().place == PanePlace{ui::kPlaceShare, 5000, 3333});
+    // A NUMBER on a share axis is the pixel the share reaches, through the gesture door.
+    REQUIRE(t.type(0, "12").accepted);
+    CHECK(t.row().place ==
+          PanePlace{ui::kPlaceShare, share_placing(cells_px(12), sc.room_w), 3333});
+    // ...AND THE OWNER'S RANGE REFUSES IN ITS OWN WORDS, changing nothing.
+    const PanePlace before = t.row().place;
+    CHECK(t.type(0, "share 10001").refusal ==
+          "a share pane place's x is 0 to 10000 ten-thousandths of the room's width (3333 is a "
+          "third) -- not 10001");
+    CHECK(t.type(1, "share third").refusal ==
+          "a share place is typed `33.33%` or `share 3333`: ten-thousandths of the room from its "
+          "top-left");
+    CHECK(t.row().place == before);
+}
+
 TEST_CASE("a pane its words leave too small to see, or off the room, is still listed, reached by tab, inspected by Info and given its size back there") {
     // ⚔ MUTATION: `arrangeable` passing over a pane with no visible cell -- tab never reaches it,
     // and a pane too small to point at is lost to the keys.

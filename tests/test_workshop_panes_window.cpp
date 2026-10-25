@@ -175,7 +175,8 @@ TEST_CASE("an unknown mode word names what it found and what would have worked")
     const Setup good = two_overlays();
     const std::string valid = setup_persist::to_text(good);
     const char* const kPlaces =
-        "default, pixels, top, top-right, left, center, right, bottom-left, bottom or bottom-right";
+        "default, pixels, top, top-right, left, center, right, bottom-left, bottom, bottom-right or "
+        "share";
     const char* const kSizes = "default, pixels, share, fit or fill";
 
     struct Case {

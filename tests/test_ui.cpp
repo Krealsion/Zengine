@@ -173,10 +173,11 @@ TEST_CASE("each word is spelled by one table, and reads exactly its own numbers"
     CHECK(place_word(kPlaceBottomLeft) == "bottom-left");
     CHECK(place_word(kPlaceBottom) == "bottom");
     CHECK(place_word(kPlaceBottomRight) == "bottom-right");
+    CHECK(place_word(kPlaceShare) == "share");
     // A number no word is has no spelling: it is not quietly some word.
     CHECK(size_word(5).empty());
     CHECK(size_word(-1).empty());
-    CHECK(place_word(10).empty());
+    CHECK(place_word(11).empty());
     CHECK(place_word(kMin).empty());
 
     // Every spelling is its own.
@@ -214,11 +215,13 @@ TEST_CASE("each word is spelled by one table, and reads exactly its own numbers"
                  {kPlaceLeft, true, false},        {kPlaceCenter, false, false},
                  {kPlaceRight, true, false},       {kPlaceBottomLeft, true, true},
                  {kPlaceBottom, false, true},      {kPlaceBottomRight, true, true},
-                 {77, false, false}};
+                 {kPlaceShare, true, true},        {77, false, false}};
     for (const auto& r : reads) {
         CAPTURE(r.mode);
         CHECK(place_reads_x(r.mode) == r.x);
         CHECK(place_reads_y(r.mode) == r.y);
+        // ...and only `share` reads them as ten-thousandths of the frame.
+        CHECK(place_reads_share(r.mode) == (r.mode == kPlaceShare));
     }
 }
 
@@ -281,6 +284,30 @@ TEST_CASE("every place word stands its part at its own point of the frame") {
     // An absent offset reads as none.
     CHECK(solve_one(make(1, "a", Place{kPlaceBottomRight, {}, {}}, px(40), px(20)), room) ==
           Rect{360, 180, 40, 20});
+}
+
+TEST_CASE("a share place stands its part a share of the frame's width and height from its top-left, floored to the step") {
+    // ⚔ MUTATION: `edges_of` reading a share place's offsets as pixels -- the bar stands 3333
+    // pixels down, past the room's floor.
+    // A BAR A THIRD OF THE WAY DOWN, across the whole frame: 600 * 3333 / 10000 is 199.98.
+    const Element bar = make(1, "bar", Place{kPlaceShare, 0, 3333}, word(kSizeFill), px(48));
+    CHECK(solve_one(bar, Room{900, 600, 1}) == Rect{0, 199, 900, 48});
+    // ...a third down at every size: 960 by 720 puts it at 239.97, and a terminal's step floors
+    // the edge from the frame's start, 199 to 192 at a twelve-pixel cell.
+    CHECK(solve_one(bar, Room{960, 720, 1}) == Rect{0, 239, 960, 48});
+    CHECK(solve_one(bar, Room{900, 600, 12}) == Rect{0, 192, 900, 48});
+    // Both axes are shares, each of its own span; a share size after it is laid from there.
+    CHECK(solve_one(make(1, "a", Place{kPlaceShare, 5000, 2500}, share(2500), px(10)),
+                    Room{401, 200, 1}) == Rect{200, 50, 100, 10});
+    // A share place's offsets are clamped to the frame, as a share size's amount is, and an
+    // absent one reads as none.
+    CHECK(solve_one(make(1, "a", Place{kPlaceShare, -5, 20000}, px(40), px(20)), Room{400, 200, 1}) ==
+          Rect{0, 200, 40, 20});
+    CHECK(solve_one(make(1, "a", Place{kPlaceShare, {}, {}}, px(40), px(20)), Room{400, 200, 1}) ==
+          Rect{0, 0, 40, 20});
+    // Only `share` reads its offsets so: the same numbers under `pixels` are pixels.
+    CHECK(solve_one(make(1, "a", Place{kPlacePixels, 50, 25}, px(40), px(20)), Room{400, 200, 1}) ==
+          Rect{50, 25, 40, 20});
 }
 
 TEST_CASE("fill runs from the part's anchored edge to the frame's far one") {
@@ -950,6 +977,13 @@ TEST_CASE("problem names a share in a frame that fits, a missing context and a l
                   .find("#2 stands at the right of #1") == 0);
         CHECK(problem({fits, make(2, "", Place{kPlaceBottom, {}, 0}, px(12), px(12), 1)})
                   .find("#2 is centred across #1") == 0);
+    }
+    SUBCASE("and a share place, which reads the frame's span to stand") {
+        // ⚔ MUTATION: `reads_of_frame` reading a share place as its anchor alone -- a share
+        // place in a frame that fits reads as standing from the start, and nothing is named.
+        CHECK(problem({fits, make(2, "bar", Place{kPlaceShare, 0, 3333}, px(12), px(12), 1)}) ==
+              "#2 \"bar\" stands a share of the width into #1 \"panel\", which fits its width to "
+              "its parts: give #1 \"panel\" a width");
     }
     SUBCASE("a context no part carries") {
         CHECK(problem({fits, make(2, "lost", Place{}, px(12), px(12), 99)}) ==

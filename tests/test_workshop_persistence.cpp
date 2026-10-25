@@ -2456,6 +2456,8 @@ TEST_CASE("every place and size word survives the setup file and the session byt
     CHECK(text.find("\"place\":{\"mode\":\"center\"}") != std::string::npos);
     CHECK(text.find("\"place\":{\"mode\":\"top\",\"y\":\"22\"}") != std::string::npos);
     CHECK(text.find("\"place\":{\"mode\":\"right\",\"x\":\"16\"}") != std::string::npos);
+    // A SHARE PLACE is a word with both its numbers, ten-thousandths, as `pixels`' are present.
+    CHECK(text.find("\"place\":{\"mode\":\"share\",\"x\":\"20\",\"y\":\"30\"}") != std::string::npos);
     const setup_persist::LoadedSetup read = setup_persist::from_text(text);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.setup == desk);
@@ -2476,8 +2478,9 @@ TEST_CASE("every place and size word survives the setup file and the session byt
     const std::int64_t in_pixels = decoded_cells(loom::to_value(setup_persist::to_setup(full)));
     for (std::size_t i = 0; i < full.panes.size(); ++i) {
         const auto mode = static_cast<std::int64_t>(i % ui::kPlaceWords.size());
-        full.panes[i].place = PanePlace{mode, ui::place_reads_x(mode) ? kMaxPanePixels : 0,
-                                        ui::place_reads_y(mode) ? kMaxPanePixels : 0};
+        const std::int64_t most = ui::place_reads_share(mode) ? ui::kShareWhole : kMaxPanePixels;
+        full.panes[i].place = PanePlace{mode, ui::place_reads_x(mode) ? most : 0,
+                                        ui::place_reads_y(mode) ? most : 0};
         const auto size = static_cast<std::int64_t>(i % ui::kSizeWords.size());
         full.panes[i].width = PaneSize{size, size == ui::kSizeShare ? ui::kShareWhole
                                              : (size == ui::kSizePixels ? kMaxPanePixels : 0)};
@@ -2514,6 +2517,15 @@ TEST_CASE("a word's numbers out of its range are refused in the weaver's words, 
           "a pane place cannot be negative");
     CHECK(refused([](SetupPane& r) { r.place = PanePlace{42, 0, 0}; })
               .find("a pane place is default, pixels, top") == 0);
+    // ⚔ MUTATION: `check_pane_place` judging a share place's numbers as pixels -- a share past
+    // the whole room is stored, and the pane stands below the floor.
+    CHECK(refused([](SetupPane& r) { r.place = PanePlace{ui::kPlaceShare, 10001, 0}; }) ==
+          "a share pane place's x is 0 to 10000 ten-thousandths of the room's width (3333 is a "
+          "third) -- not 10001");
+    CHECK(refused([](SetupPane& r) { r.place = PanePlace{ui::kPlaceShare, 0, -1}; }) ==
+          "a share pane place's y is 0 to 10000 ten-thousandths of the room's height (3333 is a "
+          "third) -- not -1");
+    CHECK(refused([](SetupPane& r) { r.place = PanePlace{ui::kPlaceShare, 0, 10000}; }).empty());
     // THE FILE SAYS ITS OWN: a number where the word reads none, and one missing where it reads it.
     const std::string text = setup_persist::to_text(good);
     const auto forged = [&text](const std::string& from, const std::string& to) {
@@ -2531,6 +2543,13 @@ TEST_CASE("a word's numbers out of its range are refused in the weaver's words, 
               .find("a center pane place carries no coordinates") != std::string::npos);
     CHECK(forged("\"place\":{\"mode\":\"right\",\"x\":\"16\"}", "\"place\":{\"mode\":\"right\"}")
               .find("a right pane place names its x and no y") != std::string::npos);
+    CHECK(forged("\"place\":{\"mode\":\"share\",\"x\":\"20\",\"y\":\"30\"}",
+                 "\"place\":{\"mode\":\"share\",\"y\":\"30\"}")
+              .find("a share pane place names both x and y") != std::string::npos);
+    CHECK(forged("\"place\":{\"mode\":\"share\",\"x\":\"20\",\"y\":\"30\"}",
+                 "\"place\":{\"mode\":\"share\",\"x\":\"20\",\"y\":\"10001\"}")
+              .find("a share pane place's y is 0 to 10000 ten-thousandths of the room's height") !=
+          std::string::npos);
 }
 
 TEST_CASE("a session file holds the run and nothing of the window, and nothing runtime") {

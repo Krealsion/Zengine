@@ -23,7 +23,7 @@ LAW — A subject's row writes through a door the desk has: an axis by the windo
 
 MEANS
 - there is no subject setter and no rectangle held anywhere; a number on a place goes by the gesture door;
-- a typed axis takes a word as well as a number -- `50%`, `share 5000`, `fit`, `fill`, `bottom-right 2` -- and reads back as typed;
+- a typed axis takes a word as well as a number -- `50%`, `share 5000`, `fit`, `fill`, `bottom-right 2`, a share place's `33.33%` -- and reads back as typed;
 - `pane_window_base` is `managed_window_base`'s body: typed axes measure from the hands' window.
 
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`

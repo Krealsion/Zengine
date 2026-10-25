@@ -371,7 +371,7 @@ Source-traced, precisely:
 | keeping several layouts at once | **yes**, within the run | tabs on Workshop's first row; `.` `,` `=` `Ctrl`+`w`, and the tab gestures |
 | knowing whether a layout matches its Setup file | **yes** | `setup:` on the first row: none, current or modified |
 | selecting among setup **files** | **no in-application selection** | one file per run, chosen by `--setup`; a layout keeps whichever it was related to |
-| persisting pane position | **yes** | authored place, pixels or a point of the room in a word, in the setup and in the session |
+| persisting pane position | **yes** | authored place, pixels, a point of the room or a share of it in a word, in the setup and in the session |
 | persisting pane size | **yes** | authored size in pixels or a word -- a share, `fit` or `fill` -- in both |
 | persisting which panes are open | **yes** | the pane list, in both |
 | persisting pane order (depth) | **yes** | the rank permutation, in both |

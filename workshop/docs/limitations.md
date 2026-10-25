@@ -498,7 +498,8 @@ product never lands on it, and the image a reload opens is a per-operation copy.
 ### Info edits the pane grammar that exists, and no more
 
 [Info](panes.md#a-pane-as-a-subject--info) edits exactly what a pane's setup row can say today —
-a place in the room (`X`, `Y`) as pixels or as a word such as `bottom-right 2`, a width and a
+a place in the room (`X`, `Y`) as pixels or as a word such as `bottom-right 2` or a share of the
+room (`33.33%`), a width and a
 height as pixels, a share (`50%`), `fit` or `fill`, and the settings the pane declares — and
 shows the rest beside it: the pane's rank in the front order and whether it is on the layout,
 which are arranging's and the Pane Manager's to change, and the resolved rectangle and state.

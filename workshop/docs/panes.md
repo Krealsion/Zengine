@@ -448,8 +448,11 @@ Or say it in a word, in Info's `Width` and `Height`: `fill` runs the pane to the
 edge, a share such as `50%` or `33.33%` is that much of the room and follows it as the window
 changes, and `fit` is what the pane asks for now, following it when the pane asks again. A place
 is a word too, in `X` and `Y`: `bottom-right 2` keeps the pane's corner two cells in from the
-room's, `center` keeps it in the middle, and so on for each corner and edge. A hand keeps each
-word: pulling a share's edge writes the share that edge reaches, pulling a fill's far edge turns
+room's, `center` keeps it in the middle, and so on for each corner and edge. A place can be a share
+of the room as well: `33.33%` (or `share 3333`) in `Y` puts the pane's top a third of the way down
+at every window size, and the other axis becomes the share where the pane stands. A hand keeps each
+word: moving a share place writes the share its corner reaches, pulling a share's edge writes the
+share that edge reaches, pulling a fill's far edge turns
 it into that share, and moving an anchored pane counts its offset from its own edge again; where
 the hand has to change a word -- a centred pane moved, a fitted size pulled -- the band says what
 it became. `=` resizes the pane you addressed and touches nothing else.
@@ -504,8 +507,10 @@ reloaded.
 **Authored and resolved are two different truths**, and the rows keep them apart:
 
 - `AUTHORED` is what *you* said — a place, pixels from the room's top-left (directly under
-  the top band) or a word naming a point of the room (`bottom-right 2 cells`, `center`), a width
-  and a height in pixels or a word (`50.00%`, `fit`, `fill`), each `-` until you say something; the pane's rank in the front order; whether it is on this layout at all. These
+  the top band) or a word naming a point of the room (`bottom-right 2 cells`, `center`) or a
+  share of it (`share 33.33%`), a width and a height in pixels or a word (`50.00%`, `fit`,
+  `fill`), each `-` until you say something; the pane's rank in the front order; whether it is
+  on this layout at all. These
   are the same facts the desk arrangement (`w`) and the Pane Manager author, and the rank and
   presence are read here: ordering is the arrangement's, opening and closing the Pane
   Manager's.

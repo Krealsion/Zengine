@@ -99,7 +99,8 @@ inline constexpr std::int64_t kPanePxMin = kSavedCellPx;
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md
 struct PanePlace {
     /// A place word (`ui::kPlaceWords`); `x` and `y` are its offsets, inward from the edges it
-    /// names, and 0 on an axis the word reads none of.
+    /// names -- `share`'s ten-thousandths of the room from its top-left -- and 0 on an axis the
+    /// word reads none of.
     std::int64_t mode = pane_unit::kDefault;
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -322,7 +323,9 @@ inline std::string pane_place_words() { return word_list(ui::kPlaceWords); }
 inline std::string pane_size_words() { return word_list(ui::kSizeWords); }
 
 /// A PLACE: one of ui's place words, with an offset on each axis the word reads, inward from the
-/// edge it names, and 0 on each it does not: `default` and a centred axis read none.
+/// edge it names, and 0 on each it does not: `default` and a centred axis read none. `share`'s
+/// two are 0 to `ui::kShareWhole` ten-thousandths of the room's width and height.
+// WL-SETUP-03 -- agents/workshop/setup-file.md
 inline Written check_pane_place(const PanePlace& p) {
     if (p.mode == pane_unit::kDefault) {
         if (p.x != 0 || p.y != 0) {
@@ -341,7 +344,15 @@ inline Written check_pane_place(const PanePlace& p) {
             return Written::no("a `" + std::string(word) + "` pane place is centred " +
                                (across ? "across, so it carries no x" : "down, so it carries no y"));
         }
-        if (reads) {
+        if (reads && ui::place_reads_share(p.mode)) {
+            if (v < 0 || v > ui::kShareWhole) {
+                return Written::no(std::string("a share pane place's ") + (across ? "x" : "y") +
+                                   " is 0 to " + std::to_string(ui::kShareWhole) +
+                                   " ten-thousandths of the room's " +
+                                   (across ? "width" : "height") + " (3333 is a third) -- not " +
+                                   std::to_string(v));
+            }
+        } else if (reads) {
             if (const Written legal = check_pane_place_coord(v); !legal.accepted) {
                 return legal;
             }
@@ -934,6 +945,21 @@ inline std::int64_t share_reaching(std::int64_t length, std::int64_t span, ui::A
     return s < 1 ? 1 : (s > whole ? whole : s);
 }
 
+/// The share of `span` at which a `share` place's floored edge is `at` pixels from the room's
+/// start: the least that reaches it, so the edge is the hand's pixel for every span up to
+/// `ui::kShareWhole` pixels. 0 at or before the start, the whole at or past the end.
+// WL-ARR-06 -- agents/workshop/arrangement.md
+inline std::int64_t share_placing(std::int64_t at, std::int64_t span) {
+    if (at <= 0 || span <= 0) {
+        return 0;
+    }
+    if (at >= span) {
+        return ui::kShareWhole;
+    }
+    // at < span, and at * whole fits: at is at most kMaxPanePixels.
+    return (at * ui::kShareWhole + span - 1) / span;
+}
+
 /// A share as a weaver reads it: hundredths of a percent, `33.33%`.
 inline std::string share_text(std::int64_t share) {
     const std::int64_t hundredths = share % 100;
@@ -942,10 +968,10 @@ inline std::string share_text(std::int64_t share) {
 }
 
 /// AUTHOR WHAT ONE GESTURE PROPOSES FOR A PANE'S WINDOW — per axis, each in its own word: an
-/// anchor's offset from its own edge; a share's, or a fill's pulled at its far edge, the share
-/// whose edge is the hand's pixel. A moved centred or `default` place becomes `pixels` at the
-/// hand's corner; `fit`, `default` and a moved `fill` become the hand's extent in pixels. Every
-/// word of the weaver's that the hand changed is said (WL-ARR-06).
+/// anchor's offset from its own edge; a share place's, a share's, or a fill's pulled at its far
+/// edge, the share whose edge is the hand's pixel. A moved centred or `default` place becomes
+/// `pixels` at the hand's corner; `fit`, `default` and a moved `fill` become the hand's extent in
+/// pixels. Every word of the weaver's that the hand changed is said (WL-ARR-06).
 // WL-ARR-05, WL-ARR-06, WL-ARR-10 -- agents/workshop/arrangement.md
 // WL-PED-05 -- agents/workshop/pane-manager.md
 inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
@@ -1031,6 +1057,14 @@ inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
         }
         if (v_lands && vertical.position.has_value()) {
             place.y = my.from;
+        }
+    } else if (ui::place_reads_share(place.mode)) {
+        // A SHARE PLACE keeps its word: the share whose edge is the hand's pixel.
+        if (mx.near_moved) {
+            place.x = share_placing(mx.from, horizontal.span);
+        }
+        if (my.near_moved) {
+            place.y = share_placing(my.from, vertical.span);
         }
     } else if (place.mode != pane_unit::kDefault) {
         // AN ANCHORED WORD keeps its word: the offset is counted from its own edge again.
