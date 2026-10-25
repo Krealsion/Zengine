@@ -297,15 +297,15 @@ std::string pane_fit_note(const Session& s, const PaneRef& ref) {
     if (pane == nullptr || pane->latest == PaneOfferedBody{}) {
         return "fit: no measure offered -- it stands at its default";
     }
-    if (!pane->fit_held) {
+    const StackCapacity room = stack_capacity(screen_of(s));
+    if (fit_offer(*pane, room) == pane->latest) {
         return {};
     }
-    const PreferredExtent now = fit_extent(pane, stack_capacity(screen_of(s)));
+    const PreferredExtent now = fit_extent(pane, room);
     bool projected = false;
     const std::int64_t held = row->height.mode == ui::kSizeFit ? now.height : now.width;
-    return "fit: its measure follows its room -- held at " +
-           geometry_amount_text(held, s.cell_px, projected) + " " +
-           std::string(geometry_unit(s.cell_px));
+    return "fit: held at " + geometry_amount_text(held, s.cell_px, projected) + " " +
+           std::string(geometry_unit(s.cell_px)) + " -- its latest offer is within a pixel of it";
 }
 
 // ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED ---------------------------------------------

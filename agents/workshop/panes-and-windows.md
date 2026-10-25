@@ -162,7 +162,7 @@ LAW — A preferred size budgets body text, or a canvas body of whole pixels, pl
 
 MEANS
 - a pixel body is granted exactly: to the pixel in a window, rounded up to cells in a terminal;
-- the first accepted offer is what `default` reads, so a refresh cannot resize it; `fit` reads the latest, and a re-offer putting back the one before is held, and said;
+- `default` reads the first accepted offer; `fit` follows each re-offer at once, either way, save one the OS window holds and says: within a pixel, on every axis, of what it stands on;
 - the column spends the default height a pane is drawn at; old providers keep their fallback.
 
 WHY — `agents/decisions/preferred-pane-space.md`
@@ -305,8 +305,8 @@ and its frame says so; one that does is placed its area, titled, and nothing is 
 arranging"
 
 ### WL-PANE-17
-`workshop/setup_reconcile.hpp` preferred_extent fit_extent offered_extent admit_pane_offer PaneBody
-`workshop/panes.hpp` PaneOfferedBody RuntimePane::latest RuntimePane::before RuntimePane::fit_held
+`workshop/setup_reconcile.hpp` preferred_extent fit_extent fit_offer within_a_pixel offered_extent admit_pane_offer PaneBody
+`workshop/panes.hpp` PaneOfferedBody RuntimePane::latest RuntimePane::standing
 `workshop/screen_pane_state.cpp` pane_fit_note
 `workshop/pane_vocabulary.hpp` kMaxPaneBodyPx
 `workshop/screen.hpp` stack_capacity
@@ -315,7 +315,8 @@ arranging"
 `tests/test_workshop_demo.cpp` "pane comfort budgets body text with chrome in both real medium
 metrics" "pane comfort survives offer refresh and rejects malformed preferences" "pane comfort: the
 column spends each pane's preferred height, and begins again at its top when spent" "pane comfort:
-`fit` follows a re-offer and `default` keeps the first, and a measure that comes back is held"
-"pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer"
+`fit` follows a pane switching between two sizes each time, in both windows, and `default` keeps
+the first" "pane comfort: a re-offer within one pixel of what `fit` stands on is held in the OS window
+alone, and the terminal window follows it" "pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer"
 `tests/test_workshop_panes_canvas.cpp` "a view asks for its size in pixels and its pane grants
 exactly that room: to the pixel in a window, to the cells that hold it in a terminal"

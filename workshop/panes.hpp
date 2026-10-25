@@ -250,13 +250,11 @@ struct RuntimePane {
     std::int64_t preferred_height = 0;
     std::int64_t preferred_text_rows = 0;
     /// WHAT THE PANE ASKS FOR NOW, which `fit` reads while `default` keeps the first offer above:
-    /// the latest offer's body and the one before it. A re-offer that would put that one back is
-    /// held (`fit_held`): a pane whose measure follows the room it was granted would otherwise
-    /// answer every grant with a new one.
+    /// the latest offer's body, which the terminal window follows, and the one `fit` stands on in
+    /// the OS window -- the latest, unless that is within one pixel of it on every axis.
     // WL-PANE-17 -- agents/workshop/panes-and-windows.md
     PaneOfferedBody latest = {};
-    PaneOfferedBody before = {};
-    bool fit_held = false;
+    PaneOfferedBody standing = {};
 };
 
 /// Catalog rows this session holds, built-ins included: room for the standard panes, Info's and
