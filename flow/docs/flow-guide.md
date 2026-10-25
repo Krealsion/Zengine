@@ -88,7 +88,8 @@ send Sample value=7
 send Sample value=3
 ```
 
-`operators` shows the four basic operators and their input/output kinds. Loading additional
+`operators` shows the basic operators (`primitive_definitions`, `operator/primitives.hpp`) and
+their input/output kinds. Loading additional
 operator providers is currently an embedding-host capability; this workbench has no provider-load
 command. The scalar commands
 support `Int`, `Bool`, `Float`, and `Text` fields. A `?` after a message field kind makes it

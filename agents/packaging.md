@@ -51,9 +51,9 @@ persistence, generated-runtime support, and the public control vocabularies
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
-**Fifteen artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
-by `ZENGINE_ARTIFACT_DIR`: `zengine-app-weave` (an app's own weave, which `zengine-app` runs),
-`zengine-timer`, `zengine-input`, `zengine-inventory`, the two TUI skins,
+**The artifacts `zengine_installable_artifacts` lists** install to `lib/zengine/`, named by
+`ZENGINE_RUNTIME_ARTIFACTS` and located by `ZENGINE_ARTIFACT_DIR`: `zengine-app-weave` (an app's
+own weave, which `zengine-app` runs), `zengine-timer`, `zengine-input`, `zengine-inventory`,
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
 starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by another
 Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and terminal

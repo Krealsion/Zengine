@@ -23,8 +23,23 @@ private:
 };
 ```
 
-Bindings are **authored at construction** (`timers().repeat/once/...` →
-`Handle`, cancelable via `handle.cancel(mail)`). The layer owns the plumbing:
+Bindings are **authored at construction**, each a `Handle` (`timer/binding.hpp`):
+
+| on `timers()` | delivers to |
+|---|---|
+| `repeat(id, delay, cb)` | this weave, at every beat |
+| `once(id, delay, cb)` | this weave, once; fired, it is spent until restarted |
+| `repeat_to_role(id, delay, role, cb)` | whoever holds `role` at each beat: the beat is the slot's |
+| `once_to_role(id, delay, role, cb)` | whoever holds `role`, once |
+
+| on a `Handle` | does |
+|---|---|
+| `cancel(mail)` | stop wanting it, and tell the service; a beat already on its way still arrives |
+| `restart(mail)` | want it again and ask now: the one thing that arms a spent one-shot |
+| `waiting()`, `spent()`, `canceled()` | where it stands, as this weave knows it; the Timer is not asked |
+| `resolution()`, `resolution_reason()` | what the Timer last said it did about it, empty before a receipt |
+
+The layer owns the plumbing:
 it accepts `zen.Activated`, `TimerReady` and `TimerFired`, keeps an
 [`ActivationCursor`](../../activation/docs/activation.md) (attested-only, per-operator lineage, replay-ignoring), and
 **reconciles** the declared table — placing `EnsureTimer` orders — at exactly

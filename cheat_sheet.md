@@ -1,852 +1,133 @@
 # Zengine cheat sheet
 
-Dense operational reference. Everything here is checked against the source it describes.
-Prose and reasoning live in each folder's pages, indexed by [docs/](docs/README.md); this page
-is for looking things up. What
-good work in this repository looks like, practice by practice, is
-[best practices](docs/contributing/best-practices.md).
-
-Where something is genuinely awkward today it says so in a **⚠ friction** note rather than
-showing syntax that does not exist.
-
----
-
-## Build
-
-```sh
-# the Loom, installed (Zengine consumes it as a package, not a subdirectory)
-cmake -S Loom -B Loom/build -DCMAKE_BUILD_TYPE=Debug
-cmake --build Loom/build -j
-cmake --install Loom/build --prefix Loom/build/_install
-
-# Zengine against it
-cmake -S . -B build -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install"
-cmake --build build -j
-
-# the official verification lane (NOT a bare ctest -- see below)
-cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake
-```
-
-| I want | flag |
-|---|---|
-| sibling Loom source instead of an installed one | `-DZEN_LOOM_DEV=ON` |
-| no SDL: the terminal window alone (no SDL3 fetch) | `-DZENGINE_TUI_ONLY=ON` |
-| ASan + UBSan over the same suites | `-DZENGINE_SANITIZE=ON` (use build dir `build-san`) |
-| extra CTest flags through the lane | `-DZEN_CTEST_ARGS=-V` |
-| the Windows kernel backend (dev/demo only, **no isolation**) | `-DLOOM_ENABLE_WINDOWS_KERNEL=ON` (implied by `ZEN_LOOM_DEV=ON` on Windows) |
-
-**Windows / MSVC** — from a Developer PowerShell:
-
-```powershell
-cmake -S . -B build-msvc -G Ninja -DZEN_LOOM_DEV=OFF "-DCMAKE_PREFIX_PATH=<loom prefix>"
-cmake --build build-msvc
-```
-
-Zengine adds no MSVC-specific flag: `loom::core` carries `/Zc:preprocessor` as an interface
-requirement, so linking inherits it.
-
-**Windows / MinGW-w64** — the required Windows lane, in the shape CI runs it: a stranger against
-an installed Loom prefix (a Debug Loom configured with `-DLOOM_ENABLE_WINDOWS_KERNEL=ON`),
-Ninja, Debug, SDL off:
-
-```powershell
-cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Debug `
-      -DCMAKE_C_COMPILER=<mingw>/bin/gcc.exe -DCMAKE_CXX_COMPILER=<mingw>/bin/g++.exe `
-      "-DCMAKE_PREFIX_PATH=<loom prefix>" -DZEN_LOOM_DEV=OFF -DBUILD_TESTING=ON -DZENGINE_TUI_ONLY=ON
-cmake --build build-win
-cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
-```
-
-The runtime DLLs must be on `PATH` or beside the binaries, and the assembler has a floor of its
-own — [supported toolchains](docs/contributing/supported-toolchains.md#the-matrix).
-
-**Why `verify.cmake` and not `ctest`.** A bare `ctest` runs the tests but cannot tell you
-whether the population that ran is the population this repository meant to run — a deleted
-registration or a filter matching nothing both exit 0. `verify.cmake` checks the inventory in
-[`tests/test_population.txt`](tests/test_population.txt) first. Quote the lane, not the ctest.
-
-Per-repo green: Zengine's lane never re-runs the Loom's suite. Say which repository's green
-you proved.
-
----
-
-## Use it from another project
-
-Install both, find one, link the capability:
-
-```sh
-cmake --install Loom/build    --prefix "$PWD/deps"
-cmake --install Zengine/build --prefix "$PWD/deps"
-```
-
-```cmake
-find_package(zengine 0.1 CONFIG REQUIRED)          # resolves Zengine's Loom dependency too
-target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
-loom_weave_build_contract(my-weave)                # not optional; forgetting it is silent
-```
-
-Configure with `-DCMAKE_PREFIX_PATH=<the prefix>`. Include paths are unchanged from this
-tree's own spelling: `#include "timer/vocabulary.hpp"`.
-
-| exported target | linking it grants |
-|---|---|
-| `zengine::timer` | order one-shots and repeats; declare an authored rhythm |
-| `zengine::graphics` | draw in a window's area: the vocabulary, the canvas, the drawing facet, pixels and roles |
-| `zengine::input` | key/text/pointer moments; translate a raw byte stream |
-| `zengine::ui` | author places and sizes in words; read what a room solved, in whole pixels |
-| `zengine::component` | medium-independent text editing, list and table arithmetic, a control strip, motion sampling |
-| `zengine::activation` | read your own activation as a cursor |
-| `zengine::operator` | hold and evaluate named typed rules; mount a provider |
-| `zengine::operator-consumer` | spend a host's rules from inside a loaded artifact |
-| `zengine::pane` | offer Workshop a pane from a weave: the offer, the room, the rows, the gestures |
-
-The loadable artifacts come with the package, never from a build tree:
-
-```cmake
-"${ZENGINE_ARTIFACT_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}"
-#  ^ the directory they install to      ^ one of the stems ZENGINE_RUNTIME_ARTIFACTS lists
-```
-
-An **artifact** is the file; *weave* and *provider* are runtime surfaces one may expose, and the
-list holds both kinds:
-
-| artifact | surface |
-|---|---|
-| `zengine-timer` | weave — the Timer service, loaded by the Kernel |
-| `zengine-input` | weave |
-| `zengine-graphics`, `zengine-window-terminal` | weave — the graphics directory, and the window over the process's own terminal |
-| `zengine-paint-classic`, `zengine-paint-block`, `zengine-paint-day`, `zengine-paint-night` | **provider** — painter code a window opens by path |
-| `zengine-operators-basic` | **provider** — opened by a host, never loaded onto the bus |
-| `zengine-guest-vocabulary` | weave — booted by *another* Loom host (a session) so its tools speak Workshop's guest shapes; [external host](external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools) |
-
-`ZENGINE_RUNTIME_ARTIFACTS` is **empty** when the package was built against a Loom with no
-kernel.
-
-⚠ **friction** — Workshop and the OS window are not in the developer package;
-[limitations](workshop/docs/limitations.md#the-library-itself) says why for each.
-
-The witness for all of the above:
-
-```sh
-cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run.cmake
-```
-
----
-
-## Zengine C++
-
-### Run a host
-
-The host owns the bus and the loop. Nothing runs until it asks for a dispatch turn, and there
-are two to ask for:
-
-```cpp
-loom::Switchboard bus;
-// ... load your artifacts, mount your weaves ...
-
-while (running) {
-    poll_your_own_input();      // the OS, sockets, a window — whatever this host owns
-    bus.pump_pending();         // service the work that was waiting; control comes back
-}
-```
-
-| | what it does | when |
-|---|---|---|
-| `bus.pump_pending()` | dispatch exactly the backlog present at entry, return how many | **the ordinary host loop** — you have something of your own to do between turns |
-| `bus.drain_until_idle()` | keep dispatching until the queue is empty, counting work handlers enqueue as its own | settle a world before asserting; a one-shot bootstrap; a host whose *whole program* is the bus, exiting on `bus.stop()` |
-
-`drain_until_idle()` is unbounded by contract, and the name is the whole warning: a live Timer
-service seeds its next beat inside every beat's handler, so such a process is never idle and
-the drain does not return. That is the answer to the question asked — snake and Workshop ask it
-deliberately, because the bus *is* their program. Neither call takes a turn budget or a
-deadline, and Loom will not invent one.
-
-### Define a weave
-
-```cpp
-#include <zen/kernel/export.hpp>
-#include <zen/weave.hpp>
-
-struct MyState {
-    std::int64_t n = 0;
-    ZEN_EXPOSE();                                  // makes the state pokeable/inspectable
-    ZEN_SHAPE(MyState, 1, ZEN_FIELD(n));           // name, version, fields
-};
-
-class MyWeave : public loom::WeaveBase<MyWeave, MyState,
-                                       loom::Accept<Order>,     // what may arrive
-                                       loom::Emit<Report>> {    // what may leave
-public:
-    void on(const Order& o, loom::Mail& mail) { mail.publish(Report{o.n}); }
-};
-
-ZEN_EXPORT_WEAVE(MyWeave)                          // only for a loadable .so/.dll
-```
-
-- `Accept<>` and `Emit<>` **are** the manifest. Loom refuses a shape you did not declare in
-  either direction; there is no wildcard.
-- `state_` is the protected member `WeaveBase` gives you. It is the only state a weave has.
-- One handler per accepted shape, always `void on(const Shape&, loom::Mail&)`.
-
-### Declare a shape
-
-```cpp
-struct Order {
-    std::string what;
-    std::int64_t n = 0;
-    ZEN_SHAPE(Order, 1, ZEN_FIELD(what), ZEN_FIELD(n));
-};
-```
-
-Version is the second argument and is part of the wire identity: `Order` v1 and v2 are
-different shapes to the gate. Bump it when fields change.
-
-### Send a message
-
-| I want to reach… | write |
-|---|---|
-| everyone who accepts it | `mail.publish(Report{...})` |
-| one specific weave | `mail.send(id, Report{...})` |
-| **whoever holds a role** (survives replacement) | `mail.send_to_role("my.role", Report{...})` |
-| as an office I currently hold | `mail.office_send(role, target, ...)` |
-
-Prefer `send_to_role` whenever the recipient is a *slot* rather than a specific instance —
-that is what makes the recipient replaceable while your code keeps working.
-
-⚠ **friction — send fate is not observable to the sender.** A send that goes nowhere (no
-holder for the role, grant refused, shape unknown to the host) returns no error your handler
-can read. The refusal is real and visible on a host-installed observer, not to you. This is a
-recorded Loom seam; see *Debugging* below.
-
-`publish` is not in that list, and the difference is not a degree of loudness: a publication
-names no recipient, so reaching nobody is an outcome and not a failure, and nothing is reported
-for it on either side of the library seam. A publisher that needs to know it was heard asks for
-a receipt back, the way the Timer's `TimerResolution` does.
-
-### Ask and answer
-
-There is no `zen.Ask` shape and no `zen.Answer` shape. **An ask is an ordinary send you
-remember**, and Loom copies your correlation onto the reply. Keep the record with
-`loom::AskBook`:
-
-```cpp
-#include <zen/weave.hpp>
-
-loom::AskBook asks{4};                                   // YOUR bound; there is no default
-
-const loom::AskOpened mine = asks.open(manager, loom::LoadWeave::zen_name, 1);
-bus.send_as(self, manager,
-            loom::Message(loom::to_value(loom::LoadWeave{stem, path, role}),
-                          self, self, mine.correlation));
-
-// ...in the handler for whatever shape answers you:
-if (asks.settle(mail.correlation(), mail.sender())) {
-    // this arrival closed one of MINE. What it MEANS is still yours to decide.
-}
-```
-
-- **Both halves or neither.** `zen.Result` / `zen.Ack` / `zen.Refused` are a vocabulary every
-  participant shares, so "an answer-shaped message arrived" is not "my request answered". The
-  correlation says *which conversation*; the bus-stamped sender says *the weave you actually
-  asked*. A correlation is guessable — the first one any asker opens is `1` — so it identifies
-  and never authenticates.
-- **`awaiting()` is the loop condition, never `pump_pending() == 0`.** A respondent may hold
-  your answer off the queue entirely (Loom defers), so an empty dispatch turn proves nothing.
-- **`forget(id)` is local.** Loom has no cancellation vocabulary: nothing at the far end is
-  told, the answer may still arrive, and it will settle nothing. Say it exactly where you
-  have stopped caring — a bounded wait that gives up and returns to a caller who will never
-  resume it should forget, or it records an interest nothing has; a person who paused an
-  `await` and may look again should not, because the ask is the thing they are about to need.
-- **Asking an office** (`open_to_role`) cannot name a respondent — whoever holds the role at
-  delivery is not knowable when you ask — so that record constrains the correlation alone.
-
-Zengine's own services mostly do not ask at all: they send plain messages to a role and get a
-fact back, the way the Timer's `TimerResolution` receipt does. Reach for the book when you need
-*this* answer to *that* request. See
-[Loom's messaging reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#the-askers-own-book).
-
-### Roles and offices
-
-```cpp
-inline constexpr const char* kMyRole = "my.service";     // by convention: dotted, lowercase
-```
-
-A role is a *slot* one weave holds at a time. Bind it at load (`LoadWeave{stem, path, role}`)
-or when a host mounts natively (`bus.register_weave(std::move(w), grant, office)`). Loom
-refuses a second loadable weave into a held singleton role.
-
----
-
-## Timer
-
-The Timer service holds the role `zengine.timer` (`zengine::timer::kTimerRole`) and owns the
-only clock and the only sleep in the process.
-
-### An authored rhythm — `TimedWeave`
-
-Use this when the cadence is part of what your weave *is*.
-
-```cpp
-#include "timer/binding.hpp"
-
-class Pulse : public zengine::timer::TimedWeave<Pulse, PulseState,
-                                                loom::Accept<>, loom::Emit<>> {
-public:
-    Pulse() : tick_(timers().repeat("pulse.tick", std::chrono::milliseconds(50),
-                                    &Pulse::on_tick)) {}
-
-    using TimedWeave::on;        // REQUIRED if you declare any on() of your own
-
-    void on_tick(const zengine::timer::TimerFired&, loom::Mail&) { ++state_.beats; }
-
-private:
-    Handle tick_;
-};
-```
-
-| factory on `timers()` | delivers to |
-|---|---|
-| `repeat(id, delay, cb)` | this weave's identity |
-| `once(id, delay, cb)` | this weave's identity, once |
-| `repeat_to_role(id, delay, role, cb)` | whoever holds `role` at each firing |
-| `once_to_role(id, delay, role, cb)` | whoever holds `role`, once |
-
-The layer accepts `zen.Activated` / `TimerReady` / `TimerFired` / `TimerResolution` and emits
-`EnsureTimer` / `EnsureRoleTimer` / `CancelTimer` on your behalf, and re-places your declared
-orders on your activation and whenever the Timer service (re)appears.
-
-| on a `Handle` | does |
-|---|---|
-| `h.cancel(mail)` | stop wanting it, and tell the service |
-| `h.restart(mail)` | re-arm a spent one-shot (the only thing that does) |
-| `h.waiting()` / `h.spent()` / `h.canceled()` | local state |
-| `h.resolution()` / `h.resolution_reason()` | what the service said it did |
-
-Forget `using TimedWeave::on;` and the build fails naming the fix. Declaring your own
-`on(const loom::Activated&, ...)` is refused by name — use `on_timed_activation` instead.
-
-### A runtime delay — the raw protocol
-
-Use this when the delay is *data* (it arrived in a message, a user typed it, a job carries it).
-
-```cpp
-#include "timer/vocabulary.hpp"
-namespace timer = zengine::timer;
-
-void on(const BakeOrder& o, loom::Mail& mail) {
-    mail.send_to_role(timer::kTimerRole, timer::StartTimer{"oven.bake", o.minutes, false});
-}
-void on(const timer::TimerFired& f, loom::Mail& mail) { /* f.id */ }
-```
-
-Declare `Accept<timer::TimerFired, ...>` and `Emit<timer::StartTimer, ...>` yourself.
-
-⚠ **friction — a declared binding's delay is fixed at declaration.** There is no
-`h.restart(mail, new_delay)` and no way to add a binding at run time and have it take effect
-before the next `TimerReady`. A message-driven delay must use the raw protocol, which means
-writing the accept/emit sets, the id filter and the receipt handling by hand. This is the
-designed split ([TIMER-05](timer/docs/timer-laws.md)), not an oversight — but it is the split
-an author meets first.
-
-### The vocabulary
-
-| shape | direction | meaning |
-|---|---|---|
-| `StartTimer{id, delay_ms, repeat}` | → service | place a schedule (replaces & re-anchors an existing id) |
-| `EnsureTimer{id, delay_ms, repeat, preferred, fallback}` | → service | place it, saying what to do with one that already exists |
-| `StartRoleTimer` / `EnsureRoleTimer{..., role}` | → service | the beat belongs to the *slot* |
-| `CancelTimer{id}` | → service | remove what **this sender** started |
-| `CancelAllMyTimers{}` | → service | all of this sender's |
-| `TimerFired{id}` | ← service | it fired |
-| `TimerReady{}` | ← service | the service exists; re-place what you want |
-| `TimerResolution{id, resolved, reason}` | ← service | the receipt for an `Ensure*` |
-
-Continuity spellings for `preferred`/`fallback`: `kPreserveRemaining`, `kRestartDelay`,
-`kDrop`. Receipts: `kResolutionPreserved`, `kResolutionRestarted`, `kResolutionDropped`,
-`kResolutionRefused`.
-
-Deeper: [timers guide](timer/docs/timers.md) · [timed weaves](timer/docs/timed-weaves.md) ·
-[the Timer's manual](timer/docs/zengine.timer.md) ·
-[binding layer](timer/docs/timer-binding.md) · [laws](timer/docs/timer-laws.md).
-
----
-
-## Input
-
-One weave (`zengine-input`, role `zengine.input`) is the sole producer. Consumers only accept
-— there is no polling API.
-
-```cpp
-#include "input/vocabulary.hpp"
-namespace input = zengine::input;
-
-void on(const input::KeyPressed& k, loom::Mail&) {
-    const bool ctrl = (k.modifiers & input::mod::kCtrl) != 0;   // modifiers is a bitmask
-    if (k.scancode == input::scan::kQ && ctrl) { /* ... */ }
-}
-void on(const input::TextEntered& t, loom::Mail&) { /* t.text is UTF-8 as typed */ }
-```
-
-| shape | carries |
-|---|---|
-| `KeyPressed` / `KeyReleased` v2 | `scancode` (SDL scancode is the identity), `name` (convenience), `modifiers` at the transition |
-| `TextEntered` v1 | `text` — what the layout actually produced, UTF-8 |
-| `PointerMoved` v1 | position, delta, `space`, modifiers |
-| `PointerButton` v1 | button, transition, position, `space`, modifiers |
-| `PointerWheel` v1 | notches, position, `space`, modifiers |
-
-Positions are `int64` and carry a `space` (`kCells` on both current backends, `kPixels`
-declared). Backspace, Enter and Escape are **keys**, never text.
-
-Full reference: [input/docs/input.md](input/docs/input.md) ·
-[pointer spaces](workshop/docs/pointer-spaces.md).
-
----
-
-## Drawing
-
-Draw in your own area of a window; the window paints it with the area's skin. Your code names
-no colour and touches no terminal.
-
-```cpp
-#include "graphics/drawing.hpp"
-namespace graphics = zengine::graphics;
-
-class ScoreWeave
-    : public graphics::With<graphics::DrawingFacet>::Weave<ScoreWeave, ScoreState,
-                                                           loom::Accept<FoodEaten>> {
-public:
-    using Weave::on;
-    ScoreWeave() : Weave("snake.score") {} // the office it draws as; its area by default
-    void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
-    void picture(graphics::Sketch& f) const {
-        f.text("eaten", 0, 0, std::to_string(state_.eaten),
-               graphics::by_role(graphics::role::kFill));
-    }
-};
-```
-
-The facet takes the area's room from the window (`AreaRoom`: its size and how it sets text) and
-draws `picture` at the end of every delivery, sending only what changed.
-
-**Roles, never colours:** `kFill`, `kAccent`, `kMuted`, `kAlert` and the rest of
-`graphics/role.hpp`; a medium without colour shows the role.
-
-Full reference: [graphics/docs/graphics.md](graphics/docs/graphics.md).
-
----
-
-## Layout
-
-```cpp
-#include "ui/vocabulary.hpp"
-#include "ui/layout.hpp"
-namespace ui = zengine::ui;
-
-ui::Element e;
-e.id = 7; e.label = "panel";
-e.place  = ui::Place{ui::kPlaceBottomRight, 10, 10};  // its corner 10 px in from the frame's
-e.width  = ui::Size{ui::kSizeShare, 5000};            // half its frame, in ten-thousandths
-e.height = ui::Size{ui::kSizeFit, std::nullopt};      // its own measure
-e.context = ui::kRootContext;                         // whose frame it stands in
-
-if (const std::string wrong = ui::problem({e}); !wrong.empty()) { /* refuse, in words */ }
-const ui::Scene scene = ui::arrange({e}, ui::Room{936, 264, 1}, {ui::Measure{{}, 48}});
-const ui::Placed* under_cursor = ui::hit(scene, px, py);          // -> authored id
-const ui::Placed* mine        = ui::placed_for(scene, e.id);
-```
-
-| call | answers |
-|---|---|
-| `arrange(parts, room, measures)` | a `Scene`: the room plus one `Placed{id, rect}` per part, in whole pixels |
-| `problem(parts)` | the intent's first problem with no room -- a size that depends on itself, a broken chain -- or empty |
-| `size_word(mode)` / `place_word(mode)` | the word a mode is spelled as |
-| `hit(scene, px, py)` | what is under this pixel, as the **authored** id |
-| `placed_for(scene, id)` / `frame_in(scene, part)` | the solved rectangle for one authored id; the frame a part stood in |
-
-- Sizes: `default`, `pixels`, `share`, `fit`, `fill`. Places: `default`, `pixels`, `top`,
-  `top-right`, `left`, `center`, `right`, `bottom-left`, `bottom`, `bottom-right`. A number is
-  present only where its word reads it.
-- Solving **needs a room**, and the room's step: 1 in a window of pixels, a cell in a terminal.
-- The result is a **separate value**, cached nowhere — the authored type has no field able to
-  hold a rectangle, and adding one is a compile error.
-- `arrange()` emits items in **document** order (= paint/hit/list order), not dependency order.
-- A chain that cannot reach the root (a cycle, a missing source) is **not placed at all**.
-
-No parent/child, no widget kinds, no colour, no z. Full reference:
-[ui/docs/ui.md](ui/docs/ui.md).
-
----
+An index: a line per topic, each linking the page that owns it. Nothing is stated here; the page a
+line links says it, and the checks hold that page to the code. [docs/](docs/README.md) maps every
+folder's pages, and [best practices](docs/contributing/best-practices.md) says what good work in
+this repository looks like.
+
+## Build and test
+
+- Build and install Loom, build Zengine against it, run the official lane:
+  [build and test](docs/contributing/build-and-test.md#the-default-an-installed-loom-package-zen_loom_devoff).
+- A sibling Loom source instead of an installed one, `ZEN_LOOM_DEV=ON`:
+  [the override](docs/contributing/build-and-test.md#the-override-a-sibling-loom-source-tree-zen_loom_devon).
+- Why `tests/verify.cmake` and never a bare `ctest`:
+  [verification](docs/contributing/build-and-test.md#run-testsverifycmake-not-a-bare-ctest).
+- Which repository's green you proved, and what a green means:
+  [per-repo green](docs/contributing/build-and-test.md#per-repo-green),
+  [what a green means](docs/contributing/build-and-test.md#what-a-green-means).
+- The same suites under ASan and UBSan, `ZENGINE_SANITIZE=ON`:
+  [the sanitizer lane](docs/contributing/build-and-test.md#the-sanitizer-lane).
+- The installed package, built against from outside the tree:
+  [the installed-package witness](docs/contributing/build-and-test.md#the-installed-package-witness).
+- A change that touches no compiled line, verified by the documentation lane:
+  [the checks whose green counts](docs/contributing/taking-an-issue.md#8-the-checks-whose-green-counts).
+- Compilers and platforms, MSVC and MinGW-w64, the Windows kernel:
+  [supported toolchains](docs/contributing/supported-toolchains.md#the-matrix),
+  [MSVC](docs/contributing/supported-toolchains.md#msvc),
+  [MinGW](docs/contributing/supported-toolchains.md#mingw).
+- No SDL, the terminal window alone, `ZENGINE_TUI_ONLY=ON`:
+  [SDL](docs/contributing/supported-toolchains.md#sdl).
+
+## Using Zengine from another project
+
+- `find_package(zengine)`, linking a capability, and `loom_weave_build_contract()`:
+  [getting started](docs/getting-started.md#using-zengine-from-another-project).
+- The exported targets and what linking each grants: the same section.
+- The loadable artifacts, `ZENGINE_ARTIFACT_DIR` and `ZENGINE_RUNTIME_ARTIFACTS`:
+  [run it](docs/getting-started.md#run-it).
+- The reloadable-weave build contract:
+  [supported toolchains](docs/contributing/supported-toolchains.md#the-reloadable-weave-build-contract).
+- What the developer package leaves out, and why:
+  [limitations](workshop/docs/limitations.md#the-installable-package-does-not-cover-everything-zengine-builds).
+- The package a stranger downloads, ready to run: [download and run](README.md#download-and-run).
+
+## A weave in C++
+
+- A shape, and its version as part of its identity: [a shape](docs/getting-started.md#a-shape).
+- A weave: what it accepts and emits, its state, its handlers:
+  [a weave](docs/getting-started.md#a-weave).
+- An authored rhythm or a delay that is data:
+  [`TimedWeave` and the raw protocol](docs/getting-started.md#timedweave-and-the-raw-protocol--which-one).
+- A host: its loop, `pump_pending()` and `drain_until_idle()`, and asking with `loom::AskBook`:
+  [a host](docs/getting-started.md#a-host).
+- It loads and nothing happens, and seeing a refusal:
+  [when it does not work](docs/getting-started.md#when-it-does-not-work).
+- What a sender learns about its own send:
+  [limitations](workshop/docs/limitations.md#a-sender-sees-its-own-sends-fate-only-if-it-asks).
+- Publishing, sending, sending to a role, speaking as an office, asking and answering:
+  [Loom's messaging reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md).
+
+## Libraries
+
+- The Timer: [ordering a timer](timer/docs/timers.md), [an authored rhythm](timer/docs/timed-weaves.md),
+  [the binding's factories and handles](timer/docs/timer-binding.md#model),
+  [its office](timer/docs/zengine.timer.md), [its laws](timer/docs/timer-laws.md).
+- Key, text and pointer moments: [input](input/docs/input.md),
+  [pointer spaces](workshop/docs/pointer-spaces.md).
+- Drawing in a window's area, the windows and their skins: [graphics](graphics/docs/graphics.md).
+- Places and sizes in words, solved in whole pixels: [ui](ui/docs/ui.md).
+- Text editing, list and table arithmetic, a control strip, motion: [component](component/docs/component.md).
+- Reading your own activation: [activation](activation/docs/activation.md).
+- Typed rules supplied by artifacts: [operator providers](operator/docs/operator-providers.md),
+  [the operator host](operator/docs/operator-host.md), [sources](operator/docs/operator-sources.md).
+- A weave made from a definition: [maker](maker/docs/maker-weave.md); typed value forms and
+  drafts: [message drafts](message-draft/docs/message-drafts.md); a weave's manual:
+  [manual](manual/docs/manual.md).
 
 ## Workshop
 
-```sh
-build/workshop/zengine-workshop                # OS window, else the terminal window (>= 78x22)
-build/workshop/zengine-workshop --tui          # the terminal window
-```
+- Launching it, in a window or a terminal, and its arguments:
+  [launch it](workshop/docs/getting-started.md#launch-it),
+  [arguments](workshop/docs/getting-started.md#arguments).
+- Your first five minutes: [getting started](workshop/docs/getting-started.md#your-first-five-minutes).
+- Every default key, where it is answered: [the default keys](workshop/docs/hotkeys.md#the-default-keys).
+- The keys the desktop supplies, and taking them away:
+  [hotkeys](workshop/docs/hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away).
+- The Hotkeys pane, changing a binding, the band's legend, how a key is spelled:
+  [hotkeys](workshop/docs/hotkeys.md).
+- The Pane Manager: [panes](workshop/docs/panes.md#showing-going-to-and-hiding--the-pane-manager),
+  [the desktop's manual](workshop/docs/zengine.desktop.md).
+- Arranging panes: [arrange](workshop/docs/panes.md#moving-resizing-and-ordering--arrange).
+- The context menu and the second button:
+  [the context menu](workshop/docs/panes.md#the-context-menu--what-can-i-do-with-this),
+  [the second button](workshop/docs/panes.md#the-second-button--the-panes-first).
+- A pane's size and a bigger pane: [pane geometry](workshop/docs/panes.md#pane-geometry).
+- A pane as Info's subject: [Info](workshop/docs/panes.md#a-pane-as-a-subject--info).
+- A pane of your own, a view: [a view](workshop/docs/panes.md#a-pane-of-your-own--a-view).
+- A pane's manual and its gear: [panes](workshop/docs/panes.md#a-panes-manual-and-its-gear).
+- Layouts, setups and the last session: [setups](workshop/docs/setups.md),
+  [workspace continuity](workshop/docs/setups.md#workspace-continuity).
+- Which artifacts a run is made of: [load plans](workshop/docs/load-plans.md), and the file's
+  reference, [the load plan](workshop/docs/load-plan.md).
+- Building, and loading what you built: [the Builder pane](builder/docs/zengine.builder-pane.md),
+  [recipes](builder/docs/recipes.md),
+  [a built artifact loaded again](workshop/docs/load-plans.md#when-a-built-artifact-is-loaded-again).
+- Changing a pane while it runs: [edit a running pane](builder/docs/edit-a-running-pane.md),
+  [develop Workshop](workshop/docs/develop-workshop.md).
+- What is true right now: [Attention](attention/docs/zengine.attention.md).
+- What a running system is made of: [Loaded, Project and Powers](introspection/docs/zengine.introspection.md).
+- The Editor, standard or Neovim: [the source editor](editor/docs/editor.md),
+  [Neovim](editor/docs/neovim.md), [its manual](editor/docs/zengine.editor.md).
+- The other panes, each by its manual: [Files](files/docs/zengine.files.md),
+  [the Terminal](terminal/docs/zengine.terminal.md), [Compose](composer/docs/zengine.composer.md),
+  [Flow](flow/docs/zengine.flow.md), [Inventory](inventory/docs/zengine.inventory-pane.md),
+  [Info](info/docs/zengine.info.md), [the View Builder](view/docs/zengine.view.builder.md).
+- Workshop driven from another host: [external host](external-host/docs/external-host.md).
+- What loads, reloads and unloads: [lifecycle](workshop/docs/limitations.md#lifecycle).
+- What does not work yet: [limitations](workshop/docs/limitations.md).
 
-| argument | default | is |
-|---|---|---|
-| `--setup <path>` | `workshop-setup.json` | a pane arrangement you named and saved |
-| `--session <path>` | `workshop-session.json`, per-user state folder | the last desk and window — written on close, read on start |
-| `--keymap <path>` | `workshop-keymap.json`, per-user config folder | your hotkey overrides and the legend preference — hand-edited, read on start |
-| `--prefs <path>` | `workshop-prefs.json`, per-user config folder | presentation preferences Workshop writes when you state one |
-| `--isolated` | off | read and write none of your per-user config or session state |
-| `--load-plan <path>` | `default-load-plan.json` beside the binary | which artifacts run |
-| `--recipes <path>` | `default-build-recipes.json` beside the binary | what this run can build |
-| `--log <path>` | none | durable journal, appended as things happen |
-| `--dump <path>` | none | what the volatile recorder still held at exit |
-| `--document <path>` | `workshop.json` in the project, if there is one | an object document from before the canvas retired: named once at startup and left exactly as it is |
+## Words
 
-### Keys
-
-These are the **defaults**. Every binding below can be remapped through the keymap file
-(`--keymap`), and the executable truth is always on screen: `Ctrl`+`k` opens the **Hotkeys**
-pane, every key as it is in force and where it is answered, and the bottom band projects the
-same bindings. A binding matches its modifiers **exactly** — `w` arranges the desk and
-`Ctrl`+`w` removes a layout. See [hotkeys and the keymap](workshop/docs/hotkeys.md).
-
-**Anywhere** — the application's own keys, which the **desktop** supplies (a tool you can
-edit, rebuild, remap or switch off), answered even while you type in a pane:
-
-| key | does |
-|---|---|
-| `Ctrl`+`p` | show the **Pane Manager** with the keys, or hide it — a strict toggle |
-| `Ctrl`+`t` | open, or go to, the **Terminal** |
-| `Ctrl`+`k` | open, or go to, the **Hotkeys** pane |
-| `Ctrl`+`c` | quit — where nothing takes text; in a line that does, it copies |
-
-**Command mode** (no pane holds the keys)
-
-| key | does |
-|---|---|
-| `a` | context menu — what can I do here (right-click: with what you point at) |
-| `w` | arrange the desk |
-| `t` | show / hide pane titles (a pane holding the keyboard keeps its own) |
-| `Ctrl`+`f` | the manual of the pane holding your keys, as its `?` shows it (its gear: Settings) |
-| `s` | save the current layout to the setup file |
-| `r` | restore the setup file into the current layout |
-| `.` / `,` | the next / previous layout |
-| `=` | a new layout — a copy of the one you are on |
-| `Ctrl`+`w` | remove the layout you are on |
-| `Esc` | put the selected pane down |
-| `q` | quit |
-
-**Pane Manager** (`Ctrl`+`p`) — the one list of panes, and the place a pane is opened, closed
-and made. `↑` `↓` choose; `Enter` opens it, or goes to it if it is already open; `x` closes it —
-its tool keeps running and keeps what it holds, and `Enter` brings it back. A row reads
-`[open]`, `[    ]` (closed), `[room]` (waiting for room), `[load]` (its tool is still loading)
-or `[gone]` (nothing offers it now, and the run is not bringing it).
-The Pane Manager is itself a pane: arrange it, close it, or replace the desktop that provides it.
-
-**A pane of your own** (in the Pane Manager) — `n` shows the **View Builder**, where you lay out
-labels, number fields and buttons, save the view and run it in its own pane; it runs again when
-you relaunch. See [a pane of your own](workshop/docs/panes.md#a-pane-of-your-own--a-view).
-
-**Info** (press into it) — the panes, and the properties of the one you inspect. `↑` `↓`
-step; `Enter` on a pane inspects it; `Tab` moves between the list and the properties; `Enter`
-on an `AUTHORED` row (`X` `Y` `Width` `Height`: a whole number in the face's unit, `-` resets)
-opens a draft that `Enter` writes through the desk's own door and `Esc` abandons — a bad value
-is refused, never clamped. `RESOLVED` rows are what this screen makes of them and change
-nothing when read; `INTERIOR` is what is inside the subject. The subject stays until you
-inspect another pane: selection and focus never move it. See
-[a pane as a subject](workshop/docs/panes.md#a-pane-as-a-subject--info).
-
-**Hotkeys** (`Ctrl`+`k`) — every key as it is in force, where it is answered and the id a
-keymap file names it by; `↑` `↓` `Home` `End` scroll; `*` marks a key your file moved.
-
-**Builder** (press into it) — `b` build the chosen recipe, `Shift`+`b` build and load it; `c` /
-`Shift`+`c` the next / previous recipe; `f` build and realize the project frontier; `e` open the
-recipe's source in the editor; `o` load it; `l` read the output (`↑` `↓` `Home` `End` `←` `→`
-`[` `]`, `Esc` closes); `Shift`+`p` / `Shift`+`r` promote / revert an image.
-
-**Source editor** (`e` in the Builder, on a recipe that names a source or an entry) — a pane
-holding the one file the chosen recipe names; press into its body and your keys are in the
-source. Typing edits; `Enter` inserts a newline; `Tab` inserts a tab; arrows cross lines (with a
-preferred column through short ones); `Home`/`End` and `Ctrl`+`Home`/`End`; `Ctrl`+arrows by
-word; `Shift`+movement selects; `Ctrl`+`a`/`c`/`x`/`v`/`z`/`y` as expected, across lines; the
-mouse places and sweeps; the wheel scrolls. `Ctrl`+`s` saves the **source** while the editor
-holds the keys; `Ctrl`+`d` deliberately discards unsaved edits (undo takes them back). A dirty
-source refuses to be replaced or quit past until saved or discarded, and hiding or rearranging
-the pane loses nothing. Plain-ASCII files only; tabs, line endings and the final newline
-round-trip exactly. See [the source editor](editor/docs/editor.md).
-
-**What needs attention** (the **Attention** pane, opened from the Pane Manager) — `↑` `↓`
-choose, `d` hides one. It lists what is **currently true** and worth knowing — a settings file
-that could not be read, a pane of yours with no part of it on the screen, a tool that is not in
-this Workshop, a project waiting on an artifact — each in its owner's own words. Its first row
-is the glance: the most serious condition and how many more. Nothing outside the pane says it.
-Hiding one is not fixing it: the condition stays true, the glance still counts it, and it
-reappears if it materially changes. A condition disappears when it stops being true
-and at no other moment. The **notice row** in the bottom band is the other voice and keeps its
-own job: what just happened, replaced by whatever happens next. See
-[the Attention pane](attention/docs/zengine.attention.md).
-
-**Arranging** — right-click a pane → `arrange` binds the interaction to that one pane; `w`
-arranges the whole desk. In either scope the panes wear their handles: drag a body to move, an
-edge or corner to resize (pixel-fine in a window, cell by cell on a terminal), and a right-click
-or `Esc` leaves — leaving is all that press does.
-
-| key | does |
-|---|---|
-| `Tab` / `Shift`+`Tab` | step the keyboard to the next / previous pane (desk only) |
-| `← → ↑ ↓` | move that pane one cell |
-| `Shift`+arrows | resize it one cell, top-left corner staying put |
-| `=` / `-` | grow / shrink it |
-| `Enter` | narrow the desk to arranging exactly that pane |
-| `f` `b` | send to front / back |
-| `r` `l` | raise / lower one step |
-| `d` | remove that pane from the layout (the Pane Manager brings it back) |
-| `0` | reset — then `p` place, `w` width, `h` height, `o` order |
-| `Esc` | leave |
-
-**Context menu** — right-click a pane, a layout tab, or the empty room, and a small menu beside
-the click lists what can be done with the thing you pointed at: pane arrangement (arrange,
-Order, Reset, remove), `edit code` (the pane's source, through its recipe —
-[edit a running pane](builder/docs/edit-a-running-pane.md), and for Workshop's own panes
-[develop Workshop](workshop/docs/develop-workshop.md)), a tab's rename and removal, or the room's
-own doors (arrange the desk, save or restore the setup, reset the order). Rows whose action has a
-working shortcut in the place you are returning to show it after the label, spelled from the live
-keymap. `↑` `↓` choose, `Enter` chooses (a `… >` row opens its group, staying beside the click),
-`Esc` backs out or closes, a click outside dismisses. Pointing does not select — only choosing
-`arrange` binds the pane. `a` opens the same menu from the keyboard for the room, so no mouse is
-required — on a terminal, right-click delivery is the emulator's decision first (the Windows
-console and Windows Terminal both deliver it). See
-[the context menu](workshop/docs/panes.md#the-context-menu--what-can-i-do-with-this).
-
-**The second button is the pane's first** — a right-click inside a pane's body reaches a pane
-that takes it (the Pane Manager and Hotkeys ask for a menu of their own rows, which the menu
-presenter shows; the guard example blocks while it is held; Neovim gets its own right press and
-release), and in the body of a pane that does not take it nothing happens. Workshop's own menu
-answers on a pane's title row and border, a layout tab and the empty room, or when a pane hands
-the press back. A pane's menu takes no keys and returns none. The Pane Manager's rows offer
-`manage...` for any pane, right-clickable or not. See
-[the second button](workshop/docs/panes.md#the-second-button--the-panes-first); the presenter is
-an ordinary weave ([replacing it](workshop/docs/panes.md#replacing-the-menu-presenter)).
-
-**By mouse in the Pane Manager** — click the mark to show or hide, the name to choose, the
-marked name again to open or focus; the wheel walks the marker; `m` or a right-click opens the
-row's menu. **In Hotkeys** — a click chooses a binding; `m` or a right-click opens its menu:
-modify by pressing a key or typing its spelling, add a key, remove one, disable, reset — live at
-once and written to the keymap file ([hotkeys](workshop/docs/hotkeys.md#editing-a-binding)).
-
-### Panes
-
-Built into Workshop: **Layouts** (the layout tabs). Loaded through the default plan, each an
-ordinary participant: the **desktop** (the **Pane Manager** and **Hotkeys** panes, and the keys
-that work anywhere), **Info** (`↑` `↓` `Enter` `Tab`, once you have pressed into it), the
-**Editor**, the **Terminal**, the **Builder**, **Attention**, **Files**, **Loaded**,
-**Project**, **Powers** (from `zengine-introspection`), and the **Composer**. Made by you, from
-data: the views you run from the **View Builder**. A pane the plan could not load is
-listed `[gone]`, said at startup, and kept as a condition in Attention — Workshop runs without
-it.
-
-| pane | shows |
-|---|---|
-| `Loaded` | what the **Kernel** has: artifacts and incarnations actually resident |
-| `Project` | what the **load plan** asked for, paired with what resolved, and why a row did not |
-| `Powers` | which artifact supplies which operator in the host's catalog |
-
-`Loaded` and `Project` deliberately disagree when the plan asked for something that did not
-resolve — that difference is the information. Reference:
-[introspection/docs/zengine.introspection.md](introspection/docs/zengine.introspection.md#about).
-
-⚠ **friction — panes are 9 rows tall by default** and a bigger terminal does not grant more.
-A larger pane is authored in arrangement (`w`, then `Shift`+arrows or `=`), or typed into its
-`Width` and `Height` rows in Info, and persists with the layout. See
-[pane geometry](workshop/docs/panes.md#pane-geometry).
-
-**Your desk comes back on its own.** The panes, their geometry, their order and the window's
-size all return from the last session (`--session`, default `workshop-session.json`), with no
-keypress. On a graphical run the window's screen position and maximized state come back too,
-validated against the displays that exist now; a terminal run has neither to restore and keeps
-the last one it was told. See [workspace continuity](workshop/docs/setups.md#workspace-continuity).
-
-**On-screen hints** (so you need this page less): every hint is a projection of the effective
-keymap, so a remapped binding is spelled correctly everywhere it appears — the bottom band's
-legend rows, each mode's heading, and the Hotkeys pane (`Ctrl`+`k`). The **Layouts** pane is the
-first row (your layouts as tabs, and what the one you are on is related to); the **bottom band**
-is the notice and the legend (a terminal reads four rows, a graphical window two). The legend
-preference (`full` / `compact` / `hidden`) in the keymap file governs the legend rows only;
-hidden blanks them and unbinds nothing.
-
----
-
-## Load plans
-
-One durable JSON file naming which artifacts participate and how, executed in **authored
-order** (there is no dependency solver). One record per artifact, with two optional surfaces.
-
-```json
-{ "artifact": "zengine-timer",
-  "provider": [ { "mode": "normal" } ],
-  "weave":    [ { "role": "zengine.timer" } ] }
-```
-
-| record shape | means |
-|---|---|
-| `provider` set, `weave` empty | mount this artifact's operator contributions only |
-| `provider` empty, `weave` set | load it as a weave into that role only |
-| both set | mount the contribution, then load the weave (that order is law, not policy) |
-| `"mode": "overlay"` | contribute over powers already in the catalog, reversibly |
-
-A record that mounts a provider and then fails to load its weave **rolls back its own mount**
-and stops the plan. Earlier artifacts are not rolled back; the host is told which artifact
-stopped it and what still stands.
-
-**The host begins the plan and then runs its ordinary loop; a row settles on its own load
-answer.** A provider mount is synchronous and finishes where it stands; a weave load is a
-`zen.LoadWeave` whose answer comes back several deliveries later, so realization proceeds through
-the same turns everything else does. Authored order is unchanged — one row in flight at a time,
-no reordering, no retry, no deadline — and while one is outstanding the rest of the host is
-running. There is no turn budget anywhere: an unanswered load stays unanswered rather than
-becoming a refusal somebody made up.
-
-The shipped plan: [`workshop/default-load-plan.json`](workshop/default-load-plan.json), the OS
-window, otherwise the terminal window; `--tui` takes the terminal window alone. A plan naming a
-retired Skin or `zengine-input-sdl`, or a launch naming the retired `graphical-load-plan.json`, is
-refused by name, with its fix.
-Reference: [workshop/docs/load-plan.md](workshop/docs/load-plan.md).
-
----
-
-## Building things (the Builder package)
-
-```cpp
-#include "builder/vocabulary.hpp"   // this repository's header: the installed package has no builder/
-namespace builder = zengine::builder;
-mail.send_to_role(builder::kBuilderRole, builder::BuildRequested{"my-recipe", /*realize=*/false});
-```
-
-Declare `Emit<builder::BuildRequested, ...>` and
-`Accept<builder::BuildAsked, builder::BuildStatus, ...>` yourself. A weave asks the tool
-(`zengine.builder`), never the runner.
-
-| shape | direction | means |
-|---|---|---|
-| `BuildRequested{recipe, realize}` | → tool | build the recipe the catalog holds under this name; `realize` also offers the result to the running project |
-| `BuildAsked` | ← tool, published | what became of one ask: taken as ask number `ask`, or refused in the tool's words |
-| `BuildStatus` | ← tool, published | what the Builder currently knows, for any presentation |
-| `StatusRequested` | → tool | publish the catalog (`RecipeCatalog`) and the status again, to every listener |
-| `BuildStatusRequested` | → tool | answer the status to the asker alone |
-
-Behind the tool is its conversation with the runner: the tool sends `RunBuild{recipe}` to
-`zengine.build-runner`, and the runner reports `BuildStarted`, `BuildOutput`, `BuildFinished` and
-`BuildNotStarted` to the tool's office, so a weave hears a build only through the tool. Following
-one ask to its ending is [the Builder's Follow](builder/docs/zengine.builder.md#follow);
-the office is [the Builder's manual](builder/docs/zengine.builder.md).
-
-The wire **cannot spell a command**: no shape here has a field that is a program, an argument
-list or a directory. The runner holds the catalog; the host writes it.
-
-Workshop's recipes are **authored** (a durable JSON catalog): `c` chooses among them, `b`
-builds the chosen one, and `Shift`+`b` / `f` also realize. The shipped default catalog is small
-and points at Zengine's own build tree; a weaver edits the file to build their own targets.
-`--recipes` chooses the catalog a session **starts** with; `u` in the Files pane makes any
-reachable catalog file the current one without restarting — one transaction, so a file that
-cannot be read or parsed leaves the previous catalog in force, and a build already running
-finishes from the facts it started with. The choice is session-only. See [Workshop's
-Builder](builder/docs/zengine.builder-pane.md).
-
----
-
-## Lifecycle
-
-| operation | available today |
-|---|---|
-| load a weave into a role | **yes** — `loom::LoadWeave{stem, path, role}` to the Weave Manager |
-| mount a provider's operator contributions | **yes** — at plan execution |
-| overlay a contribution over an existing one, reversibly | **yes** — `"mode": "overlay"` |
-| unmount a provider | **only** as a failed record's own rollback, and at teardown |
-| unload a weave at run time | **no** from Workshop; `loom::UnloadWeave` exists at the Loom |
-| reload / replace in place | **no** from Workshop; `Kernel::reload_from` has provider-custody caveats |
-| roll back a whole plan | **no** — one artifact is the atomic unit |
-
-Loading is **initial and restart intent**. Do not read reversible provider overlay as
-provider-aware artifact hot reload; they are different things.
-
----
-
-## Debugging
-
-### Categories of failure, and where each appears
-
-| symptom | first thing to check |
-|---|---|
-| `library create() refused: …` on load | your weave's constructor threw, and what follows is what it threw — a duplicate binding id, an empty id, an empty role on a `*_to_role` binding |
-| `open failed: … cannot open shared object file` | the artifact is not at the path the plan/host spelled |
-| the weave loads and **nothing happens** | no holder for the role you send to; or the shape is unknown to the host process |
-| `RefusalReason::SeamUnresolved` | a loaded weave **addressed** something with a shape **nothing in this process ever declared** — usually the service you are talking to is not loaded. The event's `addressed_role` names the office it was reaching for |
-| a publication that nobody hears | **not** a refusal, and never was one on the native side: an accepter is what makes a shape resolvable, so a publication with no accepter simply reaches nobody. If you need to know it was heard, ask for a receipt |
-| `RefusalReason::CapabilityDenied` | the shape is not in your `Emit<>`, or not permitted to that target |
-| `RefusalReason::NotAccepted` | it is not in the target's `Accept<>` |
-| `RefusalReason::NoSuchTarget` | that `WeaveId` is not registered |
-| a weave's timers never fire | you declared your own `on(const loom::Activated&, ...)`, or forgot `using TimedWeave::on;` — both are now compile errors |
-| the program hangs at startup | you asked for `bus.drain_until_idle()` on a process with the Timer service loaded — that bus is never idle. An ordinary host loop wants `bus.pump_pending()` |
-
-### Seeing refusals
-
-A sender cannot observe its own send's fate. A host can, with an observer:
-
-`addressed_role` is the office the sender named — filled in for a role-addressed send and for
-a seam refusal of one, empty for a directed send and for a publication, which name no office.
-
-```cpp
-bus.add_observer([](const loom::BusEvent& e) {
-    if (e.kind == loom::EventKind::Refused) {
-        std::fprintf(stderr, "refused %s -> %s : %s\n", e.schema_name.c_str(),
-                     e.addressed_role.c_str(), e.refusal.message().c_str());
-    }
-});
-```
-
-`loom::name_of(RefusalReason)` gives the reason's name; `Refusal::message()` gives text. In
-Workshop, `--log <path>` writes a durable journal and `--dump <path>` writes what the volatile
-recorder still held at exit.
-
-### What a host says about itself
-
-`Kernel::containment_note()` returns, verbatim, what this host actually isolates. An
-in-process Zengine host prints *"in-process; trusted; no OS sandbox"* — read it as literal.
-
----
-
-## Vocabulary
-
-| term | means |
-|---|---|
-| **Loom** | the substrate: values, schemas, the gate, the switchboard, the Kernel |
-| **Zengine** | this repository — the default set of weaves built on the Loom |
-| **Workshop** | the interactive environment for weavers, built with Zengine |
-| **weave** | one participant: a state struct, an accept list, an emit list, handlers |
-| **weaver** | the person who writes and runs weaves. Loom's `loom::Weaver` is the weave that carries that person's authority decisions into one session |
-| **shape** | a `ZEN_SHAPE` type — a schema-carrying message or state, identified by (name, version) |
-| **message** | one delivery of a shape from a sender to a target |
-| **role** | a named slot one weave holds at a time; addressing it survives replacement |
-| **office** | a role a weave may deliberately *speak as*, stamped on the envelope |
-| **grant** | what a weave may say, and to whom. Never what it may touch |
-| **artifact** | one loadable image (`.so`/`.dll`) that may export a weave, a provider, or both |
-| **provider** | an artifact that supplies operator definitions to a host's catalog |
-| **operator** | a typed, reusable rule a host can evaluate |
-| **power** | one operator in a host's catalog, as introspection names it |
-| **load plan** | the authored file naming which artifacts participate and how |
-| **skin** | the replaceable weave that claims a medium and paints published intent |
-| **pane** | one region of Workshop's screen, offered by a weave (or, for Layouts, built in) |
-| **setup** | the persisted pane arrangement, with a name |
-| **desktop** | the replaceable weave that supplies the Pane Manager, the Hotkeys pane and the keys that work anywhere |
-
-**`Sense`** is the Loom's read-side surface — a deliberate immutable claim of the latest
-observation a participant published, gated by the reader's `Claims<...>`. It is a Loom concept;
-no Zengine package defines or extends it.
-
-Terms that are **not** synonyms, and must not be flattened:
-
-| these differ | because |
-|---|---|
-| **role** vs **office** | a role is a slot you *hold*; an office is a role you deliberately *speak as*, stamped on the envelope. Holding a role attaches nothing on its own |
-| **artifact** vs **weave** | an artifact is a loadable image; a weave is a participant. One artifact may export a weave surface, a provider surface, both, or be asked for one and get one |
-| **operator** vs **power** | the same thing from two sides: an operator is the definition, a power is one entry in a host's catalog as introspection names it |
-| **setup** vs **session** | an arrangement you named and saved, versus the desk Workshop keeps for you between runs |
-| **close** vs **unload** | closing takes a pane off the desk and its tool keeps running; unloading ends the tool. The Pane Manager only closes |
-| **authored** vs **resolved** | what a person wrote, versus what a viewport made of it. Held apart by a compile-time fence |
-| **Zen** | the umbrella name for Loom + Zengine + Workshop together. It is not a component, a namespace, or a directory you need |
+- Loom's words, weave, shape, role, office, grant, Sense and the rest:
+  [Loom's terminology](https://github.com/Krealsion/Loom/blob/main/docs/terminology.md).
+- Artifact, weave and provider, three words and not synonyms:
+  [run it](docs/getting-started.md#run-it).
+- Operator and power: [operator providers](operator/docs/operator-providers.md).
+- Load plan: [load plans](workshop/docs/load-plans.md).
+- Window, directory and skin: [graphics](graphics/docs/graphics.md).
+- Pane, and closing one against unloading its tool: [panes](workshop/docs/panes.md).
+- Setup against session: [setups](workshop/docs/setups.md#last-session-versus-named-setup).
+- Desktop: [the desktop's manual](workshop/docs/zengine.desktop.md).
+- Authored against resolved:
+  [a pane's geometry](workshop/docs/panes.md#reading-a-panes-geometry--and-whose-number-it-is).
