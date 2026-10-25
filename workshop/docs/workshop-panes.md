@@ -328,11 +328,11 @@ Setup
   are all session; so is the workspace extent, which no setup file carries — the same setup
   restored under a different window's room yields the same references and different bounds,
   which is the setup's authored/resolved proof. (A row's authored *place* and *size* are intent
-  rather than a rectangle; the extent is durable one level **above** a setup, in the
-  last-session file — see the final section.)
+  rather than a rectangle; the extent is durable one level **above** a setup, in the window
+  file beside the last session — see the final section.)
 
 Deliberately absent, so the absences are decisions: no opaque provider configuration (a pane's
-[settings](#a-panes-settings) are typed values Workshop judges by form); no multiple
+[settings](#a-panes-settings) are typed values the layouts' owner judges by form); no multiple
 pane instances; no setup catalog, recent list, autosave or import/export; no tabs, docking or
 layout weave. Workshop manages **one** active setup path. (The external provider, office and
 discovery protocol this list once excluded now exists, bounded — the section below says exactly
@@ -453,12 +453,13 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   order, once each, as `"settings":[{"key":"legend","flag":false}]`, and a row that keeps none
   writes `"settings":[]`. A value holding no kind, or two, is refused by every reader — the
   setup file, a session's desk and a desk an agent hands across — naming its key.
-- **Workshop judges a setting's form and nothing else**, so a row whose pane this build cannot
+- **The layouts' owner judges a setting's form and nothing else**, so a row whose pane this build cannot
   present keeps its settings byte for byte, and no setting is converted, defaulted or dropped. A
   row keeps at most `kMaxPaneSettingsPerRow` settings and a desk `kMaxPaneSettingsPerDesk`; a key
   is at most `kMaxPaneSettingKeyLen` bytes and a text `kMaxPaneSettingTextLen`.
-- **Keys under `workshop.` are Workshop's own.** This Workshop keeps none, so a file holding one
-  is refused by name rather than half read.
+- **Keys under `workshop.` are Workshop's own.** A row keeps one, `workshop.skin`, the skin its
+  pane's area is painted in, which the pane is never handed; a file holding any other is refused
+  by name rather than half read, and a pane declares none.
 - **Three kinds and no more**: a switch, a count or step, a word. A choice among words is a text
   the pane restricts, a fraction a whole number of a finer unit, a set one flag per member, and a
   colour a role's name. A further kind would move every file format that carries a setting.
@@ -1167,9 +1168,10 @@ directory they happened to be browsing when they quit is deliberately not rememb
   the bus. No autosave, no dirty
   tracking, no background writer — and no crash durability, which is not claimed here or in
   `persist::write_file`.
-- **Four distinct answers, not one boolean.** No previous session (silent — a first launch is
+- **Distinct answers, not one boolean.** No previous session (silent — a first launch is
   never reported as an error); a session that cannot be read (named, defaults used, and the
-  weaver's file left exactly as it is); a session read whose viewport is outside the band this
+  weaver's file left exactly as it is); a window file that cannot be read (the default size,
+  said, and the desk restored); a window file whose viewport is outside the band this
   Workshop is honest at (`78x22`..`640x400` cells — the desk is restored, the size is
   **declined rather than clamped**, and the declined value is named); and everything restored.
 - **Neither direction opens a setup file.** Closing writes a session and leaves the standalone

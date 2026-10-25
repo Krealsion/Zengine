@@ -8,9 +8,9 @@ as any pane, in the Pane Manager (<!-- key desktop.panes -->`ctrl+p`<!-- /key --
 ## About
 
 The quick setup keeps one office-wide setting at [`zengine.layouts`](zengine.layouts.md):
-`answered`, set by **Done** or **Skip**. At a start where Workshop keeps a settings file and
+`answered`, set by **Done** or **Skip**. At a start whose run keeps a settings file and
 `answered` is not set, it shows itself in front, holding the keys. A run with no settings file
-(`--isolated` without a `--prefs` path), or a settings file Workshop refused at launch, keeps no
+(`--isolated` without a `--prefs` path), or a settings file the layouts' owner refused at launch, keeps no
 settings, so the quick setup shows nothing by itself there. Nor does it on a desk where a pane
 beyond Layouts and Info is already open -- say, one you opened before it arrived: that pane keeps
 the keys, and the quick setup shows at the next start. Clear `answered` in the pane's gear and it
