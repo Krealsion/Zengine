@@ -24,8 +24,9 @@ in [`zengine.editor-switch`](zengine.editor-switch.md), and what crosses a switc
 
 ## Which configuration is running
 
-Workshop reads two environment variables when it starts a Neovim, and nothing else names either —
-no message, no load plan row, no settings file:
+Workshop reads two environment variables when it starts a Neovim; no message and no load plan row
+names either. Where `ZENGINE_NEOVIM_PROFILE` is unset, the Editor's `profile` setting chooses the
+profile, `clean` or `user`, kept with the layout and set in Info ([its settings](zengine.editor.md#use)):
 
 | variable | what it names |
 |---|---|

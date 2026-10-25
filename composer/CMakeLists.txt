@@ -4,10 +4,10 @@
 # (draft.hpp, view.hpp), with no bus, so the suite can ask what a draft composes to and what a
 # weaver would see; `zengine-composer` is the weave.
 
-# It links loom::terminal, the first loadable weave in either repository to do so: that target
-# carries the typed composer (`describe_schema`, `compose_message`, `assemble`), built for
-# a Workshop pane. Loom's reloadable-weave contract sweep walks Loom's build graph, not Zengine's,
-# so it does not see this link.
+# It links loom::terminal, as the Flow pane and every weave linking Workshop's vocabulary do:
+# that target carries the typed composer (`describe_schema`, `compose_message`, `assemble`).
+# Loom's reloadable-weave contract sweep walks Loom's build graph, not Zengine's, so it does not
+# see this link.
 
 # The durable names link nothing at all: a host's boot list needs the stem and the office and
 # must not thereby acquire the typed composer, the Schema vocabulary or a text editor.

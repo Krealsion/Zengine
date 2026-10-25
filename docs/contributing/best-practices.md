@@ -2,8 +2,8 @@
 
 **Contributing.** What good work looks like in this repository, one practice to a bullet. Each
 practice links its owner: the law, method or page that states the rule and the reasons for it,
-which this page never restates. The [cheat sheet](../../cheat_sheet.md) is the operational
-companion, the commands and the API at a glance, and [taking an issue](taking-an-issue.md) is the
+which this page never restates. The [cheat sheet](../../cheat_sheet.md) is the index,
+every topic linked to the page that owns it, and [taking an issue](taking-an-issue.md) is the
 path from an issue to a pull request.
 
 Each section belongs to one surface and stands alone, naming its own owners, so that a section

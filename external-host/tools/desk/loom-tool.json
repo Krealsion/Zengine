@@ -171,7 +171,7 @@
         "capture"
       ],
       "example": "loom-session run <dir> desk/watch --name watch-1 --input out=C:/agent/desk --input seconds=300",
-      "recovery": "A refused `out` names why, as desk/read's does. 'refused: this row may not follow the desk' names the relay's words: the row needs `capture` and an `observe` entry naming zengine.workshop DeskStamps 2. Otherwise the run passes and says what it saw: notices, changes written, gaps read again whole, and why it ended; a pane or a desk read Workshop refused is written in its words in the readings, as desk/read writes it."
+      "recovery": "A refused `out` names why, as desk/read's does. 'refused: this row may not follow the desk' names the relay's words: the row needs `capture` and an `observe` entry naming zengine.workshop DeskStamps 3. Otherwise the run passes and says what it saw: notices, changes written, gaps read again whole, and why it ended; a pane or a desk read Workshop refused is written in its words in the readings, as desk/read writes it."
     },
     {
       "name": "guide",

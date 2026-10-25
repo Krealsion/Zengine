@@ -187,7 +187,8 @@ declared case floor; a run that selects zero cases is a FAILURE; the tests pass.
   kind, a front page and a router in every feature, the host and every library, and every
   register and CTest entry routed by exactly one router) and `manual` (every weave's manual in
   form and carried by a target, a pane's commands exactly its ids in the action census
-  (`tests/actions.txt`, `tests/actions/`), and every key marker its declared default). Full contract detail:
+  (`tests/actions.txt`, `tests/actions/`), and every key marker in a current page its declared default,
+  Workshop's own in `tests/workshop_actions.txt`). Full contract detail:
   [agents/verification/population.md](agents/verification/population.md).
 
 ## Ownership and dependency direction

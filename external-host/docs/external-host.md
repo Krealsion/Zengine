@@ -1120,8 +1120,9 @@ loom-session run work desk/read --name desk-1 --input out=/home/me/agent-desk --
   says the rest, its recovery words included.
 - **It presses nothing and changes nothing in Workshop.** To act on a reading, press a part at the
   point it lists (`workshop/inspect-capture`'s `click`), or by name with `workshop/act`'s `part`
-  step, which reads the pane again by version 3 as it presses: a part only versions 4 and 5 say --
-  a Layouts tab, or one of a partly covered pane -- is pressed at its listed point.
+  step, which reads the pane again as it presses, at the version `hand.py` asks
+  (<!-- value hand.PANE_VIEW_VERSION -->7<!-- /value -->), so a Layouts tab and a part of a partly
+  covered pane that shows are pressed by name too.
 
 **Following the desk.** `desk/watch` follows Workshop's notice that the desk moved, for `seconds`
 (its `describe` says how long by default and at most), and writes each change into `changes.txt`

@@ -3065,6 +3065,50 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, with w
     }
 }
 
+TEST_CASE("Workshop's own actions, each in its context with its default key, are "
+          "tests/workshop_actions.txt") {
+    // THE PAGES' KEY MARKERS ARE HELD TO THIS FILE (tests/check_manual.cmake), which reads text and
+    // builds nothing, so the file is the catalog's own rows, held here line by line and in order.
+    const auto context_word = [](KeyContext c) -> std::string {
+        switch (c) {
+        case KeyContext::kCommand: return "command";
+        case KeyContext::kNaming: return "naming";
+        case KeyContext::kContext: return "context";
+        case KeyContext::kPane: return "pane";
+        case KeyContext::kArrangePane: return "arrange-pane";
+        case KeyContext::kArrangeDesk: return "arrange-desk";
+        case KeyContext::kArrangeReset: return "arrange-reset";
+        case KeyContext::kGlobal: return "global";
+        case KeyContext::kNoText: return "no-text";
+        case KeyContext::kUnlessOwned: return "unless-owned";
+        }
+        return "?";
+    };
+    std::vector<std::string> lines;
+    for (const ActionRow& row : kActionCatalog) {
+        lines.push_back(context_word(row.context) + " " + row.id + " " +
+                        (is_bound(row.gesture) ? gesture_word(row.gesture) : std::string("unbound")) +
+                        " " + row.label);
+    }
+    // WRITTEN BESIDE THE BUILD AS IT STANDS, ready to diff.
+    std::string now_path = ZENGINE_ACTIONS_NOW;
+    now_path.replace(now_path.find("actions-now"), std::string("actions-now").size(),
+                     "workshop-actions-now");
+    std::ofstream now(now_path, std::ios::binary);
+    for (const std::string& line : lines) now << line << "\n";
+    now.close();
+    const std::vector<std::string> pinned = census_lines_of(
+        std::filesystem::path(ZENGINE_ACTIONS).parent_path() / "workshop_actions.txt");
+    REQUIRE(lines.size() == kActionCatalogCount);
+    for (std::size_t i = 0; i < lines.size() || i < pinned.size(); ++i) {
+        const std::string said = i < lines.size() ? lines[i] : std::string("(nothing)");
+        const std::string kept = i < pinned.size() ? pinned[i] : std::string("(nothing)");
+        CHECK_MESSAGE(said == kept, "row " << i << ": the catalog says `" << said
+                                           << "`, tests/workshop_actions.txt `" << kept
+                                           << "` (the catalog as it stands: " << now_path << ")");
+    }
+}
+
 TEST_CASE("every shipped action has a default key, or a POSIX key beside it, a POSIX terminal "
           "delivers") {
     // EACH SHIPPED ACTION IS PRESSABLE FROM EVERY BACKEND: at least one of its default rows, or the

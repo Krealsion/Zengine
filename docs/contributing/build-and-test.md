@@ -88,13 +88,12 @@ because a wrong answer is not the failure mode — *no answer changing at all* i
 | | ordinary lane | sanitizer lane |
 |---|---|---|
 | a `Placed` bound into a temporary `Scene` | **passes** | ASan `heap-use-after-free` |
-| `resolve_extent` without its overflow guard | **passes** | UBSan `signed integer overflow` |
+| `ui`'s `floor_to_step` without its saturation at int64's minimum | **passes** | UBSan `signed integer overflow` |
 
 Both rows are measured, and both are real defects rather than invented hazards — the first
-shipped in committed test code, and the second was signed-overflow UB in `ui::Rect::contains`,
-shared code on Workshop's ordinary press path. Each was caught by a hand-built sanitizer tree
-that existed for one change and was then thrown away, and each had been called green by the
-ordinary lane.
+shipped in committed test code, and the second overflowed in `ui`'s solver, flooring a position
+near int64's minimum to the room's step. The first was caught by a hand-built sanitizer tree, the
+second by CI's sanitizer job on a change every ordinary lane had called green.
 
 The instrumentation reaches the targets **this repository authors**, not the Loom it consumes:
 an installed Loom arrives already compiled, and the Loom runs this same lane over itself. ASan's

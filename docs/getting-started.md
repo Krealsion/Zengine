@@ -80,6 +80,9 @@ exported targets name `loom::core`, `loom::switchboard` and — for a host — `
 | `zengine::operator-consumer` | spend a host's rules from inside a loaded artifact |
 | `zengine::pane` | offer Workshop a pane from a weave: the offer, the room, the rows, the gestures |
 | `zengine::neovim` | ask the Neovim-backed Editor to start Neovim for a second terminal, say what it holds, stop |
+| `zengine::message-draft` | typed value forms: editing, schema closure, unfinished drafts and named presets |
+| `zengine::inventory` | the inventory's item-and-metadata envelope, its wire shapes and a bounded host grant |
+| `zengine::source-transfer` | the text, selection and location shapes the Editors carry, to make or recognize them |
 
 Every one of them carries its own include path and its own Loom dependencies, so linking one
 is the whole of what you write.
@@ -467,7 +470,8 @@ Five host facts worth having up front:
 ## Run it
 
 The Timer service is a Zengine artifact, and the package says where its own artifacts are:
-`ZENGINE_ARTIFACT_DIR` is the directory and `ZENGINE_RUNTIME_ARTIFACTS` lists the stems in it.
+`ZENGINE_ARTIFACT_DIR` is the directory and `ZENGINE_RUNTIME_ARTIFACTS` lists the stems in it,
+none when the package was built against a Loom with no kernel.
 Copy the one you need beside your host as part of the build, so running is one command:
 
 ```cmake
@@ -490,6 +494,10 @@ all. The package names the physical things, because one list holds both kinds:
 | `zengine-graphics`, `zengine-window-terminal` | weave — the graphics directory, and the window over the process's own terminal that shows what each area's owner draws |
 | `zengine-paint-classic`, `zengine-paint-block`, `zengine-paint-day`, `zengine-paint-night` | **provider** — painter code a window opens by path, the skin an area is painted with |
 | `zengine-operators-basic` | **provider** — typed operator definitions, mounted by a host, never loaded onto the bus |
+| `zengine-inventory` | weave — stored typed values ([inventory](../inventory/README.md)) |
+| `zengine-neovim-editor` | weave — the Editor's office held with a Neovim, found at run time ([Neovim](../editor/docs/neovim.md)) |
+| `zengine-guest-vocabulary` | weave — booted by *another* Loom host, a session, so its tools speak Workshop's guest shapes ([external host](../external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools)) |
+| `zengine-app-weave` | weave — an app's own weave, which `zengine-app` runs ([app](../app/docs/app.md)) |
 
 An artifact could expose both surfaces, or a surface that does not exist yet; `zengine::operator`
 and [operator providers](../operator/docs/operator-providers.md) are where the provider side is
@@ -570,7 +578,7 @@ holds still is, which is the line above.
 
 ## Where to go next
 
-- [cheat_sheet.md](../cheat_sheet.md) — the same material, dense and searchable.
+- [cheat_sheet.md](../cheat_sheet.md) — every topic in a line, linking the page that owns it.
 - [Ordering a timer](../timer/docs/timers.md) and [a weave with an authored rhythm](../timer/docs/timed-weaves.md).
 - [Reading input](../input/docs/input.md) and [drawing](../graphics/docs/graphics.md), if your program has
   a face.

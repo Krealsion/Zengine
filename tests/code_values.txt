@@ -30,6 +30,9 @@ claim   setup_persist::kFormatVersion  setup file is format version {}
 claim   setup_persist::kFormatVersion  Setup format is **version {}**
 session_persist::kFormatVersion workshop/session_persist.hpp              kFormatVersion
 claim   session_persist::kFormatVersion  session format is **version {}**
+# ...and as a session too old to read names the conversion it misses, to the current version.
+claim   session_persist::kFormatVersion  `WorkshopSession` v3 to v{}
+claim   session_persist::kFormatVersion  WorkshopSession.v3-to-v{}
 # ...and the same two, and the guests file's version, as the tool package writes them:
 # workshop/docs/demo-setups.md marks one value for each pair, so the two owners cannot come to
 # disagree.
@@ -50,6 +53,8 @@ desk_render.DENSE_CELLS         external-host/tools/desk/desk_render.py   DENSE_
 desk_changes.RING_CHANGES       external-host/tools/desk/desk_changes.py  RING_CHANGES
 desk_changes.RING_BYTES         external-host/tools/desk/desk_changes.py  RING_BYTES
 watch.DESK_READ_GAP             external-host/tools/desk/watch.py         DESK_READ_GAP
+# ...and the version of a pane's reading the hand asks for, which act's `part` step presses by.
+hand.PANE_VIEW_VERSION          external-host/tools/workshop/hand.py      PANE_VIEW_VERSION
 keymap_persist::kFormatVersion  workshop/keymap_persist.hpp               kFormatVersion
 claim   keymap_persist::kFormatVersion  `zengine-workshop-keymap` version {}
 recipe_persist::kFormatVersion  workshop/recipe_persist.hpp               kFormatVersion
