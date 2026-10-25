@@ -234,6 +234,12 @@ again" "a declaration counts only while the weave that sent it holds the office"
 takes v2 is handed its row's revision, moved by a write and by a desk put live"
 `tests/test_workshop_panes_legend.cpp` "after a restart the Terminal's first picture keeps its
 layout's legend, and so does a reload's"
+`tests/test_workshop_panes_terminal.cpp` "the Terminal draws nothing in a window's room before it holds
+its row, takes a row from the layouts' owner alone, and draws whole once it holds one"
+`tests/test_graphics.cpp` "the Attention pane draws nothing in its room before it holds its row, takes
+a row from the layouts' owner alone, and draws whole once it holds one"
+`tests/test_shapes_census.cpp` "every weave that takes a pane's row asks the layouts' owner for it,
+and none hands one"
 `tests/test_workshop_panes_opening.cpp` "a pane a managed opening seats is handed its row by the
 layouts' owner" "a managed opening's owed rooms go out when the next delivery repaints nothing, and
 its row is handed"
