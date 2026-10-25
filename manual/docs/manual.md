@@ -63,7 +63,9 @@ Each section, the page and the number of sections are bounded by the constants
 which GitHub shows as `b`. The key is spelled as a weaver's keymap file spells it (`shift+b`,
 `return`, `ctrl+p`), and the marker holds the default the pane declares; a pane's `?` shows a
 weaver's own key in its place ([Panes](../../workshop/docs/panes.md#a-panes-manual-and-its-gear)).
-Tutorials write keys the same way.
+Tutorials and every other page write keys the same way, and Workshop's own actions
+([`tests/workshop_actions.txt`](../../tests/workshop_actions.txt), the catalog's rows) are held
+beside the panes'.
 
 **A command's Answers line links each shape a press of it may send**, as its rows declare them
 (their `causes`, [the pane protocol](../../workshop/docs/workshop-panes.md#what-a-press-may-cause)):
@@ -156,7 +158,8 @@ automatically, so the page describes exactly the shapes the gate lets in.
 | check | lane | refuses |
 |---|---|---|
 | the build itself | official | a page out of form: the title, the order of its headings, a command without its four lines, a section past its bound, a key twice, a control byte or a byte past 0x7F |
-| `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its office, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its office; a command whose Answers line links a shape its rows do not declare a press causes, or leaves out one they do; a key marker, in a manual or a tutorial, whose key is not a default the census holds for its id |
+| `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its office, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its office; a command whose Answers line links a shape its rows do not declare a press causes, or leaves out one they do; a key marker, in any current page, whose key is not a default the census or Workshop's own actions hold for its id |
+| Workshop's own actions (`tests/workshop_actions.txt`) | official | a row of `kActionCatalog` -- its context, id, default key and label -- that differs from the committed file; the catalog as it stands is written beside the build to diff |
 | the action census (`tests/actions.txt`, and `tests/actions/<office>.txt` for each further office) | official | a shipped pane whose declared rows -- their keys, causes and the mode each enters -- in every mode its suite drives, differ from the committed census, or a mode whose word of the other modes' causes is not theirs there; the census as it stands is written beside the build to diff |
 | the press witness | official | a declared action that, pressed in a mode its suite drives, sends a shape beside the pane protocol its row does not declare; a row the census pins that no press reached; a declared cause no driven state sent is listed beside the build, not refused |
 | the manual witnesses | official | a pane whose answered manual lacks a command it declares; an office whose accepted shapes its page does not describe |

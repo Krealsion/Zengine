@@ -1,0 +1,82 @@
+# Workshop's own actions: every row of `kActionCatalog` (workshop/keymap.hpp), in its order, one
+# line each, `<context> <id> <default key> <label>`. The context is the row's `KeyContext` in words
+# (`kArrangeDesk` is `arrange-desk`), the key is spelled as a weaver's keymap file spells it,
+# `unbound` for none. The case "Workshop's own actions, each in its context with its default key,
+# are tests/workshop_actions.txt" in tests/test_workshop_panes_builder.cpp holds this file to the
+# catalog and writes the catalog as it stands beside the build to diff; tests/check_manual.cmake
+# holds every key marker in a current page to it and to the action census beside it
+# (tests/actions.txt). ASCII only.
+no-text workshop.quit ctrl+c quit
+global focus.leave ctrl+q leave pane
+command workshop.quit q quit
+command setup.name s save setup
+command setup.restore r restore setup
+command layout.next . next layout
+command layout.previous , previous layout
+command layout.new = new layout
+command layout.remove ctrl+w remove layout
+command layout.rename unbound rename layout
+command layout.duplicate unbound duplicate layout
+command layout.move-left unbound move layout left
+command layout.move-right unbound move layout right
+command pane.edit-code unbound edit code
+command workshop.manage w arrange desk
+command workshop.context a actions
+command workshop.pane-titles t titles
+command workshop.band-keys unbound band key spelling
+command workshop.hotkeys-keys unbound Hotkeys key spelling
+command focus.next tab next pane
+command focus.previous shift+tab previous pane
+command focus.left left pane left
+command focus.right right pane right
+command focus.up up pane up
+command focus.down down pane down
+command focus.enter return enter pane
+naming naming.commit return rename
+naming naming.cancel escape cancel
+arrange-desk manage.next tab next pane
+arrange-desk manage.previous shift+tab previous pane
+arrange-desk manage.arrange return arrange
+arrange-pane manage.grow = grow
+arrange-pane manage.shrink - shrink
+arrange-pane manage.place-left left place left
+arrange-pane manage.place-right right place right
+arrange-pane manage.place-up up place up
+arrange-pane manage.place-down down place down
+arrange-pane manage.pull-left shift+left narrower
+arrange-pane manage.pull-right shift+right wider
+arrange-pane manage.pull-up shift+up shorter
+arrange-pane manage.pull-down shift+down taller
+arrange-pane manage.front f front
+arrange-pane manage.back b back
+arrange-pane manage.raise r raise
+arrange-pane manage.lower l lower
+arrange-pane manage.remove d hide pane
+arrange-pane manage.reset 0 reset
+arrange-pane manage.close escape leave
+arrange-desk manage.grow = grow
+arrange-desk manage.shrink - shrink
+arrange-desk manage.place-left left place left
+arrange-desk manage.place-right right place right
+arrange-desk manage.place-up up place up
+arrange-desk manage.place-down down place down
+arrange-desk manage.pull-left shift+left narrower
+arrange-desk manage.pull-right shift+right wider
+arrange-desk manage.pull-up shift+up shorter
+arrange-desk manage.pull-down shift+down taller
+arrange-desk manage.front f front
+arrange-desk manage.back b back
+arrange-desk manage.raise r raise
+arrange-desk manage.lower l lower
+arrange-desk manage.remove d hide pane
+arrange-desk manage.reset 0 reset
+arrange-desk manage.close escape leave
+arrange-reset manage.reset-place p reset place
+arrange-reset manage.reset-width w reset width
+arrange-reset manage.reset-height h reset height
+arrange-reset manage.reset-order o reset order
+arrange-reset manage.done escape back
+context context.up up row up
+context context.down down row down
+context context.choose return choose
+context context.back escape back
