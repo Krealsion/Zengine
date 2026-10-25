@@ -604,8 +604,13 @@ public:
     /// shows its area.
     std::string pane_reading(const std::string& provider, const std::string& pane,
                              PaneView& out) const;
+    /// ...on the desk as `laid` lays it out, for a caller reading many panes of one desk.
+    std::string pane_reading(const std::string& provider, const std::string& pane, PaneView& out,
+                             const DeskBounds& laid) const;
+    /// The desk as it stands, laid out once: what one reading of many panes judges them from.
+    DeskBounds laid_desk() const;
     /// ...for a pane that draws in an area of its own: as the window last said the area shows.
-    std::string area_reading(const RuntimePane& row, PaneView& out) const;
+    std::string area_reading(const RuntimePane& row, PaneView& out, const DeskBounds& laid) const;
     /// WHAT A WINDOW SAID AN AREA AT `rect` SHOWS, as the desk read says words and parts: in the
     /// desk's pixels, each point in the space the medium reads, a word numbered by its place.
     void shown_words_and_parts(const graphics::AreaShown& shown, const PixelRect& rect,
@@ -619,13 +624,14 @@ public:
     /// ...for a pane no window shows: why not, in the frame's words.
     std::string unshown_reading(const RuntimePane& row) const;
     /// THE PANE WORKSHOP PRESENTS ITSELF, Layouts, read as it is painted, its tabs named parts.
-    std::string layouts_reading(PaneView& out) const;
+    std::string layouts_reading(PaneView& out, const DeskBounds& laid) const;
     /// What covers a presented pane's `rect`, each by the name a reading says it with.
     struct Cover {
         std::string by;
         PixelRect rect;
     };
-    std::vector<Cover> covers_of(std::int64_t kind, const PixelRect& rect) const;
+    std::vector<Cover> covers_of(std::int64_t kind, const PixelRect& rect,
+                                 const DeskBounds& laid) const;
     /// The stamp of a pane offered by `provider`, but for what it shows.
     PaneStamp stamp_of(const std::string& provider, const std::string& pane) const;
     /// The area `ref` draws in, when it draws in one Workshop placed; else empty.
@@ -641,9 +647,9 @@ public:
                                           const PanePointRequested& asked) const;
     std::variant<DeskRead, loom::Refused> desk_read_now(loom::Mail& mail, loom::WeaveId asker) const;
     /// Every presented pane, front to back: the order a desk read and a notice say stamps in.
-    std::vector<PaneRef> presented_refs() const;
+    std::vector<PaneRef> presented_refs(const DeskBounds& laid) const;
     /// The stamp `ref` stands on now, its picture named by the fingerprint of what it shows.
-    PaneStamp stamp_now(const PaneRef& ref) const;
+    PaneStamp stamp_now(const PaneRef& ref, const DeskBounds& laid) const;
     /// `DeskStamps` v3, published when the desk number or a presented pane's stamp moved since the
     /// last one; `known`, a desk computed already.
     void publish_desk_stamps(loom::Mail& mail, const DeskView* known = nullptr);
