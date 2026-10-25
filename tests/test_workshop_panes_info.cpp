@@ -193,7 +193,7 @@ struct InfoRig {
     void draft_holding(const std::string& label, const std::string& typed,
                        const PaneRef& subject = layouts_ref()) {
         draft_on(label, subject);
-        for (int i = 0; i < 16; ++i) {
+        for (int i = 0; i < 40; ++i) {
             r.key(input::scan::kBackspace);
         }
         r.text(typed);
@@ -452,6 +452,82 @@ TEST_CASE("the shipped desk puts it at the room's top-right, by word and not by 
     // AND IT REACHES THE ROOM'S RIGHT EDGE AND TOP, which is what the word says.
     CHECK(where.rect.x + where.rect.w == sc.room_w);
     CHECK(where.rect.y == sc.room_y);
+}
+
+namespace {
+
+/// A desk with the Editor seated, its axes typed through Info's door (`write_pane_axis`) and each
+/// accepted edit written as the store writes it.
+struct TypedAxes {
+    Session s;
+    PaneRef ref = layouts_ref();
+    TypedAxes() { REQUIRE(has_pane(s.setup.active, ref)); }
+    Written type(std::size_t axis, const char* text) {
+        s.pending_edit.reset();
+        const Written w = write_pane_axis(s, ref, axis, text);
+        if (w.accepted) {
+            REQUIRE(s.pending_edit.has_value());
+            SetupPane* row = pane_of(s.setup.active, ref);
+            REQUIRE(setup_persist::place_in(s.pending_edit->place, row->place).accepted);
+            REQUIRE(setup_persist::size_in(s.pending_edit->width, row->width, "width").accepted);
+            REQUIRE(setup_persist::size_in(s.pending_edit->height, row->height, "height").accepted);
+        }
+        return w;
+    }
+    std::string reads(std::size_t axis) { return pane_axis_text(s, ref, axis); }
+    const SetupPane& row() { return *pane_of(s.setup.active, ref); }
+};
+
+} // namespace
+
+TEST_CASE("Info's typed axes take a word as well as a number, and each reads back as it was typed") {
+    // ⚔ MUTATION: `write_pane_axis` reading every typed value as a count of the face's unit --
+    // `50%` is refused, and no word can be typed.
+    TypedAxes t;
+    // A SIZE: a share as a percent or in ten-thousandths, `fit`, `fill`, or pixels.
+    REQUIRE_MESSAGE(t.type(2, "50%").accepted, t.type(2, "50%").refusal);
+    CHECK(t.row().width == PaneSize{ui::kSizeShare, 5000});
+    CHECK(t.reads(2) == "50.00%");
+    REQUIRE(t.type(2, "33.33%").accepted);
+    CHECK(t.row().width == PaneSize{ui::kSizeShare, 3333});
+    CHECK(t.reads(2) == "33.33%");
+    REQUIRE(t.type(2, "share 2500").accepted);
+    CHECK(t.reads(2) == "25.00%");
+    REQUIRE(t.type(3, "fit").accepted);
+    CHECK(t.reads(3) == "fit");
+    REQUIRE(t.type(3, "fill").accepted);
+    CHECK(t.row().height == PaneSize{ui::kSizeFill, 0});
+    CHECK(t.reads(3) == "fill");
+    REQUIRE(t.type(3, "pixels 10").accepted);
+    CHECK(t.row().height == PaneSize{pane_unit::kPixels, cells_px(10)});
+    // ...AND THE OWNER'S RANGE REFUSES IN ITS OWN WORDS.
+    CHECK(t.type(2, "share 12000").refusal ==
+          "a pane width's share is 1 to 10000 ten-thousandths of the room (5000 is half) -- not "
+          "12000");
+    CHECK(t.type(2, "200%").refusal.find("or a word: fit, fill") != std::string::npos);
+    CHECK(t.row().width == PaneSize{ui::kSizeShare, 2500});
+
+    // A PLACE: a word, with this axis's offset after it where the word reads one.
+    REQUIRE(t.type(0, "bottom-right 2").accepted);
+    CHECK(t.row().place == PanePlace{ui::kPlaceBottomRight, cells_px(2), 0});
+    REQUIRE(t.type(1, "3").accepted); // a number on an axis the word reads is its offset
+    CHECK(t.row().place == PanePlace{ui::kPlaceBottomRight, cells_px(2), cells_px(3)});
+    CHECK(t.reads(0) == "bottom-right 2 cells");
+    CHECK(t.reads(1) == "bottom-right 3 cells");
+    REQUIRE(t.type(0, "center").accepted);
+    CHECK(t.row().place == PanePlace{ui::kPlaceCenter, 0, 0});
+    CHECK(t.reads(0) == "center");
+    CHECK(t.reads(1) == "center");
+    CHECK(t.type(0, "top 2").refusal == "`top` is centred across -- it takes no offset there");
+    CHECK(t.type(0, "centre").refusal.find("or a place word: default, pixels, top") !=
+          std::string::npos);
+    // A NUMBER ON A CENTRED AXIS can only be a place in pixels.
+    REQUIRE(t.type(0, "4").accepted);
+    CHECK(t.row().place.mode == pane_unit::kPixels);
+    CHECK(t.row().place.x == cells_px(4));
+    // `-` takes the word back to the developer's.
+    REQUIRE(t.type(2, "-").accepted);
+    CHECK(t.row().width == PaneSize{});
 }
 
 TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
@@ -955,13 +1031,13 @@ TEST_CASE("Info may inspect itself, and an edit to its own place is written by t
     CHECK(f.declared() == kResting);
     const SetupPane* row = pane_of(f.r.session().setup.active, pane_info_ref());
     REQUIRE(row != nullptr);
-    CHECK(row->place.mode == pane_unit::kPixels);
-    CHECK(row->place.x == cells_px(12));
+    // ITS PLACE IS THE ROOM'S TOP-RIGHT, so a number on X is the offset in from the right.
+    CHECK(row->place == PanePlace{ui::kPlaceTopRight, cells_px(12), 0});
     // THE DESK RESEATED IT: its resolved window moved, and it still inspects itself.
     CHECK(f.picture().properties[f.property_index("Window")].value != window);
     CHECK(f.picture().subject == named);
     CHECK(f.r.session().inspected.ref == pane_info_ref());
-    CHECK(f.r.last_notice().find("committed X of Info = 12 cells") != std::string::npos);
+    CHECK(f.r.last_notice().find("committed X of Info = top-right 12 cells") != std::string::npos);
 }
 
 TEST_CASE("the subject is Info's to name: the keys leaving, Escape and a press elsewhere "

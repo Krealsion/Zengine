@@ -1007,13 +1007,30 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
 
 /// WHAT A WINDOW PROPOSAL WRITES through the gesture door (`author_pane_window`), measured from the
 /// window it was proposed against: a place on an axis the proposal moved and changed, an extent on
-/// an axis it changed. The hand's write and the desk a snap measures are made from the same axes.
+/// an axis it changed, and each axis's room -- its span and the window's step -- so the door can
+/// say it in its word. The hand's write and the desk a snap measures are made from the same axes.
 struct PaneWindowAxes {
     PaneAxisProposal horizontal;
     PaneAxisProposal vertical;
 };
 // WL-ARR-17 -- agents/workshop/arrangement-snap.md
-PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base);
+PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base,
+                                const Screen& sc);
+
+/// The two axes of a window standing at `base` in the room, proposing nothing yet: each axis's
+/// near edge, extent, the room's span along it and the window's step.
+inline PaneWindowAxes pane_window_at(const PixelRect& base, const Screen& sc) {
+    PaneWindowAxes out;
+    out.horizontal.base = base.x;
+    out.horizontal.length = base.w;
+    out.horizontal.span = sc.room_w;
+    out.horizontal.step = chrome_grain(sc);
+    out.vertical.base = base.y;
+    out.vertical.length = base.h;
+    out.vertical.span = sc.room_h;
+    out.vertical.step = chrome_grain(sc);
+    return out;
+}
 
 /// THE LINES AN EDGE THE HAND MOVES MAY MEET, in the room: the room's own edges and every edge
 /// of every other pane on the screen.
