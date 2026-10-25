@@ -55,6 +55,8 @@ void WorkshopWeave::install_live(const LiveLayout& live, loom::Mail& mail) {
             close_context();
         }
     }
+    const PaneRef palette{kPaletteRole, kPalettePane};
+    const bool palette_seated = has_pane(d.active, palette);
     d.owned = desk;
     d.active = std::move(desk);
     d.id = live.id;
@@ -93,6 +95,11 @@ void WorkshopWeave::install_live(const LiveLayout& live, loom::Mail& mail) {
     // THE PANES FOLLOW THE DESK: whatever it seats is opened, whatever it no longer seats closes.
     // Each seated pane's settings are the owner's to hand it.
     apply_setup(mail);
+    // THE PALETTE PUT DOWN, by whichever close took its row -- this desk's own or an office's,
+    // which the owner took: the keys go back to the pane it opened over.
+    if (palette_seated && !has_pane(d.active, palette)) {
+        palette_closed(palette);
+    }
 }
 
 // WL-LAYOUT-01 -- agents/workshop/layouts.md
@@ -157,6 +164,15 @@ void WorkshopWeave::seat_then(const PaneRef& ref, EditThen then, loom::Mail& mai
     seat.provider = ref.provider;
     seat.pane = ref.pane;
     ask_layout({seat}, std::move(then), mail, false);
+}
+
+// WL-DESK-13 -- agents/workshop/desktop.md
+void WorkshopWeave::unseat_then(const PaneRef& ref, EditThen then, loom::Mail& mail) {
+    LayoutEdit unseat;
+    unseat.op = layout_op::kUnseat;
+    unseat.provider = ref.provider;
+    unseat.pane = ref.pane;
+    ask_layout({unseat}, std::move(then), mail, false);
 }
 
 // ---- The setup: name it, save it, restore it ------------------------------

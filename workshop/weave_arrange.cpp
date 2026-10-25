@@ -436,24 +436,21 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     // unresolved row exactly as on an open one (rule).
     case Act::kManageRemove: {
         const std::string name = ref_text(ref);
-        LayoutEdit unseat;
-        unseat.op = layout_op::kUnseat;
-        unseat.provider = ref.provider;
-        unseat.pane = ref.pane;
-        ask_layout({unseat},
-                   [this, name](const LayoutEditAnswered& answered, loom::Mail&) {
-                       if (!answered.accepted) {
-                           say(name + " is no longer in this setup -- the Pane Manager can show "
-                                      "it again",
-                               true);
-                           return;
-                       }
-                       say("hid " + name + discarded_settings(answered.discarded) +
-                               " -- the Pane Manager shows it again; nothing behind it was "
-                               "touched",
-                           false);
-                   },
-                   mail, false);
+        unseat_then(ref,
+                    [this, name](const LayoutEditAnswered& answered, loom::Mail&) {
+                        if (!answered.accepted) {
+                            say(name + " is no longer in this setup -- the Pane Manager can show "
+                                       "it again",
+                                true);
+                            return;
+                        }
+                        say("hid " + name + discarded_settings(answered.discarded) +
+                                discarded_locks(answered.unlocked) +
+                                " -- the Pane Manager shows it again; nothing behind it was "
+                                "touched",
+                            false);
+                    },
+                    mail);
         return;
     }
     // EDIT CODE: the setup has answered for the reference above, and what the pane's code is

@@ -22,8 +22,9 @@ super-grant.
 Workshop judges the form of everything a pane sends and keeps nothing it refused: an update that
 does not fit is refused whole and said where the weaver reads, and the last good picture stands.
 Silence is never `unavailable`: Workshop learns of no provider's unloading, so it shows the last
-rows an office reported and waits. Closing a pane destroys only Workshop's copy; the office, its
-weave and its state are untouched.
+rows an office reported and waits. A pane is closed by asking `zengine.layouts`
+([`PaneCloseRequested`](zengine.layouts.md#panecloserequested)), and closing destroys only
+Workshop's copy; the office, its weave and its state are untouched.
 
 The window, the room, the setup and the canvas a pane draws on are [the pane protocol's
 reference](workshop-panes.md); where a reported pointer lands is [pointer
@@ -79,17 +80,6 @@ it is open. It never closes anything ([`desktop_seam_vocabulary.hpp`](../desktop
   nothing holds `<office>` now; its artifact has to be loaded again (build it, or relaunch)``.
 - **Example:** the Pane Manager's open sends `{office: "zengine.builder-pane", pane: "builder"}`.
 
-### `PaneCloseRequested`
-
-`PaneCloseRequested` asks Workshop to take one pane's row off the desk. It unloads nothing.
-
-- **Takes:** `office` and `pane`.
-- **Answers:** `PaneCloseAnswered{office, pane, closed, refusal}`, to the asker alone; the band says
-  `hid <name> -- its provider and what it holds are untouched; showing it brings it back`, naming
-  any settings the row kept that went with it.
-- **Refuses:** `<name> is not on this desk -- nothing to hide, and a hide shows nothing`.
-- **Example:** the Pane Manager's hide sends the row it stands on.
-
 ### `PaneToggleRequested`
 
 `PaneToggleRequested` asks Workshop to show a pane that is not on the desk, or hide one that is,
@@ -97,7 +87,8 @@ judged against the desk at the ask.
 
 - **Takes:** `office` and `pane`.
 - **Answers:** `PaneToggleAnswered{office, pane, opened, closed, refusal}`, to the asker alone, with
-  the band's `showed <name>` or `hid <name> -- ...`.
+  the band's `showed <name>` or `hid <name> -- ...`, naming the settings and locks the row took; a
+  hide takes the row off as Workshop's own closes do, by asking `zengine.layouts`.
 - **Refuses:** each refusal [`PaneLaunchRequested`](#panelaunchrequested) words.
 - **Example:** a desktop row bound to one pane sends it on every press.
 

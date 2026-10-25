@@ -11,6 +11,7 @@
 // taken after it (`take_effects`), for the holder to say and hand.
 // Workshop law: agents/workshop/settings.md (+3 registers; agents/workshop.md routes)
 
+#include "workshop/desktop_seam_vocabulary.hpp" // a close's answer
 #include "workshop/layouts/run.hpp"
 #include "workshop/layouts/vocabulary.hpp"
 #include "workshop/pane_migration.hpp"
@@ -164,6 +165,9 @@ public:
 
     /// THE PRESENTER'S EDITS, written whole or not at all.
     LayoutEditAnswered edit(const LayoutEditRequested& asked);
+    /// A CLOSE: the live layout's row for `ref` taken off whole, its settings and this layout's
+    /// locks on it named, and said; a row the live layout does not seat refused.
+    PaneCloseAnswered close(const PaneRef& ref);
 
     /// What an office's holder is handed now, for each declaring office whose holder takes
     /// `OfficeSettings` and was not handed these: the office and the value.

@@ -325,7 +325,7 @@ PaneCanvasValueDrop v4 0x1454ecf45724726b
 PaneCarryAnswered v1 0x32267ee874afea4b
 PaneCarryRequested v1 0xd2321dfb560692f4
 PaneCatalogRequested v1 0xf8623a0555340ed5
-PaneCloseAnswered v1 0xbcd8bce1001d5416
+PaneCloseAnswered v2 0x50c41376e7556480
 PaneCloseRequested v1 0x776e65946a8279f8
 PaneCommitRequested v1 0xad6e448fc20560ff
 PaneCover v1 0xa709fceb604560a1

@@ -342,6 +342,27 @@ TEST_CASE("WL-DESK-18: ctrl+space shows the palette over the pane holding the ke
     CHECK(on_desk(r, kDesktopRole, kHotkeysPane));
 }
 
+TEST_CASE("WL-DESK-18: the palette closed by an office, through the layouts' owner, is put down "
+          "with the keys given back, as its own Escape puts it down") {
+    // ⚔ MUTATION: the presenter giving the keys back only on its own closes -- an office's close
+    // leaves them nowhere.
+    PaneRig r;
+    ProviderSeat* tools = nullptr;
+    start(r, tools);
+    REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+    REQUIRE(r.load_refusals.empty());
+    const std::int64_t alpha = kind_of(r, kTools, "alpha");
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    REQUIRE(r.session().panes.keyboard == kind_of(r, kPaletteRole, kPalettePane));
+
+    const PaneCloseAnswered said = hand_close(r, PaneRef{kPaletteRole, kPalettePane});
+    CHECK(said.closed);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+    CHECK(r.session().panes.keyboard == alpha);
+    CHECK(r.session().panes.selected == alpha);
+}
+
 TEST_CASE("WL-DESK-18: a press the window landed on the palette's list moves the cursor where the "
           "list still stands -- the cursor walked meanwhile -- and is refused in words once a "
           "filter has moved the list") {
