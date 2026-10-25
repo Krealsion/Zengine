@@ -287,7 +287,7 @@ def seated_views(hand, setup, state):
 
 
 def apply(hand, desk):
-    hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(desk)}, settle=True)
+    hand.ask("zengine.layouts", "SetupApplyRequested", {"setup": json.dumps(desk)}, settle=True)
 
 
 def without_pane(desk, provider, pane):
