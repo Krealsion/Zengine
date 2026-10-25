@@ -1,22 +1,22 @@
 # Workshop law — panes and windows
 
-Register `WL-PANE`: the three places, the overlay slots, the default a weaver lays an override
+Register `WL-PANE`: the two places, the room's points a word names, the overlay slots, the default a weaver lays an override
 over, and the seven states. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). What crosses the pane seam is the protocol's law, in
 [`../panes.md`](../panes.md); this register holds Workshop's side only.
 
 Retired: WL-PANE-14, WL-PANE-15.
 
-## WL-PANE-01 — Three places, and every one of them is the weaver's
+## WL-PANE-01 — Two places a kind defaults to, and every point of the room the weaver's
 
-LAW — Three places: the right column, the overlay stack and the top band. Each is a named rectangle a pane resolves into, none is reserved out of the room, and an authored override is spent in all three.
+LAW — A kind defaults to the overlay stack or the top band; a row's place word stands its pane at a point of the room instead. None is reserved out of the room, and an authored override is spent in every one.
 
 MEANS
-- each place is a frame `bounds_of` stands its panes in and solves (`ui::arrange`), an override's pixels spent over its answer;
-- `kinds_placed_in` pins the right column and the top band at one catalog DEFAULT each.
+- each place is a frame `bounds_of` stands its panes in and solves (`ui::arrange`), and a place word other than `default` stands the pane in the room, its sizes read against the room;
+- `kinds_placed_in` pins the top band at one catalog DEFAULT.
 
 DOES NOT MEAN
-- that two panes may not stand in one place — a desk that says so gets what it asked for.
+- that two panes may not stand at one point — a desk that says so gets what it asked for, one over the other.
 
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
@@ -77,7 +77,7 @@ LAW — An authored row's geometry is spent wherever the pane stands; every refu
 
 MEANS
 - absent, unresolved or off the screen — each is invisible as well as refused;
-- the right column's pane is arranged by the keys and the hand that arrange every other.
+- a pane at any point of the room is arranged by the keys and the hand that arrange every other.
 
 DOES NOT MEAN
 - that a refusal cannot be reached at all: a captured subject can be made unreachable after it.
@@ -90,8 +90,8 @@ LAW — `bounds_of` answers the visible rectangle — resolved, then intersected
 
 MEANS
 - every consumer that reads an empty rectangle as "nowhere" is correct for an off-room pane;
-- a wholly off-room pane is painted by nobody and its intent is not rewritten;
-- a launch or a reveal of one keeps its place and says so on the band, with the two ways back.
+- a wholly off-room pane is painted by nobody and its intent is not rewritten; a launch or a reveal of one keeps its place and says so on the band, with the two ways back;
+- a pane too small to see is found as an off-room one is -- the Pane Manager, `tab`, Info -- and its words taken back there: how small it is the weaver's choice.
 
 WHY — `agents/decisions/three-places.md`
 
@@ -106,13 +106,14 @@ MEANS
 
 WHY — `agents/decisions/three-places.md`
 
-## WL-PANE-11 — An authored place is measured from the room, and each axis is independent
+## WL-PANE-11 — An authored place is a word measured from the room, and each axis is independent
 
-LAW — An authored place is pixels from the room's top-left, directly under the top band on every face, and never negative. A place edit freezes no size; each unauthored dimension follows its default.
+LAW — An authored place is a word and its offsets, measured in the room under the top band on every face, inward from the edges it names and never negative; a place edit freezes no size.
 
 MEANS
 - what writes, shows or takes a place agrees: a drag, an arrow, Info's `X`, `Y` and `Window`;
-- a pane above the room (Layouts, in its band) placed by one axis comes down to the room's top.
+- a pane above the room (Layouts, in its band) placed by one axis comes down to the room's top;
+- `pixels` counts from the room's top-left, an anchored pane keeps its corner, edge or middle at every window size, and each unauthored dimension follows its default.
 
 WHY — `agents/decisions/the-whole-pixel.md`
 
@@ -161,7 +162,7 @@ LAW — A preferred size budgets body text, or a canvas body of whole pixels, pl
 
 MEANS
 - a pixel body is granted exactly: to the pixel in a window, rounded up to cells in a terminal;
-- a first accepted offer fixes the runtime preference; refresh cannot resize it;
+- the first accepted offer is what `default` reads, so a refresh cannot resize it; `fit` reads the latest, and a re-offer putting back the one before is held, and said;
 - the column spends the default height a pane is drawn at; old providers keep their fallback.
 
 WHY — `agents/decisions/preferred-pane-space.md`
@@ -169,13 +170,14 @@ WHY — `agents/decisions/preferred-pane-space.md`
 ## Proven by
 
 ### WL-PANE-01
-`workshop/panes.hpp` kSideRegion kOverlayStack kTopBand kinds_placed_in placement kBuiltinPanes
-placement_of
+`workshop/panes.hpp` kOverlayStack kTopBand kinds_placed_in placement kBuiltinPanes placement_of
 `workshop/screen_chrome.cpp` project_pane bounds_of pane_part add_desk_frames
 `workshop/screen_reveal.cpp` paint_pane_affordances
 `workshop/weave_arrange.cpp` take_pane_hold
 `tests/test_workshop_host.cpp` "a pane kind declares its place, and the place resolves to bounds"
 `tests/test_workshop_screen.cpp` "authored geometry moves the Layouts pane, and the tabs with it"
+`tests/test_workshop_panes_info.cpp` "the shipped desk puts it at the room's top-right, by word and
+not by number"
 
 ### WL-PANE-03
 `workshop/setup_reconcile.hpp` seat_panes StackCapacity Seating
@@ -197,8 +199,8 @@ column's top, in front"
 
 ### WL-PANE-04
 `workshop/screen.hpp` placement_bounds kStackW stack_slots_that_fit
-`tests/test_workshop_host.cpp` "the right column keeps its width and the stack takes half the
-surplus" "the half-share pays at the bottom of the range too, and buys no slot"
+`tests/test_workshop_host.cpp` "the band keeps its rows and the stack takes half the surplus" "the
+half-share pays at the bottom of the range too, and buys no slot"
 
 ### WL-PANE-05
 `workshop/screen_pane_state.cpp` paint_pane_frame
@@ -244,6 +246,8 @@ by nobody"
 `workshop/weave_seam.cpp` on(PaneRevealRequested)
 `tests/test_workshop_panes_window.cpp` "a partly off-room pane is clipped, and its intent is not
 rewritten" "a wholly off-room pane is off-room, recoverable, and painted by nobody"
+`tests/test_workshop_panes_info.cpp` "a pane its words leave too small to see, or off the room, is
+still listed, reached by tab, inspected by Info and given its size back there"
 `tests/test_workshop_panes_seam.cpp` "a pane launched where its own place stands off this screen
 stays there, and the band says so and how to bring it back"
 `tests/test_workshop_panes_canvas.cpp` "a view shown where its own place stands off this screen
@@ -260,9 +264,13 @@ every state" "two panes that each cover HALF of a third leave nothing of it show
 the UNION of what is in front, not containment by one pane"
 
 ### WL-PANE-11
-`workshop/setup.hpp` author_pane_place author_pane_size author_pane_window PanePlace
+`workshop/setup.hpp` author_pane_place author_pane_size author_pane_window PanePlace ui_place_of
 `workshop/screen.hpp` canvas_of_room room_of_canvas
 `workshop/screen_chrome.cpp` project_pane pane_part
+`ui/vocabulary.hpp` place_anchor_x place_anchor_y
+`tests/test_workshop_screen.cpp` "an anchored pane keeps its corner where its word puts it, at every
+size of the window" "a centred pane stands in the middle of the room, and a fill runs to the room's
+far edge"
 `workshop/screen_pane_subject.cpp` pane_window_base
 `tests/test_workshop_panes_window.cpp` "an authored place is measured from the room's top-left, not
 an offset from the default" "each axis is independent -- a place edit freezes no size, and back" "a
@@ -297,13 +305,17 @@ and its frame says so; one that does is placed its area, titled, and nothing is 
 arranging"
 
 ### WL-PANE-17
-`workshop/setup_reconcile.hpp` preferred_extent admit_pane_offer PaneBody
+`workshop/setup_reconcile.hpp` preferred_extent fit_extent offered_extent admit_pane_offer PaneBody
+`workshop/panes.hpp` PaneOfferedBody RuntimePane::latest RuntimePane::before RuntimePane::fit_held
+`workshop/screen_pane_state.cpp` pane_fit_note
 `workshop/pane_vocabulary.hpp` kMaxPaneBodyPx
 `workshop/screen.hpp` stack_capacity
 `workshop/screen_chrome.cpp` project_pane bounds_of pane_measure
 `view/view.hpp` offered
 `tests/test_workshop_demo.cpp` "pane comfort budgets body text with chrome in both real medium
 metrics" "pane comfort survives offer refresh and rejects malformed preferences" "pane comfort: the
-column spends each pane's preferred height, and begins again at its top when spent"
+column spends each pane's preferred height, and begins again at its top when spent" "pane comfort:
+`fit` follows a re-offer and `default` keeps the first, and a measure that comes back is held"
+"pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer"
 `tests/test_workshop_panes_canvas.cpp` "a view asks for its size in pixels and its pane grants
 exactly that room: to the pixel in a window, to the cells that hold it in a terminal"

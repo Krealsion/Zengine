@@ -37,7 +37,7 @@ asks again at your press. A restart of Workshop shows only the default pane.
 
 ## Use
 
-Workshop's default desk shows Info in its right column; the Pane Manager,
+Workshop's default desk shows Info at the room's top-right; the Pane Manager,
 <!-- key desktop.panes -->`ctrl+p`<!-- /key -->, opens any of its panes. Its keys act only while it
 holds your keys: press into it first. Choose `inspect in Info` on a pane's row in the Pane Manager
 to inspect it here, then press a property's row and <!-- key info.edit -->`return`<!-- /key --> to

@@ -112,7 +112,7 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   anything here can ask for is still the one the tool has already named — a pane that has not
   heard from its tool cannot ask for anything, and says so.
 - **There are two places, they are named, and there is no layout policy**. A kind
-  DECLARES its place in the catalog — `placement::kOverlayStack` or `placement::kSideRegion` —
+  DECLARES its place in the catalog — `placement::kOverlayStack` or `placement::kTopBand` —
   and one function turns a place plus a screen into the rectangle that pane occupies:
 
   ```text
@@ -128,11 +128,10 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   by the pane and the weaver* — the same half-share the terminal overlay takes at the other
   corner — so the columns the pane does not take stay reachable at every extent, and the ones
   it does take are its own for paint **and** for the pointer. Its height, its column, its row
-  and the blank row between slots do not move with the surface. The **side region** is
-  the fixed right-hand column `Info` has always been — a place, reserved out of nothing, with
-  the workspace running underneath it. Exactly one built-in kind DEFAULTS there, and a second
-  declaring it is a compile-time refusal; a setup file may put any pane there by name, and two
-  panes in one place is a desk saying so rather than an accident.
+  and the blank row between slots do not move with the surface. A desk row's **place word**
+  stands its pane at a point of the room instead -- `top-right`, `center`, `bottom-left` and the
+  rest, reserved out of nothing, with the workspace running underneath -- and two panes at one
+  point is a desk saying so rather than an accident.
   A slot is earned by being *placed in the stack*, so an `Info` ahead of a `Builder` in the open
   list never pushes it down a slot it does not occupy. `bounds_of(panes, kind, screen)` is the
   one path to an open pane's bounds — a closed one answers with an empty rectangle rather than
@@ -401,9 +400,9 @@ authored setup                 resolved presentation          session interactio
 - **Info is an ordinary arranged pane, and so is the Terminal** (its own page is
   [terminal/docs/zengine.terminal.md](../../terminal/docs/zengine.terminal.md)). `screen_of` reserves
   nothing across the width: `room_w` is the surface, it is what every share of the workspace
-  resolves against, and the right column stands on it. Management authors Info's geometry like
-  any other pane's. The shipped default setup is what opens it at the right edge, by naming
-  that place (`"mode": "right-column"`) rather than by coordinates no desk could know.
+  resolves against, and every place stands on it. Management authors Info's geometry like any
+  other pane's. The shipped default setup is what opens it at the right edge, by naming that
+  place (`"mode": "top-right"`) rather than by coordinates no desk could know.
 - **`w` opens pane management**, from command mode. Inside it: `tab`/`up` select, `m` move,
   `s` size (`tab` cycles the eight edges and corners, arrows resize), `f`/`b` front/back,
   `r`/`l` raise/lower one, `0` reset (`p` place, `w` width, `h` height, `o` order), `esc` back one
