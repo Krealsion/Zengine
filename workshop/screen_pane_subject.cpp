@@ -97,7 +97,9 @@ std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axi
         if (!reads) {
             return word;
         }
-        out = (word.empty() ? "" : word + " ") + amount(axis == 0 ? row->place.x : row->place.y);
+        const std::int64_t offset = axis == 0 ? row->place.x : row->place.y;
+        out = (word.empty() ? "" : word + " ") +
+              (ui::place_reads_share(mode) ? share_text(offset) : amount(offset));
     } else {
         const PaneSize& size = axis == 2 ? row->width : row->height;
         switch (size.mode) {
@@ -127,10 +129,15 @@ std::string_view trimmed(std::string_view v) {
 }
 
 /// A share as typed: `50%` or `33.33%`, hundredths of a percent at most, or `share 5000` in
-/// ten-thousandths. None when the text is neither.
+/// ten-thousandths -- or `share 33.33%`, as a share place reads back. None when the text is
+/// neither.
 std::optional<std::int64_t> typed_share(std::string_view body) {
     if (body.size() > 6 && body.substr(0, 6) == "share ") {
-        return TextForm<std::int64_t>::parse(trimmed(body.substr(6)));
+        const std::string_view rest = trimmed(body.substr(6));
+        if (!rest.empty() && rest.back() == '%') {
+            return typed_share(rest);
+        }
+        return TextForm<std::int64_t>::parse(rest);
     }
     if (body.size() < 2 || body.back() != '%') {
         return std::nullopt;
@@ -231,11 +238,35 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
         }
         return stored(legal);
     }
-    // A PLACE WORD, with this axis's offset after it where the word reads one; the other axis
-    // keeps its offset where both words read it.
     const bool across = axis == 0;
     const std::size_t space = body.find(' ');
     const std::string_view head = body.substr(0, space);
+    // A SHARE PLACE, typed as a size's share is: this axis the share typed, the other its own
+    // share where the place is one already, else the share reaching where the pane stands on it.
+    // `share` alone puts both axes where the pane stands.
+    const std::optional<std::int64_t> share = typed_share(body);
+    if (share || head == ui::place_word(ui::kPlaceShare)) {
+        if (!share && space != std::string_view::npos) {
+            return Written::no("a share place is typed `33.33%` or `share 3333`: ten-thousandths "
+                               "of the room from its top-left");
+        }
+        PanePlace typed{ui::kPlaceShare, row->place.x, row->place.y};
+        if (!ui::place_reads_share(row->place.mode)) {
+            const PaneWindowAxes at = pane_window_at(pane_window_base(s, ref), screen_of(s));
+            typed.x = share_placing(at.horizontal.base, at.horizontal.span);
+            typed.y = share_placing(at.vertical.base, at.vertical.span);
+        }
+        if (share) {
+            (across ? typed.x : typed.y) = *share;
+        }
+        const Written legal = check_pane_place(typed);
+        if (legal.accepted) {
+            row->place = typed;
+        }
+        return stored(legal);
+    }
+    // A PLACE WORD, with this axis's offset after it where the word reads one; the other axis
+    // keeps its offset where both words read it.
     if (const std::optional<std::int64_t> mode = ui::place_named(head);
         mode && *mode != pane_unit::kDefault) {
         std::int64_t offset = 0;
@@ -269,10 +300,10 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
         return Written::no(face.refusal + word_hint(face, "a place word: " + pane_place_words()));
     }
     // A NUMBER ON AN AXIS THE PLACE'S WORD READS is the offset from that word's edge, as the row
-    // shows it; on a centred or `default` axis, and for `pixels`, it is pixels from the room's
-    // top-left, through the gesture door.
+    // shows it; on a centred or `default` axis, for `pixels` and for a share place, it is pixels
+    // from the room's top-left, through the gesture door, which says a share place's in its word.
     const std::int64_t mode = row->place.mode;
-    if (mode != pane_unit::kPixels &&
+    if (mode != pane_unit::kPixels && !ui::place_reads_share(mode) &&
         (across ? ui::place_reads_x(mode) : ui::place_reads_y(mode))) {
         PanePlace moved = row->place;
         (across ? moved.x : moved.y) = face.px;

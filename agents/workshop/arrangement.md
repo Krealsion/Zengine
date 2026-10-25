@@ -59,7 +59,7 @@ LAW — A left or top pull authors place and size as one axis-local transaction,
 MEANS
 - `author_pane_window` is the one gesture door; a refused height never leaves a moved top edge;
 - a refused single-axis step cannot author a reactive place as a side effect;
-- each axis keeps its word: an anchor's offset from its edge, a share (or a fill pulled at its far edge) the share reaching the hand's pixel; a moved centred place and `fit` become pixels, said.
+- each axis keeps its word: an anchor's offset from its edge; a share place, a share or a fill's far edge the share reaching the hand's pixel; a moved centred place and `fit` become pixels, said.
 
 DOES NOT MEAN
 - that a wall clamps an axis — a blocked axis is refused whole and keeps its authored value.
@@ -218,7 +218,7 @@ places while it holds is the window's to judge"
 leaves a default place reactive"
 
 ### WL-ARR-06
-`workshop/setup.hpp` author_pane_window check_pane_place_coord PaneAxisProposal share_reaching
+`workshop/setup.hpp` author_pane_window check_pane_place_coord PaneAxisProposal share_reaching share_placing
 WindowWritten
 `workshop/screen_gestures.cpp` pane_window_proposal pane_window_axes
 `workshop/screen.hpp` PaneWindowProposal pane_window_at

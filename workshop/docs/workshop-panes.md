@@ -130,7 +130,8 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   it does take are its own for paint **and** for the pointer. Its height, its column, its row
   and the blank row between slots do not move with the surface. A desk row's **place word**
   stands its pane at a point of the room instead -- `top-right`, `center`, `bottom-left` and the
-  rest, reserved out of nothing, with the workspace running underneath -- and two panes at one
+  rest, or `share`, a share of the room's width and height from its top-left -- reserved out of
+  nothing, with the workspace running underneath -- and two panes at one
   point is a desk saying so rather than an accident.
   A slot is earned by being *placed in the stack*, so an `Info` ahead of a `Builder` in the open
   list never pushes it down a slot it does not occupy. `bounds_of(panes, kind, screen)` is the

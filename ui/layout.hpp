@@ -178,7 +178,8 @@ struct Axis {
     std::int64_t length = 0; ///< `Fixed`'s pixels, or `Reach`'s once known
     std::int64_t share = 0;  ///< `Share`'s ten-thousandths, clamped
     Anchor anchor = Anchor::Start;
-    std::int64_t offset = 0; ///< inward from the anchored edge; 0 where the word reads none
+    std::int64_t offset = 0;   ///< inward from the anchored edge; 0 where the word reads none
+    bool offset_share = false; ///< `offset` is ten-thousandths of the span, clamped, not pixels
 };
 
 /// A part's near and far edges along one axis, relative to its frame's start.
@@ -188,14 +189,19 @@ struct Edges {
 };
 
 /// The edges of a part along one axis of a frame of `span` (>= 0). A pixel offset or a pixel
-/// length is exact; an edge a share or a centring computes is the exact rational position floored
-/// to the step from the frame's start, so two parts that name one position meet on one pixel.
-/// `read_from_start` reads every anchor from the start: the frame's span is not known to its parts
-/// (it fits them).
+/// length is exact; an edge a share or a centring computes -- a share place's start among them
+/// -- is the exact rational position floored to the step from the frame's start, so two parts
+/// that name one position meet on one pixel. `read_from_start` reads every anchor from the start:
+/// the frame's span is not known to its parts (it fits them).
 inline Edges edges_of(const Axis& a, std::int64_t span, std::int64_t step,
                       bool read_from_start) noexcept {
     const Anchor anchor = read_from_start ? Anchor::Start : a.anchor;
-    const std::int64_t o = (read_from_start && a.anchor == Anchor::Center) ? 0 : a.offset;
+    std::int64_t o = a.offset;
+    if (read_from_start && a.anchor == Anchor::Center) {
+        o = 0;
+    } else if (a.offset_share) {
+        o = floor_to_step(part_of(span, a.offset, kShareWhole), step);
+    }
     Edges e;
     switch (a.extent) {
     case Reads::Fill:
@@ -252,13 +258,19 @@ inline Edges edges_of(const Axis& a, std::int64_t span, std::int64_t step,
 }
 
 /// How one axis of a part reads, before any frame is known: its extent from its size word and
-/// measure, its anchor and offset from its place word.
+/// measure, its anchor and offset from its place word -- a share of the span, clamped, where the
+/// word reads one (`offset_share`).
 inline Axis axis_of(const Size& size, std::optional<std::int64_t> measure, Anchor anchor,
-                    bool reads_offset, std::optional<std::int64_t> offset,
-                    std::int64_t step) noexcept {
+                    bool reads_offset, std::optional<std::int64_t> offset, std::int64_t step,
+                    bool offset_share = false) noexcept {
     Axis a;
     a.anchor = anchor;
-    a.offset = reads_offset ? offset.value_or(0) : 0;
+    a.offset_share = reads_offset && offset_share;
+    if (a.offset_share) {
+        a.offset = clamp_share(offset);
+    } else {
+        a.offset = reads_offset ? offset.value_or(0) : 0;
+    }
     switch (size.mode) {
     case kSizePixels:
         a.extent = Reads::Fixed;
@@ -389,9 +401,9 @@ inline Scene arrange(const std::vector<Element>& parts, const Room& room,
         const Element& e = parts[i];
         const std::int64_t mode = e.place.mode;
         ax[i] = detail::axis_of(e.width, measure_of(i, true), place_anchor_x(mode),
-                                place_reads_x(mode), e.place.x, step);
+                                place_reads_x(mode), e.place.x, step, place_reads_share(mode));
         ay[i] = detail::axis_of(e.height, measure_of(i, false), place_anchor_y(mode),
-                                place_reads_y(mode), e.place.y, step);
+                                place_reads_y(mode), e.place.y, step, place_reads_share(mode));
         if (frame[i] != kRoot) {
             if (ax[frame[i]].extent == Reads::Reach) {
                 detail::read_as_fit(ax[i], measure_of(i, true), step);

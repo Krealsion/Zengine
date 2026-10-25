@@ -71,7 +71,8 @@ the number travel together as `Size` and are never two separately editable field
 | `fill` | none | from its anchored edge to the frame's far one; centred, the whole span |
 
 **A place is a point of the frame.** `Place` says which point a part's offsets count from, and
-each offset is whole pixels inward from the edge the word names:
+each offset is whole pixels inward from the edge the word names -- or, for `share`, ten-thousandths
+of the frame's width and height from its top-left:
 
 | word | `x` | `y` |
 |---|---|---|
@@ -81,9 +82,12 @@ each offset is whole pixels inward from the edge the word names:
 | `left`, `right` | from that edge | none: centred down |
 | `top-right`, `bottom-left`, `bottom-right` | from that corner's edge | from that corner's edge |
 | `center` | none | none |
+| `share` | ten-thousandths of the width, from the left | ten-thousandths of the height, from the top |
 
 A part standing at `right` has its own right edge `x` in from the frame's right edge. A centred axis
-carries no offset.
+carries no offset. A part at `share` with `y` 3333 stands a third of the way down at every size of
+the frame: its edge is the exact position floored to the step, as a share size's is, and each
+offset is clamped to the frame as a share's amount is (`place_reads_share`).
 
 **A number is present exactly where its word reads it.** Each number is a Loom optional field
 (`std::optional`): `amount` on `pixels` and `share`, `x` and `y` where the place reads them, `gap`

@@ -34,13 +34,13 @@ LAW — Absent intent has one spelling: a `default` mode carrying a number is re
 MEANS
 - a place's and a size's fields are required, so omitting one spells nothing;
 - a file's `right-column`, a centred axis, `fit` and `fill` read no number: one beside them is a second answer, a value a weaver could otherwise mean;
-- a share is 1 to 10000 ten-thousandths of the room, an offset 0 to 65536 pixels, a pixel extent a cell to 65536.
+- a share is 1 to 10000 ten-thousandths of the room, a share place's x and y 0 to 10000, an offset 0 to 65536 pixels, a pixel extent a cell to 65536.
 
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-04 — A mode is a word from a closed set
 
-LAW — A place's word is one of ui's ten and a size's one of its five, both lists spelled by one table; an unrecognised word refuses the whole candidate, naming what it found and what would have worked.
+LAW — A place's word is one of `ui::kPlaceWords` and a size's one of `ui::kSizeWords`, spelled by one table; an unrecognised word refuses the whole candidate, naming what it found and what would have worked.
 
 MEANS
 - the in-memory numbers are arbitrary: a renumber would silently change every saved arrangement;
