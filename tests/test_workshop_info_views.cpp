@@ -699,7 +699,7 @@ TEST_CASE("info views: pause, hide and close end the watch and its lease; nothin
     // HIDDEN: the desk closes the pane; the watch ends, the draft stays.
     s.button(a, "Watch");
     REQUIRE(s.r.w->observation_leases() == 1);
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(info::kInfoPaneRole), info::kInfoPaneRole, kWorkshopProvider,
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(info::kInfoPaneRole), info::kInfoPaneRole, kLayoutsRole,
         loom::Message(loom::to_value(PaneCloseRequested{info::kInfoPaneRole, "info.2"})));
     s.r.bus.drain_until_idle();
     CHECK_FALSE(s.r.session().panes.has(a));

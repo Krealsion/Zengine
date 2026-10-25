@@ -33,7 +33,8 @@ Source: [`workshop/pane_vocabulary.hpp`](../pane_vocabulary.hpp) ·
 > A weave may provide a tool; a **pane** is its presentation.
 
 The **Pane Manager** — the desktop's pane, `Ctrl`+`p` — lists the one inventory Workshop says
-out loud and opens or closes a pane through the host's two doors. A pane that is not in the
+out loud and opens a pane through Workshop's launch door, or closes one through the layouts'
+close door. A pane that is not in the
 catalog cannot be opened by any gesture at all, and the catalog has **two halves**: a
 compile-time constant array of Workshop's own, and a bounded **session-local runtime catalog**
 of panes some office actually offered this run (see
@@ -83,11 +84,12 @@ hosting no tools at all opens it and it works.
 **Presence is the desk's, and two doors change it** (`workshop/desktop_seam_vocabulary.hpp`):
 
 ```text
-PaneLaunchRequested{office, pane}  ->  open it, or focus it if it is open   (never toggles)
-PaneCloseRequested{office, pane}   ->  take its row off the live desk       (unloads nothing)
+PaneLaunchRequested{office, pane}  ->  Workshop: open it, or focus it if it is open   (never toggles)
+PaneCloseRequested{office, pane}   ->  zengine.layouts: take its row off the live layout (unloads nothing)
 ```
 
-Only an office may ask either, and each is answered to the asker. The shipped desktop's Pane
+Only an office may ask either, and each is answered to the asker; a close's answer names the
+settings and locks its row took. The shipped desktop's Pane
 Manager spends them on `Enter` and `x`, over the one inventory Workshop publishes
 (`PaneInventory`), with each row's state beside its name — `[open]`, closed, `[load]`
 (still to come: the run has not settled the plan row that loads it), `[gone]` —

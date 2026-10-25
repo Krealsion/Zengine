@@ -187,9 +187,9 @@ Shows the chosen pane, or focuses it and brings it to the front when it is alrea
 Hides the chosen pane: it leaves the desk, and the weave behind it keeps running with what it holds.
 
 - **Takes:** the pane your marker holds. Default key <!-- key launcher.close -->`x`<!-- /key -->.
-- **Answers:** asks Workshop to take it off the desk
-  ([`PaneCloseRequested`](zengine.workshop.md#panecloserequested)); its mark becomes `[    ]`.
-- **Refuses:** `x hid nothing -- choose a row first`; Workshop's refusal, as `<name> is not on this
+- **Answers:** asks the layouts to take its row off the desk
+  ([`PaneCloseRequested`](zengine.layouts.md#panecloserequested)); its mark becomes `[    ]`.
+- **Refuses:** `x hid nothing -- choose a row first`; the layouts' refusal, as `<name> is not on this
   desk -- nothing to hide, and a hide shows nothing`.
 - **Example:** choose `Info`, press <!-- key launcher.close -->`x`<!-- /key -->.
 
@@ -354,8 +354,8 @@ The last lines.
 Closes the Manual; its words go with it.
 
 - **Takes:** the Manual. Default key <!-- key manual.close -->`escape`<!-- /key -->.
-- **Answers:** asks Workshop to take the Manual off the desk
-  ([`PaneCloseRequested`](zengine.workshop.md#panecloserequested)). Nothing keeps a pane's manual
+- **Answers:** asks the layouts to take the Manual off the desk
+  ([`PaneCloseRequested`](zengine.layouts.md#panecloserequested)). Nothing keeps a pane's manual
   once the Manual has left the desk.
 - **Refuses:** nothing.
 - **Example:** <!-- key manual.close -->`escape`<!-- /key -->.

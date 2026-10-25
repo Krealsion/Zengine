@@ -2409,11 +2409,11 @@ struct SeatState {
     ZEN_SHAPE(SeatState, 1, ZEN_FIELD(said));
 };
 
-/// A PARTY THAT PUTS A PANE ON THE DESK, OR TAKES ONE OFF, THROUGH THE HOST'S TWO DOORS
-/// (`PaneLaunchRequested`, `PaneCloseRequested`) -- what the desktop's Pane Manager does, for the
-/// many cases that need a pane open or closed and are not about who asked or with which key. It
-/// holds an office of its own, because the doors answer an office and only an office; the cases
-/// about the Pane Manager itself drive the shipped desktop image.
+/// A PARTY THAT PUTS A PANE ON THE DESK, OR TAKES ONE OFF, THROUGH THE TWO DOORS -- the host's
+/// `PaneLaunchRequested` and the layouts' owner's `PaneCloseRequested` -- what the desktop's Pane
+/// Manager does, for the many cases that need a pane open or closed and are not about who asked or
+/// with which key. It holds an office of its own, because the doors answer an office and only an
+/// office; the cases about the Pane Manager itself drive the shipped desktop image.
 class DoorHand
     : public loom::WeaveBase<DoorHand, SeatState,
                              loom::Accept<PaneLaunchAnswered, PaneCloseAnswered,
@@ -2452,7 +2452,7 @@ inline DoorHand& door_hand(Rig& t) {
         grant.allow_to_role(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version,
                             kWorkshopProvider);
         grant.allow_to_role(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version,
-                            kWorkshopProvider);
+                            kLayoutsRole);
         grant.allow_to_role(PaneToggleRequested::zen_name, PaneToggleRequested::zen_version,
                             kWorkshopProvider);
         grant.allow_to_role(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version,
@@ -2488,14 +2488,14 @@ inline PaneLaunchAnswered hand_launch(Rig& t, const PaneRef& ref) {
     return h.launched.back();
 }
 
-/// ...AND TO TAKE IT OFF THE DESK, UNLOADING NOTHING.
+/// ...AND TO TAKE IT OFF THE DESK, UNLOADING NOTHING: asked of the layouts' owner.
 template <class Rig>
 inline PaneCloseAnswered hand_close(Rig& t, const PaneRef& ref) {
     DoorHand& h = door_hand(t);
     const std::size_t before = h.closed.size();
     h.next = [ref](DoorHand&, loom::Mail& m) {
         (void)m.as_role(DoorHand::kOffice)
-            .send_to_role(kWorkshopProvider, PaneCloseRequested{ref.provider, ref.pane});
+            .send_to_role(kLayoutsRole, PaneCloseRequested{ref.provider, ref.pane});
     };
     (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                               loom::WeaveId{}, 0));
@@ -2722,7 +2722,7 @@ inline void enqueue_close(Rig& t, const PaneRef& ref) {
     // ROLE-ADDRESSED, as the hand's grant is: a send to the weave's id would be refused at
     // delivery, silently to this case.
     const loom::Ticket queued = t.bus.office_send_to_role_as(
-        t.hand_id, DoorHand::kOffice, kWorkshopProvider,
+        t.hand_id, DoorHand::kOffice, kLayoutsRole,
         loom::Message(loom::to_value(PaneCloseRequested{ref.provider, ref.pane}), t.hand_id,
                       t.hand_id, 0));
     REQUIRE(queued.valid());
@@ -5091,7 +5091,7 @@ public:
     }
     void close(loom::Mail& mail, const std::string& office, const std::string& pane) {
         (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, PaneCloseRequested{office, pane});
+            .send_to_role(kLayoutsRole, PaneCloseRequested{office, pane});
     }
     /// A DESELECT ANSWER THAT ECHOES A NUMBER OF ITS OWN CHOOSING -- for the cases about an
     /// answer to an ask that is over, and about one that echoes nothing at all.
@@ -5181,7 +5181,7 @@ inline DesktopSeat* mount_desktop(Rig& t, AppActions rows = shipped_app_actions(
     grant.allow_to_role(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version,
                         kWorkshopProvider);
     grant.allow_to_role(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version,
-                        kWorkshopProvider);
+                        kLayoutsRole);
     const loom::WeaveId id =
         t.bus.register_weave(std::move(seat), std::move(grant), std::string(kDesktopRole));
     raw->zen_set_self(id);

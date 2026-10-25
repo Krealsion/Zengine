@@ -414,8 +414,8 @@ public:
     }
 
     /// ...AND WHAT A CLOSE CAME TO, on the same terms: the latest close this image asked for, and
-    /// the host's refusal as the notice. A close that happened needs no sentence here -- the row's
-    /// own mark moves to `[    ]` when the inventory is said again.
+    /// the layouts' owner's refusal as the notice. A close that happened needs no sentence here --
+    /// the row's own mark moves to `[    ]` when the inventory is said again.
     void on(const PaneCloseAnswered& answer, loom::Mail& mail) {
         if (!mail.answers_ask() || mail.correlation() != launches_) {
             return;
