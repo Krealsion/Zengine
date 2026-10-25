@@ -475,19 +475,26 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   `kept`, which an editor's tab strip spells for itself), whether it is among the pane's default
   pins (`kMaxDefaultPins` at most), and a one-line `summary` -- and at most `kMaxDeclaredTags`
   distinct tags between them. The layouts' owner judges these by form and never acts on them.
-- **Workshop hands a seated pane its row's settings** (`PaneSettings`) when the office's holder
-  accepts the shape, declared or not: before any room it grants the pane -- at the top of every
-  repaint, and before the rooms a managed opening seats it in -- so the first picture is drawn
-  with them, and again whenever they differ from what that holder last heard. A pane passes over
-  keys it did not declare, and says so where a setting shows when it cannot use the value it was
-  handed. A pane a managed opening seats shows the picture it prepared before the seat; its
-  settings reach it before its rooms, and its next picture has them. A holder that accepts
+- **The layouts' owner hands a seated pane its row's settings** (`PaneSettings`) when the office's
+  holder accepts the shape, declared or not, without the `workshop.` keys: when the pane asks for
+  them (`PaneSettingsAsked`, which a pane sends once in each life of the weave holding its office,
+  after the first message that life delivers), and again whenever they differ from what that holder
+  was last handed. A pane the live layout seats nowhere -- one a graphics window shows while
+  Workshop seats it nowhere -- is handed every setting at its default. **A pane draws no room
+  before it holds a row**: its room comes from the window that shows its area and its row from the
+  layouts' owner, in no order Loom promises, so it holds what the room gave and draws its first
+  picture once the row has come. A pane passes over keys it did not declare, and says so where a
+  setting shows when it cannot use the value it was handed. A pane a managed opening seats shows
+  the picture it prepared before the seat; its next picture has its row. A holder that accepts
   version 2 (`v2::PaneSettings`) is handed the row's **revision** with them: a number minted
   afresh whenever the desk put live, the row's settings, the counted declaration or the office's
   holder moved, so a holder is handed again at each new one. A pane that cannot use a value says
-  so back, `PaneSettingUnused` naming the revision it was handed, and Workshop keeps it with the
-  row until a later revision is handed. A pane in this tree takes a hand-off whole through
-  `take_pane_settings` (`workshop/pane_settings_taken.hpp`), which says each value it cannot use.
+  so back to the layouts' owner, `PaneSettingUnused` naming the revision it was handed, and the
+  owner keeps it with the row until a later revision is handed or the pane asks again; a reading
+  of the row says it, and so does Attention. A pane takes its row through the settings facet,
+  `PaneSettingsFacet` (`workshop/pane_settings_taken.hpp`, installed): it asks, takes a row from
+  the layouts' owner alone and whole against the pane's `setting_rows()`, says each value it cannot
+  use, and calls the pane's `on_settings(taken, mail)`; its `held()` says whether the pane may draw.
 - **A row is read and written by message** (`workshop/settings_seam_vocabulary.hpp`):
   `PaneSettingsRequested` answers the live layout's row for one pane -- its revision, the counted
   declaration, what it keeps, its pins and the band's sentence -- and `PaneSettingCommitRequested`
@@ -756,6 +763,15 @@ of the weave; a member the facet calls only when present is optional.
   or unmatched one settles nothing. A full table refuses the new ask (`Asked::kFull`), a send that
   queued nothing is never held (`Asked::kUnqueued`), and the weave says either in its own words.
   The table is the image's alone: a reloaded pane asked nothing, so no earlier answer settles it.
+- **`PaneSettingsFacet<Pane, Office>`: the pane's row.**
+  ([`workshop/pane_settings_taken.hpp`](../pane_settings_taken.hpp)) Once in each life, after the
+  first message the life delivers, it asks the layouts' owner for `Pane`'s row as `Office`
+  (`PaneSettingsAsked`), and again after a delivery whose ask queued nothing. A `v2::PaneSettings`
+  authored by `zengine.layouts` for `Pane` is taken whole against the weave's static
+  `setting_rows()`, each value it cannot use said back (`PaneSettingUnused`), and handed to the
+  weave's `on_settings(taken, mail)`; any other office's is passed over. `held()` says whether the
+  life holds a row, and the weave draws no room until it does; the first row the life holds is the
+  weave's `on_settings_held(mail)` too, where it has one, to draw the room it drew nothing in.
 
 ## A pane's picture
 

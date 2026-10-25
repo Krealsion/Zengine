@@ -124,8 +124,11 @@ using zengine::workshop::pane_text::fit;
 
 using namespace zengine::neovim_editor::detail;
 
+/// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+using Settings = ws::PaneSettingsFacet<nve::kEditorPane, nve::kEditorOffice>;
+
 using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
-    nve::kEditorPane, zengine::manual::pages::zengine_editor::kManual>>::Weave<
+    nve::kEditorPane, zengine::manual::pages::zengine_editor::kManual>, Settings>::Weave<
     class NeovimEditorWeave, nve::NeovimEditorState,
     loom::Accept<loom::Activated, timer::TimerReady, timer::TimerFired, timer::TimerResolution,
                  PaneCatalogRequested, PaneKey, PaneTextInput, PaneActionRequested, PaneQuitRequested,
@@ -139,7 +142,7 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                  ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                  ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
                  graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
-                 graphics::AreaWheelTurned, graphics::AreaHoldEnded, ws::v2::PaneSettings>,
+                 graphics::AreaWheelTurned, graphics::AreaHoldEnded>,
     loom::Emit<PaneOffered, ws::v3::PaneActions,
                ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                PaneQuitAnswered, SourceOpened, ws::v3::SourcePrepared,
@@ -148,8 +151,7 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted, EditorLive,
                EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused,
                ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
-               graphics::Drawn, graphics::RoomAsked, ws::v2::PaneSettingsDeclared,
-               ws::PaneSettingUnused>,
+               graphics::Drawn, graphics::RoomAsked, ws::v2::PaneSettingsDeclared>,
     loom::WeaveBase, loom::Claims<EditorDocument>>;
 
 // WL-NVIM-01 -- agents/workshop/neovim.md
@@ -236,19 +238,14 @@ public:
         announce(mail);
     }
 
-    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
-    /// against the revision it was handed at. The profile is the next start's, never a running
-    /// Neovim's; the status row moves Neovim's screen at once. Held as plain members, never reload
-    /// state: a reloaded image is handed them again before its room.
-    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != nve::kEditorPane) {
-            return;
-        }
-        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
-        ws::say_settings_unused(mail, nve::kEditorOffice, taken);
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed them and its
+    /// facet took them whole. The profile is the next start's, never a running Neovim's; the status
+    /// row moves Neovim's screen at once. Held as plain members, never reload state: a reloaded
+    /// image asks for them again, and draws no room before it holds them.
+    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
         profile_ = taken.text(nve::kSettingProfile);
         status_shown_ = taken.flag(nve::kSettingStatus);
-        say(mail); // draws nothing until the area has a room, so the first drawing has them
+        say(mail);
     }
 
     /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
@@ -911,7 +908,8 @@ private:
     /// standing in its rows. Their fingerprint is kept, so a press or a drop can tell the screen it
     /// was aimed at from one that moved since (WL-NVIM-11).
     void say(loom::Mail& mail) {
-        if (!window_.in_window() || !activation_.activated()) {
+        if (!window_.in_window() || !activation_.activated() ||
+            !this->template facet<Settings>().held()) {
             return;
         }
         // NEOVIM'S SCREEN FITS UNDER THE ROWS DRAWN ABOVE IT NOW: a notice standing or going, or a

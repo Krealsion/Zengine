@@ -113,6 +113,8 @@ using pane::kWorkshopRole;
 /// the manual of any of the three, the whole page the weave's.
 using Office = ws::MultiPaneFacet<pane::kDesktopRole, pane::kLauncherPane,
                                   zengine::manual::pages::zengine_desktop::kManual>;
+/// Hotkeys' row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+using Settings = ws::PaneSettingsFacet<pane::kHotkeysPane, pane::kDesktopRole>;
 
 // (!) WHAT IT ACCEPTS, ITS OFFICE'S DOORS WITH IT, IS ITS RELOAD CONTRACT. A reload replaces this
 // weave only with an image accepting exactly these shapes (Loom's accepted-contract match), so
@@ -120,15 +122,14 @@ using Office = ws::MultiPaneFacet<pane::kDesktopRole, pane::kLauncherPane,
 // edit answer -- make an image built without them a relaunch from a runtime made from one build,
 // never a reload (workshop/docs/develop-workshop.md). Images that both accept them reload.
 class DesktopWeave
-    : public zengine::With<Office>::Weave<
+    : public zengine::With<Office, Settings>::Weave<
           DesktopWeave, pane::DesktopState,
           loom::Accept<ws::PaneShortcuts, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
                        PaneCloseAnswered, PaneToggleAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        PaneMenuAnswered, loom::DispatchRefused, gfx::ClipboardCopy,
-                       gfx::ClipboardText, ws::PaneDocumentShown, PaneSubjectActed,
-                       ws::v2::PaneSettings>,
+                       gfx::ClipboardText, ws::PaneDocumentShown, PaneSubjectActed>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, AppActions,
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
@@ -137,7 +138,7 @@ class DesktopWeave
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
                      ws::PaneEscapeUnspent, ws::PaneDocumentRequested,
                      gfx::ClipboardCopy, gfx::ClipboardTextRequested,
-                     ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>> {
+                     ws::v2::PaneSettingsDeclared>> {
 public:
     // ---- What its office calls --------------------------------------------------------------
 
@@ -160,7 +161,7 @@ public:
         declare_keys(mail);
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(ws::kLayoutsRole,
-                          ws::v2::PaneSettingsDeclared{pane::kHotkeysPane, hotkeys_settings()});
+                          ws::v2::PaneSettingsDeclared{pane::kHotkeysPane, setting_rows()});
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kManualPane, pane::kManualName,
                                                      pane::kManualSummary, 16, 72});
@@ -184,19 +185,26 @@ public:
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, KeymapRequested{});
     }
 
-    /// THE SETTINGS THIS LAYOUT KEEPS FOR HOTKEYS, taken whole: its `help`, a value it cannot use
-    /// said back against the revision it was handed at. The other two panes declare none, and pass
-    /// over what they are handed. Held by the pane, never reload state.
-    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kHotkeysPane) {
-            return;
-        }
-        const ws::SettingsTaken taken = ws::take_pane_settings(hotkeys_settings(), handed);
-        ws::say_settings_unused(mail, pane::kDesktopRole, taken);
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR HOTKEYS, as the layouts' owner handed them and its
+    /// facet took them whole: its `help`. The other two panes declare none, and are handed none.
+    /// Held by the pane, never reload state.
+    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
         if (hotkeys_.show_help(taken.flag(pane::kSettingHelp))) {
-            say_keys(mail); // draws nothing until a room is granted, so the first picture has it
+            say_keys(mail);
         }
     }
+
+    /// THE SETTING THE HOTKEYS PANE TAKES, with its default, how a weaver finds it and what it does.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow help;
+        help.key = pane::kSettingHelp;
+        help.flag = true;
+        help.tags = {"help", "chrome"};
+        help.pinned = true;
+        help.summary = "show the footer help lines";
+        return {help};
+    }
+
 
     // ---- Its panes in graphics windows (its office's `MultiPaneFacet` calls these) ------------
 
@@ -633,17 +641,6 @@ private:
     /// move its mode.
     pane::DeclareKeys keys_declarer() {
         return [this](loom::Mail& m) { declare_keys(m); };
-    }
-
-    /// THE SETTING THE HOTKEYS PANE TAKES, with its default, how a weaver finds it and what it does.
-    static std::vector<ws::v2::PaneSettingRow> hotkeys_settings() {
-        ws::v2::PaneSettingRow help;
-        help.key = pane::kSettingHelp;
-        help.flag = true;
-        help.tags = {"help", "chrome"};
-        help.pinned = true;
-        help.summary = "show the footer help lines";
-        return {help};
     }
 
     void declare_manual(loom::Mail& mail) {

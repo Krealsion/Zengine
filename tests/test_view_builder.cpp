@@ -416,7 +416,8 @@ public:
                 loom::schema_of<ws::PaneOperationRequested>(), loom::schema_of<ws::v2::PaneOperationRequested>(),
                 loom::schema_of<ws::PaneValueCarryRequested>(),
                 loom::schema_of<ws::PaneQuitAnswered>(), loom::schema_of<vb::ViewEdited>(),
-                loom::schema_of<ws::v2::PaneSettingsDeclared>(), loom::schema_of<ws::PaneSettingUnused>()};
+                loom::schema_of<ws::v2::PaneSettingsDeclared>(),
+                loom::schema_of<ws::PaneSettingsAsked>(), loom::schema_of<ws::PaneSettingUnused>()};
     }
     void handle(const loom::Message& in, loom::Bus& bus) override {
         if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>()) ||
@@ -471,13 +472,15 @@ struct Rig {
     loom::Kernel kernel{bus, loom::trust_every_artifact("the fixture loads one View Builder artifact")};
     view::Host views{bus};
     Desk* desk = nullptr;
-    Desk* owner = nullptr; ///< the layouts' owner's stand-in, which hears the pane's declarations
+    Desk* owner = nullptr; ///< the layouts' owner's stand-in, which hears what the pane says it
     pw::PaneDirectory* directory = nullptr; ///< the graphics directory, asked the area's room
     loom::WeaveId workshop{}, menus{}, pane{}, door{};
     zengine::maker::Registered tally;
     std::uint64_t correlation = 0;
     std::int64_t grant = 1;
     std::int64_t activation = 1;
+    std::int64_t handed = 0; ///< the revision the rig last handed the pane's row at
+    std::int64_t lives = 1;  ///< the builder's lives: one more each reload, each asking once
     /// THE WINDOW SHOWING THE BUILDER'S AREA, and the one a case reads and presses: this one, or
     /// another a case gave the area since.
     pw::Window window{bus, "desk"};
@@ -513,6 +516,7 @@ struct Rig {
         zengine::testing::order_activation(bus, door, pane, activation);
         pump();
         host(window_room(grant));
+        hand_row();
     }
     /// THE BUILDER'S IMAGE REPLACED IN PLACE, as a rebuilt weave is: its successor keeps what the
     /// predecessor held, is activated, and is given its room again.
@@ -524,6 +528,27 @@ struct Rig {
         zengine::testing::order_activation(bus, door, pane, ++activation);
         pump();
         host(window_room(++grant));
+        ++lives;
+        hand_row();
+    }
+    /// THE PANE'S ROW, AS THE LAYOUTS' OWNER HANDS IT ON THE PANE'S ASK: keeping nothing, so every
+    /// setting at its default. Each life asks once, after it arrives.
+    void hand_row() {
+        std::size_t asks = 0;
+        for (const auto& m : owner->heard) {
+            const bool asked =
+                loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneSettingsAsked>());
+            asks += asked && m.provenance.authored_role() == vb::kRole ? 1u : 0u;
+        }
+        REQUIRE(asks == static_cast<std::size_t>(lives));
+        layouts(ws::v2::PaneSettings{vb::kPane, ++handed, {}});
+    }
+    /// ...or any row, sent as the layouts' owner sends one.
+    void layouts(const ws::v2::PaneSettings& row) {
+        REQUIRE(bus.office_send_to_role_as(owner->self, ws::kLayoutsRole, vb::kRole,
+                                           loom::Message(loom::to_value(row), owner->self, {}, 0))
+                    .valid());
+        pump();
     }
     /// What the builder keeps across a reload, read from its snapshot.
     vb::ViewBuilderState state() {
@@ -1012,7 +1037,7 @@ TEST_CASE("the View Builder declares its snap reach and a new view's size as set
     Rig rig;
     const auto said = [&rig]<class Shape>(Shape) {
         std::vector<Shape> out;
-        for (const auto& m : rig.desk->heard)
+        for (const auto& m : rig.owner->heard)
             if (loom::same_identity(m.payload.schema(), *loom::schema_of<Shape>()) &&
                 m.provenance.authored_role() == vb::kRole)
                 out.push_back(loom::from_value<Shape>(m.payload));
@@ -1042,8 +1067,8 @@ TEST_CASE("the View Builder declares its snap reach and a new view's size as set
               pixels(vb::kSettingNewHeight, vb::kNewViewHeight, view::kMinHeightPx,
                      "initial height in pixels of a new view")});
 
-    // A LAYOUT'S VALUES, HANDED AS WORKSHOP HANDS THEM: no reach, and a larger new view.
-    rig.host(ws::v2::PaneSettings{vb::kPane, 1,
+    // A LAYOUT'S VALUES, HANDED AS THE LAYOUTS' OWNER HANDS THEM: no reach, and a larger new view.
+    rig.layouts(ws::v2::PaneSettings{vb::kPane, 11,
                                   {ws::PaneSetting{vb::kSettingNewHeight, {}, 300, {}},
                                    ws::PaneSetting{vb::kSettingNewWidth, {}, 600, {}},
                                    ws::PaneSetting{vb::kSettingSnapReach, {}, 0, {}}}});
@@ -1061,7 +1086,7 @@ TEST_CASE("the View Builder declares its snap reach and a new view's size as set
 
     // A HAND-OFF THAT KEEPS NOTHING IS EVERY SETTING AT ITS DEFAULT: the reach snaps again, and
     // `new` makes today's size.
-    rig.host(ws::v2::PaneSettings{vb::kPane, 2, {}});
+    rig.layouts(ws::v2::PaneSettings{vb::kPane, 12, {}});
     std::tie(x, y) = rig.middle(rig.now().elements[0]);
     rig.pointer(ws::canvas_pointer::kPress, x, y, 8);
     rig.pointer(ws::canvas_pointer::kMove, x, y - 5, 8);
@@ -1073,12 +1098,12 @@ TEST_CASE("the View Builder declares its snap reach and a new view's size as set
 
     // A REACH PAST A CELL leaves the default, said against the revision it was handed at; a key the
     // pane does not declare is passed over.
-    rig.host(ws::v2::PaneSettings{vb::kPane, 3,
+    rig.layouts(ws::v2::PaneSettings{vb::kPane, 13,
                                   {ws::PaneSetting{vb::kSettingSnapReach, {}, vb::kMostSnapReach + 1, {}},
                                    ws::PaneSetting{"zoom", true, {}, {}}}});
     const auto unused = said(ws::PaneSettingUnused{});
     REQUIRE(unused.size() == 1);
-    CHECK(unused[0].revision == 3);
+    CHECK(unused[0].revision == 13);
     CHECK(unused[0].key == vb::kSettingSnapReach);
     CHECK(unused[0].why == "it takes a whole number from 0 to " + std::to_string(vb::kMostSnapReach));
     REQUIRE(rig.edit("new", {"third.view", "discard"}).ok);

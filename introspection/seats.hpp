@@ -331,9 +331,13 @@ public:
         return declared;
     }
 
-    /// THE LAYOUT'S CHROME WIDTHS: its row is said again where it shows, since its controls move.
+    /// THE LAYOUT'S CHROME WIDTHS, as the pane's row was handed: its row is said again where it
+    /// shows, since its controls move. Until the first row is held the pane draws nothing; that
+    /// row draws what the room has.
     void take_widths(const ChromeWidths& widths, loom::Mail& mail) {
-        if (widths == ui_.widths) {
+        const bool first = !held_;
+        held_ = true;
+        if (widths == ui_.widths && !first) {
             return;
         }
         ui_.widths = widths;
@@ -673,7 +677,7 @@ private:
     /// reconciled first against the capacity the chrome row cuts the query with. Silent with no
     /// room in force, or between a grant and its answer.
     void say_powers(loom::Mail& mail) {
-        if (!ui_.read || rows() <= 0 || columns() <= 0) {
+        if (!held_ || !ui_.read || rows() <= 0 || columns() <= 0) {
             return;
         }
         ui_.query.keep_caret_visible(query_capacity(ui_, columns()));
@@ -783,6 +787,8 @@ private:
     };
 
     PowersUi ui_;
+    /// Whether this life holds its row: until it does, Powers draws no room.
+    bool held_ = false;
     /// What Powers shows and what its places mean: presentation, emptied at every grant.
     PowersView shown_;
     /// Fractional wheel notches not yet worth a row; transient like the cursor.

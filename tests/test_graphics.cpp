@@ -12,6 +12,7 @@
 #include "doctest.h"
 
 #include "graphics_rig.hpp"
+#include "layouts_stand_in.hpp"
 #include "lifecycle_door.hpp"
 #include "office_manual.hpp"
 #include "window_backends.hpp"
@@ -3671,7 +3672,6 @@ class WorkshopSpeaker
 class DoorSpeaker
     : public loom::WeaveBase<DoorSpeaker, GraphicsTestOwner, loom::Accept<>,
                              loom::Emit<ws::v3::GuestConnections>> {};
-
 template <class W>
 loom::WeaveId mount_as(Rig& r, const std::string& office) {
     auto w = std::make_unique<W>();
@@ -3716,8 +3716,11 @@ ws::StandingCondition condition(const char* key, const char* compact, const char
 /// area placed for its office, and the host's office the suite speaks as.
 struct AttentionWindow : TypedWindow {
     loom::WeaveId workshop;
-    AttentionWindow() {
+    zengine::testing::LayoutsStandIn* layouts = nullptr;
+    /// `held`: the layouts' office keeps the pane's ask unanswered until a case releases it.
+    explicit AttentionWindow(bool held = false) {
         workshop = mount_as<WorkshopSpeaker>(r, "zengine.workshop");
+        layouts = zengine::testing::mount_layouts_stand_in(r.bus, held);
         REQUIRE(r.load(apane::kAttentionPaneStem, ATTENTION_PANE_SO, apane::kAttentionPaneRole)
                     .valid());
         place_pane(r, apane::kAttentionPaneRole, apane::kAttentionPane);
@@ -3889,6 +3892,35 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
     CHECK(put_paths(drawn[0]) == Paths{"room", "words"});
     CHECK(r.read<gfx::DrawnRefused>(mark, window_office()).empty());
     CHECK(row_says(r.shown().rows, 0, "turn 2"));
+}
+
+/// AN OFFICE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
+class RowForger
+    : public loom::WeaveBase<RowForger, GraphicsTestOwner, loom::Accept<>,
+                             loom::Emit<ws::v2::PaneSettings>> {};
+
+TEST_CASE("the Attention pane draws nothing in its room before it holds its row, takes a row from "
+          "the layouts' owner alone, and draws whole once it holds one") {
+    // ⚔ MUTATION: a pane that draws its room before it holds a row -- the room alone draws it.
+    AttentionWindow a(/*held=*/true);
+    REQUIRE(a.layouts != nullptr);
+    CHECK(a.layouts->asks == 1); // it asked once, as it arrived
+    CHECK(a.drawn(0).empty());
+    // ...A ROW ANOTHER OFFICE HANDS IS NOT ITS ROW, and draws nothing either.
+    // ⚔ MUTATION: a pane that takes a row from any office.
+    const loom::WeaveId forger = mount_as<RowForger>(a.r, "test.forger");
+    a.r.bus.office_send_to_role_as(
+        forger, "test.forger", apane::kAttentionPaneRole,
+        loom::Message(loom::to_value(ws::v2::PaneSettings{apane::kAttentionPane, 9, {}})));
+    a.r.drain();
+    CHECK(a.drawn(0).empty());
+    // ...AND THE OWNER'S ROW DRAWS THE ROOM IT ALREADY HAD, whole.
+    a.layouts->release(a.r.bus);
+    a.r.drain();
+    const std::vector<gfx::Drawn> drawn = a.drawn(0);
+    REQUIRE(drawn.size() == 1);
+    CHECK(drawn[0].whole);
+    CHECK(a.layouts->asks == 1);
 }
 
 TEST_CASE("the Attention pane draws in a graphics window: whole on its room, then only what "

@@ -60,7 +60,7 @@ WHY — `agents/decisions/the-record-is-read-through-a-view.md`
 LAW — The Terminal declares `legend`, pinned and on; `wheel-rows`, `kWheelRowsLow` to `kWheelRowsHigh`, `kWheelRows`; `prompt`, one of `kPromptMarks`, `kPrompt`; a value it cannot use keeps the default.
 
 MEANS
-- it takes what it is handed whole, in plain members, so a reload is handed it again; an unusable value is said to Workshop, the legend's on its row too;
+- it takes what the layouts' owner hands it whole, in plain members, so a reload asks for it again; an unusable value is said to the owner, the legend's on its row too;
 - the legend row is its part `legend`, there while it shows and gone while it does not;
 - every row below it moves when it shows or hides, so no press aimed at the last picture lands.
 
@@ -117,13 +117,13 @@ its bottom" "when the entry being read is evicted the view moves to the oldest k
 composing"
 
 ### WL-TERM-19
-`terminal/pane.cpp` on(ws::v2::PaneSettings) setting_rows offered legend_shown_ legend_problem_
+`terminal/pane.cpp` on_settings setting_rows offered legend_shown_ legend_problem_
 wheel_rows_ prompt_ wheel named_rows kWheelRows kWheelRowsLow kWheelRowsHigh kPrompt kPromptMarks
 `terminal/view.hpp` say
 `terminal/vocabulary.hpp` kSettingLegend kSettingWheelRows kSettingPrompt
 `tests/test_workshop_panes_legend.cpp` "a layout keeps the Terminal's legend hidden while another
-shows it, written through Info's rows" "a Terminal seated again is handed its layout's legend before
-its room, and its first picture keeps it" "after a restart the Terminal's first picture keeps its
+shows it, written through Info's rows" "a Terminal seated again holds its layout's legend before its
+first picture, and that picture keeps it" "after a restart the Terminal's first picture keeps its
 layout's legend, and so does a reload's" "a legend value the Terminal cannot use is kept as stored,
 and said in its legend row" "a Terminal closed in a layout that hid its legend shows it again when
 it is shown" "a press aimed at the Terminal's picture from before its legend hid is refused"

@@ -2,8 +2,8 @@
 
 Register `WL-SETTING`: a setting's value and its kinds, the settings a layout's row keeps, a
 pane's declaration and the hand-off of its row's settings, the row read and written by message, an
-office's office-wide settings, Workshop's settings file, and a pane's pin list -- every door the
-layouts' owner's, `zengine.layouts`. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
+office's office-wide settings, Workshop's settings file, and a pane's pin list -- every door and
+every hand-off the layouts' owner's, `zengine.layouts`. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-SETTING-01 — A setting is a key and one value of three kinds
 
@@ -45,16 +45,17 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
-## WL-SETTING-04 — A seated pane is handed its row's settings before any room
+## WL-SETTING-04 — The layouts' owner hands a pane its row, and the pane draws no room before it holds one
 
-LAW — A seated pane whose holder takes `PaneSettings`, declared or not, is handed its row's settings in the newest version it takes, before any room, when they or its revision differ from what it last heard.
+LAW — The layouts' owner hands a pane whose holder takes `PaneSettings` its row in the newest version it takes, when it asks and when what it holds would differ; a pane draws no room before it holds one.
 
 MEANS
-- a seat, a switch, a re-offer, a re-seat, a managed opening and a new holder each hand them when what is kept moved;
-- never handed is not handed none: a reopened row's empty list is handed too; a `workshop.` key is never handed;
+- a pane asks once in each life, after that life's first message (`PaneSettingsAsked`); a seat, a switch, a re-seat, a managed opening and a new holder each hand the row when what is kept moved;
+- never handed is not handed none: a reopened row's empty list is handed too, and a pane the live layout seats nowhere is handed every default at revision 0; a `workshop.` key is never handed;
 - a holder without the door is handed nothing; equal settings across a switch hand a v1 holder nothing and a v2 holder its new revision.
 
 DOES NOT MEAN
+- that a room and a row arrive in an order: they come from two senders, so a pane takes a row from the layouts' owner alone (`PaneSettingsFacet`) and draws once it holds one;
 - that a managed opening's shown picture has them: it was prepared before the seat (WL-OPEN-10).
 
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
@@ -66,7 +67,7 @@ LAW — Info shows a row per declared setting and kept key, read of the layouts'
 MEANS
 - a text is stored as typed, spaces and all; a row reads a value as typed, and one its setting does not take beside the default in effect;
 - a kept key takes only `-`; the rows are read again when the row's revision moves, and a commit names the revision read;
-- the band says the value was stored and handed, or why it was not handed.
+- the band and the row's reading say the value was stored and handed, or why it was not, as the layouts' owner says it.
 
 DOES NOT MEAN
 - that the desk acts on a value: it judges and keeps it, and what it means is the pane's;
@@ -100,11 +101,12 @@ WHY — `agents/decisions/a-settings-write-names-the-revision-it-read.md`
 
 ## WL-SETTING-08 — A pane says a setting it was handed and cannot use, against that revision
 
-LAW — A holder's `PaneSettingUnused` is kept only for the revision it holds, one a key and at most `kMaxPaneSettingsPerRow`, said with the row and on Attention, until a later revision or a re-offer.
+LAW — The layouts' owner keeps a holder's `PaneSettingUnused` for the revision it was handed alone, one a key, at most `kMaxPaneSettingsPerRow`, said with the row and on Attention until it moves.
 
 MEANS
-- one naming another revision, a desk no longer live included, or said personally, is dropped;
-- a key or a reason it cannot have meant is refused aloud, and nothing is kept.
+- one naming another revision, a desk no longer live included, from another holder, or said personally, is dropped;
+- a key or a reason it cannot have meant is refused aloud, and nothing is kept;
+- Attention reads it from the owner's `LiveLayout`, which says what each live row's pane cannot use.
 
 WHY — `agents/decisions/a-settings-write-names-the-revision-it-read.md`
 
@@ -172,7 +174,8 @@ MEANS
 - a commit of any of them, and a directory placed with afresh, say the skins the areas wear now.
 
 DOES NOT MEAN
-- that the pane hears its skin: the row's `workshop.skin` is Workshop's, and is never handed to the pane.
+- that the pane hears its skin: the row's `workshop.skin` is Workshop's, and is never handed to the pane;
+- that Workshop holds a pane's own settings: its copy of the live layout keeps a row's `workshop.` keys alone.
 
 WHY — `agents/decisions/office-wide-settings-live-in-workshops-settings-file.md`
 
@@ -218,29 +221,35 @@ predecessor's settings"
 declares, and an identical declaration keeps a draft"
 
 ### WL-SETTING-04
-`workshop/weave_external.cpp` hand_settings
-`workshop/weave_managed.cpp` after_delivery
-`workshop/panes.hpp` ExternalPane::settings_heard ExternalPane::settings_revision
-`workshop/weave_seam.cpp` accept_pane_offer
-`workshop/grant.cpp` workshop_grant
-`workshop/pane_settings.hpp` PaneSettings pane_held_settings
+`workshop/layouts/store.cpp` pane_hand_offs pane_handed pane_asked taker_of live_layout
+`workshop/layouts/owner.cpp` hand_rows settle on(PaneSettingsAsked) layouts_grant
+`workshop/pane_settings.hpp` PaneSettings PaneSettingsAsked pane_held_settings
+`workshop/pane_settings_taken.hpp` PaneSettingsFacet take_pane_settings SettingsTaken
 `tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
-area: taken on every row, kept as written, shown in Info, and never handed to the pane"
-"a pane's settings are handed before its first room,
-whether or not it declared" "a holder that takes no settings is handed none" "a layout switch hands
-a pane its new layout's settings once, and only when they differ" "a re-offer and a reopened row are
-handed their settings again, before their room" "a declaration counts only while the weave that sent
-it holds the office" "a holder that takes v2 is handed its row's revision, moved by a write and by a
-desk put live"
-`tests/test_workshop_panes_opening.cpp` "a managed opening hands its pane's settings before the room
-it seats it in" "a managed opening's owed rooms follow its pane's settings when the next delivery
-repaints nothing"
+area: taken on every row, kept as written, shown in Info, and never handed to the pane" "the
+layouts' owner hands a seated pane its row's settings, whether or not it declared" "a holder that
+takes no settings is handed none" "a layout switch hands a pane its new layout's settings once, and
+only when they differ" "a pane that asks for its row and a reopened row are handed their settings
+again" "a declaration counts only while the weave that sent it holds the office" "a holder that
+takes v2 is handed its row's revision, moved by a write and by a desk put live"
+`tests/test_workshop_panes_legend.cpp` "after a restart the Terminal's first picture keeps its
+layout's legend, and so does a reload's"
+`tests/test_workshop_panes_terminal.cpp` "the Terminal draws nothing in a window's room before it holds
+its row, takes a row from the layouts' owner alone, and draws whole once it holds one"
+`tests/test_graphics.cpp` "the Attention pane draws nothing in its room before it holds its row, takes
+a row from the layouts' owner alone, and draws whole once it holds one"
+`tests/test_shapes_census.cpp` "every weave that takes a pane's row asks the layouts' owner for it,
+and none hands one"
+`tests/test_workshop_panes_opening.cpp` "a pane a managed opening seats is handed its row by the
+layouts' owner" "a managed opening's owed rooms go out when the next delivery repaints nothing, and
+its row is handed"
 
 ### WL-SETTING-05
 `workshop/setup.hpp` author_pane_setting
 `workshop/pane_settings.hpp` row_setting_absence
-`workshop/weave_inspection.cpp` settings_handed refresh_inspected
+`workshop/layouts/store.cpp` handed_fact
 `info/settings_rows.hpp` value_text rows_of Typed
+`info/property_view.hpp` merge
 `tests/test_workshop_panes_settings.cpp` "a pane's settings are rows of its subject, named by their
 keys, after RESOLVED" "a value a setting does not take is refused at the edit, naming what it takes"
 "a setting typed at its default is stored as its absence, and `-` clears one" "a settings write says
@@ -261,8 +270,6 @@ publication" "a layout renamed while an opening prepares keeps its name through 
 ### WL-SETTING-07
 `workshop/settings_seam_vocabulary.hpp` PaneSettingsRequested PaneSettingsAnswered
 PaneSettingCommitRequested PaneSettingCommitAnswered SettingLockShown
-`workshop/weave_inspection.cpp` settings_handed
-`workshop/weave_seam.cpp` settings_revision
 `workshop/layouts/owner.cpp` on(PaneSettingsRequested) on(PaneSettingCommitRequested)
 `workshop/layouts/store.cpp` row_revision read_pane commit_pane
 `tests/test_workshop_panes_settings.cpp` "a pane's row is read by message: its revision, what its
@@ -274,13 +281,14 @@ clear takes back what the row keeps, declared or not, and clearing nothing chang
 them: the wheel reads its rows a notch and the line wears its prompt"
 
 ### WL-SETTING-08
-`workshop/settings_seam_vocabulary.hpp` PaneSettingUnused
-`workshop/weave_inspection.cpp` on(PaneSettingUnused) settings_handed
-`workshop/panes.hpp` ExternalPane::settings_unused
-`workshop/weave_external.cpp` hand_settings
+`workshop/pane_settings.hpp` PaneSettingUnused
+`workshop/layouts/store.cpp` keep_unused unused_of pane_handed
+`workshop/layouts/owner.cpp` on(PaneSettingUnused)
+`workshop/layouts/vocabulary.hpp` RowSettingUnused LiveLayout::unused
+`workshop/live_desk.hpp` LiveDesk::unused
 `workshop/screen_attention.cpp` attention_conditions pane_setting_unused_key
 `tests/test_workshop_panes_settings.cpp` "a pane's word that it cannot use a setting is kept against
-its revision, said, and goes when a newer one is handed"
+its revision by the layouts' owner, said, and goes when a newer one is handed"
 
 ### WL-SETTING-09
 `workshop/weave.hpp` let_terminal_edit_settings layouts_owner_host
@@ -306,7 +314,6 @@ kMaxOfficeSettings kMaxOfficeSettingsKept
 on(OfficeSettingCommitRequested) declare_own_settings on(OfficeSettings)
 `workshop/prefs_persist.hpp` workshop_office_rows put_office_value put_workshop_value
 presentation_of Presentation
-`workshop/weave_external.cpp` hand_settings
 `workshop/layouts/owner.cpp` on(OfficeSettingsDeclared) on(OfficeSettingsRequested)
 on(OfficeSettingCommitRequested)
 `workshop/layouts/store.cpp` office_rows declare_office office_revision office_hand_offs read_office

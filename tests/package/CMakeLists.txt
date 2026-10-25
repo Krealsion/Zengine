@@ -47,11 +47,13 @@ target_link_libraries(witness-graphics PRIVATE zengine::graphics)
 add_executable(witness-pane-menu pane_menu_consumer.cpp)
 target_link_libraries(witness-pane-menu PRIVATE zengine::pane zengine::component loom::switchboard)
 
-# ---- a stranger's pane declares its settings and reads what it is handed, live ------------
-# pane_settings_consumer.cpp declares through the installed judge and reads a hand-off from a
-# stand-in host, from `zengine::pane` and the Loom bus alone, out of tree.
+# ---- a stranger's pane declares its settings and takes its row, live ----------------------
+# pane_settings_consumer.cpp declares through the installed judge, asks a stand-in layouts' office
+# for its row on the installed settings facet and reads what it is handed, from `zengine::pane`,
+# `zengine::activation` and the Loom bus alone, out of tree.
 add_executable(witness-pane-settings pane_settings_consumer.cpp)
-target_link_libraries(witness-pane-settings PRIVATE zengine::pane loom::switchboard)
+target_link_libraries(witness-pane-settings
+    PRIVATE zengine::pane zengine::activation loom::switchboard)
 
 # ---- a stranger's pane draws in a window, live --------------------------------------------
 # pane_window_consumer.cpp builds a pane on the installed rows facet, whose rows go to a stand-in

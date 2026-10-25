@@ -6,8 +6,9 @@
 
 // The layouts' store, as a value: every layout of the run and what each keeps, every office's
 // office-wide settings, the locks and the pins; what each pane and office declares it takes; the
-// revisions every reading stands at; and the files all of it is kept in: their one writer and
-// judge. What an ask said and moved is taken after it (`take_effects`), for the holder to say.
+// revisions every reading stands at; what each pane was handed of its row and said it cannot use;
+// and the files all of it is kept in: their one writer and judge. What an ask said and moved is
+// taken after it (`take_effects`), for the holder to say and hand.
 // Workshop law: agents/workshop/settings.md (+3 registers; agents/workshop.md routes)
 
 #include "workshop/layouts/run.hpp"
@@ -58,14 +59,25 @@ struct CatalogName {
 };
 
 /// WHAT ONE ASK OF THE STORE SAID AND MOVED: its sentence for the notice, whether that is a
-/// refusal, whether the run or the live layout moved, and the offices whose settings moved.
+/// refusal, whether the run or the live layout moved, what a live row's pane cannot use moved,
+/// and the offices whose settings moved.
 struct StoreEffects {
     std::string said;
     bool bad = false;
     std::string said_provider; ///< the row `said` names, when it is a setting written
     std::string said_pane;
     bool live_moved = false;
+    bool unused_moved = false;
     std::vector<std::string> offices;
+};
+
+/// ONE HAND-OFF OWED: the row's pane, the weave that holds its office, whether that holder takes
+/// v2, and the row's settings without Workshop's own keys at the revision they stand at.
+struct PaneHandOff {
+    PaneRef ref;
+    loom::WeaveId holder{};
+    bool revisions = false;
+    v2::PaneSettings value;
 };
 
 /// WHAT THE LAST SESSION'S RESTORE BROUGHT BACK, for the presenter to say: whether a run came
@@ -159,6 +171,29 @@ public:
     /// ...and that one of them was handed.
     void office_handed(const std::string& office, std::int64_t revision);
 
+    // ---- A row's settings, handed to its pane ----------------------------------------------
+
+    /// WHAT EACH PANE OF THE LIVE LAYOUT IS HANDED NOW: every row whose pane some holder offers
+    /// and whose office's holder takes `PaneSettings`, in the newest version it takes, when what
+    /// that holder was last handed differs -- another holder, another revision for v2, other
+    /// settings; and each pane that asked while the live layout seats it nowhere, its settings at
+    /// their defaults, at revision 0.
+    std::vector<PaneHandOff> pane_hand_offs();
+    /// ...and that one of them was handed: what its holder holds now.
+    void pane_handed(const PaneHandOff& handed);
+    /// A PANE ASKED FOR ITS ROW: the life that holds its office holds nothing it was handed, and
+    /// is handed its row now -- or, while the live layout seats it nowhere, every setting at its
+    /// default.
+    void pane_asked(const PaneRef& ref);
+    /// WHAT A PANE SAYS IT CANNOT USE, from `from` as `office`: kept for the revision its holder
+    /// was last handed, from that holder alone, and refused aloud when it cannot have meant it.
+    void keep_unused(std::string_view office, loom::WeaveId from, const PaneSettingUnused& unused);
+    /// What the pane of `ref` said it cannot use of what its holder was last handed.
+    std::vector<RowSettingUnused> unused_of(const PaneRef& ref) const;
+    /// HOW FAR THE HAND-OFF OF THE LIVE ROW FOR `ref` GOT, in the band's words: stored and handed,
+    /// with what the pane cannot use of it, or why it was not handed.
+    std::string handed_fact(const PaneRef& ref);
+
     // ---- The files -------------------------------------------------------------------------
 
     /// READ THE SETTINGS FILE, once.
@@ -212,6 +247,17 @@ private:
         std::vector<PaneSetting> settings;
         loom::WeaveId holder{};
     };
+    /// WHAT ONE PANE'S HOLDER WAS LAST HANDED, and what it said it cannot use of that.
+    struct RowHanded {
+        PaneRef ref;
+        loom::WeaveId holder{};
+        std::int64_t revision = 0; ///< 0 for a holder that takes v1 alone
+        std::vector<PaneSetting> settings;
+        std::vector<RowSettingUnused> unused;
+    };
+    const RowHanded* handed_of(const PaneRef& ref) const;
+    /// The holder that takes the hand-off of `ref` now and whether in v2, or none.
+    std::optional<std::pair<loom::WeaveId, bool>> taker_of(const PaneRef& ref) const;
 
     void say(std::string said, bool bad);
     void moved();
@@ -256,6 +302,8 @@ private:
     std::vector<OfficeDeclaration> office_declarations_;
     std::vector<SettingsRevision> settings_revisions_;
     std::vector<OfficeRevision> office_revisions_;
+    std::vector<RowHanded> handed_;
+    std::vector<PaneRef> asked_unseated_;
     std::int64_t settings_revision_ = 0;
     LayoutSettingsAnswered layout_settings_minted_;
     std::int64_t layout_settings_revision_ = 0;

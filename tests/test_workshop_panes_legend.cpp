@@ -48,8 +48,10 @@ struct TerminalTap {
             }
             const loom::WeaveId terminal = bus.role_holder(tp::kTerminalPaneRole);
             if (ev.target == terminal && ev.schema_name == v2::PaneSettings::zen_name) {
-                // THE TERMINAL TAKES v2 ALONE, so no other version may cross to it.
+                // THE TERMINAL TAKES v2 ALONE, so no other version may cross to it, and from the
+                // layouts' owner alone.
                 CHECK(ev.schema_version == v2::PaneSettings::zen_version);
+                CHECK(ev.authored_role == kLayoutsRole);
                 heard.push_back("settings");
                 handed.push_back(loom::from_value<v2::PaneSettings>(*ev.payload));
             } else if (ev.target == terminal && ev.schema_name == gfx::AreaRoom::zen_name) {
@@ -95,14 +97,15 @@ struct TerminalTap {
         }
         return n;
     }
-    /// Whether a hand-off crossed after `from` before any room did.
-    bool settings_before_room_since(std::size_t from) const {
+    /// Whether a hand-off crossed after `from` before the Terminal's first picture since did, and a
+    /// picture followed: the pane draws no room before it holds a row.
+    bool settings_before_picture_since(std::size_t from) const {
         for (std::size_t i = from; i < heard.size(); ++i) {
-            if (heard[i] == "room") {
+            if (heard[i] == "picture") {
                 return false;
             }
             if (heard[i] == "settings") {
-                return true;
+                return count_since(i, "picture") > 0;
             }
         }
         return false;
@@ -252,8 +255,18 @@ TEST_CASE("a layout keeps the Terminal's legend hidden while another shows it, w
     t.inspect_terminal();
     t.write(tp::kSettingLegend, "off");
     CHECK(t.r.last_notice() == "committed legend of Terminal = off; stored and handed");
-    CHECK(terminal_settings(t.r.session().setup.active) == std::vector<PaneSetting>{legend_off()});
+    CHECK(terminal_settings(t.r.run().active) == std::vector<PaneSetting>{legend_off()});
     CHECK_FALSE(t.legend_shown());
+    // ...INFO SAYS HOW FAR THE HAND-OFF GOT ON ITS `Settings` ROW, AS THE LAYOUTS' OWNER READS IT,
+    // AND WORKSHOP'S COPY OF THE ROW HOLDS NONE OF THE PANE'S OWN SETTINGS.
+    // ⚔ MUTATION: the owner's picture carrying the pane's own keys -- Workshop holds the legend.
+    bool fact = false;
+    for (const std::string& row : t.info_rows()) {
+        fact = fact || (row.find("Settings") != std::string::npos &&
+                        row.find("stored and handed") != std::string::npos);
+    }
+    CHECK(fact);
+    CHECK(terminal_settings(t.r.session().setup.active).empty());
 
     // EACH SWITCH HANDS THE TERMINAL ITS LAYOUT'S CHOICE ONCE, AND GRANTS IT NO NEW ROOM.
     TerminalTap tap(t.r.bus);
@@ -284,7 +297,7 @@ TEST_CASE("a layout keeps the Terminal's legend hidden while another shows it, w
     }
 }
 
-TEST_CASE("a Terminal seated again is handed its layout's legend before its room, and its first picture keeps it") {
+TEST_CASE("a Terminal seated again holds its layout's legend before its first picture, and that picture keeps it") {
     LegendRig t;
     t.open();
     // A KEEPS THE LEGEND OFF; B, A COPY PUT BACK TO THE DEFAULT; C HAS NO TERMINAL.
@@ -301,13 +314,13 @@ TEST_CASE("a Terminal seated again is handed its layout's legend before its room
     REQUIRE_FALSE(has_pane(t.r.session().setup.active, terminal_ref()));
     REQUIRE_FALSE(t.seated());
 
-    // FROM C BACK TO A: the Terminal is seated again, and the hand-off precedes its room.
+    // FROM C BACK TO A: the Terminal is seated again, and holds its row before it draws.
     TerminalTap tap(t.r.bus);
     while (t.r.session().setup.active_at != a) {
         layout_key(t.r, Act::kLayoutNext);
     }
     REQUIRE(t.seated());
-    CHECK(tap.settings_before_room_since(0));
+    CHECK(tap.settings_before_picture_since(0));
     REQUIRE_FALSE(tap.legend_drawn.empty());
     CHECK_FALSE(tap.legend_drawn.front());
     CHECK_FALSE(t.legend_shown());
@@ -338,11 +351,11 @@ TEST_CASE("after a restart the Terminal's first picture keeps its layout's legen
     TerminalTap tap(back.r.bus);
     back.r.ready();
     back.r.extent(160, 48);
-    REQUIRE(terminal_settings(back.r.session().setup.active) == std::vector<PaneSetting>{legend_off()});
+    REQUIRE(terminal_settings(back.r.run().active) == std::vector<PaneSetting>{legend_off()});
     back.load_images();
     back.r.ready(); // ...and the catalog asked again, which every image answers by re-offering
     REQUIRE(back.seated());
-    CHECK(tap.settings_before_room_since(0));
+    CHECK(tap.settings_before_picture_since(0));
     REQUIRE_FALSE(tap.legend_drawn.empty());
     for (std::size_t i = 0; i < tap.legend_drawn.size(); ++i) {
         CAPTURE(i);
@@ -350,7 +363,10 @@ TEST_CASE("after a restart the Terminal's first picture keeps its layout's legen
     }
     CHECK_FALSE(back.legend_shown());
 
-    // A RELOAD OF THE SAME IMAGE HOLDS NOTHING IT WAS HANDED, AND IS HANDED IT AGAIN FIRST.
+    // A RELOAD OF THE SAME IMAGE HOLDS NOTHING IT WAS HANDED: IT ASKS, AND HOLDS ITS ROW BEFORE
+    // ITS FIRST PICTURE.
+    // ⚔ MUTATION: a pane that draws its room before it holds a row -- the reloaded image's first
+    // picture shows the legend its layout hides.
     const std::size_t mark = tap.heard.size();
     const std::string image =
         dir.file(("terminal-again" +
@@ -360,7 +376,7 @@ TEST_CASE("after a restart the Terminal's first picture keeps its layout's legen
     back.r.enqueue_reload(tp::kTerminalPaneStem, image);
     back.r.bus.drain_until_idle();
     REQUIRE(back.r.load_refusals.empty());
-    CHECK(tap.settings_before_room_since(mark));
+    CHECK(tap.settings_before_picture_since(mark));
     for (std::size_t i = 0; i < tap.legend_drawn.size(); ++i) {
         CAPTURE(i);
         CHECK_FALSE(tap.legend_drawn[i]);
@@ -403,7 +419,7 @@ TEST_CASE("an Info commit queued behind a layout switch is refused, and neither 
     for (const Layout& layout : t.r.run().shelved) {
         CHECK(terminal_settings(layout.desk).empty());
     }
-    CHECK(terminal_settings(t.r.session().setup.active).empty());
+    CHECK(terminal_settings(t.r.run().active).empty());
     CHECK(t.legend_shown());
 }
 
@@ -416,8 +432,9 @@ TEST_CASE("a press aimed at the Terminal's picture from before its legend hid is
     t.unfocus();
     REQUIRE(t.legend_shown());
 
-    // THE COMMIT'S HAND-OFF IS QUEUED, AND ONLY THEN DOES A PRESS ARRIVE: Workshop stamps it with
-    // the picture it holds, drawn with the legend, and the Terminal is handed the setting first.
+    // THE COMMIT'S HAND-OFF IS QUEUED BY THE LAYOUTS' OWNER, AND ONLY THEN DOES A PRESS ARRIVE:
+    // Workshop stamps it with the picture it holds, drawn with the legend, and the Terminal is
+    // handed the setting first.
     PaneSettingCommitRequested off;
     off.provider = terminal_ref().provider;
     off.pane = terminal_ref().pane;
@@ -431,8 +448,7 @@ TEST_CASE("a press aimed at the Terminal's picture from before its legend hid is
     (void)t.r.bus.send(t.r.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));
     (void)t.r.bus.pump_pending(); // the hand sends the commit
-    (void)t.r.bus.pump_pending(); // the owner writes it and sends the live layout
-    (void)t.r.bus.pump_pending(); // Workshop takes it and queues the hand-off
+    (void)t.r.bus.pump_pending(); // the owner writes it, queues the hand-off and the live layout
     const CellRect body = external_body_rect(t.r.session(), t.terminal());
     t.r.press_cell(body.x + 3, body.y + 2); // a row the legend's going moves
     REQUIRE_FALSE(t.legend_shown());
@@ -455,7 +471,7 @@ TEST_CASE("a legend value the Terminal cannot use is kept as stored, and said in
     spillout(t.r.host.setup_path, bytes);
     t.unfocus();
     t.r.key(input::scan::kR);
-    REQUIRE(terminal_settings(t.r.session().setup.active) == pane_of(desk, terminal_ref())->settings);
+    REQUIRE(terminal_settings(t.r.run().active) == pane_of(desk, terminal_ref())->settings);
 
     // THE PANE KEEPS ITS DEFAULT AND SAYS WHY WHERE THE SETTING SHOWS, ON A ROW NO KEY CLEARS.
     const std::string said = "legend takes on or off, not a text `hiden` -- on";
@@ -500,7 +516,7 @@ TEST_CASE("the Terminal's settings rows appear the moment its image declares, an
     t.r.ready();
     CHECK(t.r.session().inspected.name == name);
     t.r.key(input::scan::kReturn);
-    CHECK(terminal_settings(t.r.session().setup.active) == std::vector<PaneSetting>{legend_off()});
+    CHECK(terminal_settings(t.r.run().active) == std::vector<PaneSetting>{legend_off()});
     CHECK_FALSE(t.legend_shown());
 }
 
@@ -515,6 +531,6 @@ TEST_CASE("a Terminal closed in a layout that hid its legend shows it again when
     REQUIRE(hand_close(t.r, terminal_ref()).closed);
     CHECK(t.r.last_notice().find("hid Terminal and its settings here (legend off) -- ") == 0);
     REQUIRE(seat_pane(t.r, terminal_ref()).opened);
-    CHECK(terminal_settings(t.r.session().setup.active).empty());
+    CHECK(terminal_settings(t.r.run().active).empty());
     CHECK(t.legend_shown());
 }

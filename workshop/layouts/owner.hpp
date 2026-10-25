@@ -6,8 +6,9 @@
 
 // The layouts' owner, the office `zengine.layouts`: the store as a weave of its own, mounted by the
 // host in its own process and never replaced. It sends its presenter each picture of the live
-// layout, answers its edits, writes the session at its orderly close, and is every settings door:
-// one writer and one judge of every layout, office-wide setting, lock and pin.
+// layout, answers its edits, writes the session at its orderly close, hands each seated pane its
+// row's settings and hears what the pane cannot use, and is every settings door: one writer and
+// one judge of every layout, office-wide setting, lock and pin.
 // Workshop law: agents/workshop/layouts.md (+2 registers; agents/workshop.md routes)
 
 #include "workshop/actor_scope.hpp" // a guest's row, which says whether it may touch settings
@@ -60,15 +61,17 @@ class LayoutsOwner
           LayoutsOwner, LayoutsOwnerState,
           loom::Accept<LayoutEditRequested, SessionSaveRequested, SetupApplyRequested,
                        PaneSettingsDeclared, v2::PaneSettingsDeclared, OfficeSettingsDeclared,
-                       PaneSettingsRequested, PaneSettingCommitRequested, OfficeSettingsRequested,
+                       PaneSettingsAsked, PaneSettingUnused, PaneSettingsRequested,
+                       PaneSettingCommitRequested, OfficeSettingsRequested,
                        OfficeSettingCommitRequested, PaneSettingPinRequested,
                        PaneSettingLockRequested, LayoutSettingsRequested, SettingsWriteRequested,
                        PaneInventory, WeaversActAnswered>,
           loom::Emit<LiveLayout, LayoutEditAnswered, SessionSaveAnswered, loom::Ack, loom::Refused,
-                     PaneSettingsAnswered, PaneSettingCommitAnswered, OfficeSettings,
-                     OfficeSettingsAnswered, OfficeSettingCommitAnswered, PaneSettingPinAnswered,
-                     PaneSettingLockAnswered, LayoutSettingsAnswered, SettingsWriteAnswered,
-                     WeaversActRequested, PaneInventoryRequested>> {
+                     PaneSettings, v2::PaneSettings, PaneSettingsAnswered,
+                     PaneSettingCommitAnswered, OfficeSettings, OfficeSettingsAnswered,
+                     OfficeSettingCommitAnswered, PaneSettingPinAnswered, PaneSettingLockAnswered,
+                     LayoutSettingsAnswered, SettingsWriteAnswered, WeaversActRequested,
+                     PaneInventoryRequested>> {
 public:
     explicit LayoutsOwner(LayoutsOwnerHost host) : host_(std::move(host)), store_(readings_) {}
 
@@ -86,6 +89,10 @@ public:
     void on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail);
     void on(const OfficeSettingsDeclared& declared, loom::Mail& mail);
 
+    // ---- A row's settings, handed to its pane -----------------------------------------------
+    void on(const PaneSettingsAsked& asked, loom::Mail& mail);
+    void on(const PaneSettingUnused& unused, loom::Mail& mail);
+
     // ---- The settings doors -----------------------------------------------------------------
     void on(const PaneSettingsRequested& asked, loom::Mail& mail);
     void on(const PaneSettingCommitRequested& asked, loom::Mail& mail);
@@ -99,7 +106,8 @@ public:
     /// THE STORE, for a host's rig: what it holds, read; a run put in place past the doors.
     const LayoutStore& layouts() const noexcept { return store_; }
     LayoutStore& store() noexcept { return store_; }
-    /// WHAT THE STORE MOVED SINCE THE LAST MESSAGE, sent now: the picture and the hand-offs.
+    /// WHAT THE STORE MOVED SINCE THE LAST MESSAGE, sent now: each pane's row, then the picture,
+    /// then each office's settings.
     void settle(loom::Mail& mail, bool picture = false);
     /// THE HOST'S READINGS, taken now: for a rig that reads the store between messages.
     void read_host_now() { read_host(); }
@@ -116,6 +124,7 @@ private:
     bool from_terminal(const loom::Mail& mail) const;
     bool from_presenter(const loom::Mail& mail) const;
     void send_live(loom::Mail& mail, const StoreEffects& fx);
+    void hand_rows(loom::Mail& mail);
 
     /// THE HOST'S READINGS, read afresh before each ask is judged.
     void read_host();
@@ -131,7 +140,8 @@ private:
 };
 
 /// What the owner may say, and to whom: each answer to its asker, the picture and its question to
-/// the presenter, and each office's settings to that office.
+/// the presenter, each pane's row to its office's holder, and each office's settings to that
+/// office.
 loom::Grant layouts_grant();
 
 } // namespace zengine::workshop

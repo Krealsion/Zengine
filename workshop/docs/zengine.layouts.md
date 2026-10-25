@@ -33,9 +33,10 @@ keeps every lock and is refused whole where it would change a locked value, nami
 Ask as an office, the Terminal this host mounted, or a guest whose row has `settings`: anyone else
 is answered with the refusal `settings withheld: <why>` and nothing read or written. A pane's
 office declares the settings its pane takes with [`PaneSettingsDeclared`](#panesettingsdeclared)
-and its office-wide settings with [`OfficeSettingsDeclared`](#officesettingsdeclared); this office
-hands each declaring office's holder `OfficeSettings` at each revision, and Workshop hands a seated
-pane its row (`PaneSettings`, [the pane protocol](zengine.workshop.md)).
+and its office-wide settings with [`OfficeSettingsDeclared`](#officesettingsdeclared), and asks for
+its row with [`PaneSettingsAsked`](#panesettingsasked) when it arrives; this office hands each
+declaring office's holder `OfficeSettings` at each revision, and each seated pane its row
+(`PaneSettings`, [the pane protocol](zengine.workshop.md)), which the pane holds before it draws.
 
 Read before you write: every write names the revision its asker read, and one judged from a reading
 the layouts have moved past is refused, `stale revision <n> -- ... stands at <m>; read it again`.
@@ -50,8 +51,10 @@ the layouts have moved past is refused, `stale revision <n> -- ... stands at <m>
 - **Takes:** `provider` and `pane`, the row's address.
 - **Answers:** `PaneSettingsAnswered`, to the asker alone: the row's `revision` (0 when the live
   layout has no such row), the `rows` of the pane's counted declaration with their tags, pins and
-  summaries, the `settings` the row keeps, its `pins` in order, and the keys a lock holds in
-  `locks`, each `everywhere` or `layout`.
+  summaries, the `settings` the row keeps, its `pins` in order, the keys a lock holds in
+  `locks`, each `everywhere` or `layout`, and in `said` how far the row's hand-off got: `stored
+  and handed`, with `; it cannot use <key> -- <why>` for each value the pane said it cannot use,
+  or `stored; not handed: <why>`.
 - **Refuses:** `settings withheld: <why>` in `said`, with nothing read.
 - **Example:** `ask @zengine.layouts PaneSettingsRequested 1 provider=zengine.terminal
   pane=terminal`, from the Terminal.
@@ -229,6 +232,22 @@ it takes, and at version 2 its tags, pin and summary. Judged whole; a refusal is
 Workshop's band, `<name> @<office>: its settings were not taken -- <why>`, and the settings in
 force stand. It counts while the incarnation that sent it holds the office.
 
+### `PaneSettingsAsked`
+
+`PaneSettingsAsked`, from a pane's office, once in each life of its holder, after that life's first
+message. This office hands the holder its row now, without `workshop.` keys, in the newest
+`PaneSettings` it takes -- v2 with the row's revision -- or, while the live layout seats the pane
+nowhere, every default at revision 0; and again whenever what it holds would differ: another
+holder, revision or settings. A holder that takes neither is handed nothing.
+
+### `PaneSettingUnused`
+
+`PaneSettingUnused`, from a pane's office: a setting it was handed at a revision and cannot use,
+and why. Kept while its holder holds that revision, from the holder that was handed it, at most
+`kMaxPaneSettingsPerRow`; said in the row's reading (`it cannot use <key> -- <why>`) and on
+Attention. One naming another revision, or said personally, is dropped; a key or a reason it
+cannot have meant is refused on Workshop's band, nothing kept.
+
 ### `OfficeSettingsDeclared`
 
 `OfficeSettingsDeclared`, from an office, Workshop's own among them: the office-wide settings it
@@ -249,10 +268,12 @@ waiting on it is answered then.
 
 ## Follow
 
-This office sends `LiveLayout` to Workshop on every change of the run or of the live layout, and
-before each answer to an edit: the live desk, a tab for every layout, the revision it stands at,
-each live row's settings revision, and the sentence about what moved. It sends `OfficeSettings` to
-each declaring office's holder at each revision.
+This office sends `LiveLayout` v2 to Workshop on every change of the run or of the live layout,
+and before each answer to an edit: the live desk with each row's `workshop.` keys alone, a tab for
+every layout, the revision it stands at, what each live row's pane said it cannot use, and the
+sentence about what moved -- a written setting's says how far its hand-off got. It sends each
+seated pane's holder `PaneSettings` when what it holds differs, before that picture, and
+`OfficeSettings` to each declaring office's holder at each revision.
 
 ## Files
 

@@ -68,7 +68,7 @@ LAW — Leaving a layout withdraws the presentation (`close_kind`; no unload, no
 
 MEANS
 - a pane in both layouts at the same prose capacity hears no grant and no ask;
-- ...and is handed its settings only when the two layouts keep different ones (WL-SETTING-04).
+- ...and is handed its settings by the layouts' owner only when the two layouts keep different ones (WL-SETTING-04).
 
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
@@ -182,6 +182,7 @@ once, and only when they differ"
 `workshop/weave_session.cpp` apply_setup
 `workshop/panes.hpp` close_kind
 `workshop/layouts/run.hpp` SetupState::shelved
+`workshop/layouts/store.cpp` pane_hand_offs
 `tests/test_workshop_panes_window.cpp` "a pane in two layouts is one pane, one provider, one room"
 "an inactive layout's rows are dormant, not maintained"
 `tests/test_workshop_panes_settings.cpp` "a layout switch hands a pane its new layout's settings

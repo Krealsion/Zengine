@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// `WorkshopWeave`'s external pane seam: offers, declared actions, settings and reveals.
-// Workshop law: agents/workshop/text-box.md (+7 registers; agents/workshop.md routes)
+// `WorkshopWeave`'s external pane seam: offers, declared actions and reveals.
+// Workshop law: agents/workshop/text-box.md (+6 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
 
@@ -51,13 +51,6 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
     if (admitted.refreshed) {
         // A re-offer is a correction: the descriptor was updated in place. Nothing closes and no
         // catalog position moves.
-        if (ExternalPane* pane = session_.panes.external_pane(admitted.kind)) {
-            // ITS SETTINGS ARE OWED AGAIN: a re-offer is how a reloaded image arrives, and a
-            // reloaded image holds none it was handed, and can use none it was handed before.
-            pane->settings_heard.reset();
-            pane->settings_revision = 0;
-            pane->settings_unused.clear();
-        }
         // ...AND A MENU PRESENTED FOR THE PANE IT RE-OFFERED IS WITHDRAWN. A re-offer is how a
         // reloaded requester arrives, and what its predecessor asked about is no longer anything
         // the requester holds -- the presenter answers it unchosen, and the successor, which never
@@ -267,11 +260,6 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, std::string& gaps,
     for (const Dropped& d : told) {
         say_withdrawn(d.office, ActionsWithdrawn{d.pane, d.declaration, d.refusal}, mail);
     }
-}
-
-// WL-SETTING-07 -- agents/workshop/settings.md
-std::int64_t WorkshopWeave::settings_revision(const PaneRef& ref) const {
-    return row_revision(session_.setup, ref);
 }
 
 // WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md

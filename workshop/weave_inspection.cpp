@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // `WorkshopWeave`'s inspection seam: a pane an inspector names, the picture of its rows, and one
-// write through the rows' owner, said with how far a setting's write got.
-// Workshop law: agents/workshop/info-body.md (+1 register; agents/workshop.md routes)
+// write of a row's window through the layouts' owner.
+// Workshop law: agents/workshop/info-body.md
 
 #include "weave.hpp"
 
@@ -25,23 +25,13 @@ void WorkshopWeave::refresh_inspected() {
     // THE THREE THINGS A NAME STANDS FOR: this pane (the door keeps it), this desk, and whether it
     // holds the pane's row. A value moving is none of them -- the rows read fresh -- a row leaving
     // or rejoining the desk is one, so a draft never lands on a row made afresh. The pane's
-    // settings are the layouts' owner's to say, and an inspector reads them there.
+    // settings, and how far their hand-off got, are the layouts' owner's to say, and an inspector
+    // reads them there.
     const bool member = has_pane(session_.setup.active, in.ref);
     if (in.name != 0 && in.desk == session_.setup.put_live && in.member == member) {
         return;
     }
     in.rows = pane_subject_rows(session_, in.ref);
-    // THE DELIVERY OF THE ROW'S SETTINGS IS THIS DESK'S FACT, said beside what the layouts' owner
-    // keeps: how far the last hand-off got, and what the pane said it cannot use.
-    const std::optional<std::int64_t> seated = resolve_pane(in.ref, session_.panes);
-    if (member && seated && session_.panes.external_pane(*seated) != nullptr) {
-        const auto interior = std::find_if(in.rows.begin(), in.rows.end(), [](const Row& row) {
-            return row.section() && row.label() == "INTERIOR";
-        });
-        in.rows.insert(interior, Row::show("Settings", [this, ref = in.ref] {
-                           return settings_handed(ref);
-                       }));
-    }
     in.desk = session_.setup.put_live;
     in.member = member;
     in.name = ++in.minted;
@@ -100,101 +90,6 @@ void WorkshopWeave::publish_pane_subject(loom::Mail& mail) {
     subject_said_ = said;
     subject_published_ = true;
     (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
-}
-
-// WL-SETTING-05 -- agents/workshop/settings.md
-std::string WorkshopWeave::settings_handed(const PaneRef& ref) const {
-    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
-    if (!kind.has_value()) {
-        return "stored; not handed: nothing offers " + ref_text(ref) + " here";
-    }
-    if (!is_runtime_kind(*kind)) {
-        return "stored; not handed: Workshop's own pane takes no settings";
-    }
-    const ExternalPane* pane = session_.panes.external_pane(*kind);
-    if (pane == nullptr || !session_.panes.has(*kind)) {
-        return "stored; not handed: the pane is not seated";
-    }
-    if (!host_->role_holder || !host_->role_holder(ref.provider).valid()) {
-        return "stored; not handed: nothing holds `" + ref.provider + "` now";
-    }
-    if (!host_->holder_accepts ||
-        (!host_->holder_accepts(ref.provider, *loom::schema_of<v2::PaneSettings>()) &&
-         !host_->holder_accepts(ref.provider, *loom::schema_of<PaneSettings>()))) {
-        return "stored; not handed: " + ref.provider + " takes no settings";
-    }
-    const SetupPane* seat = pane_of(session_.setup.active, ref);
-    // HANDED AT THE ROW'S REVISION, when the holder is handed one: settings equal to an earlier
-    // revision's are not what this row was last minted for.
-    const bool current =
-        pane->settings_revision == 0 || pane->settings_revision == settings_revision(ref);
-    if (seat == nullptr || !pane->settings_heard ||
-        *pane->settings_heard != pane_held_settings(seat->settings) || !current) {
-        return "stored; not handed: the hand-off was not queued";
-    }
-    // ...AND WHAT THE PANE SAID IT CANNOT USE OF WHAT IT WAS HANDED, in its own words.
-    std::string said = "stored and handed";
-    for (const ExternalPane::UnusedSetting& u : pane->settings_unused) {
-        said += "; it cannot use " + u.key + " -- " + u.why;
-    }
-    return said;
-}
-
-// WL-SETTING-08 -- agents/workshop/settings.md
-void WorkshopWeave::on(const PaneSettingUnused& unused, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
-        return; // personal speech says nothing about a pane (the offer's rule)
-    }
-    const RuntimePane* row = session_.panes.runtime.find(office, unused.pane);
-    ExternalPane* pane = row != nullptr ? session_.panes.external_pane(row->kind) : nullptr;
-    if (row == nullptr || pane == nullptr) {
-        return; // a pane this office never offered, or one not seated
-    }
-    // FROM THE HOLDER THIS DESK HANDED THE ROW, and from no other: a revision is the row's, so a
-    // word from the office's former holder would otherwise land on its successor's.
-    if (pane->settings_holder.valid() && mail.sender() != pane->settings_holder) {
-        return;
-    }
-    // ABOUT WHAT IT HOLDS NOW, or about nothing: a word naming a revision it was not last handed
-    // is late, and is dropped as the revision it names was.
-    const PaneRef ref{row->provider, row->pane};
-    const std::int64_t current = settings_revision(ref);
-    if (unused.revision <= 0 || unused.revision != current ||
-        pane->settings_revision != current) {
-        return;
-    }
-    const std::string at = row->name + " @" + row->provider + ": ";
-    std::string wrong = pane_setting_key_problem(unused.key);
-    if (wrong.empty() && (unused.why.empty() || !pane_setting_text_ok(unused.why))) {
-        wrong = "why a setting is unused is 1 to " + std::to_string(kMaxPaneSettingTextLen) +
-                " bytes of printable ASCII";
-    }
-    if (!wrong.empty()) {
-        say(at + "a setting it cannot use was not kept -- " + wrong, true);
-        repaint(mail);
-        return;
-    }
-    for (ExternalPane::UnusedSetting& kept : pane->settings_unused) {
-        if (kept.key == unused.key) {
-            if (kept.why == unused.why) {
-                return; // said again: nothing new to tell
-            }
-            kept.why = unused.why;
-            repaint(mail);
-            return;
-        }
-    }
-    if (pane->settings_unused.size() >= kMaxPaneSettingsPerRow) {
-        say(at + "a setting it cannot use was not kept -- a pane keeps at most " +
-                std::to_string(kMaxPaneSettingsPerRow) + " of them",
-            true);
-        repaint(mail);
-        return;
-    }
-    pane->settings_unused.push_back(
-        ExternalPane::UnusedSetting{unused.key, unused.revision, unused.why});
-    repaint(mail);
 }
 
 // WL-INFO-15 -- agents/workshop/info-body.md
