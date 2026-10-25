@@ -66,8 +66,8 @@ inline constexpr const char* kManagerProvider = "zengine.desktop";
 inline constexpr const char* kManagerPane = "launcher";
 
 // ---- The table -------------------------------------------------------------------------
-// Info made it a table: its place moved with its office. A saved `default` place meant the right
-// column because the host's catalog put it there, so the conversion rewrites that place too.
+// Info made it a table: its place moved with its office. A saved `default` place meant the room's
+// top-right because the host's catalog put it there, so the conversion rewrites that place too.
 
 /// One pane that changed hands: what a saved file wrote, what it means now, and the place the
 /// host's own catalog gave it.
@@ -84,7 +84,7 @@ struct Retired {
 inline constexpr Retired kRetired[] = {
     {kRetiredFilesProvider, kFilesPane, kFilesProvider, kFilesPane, pane_unit::kDefault},
     {kRetiredBuilderProvider, kBuilderPane, kBuilderProvider, kBuilderPane, pane_unit::kDefault},
-    {kRetiredInfoProvider, kInfoPane, kInfoProvider, kInfoPane, pane_unit::kRightColumn},
+    {kRetiredInfoProvider, kInfoPane, kInfoProvider, kInfoPane, ui::kPlaceTopRight},
     {kRetiredEditorProvider, kEditorPane, kEditorProvider, kEditorPane, pane_unit::kDefault},
     {kRetiredManagerProvider, kRetiredManagerPane, kManagerProvider, kManagerPane,
      pane_unit::kDefault},

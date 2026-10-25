@@ -45,7 +45,6 @@ void WorkshopWeave::apply_workshop_settings(const std::vector<PaneSetting>& sett
     session_.completion_required_first = said.completion_required_first;
     session_.arrange_step_cells = said.arrange_step_cells;
     session_.snap_reach_px = said.snap_reach_px;
-    session_.side_cols = said.side_cols;
     session_.stack_rows = said.stack_rows;
 }
 

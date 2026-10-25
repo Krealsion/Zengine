@@ -77,7 +77,8 @@ inline constexpr const char* kUnitDefault = "default";
 /// THE GEOMETRY WORD: amounts in canvas pixels, twelve to a canvas cell.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kUnitPixels = "pixels";
-/// The place-only word: the right column, named.
+/// The right column's name, which a file may still say: read as `top-right` at no offset, the
+/// column's corner, and written as that.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kUnitRightColumn = "right-column";
 
@@ -200,9 +201,6 @@ static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVe
 /// no word is.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline std::string place_word_of(std::int64_t mode) {
-    if (mode == pane_unit::kRightColumn) {
-        return kUnitRightColumn;
-    }
     const std::string_view word = ui::place_word(mode);
     return std::string(word.empty() ? std::string_view(kUnitDefault) : word);
 }
@@ -301,7 +299,7 @@ inline Written place_in(const WorkshopPanePlace& w, PanePlace& out) {
         if (w.x.has_value() || w.y.has_value()) {
             return Written::no("a named pane place carries no coordinates");
         }
-        out = PanePlace{pane_unit::kRightColumn, 0, 0};
+        out = PanePlace{ui::kPlaceTopRight, 0, 0};
         return Written::ok();
     }
     const std::optional<std::int64_t> mode = ui::place_named(w.mode);

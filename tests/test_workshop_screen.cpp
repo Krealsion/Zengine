@@ -194,11 +194,6 @@ TEST_CASE("a bigger surface is a bigger workspace, not a bigger picture of a sma
     CHECK(cells_of(big).room_w == cells_of(kMinScreen).room_w + 22);
     CHECK(cells_of(big).room_h == cells_of(kMinScreen).room_h + 11);
 
-    // ...AND THE PANE DOES NOT. Its width is a fact about how much of a name is worth
-    // showing, so it is the same column count anchored to the new right edge.
-    CHECK(cells_of(big).w - cells_of(big).side_x == cells_of(kMinScreen).w - cells_of(kMinScreen).side_x);
-    CHECK(cells_of(big).side_x == 72);
-
     // The bottom band keeps its shape against the bottom edge, and the top band keeps its
     // rows against the top one -- both are fixed reservations, not shares.
     CHECK(cells_of(big).h - cells_of(big).notice_y == cells_of(kMinScreen).h - cells_of(kMinScreen).notice_y);
@@ -206,10 +201,8 @@ TEST_CASE("a bigger surface is a bigger workspace, not a bigger picture of a sma
     CHECK(cells_of(big).notice_y == cells_of(big).h - kBottomRows);   // the band's own first row
     CHECK(help_row(big) + 2 == cells_of(big).h - 1);           // ...and two legend rows under it
 
-    // AND THE ROOM RUNS UNDER THE PANE RATHER THAN STOPPING BESIDE IT: the column is a place,
-    // so the room is the surface and the place stands on it.
+    // AND THE ROOM IS THE SURFACE: nothing comes off its width.
     CHECK(cells_of(big).room_w == cells_of(big).w);
-    CHECK(cells_of(big).side_x < cells_of(big).room_w);
 }
 
 TEST_CASE("the screen's extent is TOTAL over whatever a medium published") {
@@ -238,13 +231,11 @@ TEST_CASE("the screen's extent is TOTAL over whatever a medium published") {
         // cell, between bands that tile the screen with it.
         CHECK(sc.room_w >= kScreenMinW);
         CHECK(sc.room_h >= cells_px(1));
-        CHECK(sc.side_x > 0);
         CHECK(sc.room_y > 0);
         CHECK(sc.room_y + sc.room_h == sc.notice_y);
         // The furniture that is every pane's, and the room's own rule: the room IS the
         // surface, at every extent this screen can be asked for.
         CHECK(sc.room_w == sc.w);
-        CHECK(sc.side_x + cells_px(kSideCols) == sc.w);
         CHECK(sc.notice_y < sc.h);
     };
 
@@ -515,14 +506,14 @@ TEST_CASE("a centred pane stands in the middle of the room, and a fill runs to t
 }
 
 TEST_CASE("occupancy is resolved against the screen, not remembered from one") {
-    // A BIGGER SURFACE MOVES THE SIDE REGION, and the cells it occupies move with
+    // A BIGGER SURFACE MOVES A PANE AT ITS TOP-RIGHT, and the cells it occupies move with
     // it -- because the occupancy answer is `bounds_of` on the CURRENT screen and
     // is cached nowhere. The stack is anchored to the other corner and does not
     // move, which is the same asymmetry the painting has.
     Live t;
-    // THE PANE AT THE RIGHT COLUMN IS AUTHORED, NOT INHERITED: a desk row spelled
-    // `right-column` is what puts a pane in it.
-    open_at_right_column(t, second::kKind);
+    // THE PANE AT THE TOP-RIGHT IS AUTHORED, NOT INHERITED: a desk row's word is what puts a
+    // pane there.
+    open_at_top_right(t, second::kKind);
     const Screen small = screen_of(t.session());
     const CellRect side_small =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind, small).rect);
@@ -533,7 +524,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKi
     REQUIRE(cells_of(big).w == 100);
     const CellRect side_big =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind, big).rect);
-    CHECK(side_big.x == cells_of(big).side_x);
+    CHECK(side_big.x == cells_of(big).strip_x);
     CHECK(side_big.x > side_small.x);
 
     // The column a weaver presses is the column they can see, on either screen.
@@ -576,7 +567,7 @@ TEST_CASE("a closed pane occupies nothing, and neither does a screen with none o
     // first cell.
     const CellRect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
     CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, stack.x, stack.y).occupied);
-    CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, cells_of(sc).side_x, 0).occupied);
+    CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, cells_of(sc).strip_x, 0).occupied);
 
     // And a press in the vacated column reaches the bare room, which is what "the
     // pane was the only thing in the way" means.
@@ -614,7 +605,7 @@ TEST_CASE("the cells just outside a pane are ordinary workspace, on every edge")
     (void)mount_tool(t, "zengine-snake");
     // TWO PLACES WITH A PANE IN EACH: the stack, and the right column a desk row names -- an
     // authored row, not a catalog entry, fills it.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_stock_pane(t);
     const Screen sc = screen_of(t.session());
     const CellRect stack =
@@ -714,7 +705,6 @@ TEST_CASE("a pane may lie over a pane, and the boundary is what makes it legible
         CAPTURE(wh.second);
         const Screen at = screen_of(cells_px(wh.first), cells_px(wh.second));
         CHECK(at.room_w == at.w);
-        CHECK(at.side_x + cells_px(kSideCols) == at.w);
     }
 }
 
@@ -722,7 +712,7 @@ TEST_CASE("the screen's furniture cannot see a pane, open or closed") {
     // THE TEST FOR THE WRONG OWNER, AS A CASE. Were a pane's placement "must not cover Info",
     // closing Info would move it -- a placement that moves because a weaver hid a list of names,
     // which `agents/decisions/the-room-is-the-screen.md` refuses. Nothing in `screen_of` can
-    // see a pane; that is what lets the right column be an ordinary place.
+    // see a pane; that is what lets every point of the room be an ordinary place.
     Session open_info;
     Session no_info;
     // ONE PANE TO CLOSE: a default `Session` opens what `kDefaultPanes` names, which is the
@@ -741,7 +731,7 @@ TEST_CASE("the screen's furniture cannot see a pane, open or closed") {
         // because a pane is open or closed.
         CHECK(a.room_w == b.room_w);
         CHECK(a.room_h == b.room_h);
-        CHECK(a.side_x == b.side_x);
+        CHECK(a.room_y == b.room_y);
         CHECK(a.notice_y == b.notice_y);
         CHECK(b.room_w == b.w);
     }
@@ -2171,35 +2161,32 @@ TEST_CASE("the coarse step is `workshop.arrange-step` cells, read from Workshop'
     CHECK(t.builder_row()->height.amount == before.h);
 }
 
-TEST_CASE("the right column is `workshop.side-columns` wide and a stacked pane `workshop.stack-rows` tall, read from Workshop's settings file") {
-    // ⚔ MUTATION: `placement_bounds` spends `kSideCols` and `kStackRows` -- twenty-eight and nine.
+TEST_CASE("a stacked pane is `workshop.stack-rows` tall, read from Workshop's settings file, and a file still keeping `workshop.side-columns` reads") {
+    // ⚔ MUTATION: `placement_bounds` spends `kStackRows` -- nine rows, whatever the file says.
+    // The retired key is still in the file: it is carried and read by nothing, so a pane at the
+    // room's top-right is the width its row says.
     TempDir dir("measures-room");
     Live t;
     t.host.prefs_path = measures_file(dir, "room.json",
                                       {{"workshop.side-columns", 40}, {"workshop.stack-rows", 20}});
     t.ready();
     t.extent_px(cells_px(160), cells_px(44), 0, 0, 0);
-    REQUIRE(t.session().side_cols == 40);
     REQUIRE(t.session().stack_rows == 20);
     const Screen sc = screen_of(t.session());
-    CHECK(sc.side_cols == 40);
-    CHECK(sc.side_x == sc.w - cells_px(40));
     CHECK(sc.stack_rows == 20);
     open_stock_pane(t);
     const PixelRect stacked =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect;
     CHECK(stacked.h == cells_px(20));
-    open_at_right_column(t, second::kKind);
-    const PixelRect column =
+    open_at_top_right(t, second::kKind);
+    const PixelRect strip =
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect;
-    CHECK(column.x == sc.w - cells_px(40));
-    CHECK(column.w == cells_px(40));
+    CHECK(strip.x == sc.w - cells_px(kStripCols));
+    CHECK(strip.w == cells_px(kStripCols));
 
-    // THE SCREEN HOLDS EACH TO WHAT ITS SETTING TAKES, and its own furniture is the default's.
-    const Screen held = screen_of(kScreenMinW, kScreenMinH, 0, 0, 0, 3, 99);
-    CHECK(held.side_cols == kMinSideCols);
+    // THE SCREEN HOLDS THE SETTING TO WHAT IT TAKES, and its own furniture is the default's.
+    const Screen held = screen_of(kScreenMinW, kScreenMinH, 0, 0, 0, 99);
     CHECK(held.stack_rows == kMaxStackRows);
-    CHECK(kMinScreen.side_cols == kSideCols);
     CHECK(kMinScreen.stack_rows == kStackRows);
 }
 
@@ -3492,7 +3479,7 @@ TEST_CASE("the popup shifts to stay usable inside the room, at every boundary") 
     // menu's top row is `arrange`. The body is empty by default (WL-CTX-08), so the host menu
     // is reached on the title row (the chrome), which for a right-column pane sits at the
     // top-right corner.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     const Screen sc = screen_of(t.session());
     const std::int64_t floor_y = kRoomCellY + cells_of(sc).room_h;
     const CellRect corner_pane = cells_covered(
@@ -3730,7 +3717,7 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
     Live t;
     t.extent_px(cells_px(160), cells_px(44), 0, 0);
     // THE PANE IN THE RIGHT COLUMN IS AUTHORED: its occupant is a desk row.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
     const CellRect side = cells_covered(
@@ -3806,7 +3793,7 @@ TEST_CASE("the selected pane wears its own chrome, and only it") {
     // every pane `kPaneChrome`, which collapses the selected style into the ordinary one -- the
     // picture would still be bordered and a weaver could not tell which pane they work with.
     Live t;
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
     const auto chrome_of = [&](std::int64_t kind) {
@@ -3846,7 +3833,7 @@ TEST_CASE("the selection lift never reaches the file, and no session starts with
     // not only the ranks, so a rewrite that happened to produce the same permutation is still
     // caught if it moved anything else.
     Live t;
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const std::string before = setup_persist::to_text(t.session().setup.active);
     const std::vector<std::int64_t> ranks = ranks_of(t.session().setup.active);
@@ -4340,7 +4327,7 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     Live t;
     t.extent_px(cells_px(160), cells_px(44), 0, 0);
     // THE PANE IN THE RIGHT COLUMN IS AUTHORED: its occupant is a desk row.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
     const CellRect side = cells_covered(
@@ -4436,7 +4423,7 @@ TEST_CASE("every pane a weaver can point at can be arranged, and the refusals ar
     // point at -- so the admission and the pointer cannot disagree.
     Live t;
     // THE PANE IN THE RIGHT COLUMN IS AUTHORED: its occupant is a desk row.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
@@ -5401,9 +5388,8 @@ TEST_CASE("every owner of the body agrees about where it begins") {
 
     const CellRect slot = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
     CHECK(slot.y == kRoomCellY); // the stack begins at the body's own top
-    const CellRect side = cells_covered(placement_bounds(placement::kSideRegion, 0, sc));
-    CHECK(side.y == kRoomCellY);
-    CHECK(side.y + side.h == kRoomCellY + cells_of(sc).room_h);
+    // ...and the room's own top, where every place word counts from.
+    CHECK(gfx::cell_of_pixel(sc.room_y) == kRoomCellY);
     CHECK(gfx::cell_of_pixel(overlay_column(sc).y) == kRoomCellY);
 
     // THE PANE IS PAINTED WHERE IT IS HIT. Its top-left cell answers the pointer with the
@@ -5783,7 +5769,7 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
     // cleared first: `effective_pane_order` lifts the pane a weaver points at, so a desk whose
     // front rank says Layouts still answers Builder while the Builder is selected. ⚠ Just left
     // of the right column, not at the room's edge, which is under the pane standing there.
-    t.press_canvas(cells_of(sc).side_x - 1, cells_of(sc).h - kBottomRows - 1); // bare workspace: selects nothing
+    t.press_canvas(cells_of(sc).strip_x - 1, cells_of(sc).h - kBottomRows - 1); // bare workspace: selects nothing
     REQUIRE(t.session().panes.selected == kNoPaneKind);
     stage_desk(t, [&](Setup& desk) {
         REQUIRE(send_to_front(desk, ref_of(pane_kind::kLayouts)));
