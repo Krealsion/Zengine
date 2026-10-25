@@ -1,7 +1,7 @@
 # Workshop law — geometry
 
-Register `WL-GEO`: the composition in canvas pixels, the right column, the whole pixel, the unit
-a face reports, and the desk and its words read in Workshop's numbers. One law per heading;
+Register `WL-GEO`: the composition in canvas pixels, the whole pixel, the unit a face reports,
+and the desk and its words read in Workshop's numbers. One law per heading;
 cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-GEO-01 — One geometry draws a thing and hits it
@@ -20,7 +20,7 @@ WHY — `agents/decisions/one-geometry-draws-and-hits.md`
 
 ## WL-GEO-02 — `screen_of` sizes no tool's rectangle
 
-LAW — The screen answers the room, the bands, the right column's PLACE and the text metric, and nothing else: no presentation has a rectangle here, and a pane's is the arrangement's.
+LAW — The screen answers the room, the bands and the text metric, and nothing else: no presentation has a rectangle here, and a pane's is the arrangement's.
 
 MEANS
 - the four constants that sized the terminal overlay left with it;
@@ -31,14 +31,14 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-room-is-the-screen.md`
 
-## WL-GEO-03 — The room is the surface, and the right column stands on it
+## WL-GEO-03 — The room is the surface, and every place stands on it
 
-LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. The right column is a PLACE `Screen::side_cols` cells from the right edge, reserved out of nothing.
+LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. Every point a pane's word names is a point of the room, reserved out of nothing.
 
 MEANS
-- a pane's presence, place, size or removal changes no room, and neither does the column;
-- take the pane off the desk and the weaver gets thirty columns of workspace, not of nothing;
-- the column's width and the stack's fallback height are `workshop.side-columns` and `workshop.stack-rows`, and a commit re-fits the panes standing there.
+- a pane's presence, place, size or removal changes no room;
+- take a pane off the desk and the weaver gets its columns of workspace, not of nothing;
+- the stack's fallback height is `workshop.stack-rows`, and a commit re-fits the panes standing there.
 
 DOES NOT MEAN
 - that the bands are a pane's — `placement_bounds` merely defaults the Layouts pane to them.
@@ -51,7 +51,7 @@ LAW — Presentations may overlap; every overlap this composition makes is measu
 
 MEANS
 - a pane over the workspace, a pane over another pane (the picker over a slot, while it was);
-- the stack's slot reaching into the right column, counted at every extent.
+- the stack's slot reaching past the room's middle, counted at every extent.
 
 DOES NOT MEAN
 - that a test may forbid overlap generally — it would forbid every one of them.
@@ -138,12 +138,14 @@ MEANS
 
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
-## WL-GEO-12 — The notice says where an unplaced pane actually is
+## WL-GEO-12 — The notice says each word and where it put the pane
 
-LAW — A pane with a reactive axis reads `-` for that axis, followed by ` -- now @x,y WxH <unit>` taken from the resolved, unclipped window; a fully authored window carries no such clause.
+LAW — A window says each axis in its word, `-` for `default`, followed by ` -- now @x,y WxH <unit>` from the resolved, unclipped window wherever an axis is not exact pixels.
 
 MEANS
-- the clause names the unclipped ask — the rectangle a gesture measures from.
+- the clause names the unclipped ask — the rectangle a gesture measures from;
+- a share reads `50.00%`, then `fit`, `fill`, and a place its word and the offsets it reads;
+- a window in pixels on every axis carries no such clause: its numbers are where it is.
 
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
@@ -164,7 +166,7 @@ WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ## Do not assume
 
-- That the right column is reserved out of the room — the room is the surface (WL-GEO-03).
+- That any part of the room is reserved for a pane — the room is the surface (WL-GEO-03).
 - That a metric chooses where a pane goes — it sizes the two bands, and a default place is
   measured from what they leave (WL-GEO-05).
 
@@ -190,25 +192,24 @@ the column of the character each cell shows, a caret moving none"
 the caret before that character, and a sweep ends before the character under the hand"
 
 ### WL-GEO-02
-`workshop/screen.hpp` screen_of kScreenMinW Screen::room_w Screen::side_x
+`workshop/screen.hpp` screen_of kScreenMinW Screen::room_w
 `tests/test_workshop_screen.cpp` "a pane may lie over a pane, and the boundary is what makes it
 legible" "the screen's extent is TOTAL over whatever a medium published"
 
 ### WL-GEO-03
 `workshop/screen.hpp` screen_of Screen::room_w Screen::room_h kTopRows kBottomRows placement_bounds
-kSideCols Screen::room_y Screen::side_cols Screen::stack_rows kMinSideCols kMaxSideCols kMinStackRows
-kMaxStackRows Session::side_cols Session::stack_rows stack_capacity
+Screen::room_y Screen::stack_rows kMinStackRows kMaxStackRows Session::stack_rows stack_capacity
 `workshop/screen_chrome.cpp` add_desk_frames
-`workshop/panes.hpp` kTopBand placement::kSideRegion
+`workshop/panes.hpp` kTopBand
 `workshop/weave_settings.cpp` apply_workshop_settings
 `tests/test_workshop_screen.cpp` "the screen's furniture cannot see a pane, open or closed" "the
-reservation does not follow the Layouts pane" "the right column is `workshop.side-columns` wide
-and a stacked pane `workshop.stack-rows` tall, read from Workshop's settings file"
+reservation does not follow the Layouts pane" "a stacked pane is `workshop.stack-rows` tall, read
+from Workshop's settings file, and a file still keeping `workshop.side-columns` reads"
 `tests/test_workshop_panes_settings.cpp` "Workshop's measures and its completion order apply when
 committed, are kept in the settings file, and a value outside what each takes is refused"
 
 ### WL-GEO-04
-`workshop/screen.hpp` screen_of Screen::side_x kStackRows kMinSide
+`workshop/screen.hpp` screen_of kStackRows kMinStack
 `tests/test_workshop_screen.cpp` "a pane may lie over a pane, and the boundary is what makes it
 legible" "an overlapping pane is painted where it is hit, in both front orders"
 
@@ -271,10 +272,14 @@ BYTES" "the medium's device unit reaches no durable file"
 
 ### WL-GEO-12
 `workshop/weave_arrange.cpp` arrange_status managed_bounds
-`workshop/screen_pane_state.cpp` pane_window_partly_default
+`workshop/screen_pane_state.cpp` pane_window_reads_words pane_window_text
+`workshop/screen_pane_subject.cpp` pane_axis_text
 `tests/test_workshop_panes_window.cpp` "the notice says where a pane the weaver did not place
 actually is"
-`tests/test_workshop_screen.cpp` "which parts of a pane's window the weaver has not authored"
+`tests/test_workshop_screen.cpp` "which parts of a pane's window its numbers alone do not place"
+"the readout says each word, and where the words put the pane"
+`tests/test_workshop_desk.cpp` "the desk read says a pane's words where the band says them, and the
+pixels they came to"
 
 ### WL-GEO-13
 `workshop/weave_desk_read.cpp` area_reading shown_words_and_parts pane_point

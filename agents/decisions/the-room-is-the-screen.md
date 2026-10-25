@@ -1,4 +1,4 @@
-# The room is the screen, and the right column is a place
+# The room is the screen, and every place stands on it
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [geometry](../workshop/geometry.md). It reverses the reservation half of
@@ -17,16 +17,15 @@ region cannot be arranged into, and the catalog row that put Info there is exact
 furniture the host is giving up. The reservation had to go before Info could become a weave, and
 it is its own change rather than a clause of that one.
 
-**Decision.** The room is the surface. `room_w` is the screen's width with nothing taken off it;
-the right column is a PLACE at `w - kSideCols`, resolving to the rectangle it always resolved
-to, standing OVER the room rather than beside it. Every place is the weaver's to author, so
-`place_is_authorable` is gone rather than always-true, and the two refusals that read "is in the
-reserved side column — the screen owns its place" are gone with it. A desk row may name the
-column (`pane_unit::kRightColumn`, the word `right-column` in a setup file), because no row of
-absolute coordinates can say "the right edge, the workspace's full height" on a screen whose
-extent it does not know — and that sentence being sayable only by the screen was the reason the
-column was the screen's. The shipped default desk says it, so a fresh session opens Info exactly
-where it has always been and the strip beneath it is ordinary room.
+**Decision.** The room is the surface. `room_w` is the screen's width with nothing taken off it,
+and every place stands OVER the room rather than beside it. Every place is the weaver's to author,
+so `place_is_authorable` is gone rather than always-true, and the two refusals that read "is in
+the reserved side column — the screen owns its place" are gone with it. A desk row says where its
+pane stands in a word -- `top-right`, the room's top-right corner, for Info -- because no row of
+absolute coordinates can say "the right edge" on a screen whose extent it does not know, and that
+sentence being sayable only by the screen was the reason the column was the screen's. The shipped
+default desk says it, so a fresh session opens Info exactly where it has always been and the strip
+beneath it is ordinary room; a file's `right-column` reads as that word.
 
 **Alternatives considered.**
 - *Leaving the reservation and giving Info a placement field on its offer* — refused by the

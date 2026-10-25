@@ -97,10 +97,9 @@ keys below still reach every layout, and the Pane Manager puts it back where it 
 reserved whether or not anything stands on them, so the room below them is the same size
 whatever you do with the selector. Moving it away leaves those rows empty on purpose.
 
-The column at the right-hand edge is a different case: it is an ordinary place. Your workspace
-runs underneath it at full width, `Info` stands on that room the way a stacked pane stands on
-it, and taking `Info` off the desk gives you the thirty columns to reach rather than thirty
-columns of nothing.
+The right-hand edge is a different case: it is an ordinary place. Your workspace runs underneath
+`Info` at full width, `Info` stands at the room's top-right the way a stacked pane stands on it,
+and taking `Info` off the desk gives you its columns to reach rather than columns of nothing.
 
 | gesture | does |
 |---|---|
@@ -372,8 +371,8 @@ Source-traced, precisely:
 | keeping several layouts at once | **yes**, within the run | tabs on Workshop's first row; `.` `,` `=` `Ctrl`+`w`, and the tab gestures |
 | knowing whether a layout matches its Setup file | **yes** | `setup:` on the first row: none, current or modified |
 | selecting among setup **files** | **no in-application selection** | one file per run, chosen by `--setup`; a layout keeps whichever it was related to |
-| persisting pane position | **yes** | authored place, in the setup and in the session |
-| persisting pane size | **yes** | authored size in cells or pixels, in both |
+| persisting pane position | **yes** | authored place, pixels or a point of the room in a word, in the setup and in the session |
+| persisting pane size | **yes** | authored size in pixels or a word -- a share, `fit` or `fill` -- in both |
 | persisting which panes are open | **yes** | the pane list, in both |
 | persisting pane order (depth) | **yes** | the rank permutation, in both |
 | persisting a pane's settings | **yes** | per layout, in the pane's row, in both |

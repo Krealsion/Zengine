@@ -22,7 +22,8 @@ ui/vocabulary.hpp   Size{mode, amount?}      a width or a height: its word, and 
                             place,           ...its place in that frame...
                             width, height,   ...two sizes...
                             flow, gap?}      ...and how it lays the parts standing in it
-                    size_word / place_word   the one table that spells the words
+                    size_word / place_word   the one table that spells the words,
+                    size_named / place_named and reads a word back to its number
                     ById / walk_context      finding and following a relationship, with
                                              no room and no number in sight
                     problem                  what is wrong with the intent alone
@@ -88,8 +89,9 @@ carries no offset.
 (`std::optional`): `amount` on `pixels` and `share`, `x` and `y` where the place reads them, `gap`
 on a column (`size_reads_amount`, `place_reads_x`, `place_reads_y` say where). A number on a word
 that reads none is not read. The words are numbers in the shape and spelled by one table,
-`size_word` and `place_word`, so every owner spells them alike; a number no word is has no
-spelling, and solving reads it as `default`.
+`size_word` and `place_word`, so every owner spells them alike, and read back by the same table
+(`size_named`, `place_named`); a number no word is has no spelling, and solving reads it as
+`default`.
 
 **Nothing on the authored side validates.** What a legal size, place or relationship is belongs to
 the application that accepts one, because that is the only place that can also refuse. The
