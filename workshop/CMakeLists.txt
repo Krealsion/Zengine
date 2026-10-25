@@ -323,7 +323,7 @@ set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zen
                                  # ...and the menu presenter, which draws nothing of its own but
                                  # is a weave a weaver edits, builds and reloads like any pane
                                  zengine-menu-presenter zengine-palette zengine-first-run
-                                 zengine-flow-pane zengine-view-builder)
+                                 zengine-flow-pane zengine-view-builder zengine-inventory-pane)
 if(CMAKE_CONFIGURATION_TYPES)
     set(zengine_development_config "$<CONFIG>")
     set(zengine_development_runtime "${CMAKE_BINARY_DIR}/workshop-runtime/$<CONFIG>")
