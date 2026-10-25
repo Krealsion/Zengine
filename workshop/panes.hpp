@@ -241,14 +241,6 @@ struct RuntimePane {
     /// when nothing this office declared for the pane is in force. An `ActionsWithdrawn` names it.
     // WL-DESK-06 -- agents/workshop/desktop.md
     std::int64_t declaration = 0;
-    /// THE SETTINGS THIS PANE DECLARED, as admitted, and the weave and incarnation that declared
-    /// them: they count while that incarnation holds the office (`WorkshopWeave::counted_settings`).
-    /// Held in both versions whichever was declared, so a v1 reader and a v2 reader read one.
-    // WL-SETTING-03 -- agents/workshop/settings.md
-    std::vector<PaneSettingRow> settings_rows = {};
-    std::vector<v2::PaneSettingRow> settings_rows_v2 = {};
-    loom::WeaveId settings_from{};
-    std::int64_t settings_incarnation = 0;
     std::int64_t preferred_rows = 0;
     std::int64_t preferred_columns = 0;
     /// A canvas body asked for in canvas pixels (`v3::PaneOffered`), and the rows of text beneath

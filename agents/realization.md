@@ -125,7 +125,7 @@ begin(plan)                    the ordinary host loop        answered()
   the first weave row is live before one delivery has been made. Workshop reads its session file on
   the first window's offer, which cannot arrive until a window has loaded, so a conversion provider
   authored above the window's row is mounted in time by authored order alone
-  (`workshop/session_history.hpp`; [workshop.md](workshop.md)). That is a REASON TO KEEP the barrier
+  (`workshop/layouts/session_history.hpp`; [workshop.md](workshop.md)). That is a REASON TO KEEP the barrier
   honest, not a new rule: reordering a plan's rows, or letting a waiting row be stepped over, would
   move a mount that a durable owner is now depending on.
 - **AN UNANSWERED LOAD STAYS UNANSWERED.** No timeout, no deadline, no retry, no cancellation

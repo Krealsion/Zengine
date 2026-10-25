@@ -28,6 +28,7 @@
 #include "inventory/pane_client.hpp"
 #include "message-draft/transfer.hpp"
 #include "workshop/pane_rows.hpp"
+#include "workshop/settings_seam_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_operation.hpp"
@@ -590,6 +591,7 @@ public:
                                {kActionRenameCancel, "cancel rename", scan::kEscape, mod::kNone}};
         const workshop::ActionCause ended = cause_of<workshop::PaneObservationEnded>();
         const workshop::ActionCause launched = cause_of<workshop::PaneLaunchRequested>();
+        const workshop::ActionCause reread = cause_of<workshop::PaneSettingsRequested>();
         std::vector<workshop::v4::PaneActionRow> rows = {
             {kValueUp, "previous field", scan::kUp, mod::kNone},
             {kValueDown, "next field", scan::kDown, mod::kNone},
@@ -610,8 +612,11 @@ public:
             {kActionGrab, "pick up typed field copy", scan::kG, mod::kCtrl, {},
              {cause_of<workshop::PaneValueCarryRequested>()}},
             {kActionDiscard, "discard local edits", scan::kD, mod::kCtrl},
-            {kActionViewNew, "new Info view", scan::kN, mod::kCtrl, {}, {launched}},
-            {kActionViewFork, "fork this view", scan::kN, mod::kCtrl | mod::kShift, {}, {launched},
+            // A VIEW OPENED OR CLOSED MOVES THE DESK, and the default pane reads its subject's
+            // settings again from the layouts' owner.
+            {kActionViewNew, "new Info view", scan::kN, mod::kCtrl, {}, {launched, reread}},
+            {kActionViewFork, "fork this view", scan::kN, mod::kCtrl | mod::kShift, {},
+             {launched, reread},
              {}, scan::kDown, mod::kAlt},
             {kActionViewRename, "rename this view", scan::kM, mod::kCtrl, {}, {}, {}, scan::kHome,
              mod::kAlt},
@@ -620,7 +625,7 @@ public:
         if (is_default()) rows.push_back({kActionPanes, "pane properties", scan::kI, mod::kCtrl, {}, {ended},
                                           {}, scan::kLeft, mod::kAlt});
         else rows.push_back({kActionViewClose, "close this view", scan::kW, mod::kCtrl | mod::kShift, {},
-                             {cause_of<workshop::PaneCloseRequested>(), ended}, {}, scan::kW,
+                             {cause_of<workshop::PaneCloseRequested>(), ended, reread}, {}, scan::kW,
                              mod::kCtrl});
         if (!replacing().empty()) rows.push_back({kActionStop, "stop waiting", scan::kEscape, mod::kNone});
         return rows;

@@ -2219,7 +2219,7 @@ TEST_CASE("the role line keeps typed text visible in a narrow room") {
     b.r.key(input::scan::kO);
     REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
 
-    const Written narrow = author_pane_size(b.r.session().setup.active, builder_ref(),
+    const Written narrow = staged_author_pane_size(b.r, builder_ref(),
                                             PaneSize{pane_unit::kPixels, cells_px(32)},
                                             PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(narrow.accepted, narrow.refusal);
@@ -2230,7 +2230,7 @@ TEST_CASE("the role line keeps typed text visible in a narrow room") {
                   "the role line accepted text but its full prompt hid that text");
 
     // SEPARATE ACCEPTANCE FROM VISIBILITY: the same draft reveals its text once wider.
-    const Written wide = author_pane_size(b.r.session().setup.active, builder_ref(),
+    const Written wide = staged_author_pane_size(b.r, builder_ref(),
                                           PaneSize{pane_unit::kPixels, cells_px(80)},
                                           PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(wide.accepted, wide.refusal);
@@ -2360,7 +2360,7 @@ TEST_CASE("a reader waiting on its first page still offers its whole list in a n
            /*with_presenter=*/true);
     b.tool->next.op = 1;
     bp_settled(b, "one", "a", bld::outcome::kSucceeded);
-    const Written sized = author_pane_size(b.r.session().setup.active, builder_ref(),
+    const Written sized = staged_author_pane_size(b.r, builder_ref(),
                                            PaneSize{pane_unit::kPixels, cells_px(30)},
                                            PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(sized.accepted, sized.refusal);

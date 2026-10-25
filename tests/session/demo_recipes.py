@@ -508,11 +508,12 @@ class Recipes(unittest.TestCase):
 
     def test_a_desk_saved_now_launches_in_a_session_this_workshop_reads_whole(self):
         setup_version = self.owner_version("workshop/setup_persist.hpp")
-        session_version = self.owner_version("workshop/session_persist.hpp")
+        session_version = self.owner_version("workshop/layouts/session_persist.hpp")
         # A DESK AS `s` WRITES IT NOW: Workshop's setup version, and a row keeping its settings.
         root = make(self.tmp, "saved")
         desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
         desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
+        desk["fields"].update(theme={"name": "", "fingerprint": "0"}, locks=[], pins=[])
         for row in desk["fields"]["panes"]:
             row["settings"] = []
         desk["fields"]["panes"][0]["settings"] = [{"key": "title", "text": "a b"},
@@ -578,6 +579,7 @@ class Recipes(unittest.TestCase):
         root = make(self.tmp, "slotted", view_slots=[{"x": 2, "y": 3, "width": 30, "height": 9}])
         desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
         desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
+        desk["fields"].update(theme={"name": "", "fingerprint": "0"}, locks=[], pins=[])
         for row in desk["fields"]["panes"]:
             row["settings"] = []
         (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
@@ -627,7 +629,7 @@ class Recipes(unittest.TestCase):
         # ...which names the versions the C++ owners declare.
         import workshop_formats as formats
         self.assertEqual(formats.SETUP_VERSION, self.owner_version("workshop/setup_persist.hpp"))
-        self.assertEqual(formats.SESSION_VERSION, self.owner_version("workshop/session_persist.hpp"))
+        self.assertEqual(formats.SESSION_VERSION, self.owner_version("workshop/layouts/session_persist.hpp"))
 
     def test_a_walk_needs_a_name_what_it_checks_and_steps_that_name_no_path(self):
         make(self.tmp, "walks", walks={

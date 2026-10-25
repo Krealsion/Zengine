@@ -345,7 +345,7 @@ TEST_CASE("a notice a weaver's own path makes too long is marked on screen, not 
 
     // And the refusal cost the weaver nothing but the notice: no file became the desk's.
     CHECK(t.session().notice_is_bad);
-    CHECK(t.session().setup.active_link.path.empty());
+    CHECK(t.run().active_link.path.empty());
 }
 
 // ============================================================================================

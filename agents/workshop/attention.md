@@ -122,7 +122,7 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 `workshop/screen.hpp` Session::notice Session::conditions kKeymapWallKey
 `workshop/weave_run.cpp` say
 `workshop/attention.hpp` HeldConditions Condition unavailable_tool
-`workshop/weave.hpp` HostContext::standing_conditions WorkshopWeave::prefs_bad_
+`workshop/weave.hpp` HostContext::standing_conditions
 `workshop/weave_handlers.cpp` take_host_conditions
 `tests/test_workshop_host.cpp` "event sentences stay events, and a condition needs no sentence" "a
 held condition stands until its owner retracts it" "an unavailable tool is named by its artifact on

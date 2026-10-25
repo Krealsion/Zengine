@@ -7,9 +7,10 @@
 // the file was read, 1 when it was refused and 2 when it was called wrongly.
 
 #include "operator/catalog.hpp"
-#include "workshop/session_history.hpp"
-#include "workshop/session_persist.hpp"
+#include "workshop/layouts/session_history.hpp"
+#include "workshop/layouts/session_persist.hpp"
 #include "workshop/setup_persist.hpp"
+#include "workshop/window_persist.hpp"
 
 #include <cstdio>
 #include <string>
@@ -74,11 +75,20 @@ int main(int argc, char** argv) {
             return 1;
         }
         std::printf("read session\n");
-        std::printf("viewport %lld %lld\n", static_cast<long long>(read.viewport_w),
-                    static_cast<long long>(read.viewport_h));
+        // THE ROOM IS THE WINDOW FILE'S, beside the session.
+        const ws::window_persist::LoadedWindow window =
+            ws::window_persist::load_file(ws::window_persist::path_beside(path));
+        if (window.present && window.outcome.accepted) {
+            std::printf("viewport %lld %lld\n", static_cast<long long>(window.viewport_w),
+                        static_cast<long long>(window.viewport_h));
+        } else {
+            std::printf("viewport none\n");
+        }
         std::printf("active %zu\n", read.active);
+        std::printf("next id %lld\n", static_cast<long long>(read.next_id));
         for (const ws::Layout& layout : read.layouts) {
             say_desk("layout", layout.desk);
+            std::printf("id %lld\n", static_cast<long long>(layout.id));
             std::printf("link %s\n", layout.link.path.c_str());
         }
         return 0;

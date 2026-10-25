@@ -1892,9 +1892,9 @@
         "SurfaceCaptureChunkRequested v1",
         "SurfaceCaptureChunk v1",
         "PaneSettingsRequested v1",
-        "PaneSettingsShown v1",
+        "PaneSettingsAnswered v1",
         "PaneSettingCommitRequested v1",
-        "PaneSettingActed v1"
+        "PaneSettingCommitAnswered v1"
       ],
       "terms": [
         "act",

@@ -203,7 +203,7 @@ public:
     void offered(loom::Mail& mail) {
         declare(mail);
         (void)mail.as_role(vb::kRole)
-            .send_to_role(workshop_role, ws::v2::PaneSettingsDeclared{vb::kPane, setting_rows()});
+            .send_to_role(ws::kLayoutsRole, ws::v2::PaneSettingsDeclared{vb::kPane, setting_rows()});
     }
     /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
     /// against the revision it was handed at. A hand-off moves no view: the size is the next

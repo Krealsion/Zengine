@@ -121,7 +121,7 @@ def story(ctx, hand, link, pictures, shots):
     ctx.step("close the preset's view and reopen it from stored data")
     hand.control(*PRESET, "Close")
     hand.control(*SAMPLE, "New")
-    hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout("workbench"))}, settle=True)
+    hand.ask("zengine.layouts", "SetupApplyRequested", {"setup": json.dumps(layout("workbench"))}, settle=True)
     expect(hand, PRESET, "Info 2 | empty")  # the same slot, a new incarnation: nothing carried over
     hand.control(*PRESET, "Rename"); hand.key("ctrl+a"); hand.text("Preset"); hand.key("enter")
     hand.click(hand.row(*INV, LABELS["preset"], scroll=True)); hand.press("inventory.live")

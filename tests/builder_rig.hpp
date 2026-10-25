@@ -184,7 +184,7 @@ struct BuilderRig {
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `builder` pane");
         r.pick(builder_ref());
         kind = row()->kind;
-        REQUIRE(author_pane_size(r.session().setup.active, builder_ref(),
+        REQUIRE(staged_author_pane_size(r, builder_ref(),
             {pane_unit::kPixels, cells_px(placement_bounds(placement::kOverlayStack, 0,
                 screen_of(cells_px(width), cells_px(height))).w)}, PaneSize{}).accepted);
         focus();
@@ -202,7 +202,7 @@ struct BuilderRig {
     /// A TALLER PANE, authored the way a weaver's setup file authors one: some cases need the
     /// whole control strip drawn, and the strip grows with the room.
     void author_height(std::int64_t cells, std::int64_t width, std::int64_t height) {
-        const Written wrote = author_pane_size(r.session().setup.active, builder_ref(),
+        const Written wrote = staged_author_pane_size(r, builder_ref(),
             {pane_unit::kPixels, cells_px(placement_bounds(placement::kOverlayStack, 0,
                 screen_of(cells_px(width), cells_px(height))).w)}, {pane_unit::kPixels, cells_px(cells)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);

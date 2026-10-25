@@ -6,6 +6,8 @@
 
 #include "weave.hpp"
 
+#include <memory>
+
 #include <algorithm>
 
 namespace zengine::workshop {
@@ -63,17 +65,6 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
         if (session_.presented.open && session_.presented.office == office &&
             session_.presented.pane == offer.pane) {
             withdraw_menu("the pane was offered again", mail);
-        }
-        // ...AND A DECLARATION THAT NO LONGER COUNTS GOES: a reloaded image keeps the weave id
-        // but not the incarnation it was counted by, so one that declares nothing takes nothing
-        // its predecessor declared. The same image offering again keeps its declaration.
-        for (RuntimePane& row : session_.panes.runtime.entries) {
-            if (row.kind == admitted.kind && counted_settings(row) == nullptr) {
-                row.settings_rows.clear();
-                row.settings_rows_v2.clear();
-                row.settings_from = {};
-                row.settings_incarnation = 0;
-            }
         }
     }
     // A party that has just arrived has heard nothing, so what is true is said again on the next
@@ -278,115 +269,9 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, std::string& gaps,
     }
 }
 
-// WL-SETTING-03 -- agents/workshop/settings.md
-void WorkshopWeave::on(const PaneSettingsDeclared& declared, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
-        return; // personal speech declares nothing (the offer's rule)
-    }
-    const Admission admitted = admit_pane_settings(session_.panes.runtime, office, declared);
-    if (!admitted.written.accepted) {
-        // REFUSED ALOUD, AND THE SETTINGS IN FORCE STAND: only an accepted declaration replaces.
-        say(admitted.written.refusal, true);
-        repaint(mail);
-        return;
-    }
-    std::vector<v2::PaneSettingRow> rows;
-    rows.reserve(declared.rows.size());
-    for (const PaneSettingRow& row : declared.rows) {
-        rows.push_back(widen_setting_row(row));
-    }
-    keep_settings_rows(admitted.kind, std::move(rows), mail);
-}
-
-// WL-SETTING-03 -- agents/workshop/settings.md
-void WorkshopWeave::on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
-        return;
-    }
-    const Admission admitted = admit_pane_settings(session_.panes.runtime, office, declared);
-    if (!admitted.written.accepted) {
-        say(admitted.written.refusal, true);
-        repaint(mail);
-        return;
-    }
-    keep_settings_rows(admitted.kind, declared.rows, mail);
-}
-
-void WorkshopWeave::keep_settings_rows(std::int64_t kind, std::vector<v2::PaneSettingRow> rows,
-                                       loom::Mail& mail) {
-    // JUDGED WHOLE; ONLY NOW IS ANYTHING WRITTEN, by handle, as an action declaration is. The
-    // sender is kept beside the settings, which count while it holds the office.
-    for (RuntimePane& row : session_.panes.runtime.entries) {
-        if (row.kind == kind) {
-            row.settings_rows.clear();
-            for (const v2::PaneSettingRow& one : rows) {
-                row.settings_rows.push_back(narrow_setting_row(one));
-            }
-            row.settings_rows_v2 = rows;
-            row.settings_from = mail.sender();
-            row.settings_incarnation =
-                host_->incarnation_of ? host_->incarnation_of(mail.sender()) : 0;
-        }
-    }
-    repaint(mail);
-}
-
-// WL-SETTING-03 -- agents/workshop/settings.md
-const std::vector<v2::PaneSettingRow>*
-WorkshopWeave::counted_settings_v2(const RuntimePane& row) const {
-    return counted_settings(row) != nullptr ? &row.settings_rows_v2 : nullptr;
-}
-
 // WL-SETTING-07 -- agents/workshop/settings.md
-std::int64_t WorkshopWeave::settings_revision(const PaneRef& ref) {
-    // A ROW THE LIVE LAYOUT NO LONGER HAS TAKES ITS RECORD WITH IT, so the list is bounded by the
-    // desk's rows, and the row coming back is minted afresh.
-    std::erase_if(settings_revisions_, [this](const SettingsRevision& r) {
-        return pane_of(session_.setup.active, r.ref) == nullptr;
-    });
-    const SetupPane* seat = pane_of(session_.setup.active, ref);
-    if (seat == nullptr) {
-        return 0;
-    }
-    const RuntimePane* offered = session_.panes.runtime.find(ref.provider, ref.pane);
-    const std::vector<v2::PaneSettingRow>* counted =
-        offered != nullptr ? counted_settings_v2(*offered) : nullptr;
-    SettingsRevision now{ref,
-                         0,
-                         session_.setup.put_live,
-                         seat->settings,
-                         counted != nullptr ? *counted : std::vector<v2::PaneSettingRow>{},
-                         host_->role_holder ? host_->role_holder(ref.provider) : loom::WeaveId{}};
-    for (SettingsRevision& kept : settings_revisions_) {
-        if (!(kept.ref == ref)) {
-            continue;
-        }
-        if (kept.desk != now.desk || kept.settings != now.settings || kept.rows != now.rows ||
-            kept.holder != now.holder) {
-            now.revision = ++settings_revision_;
-            kept = std::move(now);
-        }
-        return kept.revision;
-    }
-    now.revision = ++settings_revision_;
-    settings_revisions_.push_back(std::move(now));
-    return settings_revisions_.back().revision;
-}
-
-// WL-SETTING-03 -- agents/workshop/settings.md
-const std::vector<PaneSettingRow>* WorkshopWeave::counted_settings(const RuntimePane& row) const {
-    if (!row.settings_from.valid() || !host_->role_holder ||
-        host_->role_holder(row.provider) != row.settings_from) {
-        return nullptr;
-    }
-    // ...AND AT THE INCARNATION THAT DECLARED: a reload in place keeps the id and moves this.
-    if (host_->incarnation_of &&
-        host_->incarnation_of(row.settings_from) != row.settings_incarnation) {
-        return nullptr;
-    }
-    return &row.settings_rows;
+std::int64_t WorkshopWeave::settings_revision(const PaneRef& ref) const {
+    return row_revision(session_.setup, ref);
 }
 
 // WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md
@@ -410,23 +295,39 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     const PaneRef ref{row->provider, row->pane};
     // This delivery is the commitment point, and it waits for no room: the stack is not rationed,
     // and a pane its column has no height left for begins the column again at its top
-    // (`bounds_of`), in front as the newest row.
-    const bool added = add_pane(session_.setup.active, ref);
-    apply_setup(mail);
-    if (!session_.panes.has(kind)) {
-        // The belt under the seat: `apply_setup` seats every resolved row, so a pane it did not
-        // seat is a defect. Answered as a refusal, with the row taken back: "seated" is the word
-        // the asker acts on.
-        if (added) {
-            (void)remove_pane(session_.setup.active, ref);
-            apply_setup(mail);
-        }
-        const std::string refusal = "defect: " + name + " was not seated";
-        say(refusal, true);
-        (void)mail.answer(PaneRevealAnswered{asked.pane, false, refusal});
-        repaint(mail);
-        return;
-    }
+    // (`bounds_of`), in front as the newest row. The row is the store's to add; the answer waits
+    // for the store's.
+    auto held = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
+    const std::string pane = asked.pane;
+    seat_then(
+        ref,
+        [this, held, kind, name, ref, pane](const LayoutEditAnswered& answered, loom::Mail& m) {
+            if (!answered.accepted || !session_.panes.has(kind)) {
+                // The belt under the seat: the store refused it, or the desk did not seat what it
+                // added. Answered as a refusal, with the row taken back: "seated" is the word the
+                // asker acts on.
+                const std::string refusal =
+                    answered.accepted ? "defect: " + name + " was not seated" : answered.refusal;
+                if (answered.accepted && has_pane(session_.setup.active, ref)) {
+                    LayoutEdit unseat;
+                    unseat.op = layout_op::kUnseat;
+                    unseat.provider = ref.provider;
+                    unseat.pane = ref.pane;
+                    ask_layout({unseat}, [](const LayoutEditAnswered&, loom::Mail&) {}, m, false);
+                }
+                say(refusal, true);
+                (void)loom::answer_deferred(*held, m, PaneRevealAnswered{pane, false, refusal});
+                repaint(m);
+                return;
+            }
+            revealed(kind, name, pane, *held, m);
+        },
+        mail);
+}
+
+// WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md
+void WorkshopWeave::revealed(std::int64_t kind, const std::string& name, const std::string& pane,
+                             const loom::DeferredAnswer& owed, loom::Mail& mail) {
     // AND IT SELECTS THE PANE IT JUST SEATED AND POINTS THE KEYS AT IT -- the keyboard
     // candidate's own argument, one question wider: a reveal that pointed the keys at a pane
     // still sitting behind another would put the first keystroke somewhere the weaver cannot
@@ -442,7 +343,7 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
     } else {
         say("showing " + name + " -- it asked to be shown, and it has the keys", false);
     }
-    (void)mail.answer(PaneRevealAnswered{asked.pane, true, std::string()});
+    (void)loom::answer_deferred(owed, mail, PaneRevealAnswered{pane, true, std::string()});
     repaint(mail);
 }
 

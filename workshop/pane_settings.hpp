@@ -3,11 +3,12 @@
 #ifndef ZENGINE_WORKSHOP_PANE_SETTINGS_HPP
 #define ZENGINE_WORKSHOP_PANE_SETTINGS_HPP
 
-// A pane's settings: the choices a pane makes about how it presents itself, which Workshop keeps
-// per layout in the pane's setup row and hands back to it. A setting is a key and a value of one
-// of three kinds -- a flag, a number or a text -- in that kind's own field, exactly one present.
-// A pane declares the settings it takes; Workshop judges a weaver's edit against them, keeps what
-// it stores, and hands a seated pane its row's settings. What a setting means is the pane's.
+// A pane's settings: the choices a pane makes about how it presents itself, which the layouts'
+// owner keeps per layout in the pane's setup row and Workshop hands back to it. A setting is a key
+// and a value of one of three kinds -- a flag, a number or a text -- in that kind's own field,
+// exactly one present. A pane declares the settings it takes to the layouts' owner, which judges
+// a weaver's edit against them and keeps what it stores; Workshop hands a seated pane its row's
+// settings. What a setting means is the pane's.
 // Reference: workshop/docs/workshop-panes.md#a-panes-settings.
 
 #include <zen/weave/shape.hpp>
@@ -20,6 +21,10 @@
 #include <vector>
 
 namespace zengine::workshop {
+
+/// THE OFFICE THAT KEEPS EVERY LAYOUT AND WHAT EACH KEEPS -- `zengine.layouts`: a pane declares its
+/// settings here, and every settings door is its.
+inline constexpr const char* kLayoutsRole = "zengine.layouts";
 
 /// The longest key, the longest text, the most settings one pane's row keeps (and so the most a
 /// pane declares), and the most choices a text setting names.
@@ -74,8 +79,8 @@ struct PaneSettingRow {
     friend bool operator==(const PaneSettingRow&, const PaneSettingRow&) = default;
 };
 
-/// Provider -> Workshop: the settings one pane takes, judged whole under the office stamp and
-/// refused aloud; a later declaration replaces it. It counts while the weave that sent it holds
+/// Provider -> the layouts' owner: the settings one pane takes, judged whole under the office stamp
+/// and refused aloud; a later declaration replaces it. It counts while the weave that sent it holds
 /// the office, and nothing else waits on it.
 struct PaneSettingsDeclared {
     std::string pane;
@@ -113,7 +118,7 @@ struct PaneSettingRow {
     friend bool operator==(const PaneSettingRow&, const PaneSettingRow&) = default;
 };
 
-/// Provider -> Workshop: v1's declaration, its rows saying how each is found.
+/// Provider -> the layouts' owner: v1's declaration, its rows saying how each is found.
 struct PaneSettingsDeclared {
     std::string pane;
     std::vector<PaneSettingRow> rows;

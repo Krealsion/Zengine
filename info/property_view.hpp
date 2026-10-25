@@ -5,8 +5,9 @@
 
 // Info's pane-property view, the default pane `info` while it holds no value: the properties of
 // the one pane an office named as its subject (`InspectPaneRequested`, the Pane Manager's
-// `inspect in Info`), as the host says them (`PaneSubjectShown`), and a draft of one of them the
-// host writes when it is committed (`PaneCommitRequested`). It touches no desk: it asks.
+// `inspect in Info`), as the host says them (`PaneSubjectShown`), its settings as the layouts'
+// owner reads them (`PaneSettingsAnswered`), and a draft of one of them its owner writes when it
+// is committed (`PaneCommitRequested`, `PaneSettingCommitRequested`). It touches no desk: it asks.
 // Reference: info/docs/zengine.info.md.
 // Workshop law: agents/workshop/info-body.md
 
@@ -14,6 +15,7 @@
 // each act says what the weave owes Workshop (`Due`): its action rows again, its rows again. The
 // weave sends both, through the view's canvas or as prose, and keeps the clipboard's custody.
 
+#include "settings_rows.hpp"
 #include "vocabulary.hpp"
 #include "value_watch.hpp"
 
@@ -33,6 +35,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -50,6 +54,7 @@ public:
     struct Due {
         bool declare = false;
         bool say = false;
+        bool settings = false; ///< the subject's settings, asked of their owner again
     };
     Due take_due() { return std::exchange(due_, Due{}); }
 
@@ -88,7 +93,13 @@ public:
     /// WHAT THE SUBJECT LOOKS LIKE, SAID BY THE HOST, AND WHAT ITS ROWS ADDRESS. Replaced WHOLE,
     /// never merged -- published when it changes, or answered to this image's arrival.
     void shown(const workshop::PaneSubjectShown& said) {
-        known_ = said;
+        // THE SETTINGS OF ANOTHER SUBJECT ARE NOT THIS ONE'S: read again, and none shown meanwhile.
+        if (said.office != host_.office || said.pane != host_.pane) {
+            settings_.reset();
+        }
+        host_ = said;
+        due_.settings = said.subject != 0;
+        merge();
         // (!) A DRAFT WHOSE ROWS ARE NO LONGER SHOWN IS ABANDONED, and it is the one thing this
         // pane drops without being asked -- so it says so. The host names what the rows address:
         // another pane, another desk put live, or another layout of rows is another name, even
@@ -103,13 +114,55 @@ public:
         due_.say = true;
     }
 
+    /// THE SUBJECT'S SETTINGS, AS THEIR OWNER READS THEM: answering this view's newest ask about
+    /// the subject it shows, and merged into the rows before the interior. The weave has already
+    /// judged that the mail answers an ask and comes from the owner.
+    void settings_shown(const workshop::PaneSettingsAnswered& read, std::uint64_t correlation) {
+        if (correlation != settings_ask_ || read.provider != host_.office ||
+            read.pane != host_.pane) {
+            return; // an older reading, or another subject's
+        }
+        settings_ = read;
+        merge();
+        if (draft_.open && !shows_draft_subject()) {
+            end_draft(kAbandoned, kAbandonedSent);
+            due_.declare = true;
+        }
+        clamp_cursor();
+        due_.say = true;
+    }
+    /// ...ASKED, of the subject this view shows.
+    void ask_settings(ViewContext& c) {
+        if (host_.subject == 0) {
+            return;
+        }
+        settings_ask_ = ++c.asks;
+        (void)c.mail.as_role(kInfoPaneRole)
+            .send_to_role(workshop::kLayoutsRole,
+                          workshop::PaneSettingsRequested{host_.office, host_.pane}, settings_ask_);
+    }
+
+    /// WHAT THE SETTINGS' OWNER MADE OF A COMMIT OF ONE OF THEM, read as the host's answers are:
+    /// accepted, or refused in its words after the row's label; and the settings read again.
+    void acted_setting(const workshop::PaneSettingCommitAnswered& said, loom::Mail& mail) {
+        if (!committing_.awaiting || !committing_.owner || mail.correlation() != committing_.pending) {
+            return;
+        }
+        const SentCommit was = std::move(committing_);
+        committing_ = SentCommit{};
+        answered_commit(was, workshop::PaneSubjectActed{
+                                 said.accepted, said.accepted ? std::string()
+                                                              : was.label + ": " + said.refusal});
+        due_.settings = true;
+    }
+
     /// What the owner made of an ask this view is waiting on, read against that ask: the
     /// correlation says which request, the record says what it was, and a commit's draft
     /// incarnation and sent text say whether the open draft sent it. An accepted ask says
     /// nothing here (the host says a write, and a changed picture arrives); a refusal is the
     /// owner's own words. The weave has already judged that the mail answers an ask.
     void acted(const workshop::PaneSubjectActed& said, loom::Mail& mail) {
-        if (committing_.awaiting && mail.correlation() == committing_.pending) {
+        if (committing_.awaiting && !committing_.owner && mail.correlation() == committing_.pending) {
             const SentCommit was = std::move(committing_);
             committing_ = SentCommit{};
             answered_commit(was, said);
@@ -157,7 +210,9 @@ public:
     /// whether the notice named one of this view's asks; the weave has judged its provenance.
     bool refused(const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (refused_ask(committing_, refused, mail, workshop::PaneCommitRequested::zen_name,
-                        workshop::PaneCommitRequested::zen_version)) {
+                        workshop::PaneCommitRequested::zen_version) ||
+            refused_ask(committing_, refused, mail, workshop::PaneSettingCommitRequested::zen_name,
+                        workshop::PaneSettingCommitRequested::zen_version)) {
             const SentCommit was = std::move(committing_);
             committing_ = SentCommit{};
             undelivered_commit(was, refused);
@@ -275,7 +330,8 @@ public:
         };
         if (draft_.open) {
             row(kActionCommit, "commit", input::scan::kReturn,
-                {workshop::cause_of<workshop::PaneCommitRequested>()});
+                {workshop::cause_of<workshop::PaneCommitRequested>(),
+                 workshop::cause_of<workshop::PaneSettingCommitRequested>()});
             row(kActionCancel, "cancel", input::scan::kEscape);
         } else {
             row(kActionUp, "row up", input::scan::kUp);
@@ -516,6 +572,8 @@ private:
         std::uint64_t draft = 0; ///< `TextBox::draft_epoch` when it was sent: which draft
         std::string text;        ///< ...and what it sent: whether that draft holds anything more
         std::string promise;     ///< the sentence said about it while it was unanswered
+        bool owner = false;      ///< asked of the settings' owner, not the host
+        std::string label;       ///< the row it was typed into, for the owner's refusal
     };
 
     /// The office's ask, answered with what became of the inspect it started: once, and only
@@ -561,7 +619,8 @@ private:
         return record.awaiting && record.attempt.valid() && attempt.valid() &&
                attempt.seq == record.attempt.seq && mail.correlation() == record.pending &&
                refused.shape == shape && refused.version == static_cast<std::int64_t>(version) &&
-               refused.role == kWorkshopRole && refused.target.empty();
+               (refused.role == kWorkshopRole || refused.role == workshop::kLayoutsRole) &&
+               refused.target.empty();
     }
 
     /// A COMMIT'S ANSWER -- about the draft that sent it and what it sent, and about nothing else.
@@ -610,9 +669,13 @@ private:
     /// as an inspect does: nothing queued releases the record at once, and the draft and its text
     /// stand, so the next Return is a fresh attempt rather than a second commit.
     void ask_commit(ViewContext& c) {
+        if (const auto at = owner_row(draft_.row)) {
+            ask_setting_commit(*at, c);
+            return;
+        }
         workshop::PaneCommitRequested request;
         request.subject = draft_.subject;
-        request.row = draft_.row;
+        request.row = host_row(draft_.row);
         request.text = draft_.line.text();
         const std::uint64_t correlation = ++c.asks;
         SentCommit sending;
@@ -623,6 +686,42 @@ private:
         sending.text = request.text;
         sending.attempt = c.mail.as_role(kInfoPaneRole)
                               .send_to_role(kWorkshopRole, std::move(request), correlation);
+        if (!sending.attempt.valid()) {
+            committing_ = SentCommit{};
+            notice_ = kCommitNotQueued;
+            due_.say = true;
+            return;
+        }
+        committing_ = std::move(sending);
+    }
+
+    /// A SETTING'S COMMIT, ASKED OF ITS OWNER at the revision its row was read at: the text read
+    /// as the value the setting takes, or refused here in the words of what it takes.
+    void ask_setting_commit(std::size_t at, ViewContext& c) {
+        if (!settings_ || at >= settings_rows_.size()) {
+            return;
+        }
+        workshop::PaneSettingsAnswered read = *settings_;
+        read.revision = draft_.revision;
+        const settings_rows::Typed typed =
+            settings_rows::commit_of(read, settings_rows_[at], draft_.line.text());
+        SentCommit sending;
+        sending.pending = 0;
+        sending.act = "commit";
+        sending.draft = draft_.line.draft_epoch();
+        sending.text = draft_.line.text();
+        sending.owner = true;
+        sending.label = draft_.label;
+        if (!typed.commit) {
+            answered_commit(sending, workshop::PaneSubjectActed{false, draft_.label + ": " +
+                                                                           typed.refusal});
+            return;
+        }
+        const std::uint64_t correlation = ++c.asks;
+        sending.awaiting = true;
+        sending.pending = correlation;
+        sending.attempt = c.mail.as_role(kInfoPaneRole)
+                              .send_to_role(workshop::kLayoutsRole, *typed.commit, correlation);
         if (!sending.attempt.valid()) {
             committing_ = SentCommit{};
             notice_ = kCommitNotQueued;
@@ -670,6 +769,7 @@ private:
         draft_.row = cursor_;
         draft_.label = row.label;
         draft_.subject = known_.subject;
+        draft_.revision = settings_ ? settings_->revision : 0;
         draft_.line.set(row.value, row.value.size()); // the caret at the end, as it was
         due_.declare = true;
         due_.say = true;
@@ -854,11 +954,79 @@ private:
         std::int64_t row = 0;
         std::string label;        ///< what the row was called when the draft opened
         std::int64_t subject = 0; ///< ...and what the host named those rows: what a commit returns
+        std::int64_t revision = 0; ///< ...and the revision the subject's settings were read at
         component::TextBox line;
     };
 
-    /// THE HOST'S LAST READING OF THE SUBJECT, and the name of what its rows address. Replaced
-    /// whole; owned by nobody here; deliberately NOT in the state shape.
+    // ---- The two readings, merged -----------------------------------------------------------
+
+    /// THE ROWS AS SHOWN: the host's rows of the desk, and the SETTINGS section the owner's reading
+    /// makes, before the interior -- each row remembering whose it is.
+    void merge() {
+        known_ = host_;
+        origin_.clear();
+        settings_rows_.clear();
+        std::vector<workshop::ShownProperty> settings;
+        if (settings_) {
+            settings_rows_ = settings_rows::rows_of(*settings_);
+        }
+        std::size_t insert = known_.properties.size();
+        for (std::size_t i = 0; i < known_.properties.size(); ++i) {
+            if (known_.properties[i].section && known_.properties[i].label == "INTERIOR") {
+                insert = i;
+                break;
+            }
+        }
+        std::vector<workshop::ShownProperty> rows;
+        for (std::size_t i = 0; i < host_.properties.size(); ++i) {
+            if (i == insert && !settings_rows_.empty()) {
+                rows.push_back(workshop::ShownProperty{"SETTINGS", std::string(), false, true});
+                origin_.push_back(kSection);
+                for (std::size_t k = 0; k < settings_rows_.size(); ++k) {
+                    rows.push_back(workshop::ShownProperty{settings_rows_[k].key,
+                                                           settings_rows_[k].value, true, false});
+                    origin_.push_back(-1 - static_cast<std::int64_t>(k));
+                }
+            }
+            rows.push_back(host_.properties[i]);
+            origin_.push_back(static_cast<std::int64_t>(i));
+        }
+        if (insert == host_.properties.size() && !settings_rows_.empty()) {
+            rows.push_back(workshop::ShownProperty{"SETTINGS", std::string(), false, true});
+            origin_.push_back(kSection);
+            for (std::size_t k = 0; k < settings_rows_.size(); ++k) {
+                rows.push_back(workshop::ShownProperty{settings_rows_[k].key,
+                                                       settings_rows_[k].value, true, false});
+                origin_.push_back(-1 - static_cast<std::int64_t>(k));
+            }
+        }
+        known_.properties = std::move(rows);
+    }
+    /// The host's index of shown row `row`, or the owner's settings row it is.
+    std::int64_t host_row(std::int64_t row) const {
+        return row >= 0 && static_cast<std::size_t>(row) < origin_.size() &&
+                       origin_[static_cast<std::size_t>(row)] >= 0
+                   ? origin_[static_cast<std::size_t>(row)]
+                   : row;
+    }
+    std::optional<std::size_t> owner_row(std::int64_t row) const {
+        if (row < 0 || static_cast<std::size_t>(row) >= origin_.size() ||
+            origin_[static_cast<std::size_t>(row)] >= 0 ||
+            origin_[static_cast<std::size_t>(row)] == kSection) {
+            return std::nullopt;
+        }
+        return static_cast<std::size_t>(-1 - origin_[static_cast<std::size_t>(row)]);
+    }
+    static constexpr std::int64_t kSection = std::numeric_limits<std::int64_t>::min();
+
+    /// THE HOST'S LAST READING OF THE SUBJECT and the name of what its rows address, the owner's
+    /// reading of its settings and the rows they make, and the rows as shown: each replaced whole,
+    /// owned by nobody here, deliberately NOT in the state shape.
+    workshop::PaneSubjectShown host_;
+    std::optional<workshop::PaneSettingsAnswered> settings_;
+    std::uint64_t settings_ask_ = 0;
+    std::vector<SettingsRow> settings_rows_;
+    std::vector<std::int64_t> origin_;
     workshop::PaneSubjectShown known_;
     std::int64_t cursor_ = 0; ///< which property row the weaver is on: an index over a stable list
 

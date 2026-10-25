@@ -89,9 +89,9 @@ setup with a project, `project/` and a development runtime. `start` first copies
 packages come from that copy, so the root prepares -- and every Reset restores -- the revision it
 started with, whatever later happens to the setup's own directory. Workshop opens on a desk and a
 session `start` writes at the versions this Workshop writes, setup version
-<!-- value setup_persist::kFormatVersion,workshop_formats.SETUP_VERSION -->5<!-- /value --> and
+<!-- value setup_persist::kFormatVersion,workshop_formats.SETUP_VERSION -->6<!-- /value --> and
 session version
-<!-- value session_persist::kFormatVersion,workshop_formats.SESSION_VERSION -->11<!-- /value -->
+<!-- value session_persist::kFormatVersion,workshop_formats.SESSION_VERSION -->12<!-- /value -->
 (`external-host/tools/workshop/workshop_formats.py`), and every desk the setup applies is at that
 setup version: a desk saved at setup version 4 is lifted, its rows keeping no settings, and an
 older one is refused when the setup is loaded, before `start` writes anything, saying to open it
@@ -336,10 +336,12 @@ path back into the source tree. `demo_recipes` exports every shipped setup outsi
 and resolves each guide link there, and each published link against this checkout's files and
 headings.
 
-`SetupApplyRequested v1` carries serialized `WorkshopSetup` text. Workshop validates before
-replacing the active layout and refuses an unresolved pane (naming the first one), a pane waiting
-for room, or an open menu. It clears selection, detaches the saved-layout association, applies the
-setup and answers `zen.Ack`. It neither writes a setup file nor resets provider state.
+`SetupApplyRequested v1` carries serialized `WorkshopSetup` text to
+[`zengine.layouts`](zengine.layouts.md#setupapplyrequested), which judges it whole before it
+replaces the live layout's desk: it refuses a pane this Workshop cannot present (naming the first
+one) and a desk that would change what a lock holds (naming each locked value). It detaches the
+saved-layout association, puts the desk live and answers `zen.Ack`, and Workshop puts down a menu
+open over the desk it replaced. It neither writes a setup file nor resets provider state.
 `PaneResetRequested v1` names a pane; Info, Compose and Inventory implement their own
 transient-state reset and refuse pending work. `WorkshopQuitRequested v1` runs Workshop's one quit,
 the one `q` runs, and is answered `zen.Ack` when Workshop ends or `zen.Refused` in the words of what

@@ -48,7 +48,7 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 ## Proven by
 
 ### WL-PED-04
-`workshop/screen_pane_subject.cpp` pane_subject_rows settings_subject
+`workshop/screen_pane_subject.cpp` pane_subject_rows
 `workshop/weave_inspection.cpp` refresh_inspected
 `workshop/property.hpp` Row::section
 `tests/test_workshop_host.cpp` "the subject's rows say identity, then AUTHORED, then RESOLVED"
@@ -57,7 +57,7 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 keys, after RESOLVED"
 
 ### WL-PED-05
-`workshop/screen_pane_subject.cpp` write_pane_axis pane_window_base write_pane_setting
+`workshop/screen_pane_subject.cpp` write_pane_axis pane_window_base
 `workshop/setup.hpp` author_pane_window reset_pane_place author_pane_setting
 `workshop/weave_session.cpp` apply_setup
 `workshop/weave_arrange.cpp` managed_window_base

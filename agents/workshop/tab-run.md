@@ -185,7 +185,7 @@ nothing"
 ### WL-TAB-11
 `workshop/screen.hpp` LayoutTabDrag Session::tab_drag
 `workshop/weave_pointer.cpp` end_held_gestures
-`workshop/layout_shelf.hpp` SetupState::active_at move_layout
+`workshop/layouts/run.hpp` SetupState::active_at move_layout
 `tests/test_workshop_host.cpp` "dragging a tab along the run reorders it and nothing else"
 
 ### WL-TAB-12

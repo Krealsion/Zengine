@@ -1,7 +1,7 @@
 # The first picture is the floor
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [session restore](../workshop/session-restore.md).
+supports is in [the window file](../workshop/window-file.md).
 
 **Context.** A medium that has been told nothing has only a run's first picture to size itself
 from, and the SDL medium makes that size the window's minimum, once, at creation
@@ -39,6 +39,6 @@ conversation, then re-maximizes, one beat after the picture that supplies the ro
 a want rather than a floor. A maximized close writes the room the weaver chose with `maximized`
 beside it, and a flag merely restored never gates a placement-less run's tracking.
 
-**Laws supported.** [WL-SESSION-07](../workshop/session-restore.md),
-[WL-SESSION-08](../workshop/session-restore.md), [WL-SESSION-09](../workshop/session-restore.md),
-[WL-SESSION-20](../workshop/session-restore.md).
+**Laws supported.** [WL-SESSION-07](../workshop/window-file.md),
+[WL-SESSION-08](../workshop/window-file.md), [WL-SESSION-09](../workshop/window-file.md),
+[WL-SESSION-20](../workshop/window-file.md).

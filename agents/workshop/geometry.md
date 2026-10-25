@@ -264,7 +264,7 @@ reported"
 
 ### WL-GEO-11
 `workshop/weave_arrange.cpp` arrange_status
-`workshop/session_persist.hpp` kFormatVersion
+`workshop/layouts/session_persist.hpp` kFormatVersion
 `tests/test_workshop_persistence.cpp` "a read-only visit through the other medium writes the SAME
 BYTES" "the medium's device unit reaches no durable file"
 `tests/test_workshop_screen.cpp` "the medium's unit reaches the READOUT and no geometry at all"

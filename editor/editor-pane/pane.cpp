@@ -496,7 +496,7 @@ private:
                                                      pane::kEditorPaneSummary, 20, 84});
         declare(mail);
         (void)mail.as_role(pane::kEditorPaneRole)
-            .send_to_role(kWorkshopRole,
+            .send_to_role(ws::kLayoutsRole,
                           ws::v2::PaneSettingsDeclared{pane::kEditorPane, setting_rows()});
     }
 

@@ -68,7 +68,7 @@ def run(ctx):
                       'settings': []})
         for index, pane in enumerate(panes):
             pane['front'] = str(index)
-        hand.ask('zengine.workshop', 'SetupApplyRequested', {'setup': json.dumps(setup)}, settle=True)
+        hand.ask('zengine.layouts', 'SetupApplyRequested', {'setup': json.dumps(setup)}, settle=True)
 
     ctx.step('lay the Terminal out beside Inventory and Info, and open a second Info view')
     desk(False)

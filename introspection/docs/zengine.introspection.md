@@ -46,7 +46,7 @@ only while a pane holds your keys: press into it first.
 A press on a power selects it and nothing more; `[ Sample ]` samples and selects nothing.
 
 Each layout keeps three settings for Powers, set in Info or by message
-([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)): its first
+([`PaneSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#panesettingcommitrequested)): its first
 row's columns, `view-columns`, pinned, and `composite-columns`, each at least its control's label
 and padded past it, and `gap`, the spaces between the row's parts. A value one cannot use keeps
 the default and is said to Workshop; Loaded and Project take none.

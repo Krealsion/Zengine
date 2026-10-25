@@ -27,8 +27,10 @@
 #include "keymap_persist.hpp"
 #include "prefs_persist.hpp"
 #include "screen.hpp"
-#include "session_persist.hpp"
+#include "workshop/layouts/session_persist.hpp"
 #include "setup_persist.hpp"
+#include "window_persist.hpp"
+#include "workshop/layouts/owner.hpp" // the layouts' owner: its picture, and every edit asked of it
 
 #include "activation/activation.hpp" // zengine::With, which composes the facets below
 #include "input/vocabulary.hpp"
@@ -57,6 +59,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
+#include <deque>
 #include <functional>
 #include <map>
 #include <optional>
@@ -308,6 +311,33 @@ struct HostContext {
     }
 };
 
+/// WHAT THE LAYOUTS' OWNER IS HANDED OF THIS HOST, each reading taken at its ask: the files' paths,
+/// the conversions, the bus's readings and the remembered choices, a guest's row and which weave is
+/// the Terminal this host mounted.
+// WL-SETTING-09 -- agents/workshop/settings.md
+inline LayoutsOwnerHost layouts_owner_host(const HostContext& host) {
+    LayoutsOwnerHost out;
+    out.store = [&host] {
+        LayoutsHost readings;
+        readings.setup_path = host.setup_path;
+        readings.session_path = host.session_path;
+        readings.prefs_path = host.prefs_path;
+        readings.conversions = host.conversions;
+        readings.role_holder = host.role_holder;
+        readings.incarnation_of = host.incarnation_of;
+        readings.holder_accepts = host.holder_accepts;
+        readings.chosen = host.chosen;
+        return readings;
+    };
+    out.guest_row = [&host](loom::WeaveId who) {
+        return host.guest_row ? host.guest_row(who) : scope::GuestRowFacts{};
+    };
+    out.terminal = [&host] {
+        return host.terminal != nullptr ? host.terminal->id() : loom::WeaveId{};
+    };
+    return out;
+}
+
 /// The host's answer to `holder_accepts`, read off `bus` at the call: the weave holding `role` now,
 /// and whether its accept-set has a door of exactly `shape`'s identity. Nobody holding the role, or
 /// a holder accepting by mode, is no.
@@ -321,9 +351,9 @@ bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
 
 /// What a terminal participant may ask of settings and hear back: a pane's row and an office's
 /// settings, each read and committed, a pane's pin list edited, a setting locked or unlocked, and
-/// every layout's rows read and written in one batch -- known and granted to this office alone,
-/// and their answers accepted. The host widens the terminal it mounts with exactly this, so what a
-/// case typing the documented line proves is what it grants.
+/// every layout's rows read and written in one batch -- known and granted to the layouts' owner
+/// alone, and their answers accepted. The host widens the terminal it mounts with exactly this, so
+/// what a case typing the documented line proves is what it grants.
 // WL-SETTING-09 -- agents/workshop/settings.md
 inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Grant& grant) {
     vocab.knows(loom::schema_of<PaneSettingsRequested>())
@@ -334,29 +364,30 @@ inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Gr
         .knows(loom::schema_of<PaneSettingLockRequested>())
         .knows(loom::schema_of<LayoutSettingsRequested>())
         .knows(loom::schema_of<SettingsWriteRequested>())
-        .accepts(loom::schema_of<PaneSettingsShown>())
-        .accepts(loom::schema_of<PaneSettingActed>())
-        .accepts(loom::schema_of<OfficeSettingsShown>())
-        .accepts(loom::schema_of<PaneSettingPinActed>())
-        .accepts(loom::schema_of<PaneSettingLockActed>())
-        .accepts(loom::schema_of<LayoutSettingsShown>())
-        .accepts(loom::schema_of<SettingsWritten>());
+        .accepts(loom::schema_of<PaneSettingsAnswered>())
+        .accepts(loom::schema_of<PaneSettingCommitAnswered>())
+        .accepts(loom::schema_of<OfficeSettingsAnswered>())
+        .accepts(loom::schema_of<PaneSettingPinAnswered>())
+        .accepts(loom::schema_of<PaneSettingLockAnswered>())
+        .accepts(loom::schema_of<LayoutSettingsAnswered>())
+        .accepts(loom::schema_of<SettingsWriteAnswered>())
+        .accepts(loom::schema_of<OfficeSettingCommitAnswered>());
     grant.allow_to_role(PaneSettingLockRequested::zen_name, PaneSettingLockRequested::zen_version,
-                        kWorkshopProvider);
+                        kLayoutsRole);
     grant.allow_to_role(LayoutSettingsRequested::zen_name, LayoutSettingsRequested::zen_version,
-                        kWorkshopProvider);
+                        kLayoutsRole);
     grant.allow_to_role(SettingsWriteRequested::zen_name, SettingsWriteRequested::zen_version,
-                        kWorkshopProvider);
+                        kLayoutsRole);
     grant.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
-                        kWorkshopProvider);
+                        kLayoutsRole);
     grant.allow_to_role(PaneSettingCommitRequested::zen_name,
-                        PaneSettingCommitRequested::zen_version, kWorkshopProvider);
+                        PaneSettingCommitRequested::zen_version, kLayoutsRole);
     grant.allow_to_role(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version,
-                        kWorkshopProvider);
+                        kLayoutsRole);
     grant.allow_to_role(OfficeSettingCommitRequested::zen_name,
-                        OfficeSettingCommitRequested::zen_version, kWorkshopProvider);
+                        OfficeSettingCommitRequested::zen_version, kLayoutsRole);
     grant.allow_to_role(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version,
-                        kWorkshopProvider);
+                        kLayoutsRole);
 }
 
 /// The door onto the terminal participant, as this host composes it: over its own context.
@@ -376,30 +407,22 @@ class WorkshopWeave
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::v2::PaneOffered,
                                           zengine::workshop::v3::PaneOffered,
-                                          zengine::workshop::SetupApplyRequested,
                                           zengine::workshop::WorkshopQuitRequested,
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::v2::PaneActions,
                                           zengine::workshop::v3::PaneActions,
                                           zengine::workshop::v4::PaneActions,
-                                          zengine::workshop::PaneSettingsDeclared,
-                                          zengine::workshop::v2::PaneSettingsDeclared,
-                                          // one pane's settings on the live layout, read and
-                                          // written by message, and a value a pane cannot use
-                                          zengine::workshop::PaneSettingsRequested,
-                                          zengine::workshop::PaneSettingCommitRequested,
+                                          // a value a pane cannot use, of the row it was handed
                                           zengine::workshop::PaneSettingUnused,
-                                          // office-wide settings, declared, read and written by
-                                          // message, and a pane's pin list edited
-                                          zengine::workshop::OfficeSettingsDeclared,
-                                          zengine::workshop::OfficeSettingsRequested,
-                                          zengine::workshop::OfficeSettingCommitRequested,
-                                          zengine::workshop::PaneSettingPinRequested,
-                                          // a setting locked in a layout or everywhere, and every
-                                          // layout's rows read and written in one batch
-                                          zengine::workshop::PaneSettingLockRequested,
-                                          zengine::workshop::LayoutSettingsRequested,
-                                          zengine::workshop::SettingsWriteRequested,
+                                          // the layouts' owner: the live layout, what an edit,
+                                          // Workshop's own settings and the save came to, and its
+                                          // one question of the judge
+                                          zengine::workshop::LiveLayout,
+                                          zengine::workshop::LayoutEditAnswered,
+                                          zengine::workshop::OfficeSettings,
+                                          zengine::workshop::OfficeSettingCommitAnswered,
+                                          zengine::workshop::SessionSaveAnswered,
+                                          zengine::workshop::WeaversActRequested,
                                           zengine::workshop::PaneRevealRequested,
                                           zengine::workshop::GuideRequested,
                                           zengine::workshop::PaneEscapeUnspent,
@@ -481,14 +504,11 @@ class WorkshopWeave
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::PaneSettings,
                                         zengine::workshop::v2::PaneSettings,
-                                        zengine::workshop::PaneSettingsShown,
-                                        zengine::workshop::PaneSettingActed,
-                                        zengine::workshop::OfficeSettings,
-                                        zengine::workshop::OfficeSettingsShown,
-                                        zengine::workshop::PaneSettingPinActed,
-                                        zengine::workshop::PaneSettingLockActed,
-                                        zengine::workshop::LayoutSettingsShown,
-                                        zengine::workshop::SettingsWritten,
+                                        zengine::workshop::LayoutEditRequested,
+                                        zengine::workshop::OfficeSettingsDeclared,
+                                        zengine::workshop::OfficeSettingCommitRequested,
+                                        zengine::workshop::SessionSaveRequested,
+                                        zengine::workshop::WeaversActAnswered,
                                         zengine::workshop::PaneMenuAnswered,
                                         zengine::workshop::PaneKey,
                                         zengine::workshop::PaneTextInput,
@@ -542,12 +562,9 @@ public:
     /// READ THE WEAVER'S KEYMAP, OR STAND ON THE DEFAULTS.
     void load_keymap(loom::Mail& mail);
 
-    /// READ THE WEAVER'S PRESENTATION PREFERENCES, OR STAND ON THE DEFAULTS.
-    void load_prefs();
-
     /// STATE ONE PRESENTATION PREFERENCE -- titles, the band's keys or the Hotkeys view's -- as the
     /// toggle `a` names, and save the three.
-    void state_presentation(Act a);
+    void state_presentation(Act a, loom::Mail& mail);
 
     /// Say once what the startup file work DID, on the first surface that can show it --
     /// after the session restore, deliberately, so the sentence that survives on the one
@@ -823,7 +840,7 @@ public:
     };
 
     /// END EVERY button-1 GESTURE THIS SESSION IS HOLDING, whatever mode saw the release.
-    GesturesEnded end_held_gestures();
+    GesturesEnded end_held_gestures(loom::Mail& mail);
 
     /// A pointer button changed in Workshop's own area, AND the position it changed at, in the
     /// desk's pixels: the window's moment (`on(AreaButtonChanged)`), or one held and replayed.
@@ -847,7 +864,6 @@ public:
     void on(const PaneOffered& offer, loom::Mail& mail);
     void on(const v2::PaneOffered& offer, loom::Mail& mail);
     void on(const v3::PaneOffered& offer, loom::Mail& mail);
-    void on(const SetupApplyRequested& request, loom::Mail& mail);
     void accept_pane_offer(const PaneOffered& offer, loom::Mail& mail,
                            std::int64_t rows, std::int64_t columns, PaneBody body = {});
 
@@ -888,102 +904,59 @@ public:
     // WL-KEY-08 -- agents/workshop/keyboard.md
     std::string unsaid_gaps(std::int64_t kind);
 
-    /// The settings a pane takes, judged whole under the office stamp: kept with the weave that
-    /// declared them, or refused aloud with the rows in force left standing.
-    void on(const PaneSettingsDeclared& declared, loom::Mail& mail);
-    /// ...and the same judgement of v2's rows, which say how each setting is found.
-    void on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail);
-
-    /// THE SETTINGS A PANE'S DECLARATION GIVES, while the weave that declared them holds its
-    /// office; nullptr when none counts. v1's rows, and v2's beside them.
-    const std::vector<PaneSettingRow>* counted_settings(const RuntimePane& row) const;
-    const std::vector<v2::PaneSettingRow>* counted_settings_v2(const RuntimePane& row) const;
-
-    /// ONE PANE'S ROW OF THE LIVE LAYOUT, READ: its revision, what its counted declaration takes,
-    /// what it keeps, and the desk's sentence about it -- answered to the asker alone, and only to
-    /// one this door serves (`settings_asker_refused`).
-    void on(const PaneSettingsRequested& asked, loom::Mail& mail);
-    /// ...AND ONE SETTING OF IT WRITTEN, at the revision the asker read, through the setter Info's
-    /// rows use; refused in words with nothing written.
-    void on(const PaneSettingCommitRequested& asked, loom::Mail& mail);
     /// A PANE'S WORD THAT IT CANNOT USE A SETTING IT WAS HANDED, kept against that revision.
     void on(const PaneSettingUnused& unused, loom::Mail& mail);
 
-    /// THE REVISION THE LIVE LAYOUT'S ROW FOR `ref` STANDS AT, minted afresh when what it was
-    /// minted for moved -- the desk put live, the row's settings, the counted declaration or the
-    /// office's holder; 0 when the live layout has no such row.
-    std::int64_t settings_revision(const PaneRef& ref);
+    /// THE REVISION THE LIVE LAYOUT'S ROW FOR `ref` STANDS AT, as the store last minted it for
+    /// the live layout this desk presents; 0 when it has no such row.
+    std::int64_t settings_revision(const PaneRef& ref) const;
 
-    // ---- Office-wide settings and pins (WL-SETTING) -----------------------------------------
+    // ---- Workshop's own settings, kept by the layouts' owner (WL-SETTING) ---------------------
 
-    /// THE OFFICE-WIDE SETTINGS AN OFFICE TAKES, judged whole under its stamp by a pane
-    /// declaration's rules, and kept while the weave that sent them holds the office.
-    void on(const OfficeSettingsDeclared& declared, loom::Mail& mail);
-    /// ONE OFFICE'S SETTINGS, READ, answered to the asker alone and only to one this door serves.
-    void on(const OfficeSettingsRequested& asked, loom::Mail& mail);
-    /// ...AND ONE OF THEM WRITTEN at the revision the asker read: applied, kept in Workshop's
-    /// settings file, and handed to the office's holder; refused in words with nothing written.
-    void on(const OfficeSettingCommitRequested& asked, loom::Mail& mail);
-    /// ONE PANE'S PIN LIST EDITED, in the list the pin scope reads; refused in words with nothing
-    /// written.
-    void on(const PaneSettingPinRequested& asked, loom::Mail& mail);
+    /// WORKSHOP'S OWN OFFICE-WIDE SETTINGS DECLARED, as any office declares its own: once, to the
+    /// office that keeps them.
+    void declare_own_settings(loom::Mail& mail);
+    /// ...AS THE OWNER HANDS THEM, at each revision: applied.
+    void on(const OfficeSettings& settings, loom::Mail& mail);
+    /// What the session spends of Workshop's own settings, read from what the owner keeps.
+    void apply_workshop_settings(const std::vector<PaneSetting>& settings);
+    /// A TOGGLE'S VALUE, written through the owner at the revision this desk holds -- or, before it
+    /// holds one, when the owner first hands it; `note` is the toggle's sentence.
+    void commit_own_setting(OfficeSettingCommitRequested commit, std::string note,
+                            loom::Mail& mail);
+    /// ...AND WHAT THAT WRITE CAME TO, said after the toggle's sentence.
+    void on(const OfficeSettingCommitAnswered& acted, loom::Mail& mail);
+    /// THE OWNER ASKS THE JUDGE whether a gesture is the weaver's current act.
+    void on(const WeaversActRequested& asked, loom::Mail& mail);
 
-    /// WHAT AN OFFICE'S DECLARATION GIVES: Workshop's own, declared in code, or the counted
-    /// declaration of an office that sent one; nullptr when none counts.
-    const std::vector<v2::PaneSettingRow>* office_rows(std::string_view office) const;
-    /// THE REVISION AN OFFICE'S SETTINGS STAND AT, minted afresh when what it was minted for moved:
-    /// the counted rows, the kept settings or the office's holder; 0 when nothing declares.
-    std::int64_t office_revision(const std::string& office);
-    /// HAND EVERY DECLARING OFFICE ITS SETTINGS, when its holder takes them and has not been handed
-    /// these, at the revision they stand at.
-    void hand_office_settings(loom::Mail& mail);
-    /// Workshop's own settings, read from what its settings file keeps into what the session
-    /// spends.
-    void apply_workshop_settings();
-    /// WRITE WORKSHOP'S SETTINGS FILE as it now stands: empty when written, else why not -- an
-    /// isolated run, a file this run could not read, a file another hand changed since this host
-    /// read it, a write that failed.
-    std::string write_prefs();
-    /// THE PIN LIST A READING OF `ref` SHOWS, in pin order, and the target it is kept under in the
-    /// scope in force (`layout` a shelf position, -1 the live layout): the scope's own list, else,
-    /// per layout, the Workshop-wide one, else the declaration's own pins.
-    std::vector<std::string> effective_pins(const PaneRef& ref, std::int64_t layout = -1) const;
-    std::string pin_target(const PaneRef& ref, std::int64_t layout = -1) const;
-    /// THE LOCKS ON `ref`'S ROW IN THE LAYOUT AT `layout` (a shelf position), in key order, each with
-    /// where it holds: the everywhere locks, and that layout's own.
-    std::vector<SettingLockShown> locks_on(const PaneRef& ref, std::size_t layout) const;
-    /// The keys locked on `ref`'s row of the live layout, which every write door refuses, and those
-    /// locked in the live layout alone.
-    std::vector<std::string> locked_keys(const PaneRef& ref) const;
-    std::vector<std::string> layout_locked_keys(const PaneRef& ref) const;
-
-    // ---- Locks and every layout at once (WL-SETTING) ----------------------------------------
-
-    /// ONE SETTING LOCKED OR UNLOCKED, in one layout or everywhere: an everywhere lock on a pane
-    /// pins the value its layout holds into every layout's row. An unlock is the weaver's alone.
-    void on(const PaneSettingLockRequested& asked, loom::Mail& mail);
-    /// EVERY LAYOUT'S ROWS, READ: what each keeps and has locked, what each pane and office takes,
-    /// the everywhere locks, and the revision it all stands at; answered to the asker alone.
-    void on(const LayoutSettingsRequested& asked, loom::Mail& mail);
-    /// ...AND MANY OF THEM WRITTEN, with layouts' baselines, at the revision the asker read: judged
-    /// whole before anything is written, then each write's outcome said.
-    void on(const SettingsWriteRequested& asked, loom::Mail& mail);
-    /// THE REVISION EVERY LAYOUT'S SETTINGS STAND AT, minted afresh whenever the reading moved: a
-    /// row's settings, a layout added, removed, moved or renamed, the live one, a declaration, a
-    /// lock or a baseline.
-    std::int64_t layout_settings_revision();
-    /// The reading itself, its revision left 0.
-    LayoutSettingsShown layout_settings_reading() const;
     /// WHETHER `gesture` IS THE WEAVER'S CURRENT ACT sent to a pane of `office`: the correlation of
     /// the weaver's hand's latest act, which a guest's hand never holds.
     bool weavers_act(std::int64_t gesture, std::string_view office) const;
-    /// GIVE EVERY ROW OF `desk` AN EVERYWHERE LOCK NAMES ITS PINNED VALUE. Says whether any moved.
-    bool pin_everywhere_locks(Setup& desk) const;
-    /// What Workshop's settings file keeps for layout `from`, kept for `to` instead (`to` empty:
-    /// dropped) when no layout still holds `from`; then the file written.
-    void move_layout_prefs(const std::string& from, const std::string& to);
-    /// What Workshop's settings file keeps, as this run holds it.
-    const prefs_persist::Prefs& prefs() const noexcept { return prefs_; }
+
+    // ---- The layouts' owner, `zengine.layouts` (WL-LAYOUT) -----------------------------------
+
+    /// THE LIVE LAYOUT, AS ITS OWNER SENDS IT: presented, and the owner's sentence said.
+    void on(const LiveLayout& live, loom::Mail& mail);
+    /// WHAT ONE OF THIS DESK'S EDITS CAME TO, for the gesture that asked it.
+    void on(const LayoutEditAnswered& answered, loom::Mail& mail);
+    /// THE SESSION WRITTEN, or why not: the quit that asked it ends.
+    void on(const SessionSaveAnswered& answered, loom::Mail& mail);
+    /// THE LIVE LAYOUT, PRESENTED: this desk's copy replaced whole, and the panes reconciled to it.
+    void install_live(const LiveLayout& live, loom::Mail& mail);
+    /// What one of this desk's edits came to, for the gesture that asked it.
+    using EditThen = std::function<void(const LayoutEditAnswered&, loom::Mail&)>;
+    /// ASK THE OWNER FOR THESE EDITS of the live layout this desk presents, and act on the answer
+    /// when it comes. `judged`: the edits were judged from the picture this desk presents, so a
+    /// picture the owner has moved past refuses them; an edit that reads no picture (an order
+    /// move, a seat) names none.
+    void ask_layout(std::vector<LayoutEdit> edits, EditThen then, loom::Mail& mail,
+                    bool judged = true);
+    /// SEAT `ref` ON THE LIVE LAYOUT, asking the owner only when this desk does not seat it, then
+    /// `then` with what that came to.
+    void seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail);
+    /// A reveal's seat, done: the pane selected and given the keys, said, and the asker answered.
+    void revealed(std::int64_t kind, const std::string& name, const std::string& pane,
+                  const loom::DeferredAnswer& owed, loom::Mail& mail);
 
     // ---- The participating owner of the application's default behaviour (WL-DESK) --------
 
@@ -1019,6 +992,8 @@ public:
     /// SHOW IT IF HIDDEN, HIDE IT IF SHOWN -- judged against the desk as it is NOW, through the
     /// two doors above, so a presenter's stale reading cannot make a toggle mean the other thing.
     void on(const PaneToggleRequested& asked, loom::Mail& mail);
+    void judge_toggle(const PaneToggleRequested& asked,
+                      const std::shared_ptr<loom::DeferredAnswer>& held, loom::Mail& mail);
 
     /// CHANGE HOW ONE ACTION IS REQUESTED: the candidate map judged whole, applied live, then
     /// written -- or refused with nothing changed. Answered on the delivery that asked.
@@ -1036,12 +1011,14 @@ public:
 
     /// PERFORM ONE LAUNCH, WITHOUT ASKING WHO WANTED IT. The body `on(PaneLaunchRequested)`
     /// and every host-side caller spend, so "launch" means one thing.
-    PaneLaunchAnswered launch_pane(const PaneRef& ref, loom::Mail& mail);
+    using LaunchThen = std::function<void(const PaneLaunchAnswered&, loom::Mail&)>;
+    void launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail);
 
     /// PERFORM ONE CLOSE, WITHOUT ASKING WHO WANTED IT -- `launch_pane`'s partner, and not its
     /// inverse: it removes participation and never unloads, and it never opens anything.
-    PaneCloseAnswered close_pane(const PaneRef& ref, loom::Mail& mail,
-                                 std::vector<PaneSetting>* discarded = nullptr);
+    using CloseThen = std::function<void(const PaneCloseAnswered&,
+                                         const std::vector<PaneSetting>& discarded, loom::Mail&)>;
+    void close_pane(const PaneRef& ref, CloseThen then, loom::Mail& mail);
 
     /// WHAT THE ONE INVENTORY CALLS A PANE -- its offered name, or its pane key when nothing
     /// names it -- for a sentence about it.
@@ -1130,6 +1107,8 @@ public:
     /// settings the rows were built from moved since they were named -- asked before every reading
     /// and every judgement, so a commit is never judged against a name the facts have left.
     void refresh_inspected();
+    /// The value the subject's row `label` shows now, or empty.
+    std::string row_value_of(const std::string& label) const;
 
     /// SAY THE SUBJECT OUT LOUD, if it changed since it was last said (the inventory's rule).
     void publish_pane_subject(loom::Mail& mail);
@@ -1281,6 +1260,9 @@ private:
     /// ...and the settings the publication owes the pane it seated, said at the end of the
     /// delivery before its area is placed.
     bool settings_owed_ = false;
+    /// THE MANAGED OPENING'S SEAT, painted when its presentation was published and owed to the
+    /// layouts' store until this desk next speaks.
+    std::optional<PaneRef> seat_owed_;
 
     /// IS THIS THE CHARACTER THAT KEY PRODUCED?
     static bool same_keystroke(const std::string& text, const std::string& owed);
@@ -1354,27 +1336,16 @@ private:
     /// cannot inherit a stale position or a stale draft (`close_context`'s rule).
     void close_naming();
 
-    /// TAKE THE TYPED NAME AND RENAME THE LAYOUT.
-    void commit_layout_rename();
+    /// TAKE THE TYPED NAME AND ASK THE STORE TO RENAME THE LAYOUT.
+    void commit_layout_rename(loom::Mail& mail);
 
-    /// What to say about a layout's setup association after an operation: nothing, or the artifact
-    /// and the verdict.
-    std::string link_note(std::size_t at) const;
-
-    /// Which artifact `s` and `r` act on for the live layout: its own association, or the host's
-    /// configured setup path.
-    const std::string& setup_artifact() const;
-
-    /// WRITE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT (`s`).
-    void save_setup();
+    /// ASK THE STORE TO WRITE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT (`s`).
+    void save_setup(loom::Mail& mail);
 
     /// RESTORE THE LIVE LAYOUT FROM ITS SETUP ARTIFACT (`r`).
     void restore_setup(loom::Mail& mail);
 
     // ---- THE LAYOUT SHELF: several desks, one of them live --------------------
-
-    /// WHICH LAYOUT IS LIVE AND WHERE IT SITS IN THE RUN, as one sentence.
-    std::string layout_note() const;
 
     /// MAKE THE LAYOUT AT `to` LIVE -- the one operation every switching gesture spends,
     /// keyboard and pointer alike, so a tab press and a stepping key cannot come to mean
@@ -1399,7 +1370,7 @@ private:
     void drop_layout(std::size_t at, loom::Mail& mail);
 
     /// MOVE THE LAYOUT AT `at` ONE STEP ALONG THE WEAVER'S ORDER.
-    void shift_layout(std::size_t at, std::int64_t by);
+    void shift_layout(std::size_t at, std::int64_t by, loom::Mail& mail);
 
     /// WHAT TO SAY ABOUT THE PANES THIS BUILD COULD NOT PRESENT -- nothing when
     /// there are none, and the first one BY NAME when there are.
@@ -1409,11 +1380,17 @@ private:
 
     /// TAKE BACK THE DESK AND THE ROOM THIS WORKSHOP WAS LAST USED IN.
     void restore_last_session(loom::Mail& mail);
+    /// THE WINDOW'S FACTS, as its file or an older session kept them: the room, the placement.
+    void restore_window(const window_persist::LoadedWindow& window, loom::Mail& mail);
+    /// THE RESTORE'S SENTENCE, said when the owner's first picture brings the run back.
+    void say_restored(const LiveLayout& live, loom::Mail& mail);
     /// The OS window shaped to the room the restore held for it, then placed, once.
     void shape_restored_window(loom::Mail& mail);
 
     /// WRITE DOWN THE DESK AND THE ROOM, ON THE WAY OUT.
-    void save_last_session();
+    /// WRITE THE WINDOW FILE AND ASK THE OWNER TO SAVE THE SESSION: false when nothing can be
+    /// asked, and the quit ends now.
+    bool save_last_session(loom::Mail& mail);
 
     /// THE RESTORE'S SENTENCE, kept while it may stand in the wrong unit: the desk it reopened and
     /// the layouts it counted, the room in canvas pixels, what was declined and what changed hands.
@@ -1474,6 +1451,12 @@ private:
 
     /// AUTHOR AN ABSOLUTE PLACE. `x`/`y` are the whole proposal, saturated by the caller.
     void arrange_place(std::int64_t x, std::int64_t y, loom::Mail& mail);
+    /// A PANE'S WINDOW, written as one gesture proposes it: painted while a drag holds the pane,
+    /// else asked of the store.
+    void write_window(const PaneRef& ref, const PaneAxisProposal& horizontal,
+                      const PaneAxisProposal& vertical, loom::Mail& mail);
+    /// A DRAG'S RELEASE: the window it proposed for `ref`, asked of the store.
+    void commit_drag(const PaneRef& ref, loom::Mail& mail);
 
     /// The place a one-cell nudge proposes: the resolved corner if this pane has no authored
     /// place yet, then the delta.
@@ -1500,7 +1483,7 @@ private:
 
     /// RESET THE WHOLE SETUP'S FRONT ORDER -- zero-target, one owner call and its
     /// sentence, spent by the keyboard's reset prompt and by the room's contextual row.
-    void reset_front_order();
+    void reset_front_order(loom::Mail& mail);
 
     /// THE ARRANGEMENT KEYS -- one switch for both scopes and the reset prompt.
     void arrange_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
@@ -1779,7 +1762,9 @@ private:
     void quit(loom::Mail& mail);
 
     /// THE EXIT ITSELF: write down the desk, then stop the bus. The one place both happen.
-    void finish_quit();
+    void finish_quit(loom::Mail& mail);
+    /// ...AND THE PROCESS'S END, once the session is written or cannot be asked for.
+    void end_quit(loom::Mail& mail);
 
     /// The quit in flight ends without an exit (a pane's refusal, or a question Loom could not
     /// deliver): `why` is said with the count of gestures dropped, the held gestures replay in
@@ -2038,14 +2023,6 @@ private:
     std::vector<PendingPaste> pending_pastes_;
 
 
-    /// WHETHER THIS PROCESS HAS ALREADY TRIED TO TAKE BACK ITS LAST SESSION.
-    // WL-SESSION-14 -- agents/workshop/session-restore.md
-    bool restored_ = false;
-
-    /// WHETHER THE SESSION FILE THIS RUN FOUND COULD BE READ.
-    // WL-SESSION-15 -- agents/workshop/session.md
-    bool session_refused_ = false;
-
     /// THE RESTORE'S SENTENCE, until the window's offer spells it again in its own unit: a
     /// restore spells the room in the unit the desk holds, which before the offer is the cell.
     std::optional<RestoreNotice> restore_notice_;
@@ -2053,7 +2030,7 @@ private:
     /// THE OS WINDOW'S OWN ROOM, TO SHAPE IT TO AT RESTORE, AND THE PLACE AFTER IT: held until the
     /// desk's area is in that window, since a window takes a shaping only from an office arranging
     /// in it, and sent shape first, so a maximize lands on the room a restore-down returns to.
-    // WL-SESSION-20 -- agents/workshop/session-restore.md
+    // WL-SESSION-20 -- agents/workshop/window-file.md
     struct RestoredWindow {
         std::int64_t w = 0;
         std::int64_t h = 0;
@@ -2078,28 +2055,6 @@ private:
     std::int64_t app_declaration_ = 0;
     /// THE MINT FOR DECLARATION NUMBERS, pane and application alike: from one, never reused.
     std::int64_t declarations_ = 0;
-    /// WHAT EACH LIVE ROW'S SETTINGS REVISION WAS MINTED FOR, and the mint: from one, never
-    /// reused, so a revision read before any move is never current again. A row the live layout
-    /// no longer has goes from the list; never persisted.
-    struct SettingsRevision {
-        PaneRef ref;
-        std::int64_t revision = 0;
-        std::uint64_t desk = 0;
-        std::vector<PaneSetting> settings;
-        std::vector<v2::PaneSettingRow> rows;
-        loom::WeaveId holder{};
-    };
-    std::vector<SettingsRevision> settings_revisions_;
-    std::int64_t settings_revision_ = 0;
-    /// The reading every layout's settings were last minted for, and the revision it was minted.
-    LayoutSettingsShown layout_settings_minted_;
-    std::int64_t layout_settings_revision_ = 0;
-    /// WHETHER THIS ASKER MAY READ AND WRITE A PANE'S SETTINGS BY MESSAGE: an office, the Terminal
-    /// this host mounted, or a guest whose row has `settings`. Empty when it may; else why not.
-    std::string settings_asker_refused(const loom::Mail& mail) const;
-    /// ...and an admitted declaration kept for the pane of `kind`, whichever version it came in.
-    void keep_settings_rows(std::int64_t kind, std::vector<v2::PaneSettingRow> rows,
-                            loom::Mail& mail);
     /// THE LAST INVENTORY THIS HOST SAID OUT LOUD, so it does not say it again unchanged -- and
     /// whether it has said one since a presenter last arrived (`on(PaneOffered)` clears it).
     std::vector<InventoryPane> inventory_said_;
@@ -2122,36 +2077,32 @@ private:
     bool keymap_file_present_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
 
-    /// What loading the PREFS file produced, the keymap's own bookkeeping one file over: what it
-    /// keeps, whether it could be read, and its bytes as this host last read or wrote them and
-    /// whether it was there -- a write never overwrites a file another hand changed since.
-    // WL-FOCUS-11 -- agents/workshop/focus.md
-    bool prefs_loaded_ = false;
-    bool prefs_bad_ = false;
-    prefs_persist::Prefs prefs_;
-    std::string prefs_bytes_;
-    bool prefs_file_present_ = false;
-
-    /// ONE OFFICE'S OFFICE-WIDE DECLARATION, counting while the weave that sent it holds the
-    /// office at the incarnation that sent it, and the revision last handed to its holder.
-    struct OfficeDeclaration {
-        std::string office;
-        std::vector<v2::PaneSettingRow> rows;
-        loom::WeaveId from{};
-        std::int64_t incarnation = 0;
-        std::int64_t handed = 0; ///< the revision last handed to the holder; 0 for none
-    };
-    std::vector<OfficeDeclaration> office_declarations_;
-    /// WHAT EACH OFFICE'S REVISION WAS MINTED FOR, the mint shared with the rows' (from one, never
-    /// reused); never persisted.
-    struct OfficeRevision {
-        std::string office;
-        std::int64_t revision = 0;
-        std::vector<v2::PaneSettingRow> rows;
-        std::vector<PaneSetting> settings;
-        loom::WeaveId holder{};
-    };
-    std::vector<OfficeRevision> office_revisions_;
+    /// THE EDITS ASKED OF THE LAYOUTS' OWNER, by their correlation, each with what its gesture does
+    /// with the answer; and the correlations' mint, which this desk's own commits share.
+    std::map<std::uint64_t, EditThen> edits_owed_;
+    /// TOGGLES THAT ARRIVED WHILE AN EDIT WAS IN FLIGHT, judged in order once the desk settles:
+    /// a toggle is judged against the desk as it is, and a copy awaiting its owner's answer is not.
+    std::deque<std::function<void(loom::Mail&)>> settle_waiters_;
+    static constexpr std::size_t kMaxSettleWaiters = 32;
+    std::uint64_t layout_asks_ = 0;
+    /// WORKSHOP'S OWN SETTINGS AS THE OWNER LAST HANDED THEM: their revision (0 before any), a
+    /// toggle's commit waiting for one, and each toggle's sentence waiting for its write's answer.
+    std::int64_t own_revision_ = 0;
+    bool own_declared_ = false;
+    std::optional<std::pair<OfficeSettingCommitRequested, std::string>> own_owed_;
+    std::map<std::uint64_t, std::string> own_said_;
+    /// WHAT THE OWNER SAID IT COULD NOT READ: the session (said once, and nothing written over it)
+    /// and the settings file (a toggle's write is said against it).
+    bool session_refusal_said_ = false;
+    std::string settings_refused_;
+    /// THE RESTORE: asked once per process, and the room it declined, said with the run's head.
+    bool restore_asked_ = false;
+    std::string window_declined_;
+    /// THE ROOM THE RESTORE ADOPTED, which its notice says: the window's own offer comes after it.
+    std::int64_t restored_w_ = 0;
+    std::int64_t restored_h_ = 0;
+    /// A QUIT WAITING FOR ITS SESSION TO BE WRITTEN.
+    bool saving_ = false;
 
     /// What this weave last said about what is true: its own last utterance, not a cache of the
     /// conditions, so the publication is silent when nothing changed.
@@ -2161,7 +2112,7 @@ private:
     bool conditions_said_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
-    // WL-SESSION-09 -- agents/workshop/session-restore.md
+    // WL-SESSION-09 -- agents/workshop/window-file.md
     bool medium_placed_ = false;
 };
 

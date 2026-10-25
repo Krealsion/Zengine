@@ -337,11 +337,11 @@ inline bool same_stamp(const PaneStamp& a, const PaneStamp& b) {
 /// A LAYOUT'S PART NAME: `layout:` and its name, a byte outside printable ASCII (and `%`, `#` and
 /// `+`) spelled `%XX`, so no layout's part is the create tab's `layout:+`; a name two layouts share
 /// is followed by `#` and each one's place in the weaver's order, which no spelled name can be.
-inline std::vector<std::string> layout_part_names(const SetupState& setup) {
+inline std::vector<std::string> layout_part_names(const LiveDesk& setup) {
     std::vector<std::string> names;
     for (std::size_t at = 0; at < layout_count(setup); ++at) {
         std::string name = "layout:";
-        for (const char c : layout_at(setup, at).name) {
+        for (const char c : layout_name_at(setup, at)) {
             const auto byte = static_cast<unsigned char>(c);
             if (byte < 0x20u || byte >= 0x7Fu || c == '%' || c == '#' || c == '+') {
                 static constexpr char kHex[] = "0123456789ABCDEF";

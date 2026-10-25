@@ -54,9 +54,9 @@ replaces the old one; a `workshop-plan.json` there starts instead of the shipped
 |---|---|---|
 | `--version` | off | say what this Workshop is — in a package, its version, both commits, the compiler and the build type — and start nothing |
 | `--setup <path>` | `workshop-setup.json`, in the directory you launched from | a pane arrangement you named and saved |
-| `--session <path>` | `workshop-session.json`, in your **per-user state folder** | the desk, window size and window position you last used — written on close, read on start |
+| `--session <path>` | `workshop-session.json`, in your **per-user state folder** | every layout you last used, and which one was live — written on close, read on start; the window's size and position are in the window file beside it, `workshop-session.window.json` |
 | `--keymap <path>` | `workshop-keymap.json`, in your **per-user config folder** | your hand-edited binding overrides ([hotkeys](hotkeys.md)) |
-| `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | presentation preferences Workshop writes when you state one (pane titles, `t`) |
+| `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | office-wide settings, such as pane titles (`t`), and the locks and pins that hold in every layout — written by the layouts' owner when you change one |
 | `--isolated` | off | this run reads and writes **none** of your per-user config or session state but the files named on its command line (`--session`, `--prefs` and the others still win) — for tests, scratch experiments and clean-start diagnosis |
 | `--load-plan <path>` | `workshop-plan.json` in the directory you launched from when there is one, else `default-load-plan.json` beside the binary | which artifacts this run is made of |
 | `--recipes <path>` | `build-recipes.json` in the directory you launched from when there is one, else `default-build-recipes.json` beside the binary | what this run can build ([the recipe file](../../builder/docs/recipes.md)) |
@@ -253,8 +253,8 @@ how to open one: `ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys`.
 7. **<!-- key workshop.quit -->`q`<!-- /key -->** or **<!-- key workshop.quit -->`ctrl+c`<!-- /key -->** — quit.
 
 > **Your desk comes back.** The panes you had open, where you put them, how big you made them
-> and how big the window was are all restored automatically from the last session — no
-> keypress. See [workspace continuity](setups.md#workspace-continuity).
+> and how big the window was are all restored automatically from the last session and the window
+> file beside it — no keypress. See [workspace continuity](setups.md#workspace-continuity).
 
 ## The full key map
 

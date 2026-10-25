@@ -763,6 +763,11 @@ int main(int argc, char** argv) {
     host.destinations = [&bus, &host] {
         return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id() : loom::WeaveId{});
     };
+    // ---- The layouts' owner, in its own office (workshop/layouts/owner.hpp) ---------------------
+    // Every layout and what each keeps, the office-wide settings, the locks and the pins: one
+    // writer and one judge, never replaced. Mounted before Workshop, whose first ask restores the
+    // session; it reads this host's paths and readings at each ask.
+    mount_in_office<LayoutsOwner>(bus, layouts_grant(), kLayoutsRole, layouts_owner_host(host));
     auto speak = workshop_grant();
     const loom::WeaveId workshop_id =
         mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
@@ -1238,7 +1243,8 @@ int main(int argc, char** argv) {
     // file is never changed, and a run with no session file reads none.
     load::LoadPlan begun = launched;
     if (!host.session_path.empty()) {
-        const session_persist::LoadedSession last = session_persist::load_file(host.session_path);
+        const session_persist::LoadedSession last =
+            session_persist::load_file(host.session_path, host.conversions);
         std::vector<std::pair<std::string, std::string>> remembered;
         for (const session_persist::WorkshopChoice& c : last.choices) {
             remembered.emplace_back(c.role, c.choice);
