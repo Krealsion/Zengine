@@ -29,22 +29,22 @@ WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-03 — `default` is a value whose unused numbers are zero
 
-LAW — Absent intent has exactly one spelling: a `default` mode carrying a number is refused, naming the axis. A NAMED place carries none either, for the same reason.
+LAW — Absent intent has one spelling: a `default` mode carrying a number is refused, naming the axis; so is any word carrying a number it does not read, missing one it reads, or past its range.
 
 MEANS
 - a place's and a size's fields are required, so omitting one spells nothing;
-- a magic coordinate is a value a weaver could otherwise mean;
-- `kRightColumn` says which place, so a coordinate beside it would be two answers.
+- a file's `right-column`, a centred axis, `fit` and `fill` read no number: one beside them is a second answer, a value a weaver could otherwise mean;
+- a share is 1 to 10000 ten-thousandths of the room, a share place's x and y 0 to 10000, an offset 0 to 65536 pixels, a pixel extent a cell to 65536.
 
 WHY — `agents/decisions/setup-format-v3.md`
 
 ## WL-SETUP-04 — A mode is a word from a closed set
 
-LAW — A place has three mode words and a size two; an unrecognised word refuses the whole candidate, naming what it found and what would have worked.
+LAW — A place's word is one of `ui::kPlaceWords` and a size's one of `ui::kSizeWords`, spelled by one table; an unrecognised word refuses the whole candidate, naming what it found and what would have worked.
 
 MEANS
 - the in-memory numbers are arbitrary: a renumber would silently change every saved arrangement;
-- `right-column` offered to a size is a word that field's vocabulary does not have;
+- a file's `right-column` reads as `top-right` at no offset and is written as that; offered to a size, it is a word that field's vocabulary does not have;
 - adding a word is not a version: the shape is unchanged and an older build refuses out loud.
 
 WHY — `agents/decisions/setup-format-v3.md`
@@ -127,7 +127,7 @@ pane_row
 the identity ranks" "an unresolved reference round-trips every authored field exactly"
 `tests/test_workshop_panes_seam.cpp` "setup bytes carry no descriptor, room or handle"
 `tests/test_workshop_persistence.cpp` "a setting rides its row through the setup file in its own
-kind's field"
+kind's field" "every place and size word survives the setup file and the session byte for byte"
 
 ### WL-SETUP-02
 `workshop/setup_persist.hpp` v2 v3 v4 setup_in from_text setup_in_v2 v3::to_v4 v4::to_current
@@ -146,19 +146,25 @@ save writes the current version"
 
 ### WL-SETUP-03
 `workshop/setup.hpp` check_pane_place check_pane_size check_pane_place_coord pane_unit::kDefault
-pane_unit::kRightColumn PanePlace kMaxPanePixels default_setup
+PanePlace kMaxPanePixels default_setup
 `workshop/screen_chrome.cpp` bounds_of
 `tests/test_workshop_panes_window.cpp` "a default mode carries no numbers, and that is one canonical
-spelling" "a fresh setup is the current version, sparse, and carries the identity ranks" "a desk row
-may NAME the right column, and any pane resolves into it"
+spelling" "a fresh setup is the current version, sparse, and carries the identity ranks" "a file's
+`right-column` reads as `top-right` at no offset, and is written as that"
+`tests/test_workshop_persistence.cpp` "a word's numbers out of its range are refused in the weaver's
+words, by the file and by the owner"
 
 ### WL-SETUP-04
-`workshop/setup_persist.hpp` from_text kUnitDefault kUnitPixels kUnitRightColumn kPlaceWords
-unit_word place_in WorkshopPaneSize WorkshopPanePlace size_in
-`workshop/setup.hpp` pane_unit kPixels
+`workshop/setup_persist.hpp` from_text kUnitDefault kUnitPixels kUnitRightColumn place_word_of
+size_word_of place_in WorkshopPaneSize WorkshopPanePlace size_in
+`workshop/setup.hpp` pane_unit kPixels pane_place_words pane_size_words word_list
+`ui/vocabulary.hpp` kPlaceWords kSizeWords place_named size_named place_word size_word
 `tests/test_workshop_panes_window.cpp` "an unknown mode word names what it found and what would have
-worked" "every mode spelling round-trips, pixels included" "a desk row may NAME the right column,
-and any pane resolves into it"
+worked" "every mode spelling round-trips, pixels included" "a file's `right-column` reads as
+`top-right` at no offset, and is written as that"
+`tests/test_workshop_persistence.cpp` "every place and size word survives the setup file and the
+session byte for byte"
+`tests/test_ui.cpp` "each word is spelled by one table, and reads exactly its own numbers"
 
 ### WL-SETUP-05
 `workshop/setup_persist.hpp` kFormatVersion WorkshopSetup from_text WorkshopSetup::format_version
@@ -168,7 +174,8 @@ judged" "a version-1 file leaves the live setup and its on-file copy untouched"
 
 ### WL-SETUP-07
 `workshop/setup.hpp` send_to_front send_to_back raise_one lower_one reset_front check_setup add_pane
-remove_pane pane_at_front SetupPane::front default_setup
+remove_pane pane_at_front SetupPane::front default_setup desk_intent
+`ui/vocabulary.hpp` problem
 `tests/test_workshop_panes_window.cpp` "every ordering operation is an exact permutation, ends
 included" "a gapped or duplicated rank is refused, and a fresh one is not" "10,000 alternating
 ordering operations stay inside 0..n-1"

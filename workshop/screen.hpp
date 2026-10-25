@@ -63,14 +63,6 @@ inline constexpr std::int64_t kScreenMaxH = 400 * graphics::kCellPx;
 // WL-GEO-03 -- agents/workshop/geometry.md; WL-FRONT-03 -- agents/workshop/planes.md
 inline constexpr std::int64_t kTopRows = 2;
 
-/// The right column (`placement::kSideRegion`): a place at the screen's right edge, its width in
-/// cells, reserving nothing -- a pane standing here covers room, as a stacked one does. The width
-/// is `workshop.side-columns`, from `kMinSideCols` to `kMaxSideCols`; this is its default.
-// WL-GEO-03 -- agents/workshop/geometry.md
-inline constexpr std::int64_t kSideCols = 28;
-inline constexpr std::int64_t kMinSideCols = 16;
-inline constexpr std::int64_t kMaxSideCols = 64;
-
 /// The rows of text in the band under the workspace, fitted the same way.
 // WL-GEO-03 -- agents/workshop/geometry.md
 // WL-FRONT-03 -- agents/workshop/planes.md
@@ -93,9 +85,8 @@ inline constexpr std::int64_t kMinStackRows = 5;
 inline constexpr std::int64_t kMaxStackRows = 40;
 inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panes
 
-static_assert(kMinSideCols <= kSideCols && kSideCols <= kMaxSideCols &&
-                  kMinStackRows <= kStackRows && kStackRows <= kMaxStackRows,
-              "each default is a value its setting takes");
+static_assert(kMinStackRows <= kStackRows && kStackRows <= kMaxStackRows,
+              "the default is a value its setting takes");
 
 
 /// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE, in canvas pixels.
@@ -103,7 +94,6 @@ static_assert(kMinSideCols <= kSideCols && kSideCols <= kMaxSideCols &&
 struct Screen {
     std::int64_t w = kScreenMinW;  ///< the canvas extent this screen paints
     std::int64_t h = kScreenMinH;
-    std::int64_t side_x = 0;      ///< the right column's left edge: a place, not a reservation
     std::int64_t room_y = 0;      ///< the workspace's top: the top band's floor
     std::int64_t room_w = 0;       ///< the widest the workspace may be on this screen...
     std::int64_t room_h = 0;       ///< ...and the tallest
@@ -115,10 +105,8 @@ struct Screen {
     /// ...AND HOW BIG ONE CANVAS CELL OF THAT MEDIUM IS, in its own device pixels.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
-    /// The right column's width and the overlay stack's fallback height, in cells, as the
-    /// session's settings choose them.
+    /// The overlay stack's fallback height, in cells, as the session's settings choose it.
     // WL-GEO-03 -- agents/workshop/geometry.md
-    std::int64_t side_cols = kSideCols;
     std::int64_t stack_rows = kStackRows;
 };
 
@@ -138,7 +126,6 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
                                   std::int64_t text_advance_px = 0,
                                   std::int64_t text_line_px = 0,
                                   std::int64_t cell_px = 0,
-                                  std::int64_t side_cols = kSideCols,
                                   std::int64_t stack_rows = kStackRows) noexcept {
     Screen s;
     // The medium's device unit is taken as reported: non-positive already means "my device unit
@@ -146,12 +133,9 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     s.cell_px = cell_px > 0 ? cell_px : 0;
     s.w = want_w < kScreenMinW ? kScreenMinW : (want_w > kScreenMaxW ? kScreenMaxW : want_w);
     s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
-    s.side_cols = std::clamp(side_cols, kMinSideCols, kMaxSideCols);
     s.stack_rows = std::clamp(stack_rows, kMinStackRows, kMaxStackRows);
-    s.side_x = s.w - graphics::px_of_cells(s.side_cols);
-    // The room is the surface: nothing reserves the right column, so the room runs under it whole
-    // and what a share means never depends on which panes are open
-    // (docs/history/decisions/the-reserved-column.md).
+    // The room is the surface: nothing reserves any of it, so what a share means never depends
+    // on which panes are open (docs/history/decisions/the-reserved-column.md).
     s.room_w = s.w;
     // The fit is resolved here because the screen carries the metric, which arrives on the bus.
     const RegionFit fit =
@@ -189,12 +173,8 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
 /// every number the 78x22 composition was written with, in pixels.
 inline constexpr Screen kMinScreen = screen_of(kScreenMinW, kScreenMinH);
 
-static_assert(kMinScreen.side_x == 50 * graphics::kCellPx,
-              "the right column has not moved on the minimum screen");
 static_assert(kMinScreen.room_w == kMinScreen.w,
-              "the room IS the surface: nothing comes off its width. The 48 this read before "
-              "was 78 less the right column's 28 and the two-cell gap beside it, and those "
-              "thirty columns are the room's");
+              "the room IS the surface: nothing comes off its width");
 static_assert(kMinScreen.room_h == 16 * graphics::kCellPx,
               "the workspace's documented default height");
 static_assert(kMinScreen.notice_y == 18 * graphics::kCellPx, "the bottom band");
@@ -326,10 +306,6 @@ inline constexpr PixelRect placement_bounds(std::int64_t where, std::size_t slot
         // The top band, whole; the slot is nothing to it (one pane fits, and panes.hpp asserts
         // it).
         return PixelRect{0, 0, sc.w, sc.room_y};
-    }
-    if (where == placement::kSideRegion) {
-        // From the workspace's top to its floor, against the right edge: over the material.
-        return PixelRect{sc.side_x, sc.room_y, graphics::px_of_cells(sc.side_cols), sc.room_h};
     }
     const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
                                ? kScreenMaxH
@@ -485,10 +461,9 @@ struct PaneBounds {
 PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                              const Screen& sc);
 
-// The two places fit the SMALLEST screen this composition is honest on, which is where they
-// are tightest.
+// The stack fits the SMALLEST screen this composition is honest on, which is where it is
+// tightest.
 // WL-GEO-04 -- agents/workshop/geometry.md
-inline constexpr PixelRect kMinSide = placement_bounds(placement::kSideRegion, 0, kMinScreen);
 inline constexpr PixelRect kMinStack =
     placement_bounds(placement::kOverlayStack, 0, kMinScreen);
 
@@ -513,10 +488,6 @@ static_assert(placement_bounds(placement::kOverlayStack, 3, screen_of(2400, 720)
               "the width is a fact about the SCREEN, not about which slot a pane sits in");
 static_assert(kMinStack.y + kMinStack.h <= kMinScreen.notice_y,
               "the stack's first slot stays clear of the notice line");
-static_assert(kMinSide.x + kMinSide.w == kMinScreen.w,
-              "the side region reaches the screen's right edge");
-static_assert(kMinSide.y + kMinSide.h == kMinScreen.room_y + kMinScreen.room_h,
-              "the side region ends where the workspace does, above the bottom band");
 
 /// THE OVERLAY COLUMN: the stack's first slot's corner and width, from its top to the
 /// workspace's bottom -- the floor `stack_capacity` itself respects, one row above the
@@ -885,14 +856,13 @@ struct Session {
     /// `workshop.completion-order`.
     // WL-TERM-04 -- agents/workshop/terminal.md
     bool completion_required_first = false;
-    /// The arrangement's measures as the weaver set them: the coarse step, the snap's reach, the
-    /// right column's width and the stack's fallback height.
+    /// The arrangement's measures as the weaver set them: the coarse step, the snap's reach and
+    /// the stack's fallback height.
     // WL-ARR-10 -- agents/workshop/arrangement.md
     std::int64_t arrange_step_cells = kCoarseStepCells;
     // WL-ARR-17 -- agents/workshop/arrangement-snap.md
     std::int64_t snap_reach_px = kPaneSnapReachPx;
     // WL-GEO-03 -- agents/workshop/geometry.md
-    std::int64_t side_cols = kSideCols;
     std::int64_t stack_rows = kStackRows;
 };
 
@@ -900,7 +870,7 @@ struct Session {
 // WL-GEO-02, WL-GEO-03, WL-GEO-04, WL-GEO-05 -- agents/workshop/geometry.md
 inline constexpr Screen screen_of(const Session& s) noexcept {
     return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px,
-                     s.side_cols, s.stack_rows);
+                     s.stack_rows);
 }
 
 /// THE CHAIN BELOW THE CONTEXTUAL SURFACE -- the branches a key falls to once no mode above
@@ -1037,13 +1007,30 @@ PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
 
 /// WHAT A WINDOW PROPOSAL WRITES through the gesture door (`author_pane_window`), measured from the
 /// window it was proposed against: a place on an axis the proposal moved and changed, an extent on
-/// an axis it changed. The hand's write and the desk a snap measures are made from the same axes.
+/// an axis it changed, and each axis's room -- its span and the window's step -- so the door can
+/// say it in its word. The hand's write and the desk a snap measures are made from the same axes.
 struct PaneWindowAxes {
     PaneAxisProposal horizontal;
     PaneAxisProposal vertical;
 };
 // WL-ARR-17 -- agents/workshop/arrangement-snap.md
-PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base);
+PaneWindowAxes pane_window_axes(const PaneWindowProposal& want, const PixelRect& base,
+                                const Screen& sc);
+
+/// The two axes of a window standing at `base` in the room, proposing nothing yet: each axis's
+/// near edge, extent, the room's span along it and the window's step.
+inline PaneWindowAxes pane_window_at(const PixelRect& base, const Screen& sc) {
+    PaneWindowAxes out;
+    out.horizontal.base = base.x;
+    out.horizontal.length = base.w;
+    out.horizontal.span = sc.room_w;
+    out.horizontal.step = chrome_grain(sc);
+    out.vertical.base = base.y;
+    out.vertical.length = base.h;
+    out.vertical.span = sc.room_h;
+    out.vertical.step = chrome_grain(sc);
+    return out;
+}
 
 /// THE LINES AN EDGE THE HAND MOVES MAY MEET, in the room: the room's own edges and every edge
 /// of every other pane on the screen.
@@ -1233,11 +1220,17 @@ FaceAmount parse_face_amount(std::string_view text, std::int64_t cell_px);
 /// A WHOLE PIXEL RECTANGLE, IN THE ACTIVE MEDIUM'S UNIT -- `@x,y WxH unit`.
 std::string pixel_rect_text(const PixelRect& r, std::int64_t cell_px);
 
-/// WHAT A WEAVER AUTHORED FOR ONE PANE'S WINDOW, in the active medium's own unit.
+/// WHAT A WEAVER AUTHORED FOR ONE PANE'S WINDOW, each axis in its word, its numbers in the active
+/// medium's own unit.
 std::string pane_window_text(const SetupPane* row, std::int64_t cell_px);
 
-/// IS ANY PART OF THIS PANE'S WINDOW STILL THE CODE'S ANSWER RATHER THAN THE WEAVER'S?
-bool pane_window_partly_default(const SetupPane* row);
+/// IS ANY AXIS OF THIS PANE'S WINDOW SAID IN A WORD OTHER THAN PIXELS -- the code's answer, a
+/// point of the room, a share, `fit` or `fill` -- so that its numbers alone do not say where it is?
+bool pane_window_reads_words(const SetupPane* row);
+
+/// WHAT A `fit` AXIS STANDS ON, where it is not the pane's latest offer: a pane that offered
+/// nothing, or, in the OS window, an offer its latest is within a pixel of; empty otherwise.
+std::string pane_fit_note(const Session& s, const PaneRef& ref);
 
 
 // ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED ---------------------------------------------

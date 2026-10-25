@@ -309,12 +309,17 @@ inline constexpr std::int64_t kScreenMaxRows = kScreenMaxH / gfx::kCellPx;
 /// A SCREEN'S FURNITURE IN CELLS, each edge floored as a terminal shows it: what a case that
 /// thinks in cells compares its cell coordinates against. On a screen where text is a cell every
 /// one of these is exact.
+/// THE STRIP AT THE ROOM'S RIGHT EDGE a case stands a pane in: `top-right` at no offset, this many
+/// cells wide and the room's whole height (`open_at_top_right`).
+inline constexpr std::int64_t kStripCols = 28;
+
 struct ScreenCells {
-    std::int64_t w = 0, h = 0, side_x = 0, room_y = 0, room_w = 0, room_h = 0, notice_y = 0;
+    std::int64_t w = 0, h = 0, strip_x = 0, room_y = 0, room_w = 0, room_h = 0, notice_y = 0;
 };
 inline ScreenCells cells_of(const Screen& sc) {
     const auto c = [](std::int64_t px) { return gfx::cell_of_pixel(px); };
-    return ScreenCells{c(sc.w),      c(sc.h),      c(sc.side_x), c(sc.room_y),
+    return ScreenCells{c(sc.w),      c(sc.h),
+                       c(sc.room_w - cells_px(kStripCols)), c(sc.room_y),
                        c(sc.room_w), c(sc.room_y + sc.room_h) - c(sc.room_y), c(sc.notice_y)};
 }
 
@@ -1753,6 +1758,13 @@ inline std::vector<std::int64_t> open_kinds(const Panes& panes) {
 
 /// A desk as a version-3 Workshop wrote it: every pixel amount in sub-units, four to a pixel,
 /// and a place measured from the canvas, whose room began `kCanvasRoomTopPx` down.
+/// The place word a version-3 to 5 Workshop wrote for a place as written today: those versions had
+/// three words, and the room's top-right at no offset was their `right-column`.
+inline std::string old_place_word(const setup_persist::WorkshopPanePlace& p) {
+    const bool corner = p.mode == "top-right" && p.x.value_or(0) == 0 && p.y.value_or(0) == 0;
+    return corner ? std::string(setup_persist::kUnitRightColumn) : p.mode;
+}
+
 inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
     const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
     setup_persist::v3::WorkshopSetup out;
@@ -1774,7 +1786,7 @@ inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
         const std::int64_t canvas_y = p.place.mode == setup_persist::kUnitPixels
                                           ? p.place.y.value_or(0) + setup_persist::kCanvasRoomTopPx
                                           : p.place.y.value_or(0);
-        row.place = setup_persist::v3::WorkshopPanePlace{word(p.place.mode),
+        row.place = setup_persist::v3::WorkshopPanePlace{word(old_place_word(p.place)),
                                                          subs(p.place.mode, p.place.x.value_or(0)),
                                                          subs(p.place.mode, canvas_y)};
         row.width = setup_persist::v3::WorkshopPaneSize{
@@ -1809,7 +1821,7 @@ inline setup_persist::v4::WorkshopSetup v4_desk(const Setup& s) {
     for (const setup_persist::WorkshopSetupPane& p : now.panes) {
         out.panes.push_back(setup_persist::v4::WorkshopSetupPane{
             p.provider, p.pane,
-            setup_persist::v5::WorkshopPanePlace{p.place.mode, p.place.x.value_or(0),
+            setup_persist::v5::WorkshopPanePlace{old_place_word(p.place), p.place.x.value_or(0),
                                                  p.place.y.value_or(0)},
             setup_persist::v5::WorkshopPaneSize{p.width.mode, p.width.amount.value_or(0)},
             setup_persist::v5::WorkshopPaneSize{p.height.mode, p.height.amount.value_or(0)},
@@ -1829,7 +1841,7 @@ inline setup_persist::v5::WorkshopSetup v5_desk(const Setup& s) {
     for (const setup_persist::WorkshopSetupPane& p : now.panes) {
         out.panes.push_back(setup_persist::v5::WorkshopSetupPane{
             p.provider, p.pane,
-            setup_persist::v5::WorkshopPanePlace{p.place.mode, p.place.x.value_or(0),
+            setup_persist::v5::WorkshopPanePlace{old_place_word(p.place), p.place.x.value_or(0),
                                                  p.place.y.value_or(0)},
             setup_persist::v5::WorkshopPaneSize{p.width.mode, p.width.amount.value_or(0)},
             setup_persist::v5::WorkshopPaneSize{p.height.mode, p.height.amount.value_or(0)},
@@ -4347,24 +4359,27 @@ inline void open_pane(Live& t, const PaneRef& ref) {
     REQUIRE(has_pane(t.session().setup.active, ref));
 }
 
-/// OPEN A PANE AND PUT IT AT THE RIGHT COLUMN -- the desk row `default_setup` ships for the Info
-/// weave, spelled by hand so a case can have a pane in that place without an office behind it.
-/// It is written, not gestured: `pane_unit::kRightColumn` is a PLACE MODE, not a coordinate, and
-/// no arrow produces "the right edge, the room's full height" on a screen the desk does not know;
-/// a setup file spelling `right-column` produces exactly this row, and so does `default_setup`.
-inline void open_at_right_column(Live& t, std::int64_t kind) {
+/// OPEN A PANE AND STAND IT IN THE STRIP AT THE ROOM'S RIGHT EDGE: `top-right` at no offset,
+/// `kStripCols` cells wide and the room's height (`fill`), written as a desk row says it, so a case
+/// can have a pane there without an office behind it. A key or a hand could reach the same row;
+/// writing it says the words exactly.
+inline void open_at_top_right(Live& t, std::int64_t kind) {
     pick(t, kind);
     REQUIRE(t.session().panes.has(kind));
     stage_desk(t, [&](Setup& desk) {
         for (SetupPane& row : desk.panes) {
             if (row.ref == ref_of(kind)) {
-                row.place.mode = pane_unit::kRightColumn;
+                row.place = PanePlace{ui::kPlaceTopRight, 0, 0};
+                row.width = PaneSize{pane_unit::kPixels, cells_px(kStripCols)};
+                row.height = PaneSize{ui::kSizeFill, 0};
             }
         }
     });
-    REQUIRE(bounds_of(t.session().panes, t.session().setup.active, kind,
-                      screen_of(t.session()))
-                .placed_in == placement::kSideRegion);
+    const Screen sc = screen_of(t.session());
+    const PaneBounds at = bounds_of(t.session().panes, t.session().setup.active, kind, sc);
+    REQUIRE(at.resolved.x + at.resolved.w == sc.room_w);
+    REQUIRE(at.resolved.y == sc.room_y);
+    REQUIRE(at.resolved.h == sc.room_h);
 }
 
 /// Put the desk's keyboard address on a setup-named pane, by the key a weaver presses.

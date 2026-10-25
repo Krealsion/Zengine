@@ -78,6 +78,18 @@ struct PaneBody {
     std::int64_t width = 0, height = 0, text_rows = 0;
 };
 
+/// Whether an offer is a pixel's wobble of another: two canvas bodies with the same rows of text
+/// beneath, within one pixel of each other on both axes. A text offer moves by whole rows and
+/// columns, so it is never one.
+// WL-PANE-17 -- agents/workshop/panes-and-windows.md
+inline bool within_a_pixel(const PaneOfferedBody& a, const PaneOfferedBody& b) {
+    const auto by_a_pixel = [](std::int64_t x, std::int64_t y) {
+        return x - y <= 1 && y - x <= 1;
+    };
+    return a.width > 0 && b.width > 0 && a.text_rows == b.text_rows &&
+           by_a_pixel(a.width, b.width) && by_a_pixel(a.height, b.height);
+}
+
 /// Admit one `PaneOffered` under the office Loom stamped on it, `mail.authored_role()`: the shape
 /// has no provider field, and `mail.sender()` is a WeaveId, which would make a reloaded provider a
 /// different pane. A refresh at capacity is allowed: capacity bounds distinct panes.
@@ -131,10 +143,17 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
         return out;
     }
     // EVERY FIELD HAS PASSED; ONLY NOW IS ANYTHING WRITTEN.
+    const PaneOfferedBody asked{rows, columns, body.width, body.height, body.text_rows};
     for (RuntimePane& row : runtime.entries) {
         if (row.provider == ref.provider && row.pane == ref.pane) {
             row.name = offer.name;       // in place: the position and the handle are kept,
             row.summary = offer.summary; // so an open pane stays the pane it was
+            // THE FIRST OFFER STANDS for `default`; `fit` takes this one, and in the OS window
+            // stays where it stands while this is within a pixel of it.
+            row.latest = asked;
+            if (!within_a_pixel(asked, row.standing)) {
+                row.standing = asked;
+            }
             out.refreshed = true;
             out.kind = row.kind;
             return out;
@@ -157,6 +176,8 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
     row.preferred_width = body.width;
     row.preferred_height = body.height;
     row.preferred_text_rows = body.text_rows;
+    row.latest = asked;
+    row.standing = asked;
     out.kind = row.kind;
     runtime.entries.push_back(std::move(row));
     return out;
@@ -354,21 +375,44 @@ struct PreferredExtent { std::int64_t width = 0, height = 0; };
 /// medium's metric, or a canvas body of exactly its pixels -- rounded up to the device unit where
 /// the medium cannot say a pixel -- with its text rows beneath; never more than the room.
 // WL-PANE-17 -- agents/workshop/panes-and-windows.md
-inline PreferredExtent preferred_extent(const RuntimePane* pane, const StackCapacity& room) {
-    if (!pane || !room.height) return {};
-    if (pane->preferred_width) {
+inline PreferredExtent offered_extent(const PaneOfferedBody& asked, const StackCapacity& room) {
+    if (!room.height) return {};
+    if (asked.width) {
         const auto up = [&room](std::int64_t px) {
             const std::int64_t g = room.grain > 0 ? room.grain : 1;
             return (px + g - 1) / g * g;
         };
-        return {std::min(room.width, up(pane->preferred_width) + 2 * room.edge),
-                std::min(room.height, up(pane->preferred_height) +
-                                          pane->preferred_text_rows * room.text_row +
+        return {std::min(room.width, up(asked.width) + 2 * room.edge),
+                std::min(room.height, up(asked.height) + asked.text_rows * room.text_row +
                                           room.header + 2 * room.edge)};
     }
-    if (!pane->preferred_rows) return {};
-    return {std::min(room.width, pane->preferred_columns * room.column + 2 * room.border),
-            std::min(room.height, (pane->preferred_rows + 1) * room.line + 2 * room.border)};
+    if (!asked.rows) return {};
+    return {std::min(room.width, asked.columns * room.column + 2 * room.border),
+            std::min(room.height, (asked.rows + 1) * room.line + 2 * room.border)};
+}
+
+/// The extent `default` reads: the pane's first accepted offer, which a refresh cannot move.
+// WL-PANE-17 -- agents/workshop/panes-and-windows.md
+inline PreferredExtent preferred_extent(const RuntimePane* pane, const StackCapacity& room) {
+    if (!pane) return {};
+    return offered_extent(PaneOfferedBody{pane->preferred_rows, pane->preferred_columns,
+                                          pane->preferred_width, pane->preferred_height,
+                                          pane->preferred_text_rows},
+                          room);
+}
+
+/// The offer `fit` reads in this room: the latest where the medium cannot say a pixel, and in the
+/// OS window the one it stands on, which a re-offer within a pixel of it does not move.
+// WL-PANE-17 -- agents/workshop/panes-and-windows.md
+inline const PaneOfferedBody& fit_offer(const RuntimePane& pane, const StackCapacity& room) {
+    return room.grain == 1 ? pane.standing : pane.latest;
+}
+
+/// The extent `fit` reads (`fit_offer`).
+// WL-PANE-17 -- agents/workshop/panes-and-windows.md
+inline PreferredExtent fit_extent(const RuntimePane* pane, const StackCapacity& room) {
+    if (!pane) return {};
+    return offered_extent(fit_offer(*pane, room), room);
 }
 
 /// WHICH AUTHORED REFERENCES THIS BUILD PRESENTS, and how many it cannot -- resolution alone,

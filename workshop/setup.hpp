@@ -12,7 +12,10 @@
 #include "property.hpp"
 #include "settings_seam_vocabulary.hpp" // a layout's baseline, and how long a pin list is
 
+#include "ui/vocabulary.hpp"
+
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -70,17 +73,17 @@ struct PaneRef {
 
 // ---- THE AUTHORED WINDOW: the smallest difference from a default --------------
 
-/// THE UNITS A PANE'S AUTHORED WINDOW MAY BE SAID IN, and there is not a third.
+/// THE WORDS A PANE'S AUTHORED WINDOW IS SAID IN are `ui`'s: a place is one of `ui::kPlaceWords`
+/// and each size one of `ui::kSizeWords`, numbered and spelled by that one table. The two this host
+/// names most get names of its own here.
 // WL-SETUP-03, WL-SETUP-04 -- agents/workshop/setup-file.md
 namespace pane_unit {
-inline constexpr std::int64_t kDefault = 0; ///< the developer's answer, whatever it becomes
+inline constexpr std::int64_t kDefault = ui::kSizeDefault; ///< the developer's answer
 /// AN ABSOLUTE COUNT OF CANVAS PIXELS: one window pixel each, twelve to a terminal's cell.
 // WL-GEO-06 -- agents/workshop/geometry.md; WL-SETUP-04 -- agents/workshop/setup-file.md
-inline constexpr std::int64_t kPixels = 2;
-/// The right column, named: a place a desk asks for, carrying no coordinates. Why a place is a
-/// unit: agents/decisions/the-room-is-the-screen.md.
-// WL-SETUP-03 -- agents/workshop/setup-file.md
-inline constexpr std::int64_t kRightColumn = 3;
+inline constexpr std::int64_t kPixels = ui::kSizePixels;
+static_assert(kDefault == ui::kPlaceDefault && kPixels == ui::kPlacePixels,
+              "`default` and `pixels` are one number in both of ui's lists");
 } // namespace pane_unit
 
 /// A cell as a setup or a session file counts it, in pixels: the files' own number, which no
@@ -95,7 +98,9 @@ inline constexpr std::int64_t kPanePxMin = kSavedCellPx;
 /// WHERE A WEAVER PUT A PANE -- one fact, both coordinates.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md
 struct PanePlace {
-    /// `kDefault`, `kPixels` or `kRightColumn`
+    /// A place word (`ui::kPlaceWords`); `x` and `y` are its offsets, inward from the edges it
+    /// names -- `share`'s ten-thousandths of the room from its top-left -- and 0 on an axis the
+    /// word reads none of.
     std::int64_t mode = pane_unit::kDefault;
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -106,8 +111,8 @@ struct PanePlace {
 /// HOW BIG A WEAVER MADE ONE AXIS OF A PANE.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
 struct PaneSize {
-    std::int64_t mode = pane_unit::kDefault; ///< `kDefault` or `kPixels`
-    std::int64_t amount = 0;
+    std::int64_t mode = pane_unit::kDefault; ///< a size word (`ui::kSizeWords`)
+    std::int64_t amount = 0;                 ///< `pixels`' count, `share`'s ten-thousandths, else 0
 
     friend bool operator==(const PaneSize&, const PaneSize&) = default;
 };
@@ -301,7 +306,26 @@ inline Written check_pane_place_coord(std::int64_t v) {
     return Written::ok();
 }
 
-/// A PLACE: default with nothing said, a named place, or pixels from the room's top-left.
+/// One of ui's word lists as a weaver reads it: `a, b or c`.
+template <std::size_t N>
+inline std::string word_list(const std::array<std::string_view, N>& words) {
+    std::string out;
+    for (std::size_t i = 0; i < N; ++i) {
+        out += i == 0 ? "" : (i + 1 == N ? " or " : ", ");
+        out += words[i];
+    }
+    return out;
+}
+
+/// Every word a pane's place may be said in, and every word a size may: two closed lists.
+// WL-SETUP-04 -- agents/workshop/setup-file.md
+inline std::string pane_place_words() { return word_list(ui::kPlaceWords); }
+inline std::string pane_size_words() { return word_list(ui::kSizeWords); }
+
+/// A PLACE: one of ui's place words, with an offset on each axis the word reads, inward from the
+/// edge it names, and 0 on each it does not: `default` and a centred axis read none. `share`'s
+/// two are 0 to `ui::kShareWhole` ten-thousandths of the room's width and height.
+// WL-SETUP-03 -- agents/workshop/setup-file.md
 inline Written check_pane_place(const PanePlace& p) {
     if (p.mode == pane_unit::kDefault) {
         if (p.x != 0 || p.y != 0) {
@@ -309,31 +333,42 @@ inline Written check_pane_place(const PanePlace& p) {
         }
         return Written::ok();
     }
-    // A named place carries no coordinates either: they would be a second answer.
-    if (p.mode == pane_unit::kRightColumn) {
-        if (p.x != 0 || p.y != 0) {
-            return Written::no("a named pane place carries no coordinates");
+    const std::string_view word = ui::place_word(p.mode);
+    if (word.empty()) {
+        return Written::no("a pane place is " + pane_place_words());
+    }
+    for (const bool across : {true, false}) {
+        const std::int64_t v = across ? p.x : p.y;
+        const bool reads = across ? ui::place_reads_x(p.mode) : ui::place_reads_y(p.mode);
+        if (!reads && v != 0) {
+            return Written::no("a `" + std::string(word) + "` pane place is centred " +
+                               (across ? "across, so it carries no x" : "down, so it carries no y"));
         }
-        return Written::ok();
+        if (reads && ui::place_reads_share(p.mode)) {
+            if (v < 0 || v > ui::kShareWhole) {
+                return Written::no(std::string("a share pane place's ") + (across ? "x" : "y") +
+                                   " is 0 to " + std::to_string(ui::kShareWhole) +
+                                   " ten-thousandths of the room's " +
+                                   (across ? "width" : "height") + " (3333 is a third) -- not " +
+                                   std::to_string(v));
+            }
+        } else if (reads) {
+            if (const Written legal = check_pane_place_coord(v); !legal.accepted) {
+                return legal;
+            }
+        }
     }
-    if (p.mode != pane_unit::kPixels) {
-        return Written::no("a pane place is default, right-column or pixels");
-    }
-    const Written x = check_pane_place_coord(p.x);
-    if (!x.accepted) {
-        return x;
-    }
-    return check_pane_place_coord(p.y);
+    return Written::ok();
 }
 
-/// ONE AXIS OF A SIZE: default, or a count of pixels.
+/// ONE AXIS OF A SIZE: one of ui's size words; `pixels` counts at least a cell and at most
+/// `kMaxPanePixels`, `share` 1 to `ui::kShareWhole` ten-thousandths of the room, and every other
+/// word carries no amount.
 // WL-SETUP-03 -- agents/workshop/setup-file.md
 inline Written check_pane_size(const PaneSize& s, const char* which) {
-    if (s.mode == pane_unit::kDefault) {
-        if (s.amount != 0) {
-            return Written::no(std::string("a default pane ") + which + " carries no amount");
-        }
-        return Written::ok();
+    const std::string_view word = ui::size_word(s.mode);
+    if (word.empty()) {
+        return Written::no(std::string("a pane ") + which + " is " + pane_size_words());
     }
     if (s.mode == pane_unit::kPixels) {
         if (s.amount < kPanePxMin) {
@@ -346,7 +381,19 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
         }
         return Written::ok();
     }
-    return Written::no(std::string("a pane ") + which + " is default or pixels");
+    if (s.mode == ui::kSizeShare) {
+        if (s.amount < 1 || s.amount > ui::kShareWhole) {
+            return Written::no(std::string("a pane ") + which + "'s share is 1 to " +
+                               std::to_string(ui::kShareWhole) +
+                               " ten-thousandths of the room (5000 is half) -- not " +
+                               std::to_string(s.amount));
+        }
+        return Written::ok();
+    }
+    if (s.amount != 0) {
+        return Written::no("a " + std::string(word) + " pane " + which + " carries no amount");
+    }
+    return Written::ok();
 }
 
 /// WHAT A ROW'S SETTINGS MAY BE, judged by form alone: each one a setting (`pane_setting_problem`),
@@ -507,9 +554,51 @@ inline Written check_layout_own(const Setup& s) {
     return Written::ok();
 }
 
+/// A row's place and sizes as ui's authored values: each number present where its word reads it.
+inline ui::Place ui_place_of(const PanePlace& p) {
+    ui::Place out{p.mode, std::nullopt, std::nullopt};
+    if (ui::place_reads_x(p.mode)) {
+        out.x = p.x;
+    }
+    if (ui::place_reads_y(p.mode)) {
+        out.y = p.y;
+    }
+    return out;
+}
+
+inline ui::Size ui_size_of(const PaneSize& s) {
+    return ui::Size{s.mode, ui::size_reads_amount(s.mode) ? std::optional<std::int64_t>(s.amount)
+                                                          : std::nullopt};
+}
+
+/// THE DESK'S INTENT AS ui's PARTS, with no room: the room a frame, and each row a part standing
+/// in it by its words. `ui::problem` judges it; nothing solves it.
+// WL-SETUP-07 -- agents/workshop/setup-file.md
+inline std::vector<ui::Element> desk_intent(const Setup& s) {
+    std::vector<ui::Element> parts;
+    parts.reserve(s.panes.size() + 1);
+    ui::Element room;
+    room.id = 1;
+    room.label = "the room";
+    parts.push_back(room);
+    for (std::size_t i = 0; i < s.panes.size(); ++i) {
+        const SetupPane& row = s.panes[i];
+        ui::Element e;
+        e.id = static_cast<std::int64_t>(i) + 2;
+        e.label = ref_text(row.ref);
+        e.context = room.id;
+        e.place = ui_place_of(row.place);
+        e.width = ui_size_of(row.width);
+        e.height = ui_size_of(row.height);
+        parts.push_back(std::move(e));
+    }
+    return parts;
+}
+
 /// THE WHOLE-SETUP LAW, asked once on a complete candidate.
 /// It judges the name, every row, how many there are, whether any two name the
-/// same pane, whether the ranks are a permutation, and how many settings the rows keep.
+/// same pane, whether the ranks are a permutation, how many settings the rows keep, and what ui
+/// finds wrong with the desk's intent alone (`ui::problem`).
 // WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Written check_setup(const Setup& s) {
     const Written named = check_setup_name(s.name);
@@ -551,6 +640,9 @@ inline Written check_setup(const Setup& s) {
         return Written::no("a setup keeps at most " + std::to_string(kMaxPaneSettingsPerDesk) +
                            " settings, locks and pins over all its panes -- this one keeps " +
                            std::to_string(units));
+    }
+    if (const std::string wrong = ui::problem(desk_intent(s)); !wrong.empty()) {
+        return Written::no(wrong);
     }
     return Written::ok();
 }
@@ -810,24 +902,76 @@ inline Written author_pane_size(Setup& s, const PaneRef& ref, const PaneSize& wi
     return Written::ok();
 }
 
-/// ONE AXIS of what a single gesture proposes for a pane's window.
+/// ONE AXIS of what a single gesture proposes for a pane's window, in the room's pixels: the near
+/// edge where the hand left it, the extent it pulled, and what the axis stands at now -- its near
+/// edge, its extent, the room's span along it and the window's step -- which the door needs to say
+/// the axis in its own word.
 // WL-ARR-06 -- agents/workshop/arrangement.md
 struct PaneAxisProposal {
     std::optional<std::int64_t> position;
     std::optional<PaneSize> extent;
     std::int64_t base = 0;
+    std::int64_t length = 0;
+    std::int64_t span = 0;
+    std::int64_t step = 1;
 };
 
 /// What authoring a window proposal did: `written` answers for the gesture as a
 /// whole, and `place_written` says whether the place moved — the caller reconciles
 /// (`apply_setup`) exactly then, because an authored place takes the pane out of the
 /// stack; with no room rationing the stack, that reconcile opens and closes nothing.
+/// `said` names each axis the hand wrote in another word than it stood in, and the word it was.
 struct WindowWritten {
     Written written;
     bool place_written = false;
+    std::string said;
 };
 
-/// AUTHOR WHAT ONE GESTURE PROPOSES FOR A PANE'S WINDOW — per axis.
+/// The share of `span` whose edge, laid from `anchor`, falls on `length` pixels: the least share
+/// reaching it from the start, the most from the end, so the floored edge is the hand's pixel for
+/// every span up to `ui::kShareWhole` pixels. Never below 1 or past the whole.
+// WL-ARR-06 -- agents/workshop/arrangement.md
+inline std::int64_t share_reaching(std::int64_t length, std::int64_t span, ui::Anchor anchor) {
+    if (span <= 0 || length >= span) {
+        return ui::kShareWhole;
+    }
+    if (length <= 0) {
+        return 1;
+    }
+    // length < span <= int64's range, and length * whole fits: length is at most kMaxPanePixels.
+    const std::int64_t whole = ui::kShareWhole;
+    const std::int64_t s = anchor == ui::Anchor::End ? length * whole / span
+                                                     : (length * whole + span - 1) / span;
+    return s < 1 ? 1 : (s > whole ? whole : s);
+}
+
+/// The share of `span` at which a `share` place's floored edge is `at` pixels from the room's
+/// start: the least that reaches it, so the edge is the hand's pixel for every span up to
+/// `ui::kShareWhole` pixels. 0 at or before the start, the whole at or past the end.
+// WL-ARR-06 -- agents/workshop/arrangement.md
+inline std::int64_t share_placing(std::int64_t at, std::int64_t span) {
+    if (at <= 0 || span <= 0) {
+        return 0;
+    }
+    if (at >= span) {
+        return ui::kShareWhole;
+    }
+    // at < span, and at * whole fits: at is at most kMaxPanePixels.
+    return (at * ui::kShareWhole + span - 1) / span;
+}
+
+/// A share as a weaver reads it: hundredths of a percent, `33.33%`.
+inline std::string share_text(std::int64_t share) {
+    const std::int64_t hundredths = share % 100;
+    return std::to_string(share / 100) + "." + (hundredths < 10 ? "0" : "") +
+           std::to_string(hundredths) + "%";
+}
+
+/// AUTHOR WHAT ONE GESTURE PROPOSES FOR A PANE'S WINDOW — per axis, each in its own word: an
+/// anchor's offset from its own edge; a share place's, a share's, or a fill's pulled at its far
+/// edge, the share whose edge is the hand's pixel. A moved centred or `default` place becomes
+/// `pixels` at the hand's corner; `fit`, `default` and a moved `fill` become the hand's extent in
+/// pixels. Every word of the weaver's that the hand changed is said (WL-ARR-06).
 // WL-ARR-05, WL-ARR-06, WL-ARR-10 -- agents/workshop/arrangement.md
 // WL-PED-05 -- agents/workshop/pane-manager.md
 inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
@@ -835,8 +979,8 @@ inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
                                         const PaneAxisProposal& vertical) {
     SetupPane* row = pane_of(s, ref);
     if (row == nullptr) {
-        return WindowWritten{Written::no("`" + ref_text(ref) + "` is not in this setup"),
-                             false};
+        return WindowWritten{Written::no("`" + ref_text(ref) + "` is not in this setup"), false,
+                             {}};
     }
     Written wide = Written::ok();
     if (horizontal.position.has_value()) {
@@ -854,39 +998,163 @@ inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
     }
     const bool h_asks = horizontal.position.has_value() || horizontal.extent.has_value();
     const bool v_asks = vertical.position.has_value() || vertical.extent.has_value();
-    const bool h_lands = h_asks && wide.accepted;
-    const bool v_lands = v_asks && tall.accepted;
+    bool h_lands = h_asks && wide.accepted;
+    bool v_lands = v_asks && tall.accepted;
     if (!h_lands && !v_lands) {
         if (!h_asks && !v_asks) {
-            return WindowWritten{Written::ok(), false};
+            return WindowWritten{Written::ok(), false, {}};
         }
-        return WindowWritten{!wide.accepted ? wide : tall, false};
+        return WindowWritten{!wide.accepted ? wide : tall, false, {}};
     }
-    const bool place_written = (h_lands && horizontal.position.has_value()) ||
-                               (v_lands && vertical.position.has_value());
-    if (place_written) {
-        // A PLACE IS ONE FIELD. The axis that settled a position writes it; the
-        // other contributes what it already stood at — its authored coordinate,
-        // or the resolved base the caller measured, in the room. A pane standing
-        // above the room (the Layouts pane in its band) has no room place on that
-        // axis, so it comes down to the room's edge, the nearest one it has.
-        const bool authored = row->place.mode == pane_unit::kPixels;
-        const auto in_room = [](std::int64_t v) { return v < 0 ? std::int64_t{0} : v; };
-        const std::int64_t x = h_lands && horizontal.position.has_value()
-                                   ? *horizontal.position
-                                   : (authored ? row->place.x : in_room(horizontal.base));
-        const std::int64_t y = v_lands && vertical.position.has_value()
-                                   ? *vertical.position
-                                   : (authored ? row->place.y : in_room(vertical.base));
-        row->place = PanePlace{pane_unit::kPixels, x, y};
+
+    // Where each axis's edges stand after the hand, in the room.
+    struct Moved {
+        std::int64_t from = 0, to = 0, length = 0;
+        bool near_moved = false, far_moved = false, lands = false;
+    };
+    const auto moved = [](const PaneAxisProposal& p, bool lands) {
+        Moved m;
+        m.lands = lands;
+        m.from = lands && p.position.has_value() ? *p.position : p.base;
+        m.length = lands && p.extent.has_value() ? p.extent->amount : p.length;
+        m.to = m.from + m.length;
+        m.near_moved = lands && m.from != p.base;
+        m.far_moved = lands && m.to != p.base + p.length;
+        return m;
+    };
+    Moved mx = moved(horizontal, h_lands);
+    Moved my = moved(vertical, v_lands);
+
+    PanePlace place = row->place;
+    PaneSize width = row->width;
+    PaneSize height = row->height;
+    std::string said;
+    const auto say = [&said](const std::string& what) {
+        said += (said.empty() ? "" : "; ") + what;
+    };
+
+    // THE PLACE. A word with a centred axis the hand moved cannot say where the hand left it, and
+    // neither can `default` once the near edge moved: both become `pixels` at the hand's corner.
+    const ui::Anchor was_x = ui::place_anchor_x(place.mode);
+    const ui::Anchor was_y = ui::place_anchor_y(place.mode);
+    const bool centred_moved = (was_x == ui::Anchor::Center && (mx.near_moved || mx.far_moved)) ||
+                               (was_y == ui::Anchor::Center && (my.near_moved || my.far_moved));
+    const bool default_moved = place.mode == pane_unit::kDefault &&
+                               ((h_lands && horizontal.position.has_value()) ||
+                                (v_lands && vertical.position.has_value()));
+    const auto in_room = [](std::int64_t v) { return v < 0 ? std::int64_t{0} : v; };
+    if (centred_moved || default_moved) {
+        // A PLACE IS ONE FIELD. Each axis the hand moved writes its edge; the other contributes
+        // where it stands, in the room. A pane above the room (the Layouts pane in its band) has
+        // no room place on that axis, so it comes down to the room's edge, the nearest one it has.
+        if (place.mode != pane_unit::kDefault) {
+            say("place now pixels -- was " + std::string(ui::place_word(place.mode)));
+        }
+        place = PanePlace{pane_unit::kPixels, in_room(mx.from), in_room(my.from)};
+    } else if (place.mode == pane_unit::kPixels) {
+        if (h_lands && horizontal.position.has_value()) {
+            place.x = mx.from;
+        }
+        if (v_lands && vertical.position.has_value()) {
+            place.y = my.from;
+        }
+    } else if (ui::place_reads_share(place.mode)) {
+        // A SHARE PLACE keeps its word: the share whose edge is the hand's pixel.
+        if (mx.near_moved) {
+            place.x = share_placing(mx.from, horizontal.span);
+        }
+        if (my.near_moved) {
+            place.y = share_placing(my.from, vertical.span);
+        }
+    } else if (place.mode != pane_unit::kDefault) {
+        // AN ANCHORED WORD keeps its word: the offset is counted from its own edge again.
+        const auto offset = [](ui::Anchor anchor, const Moved& m, const PaneAxisProposal& p,
+                               std::int64_t& at, Written& verdict) {
+            if (!m.lands || anchor == ui::Anchor::Center) {
+                return;
+            }
+            const std::int64_t v = anchor == ui::Anchor::End ? p.span - m.to : m.from;
+            if ((anchor == ui::Anchor::End ? m.far_moved : m.near_moved)) {
+                verdict = check_pane_place_coord(v);
+                if (verdict.accepted) {
+                    at = v;
+                }
+            }
+        };
+        offset(was_x, mx, horizontal, place.x, wide);
+        offset(was_y, my, vertical, place.y, tall);
+        // AN AXIS REFUSED HERE WRITES NOTHING, its size included; the other still settles.
+        h_lands = h_lands && wide.accepted;
+        v_lands = v_lands && tall.accepted;
+        if (!h_lands && !v_lands) {
+            return WindowWritten{!wide.accepted ? wide : tall, false, {}};
+        }
+        mx.lands = h_lands;
+        my.lands = v_lands;
     }
-    if (h_lands && horizontal.extent.has_value()) {
-        row->width = *horizontal.extent;
+    const ui::Anchor now_x = ui::place_anchor_x(place.mode);
+    const ui::Anchor now_y = ui::place_anchor_y(place.mode);
+
+    // THE SIZES, each in its own word.
+    const auto size = [&say](PaneSize& at, const Moved& m, const PaneAxisProposal& p,
+                             ui::Anchor was, ui::Anchor now, const char* axis) {
+        const std::string word(ui::size_word(at.mode));
+        // `default` becomes pixels unsaid, as it always has: no word of the weaver's is lost.
+        const auto to_pixels = [&] {
+            at = PaneSize{pane_unit::kPixels, m.length};
+            if (word != "default") {
+                say(std::string(axis) + " now " + std::to_string(m.length) + " px -- was " + word);
+            }
+        };
+        if (!m.lands) {
+            // An axis the hand left alone keeps its word, unless the place it fills from moved.
+            if (at.mode == ui::kSizeFill && was != now) {
+                to_pixels();
+            }
+            return;
+        }
+        const bool pulled = p.extent.has_value();
+        switch (at.mode) {
+        case pane_unit::kPixels:
+            if (pulled) {
+                at.amount = m.length;
+            }
+            return;
+        case ui::kSizeShare:
+            if (pulled) {
+                at.amount = share_reaching(m.length, p.span, now);
+            }
+            return;
+        case ui::kSizeFill: {
+            // A FILL'S FAR EDGE is the frame's; the hand pulling it there writes the share whose
+            // edge is the hand's pixel. Its near edge pulled leaves the far edge where it was.
+            const bool far_pulled = now == ui::Anchor::End ? m.near_moved : m.far_moved;
+            if (pulled && far_pulled) {
+                at = PaneSize{ui::kSizeShare, share_reaching(m.length, p.span, now)};
+                say(std::string(axis) + " now " + share_text(at.amount) + " -- was fill");
+            } else if (!pulled || was != now) {
+                to_pixels();
+            }
+            return;
+        }
+        default:
+            if (pulled) {
+                to_pixels();
+            }
+            return;
+        }
+    };
+    size(width, mx, horizontal, was_x, now_x, "width");
+    size(height, my, vertical, was_y, now_y, "height");
+
+    const bool place_written = !(place == row->place);
+    if (const Written legal = check_pane_place(place); !legal.accepted) {
+        return WindowWritten{legal, false, {}};
     }
-    if (v_lands && vertical.extent.has_value()) {
-        row->height = *vertical.extent;
-    }
-    return WindowWritten{Written::ok(), place_written};
+    row->place = place;
+    row->width = width;
+    row->height = height;
+    return WindowWritten{Written::ok(), place_written, said};
 }
 
 /// The resets: each removes one authored difference and leaves the others.
@@ -917,7 +1185,7 @@ inline bool reset_pane_height(Setup& s, const PaneRef& ref) {
     return true;
 }
 
-/// A fresh Workshop's setup: the default panes, then Info in the right column.
+/// A fresh Workshop's setup: the default panes, then Info at the room's top-right.
 // WL-LAYOUT-03 -- agents/workshop/layouts.md; WL-SETUP-07 -- agents/workshop/setup-file.md
 inline Setup default_setup() {
     Setup s;
@@ -926,14 +1194,14 @@ inline Setup default_setup() {
     for (const std::int64_t kind : kDefaultPanes) {
         (void)add_pane(s, pane_ref_of(kind));
     }
-    // Info opens at the right edge because this desk row says so: the one place this host names a
-    // weave's office, as a row a weaver may move or delete like any other. An office that never
-    // arrives leaves an unresolved row (`unresolved_panes`).
+    // Info opens at the room's top-right, at the size it asks for, because this desk row says so:
+    // the one place this host names a weave's office, as a row a weaver may move or delete like any
+    // other. An office that never arrives leaves an unresolved row (`unresolved_panes`).
     const PaneRef info{kInfoPaneProvider, kInfoPaneKey};
     if (add_pane(s, info)) {
         for (SetupPane& row : s.panes) {
             if (row.ref == info) {
-                row.place.mode = pane_unit::kRightColumn;
+                row.place = PanePlace{ui::kPlaceTopRight, 0, 0};
             }
         }
     }

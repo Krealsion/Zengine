@@ -49,6 +49,8 @@ inline constexpr std::int64_t kPlaceRight = 6;       ///< `x` in from the right;
 inline constexpr std::int64_t kPlaceBottomLeft = 7;  ///< `x` in from the left, `y` up from the bottom
 inline constexpr std::int64_t kPlaceBottom = 8;      ///< centred across; `y` up from the bottom
 inline constexpr std::int64_t kPlaceBottomRight = 9; ///< `x` in from the right, `y` up from the bottom
+inline constexpr std::int64_t kPlaceShare = 10;      ///< `x`, `y` ten-thousandths of the frame's
+                                                     ///< width and height, from its top-left
 
 /// How a part that is a frame lays its own parts.
 inline constexpr std::int64_t kFlowFree = 0;  ///< each by its own place and sizes; parts may cover
@@ -57,9 +59,9 @@ inline constexpr std::int64_t kFlowStack = 1; ///< down a column, a slot each, `
 
 inline constexpr std::array<std::string_view, 5> kSizeWords{"default", "pixels", "share", "fit",
                                                             "fill"};
-inline constexpr std::array<std::string_view, 10> kPlaceWords{
-    "default", "pixels", "top",         "top-right", "left", "center",
-    "right",   "bottom-left", "bottom", "bottom-right"};
+inline constexpr std::array<std::string_view, 11> kPlaceWords{
+    "default", "pixels",      "top",    "top-right",    "left", "center",
+    "right",   "bottom-left", "bottom", "bottom-right", "share"};
 
 /// A size's word, or empty for a number no word is.
 inline constexpr std::string_view size_word(std::int64_t mode) noexcept {
@@ -73,6 +75,26 @@ inline constexpr std::string_view place_word(std::int64_t mode) noexcept {
     return mode >= 0 && mode < static_cast<std::int64_t>(kPlaceWords.size())
                ? kPlaceWords[static_cast<std::size_t>(mode)]
                : std::string_view{};
+}
+
+/// The size a word names, or none for a word the list does not have.
+inline constexpr std::optional<std::int64_t> size_named(std::string_view word) noexcept {
+    for (std::size_t i = 0; i < kSizeWords.size(); ++i) {
+        if (kSizeWords[i] == word) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return std::nullopt;
+}
+
+/// The place a word names, or none for a word the list does not have.
+inline constexpr std::optional<std::int64_t> place_named(std::string_view word) noexcept {
+    for (std::size_t i = 0; i < kPlaceWords.size(); ++i) {
+        if (kPlaceWords[i] == word) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return std::nullopt;
 }
 
 /// Whether a size's word reads `amount`: `pixels` and `share` do, and no other.
@@ -115,6 +137,10 @@ inline constexpr Anchor place_anchor_y(std::int64_t mode) noexcept {
     }
 }
 
+/// Whether a place's offsets are ten-thousandths of the frame's span, read as a `share` size reads
+/// its amount, rather than pixels: `share`'s are, and no other word's.
+inline constexpr bool place_reads_share(std::int64_t mode) noexcept { return mode == kPlaceShare; }
+
 /// Whether a place's word reads `x`: every word with an edge across, and not a centred axis or
 /// `default`.
 inline constexpr bool place_reads_x(std::int64_t mode) noexcept {
@@ -147,7 +173,8 @@ struct Size {
 };
 
 /// Where a part stands in its frame: its word and the offsets that word reads, in whole pixels,
-/// each inward from the edge the word names.
+/// each inward from the edge the word names -- or, for `share`, in ten-thousandths of the frame's
+/// width and height from its top-left (`place_reads_share`).
 struct Place {
     std::int64_t mode = kPlaceDefault;
     std::optional<std::int64_t> x;
@@ -332,9 +359,13 @@ inline std::string part_name(const Element& e) {
 }
 
 /// What a part reads of its frame along one axis, in words, or empty when it reads nothing: its
-/// size is a share or a fill of the frame's span, or its place counts from the frame's far edge
-/// or centre, each of which needs the span first.
-inline std::string reads_of_frame(const Size& size, Anchor anchor, bool across) {
+/// size is a share or a fill of the frame's span, or its place is a share of it or counts from
+/// the frame's far edge or centre, each of which needs the span first.
+inline std::string reads_of_frame(const Size& size, std::int64_t place, bool across) {
+    const Anchor anchor = across ? place_anchor_x(place) : place_anchor_y(place);
+    if (place_reads_share(place)) {
+        return std::string("stands a share of the ") + (across ? "width" : "height") + " into";
+    }
     if (size.mode == kSizeShare) {
         return std::string("is a share of the ") + (across ? "width" : "height") + " of";
     }
@@ -358,9 +389,9 @@ inline std::string reads_of_frame(const Size& size, Anchor anchor, bool across) 
 ///
 /// It names, for the first part that has one:
 /// - a context no part carries, and a context that loops (`walk_context`'s two faults);
-/// - a size that depends on itself: a share, a fill, or a place counted from the far edge or the
-///   centre, along an axis where the frame fits its size to its parts (`kSizeFit`), so the frame
-///   is measured from the part and the part from the frame;
+/// - a size that depends on itself: a share, a fill, or a place that is a share or counted from
+///   the far edge or the centre, along an axis where the frame fits its size to its parts
+///   (`kSizeFit`), so the frame is measured from the part and the part from the frame;
 /// - a column that begins again at its floor and fits its own height to its parts.
 inline std::string problem(const std::vector<Element>& parts) {
     const ById index(parts);
@@ -402,9 +433,8 @@ inline std::string problem(const std::vector<Element>& parts) {
             if (frame_size.mode != kSizeFit) {
                 continue;
             }
-            const std::string reads = detail::reads_of_frame(
-                across ? e.width : e.height,
-                across ? place_anchor_x(e.place.mode) : place_anchor_y(e.place.mode), across);
+            const std::string reads =
+                detail::reads_of_frame(across ? e.width : e.height, e.place.mode, across);
             if (!reads.empty()) {
                 const char* axis = across ? "width" : "height";
                 return detail::part_name(e) + " " + reads + " " + detail::part_name(frame) +

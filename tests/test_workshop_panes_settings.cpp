@@ -1454,7 +1454,7 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
                       "workshop.pane-titles", "workshop.band-keys", "workshop.hotkeys-keys",
                       "workshop.pinned-scope", "workshop.focus.ring", "workshop.skin",
                       "workshop.completion-order", "workshop.arrange-step", "workshop.snap-reach",
-                      "workshop.side-columns", "workshop.stack-rows"});
+                      "workshop.stack-rows"});
     CHECK(shown.rows == prefs_persist::workshop_office_rows());
     // THREE PINNED BY DEFAULT, the most a declaration pins, and every row sound by a pane
     // declaration's rules but its `workshop.` key.
@@ -1496,8 +1496,6 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
            row_of("workshop.arrange-step").high == 16));
     CHECK((row_of("workshop.snap-reach").number == 8 && row_of("workshop.snap-reach").low == 6 &&
            row_of("workshop.snap-reach").high == 11));
-    CHECK((row_of("workshop.side-columns").number == 28 &&
-           row_of("workshop.side-columns").low == 16 && row_of("workshop.side-columns").high == 64));
     CHECK((row_of("workshop.stack-rows").number == 9 && row_of("workshop.stack-rows").low == 5 &&
            row_of("workshop.stack-rows").high == 40));
     CHECK(shown.settings.empty());
@@ -1790,7 +1788,6 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     const Session& s = t.r.session();
     REQUIRE(s.arrange_step_cells == kCoarseStepCells);
     REQUIRE(s.snap_reach_px == kPaneSnapReachPx);
-    REQUIRE(s.side_cols == kSideCols);
     REQUIRE(s.stack_rows == kStackRows);
     REQUIRE_FALSE(s.completion_required_first);
     std::int64_t rev = t.read_office(kWorkshopProvider).revision;
@@ -1801,7 +1798,7 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
         std::int64_t value;
     };
     for (const Set& c : {Set{"workshop.arrange-step", 8}, Set{"workshop.snap-reach", 11},
-                         Set{"workshop.side-columns", 40}, Set{"workshop.stack-rows", 20}}) {
+                         Set{"workshop.stack-rows", 20}}) {
         CAPTURE(c.key);
         const OfficeSettingCommitAnswered a = t.commit_office(workshop_number(rev, c.key, c.value));
         REQUIRE_MESSAGE(a.accepted, a.refusal);
@@ -1810,13 +1807,9 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     }
     CHECK(s.arrange_step_cells == 8);
     CHECK(s.snap_reach_px == 11);
-    CHECK(s.side_cols == 40);
     CHECK(s.stack_rows == 20);
-    // THE SCREEN TAKES THE COLUMN AND THE STACK AT ONCE: the column forty cells from the right
-    // edge, and each stacked slot twenty rows tall with its gap beneath.
+    // THE SCREEN TAKES THE STACK AT ONCE: each stacked slot twenty rows tall with its gap beneath.
     const Screen sc = screen_of(s);
-    CHECK(sc.side_x == sc.w - cells_px(40));
-    CHECK(placement_bounds(placement::kSideRegion, 0, sc).w == cells_px(40));
     CHECK(placement_bounds(placement::kOverlayStack, 0, sc).h == cells_px(20));
     CHECK(placement_bounds(placement::kOverlayStack, 1, sc).y == sc.room_y + cells_px(21));
     CHECK(stack_capacity(sc).fallback_height == cells_px(20));
@@ -1832,7 +1825,6 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.prefs.arrange_step_cells == 8);
     CHECK(read.prefs.snap_reach_px == 11);
-    CHECK(read.prefs.side_cols == 40);
     CHECK(read.prefs.stack_rows == 20);
     CHECK(read.prefs.completion_required_first);
     const std::string kept = slurp(path);
@@ -1854,10 +1846,6 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
          "workshop.snap-reach takes a whole number from 6 to 11, not a number `5`"},
         {number("workshop.snap-reach", 12),
          "workshop.snap-reach takes a whole number from 6 to 11, not a number `12`"},
-        {number("workshop.side-columns", 15),
-         "workshop.side-columns takes a whole number from 16 to 64, not a number `15`"},
-        {number("workshop.side-columns", 65),
-         "workshop.side-columns takes a whole number from 16 to 64, not a number `65`"},
         {number("workshop.stack-rows", 4),
          "workshop.stack-rows takes a whole number from 5 to 40, not a number `4`"},
         {number("workshop.stack-rows", 41),
@@ -1888,6 +1876,19 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     CHECK_FALSE(refused.outcome.accepted);
     CHECK(refused.outcome.refusal ==
           "workshop.stack-rows takes a whole number from 5 to 40, not a number `41`");
+
+    // THE RIGHT COLUMN'S WIDTH IS NO SETTING: `workshop.side-columns` is not taken by a commit,
+    // and a file still keeping it reads, the key carried and read by nothing.
+    // ⚔ MUTATION: a declaration that still lists `workshop.side-columns` -- the commit is taken.
+    const OfficeSettingCommitAnswered retired = t.commit_office(number("workshop.side-columns", 40));
+    CHECK_FALSE(retired.accepted);
+    CHECK(retired.revision == rev);
+    prefs_persist::Prefs old_file;
+    old_file.offices = {prefs_persist::OfficeSettingsKept{
+        kWorkshopProvider, {PaneSetting{"workshop.side-columns", std::nullopt, 40, std::nullopt}}}};
+    const prefs_persist::LoadedPrefs carried =
+        prefs_persist::from_text(prefs_persist::to_text(old_file));
+    CHECK_MESSAGE(carried.outcome.accepted, carried.outcome.refusal);
 }
 
 TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken on every row, kept as written, shown in Info, and never handed to the pane") {

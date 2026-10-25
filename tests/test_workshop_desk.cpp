@@ -261,6 +261,42 @@ TEST_CASE("the desk says which pane is selected and holds the keys, and a pane p
     CHECK(alpha->visible.h == 0);
 }
 
+TEST_CASE("the desk read says a pane's words where the band says them, and the pixels they came to") {
+    // ⚔ MUTATION: the readout saying `-` for every word -- the band, and so the desk read, says
+    // nothing of the share or the point of the room.
+    DeskRig d;
+    const PaneRef alpha{kAlphaOffice, "alpha"};
+    stage_desk(d.r, [&](Setup& desk) {
+        SetupPane* row = pane_of(desk, alpha);
+        REQUIRE(row != nullptr);
+        row->place = PanePlace{ui::kPlaceBottomRight, cells_px(1), cells_px(2)};
+        row->width = PaneSize{ui::kSizeShare, 5000};
+    });
+    d.r.key(input::scan::kW);
+    REQUIRE(d.r.session().arrange.open);
+    for (std::size_t guard = 0; guard < 8 && !(d.r.session().arrange.pane == alpha); ++guard) {
+        d.r.key(input::scan::kTab);
+    }
+    REQUIRE(d.r.session().arrange.pane == alpha);
+    const DeskView desk = d.desk();
+    std::string band;
+    for (const PaneWord& w : desk.words) {
+        band += w.text + "\n";
+    }
+    CAPTURE(band);
+    CHECK(band.find("@bottom-right 1,2 50.00%x") != std::string::npos);
+    CHECK(band.find(" -- now @") != std::string::npos);
+    // ...AND THE PANE'S OWN ENTRY SAYS THE PIXELS THOSE WORDS CAME TO.
+    const Screen sc = screen_of(d.r.session());
+    const DeskPane* p = pane_named(desk, kAlphaOffice, "alpha");
+    REQUIRE(p != nullptr);
+    const PaneBounds where = bounds_of(d.r.session().panes, d.r.session().setup.active,
+                                       d.alpha_kind, sc);
+    CHECK(same(p->resolved, where.resolved));
+    CHECK(p->resolved.x + p->resolved.w == sc.room_w - cells_px(1));
+    CHECK(p->resolved.w == sc.room_w / 2);
+}
+
 TEST_CASE("the desk says arranging is open, and the menu on the screen with each line where it is drawn") {
     DeskRig d;
     // ARRANGING, by the desk's own key from command mode.

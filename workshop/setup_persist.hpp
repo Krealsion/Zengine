@@ -77,15 +77,10 @@ inline constexpr const char* kUnitDefault = "default";
 /// THE GEOMETRY WORD: amounts in canvas pixels, twelve to a canvas cell.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kUnitPixels = "pixels";
-/// The place-only word: the right column, named.
+/// The right column's name, which a file may still say: read as `top-right` at no offset, the
+/// column's corner, and written as that.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline constexpr const char* kUnitRightColumn = "right-column";
-
-/// The words a PLACE may be said in, and the words a SIZE may be said in -- two
-/// lists, because they are two different closed sets.
-// WL-SETUP-04 -- agents/workshop/setup-file.md
-inline constexpr const char* kPlaceWords = "default, right-column or pixels";
-inline constexpr const char* kSizeWords = "default or pixels";
 
 /// Where the room began on the canvas when a place was measured from the canvas -- a version 2 or
 /// 3 setup, and every session before version 7: two cells down.
@@ -202,32 +197,36 @@ static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVe
 
 // ---- Writing -------------------------------------------------------------------
 
-/// The word for an authored unit, total over the integer.
+/// The word for an authored place, total over the integer: ui's spelling, `default` for a number
+/// no word is.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
-inline const char* unit_word(std::int64_t mode) {
-    if (mode == pane_unit::kPixels) {
-        return kUnitPixels;
-    }
-    if (mode == pane_unit::kRightColumn) {
-        return kUnitRightColumn;
-    }
-    return kUnitDefault;
+inline std::string place_word_of(std::int64_t mode) {
+    const std::string_view word = ui::place_word(mode);
+    return std::string(word.empty() ? std::string_view(kUnitDefault) : word);
 }
 
-/// A place as written: its coordinates exactly where its word reads them, a pixel place's.
+/// ...and for an authored size, by the same rule.
+inline std::string size_word_of(std::int64_t mode) {
+    const std::string_view word = ui::size_word(mode);
+    return std::string(word.empty() ? std::string_view(kUnitDefault) : word);
+}
+
+/// A place as written: its coordinates exactly where its word reads them.
 inline WorkshopPanePlace place_out(const PanePlace& p) {
-    WorkshopPanePlace out{unit_word(p.mode), std::nullopt, std::nullopt};
-    if (p.mode == pane_unit::kPixels) {
+    WorkshopPanePlace out{place_word_of(p.mode), std::nullopt, std::nullopt};
+    if (ui::place_reads_x(p.mode)) {
         out.x = p.x;
+    }
+    if (ui::place_reads_y(p.mode)) {
         out.y = p.y;
     }
     return out;
 }
 
-/// A size as written: its amount exactly where its word reads one, a pixel size's.
+/// A size as written: its amount exactly where its word reads one.
 inline WorkshopPaneSize size_out(const PaneSize& s) {
-    WorkshopPaneSize out{unit_word(s.mode), std::nullopt};
-    if (s.mode == pane_unit::kPixels) {
+    WorkshopPaneSize out{size_word_of(s.mode), std::nullopt};
+    if (ui::size_reads_amount(s.mode)) {
         out.amount = s.amount;
     }
     return out;
@@ -296,45 +295,58 @@ inline std::string unknown_unit(const std::string& found, const char* which,
 /// the word reads none, or one missing where it reads both.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline Written place_in(const WorkshopPanePlace& w, PanePlace& out) {
-    const bool any = w.x.has_value() || w.y.has_value();
-    if (w.mode == kUnitDefault || w.mode == kUnitRightColumn) {
-        if (any) {
-            return Written::no(std::string("a ") +
-                               (w.mode == kUnitDefault ? "default" : "named") +
-                               " pane place carries no coordinates");
+    if (w.mode == kUnitRightColumn) {
+        if (w.x.has_value() || w.y.has_value()) {
+            return Written::no("a named pane place carries no coordinates");
         }
-        out = PanePlace{w.mode == kUnitDefault ? pane_unit::kDefault : pane_unit::kRightColumn, 0,
-                        0};
+        out = PanePlace{ui::kPlaceTopRight, 0, 0};
         return Written::ok();
     }
-    if (w.mode == kUnitPixels) {
-        if (!w.x.has_value() || !w.y.has_value()) {
-            return Written::no("a pixels pane place names both x and y");
-        }
-        out = PanePlace{pane_unit::kPixels, *w.x, *w.y};
-        return Written::ok();
+    const std::optional<std::int64_t> mode = ui::place_named(w.mode);
+    if (!mode) {
+        return Written::no(
+            unknown_unit(w.mode, "place", pane_place_words().c_str()));
     }
-    return Written::no(unknown_unit(w.mode, "place", kPlaceWords));
+    const bool reads_x = ui::place_reads_x(*mode);
+    const bool reads_y = ui::place_reads_y(*mode);
+    if (!reads_x && !reads_y && (w.x.has_value() || w.y.has_value())) {
+        return Written::no("a " + w.mode + " pane place carries no coordinates");
+    }
+    if (reads_x && reads_y && (!w.x.has_value() || !w.y.has_value())) {
+        return Written::no("a " + w.mode + " pane place names both x and y");
+    }
+    if (reads_x != reads_y) {
+        // One axis is the word's edge and the other is centred: exactly that one is named.
+        const char* named = reads_x ? "x" : "y";
+        const char* centred = reads_x ? "y" : "x";
+        if (!(reads_x ? w.x : w.y).has_value() || (reads_x ? w.y : w.x).has_value()) {
+            return Written::no("a " + w.mode + " pane place names its " + named +
+                               " and no " + centred + ": it is centred on that axis");
+        }
+    }
+    out = PanePlace{*mode, reads_x ? *w.x : 0, reads_y ? *w.y : 0};
+    return Written::ok();
 }
 
 /// The authored size a written one means, or why not, by the same rule.
 // WL-SETUP-04 -- agents/workshop/setup-file.md
 inline Written size_in(const WorkshopPaneSize& w, PaneSize& out, const char* which) {
-    if (w.mode == kUnitDefault) {
-        if (w.amount.has_value()) {
-            return Written::no(std::string("a default pane ") + which + " carries no amount");
-        }
-        out = PaneSize{pane_unit::kDefault, 0};
-        return Written::ok();
+    const std::optional<std::int64_t> mode = ui::size_named(w.mode);
+    if (!mode) {
+        return Written::no(unknown_unit(w.mode, which, pane_size_words().c_str()));
     }
-    if (w.mode == kUnitPixels) {
+    if (ui::size_reads_amount(*mode)) {
         if (!w.amount.has_value()) {
-            return Written::no(std::string("a pixels pane ") + which + " names its amount");
+            return Written::no("a " + w.mode + " pane " + which + " names its amount");
         }
-        out = PaneSize{pane_unit::kPixels, *w.amount};
+        out = PaneSize{*mode, *w.amount};
         return Written::ok();
     }
-    return Written::no(unknown_unit(w.mode, which, kSizeWords));
+    if (w.amount.has_value()) {
+        return Written::no("a " + w.mode + " pane " + which + " carries no amount");
+    }
+    out = PaneSize{*mode, 0};
+    return Written::ok();
 }
 
 // ---- VERSION 5, RETAINED FOR READING -----------------------------------------------------
@@ -342,6 +354,11 @@ inline Written size_in(const WorkshopPaneSize& w, PaneSize& out, const char* whi
 namespace v5 {
 
 inline constexpr std::int64_t kRetainedVersion = 5;
+
+/// The words version 5 said a place and a size in: its own two lists, which the words that came
+/// after it never joined.
+inline constexpr const char* kPlaceWords = "default, right-column or pixels";
+inline constexpr const char* kSizeWords = "default or pixels";
 
 /// Version 5's size: a word and an amount always written, zero where the word reads none.
 struct WorkshopPaneSize {
