@@ -1,0 +1,27 @@
+window 96x26 at row 0 of a 96x26 buffer
+row 0|>Bar< +       setup: ...des-l2\roots\snap-t120\workshop\setup.json | current | s save  r restore|
+row 1|workspace 96x20 cells                                                                           |
+row 2|                                                                                                |
+row 3|                                                                                                |
+row 4|                                                                                                |
+row 5|                                                                                                |
+row 6|                                                                                                |
+row 7|                                                                                                |
+row 8|+----------------------------------------------------------------------------------------------+|
+row 9||  Files @zengine.files                                                                     = ?||
+row 10||Files 1/7  origin  G:/programming/cpp/Zen/scratch/layout-modes-l2/roots/snap-t96x26/workshop  ||
+row 11|+----------------------------------------------------------------------------------------------+|
+row 12|                                                                                                |
+row 13|                                                                                                |
+row 14|                                                                                                |
+row 15|                                                                                                |
+row 16|                                                                                                |
+row 17|                                                                                                |
+row 18|                                                                                                |
+row 19|                                                                                                |
+row 20|                                                                                                |
+row 21|                                                                                                |
+row 22|editor switch: status -- `standard` holds zengine.editor (choices: standard, neovim); no swit...|
+row 23|ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys | ctrl+f manual | ctrl+space palette            |
+row 24|double-shift palette | q quit | s save setup | r restore setup | . next layout                  |
+row 25|, previous layout | = new layout | ctrl+w remove layout | w arrange desk | a actions | t titl...|

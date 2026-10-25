@@ -1,0 +1,41 @@
+window 160x40 at row 0 of a 160x40 buffer
+row 0|>Bar< +                                  setup: G:\programming\cpp\Zen\scratch\layout-modes-l2\roots\snap-t120\workshop\setup.json | current | s save  r restore|
+row 1|workspace 160x34 cells                                                                                                                                          |
+row 2|                                                                                                                                                                |
+row 3|                                                                                                                                                                |
+row 4|                                                                                                                                                                |
+row 5|                                                                                                                                                                |
+row 6|                                                                                                                                                                |
+row 7|                                                                                                                                                                |
+row 8|                                                                                                                                                                |
+row 9|                                                                                                                                                                |
+row 10|                                                                                                                                                                |
+row 11|                                                                                                                                                                |
+row 12|                                                                                                                                                                |
+row 13|+--------------------------------------------------------------------------------------------------------------------------------------------------------------+|
+row 14||  Files @zengine.files                                                                                                                                     = ?||
+row 15||Files 1/7  origin  G:/programming/cpp/Zen/scratch/layout-modes-l2/roots/snap-t160x40/workshop                                                                 ||
+row 16|+--------------------------------------------------------------------------------------------------------------------------------------------------------------+|
+row 17|                                                                                                                                                                |
+row 18|                                                                                                                                                                |
+row 19|                                                                                                                                                                |
+row 20|                                                                                                                                                                |
+row 21|                                                                                                                                                                |
+row 22|                                                                                                                                                                |
+row 23|                                                                                                                                                                |
+row 24|                                                                                                                                                                |
+row 25|                                                                                                                                                                |
+row 26|                                                                                                                                                                |
+row 27|                                                                                                                                                                |
+row 28|                                                                                                                                                                |
+row 29|                                                                                                                                                                |
+row 30|                                                                                                                                                                |
+row 31|                                                                                                                                                                |
+row 32|                                                                                                                                                                |
+row 33|                                                                                                                                                                |
+row 34|                                                                                                                                                                |
+row 35|                                                                                                                                                                |
+row 36|editor switch: status -- `standard` holds zengine.editor (choices: standard, neovim); no switch is under way                                                    |
+row 37|ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys | ctrl+f manual | ctrl+space palette | double-shift palette | q quit | s save setup | r restore setup           |
+row 38|. next layout | , previous layout | = new layout | ctrl+w remove layout | w arrange desk | a actions | t titles | tab next pane | shift+tab previous pane       |
+row 39|left pane left | right pane right | up pane up | down pane down | return enter pane | ctrl+c quit | ctrl+q leave pane                                           |

@@ -1,0 +1,31 @@
+window 120x30 at row 0 of a 120x30 buffer
+row 0|>Bar< +       setup: ...pp\Zen\scratch\layout-modes-l2\roots\snap-t120\workshop\setup.json | current | s save  r restore|
+row 1|workspace 120x24 cells                                                                                                  |
+row 2|                                                                                                                        |
+row 3|                                                                                                                        |
+row 4|                                                                                                                        |
+row 5|                                                                                                                        |
+row 6|                                                                                                                        |
+row 7|                                                                                                                        |
+row 8|                                                                                                                        |
+row 9|+----------------------------------------------------------------------------------------------------------------------+|
+row 10||  Files @zengine.files                                                                                             = ?||
+row 11||Files 1/6  origin  G:/programming/cpp/Zen/scratch/layout-modes-l2/roots/snap-t120/workshop                            ||
+row 12|+----------------------------------------------------------------------------------------------------------------------+|
+row 13|                                                                                                                        |
+row 14|                                                                                                                        |
+row 15|                                                                                                                        |
+row 16|                                                                                                                        |
+row 17|                                                                                                                        |
+row 18|                                                                                                                        |
+row 19|                                                                                                                        |
+row 20|                                                                                                                        |
+row 21|                                                                                                                        |
+row 22|                                                                                                                        |
+row 23|                                                                                                                        |
+row 24|                                                                                                                        |
+row 25|                                                                                                                        |
+row 26|editor switch: status -- `standard` holds zengine.editor (choices: standard, neovim); no switch is under way            |
+row 27|ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys | ctrl+f manual | ctrl+space palette | double-shift palette | q quit    |
+row 28|s save setup | r restore setup | . next layout | , previous layout | = new layout | ctrl+w remove layout                |
+row 29|w arrange desk | a actions | t titles | tab next pane | shift+tab previous pane | left pane left | right pane right |...|
