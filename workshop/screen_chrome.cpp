@@ -9,6 +9,7 @@
 
 #include "ui/layout.hpp"
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <utility>
@@ -158,6 +159,54 @@ PixelRect pixel_rect_of(const ui::Rect& r) { return PixelRect{r.x, r.y, r.w, r.h
 
 ui::Room room_of(const Screen& sc) { return ui::Room{sc.w, sc.h, chrome_grain(sc)}; }
 
+/// The desk solved: open pane `i` is the scene's item `first + i`.
+struct SolvedDesk {
+    ui::Scene scene;
+    std::size_t first = 0;
+};
+
+/// THE DESK AS ONE SOLVE: its frames, then every open pane a part, in the order the panes are open.
+SolvedDesk solve_desk(const Panes& panes, const Setup& setup, const Screen& sc) {
+    // Each desk row resolved once, so the solve costs one pass over the desk, not one per open pane.
+    std::vector<std::pair<std::int64_t, const SetupPane*>> named_rows;
+    named_rows.reserve(setup.panes.size());
+    for (const SetupPane& row : setup.panes) {
+        if (const std::optional<std::int64_t> named = resolve_pane(row.ref, panes)) {
+            named_rows.emplace_back(*named, &row);
+        }
+    }
+    std::vector<ui::Element> parts;
+    std::vector<ui::Measure> measures;
+    parts.reserve(3 + panes.open.size());
+    measures.reserve(3 + panes.open.size());
+    add_desk_frames(parts, measures, sc);
+    const std::size_t first = parts.size();
+    for (std::size_t i = 0; i < panes.open.size(); ++i) {
+        const OpenPane& p = panes.open[i];
+        const SetupPane* authored = nullptr;
+        for (const auto& [named, row] : named_rows) {
+            if (named == p.kind) {
+                authored = row;
+                break;
+            }
+        }
+        const std::int64_t where = placement_of(p.kind);
+        measures.push_back(pane_measure(where, sc, panes.runtime.of_kind(p.kind), authored));
+        parts.push_back(pane_part(kFirstPanePart + static_cast<std::int64_t>(i), where, authored));
+    }
+    // Every part stands in a frame that reaches the root, so the scene holds each, in order.
+    return SolvedDesk{ui::arrange(parts, room_of(sc), measures), first};
+}
+
+PaneBounds open_bounds(std::int64_t kind, const ui::Rect& solved, const Screen& sc) {
+    const PixelRect resolved = pixel_rect_of(solved);
+    return PaneBounds{true, placement_of(kind), clip_to_canvas_px(resolved, sc), resolved};
+}
+
+PaneBounds closed_bounds(std::int64_t kind) {
+    return PaneBounds{false, placement_of(kind), PixelRect{}, PixelRect{}};
+}
+
 } // namespace
 
 // WL-GEO-06 -- agents/workshop/geometry.md
@@ -190,48 +239,33 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
 // WL-PANE-03, WL-PANE-07, WL-PANE-09 -- agents/workshop/panes-and-windows.md
 PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                       const Screen& sc) {
-    // Each desk row resolved once, so building the desk costs one pass over it, not one per open
-    // pane: a desk of many panes is asked this for every pane on every repaint.
-    std::vector<std::pair<std::int64_t, const SetupPane*>> named_rows;
-    named_rows.reserve(setup.panes.size());
-    for (const SetupPane& row : setup.panes) {
-        if (const std::optional<std::int64_t> named = resolve_pane(row.ref, panes)) {
-            named_rows.emplace_back(*named, &row);
-        }
-    }
-    std::vector<ui::Element> parts;
-    std::vector<ui::Measure> measures;
-    parts.reserve(3 + panes.open.size());
-    measures.reserve(3 + panes.open.size());
-    add_desk_frames(parts, measures, sc);
-    std::optional<std::size_t> asked; // the first open pane of this kind
-    std::int64_t asked_where = placement_of(kind);
     for (std::size_t i = 0; i < panes.open.size(); ++i) {
-        const OpenPane& p = panes.open[i];
-        const SetupPane* authored = nullptr;
-        for (const auto& [named, row] : named_rows) {
-            if (named == p.kind) {
-                authored = row;
-                break;
-            }
+        if (panes.open[i].kind == kind) { // the first open pane of this kind
+            const SolvedDesk desk = solve_desk(panes, setup, sc);
+            return open_bounds(kind, desk.scene.items[desk.first + i].rect, sc);
         }
-        const std::int64_t where = placement_of(p.kind);
-        const ui::Measure measure =
-            pane_measure(where, sc, panes.runtime.of_kind(p.kind), authored);
-        if (!asked && p.kind == kind) {
-            asked = parts.size();
-            asked_where = where;
-        }
-        parts.push_back(pane_part(kFirstPanePart + static_cast<std::int64_t>(i), where, authored));
-        measures.push_back(measure);
     }
-    if (!asked) {
-        return PaneBounds{false, placement_of(kind), PixelRect{}, PixelRect{}};
+    return closed_bounds(kind);
+}
+
+DeskBounds desk_bounds(const Panes& panes, const Setup& setup, const Screen& sc) {
+    DeskBounds out;
+    if (panes.open.empty()) return out;
+    const SolvedDesk desk = solve_desk(panes, setup, sc);
+    for (std::size_t i = 0; i < panes.open.size(); ++i) {
+        const std::int64_t kind = panes.open[i].kind;
+        const auto seen = std::find_if(out.laid.begin(), out.laid.end(),
+                                       [&](const auto& laid) { return laid.first == kind; });
+        if (seen != out.laid.end()) continue; // the first open pane of a kind answers for it
+        out.laid.emplace_back(kind, open_bounds(kind, desk.scene.items[desk.first + i].rect, sc));
     }
-    // Every part stands in a frame that reaches the root, so the scene holds each, in order.
-    const ui::Scene scene = ui::arrange(parts, room_of(sc), measures);
-    const PixelRect resolved = pixel_rect_of(scene.items[*asked].rect);
-    return PaneBounds{true, asked_where, clip_to_canvas_px(resolved, sc), resolved};
+    return out;
+}
+
+PaneBounds DeskBounds::of(std::int64_t kind) const {
+    const auto found = std::find_if(laid.begin(), laid.end(),
+                                    [&](const auto& one) { return one.first == kind; });
+    return found != laid.end() ? found->second : closed_bounds(kind);
 }
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
