@@ -530,6 +530,60 @@ TEST_CASE("Info's typed axes take a word as well as a number, and each reads bac
     CHECK(t.row().width == PaneSize{});
 }
 
+TEST_CASE("a pane its words leave too small to see, or off the room, is still listed, reached by tab, inspected by Info and given its size back there") {
+    // ⚔ MUTATION: `arrangeable` passing over a pane with no visible cell -- tab never reaches it,
+    // and a pane too small to point at is lost to the keys.
+    InfoRig f;
+    f.open();
+    const PaneRef layouts = layouts_ref();
+    for (const bool off_room : {false, true}) {
+        CAPTURE(off_room);
+        stage_desk(f.r, [&](Setup& desk) {
+            SetupPane* row = pane_of(desk, layouts);
+            REQUIRE(row != nullptr);
+            if (off_room) {
+                row->place = PanePlace{ui::kPlaceBottomRight, kMaxPanePixels, kMaxPanePixels};
+            } else {
+                row->width = PaneSize{ui::kSizeShare, 1}; // a ten-thousandth: under a pixel
+            }
+        });
+        f.unfocus();
+        const Screen sc = screen_of(f.r.session());
+        CHECK(bounds_of(f.r.session().panes, f.r.session().setup.active, pane_kind::kLayouts, sc)
+                  .rect.empty());
+        // STILL LISTED, where the Pane Manager reads every row of the desk.
+        const std::vector<CatalogRow> listed =
+            inventory_rows(f.r.session().setup.active, f.r.session().panes);
+        CHECK(std::any_of(listed.begin(), listed.end(),
+                          [&](const CatalogRow& row) { return row.ref == layouts; }));
+        // REACHED BY TAB, as every row of the desk is.
+        f.r.key(input::scan::kW);
+        REQUIRE(f.r.session().arrange.open);
+        bool reached = false;
+        for (std::size_t guard = 0; guard <= f.r.session().setup.active.panes.size() + 1; ++guard) {
+            if (f.r.session().arrange.pane == layouts) {
+                reached = true;
+                break;
+            }
+            f.r.key(input::scan::kTab);
+        }
+        CHECK(reached);
+        for (int i = 0; i < 3 && f.r.session().arrange.open; ++i) {
+            f.r.key(input::scan::kEscape);
+        }
+        REQUIRE_FALSE(f.r.session().arrange.open);
+        // INSPECTED BY INFO, AND ITS WORD TAKEN BACK THERE: `-` gives the axis to the developer.
+        f.draft_holding(off_room ? "X" : "Width", "-", layouts);
+        f.r.key(input::scan::kReturn);
+        const SetupPane* row = pane_of(f.r.session().setup.active, layouts);
+        REQUIRE(row != nullptr);
+        CHECK((off_room ? row->place == PanePlace{} : row->width == PaneSize{}));
+        CHECK_FALSE(
+            bounds_of(f.r.session().panes, f.r.session().setup.active, pane_kind::kLayouts, sc)
+                .rect.empty());
+    }
+}
+
 TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
     // ⚠ A RUN IN WHICH NOTHING HOLDS `zengine.info` has a desk row it cannot present -- authored
     // intent, kept, explained, like every unresolved row, rather than a Workshop that quietly
