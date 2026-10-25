@@ -234,12 +234,17 @@ private:
     std::optional<std::size_t> place_of(std::int64_t layout) const;
     std::string gone(std::int64_t layout) const;
 
-    // The edit's own ops, each on the candidate run.
+    // The edit's own ops, each on the candidate run; a save names the file and desk it writes once
+    // the whole is judged.
+    struct SetupWrite {
+        std::string path;
+        Setup desk;
+    };
     std::string edit_one(SetupState& next, const LayoutEdit& e, LayoutEditAnswered& out,
                          std::vector<std::string>& said, bool& run_moved,
                          std::vector<std::string>& renamed_from,
-                         std::vector<std::string>& renamed_to,
-                         std::vector<std::string>& removed);
+                         std::vector<std::string>& renamed_to, std::vector<std::string>& removed,
+                         std::optional<SetupWrite>& saving);
     std::string link_note(const SetupState& s, std::size_t at) const;
     std::string layout_note(const SetupState& s) const;
 

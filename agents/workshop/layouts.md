@@ -90,7 +90,8 @@ LAW — Renaming writes no file; saving writes the active layout's desk and name
 
 MEANS
 - both file gestures act on the active layout's association, else on the host's `--setup` path;
-- the configured path is the acquisition door, never a default association.
+- the configured path is the acquisition door, never a default association;
+- a save among a batch of edits writes its file once every edit is judged: a refused batch writes no file, a failed write refuses the batch, and one batch saves one file.
 
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
@@ -208,6 +209,9 @@ comes back"
 `tests/test_workshop_host.cpp` "a double-click on a tab renames THAT layout, and writes no file"
 `tests/test_workshop_persistence.cpp` "`s` establishes the association only after a successful
 write" "`r` establishes on success and changes nothing on refusal"
+`workshop/layouts/store.cpp` LayoutStore::edit LayoutStore::edit_one
+`tests/test_workshop_screen.cpp` "a batch's setup file is written once every edit in it is judged, and not at all when one is
+refused" "a batch whose setup file cannot be written is refused whole, the run as it was"
 
 ### WL-LAYOUT-11
 `workshop/layouts/run.hpp` adopt_known_setup SetupLink
