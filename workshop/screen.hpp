@@ -18,6 +18,7 @@
 #include "property.hpp"
 #include "settings_seam_vocabulary.hpp" // where a lock holds a setting
 #include "setup.hpp"
+#include "live_desk.hpp" // the live layout as the layouts' owner last sent it
 #include "vocabulary.hpp"
 
 #include "component/text_box.hpp" // the editable line, the caret in it, and its window
@@ -53,7 +54,7 @@ inline constexpr std::int64_t kScreenMinW = 78 * graphics::kCellPx;
 inline constexpr std::int64_t kScreenMinH = 22 * graphics::kCellPx;
 
 /// The largest surface this screen will lay out, in canvas pixels: 640 by 400 cells.
-// WL-SESSION-07 -- agents/workshop/session-restore.md
+// WL-SESSION-07 -- agents/workshop/window-file.md
 inline constexpr std::int64_t kScreenMaxW = 640 * graphics::kCellPx;
 inline constexpr std::int64_t kScreenMaxH = 400 * graphics::kCellPx;
 
@@ -727,33 +728,18 @@ struct PaneArrange {
     bool addressed() const { return !pane.provider.empty(); }
 };
 
-/// WHAT A SUBJECT'S SETTINGS ROWS ARE: the settings its pane's declaration gives while it counts,
-/// and the keys its row keeps that none of them declares, in key order, and the keys a lock holds
-/// on the live layout -- those it holds in this layout alone listed again. A row is built from each.
-// WL-SETTING-05 -- agents/workshop/settings.md
-struct SettingsSubject {
-    std::vector<PaneSettingRow> declared;
-    std::vector<std::string> kept;
-    std::vector<std::string> locked;
-    std::vector<std::string> locked_here;
-
-    bool any() const { return !declared.empty() || !kept.empty(); }
-    friend bool operator==(const SettingsSubject&, const SettingsSubject&) = default;
-};
-
 /// The inspector's subject: a pane an inspector named, the owner's rows over it, and the name this
 /// host gives what they address. Written by one door (`on(InspectPaneRequested)`); the name moves
-/// only when the pane, the live desk, whether that desk holds the pane's row, or the settings its
-/// rows were built from do. Session, never persisted.
+/// only when the pane, the live desk or whether that desk holds the pane's row does. Session,
+/// never persisted.
 // WL-INFO-14 -- agents/workshop/info-body.md
 struct InspectedPane {
     PaneRef ref;               ///< the pane an inspector asked for; an empty provider is "none"
     std::vector<Row> rows;     ///< the owner's rows over it (`pane_subject_rows`)
     std::int64_t name = 0;     ///< what the picture carries and a commit returns; 0 is unnamed
     std::int64_t minted = 0;   ///< the last name handed out; names are never handed out twice
-    std::uint64_t desk = 0;    ///< `SetupState::put_live` when `name` was given
+    std::uint64_t desk = 0;    ///< `LiveDesk::put_live` when `name` was given
     bool member = false;       ///< whether that desk held the pane's row when `name` was given
-    SettingsSubject settings;  ///< the settings rows `name` was given over
 
     bool addressed() const { return !ref.provider.empty(); }
 };
@@ -821,18 +807,18 @@ struct Session {
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
     /// THE NORMAL WINDOW'S ROOM -- what a session save remembers as the viewport.
-    // WL-SESSION-09 -- agents/workshop/session-restore.md
+    // WL-SESSION-09 -- agents/workshop/window-file.md
     std::int64_t normal_w = kScreenMinW;
     std::int64_t normal_h = kScreenMinH;
     /// THE WINDOW'S DESKTOP PLACEMENT, AS LAST REPORTED.
-    // WL-SESSION-08 -- agents/workshop/session-restore.md
+    // WL-SESSION-08 -- agents/workshop/window-file.md
     bool placement_known = false;
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
     bool place_maximized = false;
     /// THE OS WINDOW'S OWN NORMAL ROOM, as the session file kept it: what a run in another window
     /// writes back; 0 by 0 where none was kept.
-    // WL-SESSION-20 -- agents/workshop/session-restore.md
+    // WL-SESSION-20 -- agents/workshop/window-file.md
     std::int64_t window_room_w = 0;
     std::int64_t window_room_h = 0;
     /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
@@ -851,10 +837,14 @@ struct Session {
     PresentedMenu presented;
     /// THE DYNAMIC PANES a weaver has opened (panes.hpp).
     Panes panes;
-    /// THE AUTHORED SETUP THIS SESSION IS SHOWING, its copy of the one in its file, and the
-    /// one-line editor over its name (setup.hpp).
+    /// THE LIVE LAYOUT THIS SESSION IS SHOWING, as the store last gave it, and the one-line editor
+    /// over its name (live_desk.hpp).
     // WL-LAYOUT-01 -- agents/workshop/layouts.md
-    SetupState setup;
+    LiveDesk setup;
+    /// AN INSPECTOR'S COMMIT OF A ROW, as the row's setter left it: the edit of the live layout it
+    /// asks, or the setting it writes, for the commit's door to ask of the store.
+    // WL-INFO-15 -- agents/workshop/info-body.md
+    std::optional<LayoutEdit> pending_edit;
     /// WHICH SCOPE A WEAVER IS ARRANGING AND WHICH PANE THE VOCABULARY ADDRESSES.
     // WL-ARR-07 -- agents/workshop/arrangement.md
     PaneArrange arrange;
@@ -1574,10 +1564,10 @@ inline constexpr std::int64_t kStatusJoinCols =
 
 /// THE ACTIVE LAYOUT'S ASSOCIATION, AS THE ROW SAYS IT -- the standing half of the status,
 /// composed against a budget for the PATH alone.
-std::string setup_link_text(const SetupState& setup, std::int64_t path_columns);
+std::string setup_link_text(const LiveDesk& setup, std::int64_t path_columns);
 
 /// WHAT THE ROW SAYS AFTER THE ASSOCIATION: the unresolved count, then the two gestures.
-std::string setup_rest_text(const SetupState& setup, const Panes& panes,
+std::string setup_rest_text(const LiveDesk& setup, const Panes& panes,
                                    const Keymap& keymap, KeySpelling spelling);
 
 /// The workspace's extent as the band states it: a status fact, beside the setup identity.
@@ -1618,7 +1608,7 @@ inline constexpr char kLayoutTabPad = ' ';
 
 /// What ONE layout contributes to the run: its two marker cells and the AUTHORED name between
 /// them, bare. No quoting, no escaping and no substitution -- the bytes a weaver typed.
-std::string layout_tab_text(const SetupState& setup, std::size_t at);
+std::string layout_tab_text(const LiveDesk& setup, std::size_t at);
 
 /// The room the ACTIVE LAYOUT'S ASSOCIATION must keep whatever the tab run wants.
 // WL-TAB-03 -- agents/workshop/tab-run.md
@@ -1645,7 +1635,7 @@ inline constexpr char kLayoutCreate = '+';
 inline constexpr std::int64_t kLayoutCreateCols = 2; // one pad cell and the mark
 
 /// THE VISIBLE TAB WINDOW, DERIVED AT EVERY PAINT AND STORED NOWHERE.
-LayoutTabRun layout_tab_run(const SetupState& setup, std::int64_t columns);
+LayoutTabRun layout_tab_run(const LiveDesk& setup, std::int64_t columns);
 
 /// THE BAND'S STATUS ROW, WHOLE: the tabs on the left, the status on the right, and where
 /// every painted tab's bytes are.
@@ -1722,43 +1712,12 @@ std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axi
 Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
                                const std::string& text);
 
-/// THE SETTINGS ROWS A SUBJECT HAS NOW, from the declaration that counts (none when nothing
-/// counts) and what the live layout's row keeps.
-SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
-                                 const std::vector<PaneSettingRow>* declared,
-                                 std::vector<std::string> locked = {},
-                                 std::vector<std::string> locked_here = {});
-
-/// ONE SETTING AS A WEAVER READS IT in its row: the stored value, or the default when nothing is
-/// stored, spelled as it is typed -- and, for a stored value the setting does not take, why, and
-/// the default in effect. `--` when the live layout has no row for the pane.
-std::string pane_setting_text(const Session& s, const PaneRef& ref, const PaneSettingRow& row);
-
-/// WRITE ONE SETTING FROM WHAT A WEAVER TYPED: `-` for its default, else a value read in the
-/// setting's kind and refused, naming what it takes, unless the setting takes it -- through the
-/// layout's settings door (`author_pane_setting`).
-Written write_pane_setting(Session& s, const PaneRef& ref, const PaneSettingRow& row,
-                           const std::string& text);
-
-/// ...AND A KEY NO DECLARED SETTING TAKES: read as kept, and only `-`, which clears it, written.
-std::string kept_setting_text(const Session& s, const PaneRef& ref, const std::string& key);
-Written write_kept_setting(Session& s, const PaneRef& ref, const std::string& key,
-                           const std::string& text);
-
-/// The rows a pane is inspected by -- identity, authored, resolved, settings, interior -- every
-/// closure reading fresh and every setter an existing door. The rows name no key: the inspector
-/// holds its own.
+/// The rows a pane is inspected by -- identity, authored, resolved, interior -- every closure
+/// reading fresh and every setter an existing door. The rows name no key: the inspector holds its
+/// own. A pane's settings are not among them: an inspector reads those of the layouts' owner.
 // WL-INFO-14 -- agents/workshop/info-body.md
-std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
-                                   const SettingsSubject& settings = {});
+std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref);
 
-/// Where a lock holds a setting, as a row says it, and the refusal of a write it holds.
-inline constexpr const char* kLockedEverywhere = kLockScopeEverywhere;
-inline constexpr const char* kLockedInLayout = "in this layout";
-inline std::string locked_setting_refusal(const std::string& key) {
-    return key + " is locked -- nothing writes it while the lock stands, and only the weaver "
-                 "unlocks it";
-}
 
 /// THE INSPECTOR'S SUBJECT AS THE SEAM CARRIES IT: the reference, the inventory's name for it,
 /// the name of the rows and every row read fresh. Pure over the session.

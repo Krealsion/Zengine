@@ -162,16 +162,17 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
         s.say(m, SeatRows{kHelloPane, {TextRow{"abcdefgh", gfx::role::kFill}}});
     });
     r.extent_on_window(150, 60);
-    Session& live_session = const_cast<Session&>(r.session());
     // THE PLACE AND SIZE THAT GIVE IT: found by asking the same resolution the painter asks, so the
     // case does not restate the chrome's constants.
     std::int64_t step = 0;
     const auto author = [&](std::int64_t x, std::int64_t y, std::int64_t h) {
-        REQUIRE(author_pane_size(live_session.setup.active, hello_ref(),
-                                 PaneSize{pane_unit::kPixels, 30 * gfx::kCellPx},
-                                 PaneSize{pane_unit::kPixels, h})
-                    .accepted);
-        REQUIRE(place_at_canvas(live_session, hello_ref(), x, y).accepted);
+        stage_desk(r, [&](Setup& desk) {
+            REQUIRE(author_pane_size(desk, hello_ref(),
+                                     PaneSize{pane_unit::kPixels, 30 * gfx::kCellPx},
+                                     PaneSize{pane_unit::kPixels, h})
+                        .accepted);
+        });
+        REQUIRE(place_at_canvas(r, hello_ref(), x, y).accepted);
         r.extent_on_window(150, 60 + (step++ % 2)); // reseat at the authored window
         return external_body_of(r.session(), kind);
     };
@@ -392,12 +393,21 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
+    // ...AND TO THE LAYOUTS' OWNER, the desk's changes it asks, its own settings it declares, and
+    // the panes it presents, answered.
     const std::vector<std::string> allowed{"AreaPlaced",           "AreaShowAsked",
-                                           "Drawn",
-                                           "PaneCatalogRequested", "PaneKeys",
-                                           "PaneLaunchAnswered",   "RoomAsked",
-                                           "SkinChosen",           "SkinOffered",
-                                           "StandingConditions",   "TranscriptShown"};
+                                           "Drawn",                "LayoutEditRequested",
+                                           "OfficeSettingsDeclared",
+                                           "PaneCatalogRequested", "PaneInventory",
+                                           "PaneKeys",             "PaneLaunchAnswered",
+                                           "RoomAsked",            "SkinChosen",
+                                           "SkinOffered",          "StandingConditions",
+                                           "TranscriptShown"};
+    std::string heard;
+    for (const std::string& one : distinct) {
+        heard += one + " ";
+    }
+    CAPTURE(heard);
     CHECK(distinct == allowed);
 
     // AND THE PANE READ EACH PRESS ITSELF: three presses on three different rows, landed by the
@@ -1879,8 +1889,8 @@ struct ComposeRig {
         // room by the weaver's own key (its own case below); these cases, about the conversation,
         // stage the room through the same authoring door a weaver's resize goes through.
         if (!default_size) {
-            REQUIRE(author_pane_size(
-                        r.session().setup.active, composer_ref(),
+            REQUIRE(staged_author_pane_size(
+                        r, composer_ref(),
                         PaneSize{pane_unit::kDefault, 0},
                         PaneSize{pane_unit::kPixels,
                                  gfx::px_of_cells(kStackRows + 2 * kChromeCells)})
@@ -3072,7 +3082,7 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
 
     // PUT `second` OVER `hello`, offset so a strip of `hello` stays uncovered.
     const CellRect hello = cells_covered(external_pane_rect(r.session(), hello_kind));
-    REQUIRE(place_at_canvas(const_cast<Session&>(r.session()), second_ref,
+    REQUIRE(place_at_canvas(r, second_ref,
                               gfx::px_of_cells(hello.x + 4),
                               gfx::px_of_cells(hello.y + 3))
                 .accepted);

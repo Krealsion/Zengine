@@ -92,12 +92,14 @@ class InfoPaneWeave
                        InspectPaneRequested,
                        loom::Refused, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
-                       PaneSubjectActed, loom::DispatchRefused, gfx::ClipboardCopy,
+                       PaneSubjectActed, ws::PaneSettingsAnswered, ws::PaneSettingCommitAnswered,
+                       loom::DispatchRefused, gfx::ClipboardCopy,
                        gfx::ClipboardText, ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
                        loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered>,
           loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneSubjectActed, PaneCommitRequested,
+                     ws::PaneSettingsRequested, ws::PaneSettingCommitRequested,
                      gfx::ClipboardCopy, gfx::ClipboardTextRequested, ws::PanePassRequested,
                      ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
                      ws::PaneEscapeUnspent,
@@ -360,6 +362,23 @@ public:
         settle(mail);
     }
 
+    /// THE SUBJECT'S SETTINGS, AS THE LAYOUTS' OWNER READS THEM (`PropertyView::settings_shown`),
+    /// and what it made of a commit of one (`PropertyView::acted_setting`): its answers alone.
+    void on(const ws::PaneSettingsAnswered& read, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return; // an answer is Loom's to verify, to an ask this pane sent
+        }
+        properties_.settings_shown(read, mail.correlation());
+        settle(mail);
+    }
+    void on(const ws::PaneSettingCommitAnswered& said, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        properties_.acted_setting(said, mail);
+        settle(mail);
+    }
+
     /// What the owner made of an ask the property view is waiting on (`PropertyView::acted`).
     void on(const PaneSubjectActed& said, loom::Mail& mail) {
         if (!mail.answers_ask()) {
@@ -555,7 +574,7 @@ private:
         if (views_.front().has_entry()) rows.push_back({pane::kActionInventory, "inventory entry",
             input::scan::kI, input::mod::kCtrl, {}, {}, {}, input::scan::kRight, input::mod::kAlt});
         rows.push_back({pane::kActionViewNew, "new value view", input::scan::kN, input::mod::kCtrl,
-            {}, {ws::cause_of<ws::PaneLaunchRequested>()}});
+            {}, {ws::cause_of<ws::PaneLaunchRequested>(), ws::cause_of<ws::PaneSettingsRequested>()}});
         return rows;
     }
 
@@ -564,6 +583,10 @@ private:
     void settle(loom::Mail& mail) {
         pay_declarations(mail);
         const pane::PropertyView::Due due = properties_.take_due();
+        if (due.settings) {
+            pane::ViewContext c{mail, asked_};
+            properties_.ask_settings(c);
+        }
         if (due.declare) declare(views_.front(), mail);
         if (due.say) say(views_.front(), mail);
     }

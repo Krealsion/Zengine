@@ -243,8 +243,7 @@ the press opens it"
 `workshop/weave_run.cpp` arrange_graphics
 `workshop/panes.hpp` ExternalPane::title_waits ExternalPane::placed_titles
 `workshop/prefs_persist.hpp` kTitlesDefaultValue kTitlesDefault
-`workshop/weave.hpp` HostContext::prefs_path WorkshopWeave::prefs_loaded_ WorkshopWeave::prefs_bad_
-`workshop/weave_handlers.cpp` load_prefs
+`workshop/weave.hpp` HostContext::prefs_path
 `tests/test_workshop_document.cpp` "pane titles are one action, one binding truth, one dispatch"
 "hiding titles returns the row; the keyboard's pane keeps its own"
 `tests/test_workshop_persistence.cpp` "a toggle writes the preference, and a reopened Workshop wears

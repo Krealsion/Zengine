@@ -387,8 +387,8 @@ TEST_CASE("a view shown where its own place stands off this screen stays there, 
     r.ready();
     // THE VIEW'S ROW ON THE DESK BEFORE IT RUNS, its own place past the room's right edge.
     const PaneRef greeting{"greeting", view::kPane};
-    REQUIRE(add_pane(r.session().setup.active, greeting));
-    REQUIRE(author_pane_place(r.session().setup.active, greeting, cells_px(300), 0).accepted);
+    REQUIRE(staged_add_pane(r, greeting));
+    REQUIRE(staged_author_pane_place(r, greeting, cells_px(300), 0).accepted);
     const PanePlace authored = pane_of(r.session().setup.active, greeting)->place;
 
     view::Host views(r.bus);

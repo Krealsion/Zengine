@@ -142,7 +142,7 @@ def seat_views(hand):
     from demo_setup import layout
     import json
     views = [v["id"] for v in hand.ask("zengine.inventory-pane", "InventoryViewsRequested", {})["views"] if v["entries"]]
-    hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout("folders", views))}, settle=True)
+    hand.ask("zengine.layouts", "SetupApplyRequested", {"setup": json.dumps(layout("folders", views))}, settle=True)
     return views
 
 

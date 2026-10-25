@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The quick setup: a weaver's first start asks how they edit text and shows where the
-// ready-to-use setups are, once. It keeps one office-wide setting in Workshop's settings file,
-// `answered`, and shows itself only at a start that keeps one; every answer goes through the
-// owner of what it changes -- the editor switch, Workshop's settings -- and is said in its words.
+// ready-to-use setups are, once. It keeps one office-wide setting, `answered`, with the layouts'
+// owner, and shows itself only at a start that keeps a settings file; every answer goes through
+// the owner of what it changes -- the editor switch, the settings -- and is said in its words.
 // Reference: workshop/docs/zengine.first-run.md; law: agents/workshop/first-run.md.
 
 #include "workshop/first-run/setup.hpp"
@@ -50,7 +50,7 @@ struct FirstRunState {
     ZEN_SHAPE(FirstRunState, 1, ZEN_FIELD(launched));
 };
 
-/// Whether Workshop keeps a settings file this run, as its `written` says: an isolated run, a
+/// Whether a settings file is kept this run, as the layouts' owner's `written` says: an isolated run, a
 /// file refused at launch, or settings withheld keep none, and the setup shows nothing by itself.
 bool keeps_settings(const std::string& written) {
     for (const char* none : {"isolated run", "refused at launch", "settings withheld"}) {
@@ -66,9 +66,9 @@ class FirstRun
     : public loom::WeaveBase<
           FirstRun, FirstRunState,
           loom::Accept<loom::Activated, ws::PaneCatalogRequested,
-                       ws::PaneActionRequested, ws::OfficeSettings, ws::OfficeSettingsShown,
+                       ws::PaneActionRequested, ws::OfficeSettings, ws::OfficeSettingsAnswered,
                        ws::PaneInventory,
-                       ws::PaneSettingActed, ws::PaneLaunchAnswered, ws::PaneCloseAnswered,
+                       ws::OfficeSettingCommitAnswered, ws::PaneLaunchAnswered, ws::PaneCloseAnswered,
                        ws::EditorSwitchAnswered, gfx::AreaRoom, gfx::DrawnRefused,
                        gfx::AreaButtonChanged>,
           loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::OfficeSettingsDeclared,
@@ -87,7 +87,8 @@ public:
         offer(mail);
         declare(mail);
         settings_ask_ = ++asks_;
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::OfficeSettingsRequested{kOffice},
+        (void)mail.as_role(kOffice).send_to_role(ws::kLayoutsRole,
+                                                 ws::OfficeSettingsRequested{kOffice},
                                                  settings_ask_);
         ask_status(mail);
         if (!window_.shown()) {
@@ -101,10 +102,10 @@ public:
         }
     }
 
-    /// ITS SETTING AS WORKSHOP KEEPS IT -- and, at a start that keeps a settings file and has not
+    /// ITS SETTING AS THE LAYOUTS' OWNER KEEPS IT -- and, at a start that keeps a settings file and has not
     /// answered, the quick setup shown, once a run.
     // WL-FIRST-01 -- agents/workshop/first-run.md
-    void on(const ws::OfficeSettingsShown& shown, loom::Mail& mail) {
+    void on(const ws::OfficeSettingsAnswered& shown, loom::Mail& mail) {
         if (!answers(mail, settings_ask_) || shown.office != kOffice) {
             return;
         }
@@ -139,7 +140,7 @@ public:
                                                  launch_ask_);
     }
     void on(const ws::OfficeSettings& kept, loom::Mail& mail) {
-        if (mail.authored_from_role(kWorkshop)) {
+        if (mail.authored_from_role(ws::kLayoutsRole)) {
             read(kept.revision, kept.settings);
         }
     }
@@ -150,9 +151,9 @@ public:
     }
     void on(const ws::PaneCloseAnswered&, loom::Mail&) {}
 
-    /// DONE OR SKIP, AS WORKSHOP ANSWERED THE WRITE: the pane put down either way, so a settings
-    /// file that would not take it never holds the weaver at this pane.
-    void on(const ws::PaneSettingActed& acted, loom::Mail& mail) {
+    /// DONE OR SKIP, AS THE LAYOUTS' OWNER ANSWERED THE WRITE: the pane put down either way, so a
+    /// settings file that would not take it never holds the weaver at this pane.
+    void on(const ws::OfficeSettingCommitAnswered& acted, loom::Mail& mail) {
         if (!committing_ || !answers(mail, commit_)) {
             return;
         }
@@ -285,7 +286,7 @@ private:
         answered.flag = false;
         answered.tags = {"chrome"};
         answered.summary = "the quick setup was answered or skipped"; // at most 64 characters
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop,
+        (void)mail.as_role(kOffice).send_to_role(ws::kLayoutsRole,
                                                  ws::OfficeSettingsDeclared{{answered}});
     }
 
@@ -311,7 +312,7 @@ private:
     }
 
     /// WHAT IS UNDER THE CURSOR, DONE: the box asks the switch (or confirms the consent it asked);
-    /// Done and Skip write `answered` and put the pane down when Workshop has answered.
+    /// Done and Skip write `answered` and put the pane down when the layouts' owner has answered.
     // WL-FIRST-02 -- agents/workshop/first-run.md
     void choose(loom::Mail& mail) {
         if (moment_.cursor == fr::Item::kNeovim) {
@@ -339,8 +340,8 @@ private:
         commit.key = fr::kAnsweredKey;
         commit.flag = true;
         const std::uint64_t asked = ++asks_;
-        if (!mail.as_role(kOffice).send_to_role(kWorkshop, commit, asked).valid()) {
-            moment_.notice = "Workshop could not be asked to keep the answer";
+        if (!mail.as_role(kOffice).send_to_role(ws::kLayoutsRole, commit, asked).valid()) {
+            moment_.notice = "the layouts' owner could not be asked to keep the answer";
             show(mail);
             return;
         }
@@ -396,7 +397,7 @@ private:
         window_.draw(rows_drawn.sketch, mail);
     }
 
-    // NOT STATE: Workshop keeps the setting and the switch keeps the editor; these are read again
+    // NOT STATE: the layouts' owner keeps the setting and the switch the editor; these are read again
     // at every activation.
     fr::Moment moment_;
     bool answered_ = false;

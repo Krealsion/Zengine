@@ -6,7 +6,7 @@
 // Workshop law: agents/workshop/migration.md
 
 #include "operator/provider.hpp"
-#include "session_history.hpp"
+#include "workshop/layouts/session_history.hpp"
 
 #include <vector>
 

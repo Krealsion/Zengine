@@ -7,7 +7,7 @@ Retired: WL-SETUP-06.
 
 ## WL-SETUP-01 — A setup row is a reference plus the smallest authored difference
 
-LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->5<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}`, `front`, its `settings`, and nothing else.
+LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->6<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}`, `front`, its `settings`, and nothing else.
 
 MEANS
 - a fresh setup is sparse: the developer's defaults are absent, not written;
@@ -119,6 +119,7 @@ WHY — `agents/decisions/setup-format-v3.md`
 
 ### WL-SETUP-01
 `workshop/setup_persist.hpp` kFormatVersion WorkshopSetup to_text WorkshopPaneSize WorkshopSetupPane
+WorkshopPanePlace
 `workshop/setup.hpp` PaneRef kMaxPaneKeyLen PaneSize SetupPane pane_ref_of kNoPaneRow kMaxSetupPanes
 pane_row
 `workshop/panes.hpp` kWorkshopProvider BuiltinPane every_kind_is_referable
@@ -130,16 +131,18 @@ kind's field"
 
 ### WL-SETUP-02
 `workshop/setup_persist.hpp` v2 v3 v4 setup_in from_text setup_in_v2 v3::to_v4 v4::to_current
-v3::kSubsPerPixel at_least_a_cell kCanvasRoomTopPx room_place_of_canvas px_of_saved_cells
+v3::kSubsPerPixel at_least_a_cell kCanvasRoomTopPx room_place_of_canvas px_of_saved_cells v5
+to_current to_v5 lifted
 `workshop/setup.hpp` kSavedCellPx
-`workshop/session_history.hpp` place_v2_to_v3 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5
+`workshop/layouts/session_history.hpp` place_v2_to_v3 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5
+desk_v5_to_v6
 `tests/test_workshop_screen.cpp` "a version-2 whole-cell setup loads at exactly its old picture" "a
 fine setup opens where the window painted it, its place in the room" "a place in an older file keeps
 its place in the room"
 `tests/test_workshop_panes_window.cpp` "a version-1 file is refused BY NUMBER, before its rows are
 judged"
 `tests/test_workshop_persistence.cpp` "a version-4 setup file reads with no settings, and the next
-save writes version 5"
+save writes the current version"
 
 ### WL-SETUP-03
 `workshop/setup.hpp` check_pane_place check_pane_size check_pane_place_coord pane_unit::kDefault
@@ -151,7 +154,7 @@ may NAME the right column, and any pane resolves into it"
 
 ### WL-SETUP-04
 `workshop/setup_persist.hpp` from_text kUnitDefault kUnitPixels kUnitRightColumn kPlaceWords
-unit_word place_in
+unit_word place_in WorkshopPaneSize WorkshopPanePlace size_in
 `workshop/setup.hpp` pane_unit kPixels
 `tests/test_workshop_panes_window.cpp` "an unknown mode word names what it found and what would have
 worked" "every mode spelling round-trips, pixels included" "a desk row may NAME the right column,

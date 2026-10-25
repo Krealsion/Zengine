@@ -47,7 +47,7 @@ under its id; the pane spells no key of its own, so the keys a weaver sees in th
 the hotkey view are that weaver's.
 
 Each layout keeps one setting for the pane, written from Info's SETTINGS rows or by message
-([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)): `detail`,
+([`PaneSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#panesettingcommitrequested)): `detail`,
 pinned, whether the cursor's row opens its [explanation](#explanation); off, its rows are the
 list's. A value it cannot use keeps the default and is said to Workshop.
 

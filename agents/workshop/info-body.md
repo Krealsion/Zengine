@@ -253,9 +253,10 @@ own record, answers the office that asked, and the next ask inspects"
 `workshop/inspection_seam_vocabulary.hpp` InspectPaneRequested PaneSubjectRequested PaneSubjectShown
 `workshop/screen.hpp` InspectedPane pane_subject_rows pane_subject_shown
 `workshop/screen_pane_subject.cpp` pane_subject_shown pane_subject_rows
-`workshop/layout_shelf.hpp` SetupState::put_live
+`workshop/layouts/run.hpp` SetupState::put_live
 `workshop/weave_inspection.cpp` refresh_inspected on(InspectPaneRequested) on(PaneSubjectRequested)
 publish_pane_subject
+`workshop/live_desk.hpp` put_live
 `tests/test_workshop_panes_info.cpp` "an office's ask inspects a pane through the host's own door,
 and the office is answered what the host said" "two inspects asked in one burst: the older office is
 told a newer took its place, the newer is answered what the host said, and the subject is the
@@ -275,7 +276,8 @@ desk, and again when it comes back"
 `workshop/inspection_seam_vocabulary.hpp` PaneCommitRequested PaneSubjectActed
 `workshop/weave_inspection.cpp` on(PaneCommitRequested)
 `workshop/weave.hpp` kPaneCommitSubjectGone
-`workshop/screen_pane_subject.cpp` write_pane_axis write_pane_setting
+`workshop/screen_pane_subject.cpp` write_pane_axis
+`workshop/screen.hpp` pending_edit
 `tests/test_workshop_panes_info.cpp` "a draft on a value the weaver owns is written to the desk" "an
 Info commit queued behind another desk put live, or another and back, is refused: neither desk is
 written and the pane says why" "an Info commit whose image was replaced before its answer is not the

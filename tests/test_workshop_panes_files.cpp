@@ -262,7 +262,7 @@ struct FilesRig {
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `project-files` pane");
         r.pick(files_ref());
         kind = row()->kind;
-        REQUIRE(author_pane_size(r.session().setup.active, files_ref(),
+        REQUIRE(staged_author_pane_size(r, files_ref(),
             {pane_unit::kPixels, cells_px(placement_bounds(placement::kOverlayStack, 0,
                 screen_of(cells_px(width), cells_px(height))).w)}, PaneSize{}).accepted);
         // A PRESS ON WORKSHOP'S TITLE ROW POINTS THE KEYS AT THE PANE AND SELECTS NOTHING: the
@@ -437,7 +437,7 @@ struct FilesRig {
     /// at a new extent -- a room grant, which also takes the listing again and puts the cursor
     /// back on its first row.
     void author_height(std::int64_t cells, std::int64_t width, std::int64_t height) {
-        const Written wrote = author_pane_size(r.session().setup.active, files_ref(), PaneSize{},
+        const Written wrote = staged_author_pane_size(r, files_ref(), PaneSize{},
                                                PaneSize{pane_unit::kPixels, cells_px(cells)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         r.extent(width, height);
@@ -2641,7 +2641,7 @@ TEST_CASE("an open the desk cannot show opens nothing, and Files says why") {
     const PaneRef editor{"zengine.editor", "editor"};
     f.r.pick(editor);
     REQUIRE(f.r.session().panes.has(f.editor_kind()));
-    REQUIRE(author_pane_place(f.r.session().setup.active, editor, 0, cells_px(200)).accepted);
+    REQUIRE(staged_author_pane_place(f.r, editor, 0, cells_px(200)).accepted);
     const Setup before = f.r.session().setup.active;
 
     f.point_at("alpha.cpp");
@@ -3401,7 +3401,7 @@ TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column auth
 
     // Thirty content columns, plus the ordinary terminal border on both sides. Height stays
     // ample so this measures WIDTH, independently of the short-pane repair above.
-    const Written narrow = author_pane_size(f.r.session().setup.active, files_ref(),
+    const Written narrow = staged_author_pane_size(f.r, files_ref(),
                                             PaneSize{pane_unit::kPixels, cells_px(32)},
                                             PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(narrow.accepted, narrow.refusal);
@@ -3414,7 +3414,7 @@ TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column auth
                   "the active field accepted text but its full prompt hid that text");
 
     // SEPARATE ACCEPTANCE FROM VISIBILITY: the same draft reveals its text once the room widens.
-    const Written wide = author_pane_size(f.r.session().setup.active, files_ref(),
+    const Written wide = staged_author_pane_size(f.r, files_ref(),
                                           PaneSize{pane_unit::kPixels, cells_px(80)},
                                           PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(wide.accepted, wide.refusal);

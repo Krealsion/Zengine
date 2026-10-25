@@ -13,7 +13,7 @@
 
 // The historical session shapes and their conversions -- the conversion artifact's
 // material, named here because this suite owns what a durable session file means.
-#include "workshop/session_history.hpp"
+#include "workshop/layouts/session_history.hpp"
 #include "operator/migration.hpp"
 #include "workshop/decoded_cells.hpp"
 
@@ -600,7 +600,7 @@ TEST_CASE("a setup file says what it is, in words a weaver can read") {
 
     // ITS OWN FORMAT IDENTITY, beside the document's and not equal to it.
     CHECK(text.find("\"format\":\"zengine-workshop-setup\"") != std::string::npos);
-    CHECK(text.find("\"format_version\":\"5\"") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"6\"") != std::string::npos);
     CHECK(text.find("\"name\":\"Default\"") != std::string::npos);
     CHECK(text.find("\"provider\":\"zengine.workshop\"") != std::string::npos);
     CHECK(text.find("\"pane\":\"info\"") != std::string::npos);
@@ -702,11 +702,11 @@ TEST_CASE("a malformed setup file is refused, and the live setup is untouched") 
     cases.push_back({"the wrong format identity",
                      forged_setup(good, "\"zengine-workshop-setup\"", "\"someone-elses-tool\"")});
     cases.push_back({"an unsupported format version",
-                     forged_setup(good, "\"format_version\":\"5\"", "\"format_version\":\"9\"")});
+                     forged_setup(good, "\"format_version\":\"6\"", "\"format_version\":\"9\"")});
     cases.push_back({"a missing required field",
                      forged_setup(good, "\"name\":\"Everything\",", "")});
     cases.push_back({"a field of the wrong kind",
-                     forged_setup(good, "\"format_version\":\"5\"", "\"format_version\":3")});
+                     forged_setup(good, "\"format_version\":\"6\"", "\"format_version\":3")});
     cases.push_back({"a field the setup does not declare",
                      forged_setup(good, "\"name\":", "\"colour\":\"red\",\"name\":")});
     cases.push_back({"a field a pane reference does not declare",
@@ -859,7 +859,7 @@ TEST_CASE("a fresh Workshop's active setup and its open panes agree from the fir
           std::vector<std::int64_t>{pane_kind::kLayouts});
     // UNSAVED, and structurally so: nothing has been written, and the copy the
     // comparison is made against has an empty name no legal setup can equal.
-    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK_FALSE((live_status(t.run()) == setup_link::kCurrent));
 }
 
 TEST_CASE("opening a pane through the launch door moves the setup's intent, not only the screen") {
@@ -904,24 +904,24 @@ TEST_CASE("a pane change makes the setup UNSAVED, and changing it back makes it 
     (void)mount_tool(t, "zengine-snake");
 
     name_setup(t, "Working");
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
     CHECK(t.session().setup.active.name == "Working");
     CHECK(t.notice().find("saved setup \"Working\"") == 0);
 
     open_stock_pane(t);
-    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK_FALSE((live_status(t.run()) == setup_link::kCurrent));
 
     // OPENING THEN CLOSING BACK TO THE SAVED INTENT SAYS SAVED AGAIN, which is
     // what a comparison buys and a dirty flag could not: there is no hand to
     // forget to unset.
     pick(t, stock::kKind);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
 
     // A rename with no pane moved is still a change, because the name is part of
     // the value.
     Setup renamed = t.session().setup.active;
     renamed.name = "Other";
-    CHECK_FALSE(renamed == t.session().setup.active_link.known);
+    CHECK_FALSE(renamed == t.run().active_link.known);
 }
 
 TEST_CASE("the rename editor opens on the tab's own name and writes nothing") {
@@ -990,7 +990,7 @@ TEST_CASE("a name the law refuses leaves the editor open over what was typed") {
     // A RENAME WRITES NO SETUP ARTIFACT. The layout is named and the file the host configured
     // was never opened, in either direction.
     CHECK_FALSE(std::filesystem::exists(t.host.setup_path));
-    CHECK(live_status(t.session().setup) == setup_link::kNone);
+    CHECK(live_status(t.run()) == setup_link::kNone);
 }
 
 TEST_CASE("with no setup file, saving and restoring say so and change nothing") {
@@ -1021,11 +1021,11 @@ TEST_CASE("restoring a setup returns the intent that was saved") {
 
     open_stock_pane(t); // the stand-in open beside the Layouts pane
     name_setup(t, "Build only");
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
 
     // Wander away from it.
     pick(t, stock::kKind);
-    REQUIRE_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE_FALSE((live_status(t.run()) == setup_link::kCurrent));
     REQUIRE(open_kinds(t.session().panes) ==
             std::vector<std::int64_t>{pane_kind::kLayouts});
 
@@ -1033,7 +1033,7 @@ TEST_CASE("restoring a setup returns the intent that was saved") {
     CHECK(t.session().setup.active.name == "Build only");
     CHECK(open_kinds(t.session().panes) ==
           std::vector<std::int64_t>{pane_kind::kLayouts, stock::kKind});
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(t.notice().find("restored setup \"Build only\"") == 0);
     CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
 }
@@ -1200,7 +1200,7 @@ TEST_CASE("the same setup resolves to different bounds under a different extent"
     open_pane(t, ref_of(second::kKind));
     REQUIRE(t.session().panes.has(second::kKind));
     name_setup(t, "Both");
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
     const std::string bytes = slurp(t.host.setup_path);
     const Setup authored = t.session().setup.active;
 
@@ -1228,7 +1228,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     // still saved -- which is the control that makes this a claim about
     // persisted geometry rather than about recomposition.
     CHECK(t.session().setup.active == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(slurp(t.host.setup_path) == bytes);
 
     // Restoring under the new extent produces the same intent and the current
@@ -1242,7 +1242,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     // A text metric moves the same picture again, and the setup is untouched.
     t.extent_px(cells_px(140), cells_px(44), 8, 18);
     CHECK(t.session().setup.active == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(slurp(t.host.setup_path) == bytes);
 
     // And no RESOLVED rectangle, placement, column, row or metric is in the file at all.
@@ -1251,14 +1251,12 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
         CAPTURE(forbidden);
         CHECK(bytes.find(forbidden) == std::string::npos);
     }
-    // THE `x` AND `y` THE FILE DOES CARRY ARE A PLACE NOBODY AUTHORED, and the difference
-    // between an authored coordinate and a resolved one is the whole of this case. Every row
-    // here is `default` in all three geometry fields, the smallest canonical spelling of "no
-    // override" -- so the numbers beside those modes are required zeros, not a rectangle.
-    CHECK(bytes.find("\"place\":{\"mode\":\"default\",\"x\":\"0\",\"y\":\"0\"}") !=
-          std::string::npos);
-    CHECK(bytes.find("\"width\":{\"mode\":\"default\",\"amount\":\"0\"}") !=
-          std::string::npos);
+    // THE FILE CARRIES NO PLACE NOBODY AUTHORED, and the difference between an authored
+    // coordinate and a resolved one is the whole of this case. Every row here is `default` in
+    // all three geometry fields, the smallest canonical spelling of "no override", and the word
+    // reads no number -- so none stands beside it.
+    CHECK(bytes.find("\"place\":{\"mode\":\"default\"}") != std::string::npos);
+    CHECK(bytes.find("\"width\":{\"mode\":\"default\"}") != std::string::npos);
     // ...and none of the WIDTHS this case just measured is anywhere in it. (The heights are
     // not asked: both panes are overlay panes, `kStackRows` is the same at every extent, and a number that small
     // is one a sparse file legitimately holds in a rank.)
@@ -1289,7 +1287,7 @@ TEST_CASE("a weaver names a setup, leaves, and gets it back in a fresh Workshop"
         open_stock_pane(a);
         name_setup(a, "Morning build");
 
-        REQUIRE((live_status(a.session().setup) == setup_link::kCurrent));
+        REQUIRE((live_status(a.run()) == setup_link::kCurrent));
         REQUIRE(open_kinds(a.session().panes) ==
                 std::vector<std::int64_t>{pane_kind::kLayouts, stock::kKind});
         bytes = slurp(path);
@@ -1312,7 +1310,7 @@ TEST_CASE("a weaver names a setup, leaves, and gets it back in a fresh Workshop"
         CHECK(b.session().setup.active.name == "Morning build");
         CHECK(b.session().panes.has(stock::kKind));
         CHECK_FALSE(b.session().panes.has(second::kKind));
-        CHECK((live_status(b.session().setup) == setup_link::kCurrent));
+        CHECK((live_status(b.run()) == setup_link::kCurrent));
 
         // NO COPY OF ANYBODY ELSE'S FACTS RODE THE FILE, which is what the tool's own
         // counter still says: the setup carries panes and places, and a participant's state
@@ -1613,7 +1611,7 @@ TEST_CASE("a name that could impersonate the setup line is one SPAN on it") {
     REQUIRE(check_setup_name(authored).accepted);
     name_setup(t, authored);
     REQUIRE(t.session().setup.active.name == authored);
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
 
     const Screen sc = screen_of(t.session());
     const std::string row = setup_row(t.shown(), sc);
@@ -1662,7 +1660,7 @@ TEST_CASE("a name that could impersonate the setup line is one SPAN on it") {
     // AND THE AUTHORED BYTES NEVER MOVED. The presentation is prose and reaches neither
     // the live setup nor the copy `saved()` compares against; the FILE still escapes.
     CHECK(t.session().setup.active.name == authored);
-    CHECK(t.session().setup.active_link.known.name == authored);
+    CHECK(t.run().active_link.known.name == authored);
     CHECK(slurp(t.host.setup_path).find("\\\" UNSAVED") != std::string::npos);
 }
 
@@ -1745,7 +1743,7 @@ TEST_CASE("the name editor edits the authored bytes, never the escaped spelling"
     t.key(input::scan::kEscape);
     CHECK_FALSE(t.session().setup.naming.open);
     CHECK(t.session().setup.active.name == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
 
     // AND ENTER RENAMES TO THE AUTHORED BYTES, not to the spelling they are presented with
     // -- then `s` writes exactly those bytes: two gestures, one value.
@@ -1810,7 +1808,7 @@ TEST_CASE("a bare name at the bound is its own length, and the row is still cut"
     REQUIRE(check_setup_name(authored).accepted);
     name_setup(t, authored);
     REQUIRE(t.session().setup.active.name == authored);
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
 
     const std::string cut = setup_row(t.shown(), screen_of(t.session()));
     INFO(cut);
@@ -1827,7 +1825,7 @@ TEST_CASE("a bare name at the bound is its own length, and the row is still cut"
     // file are all untouched by it, and a wider surface spends the room on the rest of
     // the same sentence.
     CHECK(t.session().setup.active.name == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(setup_persist::load_file(t.host.setup_path).setup.name == authored);
 
     t.extent_px(cells_px(240), cells_px(40), 0, 0);
@@ -1838,7 +1836,7 @@ TEST_CASE("a bare name at the bound is its own length, and the row is still cut"
     CHECK(roomy.find("s save") != std::string::npos);
     // ...and the extent changed what fits, never the setup or its saved status.
     CHECK(t.session().setup.active.name == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
 }
 
 TEST_CASE("a name carrying a quote and a backslash survives its file exactly") {
@@ -1850,7 +1848,7 @@ TEST_CASE("a name carrying a quote and a backslash survives its file exactly") {
     // THE FORMAT WORD IS UNCHANGED AND THE VERSION IS NOT: an authored name carrying the two
     // bytes the quoting owner escapes comes back exactly as it went in, whatever the version,
     // and handing Workshop the wrong one of its own two files is still named, not half-read.
-    CHECK(setup_persist::kFormatVersion == 5);
+    CHECK(setup_persist::kFormatVersion == 6);
     CHECK(std::string(setup_persist::kFormat) == "zengine-workshop-setup");
 
     const std::string path = dir.file("q.json");
@@ -1858,7 +1856,7 @@ TEST_CASE("a name carrying a quote and a backslash survives its file exactly") {
     const std::string a = slurp(path);
     INFO(a);
     CHECK(a.find("\"format\":\"zengine-workshop-setup\"") != std::string::npos);
-    CHECK(a.find("\"format_version\":\"5\"") != std::string::npos);
+    CHECK(a.find("\"format_version\":\"6\"") != std::string::npos);
 
     const setup_persist::LoadedSetup read = setup_persist::load_file(path);
     REQUIRE(read.outcome.accepted);
@@ -2001,6 +1999,7 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
     back.on_os_window(); // the medium that grows to the room restored
     back.ready();
     back.window_settles();
+    INFO(back.notice());
 
     // THE DESK, whole: the same panes, the same authored geometry, the same order.
     CHECK(back.session().setup.active == desk);
@@ -2022,8 +2021,8 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
     // a window's launch says `120x75 cells`.
     TempDir dir("restore-unit");
     const std::string session = dir.file("session.json");
-    REQUIRE(session_persist::save_file(session, one_layout(setup_of("Default", {pane_kind::kLayouts})), 0,
-                                       cells_px(120), cells_px(75), session_persist::Placement{})
+    REQUIRE(save_last_run(session, one_layout(setup_of("Default", {pane_kind::kLayouts})), 0,
+                          cells_px(120), cells_px(75), window_persist::Placement{})
                 .accepted);
     // A WINDOW names its device pixel when it offers itself, and the notice standing then says
     // the room in pixels.
@@ -2102,8 +2101,8 @@ TEST_CASE("the second session replaces the first, room and desk both") {
         // rather than on whatever `--setup` this run names: an association is what a weaver
         // related this desk to, and the configured path is only the door a layout with NO
         // association acquires one through. So the file rewritten is the one the layout names.
-        REQUIRE(t.session().setup.active_link.path == dir.file("first-setup.json"));
-        REQUIRE(setup_persist::save_file(t.session().setup.active_link.path, second).accepted);
+        REQUIRE(t.run().active_link.path == dir.file("first-setup.json"));
+        REQUIRE(setup_persist::save_file(t.run().active_link.path, second).accepted);
         t.extent_px(cells_px(140), cells_px(50));
         t.key(input::scan::kR);
         REQUIRE_MESSAGE(t.session().setup.active == second, t.notice());
@@ -2138,6 +2137,7 @@ TEST_CASE("a first launch is not an error, and needs no file to exist") {
     CHECK(t.session().screen_h == kScreenMinH);
     // AND NOTHING WAS SAID ABOUT IT. The most common way startup ends is the one a
     // weaver must never see a complaint about.
+    INFO(t.notice());
     CHECK_FALSE(t.session().notice_is_bad);
     CHECK(t.notice().find("session") == std::string::npos);
     // Nor was a file conjured to fill the absence.
@@ -2165,17 +2165,15 @@ TEST_CASE("a malformed session costs the desk and nothing else") {
          setup_persist::to_text(arranged_desk("Debugging"))},
         {"a session of another version",
          [] {
-             std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
-                                                         session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":11");
+             std::string text = session_text(one_layout(arranged_desk("D")), 0);
+             const std::size_t at = text.find("\"version\":12");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":11").size(), "\"version\":12");
+             text.replace(at, std::string("\"version\":12").size(), "\"version\":13");
              return text;
          }()},
         {"a session whose desk is not a legal setup",
          [] {
-             std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
-                                                         session_persist::Placement{});
+             std::string text = session_text(one_layout(arranged_desk("D")), 0);
              const std::size_t at = text.find("\"pane\":\"stack\"");
              REQUIRE(at != std::string::npos);
              text.replace(at, std::string("\"pane\":\"stack\"").size(),
@@ -2208,12 +2206,10 @@ TEST_CASE("a malformed session costs the desk and nothing else") {
 TEST_CASE("an unreadable session names its version by NUMBER") {
     TempDir dir("wux0-d-version");
     // A WHOLE SESSION OF A NUMBER THIS BUILD HAS NEVER WRITTEN, as one value.
-    std::string text = loom::compat::serialize(loom::to_value(session_persist::to_session(
-        one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
-        session_persist::Placement{})));
-    const std::size_t at = text.find("\"version\":11");
+    std::string text = loom::compat::serialize(loom::to_value(session_value(one_layout(arranged_desk("D")), 0)));
+    const std::size_t at = text.find("\"version\":12");
     REQUIRE(at != std::string::npos);
-    text.replace(at, std::string("\"version\":11").size(), "\"version\":12");
+    text.replace(at, std::string("\"version\":12").size(), "\"version\":13");
     const session_persist::LoadedSession refused = session_persist::from_text(text);
     CHECK(refused.present);
     CHECK_FALSE(refused.outcome.accepted);
@@ -2221,18 +2217,16 @@ TEST_CASE("an unreadable session names its version by NUMBER") {
     // version to this one is live. The identity of the missing power is named, because it is
     // a fact this host knows and a weaver can look for.
     CHECK(refused.outcome.refusal ==
-          "session version 12 cannot be read: no live conversion from `WorkshopSession` v12 to "
-          "v11 (`zengine.migrate.WorkshopSession.v12-to-v11`)");
+          "session version 13 cannot be read: no live conversion from `WorkshopSession` v13 to "
+          "v12 (`zengine.migrate.WorkshopSession.v13-to-v12`)");
     // ...AND A HEADER LINE OF THAT NUMBER IS SAID BY ITS NUMBER TOO.
-    std::string lines = session_persist::to_text(one_layout(arranged_desk("D")), 0,
-                                                 cells_px(100), cells_px(30),
-                                                 session_persist::Placement{});
-    const std::size_t head = lines.find("\"version\":11");
+    std::string lines = session_text(one_layout(arranged_desk("D")), 0);
+    const std::size_t head = lines.find("\"version\":12");
     REQUIRE(head != std::string::npos);
-    lines.replace(head, std::string("\"version\":11").size(), "\"version\":12");
+    lines.replace(head, std::string("\"version\":12").size(), "\"version\":13");
     const session_persist::LoadedSession newer = session_persist::from_text(lines);
     CHECK_FALSE(newer.outcome.accepted);
-    CHECK(newer.outcome.refusal.rfind("session version 12 cannot be read: ", 0) == 0);
+    CHECK(newer.outcome.refusal.rfind("session version 13 cannot be read: ", 0) == 0);
     // AND IT CLAIMS NOTHING IT CANNOT KNOW: not that a converter exists on disk, not that
     // one should be installed. There is no unloaded discovery in this system to be honest
     // about, so the sentence does not pretend there is.
@@ -2245,17 +2239,16 @@ TEST_CASE("a current-version file whose own field says otherwise is a forgery") 
     // version is old and is answered by the conversion seam; a file whose envelope claims
     // THIS version over a body that says another is inconsistent with itself, and only a
     // forgery produces one.
-    std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
-                                                session_persist::Placement{});
-    const std::size_t at = text.find("\"format_version\":\"12\"");
+    std::string text = session_text(one_layout(arranged_desk("D")), 0);
+    const std::size_t at = text.find("\"format_version\":\"13\"");
     REQUIRE(at == std::string::npos);
     // ⚠ THE SESSION'S OWN FIELD AND A LAYOUT'S ARE TWO FACTS AND TWO NUMBERS: a session nests
     // desks at their own version. The case edits the session's and asserts the session's
     // sentence; the desk's own has a separate owner, and the case below proves it.
-    const std::size_t field = text.find("\"format_version\":\"11\"");
+    const std::size_t field = text.find("\"format_version\":\"12\"");
     REQUIRE(field != std::string::npos);
-    text.replace(field, std::string("\"format_version\":\"11\"").size(),
-                 "\"format_version\":\"12\"");
+    text.replace(field, std::string("\"format_version\":\"12\"").size(),
+                 "\"format_version\":\"13\"");
 
     op::Catalog conversions;
     REQUIRE(conversions.mount("suite", session_history::conversions()));
@@ -2263,7 +2256,7 @@ TEST_CASE("a current-version file whose own field says otherwise is a forgery") 
         session_persist::from_text(text, &conversions);
     CHECK_FALSE(refused.outcome.accepted);
     CHECK(refused.outcome.refusal ==
-          "this session claims version 11 and its own format_version field says 12");
+          "this session claims version 12 and its own format_version field says 13");
     // ...and it did not become a conversion request on the way past.
     CHECK(refused.outcome.refusal.find("conversion") == std::string::npos);
 }
@@ -2293,8 +2286,8 @@ TEST_CASE("a hostile room is declined, and the desk still comes back") {
         TempDir dir("wux0-e");
         Live t;
         t.host.session_path = dir.file("session.json");
-        REQUIRE(session_persist::save_file(t.host.session_path, one_layout(desk), 0, cells_px(c.w), cells_px(c.h),
-                                           session_persist::Placement{})
+        REQUIRE(save_last_run(t.host.session_path, one_layout(desk), 0, cells_px(c.w),
+                              cells_px(c.h), window_persist::Placement{})
                     .accepted);
         t.ready();
 
@@ -2317,13 +2310,13 @@ TEST_CASE("a hostile room is declined, and the desk still comes back") {
 }
 
 TEST_CASE("the band a room is honoured in is the one the screen is honest at") {
-    CHECK(session_persist::viewport_honoured(kScreenMinW, kScreenMinH));
-    CHECK(session_persist::viewport_honoured(kScreenMaxW, kScreenMaxH));
-    CHECK_FALSE(session_persist::viewport_honoured(kScreenMinW - 1, kScreenMinH));
-    CHECK_FALSE(session_persist::viewport_honoured(kScreenMinW, kScreenMinH - 1));
-    CHECK_FALSE(session_persist::viewport_honoured(kScreenMaxW + 1, kScreenMaxH));
-    CHECK_FALSE(session_persist::viewport_honoured(kScreenMinW, kScreenMaxH + 1));
-    CHECK_FALSE(session_persist::viewport_honoured(0, 0));
+    CHECK(window_persist::viewport_honoured(kScreenMinW, kScreenMinH));
+    CHECK(window_persist::viewport_honoured(kScreenMaxW, kScreenMaxH));
+    CHECK_FALSE(window_persist::viewport_honoured(kScreenMinW - 1, kScreenMinH));
+    CHECK_FALSE(window_persist::viewport_honoured(kScreenMinW, kScreenMinH - 1));
+    CHECK_FALSE(window_persist::viewport_honoured(kScreenMaxW + 1, kScreenMaxH));
+    CHECK_FALSE(window_persist::viewport_honoured(kScreenMinW, kScreenMaxH + 1));
+    CHECK_FALSE(window_persist::viewport_honoured(0, 0));
 }
 
 // ---- Witness F: named setups are a different promise and stay one ------------
@@ -2360,9 +2353,9 @@ TEST_CASE("a restored session never touches the file a weaver named, either") {
     const Setup named = materialized(arranged_desk("Debugging"));
     REQUIRE(setup_persist::save_file(setup, named).accepted);
     const std::string setup_bytes = slurp(setup);
-    REQUIRE(session_persist::save_file(
-                session, one_layout(setup_of("Loose", {second::kKind, pane_kind::kLayouts})), 0, cells_px(110),
-                cells_px(38), session_persist::Placement{})
+    REQUIRE(save_last_run(session,
+                          one_layout(setup_of("Loose", {second::kKind, pane_kind::kLayouts})), 0,
+                          cells_px(110), cells_px(38), window_persist::Placement{})
                 .accepted);
 
     Live t;
@@ -2376,7 +2369,7 @@ TEST_CASE("a restored session never touches the file a weaver named, either") {
     // file over the restored session; `s` writes the named file and nothing else.
     t.key(input::scan::kR);
     CHECK(t.session().setup.active == named);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     const std::string session_bytes = slurp(session);
     name_setup(t, "Renamed");
     CHECK(setup_persist::load_file(setup).setup.name == "Renamed");
@@ -2389,7 +2382,7 @@ TEST_CASE("the three files are three formats, and each refuses the others") {
     const Setup desk = arranged_desk("Debugging");
     const std::string doc_text = kRetiredObjectDocument;
     const std::string setup_text = setup_persist::to_text(desk);
-    const std::string session_text = session_persist::to_text(one_layout(desk), 0, cells_px(120), cells_px(44), session_persist::Placement{});
+    const std::string session_bytes = session_text(one_layout(desk), 0);
 
     CHECK(std::string(session_persist::kFormat) == "zengine-workshop-session");
     CHECK(std::string(session_persist::kFormat) != std::string(setup_persist::kFormat));
@@ -2398,31 +2391,27 @@ TEST_CASE("the three files are three formats, and each refuses the others") {
     CHECK_FALSE(session_persist::from_text(doc_text).outcome.accepted);
     CHECK_FALSE(session_persist::from_text(setup_text).outcome.accepted);
     CHECK_FALSE(setup_persist::from_text(doc_text).outcome.accepted);
-    CHECK_FALSE(setup_persist::from_text(session_text).outcome.accepted);
+    CHECK_FALSE(setup_persist::from_text(session_bytes).outcome.accepted);
     // A session handed to the setup reader is refused, and NOT half-read.
-    CHECK(setup_persist::from_text(session_text).setup.panes.empty());
+    CHECK(setup_persist::from_text(session_bytes).setup.panes.empty());
 }
 
 // ---- The format itself -------------------------------------------------------
 
 TEST_CASE("a session round-trips, and a second save is byte-identical") {
     const Setup desk = arranged_desk("Debugging");
-    const std::string first = session_persist::to_text(one_layout(desk), 0, cells_px(120), cells_px(44), session_persist::Placement{});
+    const std::string first = session_text(one_layout(desk), 0);
     const session_persist::LoadedSession read = session_persist::from_text(first);
     REQUIRE(read.outcome.accepted);
     CHECK(read.present);
-    CHECK(read.honoured);
-    CHECK(read.declined.empty());
     CHECK(live_layout(read) == desk);
-    CHECK(read.viewport_w == cells_px(120));
-    CHECK(read.viewport_h == cells_px(44));
-    CHECK(session_persist::to_text(read.layouts, read.active, read.viewport_w, read.viewport_h,
-                                   read.placement) == first);
+    CHECK(read.layouts.front().id == 1);
+    CHECK(read.next_id == 2);
+    CHECK(session_persist::to_text(read.layouts, read.active, read.next_id) == first);
 }
 
-TEST_CASE("a session file holds the desk and the room, and nothing runtime") {
-    const std::string text = session_persist::to_text(one_layout(arranged_desk("Debugging")), 0, cells_px(120), cells_px(44),
-                                                      session_persist::Placement{});
+TEST_CASE("a session file holds the run and nothing of the window, and nothing runtime") {
+    const std::string text = session_text(one_layout(arranged_desk("Debugging")), 0);
     // THE DESK IS THE SETUP'S OWN REPRESENTATION, not a paraphrase of it: every pane
     // row a setup file would have written is in here, spelled the same way.
     for (const char* fragment : {"\"provider\":\"zengine.test.stack\"", "\"pane\":\"stack\"",
@@ -2430,7 +2419,10 @@ TEST_CASE("a session file holds the desk and the room, and nothing runtime") {
                                  "\"front\":", "\"format\":\"zengine-workshop-setup\""}) {
         CHECK_MESSAGE(text.find(fragment) != std::string::npos, fragment);
     }
-    CHECK(text.find("\"viewport\"") != std::string::npos);
+    // THE WINDOW'S FACTS ARE THE WINDOW FILE'S: no room, no placement.
+    for (const char* window : {"viewport", "placement", "window_room"}) {
+        CHECK_MESSAGE(text.find(window) == std::string::npos, window);
+    }
     // AND NOTHING THAT BELONGS TO A RUNNING PROCESS. No WeaveId, no runtime pane
     // handle, no catalog row, no loaded artifact, no selection, no drag.
     for (const char* forbidden : {"weave", "WeaveId", "kind", "runtime", "catalog", "selected",
@@ -2454,20 +2446,21 @@ TEST_CASE("a write that fails leaves the last good session where it was") {
     TempDir dir("wux0-write");
     const std::string path = dir.file("session.json");
     const Setup first = arranged_desk("First");
-    REQUIRE(session_persist::save_file(path, one_layout(first), 0, cells_px(120), cells_px(44), session_persist::Placement{})
+    REQUIRE(save_last_run(path, one_layout(first), 0, cells_px(120), cells_px(44),
+                          window_persist::Placement{})
                 .accepted);
     const std::string good = slurp(path);
 
     // The sibling the writer needs is occupied by a DIRECTORY, so the candidate
     // cannot be written -- and the destination is never opened.
     std::filesystem::create_directories(persist::pending_path(path));
-    const Written refused = session_persist::save_file(path, one_layout(setup_of("Second", {second::kKind})), 0,
-                                                       cells_px(90), cells_px(30), session_persist::Placement{});
+    const Written refused = save_last_run(path, one_layout(setup_of("Second", {second::kKind})), 0,
+                                          cells_px(90), cells_px(30), window_persist::Placement{});
     CHECK_FALSE(refused.accepted);
     CHECK(slurp(path) == good);
     std::filesystem::remove_all(persist::pending_path(path));
-    CHECK(session_persist::save_file(path, one_layout(setup_of("Second", {second::kKind})), 0, cells_px(90), cells_px(30),
-                                     session_persist::Placement{})
+    CHECK(save_last_run(path, one_layout(setup_of("Second", {second::kKind})), 0, cells_px(90),
+                        cells_px(30), window_persist::Placement{})
               .accepted);
 }
 
@@ -2480,7 +2473,8 @@ TEST_CASE("a restored desk opens every pane it names, in the room it restored") 
     const std::string session = dir.file("session.json");
     Setup two = setup_of("Two", {stock::kKind});
     REQUIRE(add_pane(two, hello_ref()));
-    REQUIRE(session_persist::save_file(session, one_layout(two), 0, cells_px(120), cells_px(60), session_persist::Placement{})
+    REQUIRE(save_last_run(session, one_layout(two), 0, cells_px(120), cells_px(60),
+                          window_persist::Placement{})
                 .accepted);
 
     REQUIRE(stack_slots_that_fit(kMinScreen) == 1);
@@ -2515,7 +2509,8 @@ TEST_CASE("the startup notice counts no pane nobody has had a turn to offer") {
     const std::string session = dir.file("session.json");
     Setup mixed = setup_of("Mixed", {second::kKind, pane_kind::kLayouts});
     REQUIRE(add_pane(mixed, hello_ref()));
-    REQUIRE(session_persist::save_file(session, one_layout(mixed), 0, cells_px(110), cells_px(40), session_persist::Placement{})
+    REQUIRE(save_last_run(session, one_layout(mixed), 0, cells_px(110), cells_px(40),
+                          window_persist::Placement{})
                 .accepted);
 
     Live t;
@@ -2691,8 +2686,7 @@ TEST_CASE("a legacy session as large as the session reader takes is imported who
         fill_to_every_bound(s);
         run.push_back(Layout{s, SetupLink{std::string(256, 'p') + ".json", s}});
     }
-    const std::string text = session_persist::to_text(run, kMaxLayouts - 1, cells_px(120),
-                                                      cells_px(44), session_persist::Placement{});
+    const std::string text = session_text(run, kMaxLayouts - 1);
     REQUIRE(text.size() > (std::size_t{1} << 20));
     REQUIRE(text.size() <= session_persist::kMaxSessionBytes);
     TempDir dir("legacy-import-bound");
@@ -2758,8 +2752,8 @@ TEST_CASE("a weaver's files under a folder named beyond ASCII are written, found
     const std::string folder = dir.path().string() + "/" + kBeyondAscii;
     const std::string session = folder + "/state/zengine-workshop/workshop-session.json";
     const Setup desk = arranged_desk("Debugging");
-    const Written saved = session_persist::save_file(session, one_layout(desk), 0, cells_px(120),
-                                                     cells_px(44), session_persist::Placement{});
+    const Written saved = save_last_run(session, one_layout(desk), 0, cells_px(120), cells_px(44),
+                                        window_persist::Placement{});
     REQUIRE_MESSAGE(saved.accepted, saved.refusal);
     CHECK(std::filesystem::exists(held(session)));
     CHECK(std::filesystem::exists(session));
@@ -2849,12 +2843,12 @@ TEST_CASE("the settings file round-trips what it keeps: Workshop's own settings,
 
     // A FOREIGN VERSION IS REFUSED BY ITS NUMBER, on the claim.
     std::string future = prefs_persist::to_text(hidden);
-    const std::size_t at = future.find("\"version\":3");
+    const std::size_t at = future.find("\"version\":4");
     REQUIRE(at != std::string::npos);
     future.replace(at, 11, "\"version\":9");
     read = prefs_persist::from_text(future);
     CHECK_FALSE(read.outcome.accepted);
-    CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads versions 1 to 3");
+    CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads versions 1 to 4");
     // The family's format identity: the other files' bytes are refused by name.
     CHECK_FALSE(prefs_persist::from_text(keymap_persist::to_text(Keymap{})).outcome.accepted);
 }
@@ -2927,11 +2921,11 @@ TEST_CASE("a version-2 prefs file is read as Workshop's own three settings, and 
     CHECK_FALSE(read.prefs.titles_shown);
     CHECK(read.prefs.band_keys == KeySpelling::kFull);
     CHECK(read.prefs.hotkeys_keys == KeySpelling::kShort);
-    // ...KEPT AS WORKSHOP'S OWN KEYS, so the next write is version 3.
+    // ...KEPT AS WORKSHOP'S OWN KEYS, so the next write is version 4.
     CHECK(prefs_persist::office_value(read.kept, prefs_persist::kWorkshopOffice,
                                       prefs_persist::kPaneTitlesKey)
               ->flag == false);
-    CHECK(prefs_persist::to_text(read.kept).find("\"version\":3") != std::string::npos);
+    CHECK(prefs_persist::to_text(read.kept).find("\"version\":4") != std::string::npos);
     // `default` is the hand-author's word for the code's answer, for each word.
     read = prefs_persist::from_text(words("default", "default", "default"));
     REQUIRE(read.outcome.accepted);
@@ -2987,6 +2981,7 @@ TEST_CASE("a toggle writes the preference, and a reopened Workshop wears it") {
         t.key(input::scan::kT);
         t.text("t");
         REQUIRE_FALSE(t.session().pane_titles);
+        INFO(t.notice());
         // The toggle is the weaver stating the preference, so the toggle is the write --
         // and the write created the configuration root it landed in.
         REQUIRE(std::filesystem::exists(prefs));
@@ -3126,52 +3121,52 @@ TEST_CASE("no prefs path means the preference lives exactly as long as the run")
     CHECK_FALSE(t.session().notice_is_bad);
 }
 
-// ---- Session format v3: the placement -------------------------------------------------
+// ---- The window file: the placement ----------------------------------------------------
 
-TEST_CASE("a session with a placement round-trips byte-identically") {
-    const Setup desk = arranged_desk("Debugging");
-    session_persist::Placement place;
+TEST_CASE("a window file with a placement round-trips byte-identically") {
+    window_persist::Placement place;
     place.known = true;
     place.x = -1200; // a monitor left of the primary is negative territory, legitimately
     place.y = 340;
     place.maximized = true;
-    const std::string first = session_persist::to_text(one_layout(desk), 0, cells_px(120), cells_px(44), place);
+    const std::string first = window_persist::to_text(cells_px(120), cells_px(44), place);
     for (const char* fragment :
          {"\"placement\":", "\"mode\":\"desktop\"", "\"x\":\"-1200\"", "\"y\":\"340\"",
           "\"window\":\"maximized\""}) {
         CHECK_MESSAGE(first.find(fragment) != std::string::npos, fragment);
     }
-    const session_persist::LoadedSession read = session_persist::from_text(first);
+    const window_persist::LoadedWindow read = window_persist::from_text(first);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.honoured);
+    CHECK(read.viewport_w == cells_px(120));
+    CHECK(read.viewport_h == cells_px(44));
     CHECK(read.placement.known);
     CHECK(read.placement.x == -1200);
     CHECK(read.placement.y == 340);
     CHECK(read.placement.maximized);
-    CHECK(session_persist::to_text(read.layouts, read.active, read.viewport_w, read.viewport_h,
-                                   read.placement) == first);
+    CHECK(window_persist::to_text(read.viewport_w, read.viewport_h, read.placement) == first);
 
     // THE ABSENCE HAS ONE SPELLING: no placement writes `none` over zeros and `normal`.
     const std::string none =
-        session_persist::to_text(one_layout(desk), 0, cells_px(120), cells_px(44), session_persist::Placement{});
+        window_persist::to_text(cells_px(120), cells_px(44), window_persist::Placement{});
     CHECK(none.find("\"mode\":\"none\"") != std::string::npos);
     CHECK(none.find("\"x\":\"0\"") != std::string::npos);
     CHECK(none.find("\"window\":\"normal\"") != std::string::npos);
-    CHECK_FALSE(session_persist::from_text(none).placement.known);
+    CHECK_FALSE(window_persist::from_text(none).placement.known);
 }
 
 TEST_CASE("the placement's words are judged; its coordinates are not") {
-    const Setup desk = arranged_desk("D");
-    session_persist::Placement place;
+    window_persist::Placement place;
     place.known = true;
     place.x = 100;
     place.y = 60;
-    const std::string good = session_persist::to_text(one_layout(desk), 0, cells_px(120), cells_px(44), place);
+    const std::string good = window_persist::to_text(cells_px(100), cells_px(30), place);
 
     // A mode word outside the closed set refuses the file, naming both sets.
     std::string bad = good;
     bad.replace(bad.find("\"mode\":\"desktop\""), std::string("\"mode\":\"desktop\"").size(),
                 "\"mode\":\"monitor\"");
-    session_persist::LoadedSession read = session_persist::from_text(bad);
+    window_persist::LoadedWindow read = window_persist::from_text(bad);
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.outcome.refusal.find("`monitor`") != std::string::npos);
     CHECK(read.outcome.refusal.find("none or desktop") != std::string::npos);
@@ -3180,17 +3175,17 @@ TEST_CASE("the placement's words are judged; its coordinates are not") {
     bad = good;
     bad.replace(bad.find("\"window\":\"normal\""),
                 std::string("\"window\":\"normal\"").size(), "\"window\":\"fullscreen\"");
-    read = session_persist::from_text(bad);
+    read = window_persist::from_text(bad);
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.outcome.refusal.find("`fullscreen`") != std::string::npos);
     CHECK(read.outcome.refusal.find("normal or maximized") != std::string::npos);
 
     // An absent placement carrying a coordinate is a spelling nobody means: refused,
     // and the refusal says both ways to fix it.
-    bad = session_persist::to_text(one_layout(desk), 0, cells_px(120), cells_px(44), session_persist::Placement{});
+    bad = window_persist::to_text(cells_px(100), cells_px(30), window_persist::Placement{});
     const std::string none_x = "\"mode\":\"none\",\"x\":\"0\"";
     bad.replace(bad.find(none_x), none_x.size(), "\"mode\":\"none\",\"x\":\"7\"");
-    read = session_persist::from_text(bad);
+    read = window_persist::from_text(bad);
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.outcome.refusal.find("carries no coordinates") != std::string::npos);
 
@@ -3198,7 +3193,7 @@ TEST_CASE("the placement's words are judged; its coordinates are not") {
     // medium at restore time can judge one, and refusing here would cost the desk.
     place.x = 1000000;
     place.y = -1000000;
-    read = session_persist::from_text(session_persist::to_text(one_layout(desk), 0, cells_px(120), cells_px(44), place));
+    read = window_persist::from_text(window_persist::to_text(cells_px(100), cells_px(30), place));
     REQUIRE(read.outcome.accepted);
     CHECK(read.placement.x == 1000000);
     CHECK(read.placement.y == -1000000);
@@ -3218,16 +3213,17 @@ TEST_CASE("a version-2 session still loads, its placement reading as absence") {
         session_persist::from_text(bytes, &conversions);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.present);
-    CHECK(read.honoured);
-    CHECK(read.viewport_w == cells_px(110));
-    CHECK(read.viewport_h == cells_px(38));
     CHECK(live_layout(read) == materialized(arranged_desk("Yesterday")));
-    CHECK_FALSE(read.placement.known);
+    // ...AND ITS ROOM IS THE WINDOW FILE'S, imported from it once.
+    const window_persist::LoadedWindow room = window_persist::import_from_session_text(bytes);
+    CHECK(room.honoured);
+    CHECK(room.viewport_w == cells_px(110));
+    CHECK(room.viewport_h == cells_px(38));
+    CHECK_FALSE(room.placement.known);
 
     // The next close writes the current version, byte-stable thereafter.
-    const std::string saved = session_persist::to_text(read.layouts, read.active, read.viewport_w,
-                                                       read.viewport_h, read.placement);
-    CHECK(saved.find("\"format_version\":\"5\"") != std::string::npos);
+    const std::string saved = session_text(read.layouts, read.active);
+    CHECK(saved.find("\"format_version\":\"6\"") != std::string::npos);
     CHECK(session_persist::from_text(saved).outcome.accepted);
 }
 
@@ -3247,8 +3243,10 @@ TEST_CASE("the desk remembers where its window sat, and offers it back") {
         CHECK(t.session().place_y == 180);
         t.key(input::scan::kQ);
     }
-    CHECK(slurp(session).find("\"mode\":\"desktop\"") != std::string::npos);
-    CHECK(slurp(session).find("\"x\":\"240\"") != std::string::npos);
+    const std::string window = slurp(window_persist::path_beside(session));
+    CHECK(window.find("\"mode\":\"desktop\"") != std::string::npos);
+    CHECK(window.find("\"x\":\"240\"") != std::string::npos);
+    CHECK(slurp(session).find("placement") == std::string::npos);
 
     // ANOTHER PROCESS: the remembered placement is offered to whoever holds the skin
     // role, exactly once, before any medium has said anything.
@@ -3264,7 +3262,7 @@ TEST_CASE("the desk remembers where its window sat, and offers it back") {
     CHECK(t.session().placement_known);
 }
 
-TEST_CASE("the session keeps the OS window's own room beside its placement, and a run in the "
+TEST_CASE("the window file keeps the OS window's own room beside its placement, and a run in the "
           "terminal window writes it back as it read it, as it does the placement") {
     // ⚔ MUTATION: the save writing this run's room as the OS window's whatever the window -- a run
     // in the terminal window leaves its own room where the OS window's was.
@@ -3280,7 +3278,7 @@ TEST_CASE("the session keeps the OS window's own room beside its placement, and 
         CHECK(t.session().normal_w == 1180);
         t.key(input::scan::kQ);
     }
-    session_persist::LoadedSession read = session_persist::load_file(session);
+    window_persist::LoadedWindow read = window_persist::load_file(window_persist::path_beside(session));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.placement.room_w == 1180);
     CHECK(read.placement.room_h == 760);
@@ -3291,7 +3289,7 @@ TEST_CASE("the session keeps the OS window's own room beside its placement, and 
         t.extent(100, 34);
         t.key(input::scan::kQ);
     }
-    read = session_persist::load_file(session);
+    read = window_persist::load_file(window_persist::path_beside(session));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.viewport_w == cells_px(100)); // the desk's room is the terminal's...
     CHECK(read.placement.room_w == 1180);    // ...and the OS window's is its own, as it was
@@ -3306,15 +3304,15 @@ TEST_CASE("a restore in the OS window shapes it to its own room, a smaller one t
     // before the shaping, and restoring the window down returns the room it opened at.
     TempDir dir("os-room-shaped");
     const std::string session = dir.file("session.json");
-    session_persist::Placement place;
+    window_persist::Placement place;
     place.known = true;
     place.x = 64;
     place.y = 48;
     place.maximized = true;
     place.room_w = 1280; // smaller than the 1600 by 900 the OS window opens at
     place.room_h = 720;
-    REQUIRE(session_persist::save_file(session, one_layout(arranged_desk("D")), 0, cells_px(120),
-                                       cells_px(40), place)
+    REQUIRE(save_last_run(session, one_layout(arranged_desk("D")), 0, cells_px(120), cells_px(40),
+                          place)
                 .accepted);
     {
         Live t;
@@ -3340,8 +3338,8 @@ TEST_CASE("a restore in the OS window shapes it to its own room, a smaller one t
     // A ROOM OUTSIDE THE SCREEN'S BAND IS DECLINED, never clamped, and said.
     place.room_w = 4;
     place.room_h = 3;
-    REQUIRE(session_persist::save_file(session, one_layout(arranged_desk("D")), 0, cells_px(120),
-                                       cells_px(40), place)
+    REQUIRE(save_last_run(session, one_layout(arranged_desk("D")), 0, cells_px(120), cells_px(40),
+                          place)
                 .accepted);
     Live small;
     small.host.session_path = session;
@@ -3355,8 +3353,8 @@ TEST_CASE("a restore in the OS window shapes it to its own room, a smaller one t
 TEST_CASE("a session with no placement offers nothing") {
     TempDir dir("wux3-place-none");
     const std::string session = dir.file("session.json");
-    REQUIRE(session_persist::save_file(session, one_layout(arranged_desk("D")), 0, cells_px(110), cells_px(38),
-                                       session_persist::Placement{})
+    REQUIRE(save_last_run(session, one_layout(arranged_desk("D")), 0, cells_px(110), cells_px(38),
+                          window_persist::Placement{})
                 .accepted);
     Live t;
     t.host.session_path = session;
@@ -3386,7 +3384,7 @@ TEST_CASE("a maximized close remembers the NORMAL room beside the maximized stat
         CHECK(t.session().normal_h == cells_px(40));
         t.key(input::scan::kQ);
     }
-    const session_persist::LoadedSession read = session_persist::load_file(session);
+    const window_persist::LoadedWindow read = window_persist::load_file(window_persist::path_beside(session));
     REQUIRE(read.outcome.accepted);
     CHECK(read.viewport_w == cells_px(120));
     CHECK(read.viewport_h == cells_px(40));
@@ -3415,12 +3413,12 @@ TEST_CASE("a run whose medium reports no placement RETAINS the remembered one") 
     // position: the TUI has no desktop fact, makes no claim, and carries the memory.
     TempDir dir("wux3-retain");
     const std::string session = dir.file("session.json");
-    session_persist::Placement place;
+    window_persist::Placement place;
     place.known = true;
     place.x = 640;
     place.y = 220;
     REQUIRE(
-        session_persist::save_file(session, one_layout(arranged_desk("D")), 0, cells_px(110), cells_px(38), place).accepted);
+        save_last_run(session, one_layout(arranged_desk("D")), 0, cells_px(110), cells_px(38), place).accepted);
     {
         Live t;
         t.host.session_path = session;
@@ -3429,7 +3427,7 @@ TEST_CASE("a run whose medium reports no placement RETAINS the remembered one") 
         t.extent_px(cells_px(100), cells_px(33), 0, 0);
         t.key(input::scan::kQ);
     }
-    const session_persist::LoadedSession read = session_persist::load_file(session);
+    const window_persist::LoadedWindow read = window_persist::load_file(window_persist::path_beside(session));
     REQUIRE(read.outcome.accepted);
     // The new room was remembered -- the restored maximized flag from ANOTHER run's
     // window must not stop this run's viewport tracking...
@@ -3492,7 +3490,9 @@ TEST_CASE("a read-only visit through the other medium writes the SAME BYTES") {
         t.host.session_path = never;
         t.ready();
         t.extent_px(cells_px(140), cells_px(44), 0, 0, 0);
-        live(t).setup.active = hostile_desk();
+        stage_desk(t, [&](Setup& desk) {
+            desk = hostile_desk();
+        });
         t.key(input::scan::kQ);
     }
     {
@@ -3500,7 +3500,9 @@ TEST_CASE("a read-only visit through the other medium writes the SAME BYTES") {
         t.host.session_path = crossed;
         t.ready();
         t.extent_px(cells_px(140), cells_px(44), 0, 0, 0);
-        live(t).setup.active = hostile_desk();
+        stage_desk(t, [&](Setup& desk) {
+            desk = hostile_desk();
+        });
 
         // LOOK AT IT IN CELLS. Every number is a projection this medium cannot say.
         enter_arrange_desk(t);
@@ -3563,10 +3565,19 @@ TEST_CASE("the medium's device unit reaches no durable file") {
         t.ready();
         t.extent_px(cells_px(140), cells_px(44), 8, 18, gfx::kCellPx);
         REQUIRE(t.session().cell_px == gfx::kCellPx);
-        live(t).setup.active = hostile_desk();
+        stage_desk(t, [&](Setup& desk) {
+            desk = hostile_desk();
+        });
         t.key(input::scan::kQ);
     }
-    const std::string text = slurp(path);
+    // THE SESSION AND THE WINDOW FILE BESIDE IT. The session's own format is version 12, which
+    // is no cell: its spellings go before the files are searched.
+    std::string text = slurp(path) + slurp(window_persist::path_beside(path));
+    for (const std::string own : {"\"version\":12", "\"format_version\":\"12\""}) {
+        for (std::size_t at = text.find(own); at != std::string::npos; at = text.find(own)) {
+            text.erase(at, own.size());
+        }
+    }
     INFO(text);
     CHECK(text.find("cell_px") == std::string::npos);
     CHECK(text.find("\"12\"") == std::string::npos);
@@ -3588,13 +3599,13 @@ TEST_CASE("the medium's device unit reaches no durable file") {
 TEST_CASE("a restored maximized flag alone does not gate this run's viewport") {
     TempDir dir("wux3-stale-max");
     const std::string session = dir.file("session.json");
-    session_persist::Placement place;
+    window_persist::Placement place;
     place.known = true;
     place.x = 10;
     place.y = 10;
     place.maximized = true; // last run closed maximized...
     REQUIRE(
-        session_persist::save_file(session, one_layout(arranged_desk("D")), 0, cells_px(110), cells_px(38), place).accepted);
+        save_last_run(session, one_layout(arranged_desk("D")), 0, cells_px(110), cells_px(38), place).accepted);
     Live t;
     t.host.session_path = session;
     t.ready();
@@ -3628,7 +3639,7 @@ void layout_new(Live& t) {
 std::vector<Setup> shelf_of(const Live& t) {
     std::vector<Setup> out;
     for (std::size_t i = 0; i < layout_count(t.session().setup); ++i) {
-        out.push_back(layout_at(t.session().setup, i));
+        out.push_back(layout_at(t.run(), i));
     }
     return out;
 }
@@ -3641,7 +3652,9 @@ TEST_CASE("`s` writes the live layout and leaves the shelf alone") {
     t.host.setup_path = dir.file("s.json");
 
     layout_new(t);
-    REQUIRE(add_pane(live(t).setup.active, ref_of(stock::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, ref_of(stock::kKind)));
+    });
     REQUIRE(layout_count(t.session().setup) == 2);
     const std::vector<Setup> before = shelf_of(t);
 
@@ -3660,12 +3673,12 @@ TEST_CASE("`s` writes the live layout and leaves the shelf alone") {
     REQUIRE(after.size() == before.size());
     CHECK(after[0] == before[0]);
     // The verdict is about the LIVE layout against its own artifact, and says so.
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(setup_row(t.shown(), screen_of(t.session())).find("| current") !=
           std::string::npos);
     // ...AND THE SHELVED LAYOUT GAINED NO ASSOCIATION: saving one desk is not a
     // reason for an unrelated one to acquire a relationship to that file.
-    CHECK(link_at(t.session().setup, 0).path.empty());
+    CHECK(link_at(t.run(), 0).path.empty());
 }
 
 TEST_CASE("`r` restores into the live layout and clears no shelf") {
@@ -3676,9 +3689,11 @@ TEST_CASE("`r` restores into the live layout and clears no shelf") {
     Live t;
     t.host.setup_path = dir.file("s.json");
     layout_new(t);
-    live(t).setup.active.name = "Scratch";
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Scratch";
+    });
     REQUIRE(layout_count(t.session().setup) == 2);
-    const Setup shelved = layout_at(t.session().setup, 0);
+    const Setup shelved = layout_at(t.run(), 0);
     const std::size_t at = t.session().setup.active_at;
 
     t.key(input::scan::kR);
@@ -3690,7 +3705,7 @@ TEST_CASE("`r` restores into the live layout and clears no shelf") {
     CHECK(layout_count(t.session().setup) == 2);
     // ...AND NOTHING ELSE ON THE SHELF MOVED. A restore that replaced the run would be
     // one file quietly deciding how many desks a weaver has.
-    CHECK(layout_at(t.session().setup, 0) == shelved);
+    CHECK(layout_at(t.run(), 0) == shelved);
 
     // A REFUSED RESTORE COSTS THE NOTICE AND NOTHING ELSE, shelf included.
     REQUIRE(persist::write_file(dir.file("s.json"), "{ not a setup").accepted);
@@ -3719,12 +3734,20 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
         t.ready();
         t.extent_px(cells_px(120), cells_px(44));
 
-        live(t).setup.active.name = "First";
+        stage_desk(t, [&](Setup& desk) {
+            desk.name = "First";
+        });
         layout_new(t);
-        live(t).setup.active.name = "Second";
-        REQUIRE(add_pane(live(t).setup.active, ref_of(stock::kKind)));
+        stage_desk(t, [&](Setup& desk) {
+            desk.name = "Second";
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(add_pane(desk, ref_of(stock::kKind)));
+        });
         layout_new(t);
-        live(t).setup.active.name = "Third";
+        stage_desk(t, [&](Setup& desk) {
+            desk.name = "Third";
+        });
         REQUIRE(layout_count(t.session().setup) == 3);
         // Stand on the middle one, so what returns is neither the first nor the last -- and
         // `active_at == shelved.size()` (where `layout.new` leaves a weaver) cannot pass for
@@ -3750,7 +3773,7 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
     CHECK(live_layout(read) == second_authored);
     CHECK(has_pane(read.layouts[1].desk, ref_of(stock::kKind)));
     CHECK_FALSE(has_pane(read.layouts[0].desk, ref_of(stock::kKind)));
-    CHECK(slurp(session).find("\"version\":11") != std::string::npos);
+    CHECK(slurp(session).find("\"version\":12") != std::string::npos);
     CHECK(slurp(session).find("\"layout_count\":") != std::string::npos);
 
     // AND THE NEXT RUN COMES BACK ON ALL THREE, standing on the one it left on.
@@ -3761,8 +3784,8 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
     CHECK(layout_count(back.session().setup) == 3);
     CHECK(back.session().setup.active_at == 1);
     CHECK(back.session().setup.active == second_authored);
-    CHECK(layout_at(back.session().setup, 0).name == "First");
-    CHECK(layout_at(back.session().setup, 2).name == "Third");
+    CHECK(layout_at(back.run(), 0).name == "First");
+    CHECK(layout_at(back.run(), 2).name == "Third");
     // ...and the notice says so, counting the tabs the way a weaver counts them.
     CHECK(back.notice().find("reopened your last desk") == 0);
     CHECK(back.notice().find("(2 of 3 layouts)") != std::string::npos);
@@ -3782,23 +3805,37 @@ TEST_CASE("crossing media never writes a device value into any layout") {
     // TWO LAYOUTS WITH DISTINCT FINE-LATTICE GEOMETRY -- one of them deliberately NOT on
     // a cell boundary, which is the value a character medium cannot say and must not
     // round on its way through.
-    REQUIRE(add_pane(live(t).setup.active, ref_of(second::kKind)));
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(second::kKind),
-                              gfx::px_of_cells(3) + 17, gfx::px_of_cells(4) + 5)
-                .accepted);
-    REQUIRE(author_pane_size(live(t).setup.active, ref_of(second::kKind),
-                             PaneSize{pane_unit::kPixels, gfx::px_of_cells(20) + 11},
-                             PaneSize{pane_unit::kPixels, gfx::px_of_cells(9) + 23})
-                .accepted);
-    live(t).setup.active.name = "Fine";
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, ref_of(second::kKind)));
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(second::kKind),
+                                  gfx::px_of_cells(3) + 17, gfx::px_of_cells(4) + 5)
+                    .accepted);
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, ref_of(second::kKind),
+                                 PaneSize{pane_unit::kPixels, gfx::px_of_cells(20) + 11},
+                                 PaneSize{pane_unit::kPixels, gfx::px_of_cells(9) + 23})
+                    .accepted);
+    });
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Fine";
+    });
     const Setup fine = t.session().setup.active;
 
     layout_new(t);
-    live(t).setup.active.name = "Whole";
-    REQUIRE(add_pane(live(t).setup.active, ref_of(second::kKind)));
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(second::kKind),
-                              gfx::px_of_cells(6), gfx::px_of_cells(2))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Whole";
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, ref_of(second::kKind)));
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(second::kKind),
+                                  gfx::px_of_cells(6), gfx::px_of_cells(2))
+                    .accepted);
+    });
     const Setup whole = t.session().setup.active;
     REQUIRE(fine != whole);
 
@@ -3820,13 +3857,13 @@ TEST_CASE("crossing media never writes a device value into any layout") {
 
     // EVERY LAYOUT'S AUTHORED NUMBERS ARE THE ONES THAT WENT IN. Looking is not
     // authoring, and a switch is not a geometry conversion.
-    CHECK(layout_at(t.session().setup, 0) == fine);
-    CHECK(layout_at(t.session().setup, 1) == whole);
+    CHECK(layout_at(t.run(), 0) == fine);
+    CHECK(layout_at(t.run(), 1) == whole);
 
     // ...AND SAVING EACH ONE WRITES THE SAME BYTES AS A RUN THAT NEVER CROSSED.
-    CHECK(setup_persist::to_text(layout_at(t.session().setup, 0)) ==
+    CHECK(setup_persist::to_text(layout_at(t.run(), 0)) ==
           setup_persist::to_text(fine));
-    CHECK(setup_persist::to_text(layout_at(t.session().setup, 1)) ==
+    CHECK(setup_persist::to_text(layout_at(t.run(), 1)) ==
           setup_persist::to_text(whole));
     // No projected spelling reached the bytes: a device unit has no field in this format.
     CHECK(setup_persist::to_text(fine).find("px") == std::string::npos);
@@ -3908,16 +3945,17 @@ TEST_CASE("the shipped artifact supplies exactly the conventional edges") {
     // THE IDENTITIES ARE DERIVED FROM THE EDGES, so this list is a reading of the
     // convention rather than a list somebody typed twice.
     const std::vector<std::string> supplied = history.catalog.identities();
-    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v11",
-                                               "zengine.migrate.WorkshopSession.v10-to-v11",
-                                               "zengine.migrate.WorkshopSession.v2-to-v11",
-                                               "zengine.migrate.WorkshopSession.v3-to-v11",
-                                               "zengine.migrate.WorkshopSession.v4-to-v11",
-                                               "zengine.migrate.WorkshopSession.v5-to-v11",
-                                               "zengine.migrate.WorkshopSession.v6-to-v11",
-                                               "zengine.migrate.WorkshopSession.v7-to-v11",
-                                               "zengine.migrate.WorkshopSession.v8-to-v11",
-                                               "zengine.migrate.WorkshopSession.v9-to-v11"});
+    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v12",
+                                               "zengine.migrate.WorkshopSession.v10-to-v12",
+                                               "zengine.migrate.WorkshopSession.v11-to-v12",
+                                               "zengine.migrate.WorkshopSession.v2-to-v12",
+                                               "zengine.migrate.WorkshopSession.v3-to-v12",
+                                               "zengine.migrate.WorkshopSession.v4-to-v12",
+                                               "zengine.migrate.WorkshopSession.v5-to-v12",
+                                               "zengine.migrate.WorkshopSession.v6-to-v12",
+                                               "zengine.migrate.WorkshopSession.v7-to-v12",
+                                               "zengine.migrate.WorkshopSession.v8-to-v12",
+                                               "zengine.migrate.WorkshopSession.v9-to-v12"});
     // ...and each of them declares the edge its name claims.
     for (const std::string& identity : supplied) {
         CAPTURE(identity);
@@ -3943,6 +3981,7 @@ TEST_CASE("a version-1 session means EXACTLY what its own reader meant") {
     REQUIRE(history.mounted.ok);
     const session_persist::LoadedSession read =
         session_persist::from_text(as_text(old), &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(as_text(old));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
 
     CHECK(live_layout(read) == materialized(predecessor));
@@ -3953,9 +3992,9 @@ TEST_CASE("a version-1 session means EXACTLY what its own reader meant") {
     // ...and every session fact of that vintage, by hand, so the comparison above cannot
     // pass by both sides being empty.
     CHECK(read.present);
-    CHECK(read.honoured);
-    CHECK(read.viewport_w == cells_px(120));
-    CHECK(read.viewport_h == cells_px(44));
+    CHECK(room_read.honoured);
+    CHECK(room_read.viewport_w == cells_px(120));
+    CHECK(room_read.viewport_h == cells_px(44));
     CHECK(live_layout(read).name == "Yesterday");
     // THREE ROWS: the two the file authored, in their own order and untouched, and the
     // Layouts pane the vintage had implicitly, appended behind them.
@@ -3992,10 +4031,10 @@ TEST_CASE("a version-1 session means EXACTLY what its own reader meant") {
     CHECK(live_layout(read).panes[2].front == 2);
     // A LEGACY ROAD CARRIES NO PLACEMENT: nothing in a v1 file could have said one, and the
     // absence has exactly one spelling.
-    CHECK_FALSE(read.placement.known);
-    CHECK(read.placement.x == 0);
-    CHECK(read.placement.y == 0);
-    CHECK_FALSE(read.placement.maximized);
+    CHECK_FALSE(room_read.placement.known);
+    CHECK(room_read.placement.x == 0);
+    CHECK(room_read.placement.y == 0);
+    CHECK_FALSE(room_read.placement.maximized);
 }
 
 TEST_CASE("a version-2 session means exactly what its own reader meant") {
@@ -4007,15 +4046,16 @@ TEST_CASE("a version-2 session means exactly what its own reader meant") {
     REQUIRE(history.mounted.ok);
     const session_persist::LoadedSession read =
         session_persist::from_text(as_text(old), &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(as_text(old));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(live_layout(read) == materialized(predecessor));
     CHECK(live_layout(read) == materialized(arranged_desk("Yesterday")));
     CHECK(read.layouts.size() == 1);
     CHECK(read.active == 0);
-    CHECK(read.viewport_w == cells_px(110));
-    CHECK(read.viewport_h == cells_px(38));
-    CHECK(read.honoured);
-    CHECK_FALSE(read.placement.known);
+    CHECK(room_read.viewport_w == cells_px(110));
+    CHECK(room_read.viewport_h == cells_px(38));
+    CHECK(room_read.honoured);
+    CHECK_FALSE(room_read.placement.known);
 }
 
 TEST_CASE("an old session's OWN law still runs -- the conversion skips no check") {
@@ -4045,16 +4085,17 @@ TEST_CASE("an old session's OWN law still runs -- the conversion skips no check"
         CHECK(no.outcome.refusal.find("default or cells") != std::string::npos);
         // The conversion that refused is named, because a weaver who has one converter
         // mounted and another missing needs to know which spoke.
-        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v11") !=
+        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v12") !=
               std::string::npos);
     }
     SUBCASE("a viewport this build will not open at is declined, and the desk still comes") {
         const session_history::v1::WorkshopSession old = old_v1_session("Huge", 100000, 44);
         const session_persist::LoadedSession read =
             session_persist::from_text(as_text(old), &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(as_text(old));
         REQUIRE(read.outcome.accepted);
-        CHECK_FALSE(read.honoured);
-        CHECK_FALSE(read.declined.empty());
+        CHECK_FALSE(room_read.honoured);
+        CHECK_FALSE(room_read.declined.empty());
         CHECK(live_layout(read).name == "Huge");
     }
     SUBCASE("a converted file that is not a Workshop session at all is still refused") {
@@ -4160,8 +4201,8 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
     // 4. AND THE ORDINARY CLOSE-TIME SAVE WROTE THE CURRENT SHAPE, on its own existing law.
     const std::string now = slurp(path);
     CHECK(now != original);
-    CHECK(now.find("\"version\":11") != std::string::npos);
-    CHECK(now.find("\"format_version\":\"5\"") != std::string::npos);
+    CHECK(now.find("\"version\":12") != std::string::npos);
+    CHECK(now.find("\"format_version\":\"6\"") != std::string::npos);
 
     // 5. ...SO THE NEXT RUN NEEDS NO CONVERTER AT ALL.
     Live back;
@@ -4187,8 +4228,7 @@ TEST_CASE("unmounting the artifact takes the conversion with it") {
     CHECK_FALSE(no.outcome.accepted);
     CHECK(no.outcome.refusal.find("no live conversion") != std::string::npos);
     // A current-shape session is unaffected: it never needed the artifact.
-    const std::string current = session_persist::to_text(one_layout(arranged_desk("Now")), 0, cells_px(100), cells_px(30),
-                                                         session_persist::Placement{});
+    const std::string current = session_text(one_layout(arranged_desk("Now")), 0);
     CHECK(session_persist::from_text(current, &history.catalog).outcome.accepted);
 }
 
@@ -4198,8 +4238,7 @@ TEST_CASE("a current session bypasses conversion entirely") {
     // would move the number.
     op::Catalog conversions;
     REQUIRE(conversions.mount("suite", session_history::conversions()));
-    const std::string current = session_persist::to_text(one_layout(arranged_desk("Now")), 0, cells_px(132), cells_px(48),
-                                                         session_persist::Placement{});
+    const std::string current = session_text(one_layout(arranged_desk("Now")), 0);
 
     const std::uint64_t before = op::invocations();
     const session_persist::LoadedSession read =
@@ -4223,22 +4262,20 @@ TEST_CASE("nothing but a historical claim of THIS shape asks for a conversion") 
          setup_persist::to_text(arranged_desk("Debugging"))},
         {"a current-version session with a malformed desk",
          [] {
-             std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
-                                                         session_persist::Placement{});
+             std::string text = session_text(one_layout(arranged_desk("D")), 0);
              const std::size_t at = text.find("\"pane\":\"stack\"");
              REQUIRE(at != std::string::npos);
              text.replace(at, std::string("\"pane\":\"stack\"").size(),
                           "\"pane\":\"two words\"");
              return text;
          }()},
-        {"a current-version session with a hostile placement word",
+        {"a current-version session whose header counts a layout it has no line for",
          [] {
-             std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
-                                                         session_persist::Placement{});
-             const std::size_t at = text.find("\"window\":\"normal\"");
+             std::string text = session_text(one_layout(arranged_desk("D")), 0);
+             const std::size_t at = text.find("\"layout_count\":\"1\"");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"window\":\"normal\"").size(),
-                          "\"window\":\"iconified\"");
+             text.replace(at, std::string("\"layout_count\":\"1\"").size(),
+                          "\"layout_count\":\"2\"");
              return text;
          }()},
     };
@@ -4282,9 +4319,9 @@ TEST_CASE("the session reader owns no historical shape and no conversion") {
         CHECK(source.find(forbidden) == std::string::npos);
     }
     // ...and the one number it does carry is the one it writes.
-    CHECK(session_persist::kFormatVersion == 11);
-    CHECK(session_persist::WorkshopSession::zen_version == 11u);
-    CHECK(session_persist::WorkshopSessionHeader::zen_version == 11u);
+    CHECK(session_persist::kFormatVersion == 12);
+    CHECK(session_persist::WorkshopSession::zen_version == 12u);
+    CHECK(session_persist::WorkshopSessionHeader::zen_version == 12u);
 }
 
 TEST_CASE("a session this run could not read is never written over") {
@@ -4301,35 +4338,21 @@ TEST_CASE("a session this run could not read is never written over") {
         {"an older session with no conversion live", as_text(old_v1_session("Old", 120, 44)),
          true},
         {"the vintage this build most recently retired",
-         loom::compat::serialize(loom::to_value(
-             [] {
-                 session_history::v10::WorkshopSession old;
-                 old.format = session_persist::kFormat;
-                 old.format_version = session_history::kV10FormatVersion;
-                 old.viewport = session_persist::WorkshopViewport{cells_px(120), cells_px(44)};
-                 const session_persist::WorkshopSession now = session_persist::to_session(
-                     one_layout(arranged_desk("Retired")), 0, cells_px(120), cells_px(44),
-                     session_persist::Placement{});
-                 old.layouts = now.layouts;
-                 old.placement = now.placement;
-                 return old;
-             }())),
+         v11_lines(v11_session(one_layout(arranged_desk("Retired")), 0, cells_px(120), cells_px(44))),
          true},
         {"a version this build has never written", [] {
-             std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, cells_px(100), cells_px(30),
-                                                         session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":11");
+             std::string text = session_text(one_layout(arranged_desk("D")), 0);
+             const std::size_t at = text.find("\"version\":12");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":11").size(), "\"version\":12");
+             text.replace(at, std::string("\"version\":12").size(), "\"version\":13");
              return text;
          }(), true},
         {"bytes that are not a session at all", std::string("{"), true},
         // ...AND THE CONTROL, WHICH IS THE HALF THAT MAKES THE FLAG A JUDGEMENT RATHER THAN A
-        // BLANKET. A file whose VIEWPORT was declined was READ -- its desk came back -- so
-        // the run keeps its session exactly as it always did.
-        {"a session whose viewport this build declines",
-         session_persist::to_text(one_layout(arranged_desk("Wide")), 0, cells_px(100000), cells_px(44),
-                                  session_persist::Placement{}),
+        // BLANKET. A session read beside a window file whose VIEWPORT was declined was READ -- its
+        // desk came back -- so the run keeps its session exactly as it always did.
+        {"a session whose window file's viewport this build declines",
+         session_text(one_layout(arranged_desk("Wide")), 0),
          false},
     };
     for (const Case& c : cases) {
@@ -4337,10 +4360,16 @@ TEST_CASE("a session this run could not read is never written over") {
         TempDir dir("mig0-refused");
         const std::string path = dir.file("session.json");
         spillout(path, c.bytes);
+        if (!c.refused) {
+            spillout(window_persist::path_beside(path),
+                     window_persist::to_text(cells_px(100000), cells_px(44), {}));
+        }
         {
             Live t;
             t.host.session_path = path;
             t.ready();
+            // THIS RUN MOVES THE DESK, so a close that writes is told from one that does not.
+            stage_desk(t, [](Setup& desk) { desk.name = "Moved"; });
             // Every case here says SOMETHING bad -- a declined viewport is a complaint too --
             // so the notice cannot be the discriminator, and the condition is.
             CHECK(t.session().notice_is_bad);
@@ -4478,14 +4507,14 @@ session_persist::WorkshopSession hand_built(std::size_t layouts, std::int64_t ac
     session_persist::WorkshopSession out;
     out.format = session_persist::kFormat;
     out.format_version = session_persist::kFormatVersion;
-    out.viewport = session_persist::WorkshopViewport{cells_px(110), cells_px(40)};
     for (std::size_t i = 0; i < layouts; ++i) {
         out.layouts.push_back(session_persist::WorkshopLayout{
+            static_cast<std::int64_t>(i) + 1,
             setup_persist::to_setup(setup_of("L" + std::to_string(i), {second::kKind})),
             session_persist::to_link(SetupLink{})});
     }
     out.active = active;
-    out.placement = session_history::absent_placement();
+    out.next_id = static_cast<std::int64_t>(layouts) + 1;
     return out;
 }
 
@@ -4516,13 +4545,15 @@ std::string as_text(const session_history::v3::WorkshopSession& old) {
 
 TEST_CASE("a whole layout run round-trips exactly, active in the middle") {
     const std::vector<Layout> run = three_layouts();
-    session_persist::Placement place;
+    window_persist::Placement place;
     place.known = true;
     place.x = -1200;
     place.y = 340;
 
-    const std::string text = session_persist::to_text(run, 1, cells_px(120), cells_px(44), place);
+    const std::string text = session_text(run, 1);
     const session_persist::LoadedSession read = session_persist::from_text(text);
+    const window_persist::LoadedWindow room_read =
+        window_persist::from_text(window_persist::to_text(cells_px(120), cells_px(44), place));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
 
     // VALUES, ORDER, NAMES AND THE ACTIVE POSITION -- the four things the completion
@@ -4540,20 +4571,20 @@ TEST_CASE("a whole layout run round-trips exactly, active in the middle") {
     CHECK(read.layouts[2].desk.panes[0].place.x == cells_px(3) + 31);
     CHECK(read.layouts[1].desk.panes[0].front > read.layouts[1].desk.panes[1].front);
     CHECK(read.layouts[0].desk.panes[0].front < read.layouts[0].desk.panes[1].front);
-    // The room and the placement are still siblings of the run, unchanged by the plural.
-    CHECK(read.viewport_w == cells_px(120));
-    CHECK(read.viewport_h == cells_px(44));
-    CHECK(read.honoured);
-    CHECK(read.placement.known);
-    CHECK(read.placement.x == -1200);
+    // The room and the placement are the window file's, beside the run and none of it.
+    CHECK_FALSE(window_persist::import_from_session_text(text).present);
+    CHECK(room_read.viewport_w == cells_px(120));
+    CHECK(room_read.viewport_h == cells_px(44));
+    CHECK(room_read.honoured);
+    CHECK(room_read.placement.known);
+    CHECK(room_read.placement.x == -1200);
 
     // A SECOND SAVE OF A LOADED SESSION IS BYTE-IDENTICAL, which is what makes "nothing is
     // normalised on the way through" a fact rather than a hope.
-    CHECK(session_persist::to_text(read.layouts, read.active, read.viewport_w,
-                                   read.viewport_h, read.placement) == text);
+    CHECK(session_text(read.layouts, read.active) == text);
     // AND THE FILE SAYS WHAT IT IS: the current version, a run, and a position.
-    CHECK(text.find("\"version\":11") != std::string::npos);
-    CHECK(text.find("\"format_version\":\"11\"") != std::string::npos);
+    CHECK(text.find("\"version\":12") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"12\"") != std::string::npos);
     CHECK(text.find("\"layout_count\":") != std::string::npos);
     CHECK(text.find("\"active\":\"1\"") != std::string::npos);
     // ...and every layout in it is an ordinary setup, at the setup format's own version.
@@ -4568,7 +4599,7 @@ TEST_CASE("every position in the run is a position a session can be saved at") {
     for (std::size_t at = 0; at < run.size(); ++at) {
         CAPTURE(at);
         const session_persist::LoadedSession read = session_persist::from_text(
-            session_persist::to_text(run, at, cells_px(120), cells_px(44), session_persist::Placement{}));
+            session_text(run, at));
         REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
         CHECK(read.layouts == run);
         CHECK(read.active == at);
@@ -4664,7 +4695,7 @@ TEST_CASE("a session may hold as much as it may hold, and be read back") {
         run.push_back(Layout{std::move(s), SetupLink{}});
     }
     const std::string text =
-        session_persist::to_text(run, kMaxLayouts - 1, cells_px(120), cells_px(44), session_persist::Placement{});
+        session_text(run, kMaxLayouts - 1);
     // ...AND IT IS BIGGER THAN A SINGLE DESK MAY BE. This is the whole argument for the
     // derived bound, asserted rather than reasoned about.
     CHECK(text.size() > setup_persist::kMaxSetupBytes);
@@ -4678,8 +4709,8 @@ TEST_CASE("a session may hold as much as it may hold, and be read back") {
 
     TempDir dir("wux10-full");
     const std::string path = dir.file("session.json");
-    REQUIRE(session_persist::save_file(path, run, kMaxLayouts - 1, cells_px(120), cells_px(44),
-                                       session_persist::Placement{})
+    REQUIRE(save_last_run(path, run, kMaxLayouts - 1, cells_px(120), cells_px(44),
+                          window_persist::Placement{})
                 .accepted);
     const session_persist::LoadedSession read = session_persist::load_file(path);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
@@ -4741,7 +4772,7 @@ TEST_CASE("a retired shape's wire identity is the identity it was written at") {
     // ...and the current shape is none of them, which is what makes them history.
     const std::shared_ptr<const loom::Schema> current =
         loom::schema_of<session_persist::WorkshopSession>();
-    CHECK(current->version() == 11u);
+    CHECK(current->version() == 12u);
     for (const Vintage& v : history) {
         CAPTURE(v.what);
         CHECK_FALSE(loom::same_identity(*current, *v.shape));
@@ -4793,12 +4824,8 @@ TEST_CASE("installing a run touches nothing else the session owns") {
     // IN the run, so what is asserted is that the run's own contents arrive whole and that
     // nothing beside them was reached for.
     SetupState state;
-    state.naming.open = true;
-    state.naming.at = 7;
 
     REQUIRE(install_layout_run(state, three_layouts(), 2));
-    CHECK(state.naming.open);
-    CHECK(state.naming.at == 7);
     CHECK(live_status(state) == setup_link::kNone);
 
     // AND THE TYPE'S OWN FLOOR IS KEPT WHATEVER THE CALLER SAYS: a run this could not lift
@@ -4818,10 +4845,10 @@ TEST_CASE("a version-3 session becomes exactly one layout, live at zero") {
     // its old desk, active at position zero, with every non-layout fact unchanged -- and the
     // equivalence is computed from the predecessor's own reader rather than transcribed.
     session_history::v3::WorkshopSession old = old_v3_session("Yesterday", 120, 44);
-    old.placement.mode = session_persist::kPlacementDesktop;
+    old.placement.mode = window_persist::kPlacementDesktop;
     old.placement.x = -900;
     old.placement.y = 120;
-    old.placement.window = session_persist::kWindowMaximized;
+    old.placement.window = window_persist::kWindowMaximized;
 
     Setup predecessor;
     REQUIRE(v3_setup_in(old.desk, predecessor).accepted);
@@ -4830,6 +4857,7 @@ TEST_CASE("a version-3 session becomes exactly one layout, live at zero") {
     REQUIRE(history.mounted.ok);
     const session_persist::LoadedSession read =
         session_persist::from_text(as_text(old), &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(as_text(old));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
 
     // EXACTLY ONE LAYOUT, AND IT IS THE DESK THAT WAS LIVE.
@@ -4844,13 +4872,13 @@ TEST_CASE("a version-3 session becomes exactly one layout, live at zero") {
     CHECK(link_status(read.layouts[0].desk, read.layouts[0].link) == setup_link::kNone);
     // EVERY NON-LAYOUT FACT OF THAT VINTAGE, UNCHANGED -- including a REAL placement, which
     // is the fact version 3 had and versions 1 and 2 did not.
-    CHECK(read.viewport_w == cells_px(120));
-    CHECK(read.viewport_h == cells_px(44));
-    CHECK(read.honoured);
-    CHECK(read.placement.known);
-    CHECK(read.placement.x == -900);
-    CHECK(read.placement.y == 120);
-    CHECK(read.placement.maximized);
+    CHECK(room_read.viewport_w == cells_px(120));
+    CHECK(room_read.viewport_h == cells_px(44));
+    CHECK(room_read.honoured);
+    CHECK(room_read.placement.known);
+    CHECK(room_read.placement.x == -900);
+    CHECK(room_read.placement.y == 120);
+    CHECK(room_read.placement.maximized);
 }
 
 TEST_CASE("all three vintages arrive as one layout at position zero") {
@@ -4888,9 +4916,9 @@ TEST_CASE("three DIRECT edges, and no chain to walk even if one wanted to") {
         CAPTURE(absent);
         CHECK(history.catalog.find(absent) == nullptr);
     }
-    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v11",
-                             "zengine.migrate.WorkshopSession.v2-to-v11",
-                             "zengine.migrate.WorkshopSession.v3-to-v11"}) {
+    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v12",
+                             "zengine.migrate.WorkshopSession.v2-to-v12",
+                             "zengine.migrate.WorkshopSession.v3-to-v12"}) {
         CAPTURE(live);
         REQUIRE(history.catalog.find(live) != nullptr);
     }
@@ -4921,7 +4949,7 @@ TEST_CASE("a version-3 file with no conversion live refuses and is not rewritten
 
         CHECK(t.session().notice_is_bad);
         CHECK(t.notice().find("session version 3 cannot be read") != std::string::npos);
-        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v11`") !=
+        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v12`") !=
               std::string::npos);
         CHECK(t.session().setup.active == default_setup());
         CHECK(layout_count(t.session().setup) == 1);
@@ -4966,18 +4994,28 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
         t.ready();
         t.extent_px(cells_px(120), cells_px(44));
 
-        live(t).setup.active = materialized(layout_of("Home", 7));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Home", 7));
+        });
         layout_new(t);
-        live(t).setup.active = materialized(layout_of("Code", 19));
-        REQUIRE(send_to_front(live(t).setup.active, ref_of(second::kKind)));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Code", 19));
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(send_to_front(desk, ref_of(second::kKind)));
+        });
         layout_new(t);
-        live(t).setup.active = materialized(layout_of("Art", 31));
-        REQUIRE(remove_pane(live(t).setup.active, ref_of(stock::kKind)));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Art", 31));
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(remove_pane(desk, ref_of(stock::kKind)));
+        });
         REQUIRE(layout_count(t.session().setup) == 3);
         layout_next(t);
         layout_next(t);
         REQUIRE(t.session().setup.active.name == "Code");
-        authored = layout_run(t.session().setup);
+        authored = layout_run(t.run());
 
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
@@ -4991,7 +5029,7 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
 
     // ALL THREE, IN ORDER, WITH THEIR NAMES AND THEIR EXACT AUTHORED VALUES.
     REQUIRE(layout_count(back.session().setup) == 3);
-    CHECK(layout_run(back.session().setup) == authored);
+    CHECK(layout_run(back.run()) == authored);
     CHECK(back.session().setup.active_at == 1);
     CHECK(back.session().setup.active.name == "Code");
     // EACH ONE RETURNS ITS AUTHORED VALUE WHEN ACTIVATED, through the shipped gesture.
@@ -5011,10 +5049,12 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
     while (back.session().setup.active_at != 0) {
         layout_next(back);
     }
-    REQUIRE(add_pane(live(back).setup.active, stranger()));
-    CHECK(layout_at(back.session().setup, 1) == authored[1].desk);
-    CHECK(layout_at(back.session().setup, 2) == authored[2].desk);
-    CHECK(setup_persist::to_text(layout_at(back.session().setup, 1)) ==
+    stage_desk(back, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, stranger()));
+    });
+    CHECK(layout_at(back.run(), 1) == authored[1].desk);
+    CHECK(layout_at(back.run(), 2) == authored[2].desk);
+    CHECK(setup_persist::to_text(layout_at(back.run(), 1)) ==
           setup_persist::to_text(authored[1].desk));
 }
 
@@ -5032,11 +5072,17 @@ TEST_CASE("the position that comes back is the one the weaver stood on") {
             t.host.setup_path = dir.file("s.json");
             t.ready();
             if (layout_count(t.session().setup) == 1) {
-                live(t).setup.active.name = "Home";
+                stage_desk(t, [&](Setup& desk) {
+                    desk.name = "Home";
+                });
                 layout_new(t);
-                live(t).setup.active.name = "Code";
+                stage_desk(t, [&](Setup& desk) {
+                    desk.name = "Code";
+                });
                 layout_new(t);
-                live(t).setup.active.name = "Art";
+                stage_desk(t, [&](Setup& desk) {
+                    desk.name = "Art";
+                });
             }
             REQUIRE(layout_count(t.session().setup) == 3);
             while (t.session().setup.active_at != stand_on) {
@@ -5070,16 +5116,22 @@ TEST_CASE("`s` and `r` still mean the live layout, across a save and a restart")
         t.host.session_path = session;
         t.host.setup_path = setup;
         t.ready();
-        live(t).setup.active = materialized(layout_of("Home", 7));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Home", 7));
+        });
         layout_new(t);
-        live(t).setup.active = materialized(layout_of("Code", 19));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Code", 19));
+        });
         layout_new(t);
-        live(t).setup.active = materialized(layout_of("Art", 31));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Art", 31));
+        });
         layout_next(t); // wrap to Home
         REQUIRE(t.session().setup.active_at == 0);
 
         name_setup(t, "Kept");
-        after_save = layout_run(t.session().setup);
+        after_save = layout_run(t.run());
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
     }
@@ -5106,15 +5158,15 @@ TEST_CASE("`s` and `r` still mean the live layout, across a save and a restart")
     REQUIRE(layout_count(back.session().setup) == 3);
     layout_next(back);
     REQUIRE(back.session().setup.active_at == 1);
-    const Setup untouched_before = layout_at(back.session().setup, 0);
-    const Setup untouched_after_two = layout_at(back.session().setup, 2);
+    const Setup untouched_before = layout_at(back.run(), 0);
+    const Setup untouched_after_two = layout_at(back.run(), 2);
     back.key(input::scan::kR);
     CHECK(back.notice().find("restored setup \"Kept\"") == 0);
     CHECK(back.session().setup.active.name == "Kept");
     CHECK(back.session().setup.active_at == 1);
     CHECK(layout_count(back.session().setup) == 3);
-    CHECK(layout_at(back.session().setup, 0) == untouched_before);
-    CHECK(layout_at(back.session().setup, 2) == untouched_after_two);
+    CHECK(layout_at(back.run(), 0) == untouched_before);
+    CHECK(layout_at(back.run(), 2) == untouched_after_two);
 }
 
 TEST_CASE("crossing media never rewrites a persisted layout's geometry") {
@@ -5125,14 +5177,14 @@ TEST_CASE("crossing media never rewrites a persisted layout's geometry") {
     const std::string session = dir.file("session.json");
     const std::vector<Layout> authored = three_layouts();
     const std::string never_crossed =
-        session_persist::to_text(authored, 1, cells_px(120), cells_px(44), session_persist::Placement{});
+        session_text(authored, 1);
 
     Live t;
     t.host.session_path = session;
     t.host.setup_path = dir.file("s.json");
     t.ready();
     t.extent_px(cells_px(120), cells_px(44));
-    REQUIRE(install_layout_run(live(t).setup, authored, 1));
+    stage_run(t, [&](SetupState& run) { REQUIRE(install_layout_run(run, authored, 1)); });
 
     // LOOK AT EVERY LAYOUT, on a medium whose cells cannot say a sub-cell remainder.
     for (std::size_t i = 0; i < authored.size() * 2; ++i) {
@@ -5158,8 +5210,8 @@ TEST_CASE("`s` establishes the association only after a successful write") {
     (void)first_frame(t);
 
     // A FRESH LAYOUT IS `none`, and that is not "unsaved": the session remembers it.
-    REQUIRE(live_status(t.session().setup) == setup_link::kNone);
-    REQUIRE(t.session().setup.active_link.path.empty());
+    REQUIRE(live_status(t.run()) == setup_link::kNone);
+    REQUIRE(t.run().active_link.path.empty());
 
     // A REFUSED WRITE ADVANCES NOTHING. The destination is a DIRECTORY, so the writer
     // cannot open it -- and a failed save may not leave a layout claiming a relationship
@@ -5171,25 +5223,25 @@ TEST_CASE("`s` establishes the association only after a successful write") {
     const Setup was = blocked.session().setup.active;
     blocked.key(input::scan::kS);
     CHECK(blocked.session().notice_is_bad);
-    CHECK(live_status(blocked.session().setup) == setup_link::kNone);
-    CHECK(blocked.session().setup.active_link.path.empty());
+    CHECK(live_status(blocked.run()) == setup_link::kNone);
+    CHECK(blocked.run().active_link.path.empty());
     CHECK(blocked.session().setup.active == was); // and the live desk is untouched
 
     // A SUCCESSFUL ONE ESTABLISHES IT, at the host's configured path -- the acquisition
     // door for a layout that had none.
     save_setup(t);
     CHECK_FALSE(t.session().notice_is_bad);
-    CHECK(t.session().setup.active_link.path == t.host.setup_path);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
-    CHECK(t.session().setup.active_link.known == t.session().setup.active);
+    CHECK(t.run().active_link.path == t.host.setup_path);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
+    CHECK(t.run().active_link.known == t.session().setup.active);
 
     // MUTATING THE DESK MAKES IT `modified`, DERIVED and never flagged...
     pick(t, stock::kKind);
-    CHECK(live_status(t.session().setup) == setup_link::kModified);
+    CHECK(live_status(t.run()) == setup_link::kModified);
     // ...and saving again re-establishes `current` on the SAME artifact.
     save_setup(t);
-    CHECK(t.session().setup.active_link.path == t.host.setup_path);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(t.run().active_link.path == t.host.setup_path);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
 }
 
 TEST_CASE("`r` establishes on success and changes nothing on refusal") {
@@ -5199,16 +5251,16 @@ TEST_CASE("`r` establishes on success and changes nothing on refusal") {
     const Setup authored = arranged_desk("Restored");
     REQUIRE(setup_persist::save_file(t.host.setup_path, authored).accepted);
     (void)first_frame(t);
-    REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+    REQUIRE(live_status(t.run()) == setup_link::kNone);
 
     // A SUCCESSFUL RESTORE INSTALLS THE DESK AND ESTABLISHES THE ASSOCIATION, whose known
     // value is exactly what was admitted.
     t.key(input::scan::kR);
     CHECK_FALSE(t.session().notice_is_bad);
     CHECK(t.session().setup.active == authored);
-    CHECK(t.session().setup.active_link.path == t.host.setup_path);
-    CHECK(t.session().setup.active_link.known == authored);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(t.run().active_link.path == t.host.setup_path);
+    CHECK(t.run().active_link.known == authored);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
 
     // A REFUSED RESTORE LEAVES THE DESK AND THE ASSOCIATION EXACTLY AS THEY WERE. The
     // loader RETURNS a candidate, so there is no path by which half a desk is installed --
@@ -5217,9 +5269,9 @@ TEST_CASE("`r` establishes on success and changes nothing on refusal") {
     t.key(input::scan::kR);
     CHECK(t.session().notice_is_bad);
     CHECK(t.session().setup.active == authored);
-    CHECK(t.session().setup.active_link.path == t.host.setup_path);
-    CHECK(t.session().setup.active_link.known == authored);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(t.run().active_link.path == t.host.setup_path);
+    CHECK(t.run().active_link.known == authored);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
 
     // A LAYOUT WITH NO ASSOCIATION SURVIVES A REFUSAL AS `none`, which is the other half:
     // a failed acquisition is not an acquisition.
@@ -5231,8 +5283,8 @@ TEST_CASE("`r` establishes on success and changes nothing on refusal") {
     bad.key(input::scan::kR);
     CHECK(bad.session().notice_is_bad);
     CHECK(bad.session().setup.active == before);
-    CHECK(live_status(bad.session().setup) == setup_link::kNone);
-    CHECK(bad.session().setup.active_link.path.empty());
+    CHECK(live_status(bad.run()) == setup_link::kNone);
+    CHECK(bad.run().active_link.path.empty());
 }
 
 TEST_CASE("two layouts sharing one artifact cannot both claim `current`") {
@@ -5244,32 +5296,32 @@ TEST_CASE("two layouts sharing one artifact cannot both claim `current`") {
     (void)first_frame(t);
 
     save_setup(t); // the first layout acquires the artifact
-    REQUIRE(t.session().setup.active_link.path == t.host.setup_path);
+    REQUIRE(t.run().active_link.path == t.host.setup_path);
     // A SECOND LAYOUT ON THE SAME FILE: made blank, then saved to the same configured path.
     layout_new(t);
-    REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+    REQUIRE(live_status(t.run()) == setup_link::kNone);
     pick(t, stock::kKind); // make it a genuinely different desk
     save_setup(t);
-    REQUIRE(t.session().setup.active_link.path == t.host.setup_path);
+    REQUIRE(t.run().active_link.path == t.host.setup_path);
     REQUIRE(layout_count(t.session().setup) == 2);
 
     // THE ONE THAT JUST WROTE IT SAYS `current`; the one whose value it replaced says
     // `modified`. Updating only the saving layout's baseline is the defect this refuses.
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
-    CHECK(link_at(t.session().setup, 0).path == t.host.setup_path);
-    CHECK(link_status(layout_at(t.session().setup, 0), link_at(t.session().setup, 0)) ==
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
+    CHECK(link_at(t.run(), 0).path == t.host.setup_path);
+    CHECK(link_status(layout_at(t.run(), 0), link_at(t.run(), 0)) ==
           setup_link::kModified);
     // ...and both baselines are the SAME value, which is what the file now holds.
-    CHECK(link_at(t.session().setup, 0).known == t.session().setup.active_link.known);
+    CHECK(link_at(t.run(), 0).known == t.run().active_link.known);
     CHECK(setup_persist::load_file(t.host.setup_path).setup ==
-          t.session().setup.active_link.known);
+          t.run().active_link.known);
 
     // AND READING IT BACK FROM THE OTHER SIDE TEACHES BOTH TOO.
     layout_next(t);
     REQUIRE(t.session().setup.active_at == 0);
     t.key(input::scan::kR);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
-    CHECK(link_status(layout_at(t.session().setup, 1), link_at(t.session().setup, 1)) ==
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
+    CHECK(link_status(layout_at(t.run(), 1), link_at(t.run(), 1)) ==
           setup_link::kCurrent);
 }
 
@@ -5283,7 +5335,7 @@ TEST_CASE("the standing verdict performs no filesystem read") {
     t.host.setup_path = dir.file("gone.json");
     (void)first_frame(t);
     save_setup(t);
-    REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
+    REQUIRE(live_status(t.run()) == setup_link::kCurrent);
 
     std::error_code ec;
     std::filesystem::remove(t.host.setup_path, ec);
@@ -5292,7 +5344,7 @@ TEST_CASE("the standing verdict performs no filesystem read") {
     const Screen sc = screen_of(t.session());
     for (int again = 0; again < 3; ++again) {
         CHECK(band_status(t.session(), sc).text.find("| current") != std::string::npos);
-        CHECK(link_status(t.session().setup.active, t.session().setup.active_link) ==
+        CHECK(link_status(t.session().setup.active, t.run().active_link) ==
               setup_link::kCurrent);
     }
     // ...AND THE MISSING FILE IS DISCOVERED ONLY WHEN A WEAVER ASKS FOR IT, which is the
@@ -5322,23 +5374,23 @@ TEST_CASE("the whole run and every association come back after a restart") {
         // it last matches it, and the one whose value it replaced does not.
         rename_live_layout(t, "Home");
         save_setup(t);
-        REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
+        REQUIRE(live_status(t.run()) == setup_link::kCurrent);
 
         layout_new(t);
         rename_live_layout(t, "Code");
         pick(t, stock::kKind); // a genuinely different desk
         save_setup(t); // Code: associated and current; Home: associated and MODIFIED
-        REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
-        REQUIRE(link_status(layout_at(t.session().setup, 0),
-                            link_at(t.session().setup, 0)) == setup_link::kModified);
+        REQUIRE(live_status(t.run()) == setup_link::kCurrent);
+        REQUIRE(link_status(layout_at(t.run(), 0),
+                            link_at(t.run(), 0)) == setup_link::kModified);
 
         layout_new(t);
         rename_live_layout(t, "Art"); // Art: no association at all
-        REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+        REQUIRE(live_status(t.run()) == setup_link::kNone);
 
         layout_next(t); // wrap to Home, and close standing on it
         REQUIRE(t.session().setup.active_at == 0);
-        authored = layout_run(t.session().setup);
+        authored = layout_run(t.run());
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
     }
@@ -5348,7 +5400,7 @@ TEST_CASE("the whole run and every association come back after a restart") {
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.layouts == authored);
     CHECK(read.active == 0);
-    CHECK(slurp(session).find("\"version\":11") != std::string::npos);
+    CHECK(slurp(session).find("\"version\":12") != std::string::npos);
     CHECK(slurp(session).find("\"link\":") != std::string::npos);
 
     // AND THE NEXT RUN COMES BACK ON ALL THREE, with all three verdicts.
@@ -5359,17 +5411,17 @@ TEST_CASE("the whole run and every association come back after a restart") {
     back.extent_px(cells_px(120), cells_px(44));
 
     REQUIRE(layout_count(back.session().setup) == 3);
-    CHECK(layout_run(back.session().setup) == authored);
+    CHECK(layout_run(back.run()) == authored);
     CHECK(back.session().setup.active_at == 0);
     CHECK(back.session().setup.active.name == "Home"); // the rename survived
-    CHECK(link_status(layout_at(back.session().setup, 0), link_at(back.session().setup, 0)) ==
+    CHECK(link_status(layout_at(back.run(), 0), link_at(back.run(), 0)) ==
           setup_link::kModified);
-    CHECK(link_status(layout_at(back.session().setup, 1), link_at(back.session().setup, 1)) ==
+    CHECK(link_status(layout_at(back.run(), 1), link_at(back.run(), 1)) ==
           setup_link::kCurrent);
-    CHECK(link_status(layout_at(back.session().setup, 2), link_at(back.session().setup, 2)) ==
+    CHECK(link_status(layout_at(back.run(), 2), link_at(back.run(), 2)) ==
           setup_link::kNone);
-    CHECK(link_at(back.session().setup, 0).path == artifact);
-    CHECK(link_at(back.session().setup, 2).path.empty());
+    CHECK(link_at(back.run(), 0).path == artifact);
+    CHECK(link_at(back.run(), 2).path.empty());
     // ...and the standing row says the one a weaver is standing on, and only that one.
     CHECK(band_status(back.session(), screen_of(back.session())).text.find("| modified") !=
           std::string::npos);
@@ -5411,8 +5463,7 @@ TEST_CASE("every position and every association combination round-trips") {
                     run.push_back(Layout{desks[at], SetupLink{}});
                 }
             }
-            const std::string text = session_persist::to_text(run, active, cells_px(120), cells_px(44),
-                                                              session_persist::Placement{});
+            const std::string text = session_text(run, active);
             const session_persist::LoadedSession read = session_persist::from_text(text);
             REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
             CHECK(read.layouts == run);
@@ -5477,13 +5528,14 @@ TEST_CASE("a version-4 session opens with its run whole and every link none") {
         old.layouts.push_back(v3_desk(desk));
     }
     old.active = 2;
-    old.placement.mode = session_persist::kPlacementDesktop;
+    old.placement.mode = window_persist::kPlacementDesktop;
     old.placement.x = -640;
     old.placement.y = 96;
-    old.placement.window = session_persist::kWindowMaximized;
+    old.placement.window = window_persist::kWindowMaximized;
 
     const session_persist::LoadedSession read = session_persist::from_text(
         loom::compat::serialize(loom::to_value(old)), &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(loom::compat::serialize(loom::to_value(old)));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
 
     // THE RUN IS THE OLD RUN, EXACTLY -- order, names, authored geometry and the position
@@ -5501,19 +5553,19 @@ TEST_CASE("a version-4 session opens with its run whole and every link none") {
         CHECK(link_status(layout.desk, layout.link) == setup_link::kNone);
     }
     // EVERY NON-LAYOUT FACT CROSSES UNCHANGED, including a REAL placement.
-    CHECK(read.viewport_w == cells_px(132));
-    CHECK(read.viewport_h == cells_px(41));
-    CHECK(read.honoured);
-    CHECK(read.placement.known);
-    CHECK(read.placement.x == -640);
-    CHECK(read.placement.maximized);
+    CHECK(room_read.viewport_w == cells_px(132));
+    CHECK(room_read.viewport_h == cells_px(41));
+    CHECK(room_read.honoured);
+    CHECK(room_read.placement.known);
+    CHECK(room_read.placement.x == -640);
+    CHECK(room_read.placement.maximized);
 
     // AND THE EDGE IS ONE AUTHORED CONVERSION, SPENT ONCE.
     const std::uint64_t before = op::invocations();
     (void)session_persist::from_text(loom::compat::serialize(loom::to_value(old)),
                                      &history.catalog);
     CHECK(op::invocations() == before + 1);
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v4-to-v11") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v4-to-v12") != nullptr);
     // ...and no intermediate rung was added for the older vintages to be routed through.
     CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v1-to-v4") == nullptr);
     CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v3-to-v4") == nullptr);
@@ -5534,7 +5586,7 @@ TEST_CASE("a maximal legal session is still one this build can read back") {
         run.push_back(Layout{s, SetupLink{std::string(256, 'p') + ".json", s}});
     }
     const std::string text =
-        session_persist::to_text(run, kMaxLayouts - 1, cells_px(120), cells_px(44), session_persist::Placement{});
+        session_text(run, kMaxLayouts - 1);
     CHECK(text.size() <= session_persist::kMaxSessionBytes);
     // ...AND IT IS BIGGER THAN A SINGLE DESK MAY BE: the plural's half of the same argument,
     // and why the ceiling is not the desk's.
@@ -5547,13 +5599,13 @@ TEST_CASE("a maximal legal session is still one this build can read back") {
         layout.link = SetupLink{};
     }
     const std::string without =
-        session_persist::to_text(bare, kMaxLayouts - 1, cells_px(120), cells_px(44), session_persist::Placement{});
+        session_text(bare, kMaxLayouts - 1);
     CHECK(text.size() > without.size() * 3 / 2);
 
     TempDir dir("wux11-full");
     const std::string path = dir.file("session.json");
-    REQUIRE(session_persist::save_file(path, run, kMaxLayouts - 1, cells_px(120), cells_px(44),
-                                       session_persist::Placement{})
+    REQUIRE(save_last_run(path, run, kMaxLayouts - 1, cells_px(120), cells_px(44),
+                          window_persist::Placement{})
                 .accepted);
     const session_persist::LoadedSession read = session_persist::load_file(path);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
@@ -5603,8 +5655,7 @@ TEST_CASE("a session's file is a header line and a line for each layout, each de
     const std::vector<Layout> run = three_linked();
     const std::vector<session_persist::WorkshopChoice> chose = {
         session_persist::WorkshopChoice{"zengine.editor", "vim"}};
-    const std::string text = session_persist::to_text(run, 1, cells_px(120), cells_px(44),
-                                                      session_persist::Placement{}, chose);
+    const std::string text = session_text(run, 1, chose);
     // EVERY LINE ENDS IN A NEWLINE, and a newline inside a value is the JSON's escape, never a
     // line of its own: the path above holds one.
     REQUIRE_FALSE(text.empty());
@@ -5644,8 +5695,7 @@ TEST_CASE("a session's file is a header line and a line for each layout, each de
 
 TEST_CASE("a session's file is refused whole where a line is refused or the lines are not the header's count") {
     const std::vector<Layout> run = three_linked();
-    const std::vector<std::string> lines = session_lines(session_persist::to_text(
-        run, 1, cells_px(120), cells_px(44), session_persist::Placement{}));
+    const std::vector<std::string> lines = session_lines(session_text(run, 1));
     REQUIRE(lines.size() == 4);
     struct Case {
         const char* what;
@@ -5687,7 +5737,7 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
         fill_to_every_bound(s);
         run.push_back(Layout{s, SetupLink{std::string(session_persist::kMaxLinkPathBytes, 'p'), s}});
     }
-    session_persist::Placement place;
+    window_persist::Placement place;
     place.known = true;
     place.x = std::numeric_limits<std::int64_t>::min();
     place.y = std::numeric_limits<std::int64_t>::min();
@@ -5706,8 +5756,7 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
         const std::vector<session_persist::WorkshopChoice> chose(
             session_persist::kMaxRememberedChoices,
             session_persist::WorkshopChoice{spelled, std::string(load::kMaxChoiceNameLen, 'z')});
-        const std::string text = session_persist::to_text(run, kMaxLayouts - 1, kScreenMaxW,
-                                                          kScreenMaxH, place, chose);
+        const std::string text = session_text(run, kMaxLayouts - 1, chose);
         CHECK(text.size() <= session_persist::kMaxSessionBytes);
         const std::vector<std::string> lines = session_lines(text);
         REQUIRE(lines.size() == kMaxLayouts + 1);
@@ -5716,7 +5765,8 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
             loom::admit(loom::compat::parse(lines[0]),
                         loom::schema_of<session_persist::WorkshopSessionHeader>(),
                         loom::Report::FirstError);
-        REQUIRE_MESSAGE(header.ok(), header.first_error().message());
+        // A message reads the error only where there is one: doctest's `-s` says it on success too.
+        REQUIRE_MESSAGE(header.ok(), (header.ok() ? std::string() : header.first_error().message()));
         const std::int64_t header_cells = decoded_cells(header.value());
         CHECK(header_cells <= kDecodedCellBudget);
         std::int64_t layout_cells = 0;
@@ -5727,15 +5777,15 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
                 loom::admit(loom::compat::parse(lines[at]),
                             loom::schema_of<session_persist::WorkshopLayout>(),
                             loom::Report::FirstError);
-            REQUIRE_MESSAGE(layout.ok(), layout.first_error().message());
+            REQUIRE_MESSAGE(layout.ok(),
+                            (layout.ok() ? std::string() : layout.first_error().message()));
             layout_cells = std::max(layout_cells, decoded_cells(layout.value()));
             // ONE FIELD MORE ON EVERY ROW of both its desks still decodes.
             CHECK(decoded_cells(layout.value()) + 2 * static_cast<std::int64_t>(kMaxSetupPanes) <=
                   kDecodedCellBudget);
         }
         // ...WHICH THE SAME SESSION AS ONE VALUE HAS NO ROOM FOR, measured.
-        const std::int64_t whole = decoded_cells(loom::to_value(session_persist::to_session(
-            run, kMaxLayouts - 1, kScreenMaxW, kScreenMaxH, place, chose)));
+        const std::int64_t whole = decoded_cells(loom::to_value(session_value(run, kMaxLayouts - 1, chose)));
         CHECK(whole + 2 * static_cast<std::int64_t>(kMaxSetupPanes * kMaxLayouts) >
               kDecodedCellBudget);
         MESSAGE("the header line: ", lines[0].size(), " bytes, ", header_cells,
@@ -5744,8 +5794,7 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
 
         TempDir dir("session-lines-full");
         const std::string path = dir.file("session.json");
-        REQUIRE(session_persist::save_file(path, run, kMaxLayouts - 1, kScreenMaxW, kScreenMaxH,
-                                           place, chose)
+        REQUIRE(save_last_run(path, run, kMaxLayouts - 1, kScreenMaxW, kScreenMaxH, place, chose)
                     .accepted);
         const session_persist::LoadedSession read = session_persist::load_file(path);
         REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
@@ -5759,14 +5808,14 @@ TEST_CASE("a version-10 session comes forward whole and is written back in lines
     // brings a session forward short of what its weaver left.
     MountedHistory history;
     REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
-    session_persist::Placement place;
+    window_persist::Placement place;
     place.known = true;
     place.x = 30;
     place.y = 40;
     place.room_w = 1500;
     place.room_h = 900;
     const std::vector<Layout> run = three_layouts();
-    const session_persist::WorkshopSession now = session_persist::to_session(
+    const session_history::v11::WorkshopSession now = v11_session(
         run, 2, cells_px(128), cells_px(40), place,
         {session_persist::WorkshopChoice{"zengine.editor", "neovim"}});
     session_history::v10::WorkshopSession old;
@@ -5779,28 +5828,29 @@ TEST_CASE("a version-10 session comes forward whole and is written back in lines
     old.choices = now.choices;
     old.window_room = now.window_room;
     const std::string text = loom::compat::serialize(loom::to_value(old));
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v10-to-v11") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v10-to-v12") != nullptr);
     const session_persist::LoadedSession read = session_persist::from_text(text, &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(text);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.layouts == run);
     CHECK(read.active == 2);
-    CHECK(read.viewport_w == cells_px(128));
-    CHECK(read.placement.known);
-    CHECK(read.placement.x == 30);
-    CHECK(read.placement.room_w == 1500);
-    CHECK(read.placement.room_h == 900);
+    CHECK(room_read.viewport_w == cells_px(128));
+    CHECK(room_read.placement.known);
+    CHECK(room_read.placement.x == 30);
+    CHECK(room_read.placement.room_w == 1500);
+    CHECK(room_read.placement.room_h == 900);
     REQUIRE(read.choices.size() == 1);
     CHECK(read.choices[0].choice == "neovim");
     // ...WITH NO CONVERSION LIVE IT IS REFUSED BY ITS NUMBER, naming the edge it lacks...
     const session_persist::LoadedSession none = session_persist::from_text(text);
     CHECK_FALSE(none.outcome.accepted);
-    CHECK(none.outcome.refusal.find("zengine.migrate.WorkshopSession.v10-to-v11") !=
+    CHECK(none.outcome.refusal.find("zengine.migrate.WorkshopSession.v10-to-v12") !=
           std::string::npos);
     // ...AND WHAT IT BROUGHT FORWARD IS WRITTEN BACK AS THIS VERSION, a line a layout.
     TempDir dir("session-ten");
     const std::string path = dir.file("session.json");
-    REQUIRE(session_persist::save_file(path, read.layouts, read.active, read.viewport_w,
-                                       read.viewport_h, read.placement, read.choices)
+    REQUIRE(save_last_run(path, read.layouts, read.active, room_read.viewport_w,
+                          room_read.viewport_h, room_read.placement, read.choices)
                 .accepted);
     const std::vector<std::string> lines = session_lines(slurp(path));
     REQUIRE(lines.size() == run.size() + 1);
@@ -5808,15 +5858,13 @@ TEST_CASE("a version-10 session comes forward whole and is written back in lines
     const session_persist::LoadedSession again = session_persist::load_file(path);
     REQUIRE_MESSAGE(again.outcome.accepted, again.outcome.refusal);
     CHECK(again.layouts == run);
-    CHECK(again.placement.room_w == 1500);
+    CHECK(window_persist::load_file(window_persist::path_beside(path)).placement.room_w == 1500);
 }
 
 TEST_CASE("a header counting more layouts than a Workshop keeps is refused before a line is read") {
     // EVERY LINE AFTER IT IS NO LAYOUT AT ALL: a reader that decoded them first would refuse
     // the first of them, and the bound is what must answer.
-    std::vector<std::string> lines = session_lines(session_persist::to_text(
-        one_layout(arranged_desk("One")), 0, cells_px(100), cells_px(30),
-        session_persist::Placement{}));
+    std::vector<std::string> lines = session_lines(session_text(one_layout(arranged_desk("One")), 0));
     REQUIRE(lines.size() == 2);
     const std::string counted = "\"layout_count\":\"1\"";
     const std::size_t at = lines[0].find(counted);
@@ -5833,9 +5881,7 @@ TEST_CASE("a header counting more layouts than a Workshop keeps is refused befor
 TEST_CASE("a version-11 session written as one value is refused, its file being a line a layout") {
     // THE ONE VALUE IS WHAT MEMORY HOLDS AND A CONVERSION ANSWERS WITH, never a file: read as
     // one, it would be the decode the lines exist to keep under Loom's budget.
-    const std::string text = loom::compat::serialize(loom::to_value(session_persist::to_session(
-        one_layout(arranged_desk("One")), 0, cells_px(100), cells_px(30),
-        session_persist::Placement{})));
+    const std::string text = loom::compat::serialize(loom::to_value(session_value(one_layout(arranged_desk("One")), 0)));
     const session_persist::LoadedSession read = session_persist::from_text(text);
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.layouts.empty());
@@ -5873,10 +5919,10 @@ session_history::v5::WorkshopSession old_v5_session(const std::string& artifact)
         old.layouts.push_back(std::move(row));
     }
     old.active = 1;
-    old.placement.mode = session_persist::kPlacementDesktop;
+    old.placement.mode = window_persist::kPlacementDesktop;
     old.placement.x = -640;
     old.placement.y = 96;
-    old.placement.window = session_persist::kWindowMaximized;
+    old.placement.window = window_persist::kWindowMaximized;
     return old;
 }
 
@@ -5898,6 +5944,7 @@ TEST_CASE("a real version-5 session comes back with nothing lost") {
     REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
     const session_persist::LoadedSession read =
         session_persist::from_text(as_text(old), &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(as_text(old));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
 
     // THE RUN IS THE OLD RUN, EXACTLY -- with one row appended to each desk.
@@ -5937,16 +5984,16 @@ TEST_CASE("a real version-5 session comes back with nothing lost") {
     }
 
     // EVERY NON-LAYOUT FACT CROSSES UNCHANGED, including a real placement.
-    CHECK(read.viewport_w == cells_px(132));
-    CHECK(read.viewport_h == cells_px(41));
-    CHECK(read.honoured);
-    CHECK(read.placement.known);
-    CHECK(read.placement.x == -640);
-    CHECK(read.placement.y == 96);
-    CHECK(read.placement.maximized);
+    CHECK(room_read.viewport_w == cells_px(132));
+    CHECK(room_read.viewport_h == cells_px(41));
+    CHECK(room_read.honoured);
+    CHECK(room_read.placement.known);
+    CHECK(room_read.placement.x == -640);
+    CHECK(room_read.placement.y == 96);
+    CHECK(room_read.placement.maximized);
 
     // AND THE EDGE IS ONE AUTHORED CONVERSION, SPENT ONCE.
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v5-to-v11") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v5-to-v12") != nullptr);
     const std::uint64_t before = op::invocations();
     REQUIRE(session_persist::from_text(as_text(old), &history.catalog).outcome.accepted);
     CHECK(op::invocations() == before + 1);
@@ -5976,7 +6023,7 @@ TEST_CASE("the weaver sees no loss, and the next run spends no conversion") {
         // THE RUN IS BACK, standing where the weaver left it.
         CHECK(layout_count(t.session().setup) == 3);
         CHECK(t.session().setup.active_at == 1);
-        CHECK(layout_at(t.session().setup, 1).name == three_desks()[1].name);
+        CHECK(layout_at(t.run(), 1).name == three_desks()[1].name);
 
         // ...AND THE TAB SURFACE IS THERE, at the rectangle it always occupied, saying what it
         // always said, and answering a press: no apparent loss of the weaver's tab surface.
@@ -5985,21 +6032,21 @@ TEST_CASE("the weaver sees no loss, and the next run spends no conversion") {
         CHECK(bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc)
                   .rect == top_band_bounds(sc));
         const BandStatus row = band_status(t.session(), sc);
-        CHECK(row.text.find(">" + layout_at(t.session().setup, 1).name + "<") !=
+        CHECK(row.text.find(">" + layout_at(t.run(), 1).name + "<") !=
               std::string::npos);
         REQUIRE(row.tabs.size() == 3);
         press_tab(t, 0);
         CHECK(t.session().setup.active_at == 0);
 
-        after_open = layout_run(t.session().setup);
+        after_open = layout_run(t.run());
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
     }
 
     // THE FILE IS THE CURRENT SHAPE NOW, and only the current shape.
     const std::string bytes = slurp(session);
-    CHECK(bytes.find("\"version\":11") != std::string::npos);
-    CHECK(bytes.find("\"format_version\":\"11\"") != std::string::npos);
+    CHECK(bytes.find("\"version\":12") != std::string::npos);
+    CHECK(bytes.find("\"format_version\":\"12\"") != std::string::npos);
     CHECK(bytes.find("\"pane\":\"layouts\"") != std::string::npos);
 
     // ...AND THE NEXT RUN READS IT WITH NO CONVERSION IN THE ARRANGEMENT AT ALL, which is
@@ -6065,7 +6112,7 @@ TEST_CASE("a version-5 file with no conversion live refuses, and is not rewritte
     t.host.session_path = path; // no `conversions` hook: this arrangement mounts none
     t.ready();
     CHECK(t.session().notice_is_bad);
-    CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v5-to-v11`") != std::string::npos);
+    CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v5-to-v12`") != std::string::npos);
     // ...and it claims nothing it cannot know.
     CHECK(t.notice().find("install") == std::string::npos);
 
@@ -6272,11 +6319,11 @@ TEST_CASE("every desk in a session is converted, and the run counts once") {
     session_persist::WorkshopSession file;
     file.format = session_persist::kFormat;
     file.format_version = session_persist::kFormatVersion;
-    file.viewport = session_persist::WorkshopViewport{cells_px(132), cells_px(41)};
+    file.next_id = 9;
     file.active = 1;
-    file.placement = session_history::absent_placement();
     for (const Layout& l : run) {
         session_persist::WorkshopLayout out;
+        out.id = static_cast<std::int64_t>(file.layouts.size()) + 1;
         out.desk = setup_persist::to_setup(l.desk);
         out.link.path = l.link.path;
         out.link.known = setup_persist::to_setup(l.link.known);
@@ -6306,13 +6353,13 @@ TEST_CASE("the weaver is told once, in the pane's own durable names") {
     session_persist::WorkshopSession file;
     file.format = session_persist::kFormat;
     file.format_version = session_persist::kFormatVersion;
-    file.viewport = session_persist::WorkshopViewport{cells_px(132), cells_px(41)};
+    file.next_id = 9;
     file.active = 0;
-    file.placement = session_history::absent_placement();
     for (int i = 0; i < 2; ++i) {
         Setup desk = desk_with_the_browser();
         desk.name = "Desk " + std::to_string(i + 1);
         session_persist::WorkshopLayout out;
+        out.id = static_cast<std::int64_t>(file.layouts.size()) + 1;
         out.desk = setup_persist::to_setup(desk);
         file.layouts.push_back(out);
     }
@@ -6435,10 +6482,10 @@ TEST_CASE("a session with nothing to convert says nothing about it") {
     session_persist::WorkshopSession file;
     file.format = session_persist::kFormat;
     file.format_version = session_persist::kFormatVersion;
-    file.viewport = session_persist::WorkshopViewport{cells_px(132), cells_px(41)};
+    file.next_id = 9;
     file.active = 0;
-    file.placement = session_history::absent_placement();
     session_persist::WorkshopLayout out;
+    out.id = 1;
     out.desk = setup_persist::to_setup(setup_of("Ordinary", {second::kKind}));
     file.layouts.push_back(out);
     spillout(path, session_persist::to_text(file));
@@ -6548,8 +6595,7 @@ TEST_CASE("a setting holding no value, or two, is refused by every reader, namin
 
         // ...AND A SESSION'S DESK, refused whole in the layout it stands in.
         const session_persist::LoadedSession session = session_persist::from_text(
-            session_persist::to_text(one_layout(desk), 0, cells_px(100), cells_px(30),
-                                     session_persist::Placement{}));
+            session_text(one_layout(desk), 0));
         CHECK_FALSE(session.outcome.accepted);
         CHECK(session.outcome.refusal.find(c.says) != std::string::npos);
         CHECK(session.outcome.refusal.find("layout at position 0") != std::string::npos);
@@ -6561,7 +6607,7 @@ TEST_CASE("a setting holding no value, or two, is refused by every reader, namin
     full.panes.back().settings.push_back(number_setting("zz", 1));
     const Written past = check_setup(full);
     CHECK_FALSE(past.accepted);
-    CHECK(past.refusal.find("settings over all its panes") != std::string::npos);
+    CHECK(past.refusal.find("settings, locks and pins over all its panes") != std::string::npos);
     CHECK_FALSE(setup_persist::from_text(setup_persist::to_text(full)).outcome.accepted);
 }
 
@@ -6597,7 +6643,7 @@ TEST_CASE("the settings door keeps a desk inside its bound, and a value moved on
     CHECK(check_setup(desk).accepted);
 }
 
-TEST_CASE("a version-4 setup file reads with no settings, and the next save writes version 5") {
+TEST_CASE("a version-4 setup file reads with no settings, and the next save writes the current version") {
     const Setup desk = arranged_desk("Four");
     // A FILE A WORKSHOP OF version 4 WROTE, content id and all: what its `s` left on disk.
     const std::string four = loom::compat::serialize(loom::to_value(v4_desk(desk)));
@@ -6611,7 +6657,7 @@ TEST_CASE("a version-4 setup file reads with no settings, and the next save writ
         CHECK(row.settings.empty());
     }
     const std::string now = setup_persist::to_text(read.setup);
-    CHECK(now.find("\"format_version\":\"5\"") != std::string::npos);
+    CHECK(now.find("\"format_version\":\"6\"") != std::string::npos);
     CHECK(now.find("\"settings\":[]") != std::string::npos);
 
     // ...AND AN ENVELOPE OF version 4 OVER A BODY THAT SAYS ANOTHER IS REFUSED BY NUMBER.
@@ -6620,7 +6666,7 @@ TEST_CASE("a version-4 setup file reads with no settings, and the next save writ
     const setup_persist::LoadedSetup no =
         setup_persist::from_text(loom::compat::serialize(loom::to_value(forged)));
     CHECK_FALSE(no.outcome.accepted);
-    CHECK(no.outcome.refusal == "setup version 5 -- this Workshop reads versions 2, 3, 4 and 5");
+    CHECK(no.outcome.refusal == "setup version 5 -- this Workshop reads versions 2, 3, 4, 5 and 6");
 }
 
 TEST_CASE("a setup past its byte ceiling is refused at the save, and nothing is written") {
@@ -6693,7 +6739,7 @@ TEST_CASE("a version-7 session converts with every desk and remembered value kee
     session_history::v7::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = session_history::kV7FormatVersion;
-    old.viewport = session_persist::WorkshopViewport{cells_px(132), cells_px(41)};
+    old.viewport = window_persist::WorkshopViewport{cells_px(132), cells_px(41)};
     for (std::size_t i = 0; i < desks.size(); ++i) {
         session_history::v7::WorkshopLayout layout{
             v4_desk(desks[i]),
@@ -6709,9 +6755,10 @@ TEST_CASE("a version-7 session converts with every desk and remembered value kee
 
     const std::uint64_t before = op::invocations();
     const session_persist::LoadedSession read = session_persist::from_text(bytes, &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(bytes);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(op::invocations() == before + 1);
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v7-to-v11") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v7-to-v12") != nullptr);
     CHECK(desks_of(read.layouts) == desks);
     CHECK(read.active == 1);
     for (const Layout& layout : read.layouts) {
@@ -6724,8 +6771,8 @@ TEST_CASE("a version-7 session converts with every desk and remembered value kee
     CHECK(read.layouts[0].link.path == "/kept/home.json");
     CHECK(link_status(read.layouts[0].desk, read.layouts[0].link) == setup_link::kCurrent);
     CHECK(link_status(read.layouts[1].desk, read.layouts[1].link) == setup_link::kNone);
-    CHECK(read.viewport_w == cells_px(132));
-    CHECK(read.viewport_h == cells_px(41));
+    CHECK(room_read.viewport_w == cells_px(132));
+    CHECK(room_read.viewport_h == cells_px(41));
 
     // ...AND A DESK OF version 7 WHOSE OWN FIELD SAYS ANOTHER IS REFUSED BY THE CONVERSION,
     // which skips no check its own reader made.
@@ -6746,19 +6793,20 @@ TEST_CASE("a version-8 session converts with every field kept and no choice reme
     session_history::v8::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = session_history::kV8FormatVersion;
-    old.viewport = session_persist::WorkshopViewport{cells_px(128), cells_px(40)};
-    const session_persist::WorkshopSession now = session_persist::to_session(
-        one_layout(desk), 0, cells_px(128), cells_px(40), session_persist::Placement{});
+    const session_history::v11::WorkshopSession now =
+        v11_session(one_layout(desk), 0, cells_px(128), cells_px(40));
+    old.viewport = now.viewport;
     old.layouts = now.layouts;
     old.placement = now.placement;
     const session_persist::LoadedSession read =
         session_persist::from_text(loom::compat::serialize(loom::to_value(old)), &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(loom::compat::serialize(loom::to_value(old)));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v8-to-v11") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v8-to-v12") != nullptr);
     REQUIRE(read.layouts.size() == 1);
     CHECK(read.layouts[0].desk == desk);
-    CHECK(read.viewport_w == cells_px(128));
-    CHECK(read.viewport_h == cells_px(40));
+    CHECK(room_read.viewport_w == cells_px(128));
+    CHECK(room_read.viewport_h == cells_px(40));
     // A SESSION BEFORE 9 REMEMBERS NO CHOICE, so the next start loads each office's own row.
     CHECK(read.choices.empty());
 }
@@ -6769,13 +6817,13 @@ TEST_CASE("a version-9 session converts with every field kept and no OS window's
     MountedHistory history;
     REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
     const Setup desk = arranged_desk("Kept");
-    session_persist::Placement place;
+    window_persist::Placement place;
     place.known = true;
     place.x = 30;
     place.y = 40;
-    const session_persist::WorkshopSession now = session_persist::to_session(
-        one_layout(desk), 0, cells_px(128), cells_px(40), place,
-        {session_persist::WorkshopChoice{"zengine.editor", "neovim"}});
+    const session_history::v11::WorkshopSession now =
+        v11_session(one_layout(desk), 0, cells_px(128), cells_px(40), place,
+                    {session_persist::WorkshopChoice{"zengine.editor", "neovim"}});
     session_history::v9::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = session_history::kV9FormatVersion;
@@ -6785,26 +6833,26 @@ TEST_CASE("a version-9 session converts with every field kept and no OS window's
     old.choices = now.choices;
     const session_persist::LoadedSession read =
         session_persist::from_text(loom::compat::serialize(loom::to_value(old)), &history.catalog);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(loom::compat::serialize(loom::to_value(old)));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v9-to-v11") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v9-to-v12") != nullptr);
     REQUIRE(read.layouts.size() == 1);
     CHECK(read.layouts[0].desk == desk);
-    CHECK(read.viewport_w == cells_px(128));
-    CHECK(read.placement.known);
-    CHECK(read.placement.x == 30);
+    CHECK(room_read.viewport_w == cells_px(128));
+    CHECK(room_read.placement.known);
+    CHECK(room_read.placement.x == 30);
     REQUIRE(read.choices.size() == 1);
     CHECK(read.choices[0].choice == "neovim");
     // A SESSION BEFORE 10 KEEPS NO OS WINDOW'S ROOM, so its window opens and grows as it did.
-    CHECK(read.placement.room_w == 0);
-    CHECK(read.placement.room_h == 0);
+    CHECK(room_read.placement.room_w == 0);
+    CHECK(room_read.placement.room_h == 0);
 }
 
 TEST_CASE("a session keeps the choices it was given, and refuses more than an office's worth") {
     const std::vector<Layout> run = one_layout(arranged_desk("D"));
     const std::vector<session_persist::WorkshopChoice> chosen = {
         {"zengine.editor", "neovim"}, {"zengine.viewer", "plain"}};
-    const std::string text = session_persist::to_text(run, 0, cells_px(100), cells_px(30),
-                                                      session_persist::Placement{}, chosen);
+    const std::string text = session_text(run, 0, chosen);
     const session_persist::LoadedSession read = session_persist::from_text(text);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     REQUIRE(read.choices.size() == 2);
@@ -6817,8 +6865,7 @@ TEST_CASE("a session keeps the choices it was given, and refuses more than an of
         many.push_back({"office." + std::to_string(i), "choice"});
     }
     const session_persist::LoadedSession refused = session_persist::from_text(
-        session_persist::to_text(run, 0, cells_px(100), cells_px(30), session_persist::Placement{},
-                                 many));
+        session_text(run, 0, many));
     CHECK_FALSE(refused.outcome.accepted);
     CHECK(refused.outcome.refusal.find("at most 16 offices' choices") != std::string::npos);
 }
@@ -6880,4 +6927,228 @@ TEST_CASE("a quit saves which choice holds each office, and a start says a choic
                             "authors, so its own loaded";
     back.ready();
     CHECK(back.notice().find("your last choice `emacs`") != std::string::npos);
+}
+
+// ---- The window file, and what a version-3 settings file kept for layouts -------------------
+
+TEST_CASE("an older session's room is Workshop's window file's once: read while none stands, and never again once one does") {
+    // ⚔ MUTATION: the import reading the session whatever stands beside it -- the second run takes
+    // the old session's room over the window file the weaver's last close wrote.
+    TempDir dir("window-import");
+    const std::string path = dir.file("session.json");
+    const std::string old = v11_lines(
+        v11_session(one_layout(arranged_desk("Before")), 0, cells_px(120), cells_px(44)));
+    spillout(path, old);
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    {
+        Live t;
+        t.host.session_path = path;
+        t.host.conversions = &history.catalog;
+        t.on_os_window(); // the medium that grows to the room restored
+        t.ready();
+        t.window_settles();
+        REQUIRE(t.session().setup.active.name == "Before");
+        CHECK(t.session().screen_w == cells_px(120));
+        CHECK(t.session().screen_h == cells_px(44));
+        t.key(input::scan::kQ);
+        REQUIRE(t.host.quit);
+    }
+    // THE CLOSE WROTE BOTH: the window file holding the room, the session none of it.
+    const window_persist::LoadedWindow wrote =
+        window_persist::load_file(window_persist::path_beside(path));
+    REQUIRE(wrote.present);
+    REQUIRE_MESSAGE(wrote.outcome.accepted, wrote.outcome.refusal);
+    CHECK(wrote.viewport_w == cells_px(120));
+    CHECK(slurp(path).find("viewport") == std::string::npos);
+    // THE OLD SESSION BACK, BESIDE A WINDOW FILE OF ANOTHER ROOM: the window file is the room's.
+    spillout(path, old);
+    spillout(window_persist::path_beside(path),
+             window_persist::to_text(cells_px(90), cells_px(30), window_persist::Placement{}));
+    Live back;
+    back.host.session_path = path;
+    back.host.conversions = &history.catalog;
+    back.on_os_window();
+    back.ready();
+    back.window_settles();
+    REQUIRE(back.session().setup.active.name == "Before");
+    CHECK(back.session().screen_w == cells_px(90));
+    CHECK(back.session().screen_h == cells_px(30));
+}
+
+namespace {
+
+/// A SETTINGS FILE AT VERSION 3 KEEPING, BY LAYOUT NAME, a lock for "Shared" and pins for a layout
+/// no session holds.
+prefs_persist::Prefs layout_entries() {
+    prefs_persist::Prefs p;
+    prefs_persist::put_lock(p, SettingLock{"zengine.test.stack/stack@Shared", "legend"});
+    p.pins = {prefs_persist::PinList{"zengine.test.stack/stack@Gone", {"step"}}};
+    return p;
+}
+
+/// THE OLDER SESSION THEY GO WITH: two layouts named "Shared" and one "Solo".
+std::string shared_run_session() {
+    const std::vector<Layout> run{Layout{arranged_desk("Shared"), {}},
+                                  Layout{arranged_desk("Shared"), {}},
+                                  Layout{arranged_desk("Solo"), {}}};
+    return v11_lines(v11_session(run, 0, cells_px(120), cells_px(44)));
+}
+
+} // namespace
+
+TEST_CASE("what a version-3 settings file kept by layout name goes into each desk of the name, a copy each, and each entry no desk takes is named in full") {
+    // ⚔ MUTATION: the fold given to the first desk of the name alone -- the second "Shared" keeps
+    // no lock.
+    TempDir dir("fold-in");
+    const std::string path = dir.file("session.json");
+    spillout(path, shared_run_session());
+    REQUIRE(prefs_persist::save_file(dir.file("prefs.json"), layout_entries()).accepted);
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    Live t;
+    t.host.session_path = path;
+    t.host.prefs_path = dir.file("prefs.json");
+    t.host.conversions = &history.catalog;
+    t.ready();
+    const std::vector<Layout> run = layout_run(t.owner->layouts().run());
+    REQUIRE(run.size() == 3);
+    const std::vector<SetupLock> legend{SetupLock{ref_of(stock::kKind), "legend"}};
+    CHECK(run[0].desk.locks == legend);
+    CHECK(run[1].desk.locks == legend);
+    CHECK(run[2].desk.locks.empty());
+    // SAID ONCE, AT THE RESTORE: the shared name, and the entry no desk took, in full.
+    CHECK(t.notice().find("layouts named \"Shared\" each keep their own locks, pins and baseline "
+                          "now") != std::string::npos);
+    CHECK(t.notice().find("the pins of `zengine.test.stack/stack@Gone`") != std::string::npos);
+}
+
+TEST_CASE("the settings file keeps its layouts' entries until a session holds them: a run that ends without its close finds them again") {
+    // ⚔ MUTATION: the entries dropped from the settings file at the fold -- a run killed before
+    // its close loses them, the session on disk still the older one that holds none.
+    TempDir dir("fold-held");
+    const std::string path = dir.file("session.json");
+    const std::string prefs = dir.file("prefs.json");
+    spillout(path, shared_run_session());
+    REQUIRE(prefs_persist::save_file(prefs, layout_entries()).accepted);
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    const auto run_once = [&](bool close) {
+        Live t;
+        t.host.session_path = path;
+        t.host.prefs_path = prefs;
+        t.host.conversions = &history.catalog;
+        t.ready();
+        REQUIRE(layout_run(t.owner->layouts().run()).size() == 3);
+        CHECK(layout_run(t.owner->layouts().run())[1].desk.locks.size() == 1);
+        // A TOGGLE WRITES THE SETTINGS FILE MID-RUN, and the entries stay in it.
+        layout_key(t, Act::kPaneTitles);
+        CHECK(prefs_persist::has_layout_entries(prefs_persist::load_file(prefs).kept));
+        if (close) {
+            t.key(input::scan::kQ);
+            REQUIRE(t.host.quit);
+        }
+    };
+    // A RUN THAT ENDS WITHOUT ITS CLOSE: the session on disk is still the older one...
+    run_once(false);
+    CHECK(slurp(path) == shared_run_session());
+    // ...AND THE NEXT FINDS EVERY ENTRY STILL THERE, and folds it again.
+    run_once(true);
+    // ONCE A SESSION HOLDS THEM, the settings file goes without: version 4.
+    CHECK(prefs_persist::load_file(prefs).read_version == 4);
+    CHECK_FALSE(prefs_persist::has_layout_entries(prefs_persist::load_file(prefs).kept));
+    const session_persist::LoadedSession held = session_persist::load_file(path);
+    REQUIRE_MESSAGE(held.outcome.accepted, held.outcome.refusal);
+    CHECK(held.layouts[1].desk.locks.size() == 1);
+}
+
+TEST_CASE("a place and a size carry a number exactly where the word reads one: a version-5 desk converts by its words, and a number where the word reads none is refused") {
+    // ⚔ MUTATION: the version-5 lift copying each number whatever its word -- a named place comes
+    // forward carrying coordinates, which this version refuses.
+    Setup desk = setup_of("Words", {stock::kKind, second::kKind});
+    desk.panes[0].place = PanePlace{pane_unit::kPixels, cells_px(3), cells_px(2)};
+    desk.panes[0].width = PaneSize{pane_unit::kPixels, cells_px(40)};
+    desk.panes[1].place = PanePlace{pane_unit::kRightColumn, 0, 0};
+    REQUIRE(check_setup(desk).accepted);
+    const setup_persist::LoadedSetup read =
+        setup_persist::from_text(loom::compat::serialize(loom::to_value(v5_desk(desk))));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.setup == desk);
+    // WRITTEN AT THIS VERSION: a number beside each word that reads one, and none beside another.
+    const std::string six = setup_persist::to_text(read.setup);
+    const std::string pixels = "\"place\":{\"mode\":\"pixels\",\"x\":\"" +
+                               std::to_string(cells_px(3)) + "\",\"y\":\"" +
+                               std::to_string(cells_px(2)) + "\"}";
+    CHECK(six.find(pixels) != std::string::npos);
+    CHECK(six.find("\"width\":{\"mode\":\"pixels\",\"amount\":\"" + std::to_string(cells_px(40)) +
+                   "\"}") != std::string::npos);
+    const std::string named = "\"place\":{\"mode\":\"right-column\"}";
+    REQUIRE(six.find(named) != std::string::npos);
+    CHECK(six.find("\"height\":{\"mode\":\"default\"}") != std::string::npos);
+    // A NUMBER WHERE THE WORD READS NONE, AND ONE MISSING WHERE IT READS ONE: each refused.
+    const auto refusal_of = [&six](const std::string& from, const std::string& to) {
+        std::string bad = six;
+        const std::size_t at = bad.find(from);
+        REQUIRE(at != std::string::npos);
+        bad.replace(at, from.size(), to);
+        return setup_persist::from_text(bad).outcome.refusal;
+    };
+    CHECK(refusal_of(named, "\"place\":{\"mode\":\"right-column\",\"x\":\"0\",\"y\":\"0\"}")
+              .find("a named pane place carries no coordinates") != std::string::npos);
+    CHECK(refusal_of("\"height\":{\"mode\":\"default\"}",
+                     "\"height\":{\"mode\":\"default\",\"amount\":\"0\"}")
+              .find("a default pane height carries no amount") != std::string::npos);
+    CHECK(refusal_of(pixels, "\"place\":{\"mode\":\"pixels\",\"x\":\"" +
+                                 std::to_string(cells_px(3)) + "\"}")
+              .find("a pixels pane place names both x and y") != std::string::npos);
+}
+
+TEST_CASE("the live layout's picture, the largest edit, the window file and a full desk each decode inside Loom's budget") {
+    // ⚔ MUTATION: a `LiveLayout` carrying every layout's desk rather than the live one's -- the
+    // picture of a full run passes the budget.
+    std::vector<Layout> run;
+    for (std::size_t i = 0; i < kMaxLayouts; ++i) {
+        Setup s = setup_of(std::string(kMaxSetupNameLen, static_cast<char>('a' + i)), {});
+        fill_to_every_bound(s);
+        run.push_back(Layout{s, SetupLink{std::string(session_persist::kMaxLinkPathBytes, 'p'), s}});
+    }
+    // THE PICTURE THE OWNER SENDS ITS PRESENTER, of a full run.
+    LayoutsHost host;
+    LayoutStore store(host);
+    SetupState state;
+    REQUIRE(install_layout_run(state, numbered(run), kMaxLayouts - 1));
+    store.put_run(state);
+    const std::int64_t live = decoded_cells(loom::to_value(store.live_layout()));
+    CHECK(live <= kDecodedCellBudget);
+    // THE LARGEST EDIT THE PRESENTER ASKS: every edit a window at every bound.
+    LayoutEditRequested edit;
+    edit.revision = std::numeric_limits<std::int64_t>::max();
+    for (std::size_t i = 0; i < kMaxLayoutEdits; ++i) {
+        LayoutEdit e;
+        e.op = "reset-front";
+        e.layout = std::numeric_limits<std::int64_t>::max();
+        e.provider = std::string(kMaxPaneKeyLen, '"');
+        e.pane = std::string(kMaxPaneKeyLen, '"');
+        e.place = setup_persist::place_out(
+            PanePlace{pane_unit::kPixels, kMaxPanePixels, kMaxPanePixels});
+        e.width = setup_persist::size_out(PaneSize{pane_unit::kPixels, kMaxPanePixels});
+        e.height = e.width;
+        e.by = std::numeric_limits<std::int64_t>::max();
+        e.name = std::string(kMaxSetupNameLen, '"');
+        edit.edits.push_back(std::move(e));
+    }
+    const std::int64_t asked = decoded_cells(loom::to_value(edit));
+    CHECK(asked <= kDecodedCellBudget);
+    // THE WINDOW FILE, every field present, and A FULL DESK at this version.
+    window_persist::Placement place;
+    place.known = true;
+    place.maximized = true;
+    place.x = place.y = place.room_w = place.room_h = std::numeric_limits<std::int64_t>::min();
+    const std::int64_t window = decoded_cells(loom::to_value(
+        window_persist::to_window(kScreenMaxW, kScreenMaxH, place)));
+    CHECK(window <= kDecodedCellBudget);
+    const std::int64_t desk = decoded_cells(loom::to_value(setup_persist::to_setup(run.back().desk)));
+    CHECK(desk <= kDecodedCellBudget);
+    MESSAGE("LiveLayout: ", live, " cells; the largest LayoutEditRequested: ", asked,
+            " cells; the window file: ", window, " cells; a full desk: ", desk, " cells");
 }

@@ -91,7 +91,7 @@ WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
 ## WL-SWITCH-08 — A start loads the choice the last session remembered, while the plan authors it
 
-LAW — The session file records which authored choice held each switchable office at quit; the next start loads that choice's artifact in the office's row while the plan authors it
+LAW — The session's header keeps which authored choice held each switchable office at quit, as the host hands it to the layouts' owner; the next start loads it in the office's row while the plan authors it
 
 MEANS
 - the project's plan file is never changed; only the start's reading of it is;
@@ -174,9 +174,10 @@ door, ask, confirm and switch, and the desk shows the switch while it stands"
 
 ### WL-SWITCH-08
 `workshop/load_plan.hpp` remember_choices
-`workshop/session_persist.hpp` WorkshopChoice kMaxRememberedChoices WorkshopSession::choices
+`workshop/layouts/session_persist.hpp` WorkshopChoice kMaxRememberedChoices WorkshopSession::choices
 `workshop/weave.hpp` HostContext::chosen HostContext::choice_note
 `workshop/workshop.cpp` remember_choices
+`workshop/layouts/store.hpp` chosen
 `tests/test_workshop_persistence.cpp` "a start loads the remembered choice in its office's row,
 while the plan authors it" "a session keeps the choices it was given, and refuses more than an
 office's worth" "a quit saves which choice holds each office, and a start says a choice no longer

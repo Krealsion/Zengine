@@ -2,8 +2,8 @@
 zengine.info - info.up up - - row up
 zengine.info - info.down down - - row down
 zengine.info - info.edit return - - edit
-zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new value view
-zengine.info - info.commit return PaneCommitRequested/1 - commit
+zengine.info - info.view.new ctrl+n PaneLaunchRequested/1,PaneSettingsRequested/1 - new value view
+zengine.info - info.commit return PaneCommitRequested/1,PaneSettingCommitRequested/1 - commit
 zengine.info - info.cancel escape - - cancel
 zengine.info - info.value.up up - - previous field
 zengine.info - info.value.down down - - next field
@@ -17,8 +17,8 @@ zengine.info - info.value.preset ctrl+b PaneObservationEnded/1 - make independen
 zengine.info - info.value.unset ctrl+u - - unset preset field
 zengine.info - info.value.grab ctrl+g PaneValueCarryRequested/1 - pick up typed field copy
 zengine.info - info.value.discard ctrl+d - - discard local edits
-zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new Info view
-zengine.info - info.view.fork ctrl+shift+n~alt+down PaneLaunchRequested/1 - fork this view
+zengine.info - info.view.new ctrl+n PaneLaunchRequested/1,PaneSettingsRequested/1 - new Info view
+zengine.info - info.view.fork ctrl+shift+n~alt+down PaneLaunchRequested/1,PaneSettingsRequested/1 - fork this view
 zengine.info - info.view.rename ctrl+m~alt+home - - rename this view
 zengine.info - info.view.menu ctrl+.~ctrl+o - - all view actions
 zengine.info - info.value.panes ctrl+i~alt+left PaneObservationEnded/1 - pane properties
@@ -38,8 +38,8 @@ zengine.info - info.value.preset ctrl+b PaneObservationEnded/1 - make independen
 zengine.info - info.value.unset ctrl+u - - unset preset field
 zengine.info - info.value.grab ctrl+g PaneValueCarryRequested/1 - pick up typed field copy
 zengine.info - info.value.discard ctrl+d - - discard local edits
-zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new Info view
-zengine.info - info.view.fork ctrl+shift+n~alt+down PaneLaunchRequested/1 - fork this view
+zengine.info - info.view.new ctrl+n PaneLaunchRequested/1,PaneSettingsRequested/1 - new Info view
+zengine.info - info.view.fork ctrl+shift+n~alt+down PaneLaunchRequested/1,PaneSettingsRequested/1 - fork this view
 zengine.info - info.view.rename ctrl+m~alt+home - - rename this view
 zengine.info - info.view.menu ctrl+.~ctrl+o - - all view actions
 zengine.info - info.value.panes ctrl+i~alt+left PaneObservationEnded/1 - pane properties
@@ -48,7 +48,7 @@ zengine.info - info.up up - - row up
 zengine.info - info.down down - - row down
 zengine.info - info.edit return - - edit
 zengine.info - info.inventory ctrl+i~alt+right - - inventory entry
-zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new value view
+zengine.info - info.view.new ctrl+n PaneLaunchRequested/1,PaneSettingsRequested/1 - new value view
 zengine.info - info.value.up up - - previous field
 zengine.info - info.value.down down - - next field
 zengine.info - info.value.edit return - - edit field
@@ -61,9 +61,9 @@ zengine.info - info.value.preset ctrl+b PaneObservationEnded/1 - make independen
 zengine.info - info.value.unset ctrl+u - - unset preset field
 zengine.info - info.value.grab ctrl+g PaneValueCarryRequested/1 - pick up typed field copy
 zengine.info - info.value.discard ctrl+d - - discard local edits
-zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new Info view
-zengine.info - info.view.fork ctrl+shift+n~alt+down PaneLaunchRequested/1 - fork this view
+zengine.info - info.view.new ctrl+n PaneLaunchRequested/1,PaneSettingsRequested/1 - new Info view
+zengine.info - info.view.fork ctrl+shift+n~alt+down PaneLaunchRequested/1,PaneSettingsRequested/1 - fork this view
 zengine.info - info.view.rename ctrl+m~alt+home - - rename this view
 zengine.info - info.view.menu ctrl+.~ctrl+o - - all view actions
-zengine.info - info.view.close ctrl+shift+w~ctrl+w PaneCloseRequested/1,PaneObservationEnded/1 - close this view
+zengine.info - info.view.close ctrl+shift+w~ctrl+w PaneCloseRequested/1,PaneObservationEnded/1,PaneSettingsRequested/1 - close this view
 zengine.info - info.view.use return - - use this view

@@ -1259,6 +1259,44 @@ TEST_CASE("WL-CTX-09: a pane that leaves the desk while its menu is open has it 
     CHECK(t.guard->reveals.empty());
 }
 
+TEST_CASE("WL-CTX-09: another desk going live withdraws a pane's open menu, answered unchosen, and closes the host's own; an edit of the same desk leaves either open") {
+    // ⚔ MUTATION: the live layout installed with its menu left standing -- a menu about the desk
+    // the weaver was on stays open over another.
+    Rigged t;
+    LayoutStore& store = t.r.owner->store();
+    const auto live = [&t, &store](const char* op) {
+        LayoutEdit e;
+        e.op = op;
+        REQUIRE(store.edit(LayoutEditRequested{store.revision(), {e}}).accepted);
+        t.r.nudge_owner();
+        t.r.bus.drain_until_idle();
+    };
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    // THE SAME DESK EDITED: its menu stands.
+    live(layout_op::kResetFront);
+    CHECK(t.foreign_open());
+    CHECK(t.guard->answers.empty());
+    // ANOTHER DESK LIVE -- a copy, seating the same pane: the menu is withdrawn all the same.
+    const std::int64_t was = t.r.session().setup.id;
+    live(layout_op::kDuplicate);
+    REQUIRE(t.r.session().setup.id != was);
+    CHECK_FALSE(t.menu_open());
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answers[0].refusal == "another desk went live");
+    // ...AND THE HOST'S OWN MENU closes the same way.
+    const CellRect hello = t.hello_body();
+    t.r.right_press_cell(hello.x + 1, hello.y + 1);
+    REQUIRE(t.r.session().context.open);
+    live(layout_op::kResetFront);
+    CHECK(t.r.session().context.open);
+    live(layout_op::kDuplicate);
+    CHECK_FALSE(t.r.session().context.open);
+}
+
 TEST_CASE("WL-CTX-09: a menu opened by a declared key continues that keystroke -- eligible on its turn, refused after a newer key, and anchored in the pane's own body") {
     Rigged t;
     t.guard->menu_on_action = true;

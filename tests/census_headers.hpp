@@ -43,6 +43,8 @@
 #include "workshop/guest_door.hpp"
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/keymap_persist.hpp"
+#include "workshop/layouts/owner.hpp"
+#include "workshop/layouts/vocabulary.hpp"
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -57,9 +59,10 @@
 #include "workshop/quit_delivery.hpp"
 #include "workshop/recipe_persist.hpp"
 #include "workshop/sample_door.hpp"
-#include "workshop/session_history.hpp"
-#include "workshop/session_persist.hpp"
+#include "workshop/layouts/session_history.hpp"
+#include "workshop/layouts/session_persist.hpp"
 #include "workshop/setup_persist.hpp"
+#include "workshop/window_persist.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 #include "workshop/vocabulary.hpp"
 
@@ -126,6 +129,17 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::view::detail::ViewHostState>(), // ViewHostState v1
         shape<::zengine::view::detail::ViewRedraw>(), // ViewRedraw v1
         shape<::zengine::view::detail::ViewStart>(), // ViewStart v2
+        shape<::zengine::workshop::LayoutsOwnerState>(), // LayoutsOwnerState v1
+        shape<::zengine::workshop::LiveTab>(), // LiveTab v1
+        shape<::zengine::workshop::RowRevision>(), // RowRevision v1
+        shape<::zengine::workshop::LiveLayout>(), // LiveLayout v1
+        shape<::zengine::workshop::LayoutEdit>(), // LayoutEdit v1
+        shape<::zengine::workshop::LayoutEditRequested>(), // LayoutEditRequested v1
+        shape<::zengine::workshop::LayoutEditAnswered>(), // LayoutEditAnswered v1
+        shape<::zengine::workshop::SessionSaveRequested>(), // SessionSaveRequested v1
+        shape<::zengine::workshop::SessionSaveAnswered>(), // SessionSaveAnswered v1
+        shape<::zengine::workshop::WeaversActRequested>(), // WeaversActRequested v1
+        shape<::zengine::workshop::WeaversActAnswered>(), // WeaversActAnswered v1
         shape<::zengine::workshop::ArrangementDoorState>(), // ArrangementDoorState v2
         shape<::zengine::workshop::EditorSwitchState>(), // EditorSwitchState v1
         shape<::zengine::workshop::EditorSwitchAnswered>(), // EditorSwitchAnswered v1
@@ -161,10 +175,12 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PaneRevealAnswered>(), // PaneRevealAnswered v1
         shape<::zengine::workshop::PaneRevealRequested>(), // PaneRevealRequested v1
         shape<::zengine::workshop::PowersDoorState>(), // PowersDoorState v1
-        shape<::zengine::workshop::prefs_persist::WorkshopPrefs>(), // WorkshopPrefs v3
+        shape<::zengine::workshop::prefs_persist::WorkshopPrefs>(), // WorkshopPrefs v4
+        shape<::zengine::workshop::prefs_persist::v3::WorkshopPrefs>(), // WorkshopPrefs v3
         shape<::zengine::workshop::prefs_persist::v2::WorkshopPrefs>(), // WorkshopPrefs v2
         shape<::zengine::workshop::prefs_persist::v1::WorkshopPrefs>(), // WorkshopPrefs v1
         shape<::zengine::workshop::OfficeSettings>(), // OfficeSettings v1
+        shape<::zengine::workshop::OfficeSettingCommitAnswered>(), // OfficeSettingCommitAnswered v1
         shape<::zengine::workshop::OfficeSettingsDeclared>(), // OfficeSettingsDeclared v1
         shape<::zengine::workshop::QuitDeliveryRefusalNoted>(), // QuitDeliveryRefusalNoted v1
         shape<::zengine::workshop::recipe_persist::v1::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v1
@@ -190,27 +206,38 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::session_history::v8::WorkshopSession>(), // WorkshopSession v8
         shape<::zengine::workshop::session_history::v9::WorkshopSession>(), // WorkshopSession v9
         shape<::zengine::workshop::session_history::v10::WorkshopSession>(), // WorkshopSession v10
+        shape<::zengine::workshop::session_history::v11::WorkshopLayout>(), // WorkshopLayout v3
+        shape<::zengine::workshop::session_history::v11::WorkshopSession>(), // WorkshopSession v11
+        shape<::zengine::workshop::session_history::v11::WorkshopSessionHeader>(), // WorkshopSessionHeader v11
+        shape<::zengine::workshop::session_history::v11::WorkshopSetupLink>(), // WorkshopSetupLink v3
         shape<::zengine::workshop::session_persist::WorkshopChoice>(), // WorkshopChoice v1
-        shape<::zengine::workshop::session_persist::WorkshopLayout>(), // WorkshopLayout v3
-        shape<::zengine::workshop::session_persist::WorkshopPlacement>(), // WorkshopPlacement v1
-        shape<::zengine::workshop::session_persist::WorkshopSession>(), // WorkshopSession v11
-        shape<::zengine::workshop::session_persist::WorkshopSessionHeader>(), // WorkshopSessionHeader v11
-        shape<::zengine::workshop::session_persist::WorkshopSetupLink>(), // WorkshopSetupLink v3
-        shape<::zengine::workshop::session_persist::WorkshopViewport>(), // WorkshopViewport v2
+        shape<::zengine::workshop::session_persist::WorkshopLayout>(), // WorkshopLayout v4
+        shape<::zengine::workshop::session_persist::WorkshopSession>(), // WorkshopSession v12
+        shape<::zengine::workshop::session_persist::WorkshopSessionHeader>(), // WorkshopSessionHeader v12
+        shape<::zengine::workshop::session_persist::WorkshopSetupLink>(), // WorkshopSetupLink v4
+        shape<::zengine::workshop::window_persist::WorkshopPlacement>(), // WorkshopPlacement v1
+        shape<::zengine::workshop::window_persist::WorkshopViewport>(), // WorkshopViewport v2
+        shape<::zengine::workshop::window_persist::WorkshopWindow>(), // WorkshopWindow v1
         shape<::zengine::workshop::setup_persist::v2::WorkshopPanePlace>(), // WorkshopPanePlace v1
         shape<::zengine::workshop::setup_persist::v3::WorkshopPanePlace>(), // WorkshopPanePlace v2
-        shape<::zengine::workshop::setup_persist::WorkshopPanePlace>(), // WorkshopPanePlace v3
+        shape<::zengine::workshop::setup_persist::v5::WorkshopPanePlace>(), // WorkshopPanePlace v3
+        shape<::zengine::workshop::setup_persist::WorkshopPanePlace>(), // WorkshopPanePlace v4
         shape<::zengine::workshop::setup_persist::v2::WorkshopPaneSize>(), // WorkshopPaneSize v1
         shape<::zengine::workshop::setup_persist::v3::WorkshopPaneSize>(), // WorkshopPaneSize v2
-        shape<::zengine::workshop::setup_persist::WorkshopPaneSize>(), // WorkshopPaneSize v3
+        shape<::zengine::workshop::setup_persist::v5::WorkshopPaneSize>(), // WorkshopPaneSize v3
+        shape<::zengine::workshop::setup_persist::WorkshopPaneSize>(), // WorkshopPaneSize v4
         shape<::zengine::workshop::setup_persist::v2::WorkshopSetup>(), // WorkshopSetup v2
         shape<::zengine::workshop::setup_persist::v3::WorkshopSetup>(), // WorkshopSetup v3
         shape<::zengine::workshop::setup_persist::v4::WorkshopSetup>(), // WorkshopSetup v4
-        shape<::zengine::workshop::setup_persist::WorkshopSetup>(), // WorkshopSetup v5
+        shape<::zengine::workshop::setup_persist::v5::WorkshopSetup>(), // WorkshopSetup v5
+        shape<::zengine::workshop::setup_persist::WorkshopSetup>(), // WorkshopSetup v6
+        shape<::zengine::workshop::setup_persist::WorkshopSetupLock>(), // WorkshopSetupLock v1
         shape<::zengine::workshop::setup_persist::v2::WorkshopSetupPane>(), // WorkshopSetupPane v2
         shape<::zengine::workshop::setup_persist::v3::WorkshopSetupPane>(), // WorkshopSetupPane v3
         shape<::zengine::workshop::setup_persist::v4::WorkshopSetupPane>(), // WorkshopSetupPane v4
-        shape<::zengine::workshop::setup_persist::WorkshopSetupPane>(), // WorkshopSetupPane v5
+        shape<::zengine::workshop::setup_persist::v5::WorkshopSetupPane>(), // WorkshopSetupPane v5
+        shape<::zengine::workshop::setup_persist::WorkshopSetupPane>(), // WorkshopSetupPane v6
+        shape<::zengine::workshop::setup_persist::WorkshopSetupPinList>(), // WorkshopSetupPinList v1
         shape<::zengine::workshop::PaneSettingsDeclared>(), // PaneSettingsDeclared v1
         shape<::zengine::workshop::PaneDocumentRequested>(), // PaneDocumentRequested v1
         shape<::zengine::workshop::PaneDocumentShown>(), // PaneDocumentShown v2

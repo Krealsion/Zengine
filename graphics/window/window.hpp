@@ -548,7 +548,7 @@ private:
     /// at once and a maximize only with the queue, so a maximize is said before the room it brings.
     /// A key, its release and its text go to each owner placed to hear that moment; a button, a move
     /// and the wheel as `button`, `motion` and `wheel` say; moves read together go as one, summed.
-    // WL-SESSION-09 -- agents/workshop/session-restore.md
+    // WL-SESSION-09 -- agents/workshop/window-file.md
     void service_pump(loom::Mail& mail) {
         namespace in = zengine::input;
         const bool remeasured = medium_.remeasure();

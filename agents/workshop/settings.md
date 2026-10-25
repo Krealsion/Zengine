@@ -2,8 +2,8 @@
 
 Register `WL-SETTING`: a setting's value and its kinds, the settings a layout's row keeps, a
 pane's declaration and the hand-off of its row's settings, the row read and written by message, an
-office's office-wide settings, Workshop's settings file, and a pane's pin list. One law per heading;
-cite by ID. Router: [`../workshop.md`](../workshop.md).
+office's office-wide settings, Workshop's settings file, and a pane's pin list -- every door the
+layouts' owner's, `zengine.layouts`. One law per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-SETTING-01 — A setting is a key and one value of three kinds
 
@@ -32,7 +32,7 @@ WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## WL-SETTING-03 — A pane's declaration stands alone and counts while the incarnation that sent it holds the office
 
-LAW — A settings declaration, v1 or v2, is judged whole under the office stamp, refused aloud with the settings in force standing, replaced by a later one, and counted while its incarnation holds the office.
+LAW — A declaration to the layouts' owner, v1 or v2, is judged whole under the office stamp, refused aloud with those in force standing, replaced by a later one, and counted while its sender holds the office.
 
 MEANS
 - a pane this office never offered, a default a setting does not take, or a tag, pin or summary past its bound is refused by name;
@@ -59,13 +59,13 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
-## WL-SETTING-05 — A setting is edited as a row of its pane's subject, against what it takes
+## WL-SETTING-05 — A setting is edited as a row of its pane's inspector, against what it takes
 
-LAW — A pane's subject has a row per declared setting and per kept key; a value its setting does not take is refused naming what it takes, its default is stored as absence, and `-` clears it.
+LAW — Info shows a row per declared setting and kept key, read of the layouts' owner; a value its setting does not take is refused naming what it takes, its default is stored as absence, and `-` clears it.
 
 MEANS
 - a text is stored as typed, spaces and all; a row reads a value as typed, and one its setting does not take beside the default in effect;
-- a kept key takes only `-`; the subject is named anew when its settings rows change;
+- a kept key takes only `-`; the rows are read again when the row's revision moves, and a commit names the revision read;
 - the band says the value was stored and handed, or why it was not handed.
 
 DOES NOT MEAN
@@ -86,7 +86,7 @@ WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## WL-SETTING-07 — A pane's row is read and written by message at its revision
 
-LAW — `PaneSettingsRequested` reads a pane's row of the live layout and its revision; `PaneSettingCommitRequested` writes one setting only at that revision, through Info's setter, answered to the asker alone.
+LAW — The layouts' owner's `PaneSettingsRequested` reads a pane's row of the live layout and its revision; `PaneSettingCommitRequested` writes one setting only at that revision, answered to the asker alone.
 
 MEANS
 - a revision is minted afresh when the desk put live, the row's settings, its counted declaration or the office's holder moved, and never again;
@@ -110,11 +110,11 @@ WHY — `agents/decisions/a-settings-write-names-the-revision-it-read.md`
 
 ## WL-SETTING-09 — An office, the host's Terminal and a guest with `settings` read and write a row
 
-LAW — The settings doors serve an office, the host's Terminal by `let_terminal_edit_settings`, and a guest whose row has `settings`; any other asker is answered withheld, with nothing read or written.
+LAW — The layouts' owner's settings doors serve an office, the host's Terminal (`let_terminal_edit_settings`) and a guest whose row has `settings`; any other asker is answered withheld, nothing written.
 
 MEANS
-- the host widens its Terminal to the asks, to Workshop's office alone, and their answers: a row's and an office's read and commit, a pin act, a lock act, every layout's reading and a batch;
-- a guest's `settings` is a word of the guests file's version 3, granted the same eight asks to Workshop.
+- the host widens its Terminal to the asks, to the owner's office alone, and their answers: a row's and an office's read and commit, a pin act, a lock act, every layout's reading and a batch;
+- a guest's `settings` is a word of the guests file's version 3, granted the same eight asks to the owner.
 
 DOES NOT MEAN
 - that Loom's grant is the only wall: an ask a grant let through is judged again by the row.
@@ -126,9 +126,9 @@ WHY — `agents/decisions/a-settings-write-names-the-revision-it-read.md`
 LAW — An office's `OfficeSettingsDeclared` is judged by a pane declaration's rules and counts while its incarnation holds the office; one office's settings are read, and written at the revision read.
 
 MEANS
-- Workshop's own are declared in code (`workshop_office_rows`); an office declaring as Workshop is refused; at most `kMaxSettingOffices` offices, and `kMaxOfficeSettingsKept` settings;
+- Workshop declares its own (`workshop_office_rows`), and the owner keeps them while none is declared; at most `kMaxSettingOffices` offices, and `kMaxOfficeSettingsKept` settings;
 - refused in order, nothing written: the asker, the office, the revision, an unreadable file, a clear given a value, a key not declared, a lock, a value not taken;
-- a default is kept as its absence; Workshop applies its own, another office's holder is handed `OfficeSettings`; the answer says applied or handed, then written or why not.
+- a default is kept as its absence; each office's holder, Workshop among them, is handed `OfficeSettings`; the answer says handed, then written or why not.
 
 DOES NOT MEAN
 - that Workshop acts on another office's value: it judges and keeps it, and what it means is the office's.
@@ -137,12 +137,12 @@ WHY — `agents/decisions/office-wide-settings-live-in-workshops-settings-file.m
 
 ## WL-SETTING-11 — Workshop's settings file is read once and written only while its bytes are this host's
 
-LAW — Workshop's settings file, version 3, keeps offices' settings, pin lists, locks and layouts' baselines; read at start, it is written by its edit doors only while its bytes are this host's.
+LAW — Workshop's settings file, version 4, keeps offices' settings and the Workshop-wide pin lists and locks; the layouts' owner reads it at start and alone writes it, only while its bytes are this host's.
 
 MEANS
-- versions 1 and 2 are read as Workshop's own settings; version 3 is judged whole, a key of Workshop's this build does not declare kept;
-- a file this run could not read refuses every office commit and pin act and is never written; a toggle stands for the run;
-- a lock refuses every write door naming its key: a row's commit, Info's, an office's (WL-LOCK-01).
+- versions 1 and 2 are read as Workshop's own settings; versions 3 and 4 are judged whole, a key of Workshop's this build does not declare kept;
+- what version 3 kept for a layout by name goes into each desk of that name when a session before 12 is restored, each entry no desk takes named; the file keeps it until a session holds it;
+- a file this run could not read refuses every office commit and pin act and is never written; a toggle stands for the run.
 
 DOES NOT MEAN
 - that a lock is made only by hand: the lock door writes the file (WL-LOCK-01).
@@ -154,12 +154,12 @@ WHY — `agents/decisions/office-wide-settings-live-in-workshops-settings-file.m
 LAW — `PaneSettingPinRequested` pins, unpins, moves or resets a pane's pin list, at most `kMaxPinsPerPane`, in the list `workshop.pinned-scope` reads; it is answered the list, and never handed to the pane.
 
 MEANS
-- Workshop-wide, the list under `<office>/<pane>`; per layout, `<office>/<pane>@<layout>`, falling back to the Workshop-wide one, then the declared pins;
+- Workshop-wide, the settings file's list under `<office>/<pane>`; per layout, the layout's desk's own (`SetupPins`), falling back to the Workshop-wide one, then the declared pins;
 - the first act copies the list it read into the scope's own, and `reset` drops the scope's own;
 - refused, nothing written: the asker, the layout, no declaration, an unreadable file, a key not declared, pinned already, not pinned, an unknown act, the bound.
 
 DOES NOT MEAN
-- that two layouts sharing a name keep two lists: a list is kept under the name, and follows a rename (WL-LOCK-04).
+- that a list is kept under a layout's name: it is the desk's, so a rename keeps it and a copy takes its own (WL-LOCK-05).
 
 WHY — `agents/decisions/a-setting-is-found-by-its-tags-and-pins.md`
 
@@ -189,7 +189,7 @@ key, and changes nothing"
 
 ### WL-SETTING-02
 `workshop/setup.hpp` check_pane_settings kMaxPaneSettingsPerDesk desk_setting_count check_setup
-SetupPane::settings
+SetupPane::settings desk_units
 `workshop/pane_settings.hpp` kMaxPaneSettingsPerRow kDeskSettingPrefix is_desk_setting_key
 kWorkshopSkinKey workshop_skin_setting_row
 `tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
@@ -202,13 +202,12 @@ its bound, and a value moved on a full desk is kept"
 
 ### WL-SETTING-03
 `workshop/setup_reconcile.hpp` admit_pane_settings
-`workshop/weave_seam.cpp` on(PaneSettingsDeclared) on(v2::PaneSettingsDeclared) keep_settings_rows
-counted_settings counted_settings_v2 accept_pane_offer
-`workshop/panes.hpp` RuntimePane::settings_rows RuntimePane::settings_rows_v2
-RuntimePane::settings_incarnation
+`workshop/weave_seam.cpp` accept_pane_offer
 `workshop/pane_settings.hpp` PaneSettingsDeclared PaneSettingRow pane_settings_declared_problem
 pane_setting_row_problem pane_setting_refused_by pane_setting_tag_problem widen_setting_row
 narrow_setting_row kMaxTagLen kMaxSettingTags kMaxDeclaredTags kMaxDefaultPins kReservedTags
+`workshop/layouts/owner.cpp` on(PaneSettingsDeclared)
+`workshop/layouts/store.cpp` declare_pane counted
 `tests/test_workshop_panes_settings.cpp` "a declaration is judged whole under the office stamp,
 refused aloud, and replaced" "a declaration counts only while the weave that sent it holds the
 office" "what a declared setting takes is said in its own kind's words" "a v2 declaration says how
@@ -240,32 +239,32 @@ repaints nothing"
 ### WL-SETTING-05
 `workshop/setup.hpp` author_pane_setting
 `workshop/pane_settings.hpp` row_setting_absence
-`workshop/screen.hpp` SettingsSubject
-`workshop/screen_pane_subject.cpp` settings_subject write_pane_setting write_kept_setting
-pane_setting_text kept_setting_text
 `workshop/weave_inspection.cpp` settings_handed refresh_inspected
+`info/settings_rows.hpp` value_text rows_of Typed
 `tests/test_workshop_panes_settings.cpp` "a pane's settings are rows of its subject, named by their
 keys, after RESOLVED" "a value a setting does not take is refused at the edit, naming what it takes"
 "a setting typed at its default is stored as its absence, and `-` clears one" "a settings write says
 it was stored and handed, or why it was not handed" "a text setting is stored as it is typed, spaces
 included, and `-` clears it" "a kept setting takes only `-`, and the rows are named anew when it
-goes" "the subject is named anew when the settings its rows are built from change"
+goes" "the row Info reads moves with what it is built from: a declaration, and a new holder"
 
 ### WL-SETTING-06
 `workshop/setup_reconcile.hpp` discarded_settings settings_said
 `workshop/weave_desktop.cpp` close_pane
 `workshop/weave_managed.cpp` show_presentation digest_of
+`workshop/setup.hpp` remove_pane
 `tests/test_workshop_panes_settings.cpp` "a close discards a pane's settings with its row, and every
 close door says which" "arrangement's remove says the settings it discarded too"
 `tests/test_workshop_panes_opening.cpp` "a setting written while an opening prepares survives its
 publication" "a layout renamed while an opening prepares keeps its name through the publication"
 
 ### WL-SETTING-07
-`workshop/settings_seam_vocabulary.hpp` PaneSettingsRequested PaneSettingsShown
-PaneSettingCommitRequested PaneSettingActed SettingLockShown
-`workshop/weave_inspection.cpp` on(PaneSettingsRequested) on(PaneSettingCommitRequested)
-settings_handed
+`workshop/settings_seam_vocabulary.hpp` PaneSettingsRequested PaneSettingsAnswered
+PaneSettingCommitRequested PaneSettingCommitAnswered SettingLockShown
+`workshop/weave_inspection.cpp` settings_handed
 `workshop/weave_seam.cpp` settings_revision
+`workshop/layouts/owner.cpp` on(PaneSettingsRequested) on(PaneSettingCommitRequested)
+`workshop/layouts/store.cpp` row_revision read_pane commit_pane
 `tests/test_workshop_panes_settings.cpp` "a pane's row is read by message: its revision, what its
 declaration takes, its pins and what it keeps" "a commit writes one setting at the revision it
 read, hands it, and says how far it got" "a commit is refused in words with nothing written: a stale
@@ -284,13 +283,13 @@ them: the wheel reads its rows a notch and the line wears its prompt"
 its revision, said, and goes when a newer one is handed"
 
 ### WL-SETTING-09
-`workshop/weave.hpp` let_terminal_edit_settings
-`workshop/weave_inspection.cpp` settings_asker_refused
-`workshop/weave_settings.cpp` on(OfficeSettingsRequested) on(PaneSettingPinRequested)
+`workshop/weave.hpp` let_terminal_edit_settings layouts_owner_host
 `workshop/terminal_speech.hpp` let_terminal_edit_settings
 `workshop/guests.cpp` grant_for read_guests_file
 `workshop/guests.hpp` kPowerSettings
 `workshop/actor_scope.hpp` kPowerSettings
+`workshop/layouts/owner.cpp` asker_refused
+`workshop/layouts/owner.hpp` LayoutsOwnerHost
 `tests/test_workshop_panes_settings.cpp` "an asker the settings doors do not serve is answered that
 it was withheld, and nothing is written"
 `tests/test_workshop_panes_terminal.cpp` "a Terminal line reads the Terminal's settings, and writes
@@ -301,14 +300,17 @@ settings; without it Loom's grant refuses the ask, and Workshop's door the asker
 
 ### WL-SETTING-10
 `workshop/settings_seam_vocabulary.hpp` OfficeSettingsDeclared OfficeSettings
-OfficeSettingsRequested OfficeSettingsShown OfficeSettingCommitRequested kMaxSettingOffices
+OfficeSettingsRequested OfficeSettingsAnswered OfficeSettingCommitRequested kMaxSettingOffices
 kMaxOfficeSettings kMaxOfficeSettingsKept
-`workshop/weave_settings.cpp` office_rows on(OfficeSettingsDeclared) office_revision
-hand_office_settings apply_workshop_settings on(OfficeSettingsRequested)
-on(OfficeSettingCommitRequested) write_prefs
+`workshop/weave_settings.cpp` on(OfficeSettingsDeclared) apply_workshop_settings
+on(OfficeSettingCommitRequested) declare_own_settings on(OfficeSettings)
 `workshop/prefs_persist.hpp` workshop_office_rows put_office_value put_workshop_value
 presentation_of Presentation
 `workshop/weave_external.cpp` hand_settings
+`workshop/layouts/owner.cpp` on(OfficeSettingsDeclared) on(OfficeSettingsRequested)
+on(OfficeSettingCommitRequested)
+`workshop/layouts/store.cpp` office_rows declare_office office_revision office_hand_offs read_office
+commit_office
 `tests/test_workshop_panes_settings.cpp` "Workshop's measures and its completion order apply when
 committed, are kept in the settings file, and a value outside what each takes is refused"
 "Workshop's own settings are read by message: what each
@@ -320,28 +322,31 @@ kept, and its settings are written by message"
 
 ### WL-SETTING-11
 `workshop/prefs_persist.hpp` WorkshopPrefs OfficeSettingsKept PinList SettingLock Prefs from_text
-kept_problem to_text kFormatVersion kWordsVersion kMaxPinLists kMaxLocks
-`workshop/weave_settings.cpp` write_prefs
-`workshop/weave_handlers.cpp` load_prefs
+kept_problem to_text kFormatVersion kWordsVersion kMaxPinLists kMaxLocks has_layout_entries
 `workshop/weave_input.cpp` state_presentation
 `workshop/screen_pane_subject.cpp` pane_subject_rows
-`workshop/weave_inspection.cpp` on(PaneSettingCommitRequested)
+`workshop/layouts/store.cpp` load_prefs write_prefs fold_layout_entries
 `tests/test_workshop_persistence.cpp` "the settings file round-trips what it keeps: Workshop's own
 settings, another office's, pin lists and locks" "a version-3 settings file is judged whole: a value
 Workshop's settings do not take, a list out of order, a pin twice, a lock with two values" "a
 version-2 prefs file is read as Workshop's own three settings, and its words are still a closed set"
 "a settings file another hand changed since this Workshop read it is never written over" "a prefs
-file version 3 cannot read is refused whole, and its bytes stand"
+file version 3 cannot read is refused whole, and its bytes stand" "what a version-3 settings file
+kept by layout name goes into each desk of the name, a copy each, and each entry no desk takes is
+named in full" "the settings file keeps its layouts' entries until a session holds them: a run that
+ends without its close finds them again"
 `tests/test_workshop_panes_settings.cpp` "an office commit is refused in words with nothing written:
 a stale revision, an office nothing declares for, a value not taken, a key not declared, a lock" "an
 everywhere lock on a pane's setting refuses the message commit and the subject's row, and every
 reading says it"
 
 ### WL-SETTING-12
-`workshop/settings_seam_vocabulary.hpp` PaneSettingPinRequested PaneSettingPinActed kMaxPinsPerPane
-kPinsWorkshopWide kPinsPerLayout
-`workshop/weave_settings.cpp` pin_target effective_pins on(PaneSettingPinRequested)
-`workshop/weave_inspection.cpp` on(PaneSettingsRequested)
+`workshop/settings_seam_vocabulary.hpp` PaneSettingPinRequested PaneSettingPinAnswered
+kMaxPinsPerPane kPinsWorkshopWide kPinsPerLayout
+`workshop/layouts/owner.cpp` on(PaneSettingPinRequested)
+`workshop/layouts/store.cpp` effective_pins pin
+`workshop/setup.hpp` SetupPins
+`workshop/setup_persist.hpp` WorkshopSetupPinList
 `tests/test_workshop_panes_settings.cpp` "a pin act pins, unpins and moves a pane's setting in the
 Workshop-wide list, and a reading of the row says the list" "a pin act is refused in words with
 nothing written: a key not declared, one pinned already, one not pinned, an act not known, past the

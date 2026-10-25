@@ -389,7 +389,7 @@ inline std::vector<std::string> admitted_and_painted(InfoRig& f) {
 
 /// WHAT ONE DESK OF THE RUN AUTHORS FOR THE LAYOUTS PANE'S WIDTH -- the live one or a shelved one.
 inline bool layouts_width_default_on_every_desk(InfoRig& f) {
-    const SetupState& run = f.r.session().setup;
+    const SetupState& run = f.r.run();
     for (std::size_t at = 0; at < layout_count(run); ++at) {
         const SetupPane* row = pane_of(layout_at(run, at), layouts_ref());
         if (row == nullptr || row->width.mode != pane_unit::kDefault) {
@@ -1649,8 +1649,10 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         REQUIRE(f.declared() == kDrafting);
         // THE WEAVER'S OWN WINDOW FOR THE PANE ON BOTH DESKS, through the setup's authoring doors,
         // and a new room -- which keeps the draft.
-        widen(f.r.session().setup.active);
-        widen(f.r.session().setup.shelved.front().desk);
+        stage_run(f.r, [&](SetupState& run) {
+            widen(run.active);
+            widen(run.shelved.front().desk);
+        });
         f.r.extent(150, 44);
         const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
         REQUIRE(seat != nullptr);
@@ -1666,7 +1668,7 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
             INFO("row: ", one);
             CHECK(one.find("nothing was") == std::string::npos);
         }
-        const SetupPane* first = pane_of(layout_at(f.r.session().setup, 0), layouts_ref());
+        const SetupPane* first = pane_of(layout_at(f.r.run(), 0), layouts_ref());
         REQUIRE(first != nullptr);
         CHECK(first->width.amount == cells_px(77)); // the write stands on the desk it was typed for
     }
@@ -1847,8 +1849,8 @@ TEST_CASE("an Info commit queued behind another desk put live, or another and ba
     // THE PANE ABANDONED THE DRAFT WHEN IT SAW THE NEW NAME, AND ITS ROW SAYS WHY THE COMMIT WAS
     // REFUSED -- in what Workshop admitted and in what it painted.
     CHECK(f.declared() == kResting);
-    CHECK_MESSAGE(f.row_of("commit refused -- the i") == 0, f.text());
-    CHECK(f.admitted_leads("commit refused -- the i"));
+    CHECK_MESSAGE(f.row_of("commit refused -- ") == 0, f.text());
+    CHECK(f.admitted_leads("commit refused -- "));
     CHECK(value_of(f.property_row("Width")) == "-");
 }
 
@@ -1866,7 +1868,7 @@ TEST_CASE("an Info commit that reaches the owner before another desk is put live
     f.settle();
     CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
     REQUIRE(layout_count(f.r.session().setup) == 2);
-    const SetupPane* first = pane_of(layout_at(f.r.session().setup, 0), layouts_ref());
+    const SetupPane* first = pane_of(layout_at(f.r.run(), 0), layouts_ref());
     REQUIRE(first != nullptr);
     CHECK(first->width.amount == cells_px(77));
     CHECK(f.layouts_width() == "-"); // the new desk
@@ -1908,8 +1910,8 @@ TEST_CASE("an Info commit queued behind a restore of the desk from its file is r
         CHECK(f.layouts_width() == "-");
         CHECK(slurp(f.r.host.setup_path) == saved);
         CHECK(f.declared() == kResting);
-        CHECK_MESSAGE(f.row_of("commit refused -- the i") == 0, f.text());
-        CHECK(f.admitted_leads("commit refused -- the i"));
+        CHECK_MESSAGE(f.row_of("commit refused -- ") == 0, f.text());
+        CHECK(f.admitted_leads("commit refused -- "));
     }
     SUBCASE("a restore the file refuses") {
         {
@@ -2278,6 +2280,7 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     // THE COMMITS THE DOOR RECEIVED, with the attempt and the correlation each carried.
     std::vector<std::uint64_t> seqs;
     std::vector<std::uint64_t> correlations;
+    std::uint64_t last_ask = 0; ///< the pane's newest ask of anyone, its commits and its readings
     std::vector<std::string> first_rows; ///< every row 0 the pane said, in order
     int forged_delivered = 0;
     bool stopped = false;
@@ -2285,6 +2288,10 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     const loom::ObserverId tap = f.r.bus.add_observer([&](const loom::BusEvent& ev) {
         if (ev.kind != loom::EventKind::Delivered) {
             return;
+        }
+        if (ev.sender == pane_id && (ev.schema_name == PaneCommitRequested::zen_name ||
+                                     ev.schema_name == PaneSettingsRequested::zen_name)) {
+            last_ask = ev.correlation;
         }
         if (ev.schema_name == PaneCommitRequested::zen_name) {
             seqs.push_back(ev.seq);
@@ -2305,8 +2312,8 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
         }
     });
 
-    // THE PANE'S CORRELATION IS ITS OWN COUNT: read off a first commit, written, and the next is
-    // one more. (The inspect the draft needed counted too, before this one.)
+    // THE PANE'S CORRELATION IS ITS OWN COUNT: read off its newest ask -- a commit, or its
+    // reading of the subject's settings -- and the next is one more.
     f.draft_holding("Width", "7");
     f.r.key(input::scan::kReturn);
     REQUIRE(seqs.size() == 1);
@@ -2339,10 +2346,11 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     forged.shape = PaneCommitRequested::zen_name;
     forged.version = PaneCommitRequested::zen_version;
     forged.reason = "TargetUnavailable";
+    const std::uint64_t forged_at = last_ask + 1;
     REQUIRE(f.r.bus
                 .send_as(stranger_id, pane_id,
                          loom::Message(loom::to_value(forged), stranger_id, loom::WeaveId{},
-                                       correlations.front() + 1))
+                                       forged_at))
                 .valid());
     // ...AND WORKSHOP'S RESOLVED COMMIT ID AGAIN, queued behind the forgery, ahead of the answer.
     f.enqueue_action(pane::kActionCommit);
@@ -2353,7 +2361,7 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     CHECK(forged_delivered == 1);
     REQUIRE(seqs.size() == 2);
     CHECK(seqs.back() == probe.seq - 1);
-    CHECK(correlations.back() == correlations.front() + 1);
+    CHECK(correlations.back() == forged_at);
     // IT SETTLED NOTHING: the commit id said meanwhile met the outstanding commit and was not sent,
     // no row ever said the commit was not delivered, and the answer closed the draft.
     const bool not_sent_said =

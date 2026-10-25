@@ -55,7 +55,7 @@ A press on a submitted, received or answer row picks up a copy of its value
 ([`entry`](#entry)).
 
 Each layout keeps the pane's three settings in its row, written from Info's SETTINGS rows or by
-message ([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)):
+message ([`PaneSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#panesettingcommitrequested)):
 `legend`, pinned, whether the shortcut legend bar shows ([`legend`](#legend)); `wheel-rows`, how
 many rows of the record a wheel notch reads; and `prompt`, the line's mark, one of `>`, `$`, `%`,
 `#` and `:` ([`line`](#line)). What each takes is said beside it in Info. A value a setting

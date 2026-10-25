@@ -101,8 +101,6 @@ void WorkshopWeave::hand_settings(loom::Mail& mail) {
             return u.revision != revision;
         });
     }
-    // ...AND EVERY DECLARING OFFICE ITS OFFICE-WIDE SETTINGS, on the same turns.
-    hand_office_settings(mail);
 }
 
 // WL-FOCUS-04 -- agents/workshop/focus.md
@@ -661,7 +659,7 @@ bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Ma
     if (!b.pressed) {
         // A PRIMARY RELEASE: a drag that began before the menu opened ends here (the Terminal's
         // and management's own repair). A release on the menu is its presenter's, in its area.
-        (void)end_held_gestures();
+        (void)end_held_gestures(mail);
         return true;
     }
     const PointedAt where = canvas_point_of(b.space, b.x, b.y);

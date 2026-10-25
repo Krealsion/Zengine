@@ -9,7 +9,7 @@ change was going to add a fourth (`0cffe92`, "Let the session reader forget ever
 one it admits"). The format then moved three times in a week: 3 → 4, 4 → 5, 5 → 6.
 
 **Decision.** The reader knows one shape and carries `kFormatVersion` and no second number. The
-retired shapes live in `workshop/session_history.hpp`, shipped as
+retired shapes live in `workshop/layouts/session_history.hpp`, shipped as
 `zengine-workshop-session-history`, an ordinary operator provider. A retired struct is copied
 verbatim and keeps the wire identity an old file's bytes claim; every edge is direct and the
 catalog reads `current` off the reader's own schema. The reader's whole knowledge of history is

@@ -662,7 +662,7 @@ struct Keys {
         load_real_desktop(r);
         presenter = r.load_presenter(presenter_image);
         r.key(input::scan::kK, input::mod::kCtrl);
-        const Written tall = author_pane_size(r.session().setup.active,
+        const Written tall = staged_author_pane_size(r,
                                               PaneRef{kDesktopRole, dp::kHotkeysPane},
                                               PaneSize{pane_unit::kPixels, cells_px(120)},
                                               PaneSize{pane_unit::kPixels, cells_px(40)});
@@ -1723,7 +1723,7 @@ TEST_CASE("WL-DESK-14: an `inspect in Info` that cannot be carried out is said i
         inspect_by_keys(d, "Alpha");
         REQUIRE(d.r.session().inspected.ref == (PaneRef{"zengine.test.tools", "alpha"}));
         // INFO TALL ENOUGH TO SHOW ALPHA'S SIZE, as a weaver grows it.
-        const Written grown = author_pane_size(d.r.session().setup.active,
+        const Written grown = staged_author_pane_size(d.r,
                                                PaneRef{"zengine.info", "info"}, PaneSize{},
                                                PaneSize{pane_unit::kPixels, cells_px(40)});
         REQUIRE_MESSAGE(grown.accepted, grown.refusal);

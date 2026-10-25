@@ -675,7 +675,7 @@ def settings_step(ctx, hand, arg):
     and read the row back. Returns the readings and the commit's answer."""
     provider, pane, key, value = settings_of(arg)
     where = {"provider": provider, "pane": pane}
-    shown = hand.ask("zengine.workshop", "PaneSettingsRequested", where)
+    shown = hand.ask("zengine.layouts", "PaneSettingsRequested", where)
     record = {"read": shown.fields}
     if key is None:
         return record
@@ -687,10 +687,10 @@ def settings_step(ctx, hand, arg):
         ctx.check(rows, "settings: %s/%s declares no setting %r; it declares %s"
                   % (provider, pane, key, ", ".join(r["key"] for r in shown["rows"]) or "none"))
         fields.update(settings_value(ctx, rows[0], value))
-    acted = hand.ask("zengine.workshop", "PaneSettingCommitRequested", fields)
+    acted = hand.ask("zengine.layouts", "PaneSettingCommitRequested", fields)
     record["acted"] = acted.fields
     ctx.check(acted["accepted"], "settings: %s of %s/%s refused: %s" % (key, provider, pane, acted["refusal"]))
-    record["after"] = hand.ask("zengine.workshop", "PaneSettingsRequested", where).fields
+    record["after"] = hand.ask("zengine.layouts", "PaneSettingsRequested", where).fields
     return record
 
 

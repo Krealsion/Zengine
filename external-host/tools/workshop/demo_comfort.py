@@ -20,7 +20,7 @@ def run(ctx):
          "width": {"mode": "default", "amount": "0"},
          "height": {"mode": "default", "amount": "0"}, "front": "1"}])
     ctx.ask("zengine.inventory-pane", "PaneResetRequested", {"pane": "inventory"}, via=link, settle=True)
-    ctx.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout)}, via=link, settle=True)
+    ctx.ask("zengine.layouts", "SetupApplyRequested", {"setup": json.dumps(layout)}, via=link, settle=True)
     hand = Hand(ctx, link)
     views = []
     try:

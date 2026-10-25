@@ -8,22 +8,27 @@
 
 #include "weave.hpp"
 
+#include <memory>
+
 namespace zengine::workshop {
 
 // WL-DESK-18 -- agents/workshop/desktop.md
 void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
-    const auto answer = [&](const std::string& refusal) {
-        if (!refusal.empty()) {
-            say(refusal, true);
-        }
-        (void)mail.answer(CommandRunAnswered{refusal.empty(), refusal});
-        repaint(mail);
-    };
     // FROM THE PALETTE'S OFFICE, AS ITS HOLDER, and from nobody else.
     if (mail.authored_role() != kPaletteRole || !host_->role_holder ||
         host_->role_holder(kPaletteRole) != mail.sender()) {
         return;
     }
+    // ANSWERED ONCE WHAT IT RAN HAS: a pane's seat is the layouts' store's to answer first.
+    auto held = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
+    const auto answer_in = [this, held](const std::string& refusal, loom::Mail& m) {
+        if (!refusal.empty()) {
+            say(refusal, true);
+        }
+        (void)loom::answer_deferred(*held, m, CommandRunAnswered{refusal.empty(), refusal});
+        repaint(m);
+    };
+    const auto answer = [&](const std::string& refusal) { answer_in(refusal, mail); };
     const PaneRef palette{kPaletteRole, kPalettePane};
     const std::optional<std::int64_t> palette_kind = resolve_pane(palette, session_.panes);
     // UNDER THE PALETTE'S OWN ROW, the one this Workshop sent it for a hand's key, still that
@@ -52,7 +57,9 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
     // THE PALETTE IS PUT DOWN FIRST, the keys going back to the pane it opened over, so the
     // command acts where the hand was.
     if (has_pane(session_.setup.active, palette)) {
-        (void)close_pane(palette, mail);
+        close_pane(palette,
+                   [](const PaneCloseAnswered&, const std::vector<PaneSetting>&, loom::Mail&) {},
+                   mail);
     }
     if (asked.kind == kCommandClose) {
         answer(std::string());
@@ -69,11 +76,14 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
             answer(why);
             return;
         }
-        const PaneLaunchAnswered shown = launch_pane(ref, mail);
-        if (shown.refusal.empty() && shown.opened) {
-            say("showed " + inventory_name(ref), false);
-        }
-        answer(shown.refusal);
+        launch_pane(ref,
+                    [this, ref, answer_in](const PaneLaunchAnswered& shown, loom::Mail& m) {
+                        if (shown.refusal.empty() && shown.opened) {
+                            say("showed " + inventory_name(ref), false);
+                        }
+                        answer_in(shown.refusal, m);
+                    },
+                    mail);
         return;
     }
     if (asked.kind != kCommandAction) {
@@ -100,7 +110,10 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
             answer("`" + asked.id + "` answers to no key in command mode here");
             return;
         }
+        // ...and stay Workshop's when the palette goes down after: it gives back no keys it no
+        // longer holds the claim to.
         session_.panes.keyboard = kNoPaneKind;
+        palette_over_ = kNoPaneKind;
         command(input::KeyPressed{key.scancode, std::string(), key.modifiers}, mail);
         answer(std::string());
         return;
@@ -137,22 +150,42 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
         answer(why);
         return;
     }
-    const PaneLaunchAnswered shown = launch_pane(ref, mail);
-    if (!shown.refusal.empty()) {
-        answer(shown.refusal);
-        return;
-    }
-    const std::uint64_t answering = ++gesture_asks_;
-    const loom::Ticket sent = mail.as_role(kWorkshopProvider)
-                                  .send_to_role(provider, PaneActionRequested{asked.pane, asked.id},
-                                                answering);
-    if (!sent.valid()) {
-        answer("the row could not be sent to " + inventory_name(ref));
-        return;
-    }
-    note_routed(kind);
-    keep_act(*by, by->action_sent = GestureSent{kind, by->latest, answering});
-    answer(std::string());
+    const InputActor actor = by->actor;
+    const std::string pane_key = asked.pane;
+    const std::string id = asked.id;
+    launch_pane(
+        ref,
+        [this, ref, kind, provider, actor, pane_key, id, answer_in](const PaneLaunchAnswered& shown,
+                                                                    loom::Mail& m) {
+            if (!shown.refusal.empty()) {
+                answer_in(shown.refusal, m);
+                return;
+            }
+            // THE HAND THAT PRESSED THE PALETTE'S ROW, found again: the row's act is its.
+            Hand* hand = nullptr;
+            each_hand([&](Hand& h) {
+                if (h.actor.known == actor.known && h.actor.local == actor.local &&
+                    h.actor.participant == actor.participant) {
+                    hand = &h;
+                }
+            });
+            if (hand == nullptr) {
+                answer_in("the hand that ran it is gone -- nothing was sent", m);
+                return;
+            }
+            const std::uint64_t answering = ++gesture_asks_;
+            const loom::Ticket sent = m.as_role(kWorkshopProvider)
+                                          .send_to_role(provider, PaneActionRequested{pane_key, id},
+                                                        answering);
+            if (!sent.valid()) {
+                answer_in("the row could not be sent to " + inventory_name(ref), m);
+                return;
+            }
+            note_routed(kind);
+            keep_act(*hand, hand->action_sent = GestureSent{kind, hand->latest, answering});
+            answer_in(std::string(), m);
+        },
+        mail);
 }
 
 // ...AND PUT DOWN, the keys going back to the pane that held them when it took them, if that pane

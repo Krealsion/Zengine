@@ -870,6 +870,10 @@ void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
 // and an unchanged desk sends none.
 // WL-READ-06 -- agents/workshop/desk-read.md
 void WorkshopWeave::publish_desk_stamps(loom::Mail& mail, const DeskView* known) {
+    // A DESK STILL SETTLING IS SAID ONCE, as its owner presents it: one gesture, one notice.
+    if (!edits_owed_.empty() && known == nullptr) {
+        return;
+    }
     DeskStamps now;
     now.desk = known != nullptr ? known->desk : desk_owed_ ? desk_view().desk : desk_number_;
     desk_owed_ = false;

@@ -2687,10 +2687,10 @@ TEST_CASE("demo power reaches only its setup and control owners") {
     zengine::workshop::guests::GuestRow row;
     row.may = {"input", "capture", "inspect", "inventory"};
     auto grant = zengine::workshop::guests::grant_for(row);
-    CHECK_FALSE(grant.permits_role("SetupApplyRequested", 1, "zengine.workshop"));
+    CHECK_FALSE(grant.permits_role("SetupApplyRequested", 1, "zengine.layouts"));
     CHECK_FALSE(grant.permits_role("DemoResetRequested", 1, "zengine.demo"));
     row.may = {"demo"}; grant = zengine::workshop::guests::grant_for(row);
-    CHECK(grant.permits_role("SetupApplyRequested", 1, "zengine.workshop"));
+    CHECK(grant.permits_role("SetupApplyRequested", 1, "zengine.layouts"));
     CHECK(grant.permits_role("PaneResetRequested", 1, "zengine.info"));
     CHECK(grant.permits_role("PaneResetRequested", 1, "zengine.composer"));
     CHECK(grant.permits_role("PaneResetRequested", 1, "zengine.inventory-pane"));

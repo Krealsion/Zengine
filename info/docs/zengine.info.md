@@ -18,7 +18,10 @@ value, edits, selection and the asks it waits on, so nothing you do in one view,
 pane, replaces what another shows. The default pane becomes a value view while it holds a value.
 
 Info owns nothing it shows. The inspected pane's rows are Workshop's reading, told to Info whole
-each time they change ([`PaneSubjectShown`](../../workshop/inspection_seam_vocabulary.hpp)), and
+each time they change ([`PaneSubjectShown`](../../workshop/inspection_seam_vocabulary.hpp)); its
+SETTINGS rows are what [`zengine.layouts`](../../workshop/docs/zengine.layouts.md) keeps for the
+pane in the live layout, read there at the row's revision, beside Workshop's word of how far their
+hand-off got; and
 Workshop's list of panes ([`PaneInventory`](../../workshop/desktop_seam_vocabulary.hpp)) tells Info
 which of its views are on the desk. Info names the pane to inspect by asking Workshop, when the Pane
 Manager or another office asks it to, and a property you change is written into the desk by
@@ -112,7 +115,8 @@ view.
   ([`PaneLaunchRequested`](../../workshop/docs/zengine.workshop.md#panelaunchrequested)). The view
   that asked says `Opened Info 2`; the new one says `New view: drag an Inventory entry here, or a
   field onto a field`. A view is offered to Workshop the first time it is used and kept after, so
-  the Pane Manager lists only views that were used.
+  the Pane Manager lists only views that were used; the desk it moves has the properties read their pane's settings again
+  ([`PaneSettingsRequested`](../../workshop/docs/zengine.layouts.md#panesettingsrequested)).
 - **Refuses:** `All four Info views are in use -- close one first`, ending ` (hidden: Info 3; the
   Pane Manager reopens them)` when some are only hidden; `New view not shown: <Workshop's reason>`.
   While a property draft is open it is not declared.
@@ -136,7 +140,10 @@ Asks for the draft's text to be written into its property.
   <!-- key info.commit -->`return`<!-- /key -->.
 - **Answers:** asks Workshop to write it into the desk
   ([`PaneCommitRequested`](../../workshop/docs/zengine.workshop.md#panecommitrequested)), which it
-  does only while its rows are still the ones the draft was opened on. Written, the draft closes and
+  does only while its rows are still the ones the draft was opened on; a SETTINGS row's text is
+  written by the layouts' owner instead, at the revision the row was read at
+  ([`PaneSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#panesettingcommitrequested)),
+  or refused naming what the setting takes. Written, the draft closes and
   the row shows the value. Refused, the draft stays, beside the owner's words. An answer that comes
   after you typed more, or after the draft closed, says `earlier commit written -- later edits not
   sent`, `earlier commit refused -- <the words>`, `commit written -- it was sent before the draft
@@ -358,7 +365,8 @@ ask, no watch. A linked draft stays linked to the same entry.
 - **Answers:** asks Workshop to show the new view
   ([`PaneLaunchRequested`](../../workshop/docs/zengine.workshop.md#panelaunchrequested)): `Forked
   into Info 2 fork`, the new view's title; the new view says `Forked from Info 2: an independent
-  local draft; watch is off`. Nothing is stored.
+  local draft; watch is off`. Nothing is stored; the desk it moves has the properties read their pane's settings again
+  ([`PaneSettingsRequested`](../../workshop/docs/zengine.layouts.md#panesettingsrequested)).
 - **Refuses:** `Fork view unavailable: this view holds no value`; as
   [`info.view.new`](#infoviewnew) when no view is free.
 - **Example:** <!-- key info.view.fork -->`ctrl+shift+n`<!-- /key -->.
@@ -412,7 +420,8 @@ one [`info.view.new`](#infoviewnew) opens. The default pane has none.
   the view held ends there
   ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)); an
   answer to the retired view's asks lands nowhere. Closing it from the desk or the Pane Manager only
-  hides it.
+  hides it; the desk it moves has the properties read their pane's settings again
+  ([`PaneSettingsRequested`](../../workshop/docs/zengine.layouts.md#panesettingsrequested)).
 - **Refuses:** `Close waits: a save is waiting for its answer`; `Unsaved edits in this view: press
   Close again to discard and close (Inventory data stays)`, or `Pending work in this view: ...`,
   until the second press.

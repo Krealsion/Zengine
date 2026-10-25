@@ -50,10 +50,10 @@ TEST_CASE("a fresh setup is the current version, sparse, and carries the identit
         CHECK(fresh.panes[i].front == static_cast<std::int64_t>(i));
     }
     CHECK(is_permutation(fresh));
-    CHECK(setup_persist::kFormatVersion == 5);
+    CHECK(setup_persist::kFormatVersion == 6);
     const std::string text = setup_persist::to_text(fresh);
     INFO(text);
-    CHECK(text.find("\"format_version\":\"5\"") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"6\"") != std::string::npos);
     CHECK(text.find("\"mode\":\"default\"") != std::string::npos);
     CHECK(text.find("\"front\":\"0\"") != std::string::npos);
 }
@@ -260,11 +260,13 @@ TEST_CASE("a desk row may NAME the right column, and any pane resolves into it")
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
     REQUIRE(before.open);
     REQUIRE(before.placed_in == placement::kOverlayStack);
-    for (SetupPane& row : live(t).setup.active.panes) {
-        if (row.ref == ref_of(stock::kKind)) {
-            row.place = PanePlace{pane_unit::kRightColumn, 0, 0};
+    stage_desk(t, [&](Setup& desk) {
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref_of(stock::kKind)) {
+                row.place = PanePlace{pane_unit::kRightColumn, 0, 0};
+            }
         }
-    }
+    });
     const PaneBounds after =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
     CHECK(after.placed_in == placement::kSideRegion);
@@ -274,10 +276,12 @@ TEST_CASE("a desk row may NAME the right column, and any pane resolves into it")
     // FOUR: NAMING A PLACE IS NOT NAMING A SIZE. An authored width still lays over the named
     // rectangle, per axis, exactly as it lays over a slot's -- which is what keeps this one
     // mode from becoming a second geometry with rules of its own.
-    REQUIRE(author_pane_size(live(t).setup.active, ref_of(stock::kKind),
-                             PaneSize{pane_unit::kPixels, gfx::px_of_cells(10)},
-                             PaneSize{pane_unit::kDefault, 0})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, ref_of(stock::kKind),
+                                 PaneSize{pane_unit::kPixels, gfx::px_of_cells(10)},
+                                 PaneSize{pane_unit::kDefault, 0})
+                    .accepted);
+    });
     const PaneBounds sized =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
     CHECK(sized.placed_in == placement::kSideRegion);
@@ -302,7 +306,7 @@ TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
     INFO(refused.outcome.refusal);
     // BY ITS NUMBER, and in Workshop's own words.
     CHECK(refused.outcome.refusal.find("setup version 1") != std::string::npos);
-    CHECK(refused.outcome.refusal.find("reads versions 2, 3, 4 and 5") != std::string::npos);
+    CHECK(refused.outcome.refusal.find("reads versions 2, 3, 4, 5 and 6") != std::string::npos);
     // AND NOT BY A ROW FIELD. That sentence would be true and would name the wrong cause --
     // a weaver fixing a missing `place` would never find out their file is a version old.
     CHECK(refused.outcome.refusal.find("place") == std::string::npos);
@@ -313,7 +317,7 @@ TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
     // THE FIELD IS STILL CHECKED TOO, for the forgery that only a reader of this format
     // would produce: a version-3 envelope whose own stated version is not 3.
     const setup_persist::LoadedSetup forged = setup_persist::from_text(
-        forged_setup(two_overlays(), "\"format_version\":\"5\"", "\"format_version\":\"1\""));
+        forged_setup(two_overlays(), "\"format_version\":\"6\"", "\"format_version\":\"1\""));
     CHECK_FALSE(forged.outcome.accepted);
     CHECK(forged.outcome.refusal.find("setup version 1") != std::string::npos);
 }
@@ -326,7 +330,7 @@ TEST_CASE("a version-1 file leaves the live setup and its on-file copy untouched
 
     // A LIVE, ARRANGED, SAVED SETUP -- so a refusal has something to damage.
     name_setup(t, "Mine");
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
     const Setup live = t.session().setup.active;
     const std::string good_bytes = slurp(path);
 
@@ -342,7 +346,7 @@ TEST_CASE("a version-1 file leaves the live setup and its on-file copy untouched
     t.key(input::scan::kR);
     CHECK(t.notice().find("setup version 1") != std::string::npos);
     CHECK(t.session().setup.active == live);
-    CHECK(t.session().setup.active_link.known == live);
+    CHECK(t.run().active_link.known == live);
     CHECK(t.session().panes.has(pane_kind::kLayouts));
     // AND THE FILE ON DISK IS NOT REWRITTEN BY A REFUSAL EITHER.
     CHECK(slurp(path) != good_bytes); // the case wrote it, not Workshop
@@ -398,27 +402,27 @@ TEST_CASE("dirty is structural -- an inverse edit makes a setup clean again") {
     // pane first, which is itself the reserved-column law being visible.
     open_pane(t, ref_of(stock::kKind));
     name_setup(t, "Clean");
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
 
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     // A GEOMETRY EDIT DIRTIES IT...
     t.key(input::scan::kRight);
-    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK_FALSE((live_status(t.run()) == setup_link::kCurrent));
     // ...AND THE EXACT INVERSE MAKES IT CLEAN, because `saved()` COMPARES rather than
     // remembering that a gesture happened. A dirty FLAG would still be set here.
     t.key(input::scan::kLeft);
-    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent)); // authored, and it was not
+    CHECK_FALSE((live_status(t.run()) == setup_link::kCurrent)); // authored, and it was not
     t.key(input::scan::k0);
     t.key(input::scan::kP);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
 
     // THE SAME, SAID ABOUT ORDER: a permutation returned to the identity is byte-identical
     // to a setup that was never reordered.
     t.key(input::scan::kF);
     t.key(input::scan::k0);
     t.key(input::scan::kO);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(setup_persist::to_text(t.session().setup.active) == slurp(path));
 }
 
@@ -1324,7 +1328,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKi
           pane_unit::kPixels);
 
     // AN ORDERING CHANGE MID-DRAG DOES NOT TRANSFER CUSTODY EITHER.
-    REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(send_to_back(desk, ref_of(stock::kKind)));
+    });
     t.hand_moment(input::PointerMoved{side.x + 2,
                                                  room_row + side.y + 4, 0, 0,
                                                  input::space::kCells, input::mod::kNone});
@@ -1352,10 +1358,12 @@ TEST_CASE("outside arrangement, an addressed pane behind another clicks through 
     const CellRect side =
         cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                                 sc).rect);
-    REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind), cells_px(side.x),
+    REQUIRE(place_at_canvas(t, ref_of(stock::kKind), cells_px(side.x),
                               cells_px(side.y + 2))
                 .accepted);
-    REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(send_to_back(desk, ref_of(stock::kKind)));
+    });
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.session().arrange.open);
     // LEAVING CLEARS THE WHOLE STATE: the desk deliberately opens on no pane, so there is no
@@ -1430,7 +1438,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
 
     // THE TARGET LEAVES THE SETUP UNDER THE HAND. A motion then ends the gesture rather than
     // writing to a row that is no longer there.
-    REQUIRE(remove_pane(live(t).setup.active, ref_of(stock::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(remove_pane(desk, ref_of(stock::kKind)));
+    });
     t.hand_moment(input::PointerMoved{rect.x + 4,
                                                  rect.y + 4, 0, 0,
                                                  input::space::kCells, input::mod::kNone});
@@ -1476,12 +1486,13 @@ TEST_CASE("the arrangement notice speaks the unit the FACE reported") {
     Live t;
     t.extent_px(cells_px(200), cells_px(60), 0, 0, 0);
     open_pane(t, ref_of(stock::kKind));
-    Setup& desk = live(t).setup.active;
     const PaneRef builder = ref_of(stock::kKind);
-    REQUIRE(author_pane_place(desk, builder, kOddPlaceX, kOddPlaceY).accepted);
-    REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kPixels, kOddWidth},
-                             PaneSize{pane_unit::kPixels, kOddHeight})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, builder, kOddPlaceX, kOddPlaceY).accepted);
+        REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kPixels, kOddWidth},
+                                 PaneSize{pane_unit::kPixels, kOddHeight})
+                    .accepted);
+    });
     enter_arrange_desk(t);
     step_to(t, builder);
 
@@ -1539,14 +1550,19 @@ TEST_CASE("the notice says where a pane the weaver did not place actually is") {
 
     // ONCE THE WEAVER HAS AUTHORED THE WHOLE WINDOW, the authored text IS the rectangle
     // and saying it twice would be noise.
-    Setup& desk = live(t).setup.active;
-    REQUIRE(author_pane_place(desk, ref_of(second::kKind), cells_px(2), cells_px(2)).accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(second::kKind), cells_px(2), cells_px(2))
+                    .accepted);
+    });
     t.key(input::scan::kTab);
     step_to(t, ref_of(second::kKind));
     CHECK(t.notice().find(" -- now @") != std::string::npos); // extents still reactive
-    REQUIRE(author_pane_size(desk, ref_of(second::kKind), PaneSize{pane_unit::kPixels, cells_px(20)},
-                             PaneSize{pane_unit::kPixels, cells_px(6)})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, ref_of(second::kKind),
+                                 PaneSize{pane_unit::kPixels, cells_px(20)},
+                                 PaneSize{pane_unit::kPixels, cells_px(6)})
+                    .accepted);
+    });
     t.key(input::scan::kTab);
     step_to(t, ref_of(second::kKind));
     INFO(t.notice());
@@ -1664,10 +1680,11 @@ TEST_CASE("a coarse shrink meets the same per-axis refusal a fine one does") {
     t.extent_px(cells_px(200), cells_px(60), 0, 0, 0);
     open_pane(t, ref_of(stock::kKind));
     const PaneRef builder = ref_of(stock::kKind);
-    Setup& desk = live(t).setup.active;
-    REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kPixels, cells_px(2)},
-                             PaneSize{pane_unit::kPixels, cells_px(20)})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kPixels, cells_px(2)},
+                                 PaneSize{pane_unit::kPixels, cells_px(20)})
+                    .accepted);
+    });
     enter_arrange_desk(t);
     step_to(t, builder);
 
@@ -1733,24 +1750,30 @@ TEST_CASE("a place-only change publishes no room, and a size change publishes on
 
     // A PLACE-ONLY CHANGE WITH THE SAME BODY CAPACITY SAYS NOTHING. The provider is told
     // rows and columns, and neither moved.
-    REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), cells_px(2), cells_px(2))
-                .accepted);
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, hello_ref(), cells_px(2), cells_px(2))
+                    .accepted);
+    });
     r.extent(200, 60, 0, 0); // one repaint, no extent change
     r.key(input::scan::kEscape);
     CHECK(seat->rooms.size() == rooms_before);
 
     // A SIZE CHANGE THAT MOVES THE PROSE CAPACITY PUBLISHES EXACTLY ONE FRESH ROOM...
-    REQUIRE(author_pane_size(r.session().setup.active, hello_ref(),
-                             PaneSize{pane_unit::kPixels, cells_px(30)},
-                             PaneSize{pane_unit::kPixels, cells_px(6)})
-                .accepted);
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, hello_ref(),
+                                 PaneSize{pane_unit::kPixels, cells_px(30)},
+                                 PaneSize{pane_unit::kPixels, cells_px(6)})
+                    .accepted);
+    });
     r.key(input::scan::kEscape);
     REQUIRE(seat->rooms.size() == rooms_before + 1);
     CHECK(seat->rooms.back().columns == 28);
 
     // AND REORDERING PUBLISHES NOTHING AT ALL, because the capacity did not move.
     const std::size_t after_size = seat->rooms.size();
-    REQUIRE(send_to_back(r.session().setup.active, hello_ref()));
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(send_to_back(desk, hello_ref()));
+    });
     r.key(input::scan::kEscape);
     CHECK(seat->rooms.size() == after_size);
 }
@@ -1899,11 +1922,15 @@ TEST_CASE("the desk manipulates panes directly, and a press is its own targeting
 
     // Two overlay panes on one desk; spread them so each has its own cells.
     const std::int64_t hello_kind = r.session().panes.runtime.find(kHelloOffice, kHelloPane)->kind;
-    REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), cells_px(4), cells_px(4))
-                .accepted);
-    REQUIRE(author_pane_place(r.session().setup.active, ref_of(stock::kKind), cells_px(80),
-                              cells_px(20))
-                .accepted);
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, hello_ref(), cells_px(4), cells_px(4))
+                    .accepted);
+    });
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), cells_px(80),
+                                  cells_px(20))
+                    .accepted);
+    });
     r.key(input::scan::kW);
     r.text("w");
     REQUIRE(r.session().arrange.open);
@@ -1971,7 +1998,9 @@ TEST_CASE("an arrow steps the AUTHORED value, not the medium's floor") {
     open_pane(t, ref_of(stock::kKind));
     const std::int64_t x = gfx::px_of_cells(12) + 7; // deliberately off the lattice
     const std::int64_t y = gfx::px_of_cells(6) + 5;
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), x, y).accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), x, y).accepted);
+    });
 
     const Screen sc = screen_of(t.session());
     REQUIRE(t.session().cell_px == 0); // this medium's own grain IS the cell
@@ -2395,7 +2424,7 @@ TEST_CASE("leaving a layout withdraws a presentation and unloads nothing") {
     CHECK(r.session().panes.runtime.entries.size() == 1);
     CHECK(resolve_pane(hello_ref(), r.session().panes).has_value());
     // ...and the layout that still names it is untouched by any of it.
-    CHECK(has_pane(layout_at(r.session().setup, 0), hello_ref()));
+    CHECK(has_pane(layout_at(r.run(), 0), hello_ref()));
 
     // COMING BACK RE-SEATS THE PRESENTATION AND RE-EARNS ITS ROOM -- one grant, because
     // this is a pane ENTERING, which is the dragged-window-edge path and not a new one.
@@ -2417,19 +2446,23 @@ TEST_CASE("an inactive layout's rows are dormant, not maintained") {
     // TWO LAYOUTS: the first names nothing external; the second names a pane nothing has
     // offered yet -- authored, unresolved, and legal.
     layout_key(r, Act::kLayoutNew);
-    REQUIRE(add_pane(r.session().setup.active, hello_ref()));
-    r.session().setup.active.name = "Waiting";
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, hello_ref()));
+    });
+    stage_desk(r, [&](Setup& desk) {
+        desk.name = "Waiting";
+    });
     const Setup waiting = r.session().setup.active;
     layout_key(r, Act::kLayoutPrevious);
     REQUIRE_FALSE(has_pane(r.session().setup.active, hello_ref()));
-    REQUIRE(layout_at(r.session().setup, 1) == waiting);
+    REQUIRE(layout_at(r.run(), 1) == waiting);
 
     // THE PROVIDER ARRIVES while its layout is on the shelf. Only the LIVE layout
     // reconciles; the shelved value is a value, and nothing walks it.
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     CHECK(r.session().panes.runtime.entries.size() == 1);
-    CHECK(layout_at(r.session().setup, 1) == waiting);
+    CHECK(layout_at(r.run(), 1) == waiting);
     // THE LIVE DESK IS UNMOVED BY THE OFFER, AND ITS ONE UNRESOLVED ROW NAMES WHY. Every
     // desk here carries the Info weave, which no office in this rig offers -- so the live
     // layout's open panes plus that one row are the whole of it, and an offer resolves the
@@ -2449,9 +2482,9 @@ TEST_CASE("an inactive layout's rows are dormant, not maintained") {
     CHECK(r.session().panes.runtime.entries.size() == 2);
     for (std::size_t i = 0; i < layout_count(r.session().setup); ++i) {
         CAPTURE(i);
-        CHECK_FALSE(has_pane(layout_at(r.session().setup, i), PaneRef{kHelloOffice, "second"}));
+        CHECK_FALSE(has_pane(layout_at(r.run(), i), PaneRef{kHelloOffice, "second"}));
     }
-    CHECK(layout_at(r.session().setup, 1) == waiting);
+    CHECK(layout_at(r.run(), 1) == waiting);
 
     // AND ACTIVATING THE DORMANT LAYOUT RESOLVES ITS ROW THROUGH ORDINARY RECONCILIATION,
     // with not one byte of the value having changed while it waited.

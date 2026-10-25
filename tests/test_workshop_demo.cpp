@@ -706,17 +706,17 @@ TEST_CASE("pane comfort: the column spends each pane's preferred height, and beg
 TEST_CASE("semantic setup refuses malformed or missing panes before changing the active layout") {
     Live live; DemoActor actor(live.bus);
     const auto before = setup_persist::to_text(live.session().setup.active);
-    actor.say(kWorkshopProvider, SetupApplyRequested{"bad"});
+    actor.say(kLayoutsRole, SetupApplyRequested{"bad"});
     Setup candidate; candidate.name = "Test layout"; candidate.panes.clear();
     SetupPane missing; missing.ref = {"missing.provider", "pane"}; candidate.panes.push_back(missing);
-    actor.say(kWorkshopProvider, SetupApplyRequested{setup_persist::to_text(candidate)});
+    actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(candidate)});
     REQUIRE(actor.hand->refused.size() == 2);
     // The missing pane is named, so a caller knows which provider to prepare.
     CHECK(actor.hand->refused.back() ==
           "setup names a pane this Workshop cannot present: missing.provider pane");
     CHECK(setup_persist::to_text(live.session().setup.active) == before);
     candidate.panes.clear();
-    actor.say(kWorkshopProvider, SetupApplyRequested{setup_persist::to_text(candidate)});
+    actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(candidate)});
     CHECK(actor.hand->acks == 1);
     CHECK(live.session().setup.active.name == "Test layout");
 }
@@ -725,20 +725,73 @@ TEST_CASE("an agent's desk holding a setting with no value is refused by its key
     // THE DESK AN AGENT HANDS ACROSS IS READ BY THE SETUP FILE'S OWN READER, so a setting that
     // holds no value, or two, is refused here as it is in a file -- by its key.
     Live live; DemoActor actor(live.bus);
+    live.ready(); // the desk started: the layouts' owner knows which panes Workshop presents
     const auto before = setup_persist::to_text(live.session().setup.active);
     // A desk naming only a pane this Workshop presents, so its settings are all it is judged on.
     Setup candidate;
     candidate.name = "Agent desk";
     candidate.panes.push_back(SetupPane{ref_of(pane_kind::kLayouts), {}, {}, {}, 0, {}});
     candidate.panes.front().settings = {PaneSetting{"legend", {}, {}, {}}};
-    actor.say(kWorkshopProvider, SetupApplyRequested{setup_persist::to_text(candidate)});
+    actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(candidate)});
     REQUIRE(actor.hand->refused.size() == 1);
     CHECK(actor.hand->refused.back().find("setting `legend` holds no value") != std::string::npos);
     CHECK(setup_persist::to_text(live.session().setup.active) == before);
 
     // ...AND ONE HOLDING EXACTLY ONE VALUE IS KEPT AS IT CAME, whatever the pane makes of it.
     candidate.panes.front().settings = {PaneSetting{"legend", {}, {}, std::string("hiden")}};
-    actor.say(kWorkshopProvider, SetupApplyRequested{setup_persist::to_text(candidate)});
+    actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(candidate)});
     CHECK(actor.hand->acks == 1);
     CHECK(live.session().setup.active.panes.front().settings == candidate.panes.front().settings);
+}
+
+TEST_CASE("a desk put live keeps every lock: `r` and an agent's desk are refused whole naming each locked value they would change, and a lock the desk brings joins") {
+    // ⚔ MUTATION: `replacement_refused` answering nothing -- the incoming desk changes the locked
+    // legend, and the lock stands over a value nobody locked.
+    TempDir dir("replace-keeps-locks");
+    Live live;
+    live.host.setup_path = dir.file("setup.json");
+    DemoActor actor(live.bus);
+    live.ready();
+    // A DESK OF THE LAYOUTS PANE ALONE, which every Workshop presents, its legend locked.
+    const PaneRef layouts = ref_of(pane_kind::kLayouts);
+    stage_desk(live, [&](Setup& desk) {
+        desk = setup_of("Locked", {pane_kind::kLayouts});
+        pane_of(desk, layouts)->settings = {PaneSetting{"legend", {}, {}, std::string("shown")}};
+        desk.locks = {SetupLock{layouts, "legend"}};
+    });
+    const Setup locked = live.session().setup.active;
+    const std::string says =
+        "the desk would change what a lock holds -- legend of zengine.workshop/layouts; nothing was "
+        "replaced";
+
+    // A DESK CHANGING THE LOCKED VALUE, as an agent hands it across: refused whole, in words.
+    Setup changed = locked;
+    changed.locks.clear();
+    pane_of(changed, layouts)->settings = {PaneSetting{"legend", {}, {}, std::string("hidden")}};
+    actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(changed)});
+    REQUIRE(actor.hand->refused.size() == 1);
+    CHECK(actor.hand->refused.back() == says);
+    CHECK(live.session().setup.active == locked);
+    // ...AND AS `r` READS IT FROM THE FILE: the same words, the same desk.
+    REQUIRE(setup_persist::save_file(live.host.setup_path, changed).accepted);
+    live.key(input::scan::kR);
+    CHECK(live.session().notice.find(says) != std::string::npos);
+    CHECK(live.session().setup.active == locked);
+    // ...AND ONE DROPPING THE LOCKED ROW, which changes what the lock holds as surely.
+    Setup dropped = locked;
+    dropped.locks.clear();
+    REQUIRE(remove_pane(dropped, layouts));
+    actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(dropped)});
+    REQUIRE(actor.hand->refused.size() == 2);
+    CHECK(actor.hand->refused.back() == says);
+
+    // A DESK LEAVING THE VALUE IS PUT LIVE, keeping the lock, and the lock it brings joins it.
+    Setup kept = locked;
+    kept.name = "Kept";
+    kept.locks = {SetupLock{layouts, "style"}};
+    actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(kept)});
+    CHECK(actor.hand->acks == 1);
+    CHECK(live.session().setup.active.name == "Kept");
+    CHECK(live.session().setup.active.locks ==
+          std::vector<SetupLock>{SetupLock{layouts, "style"}, SetupLock{layouts, "legend"}});
 }

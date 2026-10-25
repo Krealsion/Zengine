@@ -1337,7 +1337,7 @@ zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
         # current owner compiles in no historical shape is a fact about what a translation
         # unit NAMES, and only reading the file can carry it -- the same defence in depth as
         # the operator suite's stranger and Source fences.
-        "WORKSHOP_SESSION_PERSIST_HPP=\"${CMAKE_SOURCE_DIR}/workshop/session_persist.hpp\""
+        "WORKSHOP_SESSION_PERSIST_HPP=\"${CMAKE_SOURCE_DIR}/workshop/layouts/session_persist.hpp\""
     NEEDS zengine-workshop-session-history)
 # The panes suite (above) also embeds the introspection panes' page, which their answer is compared
 # to.

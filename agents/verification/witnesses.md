@@ -146,7 +146,7 @@ nowhere yet
 nowhere yet
 
 ### VM-WIT-16
-`workshop/session_persist.hpp` to_text
+`workshop/layouts/session_persist.hpp` to_text
 
 ### VM-WIT-17
 nowhere yet

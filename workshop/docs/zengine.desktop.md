@@ -36,7 +36,7 @@ A press names the picture it was aimed at: when the list moved under your hand t
 nothing and the pane says `the list moved -- press again`.
 
 Each layout keeps one setting for Hotkeys in its row, written from Info's SETTINGS rows or by
-message ([`PaneSettingCommitRequested`](zengine.workshop.md#panesettingcommitrequested)): `help`, pinned, whether
+message ([`PaneSettingCommitRequested`](zengine.layouts.md#panesettingcommitrequested)): `help`, pinned, whether
 the footer shows the keymap file and how a key is written there. Off, those rows are the list's; a
 notice and what reading the file came to still show. A value it cannot use leaves the default in
 force, and Workshop says it with the row.
@@ -409,7 +409,8 @@ The spelling line, `key for <id>: `, while [`hotkeys.commit`](#hotkeyscommit) wa
 The desk reads and writes no file. The keymap file the Hotkeys pane names is Workshop's, which reads
 it at launch and writes each change you make here
 ([the keymap file](hotkeys.md#the-keymap-file)). Which pane a row opens is the inventory Workshop
-holds; where panes sit is the setup Workshop keeps ([setups](setups.md)).
+holds; where panes sit is the live layout [`zengine.layouts`](zengine.layouts.md) keeps
+([setups](setups.md)).
 
 ## See also
 

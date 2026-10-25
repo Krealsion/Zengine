@@ -199,7 +199,7 @@ struct OutputRig {
         kind = offered->kind;
         // A WIDTH AND HEIGHT OF ITS OWN, so a compiler's line and a reader's page fit in the room.
         const Written sized =
-            author_pane_size(r.session().setup.active, builder_ref(),
+            staged_author_pane_size(r, builder_ref(),
                              PaneSize{pane_unit::kPixels, cells_px(150)},
                              PaneSize{pane_unit::kPixels, cells_px(24)});
         REQUIRE_MESSAGE(sized.accepted, sized.refusal);
@@ -605,7 +605,7 @@ void out_choose_row(OutputRig& o, const std::string& row) {
 
 /// A READER IN A ROOM TOO NARROW FOR ITS WHOLE STRIP.
 void narrow(OutputRig& o) {
-    const Written sized = author_pane_size(o.r.session().setup.active, builder_ref(),
+    const Written sized = staged_author_pane_size(o.r, builder_ref(),
                                            PaneSize{pane_unit::kPixels, cells_px(30)},
                                            PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(sized.accepted, sized.refusal);

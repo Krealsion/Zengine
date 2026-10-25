@@ -28,7 +28,7 @@ ZEN_LAW_DNM_MAX                 tests/check_law_register.cmake            ZEN_LA
 setup_persist::kFormatVersion   workshop/setup_persist.hpp                kFormatVersion
 claim   setup_persist::kFormatVersion  setup file is format version {}
 claim   setup_persist::kFormatVersion  Setup format is **version {}**
-session_persist::kFormatVersion workshop/session_persist.hpp              kFormatVersion
+session_persist::kFormatVersion workshop/layouts/session_persist.hpp      kFormatVersion
 claim   session_persist::kFormatVersion  session format is **version {}**
 # ...and as a session too old to read names the conversion it misses, to the current version.
 claim   session_persist::kFormatVersion  `WorkshopSession` v3 to v{}
@@ -76,7 +76,7 @@ kMaxMenuLineLen                 workshop/presenter_vocabulary.hpp         kMaxMe
 kMaxHeldInput                   workshop/weave.hpp                        kMaxHeldInput
 kMaxLayouts                     workshop/setup.hpp                        kMaxLayouts
 kMaxSetupBytes                  workshop/setup_persist.hpp                kMaxSetupBytes
-kMaxLinkPathBytes               workshop/session_persist.hpp              kMaxLinkPathBytes
+kMaxLinkPathBytes               workshop/layouts/session_persist.hpp      kMaxLinkPathBytes
 kMaxPaneCatalogEntries          workshop/panes.hpp                        kMaxPaneCatalogEntries
 kMaxSetupPanes                  workshop/setup.hpp                        kMaxSetupPanes
 kMaxPortableViews               inventory/inventory-pane/slots.hpp                  kMaxPortableViews
