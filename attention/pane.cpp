@@ -115,7 +115,7 @@ public:
     void offered(loom::Mail& mail) {
         declare(mail);
         (void)mail.as_role(pane::kAttentionPaneRole)
-            .send_to_role(kWorkshopRole,
+            .send_to_role(ws::kLayoutsRole,
                           ws::v2::PaneSettingsDeclared{pane::kAttentionPane, setting_rows()});
     }
 

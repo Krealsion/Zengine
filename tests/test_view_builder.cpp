@@ -471,6 +471,7 @@ struct Rig {
     loom::Kernel kernel{bus, loom::trust_every_artifact("the fixture loads one View Builder artifact")};
     view::Host views{bus};
     Desk* desk = nullptr;
+    Desk* owner = nullptr; ///< the layouts' owner's stand-in, which hears the pane's declarations
     pw::PaneDirectory* directory = nullptr; ///< the graphics directory, asked the area's room
     loom::WeaveId workshop{}, menus{}, pane{}, door{};
     zengine::maker::Registered tally;
@@ -492,6 +493,9 @@ struct Rig {
         desk = d.get();
         workshop = bus.register_weave(std::move(d), loom::Grant{}.allow_any(), workshop_role);
         desk->self = workshop;
+        auto o = std::make_unique<Desk>();
+        owner = o.get();
+        owner->self = bus.register_weave(std::move(o), loom::Grant{}.allow_any(), ws::kLayoutsRole);
         menus = bus.register_weave(std::make_unique<Menus>(), loom::Grant{}.allow_any(), ws::kPresenterRole);
         if (!project.empty()) {
             auto stub = std::make_unique<ProjectStub>(project);
@@ -1014,8 +1018,14 @@ TEST_CASE("the View Builder declares its snap reach and a new view's size as set
                 out.push_back(loom::from_value<Shape>(m.payload));
         return out;
     };
-    // THE THREE SETTINGS, AS THE DESK IS TOLD THEM BESIDE THE OFFER.
-    const auto declared = said(ws::v2::PaneSettingsDeclared{});
+    // THE THREE SETTINGS, AS THE LAYOUTS' OWNER IS TOLD THEM BESIDE THE OFFER.
+    std::vector<ws::v2::PaneSettingsDeclared> declared;
+    for (const auto& m : rig.owner->heard) {
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v2::PaneSettingsDeclared>()) &&
+            m.provenance.authored_role() == vb::kRole) {
+            declared.push_back(loom::from_value<ws::v2::PaneSettingsDeclared>(m.payload));
+        }
+    }
     REQUIRE_FALSE(declared.empty());
     CHECK(declared.back().pane == vb::kPane);
     const auto pixels = [](const char* key, std::int64_t made, std::int64_t low, const char* says) {

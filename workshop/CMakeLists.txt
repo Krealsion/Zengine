@@ -25,6 +25,7 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-voc
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.workshop.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.opening.md)
 zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.project.md)
+zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.layouts.md)
 
 # ---- The pane protocol, alone, as a package a stranger links -------------------------
 #
@@ -119,6 +120,7 @@ add_library(zengine-workshop-logic STATIC
     weave_code.cpp
     # The layouts' store (`layouts/`): every layout, what each keeps, and the files they live in.
     layouts/store.cpp
+    layouts/owner.cpp
 )
 target_sources(zengine-workshop-logic PRIVATE grant.cpp)
 

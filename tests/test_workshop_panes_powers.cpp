@@ -174,12 +174,13 @@ TEST_CASE("the Terminal may ask the discovery door its two questions, and nothin
 
 TEST_CASE("the host's Terminal finds powers as its ordinary verb, speaks only to the offices that "
           "widen it, and draws in no window") {
-    // WHAT THE HOST GRANTS: every rule to one of the three offices that widen it -- none to a
+    // WHAT THE HOST GRANTS: every rule to one of the four offices that widen it -- none to a
     // medium, a window or everyone.
     loom::TerminalVocabulary vocab;
     loom::Grant grant;
     let_terminal_speak(vocab, grant);
-    const std::set<std::string> widening{kPowersRole, kEditorSwitchRole, kWorkshopProvider};
+    const std::set<std::string> widening{kPowersRole, kEditorSwitchRole, kWorkshopProvider,
+                                         kLayoutsRole};
     REQUIRE_FALSE(grant.rules().empty());
     for (const loom::SendRule& rule : grant.rules()) {
         CAPTURE(rule.shape_name);

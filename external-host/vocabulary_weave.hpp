@@ -39,7 +39,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 98; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 99; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -105,22 +105,23 @@ class GuestVocabulary final
                      // Where the Builder stands, answered to one observer (builder/vocabulary.hpp).
                      zengine::builder::BuildStatusRequested, zengine::builder::BuildStatus,
                      // One pane's settings on the live layout and one office's, a pane's pin list,
-                     // a lock, and every layout's rows read and written in one batch, which the
-                     // `settings` power reaches.
-                     zengine::workshop::PaneSettingsRequested, zengine::workshop::PaneSettingsShown,
+                     // a lock, and every layout's rows read and written in one batch, asked of the
+                     // layouts' owner, which the `settings` power reaches.
+                     zengine::workshop::PaneSettingsRequested, zengine::workshop::PaneSettingsAnswered,
                      zengine::workshop::PaneSettingCommitRequested,
-                     zengine::workshop::PaneSettingActed,
+                     zengine::workshop::PaneSettingCommitAnswered,
                      zengine::workshop::OfficeSettingsRequested,
-                     zengine::workshop::OfficeSettingsShown,
+                     zengine::workshop::OfficeSettingsAnswered,
                      zengine::workshop::OfficeSettingCommitRequested,
+                     zengine::workshop::OfficeSettingCommitAnswered,
                      zengine::workshop::PaneSettingPinRequested,
-                     zengine::workshop::PaneSettingPinActed,
+                     zengine::workshop::PaneSettingPinAnswered,
                      zengine::workshop::PaneSettingLockRequested,
-                     zengine::workshop::PaneSettingLockActed,
+                     zengine::workshop::PaneSettingLockAnswered,
                      zengine::workshop::LayoutSettingsRequested,
-                     zengine::workshop::LayoutSettingsShown,
+                     zengine::workshop::LayoutSettingsAnswered,
                      zengine::workshop::SettingsWriteRequested,
-                     zengine::workshop::SettingsWritten>> {};
+                     zengine::workshop::SettingsWriteAnswered>> {};
 
 } // namespace zengine::external_host
 

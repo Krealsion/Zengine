@@ -209,7 +209,7 @@ struct PinList {
 /// A lock as the file keeps it (`settings_seam_vocabulary.hpp`), the shape the doors carry.
 using workshop::SettingLock;
 
-/// A VERSION-3 FILE KEPT A LAYOUT'S BASELINE AS AN OFFICE OF ITS OWN, `@<layout>`, holding the
+/// THE FILE AT VERSION 3 KEPT A LAYOUT'S BASELINE AS AN OFFICE OF ITS OWN, `@<layout>`, holding the
 /// theme's name and its fingerprint under these two keys.
 inline constexpr char kLayoutThemeOfficeMark = '@';
 inline constexpr const char* kLayoutThemeNameKey = "theme";

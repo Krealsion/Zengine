@@ -1185,7 +1185,7 @@ TEST_CASE("a layout renamed while an opening prepares keeps its name through the
     o.ask_b();
     REQUIRE(o.asker->opens.empty());
     REQUIRE(o.editor->holding());
-    stage_run(*o.r.w, [](SetupState& shelf) {
+    stage_run(o.r, [](SetupState& shelf) {
         REQUIRE(rename_layout(shelf, shelf.active_at, "Renamed"));
     });
     o.drive([](CanvasEditor& e, loom::Mail& m) { e.answer_held(m); });
@@ -1216,7 +1216,7 @@ TEST_CASE("a setting written while an opening prepares survives its publication"
     o.ask_b();
     REQUIRE(o.asker->opens.empty());
     REQUIRE(o.editor->holding());
-    REQUIRE(hand_commit(o.r, "legend", "off", "SETTINGS").accepted);
+    REQUIRE(info_commit(o.r, dial, "legend", "off").accepted);
     o.drive([](CanvasEditor& e, loom::Mail& m) { e.answer_held(m); });
     o.serve();
     REQUIRE(o.asker->opens.size() == 1);

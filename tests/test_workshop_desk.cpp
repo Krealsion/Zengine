@@ -2629,7 +2629,7 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
     DeskRig d;
     // LAYOUTS NAMED WITH A SPACE, TWO ALIKE, ONE WITH BYTES PAST ASCII, ONE WITH A PERCENT SIGN AND
     // ONE NAMED AS THE CREATE TAB IS, painted again by a new extent.
-    stage_run(*d.r.w, [](SetupState& setup) {
+    stage_run(d.r, [](SetupState& setup) {
         for (const char* name : {"my desk", "twin", "twin", "caf\xC3\xA9", "100%", "+"}) {
             setup.shelved.push_back(Layout{Setup{name, {}, {}, {}, {}}, SetupLink{}});
         }
@@ -3267,19 +3267,22 @@ namespace {
 /// pane's row by message, and keeps the answers.
 class SkinEditor
     : public loom::WeaveBase<SkinEditor, ArrangedDirectoryState,
-                             loom::Accept<OfficeSettingsShown, PaneSettingsShown, PaneSettingActed,
-                                          SeatDo>,
+                             loom::Accept<OfficeSettingsAnswered, PaneSettingsAnswered, PaneSettingCommitAnswered,
+                                          OfficeSettingCommitAnswered, SeatDo>,
                              loom::Emit<OfficeSettingsRequested, OfficeSettingCommitRequested,
                                         PaneSettingsRequested, PaneSettingCommitRequested>> {
 public:
-    void on(const OfficeSettingsShown& s, loom::Mail& mail) {
+    void on(const OfficeSettingsAnswered& s, loom::Mail& mail) {
         if (mail.answers_ask()) office.push_back(s);
     }
-    void on(const PaneSettingsShown& s, loom::Mail& mail) {
+    void on(const PaneSettingsAnswered& s, loom::Mail& mail) {
         if (mail.answers_ask()) rows.push_back(s);
     }
-    void on(const PaneSettingActed& a, loom::Mail& mail) {
+    void on(const PaneSettingCommitAnswered& a, loom::Mail& mail) {
         if (mail.answers_ask()) acted.push_back(a);
+    }
+    void on(const OfficeSettingCommitAnswered& a, loom::Mail& mail) {
+        if (mail.answers_ask()) office_acted.push_back(a);
     }
     void on(const SeatDo&, loom::Mail& mail) {
         auto run = std::move(next);
@@ -3288,9 +3291,10 @@ public:
     }
 
     std::function<void(loom::Mail&)> next;
-    std::vector<OfficeSettingsShown> office;
-    std::vector<PaneSettingsShown> rows;
-    std::vector<PaneSettingActed> acted;
+    std::vector<OfficeSettingsAnswered> office;
+    std::vector<PaneSettingsAnswered> rows;
+    std::vector<PaneSettingCommitAnswered> acted;
+    std::vector<OfficeSettingCommitAnswered> office_acted;
 };
 
 constexpr const char* kSkinEditorOffice = "test.skin-editor";
@@ -3305,30 +3309,30 @@ struct SkinDesk : WindowDesk {
         editor = made.get();
         loom::Grant grant;
         grant.allow_to_role(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version,
-                            kWorkshopProvider);
+                            kLayoutsRole);
         grant.allow_to_role(OfficeSettingCommitRequested::zen_name,
-                            OfficeSettingCommitRequested::zen_version, kWorkshopProvider);
+                            OfficeSettingCommitRequested::zen_version, kLayoutsRole);
         grant.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
-                            kWorkshopProvider);
+                            kLayoutsRole);
         grant.allow_to_role(PaneSettingCommitRequested::zen_name,
-                            PaneSettingCommitRequested::zen_version, kWorkshopProvider);
+                            PaneSettingCommitRequested::zen_version, kLayoutsRole);
         editor_id = r.bus.register_weave(std::move(made), std::move(grant), kSkinEditorOffice);
         editor->zen_set_self(editor_id);
     }
 
     template <class Shape> void ask(const Shape& asked) {
         editor->next = [asked](loom::Mail& mail) {
-            (void)mail.as_role(kSkinEditorOffice).send_to_role(kWorkshopProvider, asked);
+            (void)mail.as_role(kSkinEditorOffice).send_to_role(door_of<Shape>(), asked);
         };
         (void)r.bus.send(editor_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
         r.bus.drain_until_idle();
     }
-    PaneSettingActed acted() {
+    PaneSettingCommitAnswered acted() {
         REQUIRE_FALSE(editor->acted.empty());
         return editor->acted.back();
     }
     /// Workshop's own skin, written at the revision read now.
-    PaneSettingActed workshop_skin(const char* skin) {
+    OfficeSettingCommitAnswered workshop_skin(const char* skin) {
         ask(OfficeSettingsRequested{kWorkshopProvider});
         REQUIRE_FALSE(editor->office.empty());
         OfficeSettingCommitRequested c;
@@ -3337,10 +3341,11 @@ struct SkinDesk : WindowDesk {
         c.key = "workshop.skin";
         c.text = std::string(skin);
         ask(c);
-        return acted();
+        REQUIRE_FALSE(editor->office_acted.empty());
+        return editor->office_acted.back();
     }
     /// ...and the Attention pane's row's, or its clear for none.
-    PaneSettingActed pane_skin(const char* skin) {
+    PaneSettingCommitAnswered pane_skin(const char* skin) {
         ask(PaneSettingsRequested{apane::kAttentionPaneRole, apane::kAttentionPane});
         REQUIRE_FALSE(editor->rows.empty());
         PaneSettingCommitRequested c;
@@ -3385,7 +3390,7 @@ TEST_CASE("each graphics area wears its pane row's `workshop.skin`, else Worksho
 
     // WORKSHOP'S OWN, `block`: every area wears it, each said once.
     std::size_t from = d.directory->chosen.size();
-    const PaneSettingActed wide = d.workshop_skin("block");
+    const OfficeSettingCommitAnswered wide = d.workshop_skin("block");
     REQUIRE_MESSAGE(wide.accepted, wide.refusal);
     CHECK(d.r.session().skin == "block");
     const std::string frame = pane_frame_area(d.r.session().panes, d.kind);
@@ -3400,9 +3405,9 @@ TEST_CASE("each graphics area wears its pane row's `workshop.skin`, else Worksho
     // THE PANE'S ROW, `classic`: its area and its frame alone move back, and the pane is handed
     // none of it.
     from = d.directory->chosen.size();
-    const PaneSettingActed own = d.pane_skin("classic");
+    const PaneSettingCommitAnswered own = d.pane_skin("classic");
     REQUIRE_MESSAGE(own.accepted, own.refusal);
-    CHECK(own.handed == "stored and handed");
+    CHECK(own.handed == "stored");
     CHECK(d.chosen_since(from, &said) == Skins{{pane, "classic"}, {frame, "classic"}});
     CHECK(said == 2);
     const ExternalPane* held = d.r.session().panes.external_pane(d.kind);
@@ -3427,14 +3432,14 @@ TEST_CASE("each graphics area wears its pane row's `workshop.skin`, else Worksho
     // `night` AND `day` ARE SKINS AS THE OTHER TWO ARE: Workshop's own reaches its area, the
     // row's its pane's, and each goes back as it came.
     from = d.directory->chosen.size();
-    const PaneSettingActed night = d.workshop_skin("night");
+    const OfficeSettingCommitAnswered night = d.workshop_skin("night");
     REQUIRE_MESSAGE(night.accepted, night.refusal);
     CHECK(d.r.session().skin == "night");
     CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "night"},
                                         {kWorkshopOverlayArea, "night"},
                                         {layouts, "night"}});
     from = d.directory->chosen.size();
-    const PaneSettingActed day = d.pane_skin("day");
+    const PaneSettingCommitAnswered day = d.pane_skin("day");
     REQUIRE_MESSAGE(day.accepted, day.refusal);
     CHECK(d.chosen_since(from) == Skins{{pane, "day"}, {frame, "day"}});
     from = d.directory->chosen.size();
@@ -4071,7 +4076,8 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
     TempDir dir("window-offered");
     PaneRig r;
     r.host.session_path = dir.file("session.json");
-    REQUIRE(save_last_run(r.host.session_path, one_layout(setup_of("Offered", {})), 0, cells_px(100), cells_px(40), window_persist::Placement{})
+    REQUIRE(save_last_run(r.host.session_path, one_layout(setup_of("Offered", {})), 0,
+                          cells_px(100), cells_px(40), window_persist::Placement{})
                 .accepted);
     ProviderSeat* seat = r.mount_provider("zengine.test.offered-seat");
     r.mount_workshop();
@@ -4128,7 +4134,8 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         TempDir none_dir("window-offered-none");
         PaneRig n;
         n.host.session_path = none_dir.file("session.json");
-        REQUIRE(save_last_run(n.host.session_path, one_layout(setup_of("Measured", {})), 0, cells_px(150), cells_px(60), window_persist::Placement{})
+        REQUIRE(save_last_run(n.host.session_path, one_layout(setup_of("Measured", {})), 0,
+                              cells_px(150), cells_px(60), window_persist::Placement{})
                     .accepted);
         n.mount_workshop();
         Sayer<gfx::WindowOffered> unmeasured(n, terminal_window_office());
@@ -4144,7 +4151,10 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         PaneRig o;
         o.host.dir = "/zen/sdl-window-desk";
         o.host.session_path = os_dir.file("session.json");
-        REQUIRE(save_last_run(o.host.session_path, one_layout(setup_of("Offered", {pane_kind::kLayouts})), 0, cells_px(100), cells_px(40), window_persist::Placement{true, 40, 60, false})
+        REQUIRE(save_last_run(o.host.session_path,
+                              one_layout(setup_of("Offered", {pane_kind::kLayouts})), 0,
+                              cells_px(100), cells_px(40),
+                              window_persist::Placement{true, 40, 60, false})
                     .accepted);
         auto made_directory = std::make_unique<ArrangedDirectory>();
         ArrangedDirectory* directory = made_directory.get();

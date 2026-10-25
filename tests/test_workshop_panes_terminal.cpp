@@ -2306,10 +2306,10 @@ std::vector<PaneSetting> kept_settings(TerminalRig& t) {
 }
 
 constexpr const char* kReadLine =
-    "ask @zengine.workshop PaneSettingsRequested 1 provider=zengine.terminal pane=terminal";
+    "ask @zengine.layouts PaneSettingsRequested 1 provider=zengine.terminal pane=terminal";
 
 std::string commit_line(std::int64_t revision, const std::string& value) {
-    return "ask @zengine.workshop PaneSettingCommitRequested 1 provider=zengine.terminal "
+    return "ask @zengine.layouts PaneSettingCommitRequested 1 provider=zengine.terminal "
            "pane=terminal revision=" +
            std::to_string(revision) + " clear=false " + value;
 }
@@ -2324,7 +2324,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     thirty_notices(t);
 
     // THE READING: three settings, how each is found, the legend pinned, nothing kept yet.
-    const PaneSettingsShown shown = typed_answer<PaneSettingsShown>(t, kReadLine);
+    const PaneSettingsAnswered shown = typed_answer<PaneSettingsAnswered>(t, kReadLine);
     CHECK(shown.provider == pane::kTerminalPaneRole);
     CHECK(shown.pane == pane::kTerminalPane);
     CHECK(shown.revision > 0);
@@ -2346,17 +2346,17 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     CHECK(shown.rows[2].tags == std::vector<std::string>{"chrome", "text"});
     CHECK(shown.pins == std::vector<std::string>{"legend"});
     CHECK(shown.settings.empty());
-    CHECK(shown.said == "stored and handed");
+    CHECK(shown.said.empty());
     CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
 
     // SIX ROWS A NOTCH, AND THE PROMPT A `$`, each at the revision the last answer gave.
-    const PaneSettingActed six =
-        typed_answer<PaneSettingActed>(t, commit_line(shown.revision, "key=wheel-rows number=6"));
+    const PaneSettingCommitAnswered six =
+        typed_answer<PaneSettingCommitAnswered>(t, commit_line(shown.revision, "key=wheel-rows number=6"));
     REQUIRE_MESSAGE(six.accepted, six.refusal);
     CHECK(six.revision > shown.revision);
-    CHECK(six.handed == "stored and handed");
-    const PaneSettingActed dollar =
-        typed_answer<PaneSettingActed>(t, commit_line(six.revision, "key=prompt text=\"$\""));
+    CHECK(six.handed == "stored");
+    const PaneSettingCommitAnswered dollar =
+        typed_answer<PaneSettingCommitAnswered>(t, commit_line(six.revision, "key=prompt text=\"$\""));
     REQUIRE_MESSAGE(dollar.accepted, dollar.refusal);
     CHECK(dollar.revision > six.revision);
     CHECK(t.r.last_notice() == "committed prompt of Terminal = $; stored and handed");
@@ -2395,7 +2395,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     };
     for (const Case& c : cases) {
         CAPTURE(c.line);
-        const PaneSettingActed refused = typed_answer<PaneSettingActed>(t, c.line);
+        const PaneSettingCommitAnswered refused = typed_answer<PaneSettingCommitAnswered>(t, c.line);
         CHECK_FALSE(refused.accepted);
         CHECK(refused.refusal == c.said);
         CHECK(refused.revision == dollar.revision);
@@ -2403,8 +2403,8 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     }
 
     // ...AND A CLEAR PUTS THE DEFAULT BACK, which the pane draws.
-    const PaneSettingActed back = typed_answer<PaneSettingActed>(
-        t, "ask @zengine.workshop PaneSettingCommitRequested 1 provider=zengine.terminal "
+    const PaneSettingCommitAnswered back = typed_answer<PaneSettingCommitAnswered>(
+        t, "ask @zengine.layouts PaneSettingCommitRequested 1 provider=zengine.terminal "
            "pane=terminal revision=" + std::to_string(dollar.revision) + " key=prompt clear=true");
     REQUIRE_MESSAGE(back.accepted, back.refusal);
     CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
@@ -2415,29 +2415,29 @@ TEST_CASE("a Terminal line locks a setting and, as the weaver's hand, unlocks it
     t.r.terminal_edits_settings = true;
     t.open();
     t.give_room(12, 60);
-    const std::string lock = "ask @zengine.workshop PaneSettingLockRequested 1 "
+    const std::string lock = "ask @zengine.layouts PaneSettingLockRequested 2 "
                              "target=zengine.terminal/terminal key=wheel-rows act=lock "
-                             "scope=everywhere layout=-1 gesture=0";
-    const PaneSettingLockActed locked = typed_answer<PaneSettingLockActed>(t, lock);
+                             "scope=everywhere layout=0 gesture=0";
+    const PaneSettingLockAnswered locked = typed_answer<PaneSettingLockAnswered>(t, lock);
     REQUIRE_MESSAGE(locked.accepted, locked.refusal);
-    const PaneSettingsShown shown = typed_answer<PaneSettingsShown>(t, kReadLine);
+    const PaneSettingsAnswered shown = typed_answer<PaneSettingsAnswered>(t, kReadLine);
     REQUIRE(shown.locks.size() == 1);
     CHECK(shown.locks[0].scope == "everywhere");
-    const PaneSettingActed refused =
-        typed_answer<PaneSettingActed>(t, commit_line(shown.revision, "key=wheel-rows number=6"));
+    const PaneSettingCommitAnswered refused =
+        typed_answer<PaneSettingCommitAnswered>(t, commit_line(shown.revision, "key=wheel-rows number=6"));
     CHECK_FALSE(refused.accepted);
     CHECK(refused.refusal == locked_setting_refusal("wheel-rows"));
     // THE TERMINAL ANSWERS THE WEAVER ALONE, SO ITS LINE UNLOCKS.
     std::string unlock = lock;
     unlock.replace(unlock.find("act=lock"), 8, "act=unlock");
-    const PaneSettingLockActed unlocked = typed_answer<PaneSettingLockActed>(t, unlock);
+    const PaneSettingLockAnswered unlocked = typed_answer<PaneSettingLockAnswered>(t, unlock);
     REQUIRE_MESSAGE(unlocked.accepted, unlocked.refusal);
-    const PaneSettingActed six = typed_answer<PaneSettingActed>(
-        t, commit_line(typed_answer<PaneSettingsShown>(t, kReadLine).revision,
+    const PaneSettingCommitAnswered six = typed_answer<PaneSettingCommitAnswered>(
+        t, commit_line(typed_answer<PaneSettingsAnswered>(t, kReadLine).revision,
                        "key=wheel-rows number=6"));
     CHECK_MESSAGE(six.accepted, six.refusal);
-    const LayoutSettingsShown all =
-        typed_answer<LayoutSettingsShown>(t, "ask @zengine.workshop LayoutSettingsRequested 1");
+    const LayoutSettingsAnswered all =
+        typed_answer<LayoutSettingsAnswered>(t, "ask @zengine.layouts LayoutSettingsRequested 1");
     CHECK(all.revision > 0);
     REQUIRE(all.layouts.size() == 1);
     CHECK(all.everywhere.empty());
@@ -2464,7 +2464,7 @@ TEST_CASE("`workshop.completion-order` puts a shape's required fields first in t
     const auto first_offer = [&t] {
         t.focus();
         t.clear_line();
-        t.type("ask @zengine.workshop PaneSettingCommitRequested 1 provider=a pane=b revision=1 "
+        t.type("ask @zengine.layouts PaneSettingCommitRequested 1 provider=a pane=b revision=1 "
                "key=k ");
         t.r.key(input::scan::kTab); // accepts the selected candidate: the list's first
         const std::string line = t.input_text();
@@ -2477,11 +2477,11 @@ TEST_CASE("`workshop.completion-order` puts a shape's required fields first in t
     CHECK_FALSE(t.r.session().completion_required_first);
 
     // THE TERMINAL ITSELF WRITES WORKSHOP'S SETTING, and the next list is in the order it says.
-    const OfficeSettingsShown office = typed_answer<OfficeSettingsShown>(
-        t, "ask @zengine.workshop OfficeSettingsRequested 1 office=zengine.workshop");
+    const OfficeSettingsAnswered office = typed_answer<OfficeSettingsAnswered>(
+        t, "ask @zengine.layouts OfficeSettingsRequested 1 office=zengine.workshop");
     t.clear_line();
-    const PaneSettingActed order = typed_answer<PaneSettingActed>(
-        t, "ask @zengine.workshop OfficeSettingCommitRequested 1 office=zengine.workshop "
+    const OfficeSettingCommitAnswered order = typed_answer<OfficeSettingCommitAnswered>(
+        t, "ask @zengine.layouts OfficeSettingCommitRequested 1 office=zengine.workshop "
            "revision=" + std::to_string(office.revision) +
                " clear=false key=workshop.completion-order text=required-first");
     REQUIRE_MESSAGE(order.accepted, order.refusal);

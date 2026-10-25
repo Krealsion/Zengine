@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// `WorkshopWeave`'s settings doors, each asking the layouts' store: what an office declares it
-// takes, one office's settings read and written, Workshop's own applied, every office handed its
-// own, a pane's pin list edited, a setting locked in a layout or everywhere, and every layout's
-// rows read at once and written in one batch.
+// `WorkshopWeave`'s own settings, kept by the layouts' owner: declared to it, applied as it hands
+// them, and a toggle's value written through it; and the one question it asks Workshop, the judge
+// of every hand -- whether a gesture is the weaver's current act.
 // Workshop law: agents/workshop/settings.md, agents/workshop/setting-locks.md
 
 #include "weave.hpp"
@@ -16,54 +15,28 @@
 
 namespace zengine::workshop {
 
-// ---- The store, held here ---------------------------------------------------------------------
+// ---- Workshop's own office-wide settings ------------------------------------------------------
 
-LayoutStore& WorkshopWeave::store() {
-    layouts_host_.setup_path = host_->setup_path;
-    layouts_host_.session_path = host_->session_path;
-    layouts_host_.prefs_path = host_->prefs_path;
-    layouts_host_.conversions = host_->conversions;
-    layouts_host_.role_holder = host_->role_holder;
-    layouts_host_.incarnation_of = host_->incarnation_of;
-    layouts_host_.holder_accepts = host_->holder_accepts;
-    layouts_host_.chosen = host_->chosen;
-    std::vector<CatalogName> names;
-    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
-        names.push_back(CatalogName{row.ref, row.name,
-                                    resolve_pane(row.ref, session_.panes).has_value()});
+// WL-SETTING-10 -- agents/workshop/settings.md
+void WorkshopWeave::declare_own_settings(loom::Mail& mail) {
+    if (own_declared_) {
+        return;
     }
-    store_.set_catalog(std::move(names));
-    return store_;
-}
-
-void WorkshopWeave::take_store(loom::Mail& mail) {
-    const StoreEffects fx = store_.take_effects();
-    if (fx.live_moved) {
-        install_live(store_.live_layout(), mail);
-    }
-    if (std::find(fx.offices.begin(), fx.offices.end(), kWorkshopProvider) != fx.offices.end()) {
-        apply_workshop_settings();
-    }
-    hand_office_settings(mail);
-    if (!fx.said.empty()) {
-        say(fx.said, fx.bad);
-    }
+    // DECLARED AS ANY OFFICE DECLARES ITS OWN, to the office that keeps them; handed back at each
+    // revision, they are what this desk spends.
+    own_declared_ = mail.as_role(kWorkshopProvider)
+                        .send_to_role(kLayoutsRole,
+                                      OfficeSettingsDeclared{prefs_persist::workshop_office_rows()})
+                        .valid();
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
-void WorkshopWeave::hand_office_settings(loom::Mail& mail) {
-    for (auto& [office, settings] : store().office_hand_offs()) {
-        const loom::Ticket sent =
-            mail.as_role(kWorkshopProvider).send_to_role(office, settings);
-        if (sent.valid()) {
-            store_.office_handed(office, settings.revision);
-        }
+void WorkshopWeave::apply_workshop_settings(const std::vector<PaneSetting>& settings) {
+    prefs_persist::Prefs kept;
+    if (!settings.empty()) {
+        kept.offices.push_back(prefs_persist::OfficeSettingsKept{kWorkshopProvider, settings});
     }
-}
-
-// WL-SETTING-10 -- agents/workshop/settings.md
-void WorkshopWeave::apply_workshop_settings() {
-    const prefs_persist::Presentation said = prefs_persist::presentation_of(store_.prefs());
+    const prefs_persist::Presentation said = prefs_persist::presentation_of(kept);
     session_.pane_titles = said.titles_shown;
     session_.band_keys = said.band_keys;
     session_.hotkeys_keys = said.hotkeys_keys;
@@ -76,46 +49,78 @@ void WorkshopWeave::apply_workshop_settings() {
     session_.stack_rows = said.stack_rows;
 }
 
-// ---- What an office declares, and one office's settings read and written ---------------------
-
 // WL-SETTING-10 -- agents/workshop/settings.md
-void WorkshopWeave::on(const OfficeSettingsDeclared& declared, loom::Mail& mail) {
-    const std::string office(mail.authored_role());
-    if (office.empty()) {
-        return; // personal speech declares nothing (the offer's rule)
+void WorkshopWeave::on(const OfficeSettings& settings, loom::Mail& mail) {
+    if (!mail.authored_from_role(kLayoutsRole)) {
+        return; // Workshop's settings are the layouts' owner's to hand, and nobody else's
     }
-    if (const std::string refused = store().declare_office(office, declared.rows, mail.sender());
-        !refused.empty()) {
-        say(refused, true);
+    own_revision_ = settings.revision;
+    apply_workshop_settings(settings.settings);
+    // A TOGGLE STATED BEFORE THIS DESK HELD A REVISION IS WRITTEN NOW, at the one it holds.
+    if (own_owed_) {
+        std::pair<OfficeSettingCommitRequested, std::string> owed = std::move(*own_owed_);
+        own_owed_.reset();
+        commit_own_setting(std::move(owed.first), std::move(owed.second), mail);
     }
-    take_store(mail);
     repaint(mail);
 }
 
-// WL-SETTING-10 -- agents/workshop/settings.md
-void WorkshopWeave::on(const OfficeSettingsRequested& asked, loom::Mail& mail) {
-    OfficeSettingsShown shown = store().read_office(settings_asker_refused(mail), asked);
-    take_store(mail);
-    (void)mail.answer(std::move(shown));
+// WL-KEY-16 -- agents/workshop/key-spelling.md
+void WorkshopWeave::commit_own_setting(OfficeSettingCommitRequested commit, std::string note,
+                                       loom::Mail& mail) {
+    if (own_revision_ == 0) {
+        // WRITTEN WHEN THE OWNER FIRST HANDS THIS DESK ITS OWN; the toggle stands meanwhile.
+        own_owed_ = std::pair{std::move(commit), std::move(note)};
+        return;
+    }
+    commit.revision = own_revision_;
+    const std::uint64_t ask = ++layout_asks_;
+    if (mail.as_role(kWorkshopProvider).send_to_role(kLayoutsRole, std::move(commit), ask).valid()) {
+        own_said_[ask] = std::move(note);
+        return;
+    }
+    // NOBODY KEEPS THE LAYOUTS: the toggle stands for this run, and says so.
+    say(note + "; not saved: nothing keeps this Workshop's settings", true);
 }
 
-// WL-SETTING-10 -- agents/workshop/settings.md
-void WorkshopWeave::on(const OfficeSettingCommitRequested& asked, loom::Mail& mail) {
-    PaneSettingActed acted = store().commit_office(settings_asker_refused(mail), asked);
-    take_store(mail);
-    (void)mail.answer(std::move(acted));
+// WL-KEY-16 -- agents/workshop/key-spelling.md
+void WorkshopWeave::on(const OfficeSettingCommitAnswered& acted, loom::Mail& mail) {
+    // AN ANSWER IS LOOM'S TO VERIFY, to an ask this weave sent; it is personal speech.
+    if (!mail.answers_ask()) {
+        return;
+    }
+    const auto owed = own_said_.find(mail.correlation());
+    if (owed == own_said_.end()) {
+        return;
+    }
+    std::string note = std::move(owed->second);
+    own_said_.erase(owed);
+    bool bad = false;
+    if (!host_->prefs_path.empty()) {
+        const std::string written_word = "; written";
+        if (!acted.accepted) {
+            // A FILE THE OWNER COULD NOT READ IS NEVER WRITTEN OVER, and the toggle stands for the
+            // run.
+            note += "; not saved: " +
+                    (settings_refused_.empty()
+                         ? acted.refusal
+                         : host_->prefs_path + " could not be read and will not be overwritten");
+            bad = true;
+        } else if (acted.handed.size() < written_word.size() ||
+                   acted.handed.compare(acted.handed.size() - written_word.size(),
+                                        written_word.size(), written_word) != 0) {
+            if (const std::size_t at = acted.handed.find("not written: ");
+                at != std::string::npos) {
+                note += "; not saved: " + acted.handed.substr(at + 13);
+                bad = true;
+            }
+        }
+    }
+    say(note, bad);
     repaint(mail);
 }
 
-// WL-SETTING-12 -- agents/workshop/settings.md
-void WorkshopWeave::on(const PaneSettingPinRequested& asked, loom::Mail& mail) {
-    PaneSettingPinActed acted = store().pin(settings_asker_refused(mail), asked);
-    take_store(mail);
-    (void)mail.answer(std::move(acted));
-    repaint(mail);
-}
-
-// ---- Locks ------------------------------------------------------------------------------------
+// ---- The weaver's act, judged for the owner ---------------------------------------------------
 
 // WL-LOCK-02 -- agents/workshop/setting-locks.md
 bool WorkshopWeave::weavers_act(std::int64_t gesture, std::string_view office) const {
@@ -139,33 +144,12 @@ bool WorkshopWeave::weavers_act(std::int64_t gesture, std::string_view office) c
     return std::any_of(weaver_hand_.kept.begin(), weaver_hand_.kept.end(), names);
 }
 
-// WL-LOCK-01, WL-LOCK-02 -- agents/workshop/setting-locks.md
-void WorkshopWeave::on(const PaneSettingLockRequested& asked, loom::Mail& mail) {
-    // AN UNLOCK IS THE WEAVER'S HAND: the Terminal this host mounted, which answers the weaver
-    // alone, or a pane naming the weaver's own current act.
-    const bool terminal = host_->terminal != nullptr && mail.sender() == host_->terminal->id();
-    const bool weavers_hand = terminal || weavers_act(asked.gesture, mail.authored_role());
-    PaneSettingLockActed acted = store().lock(settings_asker_refused(mail), asked, weavers_hand);
-    take_store(mail);
-    (void)mail.answer(std::move(acted));
-    repaint(mail);
-}
-
-// ---- Every layout at once ---------------------------------------------------------------------
-
-// WL-LOCK-03 -- agents/workshop/setting-locks.md
-void WorkshopWeave::on(const LayoutSettingsRequested&, loom::Mail& mail) {
-    LayoutSettingsShown shown = store().read_layouts(settings_asker_refused(mail));
-    take_store(mail);
-    (void)mail.answer(std::move(shown));
-}
-
-// WL-LOCK-03 -- agents/workshop/setting-locks.md
-void WorkshopWeave::on(const SettingsWriteRequested& asked, loom::Mail& mail) {
-    SettingsWritten written = store().write(settings_asker_refused(mail), asked);
-    take_store(mail);
-    (void)mail.answer(std::move(written));
-    repaint(mail);
+// WL-LOCK-02 -- agents/workshop/setting-locks.md
+void WorkshopWeave::on(const WeaversActRequested& asked, loom::Mail& mail) {
+    if (!mail.authored_from_role(kLayoutsRole)) {
+        return; // the owner's question, and nobody else's: the judge answers no other asker
+    }
+    (void)mail.answer(WeaversActAnswered{weavers_act(asked.gesture, asked.office)});
 }
 
 } // namespace zengine::workshop

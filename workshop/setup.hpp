@@ -12,7 +12,6 @@
 #include "property.hpp"
 #include "settings_seam_vocabulary.hpp" // a layout's baseline, and how long a pin list is
 
-
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>

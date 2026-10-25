@@ -32,13 +32,9 @@ namespace zengine::workshop::session_history {
 
 namespace v6 {
 
-/// The room, in canvas cells: every session before version 7 said it so.
-struct WorkshopViewport {
-    std::int64_t width = 0;
-    std::int64_t height = 0;
-
-    ZEN_SHAPE(WorkshopViewport, 1, ZEN_FIELD(width), ZEN_FIELD(height));
-};
+/// The room, in canvas cells: every session before version 7 said it so. The window file's own,
+/// beside the version it keeps now.
+using WorkshopViewport = window_persist::v1::WorkshopViewport;
 
 /// A layout's Setup association, its remembered desk in sub-units.
 struct WorkshopSetupLink {

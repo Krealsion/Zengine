@@ -269,64 +269,9 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, std::string& gaps,
     }
 }
 
-// WL-SETTING-03 -- agents/workshop/settings.md
-void WorkshopWeave::on(const PaneSettingsDeclared& declared, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
-        return; // personal speech declares nothing (the offer's rule)
-    }
-    if (const std::string wrong = pane_settings_declared_problem(declared); !wrong.empty()) {
-        // REFUSED ALOUD, AND THE SETTINGS IN FORCE STAND: only an accepted declaration replaces.
-        say(store().name_of(PaneRef{std::string(office), declared.pane}) + " @" +
-                std::string(office) + ": its settings were not taken -- " + wrong,
-            true);
-        repaint(mail);
-        return;
-    }
-    std::vector<v2::PaneSettingRow> rows;
-    rows.reserve(declared.rows.size());
-    for (const PaneSettingRow& row : declared.rows) {
-        rows.push_back(widen_setting_row(row));
-    }
-    if (const std::string refused =
-            store().declare_pane(office, declared.pane, std::move(rows), mail.sender());
-        !refused.empty()) {
-        say(refused, true);
-    }
-    take_store(mail);
-    repaint(mail);
-}
-
-// WL-SETTING-03 -- agents/workshop/settings.md
-void WorkshopWeave::on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail) {
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
-        return;
-    }
-    if (const std::string refused =
-            store().declare_pane(office, declared.pane, declared.rows, mail.sender());
-        !refused.empty()) {
-        say(refused, true);
-    }
-    take_store(mail);
-    repaint(mail);
-}
-
-// WL-SETTING-03 -- agents/workshop/settings.md
-const std::vector<v2::PaneSettingRow>*
-WorkshopWeave::counted_settings_v2(const RuntimePane& row) const {
-    return store_.counted(PaneRef{row.provider, row.pane});
-}
-
 // WL-SETTING-07 -- agents/workshop/settings.md
 std::int64_t WorkshopWeave::settings_revision(const PaneRef& ref) const {
-    // THE STORE'S MINT, read now: it moves with the row's holder too, which no copy hears of.
-    return const_cast<LayoutStore&>(store_).row_revision(ref);
-}
-
-// WL-SETTING-03 -- agents/workshop/settings.md
-const std::vector<PaneSettingRow>* WorkshopWeave::counted_settings(const RuntimePane& row) const {
-    return store_.counted_v1(PaneRef{row.provider, row.pane});
+    return row_revision(session_.setup, ref);
 }
 
 // WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md

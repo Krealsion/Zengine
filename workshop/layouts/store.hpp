@@ -6,11 +6,9 @@
 
 // The layouts' store, as a value: every layout of the run and what each keeps, every office's
 // office-wide settings, the locks and the pins; what each pane and office declares it takes; the
-// revisions every reading stands at; and the files all of it is kept in. It is the one writer and
-// the one judge of all of it. Whoever holds it asks; what it said and what it moved are taken
-// after each ask (`take_effects`), for the holder to say, present and hand.
-// Workshop law: agents/workshop/settings.md, agents/workshop/setting-locks.md,
-// agents/workshop/layouts.md, agents/workshop/session-restore.md
+// revisions every reading stands at; and the files all of it is kept in: their one writer and
+// judge. What an ask said and moved is taken after it (`take_effects`), for the holder to say.
+// Workshop law: agents/workshop/settings.md (+3 registers; agents/workshop.md routes)
 
 #include "workshop/layouts/run.hpp"
 #include "workshop/layouts/vocabulary.hpp"
@@ -64,6 +62,8 @@ struct CatalogName {
 struct StoreEffects {
     std::string said;
     bool bad = false;
+    std::string said_provider; ///< the row `said` names, when it is a setting written
+    std::string said_pane;
     bool live_moved = false;
     std::vector<std::string> offices;
 };
@@ -123,8 +123,8 @@ public:
     // ---- Revisions -------------------------------------------------------------------------
 
     /// THE REVISION THE LIVE ROW FOR `ref` STANDS AT, minted afresh when what it was minted for
-    /// moved -- the desk put live, the row's settings, the counted declaration or the office's
-    /// holder; 0 when the live layout has no such row.
+    /// moved -- the desk put live, the row's settings or the counted declaration; 0 when the live
+    /// layout has no such row.
     std::int64_t row_revision(const PaneRef& ref);
     /// THE REVISION AN OFFICE'S SETTINGS STAND AT, the same way; 0 when nothing declares.
     std::int64_t office_revision(const std::string& office);
@@ -135,17 +135,17 @@ public:
     // `refused` is the asker's standing, judged by the holder (WL-SETTING-09): empty when this
     // asker is served, else why not.
 
-    PaneSettingsShown read_pane(const std::string& refused, const PaneSettingsRequested& asked);
-    PaneSettingActed commit_pane(const std::string& refused, const PaneSettingCommitRequested& asked);
-    OfficeSettingsShown read_office(const std::string& refused, const OfficeSettingsRequested& asked);
-    PaneSettingActed commit_office(const std::string& refused,
-                                   const OfficeSettingCommitRequested& asked);
-    PaneSettingPinActed pin(const std::string& refused, const PaneSettingPinRequested& asked);
+    PaneSettingsAnswered read_pane(const std::string& refused, const PaneSettingsRequested& asked);
+    PaneSettingCommitAnswered commit_pane(const std::string& refused, const PaneSettingCommitRequested& asked);
+    OfficeSettingsAnswered read_office(const std::string& refused, const OfficeSettingsRequested& asked);
+    OfficeSettingCommitAnswered commit_office(const std::string& refused,
+                                              const OfficeSettingCommitRequested& asked);
+    PaneSettingPinAnswered pin(const std::string& refused, const PaneSettingPinRequested& asked);
     /// `weavers_hand`: the unlock comes from the weaver's own hand, as the holder judged it.
-    PaneSettingLockActed lock(const std::string& refused, const PaneSettingLockRequested& asked,
+    PaneSettingLockAnswered lock(const std::string& refused, const PaneSettingLockRequested& asked,
                               bool weavers_hand);
-    LayoutSettingsShown read_layouts(const std::string& refused);
-    SettingsWritten write(const std::string& refused, const SettingsWriteRequested& asked);
+    LayoutSettingsAnswered read_layouts(const std::string& refused);
+    SettingsWriteAnswered write(const std::string& refused, const SettingsWriteRequested& asked);
     /// A DESK PUT LIVE IN PLACE OF THE LIVE ONE'S, from the setup text a caller sent: empty when
     /// applied, else the refusal.
     std::string apply_setup(const std::string& text);
@@ -180,6 +180,8 @@ public:
 
     /// What the last asks said and moved, taken: the holder says, presents and hands it.
     StoreEffects take_effects();
+    /// A DECLARATION REFUSED, said as the store's own refusal.
+    void refuse_declaration(std::string why) { say(std::move(why), true); }
 
 private:
     struct PaneDeclaration {
@@ -202,7 +204,6 @@ private:
         std::uint64_t desk = 0;
         std::vector<PaneSetting> settings;
         std::vector<v2::PaneSettingRow> rows;
-        loom::WeaveId holder{};
     };
     struct OfficeRevision {
         std::string office;
@@ -226,11 +227,12 @@ private:
     std::vector<std::string> effective_pins(const PaneRef& ref, std::size_t at) const;
     std::vector<SettingLockShown> locks_on(const PaneRef& ref, std::size_t at) const;
     std::vector<std::string> locked_keys(const PaneRef& ref) const;
-    LayoutSettingsShown layout_settings_reading() const;
+    LayoutSettingsAnswered layout_settings_reading() const;
     std::string replacement_refused(const Setup& incoming) const;
     Setup kept_locks(Setup incoming) const;
     std::string fold_layout_entries();
     std::optional<std::size_t> place_of(std::int64_t layout) const;
+    std::string gone(std::int64_t layout) const;
 
     // The edit's own ops, each on the candidate run.
     std::string edit_one(SetupState& next, const LayoutEdit& e, LayoutEditAnswered& out,
@@ -250,7 +252,7 @@ private:
     std::vector<SettingsRevision> settings_revisions_;
     std::vector<OfficeRevision> office_revisions_;
     std::int64_t settings_revision_ = 0;
-    LayoutSettingsShown layout_settings_minted_;
+    LayoutSettingsAnswered layout_settings_minted_;
     std::int64_t layout_settings_revision_ = 0;
 
     bool prefs_loaded_ = false;

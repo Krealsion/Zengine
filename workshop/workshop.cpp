@@ -763,6 +763,11 @@ int main(int argc, char** argv) {
     host.destinations = [&bus, &host] {
         return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id() : loom::WeaveId{});
     };
+    // ---- The layouts' owner, in its own office (workshop/layouts/owner.hpp) ---------------------
+    // Every layout and what each keeps, the office-wide settings, the locks and the pins: one
+    // writer and one judge, never replaced. Mounted before Workshop, whose first ask restores the
+    // session; it reads this host's paths and readings at each ask.
+    mount_in_office<LayoutsOwner>(bus, layouts_grant(), kLayoutsRole, layouts_owner_host(host));
     auto speak = workshop_grant();
     const loom::WeaveId workshop_id =
         mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);

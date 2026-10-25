@@ -101,8 +101,6 @@ void WorkshopWeave::hand_settings(loom::Mail& mail) {
             return u.revision != revision;
         });
     }
-    // ...AND EVERY DECLARING OFFICE ITS OFFICE-WIDE SETTINGS, on the same turns.
-    hand_office_settings(mail);
 }
 
 // WL-FOCUS-04 -- agents/workshop/focus.md

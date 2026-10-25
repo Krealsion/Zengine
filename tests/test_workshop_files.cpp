@@ -153,7 +153,7 @@ struct ProjectRig {
         t.extent_px(cells_px(78), cells_px(h), 0, 0);
     }
     const Session& session() const { return t.w->session(); }
-    const SetupState& run() const { return t.w->layouts().run(); }
+    const SetupState& run() const { return t.owner->layouts().run(); }
     std::string notice() const { return session().notice; }
     std::string shown() { return stack_text(t.shown()); }
 

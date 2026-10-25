@@ -2,10 +2,11 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // A live external consumer of a pane's settings, from the installed package alone: a pane a
-// stranger writes declares the setting it takes and reads what it is handed; a stand-in host (the
-// `zengine.workshop` office) judges the declaration and hands the pane its settings; a forger
-// hands it settings under its own office. A failed check returns non-zero, which run.cmake's exit
-// test catches.
+// stranger writes declares the setting it takes, to the office that keeps settings
+// (`kLayoutsRole`), and reads what it is handed; a stand-in keeper judges the declaration, a
+// stand-in host (the `zengine.workshop` office) hands the pane its settings, and a forger hands it
+// settings under its own office. A failed check returns non-zero, which run.cmake's exit test
+// catches.
 
 #include "workshop/pane_settings.hpp"
 
@@ -63,7 +64,7 @@ public:
     void on(const Poke&, loom::Mail& mail) {
         const ws::PaneSettingsDeclared declared{kPane, {legend_row()}};
         sound = ws::pane_settings_declared_problem(declared).empty();
-        (void)mail.as_role(kDial).send_to_role(kWorkshop, declared);
+        (void)mail.as_role(kDial).send_to_role(ws::kLayoutsRole, declared);
     }
     /// WHAT IT IS HANDED, from Workshop's office alone, taken whole: its own key read, a value it
     /// cannot use said in the installed words, its default kept.
@@ -89,20 +90,25 @@ public:
     int ignored = 0;
 };
 
-// ---- the stand-in host -----------------------------------------------------------------------
+// ---- the stand-in keeper and host ------------------------------------------------------------
 
-class Host : public loom::WeaveBase<Host, Nothing, loom::Accept<ws::PaneSettingsDeclared, Poke>,
-                                    loom::Emit<ws::PaneSettings>> {
+class Keeper : public loom::WeaveBase<Keeper, Nothing, loom::Accept<ws::PaneSettingsDeclared>,
+                                      loom::Emit<>> {
 public:
     void on(const ws::PaneSettingsDeclared& d, loom::Mail& mail) {
         if (mail.authored_role() == kDial && ws::pane_settings_declared_problem(d).empty()) {
             declared = d.rows;
         }
     }
+    std::vector<ws::PaneSettingRow> declared;
+};
+
+class Host : public loom::WeaveBase<Host, Nothing, loom::Accept<Poke>,
+                                    loom::Emit<ws::PaneSettings>> {
+public:
     void on(const Poke& p, loom::Mail& mail) {
         (void)mail.as_role(kWorkshop).send_to_role(kDial, ws::PaneSettings{kPane, p.settings});
     }
-    std::vector<ws::PaneSettingRow> declared;
 };
 
 // ---- a forger: settings handed under another office ------------------------------------------
@@ -133,15 +139,17 @@ void poke(loom::Switchboard& bus, loom::WeaveId id, Poke p) {
 
 int main() {
     loom::Switchboard bus;
+    loom::WeaveId keeper_id{};
     loom::WeaveId host_id{};
     loom::WeaveId dial_id{};
     loom::WeaveId forger_id{};
     loom::Grant host_speaks;
     host_speaks.allow_to_role(ws::PaneSettings::zen_name, ws::PaneSettings::zen_version, kDial);
-    Host* host = seat<Host>(bus, host_id, host_speaks, kWorkshop);
+    (void)seat<Host>(bus, host_id, host_speaks, kWorkshop);
+    Keeper* keeper = seat<Keeper>(bus, keeper_id, loom::Grant{}, ws::kLayoutsRole);
     loom::Grant dial_speaks;
     dial_speaks.allow_to_role(ws::PaneSettingsDeclared::zen_name,
-                              ws::PaneSettingsDeclared::zen_version, kWorkshop);
+                              ws::PaneSettingsDeclared::zen_version, ws::kLayoutsRole);
     Dial* dial = seat<Dial>(bus, dial_id, dial_speaks, kDial);
     loom::Grant forger_speaks;
     forger_speaks.allow_to_role(ws::PaneSettings::zen_name, ws::PaneSettings::zen_version, kDial);
@@ -149,8 +157,8 @@ int main() {
 
     poke(bus, dial_id, Poke{});
     check(dial->sound, "the pane's declaration is sound by the installed judge");
-    check(host->declared.size() == 1 && host->declared.front().key == "legend",
-          "the host took the declaration the pane sent");
+    check(keeper->declared.size() == 1 && keeper->declared.front().key == "legend",
+          "the keeper took the declaration the pane sent");
 
     poke(bus, host_id, Poke{{ws::PaneSetting{"legend", false, {}, {}}}});
     check(dial->heard == 1 && !dial->legend && dial->problem.empty(),

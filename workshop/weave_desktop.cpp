@@ -754,14 +754,34 @@ void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
     if (mail.authored_role().empty()) {
         return; // an office, and only an office -- the seam's rule for changing the desk
     }
-    const PaneRef ref{asked.office, asked.pane};
-    PaneToggleAnswered answer;
-    answer.office = asked.office;
-    answer.pane = asked.pane;
     // JUDGED AGAINST THE DESK NOW, not against whatever the asker last heard: on the desk means
     // hide; off it means show and focus. Through the two doors a launch and a close already go
     // through, so a toggle can do nothing they cannot.
     auto held = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
+    // WHILE AN EDIT IS IN FLIGHT THE COPY IS NOT THE DESK: the toggle waits for it to settle.
+    if (!edits_owed_.empty()) {
+        if (settle_waiters_.size() >= kMaxSettleWaiters) {
+            PaneToggleAnswered refused;
+            refused.office = asked.office;
+            refused.pane = asked.pane;
+            refused.refusal = "too many toggles at once -- this one was not judged; press again";
+            (void)loom::answer_deferred(*held, mail, refused);
+            return;
+        }
+        settle_waiters_.push_back(
+            [this, asked, held](loom::Mail& m) { judge_toggle(asked, held, m); });
+        return;
+    }
+    judge_toggle(asked, held, mail);
+}
+
+void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
+                                 const std::shared_ptr<loom::DeferredAnswer>& held,
+                                 loom::Mail& mail) {
+    const PaneRef ref{asked.office, asked.pane};
+    PaneToggleAnswered answer;
+    answer.office = asked.office;
+    answer.pane = asked.pane;
     const auto finish = [this, held](PaneToggleAnswered& toggled, loom::Mail& m) {
         if (!toggled.refusal.empty()) {
             say(toggled.refusal, true);

@@ -555,21 +555,21 @@ inline LoadedSession from_text(std::string_view bytes,
         const loom::Unverified first = loom::compat::parse(lines.front());
         if (first.well_formed() &&
             first.claimed_name() == std::string(WorkshopSessionHeader::zen_name)) {
-            if (first.claimed_version() == WorkshopSessionHeader::zen_version) {
-                return lines_in(first, lines);
-            }
             if (first.claimed_version() > WorkshopSessionHeader::zen_version) {
                 return LoadedSession::no(could_not_convert(
                     first.claimed_version(), "this Workshop reads a header line of version " +
                                                  std::to_string(kFormatVersion) + " and older"));
             }
-            const std::string whole = whole_of_lines(lines, first.claimed_version());
-            if (whole.empty()) {
-                return LoadedSession::no(could_not_convert(
-                    first.claimed_version(),
-                    "its header and the lines after it are not a header and its count of layouts"));
+            if (first.claimed_version() < WorkshopSessionHeader::zen_version) {
+                const std::string whole = whole_of_lines(lines, first.claimed_version());
+                if (whole.empty()) {
+                    return LoadedSession::no(could_not_convert(
+                        first.claimed_version(), "its header and the lines after it are not a "
+                                                 "header and its count of layouts"));
+                }
+                return converted_in(loom::compat::parse(whole), conversions);
             }
-            return converted_in(loom::compat::parse(whole), conversions);
+            return lines_in(first, lines);
         }
     }
     const loom::Unverified claim = loom::compat::parse(bytes);

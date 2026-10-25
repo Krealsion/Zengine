@@ -1195,25 +1195,25 @@ namespace {
 /// the grant it was given, and keeping every answer it hears.
 class SettingsGuest
     : public loom::WeaveBase<SettingsGuest, SeatState,
-                             loom::Accept<PaneSettingsShown, PaneSettingActed, PaneSettingLockActed,
-                                          LayoutSettingsShown, SettingsWritten, SeatDo>,
+                             loom::Accept<PaneSettingsAnswered, PaneSettingCommitAnswered, PaneSettingLockAnswered,
+                                          LayoutSettingsAnswered, SettingsWriteAnswered, SeatDo>,
                              loom::Emit<PaneSettingsRequested, PaneSettingCommitRequested,
                                         PaneSettingLockRequested, LayoutSettingsRequested,
                                         SettingsWriteRequested>> {
 public:
-    void on(const PaneSettingLockActed& a, loom::Mail& mail) {
+    void on(const PaneSettingLockAnswered& a, loom::Mail& mail) {
         if (mail.answers_ask()) lock_acted.push_back(a);
     }
-    void on(const LayoutSettingsShown& s, loom::Mail& mail) {
+    void on(const LayoutSettingsAnswered& s, loom::Mail& mail) {
         if (mail.answers_ask()) layouts.push_back(s);
     }
-    void on(const SettingsWritten& w, loom::Mail& mail) {
+    void on(const SettingsWriteAnswered& w, loom::Mail& mail) {
         if (mail.answers_ask()) batches.push_back(w);
     }
-    void on(const PaneSettingsShown& s, loom::Mail& mail) {
+    void on(const PaneSettingsAnswered& s, loom::Mail& mail) {
         if (mail.answers_ask()) shown.push_back(s);
     }
-    void on(const PaneSettingActed& a, loom::Mail& mail) {
+    void on(const PaneSettingCommitAnswered& a, loom::Mail& mail) {
         if (mail.answers_ask()) acted.push_back(a);
     }
     void on(const SeatDo&, loom::Mail& mail) {
@@ -1224,15 +1224,15 @@ public:
         }
     }
     template <class Shape> void ask(loom::Mail& mail, const Shape& s) {
-        (void)mail.send_to_role(kWorkshopProvider, s);
+        (void)mail.send_to_role(door_of<Shape>(), s);
     }
 
     std::function<void(SettingsGuest&, loom::Mail&)> next;
-    std::vector<PaneSettingsShown> shown;
-    std::vector<PaneSettingActed> acted;
-    std::vector<PaneSettingLockActed> lock_acted;
-    std::vector<LayoutSettingsShown> layouts;
-    std::vector<SettingsWritten> batches;
+    std::vector<PaneSettingsAnswered> shown;
+    std::vector<PaneSettingCommitAnswered> acted;
+    std::vector<PaneSettingLockAnswered> lock_acted;
+    std::vector<LayoutSettingsAnswered> layouts;
+    std::vector<SettingsWriteAnswered> batches;
 };
 
 struct GuestAsker {
@@ -1301,10 +1301,10 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
     // WITH `settings`: answered, and a clear written.
     ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, PaneSettingsRequested{dial.provider, dial.pane}); });
     REQUIRE(with.guest->shown.size() == 1);
-    const PaneSettingsShown read = with.guest->shown.back();
+    const PaneSettingsAnswered read = with.guest->shown.back();
     CHECK(read.revision > 0);
     CHECK(read.settings == std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
-    CHECK(read.said == "stored; not handed: nothing offers test.dial/dial here");
+    CHECK(read.said.empty());
     PaneSettingCommitRequested clear;
     clear.provider = dial.provider;
     clear.pane = dial.pane;
@@ -1376,7 +1376,7 @@ TEST_CASE("a guest whose row has `settings` locks a setting, reads every layout 
         if (who == without.id) return guest_facts(capture_row);
         return scope::GuestRowFacts{};
     };
-    const PaneSettingLockRequested lock{"test.dial/dial", "step", "lock", "layout", -1, 0};
+    const PaneSettingLockRequested lock{"test.dial/dial", "step", "lock", "layout", 0, 0};
 
     // WITH `settings`: every layout read, a lock made, a batch written.
     ask_as(r, with, [](SettingsGuest& g, loom::Mail& m) { g.ask(m, LayoutSettingsRequested{}); });

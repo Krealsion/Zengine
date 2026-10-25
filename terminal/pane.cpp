@@ -130,7 +130,7 @@ public:
     void offered(loom::Mail& mail) {
         declare(mail);
         (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(kWorkshopRole,
+            .send_to_role(ws::kLayoutsRole,
                           ws::v2::PaneSettingsDeclared{pane::kTerminalPane, setting_rows()});
     }
 
