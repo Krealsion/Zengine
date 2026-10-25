@@ -102,10 +102,10 @@ columns of nothing.
 
 | gesture | does |
 |---|---|
-| `.` | the next layout |
-| `,` | the previous one |
-| `=`, or press `+` | a new, **empty** layout, added at the end |
-| `Ctrl`+`w` | remove the layout you are on |
+| <!-- key layout.next -->`.`<!-- /key --> | the next layout |
+| <!-- key layout.previous -->`,`<!-- /key --> | the previous one |
+| <!-- key layout.new -->`=`<!-- /key -->, or press `+` | a new layout, added at the end, holding the desk a fresh Workshop opens on: Layouts, and Info at the right edge |
+| <!-- key layout.remove -->`ctrl+w`<!-- /key --> | remove the layout you are on |
 | press a tab | go to that layout |
 | **double-click a tab** | rename that layout |
 | **drag a tab** | move it along the run |
@@ -315,9 +315,11 @@ Three consequences worth knowing:
   a current session still opens exactly as before; a session from an older Workshop is refused,
   by number, naming the conversion that is missing:
 
+<!-- value session_persist::kFormatVersion in "`WorkshopSession` v3 to v{}" -->
+<!-- value session_persist::kFormatVersion in "WorkshopSession.v3-to-v{}" -->
 ```text
-session version 3 cannot be read: no live conversion from `WorkshopSession` v3 to v8
-(`zengine.migrate.WorkshopSession.v3-to-v8`) -- opening with the default setup
+session version 3 cannot be read: no live conversion from `WorkshopSession` v3 to v11
+(`zengine.migrate.WorkshopSession.v3-to-v11`) -- opening with the default setup
 ```
 
   **and that run keeps no session at all** — closing it writes nothing, so your file is still

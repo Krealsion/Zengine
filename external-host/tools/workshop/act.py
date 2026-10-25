@@ -10,9 +10,9 @@ read and written by message (settings). Steps run in order through ONE input ses
 and nothing after it is sent. Every step is spelled before any Workshop contact, so a misspelled
 list costs nothing.
 
-WHAT A WORD PROVES. A pane's words (PaneView version 3) are Workshop's own account of what a pane
-painted -- a text pane's rows, a canvas pane's labels and runs -- each with the place the medium
-draws it, located by the same measurer that places a press (hand.py). `expect` therefore proves
+WHAT A WORD PROVES. A pane's words (PaneView, at hand.PANE_VIEW_VERSION) are Workshop's own
+account of what a pane painted -- a text pane's rows, a canvas pane's labels and runs -- each with
+the place the medium draws it, located by the same measurer that places a press (hand.py). `expect` therefore proves
 presentation: that a pane painted a word, not that the owner it paints about finished its work.
 Pair it with that owner's evidence when completion matters. A pane Workshop will not describe
 (closed, unsettled, covered) is treated as painting nothing while an `expect` waits, and as a

@@ -6,7 +6,8 @@
 
 // THE SETTINGS OFFICE'S DOORS, `zengine.settings`: apply a theme to layouts, save one, snapshot a
 // layout or promote its entries as one, list the themes, resolve one, and say where each of a
-// layout's settings came from. The theme file and its resolution are `theme_persist.hpp`.
+// layout's settings came from. No weave holds the office, so nothing answers them. The theme file
+// and its resolution are `theme_persist.hpp`.
 
 #include "settings/theme_persist.hpp"
 

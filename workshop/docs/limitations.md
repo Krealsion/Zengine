@@ -10,15 +10,16 @@ deprecation cycles.
 
 ### The installable package does not cover everything Zengine builds
 
-`find_package(zengine)` exports nine capability targets and installs the loadable artifacts
-they need — see [using Zengine from another
+`find_package(zengine)` exports the capability targets `ZENGINE_EXPORTED_TARGETS` names in
+[`cmake/ZengineInstall.cmake`](../../cmake/ZengineInstall.cmake) and installs the loadable
+artifacts they need — see [using Zengine from another
 project](../../docs/getting-started.md#using-zengine-from-another-project). Three things are
 deliberately outside it, and each is a real limit rather than an oversight:
 
-- **The SDL-backed skin and input reader are not in the developer package.** When no SDL3 is
-  present the build fetches one and links it out of its own build tree, so installing those two
-  artifacts without it would ship images that cannot load. The package a stranger downloads
-  (below) carries the SDL it built, with the OS window.
+- **The OS window (`zengine-window-sdl`) is not in the developer package.** When no SDL3 is
+  present the build fetches one and links it out of its own build tree, so installing the window
+  without it would ship an image that cannot load. The package a stranger downloads (below)
+  carries the SDL it built, with the OS window.
 - **Workshop is not in the developer package.** A build's executable compiles the path of the
   CMake that configured it into itself, for the Builder tool it mounts, so an installed copy
   would carry a stranger's directory layout. The package a stranger downloads carries Workshop
@@ -160,9 +161,11 @@ and none of those is claimed anywhere else either.
 
 Width scales with the surface; height does not. A larger pane is authored by arranging it —
 drag a handle (right-click the pane → `arrange`, or `w` for the whole desk), press **`=`** for
-a coarse four-cell step on both axes, or `Shift`+arrows for one cell at a time. It persists
-correctly once authored. There is still no "fill the room" and no auto-fit. Detail in [pane
-geometry](panes.md#pane-geometry). The nine rows and the four-cell step are Workshop's settings
+a coarse <!-- value kCoarseStepCells -->4<!-- /value -->-cell step on both axes, or `Shift`+arrows
+for one cell at a time. It persists correctly once authored. There is still no "fill the room"
+and no auto-fit. Detail in [pane geometry](panes.md#pane-geometry). The
+<!-- value kStackRows -->9<!-- /value --> rows and the <!-- value kCoarseStepCells -->4<!-- /value -->-cell
+step are Workshop's settings
 `workshop.stack-rows` and `workshop.arrange-step`, one value for every layout
 ([Workshop's own settings](zengine.workshop.md#officesettingsrequested)).
 
@@ -235,10 +238,10 @@ them, so its quotes read as `?`.
 
 **Workshop's own panes are changed from inside Workshop only through a development setup** — a
 development catalog and a runtime copied from one configured Zengine build tree
-([develop Workshop](develop-workshop.md)). That covers the pane weaves Zengine ships. The host
-executable, the skins, the input readers, the Timer and the operator providers are not rebuilt or
-reloaded from inside Workshop, and a development runtime is not an installed Workshop that updates
-itself.
+([develop Workshop](develop-workshop.md)). That covers the pane weaves its catalog lists
+([which](develop-workshop.md#which-panes)). The host executable, the windows and their skins, the
+input weave, the Timer and the operator providers are not rebuilt or reloaded from inside
+Workshop, and a development runtime is not an installed Workshop that updates itself.
 
 **Artifacts are still named by stem beside the host.** A project's built pane is kept beside the
 Workshop that loaded it (`tally.so`, `tally.reloads/`), not in the project, so two projects run
@@ -263,7 +266,7 @@ honest bounds on that capability today:
 | Mixed line endings? | **no** — one file, one convention (LF or CRLF, preserved exactly); a mixed file is refused rather than normalized |
 | Search, syntax highlighting, line numbers, splits? | **no** — it is a competent plain editor, not an IDE |
 | Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit asks the Editor and refuses while source is unsaved |
-| Does it survive a reload of the Editor's own image? | **yes** — the document, its unsaved edits, caret, selection and scroll position ride a same-shape reload; the undo history and a paste still on its way do not |
+| Does it survive a reload of the Editor's own image? | **yes** — the document, its unsaved edits, caret, selection, scroll position and undo history ride a same-shape reload; what you undid and could redo, and a paste still on its way, do not ([the Editor's manual](../../editor/docs/zengine.editor.md#about)) |
 | Does it survive the Editor pane being closed? | **yes** — the pane is a presentation; bring it back from the Pane Manager and the document is where it was |
 | Drag text, a command or a file place in and out? | **yes, as copies and text** — [carrying](../../editor/docs/editor.md#carrying-text-commands-and-file-places); dropped text obeys the same ASCII byte rule (UTF-8 beyond it is refused, where Neovim takes it), there is no block selection, a carried copy is at most <!-- value kMaxCarryBytes KiB -->64<!-- /value --> KiB, and a dropped command is text, never sent |
 
@@ -297,7 +300,7 @@ carries your document both ways. The honest bounds today:
 | A key to carry this file's place out of Neovim? | **not by default** — every plain `Ctrl` letter already means something to Neovim or the desktop in Normal mode; drag from the status row, right-click it, or bind `neovim.location` yourself. The selection's key is `Ctrl`+`r`, in Visual and Select mode only |
 | A terminal's own paste into Neovim? | **as typing** — Workshop does not yet tell a terminal paste from keys, so paste in Insert mode; in Normal mode the text runs as commands |
 | A copy made before a switch, pasted after it, in a terminal? | **no** — a terminal medium cannot read the system clipboard, and the editor that starts at a switch has seen no earlier copy; the graphical window reads the real clipboard |
-| A switch control in a pane? | **not yet** — the switch is asked from the Terminal pane; a swapper pane and a confirmation dialog are later presentations of the same office |
+| A switch control in a pane? | **yes** — the quick setup's **Edit text with Neovim** box asks the switch, as a line typed in the Terminal pane does ([the quick setup](zengine.first-run.md)) |
 
 ### The Terminal's history and its record are this run's, and bounded by the participant
 
@@ -499,7 +502,7 @@ It does not author anchors, fill, docking, locks, sibling-relative or parent-rel
 because no pane can hold those yet; it does not edit what a pane *does*, wire panes together,
 or reach a loaded weave's own state; the "inspect" route from outside it is the Pane Manager's row menu
 (`inspect in Info`), which asks Info, and Info asks as its own inspect does — the right-click menu on a pane itself has no
-such row. Its default height is the stack's nine rows, which shows only a
+such row. Its default height is the stack's <!-- value kStackRows -->9<!-- /value --> rows, which shows only a
 few rows of it at a time; `=` in the desk arrangement makes it usable, and that default is [the same open question](#panes-are-9-rows-tall-by-default-and-a-bigger-terminal-does-not-change-that)
 every stacked pane has.
 
@@ -613,9 +616,10 @@ Detail in [supported toolchains](../../docs/contributing/supported-toolchains.md
 These are absences by decision, not gaps, and they are not going to arrive because a toolkit is
 expected to have them:
 
-- **No widget set.** The component package has one component, earned by working consumers
-  (four of them) needing the same machinery. There is no Button, List, Dropdown,
-  ScrollView, focus tree, tab order or theme.
+- **No widget set.** The component package holds the pieces working consumers needed in common
+  ([its pieces](../../component/README.md#what-is-in-this-folder)), each keeping its own state and
+  knowing no medium. There is no Button, List, Dropdown, ScrollView, focus tree, tab order or
+  theme.
 - **No notifications.** [Attention](../../attention/docs/zengine.attention.md) shows what is **true right now**, and that
   is the whole of it: nothing accumulates, nothing is unread, nothing pops up, nothing expires
   and nothing animates. There is no history of things that stopped being true — a record of

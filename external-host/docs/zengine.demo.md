@@ -135,12 +135,12 @@ Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
 
 ### `AreaPointerMoved`
 
-`AreaPointerMoved` v1, from that window: the pointer moved in the pane's area. It does nothing.
+`AreaPointerMoved` v2, from that window: the pointer moved in the pane's area. It does nothing.
 Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
 
 ### `AreaWheelTurned`
 
-`AreaWheelTurned` v1, from that window: the wheel over the pane's area. It does nothing.
+`AreaWheelTurned` v2, from that window: the wheel over the pane's area. It does nothing.
 Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
 
 ## Follow

@@ -14,9 +14,9 @@ tool too, and you can edit, rebuild and replace it while Workshop runs. Your des
 its own when you relaunch.
 
 **What it is not yet** is written down in [limitations](limitations.md) rather than left to
-be discovered — the editor holds one plain-ASCII file at a time, a pane you make yourself holds
-one line of text, and a rebuilt weave whose shape changed needs a prepared replacement rather
-than a reload.
+be discovered — the editor holds one plain-ASCII file at a time, a pane you make yourself is a
+view of labels, number fields and buttons ([a view](panes.md#a-pane-of-your-own--a-view)), and a
+rebuilt weave whose shape changed needs a prepared replacement rather than a reload.
 
 ## Launch it
 
@@ -63,6 +63,11 @@ replaces the old one; a `workshop-plan.json` there starts instead of the shipped
 | `--log <path>` | none | a durable journal of selected facts, appended as they happen; outlives the process |
 | `--dump <path>` | none | what the volatile recorder still held when Workshop quit |
 | `--document <path>` | `workshop.json` in the project, when there is one | an object document from before the object canvas retired: named once at startup and left exactly as it is |
+| `--marks <path>` | `workshop-marks.json`, in your **per-user state folder** | the places you marked in the Files pane ([the marks file](../../files/docs/zengine.files.md#files)) |
+| `--guests <path>` | none: no listener | who may connect to this Workshop from another host, and what each may say ([the guests file](../../external-host/docs/zengine.guests.md)) |
+| `--read-log <path>` | none | show a journal `--log` wrote, and start nothing ([diagnostics](make-a-workshop-tool.md#find-a-missing-reply-grant)) |
+| `--log-refusals` | off | keep refusals in the `--log` journal, which it needs; it grants nothing ([diagnostics](make-a-workshop-tool.md#find-a-missing-reply-grant)) |
+| `--demo-history` | off | keep more recent delivery metadata for `--dump` ([diagnostics](make-a-workshop-tool.md#find-a-missing-reply-grant)) |
 
 An empty path is refused by name. `--log` and `--dump` are two different questions: the
 journal is what you keep on purpose, the dump is most of a session's story recovered after the
@@ -160,8 +165,8 @@ Info as `[gone]` in the Pane Manager, names it on Workshop's own condition row a
 in Attention for the whole run. (While the run is still loading a tool, its row reads `[load]`:
 on its way, not missing.) Build
 it and launch again. (The host's own infrastructure — the operators, the session history, the
-skin, the input weave and the timer — is required, and a plan missing one of those does not
-start.)
+graphics directory and its window, the input weave and the timer — is required, and a plan
+missing one of those does not start.)
 
 The **notice** line is where a refusal to what you just did appears. Workshop refuses rather
 than clamps: a place or size Info cannot accept leaves the stored one untouched and says why.
@@ -197,18 +202,19 @@ find it again in the Pane Manager as Quick setup ([its manual](zengine.first-run
 The Layouts row says `>Default< +` beside `setup: none` — the one layout you have, marked as the
 one you are on, related to no Setup file yet. `none` is not a warning: Workshop remembers that
 layout for you either way. Nothing is painted behind the panes, and the band's first row says
-how to open one: `^t terminal | ^p panes | ^k hotkeys`.
+how to open one: `ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys`.
 
 ![A fresh Workshop at its smallest window: the Layouts row, Info at the right, nothing behind them, and the band leading with the keys that open a pane](images/desk-fresh.png)
 
-1. **`Ctrl`+`p`** — the **Pane Manager**: every pane there is, open or not. `↑` `↓` choose,
-   `Enter` shows one and puts you in it — a pane that is already shown is simply where you land.
-   **`x`** hides one: it leaves the layout, and its tool keeps running and keeps what it holds,
-   so `Enter` shows it again as it was. `Ctrl`+`p` works while you are typing in another pane.
+1. **<!-- key desktop.panes -->`ctrl+p`<!-- /key -->** — the **Pane Manager**: every pane there is,
+   open or not. `↑` `↓` choose, `Enter` shows one and puts you in it — a pane that is already
+   shown is simply where you land. **`x`** hides one: it leaves the layout, and its tool keeps
+   running and keeps what it holds, so `Enter` shows it again as it was. `Ctrl`+`p` works while
+   you are typing in another pane.
    See [panes](panes.md#showing-going-to-and-hiding--the-pane-manager).
-2. **`Ctrl`+`t`** — open the Terminal, or go to it if it is already up. `Ctrl`+`p`, `Ctrl`+`t`
-   and `Ctrl`+`k` come from the **desktop**, a tool you can edit and rebuild like any other, so
-   you can move them, switch them off, or change what they do — see
+2. **<!-- key desktop.terminal -->`ctrl+t`<!-- /key -->** — open the Terminal, or go to it if it is
+   already up. `Ctrl`+`p`, `Ctrl`+`t` and `Ctrl`+`k` come from the **desktop**, a tool you can
+   edit and rebuild like any other, so you can move them, switch them off, or change what they do — see
    [hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away).
 3. **Inspect a pane in Info**: in the Pane Manager choose its row, press **`m`** for the row's
    menu and choose **`inspect in Info`**. Info's rows say what the pane is, what you authored for
@@ -231,17 +237,20 @@ how to open one: `^t terminal | ^p panes | ^k hotkeys`.
      wrong pane, and nothing is written. A write that never reached Workshop says so
      (`commit not submitted`, `commit not delivered`); your draft and its text stay, and
      `Enter` sends them again.
-4. **`w`** — arrange the desk: every pane wears handles. Drag a body to move it, an edge or
-   corner to resize it; `Tab` steps between panes, the arrows move one cell, `Shift`+arrows
-   resize, and **`=`** grows the pane four cells at once. `Esc` leaves. See
+4. **<!-- key workshop.manage -->`w`<!-- /key -->** — arrange the desk: every pane wears handles.
+   Drag a body to move it, an edge or corner to resize it; `Tab` steps between panes, the arrows
+   move one cell, `Shift`+arrows resize, and **<!-- key manage.grow -->`=`<!-- /key -->** grows the
+   pane by the coarse step at once. `Esc` leaves. See
    [arranging](panes.md#moving-resizing-and-ordering--arrange).
 5. **Right-click** a pane, a layout tab or the empty room — Workshop lists what can be done
    with the thing you pointed at, without selecting it. `Enter` chooses, `Esc` closes, and
-   **`a`** opens the room's menu from the keyboard. See
+   **<!-- key workshop.context -->`a`<!-- /key -->** opens the room's menu from the keyboard. See
    [the context menu](panes.md#the-context-menu--what-can-i-do-with-this).
-6. **`s`** — save the layout you are on to the setup file; **`r`** restores it. **`=`** makes
-   a new layout, **`.`** and **`,`** step between them. See [setups](setups.md).
-7. **`q`** or **`Ctrl`+`c`** — quit.
+6. **<!-- key setup.name -->`s`<!-- /key -->** — save the layout you are on to the setup file;
+   **<!-- key setup.restore -->`r`<!-- /key -->** restores it. **<!-- key layout.new -->`=`<!-- /key -->**
+   makes a new layout, **<!-- key layout.next -->`.`<!-- /key -->** and
+   **<!-- key layout.previous -->`,`<!-- /key -->** step between them. See [setups](setups.md).
+7. **<!-- key workshop.quit -->`q`<!-- /key -->** or **<!-- key workshop.quit -->`ctrl+c`<!-- /key -->** — quit.
 
 > **Your desk comes back.** The panes you had open, where you put them, how big you made them
 > and how big the window was are all restored automatically from the last session — no
@@ -249,7 +258,7 @@ how to open one: `^t terminal | ^p panes | ^k hotkeys`.
 
 ## The full key map
 
-[cheat_sheet.md](../../cheat_sheet.md#keys) has it in one place. The short version:
+[Hotkeys](hotkeys.md#the-default-keys) has it in one place. The short version:
 
 | | |
 |---|---|

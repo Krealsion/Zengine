@@ -7,7 +7,7 @@ expected to keep. This describes working on the public project.
 
 ```text
 README.md            orientation, and the map of the folders below
-cheat_sheet.md       dense operational reference
+cheat_sheet.md       the index: a line per topic, linking the page that owns it
 AGENTS.md            the contract for automated collaborators working in this tree
 agents/              routed detail behind AGENTS.md, by surface — internal working law for
                      automated collaborators. Not user documentation, not indexed by

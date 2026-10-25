@@ -284,8 +284,9 @@ Nothing ordinary can throw dirty source away:
   discard — and proceeds the moment the buffer is clean (a *held* Editor cannot be asked, so the
   quit is refused until you [reload it](#while-an-open-is-on-its-way-and-if-it-stalls));
 - a **reload** of the Editor's own image (a rebuild of `zengine-editor-pane` loaded in place)
-  carries the document across whole: bytes, unsaved edits, caret, selection and scroll
-  position. What does not survive a reload is the undo history and a paste still on its way.
+  carries the document across whole: bytes, unsaved edits, caret, selection, scroll position
+  and the undo history ([the Editor's manual](zengine.editor.md#about)). What does not survive a
+  reload is what you undid and could redo, and a paste still on its way.
 
 The one thing that loses an unsaved buffer is the one thing that loses every draft here: the
 process dying disorderly. The discard chord is the Editor's own row now, so it works while the
