@@ -5765,7 +5765,8 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
             loom::admit(loom::compat::parse(lines[0]),
                         loom::schema_of<session_persist::WorkshopSessionHeader>(),
                         loom::Report::FirstError);
-        REQUIRE_MESSAGE(header.ok(), header.first_error().message());
+        // A message reads the error only where there is one: doctest's `-s` says it on success too.
+        REQUIRE_MESSAGE(header.ok(), (header.ok() ? std::string() : header.first_error().message()));
         const std::int64_t header_cells = decoded_cells(header.value());
         CHECK(header_cells <= kDecodedCellBudget);
         std::int64_t layout_cells = 0;
@@ -5776,7 +5777,8 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
                 loom::admit(loom::compat::parse(lines[at]),
                             loom::schema_of<session_persist::WorkshopLayout>(),
                             loom::Report::FirstError);
-            REQUIRE_MESSAGE(layout.ok(), layout.first_error().message());
+            REQUIRE_MESSAGE(layout.ok(),
+                            (layout.ok() ? std::string() : layout.first_error().message()));
             layout_cells = std::max(layout_cells, decoded_cells(layout.value()));
             // ONE FIELD MORE ON EVERY ROW of both its desks still decodes.
             CHECK(decoded_cells(layout.value()) + 2 * static_cast<std::int64_t>(kMaxSetupPanes) <=
