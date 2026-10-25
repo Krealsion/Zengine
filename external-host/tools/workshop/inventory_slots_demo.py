@@ -86,7 +86,7 @@ def run(ctx):
                           "settings": []})
         for i, p in enumerate(panes):
             p["front"] = str(i)
-        hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)
+        hand.ask("zengine.layouts", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)
 
     views = [(box, 54, 0, 12, 12)]  # cells of the room: a place is measured from its top-left
     arrange(views)

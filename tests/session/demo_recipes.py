@@ -513,6 +513,7 @@ class Recipes(unittest.TestCase):
         root = make(self.tmp, "saved")
         desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
         desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
+        desk["fields"].update(theme={"name": "", "fingerprint": "0"}, locks=[], pins=[])
         for row in desk["fields"]["panes"]:
             row["settings"] = []
         desk["fields"]["panes"][0]["settings"] = [{"key": "title", "text": "a b"},
@@ -578,6 +579,7 @@ class Recipes(unittest.TestCase):
         root = make(self.tmp, "slotted", view_slots=[{"x": 2, "y": 3, "width": 30, "height": 9}])
         desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
         desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
+        desk["fields"].update(theme={"name": "", "fingerprint": "0"}, locks=[], pins=[])
         for row in desk["fields"]["panes"]:
             row["settings"] = []
         (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
