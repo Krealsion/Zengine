@@ -1,0 +1,41 @@
+window 160x40 at row 0 of a 160x40 buffer
+row 0|>Words< +                                     setup: G:\programming\cpp\Zen\scratch\layout-modes-l2\roots\l2t2\workshop\setup.json | current | s save  r restore|
+row 1|workspace 160x34 cells                                                                                                                                          |
+row 2|                                                                                                    +----------------------------------------------------------+|
+row 3|                                                                                                    |  Info @zengine.info                                   = ?||
+row 4|                                                                                                    |PROPERTIES................................................||
+row 5|                                                                                                    |(no subject -- 'inspect in Info' in the Pane Manager)     ||
+row 6|                                                                                                    |                                                          ||
+row 7|                                                                                                    |                                                          ||
+row 8|                                                    +-----------------------------------------------|                                                          ||
+row 9|                                                    |  Files @zengine.files                         |                                                          ||
+row 10|                                                    |Files 1/7  origin  G:/programming/cpp/Zen/scrat|                                                          ||
+row 11|                                                    |> guests.json                                  |                                                          ||
+row 12|                                                    |  guests.port                                  |                                                          ||
+row 13|                                                    |  load-plan.json                               |                                                          ||
+row 14|                                                    |  process.log                                  |                                                          ||
+row 15|                                                    |  session.json                                 |                                                          ||
+row 16|                                                    |  setup.json                                   |                                                          ||
+row 17|                                                    |  workshop.log                                 +----------------------------------------------------------+|
+row 18|                                                    |[menu] [open] [up a directory] [look again]           |                                                    |
+row 19|                                                    |[use as recipes] [pick buildable] [mark here]         |                                                    |
+row 20|                                                    |[previous mark] [next mark]                           |                                                    |
+row 21|                                                    |                                                      |                                                    |
+row 22|                                                    |                                                      |                                                    |
+row 23|                                                    |                                                      |                                                    |
+row 24|+---------------------------------------------------|                                                      |                                                    |
+row 25||  Terminal @zengine.terminal                       |                                                      |                                                    |
+row 26||TERMINAL -- weave #3                               |                                                      |                                                    |
+row 27||SUBMITTED = authored; a sender is not told its fate|                                                      |                                                    |
+row 28||[the whole of this session's record is on screen]  |                                                      |                                                    |
+row 29||                                                   +------------------------------------------------------+                                                    |
+row 30||                                                                                              |                                                                |
+row 31||                                                                                              |                                                                |
+row 32||                                                                                              |                                                                |
+row 33||                                                                                              |                                                                |
+row 34||> |  Tab: what can this terminal say?  Up: recall a command                                   |                                                                |
+row 35|+----------------------------------------------------------------------------------------------+                                                                |
+row 36|editor switch: status -- `standard` holds zengine.editor (choices: standard, neovim); no switch is under way                                                    |
+row 37|ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys | ctrl+f manual | ctrl+space palette | double-shift palette | q quit | s save setup | r restore setup           |
+row 38|. next layout | , previous layout | = new layout | ctrl+w remove layout | w arrange desk | a actions | t titles | tab next pane | shift+tab previous pane       |
+row 39|left pane left | right pane right | up pane up | down pane down | return enter pane | ctrl+c quit | ctrl+q leave pane                                           |

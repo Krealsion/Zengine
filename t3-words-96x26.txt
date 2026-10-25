@@ -1,0 +1,27 @@
+window 96x26 at row 0 of a 96x26 buffer
+row 0|>Words< +       setup: ...-modes-l2\roots\l2t2\workshop\setup.json | current | s save  r restore|
+row 1|workspace 96x20 cells          +-------------------------------+                                |
+row 2|                               |  Fi+----------------------------------------------------------+|
+row 3|                               |File|  Info @zengine.info                                   = ?||
+row 4|                               |> gu|PROPERTIES................................................||
+row 5|                               |  gu|(no subject -- 'inspect in Info' in the Pane Manager)     ||
+row 6|                               |  lo|                                                          ||
+row 7|                               |  pr|                                                          ||
+row 8|                               |  se|                                                          ||
+row 9|                               |  se|                                                          ||
+row 10|                               |  wo|                                                          ||
+row 11|                               |[men|                                                          ||
+row 12|                               |[loo|                                                          ||
+row 13|                               |[pic|                                                          ||
+row 14|                               |    |                                                          ||
+row 15|+------------------------------|    |                                                          ||
+row 16||  Terminal @zengine.terminal  |    |                                                          ||
+row 17||TERMINAL -- weave #3          |    +----------------------------------------------------------+|
+row 18||[the whole of this session's r|                               |                                |
+row 19||                              |                               |                                |
+row 20||> |  Tab: what can this termin|                               |                                |
+row 21|+------------------------------|                               |                                |
+row 22|editor switch: status -- `stand+-------------------------------+s: standard, neovim); no swit...|
+row 23|ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys | ctrl+f manual | ctrl+space palette            |
+row 24|double-shift palette | q quit | s save setup | r restore setup | . next layout                  |
+row 25|, previous layout | = new layout | ctrl+w remove layout | w arrange desk | a actions | t titl...|

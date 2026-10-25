@@ -1,0 +1,31 @@
+window 120x30 at row 0 of a 120x30 buffer
+row 0|>Words< +       setup: ...g\cpp\Zen\scratch\layout-modes-l2\roots\l2t2\workshop\setup.json | current | s save  r restore|
+row 1|workspace 120x24 cells                                                                                                  |
+row 2|                                                            +----------------------------------------------------------+|
+row 3|                                       +--------------------|  Info @zengine.info                                   = ?||
+row 4|                                       |  Files @zengine.fil|PROPERTIES................................................||
+row 5|                                       |Files 1/6  origin  G|(no subject -- 'inspect in Info' in the Pane Manager)     ||
+row 6|                                       |> guests.json       |                                                          ||
+row 7|                                       |  guests.port       |                                                          ||
+row 8|                                       |  load-plan.json    |                                                          ||
+row 9|                                       |  process.log       |                                                          ||
+row 10|                                       |  setup.json        |                                                          ||
+row 11|                                       |  workshop.log      |                                                          ||
+row 12|                                       |[menu] [open] [up a |                                                          ||
+row 13|                                       |[look again] [use as|                                                          ||
+row 14|                                       |[pick buildable] [ma|                                                          ||
+row 15|                                       |                    |                                                          ||
+row 16|                                       |                    |                                                          ||
+row 17|+--------------------------------------|                    +----------------------------------------------------------+|
+row 18||  Terminal @zengine.terminal          |                                        |                                       |
+row 19||TERMINAL -- weave #3                  |                                        |                                       |
+row 20||SUBMITTED = authored; a sender is not |                                        |                                       |
+row 21||[the whole of this session's record is|                                        |                                       |
+row 22||                                      |                                        |                                       |
+row 23||                                      |                                        |                                       |
+row 24||> |  Tab: what can this terminal say? +----------------------------------------+                                       |
+row 25|+----------------------------------------------------------------------+                                                |
+row 26|restored setup "Words" from G:\programming\cpp\Zen\scratch\layout-modes-l2\roots\l2t2\workshop\setup.json               |
+row 27|ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys | ctrl+f manual | ctrl+space palette | double-shift palette | q quit    |
+row 28|s save setup | r restore setup | . next layout | , previous layout | = new layout | ctrl+w remove layout                |
+row 29|w arrange desk | a actions | t titles | tab next pane | shift+tab previous pane | left pane left | right pane right |...|
