@@ -159,7 +159,7 @@ public:
                                                      pane::kHotkeysSummary, 10, 68});
         declare_keys(mail);
         (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole,
+            .send_to_role(ws::kLayoutsRole,
                           ws::v2::PaneSettingsDeclared{pane::kHotkeysPane, hotkeys_settings()});
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kManualPane, pane::kManualName,

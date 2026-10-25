@@ -43,6 +43,7 @@
 #include "workshop/guest_door.hpp"
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/keymap_persist.hpp"
+#include "workshop/layouts/owner.hpp"
 #include "workshop/layouts/vocabulary.hpp"
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
@@ -128,6 +129,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::view::detail::ViewHostState>(), // ViewHostState v1
         shape<::zengine::view::detail::ViewRedraw>(), // ViewRedraw v1
         shape<::zengine::view::detail::ViewStart>(), // ViewStart v2
+        shape<::zengine::workshop::LayoutsOwnerState>(), // LayoutsOwnerState v1
         shape<::zengine::workshop::LiveTab>(), // LiveTab v1
         shape<::zengine::workshop::RowRevision>(), // RowRevision v1
         shape<::zengine::workshop::LiveLayout>(), // LiveLayout v1
@@ -178,6 +180,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::prefs_persist::v2::WorkshopPrefs>(), // WorkshopPrefs v2
         shape<::zengine::workshop::prefs_persist::v1::WorkshopPrefs>(), // WorkshopPrefs v1
         shape<::zengine::workshop::OfficeSettings>(), // OfficeSettings v1
+        shape<::zengine::workshop::OfficeSettingCommitAnswered>(), // OfficeSettingCommitAnswered v1
         shape<::zengine::workshop::OfficeSettingsDeclared>(), // OfficeSettingsDeclared v1
         shape<::zengine::workshop::QuitDeliveryRefusalNoted>(), // QuitDeliveryRefusalNoted v1
         shape<::zengine::workshop::recipe_persist::v1::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v1

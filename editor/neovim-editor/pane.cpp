@@ -822,7 +822,7 @@ private:
             .send_to_role(kWorkshopRole, PaneOffered{nve::kEditorPane, nve::kPaneName, nve::kPaneSummary, 20, 84});
         declare(mail);
         (void)mail.as_role(nve::kEditorOffice)
-            .send_to_role(kWorkshopRole, ws::v2::PaneSettingsDeclared{nve::kEditorPane, setting_rows()});
+            .send_to_role(ws::kLayoutsRole, ws::v2::PaneSettingsDeclared{nve::kEditorPane, setting_rows()});
     }
 
     /// Two rows naming Workshop's retired document rows as what they stand in for, so an older

@@ -2849,7 +2849,7 @@ TEST_CASE("editing a pane in a layout related to a current Setup makes it modifi
     // and the inspection holds no flag of its own.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
-    stage_run(*t.w, [](SetupState& run) { link_live_setup(run, "somewhere.json"); });
+    stage_run(t, [](SetupState& run) { link_live_setup(run, "somewhere.json"); });
     REQUIRE(live_status(t.run()) == setup_link::kCurrent);
     REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     // reading is not editing

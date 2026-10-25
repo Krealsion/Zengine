@@ -125,7 +125,7 @@ public:
         }
         (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, powers_.actions());
         (void)mail.as_role(kIntrospectionRole)
-            .send_to_role(kWorkshopRole, ws::v2::PaneSettingsDeclared{kPowersPane, powers_settings()});
+            .send_to_role(ws::kLayoutsRole, ws::v2::PaneSettingsDeclared{kPowersPane, powers_settings()});
     }
 
     /// THE SETTINGS THIS LAYOUT KEEPS FOR POWERS, taken whole: its chrome widths, a value it cannot

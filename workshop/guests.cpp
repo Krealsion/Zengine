@@ -495,7 +495,7 @@ loom::Grant grant_for(const GuestRow& row) {
             for (const char* shape : {"DemoServiceOpened", "DemoServiceClosed", "DemoWorkRequested",
                                       "DemoWorkFinished", "DemoResetRequested", "DemoStatusRequested", "DemoReadyRequested"})
                 g.allow_to_role(shape, 1, zengine::demo::kRole);
-            g.allow_to_role(SetupApplyRequested::zen_name, 1, "zengine.workshop");
+            g.allow_to_role(SetupApplyRequested::zen_name, 1, kLayoutsRole);
             g.allow_to_role(WorkshopQuitRequested::zen_name, 1, "zengine.workshop");
             for (const char* role : {"zengine.info", "zengine.composer", "zengine.inventory-pane"})
                 g.allow_to_role(PaneResetRequested::zen_name, 1, role);
@@ -516,24 +516,24 @@ loom::Grant grant_for(const GuestRow& row) {
             }
         } else if (power == kPowerSettings) {
             // ONE PANE'S SETTINGS ON THE LIVE LAYOUT AND ONE OFFICE'S, read and written, a pane's
-            // pin list edited, a setting locked (an unlock is the weaver's, refused by Workshop),
-            // and every layout's rows read and written in one batch, asked of Workshop alone.
+            // pin list edited, a setting locked (an unlock is the weaver's, refused by the owner),
+            // and every layout's rows read and written in one batch, asked of the layouts' owner.
             g.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            kLayoutsRole);
             g.allow_to_role(PaneSettingCommitRequested::zen_name,
-                            PaneSettingCommitRequested::zen_version, pane_menu::kWorkshopRole);
+                            PaneSettingCommitRequested::zen_version, kLayoutsRole);
             g.allow_to_role(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            kLayoutsRole);
             g.allow_to_role(OfficeSettingCommitRequested::zen_name,
-                            OfficeSettingCommitRequested::zen_version, pane_menu::kWorkshopRole);
+                            OfficeSettingCommitRequested::zen_version, kLayoutsRole);
             g.allow_to_role(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            kLayoutsRole);
             g.allow_to_role(PaneSettingLockRequested::zen_name,
-                            PaneSettingLockRequested::zen_version, pane_menu::kWorkshopRole);
+                            PaneSettingLockRequested::zen_version, kLayoutsRole);
             g.allow_to_role(LayoutSettingsRequested::zen_name, LayoutSettingsRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            kLayoutsRole);
             g.allow_to_role(SettingsWriteRequested::zen_name, SettingsWriteRequested::zen_version,
-                            pane_menu::kWorkshopRole);
+                            kLayoutsRole);
         } else if (power == kPowerKeystrokes) {
             // NOTHING TO SAY: hearing the weaver's input is an observation the relay judges
             // (`observation_of`), never a shape a guest sends.

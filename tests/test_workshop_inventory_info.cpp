@@ -1961,8 +1961,12 @@ TEST_CASE("views: every view Inventory makes is offered beside the other panes, 
     REQUIRE(desk.panes.size() > 32);
     const Written judged = check_setup(desk);
     REQUIRE_MESSAGE(judged.accepted, judged.refusal);
-    // As the demo guest's door would: Workshop's own setup application, whole.
-    (void)s.r.bus.send_to_role("zengine.workshop",
+    // THE LAYOUTS' OWNER KNOWS EVERY PANE OF IT FOR ONE WORKSHOP PRESENTS, from Workshop's inventory.
+    for (const SetupPane& row : desk.panes) {
+        CHECK_MESSAGE(s.r.owner->layouts().presentable(row.ref), ref_text(row.ref));
+    }
+    // As the demo guest's door would: the layouts' owner's setup application, whole.
+    (void)s.r.bus.send_to_role("zengine.layouts",
                                loom::Message(loom::to_value(SetupApplyRequested{setup_persist::to_text(desk)})));
     s.r.bus.drain_until_idle();
     CHECK(s.r.session().setup.active.name == "Thirty-six views");

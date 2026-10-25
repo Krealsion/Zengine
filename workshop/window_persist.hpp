@@ -64,6 +64,16 @@ struct WorkshopViewport {
     ZEN_SHAPE(WorkshopViewport, 2, ZEN_FIELD(width), ZEN_FIELD(height));
 };
 
+/// THE ROOM AS SESSIONS BEFORE VERSION 7 WROTE IT, in canvas cells, retained for reading them.
+namespace v1 {
+struct WorkshopViewport {
+    std::int64_t width = 0;
+    std::int64_t height = 0;
+
+    ZEN_SHAPE(WorkshopViewport, 1, ZEN_FIELD(width), ZEN_FIELD(height));
+};
+} // namespace v1
+
 // ---- The placement's words, and why they are words ----------------------------------------
 // WL-SESSION-08 -- agents/workshop/window-file.md
 

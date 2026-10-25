@@ -371,20 +371,20 @@ TEST_CASE("after a restart the Terminal's first picture keeps its layout's legen
 TEST_CASE("an Info commit queued behind a layout switch is refused, and neither layout is written") {
     // THE RACE, THROUGH ORDINARY INPUT: Return, a press on the band and the layout key in one poll.
     // Workshop resolves the Return to Info's commit and puts the other desk live before Info has
-    // sent it, so the commit names rows the host no longer holds.
+    // sent it, so the commit names a revision of a row the live layout no longer stands at.
     LegendRig t;
     t.open();
     t.unfocus();
     duplicate_live_layout(t.r);
     t.inspect_terminal();
     t.draft(tp::kSettingLegend, "off");
-    // WHAT INFO WAS ANSWERED, read off the bus: the commit it sent, and the refusal.
-    std::vector<PaneSubjectActed> answered;
+    // WHAT INFO WAS ANSWERED, read off the bus: the commit it sent the layouts' owner, refused.
+    std::vector<PaneSettingCommitAnswered> answered;
     const loom::ObserverId tap = t.r.bus.add_observer([&t, &answered](const loom::BusEvent& ev) {
         if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
             ev.target == t.r.bus.role_holder(ip::kInfoPaneRole) &&
-            ev.schema_name == PaneSubjectActed::zen_name) {
-            answered.push_back(loom::from_value<PaneSubjectActed>(*ev.payload));
+            ev.schema_name == PaneSettingCommitAnswered::zen_name) {
+            answered.push_back(loom::from_value<PaneSettingCommitAnswered>(*ev.payload));
         }
     });
     const Gesture next = t.r.session().keymap.gesture_of(Act::kLayoutNext);
@@ -398,7 +398,7 @@ TEST_CASE("an Info commit queued behind a layout switch is refused, and neither 
     t.r.bus.remove_observer(tap);
     REQUIRE(answered.size() == 1);
     CHECK_FALSE(answered.front().accepted);
-    CHECK(answered.front().refusal == WorkshopWeave::kPaneCommitSubjectGone);
+    CHECK(answered.front().refusal.rfind("stale revision ", 0) == 0);
     CHECK(t.r.last_notice().find("committed") == std::string::npos);
     for (const Layout& layout : t.r.run().shelved) {
         CHECK(terminal_settings(layout.desk).empty());
@@ -418,18 +418,21 @@ TEST_CASE("a press aimed at the Terminal's picture from before its legend hid is
 
     // THE COMMIT'S HAND-OFF IS QUEUED, AND ONLY THEN DOES A PRESS ARRIVE: Workshop stamps it with
     // the picture it holds, drawn with the legend, and the Terminal is handed the setting first.
-    const std::size_t at = subject_row_index(t.r.session(), tp::kSettingLegend, "SETTINGS");
-    const std::int64_t subject = t.r.session().inspected.name;
+    PaneSettingCommitRequested off;
+    off.provider = terminal_ref().provider;
+    off.pane = terminal_ref().pane;
+    off.revision = info_read(t.r, terminal_ref()).revision;
+    off.key = tp::kSettingLegend;
+    off.flag = false;
     DoorHand& h = door_hand(t.r);
-    h.next = [subject, at](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
-            .send_to_role(kWorkshopProvider,
-                          PaneCommitRequested{subject, static_cast<std::int64_t>(at), "off"});
+    h.next = [off](DoorHand&, loom::Mail& m) {
+        (void)m.as_role(DoorHand::kOffice).send_to_role(kLayoutsRole, off);
     };
     (void)t.r.bus.send(t.r.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));
     (void)t.r.bus.pump_pending(); // the hand sends the commit
-    (void)t.r.bus.pump_pending(); // Workshop writes it and queues the hand-off
+    (void)t.r.bus.pump_pending(); // the owner writes it and sends the live layout
+    (void)t.r.bus.pump_pending(); // Workshop takes it and queues the hand-off
     const CellRect body = external_body_rect(t.r.session(), t.terminal());
     t.r.press_cell(body.x + 3, body.y + 2); // a row the legend's going moves
     REQUIRE_FALSE(t.legend_shown());
@@ -464,7 +467,7 @@ TEST_CASE("a legend value the Terminal cannot use is kept as stored, and said in
 
     // ...INFO SHOWS IT AS STORED, AND WHAT IS IN EFFECT; AND `s` WRITES THE ROW AS IT CAME.
     t.inspect_terminal();
-    CHECK(subject_value(t.r.session(), tp::kSettingLegend, "SETTINGS") == "hiden -- takes on or off; on in effect");
+    CHECK(info_value(t.r, terminal_ref(), tp::kSettingLegend) == "hiden -- takes on or off; on in effect");
     t.unfocus();
     t.r.key(input::scan::kS);
     const setup_persist::LoadedSetup saved = setup_persist::load_file(t.r.host.setup_path);
@@ -483,13 +486,13 @@ TEST_CASE("the Terminal's settings rows appear the moment its image declares, an
         REQUIRE(add_pane(desk, terminal_ref()));
     });
     REQUIRE(hand_inspect(t.r, terminal_ref()).accepted);
-    CHECK(subject_row(t.r.session(), tp::kSettingLegend, "SETTINGS") == nullptr);
+    CHECK(!info_has(t.r, terminal_ref(), tp::kSettingLegend));
     t.load_images();
     REQUIRE(t.seated());
     t.tall_info();
     // NO SWITCH, NO GESTURE: the declaration alone brought the row.
-    REQUIRE(subject_row(t.r.session(), tp::kSettingLegend, "SETTINGS") != nullptr);
-    CHECK(subject_value(t.r.session(), tp::kSettingLegend, "SETTINGS") == "on");
+    REQUIRE(info_has(t.r, terminal_ref(), tp::kSettingLegend));
+    CHECK(info_value(t.r, terminal_ref(), tp::kSettingLegend) == "on");
 
     // A DRAFT ON IT OUTLIVES THE SAME DECLARATION AGAIN, as every catalog request brings one.
     t.draft(tp::kSettingLegend, "off");

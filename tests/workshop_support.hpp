@@ -15,6 +15,7 @@
 #include "control_parts.hpp"
 #include "rig_windows.hpp"
 
+#include "info/settings_rows.hpp"
 #include "workshop/persist.hpp"
 #include "workshop/property.hpp"
 #include "workshop/screen.hpp"
@@ -614,28 +615,66 @@ inline std::string layout_tab_text(const SetupState& run, std::size_t at) {
     return layout_tab_text(live_copy_of(run), at);
 }
 
-/// STAGE THE RUN A LIVE WORKSHOP'S STORE HOLDS, changed by `f`: presented at Workshop's next
-/// delivery, as a run the store put in place is.
-template <class F>
-void stage_run(WorkshopWeave& w, F&& f) {
-    SetupState run = w.layouts().run();
+/// WHICH OFFICE A SHAPE IS ASKED OF: the layouts' owner for every door it keeps -- a declaration,
+/// a settings door, a desk put live -- and Workshop for every other.
+template <class Shape>
+inline constexpr bool kLayoutsDoor =
+    std::is_same_v<Shape, PaneSettingsDeclared> || std::is_same_v<Shape, v2::PaneSettingsDeclared> ||
+    std::is_same_v<Shape, OfficeSettingsDeclared> || std::is_same_v<Shape, PaneSettingsRequested> ||
+    std::is_same_v<Shape, PaneSettingCommitRequested> ||
+    std::is_same_v<Shape, OfficeSettingsRequested> ||
+    std::is_same_v<Shape, OfficeSettingCommitRequested> ||
+    std::is_same_v<Shape, PaneSettingPinRequested> || std::is_same_v<Shape, PaneSettingLockRequested> ||
+    std::is_same_v<Shape, LayoutSettingsRequested> || std::is_same_v<Shape, SettingsWriteRequested> ||
+    std::is_same_v<Shape, SetupApplyRequested>;
+template <class Shape> inline const char* door_of() {
+    return kLayoutsDoor<Shape> ? kLayoutsRole : kWorkshopProvider;
+}
+
+/// THE OFFICE OF THE RIG'S STAGE HAND, and what the rig tells it: ask the layouts' owner something.
+inline constexpr const char* kStageOffice = "zengine.test.stage";
+struct StageNudge {
+    ZEN_SHAPE(StageNudge, 1);
+};
+struct StageHandState {
+    ZEN_SHAPE(StageHandState, 1);
+};
+
+/// THE RIG'S STAGE HAND: a run staged in the owner's store past the doors reaches Workshop as the
+/// owner's next picture, which the owner sends when it next answers anyone -- and this hand asks.
+class StageHand
+    : public loom::WeaveBase<StageHand, StageHandState, loom::Accept<StageNudge, LayoutSettingsAnswered>,
+                             loom::Emit<LayoutSettingsRequested>> {
+public:
+    void on(const StageNudge&, loom::Mail& mail) {
+        (void)mail.as_role(kStageOffice).send_to_role(kLayoutsRole, LayoutSettingsRequested{});
+    }
+    void on(const LayoutSettingsAnswered&, loom::Mail&) {}
+};
+
+/// STAGE THE RUN THE LAYOUTS' OWNER HOLDS, changed by `f`: Workshop's copy is the store's at once,
+/// as a write past the doors showed it, and the owner's picture of it is presented at Workshop's
+/// next delivery -- nothing is reconciled before then.
+template <class Rig, class F>
+void stage_run(Rig& r, F&& f) {
+    r.owner->read_host_now();
+    SetupState run = r.owner->layouts().run();
     f(run);
-    w.store().put_run(std::move(run));
-    // ...AND THE COPY WORKSHOP PRESENTS IS THE STORE'S AT ONCE, as a write past the doors showed it:
-    // nothing is reconciled until Workshop's next delivery presents the store's run.
-    LiveDesk& d = const_cast<Session&>(w.session()).setup;
+    r.owner->store().put_run(std::move(run));
+    LiveDesk& d = const_cast<Session&>(r.w->session()).setup;
     LayoutNaming naming = std::move(d.naming);
-    const LiveLayout live = w.store().live_layout();
-    d = live_copy_of(w.layouts().run());
+    const LiveLayout live = r.owner->store().live_layout();
+    d = live_copy_of(r.owner->layouts().run());
     d.naming = std::move(naming);
     d.revision = live.revision;
     d.revisions = live.revisions;
+    r.nudge_owner();
 }
 
 /// ...ONLY ITS LIVE DESK, for the cases that write one desk past the doors.
 template <class Rig, class F>
 void stage_desk(Rig& r, F&& f) {
-    stage_run(*r.w, [&](SetupState& run) { f(run.active); });
+    stage_run(r, [&](SetupState& run) { f(run.active); });
 }
 
 /// ...AND ONE ROW OF IT, as a case authors past the doors: the setter's own answer.
@@ -946,6 +985,32 @@ struct Live {
     /// writes, so it is removed first.
     std::unique_ptr<QuitDeliveryWatch> quit_watch;
 
+    /// THE LAYOUTS' OWNER, mounted in its own office before Workshop, as the host mounts it, and the
+    /// rig's stage hand, mounted when a case first stages a run past the doors.
+    LayoutsOwner* owner = nullptr;
+    loom::WeaveId owner_id{};
+    loom::WeaveId stage_id{};
+    void mount_owner() {
+        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host));
+        owner = weave.get();
+        owner_id = bus.register_weave(std::move(weave), layouts_grant(), std::string(kLayoutsRole));
+        owner->zen_set_self(owner_id);
+    }
+    /// ...AND THE OWNER ASKED SOMETHING, so the picture it owes is sent: delivered at the next drain.
+    void nudge_owner() {
+        if (!stage_id.valid()) {
+            auto stage = std::make_unique<StageHand>();
+            StageHand* raw = stage.get();
+            loom::Grant grant;
+            grant.allow_to_role(LayoutSettingsRequested::zen_name,
+                                LayoutSettingsRequested::zen_version, kLayoutsRole);
+            stage_id = bus.register_weave(std::move(stage), std::move(grant), std::string(kStageOffice));
+            raw->zen_set_self(stage_id);
+        }
+        (void)bus.send(stage_id,
+                       loom::Message(loom::to_value(StageNudge{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
+
     Live() {
         host.interaction_now = [this] { return clock.read(); };
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
@@ -972,6 +1037,7 @@ struct Live {
             return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
                                                                   : loom::WeaveId{});
         };
+        mount_owner();
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
@@ -1292,7 +1358,7 @@ struct Live {
 
     const Session& session() const { return w->session(); }
     /// EVERY LAYOUT OF THE RUN, as the layouts' store keeps it.
-    const SetupState& run() const { return w->layouts().run(); }
+    const SetupState& run() const { return owner->layouts().run(); }
     std::string notice() const { return w->session().notice; }
 
     /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said
@@ -1764,7 +1830,7 @@ inline setup_persist::v5::WorkshopSetup v5_desk(const Setup& s) {
     return out;
 }
 
-/// A RUN AS A VERSION-11 WORKSHOP KEPT IT: each layout's desk and remembered value at setup
+/// A RUN AS WORKSHOP KEPT IT AT VERSION 11: each layout's desk and remembered value at setup
 /// version 5, with no id.
 inline std::vector<session_history::v11::WorkshopLayout> v11_run(const std::vector<Layout>& run) {
     std::vector<session_history::v11::WorkshopLayout> out;
@@ -1778,7 +1844,7 @@ inline std::vector<session_history::v11::WorkshopLayout> v11_run(const std::vect
     return out;
 }
 
-/// A SESSION AS A VERSION-11 WORKSHOP WROTE ITS FILE: the header's line, then a layout a line.
+/// A SESSION AS WORKSHOP WROTE ITS FILE AT VERSION 11: the header's line, then a layout a line.
 inline std::string v11_lines(const session_history::v11::WorkshopSession& s) {
     const session_history::v11::WorkshopSessionHeader head{
         s.format,    s.format_version, s.viewport, static_cast<std::int64_t>(s.layouts.size()),
@@ -2006,10 +2072,10 @@ inline void open_rename_on_live_tab(Rig& r) {
     r.clock.apart();
 }
 
-/// DUPLICATE THE LIVE LAYOUT THROUGH THE CONTEXTUAL MENU ON ITS OWN TAB -- the shipped route, for
-/// the rigs whose cases mean "two layouts holding the same desk".
+/// RUN A LAYOUT ACT FROM THE CONTEXTUAL MENU ON THE LIVE LAYOUT'S OWN TAB -- the shipped route for
+/// the acts no key answers -- entering `group` on the way when the act stands in one.
 template <typename Rig>
-inline void duplicate_live_layout(Rig& r) {
+inline void tab_menu_act(Rig& r, const std::string& act, const std::string& group = std::string()) {
     const BandStatus band = band_status(r.session(), screen_of(r.session()));
     std::int64_t column = -1;
     for (const LayoutTab& tab : band.tabs) {
@@ -2027,14 +2093,23 @@ inline void duplicate_live_layout(Rig& r) {
             context_population(r.session().context.subject, r.session().context.group);
         REQUIRE(r.session().context.cursor < rows.size());
         const ContextEntry& here = rows[r.session().context.cursor];
+        if (here.is_group && !group.empty() && std::string(here.group) == group &&
+            r.session().context.group != group) {
+            r.key(input::scan::kReturn);
+            continue;
+        }
         if (!here.is_group && here.row != nullptr &&
-            std::string(here.row->id) == "layout.duplicate") {
+            std::string(here.row->id) == act) {
             r.key(input::scan::kReturn);
             return;
         }
         r.key(input::scan::kDown);
     }
     REQUIRE_FALSE(r.session().context.open);
+}
+/// ...DUPLICATE IT, for the rigs whose cases mean "two layouts holding the same desk".
+template <typename Rig> inline void duplicate_live_layout(Rig& r) {
+    tab_menu_act(r, "layout.duplicate");
 }
 
 /// TYPE A WHOLE NAME INTO THE OPEN EDITOR AND COMMIT IT.
@@ -2366,6 +2441,9 @@ inline DoorHand& door_hand(Rig& t) {
                             kInfoPaneProvider);
         grant.allow_to_role(PaneCommitRequested::zen_name, PaneCommitRequested::zen_version,
                             kWorkshopProvider);
+        // ...AND A SETTING'S COMMIT, as Info sends one, to the layouts' owner.
+        grant.allow_to_role(PaneSettingCommitRequested::zen_name,
+                            PaneSettingCommitRequested::zen_version, kLayoutsRole);
         t.hand_id =
             t.bus.register_weave(std::move(seat), std::move(grant), std::string(DoorHand::kOffice));
         raw->zen_set_self(t.hand_id);
@@ -2516,6 +2594,65 @@ inline PaneSubjectActed hand_commit(Rig& t, const std::string& label, const std:
     return h.acted.back();
 }
 
+/// THE ROW OF `ref` AS THE LAYOUTS' OWNER READS IT FOR INFO (`PaneSettingsRequested`), and Info's
+/// SETTINGS rows over it, composed as Info composes them (`info/settings_rows.hpp`).
+template <class Rig>
+inline PaneSettingsAnswered info_read(Rig& t, const PaneRef& ref) {
+    t.owner->read_host_now();
+    return t.owner->store().read_pane(std::string(), PaneSettingsRequested{ref.provider, ref.pane});
+}
+template <class Rig>
+inline std::vector<::zengine::info_pane::SettingsRow> info_rows(Rig& t, const PaneRef& ref) {
+    return ::zengine::info_pane::settings_rows::rows_of(info_read(t, ref));
+}
+/// ...ITS KEYS IN INFO'S ORDER, WHETHER ONE IS SHOWN, AND ONE'S VALUE AS INFO SAYS IT.
+template <class Rig>
+inline std::vector<std::string> info_labels(Rig& t, const PaneRef& ref) {
+    std::vector<std::string> out;
+    for (const ::zengine::info_pane::SettingsRow& row : info_rows(t, ref)) {
+        out.push_back(row.key);
+    }
+    return out;
+}
+template <class Rig> inline bool info_has(Rig& t, const PaneRef& ref, const std::string& key) {
+    const std::vector<std::string> keys = info_labels(t, ref);
+    return std::find(keys.begin(), keys.end(), key) != keys.end();
+}
+template <class Rig>
+inline std::string info_value(Rig& t, const PaneRef& ref, const std::string& key) {
+    for (const ::zengine::info_pane::SettingsRow& row : info_rows(t, ref)) {
+        if (row.key == key) {
+            return row.value;
+        }
+    }
+    FAIL("Info shows no SETTINGS row " << key);
+    return std::string();
+}
+/// TEXT TYPED ON ONE OF INFO'S SETTINGS ROWS: refused in Info's words, `<key>: <why>`, or the
+/// commit Info sends, judged at the owner's door, its picture presented to Workshop after it.
+template <class Rig>
+inline PaneSubjectActed info_commit(Rig& t, const PaneRef& ref, const std::string& key,
+                                    const std::string& text) {
+    const PaneSettingsAnswered read = info_read(t, ref);
+    for (const ::zengine::info_pane::SettingsRow& row : ::zengine::info_pane::settings_rows::rows_of(read)) {
+        if (row.key != key) {
+            continue;
+        }
+        const ::zengine::info_pane::settings_rows::Typed typed =
+            ::zengine::info_pane::settings_rows::commit_of(read, row, text);
+        if (!typed.commit) {
+            return PaneSubjectActed{false, key + ": " + typed.refusal};
+        }
+        const PaneSettingCommitAnswered said =
+            t.owner->store().commit_pane(std::string(), *typed.commit);
+        t.nudge_owner();
+        t.bus.drain_until_idle();
+        return PaneSubjectActed{said.accepted, said.accepted ? std::string() : key + ": " + said.refusal};
+    }
+    FAIL("Info shows no SETTINGS row " << key);
+    return PaneSubjectActed{};
+}
+
 /// KEEP A PANE'S SETTINGS IN THE LIVE LAYOUT'S ROW AS A HAND-WRITTEN DESK KEEPS THEM -- in key
 /// order and judged by form alone (WL-SETTING-02), so a value its setting does not take and a key
 /// no declaration names stand as written -- and hand them to the pane's holder at the frame a key
@@ -2539,7 +2676,7 @@ template <class Rig>
 inline std::vector<v2::PaneSettingRow> declared_settings(Rig& t, const PaneRef& ref) {
     const RuntimePane* row = t.session().panes.runtime.find(ref.provider, ref.pane);
     REQUIRE_MESSAGE(row != nullptr, "nothing offers ", ref_text(ref));
-    const std::vector<v2::PaneSettingRow>* counted = t.w->layouts().counted(ref);
+    const std::vector<v2::PaneSettingRow>* counted = t.owner->layouts().counted(ref);
     return counted != nullptr ? *counted : std::vector<v2::PaneSettingRow>{};
 }
 
@@ -2973,11 +3110,11 @@ public:
         }
     }
     void declare(loom::Mail& mail, const PaneSettingsDeclared& d) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, d);
+        (void)mail.as_role(office_).send_to_role(kLayoutsRole, d);
     }
     /// ...and PERSONALLY, from the weave that holds the office, which declares nothing.
     void declare_personally(loom::Mail& mail, const PaneSettingsDeclared& d) {
-        (void)mail.send_to_role(kWorkshopProvider, d);
+        (void)mail.send_to_role(kLayoutsRole, d);
     }
 
     std::function<void(SettingsSeat&, loom::Mail&)> next;
@@ -3132,6 +3269,32 @@ struct PaneRig {
     /// The rig's ears on what Workshop publishes (`Painter`).
     loom::WeaveId painter_id{};
 
+    /// THE LAYOUTS' OWNER, mounted in its own office before Workshop, as the host mounts it, and the
+    /// rig's stage hand, mounted when a case first stages a run past the doors.
+    LayoutsOwner* owner = nullptr;
+    loom::WeaveId owner_id{};
+    loom::WeaveId stage_id{};
+    void mount_owner() {
+        auto weave = std::make_unique<LayoutsOwner>(layouts_owner_host(host));
+        owner = weave.get();
+        owner_id = bus.register_weave(std::move(weave), layouts_grant(), std::string(kLayoutsRole));
+        owner->zen_set_self(owner_id);
+    }
+    /// ...AND THE OWNER ASKED SOMETHING, so the picture it owes is sent: delivered at the next drain.
+    void nudge_owner() {
+        if (!stage_id.valid()) {
+            auto stage = std::make_unique<StageHand>();
+            StageHand* raw = stage.get();
+            loom::Grant grant;
+            grant.allow_to_role(LayoutSettingsRequested::zen_name,
+                                LayoutSettingsRequested::zen_version, kLayoutsRole);
+            stage_id = bus.register_weave(std::move(stage), std::move(grant), std::string(kStageOffice));
+            raw->zen_set_self(stage_id);
+        }
+        (void)bus.send(stage_id,
+                       loom::Message(loom::to_value(StageNudge{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    }
+
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
@@ -3172,6 +3335,7 @@ struct PaneRig {
             return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id()
                                                                   : loom::WeaveId{});
         };
+        mount_owner();
         register_workshop(std::move(weave));
         return w;
     }
@@ -3942,7 +4106,7 @@ struct PaneRig {
 
     Session& session() { return const_cast<Session&>(w->session()); }
     /// EVERY LAYOUT OF THE RUN, as the layouts' store keeps it.
-    const SetupState& run() const { return w->layouts().run(); }
+    const SetupState& run() const { return owner->layouts().run(); }
     /// THE NOTICE LINE, READ WHERE IT LIVES: `Session::notice` is drawn in the desk's band.
     const std::string& last_notice() const { return w->session().notice; }
 

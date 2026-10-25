@@ -387,7 +387,7 @@ static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kRetained
               "a retained setup shape's envelope version and its format version are one "
               "number, as the current one's are");
 
-/// A VERSION-5 PLACE BY ITS WORD: the coordinates where the word reads them; a zero where it reads
+/// A PLACE AT VERSION 5, BY ITS WORD: the coordinates where the word reads them; a zero where it reads
 /// none is the absence version 5 wrote; any other number there is the two answers the law refuses.
 inline Written place_to_current(const WorkshopPanePlace& w, setup_persist::WorkshopPanePlace& out) {
     if (w.mode == kUnitPixels) {

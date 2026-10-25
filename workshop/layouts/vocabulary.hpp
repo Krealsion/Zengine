@@ -22,9 +22,6 @@
 
 namespace zengine::workshop {
 
-/// The office that holds every layout, the live one included, and every setting kept for them.
-inline constexpr const char* kLayoutsRole = "zengine.layouts";
-
 /// ONE LAYOUT AS A TAB: the id the owner minted for it, its name, and whether it is linked to a
 /// setup file and how (`setup_link::kNone`, `kCurrent` or `kModified`).
 struct LiveTab {
@@ -58,13 +55,19 @@ struct LiveLayout {
     std::vector<LiveTab> tabs; ///< every layout, the live one included, in the weaver's order
     std::string said;            ///< the owner's sentence about what moved, for the notice, or empty
     bool bad = false;            ///< ...and whether it is a refusal
+    /// THE ROW `said` IS ABOUT, when it is a setting written: the presenter says after it how far
+    /// that row's hand-off got.
+    std::string said_provider;
+    std::string said_pane;
     bool restored = false;       ///< `said` is the head of the last session's restore
+    std::string restore_tail;    ///< ...and what the restore says after the room, or empty
     std::string session_refused; ///< the session file the owner would not read, why; held all run
     std::string settings_refused; ///< ...and the settings file
     std::vector<RowRevision> revisions; ///< each live row's settings revision
     ZEN_SHAPE(LiveLayout, 1, ZEN_FIELD(revision), ZEN_FIELD(put_live), ZEN_FIELD(id),
               ZEN_FIELD(position), ZEN_FIELD(desk), ZEN_FIELD(link_path), ZEN_FIELD(tabs),
-              ZEN_FIELD(said), ZEN_FIELD(bad), ZEN_FIELD(restored), ZEN_FIELD(session_refused),
+              ZEN_FIELD(said), ZEN_FIELD(bad), ZEN_FIELD(said_provider), ZEN_FIELD(said_pane),
+              ZEN_FIELD(restored), ZEN_FIELD(restore_tail), ZEN_FIELD(session_refused),
               ZEN_FIELD(settings_refused), ZEN_FIELD(revisions));
 };
 

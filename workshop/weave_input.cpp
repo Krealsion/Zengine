@@ -11,9 +11,8 @@ namespace zengine::workshop {
 
 // The presentation preferences, each one session value the repaint spends: pane titles
 // (`refresh_external_rooms` re-grants the rooms whose capacity moved) and how the band and the
-// Hotkeys view spell a key. A toggle states one, so it is written to the prefs file then, under
-// three walls: no path is live-only, a refused file is never overwritten (`prefs_bad_`), and a
-// failed write says so.
+// Hotkeys view spell a key. A toggle states one, and asks the office that keeps it to write it:
+// the answer says whether the file holds it.
 // WL-KEY-16 -- agents/workshop/key-spelling.md
 void WorkshopWeave::state_presentation(Act a, loom::Mail& mail) {
     const char* what = a == Act::kPaneTitles ? "pane titles were not toggled"
@@ -25,7 +24,6 @@ void WorkshopWeave::state_presentation(Act a, loom::Mail& mail) {
         say(std::string(what) + " -- " + refused, true);
         return;
     }
-    store().load_prefs(); // a toggle before any surface exists still toggles the truth
     const auto other = [](KeySpelling s) {
         return s == KeySpelling::kFull ? KeySpelling::kShort : KeySpelling::kFull;
     };
@@ -47,11 +45,10 @@ void WorkshopWeave::state_presentation(Act a, loom::Mail& mail) {
                      "writes them"
                    : "the Hotkeys view and a pane's manual spell keys short";
     }
-    // THE TOGGLE IS WORKSHOP'S OWN SETTING STATED: kept where the settings door keeps it, so the
-    // file holds one truth; it stands for the run whatever the store answers.
+    // THE TOGGLE IS WORKSHOP'S OWN SETTING STATED: written by the office that keeps it, so the
+    // file holds one truth; it stands for the run whatever that office answers.
     OfficeSettingCommitRequested commit;
     commit.office = kWorkshopProvider;
-    commit.revision = store_.office_revision(kWorkshopProvider);
     if (a == Act::kPaneTitles) {
         commit.key = prefs_persist::kPaneTitlesKey;
         commit.flag = session_.pane_titles;
@@ -61,31 +58,8 @@ void WorkshopWeave::state_presentation(Act a, loom::Mail& mail) {
                                          : prefs_persist::kHotkeysKeysKey;
         commit.text = std::string(spelling_word(now));
     }
-    const PaneSettingActed acted = store_.commit_office(std::string(), commit);
-    (void)store_.take_effects().said; // the toggle's own sentence is said below
-    hand_office_settings(mail);
-    bool bad = false;
-    if (!host_->prefs_path.empty()) {
-        const std::string written_word = "; written";
-        if (!acted.accepted) {
-            // A FILE THE STORE COULD NOT READ IS NEVER WRITTEN OVER, and the toggle stands for the
-            // run.
-            note += "; not saved: " +
-                    (store_.prefs_refusal().empty()
-                         ? acted.refusal
-                         : host_->prefs_path + " could not be read and will not be overwritten");
-            bad = true;
-        } else if (acted.handed.size() < written_word.size() ||
-                   acted.handed.compare(acted.handed.size() - written_word.size(),
-                                        written_word.size(), written_word) != 0) {
-            if (const std::size_t at = acted.handed.find("not written: ");
-                at != std::string::npos) {
-                note += "; not saved: " + acted.handed.substr(at + 13);
-                bad = true;
-            }
-        }
-    }
-    say(note, bad);
+    say(note, false);
+    commit_own_setting(std::move(commit), std::move(note), mail);
 }
 
 namespace {

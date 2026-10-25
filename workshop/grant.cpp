@@ -24,17 +24,17 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
     speak.allow_to_any(PaneSettings::zen_name, PaneSettings::zen_version);
     speak.allow_to_any(v2::PaneSettings::zen_name, v2::PaneSettings::zen_version);
-    // ...and one pane's settings read and written by message, answered to whoever asked.
-    speak.allow_to_any(PaneSettingsShown::zen_name, PaneSettingsShown::zen_version);
-    speak.allow_to_any(PaneSettingActed::zen_name, PaneSettingActed::zen_version);
-    // ...and an office's office-wide settings, handed to its holder and answered to whoever asked,
-    // and a pin act's, a lock act's, every layout's reading's and a batch's answers.
-    speak.allow_to_any(OfficeSettings::zen_name, OfficeSettings::zen_version);
-    speak.allow_to_any(OfficeSettingsShown::zen_name, OfficeSettingsShown::zen_version);
-    speak.allow_to_any(PaneSettingPinActed::zen_name, PaneSettingPinActed::zen_version);
-    speak.allow_to_any(PaneSettingLockActed::zen_name, PaneSettingLockActed::zen_version);
-    speak.allow_to_any(LayoutSettingsShown::zen_name, LayoutSettingsShown::zen_version);
-    speak.allow_to_any(SettingsWritten::zen_name, SettingsWritten::zen_version);
+    // ...and to the layouts' owner: each edit of the live layout, Workshop's own settings declared
+    // and written, the session's save asked, and the judge's answer about the weaver's act.
+    speak.allow_to_role(LayoutEditRequested::zen_name, LayoutEditRequested::zen_version,
+                        kLayoutsRole);
+    speak.allow_to_role(OfficeSettingsDeclared::zen_name, OfficeSettingsDeclared::zen_version,
+                        kLayoutsRole);
+    speak.allow_to_role(OfficeSettingCommitRequested::zen_name,
+                        OfficeSettingCommitRequested::zen_version, kLayoutsRole);
+    speak.allow_to_role(SessionSaveRequested::zen_name, SessionSaveRequested::zen_version,
+                        kLayoutsRole);
+    speak.allow_to_any(WeaversActAnswered::zen_name, WeaversActAnswered::zen_version);
     speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
     speak.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
     speak.allow_to_any(PaneView::zen_name, PaneView::zen_version);

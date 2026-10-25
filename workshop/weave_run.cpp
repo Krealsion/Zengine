@@ -433,8 +433,19 @@ void WorkshopWeave::quit(loom::Mail& mail) {
 void WorkshopWeave::finish_quit(loom::Mail& mail) {
     quitting_ = false;
     held_input_.clear();
-    save_last_session(mail);
+    // THE SESSION IS THE LAYOUTS' OWNER'S TO WRITE: asked once every pane accepted, and the process
+    // ends when it answers.
+    if (save_last_session(mail)) {
+        saving_ = true;
+        return;
+    }
+    end_quit(mail);
+}
+
+// WL-SESSION-13 -- agents/workshop/session.md
+void WorkshopWeave::end_quit(loom::Mail& mail) {
     host_->quit = true;
+    answer_quit_ask({}, mail);
     if (host_->request_stop) {
         host_->request_stop();
     }
@@ -458,8 +469,8 @@ void WorkshopWeave::on(const WorkshopQuitRequested&, loom::Mail& mail) {
         return; // nothing can carry an answer back, and nothing is asked
     }
     quit(mail);
-    if (quitting_) {
-        return; // the room is being asked, and its last answer settles this ask
+    if (quitting_ || saving_) {
+        return; // the room, or the session's writer, is being asked; its answer settles this ask
     }
     // Decided at once: the process ends, or the quit was refused in the words now on the notice.
     answer_quit_ask(host_->quit ? std::string() : session_.notice, mail);

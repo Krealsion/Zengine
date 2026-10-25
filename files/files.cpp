@@ -228,7 +228,7 @@ public:
     void offered(loom::Mail& mail) {
         declare(mail);
         (void)mail.as_role(files::kFilesRole)
-            .send_to_role(kWorkshopRole,
+            .send_to_role(ws::kLayoutsRole,
                           ws::v2::PaneSettingsDeclared{files::kProjectFilesPane, setting_rows()});
     }
 

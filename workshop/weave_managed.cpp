@@ -130,8 +130,6 @@ void WorkshopWeave::mirror_presentation(loom::Mail& mail) {
 }
 
 void WorkshopWeave::after_delivery(loom::Mail& mail) {
-    // WHAT THE STORE MOVED SINCE THIS DESK LAST LOOKED, presented.
-    take_store(mail);
     if (seat_owed_) {
         // THE MANAGED OPENING'S SEAT, asked of the store; the proposal stands until it answers.
         const PaneRef ref = *seat_owed_;

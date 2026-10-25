@@ -598,7 +598,7 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     r.mount_workshop();
     // The weaver authored this before any provider existed -- which the setup grammar allows,
     // and a pane protocol consumer resolves.
-    stage_run(*r.w, [](SetupState& run) {
+    stage_run(r, [](SetupState& run) {
         REQUIRE(add_pane(run.active, hello_ref()));
         link_live_setup(run, "setup.json");
     });
@@ -642,7 +642,7 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
 
     PaneRig fresh;
     fresh.mount_workshop();
-    stage_run(*fresh.w, [&](SetupState& run) {
+    stage_run(fresh, [&](SetupState& run) {
         run.active = saved;
         run.active_link = SetupLink{"setup.json", saved};
     });
@@ -697,7 +697,7 @@ TEST_CASE("setup bytes carry no descriptor, room or handle") {
     CHECK(setup_persist::to_text(back.setup) == text);
     // AND THE VERSION IS THE ONE THIS BUILD READS AND WRITES, said here because this case
     // is where an external reference meets the file.
-    CHECK(setup_persist::kFormatVersion == 5);
+    CHECK(setup_persist::kFormatVersion == 6);
 }
 
 // ---- Runtime spatial capacity -----------------------------------------------------
@@ -816,7 +816,7 @@ TEST_CASE("an oversubscribed authored setup seats every reference, the column be
     Setup both = r.session().setup.active;
     (void)add_pane(both, other_ref); // a second stack pane, authored first
     (void)add_pane(both, hello_ref());
-    stage_run(*r.w, [&](SetupState& run) {
+    stage_run(r, [&](SetupState& run) {
         run.active = both;
         run.active_link = SetupLink{"setup.json", both};
     });

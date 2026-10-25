@@ -2889,7 +2889,7 @@ TEST_CASE("a version-2 whole-cell setup loads at exactly its old picture") {
 
     // AND THE NEXT SAVE WRITES THE CURRENT VERSION, WHICH ROUND-TRIPS BYTE-IDENTICALLY.
     const std::string saved = setup_persist::to_text(read.setup);
-    CHECK(saved.find("\"format_version\":\"5\"") != std::string::npos);
+    CHECK(saved.find("\"format_version\":\"6\"") != std::string::npos);
     CHECK(saved.find("\"mode\":\"pixels\"") != std::string::npos);
     const setup_persist::LoadedSetup back = setup_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
@@ -6319,3 +6319,98 @@ TEST_CASE("region_px_for is fit_region read backwards, and minimal") {
 }
 
 } // namespace region_fitting
+
+// ---- One writer: every change to the live desk is asked of the layouts' owner ----------------
+
+namespace {
+
+/// EVERY EDIT WORKSHOP ASKS THE LAYOUTS' OWNER, op by op, read off the bus as it is delivered.
+loom::ObserverId tap_layout_edits(loom::Switchboard& bus, std::vector<std::string>& ops) {
+    return bus.add_observer([&ops](const loom::BusEvent& ev) {
+        if (ev.kind != loom::EventKind::Delivered || ev.payload == nullptr ||
+            ev.schema_name != LayoutEditRequested::zen_name) {
+            return;
+        }
+        for (const LayoutEdit& e : loom::from_value<LayoutEditRequested>(*ev.payload).edits) {
+            ops.push_back(e.op);
+        }
+    });
+}
+
+} // namespace
+
+TEST_CASE("every writer of the live desk asks the layouts' owner, and the picture is the owner's next copy") {
+    // ⚔ MUTATION: a gesture writing Workshop's copy of the desk itself -- its op never reaches
+    // the owner, and the copy Workshop draws parts from the owner's desk.
+    TempDir dir("one-writer");
+    FineRig t;
+    Live k;
+    k.host.setup_path = dir.file("setup.json");
+    k.ready();
+    k.extent_px(cells_px(160), cells_px(44));
+    std::vector<std::string> ops;
+    (void)tap_layout_edits(t.bus, ops);
+    (void)tap_layout_edits(k.bus, ops);
+    const auto asked = [&ops](Live& r, const std::string& op, const auto& gesture) {
+        CAPTURE(op);
+        ops.clear();
+        gesture();
+        CHECK(std::find(ops.begin(), ops.end(), op) != ops.end());
+        // THE PICTURE IS THE OWNER'S: Workshop's copy is the live desk the owner holds.
+        CHECK(r.session().setup.active == live_desk(r.owner->layouts().run()));
+        CHECK(r.session().setup.revision == r.owner->layouts().revision());
+    };
+    // A DRAG'S RELEASE.
+    asked(t, "window", [&t] {
+        const PixelRect at = t.builder_rect();
+        t.press_at(at.x + 30, at.y + 20, input::space::kPixels);
+        t.motion_at(at.x + 30 + cells_px(2), at.y + 20, input::space::kPixels);
+        t.hand_moment(input::PointerButton{1, false, at.x + 30 + cells_px(2), at.y + 20,
+                                           input::space::kPixels, input::mod::kNone});
+    });
+    // A LAUNCH SEATS A PANE.
+    asked(k, "seat", [&k] { open_pane(k, ref_of(stock::kKind)); });
+    // `s`, THEN `r`: the file written, then put live again.
+    asked(k, "save", [&k] { k.key(input::scan::kS); });
+    asked(k, "restore", [&k] { k.key(input::scan::kR); });
+    // EACH LAYOUT GESTURE.
+    asked(k, "new", [&k] { layout_key(k, Act::kLayoutNew); });
+    asked(k, "duplicate", [&k] { duplicate_live_layout(k); });
+    asked(k, "move", [&k] { tab_menu_act(k, "layout.move-left", "Order"); });
+    asked(k, "step", [&k] { layout_key(k, Act::kLayoutNext); });
+    asked(k, "remove", [&k] { layout_key(k, Act::kLayoutRemove); });
+}
+
+TEST_CASE("two edits judged from one picture: the first is written, the second refused whole, and the picture is the owner's") {
+    // ⚔ MUTATION: an edit judged from an older picture applied anyway -- the second edit lands on
+    // a desk its gesture never saw.
+    Live t;
+    t.ready();
+    t.extent_px(cells_px(160), cells_px(44));
+    open_pane(t, ref_of(stock::kKind));
+    t.owner->read_host_now();
+    LayoutStore& store = t.owner->store();
+    const std::int64_t seen = store.revision();
+    const Setup before = live_desk(store.run());
+    LayoutEdit made;
+    made.op = layout_op::kNew;
+    LayoutEdit moved;
+    moved.op = layout_op::kWindow;
+    moved.provider = ref_of(stock::kKind).provider;
+    moved.pane = ref_of(stock::kKind).pane;
+    moved.place = setup_persist::place_out(PanePlace{pane_unit::kPixels, cells_px(6), cells_px(6)});
+    moved.width = setup_persist::size_out(PaneSize{});
+    moved.height = setup_persist::size_out(PaneSize{});
+    REQUIRE(store.edit(LayoutEditRequested{seen, {made}}).accepted);
+    const LayoutEditAnswered second = store.edit(LayoutEditRequested{seen, {moved}});
+    CHECK_FALSE(second.accepted);
+    CHECK(second.refusal == "the layout changed -- the next picture is the current one");
+    // ...NOTHING OF IT WAS WRITTEN: the new layout stands, and the first desk is as it was.
+    REQUIRE(layout_run(store.run()).size() == 2);
+    CHECK(layout_run(store.run())[0].desk == before);
+    // AND THE PICTURE WORKSHOP PRESENTS IS THE OWNER'S, once it is sent.
+    t.nudge_owner();
+    t.bus.drain_until_idle();
+    CHECK(t.session().setup.active == live_desk(store.run()));
+    CHECK(layout_count(t.session().setup) == 2);
+}

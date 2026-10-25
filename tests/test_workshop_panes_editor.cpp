@@ -3417,7 +3417,10 @@ TEST_CASE("an acquisition outstanding across the pane's removal still settles, a
     // drains.
     enqueue_close(e.r, editor_ref());
     // ONE TURN: the manager binds the Editor and the desk and asks for a trial; then the
-    // close removes the Editor. The flight is outstanding across the removal.
+    // close is asked of the layouts' owner, which writes it, and Workshop takes the desk it
+    // presents. The flight is outstanding across the removal.
+    (void)e.r.bus.pump_pending();
+    (void)e.r.bus.pump_pending();
     (void)e.r.bus.pump_pending();
     REQUIRE_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
     REQUIRE_FALSE(e.r.session().panes.has(e.kind));
@@ -5925,4 +5928,27 @@ TEST_CASE("the manual the standard Editor answers is the office's page, naming e
     const PaneDocumentShown other = reader.ask("elsewhere", "");
     CHECK(other.refusal == "zengine.editor offers no pane `elsewhere`");
     CHECK(other.sections.empty());
+}
+
+TEST_CASE("an orderly close writes the window file and the session, and a refused quit writes neither") {
+    // ⚔ MUTATION: the window file written as the quit is asked -- a quit the Editor refuses
+    // leaves a window file behind.
+    TempDir dir("quit-writes");
+    const std::string path = dir.file("session.json");
+    EditorRig e("quit-writes-edit");
+    e.open();
+    e.r.host.session_path = path;
+    e.open_file("a.cpp", "one\n");
+    e.press_doc(0, 3);
+    e.type("!");
+    REQUIRE(e.dirty());
+    CHECK_FALSE(e.quit_by_key());
+    CHECK_FALSE(std::filesystem::exists(path));
+    CHECK_FALSE(std::filesystem::exists(window_persist::path_beside(path)));
+    e.focus();
+    e.save();
+    REQUIRE(e.clean());
+    CHECK(e.quit_by_key());
+    CHECK(session_persist::load_file(path).outcome.accepted);
+    CHECK(window_persist::load_file(window_persist::path_beside(path)).outcome.accepted);
 }

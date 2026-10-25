@@ -110,7 +110,10 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
             answer("`" + asked.id + "` answers to no key in command mode here");
             return;
         }
+        // ...and stay Workshop's when the palette goes down after: it gives back no keys it no
+        // longer holds the claim to.
         session_.panes.keyboard = kNoPaneKind;
+        palette_over_ = kNoPaneKind;
         command(input::KeyPressed{key.scancode, std::string(), key.modifiers}, mail);
         answer(std::string());
         return;
