@@ -41,6 +41,7 @@
 #include <set>
 #include <string_view>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace zengine::workshop {
@@ -460,6 +461,18 @@ struct PaneBounds {
 /// a slot is earned.
 PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                              const Screen& sc);
+
+/// EVERY OPEN PANE'S BOUNDS FROM ONE LAYOUT OF THE DESK: what `bounds_of` answers of each kind,
+/// for a caller that asks it of many panes on the desk as it stands. It is the desk at the moment
+/// it was laid out; a change to the panes, the setup or the screen is laid out anew.
+struct DeskBounds {
+    /// Each open kind with its bounds, the first open pane of a kind answering for it.
+    std::vector<std::pair<std::int64_t, PaneBounds>> laid;
+    /// What `bounds_of` answers of `kind` on the desk laid out: as laid, else not open.
+    PaneBounds of(std::int64_t kind) const;
+};
+
+DeskBounds desk_bounds(const Panes& panes, const Setup& setup, const Screen& sc);
 
 // The stack fits the SMALLEST screen this composition is honest on, which is where it is
 // tightest.

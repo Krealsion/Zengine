@@ -113,10 +113,9 @@ DeskView WorkshopWeave::desk_view() const {
     const std::vector<std::int64_t> order = effective_pane_order(setup, panes);
     const std::int64_t selected = selected_pane(panes);
     const std::int64_t keys = keyboard_pane();
-    // THE DESK LAID OUT ONCE, back to front: a pane's place, its state and what covers it are
-    // judged from these bounds as `pane_state_of` judges them, never laying the desk out again.
-    std::vector<PaneBounds> laid;
-    for (const std::int64_t kind : order) laid.push_back(bounds_of(panes, setup, kind, sc));
+    // THE DESK LAID OUT ONCE: a pane's place, its state and what covers it are judged from these
+    // bounds as `pane_state_of` judges them, never laying the desk out again.
+    const DeskBounds laid = desk_bounds(panes, setup, sc);
     const auto at_of = [&](std::int64_t kind) {
         return static_cast<std::size_t>(std::find(order.begin(), order.end(), kind) - order.begin());
     };
@@ -134,14 +133,13 @@ DeskView WorkshopWeave::desk_view() const {
         pane.name = row.name;
         const bool presented = row.kind != kNoPaneKind && panes.has(row.kind);
         const std::size_t at = presented ? at_of(row.kind) : order.size();
-        const PaneBounds where = at < order.size() ? laid[at]
-                                 : presented        ? bounds_of(panes, setup, row.kind, sc)
-                                                    : PaneBounds{};
+        const PaneBounds where = presented ? laid.of(row.kind) : PaneBounds{};
         std::int64_t state = pane_state_of(panes, setup, sc, row, false, presented ? &where : nullptr);
         if (state == pane_state::kOpen && at < order.size()) {
             std::vector<PixelRect> ahead;
             for (std::size_t i = at + 1; i < order.size(); ++i) {
-                if (laid[i].rect.w > 0 && laid[i].rect.h > 0) ahead.push_back(laid[i].rect);
+                const PixelRect r = laid.of(order[i]).rect;
+                if (r.w > 0 && r.h > 0) ahead.push_back(r);
             }
             if (rects_cover(where.rect, ahead)) state = pane_state::kCovered;
         }
@@ -213,8 +211,8 @@ std::string WorkshopWeave::drawn_area(const PaneRef& ref) const {
 // WHAT IS DRAWN OVER A PRESENTED PANE: arranging over all of it, an open menu, each pane in front
 // of it, and the band where the pane stands outside the room.
 // WL-READ-05 -- agents/workshop/desk-read.md
-std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind,
-                                                           const PixelRect& rect) const {
+std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind, const PixelRect& rect,
+                                                           const DeskBounds& laid) const {
     const Screen sc = screen_of(session_);
     std::vector<Cover> out;
     if (session_.arrange.open) out.push_back(Cover{"arranging", rect});
@@ -228,7 +226,7 @@ std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind,
             continue;
         }
         if (!above) continue;
-        const auto bounds = bounds_of(session_.panes, session_.setup.active, other, sc);
+        const PaneBounds bounds = laid.of(other);
         if (!bounds.open) continue;
         std::string name;
         for (const CatalogRow& row : rows) {
@@ -254,22 +252,34 @@ std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind,
 // WL-READ-02 -- agents/workshop/desk-read.md; WL-READ-07 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::pane_reading(const std::string& provider, const std::string& pane_key,
                                         PaneView& out) const {
+    return pane_reading(provider, pane_key, out, laid_desk());
+}
+
+std::string WorkshopWeave::pane_reading(const std::string& provider, const std::string& pane_key,
+                                        PaneView& out, const DeskBounds& laid) const {
     out = PaneView{};
     out.stamp = stamp_of(provider, pane_key);
-    if (provider == kWorkshopProvider && pane_key == pane_key::kLayouts) return layouts_reading(out);
+    if (provider == kWorkshopProvider && pane_key == pane_key::kLayouts) {
+        return layouts_reading(out, laid);
+    }
     const auto* pane = session_.panes.runtime.find(provider, pane_key);
     if (pane == nullptr || !session_.panes.has(pane->kind)) {
         return "pane view unavailable: closed or unknown";
     }
-    if (placed_kinds_.count(pane->kind) != 0) return area_reading(*pane, out);
+    if (placed_kinds_.count(pane->kind) != 0) return area_reading(*pane, out, laid);
     return unshown_reading(*pane);
+}
+
+DeskBounds WorkshopWeave::laid_desk() const {
+    return desk_bounds(session_.panes, session_.setup.active, screen_of(session_));
 }
 
 // A PANE THAT DRAWS IN AN AREA OF ITS OWN, AS THE WINDOW LAST SAID IT SHOWS: the window's words
 // and parts in the desk's pixels, the stamp naming what the window said, in flight while the
 // window waits for the pane's drawing, and Workshop's covers by its own order.
 // WL-READ-08 -- agents/workshop/desk-read.md; WL-READ-05 -- agents/workshop/desk-read.md
-std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out) const {
+std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out,
+                                        const DeskBounds& laid) const {
     const std::string area = pane_window_area(session_.panes, row);
     const auto placed = areas_placed_.find(area);
     if (placed == areas_placed_.end()) {
@@ -299,7 +309,7 @@ std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out) c
     std::vector<PaneWord> words;
     std::vector<PanePart> parts;
     shown_words_and_parts(shown, rect, words, parts);
-    cover_reading(covers_of(row.kind, rect), rect, words, parts, out.covered);
+    cover_reading(covers_of(row.kind, rect, laid), rect, words, parts, out.covered);
     // NO POINT WHILE A MENU IS OPEN, nor while nobody holds the office a press there is told.
     const bool unheld = host_->role_holder && !host_->role_holder(row.provider).valid();
     if (session_.presented.open || session_.context.open || unheld) without_points(words, parts);
@@ -394,11 +404,11 @@ std::string WorkshopWeave::unshown_reading(const RuntimePane& row) const {
 // itself -- `layout:<name>` and `layout:+` -- as it names its menu's lines. Its fingerprint is what
 // it says, and the naming line's caret and selection.
 // WL-READ-04 -- agents/workshop/desk-read.md
-std::string WorkshopWeave::layouts_reading(PaneView& out) const {
+std::string WorkshopWeave::layouts_reading(PaneView& out, const DeskBounds& laid) const {
     const std::int64_t kind = pane_kind::kLayouts;
     if (!session_.panes.has(kind)) return "pane view unavailable: closed or unknown";
     const Screen sc = screen_of(session_);
-    const auto bounds = bounds_of(session_.panes, session_.setup.active, kind, sc);
+    const PaneBounds bounds = laid.of(kind);
     if (!bounds.open) return "pane view unavailable: the pane is not presented";
     ScreenPlane layer;
     paint_layouts(layer, session_, bounds.rect, sc, kPaneChrome);
@@ -448,7 +458,7 @@ std::string WorkshopWeave::layouts_reading(PaneView& out) const {
     out.area = desk_rect(bounds.rect);
     out.advance = place.fit.graphical() ? place.fit.advance_px : graphics::kCellPx;
     out.line = place.fit.graphical() ? place.fit.line_px : graphics::kCellPx;
-    cover_reading(covers_of(kind, bounds.rect), bounds.rect, words, parts, out.covered);
+    cover_reading(covers_of(kind, bounds.rect, laid), bounds.rect, words, parts, out.covered);
     if (session_.presented.open || session_.context.open) without_points(words, parts);
     out.total = static_cast<std::int64_t>(words.size() + parts.size());
     out.words = std::move(words);
@@ -623,7 +633,7 @@ void WorkshopWeave::on(const graphics::AreaSettled& settled, loom::Mail& mail) {
         return;
     }
     bool presented = settled.area == presented_area();
-    for (const PaneRef& ref : presented_refs()) {
+    for (const PaneRef& ref : presented_refs(laid_desk())) {
         presented = presented || drawn_area(ref) == settled.area;
     }
     if (!presented) return;
@@ -768,13 +778,12 @@ std::string WorkshopWeave::take_desk_read(loom::WeaveId asker) {
 
 // EVERY PRESENTED PANE, FRONT TO BACK, by office and pane: the order a desk read and a notice say
 // their stamps in.
-std::vector<PaneRef> WorkshopWeave::presented_refs() const {
-    const Screen sc = screen_of(session_);
+std::vector<PaneRef> WorkshopWeave::presented_refs(const DeskBounds& laid) const {
     std::vector<std::int64_t> order = effective_pane_order(session_.setup.active, session_.panes);
     std::reverse(order.begin(), order.end()); // front to back
     std::vector<PaneRef> out;
     for (const std::int64_t kind : order) {
-        if (!bounds_of(session_.panes, session_.setup.active, kind, sc).open) continue;
+        if (!laid.of(kind).open) continue;
         if (is_runtime_kind(kind)) {
             if (const RuntimePane* row = session_.panes.runtime.of_kind(kind)) {
                 out.push_back(PaneRef{row->provider, row->pane});
@@ -791,9 +800,9 @@ std::vector<PaneRef> WorkshopWeave::presented_refs() const {
 // A pane whose reading is refused still names what it shows where that is known, as a refused
 // picture's room shows the refusal.
 // WL-READ-07 -- agents/workshop/desk-read.md
-PaneStamp WorkshopWeave::stamp_now(const PaneRef& ref) const {
+PaneStamp WorkshopWeave::stamp_now(const PaneRef& ref, const DeskBounds& laid) const {
     PaneView reading;
-    (void)pane_reading(ref.provider, ref.pane, reading);
+    (void)pane_reading(ref.provider, ref.pane, reading, laid);
     return reading.stamp;
 }
 
@@ -807,14 +816,15 @@ Said<DeskRead> WorkshopWeave::desk_read_now(loom::Mail& mail, loom::WeaveId aske
     out.desk = desk_view();
     if (reads_by_pane(asker)) withhold_desk(out.desk);
     std::vector<std::optional<PaneView>> readings;
-    for (const PaneRef& ref : presented_refs()) {
+    const DeskBounds laid = laid_desk();
+    for (const PaneRef& ref : presented_refs(laid)) {
         if (!read_withheld(mail, asker, ref.provider, ref.pane).empty()) {
             out.stamps.push_back(withheld_stamp(ref));
             readings.emplace_back(std::nullopt);
             continue;
         }
         PaneView reading;
-        const bool said = pane_reading(ref.provider, ref.pane, reading).empty();
+        const bool said = pane_reading(ref.provider, ref.pane, reading, laid).empty();
         out.stamps.push_back(reading.stamp);
         if (said) {
             readings.emplace_back(std::move(reading));
@@ -846,7 +856,7 @@ void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
         return;
     }
     std::vector<std::string> areas;
-    for (const PaneRef& ref : presented_refs()) {
+    for (const PaneRef& ref : presented_refs(laid_desk())) {
         const std::string area = drawn_area(ref);
         if (!area.empty() && read_withheld(mail, mail.sender(), ref.provider, ref.pane).empty()) {
             areas.push_back(area);
@@ -877,8 +887,11 @@ void WorkshopWeave::publish_desk_stamps(loom::Mail& mail, const DeskView* known)
     DeskStamps now;
     now.desk = known != nullptr ? known->desk : desk_owed_ ? desk_view().desk : desk_number_;
     desk_owed_ = false;
-    for (const PaneRef& ref : presented_refs()) {
-        now.panes.push_back(stamp_now(ref));
+    // EVERY STAMP FROM ONE LAYOUT OF THE DESK: which panes are presented, where each stands and
+    // what covers it, as the desk stands at this publish.
+    const DeskBounds laid = laid_desk();
+    for (const PaneRef& ref : presented_refs(laid)) {
+        now.panes.push_back(stamp_now(ref, laid));
     }
     if (stamps_published_ && now.desk == stamps_said_.desk && same_stamps(now.panes, stamps_said_.panes)) {
         return;
