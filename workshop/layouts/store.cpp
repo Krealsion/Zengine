@@ -1516,7 +1516,8 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
                                   std::vector<std::string>& said, bool& run_moved,
                                   std::vector<std::string>& renamed_from,
                                   std::vector<std::string>& renamed_to,
-                                  std::vector<std::string>& removed) {
+                                  std::vector<std::string>& removed,
+                                  std::optional<SetupWrite>& saving) {
     using namespace layout_op;
     Setup& live = live_desk(next);
     const PaneRef ref{e.provider, e.pane};
@@ -1714,6 +1715,10 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
         return std::string();
     }
     if (e.op == kSave) {
+        // ONE FILE A BATCH, written by `edit` once every edit is judged.
+        if (saving) {
+            return "one edit saves one setup file";
+        }
         const std::string path =
             next.active_link.path.empty() ? host_->setup_path : next.active_link.path;
         if (path.empty()) {
@@ -1722,11 +1727,7 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
         if (const Written whole = check_setup(next.active); !whole.accepted) {
             return whole.refusal;
         }
-        const Written written = setup_persist::save_file(path, next.active);
-        if (!written.accepted) {
-            // THE LAST GOOD SETUP FILE IS INTACT and so is every association.
-            return written.refusal;
-        }
+        saving = SetupWrite{path, next.active};
         next.active_link.path = path;
         const Setup desk = next.active;
         adopt_known_setup(next, path, desk);
@@ -1787,15 +1788,27 @@ LayoutEditAnswered LayoutStore::edit(const LayoutEditRequested& asked) {
     std::vector<std::string> renamed_from;
     std::vector<std::string> renamed_to;
     std::vector<std::string> removed;
+    std::optional<SetupWrite> saving;
+    const auto refuse = [&](const std::string& why) {
+        out.accepted = false;
+        out.refusal = why;
+        out.discarded.clear();
+        out.revision = revision_;
+        return out;
+    };
     for (const LayoutEdit& e : asked.edits) {
         const std::string wrong =
-            edit_one(next, e, out, said, run_moved, renamed_from, renamed_to, removed);
+            edit_one(next, e, out, said, run_moved, renamed_from, renamed_to, removed, saving);
         if (!wrong.empty()) {
-            out.accepted = false;
-            out.refusal = wrong;
-            out.discarded.clear();
-            out.revision = revision_;
-            return out;
+            return refuse(wrong);
+        }
+    }
+    // THE WHOLE JUDGED, ITS FILE WRITTEN: a write that fails refuses the whole, and the last good
+    // setup file, every association and the run stand as they were.
+    if (saving) {
+        if (const Written written = setup_persist::save_file(saving->path, saving->desk);
+            !written.accepted) {
+            return refuse(written.refusal);
         }
     }
     const bool desk_moved = !same_run(next, run_);

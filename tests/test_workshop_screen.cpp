@@ -6414,3 +6414,55 @@ TEST_CASE("two edits judged from one picture: the first is written, the second r
     CHECK(t.session().setup.active == live_desk(store.run()));
     CHECK(layout_count(t.session().setup) == 2);
 }
+
+TEST_CASE("a batch's setup file is written once every edit in it is judged, and not at all when one is refused") {
+    // ⚔ MUTATION: the save written as its own edit is judged, before the rest of the batch -- a
+    // refused batch leaves the file written.
+    TempDir dir("batch-save");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    t.ready();
+    t.extent_px(cells_px(160), cells_px(44));
+    t.owner->read_host_now();
+    LayoutStore& store = t.owner->store();
+    LayoutEdit save;
+    save.op = layout_op::kSave;
+    LayoutEdit gone;
+    gone.op = layout_op::kSwitch;
+    gone.layout = 9999;
+    const std::int64_t seen = store.revision();
+    const LayoutEditAnswered refused = store.edit(LayoutEditRequested{seen, {save, gone}});
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal == "that layout is gone -- nothing was switched");
+    CHECK_FALSE(std::filesystem::exists(t.host.setup_path));
+    CHECK(store.revision() == seen);
+    // ONE BATCH SAVES ONE FILE: a second save would make a failed write leave the first written.
+    const LayoutEditAnswered twice = store.edit(LayoutEditRequested{seen, {save, save}});
+    CHECK_FALSE(twice.accepted);
+    CHECK(twice.refusal == "one edit saves one setup file");
+    CHECK_FALSE(std::filesystem::exists(t.host.setup_path));
+    // ...AND THE SAME SAVE, JUDGED WHOLE, IS WRITTEN.
+    REQUIRE(store.edit(LayoutEditRequested{seen, {save}}).accepted);
+    CHECK(std::filesystem::exists(t.host.setup_path));
+}
+
+TEST_CASE("a batch whose setup file cannot be written is refused whole, the run as it was") {
+    TempDir dir("batch-save-fails");
+    std::filesystem::create_directories(dir.file("taken"));
+    Live t;
+    t.host.setup_path = dir.file("taken"); // a folder: no file can be written there
+    t.ready();
+    t.extent_px(cells_px(160), cells_px(44));
+    t.owner->read_host_now();
+    LayoutStore& store = t.owner->store();
+    LayoutEdit made;
+    made.op = layout_op::kNew;
+    LayoutEdit save;
+    save.op = layout_op::kSave;
+    const std::int64_t seen = store.revision();
+    const LayoutEditAnswered answered = store.edit(LayoutEditRequested{seen, {made, save}});
+    CHECK_FALSE(answered.accepted);
+    CHECK_FALSE(answered.refusal.empty());
+    CHECK(layout_run(store.run()).size() == 1);
+    CHECK(store.revision() == seen);
+}
