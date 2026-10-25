@@ -76,7 +76,7 @@ Chooses the item under the cursor.
   switch's answer is shown under the box. On Done or Skip, writes `answered`
   ([`OfficeSettingCommitRequested`](zengine.layouts.md#officesettingcommitrequested)) and, when
   that is answered, puts the pane down
-  ([`PaneCloseRequested`](zengine.workshop.md#panecloserequested)).
+  ([`PaneCloseRequested`](zengine.layouts.md#panecloserequested)).
 - **Refuses:** `the editor switch is still under way`; the switch's refusal, as it says it; a
   settings write Workshop refused, as `not kept: <its words>`.
 - **Example:** press <!-- key first-run.choose -->`return`<!-- /key --> on the box.

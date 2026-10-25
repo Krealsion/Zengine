@@ -6,9 +6,10 @@
 
 // The layouts' owner, the office `zengine.layouts`: the store as a weave of its own, mounted by the
 // host in its own process and never replaced. It sends its presenter each picture of the live
-// layout, answers its edits, writes the session at its orderly close, hands each seated pane its
-// row's settings and hears what the pane cannot use, and is every settings door: one writer and
-// one judge of every layout, office-wide setting, lock and pin.
+// layout, answers its edits, writes the session at its orderly close, takes a pane's row off the
+// live layout when an office closes it, hands each seated pane its row's settings and hears what
+// the pane cannot use, and is every settings door: one writer and one judge of every layout,
+// office-wide setting, lock and pin.
 // Workshop law: agents/workshop/layouts.md (+2 registers; agents/workshop.md routes)
 
 #include "workshop/actor_scope.hpp" // a guest's row, which says whether it may touch settings
@@ -65,13 +66,13 @@ class LayoutsOwner
                        PaneSettingCommitRequested, OfficeSettingsRequested,
                        OfficeSettingCommitRequested, PaneSettingPinRequested,
                        PaneSettingLockRequested, LayoutSettingsRequested, SettingsWriteRequested,
-                       PaneInventory, WeaversActAnswered>,
+                       PaneInventory, WeaversActAnswered, PaneCloseRequested>,
           loom::Emit<LiveLayout, LayoutEditAnswered, SessionSaveAnswered, loom::Ack, loom::Refused,
                      PaneSettings, v2::PaneSettings, PaneSettingsAnswered,
                      PaneSettingCommitAnswered, OfficeSettings, OfficeSettingsAnswered,
                      OfficeSettingCommitAnswered, PaneSettingPinAnswered, PaneSettingLockAnswered,
                      LayoutSettingsAnswered, SettingsWriteAnswered, WeaversActRequested,
-                     PaneInventoryRequested>> {
+                     PaneInventoryRequested, PaneCloseAnswered>> {
 public:
     explicit LayoutsOwner(LayoutsOwnerHost host) : host_(std::move(host)), store_(readings_) {}
 
@@ -83,6 +84,9 @@ public:
 
     // ---- A desk put live from a caller's text ----------------------------------------------
     void on(const SetupApplyRequested& asked, loom::Mail& mail);
+
+    // ---- A pane's row taken off the live layout ---------------------------------------------
+    void on(const PaneCloseRequested& asked, loom::Mail& mail);
 
     // ---- What each pane and office takes ----------------------------------------------------
     void on(const PaneSettingsDeclared& declared, loom::Mail& mail);
@@ -139,9 +143,9 @@ private:
     bool restore_said_ = false;
 };
 
-/// What the owner may say, and to whom: each answer to its asker, the picture and its question to
-/// the presenter, each pane's row to its office's holder, and each office's settings to that
-/// office.
+/// What the owner may say, and to whom: each answer to its asker, a close's among them, the
+/// picture and its question to the presenter, each pane's row to its office's holder, and each
+/// office's settings to that office.
 loom::Grant layouts_grant();
 
 } // namespace zengine::workshop

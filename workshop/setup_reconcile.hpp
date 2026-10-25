@@ -266,6 +266,16 @@ inline std::string discarded_settings(const std::vector<PaneSetting>& gone) {
     return gone.empty() ? std::string() : " and its settings here (" + settings_said(gone) + ")";
 }
 
+/// ...AND FOR THE KEYS THIS LAYOUT LOCKED ON THE ROW, gone with it: empty for none.
+// WL-SETTING-06 -- agents/workshop/settings.md
+inline std::string discarded_locks(const std::vector<std::string>& keys) {
+    std::string out;
+    for (const std::string& key : keys) {
+        out += (out.empty() ? "" : ", ") + key;
+    }
+    return keys.empty() ? std::string() : " and its locks here (" + out + ")";
+}
+
 // ---- THE COMBINED CATALOG: what the Pane Manager lists, built-ins and offers ---
 
 /// ONE ROW OF THE COMBINED POPULATION -- a compile-time kind or a runtime

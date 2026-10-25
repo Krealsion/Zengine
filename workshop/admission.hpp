@@ -27,9 +27,10 @@ inline loom::Grant inventory_office_grant() {
     return g;
 }
 
-// THE QUICK SETUP'S SPEECH, and nothing more: its pane, its one setting and the launch and close
-// of its own pane to Workshop; the room asked of the graphics directory and its drawing to the
-// two windows; and the editor switch's four asks, to the switch's office alone.
+// THE QUICK SETUP'S SPEECH, and nothing more: its pane, its one setting, the launch of its own
+// pane to Workshop and its close to the layouts' owner; the room asked of the graphics directory
+// and its drawing to the two windows; and the editor switch's four asks, to the switch's office
+// alone.
 // WL-FIRST-03 -- agents/workshop/first-run.md
 inline loom::Grant first_run_office_grant() {
     loom::Grant g;
@@ -45,7 +46,7 @@ inline loom::Grant first_run_office_grant() {
     to(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version, layouts);
     to(OfficeSettingCommitRequested::zen_name, OfficeSettingCommitRequested::zen_version, layouts);
     to(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version, workshop);
-    to(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version, workshop);
+    to(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version, layouts);
     to(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version, workshop);
     to(graphics::RoomAsked::zen_name, graphics::RoomAsked::zen_version, graphics::kGraphicsRole);
     for (const char* window : {graphics::kSdlWindow, graphics::kTerminalWindow}) {

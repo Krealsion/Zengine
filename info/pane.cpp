@@ -714,7 +714,7 @@ private:
         pane::ViewContext c{mail, asked_};
         if (v.retire(c, {})) offer(v, mail);
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(kWorkshopRole, ws::PaneCloseRequested{pane::kInfoPaneRole, v.key()}, ++asked_);
+            .send_to_role(ws::kLayoutsRole, ws::PaneCloseRequested{pane::kInfoPaneRole, v.key()}, ++asked_);
     }
 
     void open_menu(pane::ValueView& v, std::int64_t row, std::int64_t column, loom::Mail& mail) {

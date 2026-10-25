@@ -443,7 +443,6 @@ class WorkshopWeave
                                           zengine::workshop::AppActions,
                                           zengine::workshop::v2::AppActions,
                                           zengine::workshop::PaneLaunchRequested,
-                                          zengine::workshop::PaneCloseRequested,
                                           zengine::workshop::PaneToggleRequested,
                                           zengine::workshop::KeymapEditRequested,
                                           zengine::workshop::DeselectRequested,
@@ -513,7 +512,6 @@ class WorkshopWeave
                                         zengine::workshop::ActionsJudged,
                                         zengine::workshop::ActionsWithdrawn,
                                         zengine::workshop::PaneLaunchAnswered,
-                                        zengine::workshop::PaneCloseAnswered,
                                         zengine::workshop::PaneToggleAnswered,
                                         zengine::workshop::KeymapEditAnswered,
                                         zengine::workshop::PaneInventory,
@@ -707,7 +705,8 @@ public:
     /// A SHIFT PRESS, as its hand's second tap within a double-click's time: whether a double
     /// Shift was answered by a row in force, which then spends the press.
     bool shift_tapped(const zengine::input::KeyPressed& k, loom::Mail& mail);
-    /// The palette left the desk: the keys go back to the pane that held them when it opened.
+    /// The palette left the desk, by whichever close: the keys go back to the pane that held them
+    /// when it opened.
     void palette_closed(const PaneRef& ref);
     /// The current gesture of `pane` approves one operation -- a named (shape, version, role) send,
     /// the action classes the act is, or both -- or why not. Spends the gesture; `approved`, when
@@ -949,6 +948,9 @@ public:
     /// SEAT `ref` ON THE LIVE LAYOUT, asking the owner only when this desk does not seat it, then
     /// `then` with what that came to.
     void seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail);
+    /// ...AND TAKE ITS ROW OFF, one of this desk's own closes: asked of the owner, which takes the
+    /// row whole and names its settings and locks in the answer; it unloads nothing.
+    void unseat_then(const PaneRef& ref, EditThen then, loom::Mail& mail);
     /// A reveal's seat, done: the pane selected and given the keys, said, and the asker answered.
     void revealed(std::int64_t kind, const std::string& name, const std::string& pane,
                   const loom::DeferredAnswer& owed, loom::Mail& mail);
@@ -980,12 +982,9 @@ public:
     /// through the same door the launcher and a restore share, and answered either way.
     void on(const PaneLaunchRequested& asked, loom::Mail& mail);
 
-    /// TAKE THIS PANE OFF THE DESK, AND UNLOAD NOTHING. Its row leaves the live desk through the
-    /// setup's own door; its provider and everything it holds are untouched. Answered either way.
-    void on(const PaneCloseRequested& asked, loom::Mail& mail);
-
     /// SHOW IT IF HIDDEN, HIDE IT IF SHOWN -- judged against the desk as it is NOW, through the
-    /// two doors above, so a presenter's stale reading cannot make a toggle mean the other thing.
+    /// launch above or this desk's own unseat, so a presenter's stale reading cannot make a toggle
+    /// mean the other thing.
     void on(const PaneToggleRequested& asked, loom::Mail& mail);
     void judge_toggle(const PaneToggleRequested& asked,
                       const std::shared_ptr<loom::DeferredAnswer>& held, loom::Mail& mail);
@@ -1008,12 +1007,6 @@ public:
     /// and every host-side caller spend, so "launch" means one thing.
     using LaunchThen = std::function<void(const PaneLaunchAnswered&, loom::Mail&)>;
     void launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail);
-
-    /// PERFORM ONE CLOSE, WITHOUT ASKING WHO WANTED IT -- `launch_pane`'s partner, and not its
-    /// inverse: it removes participation and never unloads, and it never opens anything.
-    using CloseThen = std::function<void(const PaneCloseAnswered&,
-                                         const std::vector<PaneSetting>& discarded, loom::Mail&)>;
-    void close_pane(const PaneRef& ref, CloseThen then, loom::Mail& mail);
 
     /// WHAT THE ONE INVENTORY CALLS A PANE -- its offered name, or its pane key when nothing
     /// names it -- for a sentence about it.

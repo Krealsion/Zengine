@@ -5,7 +5,7 @@
 // and what the store moved sent after it -- each pane's row, the presenter's picture, each
 // office's settings.
 // Workshop law: agents/workshop/layouts.md, agents/workshop/settings.md,
-// agents/workshop/setting-locks.md
+// agents/workshop/setting-locks.md, agents/workshop/desktop.md
 
 #include "workshop/layouts/owner.hpp"
 
@@ -227,6 +227,29 @@ void LayoutsOwner::on(const SetupApplyRequested& asked, loom::Mail& mail) {
     (void)mail.answer(loom::Ack{});
 }
 
+// ---- A pane's row taken off the live layout -----------------------------------------------------
+
+// WL-DESK-12 -- agents/workshop/desktop.md
+void LayoutsOwner::on(const PaneCloseRequested& asked, loom::Mail& mail) {
+    read_host();
+    if (mail.authored_role().empty()) {
+        // AN OFFICE, AND ONLY AN OFFICE, changes who is on the desk -- the seam's rule -- and the
+        // asker is told so.
+        ++state_.refused;
+        PaneCloseAnswered out;
+        out.office = asked.office;
+        out.pane = asked.pane;
+        out.refusal = "a pane is taken off the desk by an office -- personal speech closes nothing";
+        (void)mail.answer(std::move(out));
+        return;
+    }
+    PaneCloseAnswered out = store_.close(PaneRef{asked.office, asked.pane});
+    // THE PICTURE GOES FIRST, with the close's sentence for the presenter's band, so the asker's
+    // answer follows a live layout that no longer seats the row.
+    settle(mail);
+    (void)mail.answer(std::move(out));
+}
+
 // ---- What each pane and office takes ------------------------------------------------------------
 
 // WL-SETTING-03 -- agents/workshop/settings.md
@@ -437,6 +460,7 @@ loom::Grant layouts_grant() {
     grant.allow_to_any(PaneSettingLockAnswered::zen_name, PaneSettingLockAnswered::zen_version);
     grant.allow_to_any(LayoutSettingsAnswered::zen_name, LayoutSettingsAnswered::zen_version);
     grant.allow_to_any(SettingsWriteAnswered::zen_name, SettingsWriteAnswered::zen_version);
+    grant.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
     grant.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     // ...EACH PANE ITS ROW, AND EACH DECLARING OFFICE ITS SETTINGS...
     grant.allow_to_any(PaneSettings::zen_name, PaneSettings::zen_version);

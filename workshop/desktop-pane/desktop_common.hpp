@@ -143,12 +143,12 @@ inline void launch(loom::Mail& mail, const std::string& office, const std::strin
         .send_to_role(kWorkshopRole, ws::PaneLaunchRequested{office, pane_key}, ++launches);
 }
 
-/// ...AND TO TAKE ONE OFF THE DESK; the host judges whether it is there, because participation
-/// is the desk's fact and not this list's copy of it.
+/// ...AND TO TAKE ONE OFF THE DESK, asked of the layouts' owner, which judges whether its row is
+/// there, because participation is the live layout's fact and not this list's copy of it.
 inline void close(loom::Mail& mail, const std::string& office, const std::string& pane_key,
                   std::uint64_t& launches) {
     (void)mail.as_role(kDesktopRole)
-        .send_to_role(kWorkshopRole, ws::PaneCloseRequested{office, pane_key}, ++launches);
+        .send_to_role(ws::kLayoutsRole, ws::PaneCloseRequested{office, pane_key}, ++launches);
 }
 
 /// WHERE A PRESS LANDED in one of this weave's panes: the row and column of the rows drawn there,

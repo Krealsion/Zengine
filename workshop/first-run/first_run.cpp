@@ -165,8 +165,8 @@ public:
         } else {
             moment_.notice = "not kept: " + acted.refusal;
         }
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::PaneCloseRequested{kOffice, kPane},
-                                                 ++asks_);
+        (void)mail.as_role(kOffice).send_to_role(ws::kLayoutsRole,
+                                                 ws::PaneCloseRequested{kOffice, kPane}, ++asks_);
         show(mail);
     }
 

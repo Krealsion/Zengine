@@ -57,9 +57,7 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
     // THE PALETTE IS PUT DOWN FIRST, the keys going back to the pane it opened over, so the
     // command acts where the hand was.
     if (has_pane(session_.setup.active, palette)) {
-        close_pane(palette,
-                   [](const PaneCloseAnswered&, const std::vector<PaneSetting>&, loom::Mail&) {},
-                   mail);
+        unseat_then(palette, [](const LayoutEditAnswered&, loom::Mail&) {}, mail);
     }
     if (asked.kind == kCommandClose) {
         answer(std::string());

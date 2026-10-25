@@ -2307,7 +2307,7 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
 
 TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider holding; a close "
           "of a pane that is not there is refused and opens nothing") {
-    // ⚔ MUTATION: `close_pane` answering `closed` without taking the row off the desk -- the
+    // ⚔ MUTATION: the owner's `close` answering `closed` without taking the row off -- the
     // pane stays seated. ⚔ MUTATION: a close that is not on the desk falling through to the
     // launch door -- the second close opens it.
     PaneRig r;
@@ -2349,6 +2349,61 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     REQUIRE_FALSE(desk->launched().empty());
     CHECK(desk->launched().back().opened);
     CHECK(r.session().panes.has(kind));
+}
+
+TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row leaves the live layout whole, its "
+          "settings and this layout's locks named in the answer and on the band, and the "
+          "presenter takes no close") {
+    // ⚔ MUTATION: the owner's close answering without the locks the row took -- the answer names
+    // none. ⚔ MUTATION: the owner answering personal speech's close by taking the row off.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    const PaneRef hello{kHelloOffice, kHelloPane};
+    REQUIRE(r.session().panes.has(kind));
+    stage_desk(r, [&](Setup& desk) {
+        pane_of(desk, hello)->settings = {PaneSetting{"mode", {}, {}, std::string("wide")}};
+        desk.locks.push_back(SetupLock{hello, "mode"});
+    });
+    // THE DOOR IS THE OWNER'S ALONE: the presenter does not take the shape at all.
+    CHECK(r.host.holder_accepts(kLayoutsRole, *loom::schema_of<PaneCloseRequested>()));
+    CHECK_FALSE(r.host.holder_accepts(kWorkshopProvider, *loom::schema_of<PaneCloseRequested>()));
+
+    // PERSONAL SPEECH IS ANSWERED, AND CLOSES NOTHING.
+    DoorHand& h = door_hand(r);
+    h.next = [hello](DoorHand&, loom::Mail& m) {
+        (void)m.send_to_role(kLayoutsRole, PaneCloseRequested{hello.provider, hello.pane});
+    };
+    (void)r.bus.send(r.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                              loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+    REQUIRE(h.closed.size() == 1);
+    CHECK_FALSE(h.closed.back().closed);
+    CHECK(h.closed.back().refusal.find("by an office") != std::string::npos);
+    CHECK(has_pane(r.owner->layouts().run().active, hello));
+
+    const std::int64_t before = r.session().setup.revision;
+    const PaneCloseAnswered said = hand_close(r, hello);
+    CHECK(said.closed);
+    CHECK_MESSAGE(said.refusal.empty(), said.refusal);
+    REQUIRE(said.settings.size() == 1);
+    CHECK(said.settings[0].key == "mode");
+    CHECK(said.locks == std::vector<std::string>{"mode"});
+    // THE OWNER'S LIVE LAYOUT LOST THE ROW, its lock with it, and the picture the presenter holds is
+    // that layout.
+    CHECK_FALSE(has_pane(r.owner->layouts().run().active, hello));
+    CHECK(r.owner->layouts().run().active.locks.empty());
+    CHECK_FALSE(has_pane(r.session().setup.active, hello));
+    CHECK(r.session().setup.revision > before);
+    CHECK(r.session().setup.revision == r.owner->layouts().revision());
+    CHECK_FALSE(r.session().panes.has(kind));
+    CHECK_MESSAGE(r.last_notice().find(" and its settings here (mode wide) and its locks here "
+                                       "(mode) -- its provider and what it holds are untouched") !=
+                      std::string::npos,
+                  r.last_notice());
+    CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<gfx::AreaRoom>()));
 }
 
 TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return opens it again: "

@@ -6,10 +6,11 @@
 
 // The desktop seam: what crosses between Workshop and the weave that owns the application's
 // defaults -- the gestures it answers above every pane, launching and closing (WL-DESK-01). The
-// desktop decides which requests to make and when; the host decides whether they can be
-// performed. A desktop that failed to load leaves no defaults, never a process a weaver cannot
-// leave.
+// desktop decides which requests to make and when; the host decides whether a launch can be
+// performed, and the layouts' owner whether a close can. A desktop that failed to load leaves no
+// defaults, never a process a weaver cannot leave.
 
+#include "workshop/pane_settings.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
@@ -116,22 +117,26 @@ struct PaneLaunchAnswered {
               ZEN_FIELD(focused), ZEN_FIELD(refusal));
 };
 
-/// Take this pane off the desk (WL-DESK-12). Closing unloads nothing: the provider keeps all it
-/// holds, so a launch finds it as it was. A pane not on the desk is refused.
+/// Take this pane's row off the live layout, asked of the layouts' owner (WL-DESK-12). Closing
+/// unloads nothing: the provider keeps all it holds, so a launch finds it as it was. A row the
+/// live layout does not seat is refused.
 struct PaneCloseRequested {
     std::string office;
     std::string pane;
     ZEN_SHAPE(PaneCloseRequested, 1, ZEN_FIELD(office), ZEN_FIELD(pane));
 };
 
-/// WHAT THE CLOSE CAME TO -- addressed back to whoever asked.
+/// WHAT THE CLOSE CAME TO -- addressed back to whoever asked, naming what left with the row.
 struct PaneCloseAnswered {
     std::string office;
     std::string pane;
-    bool closed = false; ///< it was on the desk, and now is not
+    bool closed = false; ///< the row was on the live layout, and now is not
     std::string refusal; ///< empty iff it was closed
-    ZEN_SHAPE(PaneCloseAnswered, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(closed),
-              ZEN_FIELD(refusal));
+    std::vector<PaneSetting> settings = {}; ///< the settings the row kept, gone with it
+    std::vector<std::string> locks = {};    ///< the keys this layout locked on the row, gone too
+    /// Version 2: what left with the row is named.
+    ZEN_SHAPE(PaneCloseAnswered, 2, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(closed),
+              ZEN_FIELD(refusal), ZEN_FIELD(settings), ZEN_FIELD(locks));
 };
 
 /// Show this pane if hidden, hide it if shown -- judged by the host against the desk as it is when
