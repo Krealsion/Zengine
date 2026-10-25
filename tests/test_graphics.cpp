@@ -12,6 +12,7 @@
 #include "doctest.h"
 
 #include "graphics_rig.hpp"
+#include "layouts_stand_in.hpp"
 #include "lifecycle_door.hpp"
 #include "office_manual.hpp"
 #include "window_backends.hpp"
@@ -66,7 +67,6 @@
 
 #if defined(GRAPHICS_HAS_SDL)
 #include "graphics/window/window_sdl_backend.hpp"
-#include "layouts_stand_in.hpp"
 
 #include <SDL3/SDL.h>
 #endif
