@@ -30,9 +30,10 @@ Keep [**cheat_sheet.md**](cheat_sheet.md) open beside your editor.
   A weave asks for one-shots and repeats and gets them back as messages.
 - **Read input** — one Input weave is the sole producer of key, text and pointer moments,
   on a POSIX terminal, a Windows console, or an SDL window.
-- **Draw** — publish drawing intent (rectangles, labels, bounded text regions) and let a
-  replaceable *skin* paint it to a terminal or a window. Your code names no colours and
-  touches no terminal.
+- **Draw** — draw in your own area of a window, and the window paints it with the area's
+  *skin*, painter code it opens by path; the window is a replaceable weave over a terminal or an
+  OS window ([graphics](graphics/docs/graphics.md)). Your code names no colours and touches no
+  terminal.
 - **Load and replace weaves at run time** — through the Loom's Kernel, from an authored
   plan file.
 - **Run a build** — start a real OS process from a named recipe and follow it without
@@ -51,7 +52,7 @@ What is not, stated plainly:
 
 - **Two packages, each for its reader.** `find_package(zengine)` exports capability targets
   — the pane protocol a one-file Workshop pane speaks among them — and installs the loadable
-  artifacts they need; Workshop and the SDL-backed skin are not in it — see [Using Zengine
+  artifacts they need; Workshop and the OS window are not in it — see [Using Zengine
   from another project](docs/getting-started.md#using-zengine-from-another-project). The
   package a stranger downloads ([below](#download-and-run)) carries Workshop, ready to run, and
   builds nothing.

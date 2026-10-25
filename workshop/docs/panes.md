@@ -182,15 +182,15 @@ be: a press is its own targeting. The keyboard steps between panes instead:
 
 | key | does |
 |---|---|
-| `Tab` / `Shift`+`Tab` | step the keyboard to the next / previous pane |
-| `← → ↑ ↓` | move that pane one cell |
-| `Shift`+arrows | resize it one cell — wider / narrower / taller / shorter, its top-left corner staying put |
-| `=` / `-` | **grow / shrink** it four cells (`workshop.arrange-step`) on both axes at once — the coarse step, same anchor |
-| `Enter` | narrow to arranging exactly that pane |
-| `f` `b` `r` `l` | send to front / back, raise / lower one step |
-| `d` | remove that pane from the layout — the Pane Manager brings it back |
-| `0` | **reset** — then `p` place, `w` width, `h` height, `o` order; `Esc` back |
-| `Esc` or right-click | leave |
+| <!-- key manage.next -->`tab`<!-- /key --> / <!-- key manage.previous -->`shift+tab`<!-- /key --> | step the keyboard to the next / previous pane |
+| <!-- key manage.place-left -->`left`<!-- /key --> <!-- key manage.place-right -->`right`<!-- /key --> <!-- key manage.place-up -->`up`<!-- /key --> <!-- key manage.place-down -->`down`<!-- /key --> | move that pane one cell |
+| <!-- key manage.pull-left -->`shift+left`<!-- /key --> and the other shifted arrows | resize it one cell — wider / narrower / taller / shorter, its top-left corner staying put |
+| <!-- key manage.grow -->`=`<!-- /key --> / <!-- key manage.shrink -->`-`<!-- /key --> | **grow / shrink** it by the coarse step, <!-- value kCoarseStepCells -->4<!-- /value --> cells unless `workshop.arrange-step` says otherwise, on both axes at once — same anchor |
+| <!-- key manage.arrange -->`return`<!-- /key --> | narrow to arranging exactly that pane |
+| <!-- key manage.front -->`f`<!-- /key --> <!-- key manage.back -->`b`<!-- /key --> <!-- key manage.raise -->`r`<!-- /key --> <!-- key manage.lower -->`l`<!-- /key --> | send to front / back, raise / lower one step |
+| <!-- key manage.remove -->`d`<!-- /key --> | remove that pane from the layout — the Pane Manager brings it back |
+| <!-- key manage.reset -->`0`<!-- /key --> | **reset** — then <!-- key manage.reset-place -->`p`<!-- /key --> place, <!-- key manage.reset-width -->`w`<!-- /key --> width, <!-- key manage.reset-height -->`h`<!-- /key --> height, <!-- key manage.reset-order -->`o`<!-- /key --> order; <!-- key manage.done -->`escape`<!-- /key --> back |
+| <!-- key manage.close -->`escape`<!-- /key --> or right-click | leave |
 
 The same movement and resize keys work in the one-pane scope; `Tab` and `Enter` belong to
 the desk, which is the only place there is a next pane to step to. The pointer's handles
@@ -208,7 +208,7 @@ pixels: nothing about it is saved, and nothing keeps two panes together or apart
 
 ![The Pane Manager dragged until its right edge met the left edge of Hotkeys: a line across the room marks the edge it met while the button is held, and the band says snapped to an edge](images/panes-snap.png)
 
-`=` and `-` are the same resize, four cells at a time on both axes — one press is the
+`=` and `-` are the same resize, the coarse step at a time on both axes — one press is the
 difference between a pane that is technically open and a pane you can work in. They move no
 other pane, avoid no collisions and fit nothing to your content; they are the shifted arrows
 with a bigger step, so everything the arrows refuse they refuse the same way (an axis that
@@ -415,7 +415,8 @@ cell in its own pixels. Neither number is written into your setup file, and neit
 
 ## Pane geometry
 
-**A pane placed in the stack is 9 rows tall, and a bigger terminal does not grant more.**
+**A pane placed in the stack is <!-- value kStackRows -->9<!-- /value --> rows tall, and a bigger
+terminal does not grant more.**
 
 That is the current default and it is a real constraint, not a rendering artefact. A wider
 surface *does* widen a pane — the surplus over the 48-column minimum is split evenly between
@@ -432,7 +433,7 @@ grow. If a pane's content is tight, the answer is the same one below: make the p
 
 ### How to actually get a bigger pane
 
-Fastest: `w` → `Tab` to the pane → **`=`**. One press grows it four cells on both axes,
+Fastest: `w` → `Tab` to the pane → **`=`**. One press grows it by the coarse step on both axes,
 which is enough to turn every pane the shipped desk opens into one you can work in. `-`
 takes it back. Then `s` `Enter` to persist the setup.
 

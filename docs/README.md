@@ -14,7 +14,7 @@ front pages, and the index of the pages no one folder owns.
 |---|---|---|
 | [../README.md](../README.md) | **orientation** | what Zengine is, whether it is mature enough for you, how to build it, and the map of its folders |
 | [getting-started.md](getting-started.md) | **getting started** | a C++ developer, from nothing to a running weave that uses the Timer |
-| [../cheat_sheet.md](../cheat_sheet.md) | **cheat sheet** | looking something up while you work |
+| [../cheat_sheet.md](../cheat_sheet.md) | **cheat sheet** | finding, while you work, the page that owns a topic |
 | [../workshop/docs/getting-started.md](../workshop/docs/getting-started.md) | **getting started** | a weaver, launching and using Workshop |
 | [../workshop/docs/limitations.md](../workshop/docs/limitations.md) | **limitations** | what does not work yet, in one place |
 

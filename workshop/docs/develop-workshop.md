@@ -118,7 +118,7 @@ Configuring writes two files beside the host, in the build tree's `workshop/` di
 multi-config generator, in a directory per configuration, with a runtime per configuration too):
 
 - `development-build-recipes.json`, the **development catalog**: one `cmake_target` recipe per
-  shipped pane weave ([which](#which-panes)), each naming this build tree, the target, the
+  pane weave the build lists ([which](#which-panes)), each naming this build tree, the target, the
   directory the target builds into, and the pane's own source file as its **editing entry** — the
   file `edit code` opens. The entry is the source the build declared for that weave, never a file
   name worked out from the pane's title or the target's name.
@@ -167,8 +167,9 @@ goes on running the image it had ([a build that worked and a load that was refus
 The launch cannot see this kind of change — a rebuilt pane never makes a runtime stale — so
 Running the same runtime again runs the copy it took of the old pane.
 
-Four changes like that are on this branch: three are refused as a reload, and the fourth loads
-and shows nothing new:
+Four changes in this tree are like that, each one a runtime made from an older build cannot take
+from a pane built with it: three are refused as a reload, and the fourth loads and shows nothing
+new:
 
 - **The desktop hears Loom's word that one of its asks never arrived** (`zen.DispatchRefused`),
   so a desktop built from this source is refused as a reload of one built before it.
@@ -335,7 +336,7 @@ step by step; [loading what you built](load-plans.md#when-a-built-artifact-is-lo
 
 ## Which panes
 
-The development catalog holds a recipe for each pane weave Zengine ships, and one for the menu
+The development catalog holds a recipe for each of these pane weaves, and one for the menu
 presenter:
 
 | recipe | the panes it draws | editing entry |
@@ -351,6 +352,11 @@ presenter:
 | `zengine-terminal-pane` | Terminal | `terminal/pane.cpp` |
 | `zengine-introspection` | Loaded, Project, Powers | `introspection/introspection.cpp` |
 | `zengine-composer` | Compose | `composer/composer.cpp` |
+| `zengine-palette` | the command palette | `workshop/palette/palette.cpp` |
+| `zengine-first-run` | Quick setup | `workshop/first-run/first_run.cpp` |
+| `zengine-flow-pane` | Flow | `flow/flow-pane/pane.cpp` |
+| `zengine-view-builder` | View Builder | `view/view-builder/pane.cpp` |
+| `zengine-inventory-pane` | Inventory | `inventory/inventory-pane/pane.cpp` |
 | `zengine-menu-presenter` | no pane of its own: every pane's menu, the way it shows them ([its manual](zengine.presenter.md), [replacing it](panes.md#replacing-the-menu-presenter)) | `workshop/menu-presenter/presenter.cpp` |
 
 **Everything else is deliberately not in it.** The host, the windows and their skins, the input

@@ -2211,7 +2211,8 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         {"zengine-palette", "workshop/palette/palette.cpp"},
         {"zengine-first-run", "workshop/first-run/first_run.cpp"},
         {"zengine-flow-pane", "flow/flow-pane/pane.cpp"},
-        {"zengine-view-builder", "view/view-builder/pane.cpp"}};
+        {"zengine-view-builder", "view/view-builder/pane.cpp"},
+        {"zengine-inventory-pane", "inventory/inventory-pane/pane.cpp"}};
     REQUIRE(read.recipes.size() == panes.size());
     const std::filesystem::path host_dir =
         std::filesystem::path(WORKSHOP_HOST_DIR).lexically_normal();

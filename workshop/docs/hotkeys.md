@@ -1,9 +1,9 @@
 # Hotkeys and the keymap
 
 **Workshop as a product.** What a key means, how to find out without leaving the screen, and
-how to change a binding durably. The default bindings are listed in
-[cheat_sheet.md](../../cheat_sheet.md#keys); this page is about the machinery that keeps every
-listed key true.
+how to change a binding durably. The default bindings are listed
+[below](#the-default-keys), each in the place it is answered; the rest of this page is the
+machinery that keeps every listed key true.
 
 ## One binding truth
 
@@ -30,16 +30,18 @@ keymap holds names and gestures only; the operations stay with their owners.
 Some keys are not Workshop's at all. **Which tool a chord opens, and what a key means where
 nothing more specific claimed it, belong to the desktop** — a tool that arrives by a row in your
 load plan like every other, and that you can edit, rebuild or replace. Out of the box it supplies
-four:
+these:
 
 | key | what it does |
 |---|---|
-| `Ctrl`+`p` | show or hide the **Pane Manager**: it shows with your keys in it, and a second press hides it ([panes](panes.md#showing-going-to-and-hiding--the-pane-manager)) |
-| `Ctrl`+`t` | open the **Terminal**, or put you in it |
-| `Ctrl`+`k` | open the **Hotkeys** pane, or put you in it |
-| `Esc` | put down the pane you have selected, where nothing more specific wanted the key |
+| <!-- key desktop.panes -->`ctrl+p`<!-- /key --> | show or hide the **Pane Manager**: it shows with your keys in it, and a second press hides it ([panes](panes.md#showing-going-to-and-hiding--the-pane-manager)) |
+| <!-- key desktop.terminal -->`ctrl+t`<!-- /key --> | open the **Terminal**, or put you in it |
+| <!-- key desktop.hotkeys -->`ctrl+k`<!-- /key --> | open the **Hotkeys** pane, or put you in it |
+| <!-- key desktop.manual -->`ctrl+f`<!-- /key --> | show the manual of the pane you are in, as its `?` does ([a pane's manual](panes.md#a-panes-manual-and-its-gear)) |
+| <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, or <!-- key desktop.palette-shift -->`double-shift`<!-- /key --> | show or hide the **command palette** ([its manual](zengine.palette.md)) |
+| <!-- key desktop.deselect -->`escape`<!-- /key --> | put down the pane you have selected, where nothing more specific wanted the key |
 
-The first three are answered **above every mode**: they work while your hands are in a pane,
+All but the last are answered **above every mode**: they work while your hands are in a pane,
 which is the whole point of a key that opens a tool. A pane that must own one of them says so by
 name, and then the chord is the pane's for as long as that pane has the keyboard — that is a
 declaration, not a guess, so it survives you moving either key.
@@ -49,7 +51,8 @@ answers its own `Esc` first, and only a press nothing claimed puts the selected 
 Neovim's `Esc` is still Neovim's.
 
 **Remap them like any other key**, by id — `desktop.panes`, `desktop.terminal`,
-`desktop.hotkeys`, `desktop.deselect` — and **switch one off** by binding it to `none`:
+`desktop.hotkeys`, `desktop.manual`, `desktop.palette`, `desktop.palette-shift`,
+`desktop.deselect` — and **switch one off** by binding it to `none`:
 
 ```json
 { "action": "desktop.deselect", "gesture": "none" }
@@ -71,6 +74,64 @@ Workshop` — the empty room is blank, and you have no application defaults and 
 until you build it and launch again. Workshop's own keys (`w`, `a`, the layout keys, `q`) still
 work. A graphical launch also prints the refusal on its console; in a terminal Workshop the
 terminal window owns the terminal by then, so the condition row is where it is said.
+
+## The default keys
+
+What each key does out of the box, in the place it is answered, with the id a keymap file names it
+by ([the keymap file](#the-keymap-file)). The Hotkeys pane shows the keys in force, yours
+included. The desktop's keys are [above](#keys-the-application-supplies--and-how-to-take-them-away);
+these are Workshop's own.
+
+**Anywhere**, even while a pane takes your text: <!-- key focus.leave -->`ctrl+q`<!-- /key -->
+(`focus.leave`) leaves the pane or mode you are in and keeps the pane selected;
+<!-- key workshop.quit -->`ctrl+c`<!-- /key --> (`workshop.quit`) quits where nothing takes text,
+and in a line that does, it copies.
+
+**Command mode**, where no pane holds your keys:
+
+| key | id | does |
+|---|---|---|
+| <!-- key workshop.context -->`a`<!-- /key --> | `workshop.context` | the context menu for the room ([the context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
+| <!-- key workshop.manage -->`w`<!-- /key --> | `workshop.manage` | arrange the desk ([arrange](panes.md#moving-resizing-and-ordering--arrange)) |
+| <!-- key workshop.pane-titles -->`t`<!-- /key --> | `workshop.pane-titles` | show or hide pane titles ([pane titles](panes.md#pane-titles)) |
+| <!-- key setup.name -->`s`<!-- /key --> / <!-- key setup.restore -->`r`<!-- /key --> | `setup.name` / `setup.restore` | save the layout you are on to its setup file / restore it ([setups](setups.md)) |
+| <!-- key layout.next -->`.`<!-- /key --> / <!-- key layout.previous -->`,`<!-- /key --> | `layout.next` / `layout.previous` | the next / previous layout |
+| <!-- key layout.new -->`=`<!-- /key --> | `layout.new` | a new layout, holding the desk a fresh Workshop opens on |
+| <!-- key layout.remove -->`ctrl+w`<!-- /key --> | `layout.remove` | remove the layout you are on |
+| <!-- key focus.next -->`tab`<!-- /key --> / <!-- key focus.previous -->`shift+tab`<!-- /key --> | `focus.next` / `focus.previous` | select the next / previous pane |
+| <!-- key focus.left -->`left`<!-- /key --> <!-- key focus.right -->`right`<!-- /key --> <!-- key focus.up -->`up`<!-- /key --> <!-- key focus.down -->`down`<!-- /key --> | `focus.left` and the rest | select the pane on that side |
+| <!-- key focus.enter -->`return`<!-- /key --> | `focus.enter` | give the selected pane your keys |
+| <!-- key workshop.quit -->`q`<!-- /key --> | `workshop.quit` | quit |
+
+No key asks for these until your file binds one: `layout.rename`, `layout.duplicate`,
+`layout.move-left` and `layout.move-right`, on a tab's menu; `pane.edit-code`, on a pane's menu;
+`workshop.band-keys` and `workshop.hotkeys-keys`, in a pane's Settings
+([how keys are spelled](#how-keys-are-spelled)).
+
+**Arranging**, the desk (<!-- key workshop.manage -->`w`<!-- /key -->) or one pane (its menu's
+`arrange`), the same keys in both ([arrange](panes.md#moving-resizing-and-ordering--arrange)):
+
+| key | id | does |
+|---|---|---|
+| <!-- key manage.place-left -->`left`<!-- /key --> <!-- key manage.place-right -->`right`<!-- /key --> <!-- key manage.place-up -->`up`<!-- /key --> <!-- key manage.place-down -->`down`<!-- /key --> | `manage.place-left` and the rest | move the pane one cell |
+| <!-- key manage.pull-left -->`shift+left`<!-- /key --> <!-- key manage.pull-right -->`shift+right`<!-- /key --> <!-- key manage.pull-up -->`shift+up`<!-- /key --> <!-- key manage.pull-down -->`shift+down`<!-- /key --> | `manage.pull-left` and the rest | resize it one cell, its top-left corner staying put |
+| <!-- key manage.grow -->`=`<!-- /key --> / <!-- key manage.shrink -->`-`<!-- /key --> | `manage.grow` / `manage.shrink` | grow / shrink it by the coarse step on both axes |
+| <!-- key manage.front -->`f`<!-- /key --> / <!-- key manage.back -->`b`<!-- /key --> | `manage.front` / `manage.back` | send it to the front / back |
+| <!-- key manage.raise -->`r`<!-- /key --> / <!-- key manage.lower -->`l`<!-- /key --> | `manage.raise` / `manage.lower` | raise / lower it one step |
+| <!-- key manage.remove -->`d`<!-- /key --> | `manage.remove` | take it off the layout; the Pane Manager brings it back |
+| <!-- key manage.reset -->`0`<!-- /key --> | `manage.reset` | reset: then <!-- key manage.reset-place -->`p`<!-- /key --> place, <!-- key manage.reset-width -->`w`<!-- /key --> width, <!-- key manage.reset-height -->`h`<!-- /key --> height, <!-- key manage.reset-order -->`o`<!-- /key --> order, <!-- key manage.done -->`escape`<!-- /key --> back |
+| <!-- key manage.close -->`escape`<!-- /key --> | `manage.close` | leave |
+| <!-- key manage.next -->`tab`<!-- /key --> / <!-- key manage.previous -->`shift+tab`<!-- /key --> | `manage.next` / `manage.previous` | the desk only: step the keyboard to the next / previous pane |
+| <!-- key manage.arrange -->`return`<!-- /key --> | `manage.arrange` | the desk only: arrange exactly that pane |
+
+**The context menu**: <!-- key context.up -->`up`<!-- /key --> and
+<!-- key context.down -->`down`<!-- /key --> choose a row, <!-- key context.choose -->`return`<!-- /key -->
+chooses it, <!-- key context.back -->`escape`<!-- /key --> backs out. **Renaming a layout**:
+<!-- key naming.commit -->`return`<!-- /key --> renames it, <!-- key naming.cancel -->`escape`<!-- /key -->
+leaves the name as it was.
+
+**A pane's own keys** are in its manual, which <!-- key desktop.manual -->`ctrl+f`<!-- /key --> shows
+for the pane you are in; each folder's front page lists its manuals ([the map](../../docs/README.md#the-map)).
 
 ## The Hotkeys pane — `Ctrl`+`k`
 
@@ -168,7 +229,7 @@ word in the keymap file:
 | word | the legend rows show |
 |---|---|
 | `full` (and `default`) | the current context's bindings, packed as room permits, cut with a mark |
-| `compact` | only how to open the Hotkeys pane, e.g. `^k hotkeys` |
+| `compact` | only the desktop's keys answered above every mode, beginning `ctrl+t terminal \| ctrl+p panes \| ctrl+k hotkeys` |
 | `hidden` | nothing |
 
 `hidden` blanks the legend rows and does nothing else. Every other row — the notice beside

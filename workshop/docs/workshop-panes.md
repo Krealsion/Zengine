@@ -223,8 +223,10 @@ What can be built is an **authored file** now, not a target compiled into the ex
 `snake-world-v2`, in Zengine's own build tree. That target is deliberately not one of
 the artifacts this running Workshop has loaded — building one of those would overwrite a shared
 library the process has mapped — and `zengine-workshop` rebuilding itself is the same hazard
-aimed at the host binary, which stays out of scope: nothing here reloads a live artifact, and
-an already-loaded artifact is refused in words rather than replaced.
+aimed at the host binary, which stays out of scope. A live weave is reloaded in place from a copy
+staged beside Workshop, never over the file it loaded, and an artifact that also supplies
+operators is refused in words
+([when a built artifact is loaded again](load-plans.md#when-a-built-artifact-is-loaded-again)).
 
 Workshop's weave is declared in `workshop/weave.hpp` and its bodies compile once from
 `workshop/weave_<subject>.cpp`, not in the host's translation unit — so the suite mounts it on a
@@ -246,9 +248,9 @@ Setup
 ```
 
 - **A `PaneRef` is a provider/service key plus a pane key**, both text
-  (`workshop/setup.hpp`). The built-ins are `zengine.workshop/info` and
-  `zengine.workshop/builder`, and a saved file spells them that way — never `pane_kind::kInfo`, never
-  a catalog ordinal, never a `WeaveId`. Two reasons, and the second is the load-bearing one: an
+  (`workshop/setup.hpp`). The one built-in is `zengine.workshop/layouts` (`pane_key::kLayouts`),
+  and a saved file spells it that way — never `pane_kind::kLayouts`, never a catalog ordinal,
+  never a `WeaveId`. Two reasons, and the second is the load-bearing one: an
   ordinal is not durable (renumber the constants and every saved setup opens the other pane),
   and **an ordinal cannot be absent** — there is no integer meaning *a pane this build has never
   heard of*, so a setup built on one would have to drop such an entry on load, which is a saved

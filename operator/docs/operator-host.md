@@ -1,8 +1,8 @@
 # The operator host — how a loaded tool spends the host's operator truth
 
 **Reference.** How a dynamically loaded weave asks a host to evaluate one of its operators:
-what a consumer writes, what a host writes, what crosses the artifact boundary, and the five
-ways it can fail.
+what a consumer writes, what a host writes, what crosses the artifact boundary, and each way it
+can fail.
 
 A Zengine host may hold an [operator](../catalog.hpp) catalog: named,
 typed, composable semantic rules that more than one surface needs to agree
@@ -180,7 +180,7 @@ the caller already holds, and nothing about arriving from a loaded artifact make
 it a capability question. The honest boundary is LOAD — a weave loaded in-process
 shares this address space, and `Kernel::containment_note()` says what that means.
 
-## Five failures, five answers
+## Each failure, its own answer
 
 | status | what happened |
 |---|---|
@@ -189,6 +189,8 @@ shares this address space, and `Kernel::containment_note()` says what that means
 | `ZENGINE_OP_ERR_NOT_FOUND` | the host publishes no operator under that identity |
 | `ZENGINE_OP_ERR_REFUSED` | the operator refused — a bad pack, an unresolved step, a step that is not the authored signature. The reason carries the gate's or the catalog's own words, verbatim |
 | `ZENGINE_OP_ERR_MALFORMED` | the bytes were not a well-formed Zen envelope at all |
+| `ZENGINE_OP_ERR_HOST_FAILED` | the host itself failed while answering, contained at the seam rather than thrown across it. It says nothing about the request |
+| `ZENGINE_OP_ERR_PROVIDER_FAILED` | a provider failed while describing or spending one of its own contributions ([operator providers](operator-providers.md)) |
 
 A missing host and a missing operator are different troubles and send a reader to
 different places, which is why they are two answers and not one silence.
