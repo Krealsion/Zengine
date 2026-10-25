@@ -1308,14 +1308,14 @@ TEST_CASE("a press anywhere else takes the keyboard away again") {
     r.key(input::scan::kUp);
     CHECK(seat->keys.size() == before);
 
-    // ...and a press on Workshop's own right-column pane does the same. The press is at that
-    // column's RIGHT-HAND edge: the stack's slot reaches into its left columns because the room
-    // is the surface (`the-room-is-the-screen`), and the external pane in that slot would take a
-    // press aimed at the pane's first column.
+    // ...and a press on Workshop's own pane at the room's top-right does the same. The press is at
+    // that strip's RIGHT-HAND edge: the stack's slot reaches into its left columns because the
+    // room is the surface (`the-room-is-the-screen`), and the external pane in that slot would take
+    // a press aimed at the pane's first column.
     press_body(r, kind);
     REQUIRE(r.session().panes.keyboard == kind);
     const Screen sc = screen_of(r.session());
-    r.press_cell(cells_of(sc).side_x + kSideCols - 1, kRoomCellY + 2);
+    r.press_cell(cells_of(sc).strip_x + kStripCols - 1, kRoomCellY + 2);
     CHECK(r.session().panes.keyboard == kNoPaneKind);
 }
 

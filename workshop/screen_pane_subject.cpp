@@ -73,43 +73,106 @@ Written pane_geometry_typeable(const Session& s, const PaneRef& ref) {
     return Written::ok();
 }
 
+// WL-PED-05 -- agents/workshop/pane-manager.md; WL-GEO-12 -- agents/workshop/geometry.md
 std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axis) {
     const SetupPane* row = pane_of(s.setup.active, ref);
     if (row == nullptr) {
         return "--";
     }
     bool projected = false;
+    const auto amount = [&](std::int64_t px) {
+        return geometry_amount_text(px, s.cell_px, projected) + " " +
+               std::string(geometry_unit(s.cell_px));
+    };
     std::string out;
     if (axis < 2) {
-        if (row->place.mode != pane_unit::kPixels) {
+        // A PLACE IS ITS WORD AND, ON AN AXIS THE WORD READS, THE OFFSET FROM ITS EDGE.
+        const std::int64_t mode = row->place.mode;
+        if (mode == pane_unit::kDefault) {
             return "-";
         }
-        out = geometry_amount_text(axis == 0 ? row->place.x : row->place.y, s.cell_px,
-                                   projected);
+        const bool reads = axis == 0 ? ui::place_reads_x(mode) : ui::place_reads_y(mode);
+        const std::string word =
+            mode == pane_unit::kPixels ? std::string() : std::string(ui::place_word(mode));
+        if (!reads) {
+            return word;
+        }
+        const std::int64_t offset = axis == 0 ? row->place.x : row->place.y;
+        out = (word.empty() ? "" : word + " ") +
+              (ui::place_reads_share(mode) ? share_text(offset) : amount(offset));
     } else {
         const PaneSize& size = axis == 2 ? row->width : row->height;
-        if (size.mode != pane_unit::kPixels) {
-            return "-";
+        switch (size.mode) {
+        case pane_unit::kPixels: out = amount(size.amount); break;
+        case ui::kSizeShare: out = share_text(size.amount); break;
+        case ui::kSizeFit:
+        case ui::kSizeFill: out = std::string(ui::size_word(size.mode)); break;
+        default: return "-";
         }
-        out = geometry_amount_text(size.amount, s.cell_px, projected);
     }
-    out += " " + std::string(geometry_unit(s.cell_px));
     if (projected) {
         out += kProjectedNote;
     }
     return out;
 }
 
+namespace {
+
+std::string_view trimmed(std::string_view v) {
+    while (!v.empty() && v.front() == ' ') {
+        v.remove_prefix(1);
+    }
+    while (!v.empty() && v.back() == ' ') {
+        v.remove_suffix(1);
+    }
+    return v;
+}
+
+/// A share as typed: `50%` or `33.33%`, hundredths of a percent at most, or `share 5000` in
+/// ten-thousandths -- or `share 33.33%`, as a share place reads back. None when the text is
+/// neither.
+std::optional<std::int64_t> typed_share(std::string_view body) {
+    if (body.size() > 6 && body.substr(0, 6) == "share ") {
+        const std::string_view rest = trimmed(body.substr(6));
+        if (!rest.empty() && rest.back() == '%') {
+            return typed_share(rest);
+        }
+        return TextForm<std::int64_t>::parse(rest);
+    }
+    if (body.size() < 2 || body.back() != '%') {
+        return std::nullopt;
+    }
+    const std::string_view number = body.substr(0, body.size() - 1);
+    std::string_view whole = number;
+    std::string_view part;
+    if (const std::size_t dot = number.find('.'); dot != std::string_view::npos) {
+        whole = number.substr(0, dot);
+        part = number.substr(dot + 1);
+        if (part.empty() || part.size() > 2) {
+            return std::nullopt;
+        }
+    }
+    const std::optional<std::int64_t> w = TextForm<std::int64_t>::parse(whole);
+    const std::optional<std::int64_t> f =
+        part.empty() ? std::optional<std::int64_t>(0) : TextForm<std::int64_t>::parse(part);
+    if (!w || !f || *w < 0 || *f < 0 || *w > 100) {
+        return std::nullopt;
+    }
+    return *w * 100 + (part.size() == 1 ? *f * 10 : *f);
+}
+
+/// What else the row takes, said after a refusal of text that is no number at all; a number in
+/// the other face's unit is refused in its own words alone.
+std::string word_hint(const FaceAmount& face, const std::string& takes) {
+    return face.refusal.rfind("not a whole number", 0) == 0 ? " -- or " + takes : std::string();
+}
+
+} // namespace
+
 // WL-PED-05 -- agents/workshop/pane-manager.md
 Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
                         const std::string& text) {
-    std::string_view body = text;
-    while (!body.empty() && body.front() == ' ') {
-        body.remove_prefix(1);
-    }
-    while (!body.empty() && body.back() == ' ') {
-        body.remove_suffix(1);
-    }
+    const std::string_view body = trimmed(text);
     // THE EDIT IS JUDGED ON A COPY OF THE LIVE DESK, and the row it makes is what the commit asks
     // the store to write.
     Setup desk = s.setup.active;
@@ -139,26 +202,120 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
     if (!ready.accepted) {
         return ready;
     }
-    const FaceAmount typed = parse_face_amount(body, s.cell_px);
-    if (!typed.accepted) {
-        return Written::no(typed.refusal);
+    SetupPane* row = pane_of(desk, ref);
+    const auto stored = [&s, &desk, &ref](const Written& legal) {
+        if (legal.accepted) {
+            s.pending_edit = window_edit(*pane_of(desk, ref));
+        }
+        return legal;
+    };
+    // A TYPED SIZE IS WRITTEN AS TYPED, judged by the owner's own rules for its word: a number
+    // in the face's unit is pixels, `fit` and `fill` are themselves, and a share is `50%`,
+    // `33.33%` or `share 5000`.
+    if (axis >= 2) {
+        PaneSize& size = axis == 2 ? row->width : row->height;
+        const char* which = axis == 2 ? "width" : "height";
+        PaneSize typed;
+        const std::optional<std::int64_t> mode = ui::size_named(body);
+        if (mode && (*mode == ui::kSizeFit || *mode == ui::kSizeFill)) {
+            typed = PaneSize{*mode, 0};
+        } else if (const std::optional<std::int64_t> share = typed_share(body)) {
+            typed = PaneSize{ui::kSizeShare, *share};
+        } else {
+            std::string_view amount = body;
+            if (amount.size() > 7 && amount.substr(0, 7) == "pixels ") {
+                amount = trimmed(amount.substr(7));
+            }
+            const FaceAmount face = parse_face_amount(amount, s.cell_px);
+            if (!face.accepted) {
+                return Written::no(face.refusal + word_hint(face, "a word: fit, fill, `50%` or `share 5000`"));
+            }
+            typed = PaneSize{pane_unit::kPixels, face.px};
+        }
+        const Written legal = check_pane_size(typed, which);
+        if (legal.accepted) {
+            size = typed;
+        }
+        return stored(legal);
     }
-    const PixelRect from = pane_window_base(s, ref);
-    PaneAxisProposal horizontal;
-    PaneAxisProposal vertical;
-    horizontal.base = from.x;
-    vertical.base = from.y;
-    switch (axis) {
-    case 0: horizontal.position = typed.px; break;
-    case 1: vertical.position = typed.px; break;
-    case 2: horizontal.extent = PaneSize{pane_unit::kPixels, typed.px}; break;
-    default: vertical.extent = PaneSize{pane_unit::kPixels, typed.px}; break;
+    const bool across = axis == 0;
+    const std::size_t space = body.find(' ');
+    const std::string_view head = body.substr(0, space);
+    // A SHARE PLACE, typed as a size's share is: this axis the share typed, the other its own
+    // share where the place is one already, else the share reaching where the pane stands on it.
+    // `share` alone puts both axes where the pane stands.
+    const std::optional<std::int64_t> share = typed_share(body);
+    if (share || head == ui::place_word(ui::kPlaceShare)) {
+        if (!share && space != std::string_view::npos) {
+            return Written::no("a share place is typed `33.33%` or `share 3333`: ten-thousandths "
+                               "of the room from its top-left");
+        }
+        PanePlace typed{ui::kPlaceShare, row->place.x, row->place.y};
+        if (!ui::place_reads_share(row->place.mode)) {
+            const PaneWindowAxes at = pane_window_at(pane_window_base(s, ref), screen_of(s));
+            typed.x = share_placing(at.horizontal.base, at.horizontal.span);
+            typed.y = share_placing(at.vertical.base, at.vertical.span);
+        }
+        if (share) {
+            (across ? typed.x : typed.y) = *share;
+        }
+        const Written legal = check_pane_place(typed);
+        if (legal.accepted) {
+            row->place = typed;
+        }
+        return stored(legal);
     }
-    const Written written = author_pane_window(desk, ref, horizontal, vertical).written;
-    if (written.accepted) {
-        s.pending_edit = window_edit(*pane_of(desk, ref));
+    // A PLACE WORD, with this axis's offset after it where the word reads one; the other axis
+    // keeps its offset where both words read it.
+    if (const std::optional<std::int64_t> mode = ui::place_named(head);
+        mode && *mode != pane_unit::kDefault) {
+        std::int64_t offset = 0;
+        if (space != std::string_view::npos) {
+            const FaceAmount face = parse_face_amount(trimmed(body.substr(space)), s.cell_px);
+            if (!face.accepted) {
+                return Written::no(face.refusal);
+            }
+            offset = face.px;
+        }
+        const PanePlace was = row->place;
+        const auto kept = [](bool now_reads, bool was_reads, std::int64_t v) {
+            return now_reads && was_reads ? v : std::int64_t{0};
+        };
+        PanePlace typed{*mode, kept(ui::place_reads_x(*mode), ui::place_reads_x(was.mode), was.x),
+                        kept(ui::place_reads_y(*mode), ui::place_reads_y(was.mode), was.y)};
+        if (across ? ui::place_reads_x(*mode) : ui::place_reads_y(*mode)) {
+            (across ? typed.x : typed.y) = offset;
+        } else if (offset != 0) {
+            return Written::no("`" + std::string(head) + "` is centred " +
+                               (across ? "across" : "down") + " -- it takes no offset there");
+        }
+        const Written legal = check_pane_place(typed);
+        if (legal.accepted) {
+            row->place = typed;
+        }
+        return stored(legal);
     }
-    return written;
+    const FaceAmount face = parse_face_amount(body, s.cell_px);
+    if (!face.accepted) {
+        return Written::no(face.refusal + word_hint(face, "a place word: " + pane_place_words()));
+    }
+    // A NUMBER ON AN AXIS THE PLACE'S WORD READS is the offset from that word's edge, as the row
+    // shows it; on a centred or `default` axis, for `pixels` and for a share place, it is pixels
+    // from the room's top-left, through the gesture door, which says a share place's in its word.
+    const std::int64_t mode = row->place.mode;
+    if (mode != pane_unit::kPixels && !ui::place_reads_share(mode) &&
+        (across ? ui::place_reads_x(mode) : ui::place_reads_y(mode))) {
+        PanePlace moved = row->place;
+        (across ? moved.x : moved.y) = face.px;
+        const Written legal = check_pane_place(moved);
+        if (legal.accepted) {
+            row->place = moved;
+        }
+        return stored(legal);
+    }
+    PaneWindowAxes axes = pane_window_at(pane_window_base(s, ref), screen_of(s));
+    (across ? axes.horizontal : axes.vertical).position = face.px;
+    return stored(author_pane_window(desk, ref, axes.horizontal, axes.vertical).written);
 }
 
 // WL-INFO-14 -- agents/workshop/info-body.md

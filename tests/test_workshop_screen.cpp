@@ -194,11 +194,6 @@ TEST_CASE("a bigger surface is a bigger workspace, not a bigger picture of a sma
     CHECK(cells_of(big).room_w == cells_of(kMinScreen).room_w + 22);
     CHECK(cells_of(big).room_h == cells_of(kMinScreen).room_h + 11);
 
-    // ...AND THE PANE DOES NOT. Its width is a fact about how much of a name is worth
-    // showing, so it is the same column count anchored to the new right edge.
-    CHECK(cells_of(big).w - cells_of(big).side_x == cells_of(kMinScreen).w - cells_of(kMinScreen).side_x);
-    CHECK(cells_of(big).side_x == 72);
-
     // The bottom band keeps its shape against the bottom edge, and the top band keeps its
     // rows against the top one -- both are fixed reservations, not shares.
     CHECK(cells_of(big).h - cells_of(big).notice_y == cells_of(kMinScreen).h - cells_of(kMinScreen).notice_y);
@@ -206,10 +201,8 @@ TEST_CASE("a bigger surface is a bigger workspace, not a bigger picture of a sma
     CHECK(cells_of(big).notice_y == cells_of(big).h - kBottomRows);   // the band's own first row
     CHECK(help_row(big) + 2 == cells_of(big).h - 1);           // ...and two legend rows under it
 
-    // AND THE ROOM RUNS UNDER THE PANE RATHER THAN STOPPING BESIDE IT: the column is a place,
-    // so the room is the surface and the place stands on it.
+    // AND THE ROOM IS THE SURFACE: nothing comes off its width.
     CHECK(cells_of(big).room_w == cells_of(big).w);
-    CHECK(cells_of(big).side_x < cells_of(big).room_w);
 }
 
 TEST_CASE("the screen's extent is TOTAL over whatever a medium published") {
@@ -238,13 +231,11 @@ TEST_CASE("the screen's extent is TOTAL over whatever a medium published") {
         // cell, between bands that tile the screen with it.
         CHECK(sc.room_w >= kScreenMinW);
         CHECK(sc.room_h >= cells_px(1));
-        CHECK(sc.side_x > 0);
         CHECK(sc.room_y > 0);
         CHECK(sc.room_y + sc.room_h == sc.notice_y);
         // The furniture that is every pane's, and the room's own rule: the room IS the
         // surface, at every extent this screen can be asked for.
         CHECK(sc.room_w == sc.w);
-        CHECK(sc.side_x + cells_px(kSideCols) == sc.w);
         CHECK(sc.notice_y < sc.h);
     };
 
@@ -442,15 +433,130 @@ cells_covered(bounds_of(panes, setup_for(panes), p.kind, sc).rect);
     }
 }
 
+TEST_CASE("an anchored pane keeps its corner where its word puts it, at every size of the window") {
+    // ⚔ MUTATION: `pane_part` reading every place word as `pixels` -- the pane stands at its
+    // offsets from the room's top-left, and its corner leaves the room's bottom-right.
+    Live t;
+    pick(t, second::kKind);
+    stage_desk(t, [](Setup& desk) {
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref_of(second::kKind)) {
+                row.place = PanePlace{ui::kPlaceBottomRight, 24, 36};
+                row.width = PaneSize{pane_unit::kPixels, 240};
+                row.height = PaneSize{ui::kSizeShare, 2500};
+            }
+        }
+    });
+    // Two terminal rooms and a window's, whose face sets type.
+    const std::int64_t sizes[][4] = {{cells_px(80), cells_px(30), 0, 0},
+                                     {cells_px(120), cells_px(44), 0, 0},
+                                     {1913, 1031, 8, 18}};
+    for (const auto& size : sizes) {
+        CAPTURE(size[0]);
+        CAPTURE(size[1]);
+        t.extent_px(size[0], size[1], size[2], size[3]);
+        const Screen sc = screen_of(t.session());
+        const std::int64_t step = chrome_grain(sc);
+        const PaneBounds b =
+            bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
+        REQUIRE(b.open);
+        // ITS OWN BOTTOM-RIGHT STANDS 24 IN FROM THE ROOM'S RIGHT AND 36 UP FROM ITS FLOOR.
+        CHECK(b.resolved.x + b.resolved.w == sc.room_w - 24);
+        CHECK(b.resolved.y + b.resolved.h == sc.room_y + sc.room_h - 36);
+        CHECK(b.resolved.w == 240);
+        // ...and a quarter of the room tall, its far edge floored to the window's step.
+        CHECK(b.resolved.h >= sc.room_h / 4);
+        CHECK(b.resolved.h <= sc.room_h / 4 + step);
+    }
+}
+
+TEST_CASE("a centred pane stands in the middle of the room, and a fill runs to the room's far edge") {
+    // ⚔ MUTATION: a `center` place read as `default` -- the pane stands down the stack.
+    Live t;
+    pick(t, second::kKind);
+    stage_desk(t, [](Setup& desk) {
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref_of(second::kKind)) {
+                row.place = PanePlace{ui::kPlaceCenter, 0, 0};
+                row.width = PaneSize{ui::kSizeShare, 5000};
+                row.height = PaneSize{pane_unit::kPixels, cells_px(4)};
+            }
+        }
+    });
+    const Screen sc = screen_of(t.session());
+    const PaneBounds b = bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
+    REQUIRE(b.open);
+    const std::int64_t step = chrome_grain(sc);
+    CHECK(b.resolved.x == sc.room_w / 4 / step * step);
+    CHECK(b.resolved.x + b.resolved.w == sc.room_w * 3 / 4 / step * step);
+    CHECK(b.resolved.y - sc.room_y == (sc.room_h - cells_px(4)) / 2 / step * step);
+    // A FILL FROM A LEFT OFFSET runs to the room's right edge, whatever the window.
+    stage_desk(t, [](Setup& desk) {
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref_of(second::kKind)) {
+                row.place = PanePlace{ui::kPlaceLeft, 60, 0};
+                row.width = PaneSize{ui::kSizeFill, 0};
+            }
+        }
+    });
+    const PaneBounds filled =
+        bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
+    CHECK(filled.resolved.x == 60);
+    CHECK(filled.resolved.x + filled.resolved.w == sc.room_w);
+}
+
+TEST_CASE("a bar a third of the way down stays a third down at every size, in both windows, its ends at the room's sides") {
+    // ⚔ MUTATION: `ui_place_of` dropping a share place's numbers -- the bar stands at the
+    // room's top.
+    Live t;
+    pick(t, second::kKind);
+    stage_desk(t, [](Setup& desk) {
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref_of(second::kKind)) {
+                row.place = PanePlace{ui::kPlaceShare, 0, 3333};
+                row.width = PaneSize{ui::kSizeFill, 0};
+                row.height = PaneSize{pane_unit::kPixels, 48};
+            }
+        }
+    });
+    // Three terminal rooms and three of a window whose face sets type.
+    const std::int64_t sizes[][4] = {{cells_px(80), cells_px(30), 0, 0},
+                                     {cells_px(120), cells_px(44), 0, 0},
+                                     {cells_px(160), cells_px(50), 0, 0},
+                                     {1000, 640, 8, 18},
+                                     {1500, 860, 8, 18},
+                                     {1913, 1031, 8, 18}};
+    for (const auto& size : sizes) {
+        CAPTURE(size[0]);
+        CAPTURE(size[1]);
+        t.extent_px(size[0], size[1], size[2], size[3]);
+        const Screen sc = screen_of(t.session());
+        const std::int64_t step = chrome_grain(sc);
+        const PaneBounds b =
+            bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
+        REQUIRE(b.open);
+        // ITS TOP A THIRD OF THE ROOM DOWN, floored to the window's step...
+        const std::int64_t third = sc.room_h * 3333 / 10000;
+        CHECK(b.resolved.y - sc.room_y == third / step * step);
+        // ...its ends at the room's sides, 48 pixels tall...
+        CHECK(b.resolved.x == 0);
+        CHECK(b.resolved.w == sc.room_w);
+        CHECK(b.resolved.h == 48);
+        // ...touching neither the room's top nor its floor.
+        CHECK(b.resolved.y > sc.room_y);
+        CHECK(b.resolved.y + b.resolved.h < sc.room_y + sc.room_h);
+    }
+}
+
 TEST_CASE("occupancy is resolved against the screen, not remembered from one") {
-    // A BIGGER SURFACE MOVES THE SIDE REGION, and the cells it occupies move with
+    // A BIGGER SURFACE MOVES A PANE AT ITS TOP-RIGHT, and the cells it occupies move with
     // it -- because the occupancy answer is `bounds_of` on the CURRENT screen and
     // is cached nowhere. The stack is anchored to the other corner and does not
     // move, which is the same asymmetry the painting has.
     Live t;
-    // THE PANE AT THE RIGHT COLUMN IS AUTHORED, NOT INHERITED: a desk row spelled
-    // `right-column` is what puts a pane in it.
-    open_at_right_column(t, second::kKind);
+    // THE PANE AT THE TOP-RIGHT IS AUTHORED, NOT INHERITED: a desk row's word is what puts a
+    // pane there.
+    open_at_top_right(t, second::kKind);
     const Screen small = screen_of(t.session());
     const CellRect side_small =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind, small).rect);
@@ -461,7 +567,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKi
     REQUIRE(cells_of(big).w == 100);
     const CellRect side_big =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind, big).rect);
-    CHECK(side_big.x == cells_of(big).side_x);
+    CHECK(side_big.x == cells_of(big).strip_x);
     CHECK(side_big.x > side_small.x);
 
     // The column a weaver presses is the column they can see, on either screen.
@@ -504,7 +610,7 @@ TEST_CASE("a closed pane occupies nothing, and neither does a screen with none o
     // first cell.
     const CellRect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
     CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, stack.x, stack.y).occupied);
-    CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, cells_of(sc).side_x, 0).occupied);
+    CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, cells_of(sc).strip_x, 0).occupied);
 
     // And a press in the vacated column reaches the bare room, which is what "the
     // pane was the only thing in the way" means.
@@ -542,7 +648,7 @@ TEST_CASE("the cells just outside a pane are ordinary workspace, on every edge")
     (void)mount_tool(t, "zengine-snake");
     // TWO PLACES WITH A PANE IN EACH: the stack, and the right column a desk row names -- an
     // authored row, not a catalog entry, fills it.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_stock_pane(t);
     const Screen sc = screen_of(t.session());
     const CellRect stack =
@@ -642,7 +748,6 @@ TEST_CASE("a pane may lie over a pane, and the boundary is what makes it legible
         CAPTURE(wh.second);
         const Screen at = screen_of(cells_px(wh.first), cells_px(wh.second));
         CHECK(at.room_w == at.w);
-        CHECK(at.side_x + cells_px(kSideCols) == at.w);
     }
 }
 
@@ -650,7 +755,7 @@ TEST_CASE("the screen's furniture cannot see a pane, open or closed") {
     // THE TEST FOR THE WRONG OWNER, AS A CASE. Were a pane's placement "must not cover Info",
     // closing Info would move it -- a placement that moves because a weaver hid a list of names,
     // which `agents/decisions/the-room-is-the-screen.md` refuses. Nothing in `screen_of` can
-    // see a pane; that is what lets the right column be an ordinary place.
+    // see a pane; that is what lets every point of the room be an ordinary place.
     Session open_info;
     Session no_info;
     // ONE PANE TO CLOSE: a default `Session` opens what `kDefaultPanes` names, which is the
@@ -669,7 +774,7 @@ TEST_CASE("the screen's furniture cannot see a pane, open or closed") {
         // because a pane is open or closed.
         CHECK(a.room_w == b.room_w);
         CHECK(a.room_h == b.room_h);
-        CHECK(a.side_x == b.side_x);
+        CHECK(a.room_y == b.room_y);
         CHECK(a.notice_y == b.notice_y);
         CHECK(b.room_w == b.w);
     }
@@ -1959,6 +2064,245 @@ struct TwoPaneRig : FineRig {
 
 } // namespace
 
+TEST_CASE("a hand pulling a share's edge writes the share whose edge is the hand's pixel, at every pixel of the widest room") {
+    // ⚔ MUTATION: `author_pane_window` writing the hand's extent as `pixels` whatever the word --
+    // the width comes back a count of pixels, and the share is gone.
+    FineRig t;
+    stage_desk(t, [](Setup& s) {
+        REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
+        REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{ui::kSizeShare, 2500},
+                                 PaneSize{pane_unit::kPixels, 120})
+                    .accepted);
+    });
+    t.key(input::scan::kUnknown);
+    const Screen sc = screen_of(t.session());
+    const PixelRect at = t.builder_rect();
+    const PixelRect right = pane_edge_cell(at, pane_edge::kRight);
+    t.press_at(right.x + 2, right.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    // ALT HELD, so no edge snaps: the edge goes where the hand leaves it.
+    motion_with(t, right.x + 2 + 37, right.y + 2, input::space::kPixels, input::mod::kAlt);
+    REQUIRE(t.builder_row()->width.mode == ui::kSizeShare);
+    const PixelRect pulled = t.builder_rect();
+    CHECK(pulled.x == at.x);
+    CHECK(pulled.x + pulled.w == at.x + at.w + 37);
+    CHECK(t.builder_row()->width.amount ==
+          share_reaching(at.w + 37, sc.room_w, ui::Anchor::Start));
+    release_at(t, right.x + 2 + 37, right.y + 2, input::space::kPixels);
+    CHECK(t.builder_row()->width.mode == ui::kSizeShare);
+
+    // EVERY PIXEL OF THE WIDEST ROOM a window lays out, from the room's left and from its right:
+    // the door's share solves back to the hand's pixel, in the solver the desk is drawn with.
+    const std::int64_t span = kScreenMaxW;
+    std::int64_t missed = 0;
+    for (const ui::Anchor anchor : {ui::Anchor::Start, ui::Anchor::End}) {
+        Setup desk = setup_of("Reach", {stock::kKind});
+        desk.panes[0].place = anchor == ui::Anchor::Start ? PanePlace{pane_unit::kPixels, 0, 0}
+                                                          : PanePlace{ui::kPlaceTopRight, 0, 0};
+        desk.panes[0].width = PaneSize{ui::kSizeShare, 5000};
+        for (std::int64_t length = kPanePxMin; length <= span; ++length) {
+            PaneAxisProposal across;
+            across.base = anchor == ui::Anchor::Start ? 0 : span - span / 2;
+            across.length = span / 2;
+            across.span = span;
+            across.extent = PaneSize{pane_unit::kPixels, length};
+            if (anchor == ui::Anchor::End) {
+                across.position = span - length; // a left pull: the right edge holds
+            }
+            REQUIRE(author_pane_window(desk, ref_of(stock::kKind), across, PaneAxisProposal{})
+                        .written.accepted);
+            ui::Element e;
+            e.place = ui_place_of(desk.panes[0].place);
+            e.width = ui_size_of(desk.panes[0].width);
+            e.height = ui::Size{pane_unit::kPixels, 100};
+            const ui::Rect r = ui::arrange({e}, ui::Room{span, 1000, 1}).items.at(0).rect;
+            if (r.w != length || (anchor == ui::Anchor::End && r.x + r.w != span)) {
+                ++missed;
+            }
+            desk.panes[0].width = PaneSize{ui::kSizeShare, 5000};
+        }
+    }
+    CHECK(missed == 0);
+}
+
+TEST_CASE("a hand moving a share place writes the share whose edge is the hand's pixel, at every pixel of the widest room") {
+    // ⚔ MUTATION: `author_pane_window` reading a share place as an anchor -- the place is
+    // written as a count of pixels in a word that reads ten-thousandths.
+    FineRig t;
+    stage_desk(t, [](Setup& s) {
+        SetupPane* row = pane_of(s, ref_of(stock::kKind));
+        row->place = PanePlace{ui::kPlaceShare, 1000, 2000};
+        row->width = PaneSize{pane_unit::kPixels, 300};
+        row->height = PaneSize{pane_unit::kPixels, 120};
+    });
+    t.key(input::scan::kUnknown);
+    const Screen sc = screen_of(t.session());
+    const PixelRect at = t.builder_rect();
+    t.press_at(at.x + 30, at.y + 20, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.active);
+    REQUIRE_FALSE(t.session().pane_drag.sizing);
+    // ALT HELD, so no edge snaps: the pane goes where the hand leaves it, and keeps its word.
+    motion_with(t, at.x + 30 + 37, at.y + 20 + 23, input::space::kPixels, input::mod::kAlt);
+    const SetupPane* row = t.builder_row();
+    REQUIRE(row->place.mode == ui::kPlaceShare);
+    CHECK(row->place.x == share_placing(at.x + 37, sc.room_w));
+    CHECK(row->place.y == share_placing(at.y - sc.room_y + 23, sc.room_h));
+    CHECK(t.builder_rect().x == at.x + 37);
+    CHECK(t.builder_rect().y == at.y + 23);
+    CHECK(t.notice().find("place now") == std::string::npos); // its word kept, nothing to say
+    release_at(t, at.x + 30 + 37, at.y + 20 + 23, input::space::kPixels);
+
+    // EVERY PIXEL OF THE WIDEST ROOM a window lays out, across and down: the door's share solves
+    // back to the hand's pixel, in the solver the desk is drawn with.
+    const std::int64_t span = kScreenMaxW;
+    std::int64_t missed = 0;
+    for (const bool across : {true, false}) {
+        Setup desk = setup_of("Reach", {stock::kKind});
+        desk.panes[0].place = PanePlace{ui::kPlaceShare, 5000, 5000};
+        desk.panes[0].width = PaneSize{pane_unit::kPixels, 100};
+        desk.panes[0].height = PaneSize{pane_unit::kPixels, 100};
+        for (std::int64_t pixel = 0; pixel < span; ++pixel) {
+            PaneAxisProposal moved;
+            moved.base = span / 2;
+            moved.length = 100;
+            moved.span = span;
+            moved.position = pixel;
+            const PaneAxisProposal still{std::nullopt, std::nullopt, span / 2, 100, span, 1};
+            REQUIRE(author_pane_window(desk, ref_of(stock::kKind), across ? moved : still,
+                                       across ? still : moved)
+                        .written.accepted);
+            ui::Element e;
+            e.place = ui_place_of(desk.panes[0].place);
+            e.width = ui_size_of(desk.panes[0].width);
+            e.height = ui_size_of(desk.panes[0].height);
+            const ui::Rect r = ui::arrange({e}, ui::Room{span, span, 1}).items.at(0).rect;
+            if ((across ? r.x : r.y) != pixel || desk.panes[0].place.mode != ui::kPlaceShare) {
+                ++missed;
+            }
+            desk.panes[0].place = PanePlace{ui::kPlaceShare, 5000, 5000};
+        }
+    }
+    CHECK(missed == 0);
+}
+
+TEST_CASE("a fill pulled at its far edge, with nothing sharing its frame, writes the share whose edge is the hand's pixel, and says so") {
+    // ⚔ MUTATION: a fill pulled at its far edge written as pixels -- the width stops following the
+    // room, and nothing is said.
+    FineRig t;
+    stage_desk(t, [](Setup& s) {
+        REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
+        REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{ui::kSizeFill, 0},
+                                 PaneSize{pane_unit::kPixels, 120})
+                    .accepted);
+    });
+    t.key(input::scan::kUnknown);
+    const Screen sc = screen_of(t.session());
+    const PixelRect at = t.builder_rect();
+    REQUIRE(at.x + at.w == sc.room_w); // a fill runs to the room's far edge
+    const PixelRect right = pane_edge_cell(at, pane_edge::kRight);
+    t.press_at(right.x + 2, right.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    motion_with(t, right.x + 2 - 300, right.y + 2, input::space::kPixels, input::mod::kAlt);
+    const SetupPane* row = t.builder_row();
+    REQUIRE(row->width.mode == ui::kSizeShare);
+    const PixelRect pulled = t.builder_rect();
+    CHECK(pulled.x == 100);
+    CHECK(pulled.x + pulled.w == sc.room_w - 300);
+    CHECK(t.notice().find("width now " + share_text(row->width.amount) + " -- was fill") !=
+          std::string::npos);
+    release_at(t, right.x + 2 - 300, right.y + 2, input::space::kPixels);
+
+    // ITS NEAR EDGE PULLED LEAVES A FILL A FILL: the far edge is still the room's.
+    stage_desk(t, [](Setup& s) {
+        REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{ui::kSizeFill, 0},
+                                 PaneSize{pane_unit::kPixels, 120})
+                    .accepted);
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect again = t.builder_rect();
+    const PixelRect left = pane_edge_cell(again, pane_edge::kLeft);
+    t.press_at(left.x + 2, left.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    motion_with(t, left.x + 2 + 40, left.y + 2, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->width.mode == ui::kSizeFill);
+    CHECK(t.builder_row()->place.x == 140);
+    CHECK(t.builder_rect().x + t.builder_rect().w == sc.room_w);
+    release_at(t, left.x + 2 + 40, left.y + 2, input::space::kPixels);
+}
+
+TEST_CASE("an anchored pane pulled past its own edge is refused across and still follows the hand down") {
+    // ⚔ MUTATION: the size of an axis whose offset was refused written anyway -- the width grows
+    // though its edge could not go where the hand took it.
+    FineRig t;
+    stage_desk(t, [](Setup& s) {
+        SetupPane* row = pane_of(s, ref_of(stock::kKind));
+        row->place = PanePlace{ui::kPlaceBottomRight, 20, 60};
+        row->width = PaneSize{ui::kSizeShare, 2500};
+        row->height = PaneSize{pane_unit::kPixels, 120};
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect at = t.builder_rect();
+    const PixelRect corner = pane_edge_cell(at, pane_edge::kBottomRight);
+    t.press_at(corner.x + 1, corner.y + 1, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    // THE CORNER FORTY PIXELS PAST THE RIGHT WALL, AND TEN DOWN: the offset from the right would
+    // be -20, so the width is refused whole; the height takes the ten.
+    motion_with(t, corner.x + 1 + 40, corner.y + 1 + 10, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->place == PanePlace{ui::kPlaceBottomRight, 20, 50});
+    CHECK(t.builder_row()->width == PaneSize{ui::kSizeShare, 2500});
+    CHECK(t.builder_row()->height == PaneSize{pane_unit::kPixels, 130});
+    release_at(t, corner.x + 1 + 40, corner.y + 1 + 10, input::space::kPixels);
+}
+
+TEST_CASE("a hand moves an anchored pane in its word, a centred one into pixels, and pulls a fitted size into pixels, each said") {
+    // ⚔ MUTATION: an anchored place written as pixels from the room's top-left -- the word is
+    // gone, and the pane no longer keeps its corner when the window changes.
+    FineRig t;
+    stage_desk(t, [](Setup& s) {
+        SetupPane* row = pane_of(s, ref_of(stock::kKind));
+        row->place = PanePlace{ui::kPlaceBottomRight, 50, 40};
+        row->width = PaneSize{pane_unit::kPixels, 300};
+        row->height = PaneSize{pane_unit::kPixels, 120};
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect at = t.builder_rect();
+    t.press_at(at.x + 30, at.y + 20, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.active);
+    REQUIRE_FALSE(t.session().pane_drag.sizing);
+    motion_with(t, at.x + 30 - 70, at.y + 20 - 25, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->place == PanePlace{ui::kPlaceBottomRight, 120, 65});
+    release_at(t, at.x + 30 - 70, at.y + 20 - 25, input::space::kPixels);
+
+    // A CENTRED PLACE CANNOT SAY WHERE THE HAND LEFT IT: it becomes pixels, and is said.
+    stage_desk(t, [](Setup& s) {
+        pane_of(s, ref_of(stock::kKind))->place = PanePlace{ui::kPlaceCenter, 0, 0};
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect centred = t.builder_rect();
+    t.press_at(centred.x + 30, centred.y + 20, input::space::kPixels);
+    motion_with(t, centred.x + 30 + 11, centred.y + 20, input::space::kPixels, input::mod::kAlt);
+    const Screen sc = screen_of(t.session());
+    CHECK(t.builder_row()->place ==
+          PanePlace{pane_unit::kPixels, centred.x + 11, centred.y - sc.room_y});
+    CHECK(t.notice().find("place now pixels -- was center") != std::string::npos);
+    release_at(t, centred.x + 30 + 11, centred.y + 20, input::space::kPixels);
+
+    // A FITTED HEIGHT PULLED becomes pixels at the hand's extent, said.
+    stage_desk(t, [](Setup& s) {
+        pane_of(s, ref_of(stock::kKind))->height = PaneSize{ui::kSizeFit, 0};
+    });
+    t.key(input::scan::kUnknown);
+    const PixelRect fitted = t.builder_rect();
+    const PixelRect bottom = pane_edge_cell(fitted, pane_edge::kBottom);
+    t.press_at(bottom.x + 2, bottom.y + 2, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.sizing);
+    motion_with(t, bottom.x + 2, bottom.y + 2 + 30, input::space::kPixels, input::mod::kAlt);
+    CHECK(t.builder_row()->height == PaneSize{pane_unit::kPixels, fitted.h + 30});
+    CHECK(t.notice().find("height now " + std::to_string(fitted.h + 30) + " px -- was fit") !=
+          std::string::npos);
+    release_at(t, bottom.x + 2, bottom.y + 2 + 30, input::space::kPixels);
+}
+
 TEST_CASE("a pane dragged near another pane's edge or the room's comes to it, and the edge met is marked across the room while held") {
     // ⚔ MUTATION: no snap -- the place stays where the hand left it, a few pixels short of the
     // edge, and nothing is marked.
@@ -2099,35 +2443,32 @@ TEST_CASE("the coarse step is `workshop.arrange-step` cells, read from Workshop'
     CHECK(t.builder_row()->height.amount == before.h);
 }
 
-TEST_CASE("the right column is `workshop.side-columns` wide and a stacked pane `workshop.stack-rows` tall, read from Workshop's settings file") {
-    // ⚔ MUTATION: `placement_bounds` spends `kSideCols` and `kStackRows` -- twenty-eight and nine.
+TEST_CASE("a stacked pane is `workshop.stack-rows` tall, read from Workshop's settings file, and a file still keeping `workshop.side-columns` reads") {
+    // ⚔ MUTATION: `placement_bounds` spends `kStackRows` -- nine rows, whatever the file says.
+    // The retired key is still in the file: it is carried and read by nothing, so a pane at the
+    // room's top-right is the width its row says.
     TempDir dir("measures-room");
     Live t;
     t.host.prefs_path = measures_file(dir, "room.json",
                                       {{"workshop.side-columns", 40}, {"workshop.stack-rows", 20}});
     t.ready();
     t.extent_px(cells_px(160), cells_px(44), 0, 0, 0);
-    REQUIRE(t.session().side_cols == 40);
     REQUIRE(t.session().stack_rows == 20);
     const Screen sc = screen_of(t.session());
-    CHECK(sc.side_cols == 40);
-    CHECK(sc.side_x == sc.w - cells_px(40));
     CHECK(sc.stack_rows == 20);
     open_stock_pane(t);
     const PixelRect stacked =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect;
     CHECK(stacked.h == cells_px(20));
-    open_at_right_column(t, second::kKind);
-    const PixelRect column =
+    open_at_top_right(t, second::kKind);
+    const PixelRect strip =
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect;
-    CHECK(column.x == sc.w - cells_px(40));
-    CHECK(column.w == cells_px(40));
+    CHECK(strip.x == sc.w - cells_px(kStripCols));
+    CHECK(strip.w == cells_px(kStripCols));
 
-    // THE SCREEN HOLDS EACH TO WHAT ITS SETTING TAKES, and its own furniture is the default's.
-    const Screen held = screen_of(kScreenMinW, kScreenMinH, 0, 0, 0, 3, 99);
-    CHECK(held.side_cols == kMinSideCols);
+    // THE SCREEN HOLDS THE SETTING TO WHAT IT TAKES, and its own furniture is the default's.
+    const Screen held = screen_of(kScreenMinW, kScreenMinH, 0, 0, 0, 99);
     CHECK(held.stack_rows == kMaxStackRows);
-    CHECK(kMinScreen.side_cols == kSideCols);
     CHECK(kMinScreen.stack_rows == kStackRows);
 }
 
@@ -3278,22 +3619,77 @@ TEST_CASE("the medium's unit reaches the READOUT and no geometry at all") {
     CHECK(pane_window_text(row, cells.cell_px).find(" cells ") != std::string::npos);
 }
 
-TEST_CASE("which parts of a pane's window the weaver has not authored") {
-    // The question the arrangement readout asks before it adds where the pane actually is.
+TEST_CASE("which parts of a pane's window its numbers alone do not place") {
+    // The question the arrangement readout asks before it adds where the pane actually is: any
+    // axis that is not exact pixels -- the code's answer, or a word.
+    // ⚔ MUTATION: asking only for `default` -- a share-wide pane is read without where it is.
     SetupPane none;
-    CHECK(pane_window_partly_default(&none));
+    CHECK(pane_window_reads_words(&none));
 
     SetupPane placed;
     placed.place = PanePlace{pane_unit::kPixels, cells_px(2), cells_px(2)};
-    CHECK(pane_window_partly_default(&placed)); // both extents still the code's
+    CHECK(pane_window_reads_words(&placed)); // both extents still the code's
 
     SetupPane whole;
     whole.place = PanePlace{pane_unit::kPixels, cells_px(2), cells_px(2)};
     whole.width = PaneSize{pane_unit::kPixels, cells_px(20)};
     whole.height = PaneSize{pane_unit::kPixels, cells_px(6)};
-    CHECK_FALSE(pane_window_partly_default(&whole));
+    CHECK_FALSE(pane_window_reads_words(&whole));
 
-    CHECK_FALSE(pane_window_partly_default(nullptr));
+    SetupPane shared = whole;
+    shared.width = PaneSize{ui::kSizeShare, 5000};
+    CHECK(pane_window_reads_words(&shared));
+    SetupPane anchored = whole;
+    anchored.place = PanePlace{ui::kPlaceBottomRight, cells_px(1), cells_px(1)};
+    CHECK(pane_window_reads_words(&anchored));
+
+    CHECK_FALSE(pane_window_reads_words(nullptr));
+}
+
+TEST_CASE("the readout says each word, and where the words put the pane") {
+    // ⚔ MUTATION: `pane_window_text` saying `-` for every axis that is not pixels -- a share, a
+    // fit and a point of the room all read as the code's answer.
+    SetupPane row;
+    row.front = 2;
+    row.place = PanePlace{ui::kPlaceBottomRight, cells_px(1), cells_px(2)};
+    row.width = PaneSize{ui::kSizeShare, 5000};
+    row.height = PaneSize{ui::kSizeFit, 0};
+    CHECK(pane_window_text(&row, 0) == "@bottom-right 1,2 50.00%xfit cells f2");
+    row.place = PanePlace{ui::kPlaceTop, 0, cells_px(3)};
+    row.width = PaneSize{ui::kSizeFill, 0};
+    row.height = PaneSize{pane_unit::kPixels, cells_px(7)};
+    CHECK(pane_window_text(&row, 0) == "@top 3 fillx7 cells f2");
+    row.place = PanePlace{ui::kPlaceCenter, 0, 0};
+    row.width = PaneSize{ui::kSizeShare, 3333};
+    row.height = PaneSize{};
+    CHECK(pane_window_text(&row, 0) == "@center 33.33%x- f2"); // no number, so no unit
+    // A SHARE PLACE says both its numbers as shares. ⚔ MUTATION: `pane_window_text` saying a
+    // share place's numbers as counts of the face's unit -- `@share 0,277 cells`.
+    row.place = PanePlace{ui::kPlaceShare, 0, 3333};
+    row.width = PaneSize{ui::kSizeFill, 0};
+    row.height = PaneSize{pane_unit::kPixels, cells_px(4)};
+    CHECK(pane_window_text(&row, 0) == "@share 0.00%,33.33% fillx4 cells f2");
+
+    // ...AND THE ARRANGING NOTICE ADDS WHERE THE WORDS PUT IT, from the unclipped window.
+    Live t;
+    pick(t, second::kKind);
+    stage_desk(t, [](Setup& desk) {
+        for (SetupPane& r : desk.panes) {
+            if (r.ref == ref_of(second::kKind)) {
+                r.place = PanePlace{ui::kPlaceBottomRight, cells_px(1), cells_px(2)};
+                r.width = PaneSize{ui::kSizeShare, 5000};
+                r.height = PaneSize{pane_unit::kPixels, cells_px(6)};
+            }
+        }
+    });
+    enter_arrange_desk(t);
+    select_pane(t, ref_of(second::kKind));
+    const Screen sc = screen_of(t.session());
+    const PixelRect at = room_of_canvas(
+        bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).resolved, sc);
+    CHECK(t.notice().find("@bottom-right 1,2 50.00%x6 cells") != std::string::npos);
+    CHECK(t.notice().find(" -- now " + pixel_rect_text(at, t.session().cell_px)) !=
+          std::string::npos);
 }
 
 // ============================================================================
@@ -3420,7 +3816,7 @@ TEST_CASE("the popup shifts to stay usable inside the room, at every boundary") 
     // menu's top row is `arrange`. The body is empty by default (WL-CTX-08), so the host menu
     // is reached on the title row (the chrome), which for a right-column pane sits at the
     // top-right corner.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     const Screen sc = screen_of(t.session());
     const std::int64_t floor_y = kRoomCellY + cells_of(sc).room_h;
     const CellRect corner_pane = cells_covered(
@@ -3658,7 +4054,7 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
     Live t;
     t.extent_px(cells_px(160), cells_px(44), 0, 0);
     // THE PANE IN THE RIGHT COLUMN IS AUTHORED: its occupant is a desk row.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
     const CellRect side = cells_covered(
@@ -3734,7 +4130,7 @@ TEST_CASE("the selected pane wears its own chrome, and only it") {
     // every pane `kPaneChrome`, which collapses the selected style into the ordinary one -- the
     // picture would still be bordered and a weaver could not tell which pane they work with.
     Live t;
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
     const auto chrome_of = [&](std::int64_t kind) {
@@ -3774,7 +4170,7 @@ TEST_CASE("the selection lift never reaches the file, and no session starts with
     // not only the ranks, so a rewrite that happened to produce the same permutation is still
     // caught if it moved anything else.
     Live t;
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const std::string before = setup_persist::to_text(t.session().setup.active);
     const std::vector<std::int64_t> ranks = ranks_of(t.session().setup.active);
@@ -4268,7 +4664,7 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     Live t;
     t.extent_px(cells_px(160), cells_px(44), 0, 0);
     // THE PANE IN THE RIGHT COLUMN IS AUTHORED: its occupant is a desk row.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
     const CellRect side = cells_covered(
@@ -4364,7 +4760,7 @@ TEST_CASE("every pane a weaver can point at can be arranged, and the refusals ar
     // point at -- so the admission and the pointer cannot disagree.
     Live t;
     // THE PANE IN THE RIGHT COLUMN IS AUTHORED: its occupant is a desk row.
-    open_at_right_column(t, second::kKind);
+    open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
     const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
@@ -5329,9 +5725,8 @@ TEST_CASE("every owner of the body agrees about where it begins") {
 
     const CellRect slot = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
     CHECK(slot.y == kRoomCellY); // the stack begins at the body's own top
-    const CellRect side = cells_covered(placement_bounds(placement::kSideRegion, 0, sc));
-    CHECK(side.y == kRoomCellY);
-    CHECK(side.y + side.h == kRoomCellY + cells_of(sc).room_h);
+    // ...and the room's own top, where every place word counts from.
+    CHECK(gfx::cell_of_pixel(sc.room_y) == kRoomCellY);
     CHECK(gfx::cell_of_pixel(overlay_column(sc).y) == kRoomCellY);
 
     // THE PANE IS PAINTED WHERE IT IS HIT. Its top-left cell answers the pointer with the
@@ -5711,7 +6106,7 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
     // cleared first: `effective_pane_order` lifts the pane a weaver points at, so a desk whose
     // front rank says Layouts still answers Builder while the Builder is selected. ⚠ Just left
     // of the right column, not at the room's edge, which is under the pane standing there.
-    t.press_canvas(cells_of(sc).side_x - 1, cells_of(sc).h - kBottomRows - 1); // bare workspace: selects nothing
+    t.press_canvas(cells_of(sc).strip_x - 1, cells_of(sc).h - kBottomRows - 1); // bare workspace: selects nothing
     REQUIRE(t.session().panes.selected == kNoPaneKind);
     stage_desk(t, [&](Setup& desk) {
         REQUIRE(send_to_front(desk, ref_of(pane_kind::kLayouts)));

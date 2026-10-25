@@ -106,7 +106,7 @@ static_assert(WorkshopKeymap::zen_version == static_cast<std::uint32_t>(kFormatV
 // ---- Writing ----------------------------------------------------------------------------
 
 /// The written word for a legend value. Total, and the fall-through is `default` -- the
-/// one answer that cannot invent a preference (`unit_word`'s argument next door).
+/// one answer that cannot invent a preference (`place_word_of`'s argument in `setup_persist.hpp`).
 inline const char* legend_word(std::int64_t legend) {
     if (legend == legend_mode::kFull) {
         return kLegendFull;

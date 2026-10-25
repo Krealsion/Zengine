@@ -376,9 +376,8 @@ TEST_CASE("an unknown runtime reference never becomes the Builder") {
     CHECK(builtin_pane(hello).kind == kBuiltinPanes[0].kind); // the fall-through, still total
     CHECK(builtin_pane(hello).placed_in == placement::kTopBand);
     CHECK(placement_of(hello) == placement::kOverlayStack); // ...and a runtime kind never gets there
-    // AND NO KIND ANSWERS `kSideRegion`: the right column is a place a DESK names rather than a
-    // kind's default (`kinds_placed_in(kSideRegion) == 0`, panes.hpp); the one built-in is the
-    // band's.
+    // AND THE ONE BUILT-IN PLACED OUTSIDE THE STACK IS THE BAND'S: every other place a pane
+    // stands at is a word its DESK row says, never a kind's default.
     CHECK(placement_of(pane_kind::kLayouts) == placement::kTopBand);
     // ...and the NAME a weaver reads is the offered one rather than the fall-through's.
     CHECK(kind_name(panes, hello) == "Hello");

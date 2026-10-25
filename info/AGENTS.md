@@ -45,7 +45,7 @@ its stem to `WORKSHOP_SO_INFO_PANE`, and `tests/inventory_story.hpp` loads it be
 
 - Plan row: `workshop/default-load-plan.json` (optional, office `zengine.info`); staged beside the host and listed as a development pane in
   `workshop/CMakeLists.txt`.
-- The desk row: `default_setup` in `workshop/setup.hpp` puts it in the right column, its office
+- The desk row: `default_setup` in `workshop/setup.hpp` puts it at the room's top-right, its office
   spelled in `workshop/panes.hpp`; a saved `zengine.workshop/info` converts in
   `workshop/pane_migration.hpp`.
 - The inspection seam: `workshop/inspection_seam_vocabulary.hpp`, answered in

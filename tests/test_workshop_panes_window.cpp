@@ -34,13 +34,12 @@ TEST_CASE("a fresh setup is the current version, sparse, and carries the identit
         CAPTURE(i);
         // SPARSE: every geometry field carries no numbers, and its unused numbers are the
         // required zeros -- the smallest canonical spelling of "this weaver has arranged nothing".
-        // One row's place is NAMED, the shipped desk's: Info opens at the right column because
-        // this setup says so (`the-room-is-the-screen`), with no coordinates, and
-        // `check_pane_place` refuses a named place carrying any. Asserted by which pane it is, so
-        // a desk that stopped saying where Info goes reddens here rather than passing as sparse.
+        // One row's place is a WORD, the shipped desk's: Info opens at the room's top-right
+        // because this setup says so (`the-room-is-the-screen`), at no offset. Asserted by which
+        // pane it is, so a desk that stopped saying where Info goes reddens here rather than
+        // passing as sparse.
         const bool is_info = fresh.panes[i].ref == info_ref();
-        CHECK(fresh.panes[i].place.mode ==
-              (is_info ? pane_unit::kRightColumn : pane_unit::kDefault));
+        CHECK(fresh.panes[i].place.mode == (is_info ? ui::kPlaceTopRight : pane_unit::kDefault));
         CHECK(fresh.panes[i].place.x == 0);
         CHECK(fresh.panes[i].place.y == 0);
         CHECK(fresh.panes[i].width.mode == pane_unit::kDefault);
@@ -175,6 +174,10 @@ TEST_CASE("a refused VALUE writes nothing, on either axis") {
 TEST_CASE("an unknown mode word names what it found and what would have worked") {
     const Setup good = two_overlays();
     const std::string valid = setup_persist::to_text(good);
+    const char* const kPlaces =
+        "default, pixels, top, top-right, left, center, right, bottom-left, bottom, bottom-right or "
+        "share";
+    const char* const kSizes = "default, pixels, share, fit or fill";
 
     struct Case {
         const char* what;
@@ -186,21 +189,30 @@ TEST_CASE("an unknown mode word names what it found and what would have worked")
     cases.push_back({"an unknown PLACE word",
                      forged_setup(good, "\"place\":{\"mode\":\"default\"",
                                   "\"place\":{\"mode\":\"furlongs\""),
-                     "furlongs", "default, right-column or pixels"});
+                     "furlongs", kPlaces});
+    // THE SPELLING IS ONE: `centre` is not `center`, and the refusal says which is.
+    cases.push_back({"a place word spelled another way",
+                     forged_setup(good, "\"place\":{\"mode\":\"default\"",
+                                  "\"place\":{\"mode\":\"centre\""),
+                     "centre", kPlaces});
     // `right-column` IS NOT A SIZE, and this is where that is said: it names a place, and
     // offering it to a size is offering a word this field's vocabulary does not have.
     cases.push_back({"a PLACE word offered to a size",
                      forged_setup(good, "\"width\":{\"mode\":\"default\"",
                                   "\"width\":{\"mode\":\"right-column\""),
-                     "right-column", "default or pixels"});
+                     "right-column", kSizes});
+    cases.push_back({"a point of the room offered to a size",
+                     forged_setup(good, "\"width\":{\"mode\":\"default\"",
+                                  "\"width\":{\"mode\":\"top-right\""),
+                     "top-right", kSizes});
     cases.push_back({"an unknown WIDTH word",
                      forged_setup(good, "\"width\":{\"mode\":\"default\"",
                                   "\"width\":{\"mode\":\"ems\""),
-                     "ems", "default or pixels"});
+                     "ems", kSizes});
     cases.push_back({"an unknown HEIGHT word",
                      forged_setup(good, "\"height\":{\"mode\":\"default\"",
                                   "\"height\":{\"mode\":\"\""),
-                     "", "default or pixels"});
+                     "", kSizes});
 
     for (const Case& c : cases) {
         CAPTURE(c.what);
@@ -216,43 +228,41 @@ TEST_CASE("an unknown mode word names what it found and what would have worked")
     CHECK(setup_persist::from_text(valid).outcome.accepted);
 }
 
-TEST_CASE("a desk row may NAME the right column, and any pane resolves into it") {
-    // THE SENTENCE NO COORDINATE CAN SAY: "the right edge, the workspace's full height" is not
-    // sayable in a row's two absolute numbers by a desk shipped for every screen, so
-    // `kRightColumn` says it. Asked of the Editor, whose default place is the overlay stack:
-    // Info's default IS the right column and would resolve there whether or not the mode did
-    // anything, which would let this mechanism rot unnoticed.
-    Setup named = two_overlays();
-    for (SetupPane& row : named.panes) {
-        if (row.ref == ref_of(stock::kKind)) {
-            row.place = PanePlace{pane_unit::kRightColumn, 0, 0};
-        }
-    }
-    REQUIRE(check_setup(named).accepted);
+TEST_CASE("a file's `right-column` reads as `top-right` at no offset, and is written as that") {
+    // THE NAME A FILE MAY STILL SAY: the right column was the room's top-right corner, so a row
+    // saying it reads as that point with its sizes as the row says them, and is written as the
+    // word it now is. Asked of the Editor, whose default place is the overlay stack, so a reading
+    // that dropped the word would leave it in the stack and redden here.
+    // ⚔ MUTATION: `place_in` reading `right-column` as `default` -- the Editor stays stacked.
+    const Setup good = two_overlays();
+    const std::string valid = setup_persist::to_text(good);
+    const std::string old = forged_setup(good, "\"place\":{\"mode\":\"default\"}",
+                                         "\"place\":{\"mode\":\"right-column\"}");
+    const setup_persist::LoadedSetup back = setup_persist::from_text(old);
+    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
+    REQUIRE_FALSE(back.setup.panes.empty());
+    CHECK(back.setup.panes[0].place == PanePlace{ui::kPlaceTopRight, 0, 0});
+    CHECK(back.setup.panes[0].width == good.panes[0].width);
+    CHECK(back.setup.panes[0].height == good.panes[0].height);
+    // ONE: IT IS WRITTEN AS WHAT IT READS AS, and the word it was is gone from the file.
+    const std::string written = setup_persist::to_text(back.setup);
+    CHECK(written.find("\"place\":{\"mode\":\"top-right\",\"x\":\"0\",\"y\":\"0\"}") !=
+          std::string::npos);
+    CHECK(written.find("right-column") == std::string::npos);
 
-    // ONE: THE WORD IS WRITTEN AND READ BACK, and the row that comes back is the row that
-    // went out. A place mode is a word from a closed set (WL-SETUP-04), and this is the third.
-    const std::string text = setup_persist::to_text(named);
-    CHECK(text.find("\"mode\":\"right-column\"") != std::string::npos);
-    const setup_persist::LoadedSetup back = setup_persist::from_text(text);
-    REQUIRE(back.outcome.accepted);
-    CHECK(back.setup == named);
+    // TWO: A COORDINATE BESIDE THE NAME IS TWO ANSWERS, and the file is refused rather than one
+    // picked -- `default`'s own rule (WL-SETUP-03), said about the name.
+    const std::string contradictory =
+        forged_setup(good, "\"place\":{\"mode\":\"default\"}",
+                     "\"place\":{\"mode\":\"right-column\",\"x\":\"36\"}");
+    const setup_persist::LoadedSetup both = setup_persist::from_text(contradictory);
+    CHECK_FALSE(both.outcome.accepted);
+    CHECK(both.outcome.refusal.find("a named pane place carries no coordinates") !=
+          std::string::npos);
+    CHECK(setup_persist::from_text(valid).outcome.accepted);
 
-    // TWO: A COORDINATE BESIDE THE NAME IS TWO ANSWERS, and admission refuses rather than
-    // picking one -- `kDefault`'s own rule (WL-SETUP-03), said about the second named place.
-    Setup contradictory = named;
-    for (SetupPane& row : contradictory.panes) {
-        if (row.ref == ref_of(stock::kKind)) {
-            row.place = PanePlace{pane_unit::kRightColumn, gfx::px_of_cells(3), 0};
-        }
-    }
-    const Written both = check_setup(contradictory);
-    CHECK_FALSE(both.accepted);
-    CHECK(both.refusal.find("carries no coordinates") != std::string::npos);
-
-    // THREE: THE RESOLUTION. The Editor is in the stack, and a row naming the right column
-    // puts it in the column's whole rectangle -- the same rectangle `placement_bounds`
-    // answers for that place, because there is no second arithmetic.
+    // THREE: THE RESOLUTION. The Editor leaves the stack for the room's top-right: its right edge
+    // on the room's, its top on the room's top.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
@@ -263,19 +273,18 @@ TEST_CASE("a desk row may NAME the right column, and any pane resolves into it")
     stage_desk(t, [&](Setup& desk) {
         for (SetupPane& row : desk.panes) {
             if (row.ref == ref_of(stock::kKind)) {
-                row.place = PanePlace{pane_unit::kRightColumn, 0, 0};
+                row.place = PanePlace{ui::kPlaceTopRight, 0, 0};
             }
         }
     });
     const PaneBounds after =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
-    CHECK(after.placed_in == placement::kSideRegion);
-    CHECK(after.rect == placement_bounds(placement::kSideRegion, 0, sc));
-    CHECK(after.rect != before.rect);
+    CHECK(after.resolved.x + after.resolved.w == sc.room_w);
+    CHECK(after.resolved.y == sc.room_y);
+    CHECK(after.resolved.w == before.resolved.w);
+    CHECK(after.resolved.h == before.resolved.h);
 
-    // FOUR: NAMING A PLACE IS NOT NAMING A SIZE. An authored width still lays over the named
-    // rectangle, per axis, exactly as it lays over a slot's -- which is what keeps this one
-    // mode from becoming a second geometry with rules of its own.
+    // FOUR: A WIDTH OF ITS OWN KEEPS THE RIGHT EDGE, and grows leftward.
     stage_desk(t, [&](Setup& desk) {
         REQUIRE(author_pane_size(desk, ref_of(stock::kKind),
                                  PaneSize{pane_unit::kPixels, gfx::px_of_cells(10)},
@@ -284,10 +293,9 @@ TEST_CASE("a desk row may NAME the right column, and any pane resolves into it")
     });
     const PaneBounds sized =
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
-    CHECK(sized.placed_in == placement::kSideRegion);
-    CHECK(sized.rect.x == after.rect.x);
-    CHECK(sized.rect.h == after.rect.h);
-    CHECK(sized.rect.w == gfx::px_of_cells(10));
+    CHECK(sized.resolved.x + sized.resolved.w == sc.room_w);
+    CHECK(sized.resolved.w == gfx::px_of_cells(10));
+    CHECK(sized.resolved.h == after.resolved.h);
 }
 
 TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {

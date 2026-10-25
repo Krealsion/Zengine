@@ -19,10 +19,11 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 ## WL-PED-05 — Every write is an existing door
 
-LAW — A subject's row writes through a door the desk has: an axis by the gesture door (a reset door for `-`), a setting by the settings door, a place by reseating; presence is the launch and close doors'.
+LAW — A subject's row writes through a door the desk has: an axis by the window door (`-` by a reset door), a setting by the settings door, a place by reseating; presence is the launch and close doors'.
 
 MEANS
-- there is no subject setter and no rectangle held anywhere;
+- there is no subject setter and no rectangle held anywhere; a number on a place goes by the gesture door;
+- a typed axis takes a word as well as a number -- `50%`, `share 5000`, `fit`, `fill`, `bottom-right 2`, a share place's `33.33%` -- and reads back as typed;
 - `pane_window_base` is `managed_window_base`'s body: typed axes measure from the hands' window.
 
 WHY — `agents/decisions/a-subject-is-not-a-selection.md`
@@ -57,14 +58,16 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 keys, after RESOLVED"
 
 ### WL-PED-05
-`workshop/screen_pane_subject.cpp` write_pane_axis pane_window_base
-`workshop/setup.hpp` author_pane_window reset_pane_place author_pane_setting
+`workshop/screen_pane_subject.cpp` write_pane_axis pane_window_base pane_axis_text typed_share
+`workshop/setup.hpp` author_pane_window reset_pane_place author_pane_setting check_pane_size share_text
 `workshop/weave_session.cpp` apply_setup
 `workshop/weave_arrange.cpp` managed_window_base
 `workshop/weave_inspection.cpp` on(PaneCommitRequested)
 `tests/test_workshop_host.cpp` "a typed place moves Layouts through the gesture door, and its tabs
 follow" "a typed place reseats the stack through `apply_setup`" "moving, resizing and closing
 Layouts through the doors leaves the reservation alone"
+`tests/test_workshop_panes_info.cpp` "Info's typed axes take a word as well as a number, and each
+reads back as it was typed"
 
 ### WL-PED-06
 `workshop/screen_pane_state.cpp` parse_face_amount geometry_unit

@@ -314,7 +314,7 @@ group, staying beside the click), `Esc` backs out of a group or closes the menu,
 click outside dismisses it — a click spent on closing the menu never also operates
 whatever it landed on. **`a`** opens the same menu from the keyboard for the room, so the
 capability does not depend on a mouse; with no pointer position to open beside, it opens at
-the right column's corner.
+the room's top-left corner.
 
 **Pointing is not selecting.** Opening the menu on a pane or a tab changes no
 selection and moves no keyboard focus — the menu holds the pointed thing only for the one
@@ -444,8 +444,18 @@ per press when you want to land exactly — or type the size you want into the p
 and `Height` rows in [Info](#a-pane-as-a-subject--info). An authored size is accepted up to the
 setup's maximum.
 
-There is still no "fill the room" and no auto-fit to a pane's contents — `=` resizes the
-pane you addressed and touches nothing else.
+Or say it in a word, in Info's `Width` and `Height`: `fill` runs the pane to the room's far
+edge, a share such as `50%` or `33.33%` is that much of the room and follows it as the window
+changes, and `fit` is what the pane asks for now, following it when the pane asks again. A place
+is a word too, in `X` and `Y`: `bottom-right 2` keeps the pane's corner two cells in from the
+room's, `center` keeps it in the middle, and so on for each corner and edge. A place can be a share
+of the room as well: `33.33%` (or `share 3333`) in `Y` puts the pane's top a third of the way down
+at every window size, and the other axis becomes the share where the pane stands. A hand keeps each
+word: moving a share place writes the share its corner reaches, pulling a share's edge writes the
+share that edge reaches, pulling a fill's far edge turns
+it into that share, and moving an anchored pane counts its offset from its own edge again; where
+the hand has to change a word -- a centred pane moved, a fitted size pulled -- the band says what
+it became. `=` resizes the pane you addressed and touches nothing else.
 
 Judged plainly, and repeated in [limitations](limitations.md):
 
@@ -496,8 +506,11 @@ reloaded.
 
 **Authored and resolved are two different truths**, and the rows keep them apart:
 
-- `AUTHORED` is what *you* said — a place, measured from the room's top-left (directly under
-  the top band), a width, a height, each `-` until you say something; the pane's rank in the front order; whether it is on this layout at all. These
+- `AUTHORED` is what *you* said — a place, pixels from the room's top-left (directly under
+  the top band) or a word naming a point of the room (`bottom-right 2 cells`, `center`) or a
+  share of it (`share 33.33%`), a width and a height in pixels or a word (`50.00%`, `fit`,
+  `fill`), each `-` until you say something; the pane's rank in the front order; whether it is
+  on this layout at all. These
   are the same facts the desk arrangement (`w`) and the Pane Manager author, and the rank and
   presence are read here: ordering is the arrangement's, opening and closing the Pane
   Manager's.

@@ -22,7 +22,8 @@ ui/vocabulary.hpp   Size{mode, amount?}      a width or a height: its word, and 
                             place,           ...its place in that frame...
                             width, height,   ...two sizes...
                             flow, gap?}      ...and how it lays the parts standing in it
-                    size_word / place_word   the one table that spells the words
+                    size_word / place_word   the one table that spells the words,
+                    size_named / place_named and reads a word back to its number
                     ById / walk_context      finding and following a relationship, with
                                              no room and no number in sight
                     problem                  what is wrong with the intent alone
@@ -70,7 +71,8 @@ the number travel together as `Size` and are never two separately editable field
 | `fill` | none | from its anchored edge to the frame's far one; centred, the whole span |
 
 **A place is a point of the frame.** `Place` says which point a part's offsets count from, and
-each offset is whole pixels inward from the edge the word names:
+each offset is whole pixels inward from the edge the word names -- or, for `share`, ten-thousandths
+of the frame's width and height from its top-left:
 
 | word | `x` | `y` |
 |---|---|---|
@@ -80,16 +82,20 @@ each offset is whole pixels inward from the edge the word names:
 | `left`, `right` | from that edge | none: centred down |
 | `top-right`, `bottom-left`, `bottom-right` | from that corner's edge | from that corner's edge |
 | `center` | none | none |
+| `share` | ten-thousandths of the width, from the left | ten-thousandths of the height, from the top |
 
 A part standing at `right` has its own right edge `x` in from the frame's right edge. A centred axis
-carries no offset.
+carries no offset. A part at `share` with `y` 3333 stands a third of the way down at every size of
+the frame: its edge is the exact position floored to the step, as a share size's is, and each
+offset is clamped to the frame as a share's amount is (`place_reads_share`).
 
 **A number is present exactly where its word reads it.** Each number is a Loom optional field
 (`std::optional`): `amount` on `pixels` and `share`, `x` and `y` where the place reads them, `gap`
 on a column (`size_reads_amount`, `place_reads_x`, `place_reads_y` say where). A number on a word
 that reads none is not read. The words are numbers in the shape and spelled by one table,
-`size_word` and `place_word`, so every owner spells them alike; a number no word is has no
-spelling, and solving reads it as `default`.
+`size_word` and `place_word`, so every owner spells them alike, and read back by the same table
+(`size_named`, `place_named`); a number no word is has no spelling, and solving reads it as
+`default`.
 
 **Nothing on the authored side validates.** What a legal size, place or relationship is belongs to
 the application that accepts one, because that is the only place that can also refuse. The

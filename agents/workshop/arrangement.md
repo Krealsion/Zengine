@@ -58,7 +58,8 @@ LAW — A left or top pull authors place and size as one axis-local transaction,
 
 MEANS
 - `author_pane_window` is the one gesture door; a refused height never leaves a moved top edge;
-- a refused single-axis step cannot author a reactive place as a side effect.
+- a refused single-axis step cannot author a reactive place as a side effect;
+- each axis keeps its word: an anchor's offset from its edge; a share place, a share or a fill's far edge the share reaching the hand's pixel; a moved centred place and `fit` become pixels, said.
 
 DOES NOT MEAN
 - that a wall clamps an axis — a blocked axis is refused whole and keeps its authored value.
@@ -82,7 +83,7 @@ LAW — Arrows place one cell, shift+arrows pull the extent one cell anchored at
 
 MEANS
 - the desk adds `tab`/`shift+tab` over `arrangeable()` — every setup row — and Return;
-- a hand and a key author the same setup values; escape unwinds one level and rolls nothing back.
+- a hand and a key author the same setup values, each axis in its word; escape unwinds one level and rolls nothing back.
 
 WHY — `agents/decisions/two-arranging-scopes.md`
 
@@ -217,14 +218,18 @@ places while it holds is the window's to judge"
 leaves a default place reactive"
 
 ### WL-ARR-06
-`workshop/setup.hpp` author_pane_window check_pane_place_coord PaneAxisProposal
-`workshop/screen_gestures.cpp` pane_window_proposal
-`workshop/screen.hpp` PaneWindowProposal
+`workshop/setup.hpp` author_pane_window check_pane_place_coord PaneAxisProposal share_reaching share_placing
+WindowWritten
+`workshop/screen_gestures.cpp` pane_window_proposal pane_window_axes
+`workshop/screen.hpp` PaneWindowProposal pane_window_at
 `workshop/weave_arrange.cpp` arrange_place arrange_resize arrange_window write_window
 `tests/test_workshop_screen.cpp` "a refused anchored resize writes neither the place nor the size"
 "a move blocked at the left wall still follows the hand down" "a move past two walls at once writes
 nothing" "a refused nudge does not author a reactive place" "a corner resize blocked on one axis
-still resizes the other"
+still resizes the other" "a hand pulling a share's edge writes the share whose edge is the hand's
+pixel, at every pixel of the widest room" "a fill pulled at its far edge, with nothing sharing its
+frame, writes the share whose edge is the hand's pixel, and says so" "a hand moves an anchored pane
+in its word, a centred one into pixels, and pulls a fitted size into pixels, each said"
 
 ### WL-ARR-07
 `workshop/screen.hpp` PaneArrange Session::arrange
@@ -240,6 +245,8 @@ KeyContext::kArrangeReset
 `workshop/weave_arrange.cpp` arrange_key arrangeable arrange_step arrange_nudge arrange_grow
 `tests/test_workshop_panes_window.cpp` "the keyboard alone reaches every window operation" "a hand
 and a key author the same setup values" "escape unwinds one level and rolls nothing back"
+`tests/test_workshop_panes_info.cpp` "a pane its words leave too small to see, or off the room, is
+still listed, reached by tab, inspected by Info and given its size back there"
 
 ### WL-ARR-09
 `workshop/weave_arrange.cpp` enter_arrange_pane arrange_status

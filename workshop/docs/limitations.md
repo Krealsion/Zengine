@@ -163,8 +163,9 @@ and none of those is claimed anywhere else either.
 Width scales with the surface; height does not. A larger pane is authored by arranging it —
 drag a handle (right-click the pane → `arrange`, or `w` for the whole desk), press **`=`** for
 a coarse <!-- value kCoarseStepCells -->4<!-- /value -->-cell step on both axes, or `Shift`+arrows
-for one cell at a time. It persists correctly once authored. There is still no "fill the room"
-and no auto-fit. Detail in [pane geometry](panes.md#pane-geometry). The
+for one cell at a time. It persists correctly once authored. A size may also be a word, typed
+in Info's `W` and `H`: `fill` runs to the room's far edge, a share such as `50%` follows the room,
+and `fit` follows what the pane asks for. Detail in [pane geometry](panes.md#pane-geometry). The
 <!-- value kStackRows -->9<!-- /value --> rows and the <!-- value kCoarseStepCells -->4<!-- /value -->-cell
 step are Workshop's settings
 `workshop.stack-rows` and `workshop.arrange-step`, one value for every layout
@@ -179,8 +180,9 @@ it needs eight rows of body and the default grants six, so a form opened in a de
 Compose pane shows its Submit control and none of its fields. **One `=` fixes it** and the
 whole form comes back; the default itself is unchanged.
 
-Panes are also drawn **over** the material you are building. There is no docking, no tiling and
-no reflow.
+Panes are also drawn **over** the material you are building. A pane may stand at a point of the
+room -- a corner, an edge's middle, the centre -- and keep it as the window changes size, but it
+takes no room from another: there is no docking, no tiling and no reflow.
 
 ### Pointing without pressing reaches nobody in a POSIX terminal
 
@@ -496,11 +498,13 @@ product never lands on it, and the image a reload opens is a per-operation copy.
 ### Info edits the pane grammar that exists, and no more
 
 [Info](panes.md#a-pane-as-a-subject--info) edits exactly what a pane's setup row can say today —
-a place in the room (`X`, `Y`), a width, a height and the settings the pane declares — and
+a place in the room (`X`, `Y`) as pixels or as a word such as `bottom-right 2` or a share of the
+room (`33.33%`), a width and a
+height as pixels, a share (`50%`), `fit` or `fill`, and the settings the pane declares — and
 shows the rest beside it: the pane's rank in the front order and whether it is on the layout,
 which are arranging's and the Pane Manager's to change, and the resolved rectangle and state.
-It does not author anchors, fill, docking, locks, sibling-relative or parent-relative placement,
-because no pane can hold those yet; it does not edit what a pane *does*, wire panes together,
+It does not author docking, locks, sibling-relative or parent-relative placement, because no pane
+can hold those yet; it does not edit what a pane *does*, wire panes together,
 or reach a loaded weave's own state; the "inspect" route from outside it is the Pane Manager's row menu
 (`inspect in Info`), which asks Info, and Info asks as its own inspect does — the right-click menu on a pane itself has no
 such row. Its default height is the stack's <!-- value kStackRows -->9<!-- /value --> rows, which shows only a
@@ -625,9 +629,10 @@ expected to have them:
   is the whole of it: nothing accumulates, nothing is unread, nothing pops up, nothing expires
   and nothing animates. There is no history of things that stopped being true — a record of
   what happened is `--log` and `--dump`, which are a different question.
-- **No layout system.** The drawing vocabulary has no parent/child, anchors or percentages —
-  whoever publishes has already decided where things go. The `ui` package resolves an authored
-  extent against a frame and states no containment.
+- **No layout system for a drawing.** The drawing vocabulary has no parent/child, anchors or
+  percentages — whoever publishes has already decided where things go. The desk's panes are the
+  one arrangement solved for you: the `ui` package turns a pane's words -- a point of the room, a
+  share, `fit`, `fill` -- into pixels against a frame, and states no containment.
 - **No shell.** The Builder's process runner takes a program and an argument vector.
   `popen()` would have been shorter and would also have been a general shell capability.
 - **No dependency solver.** A load plan's order is authored policy; a person wrote the rows in
