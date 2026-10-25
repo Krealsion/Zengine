@@ -392,7 +392,7 @@ TEST_CASE("WL-GUEST-06: on a weaver's host a guest's key and press toward the qu
         g.weaver_press_cell(room_x, room_y);
         REQUIRE(r.session().panes.keyboard != kind);
         // ...A GUEST'S PRESS ON ITS AREA takes them back only on a development host.
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.session().notice.clear();
         g.press_cell(body.x, body.y);
         const std::string pressed = r.last_notice();

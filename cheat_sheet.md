@@ -93,7 +93,7 @@ tree's own spelling: `#include "timer/vocabulary.hpp"`.
 | `zengine::timer` | order one-shots and repeats; declare an authored rhythm |
 | `zengine::graphics` | draw in a window's area: the vocabulary, the canvas, the drawing facet, pixels and roles |
 | `zengine::input` | key/text/pointer moments; translate a raw byte stream |
-| `zengine::ui` | author placement and extent; read what a viewport resolved |
+| `zengine::ui` | author places and sizes in words; read what a room solved, in whole pixels |
 | `zengine::component` | medium-independent text editing, list and table arithmetic, a control strip, motion sampling |
 | `zengine::activation` | read your own activation as a cursor |
 | `zengine::operator` | hold and evaluate named typed rules; mount a provider |
@@ -445,28 +445,32 @@ namespace ui = zengine::ui;
 
 ui::Element e;
 e.id = 7; e.label = "panel";
-e.x = 2; e.y = 1;
-e.width  = ui::Extent{ui::kExtentCells,   12};   // 12 cells
-e.height = ui::Extent{ui::kExtentPercent, 70};   // 70% of its frame
-e.context = ui::kRootContext;                    // whose frame x/y/w/h are read in
+e.place  = ui::Place{ui::kPlaceBottomRight, 10, 10};  // its corner 10 px in from the frame's
+e.width  = ui::Size{ui::kSizeShare, 5000};            // half its frame, in ten-thousandths
+e.height = ui::Size{ui::kSizeFit, std::nullopt};      // its own measure
+e.context = ui::kRootContext;                         // whose frame it stands in
 
-const ui::Scene scene = ui::resolve({e}, ui::Viewport{78, 22});
-const ui::Placed* under_cursor = ui::hit(scene, cx, cy);          // -> authored id
+if (const std::string wrong = ui::problem({e}); !wrong.empty()) { /* refuse, in words */ }
+const ui::Scene scene = ui::arrange({e}, ui::Room{936, 264, 1}, {ui::Measure{{}, 48}});
+const ui::Placed* under_cursor = ui::hit(scene, px, py);          // -> authored id
 const ui::Placed* mine        = ui::placed_for(scene, e.id);
 ```
 
 | call | answers |
 |---|---|
-| `resolve(elements, viewport)` | a `Scene`: the viewport plus one `Placed{id, rect}` per element |
-| `resolve_extent(extent, span)` | one authored extent against one span — total for every value the type can hold |
-| `root_frame(viewport)` / `resolve_in(element, frame)` | the two halves `resolve` composes |
-| `hit(scene, cx, cy)` | what is under this cell, as the **authored** id |
-| `placed_for(scene, id)` | the resolved rectangle for one authored id |
+| `arrange(parts, room, measures)` | a `Scene`: the room plus one `Placed{id, rect}` per part, in whole pixels |
+| `problem(parts)` | the intent's first problem with no room -- a size that depends on itself, a broken chain -- or empty |
+| `size_word(mode)` / `place_word(mode)` | the word a mode is spelled as |
+| `hit(scene, px, py)` | what is under this pixel, as the **authored** id |
+| `placed_for(scene, id)` / `frame_in(scene, part)` | the solved rectangle for one authored id; the frame a part stood in |
 
-- Resolution **needs a context**: "how big is this?" is not answerable about an element alone.
+- Sizes: `default`, `pixels`, `share`, `fit`, `fill`. Places: `default`, `pixels`, `top`,
+  `top-right`, `left`, `center`, `right`, `bottom-left`, `bottom`, `bottom-right`. A number is
+  present only where its word reads it.
+- Solving **needs a room**, and the room's step: 1 in a window of pixels, a cell in a terminal.
 - The result is a **separate value**, cached nowhere — the authored type has no field able to
   hold a rectangle, and adding one is a compile error.
-- `resolve()` emits items in **document** order (= paint/hit/list order), not dependency order.
+- `arrange()` emits items in **document** order (= paint/hit/list order), not dependency order.
 - A chain that cannot reach the root (a cycle, a missing source) is **not placed at all**.
 
 No parent/child, no widget kinds, no colour, no z. Full reference:

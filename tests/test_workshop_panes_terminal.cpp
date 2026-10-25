@@ -72,7 +72,7 @@ struct TerminalRig {
 
     /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard.
     void focus() {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y); // the header: a row that means nothing
         REQUIRE(r.session().panes.keyboard == kind);
     }
@@ -2015,7 +2015,7 @@ TEST_CASE("the wheel reads the record three rows a notch and moves nothing else"
     const RowsCaret caret = t.caret();
     const std::int64_t above = marker_count(t, " more rows above");
     REQUIRE(above > 3);
-    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    const CellRect body = external_body_rect(t.r.session(), t.kind);
     t.r.wheel_cell(1.0, body.x + 2, body.y + 2);
     CHECK(marker_count(t, " more rows above") == above - 3);
     CHECK(t.text().find("more rows below") != std::string::npos);
@@ -2033,7 +2033,7 @@ TEST_CASE("a right press on the Terminal anywhere but a value is handed back, an
     t.focus();
     t.type("abc");
     REQUIRE_FALSE(t.r.session().context.open);
-    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    const CellRect body = external_body_rect(t.r.session(), t.kind);
     t.r.right_press_cell(body.x + pane_cell_of(t.r.session(), t.kind, t.input_row(), 3),
                          body.y + kExternalHeaderRows + t.input_row());
     CHECK(t.r.session().context.open);
@@ -2369,7 +2369,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
 
     const std::int64_t above = marker_count(t, " more rows above");
     REQUIRE(above > 6);
-    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    const CellRect body = external_body_rect(t.r.session(), t.kind);
     t.r.wheel_cell(1.0, body.x + 2, body.y + 2);
     CHECK(marker_count(t, " more rows above") == above - 6);
 

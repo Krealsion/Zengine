@@ -392,7 +392,7 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
         ++changed;
         CAPTURE(row);
         CHECK(says(shown[row], "tutor: \"build this one\""));
-        const ui::Rect body = external_body_rect(d.b.r.session(), d.b.kind);
+        const CellRect body = external_body_rect(d.b.r.session(), d.b.kind);
         const std::string before = plain[row].substr(static_cast<std::size_t>(body.x),
                                                      static_cast<std::size_t>(body.w));
         CHECK(before.find_first_not_of(' ') == std::string::npos);

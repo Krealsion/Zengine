@@ -96,7 +96,7 @@ void queue_button(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx
     (void)r.bus.send(r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{})));
 }
 
-ui::Rect body_of(PaneRig& r, std::int64_t kind) { return external_body_rect(r.session(), kind); }
+CellRect body_of(PaneRig& r, std::int64_t kind) { return external_body_rect(r.session(), kind); }
 std::int64_t body_x(PaneRig& r, std::int64_t kind, std::int64_t col) { return body_of(r, kind).x + col; }
 std::int64_t body_y(PaneRig& r, std::int64_t kind, std::int64_t row) {
     return body_of(r, kind).y + kExternalHeaderRows + row;
@@ -1810,7 +1810,7 @@ TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the hos
           std::string::npos);
     // ...AND THE HOST'S OWN MANAGEMENT ROUTE NEEDS NONE: the pane's title row still opens
     // Workshop's menu on that pane with nobody in the presenter's office (WL-CTX-09).
-    const ui::Rect chrome = body_of(k.r, k.hotkeys);
+    const CellRect chrome = body_of(k.r, k.hotkeys);
     button_cell(k.r, 3, true, chrome.x + 1, chrome.y);
     button_cell(k.r, 3, false, chrome.x + 1, chrome.y);
     CHECK(k.r.session().context.open);
