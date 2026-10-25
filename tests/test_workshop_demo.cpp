@@ -651,6 +651,52 @@ TEST_CASE("pane comfort survives offer refresh and rejects malformed preferences
     REQUIRE(p.runtime.entries.size() == 1);
 }
 
+TEST_CASE("pane comfort: `fit` follows a re-offer and `default` keeps the first, and a measure that comes back is held") {
+    // ⚔ MUTATION: `pane_measure` reading the first offer for `fit` -- the fitted pane stays as tall
+    // as its first offer asked, whatever it asks now.
+    Panes p;
+    Setup setup;
+    setup.name = "Comfort";
+    setup.panes.clear();
+    const auto fits = admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 7, 54);
+    const auto stays = admit_pane_offer(p.runtime, "test.pane", {"stays", "Stays", "list"}, 7, 54);
+    REQUIRE(fits.written.accepted);
+    REQUIRE(stays.written.accepted);
+    for (const auto& [key, x] : {std::pair{"fits", 0}, std::pair{"stays", 60}}) {
+        SetupPane row;
+        row.ref = {"test.pane", key};
+        row.place = {pane_unit::kPixels, cells_px(x), 0};
+        row.height = {std::string_view(key) == "fits" ? ui::kSizeFit : pane_unit::kDefault, 0};
+        row.front = static_cast<std::int64_t>(setup.panes.size());
+        setup.panes.push_back(row);
+    }
+    REQUIRE(check_setup(setup).accepted);
+    reconcile(p, setup);
+    const auto sc = screen_of(cells_px(140), cells_px(44));
+    const auto tall = [&](std::int64_t kind) { return bounds_of(p, setup, kind, sc).resolved.h; };
+    const std::int64_t first = tall(fits.kind);
+    CHECK(tall(stays.kind) == first); // one offer: `fit` and `default` read the same measure
+    // THE PANE SAYS ITS CONTENT GREW, by offering again: `fit` follows, `default` does not.
+    REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 20, 54).refreshed);
+    REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"stays", "Stays", "list"}, 20, 54).refreshed);
+    const std::int64_t grown = tall(fits.kind);
+    CHECK(grown > first);
+    CHECK(tall(stays.kind) == first);
+    CHECK_FALSE(p.runtime.of_kind(fits.kind)->fit_held);
+    // A MEASURE THAT COMES BACK -- the one before the latest -- IS HELD where it is: a pane whose
+    // measure follows its room would otherwise answer every grant with the other one.
+    // ⚔ MUTATION: no hold -- the fitted pane shrinks back to its first height.
+    REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 7, 54).refreshed);
+    CHECK(p.runtime.of_kind(fits.kind)->fit_held);
+    CHECK(tall(fits.kind) == grown);
+    // ...and a measure it has not said before is taken, and nothing is held.
+    REQUIRE(admit_pane_offer(p.runtime, "test.pane", {"fits", "Fits", "list"}, 12, 54).refreshed);
+    CHECK_FALSE(p.runtime.of_kind(fits.kind)->fit_held);
+    CHECK(tall(fits.kind) > first);
+    CHECK(tall(fits.kind) < grown);
+    CHECK(tall(stays.kind) == first);
+}
+
 TEST_CASE("pane comfort budgets body text with chrome in both real medium metrics") {
     RuntimePane p; p.preferred_rows = 7; p.preferred_columns = 54;
     for (const bool graphical : {false, true}) {

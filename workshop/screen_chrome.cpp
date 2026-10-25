@@ -107,14 +107,28 @@ void add_desk_frames(std::vector<ui::Element>& parts, std::vector<ui::Measure>& 
     measures.resize(parts.size());
 }
 
-/// One pane's own measure: its first offered extent per axis, else its place's own extent, the
-/// developer's answer a weaver's word lays over.
+/// One pane's own measure, per axis: what its latest offer asks for where the axis says `fit`,
+/// else its first offer's -- `default`'s, which a content change cannot move -- else its place's
+/// own extent, the developer's answer a weaver's word lays over. A `fit` axis of a pane that
+/// offered nothing stands at that default.
 // WL-PANE-17 -- agents/workshop/panes-and-windows.md
-ui::Measure pane_measure(std::int64_t where, const Screen& sc, const RuntimePane* preference) {
+ui::Measure pane_measure(std::int64_t where, const Screen& sc, const RuntimePane* preference,
+                         const SetupPane* authored) {
     const PixelRect own = placement_bounds(where, 0, sc);
-    const auto preferred = preferred_extent(preference, stack_capacity(sc));
-    return ui::Measure{preferred.width ? preferred.width : own.w,
-                       preferred.height ? preferred.height : own.h};
+    const StackCapacity room = stack_capacity(sc);
+    const PreferredExtent first = preferred_extent(preference, room);
+    const PreferredExtent now = fit_extent(preference, room);
+    const auto axis = [](std::int64_t latest, std::int64_t earliest, std::int64_t fallback,
+                         bool fits) {
+        if (fits && latest) {
+            return latest;
+        }
+        return earliest ? earliest : fallback;
+    };
+    const bool fit_w = authored != nullptr && authored->width.mode == ui::kSizeFit;
+    const bool fit_h = authored != nullptr && authored->height.mode == ui::kSizeFit;
+    return ui::Measure{axis(now.width, first.width, own.w, fit_w),
+                       axis(now.height, first.height, own.h, fit_h)};
 }
 
 /// One pane as a part: its sizes are the weaver's words, `default` -- its measure -- where they
@@ -154,7 +168,7 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
     std::vector<ui::Element> parts;
     std::vector<ui::Measure> measures;
     add_desk_frames(parts, measures, sc);
-    const ui::Measure measure = pane_measure(where, sc, preference);
+    const ui::Measure measure = pane_measure(where, sc, preference, authored);
     ui::Element pane = pane_part(kFirstPanePart, where, authored);
     // Projected alone, a pane in the stack stands at the slot it is given: its top `stack_y`, or
     // the slot's own where none is given.
@@ -202,7 +216,8 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
             }
         }
         const std::int64_t where = placement_of(p.kind);
-        const ui::Measure measure = pane_measure(where, sc, panes.runtime.of_kind(p.kind));
+        const ui::Measure measure =
+            pane_measure(where, sc, panes.runtime.of_kind(p.kind), authored);
         if (!asked && p.kind == kind) {
             asked = parts.size();
             asked_where = where;

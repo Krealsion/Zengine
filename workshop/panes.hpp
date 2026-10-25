@@ -211,6 +211,14 @@ struct ProjectFrontier {
     std::size_t blocked = 0;  ///< authored rows behind the frontier, waiting on it
 };
 
+/// What one offer asked a pane's body to hold: rows and columns of text, or a canvas body of
+/// pixels with rows of text beneath it; all zero for an offer that asked for nothing.
+struct PaneOfferedBody {
+    std::int64_t rows = 0, columns = 0, width = 0, height = 0, text_rows = 0;
+
+    friend bool operator==(const PaneOfferedBody&, const PaneOfferedBody&) = default;
+};
+
 /// One pane an office offered this run: session state, never persisted. `provider` is the office
 /// Loom stamped on the offer (`mail.authored_role()`), never a payload field.
 struct RuntimePane {
@@ -241,6 +249,14 @@ struct RuntimePane {
     std::int64_t preferred_width = 0;
     std::int64_t preferred_height = 0;
     std::int64_t preferred_text_rows = 0;
+    /// WHAT THE PANE ASKS FOR NOW, which `fit` reads while `default` keeps the first offer above:
+    /// the latest offer's body and the one before it. A re-offer that would put that one back is
+    /// held (`fit_held`): a pane whose measure follows the room it was granted would otherwise
+    /// answer every grant with a new one.
+    // WL-PANE-17 -- agents/workshop/panes-and-windows.md
+    PaneOfferedBody latest = {};
+    PaneOfferedBody before = {};
+    bool fit_held = false;
 };
 
 /// Catalog rows this session holds, built-ins included: room for the standard panes, Info's and
