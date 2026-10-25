@@ -697,6 +697,35 @@ TEST_CASE("pane comfort: `fit` follows a re-offer and `default` keeps the first,
     CHECK(tall(stays.kind) == first);
 }
 
+TEST_CASE("pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer") {
+    // ⚔ MUTATION: `pane_fit_note` saying nothing of a held measure -- the weaver sees a pane that
+    // stopped following its content and is not told why.
+    Session s;
+    const auto offered = admit_pane_offer(s.panes.runtime, "test.pane", {"fits", "Fits", "list"}, 7, 54);
+    REQUIRE(offered.written.accepted);
+    const PaneRef ref{"test.pane", "fits"};
+    REQUIRE(add_pane(s.setup.active, ref));
+    pane_of(s.setup.active, ref)->height = PaneSize{ui::kSizeFit, 0};
+    CHECK(pane_fit_note(s, ref).empty()); // it follows its latest offer, which is all there is
+    REQUIRE(admit_pane_offer(s.panes.runtime, "test.pane", {"fits", "Fits", "list"}, 20, 54).refreshed);
+    CHECK(pane_fit_note(s, ref).empty());
+    REQUIRE(admit_pane_offer(s.panes.runtime, "test.pane", {"fits", "Fits", "list"}, 7, 54).refreshed);
+    const std::string held = pane_fit_note(s, ref);
+    CHECK(held.find("fit: its measure follows its room -- held at ") == 0);
+    const PreferredExtent now =
+        fit_extent(s.panes.runtime.find("test.pane", "fits"), stack_capacity(screen_of(s)));
+    bool projected = false;
+    CHECK(held.find(geometry_amount_text(now.height, s.cell_px, projected)) != std::string::npos);
+    // A PANE THAT OFFERED NOTHING stands at its default, and says so.
+    const PaneRef editor = ref_of(stock::kKind);
+    REQUIRE(add_pane(s.setup.active, editor));
+    pane_of(s.setup.active, editor)->width = PaneSize{ui::kSizeFit, 0};
+    CHECK(pane_fit_note(s, editor) == "fit: no measure offered -- it stands at its default");
+    // ...and an axis that is not `fit` says nothing of it.
+    pane_of(s.setup.active, editor)->width = PaneSize{};
+    CHECK(pane_fit_note(s, editor).empty());
+}
+
 TEST_CASE("pane comfort budgets body text with chrome in both real medium metrics") {
     RuntimePane p; p.preferred_rows = 7; p.preferred_columns = 54;
     for (const bool graphical : {false, true}) {

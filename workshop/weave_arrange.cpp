@@ -111,11 +111,14 @@ std::string WorkshopWeave::arrange_status() const {
     const SetupPane* row = pane_of(session_.setup.active, a.pane);
     std::string text = "arrange " + ref_text(a.pane) + " (" + state + ") -- " +
                        pane_window_text(row, session_.cell_px);
-    if (pane_window_partly_default(row)) {
+    if (pane_window_reads_words(row)) {
         const PixelRect now = room_of_canvas(managed_bounds().resolved, screen_of(session_));
         if (now.w > 0 && now.h > 0) {
             text += " -- now " + pixel_rect_text(now, session_.cell_px);
         }
+    }
+    if (const std::string fit = pane_fit_note(session_, a.pane); !fit.empty()) {
+        text += " -- " + fit;
     }
     // A HELD SNAP IS SAID AS WELL AS MARKED, so it is heard where it cannot be seen.
     const PaneGesture& g = session_.pane_drag;

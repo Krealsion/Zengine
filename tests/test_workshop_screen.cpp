@@ -3516,22 +3516,71 @@ TEST_CASE("the medium's unit reaches the READOUT and no geometry at all") {
     CHECK(pane_window_text(row, cells.cell_px).find(" cells ") != std::string::npos);
 }
 
-TEST_CASE("which parts of a pane's window the weaver has not authored") {
-    // The question the arrangement readout asks before it adds where the pane actually is.
+TEST_CASE("which parts of a pane's window its numbers alone do not place") {
+    // The question the arrangement readout asks before it adds where the pane actually is: any
+    // axis that is not exact pixels -- the code's answer, or a word.
+    // ⚔ MUTATION: asking only for `default` -- a share-wide pane is read without where it is.
     SetupPane none;
-    CHECK(pane_window_partly_default(&none));
+    CHECK(pane_window_reads_words(&none));
 
     SetupPane placed;
     placed.place = PanePlace{pane_unit::kPixels, cells_px(2), cells_px(2)};
-    CHECK(pane_window_partly_default(&placed)); // both extents still the code's
+    CHECK(pane_window_reads_words(&placed)); // both extents still the code's
 
     SetupPane whole;
     whole.place = PanePlace{pane_unit::kPixels, cells_px(2), cells_px(2)};
     whole.width = PaneSize{pane_unit::kPixels, cells_px(20)};
     whole.height = PaneSize{pane_unit::kPixels, cells_px(6)};
-    CHECK_FALSE(pane_window_partly_default(&whole));
+    CHECK_FALSE(pane_window_reads_words(&whole));
 
-    CHECK_FALSE(pane_window_partly_default(nullptr));
+    SetupPane shared = whole;
+    shared.width = PaneSize{ui::kSizeShare, 5000};
+    CHECK(pane_window_reads_words(&shared));
+    SetupPane anchored = whole;
+    anchored.place = PanePlace{ui::kPlaceBottomRight, cells_px(1), cells_px(1)};
+    CHECK(pane_window_reads_words(&anchored));
+
+    CHECK_FALSE(pane_window_reads_words(nullptr));
+}
+
+TEST_CASE("the readout says each word, and where the words put the pane") {
+    // ⚔ MUTATION: `pane_window_text` saying `-` for every axis that is not pixels -- a share, a
+    // fit and a point of the room all read as the code's answer.
+    SetupPane row;
+    row.front = 2;
+    row.place = PanePlace{ui::kPlaceBottomRight, cells_px(1), cells_px(2)};
+    row.width = PaneSize{ui::kSizeShare, 5000};
+    row.height = PaneSize{ui::kSizeFit, 0};
+    CHECK(pane_window_text(&row, 0) == "@bottom-right 1,2 50.00%xfit cells f2");
+    row.place = PanePlace{ui::kPlaceTop, 0, cells_px(3)};
+    row.width = PaneSize{ui::kSizeFill, 0};
+    row.height = PaneSize{pane_unit::kPixels, cells_px(7)};
+    CHECK(pane_window_text(&row, 0) == "@top 3 fillx7 cells f2");
+    row.place = PanePlace{ui::kPlaceCenter, 0, 0};
+    row.width = PaneSize{ui::kSizeShare, 3333};
+    row.height = PaneSize{};
+    CHECK(pane_window_text(&row, 0) == "@center 33.33%x- f2"); // no number, so no unit
+
+    // ...AND THE ARRANGING NOTICE ADDS WHERE THE WORDS PUT IT, from the unclipped window.
+    Live t;
+    pick(t, second::kKind);
+    stage_desk(t, [](Setup& desk) {
+        for (SetupPane& r : desk.panes) {
+            if (r.ref == ref_of(second::kKind)) {
+                r.place = PanePlace{ui::kPlaceBottomRight, cells_px(1), cells_px(2)};
+                r.width = PaneSize{ui::kSizeShare, 5000};
+                r.height = PaneSize{pane_unit::kPixels, cells_px(6)};
+            }
+        }
+    });
+    enter_arrange_desk(t);
+    select_pane(t, ref_of(second::kKind));
+    const Screen sc = screen_of(t.session());
+    const PixelRect at = room_of_canvas(
+        bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).resolved, sc);
+    CHECK(t.notice().find("@bottom-right 1,2 50.00%x6 cells") != std::string::npos);
+    CHECK(t.notice().find(" -- now " + pixel_rect_text(at, t.session().cell_px)) !=
+          std::string::npos);
 }
 
 // ============================================================================
