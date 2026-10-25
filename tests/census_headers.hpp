@@ -131,8 +131,8 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::view::detail::ViewStart>(), // ViewStart v2
         shape<::zengine::workshop::LayoutsOwnerState>(), // LayoutsOwnerState v1
         shape<::zengine::workshop::LiveTab>(), // LiveTab v1
-        shape<::zengine::workshop::RowRevision>(), // RowRevision v1
-        shape<::zengine::workshop::LiveLayout>(), // LiveLayout v1
+        shape<::zengine::workshop::RowSettingUnused>(), // RowSettingUnused v1
+        shape<::zengine::workshop::LiveLayout>(), // LiveLayout v2
         shape<::zengine::workshop::LayoutEdit>(), // LayoutEdit v1
         shape<::zengine::workshop::LayoutEditRequested>(), // LayoutEditRequested v1
         shape<::zengine::workshop::LayoutEditAnswered>(), // LayoutEditAnswered v1

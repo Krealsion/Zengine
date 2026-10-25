@@ -38,13 +38,13 @@ A weave joins the desk as a pane in five steps, each a message sent as its offic
 
 1. **Offer.** When the desk starts Workshop publishes `PaneCatalogRequested`; answer it, and
    your own activation, with [`PaneOffered`](#paneoffered). Repeating it refreshes in place.
-2. **Declare.** Say the rows a weaver's keys reach with [`PaneActions`](#paneactions) and the
-   settings you take with [`PaneSettingsDeclared`](zengine.layouts.md#panesettingsdeclared),
-   to `zengine.layouts`.
+2. **Declare.** Say the rows a weaver's keys reach with [`PaneActions`](#paneactions); to
+   `zengine.layouts`, the settings you take with
+   [`PaneSettingsDeclared`](zengine.layouts.md#panesettingsdeclared), and ask for your row.
 3. **Be placed.** When the desk seats your pane -- a setup naming it, the Pane Manager's
-   launch, your own [`PaneRevealRequested`](#panerevealrequested) -- Workshop hands you
-   `PaneSettings`, then places your pane's area in the window showing the desk, which tells you
-   its `AreaRoom`. A holder that hears no room is framed: `<name> draws in no window`.
+   launch, your own [`PaneRevealRequested`](#panerevealrequested) -- Workshop places your pane's
+   area in the window showing the desk, which tells you its `AreaRoom`; draw no room before you
+   hold your row. A holder that hears no room is framed: `<name> draws in no window`.
 4. **Draw.** Send `Drawn` to that window, in your area alone: rows or a picture, each part named
    by the action a press there asks.
 5. **Hear the hand.** The window gives you the pointer in your area: `AreaButtonChanged` under
@@ -574,9 +574,10 @@ office ([`vocabulary.hpp`](../layouts/vocabulary.hpp)).
 
 ### `LiveLayout`
 
-`LiveLayout`, from `zengine.layouts`: the live desk, a tab for every layout, the revision it stands
-at, each live row's settings revision and the sentence about what moved. Workshop presents from the
-latest one and never writes it; the next replaces it whole.
+`LiveLayout` v2, from `zengine.layouts`: the live desk, each row with Workshop's own `workshop.`
+keys alone, a tab for every layout, the revision it stands at, what each live row's pane cannot use
+(said on Attention) and the sentence about what moved. Workshop presents from the latest one and
+never writes it; the next replaces it whole. A pane's own settings are the owner's to hand it.
 
 ### `LayoutEditAnswered`
 
@@ -623,12 +624,6 @@ force stand. A later collision withdraws them: `ActionsWithdrawn`.
 whole, answered `ActionsJudged`; every pane's rows are joined again, a pane that now collides told
 `ActionsWithdrawn`. Another office is refused: ``application actions are declared by
 `zengine.desktop` -- ...``.
-
-### `PaneSettingUnused`
-
-`PaneSettingUnused`, from a pane's office: a setting it was handed at a revision and cannot use,
-and why. Kept while the pane holds that revision, said with its row (`it cannot use <key> --
-<why>`) and on Attention; one naming another revision is dropped.
 
 ### `PaneEscapeUnspent`
 

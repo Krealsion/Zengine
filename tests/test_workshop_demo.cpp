@@ -741,7 +741,7 @@ TEST_CASE("an agent's desk holding a setting with no value is refused by its key
     candidate.panes.front().settings = {PaneSetting{"legend", {}, {}, std::string("hiden")}};
     actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(candidate)});
     CHECK(actor.hand->acks == 1);
-    CHECK(live.session().setup.active.panes.front().settings == candidate.panes.front().settings);
+    CHECK(live.run().active.panes.front().settings == candidate.panes.front().settings);
 }
 
 TEST_CASE("a desk put live keeps every lock: `r` and an agent's desk are refused whole naming each locked value they would change, and a lock the desk brings joins") {
@@ -759,7 +759,7 @@ TEST_CASE("a desk put live keeps every lock: `r` and an agent's desk are refused
         pane_of(desk, layouts)->settings = {PaneSetting{"legend", {}, {}, std::string("shown")}};
         desk.locks = {SetupLock{layouts, "legend"}};
     });
-    const Setup locked = live.session().setup.active;
+    const Setup locked = live.run().active;
     const std::string says =
         "the desk would change what a lock holds -- legend of zengine.workshop/layouts; nothing was "
         "replaced";
@@ -771,12 +771,12 @@ TEST_CASE("a desk put live keeps every lock: `r` and an agent's desk are refused
     actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(changed)});
     REQUIRE(actor.hand->refused.size() == 1);
     CHECK(actor.hand->refused.back() == says);
-    CHECK(live.session().setup.active == locked);
+    CHECK(live.run().active == locked);
     // ...AND AS `r` READS IT FROM THE FILE: the same words, the same desk.
     REQUIRE(setup_persist::save_file(live.host.setup_path, changed).accepted);
     live.key(input::scan::kR);
     CHECK(live.session().notice.find(says) != std::string::npos);
-    CHECK(live.session().setup.active == locked);
+    CHECK(live.run().active == locked);
     // ...AND ONE DROPPING THE LOCKED ROW, which changes what the lock holds as surely.
     Setup dropped = locked;
     dropped.locks.clear();
@@ -791,7 +791,7 @@ TEST_CASE("a desk put live keeps every lock: `r` and an agent's desk are refused
     kept.locks = {SetupLock{layouts, "style"}};
     actor.say(kLayoutsRole, SetupApplyRequested{setup_persist::to_text(kept)});
     CHECK(actor.hand->acks == 1);
-    CHECK(live.session().setup.active.name == "Kept");
-    CHECK(live.session().setup.active.locks ==
+    CHECK(live.run().active.name == "Kept");
+    CHECK(live.run().active.locks ==
           std::vector<SetupLock>{SetupLock{layouts, "style"}, SetupLock{layouts, "legend"}});
 }

@@ -318,7 +318,8 @@ which a poke does not read); the Neovim-backed Editor's `NeovimEditorState`
 ([`editor/neovim-editor/vocabulary.hpp`](../neovim-editor/vocabulary.hpp)), with `running`,
 `ready`, `profile`, `path`, `modified` and `mode`, written from what Neovim last said. A switch's
 own account is the switch's ([Follow](zengine.editor-switch.md#follow)). Beside its picture it
-tells Workshop only `PaneSettingUnused`, about a setting a layout handed it and it cannot use.
+tells the layouts' owner only `PaneSettingsAsked`, for its row when it arrives, and
+`PaneSettingUnused`, about a setting a layout handed it and it cannot use.
 
 ## Shows
 

@@ -32,6 +32,7 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_settings.hpp"
+#include "workshop/pane_settings_taken.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 #include <zen/weave/dispatch_refusal.hpp>
 #include "graphics/vocabulary.hpp"
@@ -100,15 +101,17 @@ using Rows = ws::PaneRowsFacet<pane::kTerminalPane, pane::kTerminalPaneRole,
                                zengine::manual::pages::zengine_terminal::kManual, Subject>;
 using Actions = ws::PaneActionFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
 using Menu = ws::PaneMenuFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
+/// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+using Settings = ws::PaneSettingsFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
 
 class TerminalPaneWeave
-    : public zengine::With<Rows, Actions, Menu>::Weave<
+    : public zengine::With<Rows, Actions, Menu, Settings>::Weave<
           TerminalPaneWeave, pane::TerminalPaneState,
-          loom::Accept<ws::v2::PaneSettings, ws::TerminalValueAnswered, ws::PaneCarryAnswered,
+          loom::Accept<ws::TerminalValueAnswered, ws::PaneCarryAnswered,
                        loom::DispatchRefused, PaneKey, PaneTextInput, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, gfx::ClipboardCopy,
                        gfx::ClipboardText>,
-          loom::Emit<ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused, PaneEscapeUnspent,
+          loom::Emit<ws::v2::PaneSettingsDeclared, PaneEscapeUnspent,
                      ws::TerminalValueRequested,
                      ws::PaneValueCarryRequested, TerminalActRequested,
                      TerminalCompletionRequested, gfx::ClipboardCopy,
@@ -137,48 +140,45 @@ public:
     /// A room granted, prose or canvas: the pane draws its rows there.
     void on_room(loom::Mail& mail) { say(mail); }
 
-    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole: a list that keeps none is every
-    /// setting at its default. A value a setting cannot use leaves its default in force and is said
-    /// back to Workshop against the revision it was handed at -- the legend's on its own row too;
-    /// a key it did not declare is passed over. Held as plain members, never reload state.
-    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kTerminalPane) {
-            return;
-        }
-        legend_shown_ = true;
-        legend_problem_.clear();
-        wheel_rows_ = kWheelRows;
-        prompt_ = kPrompt;
-        for (const ws::v2::PaneSettingRow& row : setting_rows()) {
-            const ws::PaneSetting* held = ws::find_pane_setting(handed.settings, row.key);
-            if (held == nullptr) {
-                continue;
-            }
-            if (const std::string refused = ws::v2::pane_setting_refused_by(row, *held);
-                !refused.empty()) {
-                if (row.key == pane::kSettingLegend) {
-                    legend_problem_ = refused + " -- " + ws::kSettingOn;
-                }
-                // WHY, IN WHAT THE SETTING TAKES: a line Workshop can keep whatever the value was.
-                const std::string why =
-                    "it takes " + ws::pane_setting_takes(ws::narrow_setting_row(row));
-                (void)mail.as_role(pane::kTerminalPaneRole)
-                    .send_to_role(kWorkshopRole,
-                                  ws::PaneSettingUnused{pane::kTerminalPane, handed.revision,
-                                                        row.key,
-                                                        why.substr(0, ws::kMaxPaneSettingTextLen)});
-                continue;
-            }
-            if (row.key == pane::kSettingLegend) {
-                legend_shown_ = *held->flag;
-            } else if (row.key == pane::kSettingWheelRows) {
-                wheel_rows_ = *held->number;
-            } else if (row.key == pane::kSettingPrompt) {
-                prompt_ = *held->text;
-            }
-        }
-        say(mail); // draws nothing until a room is granted, so the first picture has the setting
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed them and its
+    /// facet took them whole: a list that keeps none is every setting at its default. A value a
+    /// setting cannot use leaves its default in force and was said back to the owner -- the
+    /// legend's on its own row too; a key it did not declare is passed over. Held as plain members,
+    /// never reload state.
+    void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
+        legend_shown_ = taken.flag(pane::kSettingLegend);
+        const std::string refused = taken.refusal(pane::kSettingLegend);
+        legend_problem_ = refused.empty() ? std::string() : refused + " -- " + ws::kSettingOn;
+        wheel_rows_ = taken.number(pane::kSettingWheelRows);
+        prompt_ = taken.text(pane::kSettingPrompt);
+        say(mail);
     }
+
+    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
+    /// the legend, pinned; the wheel's rows a notch; the prompt's mark.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow legend;
+        legend.key = pane::kSettingLegend;
+        legend.flag = true;
+        legend.tags = {"chrome", "help"};
+        legend.pinned = true;
+        legend.summary = "show the shortcut legend bar";
+        ws::v2::PaneSettingRow wheel;
+        wheel.key = pane::kSettingWheelRows;
+        wheel.number = kWheelRows;
+        wheel.low = kWheelRowsLow;
+        wheel.high = kWheelRowsHigh;
+        wheel.tags = {"input", "scroll"};
+        wheel.summary = "rows scrolled per mouse wheel notch";
+        ws::v2::PaneSettingRow prompt;
+        prompt.key = pane::kSettingPrompt;
+        prompt.text = kPrompt;
+        prompt.choices = kPromptMarks;
+        prompt.tags = {"chrome", "text"};
+        prompt.summary = "input line prompt mark";
+        return {legend, wheel, prompt};
+    }
+
 
     /// WHAT THE PARTICIPANT'S RECORD HOLDS, SAID BY THE HOST. Replaced WHOLE, never merged --
     /// this pane keeps no second copy of a transcript beyond the picture it was last shown.
@@ -517,31 +517,6 @@ public:
 private:
     // ---- Offering and declaring ---------------------------------------------------------
 
-    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
-    /// the legend, pinned; the wheel's rows a notch; the prompt's mark.
-    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
-        ws::v2::PaneSettingRow legend;
-        legend.key = pane::kSettingLegend;
-        legend.flag = true;
-        legend.tags = {"chrome", "help"};
-        legend.pinned = true;
-        legend.summary = "show the shortcut legend bar";
-        ws::v2::PaneSettingRow wheel;
-        wheel.key = pane::kSettingWheelRows;
-        wheel.number = kWheelRows;
-        wheel.low = kWheelRowsLow;
-        wheel.high = kWheelRowsHigh;
-        wheel.tags = {"input", "scroll"};
-        wheel.summary = "rows scrolled per mouse wheel notch";
-        ws::v2::PaneSettingRow prompt;
-        prompt.key = pane::kSettingPrompt;
-        prompt.text = kPrompt;
-        prompt.choices = kPromptMarks;
-        prompt.tags = {"chrome", "text"};
-        prompt.summary = "input line prompt mark";
-        return {legend, wheel, prompt};
-    }
-
     /// What this pane answers to: nine rows, and they never change. No modes, unlike Info's and
     /// Files': the line is always open (it is the pane), so each id names one gesture whose
     /// meaning the pane resolves against its state (a recall, a list, a line), and every other
@@ -783,7 +758,7 @@ private:
 
     /// THE SETTINGS THIS LAYOUT HANDED, and why a legend value it could not use left it shown --
     /// said on the legend row itself, which no keystroke clears. Plain members: a reloaded image
-    /// is handed them again before its room.
+    /// asks for them again, and draws no room before it holds them.
     bool legend_shown_ = true;
     std::string legend_problem_;
     std::int64_t wheel_rows_ = kWheelRows;

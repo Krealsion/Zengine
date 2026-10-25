@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// `WorkshopWeave`'s external panes: their settings, the forwarded key and text, the second
-// button's continuations, a pane's own menu, and the `?` it wears.
+// `WorkshopWeave`'s external panes: the forwarded key and text, the second button's
+// continuations, a pane's own menu, and the `?` it wears.
 // Workshop law: agents/workshop/focus.md (+5 registers; agents/workshop.md routes)
 
 #include "pane_document.hpp"
@@ -11,7 +11,7 @@
 
 namespace zengine::workshop {
 
-// ---- THE EXTERNAL PANE'S CHROME, SETTINGS AND KEYS ----------------------------------------
+// ---- THE EXTERNAL PANE'S CHROME AND KEYS --------------------------------------------------
 
 // WL-CHROME-09 -- agents/workshop/chrome.md; WL-PANE-16 -- agents/workshop/panes-and-windows.md
 void WorkshopWeave::note_manuals() {
@@ -49,58 +49,6 @@ void WorkshopWeave::press_manual(std::int64_t kind, loom::Mail& mail) {
         return;
     }
     request_app_action(kManualAction, mail, hand(), row);
-}
-
-// WL-SETTING-04 -- agents/workshop/settings.md
-void WorkshopWeave::hand_settings(loom::Mail& mail) {
-    if (!host_->holder_accepts || !host_->role_holder) {
-        return;
-    }
-    for (const OpenPane& p : session_.panes.open) {
-        if (!is_runtime_kind(p.kind)) {
-            continue;
-        }
-        const RuntimePane* row = session_.panes.runtime.of_kind(p.kind);
-        ExternalPane* pane = session_.panes.external_pane(p.kind);
-        const SetupPane* seat =
-            row == nullptr ? nullptr : pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
-        if (pane == nullptr || seat == nullptr) {
-            continue;
-        }
-        // A HOLDER THAT TAKES THE DOOR, whether or not, and whenever, it declared -- the newest
-        // version it takes. A v2 holder is handed the row's revision too, so it is handed again
-        // whenever the revision moves, a desk put live with the same settings included.
-        const PaneRef ref{row->provider, row->pane};
-        const bool revisions = host_->holder_accepts(row->provider,
-                                                     *loom::schema_of<v2::PaneSettings>());
-        if (!revisions &&
-            !host_->holder_accepts(row->provider, *loom::schema_of<PaneSettings>())) {
-            continue;
-        }
-        const loom::WeaveId holder = host_->role_holder(row->provider);
-        const std::int64_t revision = revisions ? settings_revision(ref) : 0;
-        // THE PANE'S OWN: a `workshop.` key on its row is Workshop's word for its area.
-        const std::vector<PaneSetting> held = pane_held_settings(seat->settings);
-        if (pane->settings_heard && pane->settings_holder == holder &&
-            *pane->settings_heard == held && pane->settings_revision == revision) {
-            continue; // what it holds is what this layout keeps: saying so again is noise
-        }
-        // TO THE HOLDER ITSELF, so what is recorded is who heard it.
-        const loom::Ticket sent =
-            revisions ? mail.as_role(kWorkshopProvider)
-                            .send(holder, v2::PaneSettings{row->pane, revision, held})
-                      : mail.as_role(kWorkshopProvider).send(holder, PaneSettings{row->pane, held});
-        if (!sent.valid()) {
-            continue; // nothing recorded, so the next repaint hands them again
-        }
-        pane->settings_heard = held;
-        pane->settings_holder = holder;
-        pane->settings_revision = revision;
-        // WHAT THE PANE SAID IT COULD NOT USE WAS ABOUT A REVISION IT NO LONGER HOLDS.
-        std::erase_if(pane->settings_unused, [revision](const ExternalPane::UnusedSetting& u) {
-            return u.revision != revision;
-        });
-    }
 }
 
 // WL-FOCUS-04 -- agents/workshop/focus.md

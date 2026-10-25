@@ -20,8 +20,8 @@ pane, replaces what another shows. The default pane becomes a value view while i
 Info owns nothing it shows. The inspected pane's rows are Workshop's reading, told to Info whole
 each time they change ([`PaneSubjectShown`](../../workshop/inspection_seam_vocabulary.hpp)); its
 SETTINGS rows are what [`zengine.layouts`](../../workshop/docs/zengine.layouts.md) keeps for the
-pane in the live layout, read there at the row's revision, beside Workshop's word of how far their
-hand-off got; and
+pane in the live layout, read there at the row's revision, under a `Settings` row saying how far
+their hand-off got, in the same reading; and
 Workshop's list of panes ([`PaneInventory`](../../workshop/desktop_seam_vocabulary.hpp)) tells Info
 which of its views are on the desk. Info names the pane to inspect by asking Workshop, when the Pane
 Manager or another office asks it to, and a property you change is written into the desk by

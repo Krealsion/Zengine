@@ -201,7 +201,8 @@ The pane's record is `TranscriptShown`, which Workshop publishes from its office
 `zengine.workshop`, to any, each time the participant's record changed; a weave that wants the
 record follows that rather than the pane ([the terminal seam](../../workshop/terminal_seam_vocabulary.hpp)).
 The pane says nothing else unasked but its picture, to Workshop, `ClipboardCopy` when you copy
-from the line, and `PaneSettingUnused` when a layout hands it a setting it cannot use.
+from the line, and to the layouts' owner `PaneSettingsAsked`, for its row when it arrives, and
+`PaneSettingUnused` when a layout hands it a setting it cannot use.
 
 ## Shows
 

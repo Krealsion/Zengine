@@ -158,7 +158,8 @@ office it was bound to at load, empty when none. An observer accepts the shape a
 it is from the authored office. It is said once a press, again when the same row is pressed again,
 and never when a selection clears. The name is not a weave id and not proof the weave runs now, and
 hearing it grants no reach to the weave it names. Nothing else is said unasked but
-`PaneSettingUnused`, to Workshop, when a layout hands a pane a setting it cannot use.
+`PaneSettingsAsked`, to the layouts' owner, for Powers' row when the office arrives, and
+`PaneSettingUnused`, to it, when a layout hands a pane a setting it cannot use.
 
 ## Shows
 

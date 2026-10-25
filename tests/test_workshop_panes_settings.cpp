@@ -3,14 +3,16 @@
 
 // The Workshop panes suite -- a pane's settings across the seam: the declaration a pane sends
 // beside its offer, judged whole under its office's stamp, and the settings the live layout keeps
-// for a seated pane, handed to a holder that takes them before any room. A native seat stands in
-// for a pane here, so a case can say the exact sentence at the exact moment; the Terminal's own
-// setting is proven through its real image in the Terminal suite.
+// for a seated pane, handed by the layouts' owner to a holder that takes them, when it asks and
+// whenever they move. A native seat stands in for a pane here, so a case can say the exact sentence
+// at the exact moment; that a pane draws no room before it holds its row is proven through real
+// images in the legend and panes suites.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <vector>
@@ -80,22 +82,24 @@ struct DialRig {
 
 } // namespace
 
-TEST_CASE("a pane's settings are handed before its first room, whether or not it declared") {
+TEST_CASE("the layouts' owner hands a seated pane its row's settings, whether or not it declared") {
+    // ⚔ MUTATION: the owner's hand-off sent as Workshop's office -- a pane takes a row from the
+    // layouts' owner alone.
     DialRig t;
     t.open({legend_off()});
     t.offer();
     REQUIRE(t.seated());
-    // THE OFFER SEATS IT IN ITS OWN DELIVERY, AND THAT REPAINT HANDS THE SETTINGS FIRST: the
-    // picture the room asks for is drawn with them. Nothing was declared, and none is waited on.
+    // THE OFFER SEATS IT AND ITS ASK IS ANSWERED: its row once, its room once, in whatever order
+    // their two senders' messages cross. Nothing was declared, and none is waited on.
     REQUIRE(t.seat->heard.size() == 2);
-    CHECK(t.seat->heard[0] == "settings");
-    CHECK(t.seat->heard[1] == "room");
+    CHECK(std::count(t.seat->heard.begin(), t.seat->heard.end(), "settings") == 1);
+    CHECK(std::count(t.seat->heard.begin(), t.seat->heard.end(), "room") == 1);
     CHECK(t.seat->handed.back().pane == kDial);
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{legend_off()});
-    // ...the settings Workshop's, the room the window's that shows the desk.
+    // ...the settings the layouts' owner's, the room the window's that shows the desk.
     for (std::size_t i = 0; i < t.seat->authors.size(); ++i) {
         CHECK(t.seat->authors[i] == (t.seat->heard[i] == "room" ? t.r.windows.office()
-                                                                : std::string(kWorkshopProvider)));
+                                                                : std::string(kLayoutsRole)));
     }
 
     // ...AND A DECLARATION ARRIVING AFTER IT CHANGES NOTHING HANDED: what the layout keeps is
@@ -133,6 +137,8 @@ TEST_CASE("a holder that takes no settings is handed none") {
 }
 
 TEST_CASE("a layout switch hands a pane its new layout's settings once, and only when they differ") {
+    // ⚔ MUTATION: the owner's record of what a holder holds ignored -- every switch hands every
+    // row.
     DialRig t;
     t.open({legend_off()});
     t.offer();
@@ -147,7 +153,7 @@ TEST_CASE("a layout switch hands a pane its new layout's settings once, and only
     REQUIRE(t.r.session().setup.active_at != copy);
     CHECK(t.seat->heard.size() == 2);
 
-    // ...THIS LAYOUT NOW KEEPS NONE, and the next repaint hands that: the empty list is a hand-off.
+    // ...THIS LAYOUT NOW KEEPS NONE, and the owner hands that: the empty list is a hand-off.
     stage_desk(t.r, [&](Setup& desk) {
         pane_of(desk, dial_ref())->settings.clear();
     });
@@ -168,17 +174,24 @@ TEST_CASE("a layout switch hands a pane its new layout's settings once, and only
     CHECK(t.seat->rooms.size() == 1);
 }
 
-TEST_CASE("a re-offer and a reopened row are handed their settings again, before their room") {
+TEST_CASE("a pane that asks for its row and a reopened row are handed their settings again") {
+    // ⚔ MUTATION: an ask that leaves the owner's record of what the holder holds -- a reloaded
+    // image is handed nothing, since its row did not move.
     DialRig t;
     t.open({legend_off()});
     t.offer();
     REQUIRE(t.seat->heard.size() == 2);
+    const auto since = [&t](std::size_t from, const char* what) {
+        return std::count(t.seat->heard.begin() + static_cast<std::ptrdiff_t>(from),
+                          t.seat->heard.end(), what);
+    };
 
-    // A RE-OFFER IS HOW A RELOADED IMAGE ARRIVES, holding nothing it was handed: owed again.
+    // A RE-OFFER IS HOW A RELOADED IMAGE ARRIVES, holding nothing it was handed: it asks, and its
+    // row is handed again, though the row did not move.
     t.offer();
     REQUIRE(t.seat->heard.size() == 4);
-    CHECK(t.seat->heard[2] == "settings");
-    CHECK(t.seat->heard[3] == "room");
+    CHECK(since(2, "settings") == 1);
+    CHECK(since(2, "room") == 1);
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{legend_off()});
 
     // A CLOSE DISCARDS THE ROW, SETTINGS AND ALL; THE REOPENED ROW KEEPS NONE, AND THAT IS HANDED
@@ -186,16 +199,21 @@ TEST_CASE("a re-offer and a reopened row are handed their settings again, before
     REQUIRE(hand_close(t.r, dial_ref()).closed);
     REQUIRE(seat_pane(t.r, dial_ref()).opened);
     REQUIRE(t.seat->heard.size() == 6);
-    CHECK(t.seat->heard[4] == "settings");
-    CHECK(t.seat->heard[5] == "room");
+    CHECK(since(4, "settings") == 1);
+    CHECK(since(4, "room") == 1);
     CHECK(t.seat->handed.back().settings.empty());
 
-    // ...AND A RE-OFFER OWES EVEN THAT: the row keeping none is handed none again.
+    // ...AND AN ASK OWES EVEN THAT: the row keeping none is handed none again.
     t.offer();
     REQUIRE(t.seat->heard.size() == 8);
-    CHECK(t.seat->heard[6] == "settings");
-    CHECK(t.seat->heard[7] == "room");
+    CHECK(since(6, "settings") == 1);
+    CHECK(since(6, "room") == 1);
     CHECK(t.seat->handed.back().settings.empty());
+    for (std::size_t i = 0; i < t.seat->authors.size(); ++i) {
+        if (t.seat->heard[i] == "settings") {
+            CHECK(t.seat->authors[i] == kLayoutsRole);
+        }
+    }
 }
 
 TEST_CASE("a declaration is judged whole under the office stamp, refused aloud, and replaced") {
@@ -368,7 +386,7 @@ struct InspectedDial : DialRig {
         REQUIRE(hand_inspect(r, dial_ref()).accepted);
     }
     std::vector<PaneSetting> stored() {
-        const SetupPane* row = pane_of(r.session().setup.active, dial_ref());
+        const SetupPane* row = pane_of(r.run().active, dial_ref());
         REQUIRE(row != nullptr);
         return row->settings;
     }
@@ -472,7 +490,7 @@ TEST_CASE("a text setting is stored as it is typed, spaces included, and `-` cle
     d.rows = {side, mode};
     t.declare(d);
     REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
-    const auto stored = [&t] { return pane_of(t.r.session().setup.active, dial_ref())->settings; };
+    const auto stored = [&t] { return pane_of(t.r.run().active, dial_ref())->settings; };
     const auto text = [](const char* key, const char* value) {
         return std::vector<PaneSetting>{PaneSetting{key, {}, {}, std::string(value)}};
     };
@@ -509,7 +527,7 @@ TEST_CASE("a settings write says it was stored and handed, or why it was not han
     const std::size_t heard = t.seat->heard.size();
     REQUIRE(info_commit(t.r, dial_ref(), "legend", "off").accepted);
     CHECK(t.r.last_notice() == "committed legend of Dial = off; stored and handed");
-    // HANDED IN THE COMMIT'S OWN DELIVERY, before any room it grants.
+    // HANDED BY THE LAYOUTS' OWNER IN THE COMMIT'S OWN DELIVERY.
     REQUIRE(t.seat->heard.size() == heard + 1);
     CHECK(t.seat->heard.back() == "settings");
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{PaneSetting{"legend", false, {}, {}}});
@@ -878,7 +896,7 @@ struct RevisionRig {
         return editor->acted.back();
     }
     std::vector<PaneSetting> stored() {
-        const SetupPane* row = pane_of(r.session().setup.active, dial_ref());
+        const SetupPane* row = pane_of(r.run().active, dial_ref());
         REQUIRE(row != nullptr);
         return row->settings;
     }
@@ -1142,13 +1160,12 @@ TEST_CASE("a holder that takes v2 is handed its row's revision, moved by a write
     RevisionRig t;
     t.open({legend_off()});
     REQUIRE_FALSE(t.seat->handed.empty());
-    CHECK(t.seat->heard.front() == "settings"); // before its first room, as v1 is
     const v2::PaneSettings first = t.seat->handed.back();
     CHECK(first.pane == kDial);
     CHECK(first.revision > 0);
     CHECK(first.settings == std::vector<PaneSetting>{legend_off()});
     for (const std::string& author : t.seat->authors) {
-        CHECK(author == kWorkshopProvider);
+        CHECK(author == kLayoutsRole);
     }
     // THE SAME DESK REPAINTED HANDS NOTHING: the revision has not moved.
     std::size_t handed = t.seat->handed.size();
@@ -1187,7 +1204,7 @@ TEST_CASE("a pane's row is read by message: its revision, what its declaration t
     CHECK(shown.pins == std::vector<std::string>{"legend"});
     CHECK(shown.settings == std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
     CHECK(shown.locks.empty());
-    CHECK(shown.said.empty());
+    CHECK(shown.said == "stored and handed"); // how far the row's hand-off got, as the owner says
     // READING AGAIN MOVES NOTHING.
     CHECK(t.read().revision == shown.revision);
 
@@ -1208,7 +1225,7 @@ TEST_CASE("a commit writes one setting at the revision it read, hands it, and sa
     REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
     CHECK(wrote.refusal.empty());
     CHECK(wrote.revision > before);
-    CHECK(wrote.handed == "stored");
+    CHECK(wrote.handed == "stored and handed");
     CHECK(t.stored() == std::vector<PaneSetting>{PaneSetting{"step", {}, 5, {}}});
     CHECK(t.r.last_notice() == "committed step of Dial = 5; stored and handed");
     CHECK(t.read().revision == wrote.revision);
@@ -1350,7 +1367,7 @@ TEST_CASE("a clear takes back what the row keeps, declared or not, and clearing 
           [tone](RevisionSeat& seat, loom::Mail& m) { seat.say(m, tone); });
     REQUIRE_FALSE(t.editor->acted.empty());
     CHECK_MESSAGE(t.editor->acted.back().accepted, t.editor->acted.back().refusal);
-    CHECK(pane_of(t.r.session().setup.active, ghost)->settings.empty());
+    CHECK(pane_of(t.r.run().active, ghost)->settings.empty());
 }
 
 TEST_CASE("an asker the settings doors do not serve is answered that it was withheld, and nothing is written") {
@@ -1372,7 +1389,8 @@ TEST_CASE("an asker the settings doors do not serve is answered that it was with
     CHECK(t.stored() == std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
 }
 
-TEST_CASE("a pane's word that it cannot use a setting is kept against its revision, said, and goes when a newer one is handed") {
+TEST_CASE("a pane's word that it cannot use a setting is kept against its revision by the layouts' owner, said, and goes when a newer one is handed") {
+    // ⚔ MUTATION: the owner keeping a word that names a revision its holder was not last handed.
     RevisionRig t;
     t.open({PaneSetting{"step", {}, 4, {}}});
     const std::int64_t at = t.seat->handed.back().revision;
@@ -1389,21 +1407,20 @@ TEST_CASE("a pane's word that it cannot use a setting is kept against its revisi
     // A REVISION IT WAS NOT HANDED IS LATE, AND KEPT NOWHERE.
     unused(at - 1, "step", "the dial is jammed");
     CHECK_FALSE(standing().has_value());
-    CHECK(t.read().said.empty());
-    CHECK(t.r.w->settings_handed(dial_ref()) == "stored and handed");
+    CHECK(t.read().said == "stored and handed");
+    CHECK(unused_settings(t.r, dial_ref()).empty());
 
     unused(at, "step", "the dial is jammed");
     REQUIRE(standing().has_value());
     CHECK(standing()->compact == "`test.dial/dial` cannot use its setting step");
     CHECK(standing()->detail == "the dial is jammed");
-    CHECK(t.read().said.empty());
-    CHECK(t.r.w->settings_handed(dial_ref()) == "stored and handed; it cannot use step -- the dial is jammed");
+    CHECK(t.read().said == "stored and handed; it cannot use step -- the dial is jammed");
+    CHECK(unused_settings(t.r, dial_ref()) == std::vector<std::string>{"step: the dial is jammed"});
     // ...SAID PERSONALLY, IT IS NOBODY'S WORD ABOUT THE PANE.
     drive(t.r, t.seat_id, t.seat, [at](RevisionSeat& s, loom::Mail& m) {
         s.say(m, PaneSettingUnused{kDial, at, "mode", "personally"}, /*personally=*/true);
     });
-    CHECK(t.read().said.empty());
-    CHECK(t.r.w->settings_handed(dial_ref()) == "stored and handed; it cannot use step -- the dial is jammed");
+    CHECK(t.read().said == "stored and handed; it cannot use step -- the dial is jammed");
     // ...A WORD IT CANNOT HAVE MEANT IS REFUSED ALOUD.
     unused(at, "Step", "the dial is jammed");
     CHECK(t.r.last_notice().find("Dial @test.dial: a setting it cannot use was not kept -- ") == 0);
@@ -1412,7 +1429,8 @@ TEST_CASE("a pane's word that it cannot use a setting is kept against its revisi
     const PaneSettingCommitAnswered wrote = t.commit(number_at(t.read().revision, "step", 3));
     REQUIRE(wrote.accepted);
     CHECK_FALSE(standing().has_value());
-    CHECK(wrote.handed == "stored");
+    CHECK(wrote.handed == "stored and handed");
+    CHECK(unused_settings(t.r, dial_ref()).empty());
     // ...AND ONE ABOUT A DESK NO LONGER LIVE IS LATE TOO.
     const std::int64_t before_switch = t.seat->handed.back().revision;
     duplicate_live_layout(t.r);
@@ -1879,7 +1897,7 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
     // A ROW TAKES IT, whatever its pane declares, and the pane is handed none of it.
     const PaneSettingCommitAnswered block = t.commit(text_at(before.revision, "workshop.skin", "block"));
     REQUIRE_MESSAGE(block.accepted, block.refusal);
-    CHECK(block.handed == "stored");
+    CHECK(block.handed == "stored and handed");
     CHECK(t.stored() ==
           std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
                                                std::string("block")}});
@@ -1888,7 +1906,7 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
     CHECK(t.seat->handed.back().settings.empty());
     const PaneSettingsAnswered shown = t.read();
     CHECK(shown.settings == t.stored());
-    CHECK(shown.said.empty());
+    CHECK(shown.said == "stored and handed");
     for (const v2::PaneSettingRow& row : shown.rows) {
         CHECK(row.key != "workshop.skin"); // the pane's declaration, as the pane declared it
     }

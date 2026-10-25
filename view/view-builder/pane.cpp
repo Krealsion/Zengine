@@ -119,23 +119,24 @@ struct Moment {
 using Asks = ws::AskFacet<vb::kPane, vb::kRole, ViewBuilderAsk>;
 using Actions = ws::PaneActionFacet<vb::kPane, vb::kRole>;
 using Menu = ws::PaneMenuFacet<vb::kPane, vb::kRole>;
+/// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
+using Settings = ws::PaneSettingsFacet<vb::kPane, vb::kRole>;
 
 class ViewBuilderPane final
-    : public zengine::With<Room, Asks, Actions, Menu>::Weave<
+    : public zengine::With<Room, Asks, Actions, Menu, Settings>::Weave<
           ViewBuilderPane, vb::ViewBuilderState,
           loom::Accept<ws::PaneCanvasHover, ws::PaneKey, ws::PaneTextInput,
                        ws::ActionsJudged, ws::PaneQuitRequested, ws::PaneCanvasValueDrop,
                        ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, ws::ProjectRoot,
                        zengine::launcher::Launched,
                        gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
-                       gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded, gfx::AreaPointerLeft,
-                       ws::v2::PaneSettings>,
+                       gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded, gfx::AreaPointerLeft>,
           loom::Emit<ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
                      zengine::launcher::Launch,
                      view::ViewApply, view::ViewStop, ws::ProjectRootRequested, gfx::Drawn,
-                     gfx::RoomAsked, ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>> {
+                     gfx::RoomAsked, ws::v2::PaneSettingsDeclared>> {
 public:
     loom::Value snapshot() const override {
         vb::ViewBuilderState saved;
@@ -205,17 +206,16 @@ public:
         (void)mail.as_role(vb::kRole)
             .send_to_role(ws::kLayoutsRole, ws::v2::PaneSettingsDeclared{vb::kPane, setting_rows()});
     }
-    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
-    /// against the revision it was handed at. A hand-off moves no view: the size is the next
-    /// `new`'s, the reach the next placing hand's. Held as plain members, never reload state.
-    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
-        if (!mail.authored_from_role(workshop_role) || handed.pane != vb::kPane) return;
-        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
-        ws::say_settings_unused(mail, vb::kRole, taken);
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed them and its
+    /// facet took them whole. A hand-off moves no view: the size is the next `new`'s, the reach the
+    /// next placing hand's. Held as plain members, never reload state.
+    void on_settings(const ws::SettingsTaken& taken, loom::Mail&) {
         snap_reach_ = taken.number(vb::kSettingSnapReach);
         model_.new_width = taken.number(vb::kSettingNewWidth);
         model_.new_height = taken.number(vb::kSettingNewHeight);
     }
+    /// ...THE FIRST THE LIFE HOLDS: the room it drew nothing in, drawn now.
+    void on_settings_held(loom::Mail& mail) { show(mail); }
     /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does.
     static std::vector<ws::v2::PaneSettingRow> setting_rows() {
         ws::v2::PaneSettingRow reach;
@@ -1357,7 +1357,9 @@ private:
     /// (nothing when nothing did), or the picture whole, drawn for the window's room. The picture
     /// and its room are kept, so the pointer there is read against them.
     void show(loom::Mail& mail) {
-        if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return;
+        if (!this->template facet<Settings>().held() || !window_.shown() || window_.width() <= 0 ||
+            window_.height() <= 0)
+            return;
         const auto room = ws::canvas_window_room(window_.width(), window_.height(), window_.cell_px(),
                                                  window_.text());
         const auto drawn = vb::picture(model_, shown_, room);

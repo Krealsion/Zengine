@@ -350,8 +350,8 @@ Files publishes nothing for an observer: its rows are Workshop's to show, and wh
 owned elsewhere. Follow those owners instead: the recipe file in force through the Builder's
 `RecipeCatalog` ([Follow](../../builder/docs/zengine.builder.md#follow)), an open through the
 Editor, and a mark through the marks file ([Files](#files)). Files itself hears the Builder's
-`BuildStatus`, and lists the folder again when a build ends. It tells Workshop
-`PaneSettingUnused` when a layout hands it a setting it cannot use.
+`BuildStatus`, and lists the folder again when a build ends. It tells the layouts'
+owner `PaneSettingUnused` when a layout hands it a setting it cannot use.
 
 ## Shows
 

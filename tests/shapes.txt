@@ -273,7 +273,7 @@ LayoutThemeWrite v2 0x688e663471808767
 LayoutsOwnerState v1 0x3683fe3bbdef5bdc
 LineArgs v1 0xd5cddde3b357431f
 ListRowFace v1 0x1bb72dc45bde118a
-LiveLayout v1 0x007da2f2205507b4
+LiveLayout v2 0x5e561a9cd31bd63a
 LiveTab v1 0xdca1dc89d23d7704
 LoadedSelected v1 0x014167e0a0600f00
 LookAtBuilds v1 0x6c73869dadfb0a65
@@ -375,6 +375,7 @@ PaneSettingPinRequested v2 0x0899d7f32470b51b
 PaneSettingRow v1 0x08e89ae1903ffd5a
 PaneSettingRow v2 0x4a14b26fa8096192
 PaneSettingUnused v1 0xa1796e6d75bd52c1
+PaneSettingsAsked v1 0x099a06ca4907d9ca
 PaneSettings v1 0xf6c2d4b5c1a9609f
 PaneSettings v2 0x23441ba397dff7a5
 PaneSettingsAnswered v1 0x63d250f7954ed600
@@ -450,7 +451,7 @@ ResolvedThemeKey v1 0x9849ec598371c0c0
 ResolvedThemeSetting v1 0x875d49cfd72c5c00
 RevertArtifact v1 0x0d34897e85f478d4
 RoomAsked v1 0x32f9e73dd294ff95
-RowRevision v1 0xa8d691eb2469c568
+RowSettingUnused v1 0x967fcee5b511fbf8
 RunBuild v2 0x49fcd7f7816295fc
 RunnerState v2 0xad71e1a017392225
 SampleDoorState v1 0x7f0334531407024f

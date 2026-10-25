@@ -358,6 +358,188 @@ void LayoutStore::office_handed(const std::string& office, std::int64_t revision
     }
 }
 
+// ---- A row's settings, handed to its pane -----------------------------------------------------
+
+const LayoutStore::RowHanded* LayoutStore::handed_of(const PaneRef& ref) const {
+    for (const RowHanded& h : handed_) {
+        if (h.ref == ref) {
+            return &h;
+        }
+    }
+    return nullptr;
+}
+
+std::optional<std::pair<loom::WeaveId, bool>> LayoutStore::taker_of(const PaneRef& ref) const {
+    if (!host_->holder_accepts || !host_->role_holder || ref.provider == kWorkshopProvider) {
+        return std::nullopt;
+    }
+    const loom::WeaveId holder = host_->role_holder(ref.provider);
+    if (!holder.valid()) {
+        return std::nullopt;
+    }
+    // THE NEWEST VERSION IT TAKES, whether or not, and whenever, it declared.
+    if (host_->holder_accepts(ref.provider, *loom::schema_of<v2::PaneSettings>())) {
+        return std::make_pair(holder, true);
+    }
+    if (host_->holder_accepts(ref.provider, *loom::schema_of<PaneSettings>())) {
+        return std::make_pair(holder, false);
+    }
+    return std::nullopt;
+}
+
+// WL-SETTING-04 -- agents/workshop/settings.md
+std::vector<PaneHandOff> LayoutStore::pane_hand_offs() {
+    // WHAT A HOLDER WAS HANDED STAYS KNOWN WHILE ANY LAYOUT OF THE RUN SEATS THE ROW, so a switch
+    // away and back hands only what differs; a row no layout seats takes its record with it.
+    const std::vector<Layout> run = layout_run(run_);
+    std::erase_if(handed_, [&run](const RowHanded& h) {
+        return std::none_of(run.begin(), run.end(),
+                            [&h](const Layout& l) { return pane_of(l.desk, h.ref) != nullptr; });
+    });
+    std::vector<PaneHandOff> out;
+    for (const SetupPane& row : run_.active.panes) {
+        const std::optional<std::pair<loom::WeaveId, bool>> taker = taker_of(row.ref);
+        if (!taker || !presentable(row.ref)) {
+            continue; // a holder without the door, or a pane no holder offers, is handed nothing
+        }
+        // A v2 HOLDER IS HANDED THE ROW'S REVISION TOO, so it is handed again whenever the revision
+        // moves, a desk put live with the same settings included.
+        const std::int64_t revision = taker->second ? row_revision(row.ref) : 0;
+        std::vector<PaneSetting> held = pane_held_settings(row.settings);
+        const RowHanded* was = handed_of(row.ref);
+        if (was != nullptr && was->holder == taker->first && was->revision == revision &&
+            was->settings == held) {
+            continue; // what it holds is what this layout keeps: saying so again is noise
+        }
+        out.push_back(PaneHandOff{row.ref, taker->first, taker->second,
+                                  v2::PaneSettings{row.ref.pane, revision, std::move(held)}});
+    }
+    // A PANE A WINDOW SHOWS WHILE THE LIVE LAYOUT SEATS IT NOWHERE has no row: what it asked for is
+    // every setting at its default, and it is handed that once.
+    for (const PaneRef& ref : asked_unseated_) {
+        const std::optional<std::pair<loom::WeaveId, bool>> taker = taker_of(ref);
+        if (taker && pane_of(run_.active, ref) == nullptr) {
+            out.push_back(PaneHandOff{ref, taker->first, taker->second,
+                                      v2::PaneSettings{ref.pane, 0, {}}});
+        }
+    }
+    asked_unseated_.clear();
+    return out;
+}
+
+void LayoutStore::pane_handed(const PaneHandOff& handed) {
+    RowHanded now{handed.ref, handed.holder, handed.value.revision, handed.value.settings, {}};
+    for (RowHanded& h : handed_) {
+        if (h.ref == handed.ref) {
+            // WHAT THE PANE SAID IT COULD NOT USE WAS ABOUT WHAT IT NO LONGER HOLDS.
+            effects_.unused_moved = effects_.unused_moved || !h.unused.empty();
+            h = std::move(now);
+            return;
+        }
+    }
+    handed_.push_back(std::move(now));
+}
+
+void LayoutStore::pane_asked(const PaneRef& ref) {
+    const auto at = std::find_if(handed_.begin(), handed_.end(),
+                                 [&ref](const RowHanded& h) { return h.ref == ref; });
+    if (at != handed_.end()) {
+        effects_.unused_moved = effects_.unused_moved || !at->unused.empty();
+        handed_.erase(at);
+    }
+    if (pane_of(run_.active, ref) == nullptr &&
+        std::find(asked_unseated_.begin(), asked_unseated_.end(), ref) == asked_unseated_.end() &&
+        asked_unseated_.size() < kMaxSetupPanes) {
+        asked_unseated_.push_back(ref);
+    }
+}
+
+// WL-SETTING-08 -- agents/workshop/settings.md
+void LayoutStore::keep_unused(std::string_view office, loom::WeaveId from,
+                              const PaneSettingUnused& unused) {
+    const PaneRef ref{std::string(office), unused.pane};
+    const auto at = std::find_if(handed_.begin(), handed_.end(),
+                                 [&ref](const RowHanded& h) { return h.ref == ref; });
+    // FROM THE HOLDER THE ROW WAS HANDED TO, and from no other: a revision is the row's, so a word
+    // from the office's former holder would otherwise land on its successor's.
+    if (at == handed_.end() || from != at->holder) {
+        return;
+    }
+    // ABOUT WHAT IT HOLDS NOW, or about nothing: a word naming a revision it was not last handed
+    // is late, and is dropped as the revision it names was.
+    if (unused.revision <= 0 || unused.revision != at->revision ||
+        pane_of(live_desk(run_), ref) == nullptr || row_revision(ref) != at->revision) {
+        return;
+    }
+    const std::string said_at = name_of(ref) + " @" + ref.provider + ": ";
+    std::string wrong = pane_setting_key_problem(unused.key);
+    if (wrong.empty() && (unused.why.empty() || !pane_setting_text_ok(unused.why))) {
+        wrong = "why a setting is unused is 1 to " + std::to_string(kMaxPaneSettingTextLen) +
+                " bytes of printable ASCII";
+    }
+    if (!wrong.empty()) {
+        say(said_at + "a setting it cannot use was not kept -- " + wrong, true);
+        return;
+    }
+    for (RowSettingUnused& kept : at->unused) {
+        if (kept.key == unused.key) {
+            if (kept.why != unused.why) {
+                kept.why = unused.why;
+                effects_.unused_moved = true;
+            }
+            return; // said again: nothing new to tell
+        }
+    }
+    if (at->unused.size() >= kMaxPaneSettingsPerRow) {
+        say(said_at + "a setting it cannot use was not kept -- a pane keeps at most " +
+                std::to_string(kMaxPaneSettingsPerRow) + " of them",
+            true);
+        return;
+    }
+    at->unused.push_back(RowSettingUnused{ref.provider, ref.pane, unused.key, unused.why});
+    effects_.unused_moved = true;
+}
+
+std::vector<RowSettingUnused> LayoutStore::unused_of(const PaneRef& ref) const {
+    const RowHanded* h = handed_of(ref);
+    return h != nullptr ? h->unused : std::vector<RowSettingUnused>{};
+}
+
+// WL-SETTING-05 -- agents/workshop/settings.md
+std::string LayoutStore::handed_fact(const PaneRef& ref) {
+    if (ref.provider == kWorkshopProvider) {
+        return "stored; not handed: Workshop's own pane takes no settings";
+    }
+    const SetupPane* seat = pane_of(live_desk(run_), ref);
+    if (seat == nullptr) {
+        return "stored; not handed: the live layout has no row for " + ref_text(ref);
+    }
+    if (!host_->role_holder || !host_->role_holder(ref.provider).valid()) {
+        return "stored; not handed: nothing holds `" + ref.provider + "` now";
+    }
+    if (!presentable(ref)) {
+        return "stored; not handed: nothing offers " + ref_text(ref) + " here";
+    }
+    const std::optional<std::pair<loom::WeaveId, bool>> taker = taker_of(ref);
+    if (!taker) {
+        return "stored; not handed: " + ref.provider + " takes no settings";
+    }
+    // HANDED AT THE ROW'S REVISION, when the holder is handed one: settings equal to an earlier
+    // revision's are not what this row was last minted for.
+    const RowHanded* was = handed_of(ref);
+    const std::int64_t revision = taker->second ? row_revision(ref) : 0;
+    if (was == nullptr || was->holder != taker->first || was->revision != revision ||
+        was->settings != pane_held_settings(seat->settings)) {
+        return "stored; not handed: the hand-off was not queued";
+    }
+    // ...AND WHAT THE PANE SAID IT CANNOT USE OF WHAT IT WAS HANDED, in its own words.
+    std::string said = "stored and handed";
+    for (const RowSettingUnused& u : was->unused) {
+        said += "; it cannot use " + u.key + " -- " + u.why;
+    }
+    return said;
+}
+
 // ---- The live layout, for its presenter -------------------------------------------------------
 
 LiveLayout LayoutStore::live_layout() {
@@ -367,14 +549,21 @@ LiveLayout LayoutStore::live_layout() {
     const std::size_t at = live_at(run_);
     out.id = run_.active_id;
     out.position = static_cast<std::int64_t>(at);
-    out.desk = setup_persist::to_setup(run_.active);
+    // THE PRESENTER'S COPY HOLDS WORKSHOP'S OWN WORDS ON EACH ROW and nothing of the pane's: what a
+    // pane's settings mean is the pane's, and the owner hands them to it.
+    Setup presented = run_.active;
+    for (SetupPane& row : presented.panes) {
+        std::erase_if(row.settings,
+                      [](const PaneSetting& s) { return !is_desk_setting_key(s.key); });
+    }
+    out.desk = setup_persist::to_setup(presented);
     out.link_path = run_.active_link.path;
     for (const Layout& l : layout_run(run_)) {
         out.tabs.push_back(LiveTab{l.id, l.desk.name, link_status(l.desk, l.link)});
     }
     for (const SetupPane& row : run_.active.panes) {
-        out.revisions.push_back(
-            RowRevision{row.ref.provider, row.ref.pane, row_revision(row.ref)});
+        const std::vector<RowSettingUnused> unused = unused_of(row.ref);
+        out.unused.insert(out.unused.end(), unused.begin(), unused.end());
     }
     out.session_refused = session_refusal_;
     out.settings_refused = prefs_refusal_;
@@ -581,6 +770,11 @@ PaneSettingsAnswered LayoutStore::read_pane(const std::string& refused,
     }
     shown.revision = row_revision(ref);
     shown.settings = seat->settings;
+    // HOW FAR THE ROW'S HAND-OFF GOT, beside what it keeps: a pane's fact, and Workshop's own panes
+    // are handed nothing to say it of.
+    if (ref.provider != kWorkshopProvider) {
+        shown.said = handed_fact(ref);
+    }
     return shown;
 }
 
@@ -661,7 +855,7 @@ PaneSettingCommitAnswered LayoutStore::commit_pane(const std::string& refused,
     }
     moved();
     say(written, false);
-    // THE PRESENTER SAYS AFTER IT HOW FAR THE ROW'S HAND-OFF GOT.
+    // ...SAID WITH HOW FAR THE ROW'S HAND-OFF GOT, once its holder was handed it.
     effects_.said_provider = ref.provider;
     effects_.said_pane = ref.pane;
     return PaneSettingCommitAnswered{true, std::string(), row_revision(ref), "stored"};

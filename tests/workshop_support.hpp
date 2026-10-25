@@ -76,6 +76,7 @@
 #include "screen_cells.hpp"
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
+#include "layouts_stand_in.hpp"
 
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
@@ -593,8 +594,13 @@ inline std::int64_t live_status(const LiveDesk& d) { return d.link; }
 /// paint a session of several layouts and stage no store.
 inline LiveDesk live_copy_of(const SetupState& run) {
     LiveDesk d;
+    // EACH ROW WITH WORKSHOP'S OWN KEYS ALONE, as the owner's picture carries it.
     d.active = run.active;
-    d.owned = run.active;
+    for (SetupPane& row : d.active.panes) {
+        std::erase_if(row.settings,
+                      [](const PaneSetting& s) { return !is_desk_setting_key(s.key); });
+    }
+    d.owned = d.active;
     d.id = run.active_id;
     d.active_at = run.active_at;
     d.tabs.clear();
@@ -616,10 +622,12 @@ inline std::string layout_tab_text(const SetupState& run, std::size_t at) {
 }
 
 /// WHICH OFFICE A SHAPE IS ASKED OF: the layouts' owner for every door it keeps -- a declaration,
-/// a settings door, a desk put live -- and Workshop for every other.
+/// a pane's row asked and what it cannot use, a settings door, a desk put live -- and Workshop for
+/// every other.
 template <class Shape>
 inline constexpr bool kLayoutsDoor =
     std::is_same_v<Shape, PaneSettingsDeclared> || std::is_same_v<Shape, v2::PaneSettingsDeclared> ||
+    std::is_same_v<Shape, PaneSettingsAsked> || std::is_same_v<Shape, PaneSettingUnused> ||
     std::is_same_v<Shape, OfficeSettingsDeclared> || std::is_same_v<Shape, PaneSettingsRequested> ||
     std::is_same_v<Shape, PaneSettingCommitRequested> ||
     std::is_same_v<Shape, OfficeSettingsRequested> ||
@@ -667,7 +675,7 @@ void stage_run(Rig& r, F&& f) {
     d = live_copy_of(r.owner->layouts().run());
     d.naming = std::move(naming);
     d.revision = live.revision;
-    d.revisions = live.revisions;
+    d.unused = live.unused;
     r.nudge_owner();
 }
 
@@ -2680,17 +2688,14 @@ inline std::vector<v2::PaneSettingRow> declared_settings(Rig& t, const PaneRef& 
     return counted != nullptr ? *counted : std::vector<v2::PaneSettingRow>{};
 }
 
-/// ...AND WHAT ITS HOLDER SAID IT CANNOT USE, each `<key>: <why>`, kept only against the revision
-/// the holder was last handed (WL-SETTING-08).
+/// ...AND WHAT ITS HOLDER SAID IT CANNOT USE, each `<key>: <why>`, as the layouts' owner keeps it,
+/// only against the revision the holder was last handed (WL-SETTING-08).
 template <class Rig>
 inline std::vector<std::string> unused_settings(Rig& t, const PaneRef& ref) {
     const RuntimePane* row = t.session().panes.runtime.find(ref.provider, ref.pane);
     REQUIRE_MESSAGE(row != nullptr, "nothing offers ", ref_text(ref));
-    const ExternalPane* pane = t.session().panes.external_pane(row->kind);
-    REQUIRE_MESSAGE(pane != nullptr, ref_text(ref), " is not seated");
     std::vector<std::string> out;
-    for (const ExternalPane::UnusedSetting& u : pane->settings_unused) {
-        CHECK(u.revision == pane->settings_revision);
+    for (const RowSettingUnused& u : t.owner->layouts().unused_of(ref)) {
         out.push_back(u.key + ": " + u.why);
     }
     return out;
@@ -3069,13 +3074,15 @@ private:
 };
 
 /// A NATIVE SEAT THAT TAKES ITS SETTINGS: it holds an office, offers and declares as it is told,
-/// and records in order every room a window gives its area and every hand-off Workshop sends it,
-/// with the office each was authored as -- so a case reads which came first. Apart from
-/// `ProviderSeat`, whose cases count every delivery and are owed no hand-off.
+/// asks the layouts' owner for its row whenever it offers, as an image that arrives does, and
+/// records in order every room a window gives its area and every hand-off sent it, with the office
+/// each was authored as. Apart from `ProviderSeat`, whose cases count every delivery and are owed
+/// no hand-off.
 class SettingsSeat
     : public loom::WeaveBase<SettingsSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, gfx::AreaRoom, PaneSettings, SeatDo>,
-                             loom::Emit<PaneOffered, PaneSettingsDeclared, gfx::RoomAsked>> {
+                             loom::Emit<PaneOffered, PaneSettingsDeclared, PaneSettingsAsked,
+                                        PaneSettingUnused, gfx::RoomAsked>> {
 public:
     explicit SettingsSeat(std::string office) : office_(std::move(office)) {}
 
@@ -3100,10 +3107,11 @@ public:
         }
     }
 
-    /// THE OFFER, and the room of an area it was given before asked again, as an image that
-    /// arrives holding nothing asks it.
+    /// THE OFFER, its row asked of the layouts' owner, and the room of an area it was given before
+    /// asked again, as an image that arrives holding nothing asks them.
     void offer(loom::Mail& mail, const PaneOffered& o) {
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, o);
+        (void)mail.as_role(office_).send_to_role(kLayoutsRole, PaneSettingsAsked{o.pane});
         if (!rooms.empty()) {
             (void)mail.as_role(office_).send_to_role(gfx::kGraphicsRole,
                                                     gfx::RoomAsked{rooms.back().area});
@@ -3111,6 +3119,10 @@ public:
     }
     void declare(loom::Mail& mail, const PaneSettingsDeclared& d) {
         (void)mail.as_role(office_).send_to_role(kLayoutsRole, d);
+    }
+    /// A SETTING IT WAS HANDED AND CANNOT USE, said to the layouts' owner as its office.
+    void unused(loom::Mail& mail, const PaneSettingUnused& u) {
+        (void)mail.as_role(office_).send_to_role(kLayoutsRole, u);
     }
     /// ...and PERSONALLY, from the weave that holds the office, which declares nothing.
     void declare_personally(loom::Mail& mail, const PaneSettingsDeclared& d) {
@@ -3484,6 +3496,10 @@ struct PaneRig {
         loom::Grant grant;
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneSettingsDeclared::zen_name, PaneSettingsDeclared::zen_version);
+        grant.allow_to_role(PaneSettingsAsked::zen_name, PaneSettingsAsked::zen_version,
+                            kLayoutsRole);
+        grant.allow_to_role(PaneSettingUnused::zen_name, PaneSettingUnused::zen_version,
+                            kLayoutsRole);
         grant.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(office));
@@ -3612,6 +3628,8 @@ struct PaneRig {
             bus.register_weave(std::move(seat), std::move(grant), std::string(kWorkshopProvider));
         raw->zen_set_self(id);
         watcher_id = id;
+        // ...AND THE LAYOUTS' OFFICE BESIDE IT, so a pane that asks for its row holds one.
+        (void)zengine::testing::mount_layouts_stand_in(bus);
         return raw;
     }
 

@@ -2,13 +2,15 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // A live external consumer of a pane's settings, from the installed package alone: a pane a
-// stranger writes declares the setting it takes, to the office that keeps settings
-// (`kLayoutsRole`), and reads what it is handed; a stand-in keeper judges the declaration, a
-// stand-in host (the `zengine.workshop` office) hands the pane its settings, and a forger hands it
-// settings under its own office. A failed check returns non-zero, which run.cmake's exit test
-// catches.
+// stranger writes on the installed settings facet declares the setting it takes to the office
+// that keeps settings (`kLayoutsRole`), asks that office for its row when it arrives, and reads
+// what it is handed; a stand-in keeper judges the declaration and hands the pane its row, and a
+// forger and a stand-in Workshop hand it settings under their own offices. A failed check returns
+// non-zero, which run.cmake's exit test catches.
 
+#include "activation/activation.hpp"
 #include "workshop/pane_settings.hpp"
+#include "workshop/pane_settings_taken.hpp"
 
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
@@ -57,8 +59,11 @@ ws::PaneSettingRow legend_row() {
 
 // ---- the pane a stranger writes ----------------------------------------------------------------
 
-class Dial : public loom::WeaveBase<Dial, Nothing, loom::Accept<ws::PaneSettings, Poke>,
-                                    loom::Emit<ws::PaneSettingsDeclared>> {
+using Settings = ws::PaneSettingsFacet<kPane, kDial>;
+
+class Dial
+    : public zengine::With<Settings>::Weave<Dial, Nothing, loom::Accept<Poke>,
+                                            loom::Emit<ws::PaneSettingsDeclared>> {
 public:
     /// ITS DECLARATION, judged by the installed judge before it is sent.
     void on(const Poke&, loom::Mail& mail) {
@@ -66,64 +71,80 @@ public:
         sound = ws::pane_settings_declared_problem(declared).empty();
         (void)mail.as_role(kDial).send_to_role(ws::kLayoutsRole, declared);
     }
-    /// WHAT IT IS HANDED, from Workshop's office alone, taken whole: its own key read, a value it
-    /// cannot use said in the installed words, its default kept.
-    void on(const ws::PaneSettings& handed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshop) || handed.pane != kPane) {
-            ++ignored;
-            return;
-        }
-        legend = true;
-        problem.clear();
-        if (const ws::PaneSetting* s = ws::find_pane_setting(handed.settings, "legend")) {
-            problem = ws::pane_setting_refused_by(legend_row(), *s);
-            if (problem.empty()) {
-                legend = *s->flag;
-            }
-        }
+    /// What the facet takes the row against: the declared setting, as v2 says it.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        return {ws::widen_setting_row(legend_row())};
+    }
+    /// WHAT IT IS HANDED, from the layouts' office alone, taken whole by the installed facet: its
+    /// own key read, a value it cannot use said back in the installed words, its default kept.
+    void on_settings(const ws::SettingsTaken& taken, loom::Mail&) {
+        legend = taken.flag("legend");
+        problem = taken.refusal("legend");
         ++heard;
     }
+    bool held() const { return this->template facet<Settings>().held(); }
     bool sound = false;
     bool legend = true;
     std::string problem;
     int heard = 0;
-    int ignored = 0;
 };
 
-// ---- the stand-in keeper and host ------------------------------------------------------------
+// ---- the stand-in keeper, the forger and a stand-in Workshop ----------------------------------
 
-class Keeper : public loom::WeaveBase<Keeper, Nothing, loom::Accept<ws::PaneSettingsDeclared>,
-                                      loom::Emit<>> {
+class Keeper : public loom::WeaveBase<Keeper, Nothing,
+                                      loom::Accept<ws::PaneSettingsDeclared, ws::PaneSettingsAsked,
+                                                   ws::PaneSettingUnused, Poke>,
+                                      loom::Emit<ws::v2::PaneSettings>> {
 public:
     void on(const ws::PaneSettingsDeclared& d, loom::Mail& mail) {
         if (mail.authored_role() == kDial && ws::pane_settings_declared_problem(d).empty()) {
             declared = d.rows;
         }
     }
+    /// THE PANE'S ASK, from its office: handed what the row keeps now.
+    void on(const ws::PaneSettingsAsked& a, loom::Mail& mail) {
+        if (mail.authored_role() == kDial && a.pane == kPane) {
+            ++asks;
+            hand(mail);
+        }
+    }
+    void on(const ws::PaneSettingUnused& u, loom::Mail& mail) {
+        if (mail.authored_role() == kDial) {
+            unused.push_back(u);
+        }
+    }
+    /// ...and a row the layout keeps from now on.
+    void on(const Poke& p, loom::Mail& mail) {
+        kept = p.settings;
+        hand(mail);
+    }
+    void hand(loom::Mail& mail) {
+        (void)mail.as_role(ws::kLayoutsRole)
+            .send_to_role(kDial, ws::v2::PaneSettings{kPane, ++revision, kept});
+    }
     std::vector<ws::PaneSettingRow> declared;
+    std::vector<ws::PaneSetting> kept;
+    std::vector<ws::PaneSettingUnused> unused;
+    std::int64_t revision = 0;
+    int asks = 0;
 };
 
-class Host : public loom::WeaveBase<Host, Nothing, loom::Accept<Poke>,
-                                    loom::Emit<ws::PaneSettings>> {
+class Hander : public loom::WeaveBase<Hander, Nothing, loom::Accept<Poke>,
+                                      loom::Emit<ws::v2::PaneSettings>> {
 public:
+    explicit Hander(const char* office) : office_(office) {}
     void on(const Poke& p, loom::Mail& mail) {
-        (void)mail.as_role(kWorkshop).send_to_role(kDial, ws::PaneSettings{kPane, p.settings});
+        (void)mail.as_role(office_)
+            .send_to_role(kDial, ws::v2::PaneSettings{kPane, 99, p.settings});
     }
-};
 
-// ---- a forger: settings handed under another office ------------------------------------------
-
-class Forger : public loom::WeaveBase<Forger, Nothing, loom::Accept<Poke>,
-                                      loom::Emit<ws::PaneSettings>> {
-public:
-    void on(const Poke& p, loom::Mail& mail) {
-        (void)mail.as_role(kForger).send_to_role(kDial, ws::PaneSettings{kPane, p.settings});
-    }
+private:
+    const char* office_;
 };
 
 template <class T>
-T* seat(loom::Switchboard& bus, loom::WeaveId& id, loom::Grant grant, const char* office) {
-    auto owned = std::make_unique<T>();
+T* seat(loom::Switchboard& bus, loom::WeaveId& id, loom::Grant grant, const char* office,
+        std::unique_ptr<T> owned) {
     T* raw = owned.get();
     id = bus.register_weave(std::move(owned), std::move(grant), std::string(office));
     raw->zen_set_self(id);
@@ -135,46 +156,63 @@ void poke(loom::Switchboard& bus, loom::WeaveId id, Poke p) {
     bus.drain_until_idle();
 }
 
+loom::Grant hands_to_dial() {
+    loom::Grant g;
+    g.allow_to_role(ws::v2::PaneSettings::zen_name, ws::v2::PaneSettings::zen_version, kDial);
+    return g;
+}
+
 } // namespace
 
 int main() {
     loom::Switchboard bus;
     loom::WeaveId keeper_id{};
-    loom::WeaveId host_id{};
     loom::WeaveId dial_id{};
     loom::WeaveId forger_id{};
-    loom::Grant host_speaks;
-    host_speaks.allow_to_role(ws::PaneSettings::zen_name, ws::PaneSettings::zen_version, kDial);
-    (void)seat<Host>(bus, host_id, host_speaks, kWorkshop);
-    Keeper* keeper = seat<Keeper>(bus, keeper_id, loom::Grant{}, ws::kLayoutsRole);
+    loom::WeaveId workshop_id{};
+    Keeper* keeper =
+        seat(bus, keeper_id, hands_to_dial(), ws::kLayoutsRole, std::make_unique<Keeper>());
     loom::Grant dial_speaks;
     dial_speaks.allow_to_role(ws::PaneSettingsDeclared::zen_name,
                               ws::PaneSettingsDeclared::zen_version, ws::kLayoutsRole);
-    Dial* dial = seat<Dial>(bus, dial_id, dial_speaks, kDial);
-    loom::Grant forger_speaks;
-    forger_speaks.allow_to_role(ws::PaneSettings::zen_name, ws::PaneSettings::zen_version, kDial);
-    (void)seat<Forger>(bus, forger_id, forger_speaks, kForger);
+    dial_speaks.allow_to_role(ws::PaneSettingsAsked::zen_name, ws::PaneSettingsAsked::zen_version,
+                              ws::kLayoutsRole);
+    dial_speaks.allow_to_role(ws::PaneSettingUnused::zen_name, ws::PaneSettingUnused::zen_version,
+                              ws::kLayoutsRole);
+    Dial* dial = seat(bus, dial_id, dial_speaks, kDial, std::make_unique<Dial>());
+    (void)seat(bus, forger_id, hands_to_dial(), kForger, std::make_unique<Hander>(kForger));
+    (void)seat(bus, workshop_id, hands_to_dial(), kWorkshop, std::make_unique<Hander>(kWorkshop));
 
+    check(!dial->held(), "a pane that has heard nothing holds no row");
     poke(bus, dial_id, Poke{});
     check(dial->sound, "the pane's declaration is sound by the installed judge");
     check(keeper->declared.size() == 1 && keeper->declared.front().key == "legend",
           "the keeper took the declaration the pane sent");
+    check(keeper->asks == 1, "the pane asked the layouts' office for its row once, as it arrived");
+    check(dial->held() && dial->heard == 1 && dial->legend,
+          "the row it asked for is held, every setting at its default");
 
-    poke(bus, host_id, Poke{{ws::PaneSetting{"legend", false, {}, {}}}});
-    check(dial->heard == 1 && !dial->legend && dial->problem.empty(),
+    poke(bus, keeper_id, Poke{{ws::PaneSetting{"legend", false, {}, {}}}});
+    check(dial->heard == 2 && !dial->legend && dial->problem.empty(),
           "a flag the pane takes is the pane's to use");
-    poke(bus, host_id, Poke{{}});
-    check(dial->heard == 2 && dial->legend, "an empty hand-off is every setting at its default");
-    poke(bus, host_id, Poke{{ws::PaneSetting{"legend", {}, {}, std::string("hidden")}}});
+    poke(bus, keeper_id, Poke{{ws::PaneSetting{"legend", {}, {}, std::string("hidden")}}});
     check(dial->legend && dial->problem == "legend takes on or off, not a text `hidden`",
           "a value the pane cannot use leaves its default, said in the installed words");
+    check(keeper->unused.size() == 1 && keeper->unused.front().key == "legend" &&
+              keeper->unused.front().revision == keeper->revision &&
+              keeper->unused.front().why == "it takes on or off",
+          "what the pane cannot use is said back to the layouts' office, at the revision handed");
 
     poke(bus, forger_id, Poke{{ws::PaneSetting{"legend", false, {}, {}}}});
-    check(dial->ignored == 1 && dial->legend, "settings another office hands are not Workshop's");
+    poke(bus, workshop_id, Poke{{ws::PaneSetting{"legend", false, {}, {}}}});
+    check(dial->heard == 3 && dial->legend,
+          "settings another office hands, Workshop's own included, are not the layouts' office's");
+    check(keeper->asks == 1, "a pane that holds its row asks for it no more");
 
     if (failures == 0) {
-        std::printf("pane-settings consumer: ok -- a declaration judged and taken, settings handed "
-                    "and read whole, an unusable value said, and a forger's hand-off passed over\n");
+        std::printf("pane-settings consumer: ok -- a declaration judged and taken, the row asked "
+                    "for and held, settings handed and read whole, an unusable value said back, "
+                    "and another office's hand-off passed over\n");
     }
     return failures == 0 ? 0 : 1;
 }

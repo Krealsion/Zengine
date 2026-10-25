@@ -8,8 +8,8 @@
 // written by message at its revision, `provider` and `pane` addressing it and never authority; an
 // office's office-wide settings, kept in the settings file; a pane's pin list, never handed to the
 // pane; a lock in one layout or everywhere; and every layout's rows read at once and written in one
-// batch judged whole. A layout is named by its id, 0 the live one. Beside them, Workshop's: a value
-// a pane it handed a row cannot use.
+// batch judged whole. A layout is named by its id, 0 the live one. What a pane asks of its own row
+// and says it cannot use is the pane's side of the hand-off (workshop/pane_settings.hpp).
 // Workshop law: agents/workshop/settings.md, agents/workshop/setting-locks.md
 
 #include "pane_settings.hpp"
@@ -68,7 +68,9 @@ struct PaneSettingsRequested {
 
 /// THE LIVE LAYOUT'S ROW FOR THE PANE: the revision it stands at (0 when the live layout seats no
 /// such pane), what its counted declaration takes (empty when none counts), what the row keeps,
-/// the keys locked, the keys pinned in pin order, and the desk's sentence about the row.
+/// the keys locked, the keys pinned in pin order, and the owner's sentence about the row: why it
+/// was withheld or is not on the live layout, else how far its hand-off got and what the pane said
+/// it cannot use.
 struct PaneSettingsAnswered {
     std::string provider;
     std::string pane;
@@ -108,16 +110,6 @@ struct PaneSettingCommitAnswered {
     std::string handed;
     ZEN_SHAPE(PaneSettingCommitAnswered, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal),
               ZEN_FIELD(revision), ZEN_FIELD(handed));
-};
-
-/// Provider -> Workshop, stamped: a setting it was handed at `revision` and cannot use, and why.
-struct PaneSettingUnused {
-    std::string pane;
-    std::int64_t revision = 0;
-    std::string key;
-    std::string why;
-    ZEN_SHAPE(PaneSettingUnused, 1, ZEN_FIELD(pane), ZEN_FIELD(revision), ZEN_FIELD(key),
-              ZEN_FIELD(why));
 };
 
 // ---- Office-wide settings -----------------------------------------------------------------

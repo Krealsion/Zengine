@@ -2301,7 +2301,7 @@ template <class Shape> Shape typed_answer(TerminalRig& t, const std::string& lin
 
 /// WHAT THE LIVE LAYOUT KEEPS FOR THE TERMINAL.
 std::vector<PaneSetting> kept_settings(TerminalRig& t) {
-    const SetupPane* row = pane_of(t.r.session().setup.active, pane_terminal_ref());
+    const SetupPane* row = pane_of(t.r.run().active, pane_terminal_ref());
     return row != nullptr ? row->settings : std::vector<PaneSetting>{};
 }
 
@@ -2346,7 +2346,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     CHECK(shown.rows[2].tags == std::vector<std::string>{"chrome", "text"});
     CHECK(shown.pins == std::vector<std::string>{"legend"});
     CHECK(shown.settings.empty());
-    CHECK(shown.said.empty());
+    CHECK(shown.said == "stored and handed");
     CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
 
     // SIX ROWS A NOTCH, AND THE PROMPT A `$`, each at the revision the last answer gave.
@@ -2354,7 +2354,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
         typed_answer<PaneSettingCommitAnswered>(t, commit_line(shown.revision, "key=wheel-rows number=6"));
     REQUIRE_MESSAGE(six.accepted, six.refusal);
     CHECK(six.revision > shown.revision);
-    CHECK(six.handed == "stored");
+    CHECK(six.handed == "stored and handed");
     const PaneSettingCommitAnswered dollar =
         typed_answer<PaneSettingCommitAnswered>(t, commit_line(six.revision, "key=prompt text=\"$\""));
     REQUIRE_MESSAGE(dollar.accepted, dollar.refusal);

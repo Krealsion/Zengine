@@ -66,6 +66,7 @@
 
 #if defined(GRAPHICS_HAS_SDL)
 #include "graphics/window/window_sdl_backend.hpp"
+#include "layouts_stand_in.hpp"
 
 #include <SDL3/SDL.h>
 #endif
@@ -3671,7 +3672,6 @@ class WorkshopSpeaker
 class DoorSpeaker
     : public loom::WeaveBase<DoorSpeaker, GraphicsTestOwner, loom::Accept<>,
                              loom::Emit<ws::v3::GuestConnections>> {};
-
 template <class W>
 loom::WeaveId mount_as(Rig& r, const std::string& office) {
     auto w = std::make_unique<W>();
@@ -3718,6 +3718,7 @@ struct AttentionWindow : TypedWindow {
     loom::WeaveId workshop;
     AttentionWindow() {
         workshop = mount_as<WorkshopSpeaker>(r, "zengine.workshop");
+        (void)zengine::testing::mount_layouts_stand_in(r.bus);
         REQUIRE(r.load(apane::kAttentionPaneStem, ATTENTION_PANE_SO, apane::kAttentionPaneRole)
                     .valid());
         place_pane(r, apane::kAttentionPaneRole, apane::kAttentionPane);
