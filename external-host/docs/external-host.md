@@ -610,14 +610,18 @@ names — one entry per office, shape and version, the version written as Zen's 
   The one thing it may say is a read: a row that observes the Builder's `BuildStatus` at the
   version the Builder publishes (v4) may ask the Builder for the current one
   (`BuildStatusRequested`), answered to it alone — the baseline a returning observer joins. A row
-  naming another version is shown nothing of that picture, and may not ask for it either.
+  naming another version is shown nothing of that picture, and may not ask for it either. So a
+  row that observes the notices record's `NoticesMoved` v1 from `zengine.notices` may ask it for a
+  page (`NoticesRequested`), answered to it alone
+  ([the notices record](../../notices/docs/zengine.notices.md)).
 - **What carries the desk's words needs `capture` too.** A publication carrying a pane's or
   Workshop's words or the picture -- `TranscriptShown`,
-  `PaneSubjectShown`, `PaneInventory`, `KeymapShown` and `StandingConditions`, from whichever
-  office publishes it -- is refused, in words, to a row without `capture`, whatever its `observe`
+  `PaneSubjectShown`, `PaneInventory`, `KeymapShown`, `StandingConditions`, Workshop's
+  `NoticeSaid` and the record's `NoticesShown`, from whichever office publishes it -- is refused, in words, to a row without `capture`, whatever its `observe`
   list names; a row with `capture` still observes only what that list names. So is `DeskStamps`,
   Workshop's notice that the desk moved (below), which says no word but follows what `capture`
-  reads: a row follows it by naming `zengine.workshop` `DeskStamps` `3` beside `capture`. So are
+  reads: a row follows it by naming `zengine.workshop` `DeskStamps` `3` beside `capture`; and so
+  is the record's `NoticesMoved`, which follows what Workshop said. So are
   a window's `WindowShown` and `AreaShown`, which say what it shows.
   `ClipboardCopy`, the weaver's copied text, is refused to every row: it needs a power of its own,
   `clipboard`, which no guests file grants yet.
@@ -906,8 +910,8 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   from the front (0 in front), the place its authored intent resolves to and the part of it the
   canvas has, and whether it is selected or holds the keys; the room; whether arranging is open;
   the menu on the screen, if one is -- Workshop's own or a pane's -- with each line where it is
-  drawn and the lines it names; the band's notice and legend, each a word with its place and no
-  point, since the band takes no press; and `desk`, a number that moves whenever what the desk says
+  drawn and the lines it names; the band's legend, each a word with its place and no point, since
+  the band takes no press; and `desk`, a number that moves whenever what the desk says
   moves and holds while nothing does. Workshop answers at most
   <!-- value kDeskReadsPerSecond -->4<!-- /value --> desk reads a second to one asker -- and every
   run on one link is one asker -- and refuses the next in words naming how many milliseconds to
@@ -956,7 +960,7 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   desk, when its number moved, or each pane whose stamp moved. A notice published inside the fence
   of your own settled send carries that send's `cause` until a later one replaces it, so tell your
   own change by its answer, not by the notice. A holder leaving between Workshop's deliveries is
-  said at its next repaint, band notice or desk read, not at any delivery.
+  said at its next repaint, Workshop's notice or desk read, not at any delivery.
 - **The pane inventory and the keymap.** `PaneInventoryRequested` and `KeymapRequested`, answered
   to an office, are answered to a guest session whose row holds `capture` too, to it alone:
   `PaneInventory`, the panes the Pane Manager lists with each one's state, and `KeymapShown`, the
@@ -1028,6 +1032,7 @@ reads a press there, and is never said.
 | Project | `zengine.introspection` `arrangement` | none: nothing in it is acted on | everything |
 | Powers | `zengine.introspection` `powers` | `control:powers.sources`, `control:powers.operators`, `control:powers.composite`, `control:powers.sample`, and `power:<identity>`, a power's row | the `find:` field, the markers, the detail, a retained sample, the census |
 | Attention | `zengine.attention` `attention` | `condition:<key>`, a condition's row | the glance, the notice, a condition's explanation |
+| Notices | `zengine.notices-pane` `notices` | `notice:<number>`, a notice's first row | a notice's later rows, the markers above and below |
 | Connections | `zengine.connections` `connections` | none: nothing in it is acted on | everything |
 | Demo | `zengine.demo` `controls` | `control:reset`, the reset row, and `status`, the state beneath it | the setup's name |
 | Info | `zengine.info` `info` | `pane:<office>/<pane>`, a pane's row, and `property:<label>`, a property's row; while it shows a value, an Info view's `control:<id>` and `field:<path>` | the rows naming neither; while it shows a value, what an Info view names nothing on |

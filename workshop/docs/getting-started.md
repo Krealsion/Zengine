@@ -183,12 +183,13 @@ called **Layouts**: your layouts as tabs on the left with the one you are on bet
 `<`, a `+` that makes another, and — at the row's right-hand edge — what the layout you are on
 is related to: `setup: none`, or the Setup file it was saved to or restored from and whether it
 still matches it. Being a pane means you can move it, resize it, cover it or hide it, like
-Files or the Editor. The **bottom band** is what Workshop just said and what your keys mean
-right now: the notice, then the legend rows advertising the current context's gestures. Every
-one of those hints is a projection of the effective keymap — remap a binding and the screen
-spells the new one — and `Ctrl`+`k` opens the **Hotkeys** pane, the complete list of every key
-as it is in force. So the keys are on screen; this page is the fuller version, not the only
-source. See [hotkeys and the keymap](hotkeys.md). A pane that comes with a manual wears a `?` at
+Files or the Editor. The **bottom band** is what your keys mean right now: the legend rows
+advertising the current context's gestures. Every one of those hints is a projection of the
+effective keymap — remap a binding and the screen spells the new one — and `Ctrl`+`k` opens the
+**Hotkeys** pane, the complete list of every key as it is in force. So the keys are on screen;
+this page is the fuller version, not the only source. See [hotkeys and the keymap](hotkeys.md).
+What Workshop says as you work -- a save, a refusal, what a command did -- is kept in the
+**Notices** pane, at the room's bottom left on a fresh desk. A pane that comes with a manual wears a `?` at
 the right of its title: press it to read what the pane is and every command it has, with your keys
 ([a pane's manual](panes.md#a-panes-manual-and-its-gear)).
 

@@ -8,7 +8,7 @@ them apart is the whole of this page:
 
 | | |
 |---|---|
-| **something happened** | `committed Width of Layouts = 12 cells`, `hid Info -- …`, `released #12`. It was true at one instant and it is a report about the past. It goes on the **notice row** in the bottom band, and the next thing Workshop says replaces it. |
+| **something happened** | `committed Width of Layouts = 12 cells`, `hid Info -- …`, `released #12`. It was true at one instant and it is a report about the past. It is kept in the **notices record** and shown in the [Notices pane](../../notices/docs/zengine.notices-pane.md), the newest at the bottom. |
 | **something is true** | your keymap file could not be read; a pane you authored is off the screen; the project is waiting on an artifact you have not built. It is still true when you read it, and it is still true an hour later. It goes to **attention**. |
 
 The difference matters because the two need opposite lifetimes. A report about the past is
