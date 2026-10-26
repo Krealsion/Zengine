@@ -5,9 +5,11 @@
 A real `zengine-workshop` in a terminal of its own -- a pseudo-terminal this driver holds, so every
 key and press it writes there is the weaver's own hand, the local device's -- with a guests file of
 version 3 on a weaver's host: the `tutor` row (role `tutor`, reading and pointing at the Builder and
-the Pane Manager), a row reading every pane, and a row reading the Builder alone. A real session host
-from an INSTALLED Loom (`loom-host --serve`) links to it under each row and runs the `desk` package's
-`desk/resolve` and `desk/guide`. The walk: the plan at rest before the first ask; the Builder hidden,
+the Pane Manager), a row reading every pane, a row reading the Builder alone, and a guest's hand (input
+and capture, following the desk as a launcher writes its row). A real session host from an INSTALLED
+Loom (`loom-host --serve`) links to it under each row and runs the `desk` package's `desk/resolve` and
+`desk/guide`, and the hand's `workshop/act`. The walk: the plan at rest before the first ask; the
+hand's `s` refused in Workshop's words, since a guest writes no file here; the Builder hidden,
 so `BuildRequested` resolves to the route through the Pane Manager and the desktop's own key, and
 nothing is marked; the weaver's Ctrl+P; the Pane Manager's row for the Builder marked as the nearest
 step; the weaver's press there opens the Builder and ends the mark; `builder.build` shown and marked
@@ -165,9 +167,16 @@ def main():
     os.makedirs(sdir)
 
     # ---- the Workshop: a weaver's host, a guests file of version 3, in a terminal of its own ------
+    # THE HAND'S ROW follows the desk as a launcher writes it (`following_the_desk`), and so hears
+    # what Workshop says.
+    sys.path.insert(0, os.path.join(args.tools, "workshop"))
+    import workshop_formats as formats
+    hand_row = formats.following_the_desk({"name": "hand", "credential": "hand-key",
+                                           "may": ["input", "capture"], "capture": ["*"]})
     with open(os.path.join(wdir, "guests.json"), "w", encoding="utf-8") as f:
         json.dump({"version": "3", "host": "weaver", "listen": "127.0.0.1:0", "port_file": "guests.port",
-                   "guests": [dict(name=n, **r) for n, r in ROWS_FILE.items()]}, f, indent=1)
+                   "guests": [dict(name=n, **r) for n, r in ROWS_FILE.items()] + [hand_row]}, f,
+                  indent=1)
     env = dict(os.environ)
     for var in ("APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME"):
         env[var] = os.path.join(wdir, "profile", var.lower())
@@ -200,12 +209,16 @@ def main():
     # THE PLAN WAIT goes through the row that reads every pane and the door's inventory.
     package_for(os.path.join(args.tools, "workshop"), os.path.join(pkgs, "workshop-whole"),
                 "workshop-whole", "whole")
+    # A GUEST'S HAND, pressing through `workshop/act` under the row that may press.
+    package_for(os.path.join(args.tools, "workshop"), os.path.join(pkgs, "workshop-hand"),
+                "workshop-hand", "hand")
     with open(os.path.join(sdir, "loom-tools.json"), "w", encoding="utf-8") as f:
         json.dump({"python": sys.executable, "runtime": args.loom_runtime, "packages": [
             {"path": os.path.join(pkgs, p), "approve": "any-revision"}
-            for p in ("desk", "desk-machine", "desk-whole", "desk-narrow", "workshop-whole")]},
-                  f, indent=1)
-    links = [("workshop", "tutor-key"), ("whole", "whole-key"), ("narrow", "narrow-key")]
+            for p in ("desk", "desk-machine", "desk-whole", "desk-narrow", "workshop-whole",
+                      "workshop-hand")]}, f, indent=1)
+    links = [("workshop", "tutor-key"), ("whole", "whole-key"), ("narrow", "narrow-key"),
+             ("hand", "hand-key")]
     with open(os.path.join(sdir, "loom-boot.json"), "w", encoding="utf-8") as f:
         json.dump({"boot": [{"name": "runs", "path": args.loom_runs, "role": "loom.runs"},
                             {"name": "vocab", "path": args.vocabulary}],
@@ -257,6 +270,13 @@ def main():
         if not check("S2 Workshop says its plan came to rest, complete, before the first ask",
                      state == "passed" and said.startswith("Workshop's plan is complete"), said):
             return 1
+
+        # ---- a guest's press Workshop refuses ------------------------------------------------
+        state, said = run("workshop-hand/act", {"link": "hand", "steps": json.dumps([{"press": "s"}])})
+        check("A1 a guest's `s` through workshop/act fails in Workshop's words: on a weaver's host the "
+              "setup is not saved",
+              state != "passed" and "step 0 (press): Workshop refused it: the setup was not saved -- "
+              "this is a weaver's host: only the weaver's hand writes a file here" in said, said)
 
         # ---- a step whose control is not on the desk ---------------------------------------
         state, said = run("desk/resolve", {"shape": "BuildRequested", "mark": "yes", "words": "build"})
