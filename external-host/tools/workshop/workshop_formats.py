@@ -37,6 +37,9 @@ DEVELOPMENT_HOST = "development"
 # WORKSHOP'S NOTICE THAT ITS DESK MOVED, as a row's `observe` names it: what `desk-machine/watch` follows
 # and the walk tools wait on (hand.py), observed only by a row holding `capture`.
 DESK_NOTICE = {"producer": "zengine.workshop", "shape": "DeskStamps", "version": "3"}
+# WHAT WORKSHOP SAYS, each thing once as it says it, as a row's `observe` names it: what
+# `workshop/act` hears a refusal of its press by, observed only by a row holding `capture`.
+WORKSHOP_SAID = {"producer": "zengine.workshop", "shape": "NoticeSaid", "version": "1"}
 
 # The setup versions a desk is lifted from: version 4, whose rows hold every field of version 5's
 # but the settings, and version 5, which writes every coordinate and amount, zero where its word
@@ -101,12 +104,14 @@ def current(desk):
 
 
 def following_the_desk(row):
-    """`row` with Workshop's notice that the desk moved in its `observe`, when it reads the desk
-    (`capture`) and does not name it already: so its reader and its walks wait on the desk's moves."""
+    """`row` with Workshop's notice that the desk moved and what Workshop says in its `observe`,
+    when it reads the desk (`capture`), each it does not name already: so its reader and its walks
+    wait on the desk's moves, and `workshop/act` hears a refusal of its press."""
     row = dict(row)
     observe = list(row.get("observe") or [])
-    if "capture" in (row.get("may") or []) and DESK_NOTICE not in observe:
-        observe.append(dict(DESK_NOTICE))
+    for notice in (DESK_NOTICE, WORKSHOP_SAID):
+        if "capture" in (row.get("may") or []) and notice not in observe:
+            observe.append(dict(notice))
     if observe:
         row["observe"] = observe
     return row

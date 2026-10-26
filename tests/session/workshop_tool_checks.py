@@ -1125,6 +1125,91 @@ class ActWorkshop(Context):
         return Context.ask(self, office, shape, fields, **options)
 
 
+class SaidSub:
+    """A subscription to what Workshop says (`NoticeSaid` v1), as a scripted Workshop tells it:
+    `items` waits to be read, in order -- an observation, a gap or the end -- and `drain` and `next`
+    hand it over as Loom's subscription does."""
+    subscription, relay, holder, incarnation, window = 6, "R", 5, 1, 64
+
+    def __init__(self, options):
+        self.options, self.items, self.ended, self.released = options, [], None, False
+
+    def drain(self):
+        out, self.items = self.items, []
+        return out
+
+    def next(self, timeout=None):
+        if self.items:
+            return self.items.pop(0)
+        time.sleep(timeout or 0.0)
+        return None
+
+    def release(self, timeout=15.0):
+        self.released = True
+
+
+class Told(SimpleNamespace):
+    """One item a subscription hands over, with the record Loom's items keep."""
+
+    def record(self):
+        return dict((k, v) for k, v in vars(self).items() if k != "fields")
+
+
+class HearingWorkshop(ActWorkshop):
+    """`ActWorkshop` saying things as it is pressed: each injected press is answered with its
+    correlation, the number of its last moment, and the next of `replies` -- one list a press, in
+    order -- is what that press makes Workshop say, told through a `NoticeSaid` v1 subscription
+    once the press has settled: ("said", text, refusal, cause) one notice, its `cause` "own" (this
+    press's correlation), "none" (0, as deferred work says it) or "other" (another run's press);
+    ("gap", lost) publications the relay did not tell; ("ended", how) the subscription's end.
+    `refuse_hearing` refuses that subscription in its words, as Workshop refuses a row that may not
+    hear it. The desk's notice is refused too, so the waits read on a clock as `ActWorkshop`'s do.
+    `order` keeps "observe" and "press" in the order a run made them."""
+
+    def __init__(self, steps, act_steps, rows, replies=(), refuse_hearing=None, **kw):
+        ActWorkshop.__init__(self, steps, act_steps, rows, **kw)
+        self.replies, self.refuse_hearing = [list(r) for r in replies], refuse_hearing
+        self.heard, self.order, self.told = None, [], 0
+
+    def observe(self, producer, shapes, **options):
+        from loom_session.tool import Refused
+        shapes = [tuple(s) for s in shapes]
+        if producer == "zengine.workshop" and shapes == [("NoticeSaid", 1)]:
+            if self.refuse_hearing:
+                raise Refused(self.refuse_hearing)
+            self.order.append("observe")
+            self.heard = SaidSub(options)
+            return self.heard
+        raise Refused("guest 'agent' may not observe %s v%d from %s: its row's observe list does "
+                      "not name it" % (shapes[0] + (producer,)))
+
+    def tell(self, reply, correlation):
+        self.told += 1
+        if reply[0] == "said":
+            _, text, refusal, cause = reply
+            return Told(kind="observed", shape="NoticeSaid", seq=self.told,
+                        fields={"number": self.told, "text": text, "refusal": refusal},
+                        cause={"own": correlation, "none": 0, "other": correlation + 100}[cause])
+        if reply[0] == "gap":
+            return Told(kind="gap", seq=self.told, through=self.told + reply[1] - 1, lost=reply[1],
+                        reason="the relay's window was shut", local=False)
+        self.heard.ended = Told(kind="ended", seq=self.told, how=reply[1], reason="the link's session ended")
+        return self.heard.ended
+
+    def ask(self, office, shape, fields, **options):
+        answer = ActWorkshop.ask(self, office, shape, fields, **options)
+        if shape == "InjectInput":
+            self.order.append("press")
+            answer = Answer(answer)
+            answer.correlation = answer["last_seq"]
+            reply = self.replies.pop(0) if self.replies else []
+            if self.heard is not None and self.heard.ended is None:
+                for r in reply:
+                    if self.heard.ended is None:
+                        self.heard.items.append(self.tell(r, answer.correlation))
+        return answer
+
+
 def link_status(ctx, link):
     ctx.contacts.append("link status")
     return {"session": 2, "established_name": "test"}
@@ -1163,6 +1248,7 @@ def run_checks(tools, runtime):
     preset_demo = importlib.import_module("inventory_preset_demo")
     materials = importlib.import_module("editor_materials_demo")
     monitor = importlib.import_module("monitor")
+    formats = importlib.import_module("workshop_formats")
     from loom_session.tool import Refused
 
     class ToolChecks(unittest.TestCase):
@@ -1972,6 +2058,120 @@ def run_checks(tools, runtime):
             self.assertIn("1 of its waits read again every 0.2 s, not at Workshop's notice: "
                           "Workshop's notice could not be followed: guest 'agent' may not observe "
                           "DeskStamps v3", said)
+
+        SAVE_REFUSED = ("the setup was not saved -- this is a weaver's host: only the weaver's hand "
+                        "writes a file here, and guest 'agent' is not the weaver")
+
+        def test_a_press_workshop_refuses_ends_the_run_in_workshops_words(self):
+            # `s` ON A WEAVER'S HOST: Workshop refuses it in the press's own delivery, and says so
+            # with the press's correlation; the run ends there, and nothing after it is pressed.
+            ctx = HearingWorkshop(steps, [{"press": "down"}, {"press": "s"}, {"press": "down"}],
+                                  self.INFO_ROWS, replies=[
+                                      [("said", "nothing there", False, "own")],
+                                      [("said", "showed Palette", False, "none"),
+                                       ("said", self.SAVE_REFUSED, True, "own")]])
+            with self.assertRaises(CheckFailed) as failed:
+                act.run(ctx)
+            self.assertEqual(str(failed.exception),
+                             "step 1 (press): Workshop refused it: " + self.SAVE_REFUSED)
+            # SUBSCRIBED BEFORE THE FIRST PRESS, and no press after the refused one.
+            self.assertEqual(ctx.order, ["observe", "press", "press"])
+            self.assertEqual(ctx.heard.options.get("via"), "workshop")
+            done = ctx.done()
+            self.assertEqual([(r["index"], r["verb"]) for r in done], [(0, "press"), (1, "press")])
+            self.assertEqual(done[0]["caused"], [{"number": 1, "text": "nothing there", "refusal": False}])
+            self.assertEqual(done[1]["caused"], [{"number": 3, "text": self.SAVE_REFUSED, "refusal": True}])
+            self.assertEqual(done[1]["refused"], self.SAVE_REFUSED)
+            self.assertTrue(ctx.heard.released)
+            for cleanup in reversed(ctx.cleanups):
+                cleanup()  # the run's cleanup gives the input session back
+            self.assertFalse(ctx.owner.open)
+
+        def test_what_a_press_caused_that_is_no_refusal_never_fails_a_step_and_its_step_keeps_it(self):
+            # WHAT THE PRESS CAUSED is kept beside its step; a refusal it did not cause -- said by
+            # deferred work, or caused by another run's press -- fails nothing.
+            ctx = HearingWorkshop(steps, [{"press": "down"}, {"press": "up"},
+                                          {"select": ["zengine.info", "info", "Placement"]},
+                                          {"desk": ["zengine.info", "info"], "is": {"state": "open"}}],
+                                  self.INFO_ROWS, replies=[
+                                      [("said", "nothing there", False, "own"),
+                                       ("said", "the build failed", True, "none")],
+                                      [("said", self.SAVE_REFUSED, True, "other")],
+                                      [("said", "showed Palette", False, "own")]])
+            said = act.run(ctx)
+            done = ctx.done()
+            self.assertEqual([r["caused"] for r in done[:3]], [
+                [{"number": 1, "text": "nothing there", "refusal": False}], [],
+                [{"number": 4, "text": "showed Palette", "refusal": False}]])
+            # A STEP THAT PRESSES NOTHING keeps what it read as before: a desk step its desk.
+            self.assertNotIn("caused", done[3])
+            self.assertEqual(done[3]["said"]["state"], "open")
+            self.assertEqual(ctx.order[0], "observe")
+            self.assertIn("4 step(s) done", said)
+            self.assertNotIn("unheard", said)
+            self.assertNotIn("refused", said)
+            self.assertTrue(ctx.heard.released)
+
+        def test_a_gap_or_an_end_over_a_press_is_never_taken_for_silence(self):
+            for reply, why in (([("gap", 2)], "2 of Workshop's words were not told"),
+                               ([("ended", "lost")], "what Workshop says stopped being heard (lost")):
+                with self.subTest(reply=reply[0][0]):
+                    ctx = HearingWorkshop(steps, [{"press": "down"}, {"press": "s"},
+                                                  {"press": "down"}],
+                                          self.INFO_ROWS, replies=[[], reply])
+                    with self.assertRaises(CheckFailed) as failed:
+                        act.run(ctx)
+                    self.assertTrue(str(failed.exception).startswith(
+                        "UNRESOLVED: step 1 (press): whether Workshop refused it cannot be told -- "),
+                        str(failed.exception))
+                    self.assertIn(why, str(failed.exception))
+                    self.assertEqual(ctx.order, ["observe", "press", "press"])
+                    self.assertIn("cannot_tell", ctx.done()[1])
+            # ...AND AN END BETWEEN TWO PRESSES: the next press is not made, since no refusal of it
+            # could be heard.
+            ctx = HearingWorkshop(steps, [{"press": "down"}, {"wait": 0}, {"press": "s"}],
+                                  self.INFO_ROWS, replies=[[("said", "nothing there", False, "own")]])
+
+            def ends(seconds):  # the link's session ends while the run waits
+                ctx.heard.items.append(ctx.tell(("ended", "lost"), 0))
+            with patch.object(act.time, "sleep", side_effect=ends):
+                with self.assertRaises(CheckFailed) as failed:
+                    act.run(ctx)
+            self.assertEqual(str(failed.exception),
+                             "UNRESOLVED: step 2 (press): whether Workshop refused it cannot be told "
+                             "-- what Workshop says stopped being heard (lost: the link's session "
+                             "ended) before it was pressed; it was not pressed")
+            self.assertEqual(ctx.order, ["observe", "press"])
+            self.assertEqual([r["verb"] for r in ctx.done()], ["press", "wait", "press"])
+
+        def test_a_row_that_cannot_hear_is_pressed_as_today_and_its_answer_says_why(self):
+            refusal = ("guest 'agent' may not observe NoticeSaid v1 from zengine.workshop: what "
+                       "Workshop said is the desk's words, read only with capture")
+            ctx = HearingWorkshop(steps, [{"press": "s"}, {"press": "down"}], self.INFO_ROWS,
+                                  replies=[[("said", self.SAVE_REFUSED, True, "own")]],
+                                  refuse_hearing=refusal)
+            said = act.run(ctx)
+            self.assertEqual(ctx.order, ["press", "press"])
+            self.assertNotIn("caused", ctx.done()[0])
+            self.assertIn("2 step(s) done: press press; Workshop refusing its presses went unheard: "
+                          "what it says could not be followed: " + refusal, said)
+            # A RUN THAT PRESSES NOTHING follows nothing, and says nothing of it.
+            ctx = HearingWorkshop(steps, [{"rows": ["zengine.info", "info"]}], self.INFO_ROWS,
+                                  refuse_hearing=refusal)
+            self.assertNotIn("unheard", act.run(ctx))
+            self.assertIsNone(ctx.heard)
+            # ...and a context that follows no publication at all says that.
+            ctx = ActWorkshop(steps, [{"press": "down"}], self.INFO_ROWS)
+            self.assertIn("went unheard: this run's context follows no publication", act.run(ctx))
+
+        def test_a_row_that_follows_the_desk_hears_what_workshop_says_with_no_flag(self):
+            heard = {"producer": "zengine.workshop", "shape": "NoticeSaid", "version": "1"}
+            row = formats.following_the_desk({"name": "g", "may": ["input", "capture"]})
+            self.assertEqual(row["observe"], [formats.DESK_NOTICE, heard])
+            # A row naming them already keeps one of each; one that may not capture is given neither.
+            again = formats.following_the_desk(row)
+            self.assertEqual(again["observe"], [formats.DESK_NOTICE, heard])
+            self.assertNotIn("observe", formats.following_the_desk({"name": "g", "may": ["input"]}))
 
         def test_the_reset_button_is_pressed_by_its_name_in_the_picture_the_controls_draw(self):
             controls = CanvasControls()
