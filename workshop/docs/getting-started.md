@@ -201,13 +201,17 @@ and opens **Start here**, the story a step at a time, each box ticked as it happ
 start until you finish it; find either again in the Pane Manager as Quick setup and Start here
 ([their manual](zengine.first-run.md)).
 
+![The quick setup at a first start, holding the keys: Edit text with Neovim, each ready-to-use setup the launcher lists with Start, The story, Done and Skip](images/first-run-quick-setup.png)
+
+![Start here at a later start, seated beside the desk without the keys: steps 1 and 4 done by their owners' word, step 2 ticked by you, 3 and 5 still to do, each with Show me](images/first-run-start-here.png)
+
 **A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, and the room.
 The Layouts row says `>Default< +` beside `setup: none` — the one layout you have, marked as the
 one you are on, related to no Setup file yet. `none` is not a warning: Workshop remembers that
 layout for you either way. Nothing is painted behind the panes, and the band's first row says
 how to open one: `ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys`.
 
-![A fresh Workshop at its smallest window: the Layouts row, Info at the right, nothing behind them, and the band leading with the keys that open a pane](images/desk-fresh.png)
+![A fresh Workshop at its smallest window: the Layouts row, Info at the right, Notices over the room's lower left, and the band leading with the keys that open a pane](images/desk-fresh.png)
 
 1. **<!-- key desktop.panes -->`ctrl+p`<!-- /key -->** — the **Pane Manager**: every pane there is,
    open or not. `↑` `↓` choose, `Enter` shows one and puts you in it — a pane that is already
@@ -288,9 +292,9 @@ privilege the [snake example](../../examples/snake/README.md) does not.
 | colour | each area painted by its skin's painter, the role's ink on the terminal | each area painted by its skin's painter, RGB per role |
 | what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 
-![The Pane Manager and Info in the terminal window, 120 by 30 cells: the Layouts row on the first row, the frames drawn in characters](images/desk-terminal-window.png)
+![The Pane Manager, Info and Notices in the terminal window, 120 by 30 cells: the Layouts row on the first row, the frames drawn in characters, the band's keys beneath](images/desk-terminal-window.png)
 
-![The Pane Manager and Info in the OS window, 1444 by 901 pixels: text in the window's face, each pane on its own ground, each area painted by its skin's painter](images/desk-os-window.png)
+![The Pane Manager, Info and Notices in the OS window, 1444 by 901 pixels: text in the window's face, each pane on its own ground, each area painted by its skin's painter](images/desk-os-window.png)
 
 Neither is a degraded version of the other, and the same published intent produces both.
 
