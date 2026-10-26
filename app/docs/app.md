@@ -145,6 +145,16 @@ Other exits: 2, the folder is not one; 3, its plan or its decisions could not be
 input ended while the plan still waited on it, as when Workshop starts an app on POSIX, with no
 console, before its rows were decided ([the launcher](../../launcher/docs/zengine.launcher.md)).
 
+### While it runs
+
+Once `zengine-app` holds the app's decisions it writes its process id in the app's folder,
+`app-session.json` (`{"pid": 4242}`), says so at its console (`session: app-session.json (process
+4242)`), and removes the file when it ends. A second `zengine-app` refused the app writes none.
+Workshop's [launcher](../../launcher/docs/zengine.launcher.md#launchcatalogrequested) reads it to
+say whether the app runs, and asks the system whether that process still runs `zengine-app`: a
+host that was killed leaves its file behind, naming a process that is gone. An export never
+touches the file.
+
 ## What runs the view and the flow
 
 `zengine-app` composes the [Flow host](../../flow/docs/zengine.flow.host.md) and the

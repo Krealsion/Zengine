@@ -8,6 +8,7 @@
 #ifndef ZENGINE_LAUNCHER_CONFIGURED_HPP
 #define ZENGINE_LAUNCHER_CONFIGURED_HPP
 
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -23,6 +24,12 @@ inline constexpr const char* kDemosFolder = "@zengine_launcher_demos_folder@";
 /// Each setup the demo service lists, by name, and the directory holding its `setup.json`.
 inline std::vector<std::pair<const char*, const char*>> demo_setups() {
     return {@zengine_launcher_setups@};
+}
+
+/// Each of those setups by name, with its own title and one line from its `setup.json`, empty
+/// where the configure could not read them.
+inline std::vector<std::tuple<const char*, const char*, const char*>> demo_lines() {
+    return {@zengine_launcher_setup_lines@};
 }
 
 } // namespace zengine::launcher::configured

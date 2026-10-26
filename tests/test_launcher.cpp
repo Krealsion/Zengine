@@ -75,7 +75,9 @@ struct Project {
     std::string path() const { return dir.generic_string(); }
     launcher::Catalog catalog() const {
         return launcher::Catalog{APP_PROGRAM, (dir / "python").generic_string(), (dir / "demo.py").generic_string(),
-                                 "/the/build", "/the/loom", {{"values", (dir / "setups" / "values").generic_string()}}};
+                                 "/the/build", "/the/loom",
+                                 {{"values", (dir / "setups" / "values").generic_string(), "Value inspection",
+                                   "Inventory, Info and a Reset button."}}};
     }
 };
 
@@ -284,15 +286,28 @@ private:
     std::string dir_;
 };
 
-/// An office that asks the launcher and keeps its answers.
+/// An office that asks the launcher and keeps its answers apart from what the launcher says to
+/// any, each with the office it was authored as.
 class Asker final : public loom::Weave {
 public:
     std::vector<launcher::Launched> heard;
+    std::vector<launcher::Launched> published;
+    std::vector<launcher::LaunchCatalog> listings;
+    std::vector<std::string> published_as;
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<launcher::Launched>()};
+        return {loom::schema_of<launcher::Launched>(), loom::schema_of<launcher::LaunchCatalog>()};
     }
     void handle(const loom::Message& in, loom::Bus&) override {
-        heard.push_back(loom::from_value<launcher::Launched>(in.payload));
+        if (in.payload.schema().name() == launcher::LaunchCatalog::zen_name) {
+            if (in.provenance.answers_ask()) listings.push_back(loom::from_value<launcher::LaunchCatalog>(in.payload));
+            return;
+        }
+        if (in.provenance.answers_ask()) {
+            heard.push_back(loom::from_value<launcher::Launched>(in.payload));
+        } else {
+            published.push_back(loom::from_value<launcher::Launched>(in.payload));
+            published_as.emplace_back(in.provenance.authored_role());
+        }
     }
     loom::Value snapshot() const override { return loom::Value(loom::make_schema("lt.Asker", 1, {})); }
     loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
@@ -330,11 +345,148 @@ TEST_CASE("the launcher weave starts nothing for an office that is not the View 
     // ANOTHER OFFICE: refused, nothing started, though the app is there.
     const auto stranger = ask("zengine.stranger", {"app", "tally"});
     CHECK_FALSE(stranger.ok);
-    CHECK(has(stranger.reason, "only the View Builder and Files"));
+    CHECK(has(stranger.reason, "only the View Builder, Files, the palette and the quick setup"));
     // FILES, for what the catalog does not hold: refused in its words.
     const auto missing = ask("zengine.files", {"app", "missing"});
     CHECK_FALSE(missing.ok);
     CHECK(has(missing.reason, "no app 'missing'"));
     CHECK(missing.kind == "app");
     CHECK(missing.name == "missing");
+}
+
+namespace {
+/// The launcher loaded over a bus, beside the project office, with offices registered to ask it.
+struct LauncherRig {
+    Project p;
+    loom::Switchboard bus;
+    loom::Kernel kernel{bus, loom::trust_every_artifact("the suite loads the launcher")};
+    std::uint64_t corr = 0;
+    LauncherRig() {
+        auto stub = std::make_unique<ProjectStub>(p.path());
+        ProjectStub* raw = stub.get();
+        raw->self = bus.register_weave(std::move(stub), loom::Grant{}.allow_any(), ws::kProjectRole);
+        const auto loaded =
+            kernel.load("launcher", LAUNCHER_ARTIFACT, launcher::kLauncherRole, loom::Grant{}.allow_any());
+        INFO(loaded.error);
+        REQUIRE(loaded.ok);
+        const loom::WeaveId door = zengine::testing::mount_door(bus);
+        zengine::testing::order_activation(bus, door, loaded.id, 1);
+        pump();
+    }
+    void pump() {
+        for (int n = 0; n < 64 && bus.pending() != 0; ++n) bus.pump_pending();
+    }
+    /// An office of `office`, registered to hear the launcher.
+    std::pair<loom::WeaveId, Asker*> office(const char* office) {
+        auto a = std::make_unique<Asker>();
+        Asker* raw = a.get();
+        return {bus.register_weave(std::move(a), loom::Grant{}.allow_any(), office), raw};
+    }
+    template <class Shape>
+    void send(std::pair<loom::WeaveId, Asker*> from, const char* office, const Shape& s) {
+        REQUIRE(bus.office_send_to_role_as(from.first, office, launcher::kLauncherRole,
+                                           loom::Message(loom::to_value(s), from.first, {}, ++corr))
+                    .valid());
+        pump();
+    }
+};
+} // namespace
+
+TEST_CASE("a listing names each setup the demo service lists with its own title and line, then each app the launcher would start, and no folder it would refuse") {
+    // MUTATION: the listing reading every folder in apps/ -- the planless folder is listed.
+    Project p;
+    fs::create_directories(p.dir / zengine::app::kAppsFolder / "planless");
+    const launcher::LaunchCatalog listed = launcher::listing(p.path(), p.catalog());
+    REQUIRE(listed.entries.size() == 2);
+    CHECK(listed.entries[0].kind == "demo");
+    CHECK(listed.entries[0].name == "values");
+    CHECK(listed.entries[0].title == "Value inspection");
+    CHECK(listed.entries[0].line == "Inventory, Info and a Reset button.");
+    CHECK(listed.entries[1].kind == "app");
+    CHECK(listed.entries[1].name == "tally");
+    CHECK_FALSE(listed.entries[1].running);
+    CHECK(listed.left_out == 0);
+    // NO PROJECT: the setups alone, and why no app is listed.
+    const launcher::LaunchCatalog bare = launcher::listing("", p.catalog());
+    REQUIRE(bare.entries.size() == 1);
+    CHECK(has(bare.note, "no app is listed"));
+}
+
+TEST_CASE("an app is listed running only while its session file stands and names a process that still runs the app host") {
+    // MUTATION: running read from the session file alone -- a file naming an ended process, or a
+    // process that is not the app host, is said running.
+    Project p;
+    const fs::path tally = p.dir / zengine::app::kAppsFolder / "tally";
+    const auto running = [&](const launcher::Catalog& c) {
+        const launcher::LaunchCatalog listed = launcher::listing(p.path(), c);
+        REQUIRE(listed.entries.size() == 2);
+        return listed.entries[1].running;
+    };
+    // THIS PROCESS STANDS FOR THE APP HOST: a catalog whose app host is this suite's own program.
+    launcher::Catalog self = p.catalog();
+    self.app_program = SELF_PROGRAM;
+    CHECK_FALSE(running(self)); // no session file
+    {
+        std::ofstream(tally / zengine::app::kSessionName, std::ios::binary)
+            << zengine::app::session_text(zengine::app::this_process_id());
+    }
+    CHECK(running(self));
+    // ...A PROCESS THAT RUNS, but not the app host the catalog names: not running.
+    CHECK_FALSE(running(p.catalog()));
+    // ...A PROCESS THAT HAS ENDED, as a killed host leaves its file: not running.
+    const launcher::Started ended = launcher::start_detached({APP_PROGRAM, {}, "", ""});
+    REQUIRE_MESSAGE(ended.ok, ended.trouble);
+    REQUIRE(gone_within(ended.pid, 20));
+    {
+        std::ofstream(tally / zengine::app::kSessionName, std::ios::binary | std::ios::trunc)
+            << zengine::app::session_text(ended.pid);
+    }
+    CHECK_FALSE(running(p.catalog()));
+    // ...A FILE THAT NAMES NO PROCESS: not running.
+    {
+        std::ofstream(tally / zengine::app::kSessionName, std::ios::binary | std::ios::trunc) << "running";
+    }
+    CHECK_FALSE(running(self));
+}
+
+TEST_CASE("the launcher answers a listing to any office, and takes a start from the palette and the quick setup as from the View Builder and Files") {
+    // MUTATION: the askers left as they were -- the palette's start is refused as a stranger's.
+    LauncherRig rig;
+    const auto stranger = rig.office("zengine.stranger");
+    rig.send(stranger, "zengine.stranger", launcher::LaunchCatalogRequested{});
+    REQUIRE(stranger.second->listings.size() == 1);
+    const launcher::LaunchCatalog& listed = stranger.second->listings.back();
+    REQUIRE(listed.entries.size() >= 1);
+    CHECK(listed.entries.back().kind == "app");
+    CHECK(listed.entries.back().name == "tally");
+    CHECK(listed.note.empty());
+    for (const char* office : {"zengine.palette", "zengine.first-run"}) {
+        const auto asker = rig.office(office);
+        rig.send(asker, office, launcher::Launch{"app", "missing"});
+        REQUIRE(asker.second->heard.size() == 1);
+        CHECK_MESSAGE(has(asker.second->heard.back().reason, "no app 'missing'"), office);
+    }
+}
+
+TEST_CASE("each start is said to any as it is answered, as the launcher's office, so an office that did not ask hears it; a refusal is answered to its asker alone") {
+    // MUTATION: the start answered and not published -- the listener hears nothing.
+    LauncherRig rig;
+    const auto listener = rig.office("zengine.listener");
+    const auto files = rig.office("zengine.files");
+    rig.send(files, "zengine.files", launcher::Launch{"app", "missing"});
+    REQUIRE(files.second->heard.size() == 1);
+    CHECK_FALSE(files.second->heard.back().ok);
+    CHECK(listener.second->published.empty());
+    rig.send(files, "zengine.files", launcher::Launch{"app", "tally"});
+    REQUIRE(files.second->heard.size() == 2);
+    const launcher::Launched started = files.second->heard.back();
+    REQUIRE_MESSAGE(started.ok, started.reason);
+    REQUIRE(listener.second->published.size() == 1);
+    CHECK(listener.second->published.back().pid == started.pid);
+    CHECK(listener.second->published.back().name == "tally");
+    CHECK(listener.second->published_as.back() == launcher::kLauncherRole);
+    // The asker hears its answer once, as an answer; the same start said to any is not another.
+    CHECK(files.second->published.size() == 1);
+    end(started.pid);
+    CHECK(gone_within(started.pid, 10));
 }
