@@ -36,7 +36,7 @@ LAW — The restore runs once per process, guarded by a flag, because a window o
 MEANS
 - the flag is set before the file is opened, so a refusal is final too;
 - `load_file` asks `exists` first, so a first launch is not an error and stays silent;
-- its sentence takes the unit the first window's offer names, unless another was said since.
+- its sentence is said once, in the unit the first window that offers a room names, held from the owner's answer until that offer.
 
 WHY — `agents/decisions/three-ownership-domains.md`
 
@@ -85,7 +85,7 @@ a line a layout" "a header counting more layouts than a Workshop keeps is refuse
 read"
 
 ### WL-SESSION-14
-`workshop/weave_session.cpp` restore_last_session restore_notice_text spell_restore_notice
+`workshop/weave_session.cpp` restore_last_session restore_notice_text say_restore_notice
 restore_window say_restored
 `workshop/layouts/session_persist.hpp` LoadedSession::present LoadedSession::outcome LoadedSession
 load_file

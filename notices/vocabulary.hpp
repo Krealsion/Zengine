@@ -69,9 +69,9 @@ struct NoticesShown {
               ZEN_FIELD(let_go));
 };
 
-/// THE RECORD MOVED, published to any when it kept a notice, replaced one, or let some go: the
-/// oldest and newest kept numbers, how many it keeps, and how many it has let go. It carries no
-/// words; a reader asks for the page it wants.
+/// THE RECORD MOVED, published to any when it kept a notice or let some go: the oldest and newest
+/// kept numbers, how many it keeps, and how many it has let go. It carries no words; a reader asks
+/// for the page it wants.
 struct NoticesMoved {
     std::int64_t first = 0;
     std::int64_t last = 0;

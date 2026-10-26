@@ -21,10 +21,8 @@ namespace zengine::workshop {
 /// THE MOST NOTICES ONE DELIVERY HOLDS TO PUBLISH AT ITS END: past it, the oldest owed is let go.
 inline constexpr std::size_t kMaxNoticesOwed = 256;
 
-/// ONE THING WORKSHOP SAID, published to any by `zengine.workshop`: its number in this run, from 1,
-/// the words, and whether it was a refusal. A notice said again in other words -- the restored
-/// desk's size, spelled again in the window's unit -- carries the number it was first said under,
-/// and replaces it.
+/// ONE THING WORKSHOP SAID, published to any by `zengine.workshop`, once: its number in this run,
+/// from 1, the words, and whether it was a refusal.
 // WL-NOTE-01 -- agents/workshop/notices.md
 struct NoticeSaid {
     std::int64_t number = 0;

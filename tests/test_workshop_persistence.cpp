@@ -2025,8 +2025,8 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
 }
 
 TEST_CASE("the restore notice says the room in the unit the medium names: pixels in a window, cells in a terminal") {
-    // ⚔ MUTATION: the notice spelled once, at the restore, before any medium has named its unit --
-    // a window's launch says `120x75 cells`.
+    // ⚔ MUTATION: the notice said at the restore in the unit the desk held before any window named
+    // one -- a window's launch says `120x75 cells`.
     TempDir dir("restore-unit");
     const std::string session = dir.file("session.json");
     REQUIRE(save_last_run(session, one_layout(setup_of("Default", {pane_kind::kLayouts})), 0,
@@ -2050,17 +2050,20 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
         t.extent_px(cells_px(120), cells_px(75), 0, 0, 0);
         CHECK(t.notice() == "reopened your last desk \"Default\" -- 120x75 cells");
     }
-    // A NOTICE SAID SINCE STANDS: the restore's is not said again over it.
+    // A NOTICE SAID BEFORE THE ROOM: a terminal that offered itself before it had a room named no
+    // unit, so the restore's sentence waits for the first room a window offers -- here the OS
+    // window's -- and is said then, after the other, in that window's unit.
     {
         Live k;
         k.host.session_path = session;
-        k.ready();
+        k.windows.room(0, 0);
+        k.bus.drain_until_idle();
         k.key(input::scan::kT);
         k.text("t");
-        const std::string said = k.notice();
-        REQUIRE(said.rfind("pane titles hidden", 0) == 0);
-        k.extent_px(cells_px(120), cells_px(75), 8, 18, gfx::kCellPx);
-        CHECK(k.notice() == said);
+        REQUIRE(k.notice().rfind("pane titles hidden", 0) == 0);
+        k.on_os_window();
+        k.bus.drain_until_idle();
+        CHECK(k.notice() == "reopened your last desk \"Default\" -- 1440x900 px");
     }
 }
 
