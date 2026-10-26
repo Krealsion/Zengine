@@ -26,6 +26,7 @@
 #include <windows.h>
 #else
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -241,6 +242,49 @@ inline Started start_detached(const StartPlan& plan) {
     out.ok = true;
     out.pid = id;
     return out;
+#endif
+}
+
+/// DOES THE PROCESS `pid` RUN NOW, a program whose file is named `program_file`? Asked of the
+/// system, never remembered: on Windows its exit is still to come and its image has that name; on
+/// Linux its `/proc` entry's program has that name; elsewhere it answers a signal of none.
+inline bool runs_program(std::int64_t pid, const std::string& program_file) {
+    if (pid <= 0) {
+        return false;
+    }
+#if defined(_WIN32)
+    HANDLE h = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(pid));
+    if (h == nullptr) {
+        return false;
+    }
+    DWORD code = 0;
+    const bool alive = ::GetExitCodeProcess(h, &code) != 0 && code == STILL_ACTIVE;
+    wchar_t image[1024];
+    DWORD size = static_cast<DWORD>(sizeof(image) / sizeof(image[0]));
+    const bool read = ::QueryFullProcessImageNameW(h, 0, image, &size) != 0;
+    ::CloseHandle(h);
+    if (!alive || !read) {
+        return false;
+    }
+    const std::wstring path(image, size);
+    const std::size_t slash = path.find_last_of(L"\\/");
+    const std::wstring name = slash == std::wstring::npos ? path : path.substr(slash + 1);
+    const std::wstring wanted = detail::wide(program_file);
+    return ::CompareStringOrdinal(name.c_str(), static_cast<int>(name.size()), wanted.c_str(),
+                                  static_cast<int>(wanted.size()), TRUE) == CSTR_EQUAL;
+#elif defined(__linux__)
+    char target[4096];
+    const std::string link = "/proc/" + std::to_string(pid) + "/exe";
+    const ssize_t n = ::readlink(link.c_str(), target, sizeof(target) - 1);
+    if (n <= 0) {
+        return false;
+    }
+    const std::string path(target, static_cast<std::size_t>(n));
+    const std::size_t slash = path.find_last_of('/');
+    return (slash == std::string::npos ? path : path.substr(slash + 1)) == program_file;
+#else
+    (void)program_file;
+    return ::kill(static_cast<pid_t>(pid), 0) == 0 || errno == EPERM;
 #endif
 }
 

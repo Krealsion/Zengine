@@ -12,6 +12,7 @@
 // project's `demo-runs/`. No message names a program, a path or an argument.
 
 #include "app/folder.hpp"
+#include "app/session_file.hpp"
 #include "app/vocabulary.hpp"
 #include "launcher/start.hpp"
 #include "launcher/vocabulary.hpp"
@@ -30,10 +31,13 @@ inline constexpr const char* kDemoRunsFolder = "demo-runs";
 /// The log an app started on POSIX appends its output to, in its own folder.
 inline constexpr const char* kAppLogName = "app.log";
 
-/// One setup the demo service lists: its name, and the directory holding its `setup.json`.
+/// One setup the demo service lists: its name, the directory holding its `setup.json`, and its
+/// own title and one line from that file.
 struct DemoSetup {
     std::string name;
     std::string dir;
+    std::string title;
+    std::string line;
 };
 
 /// WHAT THE CONFIGURATION FIXED: the app host's program, and the demo service's interpreter,
@@ -133,6 +137,59 @@ inline LaunchJudged judge_launch(const Launch& asked, const std::string& project
                          fs::path(project).generic_string(),
                          (runs / (setup->name + ".log")).generic_string()};
     out.ok = true;
+    return out;
+}
+
+/// DOES THE APP IN `folder` RUN NOW: its host's session file stands there and names a process
+/// that still runs `catalog`'s app host. A file a killed host left names no such process.
+inline bool app_runs(const std::filesystem::path& folder, const Catalog& catalog) {
+    const auto pid = app::read_session(folder);
+    return pid.has_value() &&
+           runs_program(*pid, std::filesystem::path(catalog.app_program).filename().string());
+}
+
+/// WHAT CAN BE STARTED IN `project`, as `Launch` would judge it now: each setup the demo service
+/// lists, then each folder directly in the project's `apps/`, by name, that `judge_launch` would
+/// start, with whether it runs. At most `kMaxListed`; how many past it is counted in `left_out`.
+inline LaunchCatalog listing(const std::string& project, const Catalog& catalog) {
+    namespace fs = std::filesystem;
+    LaunchCatalog out;
+    const auto add = [&out](LaunchEntry e) {
+        if (out.entries.size() >= kMaxListed) {
+            ++out.left_out;
+            return;
+        }
+        out.entries.push_back(std::move(e));
+    };
+    for (const DemoSetup& d : catalog.demos) {
+        add(LaunchEntry{kKindDemo, d.name, d.title.empty() ? d.name : d.title, d.line, false});
+    }
+    if (project.empty()) {
+        out.note = "no project directory: no app is listed";
+        return out;
+    }
+    std::error_code ec;
+    const fs::path apps = fs::path(project) / app::kAppsFolder;
+    // AT MOST `kMaxListed` FOLDERS LOOKED AT, in name order, the rest counted as left out.
+    std::vector<std::string> names;
+    for (fs::directory_iterator it(apps, ec), end; !ec && it != end; it.increment(ec)) {
+        std::error_code is;
+        if (it->is_directory(is)) {
+            names.push_back(it->path().filename().string());
+        }
+    }
+    std::sort(names.begin(), names.end());
+    if (names.size() > kMaxListed) {
+        out.left_out += static_cast<std::int64_t>(names.size() - kMaxListed);
+        names.resize(kMaxListed);
+    }
+    for (const std::string& name : names) {
+        const LaunchJudged judged = judge_launch(Launch{kKindApp, name}, project, catalog);
+        if (judged.ok) {
+            add(LaunchEntry{kKindApp, name, name, "an app in the project's apps/",
+                            app_runs(fs::path(judged.plan.dir), catalog)});
+        }
+    }
     return out;
 }
 

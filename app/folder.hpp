@@ -13,6 +13,7 @@
 
 #include "app/files.hpp"
 #include "app/program.hpp"
+#include "app/session_file.hpp"
 #include "app/vocabulary.hpp"
 
 #include "flow/project.hpp"
@@ -31,8 +32,6 @@
 
 namespace zengine::app {
 
-/// The file the app host writes while it runs; an export never touches it.
-inline constexpr const char* kSessionName = "app-session.json";
 /// The two launchers an export writes.
 inline constexpr const char* kLauncherCmd = "run.cmd";
 inline constexpr const char* kLauncherSh = "run.sh";

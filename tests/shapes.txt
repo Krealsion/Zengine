@@ -261,6 +261,9 @@ KeymapRequested v1 0x1f9fa150659359e4
 KeymapShown v4 0x1a38f103558d350e
 Launch v1 0x264acc9298caf3f0
 Launched v1 0x038a9ec908caf910
+LaunchCatalog v1 0xd775746b4fd96e27
+LaunchCatalogRequested v1 0x92c7abb224c6900a
+LaunchEntry v1 0xc3aadb8d2f36a563
 LauncherState v1 0x77d638e6de58fe46
 LayoutEdit v1 0x451d838b16e25735
 LayoutEditAnswered v1 0xa39b9f5b6c7ff9ed
