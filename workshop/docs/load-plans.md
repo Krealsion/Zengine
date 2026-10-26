@@ -88,8 +88,8 @@ Read it as: the OS window, otherwise the terminal window. At each launch:
 - **The OS window opens** where it can, and the desk is there.
 - **Where it cannot open** -- no display, no video driver SDL can use, its library missing -- its
   load is refused, nothing of it stays loaded, and the terminal window loads in its place. The
-  desk is in the terminal Workshop was started from; its notice row says why, once, and Attention
-  keeps it for the run:
+  desk is in the terminal Workshop was started from; Workshop says why, once, in the Notices pane,
+  and Attention keeps it for the run:
 
   ```text
   `zengine-window-sdl` did not load, so `zengine-window-terminal` stands in its row -- it would not start here: zengine-window-sdl: SDL_Init(SDL_INIT_VIDEO) failed: No available video device

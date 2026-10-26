@@ -469,7 +469,7 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   [`zengine.layouts`](zengine.layouts.md), the office that keeps the layouts): each a
   key, its default in the field of its kind, and what it takes — a text one of its `choices` (or
   any text when it names none), a number from `low` to `high`. The declaration is judged whole
-  under the office stamp, a refusal is said in the band and leaves the settings in force, a later
+  under the office stamp, a refusal is said as Workshop's notice and leaves the settings in force, a later
   one replaces it, and it counts only while the weave that sent it holds the office, at the
   incarnation that sent it: a reloaded image declares again, or is shown none of its
   predecessor's settings. Version 2 of the declaration says how a weaver finds each setting -- up
@@ -1347,7 +1347,7 @@ version of each of these shapes stands.
 | `PaneCover{by, words, rect}` | What covers part of a pane -- `by` names each: a pane in front by its name, `menu`, `arranging`, `band` -- how many of its words and parts are not said for it, and the `DeskRect` bounding what they cover of it; empty for a pane nothing covers |
 | `PanePointRequested{provider, pane, fingerprint, word, column}`, `PanePoint{provider, pane, fingerprint, word, column, x, y, space}` | Where one character of a word of the reading at `fingerprint` is now; refused, in words, when what the pane shows moved |
 | `DeskStamps{desk, panes}` | Published by Workshop's office to whoever follows it: the desk number and every presented pane's `PaneStamp`, from the front back, as a `DeskRead` would say them now |
-| `DeskView{desk, width, height, cell_px, space, room, panes, arranging, menu, words}` | The desk by Workshop's own numbers: each pane's state, rank, place and size, selection and keys; the room; arranging; the menu, a `DeskMenu{open, office, pane, picture, place, lines, parts}`; the band's notice and legend as `PaneWord`s with their places and no point, since the band takes no press; and `desk`, a number that moves when anything it says moves |
+| `DeskView{desk, width, height, cell_px, space, room, panes, arranging, menu, words}` | The desk by Workshop's own numbers: each pane's state, rank, place and size, selection and keys; the room; arranging; the menu, a `DeskMenu{open, office, pane, picture, place, lines, parts}`; the band's legend as `PaneWord`s with their places and no point, since the band takes no press; and `desk`, a number that moves when anything it says moves |
 
 - **Where a pane is read from.** A pane drawing in a window area Workshop placed is read as that
   window says the area shows: Workshop asks it (`graphics::AreaShowAsked`) and answers the read

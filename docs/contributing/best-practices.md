@@ -174,6 +174,16 @@ Its law, pages and suites: [`attention/AGENTS.md`](../../attention/AGENTS.md).
 - **Nothing Workshop discovers opens the pane or takes the keys.**
   [Use](../../attention/docs/zengine.attention.md#use)
 
+### Notices (`notices/`)
+
+Its law, pages and suites: [`notices/AGENTS.md`](../../notices/AGENTS.md).
+
+- **A notice is a moment that passed**: kept, never waiting, unread or expiring.
+  [About](../../notices/docs/zengine.notices-pane.md#about)
+- **The record is the record's**: the pane keeps only where its view ends, and asks for each page.
+  [Follow](../../notices/docs/zengine.notices-pane.md#follow)
+- **A key and a wheel's notch are one action.** [`notices.up`](../../notices/docs/zengine.notices-pane.md#noticesup)
+
 ### The Builder (`builder/builder-pane/`, `builder/`)
 
 Its law, pages and suites: [`builder/AGENTS.md`](../../builder/AGENTS.md).

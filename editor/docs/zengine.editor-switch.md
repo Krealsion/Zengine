@@ -30,7 +30,7 @@ cancellable.
 
 Open the Terminal, <!-- key desktop.terminal -->`ctrl+t`<!-- /key -->, and type
 `ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim`. What came of it is said
-on Workshop's notice line, `editor switch 1: switched -- ...`, and while a switch is under way the
+as Workshop's notice, in the Notices pane, `editor switch 1: switched -- ...`, and while a switch is under way the
 Attention pane keeps it standing, with the line that cancels it. When a switch would lose
 something, the notice gives the exact line that confirms it, `op` and `consent` filled in; type it,
 or cancel. [`EditorSwitchStatusRequested`](#editorswitchstatusrequested) says where you are.
@@ -158,7 +158,7 @@ The switch publishes its own account as `zengine.editor-switch`: `EditorSwitchPr
 stage while a switch is under way, `pending` true, with the stage, whom it waits on and the consent
 to type; and once for every answer, `pending` false, with the outcome and its words. Workshop keeps
 a pending switch as a standing condition, `switching the Editor to <choice>`, and says each outcome
-on its notice line, `editor switch <op>: <outcome> -- <words>`. The stages are `judging`,
+as its notice, `editor switch <op>: <outcome> -- <words>`. The stages are `judging`,
 `awaiting-confirmation`, `warming`, `boundary`, `adopting`, `proving` and `retiring`.
 
 ## See also

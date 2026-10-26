@@ -33,6 +33,7 @@ front pages, and the index of the pages no one folder owns.
 | [flow/](../flow/README.md) | Flow: author a stateful weave as a graph, edit it live, generate native C++ |
 | [info/](../info/README.md) | Info: independent views that inspect and edit a value |
 | [introspection/](../introspection/README.md) | Loaded, Project and Powers: what a running system is made of |
+| [notices/](../notices/README.md) | Notices: what Workshop said, kept for the run and shown in a pane |
 | [inventory/](../inventory/README.md) | Inventory: stored typed values, portable toolboxes and hotkeys |
 | [settings/](../settings/README.md) | theme files, how a theme resolves with the themes it includes, and the `zengine.settings` doors |
 | [terminal/](../terminal/README.md) | the Terminal: type a command to the weaves on the bus |
