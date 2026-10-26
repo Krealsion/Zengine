@@ -535,7 +535,7 @@ bool WorkshopWeave::spell_restore_notice(std::int64_t cell_px) {
     if (held.said != notices_said_) {
         return false; // something was said since, and it stands
     }
-    say(restore_notice_text(held, cell_px), held.bad);
+    say_again(restore_notice_text(held, cell_px), held.bad);
     return true;
 }
 

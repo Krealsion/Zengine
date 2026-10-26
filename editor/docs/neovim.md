@@ -72,7 +72,7 @@ ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim
 
 Workshop starts Neovim in the Editor pane's room, hands it the document -- the file, your unsaved
 edits, the caret, the selection, the scroll position -- and the Editor pane becomes Neovim, in the
-same place on your desk. What came of it is said on Workshop's notice line, in the answer's own
+same place on your desk. What came of it is said as Workshop's notice, in the answer's own
 words, followed by what did not cross exactly --
 ``editor switch 1: switched -- switched zengine.editor from `standard` to `neovim` -- reset: the standard Editor's undo history; ...``
 -- and the Terminal's record shows that the answer arrived, with the switch office's weave
@@ -86,7 +86,7 @@ ask @zengine.editor-switch EditorSwitchRequested 1 destination=standard
 
 Asking for the editor you already have is harmless: the notice says `already-active` and nothing
 is loaded. To see where you are -- which editor holds the office, which are authored, and whether
-a switch is under way, said on the notice line:
+a switch is under way, said as Workshop's notice:
 
 ```text
 ask @zengine.editor-switch EditorSwitchStatusRequested 1
@@ -108,7 +108,7 @@ nothing, and the notice says so once. A run with no session file -- `--isolated`
 
 A switch away from Neovim can lose something the standard Editor cannot hold -- **another buffer
 with unsaved changes**, or a **terminal job** running in Neovim. Then nothing is loaded yet, and
-the notice line asks at once: the exact line that confirms, its `op` and its `consent` filled in,
+Workshop's notice asks at once: the exact line that confirms, its `op` and its `consent` filled in,
 then what the switch would lose --
 
 ```text

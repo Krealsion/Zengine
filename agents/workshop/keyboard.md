@@ -96,7 +96,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-09 — The legend preference governs the band's legend rows and nothing else
 
-LAW — `full`/`compact`/`hidden` (`default` is the code's answer) govern every band row after the notice and nothing else; hidden blanks them, reclaims no geometry and unbinds nothing.
+LAW — `full`/`compact`/`hidden` (`default` is the code's answer) govern every band row and nothing else; hidden blanks them, reclaims no geometry and unbinds nothing.
 
 MEANS
 - the full rows fold four families exactly while every member sits on its default (`help_pairs`);
@@ -151,8 +151,8 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## Do not assume
 
-- That the legend has a fixed row count per medium — it is every band row after the notice,
-  however many the band's budget grants (WL-KEY-09).
+- That the legend has a fixed row count per medium — it is every band row, however many the
+  band's budget grants (WL-KEY-09).
 
 ## Proven by
 

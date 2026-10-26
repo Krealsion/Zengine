@@ -17,11 +17,11 @@ classified `open` (`3bfc2fd`).
 
 **Decision.** Three regions tile the screen exactly: `kTopRows`
 (<!-- value kTopRows -->2<!-- /value -->) reserved, with the Layouts pane standing on them by
-default; the body; the last `kBottomRows` (<!-- value kBottomRows -->4<!-- /value -->) as the foot
-band. `kTopRows + kBottomRows == 6` is asserted and `room_h` is byte-identical to what it was. The
-foot band owns its whole rectangle (`kGroundOwn`), is in front of the panes, and occupies no
-pointer space; `band_region` composes the notice first and `budget - 1` legend rows after. The top
-rows belong to a pane.
+default; the body; the last `kBottomRows` (<!-- value kBottomRows -->3<!-- /value -->) as the foot
+band. `kTopRows + kBottomRows == 5` is asserted. The foot band owns its whole rectangle
+(`kGroundOwn`), is in front of the panes, and occupies no pointer space; `band_region` composes the
+legend in every row ([what Workshop said is kept](what-workshop-said-is-kept.md)). The top rows
+belong to a pane.
 
 **Alternatives considered.**
 - *A sixth reserved row* — refused: it would resize the workspace every share resolves against.

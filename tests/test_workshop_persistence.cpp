@@ -220,14 +220,14 @@ TEST_CASE("two setups are the same setup when they name the same panes in the sa
     CHECK_FALSE(a == other_way);
 }
 
-TEST_CASE("a fresh Workshop's setup names one pane this build does not compile") {
+TEST_CASE("a fresh Workshop's setup names two panes this build does not compile") {
     // WHAT EACH DEFAULT IS FOR. The desk is the product default, what a weaver opens with; the
-    // open panes are what this host can present before any weave has spoken. Info is in the
-    // first and not the second, and that is not a disagreement: it is what a loaded pane
-    // looks like at boot.
+    // open panes are what this host can present before any weave has spoken. Info and Notices
+    // are in the first and not the second, and that is not a disagreement: it is what a loaded
+    // pane looks like at boot.
     const Setup fresh = default_setup();
     CHECK(fresh.name == std::string(kDefaultSetupName));
-    REQUIRE(fresh.panes.size() == kDefaultPaneCount + 1);
+    REQUIRE(fresh.panes.size() == kDefaultPaneCount + 2);
 
     // THE COMPILED HALF: every row that resolves is a kind this session already has open,
     // in the setup's order.
@@ -244,22 +244,27 @@ TEST_CASE("a fresh Workshop's setup names one pane this build does not compile")
     CHECK(resolved == open_kinds(Panes{}));
     CHECK(resolved == std::vector<std::int64_t>{pane_kind::kLayouts});
 
-    // AND THE OTHER HALF IS INFO, NAMED BY THE DESK AND ANSWERED BY A WEAVE. The row carries
-    // the room's top-right by its WORD, and it is here because a desk is where a weaver's panes
-    // are named -- not because this host knows what Info is.
-    REQUIRE(waiting.size() == 1);
+    // AND THE OTHER HALF IS INFO AND NOTICES, NAMED BY THE DESK AND ANSWERED BY WEAVES. Each row
+    // carries its place in the room by its WORD, and is here because a desk is where a weaver's
+    // panes are named -- not because this host knows what either is.
+    REQUIRE(waiting.size() == 2);
     CHECK(waiting[0] == info_ref());
+    CHECK(waiting[1] == notices_pane_ref());
     const SetupPane* row = pane_of(fresh, info_ref());
     REQUIRE(row != nullptr);
     CHECK(row->place.mode == ui::kPlaceTopRight);
     CHECK(row->place.x == 0);
     CHECK(row->width.mode == pane_unit::kDefault);
+    const SetupPane* notices = pane_of(fresh, notices_pane_ref());
+    REQUIRE(notices != nullptr);
+    CHECK(notices->place.mode == ui::kPlaceBottomLeft);
+    CHECK(notices->width.mode == pane_unit::kDefault);
 
     // A default session agrees with both.
     const Session s;
     CHECK(s.setup.active == fresh);
     CHECK(open_kinds(s.panes) == resolved);
-    CHECK(unresolved_panes(s.setup.active, no_providers()).size() == 1);
+    CHECK(unresolved_panes(s.setup.active, no_providers()).size() == 2);
 }
 
 TEST_CASE("every catalog row carries a durable reference that resolves back to it") {
@@ -470,12 +475,13 @@ TEST_CASE("the unresolved panes are reported in the setup's own order") {
     REQUIRE(waiting.size() == 2);
     CHECK(waiting[0] == stranger());
     CHECK(waiting[1] == PaneRef{"other.tools", "graph"});
-    // AND THE SHIPPED DESK HAS ONE OF ITS OWN, WHICH IS NOT A DEFECT. `default_setup` names
-    // the Info pane and Info is a weave: with no provider in the room its row is unresolved,
-    // exactly as a weaver's desk naming a pane whose office has not spoken yet.
+    // AND THE SHIPPED DESK HAS TWO OF ITS OWN, WHICH IS NOT A DEFECT. `default_setup` names
+    // the Info and Notices panes and each is a weave: with no provider in the room its row is
+    // unresolved, exactly as a weaver's desk naming a pane whose office has not spoken yet.
     const std::vector<PaneRef> fresh = unresolved_panes(default_setup(), no_providers());
-    REQUIRE(fresh.size() == 1);
+    REQUIRE(fresh.size() == 2);
     CHECK(fresh[0] == info_ref());
+    CHECK(fresh[1] == notices_pane_ref());
 }
 
 // ---- Authored intent, reconciled onto resolved presentations ------------------
@@ -875,8 +881,8 @@ TEST_CASE("opening a pane through the launch door moves the setup's intent, not 
     CHECK(has_pane(t.session().setup.active, ref_of(stock::kKind)));
     // At the END of the authored order, which is where the screen put it -- behind the
     // Layouts pane a fresh Workshop already had, because the door appends.
-    REQUIRE(t.session().setup.active.panes.size() == 3);
-    CHECK(t.session().setup.active.panes[2].ref == ref_of(stock::kKind));
+    REQUIRE(t.session().setup.active.panes.size() == 4);
+    CHECK(t.session().setup.active.panes[3].ref == ref_of(stock::kKind));
     // ...and the resolved open order agrees with the resolved order of the refs.
     CHECK(open_kinds(t.session().panes) ==
           std::vector<std::int64_t>{pane_kind::kLayouts, stock::kKind});
@@ -891,11 +897,12 @@ TEST_CASE("opening a pane through the launch door moves the setup's intent, not 
     // surface it cannot lose.
     pick(t, pane_kind::kLayouts);
     CHECK_FALSE(t.session().panes.has(pane_kind::kLayouts));
-    // ...AND WHAT IS LEFT IN THE DESK IS THE INFO ROW THE SHIPPED SETUP NAMED, which no
-    // provider in this rig can resolve. A desk row for a pane nobody is offering is still a
-    // desk row, which is the whole of what an unresolved reference is (WL-SETUP-01).
-    REQUIRE(t.session().setup.active.panes.size() == 1);
+    // ...AND WHAT IS LEFT IN THE DESK IS THE INFO AND NOTICES ROWS THE SHIPPED SETUP NAMED,
+    // which no provider in this rig can resolve. A desk row for a pane nobody is offering is
+    // still a desk row, which is the whole of what an unresolved reference is (WL-SETUP-01).
+    REQUIRE(t.session().setup.active.panes.size() == 2);
     CHECK(t.session().setup.active.panes[0].ref == info_ref());
+    CHECK(t.session().setup.active.panes[1].ref == notices_pane_ref());
 }
 
 TEST_CASE("a pane change makes the setup UNSAVED, and changing it back makes it saved again") {
@@ -1481,7 +1488,7 @@ TEST_CASE("the contextual surface's own state never reaches the setup file") {
     CHECK(bytes.find("menu") == std::string::npos);
     CHECK(bytes.find("terminal") == std::string::npos);
     CHECK(bytes.find("selected") == std::string::npos);
-    CHECK(bytes.find("notice") == std::string::npos);
+    CHECK(bytes.find("\"notice\"") == std::string::npos);
 
     // And restoring opens no surface: `r` is a command, so the surface was closed
     // before it could run, and nothing in a restore opens one.

@@ -261,9 +261,9 @@ TEST_CASE("the desk says which pane is selected and holds the keys, and a pane p
     CHECK(alpha->visible.h == 0);
 }
 
-TEST_CASE("the desk read says a pane's words where the band says them, and the pixels they came to") {
-    // ⚔ MUTATION: the readout saying `-` for every word -- the band, and so the desk read, says
-    // nothing of the share or the point of the room.
+TEST_CASE("Workshop's notice says a pane's words, and the desk read the pixels they came to") {
+    // ⚔ MUTATION: the readout saying `-` for every word -- the notice says nothing of the share or
+    // the point of the room.
     DeskRig d;
     const PaneRef alpha{kAlphaOffice, "alpha"};
     stage_desk(d.r, [&](Setup& desk) {
@@ -279,13 +279,14 @@ TEST_CASE("the desk read says a pane's words where the band says them, and the p
     }
     REQUIRE(d.r.session().arrange.pane == alpha);
     const DeskView desk = d.desk();
-    std::string band;
+    const std::string said = d.r.session().notice;
+    CAPTURE(said);
+    CHECK(said.find("@bottom-right 1,2 50.00%x") != std::string::npos);
+    CHECK(said.find(" -- now @") != std::string::npos);
+    // ...SAID AS WORKSHOP'S NOTICE, which the band does not carry: its words are the legend's.
     for (const PaneWord& w : desk.words) {
-        band += w.text + "\n";
+        CHECK(w.text.find(" -- now @") == std::string::npos);
     }
-    CAPTURE(band);
-    CHECK(band.find("@bottom-right 1,2 50.00%x") != std::string::npos);
-    CHECK(band.find(" -- now @") != std::string::npos);
     // ...AND THE PANE'S OWN ENTRY SAYS THE PIXELS THOSE WORDS CAME TO.
     const Screen sc = screen_of(d.r.session());
     const DeskPane* p = pane_named(desk, kAlphaOffice, "alpha");
@@ -2742,7 +2743,7 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
     // LAYOUTS PLACED LOW, reaching under the foot band: the band is drawn over it as over any pane,
     // and what the band hides is not said.
     const PaneRef layouts_ref{kWorkshopProvider, pane_key::kLayouts};
-    const std::int64_t room_h = sc.notice_y - sc.room_y;
+    const std::int64_t room_h = sc.band_y - sc.room_y;
     stage_desk(d.r, [&](Setup& desk) {
         REQUIRE(author_pane_place(desk, layouts_ref, 0, room_h - gfx::kCellPx).accepted);
         REQUIRE(author_pane_size(desk, layouts_ref,
@@ -2755,9 +2756,9 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
     const Screen low_sc = screen_of(s);
     const PaneBounds low = bounds_of(s.panes, s.setup.active, pane_kind::kLayouts, low_sc);
     REQUIRE(low.open);
-    REQUIRE(low.rect.y < low_sc.notice_y);
-    REQUIRE(low.rect.y + low.rect.h > low_sc.notice_y);
-    const PixelRect foot{low.rect.x, low_sc.notice_y, low.rect.w, low.rect.y + low.rect.h - low_sc.notice_y};
+    REQUIRE(low.rect.y < low_sc.band_y);
+    REQUIRE(low.rect.y + low.rect.h > low_sc.band_y);
+    const PixelRect foot{low.rect.x, low_sc.band_y, low.rect.w, low.rect.y + low.rect.h - low_sc.band_y};
     DeskRead under;
     REQUIRE(d.read(under).empty());
     const PaneView* layouts_low = reading_of(under, kWorkshopProvider, pane_key::kLayouts);
@@ -2910,14 +2911,15 @@ TEST_CASE("the desk number moves when anything the desk says moves, and holds wh
     const std::int64_t selected = number();
     CHECK(selected != first);
     CHECK(number() == selected);
-    // ...THE BAND'S NOTICE, and nothing else...
+    // ...WHAT WORKSHOP SAID IS NO WORD OF THE DESK: the Notices pane says it, and the number
+    // holds...
     d.r.session().notice = "a notice of its own";
     DeskRead noticed;
     REQUIRE(d.read(noticed).empty());
-    CHECK(noticed.desk.desk != selected);
-    REQUIRE_FALSE(noticed.desk.words.empty());
-    CHECK(noticed.desk.words[0].text == "a notice of its own");
-    CHECK(number() == noticed.desk.desk);
+    CHECK(noticed.desk.desk == selected);
+    for (const PaneWord& w : noticed.desk.words) {
+        CHECK(w.text != "a notice of its own");
+    }
     // ...AND WORKSHOP'S MENU, opened by a right press on alpha's title row.
     press_outside(d.r, d.alpha_kind); // the keys are Workshop's
     const std::int64_t keys_back = number();
@@ -3727,14 +3729,20 @@ TEST_CASE("Workshop draws its desk in the window that shows its areas -- the ban
     CHECK(window.actions(area).count("menu:0") == 0);
     CHECK(root() == closed);
     {
+        // THE LEGEND'S KEYS SPELLED THE OTHER WAY: its words change in place.
         Session said = s;
-        said.notice = "a notice of another length entirely";
+        said.band_keys =
+            s.band_keys == KeySpelling::kFull ? KeySpelling::kShort : KeySpelling::kFull;
         const gfx::Sketch now = workshop_window_drawing(s).sketch;
         const gfx::Sketch then = workshop_window_drawing(said).sketch;
         REQUIRE_FALSE(now.nodes().empty());
         CHECK(now.nodes().front().path == closed);
         CHECK(then.nodes().front().path == closed);
-        CHECK(gfx::difference(now, then).put.size() == 1);
+        CHECK_FALSE(gfx::difference(now, then).put.empty());
+        // ...AND WHAT WORKSHOP SAID CHANGES NOTHING OF ITS DRAWING.
+        Session told = s;
+        told.notice = "a notice of another length entirely";
+        CHECK(gfx::difference(now, workshop_window_drawing(told).sketch).put.empty());
     }
     // ...AND `+`, A FRESH LAYOUT, live: its tab is a part, and the pane, not on it, has no area,
     // nor a frame.
@@ -4647,7 +4655,7 @@ TEST_CASE("a value the weaver drags out of a pane is carried under the hand in W
     CHECK(window_overlaid(window));
 
     // LET GO ON THE BAND, WHERE NO PANE STANDS: nothing takes it, and it is gone from the window.
-    window.button(area, 1, screen_of(s).notice_y / gfx::kCellPx + 1, false, n);
+    window.button(area, 1, screen_of(s).band_y / gfx::kCellPx + 1, false, n);
     CHECK_FALSE(window_shows(window, overlay, "[value]"));
     CHECK_FALSE(window_overlaid(window));
     CHECK(d.directory->areas.at(area).order == 0);
@@ -4808,7 +4816,7 @@ struct PointerDesk {
             for (std::int64_t c = 0; c < sc.w / gfx::kCellPx; ++c) {
                 const std::int64_t x = c * gfx::kCellPx + gfx::kCellPx / 2;
                 const std::int64_t y = r * gfx::kCellPx + gfx::kCellPx / 2;
-                if (y >= sc.notice_y) continue;
+                if (y >= sc.band_y) continue;
                 const PointedAt at = canvas_point_of(input::space::kPixels, x, y);
                 if (!occupied_at(s.panes, s.setup.active, sc, at).occupied) return {c, r};
             }
@@ -4901,7 +4909,7 @@ TEST_CASE("a press in a pane's area of the window is the pane's, and under the w
     REQUIRE_MESSAGE(p.heard.carries.back().carried, p.heard.carries.back().reason);
     CHECK(p.d.directory->areas.at(kWorkshopProvider).order == panes + 1);
     const auto band = std::make_pair<std::int64_t, std::int64_t>(
-        1, screen_of(s).notice_y / gfx::kCellPx + 1);
+        1, screen_of(s).band_y / gfx::kCellPx + 1);
     p.window.move(kWorkshopProvider, band.first + 5, band.second);
     p.window.button(kWorkshopProvider, band.first, band.second, false, 0);
     CHECK(p.d.directory->areas.at(kWorkshopProvider).order == 0);
@@ -5206,7 +5214,7 @@ TEST_CASE("with pane titles hidden, a press the window gives a canvas pane's are
     window.button(area, 1, 1, true, m, 1, kWorkshopProvider);
     REQUIRE(pane->title_waits);
     REQUIRE(same_place(*pane, before));
-    window.click(kWorkshopProvider, 0, sc.notice_y / gfx::kCellPx - 1, 3);
+    window.click(kWorkshopProvider, 0, sc.band_y / gfx::kCellPx - 1, 3);
     REQUIRE(d.r.session().context.open);
     CHECK(pane->title_waits);
     CHECK(same_place(*pane, before));

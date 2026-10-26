@@ -145,73 +145,50 @@ ScreenRegion band_region(const Session& s, const Screen& sc) {
         return band;
     }
 
-    const std::string notice = s.notice.empty() ? std::string() : detail::fit(s.notice, columns);
-    const std::int64_t notice_role =
-        s.notice_is_bad ? graphics::role::kAlert : graphics::role::kFill;
-
-    // The legend takes what the notice leaves. While an external pane holds the keyboard and the
-    // legend is full, the first legend row still says so: that sentence is keyboard-ownership
-    // truth, not a binding list.
-    const std::size_t legend_rows =
-        budget >= 2 ? static_cast<std::size_t>(budget - 1) : 0;
+    // The legend takes the band. While an external pane holds the keyboard and the legend is full,
+    // the first legend row still says so: that sentence is keyboard-ownership truth, not a binding
+    // list.
+    const std::size_t legend_rows = static_cast<std::size_t>(budget);
     std::vector<std::string> legend;
-    if (legend_rows > 0) {
-        const KeyContext ctx = keyboard_context(s);
-        const std::int64_t typing = keyboard_pane(s.panes);
-        // The sentence names where an ordinary key goes, which is not always the keyboard pane:
-        // under a mode the pane stays the candidate while every ordinary key is the mode's.
-        // `typing_pane` is what a press's `keys_went_here` reads, so the band and the seam agree.
-        const std::int64_t typed = typing_pane(s);
-        const RuntimePane* typed_into =
-            typed == kNoPaneKind ? nullptr : s.panes.runtime.of_kind(typed);
-        // (The host's Pane Manager was the last built-in that took the keys and had a sentence of
-        // its own here; the source editor had one before it. Both are panes now, named above.)
-        std::string said;
-        if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
-            said = "typing goes to " + typed_into->name + " @" + typed_into->provider +
-                   " -- press elsewhere for Workshop's keys";
-        }
-        if (!said.empty()) {
-            if (legend_rows == 1) {
-                const std::int64_t rest =
-                    columns - static_cast<std::int64_t>(said.size()) - 3;
-                const std::vector<std::string> pairs =
-                    help_rows(s.keymap, s.band_keys, ctx, rest, 1, typing);
-                legend.push_back(detail::fit(
-                    pairs.empty() ? said : said + " | " + pairs.front(), columns));
-            } else {
-                legend.push_back(detail::fit(said, columns));
-                // THE PANE'S OWN DECLARED ROWS COME FIRST IN WHAT FOLLOWS (WL-KEY-15),
-                // then the chorded survivors: `help_pairs` orders them so.
-                const std::vector<std::string> pairs =
-                    help_rows(s.keymap, s.band_keys, ctx, columns, legend_rows - 1, typing);
-                for (const std::string& row : pairs) {
-                    legend.push_back(row);
-                }
-            }
+    const KeyContext ctx = keyboard_context(s);
+    const std::int64_t typing = keyboard_pane(s.panes);
+    // The sentence names where an ordinary key goes, which is not always the keyboard pane:
+    // under a mode the pane stays the candidate while every ordinary key is the mode's.
+    // `typing_pane` is what a press's `keys_went_here` reads, so the band and the seam agree.
+    const std::int64_t typed = typing_pane(s);
+    const RuntimePane* typed_into =
+        typed == kNoPaneKind ? nullptr : s.panes.runtime.of_kind(typed);
+    // (The host's Pane Manager was the last built-in that took the keys and had a sentence of
+    // its own here; the source editor had one before it. Both are panes now, named above.)
+    std::string said;
+    if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
+        said = "typing goes to " + typed_into->name + " @" + typed_into->provider +
+               " -- press elsewhere for Workshop's keys";
+    }
+    if (!said.empty()) {
+        if (legend_rows == 1) {
+            const std::int64_t rest =
+                columns - static_cast<std::int64_t>(said.size()) - 3;
+            const std::vector<std::string> pairs =
+                help_rows(s.keymap, s.band_keys, ctx, rest, 1, typing);
+            legend.push_back(detail::fit(
+                pairs.empty() ? said : said + " | " + pairs.front(), columns));
         } else {
-            legend = help_rows(s.keymap, s.band_keys, ctx, columns, legend_rows, typing);
+            legend.push_back(detail::fit(said, columns));
+            // THE PANE'S OWN DECLARED ROWS COME FIRST IN WHAT FOLLOWS (WL-KEY-15),
+            // then the chorded survivors: `help_pairs` orders them so.
+            const std::vector<std::string> pairs =
+                help_rows(s.keymap, s.band_keys, ctx, columns, legend_rows - 1, typing);
+            for (const std::string& row : pairs) {
+                legend.push_back(row);
+            }
         }
+    } else {
+        legend = help_rows(s.keymap, s.band_keys, ctx, columns, legend_rows, typing);
     }
 
-    const auto push = [&band](std::string text, std::int64_t role) {
-        band.rows.push_back(TextRow{std::move(text), role});
-    };
-    if (budget >= 2) {
-        push(notice, notice_role);
-        for (std::string& row : legend) {
-            push(std::move(row), graphics::role::kMuted);
-        }
-    } else if (!notice.empty()) {
-        // One row: the tool's own voice while it has something to say.
-        push(notice, notice_role);
-    } else {
-        const std::vector<std::string> pairs =
-            help_rows(s.keymap, s.band_keys, keyboard_context(s), columns, 1,
-                      keyboard_pane(s.panes));
-        if (!pairs.empty()) {
-            push(pairs.front(), graphics::role::kMuted);
-        }
+    for (std::string& row : legend) {
+        band.rows.push_back(TextRow{std::move(row), graphics::role::kMuted});
     }
     return band;
 }
@@ -226,11 +203,11 @@ ScreenCanvas paint(const Session& s) {
 
     // NOTHING IS PAINTED BEHIND THE PANES: where no pane stands, each medium shows its own ground.
     // Every dynamic pane, Info included, each on a plane of its own in canonical front order. The
-    // screen's own chrome is a later plane: a pane painted over the band would erase the notice
-    // that just told the weaver what happened.
+    // screen's own chrome is a later plane: a pane painted over the band would hide the keys the
+    // weaver is about to press.
     paint_panes(c, s, sc);
 
-    // The screen's own chrome over them, on its own plane: the bottom band, where the tool speaks.
+    // The screen's own chrome over them, on its own plane: the bottom band, the keys' legend.
     // A region clears its whole rectangle, so a pane authored over the band is covered by it; the
     // band occupies no pointer space. The top band is an ordinary pane (`paint_panes`), and its
     // rows stay reserved (`kTopRows`), so the workspace does not move.

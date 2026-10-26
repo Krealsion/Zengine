@@ -236,6 +236,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 set(zengine_workshop_artifacts zengine-input zengine-timer zengine-inventory zengine-inventory-pane
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
+                               zengine-notices zengine-notices-pane
                                zengine-desktop-pane zengine-connections-pane zengine-demo-control
                                zengine-menu-presenter zengine-palette zengine-first-run
                                zengine-flow-pane zengine-view-builder
@@ -318,7 +319,8 @@ file(GENERATE OUTPUT ${zengine_workshop_dir}/default-build-recipes.json
 # where each pane builds and its editing entry. Nothing selects this catalog; a weaver names it.
 # Which weaves are panes is no build fact, so they are listed; which may reload is the
 # realization owner's, at the reload.
-set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zengine-desktop-pane
+set(zengine_workshop_pane_weaves zengine-attention-pane zengine-notices-pane zengine-builder-pane
+                                 zengine-desktop-pane
                                  zengine-connections-pane
                                  zengine-editor-pane
                                  zengine-neovim-editor zengine-files zengine-info-pane

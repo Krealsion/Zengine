@@ -200,7 +200,7 @@ Two smaller edges, in both media:
 | | today |
 |---|---|
 | Which surfaces can be read past? | **none, any more.** It worked only where Workshop itself cut a value it still held: the Info pane's object and property rows, and before them the Files pane's location and names. Both are loaded panes now, and a pane sends text it has already cut — so Workshop never receives the longer value and has nothing to reveal |
-| The notice row, and the Builder's realize row | **not readable past** — a long refusal is cut in both, and a load the Loom refuses is longer than either. Launch with `--log <path>` and the whole sentence is kept in that journal ([the Builder](../../builder/docs/zengine.builder.md#files)) |
+| A notice, and the Builder's realize row | **not readable past** — the notices record keeps a notice to its first 1 KiB and the realize row is cut at its width, and a load the Loom refuses can be longer than either. Launch with `--log <path>` and the whole sentence is kept in that journal ([the Builder](../../builder/docs/zengine.builder.md#files)) |
 | Could the pane protocol be widened to ask for the longer text? | **it will not be.** A pane is a participant, not a store the host reaches into; asking one for a value it chose not to send is the shape this project refuses. Widen the pane or the window instead |
 
 ### Builder builds what an authored file says, and no more
@@ -589,7 +589,7 @@ document's picture, which this Workshop no longer publishes, so it waits, showin
 - **The desk's notice says where it stands, not each change.** A follower told `DeskStamps` reads
   again what moved since its own last reading; what moved and moved back between two notices it
   took is not said. A holder leaving between Workshop's deliveries is said at its next repaint,
-  fence, band notice or desk read, and a stamp's fingerprint says whether a picture is the same,
+  fence, Workshop's notice or desk read, and a stamp's fingerprint says whether a picture is the same,
   never which of two came later.
 - **No guest observes the weaver's copied text.** `ClipboardCopy` needs a power of its own,
   `clipboard`, which no guests file grants yet, so every row is refused it.
@@ -627,8 +627,11 @@ expected to have them:
   theme.
 - **No notifications.** [Attention](../../attention/docs/zengine.attention.md) shows what is **true right now**, and that
   is the whole of it: nothing accumulates, nothing is unread, nothing pops up, nothing expires
-  and nothing animates. There is no history of things that stopped being true — a record of
-  what happened is `--log` and `--dump`, which are a different question.
+  and nothing animates. There is no history of things that stopped being true. What Workshop
+  *said* is kept for the run and shown in the
+  [Notices pane](../../notices/docs/zengine.notices-pane.md) -- a record to read back, not a
+  notification: nothing in it waits, is unread or expires. A record of everything that happened
+  is `--log` and `--dump`, which are a different question.
 - **No layout system for a drawing.** The drawing vocabulary has no parent/child, anchors or
   percentages — whoever publishes has already decided where things go. The desk's panes are the
   one arrangement solved for you: the `ui` package turns a pane's words -- a point of the room, a

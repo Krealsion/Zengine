@@ -8,8 +8,8 @@ the witness is in [`witnesses.md`](witnesses.md). One method per heading; cite b
 ## VM-WIT-08 — Crop every calibration diff to the region being calibrated
 
 METHOD — Crop every calibration diff to the region being calibrated: a calibration that spans two bands has measured neither, and a witness whose ruler is wrong reports the product as broken in the shape of the change.
-BECAUSE — a keystroke that changes the top band also writes the notice at the foot, so an
-uncropped diff spanned the window and put the derived band centre at the middle of the client.
+BECAUSE — a keystroke that changes the top band also writes Workshop's notice elsewhere on the
+screen, so an uncropped diff spanned the window and put the derived band centre at the middle of the client.
 
 ## VM-WIT-09 — A TUI frame needs a cursor model
 
@@ -19,9 +19,9 @@ cursor addressing gave one row holding the whole screen; a short wait caught par
 
 ## VM-WIT-10 — Three oracles, none of them "did the process exit"
 
-METHOD — Three oracles, none "did the process exit": the title for text; a before/after frame diff with a tolerance, the notice band cropped, an idle pair first; a pixel count along a row for a claim about ink.
-BECAUSE — a colour filter drifts a unit between shots, the notice band stretches every box to
-the window's width, and neither the title nor a diff can say how thick a line is.
+METHOD — Three oracles, none "did the process exit": the title for text; a before/after frame diff with a tolerance, the Notices pane cropped, an idle pair first; a pixel count along a row for a claim about ink.
+BECAUSE — a colour filter drifts a unit between shots, a new notice's rows stretch every box to
+their width, and neither the title nor a diff can say how thick a line is.
 
 ## VM-WIT-11 — A row scan tells an edge from a letter by a perpendicular run
 

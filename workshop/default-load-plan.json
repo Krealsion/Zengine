@@ -29,6 +29,17 @@
         "otherwise": []
       },
       {
+        "artifact": "zengine-notices",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.notices"
+          }
+        ],
+        "optional": true,
+        "otherwise": []
+      },
+      {
         "artifact": "zengine-graphics",
         "provider": [],
         "weave": [
@@ -146,6 +157,17 @@
         "weave": [
           {
             "role": "zengine.attention"
+          }
+        ],
+        "optional": true,
+        "otherwise": []
+      },
+      {
+        "artifact": "zengine-notices-pane",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.notices-pane"
           }
         ],
         "optional": true,
