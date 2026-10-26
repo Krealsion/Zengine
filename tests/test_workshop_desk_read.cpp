@@ -1266,17 +1266,21 @@ TEST_CASE("moving only the selection, closing a pane or opening arranging gives 
     d.r.session().pane_titles = true;
     std::size_t left = 0, right = 0;
     two_panes(d, left, right);
-    // THE BAND'S WORDS MOVED WITH NO DELIVERY: the desk read that finds the number moved publishes
-    // the notice no delivery did.
+    // THE BAND'S WORDS MOVED WITH NO DELIVERY -- its keys spelled the other way: the desk read that
+    // finds the number moved publishes the notice no delivery did.
+    const auto respell = [&d] {
+        KeySpelling& keys = d.r.session().band_keys;
+        keys = keys == KeySpelling::kFull ? KeySpelling::kShort : KeySpelling::kFull;
+    };
     d.ear->heard.clear();
-    d.r.session().notice = "a notice said with no repaint";
+    respell();
     DeskRead numbered;
     REQUIRE(d.read(numbered).empty());
     REQUIRE_FALSE(d.ear->heard.empty());
     CHECK(d.ear->heard.back().desk == numbered.desk.desk);
     // ...AT EITHER VERSION'S READ.
     d.ear->heard.clear();
-    d.r.session().notice = "another notice said with no repaint";
+    respell();
     DeskRead before;
     REQUIRE(d.read(before).empty());
     REQUIRE_FALSE(d.ear->heard.empty());

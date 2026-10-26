@@ -2190,6 +2190,7 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     const std::vector<std::pair<std::string, std::string>> panes = {
         {"zengine-attention-pane", "attention/pane.cpp"},
+        {"zengine-notices-pane", "notices/notices-pane/pane.cpp"},
         {"zengine-builder-pane", "builder/builder-pane/pane.cpp"},
         // THE DESKTOP IS A PANE WEAVE LIKE ANY OTHER, which is what makes the application's
         // own defaults reachable through the ordinary edit/build/replace loop: a weaver

@@ -64,14 +64,14 @@ inline constexpr std::int64_t kScreenMaxH = 400 * graphics::kCellPx;
 // WL-GEO-03 -- agents/workshop/geometry.md; WL-FRONT-03 -- agents/workshop/planes.md
 inline constexpr std::int64_t kTopRows = 2;
 
-/// The rows of text in the band under the workspace, fitted the same way.
+/// The rows of text in the band under the workspace, the keys' legend, fitted the same way.
 // WL-GEO-03 -- agents/workshop/geometry.md
 // WL-FRONT-03 -- agents/workshop/planes.md
 // WL-RGN-03 -- agents/workshop/regions.md
-inline constexpr std::int64_t kBottomRows = 4;
+inline constexpr std::int64_t kBottomRows = 3;
 
-static_assert(kTopRows + kBottomRows == 6,
-              "the reserved chrome is six rows of text and may not grow: the workspace's "
+static_assert(kTopRows + kBottomRows == 5,
+              "the reserved chrome is five rows of text and may not grow: the workspace's "
               "extent is what a share resolves against");
 
 // ---- THE OVERLAY STACK (`placement::kOverlayStack`), in cells -------------------------------
@@ -98,7 +98,7 @@ struct Screen {
     std::int64_t room_y = 0;      ///< the workspace's top: the top band's floor
     std::int64_t room_w = 0;       ///< the widest the workspace may be on this screen...
     std::int64_t room_h = 0;       ///< ...and the tallest
-    std::int64_t notice_y = 0;     ///< the bottom band's top, where the tool speaks
+    std::int64_t band_y = 0;       ///< the bottom band's top, where the keys' legend stands
     /// THE METRIC THIS SCREEN WAS RESOLVED WITH, carried rather than looked up.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t text_advance_px = 0;
@@ -146,7 +146,7 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     s.text_advance_px = fit.advance_px;
     s.text_line_px = fit.line_px;
     // The bands are as tall as the text they hold: the Layouts pane's rows inside one device
-    // unit of chrome at the top, and the tool's rows at the bottom. Where text is a cell they are
+    // unit of chrome at the top, and the legend's rows at the bottom. Where text is a cell they are
     // whole cells, the Layouts pane drawing no boundary in its two. A metric whose bands would
     // leave no room of a cell is not spent on them: the cell bands stand instead.
     const bool type = s.text_advance_px > 0 && s.text_line_px > 0;
@@ -165,8 +165,8 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     s.room_y = top;
     // The height loses its bands: the top and bottom rows are chrome this screen paints,
     // coverable by no pane.
-    s.notice_y = s.h - band;
-    s.room_h = s.notice_y - s.room_y;
+    s.band_y = s.h - band;
+    s.room_h = s.band_y - s.room_y;
     return s;
 }
 
@@ -176,22 +176,22 @@ inline constexpr Screen kMinScreen = screen_of(kScreenMinW, kScreenMinH);
 
 static_assert(kMinScreen.room_w == kMinScreen.w,
               "the room IS the surface: nothing comes off its width");
-static_assert(kMinScreen.room_h == 16 * graphics::kCellPx,
+static_assert(kMinScreen.room_h == 17 * graphics::kCellPx,
               "the workspace's documented default height");
-static_assert(kMinScreen.notice_y == 18 * graphics::kCellPx, "the bottom band");
+static_assert(kMinScreen.band_y == 19 * graphics::kCellPx, "the bottom band");
 // THE MINIMUM COMPOSITION'S THREE REGIONS, WRITTEN OUT.
 static_assert(kMinScreen.room_y == 2 * graphics::kCellPx,
               "where text is a cell, the top band owns rows 0 and 1");
-static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.notice_y,
+static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.band_y,
               "the workspace's floor IS the bottom band's top -- no pixel between them, and "
               "none reserved twice");
 static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, graphics::kCellPx).room_y ==
                   2 * 18 + 2 * kTextInsetPx + 2,
               "where a face sets type, the top band is the Layouts pane's two rows of it, "
               "inside a boundary of one device pixel");
-static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, graphics::kCellPx).notice_y ==
-                  kScreenMinH - (4 * 18 + 2 * kTextInsetPx),
-              "...and the bottom band is the tool's four");
+static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, graphics::kCellPx).band_y ==
+                  kScreenMinH - (3 * 18 + 2 * kTextInsetPx),
+              "...and the bottom band is the legend's three");
 
 
 // ---- THE PIXEL LATTICE, AS A RECTANGLE --------------------------------------------------
@@ -499,8 +499,8 @@ static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(2400, 720)
 static_assert(placement_bounds(placement::kOverlayStack, 3, screen_of(2400, 720)).w ==
                   placement_bounds(placement::kOverlayStack, 0, screen_of(2400, 720)).w,
               "the width is a fact about the SCREEN, not about which slot a pane sits in");
-static_assert(kMinStack.y + kMinStack.h <= kMinScreen.notice_y,
-              "the stack's first slot stays clear of the notice line");
+static_assert(kMinStack.y + kMinStack.h <= kMinScreen.band_y,
+              "the stack's first slot stays clear of the bottom band");
 
 /// THE OVERLAY COLUMN: the stack's first slot's corner and width, from its top to the
 /// workspace's bottom -- the floor `stack_capacity` itself respects, one row above the
@@ -543,9 +543,9 @@ inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
                          chrome_grain(sc)};
 }
 
-static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.notice_y,
+static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.band_y,
               "the overlay floor is the workspace's bottom, which is the bottom band's own "
-              "top row: a slot allowed past it would erase the row the tool speaks in");
+              "top row: a slot allowed past it would cover the keys' legend");
 static_assert(stack_slots_that_fit(kMinScreen) == 1,
               "the minimum composition's column holds one pane of the fallback height, and the "
               "next begins the column again at its top");
@@ -805,8 +805,9 @@ struct Session {
     // WL-SESSION-20 -- agents/workshop/window-file.md
     std::int64_t window_room_w = 0;
     std::int64_t window_room_h = 0;
-    /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
-    // WL-ATTN-01 -- agents/workshop/attention.md
+    /// THE LAST THING WORKSHOP SAID, and that is all it is: each thing said is published to the
+    /// notices record as it is said (`NoticeSaid`), and shown there, never here.
+    // WL-ATTN-01 -- agents/workshop/attention.md; WL-NOTE-01 -- agents/workshop/notices.md
     std::string notice;
     bool notice_is_bad = false; ///< whether that thing was a refusal
     /// WHAT IS TRUE RIGHT NOW AND HAS NO LIVE OWNER TO DERIVE IT FROM (attention.hpp).
@@ -1536,12 +1537,12 @@ inline constexpr PixelRect top_band_bounds(const Screen& sc) noexcept {
 /// spent by the painter, by the tab press inverse and by the name editor's own window.
 ExternalBodyPlace layouts_body(const Session& s, const Screen& sc);
 
-/// THE BOTTOM BAND'S RECTANGLE AND ITS FIT -- what the tool just said, and what the keys
-/// mean right now, composed against whatever the ACTIVE medium answers for these pixels
-/// through the same `fit_region` every bounded region resolves with.
+/// THE BOTTOM BAND'S RECTANGLE AND ITS FIT -- what the keys mean right now, composed against
+/// whatever the ACTIVE medium answers for these pixels through the same `fit_region` every bounded
+/// region resolves with.
 // WL-FRONT-02, WL-FRONT-03 -- agents/workshop/planes.md; WL-RGN-03 -- agents/workshop/regions.md
 inline constexpr PixelRect band_bounds(const Screen& sc) noexcept {
-    return PixelRect{0, sc.notice_y, sc.w, sc.h - sc.notice_y};
+    return PixelRect{0, sc.band_y, sc.w, sc.h - sc.band_y};
 }
 
 inline constexpr RegionFit band_fit(const Screen& sc) noexcept {

@@ -319,7 +319,7 @@ TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
     CHECK(stopped);
 }
 
-TEST_CASE("a notice a weaver's own path makes too long is marked on screen, not cut in the session") {
+TEST_CASE("a notice a weaver's own path makes too long is kept whole in the session, and drawn on no screen row") {
     // The overlong notice through the real message path, on one Workshop produces
     // honestly. A setup path is the weaver's own input and may be any length the
     // platform allows, so a refusal naming it is a sentence this tool can be
@@ -338,10 +338,11 @@ TEST_CASE("a notice a weaver's own path makes too long is marked on screen, not 
     REQUIRE(t.notice().size() > static_cast<std::size_t>(cells_of(kMinScreen).w));
     CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
 
-    const std::string shown = label_at(t.shown(), 0, cells_of(kMinScreen).notice_y);
-    CHECK(shown.size() == static_cast<std::size_t>(cells_of(kMinScreen).w));
-    CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);
-    CHECK(t.notice().compare(0, shown.size() - 3, shown, 0, shown.size() - 3) == 0);
+    // ...AND THE DESK DRAWS NONE OF IT: the band's rows are the legend's, the notice the Notices
+    // pane's, which this desk does not load.
+    for (std::int64_t y = cells_of(kMinScreen).band_y; y < cells_of(kMinScreen).h; ++y) {
+        CHECK(label_at(t.shown(), 0, y).find("a-workshop-setup-with-a-name") == std::string::npos);
+    }
 
     // And the refusal cost the weaver nothing but the notice: no file became the desk's.
     CHECK(t.session().notice_is_bad);
@@ -1265,7 +1266,7 @@ TEST_CASE("the legend's three modes project the band, and hidden unbinds nothing
     write_keymap_file(path, keymap_file_text("hidden", {}));
     Keyed hidden(path);
     // Blank rows -- and ONLY blank rows: the band's geometry is `screen_of`'s
-    // and the notice and setup line are untouched.
+    // and the setup line is untouched.
     CHECK(inspector_row(hidden.shown(), 0, help_row(sc)).empty());
     CHECK(inspector_row(hidden.shown(), 0, help_row(sc) + 1).empty());
     // Hidden never makes the full list unreachable: the binding is dispatch's,
@@ -1433,8 +1434,8 @@ TEST_CASE("the shipped face reads every Workshop-owned sentence as real type") {
 
 TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     // A CHARACTER MEDIUM: two rows at the top (the layout selector with the setup's status,
-    // then the workspace fact) and four at the foot (the notice, then the legend takes what
-    // the notice leaves). Five facts in six reserved rows.
+    // then the workspace fact) and three at the foot, the legend's. What Workshop said is the
+    // Notices pane's, and no band row of either says it.
     Session cells = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     cells.notice = "a notice";
     const Screen csc = screen_of(cells);
@@ -1447,25 +1448,27 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     REQUIRE(ctop->rows.size() == 2);
     CHECK(band_row(ctop, 0).rfind(">Default<", 0) == 0); // the live layout tab
     CHECK(band_row(ctop, 0).find("setup: none") != std::string::npos);
-    CHECK(band_row(ctop, 1) == "workspace 78x16 cells");
+    CHECK(band_row(ctop, 1) == "workspace 78x17 cells");
 
     const ScreenRegion* cband = band_on(cell_canvas, csc);
     REQUIRE(cband != nullptr);
     CHECK(band_fit(csc).rows == kBottomRows);
-    REQUIRE(cband->rows.size() == 4);
-    CHECK(band_row(cband, 0) == "a notice");
-    CHECK(band_row(cband, 1).rfind("q quit", 0) == 0);
-    CHECK_FALSE(band_row(cband, 2).empty());
-    CHECK_FALSE(band_row(cband, 3).empty()); // no reserved row is left spare
-    // ...AND NO ROW SAYS ANYTHING TWICE. The identity is the top band's and the notice is
-    // the bottom band's, and neither writes in the other's rectangle.
+    REQUIRE(cband->rows.size() == 3);
+    CHECK(band_row(cband, 0).rfind("q quit", 0) == 0);
+    CHECK_FALSE(band_row(cband, 1).empty());
+    CHECK_FALSE(band_row(cband, 2).empty()); // no reserved row is left spare
+    // ...AND NO ROW SAYS ANYTHING TWICE. The identity is the top band's, and neither band writes
+    // in the other's rectangle or says the notice.
     CHECK(band_row(cband, 0).find("\"Default\"") == std::string::npos);
     CHECK(band_row(ctop, 0).find("a notice") == std::string::npos);
+    for (std::size_t i = 0; i < cband->rows.size(); ++i) {
+        CHECK(band_row(cband, i) != "a notice");
+    }
     CHECK(ctop->y + ctop->h == csc.room_y);
     CHECK(cband->y == csc.room_y + csc.room_h); // the body ends where the band begins
 
     // THE SHIPPED FACE: the same rows, each band as tall as its rows of type -- two at the top
-    // (the identity, then the workspace fact) and four at the foot (the notice and the legend).
+    // (the identity, then the workspace fact) and three at the foot (the legend).
     Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18, gfx::kCellPx);
     sdl.notice = "a notice";
     const Screen ssc = screen_of(sdl);
@@ -1477,28 +1480,26 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     CHECK(layouts_body(sdl, ssc).rows == kTopRows);
     CHECK(band_fit(ssc).rows == kBottomRows);
     REQUIRE(stop->rows.size() == 2);
-    // The notice and the legend: the face's wider rows pack the legend into fewer of them.
-    REQUIRE(sband->rows.size() >= 2);
+    // The legend: the face's wider rows pack it into fewer of them.
+    REQUIRE(sband->rows.size() >= 1);
     CHECK(sband->rows.size() <= static_cast<std::size_t>(kBottomRows));
     CHECK(band_row(stop, 0).rfind(">Default<", 0) == 0);
-    CHECK(band_row(stop, 1).find("workspace 936x146 px") != std::string::npos);
-    CHECK(band_row(sband, 0) == "a notice");
-    CHECK(band_row(sband, 1).rfind("q quit", 0) == 0);
+    CHECK(band_row(stop, 1).find("workspace 936x164 px") != std::string::npos);
+    CHECK(band_row(sband, 0).rfind("q quit", 0) == 0);
 
     // DEGRADE HONESTLY BELOW THAT. A face too tall for its bands to fit beside a room keeps the
     // bands in cells, and each band degrades in its own rectangle: the legend gives way first at
     // the foot, while the identity keeps its band at the top.
-    Session one = screen_session(kScreenMinW, kScreenMinH, 8, 40); // 44/40 = 1 band row
+    Session one = screen_session(kScreenMinW, kScreenMinH, 8, 40); // too tall: the cell bands
     one.notice = "a notice";
     const ScreenCanvas one_canvas = paint(one);
     const ScreenRegion* oband = band_on(one_canvas, screen_of(one));
     const ScreenRegion* otop = top_band_on(one_canvas, one, screen_of(one));
     REQUIRE(oband != nullptr);
-    REQUIRE(oband->rows.size() == 1);
-    CHECK(band_row(oband, 0) == "a notice"); // the tool's voice wins the one row
+    REQUIRE(oband->rows.size() == static_cast<std::size_t>(kBottomRows));
+    CHECK(band_row(oband, 0).rfind("q quit", 0) == 0); // the legend, in the cells, notice or none
     // ⚠ AND THE IDENTITY IS NOT A CANDIDATE FOR THAT ROW: it has a band of its own that no
-    // budget down here can take, so a weaver never loses sight of which desk they are in
-    // because the tool had something to say.
+    // budget down here can take, so a weaver never loses sight of which desk they are in.
     REQUIRE(otop != nullptr);
     REQUIRE_FALSE(otop->rows.empty());
     CHECK(band_row(otop, 0).rfind(">Default<", 0) == 0);
@@ -1507,8 +1508,8 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     const ScreenCanvas quiet_canvas = paint(one);
     const ScreenRegion* qband = band_on(quiet_canvas, screen_of(one));
     REQUIRE(qband != nullptr);
-    REQUIRE(qband->rows.size() == 1);
-    CHECK(qband->rows[0].text.rfind("q quit", 0) == 0); // the legend, with nothing said
+    REQUIRE(qband->rows.size() == oband->rows.size());
+    CHECK(qband->rows[0].text == oband->rows[0].text); // the same legend, with nothing said
 }
 
 TEST_CASE("the legend modes move only the legend rows, in both budgets") {
@@ -1517,9 +1518,9 @@ TEST_CASE("the legend modes move only the legend rows, in both budgets") {
         Session s = screen_session(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line);
         s.notice = "a notice";
         const Screen sc = screen_of(s);
-        // THE LEGEND IS THE BOTTOM BAND'S SECOND ROW ON EVERY MEDIUM: the notice leads that
-        // band and the legend takes what it leaves.
-        const std::size_t legend_at = 1;
+        // THE LEGEND IS THE BOTTOM BAND'S FIRST ROW ON EVERY MEDIUM: the band is the legend's,
+        // whatever Workshop said.
+        const std::size_t legend_at = 0;
 
         s.keymap.legend = legend_mode::kFull;
         const ScreenCanvas full_c = paint(s);
@@ -1549,12 +1550,11 @@ TEST_CASE("the legend modes move only the legend rows, in both budgets") {
         REQUIRE(hidden_b != nullptr);
         CHECK(band_row(hidden_b, legend_at).empty());
 
-        // THE OTHER ROWS NEVER MOVE WITH THE PREFERENCE: a weaver toggling the legend watches
-        // the legend, not a reflowing band -- and the identity row is a whole band away.
-        for (std::size_t i = 0; i < legend_at; ++i) {
-            CAPTURE(i);
-            CHECK(band_row(full_b, i) == band_row(compact_b, i));
-            CHECK(band_row(full_b, i) == band_row(hidden_b, i));
+        // THE BAND NEVER MOVES WITH THE PREFERENCE: a weaver toggling the legend watches the
+        // legend, not a reflowing band -- and the identity row is a whole band away.
+        for (const ScreenRegion* b : {compact_b, hidden_b}) {
+            CHECK(b->y == full_b->y);
+            CHECK(b->h == full_b->h);
         }
         CHECK(band_row(top_band_on(full_c, s, sc), 0) ==
               band_row(top_band_on(hidden_c, s, sc), 0));

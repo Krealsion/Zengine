@@ -44,7 +44,7 @@ A failed write leaves the last good file intact, the live arrangement untouched,
 related to exactly what it was related to before. Nothing about the relationship moves until the
 file has actually been replaced.
 
-On success the notice row says what was saved, where, and — if any pane in it is a reference
+On success Workshop's notice, in the Notices pane, says what was saved, where, and — if any pane in it is a reference
 this build cannot present — how many are unresolved and names the first one.
 
 ## Restoring a setup
@@ -242,14 +242,14 @@ What comes back:
 | the window's screen position | **yes**, on a graphical run — validated against the monitors that exist now; see [limitations](limitations.md#the-window-comes-back-where-you-left-it-into-the-desktop-that-exists-now) |
 | whether it was maximized | **yes**, beside the *normal* size and place unmaximizing returns to |
 
-The notice row says what happened, with the room in your medium's unit --
+Workshop's notice says what happened, with the room in your medium's unit --
 pixels in a window:
 
 ```text
 reopened your last desk "Debugging" -- 1440x528 px
 ```
 
-![A window reopened at 1440x900: the notice row says reopened your last desk "Default" -- 1440x900 px, above the band's keys](images/restore-notice-window.png)
+![A window reopened at 1440x900: the notice, at the window's foot where Workshop said it before it had a pane for it, says reopened your last desk "Default" -- 1440x900 px, above the band's keys](images/restore-notice-window.png)
 
 ...cells in a terminal (`120x44 cells`), and when more than one layout came back, which one of
 how many you are standing on:

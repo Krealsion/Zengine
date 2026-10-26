@@ -29,7 +29,7 @@ get the same behaviour, the same refusals and the same words:
   project which file that recipe names and then opens it;
 - **`edit code`** on a pane's context menu — Workshop follows the pane to the artifact it was
   loaded from and the one recipe that builds it, and opens that recipe's source
-  ([edit a running pane](../../builder/docs/edit-a-running-pane.md)); its answers land on the notice line.
+  ([edit a running pane](../../builder/docs/edit-a-running-pane.md)); its answers are Workshop's notice.
 
 The file a recipe names is its `source` when it builds one source file, and its **editing entry**
 when it builds a CMake target — the file a reader of that artifact starts at, which is how
@@ -60,7 +60,7 @@ has taken moves the pane the way it moves any other, with the new file in it.
 The same is true of a refusal for any other reason — a file that is not there, bytes the Editor
 cannot carry, unsaved edits in the document you have open, a paste of yours still on its way.
 Nothing is added to your desk, your keys do not move, and whoever asked is told why — in the
-Files pane's or the Builder's own row, or on the notice line for `edit code`. If the Editor pane
+Files pane's or the Builder's own row, or in Workshop's notice for `edit code`. If the Editor pane
 is not loaded at all (a load plan without it), whoever asked is told so at once — `no Editor and
 desk are present to open <file>` — and nothing waits. A refusal from the Editor, or from the open itself, says what
 stopped it before it names a path, so a narrow row cuts the path and keeps the reason:

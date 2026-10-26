@@ -8,7 +8,7 @@
 // far answer, and encodes a Python tool's JSON request, against shapes its own registry resolves
 // (the Loom's bridge reference page); a Python tool is no participant there, so this weave declares
 // them: Input's session, the window's picture, the desk read whole, the pane inventory, the keymap,
-// the door's inventory, the asker's row, the plan, the opening, the Builder's read, the settings.
+// the door's inventory, the asker's row, the plan, the opening, the reads a guest observes.
 // Reference: external-host/docs/external-host.md.
 
 // Declared through Loom's agreement wall (`Emit<...>`: a declared shape resolves while its
@@ -20,6 +20,7 @@
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
+#include "notices/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
@@ -27,6 +28,7 @@
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
 #include "workshop/guide_vocabulary.hpp"
+#include "workshop/notice_seam_vocabulary.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/setup_control.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
@@ -39,7 +41,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 99; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 103; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -104,6 +106,10 @@ class GuestVocabulary final
                      zengine::workshop::OpenSourceRequested, zengine::workshop::SourceOpened,
                      // Where the Builder stands, answered to one observer (builder/vocabulary.hpp).
                      zengine::builder::BuildStatusRequested, zengine::builder::BuildStatus,
+                     // What Workshop said, the word that the notices record moved, and a page of
+                     // it, answered to one observer (notices/vocabulary.hpp).
+                     zengine::workshop::NoticeSaid, zengine::notices::NoticesMoved,
+                     zengine::notices::NoticesRequested, zengine::notices::NoticesShown,
                      // One pane's settings on the live layout and one office's, a pane's pin list,
                      // a lock, and every layout's rows read and written in one batch, asked of the
                      // layouts' owner, which the `settings` power reaches.

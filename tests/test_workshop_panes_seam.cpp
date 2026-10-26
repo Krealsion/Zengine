@@ -604,12 +604,12 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     r.key(input::scan::kP);
     r.key(input::scan::kEscape); // a repaint, so the setup line is current
 
-    // TWO: the reference this case authored, and the Info row the shipped desk names -- Info
-    // is a weave and no office has offered it in this rig.
-    CHECK(unresolved_panes(r.session().setup.active, r.session().panes).size() == 2);
+    // THREE: the reference this case authored, and the Info and Notices rows the shipped desk
+    // names -- each a weave no office has offered in this rig.
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panes).size() == 3);
     CHECK(setup_rest_text(r.session().setup, r.session().panes,
                             r.session().keymap, KeySpelling::kShort)
-              .find("2 unresolved") != std::string::npos);
+              .find("3 unresolved") != std::string::npos);
     CHECK_FALSE(r.session().panes.has(kFirstRuntimeKind));
 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -620,12 +620,12 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     CHECK(r.session().setup.active.panes.back().ref == hello_ref());
     CHECK(r.session().panes.has(kind));
-    CHECK(unresolved_panes(r.session().setup.active, r.session().panes).size() == 1);
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panes).size() == 2);
     // AND A PANE A WEAVER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT: the count went from
-    // two to one, and the one that remains is the shipped desk's Info row.
+    // three to two, and the two that remain are the shipped desk's Info and Notices rows.
     CHECK(setup_rest_text(r.session().setup, r.session().panes,
                             r.session().keymap, KeySpelling::kShort)
-              .find("1 unresolved") != std::string::npos);
+              .find("2 unresolved") != std::string::npos);
     // THE SETUP IS STILL SAVED: resolving is not an edit.
     CHECK((live_status(r.run()) == setup_link::kCurrent));
 }
@@ -707,7 +707,7 @@ TEST_CASE("the overlay floor is the workspace's own bottom, which is the band's 
     for (std::int64_t h : {22, 23, 24, 30, 40, 60}) {
         const Screen sc = screen_of(cells_px(78), cells_px(h));
         INFO("height ", h);
-        CHECK(kRoomCellY + cells_of(sc).room_h == cells_of(sc).notice_y);
+        CHECK(kRoomCellY + cells_of(sc).room_h == cells_of(sc).band_y);
         const std::size_t fits = stack_slots_that_fit(sc);
         for (std::size_t slot = 0; slot < fits; ++slot) {
             const CellRect b = cells_covered(placement_bounds(placement::kOverlayStack, slot, sc));
@@ -772,7 +772,7 @@ TEST_CASE("a pane launched when the stack's column is spent lands at the column'
 cells_covered(bounds_of(r.session().panes, r.session().setup.active, p.kind, sc).rect);
         INFO("kind ", p.kind);
         CHECK(b.y + b.h <= kRoomCellY + cells_of(sc).room_h);
-        CHECK(b.y + b.h <= cells_of(sc).notice_y); // the band's first row is not the pane's
+        CHECK(b.y + b.h <= cells_of(sc).band_y); // the band's first row is not the pane's
     }
 }
 
@@ -1410,9 +1410,7 @@ TEST_CASE("the off-screen sentence fits a hundred-column terminal whole, both wa
         REQUIRE(said.rfind(name + " is off this screen", 0) == 0);
         CHECK(said.find("Reset > place") != std::string::npos);
         CHECK(said.find("hide and show") != std::string::npos);
-        // ...AND THE BAND A HUNDRED COLUMNS WIDE PAINTS IT WHOLE, no elision mark at its end.
-        const ScreenRegion band = band_region(r.session(), screen_of(r.session()));
-        REQUIRE_FALSE(band.rows.empty());
-        CHECK(band.rows[0].text == said);
+        // ...AND A ROW A HUNDRED COLUMNS WIDE HOLDS IT WHOLE, no elision mark at its end.
+        CHECK(said.size() <= 100);
     }
 }

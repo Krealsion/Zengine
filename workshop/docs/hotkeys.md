@@ -183,8 +183,8 @@ menu presenter ([panes](panes.md#replacing-the-menu-presenter)); another present
 same rows its own way and the edits do not change.
 
 Press a key, and the change is **live at once** — the band's legend and the table both say the
-new key — **and written to your keymap file** in the same breath. The notice row says both
-facts, or which of them did not happen. While a key is being captured, only `Esc`
+new key — **and written to your keymap file** in the same breath. Workshop's notice, in the
+Notices pane, says both facts, or which of them did not happen. While a key is being captured, only `Esc`
 is a key of the pane's; every other key is the one you meant. A chord that opens a tool above
 every mode — `Ctrl`+`p`, `Ctrl`+`t`, `Ctrl`+`k` — cannot be captured, because it does what it
 does before the pane sees it: type its spelling instead. A modifier pressed alone is refused as
@@ -223,7 +223,7 @@ it, because the next launch will not have it:
 
 The bottom band carries the same projection on its legend rows — three rows in a terminal, one
 row of real type in a graphical window, however many the band's room genuinely holds of the
-medium's own text after the notice has taken its row — in three persisted modes, the `legend`
+medium's own text — in three persisted modes, the `legend`
 word in the keymap file:
 
 | word | the legend rows show |
@@ -290,8 +290,8 @@ punctuation keys by their own character, and `return`, `escape`, `backspace`, `t
 `home`, `end`, `delete`, `left`, `right`, `up`, `down`. Nothing else is a binding: there are
 no sequences, no leader keys and no macros.
 
-The file is read once at startup and answered in words. A file that **applied** says so on the
-notice line, with the override count — that happened, once, at this launch. A file that was
+The file is read once at startup and answered in words. A file that **applied** says so in the
+Notices pane, with the override count — that happened, once, at this launch. A file that was
 **refused** is a standing condition instead: the defaults stand for the whole run and for
 every run until you change the file, so it goes to attention with the loader's own reason and
 stays there until it is no longer true ([the Attention pane](../../attention/docs/zengine.attention.md)). Workshop
@@ -303,7 +303,8 @@ never touches a file that was refused or that changed under it
 The file and its folder may be named in any language. Below, Workshop was launched with its
 per-user folders, and the file its `--keymap` names, in a folder named `Zoë Ж`, then quit and
 launched again: the desk, the hidden titles and the keymap came back from there. The keymap gives
-the Pane Manager `alt+up` beside `ctrl+p`; the notice line names the file whole, and the Hotkeys
+the Pane Manager `alt+up` beside `ctrl+p`; Workshop's notice names the file whole -- shown at
+the foot of this picture, where Workshop said it before it had a pane for it -- and the Hotkeys
 pane spells what it cannot draw as `?`.
 
 ![Workshop launched again from a folder named Zoë Ж: the desk saved there restored, the legend offering ^p and ^q for panes, the Hotkeys pane naming the keymap file Zo? ?/keymap.json, and the notice line naming it Zoë Ж/keymap.json, applied with 2 overrides](images/hotkeys-keymap-folder-window.png)

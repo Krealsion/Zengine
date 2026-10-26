@@ -195,6 +195,7 @@ folder, and each feature, the host and each library says what it is in its own `
 | [`info/`](info/README.md) | Info: independent views that inspect and edit a value | not exported |
 | [`introspection/`](introspection/README.md) | Loaded, Project and Powers: what a running system is made of | not exported |
 | [`inventory/`](inventory/README.md) | Inventory: stored typed values, portable toolboxes and hotkeys | `zengine::inventory` |
+| [`notices/`](notices/README.md) | Notices: what Workshop said, kept for the run and shown in a pane | not exported |
 | [`terminal/`](terminal/README.md) | the Terminal: type a command to the weaves on the bus | not exported |
 | [`view/`](view/README.md) | a view described as data, the view host, and the View Builder | not exported |
 

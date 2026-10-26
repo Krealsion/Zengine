@@ -1194,14 +1194,20 @@ inline Setup default_setup() {
     for (const std::int64_t kind : kDefaultPanes) {
         (void)add_pane(s, pane_ref_of(kind));
     }
-    // Info opens at the room's top-right, at the size it asks for, because this desk row says so:
-    // the one place this host names a weave's office, as a row a weaver may move or delete like any
-    // other. An office that never arrives leaves an unresolved row (`unresolved_panes`).
-    const PaneRef info{kInfoPaneProvider, kInfoPaneKey};
-    if (add_pane(s, info)) {
-        for (SetupPane& row : s.panes) {
-            if (row.ref == info) {
-                row.place = PanePlace{ui::kPlaceTopRight, 0, 0};
+    // Info opens at the room's top-right and Notices at its bottom-left, each at the size it asks
+    // for, because these desk rows say so: the two places this host names a weave's office, as rows
+    // a weaver may move or delete like any other. An office that never arrives leaves an unresolved
+    // row (`unresolved_panes`).
+    const std::pair<PaneRef, std::int64_t> seated[] = {
+        {PaneRef{kInfoPaneProvider, kInfoPaneKey}, ui::kPlaceTopRight},
+        {PaneRef{kNoticesPaneProvider, kNoticesPaneKey}, ui::kPlaceBottomLeft},
+    };
+    for (const auto& [ref, place] : seated) {
+        if (add_pane(s, ref)) {
+            for (SetupPane& row : s.panes) {
+                if (row.ref == ref) {
+                    row.place = PanePlace{place, 0, 0};
+                }
             }
         }
     }

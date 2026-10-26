@@ -17,6 +17,7 @@
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
+#include "notice_seam_vocabulary.hpp" // what Workshop said, said across the bus
 #include "desktop_seam_vocabulary.hpp"   // the application-defaults owner: rows, launches, the floor
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
 #include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
@@ -519,6 +520,7 @@ class WorkshopWeave
                                         zengine::workshop::PaneQuitRequested,
                                         zengine::workshop::PaneRevealAnswered,
                                         zengine::workshop::StandingConditions,
+                                        zengine::workshop::NoticeSaid,
                                         zengine::workshop::PaneSubjectShown,
                                         zengine::workshop::PaneSubjectActed,
                                         zengine::workshop::TerminalValueAnswered,
@@ -1494,6 +1496,10 @@ private:
     void refresh_setup_name();
 
     void say(std::string text, bool bad);
+    /// ...THE LAST THING SAID, SAID AGAIN IN OTHER WORDS, under the number it was said under.
+    void say_again(std::string text, bool bad);
+    /// THE NOTICES SAID IN THIS DELIVERY, each published once at its end (`after_delivery`).
+    void publish_notices(loom::Mail& mail);
 
 
     // ---- THE EXTERNAL PANE'S KEYS -------------------------------------------------------------
@@ -2018,8 +2024,11 @@ private:
     /// Whether the desk has come up (`start_desk`), on a window's first offer.
     bool desk_started_ = false;
 
-    /// How many notices this run has said, so a sentence can tell whether another came after it.
+    /// How many notices this run has said, so a sentence can tell whether another came after it,
+    /// and the number the last one is published under.
     std::uint64_t notices_said_ = 0;
+    /// The notices said and not yet published, in the order said.
+    std::vector<NoticeSaid> notices_owed_;
 
     /// Whether this run read its keymap; what reading it did waits in `keymap_word_` for the first
     /// surface. A file that could not be admitted is a standing wall (`kKeymapWallKey`).

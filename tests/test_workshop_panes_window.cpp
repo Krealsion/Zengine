@@ -29,17 +29,20 @@
 TEST_CASE("a fresh setup is the current version, sparse, and carries the identity ranks") {
     const Setup fresh = default_setup();
     REQUIRE(check_setup(fresh).accepted);
-    REQUIRE(fresh.panes.size() == kDefaultPaneCount + 1); // ...and the Info pane the desk names
+    REQUIRE(fresh.panes.size() == kDefaultPaneCount + 2); // ...and the Info and Notices panes the desk names
     for (std::size_t i = 0; i < fresh.panes.size(); ++i) {
         CAPTURE(i);
         // SPARSE: every geometry field carries no numbers, and its unused numbers are the
         // required zeros -- the smallest canonical spelling of "this weaver has arranged nothing".
-        // One row's place is a WORD, the shipped desk's: Info opens at the room's top-right
-        // because this setup says so (`the-room-is-the-screen`), at no offset. Asserted by which
-        // pane it is, so a desk that stopped saying where Info goes reddens here rather than
-        // passing as sparse.
+        // Two rows' places are WORDS, the shipped desk's: Info opens at the room's top-right and
+        // Notices at its bottom-left because this setup says so (`the-room-is-the-screen`), at no
+        // offset. Asserted by which pane each is, so a desk that stopped saying where either goes
+        // reddens here rather than passing as sparse.
         const bool is_info = fresh.panes[i].ref == info_ref();
-        CHECK(fresh.panes[i].place.mode == (is_info ? ui::kPlaceTopRight : pane_unit::kDefault));
+        const bool is_notices = fresh.panes[i].ref == notices_pane_ref();
+        CHECK(fresh.panes[i].place.mode ==
+              (is_info ? ui::kPlaceTopRight
+                       : is_notices ? ui::kPlaceBottomLeft : pane_unit::kDefault));
         CHECK(fresh.panes[i].place.x == 0);
         CHECK(fresh.panes[i].place.y == 0);
         CHECK(fresh.panes[i].width.mode == pane_unit::kDefault);
@@ -1093,16 +1096,16 @@ TEST_CASE("the keyboard alone reaches every window operation") {
 
     enter_arrange_desk(t);
     // STEP: the desk opens on no pane; the first step lands on the first row, and cycling
-    // reaches every setup-named pane, and only those. The ring is as long as the desk -- three
-    // rows here (Info, the Layouts pane, the Builder this case opened) -- so the case walks the
-    // ring's own length rather than a copied count: a claim that cycling returns you where you
-    // started, not about a number.
+    // reaches every setup-named pane, and only those. The ring is as long as the desk -- four
+    // rows here (the Layouts pane, Info, Notices, the Builder this case opened) -- so the case
+    // walks the ring's own length rather than a copied count: a claim that cycling returns you
+    // where you started, not about a number.
     REQUIRE_FALSE(t.session().arrange.addressed());
     t.key(input::scan::kTab);
     REQUIRE(t.session().arrange.addressed());
     const PaneRef first = t.session().arrange.pane;
     const std::size_t ring = t.session().setup.active.panes.size();
-    REQUIRE(ring == 3);
+    REQUIRE(ring == 4);
     for (std::size_t i = 1; i < ring; ++i) {
         CAPTURE(i);
         t.key(input::scan::kTab);
@@ -1208,7 +1211,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
           pane_unit::kDefault);
     t.key(input::scan::k0);
     t.key(input::scan::kO);
-    CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1, 2});
+    CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1, 2, 3});
 
     // AND ESCAPE LEAVES, one level at a time. No pointer event has been published at all.
     t.key(input::scan::kEscape);
@@ -1232,9 +1235,10 @@ TEST_CASE("escape unwinds one level and rolls nothing back") {
     // ORDER STILL WORKS ON IT, which is what makes a geometry refusal narrow rather than a
     // dead end: `f` moves the pane forward and says so, and sending it forward twice is what
     // reaches the no-op sentence.
-    REQUIRE(t.session().setup.active.panes.size() == 3);
-    t.key(input::scan::kF);
-    t.key(input::scan::kF);
+    REQUIRE(t.session().setup.active.panes.size() == 4);
+    for (std::size_t i = 0; i < 4 && t.notice().find("already where") == std::string::npos; ++i) {
+        t.key(input::scan::kF);
+    }
     CHECK(t.notice().find("already where") != std::string::npos);
 
     // AND ESCAPE FROM THE RESET PROMPT RETURNS ONE LEVEL WITHOUT UNDOING THE EDIT THAT WAS
@@ -2471,14 +2475,15 @@ TEST_CASE("an inactive layout's rows are dormant, not maintained") {
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     CHECK(r.session().panes.runtime.entries.size() == 1);
     CHECK(layout_at(r.run(), 1) == waiting);
-    // THE LIVE DESK IS UNMOVED BY THE OFFER, AND ITS ONE UNRESOLVED ROW NAMES WHY. Every
-    // desk here carries the Info weave, which no office in this rig offers -- so the live
-    // layout's open panes plus that one row are the whole of it, and an offer resolves the
-    // row that NAMES it and no other.
+    // THE LIVE DESK IS UNMOVED BY THE OFFER, AND ITS TWO UNRESOLVED ROWS NAME WHY. Every
+    // desk here carries the Info and Notices weaves, which no office in this rig offers -- so
+    // the live layout's open panes plus those rows are the whole of it, and an offer resolves
+    // the row that NAMES it and no other.
     const std::vector<PaneRef> live_left =
         unresolved_panes(r.session().setup.active, r.session().panes);
-    REQUIRE(live_left.size() == 1);
+    REQUIRE(live_left.size() == 2);
     CHECK(live_left[0] == info_ref());
+    CHECK(live_left[1] == notices_pane_ref());
     CHECK(r.session().panes.open.size() + live_left.size() ==
           r.session().setup.active.panes.size());
 
@@ -2499,13 +2504,14 @@ TEST_CASE("an inactive layout's rows are dormant, not maintained") {
     layout_key(r, Act::kLayoutNext);
     CHECK(r.session().setup.active == waiting);
     CHECK(r.session().panes.has(r.session().panes.runtime.entries[0].kind));
-    // THE ROW THIS LAYOUT WAITED FOR IS RESOLVED, and the row still waiting is the desk's
-    // Info weave -- unchanged by the activation, because nothing offered it. "Empty" here
-    // would be a claim about this rig's load plan rather than about dormancy.
+    // THE ROW THIS LAYOUT WAITED FOR IS RESOLVED, and the rows still waiting are the desk's
+    // Info and Notices weaves -- unchanged by the activation, because nothing offered them.
+    // "Empty" here would be a claim about this rig's load plan rather than about dormancy.
     const std::vector<PaneRef> woke_left =
         unresolved_panes(r.session().setup.active, r.session().panes);
-    REQUIRE(woke_left.size() == 1);
+    REQUIRE(woke_left.size() == 2);
     CHECK(woke_left[0] == info_ref());
+    CHECK(woke_left[1] == notices_pane_ref());
 }
 
 TEST_CASE("unchanged arrangement motion retains its gesture without another picture") {
@@ -2571,7 +2577,8 @@ TEST_CASE("repeated refused arrangement motion retains the refusal and can recov
     t.motion_at(x - 10000, y, input::space::kPixels);
     REQUIRE(t.session().notice_is_bad);
     const std::string refusal = t.session().notice;
-    CHECK(t.pictures == painted + 1);
+    // A REFUSAL MOVES NOTHING THE DESK DRAWS: it is said as Workshop's notice, and no picture.
+    CHECK(t.pictures == painted);
     for (int i = 0; i < 8; ++i) {
         t.motion_at(x - 10000, y, input::space::kPixels);
     }
@@ -2579,10 +2586,10 @@ TEST_CASE("repeated refused arrangement motion retains the refusal and can recov
     CHECK(t.session().pane_drag.active);
     CHECK(t.session().notice == refusal);
     CHECK(t.session().notice_is_bad);
-    CHECK(t.pictures == painted + 1);
+    CHECK(t.pictures == painted);
     t.motion_at(x + 3, y, input::space::kPixels);
     CHECK_FALSE(t.session().notice_is_bad);
-    CHECK(t.pictures == painted + 2);
+    CHECK(t.pictures == painted + 1);
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->width.amount ==
           bounds.resolved.w + 3 * gfx::kPixelGrainPx);
 }

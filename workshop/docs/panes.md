@@ -376,7 +376,7 @@ saying your canvas geometry in its own unit, and it changes nothing about what i
 
 ## Reading a pane's geometry — and whose number it is
 
-While you are arranging, the notice line names the pane, its state, and its window — in the
+While you are arranging, Workshop's notice names the pane, its state, and its window — in the
 units of the face you are actually looking at. On a graphical Workshop that is **pixels**; in
 a terminal it is **cells**:
 

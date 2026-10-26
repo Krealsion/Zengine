@@ -369,12 +369,12 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     // MORE USABLE SURFACE, not a stretched picture: the workspace a weaver builds inside is
     // genuinely bigger, in cells -- and nothing is painted over it where no pane stands.
     CHECK(cells_of(sc).room_w == 100);
-    CHECK(cells_of(sc).room_h == 27);
-    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 100, 27, gfx::role::kMuted));
+    CHECK(cells_of(sc).room_h == 28);
+    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 100, 28, gfx::role::kMuted));
     // The workspace fact lives in the band's own row, and it moved with the extent: what a
     // share resolves against is said where the tool speaks. It is the whole surface, so the
     // room runs under the pane rather than stopping short of the edge.
-    CHECK(workspace_row(t.shown(), t.session(), sc) == "workspace 100x27 cells");
+    CHECK(workspace_row(t.shown(), t.session(), sc) == "workspace 100x28 cells");
 
     // AN EXTENT THAT CHANGES NOTHING REPAINTS NOTHING. Two different extents clamp to one
     // screen, and a weaver dragging across that boundary must not see the tool flicker.
@@ -413,8 +413,8 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     CHECK(c.height == kScreenMinH);
     CHECK(cells_of(screen_of(s)).w == 78);
     CHECK(cells_of(screen_of(s)).h == 22);
-    CHECK(cells_of(screen_of(s)).room_h == 16);
-    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 78, 16, gfx::role::kMuted));
+    CHECK(cells_of(screen_of(s)).room_h == 17);
+    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 78, 17, gfx::role::kMuted));
     // THE COMPOSITION, 78 by 22 -- the workspace at its full extent, the bands where they
     // belong -- with no objects column: a default `Session` opens what `kDefaultPanes` names,
     // and a run with no medium has no load plan. The two help rows hold what the keymap
@@ -564,7 +564,7 @@ TEST_CASE("a pane kind declares its place, and the place resolves to bounds") {
     const CellRect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen));
     CHECK(band == CellRect{0, 0, 78, 2});
     CHECK(stack == CellRect{0, 2, 63, 9}); // 48 + (78 - 48)/2, over a room that is the surface
-    CHECK(stack.y + stack.h <= cells_of(kMinScreen).notice_y); // clear of the bottom band
+    CHECK(stack.y + stack.h <= cells_of(kMinScreen).band_y); // clear of the bottom band
     CHECK(cells_of(kMinScreen).room_w == cells_of(kMinScreen).w);
 }
 
@@ -670,10 +670,10 @@ TEST_CASE("the stack has a second slot, and the minimum screen has no room for i
     // measured limit rather than a surprise waiting for whoever adds a third kind:
     // the second slot's last row is past the notice line, and the screen has to be
     // three rows taller than the minimum before the stack can hold two panes.
-    CHECK(second.y + second.h > cells_of(kMinScreen).notice_y);
+    CHECK(second.y + second.h > cells_of(kMinScreen).band_y);
     const Screen tall = screen_of(kScreenMinW, cells_px(25));
     const CellRect on_tall = cells_covered(placement_bounds(placement::kOverlayStack, 1, tall));
-    CHECK(on_tall.y + on_tall.h <= cells_of(tall).notice_y);
+    CHECK(on_tall.y + on_tall.h <= cells_of(tall).band_y);
     // Nothing here clamps, refuses or rearranges. The model SAYS where a second slot is; a pane
     // the column has no room left for begins it again at its top instead (`bounds_of`).
 }
@@ -763,7 +763,7 @@ TEST_CASE("the half-share pays at the bottom of the range too, and buys no slot"
           CellRect{0, 2, 63, 9});
     CHECK(kMinStack.x + kMinStack.w < kMinScreen.room_w);
     CHECK(kMinScreen.room_w - (kMinStack.x + kMinStack.w) == cells_px(15));
-    CHECK(kMinStack.y + kMinStack.h <= kMinScreen.notice_y);
+    CHECK(kMinStack.y + kMinStack.h <= kMinScreen.band_y);
 
     // A WIDTH IS NOT A HEIGHT. `stack_slots_that_fit` reads y and h and nothing else, so a
     // pane that grew sideways must not have bought room for a pane underneath it: at
@@ -1582,9 +1582,9 @@ TEST_CASE("a contextual action acts on the pointed pane, not the selection") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const std::int64_t selected_before = t.session().panes.selected;
-    // Info, the Layouts pane, and the Builder this case just opened -- the identity
+    // The Layouts pane, Info, Notices and the Builder this case just opened -- the identity
     // permutation `add_pane` assigns, in list order.
-    REQUIRE(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1, 2});
+    REQUIRE(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1, 2, 3});
 
     // Point at the BUILDER and send it to the back through the Order group.
     const CellRect slot = cells_covered(
@@ -1603,7 +1603,7 @@ TEST_CASE("a contextual action acts on the pointed pane, not the selection") {
 
     // The pointed pane moved; the weaver's own selections stayed exactly where they were,
     // and no arrangement state opened -- an ordering verb is one request, not a mode.
-    CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{1, 2, 0});
+    CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{1, 2, 3, 0});
     CHECK_FALSE(t.session().arrange.open);
     CHECK_FALSE(t.session().arrange.addressed());
     CHECK(t.session().panes.selected == selected_before);
@@ -2564,9 +2564,9 @@ TEST_CASE("the subject's rows say identity, then AUTHORED, then RESOLVED") {
     CHECK(subject_value(s, "Y") == "-");
     CHECK(subject_value(s, "Width") == "-");
     CHECK(subject_value(s, "Height") == "-");
-    // `f0`: Layouts is the FIRST row `default_setup` authors, and the desk boots with two rows --
-    // Layouts and Info's. The facts name no key: the reader of these rows holds its own.
-    CHECK(subject_value(s, "Front") == "f0 of 2");
+    // `f0`: Layouts is the FIRST row `default_setup` authors, and the desk boots with three rows --
+    // Layouts, Info's and Notices'. The facts name no key: the reader of these rows holds its own.
+    CHECK(subject_value(s, "Front") == "f0 of 3");
     CHECK(subject_value(s, "Open") == "yes");
     // RESOLVED: the rectangle the pane path answers RIGHT NOW, in the face's unit.
     CHECK(rows[11].section());
@@ -2852,7 +2852,7 @@ TEST_CASE("moving, resizing and closing Layouts through the doors leaves the res
     REQUIRE_FALSE(t.session().panes.has(pane_kind::kLayouts));
     CHECK(screen_of(t.session()).room_w == before.room_w);
     CHECK(screen_of(t.session()).room_h == before.room_h);
-    CHECK(screen_of(t.session()).notice_y == before.notice_y);
+    CHECK(screen_of(t.session()).band_y == before.band_y);
     // ...and the launch door brings it back, at the developer's default.
     pick(t, pane_kind::kLayouts);
     CHECK(t.session().panes.has(pane_kind::kLayouts));
@@ -3029,7 +3029,7 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const Screen now = screen_of(t.session());
     std::int64_t unoccupied = 0;
-    for (std::int64_t y = 0; y < cells_of(now).notice_y; ++y) {
+    for (std::int64_t y = 0; y < cells_of(now).band_y; ++y) {
         for (std::int64_t x = 0; x < cells_of(now).w; ++x) {
             if (!occupied_at(t.session().panes, t.session().setup.active, now, x, y).occupied) {
                 ++unoccupied;
