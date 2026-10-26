@@ -479,6 +479,14 @@ TEST_CASE("a flood of wheel notches moves the Notices pane one notice a notch, n
     t.refusal();
     CHECK(t.bottom_notice() == t.r.session().notice);
     CHECK(t.shown().back().rfind("  ... ", 0) != 0);
+    // ...AND NOTCHES PAST THE OLDEST: when the record lets the notice the view ends at go, the view
+    // follows the newest, and no step left waiting moves it from there.
+    t.say_until(nt::kDefaultKept + 10);
+    t.r.wheel_cell(3.0 * nt::kDefaultKept, body.x + 2, body.y + 1);
+    REQUIRE(t.shown().front().find("let go") != std::string::npos);
+    t.say_until(t.page(0, 1).last + 2 * nt::kDefaultKept);
+    CHECK(t.bottom_notice() == t.r.session().notice);
+    CHECK(t.shown().back().rfind("  ... ", 0) != 0);
 }
 
 TEST_CASE("a notice said while the Notices pane is closed is there when it opens") {
