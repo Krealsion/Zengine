@@ -39,7 +39,7 @@ write Workshop refuses ends the run with Workshop's words.
 WHAT IT HEARS. Before its first press the run follows what Workshop says (`NoticeSaid` v1, each
 thing once as it is said; agents/workshop/notices.md). Every press is settled, so what it caused
 Workshop to say has arrived, marked with this run's correlation for the press (`cause`), before
-the press returns: each step keeps what its presses caused in steps.json (`said`), and a refusal
+the press returns: each step keeps what its presses caused in steps.json (`caused`), and a refusal
 among it ends the run naming the step's index and verb and Workshop's words, with nothing pressed
 after it. What a press caused that is no refusal, and whatever else Workshop says, never fails a
 step. A gap or the subscription's end over a press is never taken for silence: the run fails as
@@ -79,7 +79,7 @@ SAID_WINDOW = 64
 class Heard:
     """What Workshop says, followed through the link for one run from before its first press
     (see the module note). `step` is the record of the step pressing now, which keeps what its
-    presses caused (`said`); `why` says why nothing is heard, when nothing is."""
+    presses caused (`caused`); `why` says why nothing is heard, when nothing is."""
 
     def __init__(self, ctx, link):
         self.ctx, self.sub, self.why, self.step, self.over = ctx, None, None, None, None
@@ -117,7 +117,7 @@ class Heard:
             return
         cause = getattr(answer, "correlation", None)
         items = self.taken()
-        said = self.step.setdefault("said", [])
+        said = self.step.setdefault("caused", [])
         for i in items:
             if i.kind == "observed" and cause and i.cause == cause:
                 said.append({"number": i.fields["number"], "text": i.fields["text"],

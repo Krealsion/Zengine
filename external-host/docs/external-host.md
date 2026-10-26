@@ -645,7 +645,7 @@ names — one entry per office, shape and version, the version written as Zen's 
 - **What Workshop says, heard by `workshop/act`.** A row observing `zengine.workshop` `NoticeSaid`
   `1` beside `capture` hears each thing Workshop says, once, as it says it, with `refusal` set when
   it refused. `workshop/act` subscribes before its first press, keeps beside each step what its
-  presses caused (`said` in `steps.json`), and fails the step whose press Workshop refused, in
+  presses caused (`caused` in `steps.json`), and fails the step whose press Workshop refused, in
   Workshop's words; anything else Workshop says fails nothing. A gap or the subscription's end
   over a press ends the run UNRESOLVED -- whether it was refused cannot be told -- and a press after
   the end is not made. A row that may not hear it is pressed as before, and the result says its
