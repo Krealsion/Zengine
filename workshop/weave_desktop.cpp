@@ -231,7 +231,7 @@ void WorkshopWeave::on(const DeselectRequested&, loom::Mail& mail) {
 // ---- Launching ----------------------------------------------------------------------------
 
 // WL-DESK-03 -- agents/workshop/desktop.md
-void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail) {
+void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail, bool keys) {
     PaneLaunchAnswered out;
     out.office = ref.provider;
     out.pane = ref.pane;
@@ -296,8 +296,12 @@ void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail&
         return;
     }
     // And it focuses either way: a launch of a pane already on the desk puts the weaver in it,
-    // selected and holding the keys if it takes them, and never closes it.
-    const auto focus = [this, kind, ref](PaneLaunchAnswered& answer) {
+    // selected and holding the keys if it takes them, and never closes it -- unless the asker
+    // said it brings no keys, when the keys and the selection stay where they are.
+    const auto focus = [this, kind, ref, keys](PaneLaunchAnswered& answer) {
+        if (!keys) {
+            return;
+        }
         // THE PALETTE OPENS OVER A PANE, and remembers which, to give the keys back to it.
         if (ref.provider == kPaletteRole && ref.pane == kPalettePane &&
             session_.panes.keyboard != kind) {
@@ -344,11 +348,17 @@ void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail&
 
 // WL-DESK-03 -- agents/workshop/desktop.md
 void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
+    launch_asked(PaneRef{asked.office, asked.pane}, true, mail);
+}
+// ...and as v2 asks it, bringing the keys or not.
+void WorkshopWeave::on(const v2::PaneLaunchRequested& asked, loom::Mail& mail) {
+    launch_asked(PaneRef{asked.office, asked.pane}, asked.keys, mail);
+}
+void WorkshopWeave::launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
         return; // an office, and only an office -- the seam's rule for changing the desk
     }
-    const PaneRef ref{asked.office, asked.pane};
     auto held = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
     launch_pane(
         ref,
@@ -371,7 +381,7 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
             (void)loom::answer_deferred(*held, m, answer);
             repaint(m);
         },
-        mail);
+        mail, keys);
 }
 
 // ---- What a pane is called, and where it stands -------------------------------------------
