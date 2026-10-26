@@ -447,6 +447,22 @@ TEST_CASE("a key and a wheel's notch move the Notices pane's rows the same") {
     CHECK(t.bottom_notice() == t.r.session().notice);
 }
 
+TEST_CASE("a flood of wheel notches moves the Notices pane one notice a notch, none lost") {
+    NoticesRig t;
+    t.open();
+    t.say_until(60);
+    t.give_room(4, 70);
+    const CellRect body = external_body_rect(t.r.session(), t.kind());
+    // ONE TURN OF TWENTY NOTCHES, as a window reports a fast wheel: twenty notices older.
+    t.r.wheel_cell(20.0, body.x + 2, body.y + 1);
+    CHECK(t.shown().back() == "  ... 20 newer");
+    // ...AND TWENTY KEYS QUEUED BEFORE ANY PAGE COMES BACK: twenty more.
+    for (int i = 0; i < 20; ++i) {
+        t.r.key(input::scan::kUp);
+    }
+    CHECK(t.shown().back() == "  ... 40 newer");
+}
+
 TEST_CASE("a notice said while the Notices pane is closed is there when it opens") {
     NoticesRig t;
     t.open();
