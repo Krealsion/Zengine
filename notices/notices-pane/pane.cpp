@@ -5,7 +5,7 @@
 // newest at the bottom -- walking the notices record a page at a time (notices/vocabulary.hpp).
 // It is pure information: no row is selected and nothing is pressed into; `notices.up` and
 // `notices.down`, and the wheel's notches, which ask the same two, move the rows it shows.
-// Workshop law: agents/workshop/attention.md
+// Workshop law: agents/workshop/notices.md
 
 // This pane owns one thing, where the view ends; the notices are the record's, asked again each
 // time the record moves or the view does.
