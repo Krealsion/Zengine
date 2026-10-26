@@ -50,17 +50,36 @@ inline constexpr const char* kActionUp = "first-run.up";
 inline constexpr const char* kActionDown = "first-run.down";
 inline constexpr const char* kActionChoose = "first-run.choose";
 
-/// What a press or the choose row acts on: the Neovim box, Done, Skip.
-enum class Item : std::int64_t { kNeovim = 0, kDone = 1, kSkip = 2, kNone = -1 };
-inline constexpr std::int64_t kItems = 3;
+/// What a press or the choose row acts on: the Neovim box, a setup's Start (`setup_item(i)`, the
+/// i-th setup the launcher listed), The story, Done, Skip.
+enum class Item : std::int64_t { kNeovim = 0, kDone = 1, kSkip = 2, kStory = 3, kNone = -1 };
+inline constexpr std::int64_t kFirstSetupItem = 100;
+inline Item setup_item(std::size_t i) {
+    return static_cast<Item>(kFirstSetupItem + static_cast<std::int64_t>(i));
+}
+/// The setup an item starts, by its place in the listing; -1 for an item that is no setup's.
+inline std::int64_t setup_of(Item item) {
+    const auto n = static_cast<std::int64_t>(item);
+    return n >= kFirstSetupItem ? n - kFirstSetupItem : -1;
+}
+
+/// ONE SETUP THE LAUNCHER LISTED: its name, as `Launch` takes it, its title and its one line.
+struct SetupRow {
+    std::string name;
+    std::string title;
+    std::string line;
+};
 
 /// THE MOMENT THE PANE SHOWS: the box as the switch last said it, a switch in flight, the switch's
-/// last word or the consent it asks, the pane's own notice, and the cursor.
+/// last word or the consent it asks, the setups the launcher listed (or why none are), the pane's
+/// own notice, and the cursor.
 struct Moment {
     bool neovim = false;
     bool switching = false;
     std::string switch_said;
     bool consent_asked = false;
+    std::vector<SetupRow> setups;
+    std::string setups_note = "asking the launcher which setups it can start";
     std::string notice;
     Item cursor = Item::kNeovim;
 };
@@ -73,13 +92,25 @@ struct Line {
     Item item = Item::kNone;
 };
 
-/// THE PAGES IT NAMES, until the launcher lists the setups: where each ready-to-use setup and the
-/// first five minutes are told.
+/// THE PAGES IT NAMES: where each ready-to-use setup and the first five minutes are told.
 inline constexpr const char* kSetupsPage = "workshop/docs/demo-setups.md";
 inline constexpr const char* kGettingStartedPage = "workshop/docs/getting-started.md";
 
-/// THE LINES OF THE QUICK SETUP, top to bottom: the editor block, the way to the setups, then Done
-/// and Skip; the notice last, when there is one.
+/// THE ITEMS, in the order the cursor moves through them.
+inline std::vector<Item> items_of(const Moment& m) {
+    std::vector<Item> out{Item::kNeovim};
+    for (std::size_t i = 0; i < m.setups.size(); ++i) {
+        out.push_back(setup_item(i));
+    }
+    out.push_back(Item::kStory);
+    out.push_back(Item::kDone);
+    out.push_back(Item::kSkip);
+    return out;
+}
+
+/// THE LINES OF THE QUICK SETUP, top to bottom: the editor block, the setups the launcher lists
+/// with Start on each and The story beside them, then Done and Skip; the notice last, when there
+/// is one.
 // WL-FIRST-02 -- agents/workshop/first-run.md
 inline std::vector<Line> lines_of(const Moment& m) {
     const auto mark = [&](Item i) { return std::string(m.cursor == i ? "> " : "  "); };
@@ -100,9 +131,21 @@ inline std::vector<Line> lines_of(const Moment& m) {
                        Line::Ink::kMuted});
     }
     out.push_back({""});
-    out.push_back({"Ready-to-use setups", Line::Ink::kHeading});
-    out.push_back({"  Each runs in a Workshop of its own: " + std::string(kSetupsPage),
-                   Line::Ink::kMuted});
+    out.push_back({"Ready-to-use setups -- each starts in a Workshop of its own", Line::Ink::kHeading});
+    for (std::size_t i = 0; i < m.setups.size(); ++i) {
+        const SetupRow& s = m.setups[i];
+        const Item item = setup_item(i);
+        out.push_back({mark(item) + "[ Start ] " + (s.title.empty() ? s.name : s.title) +
+                           (s.line.empty() ? std::string() : " -- " + s.line),
+                       ink(item), item});
+    }
+    if (m.setups.empty()) {
+        out.push_back({"  " + m.setups_note, Line::Ink::kMuted});
+    }
+    out.push_back({"  Each one is told in " + std::string(kSetupsPage), Line::Ink::kMuted});
+    out.push_back({mark(Item::kStory) + "[ The story ] close this and open Start here, a step at "
+                                        "a time",
+                   ink(Item::kStory), Item::kStory});
     out.push_back({"  Your first five minutes: " + std::string(kGettingStartedPage),
                    Line::Ink::kMuted});
     out.push_back({""});
@@ -117,11 +160,19 @@ inline std::vector<Line> lines_of(const Moment& m) {
     return out;
 }
 
-/// The cursor one item up or down, stopping at the ends.
-inline Item stepped(Item at, int by) {
-    const std::int64_t next = static_cast<std::int64_t>(at) + by;
-    return next < 0 ? Item::kNeovim
-                    : next >= kItems ? Item::kSkip : static_cast<Item>(next);
+/// The cursor one item up or down among `m`'s items, stopping at the ends.
+inline Item stepped(const Moment& m, Item at, int by) {
+    const std::vector<Item> items = items_of(m);
+    std::size_t here = 0;
+    for (std::size_t i = 0; i < items.size(); ++i) {
+        if (items[i] == at) {
+            here = i;
+        }
+    }
+    if (by < 0) {
+        return items[here == 0 ? 0 : here - 1];
+    }
+    return items[here + 1 >= items.size() ? items.size() - 1 : here + 1];
 }
 
 } // namespace zengine::first_run

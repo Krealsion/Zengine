@@ -7,11 +7,14 @@
 #include "first-run/setup.hpp"
 #include "panes.hpp"
 #include "pane_vocabulary.hpp"
+#include "pane_operation.hpp"
 #include "settings_seam_vocabulary.hpp"
 
 #include "graphics/vocabulary.hpp"
 #include "inventory/grant.hpp"
+#include "launcher/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
+#include "view/vocabulary.hpp"
 
 #include <cstdint>
 #include <string>
@@ -27,11 +30,13 @@ inline loom::Grant inventory_office_grant() {
     return g;
 }
 
-// THE QUICK SETUP'S SPEECH, and nothing more: its pane, its one setting, the launch of its own
-// pane to Workshop and its close to the layouts' owner; the room asked of the graphics directory
-// and its drawing to the two windows; and the editor switch's four asks, to the switch's office
-// alone.
-// WL-FIRST-03 -- agents/workshop/first-run.md
+// THE QUICK SETUP'S SPEECH, and nothing more: its two panes, its two settings, a launch of a pane
+// to Workshop -- either version -- and its close to the layouts' owner; the room asked of the
+// graphics directory and its drawing to the two windows; the editor switch's four asks, to the
+// switch's office alone; Workshop asked to approve a start for the hand, and the launcher asked
+// for its listing and a start; and every running view asked what its wiring has done, said to any
+// since a view's office is its own name.
+// WL-FIRST-03, WL-FIRST-04 -- agents/workshop/first-run.md
 inline loom::Grant first_run_office_grant() {
     loom::Grant g;
     const auto to = [&g](std::string name, std::uint32_t version, const std::string& office) {
@@ -46,6 +51,8 @@ inline loom::Grant first_run_office_grant() {
     to(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version, layouts);
     to(OfficeSettingCommitRequested::zen_name, OfficeSettingCommitRequested::zen_version, layouts);
     to(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version, workshop);
+    to(v2::PaneLaunchRequested::zen_name, v2::PaneLaunchRequested::zen_version, workshop);
+    to(v2::PaneOperationRequested::zen_name, v2::PaneOperationRequested::zen_version, workshop);
     to(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version, layouts);
     to(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version, workshop);
     to(graphics::RoomAsked::zen_name, graphics::RoomAsked::zen_version, graphics::kGraphicsRole);
@@ -58,6 +65,11 @@ inline loom::Grant first_run_office_grant() {
     to(EditorSwitchConfirmed::zen_name, EditorSwitchConfirmed::zen_version, switcher);
     to(EditorSwitchCancelled::zen_name, EditorSwitchCancelled::zen_version, switcher);
     to(EditorSwitchStatusRequested::zen_name, EditorSwitchStatusRequested::zen_version, switcher);
+    const std::string starts = launcher::kLauncherRole;
+    to(launcher::LaunchCatalogRequested::zen_name, launcher::LaunchCatalogRequested::zen_version,
+       starts);
+    to(launcher::Launch::zen_name, launcher::Launch::zen_version, starts);
+    g.allow_to_any(view::ViewWiringRequested::zen_name, view::ViewWiringRequested::zen_version);
     return g;
 }
 
@@ -76,7 +88,8 @@ inline loom::AdmissionPolicy artifact_admission() {
         if (request.stage == loom::AdmissionStage::Speak &&
             request.role == first_run::kFirstRunRole) {
             return loom::AdmissionVerdict::admit(first_run_office_grant(),
-                "the quick setup may keep its one setting, show its pane and ask the editor switch");
+                "the quick setup may keep its settings, show its panes, ask the editor switch and the launcher, "
+                "and ask the running views what their wiring has done");
         }
         return existing(request);
     };

@@ -444,6 +444,7 @@ class WorkshopWeave
                                           zengine::workshop::AppActions,
                                           zengine::workshop::v2::AppActions,
                                           zengine::workshop::PaneLaunchRequested,
+                                          zengine::workshop::v2::PaneLaunchRequested,
                                           zengine::workshop::PaneToggleRequested,
                                           zengine::workshop::KeymapEditRequested,
                                           zengine::workshop::DeselectRequested,
@@ -983,6 +984,8 @@ public:
     /// OPEN THIS PANE, OR PUT THE WEAVER IN IT. Resolved against the ONE inventory, seated
     /// through the same door the launcher and a restore share, and answered either way.
     void on(const PaneLaunchRequested& asked, loom::Mail& mail);
+    void on(const v2::PaneLaunchRequested& asked, loom::Mail& mail);
+    void launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail);
 
     /// SHOW IT IF HIDDEN, HIDE IT IF SHOWN -- judged against the desk as it is NOW, through the
     /// launch above or this desk's own unseat, so a presenter's stale reading cannot make a toggle
@@ -1008,7 +1011,7 @@ public:
     /// PERFORM ONE LAUNCH, WITHOUT ASKING WHO WANTED IT. The body `on(PaneLaunchRequested)`
     /// and every host-side caller spend, so "launch" means one thing.
     using LaunchThen = std::function<void(const PaneLaunchAnswered&, loom::Mail&)>;
-    void launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail);
+    void launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail, bool keys = true);
 
     /// WHAT THE ONE INVENTORY CALLS A PANE -- its offered name, or its pane key when nothing
     /// names it -- for a sentence about it.

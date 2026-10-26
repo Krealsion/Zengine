@@ -1,4 +1,7 @@
 # The action census's rows for zengine.first-run; the form is tests/actions.txt's. ASCII only.
 zengine.first-run - first-run.up up - - previous item
 zengine.first-run - first-run.down down - - next item
-zengine.first-run - first-run.choose return EditorSwitchRequested/1,EditorSwitchConfirmed/1,OfficeSettingCommitRequested/1,PaneCloseRequested/1 - choose the item
+zengine.first-run - first-run.choose return EditorSwitchRequested/1,EditorSwitchConfirmed/1,OfficeSettingCommitRequested/1,PaneCloseRequested/1,Launch/1,PaneLaunchRequested/1 - choose the item
+zengine.first-run - story.up up - - previous item
+zengine.first-run - story.down down - - next item
+zengine.first-run - story.choose return OfficeSettingCommitRequested/1,PaneLaunchRequested/1 - choose the item

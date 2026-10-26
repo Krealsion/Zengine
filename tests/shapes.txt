@@ -140,7 +140,7 @@ EmptyTrigger v1 0x6b1f43e539c4902f
 EnsureRoleTimer v1 0x5d7c21b3a6e6630d
 EnsureTimer v1 0x8caea660315a3add
 FilesState v1 0xf4f4bc1b2a074d44
-FirstRunState v1 0xaafd342362aeb44c
+FirstRunState v2 0x4f3d4e1b3aed956e
 FlowAnswer v1 0x31e6e3257e823e26
 FlowApply v1 0xcc9bf53df5d1f42f
 FlowCatalog v1 0xd06d3b859527aaae
@@ -351,6 +351,7 @@ PaneKeyboardRequested v1 0x5cd8e823a5d71066
 PaneKeys v1 0x9ae0ed26d625210d
 PaneLaunchAnswered v1 0xee9e1f5d925c7826
 PaneLaunchRequested v1 0x1ea7c19728e01914
+PaneLaunchRequested v2 0x9b9441d471e6fb02
 PaneManageRequested v1 0xd40fd2597ec1cc09
 PaneMenuAnswered v1 0x94987421f4ea2c6c
 PaneMenuRequested v1 0xc240de84dd036d7c
