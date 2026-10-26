@@ -12,7 +12,7 @@ The quick setup keeps one office-wide setting at [`zengine.layouts`](zengine.lay
 `answered` is not set, it shows itself in front, holding the keys. A run with no settings file
 (`--isolated` without a `--prefs` path), or a settings file the layouts' owner refused at launch, keeps no
 settings, so the quick setup shows nothing by itself there. Nor does it on a desk where a pane
-beyond Layouts and Info is already open -- say, one you opened before it arrived: that pane keeps
+beyond Layouts, Info and Notices is already open -- say, one you opened before it arrived: that pane keeps
 the keys, and the quick setup shows at the next start. Clear `answered` in the pane's gear and it
 shows again at the next start.
 

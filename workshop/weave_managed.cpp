@@ -151,6 +151,7 @@ void WorkshopWeave::after_delivery(loom::Mail& mail) {
         repaint(mail);
     }
     mirror_presentation(mail);
+    publish_notices(mail);
     // ONE NOTICE A DELIVERY, after every repaint it made: the newest stands for each before it.
     // What a pane shows comes as the window says it settled (`on(AreaSettled)`).
     if (stamps_owed_) {

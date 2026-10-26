@@ -214,10 +214,10 @@ committed, are kept in the settings file, and a value outside what each takes is
 legible" "an overlapping pane is painted where it is hit, in both front orders"
 
 ### WL-GEO-05
-`workshop/screen.hpp` screen_of band_px_for kMinScreen Screen Screen::room_y Screen::notice_y
+`workshop/screen.hpp` screen_of band_px_for kMinScreen Screen Screen::room_y Screen::band_y
 `tests/test_workshop_screen.cpp` "the screen's furniture cannot see a pane, open or closed" "the
-screen's extent is TOTAL over whatever a medium published" "the notice is a band row, and the
-SENTENCE is never shortened"
+screen's extent is TOTAL over whatever a medium published" "the band is the keys' legend alone, and
+the room takes the row the notice left"
 
 ### WL-GEO-06
 `workshop/screen.hpp` PixelRect CellRect pixels_of_cells cells_covered
@@ -278,8 +278,8 @@ BYTES" "the medium's device unit reaches no durable file"
 actually is"
 `tests/test_workshop_screen.cpp` "which parts of a pane's window its numbers alone do not place"
 "the readout says each word, and where the words put the pane"
-`tests/test_workshop_desk.cpp` "the desk read says a pane's words where the band says them, and the
-pixels they came to"
+`tests/test_workshop_desk.cpp` "Workshop's notice says a pane's words, and the desk read the pixels
+they came to"
 
 ### WL-GEO-13
 `workshop/weave_desk_read.cpp` area_reading shown_words_and_parts pane_point

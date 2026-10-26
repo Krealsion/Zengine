@@ -86,11 +86,10 @@ TEST_CASE("fitting text to a line: unchanged when it fits, marked when it does n
     CHECK(fit("", 78).empty());
 }
 
-TEST_CASE("a refusal longer than the notice line says so, and the session keeps all of it") {
-    // THE STRONG WITNESS. A refusal is a producer's sentence at whatever length its facts take,
-    // and the general presentation rule has to hold exactly where a particular producer's
-    // wording stops happening to fit. The sentence is a real door's: the file door, refusing a
-    // path a weaver could type.
+TEST_CASE("a refusal longer than a row is kept whole in the session, and the screen draws none of it") {
+    // THE STRONG WITNESS. A refusal is a producer's sentence at whatever length its facts take; the
+    // sentence is a real door's: the file door, refusing a path a weaver could type. What Workshop
+    // said is published and shown by the Notices pane, so the screen it paints draws none of it.
     const std::string path = "/no/such/place/" + std::string(90, 'x') + ".json";
     const persist::FileText read = persist::read_file(path, 1024, "a test file");
     REQUIRE_FALSE(read.outcome.accepted);
@@ -98,24 +97,19 @@ TEST_CASE("a refusal longer than the notice line says so, and the session keeps 
     REQUIRE(refusal.size() > static_cast<std::size_t>(cells_of(kMinScreen).w));
 
     Session s;
+    const ScreenCanvas quiet = paint(s);
     s.notice = refusal;
     s.notice_is_bad = true;
-
     const ScreenCanvas c = paint(s);
-    const std::string shown = label_at(c, 0, cells_of(kMinScreen).notice_y);
-    CHECK(shown.size() == static_cast<std::size_t>(cells_of(kMinScreen).w)); // it fits the line it has
-    CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);     // and says it did not fit
-    // What IS shown is the message's own head, unaltered -- the presentation
-    // shortened it and did not reword it.
-    CHECK(refusal.compare(0, shown.size() - 3, shown, 0, shown.size() - 3) == 0);
-    // truth != presentation capacity. The screen is bounded; the message is not,
-    // and a wider screen would need nothing from anybody but room.
+    // Truth is not presentation capacity: the session holds the whole sentence...
     CHECK(s.notice == refusal);
-    CHECK(s.notice.size() > shown.size());
-    // The role is untouched: fitting a refusal does not make it less of one.
+    // ...and the screen is the same picture with it as without it: no row cuts it, and no row
+    // wears the alert's role for it.
+    CHECK(c == quiet);
     for (const ScreenLabel& l : all_labels(c)) {
-        if (gfx::cell_of_pixel(l.y) == cells_of(kMinScreen).notice_y) {
-            CHECK(l.role == gfx::role::kAlert);
+        CHECK(l.text.find("/no/such/place/") == std::string::npos);
+        if (gfx::cell_of_pixel(l.y) == cells_of(kMinScreen).band_y) {
+            CHECK(l.role != gfx::role::kAlert);
         }
     }
 }
@@ -196,9 +190,9 @@ TEST_CASE("a bigger surface is a bigger workspace, not a bigger picture of a sma
 
     // The bottom band keeps its shape against the bottom edge, and the top band keeps its
     // rows against the top one -- both are fixed reservations, not shares.
-    CHECK(cells_of(big).h - cells_of(big).notice_y == cells_of(kMinScreen).h - cells_of(kMinScreen).notice_y);
+    CHECK(cells_of(big).h - cells_of(big).band_y == cells_of(kMinScreen).h - cells_of(kMinScreen).band_y);
     CHECK(cells_of(big).h - help_row(big) == cells_of(kMinScreen).h - help_row(kMinScreen));
-    CHECK(cells_of(big).notice_y == cells_of(big).h - kBottomRows);   // the band's own first row
+    CHECK(cells_of(big).band_y == cells_of(big).h - kBottomRows);   // the band's own first row
     CHECK(help_row(big) + 2 == cells_of(big).h - 1);           // ...and two legend rows under it
 
     // AND THE ROOM IS THE SURFACE: nothing comes off its width.
@@ -232,11 +226,11 @@ TEST_CASE("the screen's extent is TOTAL over whatever a medium published") {
         CHECK(sc.room_w >= kScreenMinW);
         CHECK(sc.room_h >= cells_px(1));
         CHECK(sc.room_y > 0);
-        CHECK(sc.room_y + sc.room_h == sc.notice_y);
+        CHECK(sc.room_y + sc.room_h == sc.band_y);
         // The furniture that is every pane's, and the room's own rule: the room IS the
         // surface, at every extent this screen can be asked for.
         CHECK(sc.room_w == sc.w);
-        CHECK(sc.notice_y < sc.h);
+        CHECK(sc.band_y < sc.h);
     };
 
     for (const std::int64_t w : hostile) {
@@ -775,7 +769,7 @@ TEST_CASE("the screen's furniture cannot see a pane, open or closed") {
         CHECK(a.room_w == b.room_w);
         CHECK(a.room_h == b.room_h);
         CHECK(a.room_y == b.room_y);
-        CHECK(a.notice_y == b.notice_y);
+        CHECK(a.band_y == b.band_y);
         CHECK(b.room_w == b.w);
     }
 }
@@ -1845,76 +1839,61 @@ TEST_CASE("the arrangement's visible statement is the ring on the pane itself") 
     }
 }
 
-TEST_CASE("the notice is a band row, and the SENTENCE is never shortened") {
+TEST_CASE("the band is the keys' legend alone, and the room takes the row the notice left") {
     Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     const Screen sc = screen_of(s);
 
-    // THE BOTTOM BAND IS ONE REGION -- the whole of its reserved cells, published whether or
-    // not there is a notice; an empty notice is a blank ROW of it, not a missing region,
-    // because the band owns its rectangle in every state. The notice is its FIRST row; the
-    // identity has a band of its own at the top of the screen.
-    const std::vector<ScreenRegion> quiet =
-        regions_at(paint(s), 0, cells_of(sc).notice_y);
+    // THE BOTTOM BAND IS ONE REGION -- the whole of its reserved cells, as tall as the legend's
+    // rows in this face, from the room's floor to the screen's foot.
+    const std::vector<ScreenRegion> quiet = regions_at(paint(s), 0, cells_of(sc).band_y);
     REQUIRE(quiet.size() == 1);
-    CHECK(quiet.front().rows.size() >= 1);
-    CHECK(quiet.front().rows[0].text.empty());
-
-    // A SENTENCE THAT FITS: one prose row of the band, whole.
-    s.notice = "created #1 -- a new identity, not a new name";
-    const ScreenCanvas said = paint(s);
-    const std::vector<ScreenRegion> at_band =
-        regions_at(said, 0, cells_of(sc).notice_y);
-    REQUIRE(at_band.size() == 1);
-    const ScreenRegion& band = at_band.front();
+    const ScreenRegion& band = quiet.front();
     CHECK(band.w == sc.w);
-    CHECK(band.y == sc.notice_y);
-    CHECK(band.y + band.h == sc.h); // the band ends at the screen's own foot
-    REQUIRE(band.rows.size() >= 1);
-    CHECK(band.rows[0].text == s.notice);
-    CHECK(band.rows[0].role == gfx::role::kFill);
-    // THE BAND IS AS TALL AS THE ROWS IT HOLDS, in this face: the notice, then three legend
-    // rows -- the budget the composition spends.
+    CHECK(band.y == sc.band_y);
+    CHECK(band.y + band.h == sc.h);
+    CHECK(sc.room_y + sc.room_h == sc.band_y);
     const RegionFit fit = band_fit(sc);
     CHECK(fit.graphical());
     CHECK(fit.rows == kBottomRows);
     CHECK(layouts_body(s, sc).rows == kTopRows); // ...and the identity's own rows, up there
+    REQUIRE_FALSE(band.rows.empty());
+    for (const TextRow& row : band.rows) {
+        CHECK(row.role == gfx::role::kMuted); // every row is the legend's
+    }
+    // THE ROOM TOOK THE ROW: the minimum composition's workspace is a row taller than the four
+    // rows of band it once stood over left it.
+    CHECK(kMinScreen.room_h == 17 * gfx::kCellPx);
 
-    // A BAD ONE WEARS THE ALERT ROLE, which is the second signal and not a second sentence.
-    s.notice_is_bad = true;
-    const ScreenCanvas bad = paint(s);
-    const std::vector<ScreenRegion> at_bad =
-        regions_at(bad, 0, cells_of(sc).notice_y);
-    REQUIRE(at_bad.size() == 1);
-    CHECK(at_bad.front().rows[0].role == gfx::role::kAlert);
+    // WHAT WORKSHOP SAID IS NOWHERE ON THE SCREEN, a statement or a refusal: the band is the
+    // same rows either way, and no region of the screen carries the words.
+    s.notice = "created #1 -- a new identity, not a new name";
+    for (const bool bad : {false, true}) {
+        s.notice_is_bad = bad;
+        const ScreenCanvas said = paint(s);
+        const std::vector<ScreenRegion> at_band = regions_at(said, 0, cells_of(sc).band_y);
+        REQUIRE(at_band.size() == 1);
+        CHECK(at_band.front().rows == band.rows);
+        for (const ScreenPlane& plane : said.layers) {
+            for (const ScreenRegion& region : plane.texts) {
+                for (const TextRow& row : region.rows) {
+                    CHECK(row.text.find(s.notice) == std::string::npos);
+                }
+            }
+        }
+    }
 
-    // A SENTENCE TOO LONG FOR THE ROOM IS MARKED, AND `Session::notice` STILL HOLDS ALL OF
-    // IT. What a weaver sees is bounded; what Workshop knows is not.
-    s.notice = std::string(400, 'x') + "-END";
-    s.notice_is_bad = false;
-    const ScreenCanvas cut = paint(s);
-    const std::vector<ScreenRegion> at_cut =
-        regions_at(cut, 0, cells_of(sc).notice_y);
-    REQUIRE(at_cut.size() == 1);
-    const TextRow& row = at_cut.front().rows[0];
-    CHECK(static_cast<std::int64_t>(row.text.size()) == fit.columns);
-    CHECK(row.text.find(detail::kElided) != std::string::npos);
-    CHECK(row.text.find("-END") == std::string::npos);
-    CHECK(s.notice.size() == 404); // the sentence itself was never touched
-
-    // AND THE SAME PUBLICATION IN A CHARACTER MEDIUM: the same cells, cut at the cells the
-    // medium has rather than at the columns the face has. One publisher, two projections.
+    // AND IN A CHARACTER MEDIUM, the same: the legend, whole cells, and no notice.
     Session cell = s;
     cell.text_advance_px = 0;
     cell.text_line_px = 0;
     const Screen cell_sc = screen_of(cell);
-    const ScreenCanvas in_cells = paint(cell);
-    const std::vector<ScreenRegion> at_cells =
-        regions_at(in_cells, 0, cells_of(cell_sc).notice_y);
+    const std::vector<ScreenRegion> at_cells = regions_at(paint(cell), 0, cells_of(cell_sc).band_y);
     REQUIRE(at_cells.size() == 1);
-    const TextRow& cell_row = at_cells.front().rows[0];
-    CHECK(static_cast<std::int64_t>(cell_row.text.size()) == cells_of(cell_sc).w);
-    CHECK(cell_row.text.find(detail::kElided) != std::string::npos);
-    CHECK(cell_row.text.size() < row.text.size()); // fewer cells than the face has columns
+    CHECK(static_cast<std::int64_t>(at_cells.front().rows.size()) <= kBottomRows);
+    for (const TextRow& row : at_cells.front().rows) {
+        CHECK(row.text.find(s.notice) == std::string::npos);
+    }
+    CHECK(cell_sc.h - cell_sc.band_y == kBottomRows * gfx::kCellPx);
 }
 
 TEST_CASE("a pane with room for the header and nothing else still says whose it is") {
@@ -5672,7 +5651,7 @@ TEST_CASE("the layout selector is the first Workshop row, on both media") {
 
         // ...AND NOT IN THE FOOTER. The bottom band still exists and still speaks; it does not
         // carry the identity, and no tab is painted anywhere in it.
-        CHECK(band_bounds(sc).y == sc.notice_y);
+        CHECK(band_bounds(sc).y == sc.band_y);
         CHECK(band_bounds(sc).y + band_bounds(sc).h == sc.h);
         CHECK(band_bounds(sc).y > top_band_bounds(sc).y + top_band_bounds(sc).h);
         const ScreenCanvas c = paint(s);
@@ -5695,7 +5674,7 @@ TEST_CASE("the move re-homed reserved rows and did not add one") {
     // THE PROPERTY THAT MATTERS MOST, because the workspace's extent is what a share
     // resolves against: a chrome change that resized the body would resize every `%` object
     // a weaver authored. Two reserved bands and no blank row between them, at every extent.
-    CHECK(kTopRows + kBottomRows == 6);
+    CHECK(kTopRows + kBottomRows == 5);
     for (std::int64_t h = kScreenMinRows; h <= 120; ++h) {
         CAPTURE(h);
         const Screen sc = screen_of(kScreenMinW, cells_px(h));
@@ -5704,13 +5683,13 @@ TEST_CASE("the move re-homed reserved rows and did not add one") {
         CHECK(sc.room_y + sc.room_h == band_bounds(sc).y);
         CHECK(band_bounds(sc).y + band_bounds(sc).h == sc.h);
         // ...and the body is what the two bands leave.
-        CHECK(cells_of(sc).room_h == h - 6);
+        CHECK(cells_of(sc).room_h == h - 5);
     }
     // The minimum composition's own numbers are the ones every golden is written against; the
     // width is 78 because the room is the screen
     // (agents/decisions/the-room-is-the-screen.md), and this case's subject is the two BANDS.
     CHECK(cells_of(kMinScreen).room_w == 78);
-    CHECK(cells_of(kMinScreen).room_h == 16);
+    CHECK(cells_of(kMinScreen).room_h == 17);
 }
 
 TEST_CASE("every owner of the body agrees about where it begins") {
@@ -6147,7 +6126,7 @@ TEST_CASE("the reservation does not follow the Layouts pane") {
     REQUIRE_FALSE(t.session().panes.has(pane_kind::kLayouts));
     CHECK(screen_of(t.session()).room_w == before.room_w);
     CHECK(screen_of(t.session()).room_h == before.room_h);
-    CHECK(screen_of(t.session()).notice_y == before.notice_y);
+    CHECK(screen_of(t.session()).band_y == before.band_y);
     CHECK(gfx::cell_of_pixel(overlay_column(screen_of(t.session())).y) == kRoomCellY);
 }
 

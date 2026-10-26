@@ -23,16 +23,13 @@ MEANS
 
 WHY — `agents/decisions/semantic-text-owns-its-room.md`
 
-## WL-RGN-03 — The foot band is the notice, then the legend
+## WL-RGN-03 — The foot band is the keys' legend
 
-LAW — `band_region` composes the notice first and `budget - 1` legend rows after it; at a budget of one it keeps the notice while there is one, and one legend row otherwise.
+LAW — `band_region` composes the legend in every row of its budget, a sentence naming where typing goes first while a pane holds the keys; what Workshop said is the Notices pane's (WL-NOTE-01).
 
 MEANS
 - the band's height is `kBottomRows` cells; its rows are whatever the face fits in them;
 - the layout tabs, the setup status and the workspace fact are the Layouts pane's, not the band's.
-
-DOES NOT MEAN
-- that the notice is ever shortened — it is cut with a mark and kept whole in the session.
 
 WHY — `agents/decisions/two-bands.md`
 
@@ -58,4 +55,5 @@ worked, `B` is the button"
 `workshop/screen_compose.cpp` band_region
 `workshop/screen_gestures.cpp` help_rows
 `tests/test_workshop_document.cpp` "two bands compose their budgets, and the selector is row 0"
-`tests/test_workshop_screen.cpp` "the notice is a band row, and the SENTENCE is never shortened"
+`tests/test_workshop_screen.cpp` "the band is the keys' legend alone, and the room takes the row the
+notice left"

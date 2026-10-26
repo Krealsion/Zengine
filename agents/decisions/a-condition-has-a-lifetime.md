@@ -11,8 +11,8 @@ refused external pane cleared its refusal on the next valid content and the noti
 refusal sentence for the rest of the process (`5416c21`, the commit that gave attention a
 place).
 
-**Decision.** An utterance is a sentence about a moment that passed, held in `Session::notice`
-and replaced by the next thing said. A condition is true when it is read: held under a key in
+**Decision.** An utterance is a sentence about a moment that passed: the last one is
+`Session::notice`, and each is kept as said ([what Workshop said is kept](what-workshop-said-is-kept.md)). A condition is true when it is read: held under a key in
 `HeldConditions` for the truths nothing live answers for, or derived from a live owner and never
 copied. `attention_conditions` is a pure projection and `attention_shown` the one population.
 Three pane states earn ambient attention. The compact channel is the glance, the Attention

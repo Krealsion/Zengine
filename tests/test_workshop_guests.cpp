@@ -20,6 +20,7 @@
 #include "workshop/pane_document.hpp"
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
+#include "workshop/notice_seam_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
@@ -32,6 +33,7 @@
 #include "input/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
+#include "notices/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/bridge/client.hpp>
@@ -2315,6 +2317,56 @@ TEST_CASE("observation: the desk's words and pictures need capture, every row is
     const Shapes status = {{builds.shape, builds.version}};
     CHECK(ask(1, builder::kBuilderRole, status).allowed);
     CHECK(ask(3, builder::kBuilderRole, status).allowed);
+}
+
+TEST_CASE("a guest reads Workshop's notices through its row: with capture, and a page of the record "
+          "it observes") {
+    namespace nt = zengine::notices;
+    const guests::ObserveScope said{"zengine.workshop", ws::NoticeSaid::zen_name,
+                                    ws::NoticeSaid::zen_version};
+    const guests::ObserveScope moved{nt::kNoticesRole, nt::NoticesMoved::zen_name,
+                                     nt::NoticesMoved::zen_version};
+    guests::GuestRow hands;
+    hands.name = "hands";
+    hands.may = {guests::kPowerInput, guests::kPowerInspect};
+    hands.observe = {said, moved};
+    guests::GuestRow eyes = hands;
+    eyes.name = "eyes";
+    eyes.may = {guests::kPowerCapture};
+    guests::GuestRow told = eyes; // `capture`, and only Workshop's words, not the record's word
+    told.name = "told";
+    told.observe = {said};
+    guests::GuestsFile file;
+    file.rows = {hands, eyes, told};
+    const auto policy =
+        guests::observation_of(file, [](loom::WeaveId s) -> std::optional<std::size_t> {
+            return static_cast<std::size_t>(s.value - 1);
+        });
+    const auto ask = [&](std::uint64_t who, const guests::ObserveScope& s) {
+        return policy(loom::observe::ObserveRequest{
+            loom::WeaveId{who}, s.producer,
+            {loom::observe::ShapeRef{s.shape, s.version}}, "suite"});
+    };
+    // WHAT WORKSHOP SAID, AND THE WORD THAT THE RECORD MOVED, ARE THE DESK'S: `capture` hears them.
+    for (const guests::ObserveScope& s : {said, moved}) {
+        CAPTURE(s.shape);
+        const auto refused = ask(1, s);
+        CHECK_FALSE(refused.allowed);
+        CHECK(refused.reason.find("only with `capture`") != std::string::npos);
+        CHECK(ask(2, s).allowed);
+    }
+    // A ROW THAT MAY FOLLOW THE RECORD MAY READ A PAGE OF IT, of the record's office alone...
+    const loom::Grant g = guests::grant_for(eyes);
+    CHECK(g.permits_role(nt::NoticesRequested::zen_name, nt::NoticesRequested::zen_version,
+                         nt::kNoticesRole));
+    CHECK_FALSE(g.permits_role(nt::NoticesRequested::zen_name, nt::NoticesRequested::zen_version,
+                               "zengine.workshop"));
+    // ...and nothing else of it: Workshop's words alone bring no read of the record.
+    CHECK_FALSE(guests::grant_for(told).permits_role(nt::NoticesRequested::zen_name,
+                                                     nt::NoticesRequested::zen_version,
+                                                     nt::kNoticesRole));
+    CHECK_FALSE(g.permits_role(ws::NoticeSaid::zen_name, ws::NoticeSaid::zen_version,
+                               nt::kNoticesRole));
 }
 
 namespace {

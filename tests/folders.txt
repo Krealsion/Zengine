@@ -28,6 +28,7 @@ launcher          feature
 maker             library
 manual            library
 message-draft     library
+notices           feature
 operator          library
 quarry            quarry
 settings          feature

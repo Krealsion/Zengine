@@ -95,7 +95,7 @@ std::int64_t placed_fingerprint(std::int64_t shows, const DeskRect& at) {
 // ---- THE DESK, AS WORKSHOP HOLDS IT ---------------------------------------------------------------
 
 // THE DESK, BY ITS OWN NUMBERS AND WORDS: every pane the desk names, in its order, with what
-// Workshop resolves for it now; the menu; the band's notice and legend where they are drawn, with
+// Workshop resolves for it now; the menu; the band's legend where it is drawn, with
 // no point, since the band owns no pointer space; and the desk number, moved when anything said
 // here moves. Nothing is read off a pane's picture.
 // WL-READ-04 -- agents/workshop/desk-read.md
@@ -239,8 +239,8 @@ std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind, co
     if (kind != pane_kind::kLayouts && rect.y < sc.room_y) {
         out.push_back(Cover{"band", PixelRect{rect.x, rect.y, rect.w, sc.room_y - rect.y}});
     }
-    if (rect.y + rect.h > sc.notice_y) {
-        out.push_back(Cover{"band", PixelRect{rect.x, sc.notice_y, rect.w, rect.y + rect.h - sc.notice_y}});
+    if (rect.y + rect.h > sc.band_y) {
+        out.push_back(Cover{"band", PixelRect{rect.x, sc.band_y, rect.w, rect.y + rect.h - sc.band_y}});
     }
     return out;
 }

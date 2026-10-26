@@ -1,0 +1,3 @@
+# The action census's rows for zengine.notices-pane; the form is tests/actions.txt's. ASCII only.
+zengine.notices-pane - notices.up up NoticesRequested/1 - older notice
+zengine.notices-pane - notices.down down NoticesRequested/1 - newer notice

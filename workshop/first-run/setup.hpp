@@ -25,14 +25,16 @@ inline constexpr const char* kSetupPane = "setup";
 /// or skipped. Cleared in the gear, it shows again at the next start.
 inline constexpr const char* kAnsweredKey = "answered";
 
-/// THE DESK A FRESH START OPENS: Workshop's Layouts row and Info. The quick setup shows itself only
-/// while no other pane is open, so it never comes in front of a pane a hand already opened.
+/// THE DESK A FRESH START OPENS: Workshop's Layouts row, Info and Notices. The quick setup shows
+/// itself only while no other pane is open, so it never comes in front of a pane a hand already
+/// opened.
 // WL-FIRST-01 -- agents/workshop/first-run.md
 inline bool fresh_desk(const std::vector<std::pair<std::string, std::string>>& open) {
     for (const auto& [office, pane] : open) {
         const bool layouts = office == "zengine.workshop" && pane == "layouts";
         const bool info = office == "zengine.info" && pane == "info";
-        if (!layouts && !info) {
+        const bool notices = office == "zengine.notices-pane" && pane == "notices";
+        if (!layouts && !info && !notices) {
             return false;
         }
     }

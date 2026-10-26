@@ -6,6 +6,7 @@
 #include "guests.hpp"
 
 #include "attention_seam_vocabulary.hpp"
+#include "notice_seam_vocabulary.hpp"
 #include "desktop_seam_vocabulary.hpp"
 #include "guest_seam_vocabulary.hpp"
 #include "inspection_seam_vocabulary.hpp"
@@ -26,6 +27,7 @@
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
+#include "notices/vocabulary.hpp"
 
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>
@@ -99,15 +101,19 @@ bool carries_the_desk(const std::string& shape) {
     for (const char* name : {graphics::WindowShown::zen_name, graphics::AreaShown::zen_name,
                              TranscriptShown::zen_name, PaneSubjectShown::zen_name,
                              PaneInventory::zen_name, KeymapShown::zen_name,
-                             StandingConditions::zen_name}) {
+                             StandingConditions::zen_name, NoticeSaid::zen_name,
+                             notices::NoticesShown::zen_name}) {
         if (shape == name) return true;
     }
     return false;
 }
 
 // ...AND WHAT FOLLOWS THEM: a notice that the desk moved names every pane's picture as a reading
-// does, so it is observed under the same power.
-bool follows_the_desk(const std::string& shape) { return shape == DeskStamps::zen_name; }
+// does, and one that the notices record moved follows what Workshop said, so each is observed
+// under the same power.
+bool follows_the_desk(const std::string& shape) {
+    return shape == DeskStamps::zen_name || shape == notices::NoticesMoved::zen_name;
+}
 
 // THE WEAVER'S INPUT AS IT HAPPENS, from whichever office says it: every key, its release, typed
 // text and press, a window's keys among them, heard only with `keystrokes`.
@@ -418,6 +424,12 @@ loom::Grant grant_for(const GuestRow& row) {
             s.version == builder::BuildStatus::zen_version) {
             g.allow_to_role(builder::BuildStatusRequested::zen_name,
                             builder::BuildStatusRequested::zen_version, builder::kBuilderRole);
+        }
+        // ...AND ONE THAT MAY FOLLOW THE NOTICES RECORD MAY READ A PAGE OF IT, answered to it alone.
+        if (s.producer == notices::kNoticesRole && s.shape == notices::NoticesMoved::zen_name &&
+            s.version == notices::NoticesMoved::zen_version) {
+            g.allow_to_role(notices::NoticesRequested::zen_name,
+                            notices::NoticesRequested::zen_version, notices::kNoticesRole);
         }
     }
     for (const std::string& power : row.may) {

@@ -252,6 +252,7 @@ InventoryViewsRequested v1 0x9ce389452ddaae8b
 InventoryWeaveState v5 0x13facb2ceba33bb3
 InventoryWrite v1 0x87f8fccc914daac2
 KeptNode v1 0x0a794c568e22cd28
+KeptNotice v1 0x1a3b85fc469f38ca
 KeyPressed v2 0x9809b0e961ac1b5a
 KeyReleased v2 0x383cfe55dcb0d80c
 KeymapEditAnswered v1 0xc4076e9e76909fd3
@@ -293,6 +294,12 @@ NeovimStopRequested v1 0x933ebc68d1dffa9d
 Node v1 0xbcaef33e0d89dbe3
 NodePaint v1 0x05f9f6a6c2e4ba98
 NodePlace v1 0x50443c10cee88b33
+NoticeSaid v1 0xa3a090986ca9946d
+NoticesMoved v1 0xa6706c8ba3032818
+NoticesPaneState v1 0xa0ad3b86acbe6c9a
+NoticesRequested v1 0xd19349cbb49c26bf
+NoticesShown v1 0x98ecbccf85d7baba
+NoticesState v1 0x317c3b0e7cd2f71a
 OfferArtifact v1 0xf5ba6502a2561fcd
 OfficeSettingCommitAnswered v1 0xf5a4074ca1da16a9
 OfficeSettingCommitRequested v1 0xa27f64f4ac7d0289
