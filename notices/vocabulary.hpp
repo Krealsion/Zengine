@@ -7,7 +7,7 @@
 // The notices record's durable names: the office that keeps what Workshop said, its one setting and
 // its bounds, the ask that reads a page of it, the page, the word that it moved, and the state a
 // reload keeps. What Workshop says arrives as `NoticeSaid` (workshop/notice_seam_vocabulary.hpp).
-// Workshop law: agents/workshop/attention.md
+// Workshop law: agents/workshop/notices.md
 
 #include <zen/weave/shape.hpp>
 
