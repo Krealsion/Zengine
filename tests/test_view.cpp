@@ -126,6 +126,53 @@ private:
     std::string reason_;
 };
 
+/// Accepts one shape and answers each delivery of it late: the answer owed to the delivery before,
+/// a refusal in its owner's words, is spent when the next arrives, and this one's kept for the next.
+class LateRefuser final : public loom::Weave {
+public:
+    LateRefuser(std::shared_ptr<const loom::Schema> accepts, std::string reason)
+        : accepts_(std::move(accepts)), reason_(std::move(reason)) {}
+    std::vector<std::uint64_t> seen; ///< each delivery's correlation, in order
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override { return {accepts_}; }
+    void handle(const loom::Message& in, loom::Bus& bus) override {
+        seen.push_back(in.correlation);
+        if (owed_) (void)bus.spend_deferred(*owed_, loom::Message(loom::to_value(loom::Refused{reason_})));
+        owed_ = bus.make_deferred_answer();
+    }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("viewtest.LateRefuser", 1, {})); }
+    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
+    void revive(const loom::Value&) override {}
+private:
+    std::shared_ptr<const loom::Schema> accepts_;
+    std::string reason_;
+    std::optional<loom::DeferredAnswer> owed_;
+};
+
+/// What a view said of its wiring, as one hearer heard it: each saying in order, with the office
+/// Loom stamped on it.
+struct Wirings {
+    std::vector<std::pair<std::string, view::ViewWiring>> said;
+    explicit Wirings(const Listener& hearer) {
+        for (const auto& m : hearer.heard)
+            if (loom::same_identity(m.payload.schema(), *loom::schema_of<view::ViewWiring>()))
+                said.emplace_back(std::string(m.provenance.authored_role()), loom::from_value<view::ViewWiring>(m.payload));
+    }
+    std::size_t count(const std::string& office) const {
+        return static_cast<std::size_t>(std::count_if(said.begin(), said.end(), [&](const auto& s) { return s.first == office; }));
+    }
+    /// The last that `office` said, which it must have said, with a row for each of its intents and
+    /// fields.
+    view::ViewWiring last(const std::string& office) const {
+        for (auto it = said.rbegin(); it != said.rend(); ++it)
+            if (it->first == office) {
+                REQUIRE_FALSE(it->second.intents.size() + it->second.fields.size() == 0);
+                return it->second;
+            }
+        FAIL(office << " said nothing of its wiring");
+        return {};
+    }
+};
+
 /// The terminal window's office, where a window shows a view's area.
 const std::string kWindowOffice = std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
 
@@ -1384,6 +1431,159 @@ TEST_CASE("a refusal reaches the notice row only when Loom attests it answers th
     rig.press("tally.panel", d.elements[3]);
     CHECK(has(rig.said("tally.panel"), "refused: tally on tally.panel.Count at %0 fold math.add: "
                                        "a step of 0 never moves the count from 0 toward 10"));
+}
+
+TEST_CASE("a running view says what its wiring has done, as its own office: each intent's last send accepted or refused, each field told, and again only when a row changes") {
+    // ⚔ MUTATION: the grant without `ViewWiring` -- Loom refuses the office's publication and no
+    // hearer hears a word; the first check goes red.
+    Rig rig;
+    auto ear = std::make_unique<Listener>(std::vector{loom::schema_of<view::ViewWiring>()});
+    auto* hearer = ear.get();
+    (void)rig.bus.register_weave(std::move(ear), loom::Grant{});
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).ok);
+
+    // AT ITS START: nothing sent, nothing told, said once as the view's office by publication.
+    auto heard = Wirings(*hearer);
+    REQUIRE(heard.count("tally.panel") == 1);
+    CHECK(heard.said.size() == 1);
+    for (const auto& m : hearer->heard) CHECK_FALSE(m.provenance.answers_ask());
+    auto w = heard.last("tally.panel");
+    REQUIRE(w.intents.size() == 1);
+    CHECK(w.intents[0].control == "count");
+    CHECK(w.intents[0].shape == "tally.panel.Count");
+    CHECK(w.intents[0].version == 1);
+    CHECK_FALSE(w.intents[0].sent);
+    CHECK_FALSE(w.intents[0].accepted);
+    REQUIRE(w.fields.size() == 1);
+    CHECK(w.fields[0].element == "total");
+    CHECK(w.fields[0].shape == "tally.Total");
+    CHECK(w.fields[0].version == 1);
+    CHECK(w.fields[0].field == "total");
+    CHECK_FALSE(w.fields[0].told);
+
+    // ACCEPTED: the tally takes Count and tells Total.
+    rig.room("tally.panel");
+    const auto d = panel();
+    rig.press("tally.panel", d.elements[3]);
+    REQUIRE(rig.total() == 45);
+    heard = Wirings(*hearer);
+    w = heard.last("tally.panel");
+    CHECK(w.intents[0].sent);
+    CHECK(w.intents[0].heard == 1);
+    CHECK(w.intents[0].refused == 0);
+    CHECK(w.intents[0].refusal.empty());
+    CHECK(w.intents[0].accepted);
+    CHECK(w.fields[0].told);
+    const auto after_accepted = heard.count("tally.panel");
+
+    // THE SAME AGAIN changes no row, so nothing more is said.
+    rig.press("tally.panel", d.elements[3]);
+    CHECK(Wirings(*hearer).count("tally.panel") == after_accepted);
+
+    // REFUSED: the tally answers a step of 0 with a refusal Loom attests answers that send.
+    rig.fill("tally.panel", d.elements[2], "0");
+    rig.press("tally.panel", d.elements[3]);
+    heard = Wirings(*hearer);
+    w = heard.last("tally.panel");
+    CHECK(w.intents[0].sent);
+    CHECK(w.intents[0].heard == 1);
+    CHECK(w.intents[0].refused == 1);
+    CHECK(w.intents[0].refusal ==
+          "tally on tally.panel.Count at %0 fold math.add: a step of 0 never moves the count from 0 toward 10");
+    CHECK_FALSE(w.intents[0].accepted);
+    CHECK(w.fields[0].told); // told once is told
+    const auto after_refused = heard.count("tally.panel");
+
+    // ACCEPTED AGAIN: the last send is the one that counts.
+    rig.fill("tally.panel", d.elements[2], "1");
+    rig.press("tally.panel", d.elements[3]);
+    REQUIRE(rig.total() == 45);
+    w = Wirings(*hearer).last("tally.panel");
+    CHECK(w.intents[0].accepted);
+    CHECK(w.intents[0].refused == 0);
+    CHECK(w.intents[0].refusal.empty());
+    CHECK(Wirings(*hearer).count("tally.panel") == after_refused + 1);
+}
+
+TEST_CASE("a view's intent that nothing accepts is said unheard, a refusal of an earlier send changes nothing of the last, and an office that arrives later asks and is answered alone") {
+    // ⚔ MUTATION: a refusal counted against whatever send of the intent it answers -- the late
+    // refusal of the first send turns the second's `accepted`; the late-refusal check goes red.
+    Rig rig;
+    auto ear = std::make_unique<Listener>(std::vector{loom::schema_of<view::ViewWiring>()});
+    auto* hearer = ear.get();
+    (void)rig.bus.register_weave(std::move(ear), loom::Grant{});
+    auto d = panel();
+    d.intents[0].shape = shape::make(shape::qualified("tally.panel", "Nobody"), count_shape()->fields());
+    REQUIRE(view::problem(d).empty());
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(d)}).ok);
+    rig.room("tally.panel");
+
+    // UNHEARD: sent, and given to no accepter.
+    rig.press("tally.panel", d.elements[3]);
+    CHECK(has(rig.words("tally.panel"), "said tally.panel.Nobody; nothing accepts it|"));
+    auto w = Wirings(*hearer).last("tally.panel");
+    CHECK(w.intents[0].shape == "tally.panel.Nobody");
+    CHECK(w.intents[0].sent);
+    CHECK(w.intents[0].heard == 0);
+    CHECK_FALSE(w.intents[0].accepted);
+    CHECK_FALSE(w.fields[0].told);
+
+    // LATE: an accepter that answers each send only when the next arrives. Its refusal of the
+    // first send is shown, as any refusal answered to the view is, and the second send, which
+    // nothing has refused, stays accepted.
+    auto refuser = std::make_unique<LateRefuser>(d.intents[0].shape, "too late, no");
+    auto* late_refuser = refuser.get();
+    (void)rig.bus.register_weave(std::move(refuser), loom::Grant{}.allow_any());
+    rig.press("tally.panel", d.elements[3]);
+    w = Wirings(*hearer).last("tally.panel");
+    CHECK(w.intents[0].heard == 1);
+    CHECK(w.intents[0].accepted);
+    const auto before_late = Wirings(*hearer).count("tally.panel");
+    rig.press("tally.panel", d.elements[3]);
+    CHECK(has(rig.said("tally.panel"), "refused: too late, no"));
+    w = Wirings(*hearer).last("tally.panel");
+    CHECK(w.intents[0].heard == 1);
+    CHECK(w.intents[0].refused == 0);
+    CHECK(w.intents[0].accepted);
+    CHECK(Wirings(*hearer).count("tally.panel") == before_late);
+
+    // A STRANGER'S REFUSAL at the last send's correlation is no answer to it, and changes nothing.
+    REQUIRE(late_refuser->seen.size() == 2);
+    (void)rig.bus.send_as(rig.desk_id, rig.bus.role_holder("tally.panel"),
+                          loom::Message(loom::to_value(loom::Refused{"a stranger says no"}), rig.desk_id, {},
+                                        late_refuser->seen.back()));
+    rig.pump();
+    CHECK(Wirings(*hearer).count("tally.panel") == before_late);
+    CHECK(Wirings(*hearer).last("tally.panel").intents[0].accepted);
+
+    // AN OFFICE THAT ARRIVES LATER asks, and every running view answers it alone, as its office,
+    // under the ask's correlation, with what it would say now; the hearer hears nothing more.
+    auto other = panel();
+    other.name = "other.panel";
+    other.intents.clear();
+    REQUIRE(rig.ask(view::ViewRun{"second", bytes_of(other)}).ok);
+    const auto said_before = hearer->heard.size();
+    auto late = std::make_unique<Listener>(std::vector{loom::schema_of<view::ViewWiring>()});
+    auto* asker = late.get();
+    const auto asker_id = rig.bus.register_weave(std::move(late), loom::Grant{}.allow_any());
+    CHECK(rig.bus.publish_as(asker_id, loom::Message(loom::to_value(view::ViewWiringRequested{}), asker_id, {}, 4242)) == 2);
+    rig.pump();
+    CHECK(hearer->heard.size() == said_before);
+    REQUIRE(asker->heard.size() == 2);
+    for (const auto& m : asker->heard) CHECK(m.correlation == 4242);
+    const Wirings answered(*asker);
+    REQUIRE(answered.count("tally.panel") == 1);
+    REQUIRE(answered.count("other.panel") == 1);
+    const auto now = answered.last("tally.panel");
+    REQUIRE(now.intents.size() == 1);
+    CHECK(now.intents[0].sent);
+    CHECK(now.intents[0].heard == 1);
+    CHECK(now.intents[0].accepted);
+    CHECK_FALSE(now.fields[0].told);
+    const auto second = answered.last("other.panel");
+    CHECK(second.intents.empty());
+    REQUIRE(second.fields.size() == 1);
+    CHECK_FALSE(second.fields[0].told);
 }
 
 TEST_CASE("a label or place change at the same shapes reaches the running view in place; a change of shapes registers afresh and says so") {

@@ -6,8 +6,8 @@
 // The view renderer: the behaviour of one participant the view host registers from a
 // description. It draws the description in the graphics window that shows its area, against the
 // latest value it was told, keeps focus, caret and field text as its own, publishes an intent when
-// a control is used, and shows a refusal answered to it. It holds no business state; an owner in
-// its process may pair a `Presenter`. Law: agents/view.md.
+// a control is used, shows a refusal answered to it, and says what its wiring has done. It holds
+// no business state; an owner in its process may pair a `Presenter`. Law: agents/view.md.
 
 #include "view/description.hpp"
 #include "view/vocabulary.hpp"
@@ -26,6 +26,7 @@
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
+#include <zen/serialize.hpp>
 #include <zen/switchboard/bus.hpp>
 #include <zen/switchboard/grant.hpp>
 #include <zen/switchboard/message.hpp>
@@ -54,7 +55,7 @@ namespace ink = zengine::graphics::role;
 
 /// The office every pane answers.
 inline constexpr const char* kWorkshopRole = "zengine.workshop";
-/// The intents a view remembers, to know a refusal answered to one of them.
+/// The sends of its intents a view remembers, to know a refusal answered to one of them.
 inline constexpr std::size_t kRememberedIntents = 16;
 
 namespace detail {
@@ -380,12 +381,49 @@ inline ws::v3::PaneOffered offered(const Description& d) {
                                px(d.height), static_cast<std::int64_t>(kNoticeRows)};
 }
 
-/// The grant a description implies: each intent it says to any accepter, the pane conversation to
-/// Workshop's office alone, and its drawing to a graphics window, which takes an area's drawing
-/// only from its owner, with the ask for its room to the graphics directory. Nothing else.
+/// What one intent's last send met, as a view keeps it: the send's correlation, how many accepters
+/// Loom gave it to, and the refusals Loom attests answer it.
+struct LastSend {
+    std::uint64_t correlation = 0;
+    std::int64_t heard = 0;
+    std::int64_t refused = 0;
+    std::string refusal;
+};
+
+/// WHAT A VIEW'S WIRING HAS DONE (`ViewWiring`): a row for each intent the description says, from
+/// its last send by control id, and one for each field a label shows, told when `told` holds its
+/// shape.
+inline ViewWiring wiring_of(const Description& d, const std::map<std::string, LastSend>& last,
+                            const Told& told) {
+    ViewWiring out;
+    for (const Intent& intent : d.intents) {
+        ViewIntentWiring row;
+        row.control = intent.control;
+        row.shape = intent.shape->name();
+        row.version = static_cast<std::int64_t>(intent.shape->version());
+        if (const auto sent = last.find(intent.control); sent != last.end()) {
+            row.sent = true;
+            row.heard = sent->second.heard;
+            row.refused = sent->second.refused;
+            row.refusal = sent->second.refusal;
+            row.accepted = row.heard > row.refused;
+        }
+        out.intents.push_back(std::move(row));
+    }
+    for (const auto& s : d.shows)
+        out.fields.push_back(ViewFieldWiring{s.element, s.shape->name(), static_cast<std::int64_t>(s.shape->version()),
+                                             s.field, told_at(told, *s.shape) != nullptr});
+    return out;
+}
+
+/// The grant a description implies: each intent it says to any accepter, what its wiring has done
+/// to any accepter, the pane conversation to Workshop's office alone, and its drawing to a graphics
+/// window, which takes an area's drawing only from its owner, with the ask for its room to the
+/// graphics directory. Nothing else.
 inline loom::Grant view_grant(const Description& d) {
     loom::Grant grant;
     for (const auto& shape : d.says()) grant.allow_to_any(shape->name(), shape->version());
+    grant.allow_to_any(ViewWiring::zen_name, ViewWiring::zen_version);
     grant.allow_to_any(graphics::Drawn::zen_name, graphics::Drawn::zen_version);
     grant.allow_to_role(graphics::RoomAsked::zen_name, graphics::RoomAsked::zen_version,
                         graphics::kGraphicsRole);
@@ -461,9 +499,10 @@ private:
 };
 
 /// ONE VIEW, registered by the view host. Its accept-set is the shapes it is told, the pane
-/// conversation and a window's; its emit-set is its intents and those conversations. It speaks to
-/// Workshop and to the window that shows its area as its office, the view's name; its area is its
-/// pane's, `<name>.view`. It says its intents by publication: whoever accepts one hears it.
+/// conversation, a window's and the ask for its wiring; its emit-set is its intents, those
+/// conversations and its wiring. It speaks to Workshop and to the window that shows its area as its
+/// office, the view's name; its area is its pane's, `<name>.view`. It says its intents by
+/// publication, whoever accepts one hearing it, and what its wiring has done as its office.
 class View final : public loom::Weave {
 public:
     explicit View(Description description, std::shared_ptr<Presenter> presenter = {})
@@ -546,7 +585,7 @@ public:
                        loom::schema_of<graphics::AreaKeyPressed>(),
                        loom::schema_of<graphics::AreaTextEntered>(),
                        loom::schema_of<graphics::AreaButtonChanged>(), loom::schema_of<graphics::AreaPointerMoved>(),
-                       loom::schema_of<graphics::AreaWheelTurned>()})
+                       loom::schema_of<graphics::AreaWheelTurned>(), loom::schema_of<ViewWiringRequested>()})
             out.push_back(std::move(s));
         return out;
     }
@@ -556,7 +595,8 @@ public:
         for (auto s : {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
                        loom::schema_of<ws::PaneEscapeUnspent>(),
                        loom::schema_of<ws::PanePassRequested>(), loom::schema_of<ws::PaneRevealRequested>(),
-                       loom::schema_of<graphics::Drawn>(), loom::schema_of<graphics::RoomAsked>()})
+                       loom::schema_of<graphics::Drawn>(), loom::schema_of<graphics::RoomAsked>(),
+                       loom::schema_of<ViewWiring>()})
             out.push_back(std::move(s));
         return out;
     }
@@ -569,6 +609,7 @@ public:
         if (is(loom::schema_of<detail::ViewStart>())) {
             if (!host) return;
             offer(bus);
+            say_wiring(bus);
             if (loom::from_value<detail::ViewStart>(in.payload).reveal) say(bus, ws::PaneRevealRequested{kPane});
             // ...and asks its area's room once a life: a view started again draws in its window again.
             if (!room_asked_ && !window_.shown()) {
@@ -635,6 +676,15 @@ public:
             if (!host) return;
             declare(bus); // a change in place may name other buttons
             show(bus);
+            say_wiring(bus); // ...or show other fields, or what a presenter told
+            return;
+        }
+        if (is(loom::schema_of<ViewWiringRequested>())) {
+            // WHAT ITS WIRING HAS DONE, asked by an office that arrived after it was said: answered
+            // to the asker alone, as this view's office, under the ask's correlation.
+            if (!in.sender.valid()) return;
+            (void)bus.office_send(description_.name, in.sender,
+                                  loom::Message(loom::to_value(wiring()), self_, {}, in.correlation));
             return;
         }
         if (is(loom::schema_of<graphics::AreaKeyPressed>()) ||
@@ -655,21 +705,28 @@ public:
         }
         if (is(loom::schema_of<loom::Refused>())) {
             // Shown only when Loom attests it answers this view's own delivery (ANS-01); the
-            // correlation then says which of its intents it answers.
-            if (!in.provenance.answers_ask() ||
-                std::find(said_.begin(), said_.end(), in.correlation) == said_.end())
-                return;
+            // correlation then says which of its intents it answers, and it counts against that
+            // intent only when it answers the intent's last send.
+            const auto sent = std::find_if(said_.begin(), said_.end(),
+                                           [&](const Said& s) { return s.correlation == in.correlation; });
+            if (!in.provenance.answers_ask() || sent == said_.end()) return;
             const auto refused = loom::from_value<loom::Refused>(in.payload);
             presentation_.notice = "refused: " + refused.reason;
             presentation_.alert = true;
             show(bus);
+            if (const auto last = last_.find(sent->control);
+                last != last_.end() && last->second.correlation == in.correlation) {
+                last->second.refused = std::min(last->second.heard, last->second.refused + 1);
+                last->second.refusal = refused.reason;
+                say_wiring(bus);
+            }
             return;
         }
         if (take(in.payload)) {
-            if (presentation_.alert && std::find(said_.begin(), said_.end(), in.correlation) != said_.end())
-                presentation_.alert = false;
+            if (presentation_.alert && said(in.correlation)) presentation_.alert = false;
             if (!presentation_.alert) presentation_.notice.clear();
             show(bus);
+            say_wiring(bus);
             return;
         }
         if (!workshop) return;
@@ -861,19 +918,44 @@ private:
             value.set(f.field, loom::Cell::integer(number));
         }
         const auto correlation = ++correlation_;
-        said_.push_back(correlation);
+        said_.push_back(Said{correlation, control.id});
         while (said_.size() > kRememberedIntents) said_.pop_front();
         const auto heard = bus.publish(loom::Message(std::move(value), self_, {}, correlation));
         presentation_.notice = "said " + intent->shape->name() +
                                (heard == 0 ? "; nothing accepts it" : "");
         presentation_.alert = heard == 0;
+        last_[control.id] = LastSend{correlation, static_cast<std::int64_t>(heard), 0, {}};
+        say_wiring(bus);
+    }
+
+    bool said(std::uint64_t correlation) const {
+        return std::any_of(said_.begin(), said_.end(), [&](const Said& s) { return s.correlation == correlation; });
+    }
+
+    ViewWiring wiring() const { return wiring_of(description_, last_, told_); }
+
+    /// WHAT ITS WIRING HAS DONE, published as its office to every accepter when it differs from
+    /// what it last said, or nothing has been said yet.
+    void say_wiring(loom::Bus& bus) {
+        auto now = loom::to_value(wiring());
+        auto bytes = loom::serialize(now);
+        if (wiring_said_ && *wiring_said_ == bytes) return;
+        if (bus.office_publish(description_.name, loom::Message(std::move(now), self_)).authored)
+            wiring_said_ = std::move(bytes);
     }
 
     Description description_;
     loom::WeaveId self_{};
     Told told_;
     Presentation presentation_;
-    std::deque<std::uint64_t> said_;
+    /// A send of one of its intents: its correlation, and the button that said it.
+    struct Said {
+        std::uint64_t correlation = 0;
+        std::string control;
+    };
+    std::deque<Said> said_;                  ///< its last `kRememberedIntents` sends
+    std::map<std::string, LastSend> last_;   ///< each button's last send, by its id
+    std::optional<std::string> wiring_said_; ///< the bytes of the wiring it last said
     std::uint64_t correlation_ = 0;
     component::Clipboard clipboard_;
     std::shared_ptr<Presenter> presenter_;

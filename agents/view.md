@@ -21,7 +21,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   description is pure data and its participant publishes, so a name outside its namespace could
   speak for another participant. A label may show any scalar field of any shape: a view listens.
 - `view::Host` registers each view as its own participant, holding the view's name as its office,
-  granted `view::view_grant` alone: its intents to any accepter, the pane conversation to
+  granted `view::view_grant` alone: its intents and its wiring to any accepter, the pane conversation to
   Workshop's office, its drawing to any window (a window takes an area's drawing only from the
   area's owner) and the ask for its room to the graphics directory. Never `trust_every_artifact`,
   an allow-any, or the builder's grant.
@@ -42,6 +42,13 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   told says `waiting`. An intent is published as the participant, by shape: whoever accepts it
   hears it, and the view claims no exclusive audience. A refusal is shown only when Loom attests
   it answers the view's own delivery (`answers_ask()`); the correlation then says which intent.
+- A view says what its wiring has done (`view::ViewWiring`, `view::wiring_of`) as its office, by
+  publication: when it starts and whenever a row changes, never when none did; and, to an asker of
+  `view::ViewWiringRequested` alone, as it is then. A row per intent says its last send's count of
+  accepters from Loom's publication and the refusals Loom attests answer that send, counted only
+  against the intent's last send; `accepted` is more accepters than refusals, never that an
+  accepter acted. A row per shown field says whether that shape was told. It is the view's own
+  word; nothing reads the weaver's files or the picture for it.
 - A view's buttons are its pane's actions (`view::actions_of`): one per intent, its id the
   button's, its cause the intent's shape and no default key, declared from the description so
   the two cannot disagree, re-declared when a change applies in place, and asked by
@@ -153,7 +160,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   shows the area deaf to the pointer, a press names a part and is that place's first-button press
   let go without moving, which begins no drag and carries nothing.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
-  refusal, in-place and fresh apply, a replacement that cannot register, stop, the terminal
+  refusal, the wiring said and asked, in-place and fresh apply, a replacement that cannot register, stop, the terminal
   picture, the picture in a window, its changes, refusals and presses, and the presenter, against
   a window that admits by the window's own judge (`graphics/window/store.hpp`);
   `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
