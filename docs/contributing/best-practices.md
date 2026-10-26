@@ -473,6 +473,8 @@ witnessed by the installed-package witness and `package_vocabulary`.
 `package_vocabulary`, `law_register`, `source_comments`, `code_values` and `folder_map`, which the
 documentation lane runs together.
 
+- **A weave carries its manual, written in the form its page states**; the build refuses a page
+  out of form. [A weave's manual](../../manual/docs/manual.md#the-page)
 - **One page has one reader purpose.**
   [Documentation conventions](repository-conventions.md#documentation-conventions)
 - **A page cites a test case only by a name a test declares, and a law only by an id a register
