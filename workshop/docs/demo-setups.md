@@ -175,6 +175,9 @@ loom-session run demo-runs/values/session workshop/demo-values --name inspect-tw
 
 All three drive the one Info pane and the middle one presses Reset, so each waits for the one
 before it; without `--wait` they would overlap ([why](../../info/docs/info-views.md#the-inspection-workbench)).
+A file a run kept is read by message as well as on disk, page by page against the digest the run
+manager verified -- `loom-session artifact demo-runs/values/session inspect-one <name> --out <file>`
+-- so a client with no shell, or on another machine, reads what a story captured.
 
 For the command setup, run `workshop/inventory-compose-demo` with a fresh `label` each time;
 previous commands are retained. The `presets` setup uses `workshop/inventory-preset-demo`,

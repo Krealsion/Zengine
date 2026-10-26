@@ -312,7 +312,7 @@ def launch(args, source, root):
         approvals += ["authority allow runs %s v1 -> role loom.session" % s
                       for s in ("loom.session.ExpectRun", "loom.session.ForgetRun")]
         approvals += ["authority allow runs loom.runs.%s v1 -> any target" % s
-                      for s in ("Tools", "ToolDescription", "Run", "RunList", "Directive")]
+                      for s in ("Tools", "ToolDescription", "Run", "RunList", "ArtifactPage", "Directive")]
         approvals += ["authority allow runs loom.link.%s v1 -> role loom.link.workshop" % s
                       for s in ("Ask", "StatusRequested")]
         # QUOTED, as the console keeps a quoted word whole: a package a stranger puts under a folder
