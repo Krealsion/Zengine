@@ -95,7 +95,7 @@ public:
             owed_ += step;
             return;
         }
-        move(step, mail);
+        (void)move(step, mail);
     }
 
     /// AN ID THIS PANE NEVER DECLARED IS NO ACT, and spends nothing.
@@ -140,7 +140,11 @@ public:
         if (owed_ != 0) {
             const int step = owed_ > 0 ? 1 : -1;
             owed_ -= step;
-            move(step, mail);
+            if (!move(step, mail)) {
+                // THE VIEW IS AT THE END THOSE STEPS GO TOWARD: they are spent, and none waits
+                // to move it when the record moves later.
+                owed_ = 0;
+            }
         }
     }
 
@@ -160,23 +164,25 @@ private:
 
     /// ONE NOTICE OLDER (`step` 1) OR NEWER (-1): the view's last notice moved, and the page asked.
     /// Older only while the view leaves an older one unshown; newer only while one stands after it.
-    void move(int step, loom::Mail& mail) {
+    /// False, asking nothing, when the view is already at that end.
+    bool move(int step, loom::Mail& mail) {
         if (!heard_) {
-            return;
+            return false;
         }
         const std::vector<nt::KeptNotice>& rows = page_.rows;
         if (step > 0) {
             if (older_hidden_ <= 0 || rows.empty()) {
-                return;
+                return false;
             }
             state_.newest = rows.size() >= 2 ? rows[rows.size() - 2].number : rows.front().number - 1;
         } else {
             if (page_.after <= 0) {
-                return;
+                return false;
             }
             state_.newest = page_.after == 1 ? 0 : page_.next;
         }
         ask(mail);
+        return true;
     }
 
     /// THE PAGE THE ROOM CAN SHOW, asked of the record: as many notices as the room has rows, each
