@@ -47,7 +47,7 @@ bus. A participant asks it, as its office or as itself:
 
 `ViewAnswer{session, action, ok, reason, office, fresh}` is the one answer. A session belongs to
 the office that asked, or to the asker's bus identity, and a host runs at most `view::kMaxViews`.
-A view's grant is `view::view_grant(description)`: each intent to any accepter, its pane
+A view's grant is `view::view_grant(description)`: each intent and its wiring to any accepter, its pane
 conversation to `zengine.workshop` alone, and its drawing to a graphics window, which takes an
 area's drawing only from that area's owner, with the ask for its room to `zengine.graphics` alone.
 It is derived from the description, never from the asker's grant or from the host's trust in its
@@ -56,8 +56,9 @@ plan artifacts.
 ## The view renderer
 
 `view::View` is the participant's behaviour. It accepts the shapes its labels show, `zen.Refused`,
-the pane conversation and a graphics window's, the window's keys and text among them; it emits
-its intents and those conversations, its actions among them.
+the pane conversation and a graphics window's, the window's keys and text among them, and
+`view::ViewWiringRequested`; it emits its intents and those conversations, its actions among them,
+and `view::ViewWiring`.
 
 - It offers one pane, `view`, as its office, asking for its size in canvas pixels, never more
   than `workshop::kMaxPaneBodyPx` of either, and its notice rows of text beneath
@@ -90,6 +91,19 @@ its intents and those conversations, its actions among them.
   `zen.Refused` that Loom attests answers one of its own intents (`answers_ask()`, with that
   intent's correlation) is shown on its notice row; what it was told stays as it was. Anyone
   else's refusal, whatever correlation it carries, is not.
+- It says what its wiring has done, `view::ViewWiring`, as its office (the view's name, which Loom
+  stamps on the delivery), to every participant accepting it: when it starts, and again whenever
+  a row changes, never when none did. One row per intent, in the description's order -- its
+  button, its shape and version, `sent` once a button said it, and of its last send `heard`, the
+  accepters Loom gave it to, `refused`, how many of them answered it with a refusal Loom attests
+  answers that send, and `refusal`, the last such refusal's words -- and `accepted`, that it was
+  given to more accepters than refused it. Accepted says no accepter has refused it, not that one
+  acted on it, and a refusal arriving later can turn it; a refusal answering an earlier send
+  changes nothing of the intent. One row per field a label shows: its label, its shape and version,
+  its field, and `told` once the view was told that shape; what a presenter tells is said when the
+  view draws it (`refresh`). An office that arrives later asks with
+  `view::ViewWiringRequested`, and every running view answers it alone, as its office, under the
+  ask's correlation, with what it would say now.
 - A prose room, from a host with no canvas, gets one row saying the view needs a canvas.
 - In a [graphics window](../../graphics/docs/graphics.md) whose area bears the view's name, it
   draws the same picture. It asks its area's room when it starts (`graphics::RoomAsked`) and
