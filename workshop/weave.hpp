@@ -1379,24 +1379,23 @@ private:
     /// asked, and the quit ends now.
     bool save_last_session(loom::Mail& mail);
 
-    /// THE RESTORE'S SENTENCE, kept while it may stand in the wrong unit: the desk it reopened and
-    /// the layouts it counted, the room in canvas pixels, what was declined and what changed hands.
+    /// THE RESTORE'S SENTENCE, held until a window has named its unit: the desk it reopened and the
+    /// layouts it counted, the room in canvas pixels, what was declined and what changed hands.
     struct RestoreNotice {
         std::string head;
         std::int64_t w = 0;
         std::int64_t h = 0;
         std::string tail;
         bool bad = false;
-        std::uint64_t said = 0; ///< `notices_said_` once it was said
     };
 
     /// THE SENTENCE IN ONE MEDIUM'S UNIT: the room spelled as `cell_px` names it, marked where that
     /// unit cannot say it exactly.
     static std::string restore_notice_text(const RestoreNotice& n, std::int64_t cell_px);
 
-    /// A WINDOW NAMED ITS UNIT: the restore's sentence, said before any window had named one, is
-    /// said again in this one while nothing has been said since. True when it was.
-    bool spell_restore_notice(std::int64_t cell_px);
+    /// THE RESTORE'S SENTENCE, SAID ONCE: the one held, in the unit the first window that offered a
+    /// room named (`cell_px`). True when one was said.
+    bool say_restore_notice(std::int64_t cell_px);
 
     // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------
 
@@ -1498,9 +1497,8 @@ private:
     /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW.
     void refresh_setup_name();
 
+    /// SAY ONE THING, once: the next number, published at the delivery's end.
     void say(std::string text, bool bad);
-    /// ...THE LAST THING SAID, SAID AGAIN IN OTHER WORDS, under the number it was said under.
-    void say_again(std::string text, bool bad);
     /// THE NOTICES SAID IN THIS DELIVERY, each published once at its end (`after_delivery`).
     void publish_notices(loom::Mail& mail);
 
@@ -2010,9 +2008,12 @@ private:
     std::vector<PendingPaste> pending_pastes_;
 
 
-    /// THE RESTORE'S SENTENCE, until the window's offer spells it again in its own unit: a
-    /// restore spells the room in the unit the desk holds, which before the offer is the cell.
+    /// THE RESTORE'S SENTENCE, held from the owner's answer until a window has offered a room, and
+    /// said then in the unit that window named.
     std::optional<RestoreNotice> restore_notice_;
+    /// THE DEVICE UNIT THE FIRST WINDOW THAT OFFERED A ROOM NAMED (`WindowOffered::cell_px`): the
+    /// unit the restore's sentence is said in, whichever window offers itself after.
+    std::optional<std::int64_t> first_unit_;
 
     /// THE OS WINDOW'S OWN ROOM, TO SHAPE IT TO AT RESTORE, AND THE PLACE AFTER IT: held until the
     /// desk's area is in that window, since a window takes a shaping only from an office arranging
@@ -2027,8 +2028,7 @@ private:
     /// Whether the desk has come up (`start_desk`), on a window's first offer.
     bool desk_started_ = false;
 
-    /// How many notices this run has said, so a sentence can tell whether another came after it,
-    /// and the number the last one is published under.
+    /// How many notices this run has said: the number the last one is published under.
     std::uint64_t notices_said_ = 0;
     /// The notices said and not yet published, in the order said.
     std::vector<NoticeSaid> notices_owed_;

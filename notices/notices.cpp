@@ -83,26 +83,14 @@ public:
         moved(mail);
     }
 
-    /// ONE THING WORKSHOP SAID, kept as said: from Workshop alone, a number the record has not kept
-    /// appended after the newest, one it keeps replaced in place, and one older than the newest that
-    /// it does not keep passed over, since that moment's place in the record is gone.
+    /// ONE THING WORKSHOP SAID, kept as heard, after the newest: from Workshop alone, which says each
+    /// notice once.
     // WL-NOTE-02 -- agents/workshop/notices.md
     void on(const ws::NoticeSaid& said, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || said.number <= 0) {
             return;
         }
         std::vector<nt::KeptNotice>& kept = state_.kept;
-        for (nt::KeptNotice& n : kept) {
-            if (n.number == said.number) {
-                n.text = kept_text(said.text);
-                n.refusal = said.refusal;
-                moved(mail);
-                return;
-            }
-        }
-        if (!kept.empty() && said.number < kept.back().number) {
-            return;
-        }
         kept.push_back(nt::KeptNotice{said.number, kept_text(said.text), said.refusal});
         let_go_past_keep();
         moved(mail);

@@ -218,12 +218,16 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if (w.width <= 0 || w.height <= 0) {
         return;
     }
-    // ...AND THE RESTORE'S SENTENCE, said before the window named its unit, said in it.
-    const bool respelled = spell_restore_notice(w.cell_px);
+    // ...AND THE RESTORE'S SENTENCE, held until a window offered a room, said in the unit the first
+    // one named.
+    if (!first_unit_) {
+        first_unit_ = w.cell_px;
+    }
+    const bool said = say_restore_notice(*first_unit_);
     const bool every_pixel = w.cell_px > 0;
     if (!adopt_screen(session_, w.width, w.height, every_pixel ? w.text_advance_px : 0,
                       every_pixel ? w.text_line_px : 0, w.cell_px)) {
-        if (respelled) {
+        if (said) {
             repaint(mail);
         }
         return;
