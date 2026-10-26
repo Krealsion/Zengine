@@ -162,6 +162,188 @@ TEST_CASE("a canvas sends the whole picture to a new window, then only what chan
     CHECK_FALSE(canvas.holds(3));
 }
 
+namespace {
+
+/// An area of the window's store, holding `whole` drawn whole by its owner.
+gfx::window::WinArea store_holding(const gfx::Sketch& whole) {
+    gfx::window::WinArea a;
+    a.area = "test.store";
+    a.w = 1024;
+    a.h = 768;
+    gfx::Drawn first;
+    first.whole = true;
+    first.put = whole.nodes();
+    REQUIRE(gfx::window::judge(a, {}, first).empty());
+    (void)gfx::window::apply(a, {}, first);
+    return a;
+}
+
+/// Each kept node's path and rank, in the order the store keeps them.
+std::vector<std::pair<std::string, std::int64_t>> ranks_of(const gfx::window::WinArea& a) {
+    std::vector<std::pair<std::string, std::int64_t>> out;
+    for (const gfx::window::KeptNode& k : a.nodes) {
+        out.emplace_back(k.node.path, k.rank);
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("a node put again keeps its rank, so the paint order holds, and a new node takes the next") {
+    gfx::Sketch s;
+    s.text("a", 0, 0, "a", gfx::Paint{});
+    s.text("b", 0, 1, "b", gfx::Paint{});
+    s.text("c", 0, 2, "c", gfx::Paint{});
+    gfx::window::WinArea a = store_holding(s);
+    CHECK(ranks_of(a) == std::vector<std::pair<std::string, std::int64_t>>{{"a", 1}, {"b", 2}, {"c", 3}});
+    // C AND A PUT AGAIN, IN THAT ORDER, AND D NEW: the two keep their ranks, d takes 4.
+    gfx::Drawn d;
+    d.put = {gfx::Node{"c", "text", {}}, gfx::Node{"a", "text", {}}, gfx::Node{"d", "text", {}}};
+    REQUIRE(gfx::window::judge(a, {}, d).empty());
+    const gfx::window::Applied applied = gfx::window::apply(a, {}, d);
+    CHECK(applied.changed == std::set<std::string>{"a", "c", "d"});
+    CHECK(applied.gone.empty());
+    CHECK(ranks_of(a) ==
+          std::vector<std::pair<std::string, std::int64_t>>{{"a", 1}, {"b", 2}, {"c", 3}, {"d", 4}});
+    CHECK(a.nodes[0].node.op == "text");
+    CHECK(a.nodes[0].node.args.empty()); // the node put again holds what it was put with
+    const auto at = gfx::window::index_of(a);
+    CHECK(gfx::window::key_of(at, "c") < gfx::window::key_of(at, "d"));
+    CHECK(gfx::window::key_of(at, "a") < gfx::window::key_of(at, "c"));
+    // A PATH PUT TWICE IN ONE DRAWING IS ONE NODE, holding the later.
+    gfx::Drawn twice;
+    twice.put = {gfx::Node{"e", "text", {}}, gfx::Node{"e", "rect", {}}};
+    (void)gfx::window::apply(a, {}, twice);
+    CHECK(std::count_if(a.nodes.begin(), a.nodes.end(),
+                        [](const gfx::window::KeptNode& k) { return k.node.path == "e"; }) == 1);
+    CHECK(a.nodes.back().node.op == "rect");
+    CHECK(a.nodes.back().rank == 5);
+    CHECK(a.next_rank == 6);
+}
+
+TEST_CASE("a group put changes every node beneath it, and a leaf put changes itself alone") {
+    gfx::Sketch s;
+    s.group("g", 0, 0, 10, 10);
+    s.text("g/x", 0, 0, "x", gfx::Paint{});
+    s.group("g/y", 1, 1, 5, 5);
+    s.text("g/y/z", 0, 0, "z", gfx::Paint{});
+    s.text("gx", 0, 0, "gx", gfx::Paint{}); // a sibling whose path begins with the group's
+    s.text("h", 0, 1, "h", gfx::Paint{});
+    gfx::window::WinArea a = store_holding(s);
+    gfx::Drawn group;
+    group.put = {gfx::Node{"g", "group", {}}};
+    CHECK(gfx::window::apply(a, {}, group).changed ==
+          std::set<std::string>{"g", "g/x", "g/y", "g/y/z"});
+    gfx::Drawn inner;
+    inner.put = {gfx::Node{"g/y", "group", {}}};
+    CHECK(gfx::window::apply(a, {}, inner).changed == std::set<std::string>{"g/y", "g/y/z"});
+    gfx::Drawn leaves;
+    leaves.put = {gfx::Node{"h", "text", {}}, gfx::Node{"gx", "text", {}}, gfx::Node{"g/x", "text", {}}};
+    CHECK(gfx::window::apply(a, {}, leaves).changed == std::set<std::string>{"h", "gx", "g/x"});
+    // A NEW NODE IN A GROUP PUT IN THE SAME DRAWING is changed once, beside the rest of the group.
+    gfx::Drawn both;
+    both.put = {gfx::Node{"g/y", "group", {}}, gfx::Node{"g/y/w", "text", {}}};
+    REQUIRE(gfx::window::judge(a, {}, both).empty());
+    CHECK(gfx::window::apply(a, {}, both).changed ==
+          std::set<std::string>{"g/y", "g/y/z", "g/y/w"});
+}
+
+TEST_CASE("a removal takes a node's subtree and the records in it, and says each path gone") {
+    gfx::Sketch s;
+    s.group("g", 0, 0, 10, 10);
+    s.text("g/x", 0, 0, "x", gfx::Paint{});
+    s.text("g/x/deep", 0, 0, "d", gfx::Paint{});
+    s.text("gx", 0, 0, "gx", gfx::Paint{});
+    s.text("h", 0, 1, "h", gfx::Paint{});
+    gfx::window::WinArea a = store_holding(s);
+    gfx::Drawn said;
+    said.said = {gfx::ElementRecord{"g/x", "test.Face", {}, "pick"},
+                 gfx::ElementRecord{"gx", "test.Face", {}, "other"}};
+    REQUIRE(gfx::window::judge(a, {}, said).empty());
+    (void)gfx::window::apply(a, {}, said);
+    REQUIRE(a.records.size() == 2);
+    gfx::Drawn d;
+    d.removed = {"g", "h"};
+    REQUIRE(gfx::window::judge(a, {}, d).empty());
+    const gfx::window::Applied applied = gfx::window::apply(a, {}, d);
+    CHECK(ranks_of(a) == std::vector<std::pair<std::string, std::int64_t>>{{"gx", 4}});
+    CHECK(std::set<std::string>(applied.gone.begin(), applied.gone.end()) ==
+          std::set<std::string>{"g", "g/x", "g/x/deep", "h"});
+    CHECK(applied.gone.size() == 4);
+    CHECK(applied.changed.empty());
+    REQUIRE(a.records.size() == 1);
+    CHECK(a.records[0].path == "gx");
+    // A RECORD WHOSE NODE A WHOLE DRAWING LEAVES OUT GOES WITH IT, and a node put again under a
+    // removed path is new: the next rank.
+    gfx::Drawn whole;
+    whole.whole = true;
+    whole.put = {gfx::Node{"g", "group", {}}};
+    REQUIRE(gfx::window::judge(a, {}, whole).empty());
+    const gfx::window::Applied replaced = gfx::window::apply(a, {}, whole);
+    CHECK(ranks_of(a) == std::vector<std::pair<std::string, std::int64_t>>{{"g", 6}});
+    CHECK(a.records.empty());
+    CHECK(replaced.gone == std::vector<std::string>{"gx"});
+    CHECK(replaced.changed == std::set<std::string>{"g"});
+}
+
+TEST_CASE("a whole drawing by the owner replaces its own nodes and keeps an element's subtree") {
+    gfx::Sketch s;
+    s.text("label", 0, 0, "label", gfx::Paint{});
+    s.group("field", 0, 1, 10, 1);
+    gfx::window::WinArea a = store_holding(s);
+    a.presented.push_back(gfx::window::Presented{"field", "test.Field", 1, 1, {}});
+    gfx::window::Drawer element;
+    element.element = true;
+    element.scope = "field";
+    gfx::Drawn inside;
+    inside.put = {gfx::Node{"field/text", "text", {}}};
+    REQUIRE(gfx::window::judge(a, element, inside).empty());
+    (void)gfx::window::apply(a, element, inside);
+    // THE OWNER DRAWS WHOLE: its label goes, its new node comes, the element's nodes stay.
+    gfx::Drawn whole;
+    whole.whole = true;
+    whole.put = {gfx::Node{"title", "text", {}}};
+    REQUIRE(gfx::window::judge(a, {}, whole).empty());
+    const gfx::window::Applied applied = gfx::window::apply(a, {}, whole);
+    CHECK(ranks_of(a) ==
+          std::vector<std::pair<std::string, std::int64_t>>{{"field", 2}, {"field/text", 3}, {"title", 4}});
+    CHECK(applied.gone == std::vector<std::string>{"label"});
+    CHECK(applied.changed == std::set<std::string>{"title"});
+}
+
+TEST_CASE("a change to every one of an area's most nodes, flat siblings, changes each once and keeps every rank") {
+    const auto picture = [](bool changed) {
+        gfx::Sketch s;
+        for (std::size_t i = 0; i < gfx::kMaxNodesPerArea; ++i) {
+            s.text("node" + std::to_string(i), static_cast<std::int64_t>(i % 80),
+                   static_cast<std::int64_t>(i / 80), changed ? "changed" : "initial", gfx::Paint{});
+        }
+        return s;
+    };
+    const gfx::Sketch before = picture(false);
+    const gfx::Sketch after = picture(true);
+    gfx::window::WinArea a = store_holding(before);
+    const gfx::Drawn dense = gfx::difference(before, after);
+    REQUIRE(dense.put.size() == gfx::kMaxNodesPerArea);
+    REQUIRE(gfx::window::judge(a, {}, dense).empty());
+    const gfx::window::Applied applied = gfx::window::apply(a, {}, dense);
+    CHECK(applied.changed.size() == gfx::kMaxNodesPerArea);
+    CHECK(applied.gone.empty());
+    REQUIRE(a.nodes.size() == gfx::kMaxNodesPerArea);
+    bool ranked = true;
+    for (std::size_t i = 0; i < a.nodes.size(); ++i) {
+        ranked = ranked && a.nodes[i].node.path == "node" + std::to_string(i) &&
+                 a.nodes[i].rank == static_cast<std::int64_t>(i) + 1;
+    }
+    CHECK(ranked);
+    // ...AND ONE NODE CHANGED BACK CHANGES THAT ONE ALONE.
+    gfx::Sketch one = after;
+    one.text("node7", 7, 0, "initial", gfx::Paint{});
+    const gfx::Drawn sparse = gfx::difference(after, one);
+    REQUIRE(sparse.put.size() == 1);
+    CHECK(gfx::window::apply(a, {}, sparse).changed == std::set<std::string>{"node7"});
+}
+
 TEST_CASE("the terminal painter draws all seven operators, each by its fallback") {
     gfx::Sketch s;
     s.group("g", 12, 0);
