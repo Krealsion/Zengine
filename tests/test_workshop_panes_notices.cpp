@@ -471,6 +471,14 @@ TEST_CASE("a flood of wheel notches moves the Notices pane one notice a notch, n
         t.r.key(input::scan::kUp);
     }
     CHECK(t.shown().back() == "  ... 40 newer");
+    // ...AND NOTCHES PAST THE NEWEST ARE SPENT THERE: the view follows, and what is said after
+    // finds no step still waiting to move it.
+    t.r.wheel_cell(-60.0, body.x + 2, body.y + 1);
+    CHECK(t.shown().back().rfind("  ... ", 0) != 0);
+    t.unfocus();
+    t.refusal();
+    CHECK(t.bottom_notice() == t.r.session().notice);
+    CHECK(t.shown().back().rfind("  ... ", 0) != 0);
 }
 
 TEST_CASE("a notice said while the Notices pane is closed is there when it opens") {
