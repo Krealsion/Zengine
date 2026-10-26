@@ -475,11 +475,11 @@ private:
     void offer(loom::Mail& mail) {
         (void)mail.as_role(kOffice).send_to_role(
             kWorkshop, ws::v2::PaneOffered{kPane, "Quick setup",
-                                           "how you edit text, and the ready-to-use setups", 22, 80});
+                                           "how you edit text, and the ready-to-use setups", 36, 80});
         (void)mail.as_role(kOffice).send_to_role(
             kWorkshop, ws::v2::PaneOffered{kStory, "Start here",
                                            "the story a step at a time, each ticked as it happens",
-                                           24, 80});
+                                           34, 80});
         const auto rows = [](const char* pane, const char* up, const char* down, const char* choose,
                              std::vector<ws::ActionCause> causes) {
             ws::v3::PaneActions actions;
@@ -735,7 +735,7 @@ private:
 
     void pressed_setup(const ws::WindowPointer& p, const gfx::AreaButtonChanged& b,
                        loom::Mail& mail) {
-        const std::vector<fr::Line> lines = fr::lines_of(moment_);
+        const std::vector<fr::Line> lines = fr::lines_of(moment_, columns(window_));
         if (!b.pressed || b.button != 1 || !p.at.shown || p.at.row < 0 ||
             static_cast<std::size_t>(p.at.row) >= lines.size()) {
             return;
@@ -753,7 +753,7 @@ private:
     }
     void pressed_story(const ws::WindowPointer& p, const gfx::AreaButtonChanged& b,
                        loom::Mail& mail) {
-        const std::vector<fr::StoryLine> lines = fr::story_lines(story_);
+        const std::vector<fr::StoryLine> lines = fr::story_lines(story_, columns(story_window_));
         if (!b.pressed || b.button != 1 || !p.at.shown || p.at.row < 0 ||
             static_cast<std::size_t>(p.at.row) >= lines.size()) {
             return;
@@ -818,10 +818,10 @@ private:
         rows_drawn.sketch.number(static_cast<std::int64_t>(meaning >> 1));
         w.draw(rows_drawn.sketch, mail);
     }
-    void show(loom::Mail& mail) { draw(window_, fr::lines_of(moment_), mail); }
+    void show(loom::Mail& mail) { draw(window_, fr::lines_of(moment_, columns(window_)), mail); }
     void show_story(loom::Mail& mail) {
         story_.ticks = ticks_;
-        draw(story_window_, fr::story_lines(story_), mail);
+        draw(story_window_, fr::story_lines(story_, columns(story_window_)), mail);
     }
 
     // NOT STATE: the layouts' owner keeps the settings, the switch the editor, and each owner its
