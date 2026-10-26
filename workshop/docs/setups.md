@@ -105,7 +105,7 @@ and taking `Info` off the desk gives you its columns to reach rather than column
 |---|---|
 | <!-- key layout.next -->`.`<!-- /key --> | the next layout |
 | <!-- key layout.previous -->`,`<!-- /key --> | the previous one |
-| <!-- key layout.new -->`=`<!-- /key -->, or press `+` | a new layout, added at the end, holding the desk a fresh Workshop opens on: Layouts, and Info at the right edge |
+| <!-- key layout.new -->`=`<!-- /key -->, or press `+` | a new layout, added at the end, holding the desk a fresh Workshop opens on: Layouts, Info at the top right and Notices at the bottom left |
 | <!-- key layout.remove -->`ctrl+w`<!-- /key --> | remove the layout you are on |
 | press a tab | go to that layout |
 | **double-click a tab** | rename that layout |
@@ -249,7 +249,7 @@ pixels in a window:
 reopened your last desk "Debugging" -- 1440x528 px
 ```
 
-![A window reopened at 1440x900: the notice, at the window's foot where Workshop said it before it had a pane for it, says reopened your last desk "Default" -- 1440x900 px, above the band's keys](images/restore-notice-window.png)
+![The foot of a window reopened at 1440x900: the Notices pane, at the bottom left, says reopened your last desk "Default" -- 1440x900 px, and below it the band holds only the keys](images/restore-notice-window.png)
 
 ...cells in a terminal (`120x44 cells`), and when more than one layout came back, which one of
 how many you are standing on:
