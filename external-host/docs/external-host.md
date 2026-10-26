@@ -114,7 +114,17 @@ weaver's files, put its words where the weaver commits them, or reach a shell:
   open a pane relays on its behalf -- the Composer's Submit, a stored command -- whose path
   Workshop does not see.
 
-![A 1440 by 720 Workshop on a weaver's host: the Connections pane says the admitted guest's row is version 2 and names what it does not reach here, file writes first; the Attention pane stands a condition that the guest does not reach everything its powers name; and the band says, in red, that a guest's typed text rests in no pane](images/guest-on-a-weavers-host.png)
+**The press itself is admitted; the refusal is said.** Input takes a refused press like any other,
+and Workshop says the refusal in the press's own delivery, as a notice marked a refusal: the
+[Notices pane](../../notices/docs/zengine.notices-pane.md) shows it, and a tool that only presses
+passes. `workshop/act` hears it: it follows what Workshop says from before its first press, and a
+refusal its own press caused ends the run naming the step and Workshop's words -- for a row whose
+`observe` names `zengine.workshop` `NoticeSaid` `1` beside `capture`, as `demo.py` writes every row
+that may capture ([following what an owner
+says](#following-what-an-owner-says-instead-of-reading-its-pane)). A refusal Workshop says later,
+from work no press caused in its own delivery, carries no press and is not heard.
+
+![A 1600 by 900 Workshop on a weaver's host: the Connections pane says the admitted guest's row is version 3 and names what it does not reach here, file writes first; the Attention pane stands the conditions its powers raise here; the Notices pane says, in red, that the setup was not saved, since only the weaver's hand writes a file here -- the refusal of the guest's `s`, which workshop/act heard and failed on; and the band is the keys' legend](images/guest-on-a-weavers-host.png)
 
 On a **development host** none of these is refused: a guest with `input` writes, types and reaches
 the editor and the Terminal there as the weaver would, and one with `build` builds. A guest's
@@ -305,7 +315,8 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   part a pane names by its name, press into a pane or on one of its words, in a text or a canvas
   pane, or on a line of the menu on the screen, turn the wheel over a part by its name or over a
   pane's first word, check a pane's place, size, state or keys on the desk by number, expect or
-  rule out text, keep a pane's words and named parts or a picture -- a cropped PNG if asked),
+  rule out text, keep a pane's words and named parts or a picture -- a cropped PNG if asked; a
+  press Workshop refuses fails its step, in Workshop's words),
   `workshop/place` (a pane's place and size written through Info, one field at a time, each
   row chosen by the name Info gives it),
   `workshop/builder` (the [Builder pane](../../builder/docs/zengine.builder-pane.md)'s keys, each followed to its owner's answer: a
@@ -631,6 +642,14 @@ names — one entry per office, shape and version, the version written as Zen's 
   the build's ending and, separately, the realization's. A status about a later ask before its
   ending is SUPERSEDED, never taken for it. From the press on, the pane may be covered, closed or
   resized. The Builder's words: [the Builder](../../builder/docs/zengine.builder.md#follow).
+- **What Workshop says, heard by `workshop/act`.** A row observing `zengine.workshop` `NoticeSaid`
+  `1` beside `capture` hears each thing Workshop says, once, as it says it, with `refusal` set when
+  it refused. `workshop/act` subscribes before its first press, keeps beside each step what its
+  presses caused (`said` in `steps.json`), and fails the step whose press Workshop refused, in
+  Workshop's words; anything else Workshop says fails nothing. A gap or the subscription's end
+  over a press ends the run UNRESOLVED -- whether it was refused cannot be told -- and a press after
+  the end is not made. A row that may not hear it is pressed as before, and the result says its
+  refusals went unheard and why. `demo.py`'s rows name it beside `DeskStamps` (`following_the_desk`).
 - **Promote and revert are the realization owner's to answer** (`zengine.realization`). Their
   press causes `RealizationAsked` — the owner's word that it took the ask as number N, or refused
   it and why — and the answer names N: `ArtifactPromoted` in the same delivery, `ArtifactRealized`
@@ -966,9 +985,9 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   `PaneInventory`, the panes the Pane Manager lists with each one's state, and `KeymapShown`, the
   bindings in force.
 
-![A 1440 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)
+![A 1600 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, given the View Builder by the Pane Manager's inspect in Info and holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)
 
-![A 1440 by 900 window after a walk by names: the View Builder, opened by its Pane Manager row's name, made button1 when kind:button was pressed, and selected it when element:button1 was pressed where the redraw had moved it; control:view.run ran the view my.view, in front, and element:button1 pressed in it says button1 says nothing yet](images/parts-pressed-by-name.png)
+![A 1600 by 900 window after a walk by names: the View Builder, opened by its Pane Manager row's name, made button1 when kind:button was pressed, and selected it when element:button1 was pressed where the redraw had moved it; control:view.run ran the view my.view, in front, and its button1, pressed by its name there, says button1 says nothing yet](images/parts-pressed-by-name.png)
 
 ![Two overlapping buttons pressed by name in a 1440 by 900 window, each where its pane gives it the press: above, button2 lies over button1's centre and the View Builder selects button1 when element:button1 is pressed, on the part of it button2 leaves; below, the running view my.view says button1 says nothing yet when its element:button1 is pressed](images/overlapping-parts-pressed-by-name.png)
 
@@ -997,7 +1016,8 @@ follows Workshop's notice from its first wait and reads the pane again when that
 the desk number moved, never on a clock -- a reading in flight too, whose settling moves its stamp.
 A row that may not follow the notice -- no `capture`, or no `DeskStamps` in its `observe` -- reads
 again every 0.2 seconds at every wait; `workshop/act` says so in its result and counts each step's
-`clock_waits` in `steps.json`.
+`clock_waits` in `steps.json`. One that may not hear what Workshop says -- no `NoticeSaid` in its
+`observe` -- presses as before, and `workshop/act`'s result says its refusals went unheard.
 `workshop/act` steps on them: `at` presses one cell of a pane's text lattice the same way
 (`{"at": ["td.game", "td", 5, 17]}`); `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
