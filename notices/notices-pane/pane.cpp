@@ -130,14 +130,11 @@ public:
         asking_ = false;
         page_ = shown;
         heard_ = true;
-        if (state_.newest != 0 && (shown.after == 0 || shown.rows.empty())) {
-            // THE VIEW REACHED THE NEWEST, or the notice it ended at was let go: it follows the
-            // newest from here.
+        if (state_.newest != 0 && shown.rows.empty() && shown.after > 0) {
+            // THE NOTICE THE VIEW ENDED AT WAS LET GO: it follows the newest from here.
             state_.newest = 0;
-            if (shown.rows.empty() && shown.after > 0) {
-                ask(mail);
-                return;
-            }
+            ask(mail);
+            return;
         }
         say(mail);
         if (owed_ != 0) {

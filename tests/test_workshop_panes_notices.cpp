@@ -410,6 +410,14 @@ TEST_CASE("the Notices pane shows the launch's notes and every notice after them
     CHECK(t.bottom_notice() == t.r.session().notice);
     t.refusal();
     CHECK(t.bottom_notice() == t.r.session().notice);
+    // ...THE REFUSAL IN THE ALERT'S ROLE, a statement in the ordinary ink.
+    std::int64_t refusal_role = gfx::role::kNone, statement_role = gfx::role::kNone;
+    for (const HeldRun& run : held_runs(t.kind())) {
+        if (run.text.find("only layout") != std::string::npos) refusal_role = run.role;
+        if (run.text.find(NoticesRig::kLaunchNote) != std::string::npos) statement_role = run.role;
+    }
+    CHECK(refusal_role == gfx::role::kAlert);
+    CHECK(statement_role == gfx::role::kFill);
 }
 
 TEST_CASE("a key and a wheel's notch move the Notices pane's rows the same") {
@@ -443,8 +451,10 @@ TEST_CASE("a key and a wheel's notch move the Notices pane's rows the same") {
     CHECK(later.back() != back.back());
     t.r.wheel_cell(-20.0, body.x + 2, body.y + 1);
     CHECK(t.bottom_notice() == t.r.session().notice);
-    t.statement();
+    t.refusal(); // words no earlier notice says
     CHECK(t.bottom_notice() == t.r.session().notice);
+    CHECK(t.shown().back().rfind("  ... ", 0) != 0); // the newest is the last row: no newer
+
 }
 
 TEST_CASE("a flood of wheel notches moves the Notices pane one notice a notch, none lost") {
