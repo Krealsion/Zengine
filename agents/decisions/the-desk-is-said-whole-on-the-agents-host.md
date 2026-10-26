@@ -19,7 +19,7 @@ moved is refused as stale. A covered pane says its visible
 words only and names what covers it. Workshop names its own Layouts' tabs as parts. Desk reads are
 bounded by a rate per asker. A guest session holding `capture` is answered the desk, the inventory
 and the keymap, and `capture`'s widening is said; an observe row reads only what its powers read.
-The agent's own reader, `desk/read`, in a tool package of its own, writes the reading as files on
+The agent's own reader, `desk-machine/read`, in a tool package of its own, writes the reading as files on
 the agent's host: `AGENTS.md` first, in its own fixed words, then the guide and the readings.
 
 **Alternatives considered.** - *Decoded cells as a reply's only bound* -- tried: a legal picture,

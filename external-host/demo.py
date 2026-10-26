@@ -19,8 +19,12 @@ import time
 import uuid
 
 HERE = Path(__file__).resolve().parent
+# The tool packages a setup's session approves: each by message alone, and its `-machine` sibling,
+# which builds on it and reaches this machine (`workshop-machine/demo-serve` reads the setup).
 PACKAGE = HERE / "tools" / "workshop"
-DESK_PACKAGE = HERE / "tools" / "desk"  # the reader, `desk/read`: the desk said whole
+MACHINE_PACKAGE = HERE / "tools" / "workshop-machine"
+DESK_PACKAGE = HERE / "tools" / "desk"
+DESK_MACHINE_PACKAGE = HERE / "tools" / "desk-machine"  # the reader, `desk-machine/read`
 EXAMPLES = HERE.parent / "examples"
 # Where a checkout's setups are found beside the tool package's own: each example's, and each
 # feature's tutorials (`<feature>/docs/tutorials/<name>/`), which an install gathers into the package.
@@ -270,8 +274,8 @@ def launch(args, source, root):
     # guest types, writes and builds as a weaver would (external-host/docs/external-host.md).
     save_json(wdir / "guests.json", formats.guests([guest], formats.DEVELOPMENT_HOST,
                                                    port_file=wdir / "guests.port"))
-    packages = [{"path": str(PACKAGE), "approve": "any-revision"},
-                {"path": str(DESK_PACKAGE), "approve": "any-revision"}]
+    packages = [{"path": str(p), "approve": "any-revision"}
+                for p in (PACKAGE, MACHINE_PACKAGE, DESK_PACKAGE, DESK_MACHINE_PACKAGE)]
     packages += [{"path": str(setup.asset(t)), "approve": "any-revision"} for t in setup.get("tools", [])]
     save_json(sdir / "loom-tools.json", {"python": sys.executable,
         "runtime": str(prefix / "lib" / "loom" / "python"), "packages": packages})
@@ -323,7 +327,7 @@ def launch(args, source, root):
 
         wait_for(admitted, 90, "the Loom session admitting its link to Workshop")
         with module.Session.attach(str(sdir)) as session:
-            service = session.start("workshop/demo-serve", "demo-service", {"setup": str(setup.root)})
+            service = session.start("workshop-machine/demo-serve", "demo-service", {"setup": str(setup.root)})
             config = {"setup": setup.name, "directory": str(source.root), "digest": source.digest(),
                       "prepared": str(setup.root),
                       "medium": "tui" if args.tui else "sdl", "build": str(build), "loom_prefix": str(prefix),

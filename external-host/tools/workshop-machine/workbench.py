@@ -14,8 +14,11 @@ from workshop_steps import picture
 import workbench_folders as folders
 from workbench_folders import shows
 
-PACKAGED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toolboxes", "inspection-workbench.toolbox")
-ORGANIZED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toolboxes", "inspection-workbench-organized.toolbox")
+# The packaged toolboxes are the `workshop` package's, beside the setups that name them: found in
+# that package's snapshot, which this one uses.
+TOOLBOXES = os.path.join(os.path.dirname(os.path.abspath(folders.__file__)), "toolboxes")
+PACKAGED = os.path.join(TOOLBOXES, "inspection-workbench.toolbox")
+ORGANIZED = os.path.join(TOOLBOXES, "inspection-workbench-organized.toolbox")
 LABELS = {"sample": "Workbench sample", "note": "Workbench note",
           "preset": "Workbench capture preset", "command": "Workbench capture command"}
 RESULT = "Workbench result"

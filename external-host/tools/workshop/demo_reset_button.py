@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
 from hand import Hand
-from demo_setup import ROLE
+from demo_asks import ROLE
 import json
 
 

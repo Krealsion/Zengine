@@ -194,13 +194,17 @@ def main():
     package_for(desk_src, os.path.join(pkgs, "desk"), "desk", "workshop")
     package_for(desk_src, os.path.join(pkgs, "desk-whole"), "desk-whole", "whole")
     package_for(desk_src, os.path.join(pkgs, "desk-narrow"), "desk-narrow", "narrow")
+    # The reader that writes the desk as files, run only to show a failure, builds on `desk`.
+    package_for(os.path.join(args.tools, "desk-machine"), os.path.join(pkgs, "desk-machine"),
+                "desk-machine", "workshop")
     # THE PLAN WAIT goes through the row that reads every pane and the door's inventory.
     package_for(os.path.join(args.tools, "workshop"), os.path.join(pkgs, "workshop-whole"),
                 "workshop-whole", "whole")
     with open(os.path.join(sdir, "loom-tools.json"), "w", encoding="utf-8") as f:
         json.dump({"python": sys.executable, "runtime": args.loom_runtime, "packages": [
             {"path": os.path.join(pkgs, p), "approve": "any-revision"}
-            for p in ("desk", "desk-whole", "desk-narrow", "workshop-whole")]}, f, indent=1)
+            for p in ("desk", "desk-machine", "desk-whole", "desk-narrow", "workshop-whole")]},
+                  f, indent=1)
     links = [("workshop", "tutor-key"), ("whole", "whole-key"), ("narrow", "narrow-key")]
     with open(os.path.join(sdir, "loom-boot.json"), "w", encoding="utf-8") as f:
         json.dump({"boot": [{"name": "runs", "path": args.loom_runs, "role": "loom.runs"},
@@ -277,7 +281,7 @@ def main():
         if not check("R2 after the weaver's Ctrl+P the Pane Manager's row for the Builder is marked as the "
                      "nearest step", state == "passed" and marked and row, said):
             out = os.path.join(work, "desk-read")
-            run("desk/read", {"out": out})
+            run("desk-machine/read", {"out": out})
             panes = os.path.join(out, "panes")
             for name in sorted(os.listdir(panes)) if os.path.isdir(panes) else []:
                 if "launcher" in name:

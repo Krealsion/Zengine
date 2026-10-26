@@ -4,14 +4,13 @@
 visible Reset button. Product state changes always go through their owners; what a setup
 prepares is read from its description (setups.py, workshop/docs/demo-setups.md)."""
 import base64
-from collections import Counter
 import json
 from pathlib import Path
 import time
 
 import setups as described
+from demo_asks import ROLE, Measured
 
-ROLE = "zengine.demo"
 PANE = "zengine.inventory-pane"
 WORKSHOP = "zengine.workshop"
 NO_ENTRY = {"owner": "", "entry": ""}
@@ -35,24 +34,6 @@ def save_text(path, text):
     temporary = path.with_suffix(path.suffix + ".new")
     temporary.write_text(text, encoding="utf-8")
     temporary.replace(path)
-
-
-class Measured:
-    def __init__(self, ctx):
-        self.ctx, self.calls, self.outcomes = ctx, Counter(), Counter()
-
-    def __getattr__(self, name):
-        return getattr(self.ctx, name)
-
-    def ask(self, role, shape, fields, **kwargs):
-        self.calls[shape] += 1
-        try:
-            answer = self.ctx.ask(role, shape, fields, **kwargs)
-            self.outcomes["answered"] += 1
-            return answer
-        except Exception:
-            self.outcomes["failed_or_unanswered"] += 1
-            raise
 
 
 class Owners:
@@ -480,27 +461,3 @@ def serve(ctx):
         ctx.produce("setup.json", json.dumps(state, indent=2, default=str).encode())
         ctx.ask(ROLE, "DemoWorkFinished", {"generation": work["generation"], "passed": passed,
                                           "note": note}, via=link, settle=True)
-
-
-def reset(ctx):
-    started = time.monotonic()
-    ctx.ask(ROLE, "DemoResetRequested", {}, via=ctx.inputs["link"], timeout=float(ctx.inputs.get("seconds", 600)))
-    status = ctx.ask(ROLE, "DemoStatusRequested", {}, via=ctx.inputs["link"])
-    ctx.check(status["state"] == "ready", "reset did not produce a ready demo")
-    ctx.produce("reset.json", json.dumps({"status": status.fields,
-                "elapsed_ms": (time.monotonic() - started) * 1000}, indent=2).encode())
-    return "Demo reset completed; unrelated entries and run evidence were retained."
-
-
-def status(ctx):
-    from workshop_steps import plan_at_rest
-    # Asked before the plan is at rest, the demo's control may not be declared yet.
-    plan_at_rest(ctx, ctx.inputs["link"])
-    if ctx.inputs.get("wait", False):
-        result = ctx.ask(ROLE, "DemoReadyRequested", {"generation": 1}, via=ctx.inputs["link"],
-                         timeout=float(ctx.inputs.get("seconds", 600)))
-    else:
-        result = ctx.ask(ROLE, "DemoStatusRequested", {}, via=ctx.inputs["link"])
-    ctx.check(result["state"] == "ready" or not ctx.inputs.get("wait", False), result["note"])
-    ctx.produce("status.json", json.dumps(result.fields, indent=2).encode())
-    return result["state"] + ": " + result["note"]

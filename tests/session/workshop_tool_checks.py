@@ -1142,7 +1142,10 @@ def picture(ctx, link, name):
 
 
 def run_checks(tools, runtime):
-    sys.path[:0] = [str(Path(runtime).resolve()), str(Path(tools).resolve())]
+    # As a worker of a `-machine` tool finds them: its own package's modules, then this one's.
+    tools = Path(tools).resolve()
+    sys.path[:0] = [str(Path(runtime).resolve()), str(tools.with_name(tools.name + "-machine")),
+                    str(tools)]
     capture = importlib.import_module("inspect_capture")
     steps = importlib.import_module("workshop_steps")
     recipe = importlib.import_module("verify_recipe")
@@ -2073,6 +2076,16 @@ def run_checks(tools, runtime):
                 with self.subTest(wheel=wheel):
                     ctx = ActWorkshop(steps, [{"press": "down"}, wheel], [])
                     with self.assertRaisesRegex(ValueError, "wheel"):
+                        self.act(ctx)
+                    self.assertEqual(ctx.contacts, [])
+
+        def test_a_picture_kept_anywhere_but_the_run_is_refused_before_any_contact(self):
+            # A picture is the run's artifact, `<name>.png`: `act` writes no file of its own.
+            for picture in ({"picture": "after", "save": "C:/elsewhere/after.png"},
+                            {"picture": "after", "png": True, "save": "/home/me/after.png"}):
+                with self.subTest(picture=picture):
+                    ctx = ActWorkshop(steps, [{"press": "down"}, picture], [])
+                    with self.assertRaisesRegex(CheckFailed, "names `save`"):
                         self.act(ctx)
                     self.assertEqual(ctx.contacts, [])
 

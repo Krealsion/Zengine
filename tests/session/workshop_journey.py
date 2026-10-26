@@ -135,12 +135,12 @@ def main():
                  workshop_verdict_checks.run_checks(args.tools, runtime)):
         return 1
     import desk_read_checks
-    if not check("T3 desk/read writes AGENTS.md first and the desk said whole",
+    if not check("T3 desk-machine/read writes AGENTS.md first and the desk said whole",
                  desk_read_checks.run_checks(os.path.join(os.path.dirname(args.tools), "desk"),
                                              runtime)):
         return 1
     import desk_watch_checks
-    if not check("T4 desk/watch follows the desk's notices, reads again only what moved and keeps "
+    if not check("T4 desk-machine/watch follows the desk's notices, reads again only what moved and keeps "
                  "the ring of its changes",
                  desk_watch_checks.run_checks(os.path.join(os.path.dirname(args.tools), "desk"),
                                               runtime)):

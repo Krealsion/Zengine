@@ -121,7 +121,7 @@ def clear_moments(ctx):
     refuses them, and this tool cannot see, from a picture alone, whether the pane it reached
     consumed them or dropped them. `inspect_capture.py`'s own `changed` check is what a caller
     keeps that honest with -- and asserting the FIELD'S OWN RESULTING TEXT, not merely that the
-    picture changed, is `workshop/verify_recipe.py`'s job once a recipe is written from it."""
+    picture changed, is `workshop-machine/verify_recipe.py`'s job once a recipe is written from it."""
     select_code, select_mods = chord("ctrl+a")
     erase_code, erase_mods = chord("backspace")
     return [moment(ctx, "KeyPressed", scancode=select_code, modifiers=select_mods),

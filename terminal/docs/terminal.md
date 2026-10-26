@@ -43,7 +43,7 @@ and press a guest aims at the Terminal is refused.
 An old address or authenticated-answer fact in metadata grants no permission to invoke anything.
 The original participant retains its command/answer history; the pane never owns that session.
 
-The maintained `workshop/terminal-inventory-demo` tool exercises command and reply capture,
+The maintained `workshop-machine/terminal-inventory-demo` tool exercises command and reply capture,
 then fills a command preset with a reply field in a second Info view. Start the `presets` demo
 setup first; see [the external-host guide](../../external-host/docs/external-host.md). The guest
 can copy content but cannot borrow the original Terminal sender's permission to execute it.

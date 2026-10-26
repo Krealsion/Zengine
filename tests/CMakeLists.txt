@@ -1563,6 +1563,13 @@ if(LOOM_SESSION_TOOLS)
             ${CMAKE_BINARY_DIR}/package-judges-work)
         # UTF-8 mode off: a reader's output is decoded as the locale says unless the suite names
         # UTF-8, as a Windows Python decodes it by default.
+        # WHAT A SHIPPED TOOL REACHES, BY ITS IMPORTS (tests/session/tool_reach.py): a package's name
+        # says it. Every tool of a package not named `-machine` reaches nothing but the bus and a
+        # clock, and every tool's imports are found in its package or the packages it uses.
+        zengine_program_test(tool_reach Python3::Interpreter -I
+            ${CMAKE_CURRENT_SOURCE_DIR}/session/tool_reach.py
+            --packages ${CMAKE_SOURCE_DIR}/external-host/tools
+            --package ${CMAKE_SOURCE_DIR}/examples/tower-defense/monitor)
         zengine_program_test(demo_recipes Python3::Interpreter -X utf8=0
             ${CMAKE_CURRENT_SOURCE_DIR}/session/demo_recipes.py
             --file-reader $<TARGET_FILE:zengine-workshop-file-read>)
@@ -1629,7 +1636,7 @@ if(LOOM_SESSION_TOOLS)
             set_tests_properties(tutor_walk PROPERTIES TIMEOUT 600)
             set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "session-pty")
         endif()
-        # `workshop/nvim-edit` AGAINST A REAL NEOVIM needs both halves: this session tooling and
+        # `workshop-machine/nvim-edit` AGAINST A REAL NEOVIM needs both halves: this session tooling and
         # the Neovim the `neovim` gate names. The two together are one gate of their own,
         # `session-neovim`, so a lane with only one of them declares this entry absent rather
         # than running half of it.
