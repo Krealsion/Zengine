@@ -117,6 +117,18 @@ struct PaneLaunchAnswered {
               ZEN_FIELD(focused), ZEN_FIELD(refusal));
 };
 
+namespace v2 {
+/// v1's launch, and whether it brings the keys: with `keys` false a closed pane is seated in front
+/// and the keys and the selection stay where they are, and a pane already on the desk is left as
+/// it is. Answered `PaneLaunchAnswered`, `focused` false.
+struct PaneLaunchRequested {
+    std::string office;
+    std::string pane;
+    bool keys = true;
+    ZEN_SHAPE(PaneLaunchRequested, 2, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(keys));
+};
+} // namespace v2
+
 /// Take this pane's row off the live layout, asked of the layouts' owner (WL-DESK-12). Closing
 /// unloads nothing: the provider keeps all it holds, so a launch finds it as it was. A row the
 /// live layout does not seat is refused.

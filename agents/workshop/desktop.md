@@ -39,10 +39,10 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-03 — A launch opens or focuses; it never toggles and never loads
 
-LAW — A launch names a pane by its durable keys; the host resolves it in `inventory_rows`, refuses one nobody holds now, seats a closed one in front, focuses it either way, and answers.
+LAW — A launch names a pane by its durable keys; the host resolves it in `inventory_rows`, refuses one nobody holds now, seats a closed one in front, focuses it unless asked for no keys, and answers.
 
 MEANS
-- a pane already on the desk is selected and given the keys, and nothing is closed;
+- a pane already on the desk is selected and given the keys, and nothing is closed; asked for no keys (v2), both stay;
 - an unknown name, an unoffered pane and a departed provider are three refusals; room is none;
 - a provider the run is still loading is refused as not here yet, never as something to build.
 
@@ -192,13 +192,16 @@ was unspent" "an answer to an Escape that is over cannot borrow the next Escape'
 ### WL-DESK-03
 `workshop/desktop_seam_vocabulary.hpp` PaneLaunchRequested PaneLaunchAnswered
 `workshop/weave.hpp` launch_pane on(PaneLaunchRequested) provider_present
-`workshop/weave_desktop.cpp` launch_pane on(PaneLaunchRequested) provider_present
+`workshop/weave_desktop.cpp` launch_pane on(PaneLaunchRequested) launch_asked provider_present
 `workshop/setup_reconcile.hpp` inventory_rows
 `workshop/desktop-pane/vocabulary.hpp` kActionTerminal kActionPanes kActionLaunch
 `tests/test_workshop_panes_actions.cpp` "a pane whose provider left is unavailable in the launcher
 and refused at launch, while its identity and the desk row naming it stay" "a pane the run is still
 loading is pending, not unavailable: the launcher marks it `[load]`, names nothing to build, and a
 launch says it is not here yet"
+`tests/test_workshop_panes_first_run.cpp` "WL-FIRST-05: Start here opens when the quick setup
+closes, holding the keys, and at each later start until the story is done beside what holds the
+keys, never taking them"
 
 ### WL-DESK-04
 `workshop/desktop_seam_vocabulary.hpp` InventoryPane PaneInventory
