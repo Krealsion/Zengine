@@ -78,6 +78,7 @@ loom::Grant workshop_grant() {
     speak.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version, kOpeningRole);
     speak.allow_to_any(PaneSourceOpened::zen_name, PaneSourceOpened::zen_version);
     speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
+    speak.allow_to_any(NoticeSaid::zen_name, NoticeSaid::zen_version);
     speak.allow_to_any(PaneSubjectShown::zen_name, PaneSubjectShown::zen_version);
     speak.allow_to_any(PaneSubjectActed::zen_name, PaneSubjectActed::zen_version);
     speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);

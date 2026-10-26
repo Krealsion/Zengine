@@ -82,7 +82,7 @@ LAW — The host mounts the coordinator over its managed pane's office and grant
 MEANS
 - the documented lines are typed against the host's own widening, `let_terminal_switch_editors`;
 - the desk keeps a condition only when the switch's office said it, and drops it when it ends;
-- every answer is said on the notice line; a question for consent shows the line that confirms it.
+- every answer is said as Workshop's notice; a question for consent shows the line that confirms it.
 
 DOES NOT MEAN
 - that the host names an editor artifact: its managed pane's office, and the plan's choices.

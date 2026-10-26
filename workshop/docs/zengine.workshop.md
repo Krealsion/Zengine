@@ -846,7 +846,8 @@ an area at a time; a late or repeated one asks nothing.
 
 Workshop publishes as `zengine.workshop`, to whoever follows it, each only when it differs from
 what it last said: `PaneCatalogRequested` when the desk starts; `PaneInventory` and
-`KeymapShown`; `StandingConditions`, every condition true now; `DeskStamps` v3 when the desk or a
+`KeymapShown`; `StandingConditions`, every condition true now; `NoticeSaid`, once for each
+thing it says; `DeskStamps` v3 when the desk or a
 pane's stamp moved, the newest standing for all before it
 ([the desk, said whole](workshop-panes.md#the-desk-said-whole)); `PaneSubjectShown` once a pane is
 inspected; `TranscriptShown`, the terminal's record; `PaneSourceOpened` after an Edit Code open;

@@ -44,7 +44,7 @@ passed, so a click aimed at the middle of a window lands on another monitor.
 
 ## VM-WIT-07 — Aim lies
 
-METHOD — Aim lies: a prose row is the face's line height and a prose column its advance (measured from three equal items); an arrow key needs its scancode form; a keystroke's box spans the notice row above it.
+METHOD — Aim lies: a prose row is the face's line height and a prose column its advance (measured from three equal items); an arrow key needs its scancode form; a keystroke's box can span the row above it.
 BECAUSE — a hover at the cell pitch kept changing the row above, an arrow in virtual-key form
 did nothing, and an aim at the box's top clicked a row that consumes presses silently.
 

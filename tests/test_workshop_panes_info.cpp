@@ -427,7 +427,11 @@ TEST_CASE("the pane arrives by a plan row and resolves a row the desk already ha
     // THE DESK NAMED IT BEFORE THE OFFICE EXISTED: the row was authored by `default_setup`,
     // and the office's arrival RESOLVED it rather than adding it.
     CHECK(has_pane(f.r.session().setup.active, pane_info_ref()));
-    CHECK(unresolved_panes(f.r.session().setup.active, f.r.session().panes).empty());
+    // ...and the one row left waiting is the Notices pane's, which this rig does not load.
+    const std::vector<PaneRef> left =
+        unresolved_panes(f.r.session().setup.active, f.r.session().panes);
+    REQUIRE(left.size() == 1);
+    CHECK(left[0] == notices_pane_ref());
 }
 
 TEST_CASE("the shipped desk puts it at the room's top-right, by word and not by number") {
@@ -635,11 +639,12 @@ TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
 
     const std::vector<PaneRef> waiting =
         unresolved_panes(f.r.session().setup.active, f.r.session().panes);
-    REQUIRE(waiting.size() == 1);
+    REQUIRE(waiting.size() == 2); // ...beside the Notices pane's, which nothing loads here either
     CHECK(waiting[0] == pane_info_ref());
+    CHECK(waiting[1] == notices_pane_ref());
     CHECK(setup_rest_text(f.r.session().setup, f.r.session().panes, f.r.session().keymap,
                           KeySpelling::kShort)
-              .find("1 unresolved") != std::string::npos);
+              .find("2 unresolved") != std::string::npos);
 
     // ...AND NOTHING IS INSPECTED: the host holds a subject only when an inspector names one.
     CHECK_FALSE(f.r.session().inspected.addressed());

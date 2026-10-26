@@ -5,15 +5,15 @@ heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-ATTN-01 — An utterance and a condition are two surfaces
 
-LAW — An utterance is a sentence about a moment that passed, held in one notice row; a condition is a fact that is true when it is read, held under a key or derived from a live owner.
+LAW — An utterance is a sentence about a moment that passed, kept in the notices record (WL-NOTE-02); a condition is a fact that is true when it is read, held under a key or derived from a live owner.
 
 MEANS
-- an utterance is replaced by the next thing said and retracted no other way;
+- an utterance is never retracted: the record lets the oldest go past its bound, and nothing else ends one;
 - a condition disappears because it resolved, never because something else was said.
 
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
-## WL-ATTN-02 — `Session::notice` is the utterance row and nothing else
+## WL-ATTN-02 — `Session::notice` is the last utterance and nothing else
 
 LAW — The standing truths (a refused keymap or prefs file, a shadowed legacy file, a pane's refused update, a waiting frontier) left the notice; `speak_startup_notes` joins only the event halves.
 

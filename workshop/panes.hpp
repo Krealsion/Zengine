@@ -62,6 +62,12 @@ inline constexpr const char* kWorkshopProvider = "zengine.workshop";
 inline constexpr const char* kInfoPaneProvider = "zengine.info";
 inline constexpr const char* kInfoPaneKey = "info";
 
+/// ...and the Notices pane's, the other row `default_setup`'s desk names: what Workshop says is
+/// shown there, not in the band.
+// WL-NOTE-04 -- agents/workshop/notices.md
+inline constexpr const char* kNoticesPaneProvider = "zengine.notices-pane";
+inline constexpr const char* kNoticesPaneKey = "notices";
+
 /// One entry in the catalog: what a weaver sees in the Pane Manager, where the thing
 /// they open will be, and WHAT TO CALL IT IN A FILE.
 // WL-FOCUS-02 -- agents/workshop/focus.md; WL-SETUP-01 -- agents/workshop/setup-file.md

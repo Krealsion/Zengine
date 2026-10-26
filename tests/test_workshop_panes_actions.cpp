@@ -2266,7 +2266,8 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
     PaneRig r;
     bool info_to_come = true; // the host's answer, as `workshop.cpp` wires it over the executor
     r.host.office_pending = [&info_to_come](std::string_view office) {
-        return info_to_come && office == "zengine.info";
+        // ...and the shipped desk's other loaded pane, still to come for the whole case.
+        return office == "zengine.notices-pane" || (info_to_come && office == "zengine.info");
     };
     r.mount_workshop();
     r.ready();
@@ -2464,8 +2465,12 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     Session& s = const_cast<Session&>(r.session());
     const PaneRef info{"zengine.info", "info"};
     const PaneRef ghost{"zengine.test.ghost", "removed-pane"};
-    // authored, and offered by nobody: unresolved
-    stage_desk(r, [&](Setup& desk) { REQUIRE(add_pane(desk, ghost)); });
+    // authored, and offered by nobody: unresolved -- on a desk of Layouts and Info alone, so Info
+    // is the row's neighbour
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(remove_pane(desk, notices_pane_ref()));
+        REQUIRE(add_pane(desk, ghost));
+    });
 
     // THE WEAVER CHOOSES THE UNRESOLVED ROW AND CLOSES IT WITH THE ORDINARY `x`, which takes it off
     // the desk -- and, since nothing offers it, out of the list.

@@ -11,7 +11,7 @@ LAW — `zengine.first-run` keeps one office-wide setting, `answered`, at the la
 
 MEANS
 - a run with no settings file (`--isolated` without `--prefs`), a file refused at launch and settings withheld show nothing by itself;
-- a fresh desk is Layouts and Info alone: a pane a hand opened first keeps the keys, and the setup waits for the next start;
+- a fresh desk is Layouts, Info and Notices alone: a pane a hand opened first keeps the keys, and the setup waits for the next start;
 - clearing `answered` shows it at the next start.
 
 DOES NOT MEAN

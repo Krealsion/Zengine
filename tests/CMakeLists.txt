@@ -952,6 +952,10 @@ set(ZENGINE_WORKSHOP_DEFS
     "WORKSHOP_SO_FILES=\"$<TARGET_FILE:zengine-files>\""
     "WORKSHOP_SO_BUILDER_PANE=\"$<TARGET_FILE:zengine-builder-pane>\""
     "WORKSHOP_SO_ATTENTION_PANE=\"$<TARGET_FILE:zengine-attention-pane>\""
+    # The notices record and the pane that walks it: the shipped desk names the pane
+    # (`default_setup`).
+    "WORKSHOP_SO_NOTICES=\"$<TARGET_FILE:zengine-notices>\""
+    "WORKSHOP_SO_NOTICES_PANE=\"$<TARGET_FILE:zengine-notices-pane>\""
     # The Info pane: the shipped desk names it (`default_setup`), so here a fresh Workshop's
     # own second pane resolves.
     "WORKSHOP_SO_INFO_PANE=\"$<TARGET_FILE:zengine-info-pane>\""
@@ -984,7 +988,8 @@ set(ZENGINE_WORKSHOP_DEFS
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-graphics zengine-workshop-staging
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
-    zengine-attention-pane zengine-info-pane zengine-desktop-pane zengine-terminal-pane
+    zengine-attention-pane zengine-notices zengine-notices-pane
+    zengine-info-pane zengine-desktop-pane zengine-terminal-pane
     zengine-connections-pane zengine-flow-pane zengine-view-builder
     zengine-legacy-pane
     zengine-failing-editor zengine-editor-throwing
@@ -1246,10 +1251,11 @@ zengine_workshop_suite(panes
               test_workshop_panes_guests.cpp
               test_workshop_panes_guide.cpp
     # the panes that read the running system: introspection and what sampling costs, Attention
-    # and Connections, the View Builder's rows;
+    # and Connections, what Workshop said and the Notices pane, the View Builder's rows;
     PART inspect test_workshop_panes_introspection.cpp
                  test_workshop_panes_sampling.cpp
                  test_workshop_panes_attention.cpp
+                 test_workshop_panes_notices.cpp
                  test_workshop_panes_view_builder.cpp
     # Info and Inventory through their real images;
     PART info test_workshop_panes_info.cpp

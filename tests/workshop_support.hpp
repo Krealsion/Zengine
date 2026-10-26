@@ -314,17 +314,17 @@ inline constexpr std::int64_t kScreenMaxRows = kScreenMaxH / gfx::kCellPx;
 inline constexpr std::int64_t kStripCols = 28;
 
 struct ScreenCells {
-    std::int64_t w = 0, h = 0, strip_x = 0, room_y = 0, room_w = 0, room_h = 0, notice_y = 0;
+    std::int64_t w = 0, h = 0, strip_x = 0, room_y = 0, room_w = 0, room_h = 0, band_y = 0;
 };
 inline ScreenCells cells_of(const Screen& sc) {
     const auto c = [](std::int64_t px) { return gfx::cell_of_pixel(px); };
     return ScreenCells{c(sc.w),      c(sc.h),
                        c(sc.room_w - cells_px(kStripCols)), c(sc.room_y),
-                       c(sc.room_w), c(sc.room_y + sc.room_h) - c(sc.room_y), c(sc.notice_y)};
+                       c(sc.room_w), c(sc.room_y + sc.room_h) - c(sc.room_y), c(sc.band_y)};
 }
 
-/// THE BOTTOM BAND'S FIRST LEGEND ROW, in cells: the row under the notice.
-inline std::int64_t help_row(const Screen& sc) { return gfx::cell_of_pixel(sc.notice_y) + 1; }
+/// THE BOTTOM BAND'S FIRST LEGEND ROW, in cells: the band's first row.
+inline std::int64_t help_row(const Screen& sc) { return gfx::cell_of_pixel(sc.band_y); }
 
 /// THE PLANE A CASE THAT BUILDS ITS OWN CANVAS BY HAND WORKS ON, created on first use.
 /// A case exercising ONE painter is asking about one presentation, which is one plane.
@@ -411,12 +411,6 @@ inline std::string inspector_row(const ScreenCanvas& c, std::int64_t x, std::int
     return text;
 }
 
-/// THE SENTENCE THE TOOL IS SAYING, as a weaver reads it: the bottom band's first row, read
-/// through the cell projection with the region's padding trimmed, as the Inspector's rows are.
-inline std::string notice_line(const ScreenCanvas& c, const Screen& sc) {
-    return inspector_row(c, 0, gfx::cell_of_pixel(sc.notice_y));
-}
-
 
 /// What is actually SEEN at a cell where several labels landed: the LAST one
 /// written, because painter's order is list order and Workshop's planes draw it that
@@ -447,11 +441,6 @@ inline std::string label_at(const DeskShown& s, std::int64_t x, std::int64_t y) 
 /// ...the same, read as one row of the Inspector's body is read.
 inline std::string inspector_row(const DeskShown& s, std::int64_t x, std::int64_t y) {
     return label_at(s, x, y);
-}
-
-/// THE SENTENCE THE TOOL IS SAYING, on the bottom band's first row, as the window shows it.
-inline std::string notice_line(const DeskShown& s, const Screen& sc) {
-    return s.text_at_px(0, sc.notice_y);
 }
 
 /// What is seen at a cell: the window shows only the front-most, so the row is the answer.
@@ -3941,6 +3930,12 @@ struct PaneRig {
         if (stem == "zengine-attention-pane") {
             return WORKSHOP_SO_ATTENTION_PANE;
         }
+        if (stem == "zengine-notices") {
+            return WORKSHOP_SO_NOTICES;
+        }
+        if (stem == "zengine-notices-pane") {
+            return WORKSHOP_SO_NOTICES_PANE;
+        }
 #ifdef WORKSHOP_SO_COMPOSER
         if (stem == "zengine-composer") return WORKSHOP_SO_COMPOSER;
 #endif
@@ -4137,7 +4132,7 @@ struct PaneRig {
     Session& session() { return const_cast<Session&>(w->session()); }
     /// EVERY LAYOUT OF THE RUN, as the layouts' store keeps it.
     const SetupState& run() const { return owner->layouts().run(); }
-    /// THE NOTICE LINE, READ WHERE IT LIVES: `Session::notice` is drawn in the desk's band.
+    /// THE LAST THING WORKSHOP SAID, as the session holds it (`Session::notice`).
     const std::string& last_notice() const { return w->session().notice; }
 
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the same projection the
@@ -4207,6 +4202,8 @@ inline CellRect external_body_rect(const Session& s, std::int64_t kind) {
 /// (`info/vocabulary.hpp`), not a built-in kind's. A case in the panes suite checks this
 /// literal against the weave's own constant, which is where a divergence would be caught.
 inline PaneRef info_ref() { return PaneRef{"zengine.info", "info"}; }
+/// ...and the Notices pane's, the shipped desk's other loaded pane, spelled as a stranger would.
+inline PaneRef notices_pane_ref() { return PaneRef{"zengine.notices-pane", "notices"}; }
 
 /// The setup a two-pane ordering case starts from: two overlay panes, at a screen with room for
 /// two stack slots, built through the doors so the ranks are the identity permutation `add_pane`
@@ -5548,7 +5545,7 @@ inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
 inline std::vector<std::string> band_lines(PaneRig& r) {
     std::vector<std::string> out;
     const Screen sc = screen_of(r.session());
-    const std::int64_t help_y = gfx::cell_of_pixel(sc.notice_y) + 1;
+    const std::int64_t help_y = gfx::cell_of_pixel(sc.band_y);
     for (const std::int64_t y : {help_y, help_y + 1}) {
         const std::string row = inspector_row(r.shown(), 0, y);
         if (!row.empty()) {
