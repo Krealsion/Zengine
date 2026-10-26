@@ -228,7 +228,7 @@ public:
             running_.clear();
             notice_ = "nothing was started -- the launcher could not be asked";
         } else {
-            notice_ = "starting the " + starting_.kind + " `" + starting_.name + "`";
+            started_ = "starting the " + starting_.kind + " `" + starting_.name + "`";
         }
         show(mail);
     }
@@ -242,8 +242,8 @@ public:
         in_flight_ = false;
         if (said.ok) {
             state_.history = pal::remembered(state_.history, running_);
-            notice_ = "started the " + said.kind + " `" + said.name + "`, process " +
-                      std::to_string(said.pid) + ": it goes on without Workshop";
+            started_ = "started the " + said.kind + " `" + said.name + "`, process " +
+                       std::to_string(said.pid) + ": it goes on without Workshop";
         } else {
             notice_ = "nothing was started -- " + said.reason;
         }
@@ -282,6 +282,7 @@ public:
             cursor_ = 0;
             first_ = 0;
             notice_.clear();
+            started_.clear();
             ask_lists(mail);
         }
         show(mail);
@@ -410,6 +411,8 @@ private:
             show(mail);
             return;
         }
+        started_.clear();
+        notice_.clear();
         starting_ = zengine::launcher::Launch{
             e.kind == pal::kKindSetup ? zengine::launcher::kKindDemo : zengine::launcher::kKindApp,
             e.id};
@@ -446,6 +449,7 @@ private:
         cursor_ = 0;
         first_ = 0;
         notice_.clear();
+        started_.clear();
         show(mail);
     }
     std::vector<std::size_t> visible() const {
@@ -502,8 +506,9 @@ private:
             count += " -- " + std::to_string(listing_.left_out) + " " + listing_.left_from +
                      " left out past " + std::to_string(pal::kMaxEntries);
         }
-        (void)head.push(notice_.empty() ? ws::TextRow{count, gfx::role::kMuted}
-                                        : ws::TextRow{notice_, gfx::role::kAlert});
+        (void)head.push(!notice_.empty()    ? ws::TextRow{notice_, gfx::role::kAlert}
+                        : !started_.empty() ? ws::TextRow{started_, gfx::role::kAccent}
+                                            : ws::TextRow{count, gfx::role::kMuted});
         head.caret().row = 0;
         head.caret().column = static_cast<std::int64_t>(prefix.size() + filter_.caret());
         const auto always = [](const Line&) { return true; };
@@ -551,6 +556,7 @@ private:
     std::size_t cursor_ = 0, first_ = 0;
     ws::RowsBlock<Line> entries_;   ///< the entries' lines last drawn, and what each means
     std::string notice_;
+    std::string started_; ///< the palette's own start, said where no refusal stands
     bool in_flight_ = false;
     std::uint64_t asked_ = 0;
     std::string running_;
