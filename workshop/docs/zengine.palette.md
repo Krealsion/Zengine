@@ -47,7 +47,8 @@ pane nothing offers now.
 
 Move with [`palette.up`](#paletteup) and [`palette.down`](#palettedown), or press a line; run it
 with [`palette.run`](#paletterun). The palette is put down as the entry runs, and the keys go back
-to the pane they were in when it opened. [`palette.close`](#paletteclose) puts it down with nothing
+to the pane they were in when it opened; a setup or an app it starts itself, and it stays open to
+say what the launcher answered. [`palette.close`](#paletteclose) puts it down with nothing
 run. A press on a line moves the cursor there and runs nothing: a press in the window is not a key
 Workshop numbered.
 
@@ -56,6 +57,10 @@ it left out past that; the filter holds at most <!-- value kMaxFilterBytes -->64
 characters, and the run remembers <!-- value kMaxHistory -->32<!-- /value --> choices.
 
 ![The palette open below Flow, filtered by `apply` to Flow's row with no key](images/palette-apply.png)
+
+![The palette filtered by `setup`: the Quick setup pane, Workshop's save and restore, and each ready-to-use setup the launcher lists](images/palette-setups.png)
+
+![Value inspection chosen and started: the palette stays to say the demo started, its process, and that it goes on without Workshop](images/palette-started.png)
 
 ## Commands
 
