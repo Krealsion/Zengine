@@ -129,6 +129,10 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::view::detail::ViewHostState>(), // ViewHostState v1
         shape<::zengine::view::detail::ViewRedraw>(), // ViewRedraw v1
         shape<::zengine::view::detail::ViewStart>(), // ViewStart v2
+        shape<::zengine::view::ViewFieldWiring>(), // ViewFieldWiring v1
+        shape<::zengine::view::ViewIntentWiring>(), // ViewIntentWiring v1
+        shape<::zengine::view::ViewWiring>(), // ViewWiring v1
+        shape<::zengine::view::ViewWiringRequested>(), // ViewWiringRequested v1
         shape<::zengine::workshop::LayoutsOwnerState>(), // LayoutsOwnerState v1
         shape<::zengine::workshop::LiveTab>(), // LiveTab v1
         shape<::zengine::workshop::RowSettingUnused>(), // RowSettingUnused v1

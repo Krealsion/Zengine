@@ -566,13 +566,17 @@ ViewBuilderRun v1 0x5516d8aa88fd219a
 ViewBuilderState v3 0x7d664ed46440765d
 ViewEdit v1 0x9f3187b96d1ef7b0
 ViewEdited v1 0x2d708dc91b685d98
+ViewFieldWiring v1 0x6b36f12dd537c3b7
 ViewHostState v1 0x17f98d35df075f9b
+ViewIntentWiring v1 0xdf1edce8041fd464
 ViewRedraw v1 0xca90deea98111ce2
 ViewResume v1 0xcdfe44aa9f265c80
 ViewRetire v1 0x6a71f8f583882355
 ViewRun v1 0xed2c4ab0b0598981
 ViewStart v2 0x89d8495312d2c751
 ViewStop v1 0x1e90d056a56b777c
+ViewWiring v1 0x8747e35faccef5d3
+ViewWiringRequested v1 0x0e99863486cb0438
 WeaversActAnswered v1 0xc7eff665a85bc677
 WeaversActRequested v1 0xc198b7fb0e6b666c
 WinArea v9 0x36f52a2c62fb9090
