@@ -1166,7 +1166,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   chosen size, to the pixel, where the display holds it; it never shrinks to a smaller one, and a
   terminal keeps its own. The restore's notice says the room in the unit the window names —
   pixels in the OS window, cells in a terminal — and since a window names its unit when it
-  offers itself, the notice is spelled again then.
+  offers itself a room, the notice waits for the first window that does, and is said once.
 - **Position and maximized state ARE persisted, opaquely, and the medium is the
   judge.** The graphics vocabulary's placement pair closed the old deliberate omission: the
   medium reports where its *normal* window sits (its own desktop units, maximized state

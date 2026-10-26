@@ -20,18 +20,9 @@ void WorkshopWeave::refresh_setup_name() {
 // WL-ATTN-02 -- agents/workshop/attention.md; WL-NOTE-01 -- agents/workshop/notices.md
 void WorkshopWeave::say(std::string text, bool bad) {
     ++notices_said_;
-    say_again(std::move(text), bad);
-}
-
-void WorkshopWeave::say_again(std::string text, bool bad) {
     session_.notice = text;
     session_.notice_is_bad = bad;
     NoticeSaid said{static_cast<std::int64_t>(notices_said_), std::move(text), bad};
-    // SAID AGAIN BEFORE IT WAS PUBLISHED: the owed one is replaced, and goes once.
-    if (!notices_owed_.empty() && notices_owed_.back().number == said.number) {
-        notices_owed_.back() = std::move(said);
-        return;
-    }
     if (notices_owed_.size() >= kMaxNoticesOwed) {
         notices_owed_.erase(notices_owed_.begin());
     }
