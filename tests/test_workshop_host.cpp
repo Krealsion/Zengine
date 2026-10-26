@@ -2217,6 +2217,9 @@ TEST_CASE("a new layout is blank and duplicates no Workshop-global state") {
     CHECK(t.session().setup.active == default_setup());
     CHECK_FALSE(t.session().panes.has(stock::kKind));
     CHECK(live_status(t.run()) == setup_link::kNone);
+    // ...AND SAID AS THAT: the desk a fresh Workshop opens on, which is not an empty one.
+    CHECK(t.session().notice ==
+          "new layout \"Default\" -- 2 of 2 -- the desk a fresh Workshop opens on");
     // ...AND NOTHING WORKSHOP-GLOBAL WAS COPIED, CLEARED OR REVALIDATED. The catalog and the
     // external instances are one truth each, and a desk is not a door to either.
     CHECK(t.session().panes.runtime.entries.size() == runtime_before);

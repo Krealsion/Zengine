@@ -1838,7 +1838,7 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
                    ")";
         }
         run_moved = true;
-        said.push_back("new " + layout_note(next) + " -- an empty desk");
+        said.push_back("new " + layout_note(next) + " -- the desk a fresh Workshop opens on");
         return std::string();
     }
     if (e.op == kDuplicate) {
