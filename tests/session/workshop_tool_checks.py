@@ -2079,8 +2079,8 @@ def run_checks(tools, runtime):
             self.assertEqual(ctx.heard.options.get("via"), "workshop")
             done = ctx.done()
             self.assertEqual([(r["index"], r["verb"]) for r in done], [(0, "press"), (1, "press")])
-            self.assertEqual(done[0]["said"], [{"number": 1, "text": "nothing there", "refusal": False}])
-            self.assertEqual(done[1]["said"], [{"number": 3, "text": self.SAVE_REFUSED, "refusal": True}])
+            self.assertEqual(done[0]["caused"], [{"number": 1, "text": "nothing there", "refusal": False}])
+            self.assertEqual(done[1]["caused"], [{"number": 3, "text": self.SAVE_REFUSED, "refusal": True}])
             self.assertEqual(done[1]["refused"], self.SAVE_REFUSED)
             self.assertTrue(ctx.heard.released)
             for cleanup in reversed(ctx.cleanups):
@@ -2091,7 +2091,8 @@ def run_checks(tools, runtime):
             # WHAT THE PRESS CAUSED is kept beside its step; a refusal it did not cause -- said by
             # deferred work, or caused by another run's press -- fails nothing.
             ctx = HearingWorkshop(steps, [{"press": "down"}, {"press": "up"},
-                                          {"select": ["zengine.info", "info", "Placement"]}],
+                                          {"select": ["zengine.info", "info", "Placement"]},
+                                          {"desk": ["zengine.info", "info"], "is": {"state": "open"}}],
                                   self.INFO_ROWS, replies=[
                                       [("said", "nothing there", False, "own"),
                                        ("said", "the build failed", True, "none")],
@@ -2099,11 +2100,14 @@ def run_checks(tools, runtime):
                                       [("said", "showed Palette", False, "own")]])
             said = act.run(ctx)
             done = ctx.done()
-            self.assertEqual([r["said"] for r in done], [
+            self.assertEqual([r["caused"] for r in done[:3]], [
                 [{"number": 1, "text": "nothing there", "refusal": False}], [],
                 [{"number": 4, "text": "showed Palette", "refusal": False}]])
+            # A STEP THAT PRESSES NOTHING keeps what it read as before: a desk step its desk.
+            self.assertNotIn("caused", done[3])
+            self.assertEqual(done[3]["said"]["state"], "open")
             self.assertEqual(ctx.order[0], "observe")
-            self.assertIn("3 step(s) done", said)
+            self.assertIn("4 step(s) done", said)
             self.assertNotIn("unheard", said)
             self.assertNotIn("refused", said)
             self.assertTrue(ctx.heard.released)
@@ -2148,7 +2152,7 @@ def run_checks(tools, runtime):
                                   refuse_hearing=refusal)
             said = act.run(ctx)
             self.assertEqual(ctx.order, ["press", "press"])
-            self.assertNotIn("said", ctx.done()[0])
+            self.assertNotIn("caused", ctx.done()[0])
             self.assertIn("2 step(s) done: press press; Workshop refusing its presses went unheard: "
                           "what it says could not be followed: " + refusal, said)
             # A RUN THAT PRESSES NOTHING follows nothing, and says nothing of it.
