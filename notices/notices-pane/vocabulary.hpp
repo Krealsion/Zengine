@@ -7,7 +7,7 @@
 // The Notices pane's durable names: the office it holds, the one pane it offers, the action ids its
 // keys answer to, and the state a same-shape reload keeps. The record it walks is the notices
 // office's (notices/vocabulary.hpp).
-// Workshop law: agents/workshop/attention.md
+// Workshop law: agents/workshop/notices.md
 
 #include <zen/weave/shape.hpp>
 

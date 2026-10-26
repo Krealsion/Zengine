@@ -5,7 +5,7 @@
 // (`NoticeSaid`), up to its office-wide `keep` setting, the oldest let go past it; says when the
 // record moved (`NoticesMoved`); and answers a page of it to whoever asks (`NoticesRequested`).
 // It shows nothing: the Notices pane walks it. It lasts the run, and a reload in place keeps it.
-// Workshop law: agents/workshop/attention.md
+// Workshop law: agents/workshop/notices.md
 
 #include "notices/vocabulary.hpp"
 
