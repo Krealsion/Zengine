@@ -7,7 +7,7 @@ heading; cite by ID. Router: [`../workshop.md`](../workshop.md). What is true no
 
 ## WL-NOTE-01 — Workshop publishes each thing it says once, numbered, at its delivery's end
 
-LAW — Each `say` is a `NoticeSaid` numbered from 1 in the run, published to any as `zengine.workshop` once at the end of the delivery that said it; a notice said again in other words keeps its number.
+LAW — Each `say` is a `NoticeSaid` numbered from 1 in the run, published to any as `zengine.workshop` once at the end of the delivery that said it, and no notice is said twice.
 
 MEANS
 - `Session::notice` is the last thing said, and the screen draws it nowhere: the band is the keys' legend alone;
@@ -24,7 +24,7 @@ WHY — `agents/decisions/what-workshop-said-is-kept.md`
 LAW — `zengine.notices` keeps each `NoticeSaid` from `zengine.workshop` alone, at most its office-wide `keep`, `kDefaultKept` to `kMostKept`, the oldest let go and counted, and says `NoticesMoved`.
 
 MEANS
-- words are cut at `kMaxNoticeBytes`; a kept number is replaced in place, an older one not kept passed over;
+- each notice is kept as heard, after the newest, its words cut at `kMaxNoticeBytes`;
 - a lower `keep` lets go at once; until the setting is handed in a life, nothing goes below `kMostKept`;
 - it lasts the run and crosses a reload in place in its state; no file holds it.
 
@@ -68,8 +68,7 @@ WHY — `agents/decisions/what-workshop-said-is-kept.md`
 
 ### WL-NOTE-01
 `workshop/notice_seam_vocabulary.hpp` NoticeSaid kMaxNoticesOwed
-`workshop/weave_document.cpp` say say_again publish_notices
-`workshop/weave_session.cpp` spell_restore_notice
+`workshop/weave_document.cpp` say publish_notices
 `workshop/screen_compose.cpp` band_region
 `workshop/screen.hpp` Session::notice
 `tests/test_workshop_panes_notices.cpp` "each thing Workshop says is published once, numbered from

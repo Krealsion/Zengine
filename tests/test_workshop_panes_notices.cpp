@@ -94,8 +94,17 @@ struct NoticesRig {
 
     /// The host's own note for this launch, said with the launch's notes once the desk is up.
     static constexpr const char* kLaunchNote = "the launch's own note";
+    /// ...given this launch unless a case clears it, so nothing is said after the restore's answer.
+    std::string launch_note = kLaunchNote;
 
     void open(std::int64_t width = 160, std::int64_t height = 48) {
+        load();
+        r.ready();
+        r.extent(width, height);
+    }
+
+    /// WORKSHOP MOUNTED WITH THE RECORD AND THE PANE, AND THE READER ON THE BUS: no window up yet.
+    void load() {
         auto ear = std::make_unique<NoticesReader>();
         reader = ear.get();
         loom::Grant grant;
@@ -106,7 +115,7 @@ struct NoticesRig {
                            OfficeSettingCommitRequested::zen_version);
         reader_id = r.bus.register_weave(std::move(ear), std::move(grant), kReaderOffice);
         reader->zen_set_self(reader_id);
-        r.host.transition_note = kLaunchNote;
+        r.host.transition_note = launch_note;
         r.mount_workshop();
         load::LoadPlan plan;
         for (const auto& [stem, role] :
@@ -119,8 +128,28 @@ struct NoticesRig {
         }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
-        r.ready();
-        r.extent(width, height);
+    }
+
+    /// WHAT WORKSHOP SAID OF THE RESTORE, each time it said it.
+    std::vector<NoticeSaid> restore_said() const {
+        std::vector<NoticeSaid> said;
+        for (const NoticeSaid& n : reader->heard) {
+            if (n.text.rfind("reopened your last desk", 0) == 0) {
+                said.push_back(n);
+            }
+        }
+        return said;
+    }
+
+    /// THE RECORD HOLDS EACH NOTICE AS IT WAS HEARD: the same numbers, words and kind, in order.
+    void kept_as_heard() {
+        const nt::NoticesShown all = page();
+        REQUIRE(all.rows.size() == reader->heard.size());
+        for (std::size_t i = 0; i < all.rows.size(); ++i) {
+            CHECK(all.rows[i].number == reader->heard[i].number);
+            CHECK(all.rows[i].text == reader->heard[i].text);
+            CHECK(all.rows[i].refusal == reader->heard[i].refusal);
+        }
     }
 
     /// ONE THING DONE INSIDE THE READER'S OWN DELIVERY, then the bus settled.
@@ -322,6 +351,61 @@ TEST_CASE("the record keeps what Workshop said, the oldest let go past keep, and
     CHECK(static_cast<std::int64_t>(after.rows.size()) == nt::kDefaultKept);
     CHECK(after.let_go == before.let_go + 50 + (after.last - before.last));
     CHECK(after.last - after.first + 1 == nt::kDefaultKept);
+}
+
+TEST_CASE("the restore's sentence is said once, in the unit the first window names, whatever was "
+          "said before it, and the record keeps each notice as heard") {
+    TempDir dir("notices-restore");
+    const std::string session = dir.file("session.json");
+    REQUIRE(save_last_run(session, one_layout(setup_of("Default", {pane_kind::kLayouts})), 0,
+                          cells_px(120), cells_px(75), window_persist::Placement{})
+                .accepted);
+    const std::string in_pixels = "reopened your last desk \"Default\" -- 1440x900 px";
+    const std::string in_cells = "reopened your last desk \"Default\" -- 120x75 cells";
+    // A WINDOW THAT OFFERS A ROOM AT ONCE: the sentence said once in its unit, though the window
+    // offers itself again and nothing was said after it.
+    for (const bool os : {true, false}) {
+        CAPTURE(os);
+        NoticesRig t;
+        t.r.host.session_path = session;
+        t.launch_note.clear();
+        if (os) {
+            t.r.on_os_window();
+        }
+        t.open(120, 75);
+        t.r.extent(100, 40);
+        const std::vector<NoticeSaid> said = t.restore_said();
+        REQUIRE(said.size() == 1);
+        CHECK(said[0].text == (os ? in_pixels : in_cells));
+        t.kept_as_heard();
+    }
+    // ANOTHER NOTICE BEFORE THE ROOM: a terminal that offered itself before it had a room named no
+    // unit, so the sentence waits for the first room a window offers -- the OS window's, or the
+    // terminal's own -- and is said after the other, once, in that window's unit.
+    for (const bool os : {true, false}) {
+        CAPTURE(os);
+        NoticesRig t;
+        t.r.host.session_path = session;
+        t.load();
+        t.r.windows.room(0, 0);
+        t.r.bus.drain_until_idle();
+        CHECK(t.restore_said().empty());
+        t.statement();
+        REQUIRE_FALSE(t.reader->heard.empty());
+        const std::int64_t before = t.reader->heard.back().number;
+        if (os) {
+            t.r.on_os_window();
+        } else {
+            t.r.windows.room(cells_px(120), cells_px(75));
+            t.r.windows.queue_offer(cells_px(120), cells_px(75));
+        }
+        t.r.bus.drain_until_idle();
+        const std::vector<NoticeSaid> said = t.restore_said();
+        REQUIRE(said.size() == 1);
+        CHECK(said[0].number > before);
+        CHECK(said[0].text == (os ? in_pixels : in_cells));
+        t.kept_as_heard();
+    }
 }
 
 TEST_CASE("the record keeps nothing a stranger says, cuts a long notice and keeps what it holds "

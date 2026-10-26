@@ -52,9 +52,8 @@ office `zengine.notices`); a value under what the record holds lets the oldest g
 ### `NoticeSaid`
 
 `NoticeSaid` v1, published by `zengine.workshop` alone
-([`workshop/notice_seam_vocabulary.hpp`](../../workshop/notice_seam_vocabulary.hpp)): a number the
-record does not keep is kept after the newest; one it keeps is replaced, as Workshop says a notice
-again in other words; one older than the newest that it does not keep is passed over.
+([`workshop/notice_seam_vocabulary.hpp`](../../workshop/notice_seam_vocabulary.hpp)): each is kept as
+heard, after the newest, since Workshop says each notice once.
 
 ### `OfficeSettings`
 

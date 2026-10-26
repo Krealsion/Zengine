@@ -493,9 +493,11 @@ void WorkshopWeave::say_restored(const LiveLayout& live, loom::Mail&) {
         notice.tail += "; " + host_->choice_note;
     }
     notice.bad = !window_declined_.empty();
-    say(restore_notice_text(notice, session_.cell_px), notice.bad);
-    notice.said = notices_said_;
+    // SAID ONCE, IN THE FIRST WINDOW'S UNIT: now if a window has offered a room, else when one does.
     restore_notice_ = std::move(notice);
+    if (first_unit_) {
+        (void)say_restore_notice(*first_unit_);
+    }
 }
 
 // WL-SESSION-20 -- agents/workshop/window-file.md
@@ -526,16 +528,14 @@ std::string WorkshopWeave::restore_notice_text(const RestoreNotice& n, std::int6
     return said + n.tail;
 }
 
-bool WorkshopWeave::spell_restore_notice(std::int64_t cell_px) {
+// WL-SESSION-14 -- agents/workshop/session-restore.md
+bool WorkshopWeave::say_restore_notice(std::int64_t cell_px) {
     if (!restore_notice_) {
         return false;
     }
     const RestoreNotice held = std::move(*restore_notice_);
     restore_notice_.reset();
-    if (held.said != notices_said_) {
-        return false; // something was said since, and it stands
-    }
-    say_again(restore_notice_text(held, cell_px), held.bad);
+    say(restore_notice_text(held, cell_px), held.bad);
     return true;
 }
 
