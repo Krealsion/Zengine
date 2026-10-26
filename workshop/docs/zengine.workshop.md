@@ -80,6 +80,11 @@ it is open. It never closes anything ([`desktop_seam_vocabulary.hpp`](../desktop
   nothing holds `<office>` now; its artifact has to be loaded again (build it, or relaunch)``.
 - **Example:** the Pane Manager's open sends `{office: "zengine.builder-pane", pane: "builder"}`.
 
+Version 2 adds `keys`: with `keys` false a closed pane is seated in front and the keys and the
+selection stay where they are, and a pane already on the desk is left as it is; `focused` is then
+false. Its answers and refusals are version 1's. The quick setup seats "Start here" so at a later
+start ([`zengine.first-run`](zengine.first-run.md)).
+
 ### `PaneToggleRequested`
 
 `PaneToggleRequested` asks Workshop to show a pane that is not on the desk, or hide one that is,

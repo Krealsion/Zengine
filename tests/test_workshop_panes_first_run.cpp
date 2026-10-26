@@ -17,6 +17,10 @@
 #include "workshop/admission.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/first-run/setup.hpp"
+#include "workshop/first-run/story.hpp"
+
+#include "launcher/vocabulary.hpp"
+#include "view/vocabulary.hpp"
 
 #include <cstdint>
 #include <functional>
@@ -136,15 +140,17 @@ std::pair<std::int64_t, std::int64_t> free_room_cell(PaneRig& r) {
     return {0, 0};
 }
 
-/// THE QUICK SETUP'S CENSUS: its three rows, in no mode.
+/// THE QUICK SETUP'S CENSUS: the three rows of each of its two panes, in no mode.
 const CensusDriverOf kFirstRunCensus{fr::kFirstRunRole, [] {
     OfficeCensus census;
     TempDir dir("first-run-census");
     PaneRig r;
     (void)start(r, dir.file("prefs.json"));
-    const RuntimePane* held = r.session().panes.runtime.find(fr::kFirstRunRole, fr::kSetupPane);
-    REQUIRE(held != nullptr);
-    census_take(census, fr::kFirstRunRole, *held);
+    for (const char* pane : {fr::kSetupPane, fr::kStoryPane}) {
+        const RuntimePane* held = r.session().panes.runtime.find(fr::kFirstRunRole, pane);
+        REQUIRE(held != nullptr);
+        census_take(census, fr::kFirstRunRole, *held);
+    }
     return census;
 }};
 
@@ -162,6 +168,21 @@ const PressDriverOf kFirstRunPresses{fr::kFirstRunRole, [](PressWitness& w) {
         PaneRig r;
         (void)start(r, dir.file("prefs.json"));
         w.judge(r, fr::kSetupPane, "", row);
+    }
+    // ...AND "START HERE"'S, on one opened afresh by Done.
+    std::vector<v4::PaneActionRow> story_rows;
+    {
+        TempDir dir("first-run-story-rows");
+        PaneRig r;
+        (void)start(r, dir.file("prefs.json"));
+        story_rows = r.session().panes.runtime.find(fr::kFirstRunRole, fr::kStoryPane)->actions;
+    }
+    for (const v4::PaneActionRow& row : story_rows) {
+        TempDir dir("first-run-story-press");
+        PaneRig r;
+        (void)start(r, dir.file("prefs.json"));
+        for (const char* id : {fr::kActionDown, fr::kActionDown, fr::kActionChoose}) act(r, id);
+        w.judge(r, fr::kStoryPane, "", row);
     }
 }};
 
@@ -214,7 +235,8 @@ TEST_CASE("WL-FIRST-02: Done writes answered and puts the pane down, and the nex
         PaneRig r;
         (void)start(r, prefs);
         REQUIRE(on_desk(r));
-        act(r, fr::kActionDown); // the box, then Done
+        act(r, fr::kActionDown); // the box, The story, then Done
+        act(r, fr::kActionDown);
         act(r, fr::kActionChoose);
         CHECK_FALSE(on_desk(r));
         CHECK(slurp(prefs).find("\"answered\"") != std::string::npos);
@@ -302,8 +324,8 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
                                      "zen.manager"));
 }
 
-TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the pages and Done and Skip, each "
-          "press choosing its own item") {
+TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the setups the launcher lists with "
+          "Start on each, The story, the pages and Done and Skip, each press choosing its own item") {
     fr::Moment m;
     const std::vector<fr::Line> lines = fr::lines_of(m);
     std::vector<fr::Item> items;
@@ -313,9 +335,26 @@ TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the pages and Done
         setups = setups || l.text.find(fr::kSetupsPage) != std::string::npos;
         started = started || l.text.find(fr::kGettingStartedPage) != std::string::npos;
     }
-    CHECK(items == std::vector<fr::Item>{fr::Item::kNeovim, fr::Item::kDone, fr::Item::kSkip});
+    CHECK(items == std::vector<fr::Item>{fr::Item::kNeovim, fr::Item::kStory, fr::Item::kDone,
+                                         fr::Item::kSkip});
     CHECK(setups);
     CHECK(started);
+    // THE SETUPS THE LAUNCHER LISTED, each a Start of its own between the box and The story.
+    m.setups = {{"values", "Value inspection", "Inventory and Info"}, {"commands", "", ""}};
+    std::vector<fr::Item> listed;
+    std::vector<std::string> starts;
+    for (const fr::Line& l : fr::lines_of(m)) {
+        if (l.item != fr::Item::kNone) listed.push_back(l.item);
+        if (fr::setup_of(l.item) >= 0) starts.push_back(l.text);
+    }
+    CHECK(listed == std::vector<fr::Item>{fr::Item::kNeovim, fr::setup_item(0), fr::setup_item(1),
+                                          fr::Item::kStory, fr::Item::kDone, fr::Item::kSkip});
+    REQUIRE(starts.size() == 2);
+    CHECK(starts[0].find("[ Start ] Value inspection -- Inventory and Info") != std::string::npos);
+    CHECK(starts[1].find("[ Start ] commands") != std::string::npos);
+    CHECK(fr::stepped(m, fr::Item::kNeovim, 1) == fr::setup_item(0));
+    CHECK(fr::stepped(m, fr::setup_item(1), 1) == fr::Item::kStory);
+    m.setups.clear();
     // The box says what the switch said; the cursor is marked; the ends hold.
     m.neovim = true;
     m.switch_said = "Neovim edits text now";
@@ -329,9 +368,9 @@ TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the pages and Done
     CHECK(checked);
     CHECK(said);
     CHECK(marked);
-    CHECK(fr::stepped(fr::Item::kNeovim, -1) == fr::Item::kNeovim);
-    CHECK(fr::stepped(fr::Item::kSkip, 1) == fr::Item::kSkip);
-    CHECK(fr::stepped(fr::Item::kNeovim, 1) == fr::Item::kDone);
+    CHECK(fr::stepped(m, fr::Item::kNeovim, -1) == fr::Item::kNeovim);
+    CHECK(fr::stepped(m, fr::Item::kSkip, 1) == fr::Item::kSkip);
+    CHECK(fr::stepped(m, fr::Item::kNeovim, 1) == fr::Item::kStory);
 }
 
 TEST_CASE("WL-FIRST-02: a press the window landed on Done before a notice came under the items "
@@ -410,4 +449,329 @@ TEST_CASE("WL-GUEST-06: on a weaver's host a guest's key and press toward the qu
         g.weaver_key(input::scan::kReturn);
         CHECK(sw->asked.size() == asked + 1);
     }
+}
+
+namespace {
+
+/// A STAND-IN FOR THE LAUNCHER, in its office: it answers a listing with `entries`, records each
+/// start it is asked for and answers it started, and says a start to any when a case drives it.
+class LauncherStandIn
+    : public loom::WeaveBase<LauncherStandIn, SeatState,
+                             loom::Accept<zengine::launcher::LaunchCatalogRequested,
+                                          zengine::launcher::Launch, SeatDo>,
+                             loom::Emit<zengine::launcher::LaunchCatalog,
+                                        zengine::launcher::Launched>> {
+public:
+    std::vector<zengine::launcher::LaunchEntry> entries;
+    std::vector<std::string> started; ///< `<kind> <name>` of each start asked
+    std::int64_t listings = 0;
+    std::function<void(LauncherStandIn&, loom::Mail&)> next;
+
+    void on(const zengine::launcher::LaunchCatalogRequested&, loom::Mail& mail) {
+        ++listings;
+        (void)mail.answer(zengine::launcher::LaunchCatalog{entries, 0, ""});
+    }
+    void on(const zengine::launcher::Launch& asked, loom::Mail& mail) {
+        started.push_back(asked.kind + " " + asked.name);
+        (void)mail.answer(zengine::launcher::Launched{true, asked.kind, asked.name, 4242, "started"});
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(LauncherStandIn&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+};
+
+/// A STAND-IN FOR A RUNNING VIEW, in an office of its own (a view's office is its name): it offers
+/// its pane `view` when a case drives it, and answers what its wiring has done with `wiring`, or
+/// says it to any when driven.
+class ViewStandIn
+    : public loom::WeaveBase<ViewStandIn, SeatState,
+                             loom::Accept<PaneCatalogRequested, zengine::view::ViewWiringRequested,
+                                          SeatDo>,
+                             loom::Emit<v2::PaneOffered, zengine::view::ViewWiring>> {
+public:
+    zengine::view::ViewWiring wiring;
+    std::int64_t asked = 0;
+    std::function<void(ViewStandIn&, loom::Mail&)> next;
+
+    void on(const PaneCatalogRequested&, loom::Mail&) {}
+    /// ...as a running view answers it: an ordinary send back to the asker, as its own office.
+    void on(const zengine::view::ViewWiringRequested&, loom::Mail& mail) {
+        ++asked;
+        (void)mail.as_role(office).send(mail.sender(), wiring, mail.correlation());
+    }
+    std::string office;
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(ViewStandIn&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+};
+
+template <class Seat>
+Seat* mount_any(PaneRig& r, const std::string& office, loom::WeaveId* id_out = nullptr) {
+    auto weave = std::make_unique<Seat>();
+    Seat* raw = weave.get();
+    const loom::WeaveId id = r.bus.register_weave(std::move(weave), loom::Grant{}.allow_any(), office);
+    raw->zen_set_self(id);
+    if (id_out != nullptr) *id_out = id;
+    return raw;
+}
+
+template <class Seat>
+void drive_any(PaneRig& r, loom::WeaveId id, Seat* seat, std::function<void(Seat&, loom::Mail&)> what) {
+    seat->next = std::move(what);
+    (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+}
+
+/// A RUNNING VIEW'S OFFICE, as the view host names one.
+constexpr const char* kTallyPanel = "tally.panel";
+
+bool story_on_desk(PaneRig& r) {
+    return has_pane(r.session().setup.active, PaneRef{fr::kFirstRunRole, fr::kStoryPane});
+}
+std::int64_t kind_in(PaneRig& r, const char* office, const char* pane) {
+    const RuntimePane* held = r.session().panes.runtime.find(office, pane);
+    REQUIRE(held != nullptr);
+    return held->kind;
+}
+bool rows_say(PaneRig& r, std::int64_t kind, const std::string& words) {
+    for (const std::string& row : pane_rows(r, kind)) {
+        if (row.find(words) != std::string::npos) return true;
+    }
+    return false;
+}
+
+/// A START as `start` makes one, the launcher's stand-in in its office first, so the quick setup's
+/// listing is answered.
+struct StoryStart {
+    SwitchStandIn* sw = nullptr;
+    LauncherStandIn* launcher = nullptr;
+    loom::WeaveId launcher_id{};
+};
+StoryStart start_with_launcher(PaneRig& r, const std::string& prefs,
+                               std::vector<zengine::launcher::LaunchEntry> entries = {}) {
+    r.host.prefs_path = prefs;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 60);
+    StoryStart s;
+    s.sw = mount_switch(r);
+    s.launcher = mount_any<LauncherStandIn>(r, zengine::launcher::kLauncherRole, &s.launcher_id);
+    s.launcher->entries = std::move(entries);
+    REQUIRE(r.load("zengine-first-run", WORKSHOP_SO_FIRST_RUN, fr::kFirstRunRole).valid());
+    REQUIRE(r.load_refusals.empty());
+    return s;
+}
+
+/// The quick setup answered with Done, from the box: through The story's line, then Done.
+void answer_done(PaneRig& r, std::size_t setups = 0) {
+    for (std::size_t i = 0; i < setups + 2; ++i) act(r, fr::kActionDown);
+    act(r, fr::kActionChoose);
+}
+
+std::string story_kept(const std::string& prefs) {
+    const std::string text = slurp(prefs);
+    const std::size_t key = text.find("\"story\"");
+    if (key == std::string::npos) return std::string(); // never written: no step ticked
+    const std::size_t open = text.find('"', text.find(':', key) + 1);
+    const std::size_t close = text.find('"', open + 1);
+    return text.substr(open + 1, close - open - 1);
+}
+
+} // namespace
+
+TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the inventory, a running "
+          "view's wiring, the launcher's listing and its start -- and kept; a view's wiring said "
+          "by an office no running view holds ticks nothing") {
+    // MUTATION: the wiring believed from any office -- a stranger's ViewWiring ticks steps 2 and 3.
+    TempDir dir("first-run-facts");
+    const std::string prefs = dir.file("prefs.json");
+    PaneRig r;
+    StoryStart s = start_with_launcher(r, prefs);
+    answer_done(r);
+    REQUIRE(story_on_desk(r));
+    const std::int64_t story = kind_in(r, fr::kFirstRunRole, fr::kStoryPane);
+    CHECK(story_kept(prefs) == "");
+
+    zengine::view::ViewWiring wired;
+    wired.intents.push_back({"count", "Tally", 1, true, 1, 0, "", true});
+    wired.fields.push_back({"total", "TallyTotal", 1, "total", true});
+    // A STRANGER SAYS A WIRING: no running view holds its office, so nothing is ticked.
+    loom::WeaveId stranger_id{};
+    ViewStandIn* stranger = mount_any<ViewStandIn>(r, "zengine.stranger", &stranger_id);
+    drive_any<ViewStandIn>(r, stranger_id, stranger, [&wired](ViewStandIn&, loom::Mail& m) {
+        (void)m.as_role("zengine.stranger").publish(wired);
+    });
+    CHECK(story_kept(prefs) == "");
+
+    // A RUNNING VIEW COMES ON THE DESK: step 1 by the inventory, and the view is asked its wiring,
+    // which ticks 2 and 3 -- and the launcher, asked again, lists an app: step 4.
+    s.launcher->entries = {{"app", "tally", "tally", "an app", false}};
+    loom::WeaveId view_id{};
+    ViewStandIn* tally = mount_any<ViewStandIn>(r, kTallyPanel, &view_id);
+    tally->office = kTallyPanel;
+    tally->wiring = wired;
+    drive_any<ViewStandIn>(r, view_id, tally, [](ViewStandIn&, loom::Mail& m) {
+        (void)m.as_role(kTallyPanel).send_to_role(kWorkshopProvider,
+                                                  v2::PaneOffered{"view", "Tally", "the panel", 10, 30});
+    });
+    CHECK(tally->asked >= 1);
+    CHECK(story_kept(prefs) == "1 2 3 4");
+    CHECK(rows_say(r, story, "[x] 1. Make a view -- done"));
+    CHECK(rows_say(r, story, "[ ] 5. Start it"));
+
+    // THE LAUNCHER SAYS TO ANY THAT IT STARTED THE APP: step 5.
+    drive_any<LauncherStandIn>(r, s.launcher_id, s.launcher, [](LauncherStandIn&, loom::Mail& m) {
+        (void)m.as_role(zengine::launcher::kLauncherRole)
+            .publish(zengine::launcher::Launched{true, "app", "tally", 4242, "started"});
+    });
+    CHECK(story_kept(prefs) == "1 2 3 4 5");
+    CHECK(rows_say(r, story, "The story is done"));
+}
+
+TEST_CASE("WL-FIRST-05: Start here opens when the quick setup closes, holding the keys, and at "
+          "each later start until the story is done beside what holds the keys, never taking them") {
+    // MUTATION: a later start launching Start here as the first does -- it takes the keys.
+    TempDir dir("first-run-story-shown");
+    const std::string prefs = dir.file("prefs.json");
+    {
+        PaneRig r;
+        (void)start_with_launcher(r, prefs);
+        REQUIRE(on_desk(r));
+        CHECK_FALSE(story_on_desk(r));
+        answer_done(r);
+        CHECK_FALSE(on_desk(r));
+        REQUIRE(story_on_desk(r));
+        CHECK(r.session().panes.keyboard == kind_in(r, fr::kFirstRunRole, fr::kStoryPane));
+    }
+    {
+        PaneRig again;
+        (void)start_with_launcher(again, prefs);
+        CHECK_FALSE(on_desk(again));
+        REQUIRE(story_on_desk(again));
+        CHECK(again.session().panes.keyboard != kind_in(again, fr::kFirstRunRole, fr::kStoryPane));
+        // EVERY BOX TICKED BY HAND: the story is done.
+        for (std::size_t step = 0; step < fr::kSteps; ++step) {
+            if (step > 0) {
+                CHECK(again.workshop_action(fr::kFirstRunRole, fr::kStoryPane, fr::kStoryDown).delivered);
+                CHECK(again.workshop_action(fr::kFirstRunRole, fr::kStoryPane, fr::kStoryDown).delivered);
+            }
+            CHECK(again.workshop_action(fr::kFirstRunRole, fr::kStoryPane, fr::kStoryChoose).delivered);
+        }
+        CHECK(story_kept(prefs) == "1h 2h 3h 4h 5h");
+    }
+    PaneRig done;
+    (void)start_with_launcher(done, prefs);
+    CHECK_FALSE(on_desk(done));
+    CHECK_FALSE(story_on_desk(done));
+    CHECK(done.session().panes.runtime.find(fr::kFirstRunRole, fr::kStoryPane) != nullptr);
+}
+
+TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone by it, its owner's "
+          "fact makes it the owner's, and Show me opens the step's pane and says its next move") {
+    // MUTATION: a hand's tick kept over the owner's fact -- the box still says "ticked by you".
+    TempDir dir("first-run-hand");
+    const std::string prefs = dir.file("prefs.json");
+    PaneRig r;
+    (void)start_with_launcher(r, prefs);
+    answer_done(r);
+    REQUIRE(story_on_desk(r));
+    const std::int64_t story = kind_in(r, fr::kFirstRunRole, fr::kStoryPane);
+    const auto story_act = [&r](const char* id) {
+        CHECK(r.workshop_action(fr::kFirstRunRole, fr::kStoryPane, id).delivered);
+    };
+    story_act(fr::kStoryChoose);
+    CHECK(story_kept(prefs) == "1h");
+    CHECK(rows_say(r, story, "[x] 1. Make a view -- ticked by you"));
+    story_act(fr::kStoryChoose);
+    CHECK(story_kept(prefs) == "");
+    story_act(fr::kStoryChoose);
+    CHECK(story_kept(prefs) == "1h");
+    // THE INVENTORY SAYS A VIEW RUNS: the box is the owner's now, and a press leaves it.
+    loom::WeaveId view_id{};
+    ViewStandIn* tally = mount_any<ViewStandIn>(r, kTallyPanel, &view_id);
+    tally->office = kTallyPanel;
+    drive_any<ViewStandIn>(r, view_id, tally, [](ViewStandIn&, loom::Mail& m) {
+        (void)m.as_role(kTallyPanel).send_to_role(kWorkshopProvider,
+                                                  v2::PaneOffered{"view", "Tally", "the panel", 10, 30});
+    });
+    CHECK(story_kept(prefs) == "1");
+    CHECK(rows_say(r, story, "[x] 1. Make a view -- done"));
+    story_act(fr::kStoryChoose);
+    CHECK(story_kept(prefs) == "1");
+    CHECK(rows_say(r, story, "was ticked when a running view is on the desk"));
+
+    // SHOW ME on step 1: the View Builder shown and given the keys, and the next move said.
+    ProviderSeat* builder = r.mount_provider("zengine.view.builder");
+    r.drive(builder, [](ProviderSeat& p, loom::Mail& m) {
+        p.offer(m, PaneOffered{"view-builder", "View Builder", "a stand-in"});
+    });
+    story_act(fr::kStoryDown);
+    story_act(fr::kStoryChoose);
+    REQUIRE(has_pane(r.session().setup.active, PaneRef{"zengine.view.builder", "view-builder"}));
+    CHECK(r.session().panes.keyboard == kind_in(r, "zengine.view.builder", "view-builder"));
+    CHECK(rows_say(r, story, "Show me: place a number field"));
+}
+
+TEST_CASE("WL-FIRST-02: the quick setup lists the setups the launcher lists, and a Start asks "
+          "Workshop for the hand that pressed, then the launcher, saying what it answered") {
+    // MUTATION: a Start sent to the launcher before Workshop approved the hand -- a guest's press
+    // on a weaver's host starts the setup.
+    TempDir dir("first-run-setups");
+    PaneRig r;
+    StoryStart s = start_with_launcher(r, dir.file("prefs.json"),
+                                       {{"demo", "values", "Value inspection", "Inventory and Info", false},
+                                        {"app", "tally", "tally", "an app", false}});
+    REQUIRE(on_desk(r));
+    const std::int64_t setup = setup_kind(r);
+    CHECK(rows_say(r, setup, "[ Start ] Value inspection -- Inventory and Info"));
+    CHECK_FALSE(rows_say(r, setup, "[ Start ] tally"));
+    // THE WEAVER'S KEYS: down to the setup, Return.
+    r.key(input::scan::kDown);
+    r.key(input::scan::kReturn);
+    CHECK(s.launcher->started == std::vector<std::string>{"demo values"});
+    CHECK(rows_say(r, setup, "started the setup `values`, process 4242"));
+    // A START UNDER NO KEY WORKSHOP NUMBERED is refused by Workshop, and nothing starts.
+    act(r, fr::kActionChoose);
+    CHECK(s.launcher->started.size() == 1);
+    CHECK(rows_say(r, setup, "nothing was started --"));
+
+    // NO LAUNCHER IN THIS WORKSHOP: the setups say so.
+    TempDir bare_dir("first-run-no-launcher");
+    PaneRig bare;
+    (void)start(bare, bare_dir.file("prefs.json"));
+    REQUIRE(on_desk(bare));
+    CHECK(rows_say(bare, setup_kind(bare), "no launcher answers in this Workshop"));
+
+    // AND THE GRANT NAMES EACH NEW ASK TO ITS OWNER ALONE: the listing and a start to the
+    // launcher, the approval and a launch of either version to Workshop, the wiring's ask to any.
+    loom::AdmissionRequest speak;
+    speak.stage = loom::AdmissionStage::Speak;
+    speak.role = fr::kFirstRunRole;
+    const loom::AdmissionVerdict v = artifact_admission()(speak);
+    REQUIRE(v.admitted);
+    namespace la = zengine::launcher;
+    CHECK(v.grant.permits_role(la::Launch::zen_name, la::Launch::zen_version, la::kLauncherRole));
+    CHECK_FALSE(v.grant.permits_role(la::Launch::zen_name, la::Launch::zen_version, kWorkshopProvider));
+    CHECK(v.grant.permits_role(la::LaunchCatalogRequested::zen_name,
+                               la::LaunchCatalogRequested::zen_version, la::kLauncherRole));
+    CHECK_FALSE(v.grant.permits_role(la::LaunchCatalogRequested::zen_name,
+                                     la::LaunchCatalogRequested::zen_version, "zengine.stranger"));
+    CHECK(v.grant.permits_role(v2::PaneOperationRequested::zen_name,
+                               v2::PaneOperationRequested::zen_version, kWorkshopProvider));
+    CHECK_FALSE(v.grant.permits_role(v2::PaneOperationRequested::zen_name,
+                                     v2::PaneOperationRequested::zen_version, la::kLauncherRole));
+    CHECK(v.grant.permits_role(v2::PaneLaunchRequested::zen_name, v2::PaneLaunchRequested::zen_version,
+                               kWorkshopProvider));
+    CHECK(v.grant.permits_role(zengine::view::ViewWiringRequested::zen_name,
+                               zengine::view::ViewWiringRequested::zen_version, kTallyPanel));
+    CHECK_FALSE(v.grant.permits_role(zengine::view::ViewWiring::zen_name,
+                                     zengine::view::ViewWiring::zen_version, kTallyPanel));
 }
