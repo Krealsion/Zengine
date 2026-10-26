@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop/nvim-edit -- make structured edits to one file through Workshop's Neovim pane, save it
+"""workshop-machine/nvim-edit -- make structured edits to one file through Workshop's Neovim pane, save it
 through Neovim, and check that the file on disk is exactly what the edits describe.
 loom-tool.json lists the operations and their arguments.
 

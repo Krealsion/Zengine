@@ -146,7 +146,7 @@ so the guest types, saves and builds there as a weaver would. `--toolchain-bin` 
 first on `PATH` for both processes, such as a MinGW `bin` the built programs need.
 
 `replay` then tells the story step by step (`story.py steps` lists them). Each step is one or
-more runs of a maintained tool in the [`workshop` package](https://github.com/Krealsion/Zengine/blob/main/external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools),
+more runs of a maintained tool in the [`workshop` and `workshop-machine` packages](https://github.com/Krealsion/Zengine/blob/main/external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools),
 and the script itself never reads or writes the game project:
 
 | steps | what happens | tools |
@@ -162,7 +162,7 @@ and the script itself never reads or writes the game project:
 | keep, same | the final image promoted; the typed `td.cpp` compared with this directory's | `builder`, `source` |
 
 The milestones are [`story/`](https://github.com/Krealsion/Zengine/tree/main/examples/tower-defense/story): each folder's `edits.json` names the edits
-`workshop/nvim-edit` makes, and its text files hold what is typed. Applied in order to an empty file
+`workshop-machine/nvim-edit` makes, and its text files hold what is typed. Applied in order to an empty file
 they give this directory's `td.cpp` byte for byte, and the last step checks it.
 
 **Pace.** `--speed watch` types in small chunks with pauses, slows each gesture and waits between
@@ -261,9 +261,10 @@ then the `TdSeen` that includes them, so the state after occurrence *n* is the f
 whose `occurred` reaches *n*.
 
 [`monitor/`](monitor/) is a Loom tool package beside the game that builds on Zengine's `workshop`
-package (`"uses": ["workshop"]`): `td_policy.py` is the policy — edit it, and the next run uses
-the edit — `plans.json` the play sessions, `loom-tool.json` its description. The story's session
-approves it; `tower-defense/monitor`:
+package (`"uses": ["workshop"]`): `td_policy.py` is the policy and its play sessions (`PLANS`) —
+edit it, and the next run uses the edit — and `loom-tool.json` its description. Its tools reach
+nothing but the bus, as every package's not named `-machine`. The story's session approves it;
+`tower-defense/monitor`:
 
 - **prepares and plays**: its own `r` begins a new game (the `game` occurrence that press caused
   names this run's game), each round's towers are pressed onto their cells and confirmed by the

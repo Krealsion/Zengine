@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""desk/watch -- follow a running Workshop's desk as it moves, and write each change for a model,
+"""desk-machine/watch -- follow a running Workshop's desk as it moves, and write each change for a model,
 into the one directory `out` names.
 
 Workshop says when its desk moved: `DeskStamps` v3, the desk number and every presented pane's
@@ -8,13 +8,13 @@ stamp, published when either moved. Each notice is the whole state, so the
 relay may keep only the newest while this reader is behind (`latest`), and the newest stands for
 every one before it. This reader asks nothing until it is told.
 
-In order: `out` is judged as desk/read judges it, and AGENTS.md is written first; the notice is
+In order: `out` is judged as desk-machine/read judges it, and AGENTS.md is written first; the notice is
 followed (subscribed before the first read, so nothing between the read and the subscription is
 missed; its window one notice, so while the watch reads, the relay holds only the newest); the
 desk is read whole and its readings written. Then, at each notice -- the newest of those waiting --
 what moved is read again: the desk, when its number moved or a pane came or left, every pane with
 it, since a pane's place and what covers it are the desk's (a desk reading begun at most every
-DESK_READ_GAP seconds, each confirming itself as desk/read does: Workshop answers each link's
+DESK_READ_GAP seconds, each confirming itself as desk-machine/read does: Workshop answers each link's
 session a few a second, and a reader beside this one needs some); else each pane whose stamp moved, alone. The new reading is compared with the
 last, and the change written to `changes.txt` (desk_changes), the reading files rewritten. A notice
 the last reading already stands on writes nothing, and a desk read refused writes nothing and is
@@ -48,7 +48,7 @@ NOTICE = ("DeskStamps", 3)
 DEFAULT_SECONDS = 60.0
 MAX_SECONDS = 3600.0
 #: The least time between the starts of two desk readings of one watch, in seconds (a reading
-#: confirms itself with a desk read or two more, as desk/read does): Workshop answers a link's
+#: confirms itself with a desk read or two more, as desk-machine/read does): Workshop answers a link's
 #: session four a second, every run on the link together, and a reader beside the watch needs some.
 DESK_READ_GAP = 1.0
 #: The file a watch holds its directory by.
@@ -154,7 +154,7 @@ def kept(write):
 
 
 def write_readings(out, reading, watched):
-    """The reading files: every one, as desk/read writes them, or a watch of some panes' own and
+    """The reading files: every one, as desk-machine/read writes them, or a watch of some panes' own and
     the guide."""
     if watched is None:
         written = read.readings(reading)
@@ -177,10 +177,10 @@ def hold(ctx, out):
                 holder = f.read().strip() or "an unnamed run"
         except OSError:
             holder = "a run whose name could not be read"
-        ctx.fail("refused: `out` (%s) is held by another desk/watch, %s: one watch a directory. "
+        ctx.fail("refused: `out` (%s) is held by another desk-machine/watch, %s: one watch a directory. "
                  "Name another, or remove %s if no watch runs there" % (out, holder, path))
     with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write("desk/watch run %s\n" % ctx.name)
+        f.write("desk-machine/watch run %s\n" % ctx.name)
     ctx.on_cleanup(lambda: os.path.exists(path) and os.remove(path),
                    "release the watch's hold on %s" % out)
     return path
@@ -208,7 +208,7 @@ def run(ctx):
     ctx.step("follow")
     try:
         sub = ctx.observe(desk_asks.WORKSHOP, [NOTICE], via=link, latest=[NOTICE[0]],
-                          window=1, label="desk/watch (run %s)" % ctx.name)
+                          window=1, label="desk-machine/watch (run %s)" % ctx.name)
     except (Refused, DispatchRefused, SendRefused, LinkOutcome) as err:
         ctx.fail("refused: this row may not follow the desk: %s. A row follows it with `capture` "
                  "and an `observe` entry naming zengine.workshop DeskStamps %d"
@@ -300,7 +300,7 @@ def run(ctx):
 
 def result(agents, out, seconds, spent, notices, written, first, quiet, gaps, lost, refused, why,
            watched, blocked=0):
-    line = "Read %s first. desk/watch followed the desk in %s for %.1f s: %d notice(s), " % (
+    line = "Read %s first. desk-machine/watch followed the desk in %s for %.1f s: %d notice(s), " % (
         agents, out, spent, notices)
     if written:
         line += "%d change(s) written to changes.txt (changes %d to %d)" % (

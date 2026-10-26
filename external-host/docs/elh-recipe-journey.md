@@ -1,7 +1,7 @@
 # Author and check a recipe through an ELH
 
 Use this after [starting an admitted Workshop session](external-host.md#3-from-a-loom-session-journeys-as-python-tools).
-It composes the shipped `workshop/inspect-capture` and `workshop/verify-recipe` tools. The
+It composes the shipped `workshop/inspect-capture` and `workshop-machine/verify-recipe` tools. The
 result is a new recipe written through Files, with captures and semantic checks retained as
 named ELH runs. No direct recipe write substitutes for the authoring action.
 
@@ -104,8 +104,8 @@ Now fill configuration with `Debug` and commit with Enter. Check the authored no
 the new catalog through the checker, naming every expected field:
 
 ```sh
-loom-session run <session> workshop/verify-recipe --name recipe-good --input project=<project> --input recipe=elh-demo --input artifact=demo_target --input artifact_dir_blank=true --input cmake_target=demo_target --input cmake_build_dir=<project>/build --input cmake_config=Debug --input cmake_entry_blank=true --wait 30
-loom-session run <session> workshop/verify-recipe --name recipe-wrong --input project=<project> --input recipe=elh-demo --input cmake_config=Release --wait 30
+loom-session run <session> workshop-machine/verify-recipe --name recipe-good --input project=<project> --input recipe=elh-demo --input artifact=demo_target --input artifact_dir_blank=true --input cmake_target=demo_target --input cmake_build_dir=<project>/build --input cmake_config=Debug --input cmake_entry_blank=true --wait 30
+loom-session run <session> workshop-machine/verify-recipe --name recipe-wrong --input project=<project> --input recipe=elh-demo --input cmake_config=Release --wait 30
 ```
 
 Use the absolute build path Files actually reported, with its displayed separators. The first

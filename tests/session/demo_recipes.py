@@ -17,7 +17,8 @@ import types
 import unittest
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "external-host/tools/workshop"))
+# As a worker of a `workshop-machine` tool finds them: its own package's modules, then `workshop`'s.
+sys.path[:0] = [str(REPO / "external-host/tools/workshop-machine"), str(REPO / "external-host/tools/workshop")]
 # workshop_steps spells chords and names Loom's value kinds; the kinds are not needed here.
 sys.modules.setdefault("loom_session", types.ModuleType("loom_session"))
 values = types.ModuleType("loom_session.values")
@@ -269,7 +270,9 @@ def tool_module(script, name):
     saved = sys.modules.get("loom_session.tool")
     sys.modules["loom_session.tool"] = tool
     try:
-        spec = importlib.util.spec_from_file_location(name, REPO / "external-host/tools/workshop" / script)
+        found = [d / script for d in (REPO / "external-host/tools/workshop-machine",
+                                      REPO / "external-host/tools/workshop") if (d / script).is_file()]
+        spec = importlib.util.spec_from_file_location(name, found[0])
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""desk/read -- the desk said whole: a running Workshop's desk read under the guest's own row and
+"""desk-machine/read -- the desk said whole: a running Workshop's desk read under the guest's own row and
 written for a model as text files, into the one directory `out` names.
 
 In order: `out` is judged (never inside a source checkout, never a file, never an AGENTS.md this
@@ -49,7 +49,7 @@ def checkout_of(path):
 def output_dir(ctx, given):
     """The directory the readings go in, judged before anything is asked or written."""
     out = os.path.expanduser((given or "").strip())
-    ctx.check(out, "refused: `out` names no directory; desk/read writes only into the directory "
+    ctx.check(out, "refused: `out` names no directory; desk-machine/read writes only into the directory "
                    "`out` names")
     ctx.check(os.path.isabs(out), "refused: `out` is '%s', not an absolute path: name the "
                                   "directory whole, outside every source checkout" % out)
@@ -68,14 +68,14 @@ def output_dir(ctx, given):
         os.path.isdir(panes) and not os.path.islink(panes) and os.path.normcase(
             os.path.realpath(panes)) == os.path.normcase(
                 os.path.join(os.path.realpath(out), "panes"))),
-              "refused: %s is a file or a link; desk/read writes each pane's reading into a "
+              "refused: %s is a file or a link; desk-machine/read writes each pane's reading into a "
               "directory of its own there" % panes)
     agents = os.path.join(out, "AGENTS.md")
     if os.path.exists(agents):
         with open(agents, "r", encoding="utf-8", errors="replace") as f:
             first = f.readline().rstrip("\r\n")
         ctx.check(first == words.MARK,
-                  "refused: `out` (%s) holds an AGENTS.md desk/read did not write; name a "
+                  "refused: `out` (%s) holds an AGENTS.md desk-machine/read did not write; name a "
                   "directory of the reader's own" % out)
     return out
 
@@ -167,7 +167,7 @@ def tidy(out, written, desk_files=False):
 
 def result(out, agents, reading, written):
     """The run's one line: AGENTS.md's path first, then where the readings are and what they say."""
-    head = "Read %s first. desk/read wrote the desk into %s" % (agents, out)
+    head = "Read %s first. desk-machine/read wrote the desk into %s" % (agents, out)
     if reading.get("desk") is None:
         return "%s; the desk was not read (%s), said in desk.txt" % (
             head, render.clean(reading.get("refused")))[:1900]

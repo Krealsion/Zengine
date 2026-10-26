@@ -87,8 +87,8 @@ and its incomplete preset in `Workbench/Commands/Drafts`. The `folders` demo set
 
 ```sh
 python external-host/demo.py start --root demo-runs/folders --setup folders --build build --loom-prefix ../Loom/build/_install
-loom-session run demo-runs/folders/session workshop/workbench --name restore --input phase=restore --input variant=organized --wait 60
-loom-session run demo-runs/folders/session workshop/workbench --name story --input phase=folders --input save=<absolute path>.toolbox --wait 300
+loom-session run demo-runs/folders/session workshop-machine/workbench --name restore --input phase=restore --input variant=organized --wait 60
+loom-session run demo-runs/folders/session workshop-machine/workbench --name story --input phase=folders --input save=<absolute path>.toolbox --wait 300
 python external-host/demo.py stop --root demo-runs/folders
 ```
 

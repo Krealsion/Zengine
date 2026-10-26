@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""The asks desk/read makes of a running Workshop, through the link, under the guest's own row --
+"""The asks desk-machine/read makes of a running Workshop, through the link, under the guest's own row --
 and what each came to, as values the readings are written from.
 
 THE DESK IN ONE TURN. `DeskReadRequested` v3 answers the desk (`DeskView` v4), every presented
@@ -351,7 +351,7 @@ def read_desk(asker):
 
 
 def read_all(ctx, link):
-    """Everything one desk/read asks, in order: the asker's own row, the desk and its panes, the
+    """Everything one desk-machine/read asks, in order: the asker's own row, the desk and its panes, the
     pane inventory and the keymap."""
     asker = Asker(ctx, link)
     ctx.step("own row")

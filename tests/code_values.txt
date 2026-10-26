@@ -52,7 +52,7 @@ desk_render.DENSE_CELLS         external-host/tools/desk/desk_render.py   DENSE_
 # ...and what a watch keeps: the ring of its changes, and the least time between its desk reads.
 desk_changes.RING_CHANGES       external-host/tools/desk/desk_changes.py  RING_CHANGES
 desk_changes.RING_BYTES         external-host/tools/desk/desk_changes.py  RING_BYTES
-watch.DESK_READ_GAP             external-host/tools/desk/watch.py         DESK_READ_GAP
+watch.DESK_READ_GAP             external-host/tools/desk-machine/watch.py         DESK_READ_GAP
 # ...and the version of a pane's reading the hand asks for, which act's `part` step presses by.
 hand.PANE_VIEW_VERSION          external-host/tools/workshop/hand.py      PANE_VIEW_VERSION
 keymap_persist::kFormatVersion  workshop/keymap_persist.hpp               kFormatVersion

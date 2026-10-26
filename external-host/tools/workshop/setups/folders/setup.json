@@ -32,7 +32,7 @@
   "Inventory, three Info views and the Demo controls; a slot for the toolbox's first portable view"
  ],
  "first_task": {
-  "do": "Run `workshop/workbench` with phase=restore and variant=organized, then phase=retrieve.",
+  "do": "Run `workshop-machine/workbench` with phase=restore and variant=organized, then phase=retrieve.",
   "expect": "The sample is retrieved through its folder path into the first Info view."
  },
  "variations": [

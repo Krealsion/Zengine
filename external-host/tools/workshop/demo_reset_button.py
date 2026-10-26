@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 from hand import Hand
-from demo_setup import ROLE
+from demo_asks import ROLE
 import json
 
 

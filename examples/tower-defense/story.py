@@ -3,7 +3,7 @@
 """Replay how the tower-defense example was made, from an empty game directory, through an external
 Loom host (ELH) driving a fresh Workshop. README.md beside this file is the guide.
 
-Every project operation is a run of a maintained tool in Zengine's `workshop` package: Neovim
+Every project operation is a run of a maintained tool in Zengine's `workshop` packages: Neovim
 types the game through `nvim-edit`, the Builder builds and reloads it through `builder`, Info
 places panes through `place`, Inventory keeps the commands. This script only starts those runs,
 waits for their verdicts, keeps the pace and writes down what happened. It never reads or writes
@@ -56,7 +56,10 @@ HERE = Path(__file__).resolve().parent
 STORY = HERE / "story"
 ZENGINE = HERE.parent.parent
 PACKAGE = ZENGINE / "external-host" / "tools" / "workshop"
-MONITOR = HERE / "monitor"  # the game's own monitor: a package that builds on the one above
+# What the story does on this machine -- a recipe read back, the project's files, its lane, the
+# game typed through Neovim -- is the `-machine` package's, which builds on the one above.
+MACHINE = ZENGINE / "external-host" / "tools" / "workshop-machine"
+MONITOR = HERE / "monitor"  # the game's own monitor: a package that builds on `workshop`
 NT = os.name == "nt"
 sys.path.insert(0, str(PACKAGE))
 import workshop_formats as formats  # noqa: E402  Workshop's setup and session files, as written
@@ -310,7 +313,7 @@ READY = "TOWER DEFENSE   wave 0/5   gold 40   lives 10   building"
 
 
 def edits_of(folder):
-    """A milestone's edits for workshop/nvim-edit: "@name" values are the folder's text files."""
+    """A milestone's edits for workshop-machine/nvim-edit: "@name" values are the folder's text files."""
     edits = json.loads((STORY / folder / "edits.json").read_text(encoding="utf-8"))
     for edit in edits:
         for key, value in list(edit.items()):
@@ -442,7 +445,7 @@ class Story:
         name = "%02d-%s" % (self.index, label)
         runs = self.status.setdefault("runs", [])
         name += "" if name not in [r["name"] for r in runs] else "-%d" % len(runs)
-        if tool not in ("workshop/verify-recipe", "workshop/source", "workshop/lane"):
+        if tool not in ("workshop-machine/verify-recipe", "workshop-machine/source", "workshop-machine/lane"):
             inputs = dict({"link": "workshop"}, **inputs)  # local-file tools take no link
         started = time.monotonic()
         held = {"name": name, "tool": tool, "lifetime": self.record.get("lifetime"), "directory": ""}
@@ -535,7 +538,7 @@ class Story:
 
     def edit(self, label, path, edits, **more):
         p = self.pace()
-        return self.run("workshop/nvim-edit", label, dict({"path": path, "edits": edits, "chunk": p["chunk"],
+        return self.run("workshop-machine/nvim-edit", label, dict({"path": path, "edits": edits, "chunk": p["chunk"],
                                                             "pace_ms": p["type_ms"]}, **more))
 
     def builder(self, label, act, **more):
@@ -610,7 +613,7 @@ def s_recipe(st):
         {"type": "zengine::pane,zengine::activation,zengine::input,zengine::timer,loom::switchboard"},
         {"press": "enter"},
         {"expect": FILES + ["authored recipe `tower-defense`"], "seconds": 5}])
-    return st.run("workshop/verify-recipe", "recipe-check",
+    return st.run("workshop-machine/verify-recipe", "recipe-check",
                   {"project": st.game, "recipe": "tower-defense", "artifact": "tower-defense"})
 
 
@@ -669,7 +672,7 @@ def s_first_build(st):
     output = st.artifact(first, "output.txt")
     if "CMAKE_CXX_COMPILER" not in output and "Does not match the generator" not in output:
         raise StepFailed("the first build failed for a reason this story does not repair:\n" + output[-800:])
-    read = st.run("workshop/source", "recipe-read", {"root": st.game, "op": "read",
+    read = st.run("workshop-machine/source", "recipe-read", {"root": st.game, "op": "read",
                                                     "path": "build-recipes.json"})
     # THE RECIPE'S OWN LINE, found by what it says: `source` numbers each line (`%5d  text`).
     rows = [m.group(1) for m in re.finditer(r"^ *\d+  (.*)$", st.artifact(read, "result.txt"), re.M)
@@ -704,7 +707,7 @@ def s_save_desk(st):
     """Save the desk through its owner: put the game pane down (Escape), then s."""
     st.act("desk-save", [{"into": ["td.game", "td", "TOWER DEFENSE"]}, {"press": "escape"},
                          {"press": "s"}, {"wait": 0.8}])
-    listed = st.run("workshop/source", "desk-saved", {"root": st.game, "op": "list"})
+    listed = st.run("workshop-machine/source", "desk-saved", {"root": st.game, "op": "list"})
     if "workshop-setup.json" not in st.artifact(listed, "result.txt"):
         raise StepFailed("no workshop-setup.json in the game directory after s")
     return listed
@@ -819,7 +822,7 @@ def s_keep(st):
 
 def s_same(st):
     """The typed game is byte for byte the example's td.cpp (a local comparison)."""
-    return st.run("workshop/source", "same", {"root": st.game, "op": "compare", "path": "td.cpp",
+    return st.run("workshop-machine/source", "same", {"root": st.game, "op": "compare", "path": "td.cpp",
                                               "other": (HERE / "td.cpp").as_posix()})
 
 
@@ -929,8 +932,8 @@ def start_elh(sdir, tools, env, endpoint, identity, credential, started, kept, c
                     "keep": [{"shape": "InputInjected"}, {"shape": "SurfaceCaptured"},
                              {"shape": "loom.link.Outcome"}, {"shape": "InventoryToolboxFinished"}]}})
     save(sdir / "loom-tools.json", {"python": sys.executable, "runtime": tools["loom_python"],
-                                    "packages": [{"path": str(PACKAGE), "approve": "any-revision"},
-                                                 {"path": str(MONITOR), "approve": "any-revision"}]})
+                                    "packages": [{"path": str(p), "approve": "any-revision"}
+                                                 for p in (PACKAGE, MACHINE, MONITOR)]})
     approvals = ["authority trust runs --rebuilds", "authority trust vocab --rebuilds"]
     approvals += ["authority allow runs %s v1 -> role loom.session" % s
                   for s in ("loom.session.ExpectRun", "loom.session.ForgetRun")]
@@ -1585,7 +1588,7 @@ def main():
                         "or Loom host that will not stop, once its identity is confirmed")
     p.add_argument("--discard-unsaved", action="store_true",
                    help="stop, reset: first abandon Neovim's unsaved buffers with :qa! (a cancelled edit leaves one)")
-    p.add_argument("--plan", default="win", help="monitor: win, thin or watch (monitor/plans.json)")
+    p.add_argument("--plan", default="win", help="monitor: win, thin or watch (PLANS in monitor/td_policy.py)")
     p.add_argument("--checkpoint", default="21,7", help="monitor: the road cell whose crossings count")
     p.add_argument("--threshold", type=int, default=8, help="monitor: the most crossings one game may have")
     p.add_argument("--on-attention", default="pause", help="monitor: pause or report")

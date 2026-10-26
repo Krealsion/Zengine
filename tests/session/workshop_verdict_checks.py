@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 """Verdict checks for the Workshop tools that wait on an owner: `workshop/builder`'s completion and
-`workshop/nvim-edit`'s confirmation, run through their real entry points against scripted panes.
+`workshop-machine/nvim-edit`'s confirmation, run through their real entry points against scripted panes.
 
 Run by workshop_journey before its real processes (check T2). A scripted pane is the rows a
 PaneView would carry, so these checks pin what each tool CONCLUDES from an owner's words --
@@ -154,7 +154,10 @@ class Scripted:
 def run_checks(tools, runtime):
     # A check's words can hold any letter a path does; the console's code page may not.
     sys.stdout.reconfigure(errors="backslashreplace")
-    sys.path[:0] = [str(Path(runtime).resolve()), str(Path(tools).resolve())]
+    # As a worker of a `-machine` tool finds them: its own package's modules, then this one's.
+    tools = Path(tools).resolve()
+    sys.path[:0] = [str(Path(runtime).resolve()), str(tools.with_name(tools.name + "-machine")),
+                    str(tools)]
     steps = importlib.import_module("workshop_steps")
     builder = importlib.import_module("builder")
     nvim_edit = importlib.import_module("nvim_edit")

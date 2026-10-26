@@ -8,7 +8,7 @@ python external-host/demo.py start --setup editor-materials --root demo-runs/edi
 
 ## First task
 
-Run `workshop/editor-materials-demo` with phase=prepare (its README names the inputs).
+Run `workshop-machine/editor-materials-demo` with phase=prepare (its README names the inputs).
 
 Expect: The carried materials are filed in folders and saved as a toolbox.
 

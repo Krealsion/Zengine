@@ -580,7 +580,7 @@ document's picture, which this Workshop no longer publishes, so it waits, showin
   files.
 - **A desk read is consistent pane by pane, not across the desk.** Each pane's reading stands on
   its own stamp and the desk on its number; a reading gathered over several asks can hold panes
-  from different moments, and `desk/read` says which. A covered pane says what shows of it
+  from different moments, and `desk-machine/read` says which. A covered pane says what shows of it
   ([the desk, read by message](../../external-host/docs/external-host.md#the-desk-a-panes-words-and-timed-drag-stories)).
 - **In a window, a press is landed when the window reads it.** A press injected in one batch with a
   wheel or a key is landed on what the window shows when it reads the press, and its owner judges it
