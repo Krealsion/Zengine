@@ -6,8 +6,9 @@ A tutorial is a setup in its feature's `docs/tutorials/<name>/`, and its `tutori
 steps. This installs the build into a prefix of its own -- the package a weaver installs, and the
 one each tutorial builds against -- then, for every tutorial, starts the copy the install put in the
 tool package's `setups/` through `external-host/demo.py` in a terminal Workshop, replays its
-`tutorial` walk and stops it. It passes when every walk says `passed`; a step that cannot be done is
-named with what the pane painted instead.
+`tutorial` walk and stops it. It passes when every walk says `passed` and the `steps.json` its run
+kept reads the same by message from the root's Loom session, as a client with no shell reads it; a
+step that cannot be done is named with what the pane painted instead.
 
     tutorial_walks.py --repo <checkout> --build <tree> --cmake <cmake> --config <config>
                       --loom-prefix <installed Loom> --work <dir> [--evidence <file.json>]
@@ -35,6 +36,18 @@ def demo(args, *more):
     except ValueError:
         answer = {"said": said}
     return answer, run.returncode
+
+
+def read_by_message(args, root, run, name):
+    """A file run `run` kept, read by message from the root's Loom session page by page, each page
+    checked against the digest the run manager verified."""
+    runtime = str(args.loom_prefix / "lib" / "loom" / "python")
+    if runtime not in sys.path:
+        sys.path.insert(0, runtime)
+    from loom_session.session import Session
+    config = json.loads((root / "demo.json").read_text(encoding="utf-8"))
+    with Session.attach(config["session"]) as session:
+        return session.read_artifact(run, name)
 
 
 def main():
@@ -94,6 +107,19 @@ def main():
                 if record["state"] != "passed" and 0 <= at < len(steps):
                     record["failure"] = "step %d of %d, %s: %s" % (
                         at + 1, len(steps), json.dumps(steps[at]), record["failure"])
+                # WHAT THE RUN KEPT, READ BY MESSAGE: the same bytes the walk copied from disk.
+                if record["state"] == "passed":
+                    try:
+                        read = read_by_message(args, root, walked["run"], "steps.json")
+                        record["read_by_message"] = len(read)
+                        if read != done.read_bytes():
+                            record.update(state="read by message differs", failure=(
+                                "steps.json of run %s: %d bytes by message, %d on disk"
+                                % (walked["run"], len(read), done.stat().st_size)))
+                    except Exception as error:
+                        record.update(state="not read by message", failure=(
+                            "steps.json of run %s, read by message from the root's session: %s: %s"
+                            % (walked["run"], type(error).__name__, error)))
         finally:
             stopped, _ = demo(args, "stop", "--root", str(root))
             record["stop"] = stopped.get("state") or stopped.get("said")
