@@ -16,7 +16,7 @@ input                             doctest           always  56
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 # A tripwire in this suite reads graphics/ as text (VM-WALL-11).
-graphics                          doctest           always  90
+graphics                          doctest           always  95
 graphics                          doctest           sdl     7
 ui                                doctest           always  30
 component                         doctest           always  48

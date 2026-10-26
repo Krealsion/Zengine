@@ -16,10 +16,13 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace zengine::graphics::window {
@@ -264,6 +267,24 @@ struct Applied {
     std::vector<std::string> gone;
 };
 
+/// Whether `path` lies in the subtree of a path `roots` holds: the path itself, or one of its
+/// ancestors, each read up to a '/' of `path`. Bounded by the path's depth, not by `roots`.
+inline bool under_any(const std::string& path, const std::set<std::string, std::less<>>& roots) {
+    if (roots.empty()) {
+        return false;
+    }
+    if (roots.count(path) != 0) {
+        return true;
+    }
+    const std::string_view p(path);
+    for (std::size_t at = p.find('/'); at != std::string_view::npos; at = p.find('/', at + 1)) {
+        if (roots.count(p.substr(0, at)) != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
     Applied out;
     std::set<std::string> before;
@@ -274,17 +295,23 @@ inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
         std::erase_if(a.nodes, [&](const KeptNode& k) { return mine(a, who, k.node.path); });
         std::erase_if(a.records, [&](const ElementRecord& r) { return mine(a, who, r.path); });
     }
-    for (const std::string& r : d.removed) {
-        std::erase_if(a.nodes, [&](const KeptNode& k) { return under(k.node.path, r); });
-        std::erase_if(a.records, [&](const ElementRecord& e) { return under(e.path, r); });
+    if (!d.removed.empty()) {
+        const std::set<std::string, std::less<>> removed(d.removed.begin(), d.removed.end());
+        std::erase_if(a.nodes, [&](const KeptNode& k) { return under_any(k.node.path, removed); });
+        std::erase_if(a.records, [&](const ElementRecord& e) { return under_any(e.path, removed); });
+    }
+    // EACH PUT FINDS ITS NODE BY PATH: put again it keeps its rank; new, it takes the next.
+    std::unordered_map<std::string, std::size_t> slot;
+    slot.reserve(a.nodes.size() + d.put.size());
+    for (std::size_t i = 0; i < a.nodes.size(); ++i) {
+        slot.try_emplace(a.nodes[i].node.path, i);
     }
     for (const Node& n : d.put) {
-        const auto it = std::find_if(a.nodes.begin(), a.nodes.end(),
-                                     [&](const KeptNode& k) { return k.node.path == n.path; });
-        if (it != a.nodes.end()) {
-            it->node = n;
-        } else {
+        const auto [it, fresh] = slot.try_emplace(n.path, a.nodes.size());
+        if (fresh) {
             a.nodes.push_back(KeptNode{n, a.next_rank++});
+        } else {
+            a.nodes[it->second].node = n;
         }
         out.changed.insert(n.path);
     }
@@ -302,11 +329,12 @@ inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
     }
     const auto at = index_of(a);
     std::erase_if(a.records, [&](const ElementRecord& r) { return at.count(r.path) == 0; });
-    for (const std::string& c : std::set<std::string>(out.changed)) {
-        for (const KeptNode& k : a.nodes) {
-            if (under(k.node.path, c)) {
-                out.changed.insert(k.node.path);
-            }
+    // EVERY NODE BENEATH A PUT GROUP CHANGED TOO, its space moved: each node asks of its own
+    // ancestors whether one was put.
+    const std::set<std::string, std::less<>> put(out.changed.begin(), out.changed.end());
+    for (const KeptNode& k : a.nodes) {
+        if (under_any(k.node.path, put)) {
+            out.changed.insert(k.node.path);
         }
     }
     for (const std::string& p : before) {
