@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""WORKSHOP'S NEOVIM, EDITED THROUGH A LOOM SESSION: `workshop/nvim-edit` against a real Neovim in a
+"""WORKSHOP'S NEOVIM, EDITED THROUGH A LOOM SESSION: `workshop-machine/nvim-edit` against a real Neovim in a
 real Workshop, and the tower-defense story's stop over the unsaved work Neovim holds.
 
     neovim_journey.py --neovim <nvim> --story <examples/tower-defense/story.py>
@@ -126,7 +126,7 @@ def edits(rig):
     text = "".join("line %03d of a creation interrupted part way\n" % i for i in range(150))
     name = "01-interrupted"
     with st.Session.attach(st.record["session"]) as s:
-        s.start("workshop/nvim-edit", name, {"link": "workshop", "path": cut.as_posix(),
+        s.start("workshop-machine/nvim-edit", name, {"link": "workshop", "path": cut.as_posix(),
                                              "edits": json.dumps([{"create": text}]), "chunk": 200,
                                              "pace_ms": 400})
         deadline = time.monotonic() + 60
@@ -210,7 +210,7 @@ def main():
     rig = Rig(args, env={"ZENGINE_NEOVIM": str(Path(args.neovim).resolve()),
                          "ZENGINE_NEOVIM_PROFILE": "clean"})
     # The tool's own open line, for a weaver's drafts typed by hand.
-    sys.path[:0] = [rig.tools["loom_python"], str(rig.story.PACKAGE)]
+    sys.path[:0] = [rig.tools["loom_python"], str(rig.story.MACHINE), str(rig.story.PACKAGE)]
     try:
         stops(rig, edits(rig))
     finally:

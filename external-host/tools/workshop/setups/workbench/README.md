@@ -25,7 +25,7 @@ Useful next steps, all on the same desk:
 - Link `Workbench capture preset` into the second view (select it, `Ctrl`+`Enter`, click the
   view) and drag the sample's `requested_role` field onto its `target_role`.
 - Watch `Workbench note` in the third view while the second view saves it.
-- Run the whole weaver story: `loom-session run <session> workshop/workbench --input phase=story`
+- Run the whole weaver story: `loom-session run <session> workshop-machine/workbench --input phase=story`
   ([the inspection workbench](https://github.com/Krealsion/Zengine/blob/main/info/docs/info-views.md#the-inspection-workbench)).
 
 ## The hotkey
@@ -73,5 +73,5 @@ Loom session. A root is reused only while its recorded Loom session is the one a
 - The row is seated by preparation; moving the command out of it makes Reset put it back, and
   anything else put in the row goes back to main Inventory. Removing the command makes Reset
   recreate it in a fresh row and turn the old one, which still shows the removed tile, OFF.
-- Regenerating the packaged toolbox is `workshop/workbench` phase=prepare, in a Workshop without
+- Regenerating the packaged toolbox is `workshop-machine/workbench` phase=prepare, in a Workshop without
   workbench entries.

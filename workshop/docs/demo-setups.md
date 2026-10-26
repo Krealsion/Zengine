@@ -180,7 +180,7 @@ For the command setup, run `workshop/inventory-compose-demo` with a fresh `label
 previous commands are retained. The `presets` setup uses `workshop/inventory-preset-demo`,
 also with a fresh `label`. It saves a blank template, complete command and incomplete preset,
 and captures the incomplete/reviewed state. Both editors reset; all user-created entries survive. `loom-session describe` supplies each tool's input syntax.
-The `editor-materials` setup uses `workshop/editor-materials-demo`, whose `folder` is the demo
+The `editor-materials` setup uses `workshop-machine/editor-materials-demo`, whose `folder` is the demo
 root's `workshop/materials` (it writes `beat.cpp` and `notes.txt` there) and whose `toolbox` is a
 file path. `phase=prepare` is the pointer story -- a timed sweep, a Bezier drag from the highlight,
 right-click Extract, `Ctrl`+`l`, a real Terminal command filed and dropped back as C++ and as its
@@ -193,7 +193,7 @@ shows a change Neovim holds: a command's line chosen while Neovim waits for inpu
 wait, and goes in when Escape ends the wait ([when Neovim is waiting](../../editor/docs/neovim.md#carrying-text-commands-and-file-places)).
 
 ```sh
-loom-session run demo-runs/materials/session workshop/editor-materials-demo --name prepare --input phase=prepare --input label=Beat --input folder=<root>/workshop/materials --input toolbox=<root>/editor-materials.toolbox --wait 600
+loom-session run demo-runs/materials/session workshop-machine/editor-materials-demo --name prepare --input phase=prepare --input label=Beat --input folder=<root>/workshop/materials --input toolbox=<root>/editor-materials.toolbox --wait 600
 ```
 
 `workshop/demo-picture` captures a bitmap (or terminal cells) without taking an input session.

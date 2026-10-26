@@ -247,16 +247,17 @@ Both paths below need this step and nothing more from each other — pick one:
 | A reader wants to... | Read |
 |---|---|
 | **Start or return to work** | § 1 above (admission, done once), then [§ 3](#3-from-a-loom-session-journeys-as-python-tools) for the session path's own setup, or [§ 4](#4-link-a-host-to-it) for the probe's |
-| **Find an existing capability** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools) — `loom-session tools`/`describe` reads the `workshop` and `desk` packages' own tools from their manifests, never by running one |
+| **Find an existing capability** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools) — `loom-session tools`/`describe` reads the `workshop`, `desk` and `-machine` packages' own tools from their manifests, never by running one |
 | **Act on Workshop** | Either path uses the owner doors (`zengine.input`, the window's office, `zengine.guests`, `zengine.inventory`) admitted by § 1's file; [§ 3](#3-from-a-loom-session-journeys-as-python-tools) speaks them as a tool's `ctx.ask`, [§ 5](#5-run-the-journey) as console `send` |
 | **Understand the result** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools)'s own run/crossings account (a session's general answer, [Loom's session guide](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md)), or [§ 6](#6-read-what-happened-from-the-agents-side) for the probe's `history`/`log` console commands |
 | **Recover or finish** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools)'s "What a person meets on this route" and "Giving Workshop's input session back", or [§ 7](#7-refusals-and-the-connections-end) for the probe's own refusal words |
 | **Extend the harness** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools) — a small editable Python tool, its own `loom-tool.json` manifest, and [Loom's own generic map of this](https://github.com/Krealsion/Loom/blob/main/docs/guides/session-tools-map.md) for the mechanics a new tool shares with every other session's |
 
-**Recommended: the session path, § 3.** No compiler, no restart between an edit and the next
-run, and a maintained package (`external-host/tools/workshop/`) already speaks Workshop's
-input, capture, connection, and inventory doors, beside a reader (`external-host/tools/desk/`)
-that writes the whole desk as text for an agent. Read § 1 above, then jump straight to [§ 3](#3-from-a-loom-session-journeys-as-python-tools).
+**Recommended: the session path, § 3.** No compiler, no restart between an edit and the next run,
+and a maintained package (`external-host/tools/workshop/`) already speaks Workshop's input, capture,
+connection, and inventory doors, beside a reader (`external-host/tools/desk-machine/`) that writes
+the whole desk as text for an agent. Read § 1 above, then jump straight to
+[§ 3](#3-from-a-loom-session-journeys-as-python-tools).
 
 For the inventory collection, `workshop/inventory-collect` captures a new named entry and
 returns its reference in `entry.json` plus the self-describing `pair.bin`. `workshop/drag`
@@ -284,17 +285,15 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   chunks, the desk and each pane's words, the pane inventory and the keymap, the connection
   inventory, the asker's own row and where the plan is — so a tool's asks are encoded and
   Workshop's answers re-admitted by identity. It accepts nothing and says nothing.
-- **The `workshop` tool package**, installed at `share/zengine/loom-tools/workshop`:
+- **The `workshop` tool package**, installed at `share/zengine/loom-tools/workshop`, reaches
+  Workshop by message alone:
   `workshop/connections` (the connection inventory, and this session's own row; with `wait_plan`,
   first where Workshop's load plan came to rest),
   `workshop/inspect-capture`
   (the journey below as a tool: inspect, open an input session, click and/or press a chord with
   settlement — optionally clearing a field first and typing into it, or repeating a chord
   several presses in one batch — picture, close, and every failure after the session opened
-  closes it first and says both), `workshop/verify-recipe` (reads one recipe back from the
-  project's own `build-recipes.json` on the local filesystem and checks named fields against
-  it — a LOCAL OBSERVATION of what a recipe-authoring run left behind, never a claim about who
-  wrote it or when; pair it with `inspect-capture`'s own settlement for a claim about causation)
+  closes it first and says both)
   and `workshop/inventory-capture` (asks Workshop's *storage* inventory — a different inventory
   than the connections one above — to capture a named participant's own `zen.PokeStructure`,
   then verifies Get against that capture's own snapshot; [the Inventory
@@ -307,10 +306,6 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   pane, or on a line of the menu on the screen, turn the wheel over a part by its name or over a
   pane's first word, check a pane's place, size, state or keys on the desk by number, expect or
   rule out text, keep a pane's words and named parts or a picture -- a cropped PNG if asked),
-  `workshop/nvim-edit` (edits to one file typed through Workshop's [Neovim pane](../../editor/docs/neovim.md) and
-  saved by Neovim; before typing, Neovim itself is asked whether its buffer is exactly that file,
-  unmodified and equal to the disk -- unsaved work, a draft never saved included, is refused
-  untouched -- and after `:w` whether it saved the planned text, which the file must equal too),
   `workshop/place` (a pane's place and size written through Info, one field at a time, each
   row chosen by the name Info gives it),
   `workshop/builder` (the [Builder pane](../../builder/docs/zengine.builder-pane.md)'s keys, each followed to its owner's answer: a
@@ -319,20 +314,41 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   the end, so another build's ending is SUPERSEDED rather than taken for this one; a wait that
   runs out first is UNRESOLVED and names the operation), and `workshop/inventory-organize` and
   `workshop/inventory-controls` (names, folders and portable controls, through Inventory's owner
-  operations). Two more are local
-  observations like `workshop/verify-recipe`: `workshop/source` (list, read, search or compare
-  files) and `workshop/lane` (this repository's build, `tests/verify.cmake` or one test case,
-  with the logs kept). `workshop/repo` does a checkout's Git and pull-request chores as the
-  session's user: status, diff, staging named paths, a commit as a named author with no trailer,
-  pushing a branch, and opening or reading a pull request and its checks; it never merges and
-  never force-pushes. [The tower defense example](../../examples/tower-defense/README.md) was
-  made with them, and replays how.
-- **The `desk` tool package**, installed at `share/zengine/loom-tools/desk` beside `workshop`:
-  `desk/read`, which reads the whole desk under the guest's own row and writes it as text files
-  for a model, `AGENTS.md` first, and `desk/watch`, which follows the desk as it moves and writes
-  each change beside them ([the desk written as text](#the-desk-written-as-text-for-an-agent)).
-  It is a package of its own because `workshop` already holds as many tools as Loom lets one
-  package hold.
+  operations).
+- **The `workshop-machine` tool package**, installed beside it, builds on `workshop` (its manifest
+  says `"uses": ["workshop"]`) and reaches this machine as well: `workshop-machine/verify-recipe`
+  (reads one recipe back from the project's own `build-recipes.json` on the local filesystem and
+  checks named fields against it — a LOCAL OBSERVATION of what a recipe-authoring run left behind,
+  never a claim about who wrote it or when; pair it with `inspect-capture`'s own settlement for a
+  claim about causation), `workshop-machine/nvim-edit` (edits to one file typed through Workshop's
+  [Neovim pane](../../editor/docs/neovim.md) and saved by Neovim; before typing, Neovim itself is
+  asked whether its buffer is exactly that file, unmodified and equal to the disk -- unsaved work, a
+  draft never saved included, is refused untouched -- and after `:w` whether it saved the planned
+  text, which the file must equal too), `workshop-machine/source` (list, read, search or compare
+  files) and `workshop-machine/lane` (this repository's build, `tests/verify.cmake` or one test
+  case, with the logs kept). `workshop-machine/repo` does a checkout's Git and pull-request chores
+  as the session's user: status, diff, staging named paths, a commit as a named author with no
+  trailer, pushing a branch, and opening or reading a pull request and its checks; it never merges
+  and never force-pushes. [The tower defense example](../../examples/tower-defense/README.md) was
+  made with them, and replays how. The demos that read a setup's files or write a project's are here
+  too: `workshop-machine/demo-serve`, `inventory-slots-demo`, `terminal-inventory-demo`,
+  `toolbox-fixture`, `workbench` and `editor-materials-demo`.
+- **The `desk` tool package**, installed at `share/zengine/loom-tools/desk`, by message alone:
+  `desk/guide` marks a control for a guest, and `desk/resolve` finds the controls whose press
+  may cause a message and the steps to one. **`desk-machine`**, beside it and building on it,
+  writes the desk as files: `desk-machine/read`, which reads the whole desk under the guest's
+  own row and writes it as text files for a model, `AGENTS.md` first, and
+  `desk-machine/watch`, which follows the desk as it moves and writes each change beside them
+  ([the desk written as text](#the-desk-written-as-text-for-an-agent)).
+
+**A package's name says how far its tools reach**, because a session's operator approves a
+package whole. Every tool of `workshop`, of `desk` and of the tower-defense example's
+`tower-defense` reaches nothing but the bus and a clock -- no process, no file and no socket of
+its own -- so approving those gives an agent Workshop's doors under its own row and nothing on
+this machine. A `-machine` package's tools run processes and read and write files as the
+session's user: approve one only for a client you would let do that. The `tool_reach` entry holds
+every package to its name, following each tool's imports; it reads names, so it is a guard, not a
+sandbox.
 
 **Steps kept with a setup.** A [ready-to-use setup](../../workshop/docs/demo-setups.md) may carry named **walks** --
 lists of `workshop/act` steps, the same steps its `starting` list uses -- and
@@ -361,7 +377,7 @@ application stays that application's own decision, written in its file before it
 proof runs, start a Workshop of the task's own with `--isolated`, which reads and writes none of
 your profile — never the one you are working in, which an injected chord would type into — and
 name it a development host in its guests file: the tools that type, save, edit through Neovim,
-place a pane through Info or load what they build (`workshop/act`'s typing, `workshop/nvim-edit`,
+place a pane through Info or load what they build (`workshop/act`'s typing, `workshop-machine/nvim-edit`,
 `workshop/place`, `workshop/builder`'s load-it) are refused a guest's hand on a weaver's host.
 `workshop/builder`'s builds need the row's `build` on either host.
 
@@ -417,13 +433,17 @@ Workshop (`.dll` for `.so` on Windows):
 }
 ```
 
-Its `loom-tools.json` approves the packages, `desk` beside `workshop` (leave it out where no
-agent reads the desk as text):
+Its `loom-tools.json` approves the packages: `workshop` and `desk`, which reach nothing but the
+bus, and a `-machine` package beside each only where the session's user would let its runs reach
+this machine -- `desk-machine` to have the desk written as files, `workshop-machine` for a
+recipe read back, a checkout or a lane:
 
 ```json
 { "packages": [ { "path": "<zengine prefix>/share/zengine/loom-tools/workshop",
                   "approve": "any-revision" },
                 { "path": "<zengine prefix>/share/zengine/loom-tools/desk",
+                  "approve": "any-revision" },
+                { "path": "<zengine prefix>/share/zengine/loom-tools/desk-machine",
                   "approve": "any-revision" } ] }
 ```
 
@@ -654,9 +674,9 @@ input holder, on one link and on two; a tool bug and its cleanup; a run CANCELLE
 input session, whose cleanup closes it and whose successor on the same link opens one again;
 Workshop killed while a capture is open; a new session lifetime refusing the old handles. Before its
 processes start it runs the tools' own checks against scripted panes, `builder`'s completion and
-`nvim-edit`'s confirmation among them, and `desk/read`'s against a scripted Workshop
+`nvim-edit`'s confirmation among them, and `desk-machine/read`'s against a scripted Workshop
 (`tests/session/desk_read_checks.py`): `AGENTS.md` written first, each word and part where its
-reading says, and an `out` inside a checkout refused with nothing written; and `desk/watch`'s
+reading says, and an `out` inside a checkout refused with nothing written; and `desk-machine/watch`'s
 against a scripted desk that moves between notices (`tests/session/desk_watch_checks.py`): only what
 moved read again, the ring bounded, two watches of different panes each writing their own; and
 `desk/resolve`'s against a scripted desk (`tests/session/desk_resolve_checks.py`): the route through
@@ -668,7 +688,7 @@ pseudo-terminal it holds. Beside it, `tests/session/story_journey.py` holds
 processes -- runs its wait gave up on, a Workshop and session host it must see end, and a watcher's
 session it reuses while it runs and replaces only once it is seen to end -- and
 `tests/session/neovim_journey.py`, behind `session-neovim` (the session tooling and a named Neovim
-at once), drives `workshop/nvim-edit` against a real Neovim.
+at once), drives `workshop-machine/nvim-edit` against a real Neovim.
 
 ## 4. Link a host to it
 
@@ -1046,15 +1066,15 @@ the [named folder](../../inventory/docs/inventory-folders.md) doors at `zengine.
 versions 2 of `InventoryAdd` and `InventoryList`.
 This authorizes configuration, not execution of arbitrary stored messages. Each invoked command
 still needs the input actor's actual target/shape permission. The
-[portable-slot demo](../../inventory/docs/inventory-slots.md) is available as `workshop/inventory-slots-demo` in the
-same maintained tool package.
+[portable-slot demo](../../inventory/docs/inventory-slots.md) is available as
+`workshop-machine/inventory-slots-demo`, beside the other demos that apply a setup's desk.
 
 The [Terminal capture story](../../terminal/docs/terminal.md#dragging-a-command-or-reply-into-inventory) is available
-as `workshop/terminal-inventory-demo`. It captures actual submitted and received data, creates a
+as `workshop-machine/terminal-inventory-demo`. It captures actual submitted and received data, creates a
 preset, and fills it from the saved reply in a second Info view, field to field.
 Use the `presets` demo setup, Reset before a repeat, and a fresh short ASCII word for `label`.
 
-The [independent Info views](../../info/docs/info-views.md#the-inspection-workbench) story is `workshop/workbench`:
+The [independent Info views](../../info/docs/info-views.md#the-inspection-workbench) story is `workshop-machine/workbench`:
 `phase=restore` restores the packaged inspection-workbench toolbox, `phase=story` runs the story
 through visible controls and `phase=prepare` regenerates the toolbox. Use the `workbench` demo
 setup; its guest needs `input`, `capture`, `inspect`, `inventory`, `toolbox` and `demo`. Its
@@ -1064,15 +1084,16 @@ phases depend on each other, so run each with `--wait` (the recipe there says wh
 
 ## The desk written as text for an agent
 
-`desk/read`, in the `desk` package, reads the whole desk under your guest row and writes it for a
-model to read, as plain text files in one directory of its own; `desk/watch`, beside it, follows
-the desk as it moves and writes each change there (below). Approve the
-package in `loom-tools.json` beside `workshop` ([§ 3](#3-from-a-loom-session-journeys-as-python-tools));
-a [ready-to-use setup](../../workshop/docs/demo-setups.md) approves both. Name each read anew, since a run name already
-held answers with that earlier run:
+`desk-machine/read`, in the `desk-machine` package, reads the whole desk under your guest row and
+writes it for a model to read, as plain text files in one directory of its own;
+`desk-machine/watch`, beside it, follows the desk as it moves and writes each change there (below).
+Approve the package in `loom-tools.json` beside `desk`, which it builds on, and `workshop`
+([§ 3](#3-from-a-loom-session-journeys-as-python-tools)); a
+[ready-to-use setup](../../workshop/docs/demo-setups.md) approves all four packages. Name each read
+anew, since a run name already held answers with that earlier run:
 
 ```sh
-loom-session run work desk/read --name desk-1 --input out=/home/me/agent-desk --wait 60
+loom-session run work desk-machine/read --name desk-1 --input out=/home/me/agent-desk --wait 60
 ```
 
 - **What it needs.** The row's `capture`, under which the desk read, each pane's pages, the pane
@@ -1125,15 +1146,15 @@ loom-session run work desk/read --name desk-1 --input out=/home/me/agent-desk --
   (<!-- value hand.PANE_VIEW_VERSION -->7<!-- /value -->), so a Layouts tab and a part of a partly
   covered pane that shows are pressed by name too.
 
-**Following the desk.** `desk/watch` follows Workshop's notice that the desk moved, for `seconds`
+**Following the desk.** `desk-machine/watch` follows Workshop's notice that the desk moved, for `seconds`
 (its `describe` says how long by default and at most), and writes each change into `changes.txt`
 beside the readings, which it keeps current:
 
 ```sh
-loom-session run work desk/watch --name watch-1 --input out=/home/me/agent-desk --input seconds=600
+loom-session run work desk-machine/watch --name watch-1 --input out=/home/me/agent-desk --input seconds=600
 ```
 
-- **What it needs**, beyond `desk/read`'s: an `observe` entry naming `zengine.workshop`
+- **What it needs**, beyond `desk-machine/read`'s: an `observe` entry naming `zengine.workshop`
   `DeskStamps` `3` beside `capture`. A row the relay refuses fails the run, in the relay's words,
   with `AGENTS.md` written and nothing asked.
 - **It asks nothing until it is told.** It follows the notice before its first read, with a window
@@ -1143,7 +1164,7 @@ loom-session run work desk/watch --name watch-1 --input out=/home/me/agent-desk 
   are the desk's; else each pane whose stamp moved, alone. A notice its reading already stands on
   reads and writes nothing. It starts a desk reading at most every
   <!-- value watch.DESK_READ_GAP -->1<!-- /value --> second -- each confirms itself with a desk
-  read or two more, as desk/read does -- leaving the link's desk reads to a reader beside it, and
+  read or two more, as desk-machine/read does -- leaving the link's desk reads to a reader beside it, and
   a desk read refused writes nothing and is asked again at the next notice.
 - **Each change**, under `== change N`, names each section that moved -- the desk's own lines, or a
   pane's -- with the smaller of its changed lines (`- ` gone, `+ ` come) and its lines as they now

@@ -64,7 +64,7 @@ message straight to asks, in its office's name, what that session's row lets it 
   row. Two rows of one name stay apart. v2 adds the file's `version`, the row's `role`, whether it
   reads and points by pane (`by_door`), and its `capture` and `guide` doors as the file wrote them.
 - **Refuses:** `only a session this door admitted has a row to describe`.
-- **Example:** `desk/read` asks it first, to learn which panes its row reads.
+- **Example:** `desk-machine/read` asks it first, to learn which panes its row reads.
 
 ### `GuestPlanRequested`
 

@@ -32,7 +32,7 @@
   "Editor, Inventory, Files, Terminal and the Demo controls"
  ],
  "first_task": {
-  "do": "Run `workshop/editor-materials-demo` with phase=prepare (its README names the inputs).",
+  "do": "Run `workshop-machine/editor-materials-demo` with phase=prepare (its README names the inputs).",
   "expect": "The carried materials are filed in folders and saved as a toolbox."
  },
  "variations": [

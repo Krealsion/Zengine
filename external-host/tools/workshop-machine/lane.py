@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop/lane -- build and check a configured Zengine build tree from the external host: build
+"""workshop-machine/lane -- build and check a configured Zengine build tree from the external host: build
 named targets, run one doctest binary's cases by name, or run the official lane
 (tests/verify.cmake). loom-tool.json describes the inputs.
 

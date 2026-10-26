@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""Checks of `desk/read` (external-host/tools/desk) against a scripted Workshop and guest door.
+"""Checks of `desk-machine/read` (external-host/tools/desk-machine) against a scripted Workshop and guest door.
 
 Each ask is answered from canned values -- the desk in one turn with stamps naming panes past its
 readings, a pane read in two pages whose second page is refused once as stale, panes in flight,
@@ -353,7 +353,10 @@ class Workshop(object):
 
 
 def run_checks(tools, runtime):
-    sys.path[:0] = [str(Path(runtime).resolve()), str(Path(tools).resolve())]
+    # As a worker of a `-machine` tool finds them: its own package's modules, then this one's.
+    tools = Path(tools).resolve()
+    sys.path[:0] = [str(Path(runtime).resolve()), str(tools.with_name(tools.name + "-machine")),
+                    str(tools)]
     read = importlib.import_module("read")
     asks = importlib.import_module("desk_asks")
     words_module = importlib.import_module("desk_words")
@@ -611,7 +614,7 @@ def run_checks(tools, runtime):
                              (os.path.join(worktree, "desk"), "inside the source checkout"),
                              ("relative/desk", "not an absolute path"),
                              ("", "names no directory"),
-                             (mine, "holds an AGENTS.md desk/read did not write")):
+                             (mine, "holds an AGENTS.md desk-machine/read did not write")):
                 with self.subTest(out=out):
                     before = sorted(os.walk(self.root))
                     ctx = Workshop(tool, out)

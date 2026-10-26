@@ -9,9 +9,10 @@ setup's plan; [ready-to-use setups](../../workshop/docs/demo-setups.md) says how
 ## About
 
 A setup's *demo service* is a run on the other Loom host that knows how to prepare the setup: the
-`workshop` package's `workshop/demo-serve`. It attaches here, and waits for work. Each piece of work
-is a *generation*, numbered from 1: the preparation the service does when it attaches, then one per
-reset. When the work ends, the service says whether it passed, with a note, and the pane shows it.
+`workshop-machine` package's `workshop-machine/demo-serve`, which reads the setup's files. It
+attaches here, and waits for work. Each piece of work is a *generation*, numbered from 1: the
+preparation the service does when it attaches, then one per reset. When the work ends, the service
+says whether it passed, with a note, and the pane shows it.
 
 The pane shows the setup's name, the `[ Reset demo ]` button and where the demo stands: `unavailable`
 (no service is attached), `working`, `ready` or `failed`, with its note. It keeps nothing of the

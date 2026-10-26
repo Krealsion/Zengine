@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Joshua DeMoss
 """Check Inventory's unauthored size at both edges and in the middle of a list."""
 import json
-from demo_setup import ROLE
+from demo_asks import ROLE
 from hand import Hand
 import workshop_formats as formats
 from workshop_steps import moment, picture

@@ -34,7 +34,7 @@ LAYOUT_VERSION = 4
 WEAVER_HOST = "weaver"
 DEVELOPMENT_HOST = "development"
 
-# WORKSHOP'S NOTICE THAT ITS DESK MOVED, as a row's `observe` names it: what `desk/watch` follows
+# WORKSHOP'S NOTICE THAT ITS DESK MOVED, as a row's `observe` names it: what `desk-machine/watch` follows
 # and the walk tools wait on (hand.py), observed only by a row holding `capture`.
 DESK_NOTICE = {"producer": "zengine.workshop", "shape": "DeskStamps", "version": "3"}
 

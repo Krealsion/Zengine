@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""Checks of `desk/watch` (external-host/tools/desk) against a scripted Workshop whose desk moves
+"""Checks of `desk-machine/watch` (external-host/tools/desk-machine) against a scripted Workshop whose desk moves
 between notices, and a scripted subscription telling them.
 
 The desk holds a few panes, each with its own words and a fingerprint naming what it shows; a
@@ -331,7 +331,10 @@ FILES = ("zengine.files", "project-files")
 
 
 def run_checks(tools, runtime):
-    sys.path[:0] = [str(Path(runtime).resolve()), str(Path(tools).resolve())]
+    # As a worker of a `-machine` tool finds them: its own package's modules, then this one's.
+    tools = Path(tools).resolve()
+    sys.path[:0] = [str(Path(runtime).resolve()), str(tools.with_name(tools.name + "-machine")),
+                    str(tools)]
     watch = importlib.import_module("watch")
     changes = importlib.import_module("desk_changes")
     words_module = importlib.import_module("desk_words")
@@ -549,10 +552,10 @@ def run_checks(tools, runtime):
         def test_one_watch_a_directory(self):
             os.makedirs(self.out)
             with open(os.path.join(self.out, ".desk-watch"), "w", encoding="utf-8") as f:
-                f.write("desk/watch run watch-7\n")
+                f.write("desk-machine/watch run watch-7\n")
             with self.assertRaises(loom_tool.ToolFailed) as raised:
                 self.watch([words_of(INFO, ["never read"])])
-            self.assertIn("is held by another desk/watch, desk/watch run watch-7",
+            self.assertIn("is held by another desk-machine/watch, desk-machine/watch run watch-7",
                           str(raised.exception))
             self.assertFalse(os.path.exists(os.path.join(self.out, "AGENTS.md")))
             # ...AND A WATCH THAT ENDED GIVES THE DIRECTORY BACK.

@@ -65,9 +65,9 @@ saved toolbox instead. Geometry can be restored independently through its setup 
 ## Repeatable restart demonstration
 
 For a repeatable restart proof, use the values [demo setup](../../workshop/docs/demo-setups.md): run
-`workshop/toolbox-fixture` with `phase=prepare`, save with `workshop/toolbox`, stop that demo,
+`workshop-machine/toolbox-fixture` with `phase=prepare`, save with `workshop/toolbox`, stop that demo,
 start another demo in a fresh root, restore the same absolute toolbox path, then run
-`workshop/toolbox-fixture` with `phase=exercise`. It checks that the restored command starts
+`workshop-machine/toolbox-fixture` with `phase=exercise`. It checks that the restored command starts
 inactive and explicitly invokes it once under current actor authority. Its `fixture.json`
 retains live references, the command's byte hash and request counts for comparison.
 

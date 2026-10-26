@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop/verify-recipe -- read one recipe back from the project's own build-recipes.json and
+"""workshop-machine/verify-recipe -- read one recipe back from the project's own build-recipes.json and
 check the fields a caller names against it (loom-tool.json describes each input; this file is
 the read and the checks).
 

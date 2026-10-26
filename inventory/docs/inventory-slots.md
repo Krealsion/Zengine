@@ -58,7 +58,7 @@ Restoring it leaves item hotkeys and contexts OFF until explicitly enabled again
 Start the [presets demo setup](../../workshop/docs/demo-setups.md), then run:
 
 ```text
-loom-session run <session-dir> workshop/inventory-slots-demo --name slots-one --input label=SlotOne
+loom-session run <session-dir> workshop-machine/inventory-slots-demo --name slots-one --input label=SlotOne
 ```
 
 The story saves a complete command through Compose, creates all three views through menus,

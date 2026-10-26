@@ -16,7 +16,7 @@ what the pane shows, never its number, for every pane, a pane doing nothing for 
 reading in flight is said so, and its settling moves its stamp, so a wait for a picture to settle
 ends at a notice, not a clock. One version of each reading stands now, and a pane drawing in an area
 of its own is read from the window ([a pane is read from the window that shows
-it](a-pane-is-read-from-the-window-that-shows-it.md)). The agent's `desk/watch` follows the notice,
+it](a-pane-is-read-from-the-window-that-shows-it.md)). The agent's `desk-machine/watch` follows the notice,
 reads again only what moved, and writes each change as the smaller of its changed lines and the
 lines as they stand.
 
