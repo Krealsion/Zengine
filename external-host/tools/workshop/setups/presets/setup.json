@@ -37,7 +37,7 @@
   "expect": "A blank template, a complete command and an incomplete preset are stored; both editors reset."
  },
  "variations": [
-  "Run `workshop/inventory-slots-demo` for portable rows and hotkeys"
+  "Run `workshop-machine/inventory-slots-demo` for portable rows and hotkeys"
  ],
  "limits": [
   "Each slots story adds three portable views, within Inventory's twelve-view bound"

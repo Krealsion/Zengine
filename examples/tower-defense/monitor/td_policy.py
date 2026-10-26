@@ -20,21 +20,32 @@ needs every crossing: a loss the relay or the client reports, or a hole in the g
 (a reload in place drops what the old image had not said), is INCONCLUSIVE unless the threshold
 was already crossed. A picture of where the enemies stand never stands in for the steps between.
 
-THE PLANS (plans.json beside this file): `win` is the story's own play session, which the rules
+THE PLANS (PLANS below): `win` is the story's own play session, which the rules
 win with 2 lives -- 8 crossings of 21,7, all in wave 5; `thin` builds nothing before wave 2 and
 loses in wave 3, its 9th crossing of 21,7 coming in wave 3 while lives remain; `watch` plays
 nothing and follows whatever game is being played."""
-import json
-import os
-
 from monitor import Attention, Inconclusive, Monitor
 
 TD = ["td.game", "td"]
 HEADER = TD + ["TOWER DEFENSE"]
 RUNNING = 1
 WAVES = 5
-PLANS = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "plans.json"),
-                       encoding="utf-8"))
+# Before each wave, build these towers (x, y on the map), then start the wave and wait for the game
+# to say how it ended.
+PLANS = {
+    "win": {"rounds": [{"towers": [[5, 2], [8, 4]]},
+                       {"towers": [[11, 5], [13, 3], [7, 5]]},
+                       {"towers": [[17, 3], [19, 6]]},
+                       {"towers": []},
+                       {"towers": []}],
+            "wave_seconds": 120},
+    "thin": {"rounds": [{"towers": [[5, 2], [8, 4]]},
+                        {"towers": []},
+                        {"towers": [[17, 3], [19, 6]]},
+                        {"towers": []},
+                        {"towers": []}],
+             "wave_seconds": 120},
+}
 
 
 def cell(x, y):
@@ -51,9 +62,8 @@ class TowerDefense(object):
 
     def __init__(self, inputs):
         self.plan_name = inputs.get("plan", "win")
-        if self.plan_name != "watch" and (self.plan_name.startswith("_") or self.plan_name not in PLANS):
-            raise ValueError("plan is watch or one of plans.json's: %s"
-                             % ", ".join(k for k in PLANS if not k.startswith("_")))
+        if self.plan_name != "watch" and self.plan_name not in PLANS:
+            raise ValueError("plan is watch or one of the policy's plans: %s" % ", ".join(PLANS))
         if inputs.get("on_attention", "pause") not in ("pause", "report"):
             raise ValueError("on_attention is pause or report")
         self.plan = PLANS.get(self.plan_name, {})

@@ -40,6 +40,7 @@ guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
 package_judges                    program           session
 demo_recipes                      program           session
+tool_reach                        program           session
 workshop_journey                  program           session
 story_journey                     program           session
 tutorial_walks                    program           session

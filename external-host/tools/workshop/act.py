@@ -42,7 +42,6 @@ import json
 import math
 import re
 import time
-from pathlib import Path
 
 from loom_session.tool import Refused
 
@@ -55,6 +54,8 @@ VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest
 GESTURES = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
             "control", "menu")
 MANAGER = ("zengine.desktop", "launcher")
+SAVE_REFUSED = ("names `save`: a picture is this run's artifact, <name>.png with `png`, and a run "
+                "writes no file anywhere else")
 BUTTONS = {"left": 1, "right": 3}
 
 
@@ -73,6 +74,8 @@ def run(ctx):
             wheel_of(step)  # ...and a wheel that names no pane or turns no notch
         if named == ["settings"]:
             settings_of(step["settings"])  # ...and a setting named by anything but key=value
+        if named == ["picture"]:
+            ctx.check("save" not in step, "step %d %s" % (i, SAVE_REFUSED))  # ...and a picture kept elsewhere
     pace = max(0, int(ctx.inputs.get("pace_ms", 0))) / 1000.0
     hand = Hand(ctx, ctx.inputs["link"])
     done = []
@@ -405,18 +408,11 @@ def act(ctx, hand, verb, step):
     if verb == "settings":
         return settings_step(ctx, hand, arg)
     if verb == "picture":
+        ctx.check("save" not in step, "picture " + SAVE_REFUSED)
         captured, data = picture(ctx, hand.link, arg)
         kept = {"frame": captured["frame"]}
-        if (step.get("png") or step.get("save")) and captured["format"] == "image/bmp":
-            png = png_of(data, step.get("crop"))
-            ctx.produce(arg + ".png", png)
-            if step.get("save"):
-                # A picture for a document or a report: written where the step names, nowhere else.
-                path = Path(step["save"])
-                ctx.check(path.is_absolute() and path.suffix == ".png", "save names an absolute .png path")
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(png)
-                kept["saved"] = str(path)
+        if step.get("png") and captured["format"] == "image/bmp":
+            ctx.produce(arg + ".png", png_of(data, step.get("crop")))
         return kept
     time.sleep(float(arg))
     return {}

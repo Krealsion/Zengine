@@ -20,7 +20,7 @@ its command in a row bound to **Alt+1** and turned ON:
 
 ```sh
 python external-host/demo.py start --setup workbench --root demo-runs/workbench --build build --loom-prefix ../Loom/build/_install
-loom-session run demo-runs/workbench/session workshop/workbench --name story --input phase=story --wait 300
+loom-session run demo-runs/workbench/session workshop-machine/workbench --name story --input phase=story --wait 300
 python external-host/demo.py stop --root demo-runs/workbench
 ```
 
@@ -41,7 +41,7 @@ An organized copy, with the same entries filed in `Workbench/Samples` and
 [folder story](../../inventory/docs/inventory-folders.md#the-organized-workbench).
 
 To extend the workbench, add material through its owners in `prepare` of
-`external-host/tools/workshop/workbench.py`, then regenerate the file in a demo without workbench entries (the `commands` setup has Loaded and Compose):
+`external-host/tools/workshop-machine/workbench.py`, then regenerate the file in a demo without workbench entries (the `commands` setup has Loaded and Compose):
 `--input phase=prepare --input path=<absolute path of the packaged file>`. Never edit its bytes or
 identities by hand. Fork it (a new file name and label prefix) for an experiment that should not
 change the shared baseline. After a schema change, run `restore` and `story` in a fresh demo: a

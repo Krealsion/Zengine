@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop/repo -- Git, and a pull request on GitHub, for one named repository, from the external
+"""workshop-machine/repo -- Git, and a pull request on GitHub, for one named repository, from the external
 host: read its state, stage named paths, commit, push the current branch, open or read a pull
 request. loom-tool.json describes the inputs.
 

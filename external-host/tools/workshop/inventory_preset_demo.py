@@ -3,7 +3,7 @@
 """A partial preset, filled from a captured record through the actual Info controls."""
 import json
 from hand import Hand
-from demo_setup import Measured
+from demo_asks import Measured
 from workshop_steps import picture
 
 # What Info's view says of a field pickup of its own: each refusal, and each wait it draws while

@@ -8,7 +8,7 @@ python external-host/demo.py start --setup folders --root demo-runs/folders --bu
 
 ## First task
 
-Run `workshop/workbench` with phase=restore and variant=organized, then phase=retrieve.
+Run `workshop-machine/workbench` with phase=restore and variant=organized, then phase=retrieve.
 
 Expect: The sample is retrieved through its folder path into the first Info view.
 
