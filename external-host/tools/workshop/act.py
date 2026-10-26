@@ -36,6 +36,19 @@ Given `key=value` it writes that value at the revision it just read, in the fiel
 says the setting takes (PaneSettingCommitRequested), and reads the row back; `key=-` clears it. A
 write Workshop refuses ends the run with Workshop's words.
 
+WHAT IT HEARS. Before its first press the run follows what Workshop says (`NoticeSaid` v1, each
+thing once as it is said; agents/workshop/notices.md). Every press is settled, so what it caused
+Workshop to say has arrived, marked with this run's correlation for the press (`cause`), before
+the press returns: each step keeps what its presses caused in steps.json (`said`), and a refusal
+among it ends the run naming the step's index and verb and Workshop's words, with nothing pressed
+after it. What a press caused that is no refusal, and whatever else Workshop says, never fails a
+step. A gap or the subscription's end over a press is never taken for silence: the run fails as
+UNRESOLVED, saying whether Workshop refused that press cannot be told, and a press after the end
+is not made. A row that may not hear it (no `capture`, or no `observe` entry naming it) is
+pressed as before, and the run's answer says its refusals went unheard and why. What a press does
+not cause -- a refusal Workshop says later, from work it deferred -- carries no cause and is not
+this run's to hear.
+
 WHAT IT CLEANS UP. hand.py registers the input session's close with the run's cleanup, so a
 failed step, a bug or a cancellation still gives Workshop's input session back."""
 import json
@@ -43,7 +56,7 @@ import math
 import re
 import time
 
-from loom_session.tool import Refused
+from loom_session.tool import DispatchRefused, LinkOutcome, Refused, SendRefused
 
 from hand import (FALLBACK_PACE, NO_PRESS, POINT_TRIES, SETTLE_SECONDS, Hand, no_settled_picture,
                   on_row, rows_of, takes_no_press)
@@ -57,6 +70,100 @@ MANAGER = ("zengine.desktop", "launcher")
 SAVE_REFUSED = ("names `save`: a picture is this run's artifact, <name>.png with `png`, and a run "
                 "writes no file anywhere else")
 BUTTONS = {"left": 1, "right": 3}
+#: What Workshop says, once a thing as it says it (workshop/notice_seam_vocabulary.hpp).
+SAID = ("NoticeSaid", 1)
+#: The notices the run's subscription may hold untaken; it is read at every press.
+SAID_WINDOW = 64
+
+
+class Heard:
+    """What Workshop says, followed through the link for one run from before its first press
+    (see the module note). `step` is the record of the step pressing now, which keeps what its
+    presses caused (`said`); `why` says why nothing is heard, when nothing is."""
+
+    def __init__(self, ctx, link):
+        self.ctx, self.sub, self.why, self.step, self.over = ctx, None, None, None, None
+        observe = getattr(ctx, "observe", None)
+        if observe is None:
+            self.why = "this run's context follows no publication"
+            return
+        try:
+            self.sub = observe("zengine.workshop", [SAID], via=link, window=SAID_WINDOW,
+                               label="workshop/act (run %s)" % ctx.name)
+        except (Refused, DispatchRefused, SendRefused, LinkOutcome) as err:
+            self.why = "what it says could not be followed: %s" % err
+
+    def taken(self):
+        """What has arrived, without waiting: an end is kept as `over`."""
+        items = self.sub.drain()
+        for i in items:
+            if i.kind == "ended" and self.over is None:
+                self.over = "what Workshop says stopped being heard (%s: %s)" % (i.how, i.reason)
+        return items
+
+    def before(self):
+        """Before a press: what arrived since the last is no press's; an end means no refusal of
+        this press could be heard, so it is not made."""
+        if self.sub is None:
+            return
+        self.taken()
+        if self.over is not None:
+            self.unresolved("%s before it was pressed; it was not pressed" % self.over)
+
+    def after(self, answer):
+        """After a settled press: what it caused is the step's, and a refusal ends the run; a gap
+        or an end over it leaves its refusal untold."""
+        if self.sub is None:
+            return
+        cause = getattr(answer, "correlation", None)
+        items = self.taken()
+        said = self.step.setdefault("said", [])
+        for i in items:
+            if i.kind == "observed" and cause and i.cause == cause:
+                said.append({"number": i.fields["number"], "text": i.fields["text"],
+                             "refusal": bool(i.fields["refusal"])})
+        refused = [s["text"] for s in said if s["refusal"]]
+        if refused:  # heard, whatever else was lost beside it
+            self.step["refused"] = refused[0]
+            self.ctx.fail("step %d (%s): Workshop refused it: %s"
+                          % (self.step["index"], self.step["verb"], refused[0]))
+        lost = sum(i.lost for i in items if i.kind == "gap")
+        if lost:
+            self.unresolved("%d of Workshop's words were not told over its press" % lost)
+        if self.over is not None:
+            self.unresolved("%s over its press" % self.over)
+        if not cause:
+            self.unresolved("its press came back with no correlation to know its words by")
+
+    def unresolved(self, why):
+        self.step["cannot_tell"] = why
+        self.ctx.fail("UNRESOLVED: step %d (%s): whether Workshop refused it cannot be told -- %s"
+                      % (self.step["index"], self.step["verb"], why))
+
+    def close(self):
+        """Released at the run's end; the run's cleanup releases it too, so a release that fails
+        here is noted and changes nothing the run concluded."""
+        sub, self.sub = self.sub, None
+        if sub is not None:
+            try:
+                sub.release()
+            except Exception as err:
+                self.ctx.note("releasing what Workshop says came back %s: %s"
+                              % (type(err).__name__, err))
+
+
+class HeardHand(Hand):
+    """The hand, its presses heard: each one's words are the step's (`Heard`)."""
+
+    def __init__(self, ctx, link, heard):
+        self.heard = heard
+        Hand.__init__(self, ctx, link)
+
+    def inject(self, events):
+        self.heard.before()
+        answer = Hand.inject(self, events)
+        self.heard.after(answer)
+        return answer
 
 
 def run(ctx):
@@ -77,7 +184,11 @@ def run(ctx):
         if named == ["picture"]:
             ctx.check("save" not in step, "step %d %s" % (i, SAVE_REFUSED))  # ...and a picture kept elsewhere
     pace = max(0, int(ctx.inputs.get("pace_ms", 0))) / 1000.0
-    hand = Hand(ctx, ctx.inputs["link"])
+    presses = any(v in GESTURES for step in steps for v in step)
+    # FOLLOWED BEFORE THE FIRST PRESS: whatever a press makes Workshop say is heard.
+    heard = Heard(ctx, ctx.inputs["link"]) if presses else None
+    hand = HeardHand(ctx, ctx.inputs["link"], heard) if heard is not None else Hand(
+        ctx, ctx.inputs["link"])
     done = []
     try:
         for i, step in enumerate(steps):
@@ -85,8 +196,15 @@ def run(ctx):
             ctx.step("step %d of %d: %s" % (i + 1, len(steps), verb))
             started, clock_waits = time.monotonic(), hand.clock_waits()
             record = {"index": i, "verb": verb, "args": step[verb]}
+            if heard is not None:
+                heard.step = record
             hand.unsettled = False  # a step's waits judge its own reads, never a last step's
-            record.update(act(ctx, hand, verb, step) or {})
+            try:
+                record.update(act(ctx, hand, verb, step) or {})
+            except BaseException:
+                if "refused" in record or "cannot_tell" in record:
+                    done.append(record)  # the step its presses' words ended, with those words
+                raise
             record["elapsed_ms"] = round((time.monotonic() - started) * 1000, 1)
             record["clock_waits"] = hand.clock_waits() - clock_waits
             done.append(record)
@@ -94,10 +212,14 @@ def run(ctx):
                 time.sleep(pace)
     finally:
         ctx.produce("steps.json", json.dumps(done, indent=1).encode())
+        if heard is not None:
+            heard.close()
     said = "%d step(s) done: %s" % (len(done), " ".join(r["verb"] for r in done))
     if hand.waits_said():
         said += "; %d of its waits read again every %g s, not at Workshop's notice: %s" % (
             hand.clock_waits(), FALLBACK_PACE, hand.waits_said())
+    if heard is not None and heard.why:
+        said += "; Workshop refusing its presses went unheard: %s" % heard.why
     return said
 
 
