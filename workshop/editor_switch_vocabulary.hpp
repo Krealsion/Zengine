@@ -6,9 +6,9 @@
 
 // Switching the Editor as a weaver asks for it (WL-SWITCH; its manual is
 // editor/docs/zengine.editor-switch.md): the office `zengine.editor-switch` moves `zengine.editor`
-// between the choices the load plan authors, carrying the document. Four asks, each answered with
-// `EditorSwitchAnswered`; while a switch is under way, `EditorSwitchProgress` keeps it on the desk
-// as a standing condition.
+// between the choices the load plan authors, carrying the document. Four asks, and the status
+// asked quietly, each answered with `EditorSwitchAnswered`; while a switch is under way,
+// `EditorSwitchProgress` keeps it on the desk as a standing condition.
 
 #include <zen/weave/shape.hpp>
 
@@ -50,6 +50,12 @@ struct EditorSwitchCancelled {
 
 struct EditorSwitchStatusRequested {
     ZEN_SHAPE(EditorSwitchStatusRequested, 1);
+};
+
+/// The status `EditorSwitchStatusRequested` asks for, answered to the asker alone and said nowhere
+/// else: for a pane that shows the answer itself, as the quick setup's box does.
+struct EditorSwitchQuietStatusRequested {
+    ZEN_SHAPE(EditorSwitchQuietStatusRequested, 1);
 };
 
 /// Every answer the office gives. `op` names the switch (0 when none began); `active` is the

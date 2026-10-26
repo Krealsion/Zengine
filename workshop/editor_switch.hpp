@@ -119,7 +119,8 @@ using EditorSwitchBase = zengine::With<
     zengine::manual::ManualFacet<zengine::manual::pages::zengine_editor_switch::kManual>>::Weave<
     EditorSwitchCoordinator, EditorSwitchState,
     loom::Accept<EditorSwitchRequested, EditorSwitchConfirmed, EditorSwitchCancelled,
-                 EditorSwitchStatusRequested, EditorHandoffJudged, EditorWarmed,
+                 EditorSwitchStatusRequested, EditorSwitchQuietStatusRequested,
+                 EditorHandoffJudged, EditorWarmed,
                  EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
                  loom::DispatchRefused>,
     loom::Emit<EditorSwitchAnswered, EditorSwitchProgress, EditorHandoffJudgeRequested,
@@ -270,7 +271,14 @@ public:
         abandon(mail, switch_outcome::kCancelled, said);
     }
 
-    void on(const EditorSwitchStatusRequested&, loom::Mail& mail) {
+    void on(const EditorSwitchStatusRequested&, loom::Mail& mail) { answer_now(mail, status_answer()); }
+
+    /// THE SAME STATUS, ANSWERED TO THE ASKER ALONE: a pane that shows it asks so, and nothing of it
+    /// is published, so Workshop says nothing of it.
+    void on(const EditorSwitchQuietStatusRequested&, loom::Mail& mail) { (void)mail.answer(status_answer()); }
+
+    /// WHICH CHOICE HOLDS THE OFFICE, WHICH ARE AUTHORED AND WHAT IS UNDER WAY, as a status answer.
+    EditorSwitchAnswered status_answer() {
         EditorSwitchAnswered said = base_answer(op_.id, switch_outcome::kStatus, op_.destination);
         std::string authored;
         for (const std::string& name : said.choices) {
@@ -288,7 +296,7 @@ public:
                                                      : "no switch is under way; the retired `" + retained_ +
                                                            "` is kept after a failure");
         }
-        answer_now(mail, said);
+        return said;
     }
 
     // ---- the incumbent's answers ----------------------------------------------------------------
@@ -785,7 +793,8 @@ private:
 
     /// WHAT AN ANSWER SAID, PUBLISHED AS THE OFFICE: a switch that is over retracts its condition
     /// and its outcome is said where the weaver reads; a question awaiting confirmation stands with
-    /// the consent it asks for; a status answer is said and retracts nothing.
+    /// the consent it asks for; a status answer is said and retracts nothing. A quiet status is not
+    /// published.
     void publish_said(loom::Mail& mail, const EditorSwitchAnswered& said) {
         EditorSwitchProgress now;
         now.op = said.op;

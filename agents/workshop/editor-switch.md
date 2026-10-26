@@ -82,7 +82,7 @@ LAW — The host mounts the coordinator over its managed pane's office and grant
 MEANS
 - the documented lines are typed against the host's own widening, `let_terminal_switch_editors`;
 - the desk keeps a condition only when the switch's office said it, and drops it when it ends;
-- every answer is said as Workshop's notice; a question for consent shows the line that confirms it.
+- every answer is said as Workshop's notice, but a status asked quietly, which only its asker hears; a question for consent shows the line that confirms it.
 
 DOES NOT MEAN
 - that the host names an editor artifact: its managed pane's office, and the plan's choices.
@@ -168,9 +168,13 @@ weaver consents, and a consent the losses moved past is asked for again"
 `workshop/workshop.cpp` EditorSwitchHost editor_switch_grant
 `workshop/terminal_speech.hpp` let_terminal_switch_editors
 `workshop/editor_switch.hpp` let_terminal_switch_editors progress publish_said
+on(EditorSwitchQuietStatusRequested) status_answer
+`workshop/editor_switch_vocabulary.hpp` EditorSwitchQuietStatusRequested
 `workshop/weave_managed.cpp` on(EditorSwitchProgress)
 `tests/test_workshop_editor_switch.cpp` "the documented Terminal lines, typed through Workshop's own
-door, ask, confirm and switch, and the desk shows the switch while it stands"
+door, ask, confirm and switch, and the desk shows the switch while it stands" "the quick setup's
+own asks for the switch's status are answered to it and say nothing in Notices, while a status typed
+at the Terminal is said"
 
 ### WL-SWITCH-08
 `workshop/load_plan.hpp` remember_choices

@@ -92,7 +92,7 @@ class FirstRun
                      ws::PaneLaunchRequested, ws::v2::PaneLaunchRequested, ws::PaneCloseRequested,
                      ws::PaneInventoryRequested, ws::v2::PaneOperationRequested,
                      ws::EditorSwitchRequested, ws::EditorSwitchConfirmed,
-                     ws::EditorSwitchStatusRequested, launcher::LaunchCatalogRequested,
+                     ws::EditorSwitchQuietStatusRequested, launcher::LaunchCatalogRequested,
                      launcher::Launch, view::ViewWiringRequested, gfx::Drawn, gfx::RoomAsked>> {
 public:
     /// EVERY ACTIVATION: both panes offered and their rows declared, the two settings declared and
@@ -522,10 +522,11 @@ private:
                                                  ws::OfficeSettingsDeclared{{answered, story}});
     }
 
+    /// THE SWITCH'S STATUS, ASKED QUIETLY: the box shows the answer, so nothing is said of it.
     void ask_status(loom::Mail& mail) {
         status_ask_ = ++asks_;
         (void)mail.as_role(kOffice).send_to_role(ws::kEditorSwitchRole,
-                                                 ws::EditorSwitchStatusRequested{}, status_ask_);
+                                                 ws::EditorSwitchQuietStatusRequested{}, status_ask_);
     }
 
     /// WHAT CAN TICK A STEP, asked of each owner: the inventory, every running view's wiring, the

@@ -63,7 +63,8 @@ class SwitchAsker
                                           ProjectRoot, TerminalActed, SeatDo>,
                              loom::Emit<EditorSwitchRequested, EditorSwitchConfirmed,
                                         EditorSwitchCancelled, EditorSwitchStatusRequested,
-                                        OpenSourceRequested, TerminalActRequested>> {
+                                        EditorSwitchQuietStatusRequested, OpenSourceRequested,
+                                        TerminalActRequested>> {
 public:
     std::function<void(SwitchAsker&, loom::Mail&)> next;
     std::vector<EditorSwitchAnswered> answers;
@@ -191,6 +192,8 @@ struct SwitchRig {
         grant.allow_to_role(EditorSwitchCancelled::zen_name, EditorSwitchCancelled::zen_version, kEditorSwitchRole);
         grant.allow_to_role(EditorSwitchStatusRequested::zen_name, EditorSwitchStatusRequested::zen_version,
                             kEditorSwitchRole);
+        grant.allow_to_role(EditorSwitchQuietStatusRequested::zen_name,
+                            EditorSwitchQuietStatusRequested::zen_version, kEditorSwitchRole);
         grant.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
         grant.allow_to_role(TerminalActRequested::zen_name, TerminalActRequested::zen_version,
                             kWorkshopProvider);

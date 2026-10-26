@@ -77,7 +77,7 @@ workshop_shapes                   doctest           always  5
 # (VM-WALL-11).
 workshop_persistence              doctest           always  178
 workshop_load                     doctest           always  163
-workshop_editor_switch            doctest           always  12
+workshop_editor_switch            doctest           always  13
 workshop_neovim                   doctest           always  11
 workshop_neovim                   doctest           neovim  30
 # Tripwires in this suite read workshop/workshop.cpp, workshop/recipes.hpp and every pane entry's
