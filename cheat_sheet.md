@@ -1,9 +1,10 @@
 # Zengine cheat sheet
 
 An index: a line per topic, each linking the page that owns it. Nothing is stated here; the page a
-line links says it, and the checks hold that page to the code. [docs/](docs/README.md) maps every
-folder's pages, and [best practices](docs/contributing/best-practices.md) says what good work in
-this repository looks like.
+line links says it. The checks hold what a page marks and links -- its keys, values, law ids and
+links -- not all it says. [docs/](docs/README.md) maps every folder's pages, and
+[best practices](docs/contributing/best-practices.md) says what good work in this repository looks
+like.
 
 ## Build and test
 
