@@ -10,6 +10,7 @@
 // asking the store before each row), the Flow host and the view host, the place door, the close,
 // and the console's words a line at a time, so a program and a suite drive it alike.
 
+#include "app/session_file.hpp"
 #include "app/vocabulary.hpp"
 
 #include "builder/vocabulary.hpp"
@@ -246,6 +247,9 @@ public:
             *why = "the decisions " + store_path_ + " cannot be read: " + refusal;
             return false;
         }
+        // WHILE IT RUNS, its process id stands in the folder (`app-session.json`), for whoever
+        // asks whether the app runs; the one host holding the decisions writes it.
+        session_ = SessionFile(place_.folder);
         compose();
         return true;
     }
@@ -259,6 +263,11 @@ public:
              << "zengine-app - decisions: " << kAuthorityName << " (" << store_.rules().size()
              << " standing)\n"
              << "zengine-app - artifacts: " << place_.artifacts << "\n"
+             << "zengine-app - session: "
+             << (session_.held() ? std::string(kSessionName) + " (process " +
+                                       std::to_string(this_process_id()) + ")"
+                                 : session_.trouble())
+             << "\n"
              << "zengine-app - containment: " << loom::Kernel::containment_note() << "\n"
              << "zengine-app - what may run is this console's to decide; a row of the plan, once "
                 "it runs, may say anything to anyone (the plan's posture), and anything else "
@@ -552,6 +561,7 @@ private:
     load::LoadPlan plan_;
     std::string store_path_;
     loom::host::StoreLock lock_;
+    SessionFile session_; ///< removed before the lock is let go
     loom::host::AuthorityStore store_;
     loom::AdmissionPolicy decide_;
     op::Catalog operators_;

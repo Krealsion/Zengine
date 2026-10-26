@@ -364,6 +364,28 @@ TEST_CASE("a second start whose builds are unchanged asks nothing; a build the c
     CHECK(has(changed.said.str(), "'zengine-graphics' changed since it was approved"));
 }
 
+TEST_CASE("while a host holds an app, its session file stands in the app's folder naming the host's process; a host refused the app writes none, and the file goes when the host does") {
+    // MUTATION: the file written before the lock is claimed -- the refused second host removes
+    // the first's file as it goes.
+    AppFolder folder("session");
+    const fs::path session = folder.dir / app::kSessionName;
+    CHECK_FALSE(fs::exists(session));
+    {
+        Run first(folder);
+        REQUIRE(first.open());
+        REQUIRE(fs::exists(session));
+        CHECK(app::read_session(folder.dir) == app::this_process_id());
+        {
+            Run second(folder);
+            CHECK_FALSE(second.open());
+        }
+        CHECK(fs::exists(session));
+        first.host->begin();
+        CHECK(has(first.said.str(), std::string("session: ") + app::kSessionName));
+    }
+    CHECK_FALSE(fs::exists(session));
+}
+
 TEST_CASE("the app's weave runs its flow and its view, and its panel is drawn in the window it arranges, typed into and pressed through it; the flow answers, and its fold's refusal is said") {
     AppFolder folder("window");
     Run run(folder);

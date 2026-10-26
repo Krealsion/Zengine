@@ -14,6 +14,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `files.hpp` | `app.json` read through the compat codec, and the app's files, bounded |
 | `folder.hpp` | an app's folder written from a saved view and its flow, all judged first: the View Builder's Export app |
 | `program.hpp` | where the running program stands, and `zengine-app` beside it |
+| `session_file.hpp` | `app-session.json`: the host's process id in the app's folder while it runs |
 | `vocabulary.hpp` | `zengine.app`, `zengine.app.host`, `AppPlaceAsked`, `AppPlaceSaid`, `ZengineAppFile` |
 | `docs/app.md` | the reference: an app's folder, its console, its end |
 

@@ -801,7 +801,7 @@ zengine_doctest_test(app_host zengine-app-host-tests)
 
 # ---- THE LAUNCHER: what Workshop may start, judged against its configured catalog -------------
 # Its judgement as the weave makes it (launcher/catalog.hpp), a real detached start of the app host
-# on the tally app, and the weave loaded, answering only the View Builder and Files.
+# on the tally app, its listing, and the weave loaded, taking a start only from its four askers.
 add_executable(zengine-launcher-tests test_launcher.cpp doctest_main.cpp)
 target_link_libraries(zengine-launcher-tests PRIVATE zengine-launcher-catalog zengine-activation
     loom::kernel zengine-warnings zengine-sanitize)
@@ -809,8 +809,13 @@ target_include_directories(zengine-launcher-tests PRIVATE ${CMAKE_CURRENT_SOURCE
 zengine_test_definitions(zengine-launcher-tests
     "LAUNCHER_ARTIFACT=\"$<TARGET_FILE:zengine-launcher>\""
     "APP_PROGRAM=\"$<TARGET_FILE:zengine-app>\""
+    "SELF_PROGRAM=\"$<TARGET_FILE:zengine-launcher-tests>\""
     "TALLY_APP_DIR=\"${CMAKE_SOURCE_DIR}/examples/tally-app\"")
 add_dependencies(zengine-launcher-tests zengine-launcher zengine-app)
+# The weave starts the app host beside the program running it: here, this suite.
+add_custom_command(TARGET zengine-launcher-tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:zengine-app>
+            $<TARGET_FILE_DIR:zengine-launcher-tests>)
 zengine_doctest_test(launcher zengine-launcher-tests)
 
 add_executable(zengine-message-draft-tests test_message_draft.cpp doctest_main.cpp)

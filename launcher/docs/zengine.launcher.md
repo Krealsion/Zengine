@@ -24,7 +24,14 @@ no handle, and leaves Workshop's job where the job allows it; on POSIX it leads 
 own, reads nothing, appends what it writes to `app.log` in an app's folder, or
 `demo-runs/<name>.log` for a demo, and holds no descriptor of Workshop's but those three. The
 launcher keeps nothing of it: its answer is the process's id, which says it started, not that it
-runs.
+runs. Each start is also said to any office as it is answered, so a pane that did not ask -- a
+checklist, say -- hears that something started.
+
+**Whether an app runs** is asked of the system each time a listing is asked, never remembered: an
+app's host writes its process id in the app's folder while it runs, `app-session.json`, and removes
+it when it ends ([running an app on its own](../../app/docs/app.md#while-it-runs)). The app runs
+while that file stands and the process it names still runs the `zengine-app` beside Workshop; a
+host that was killed leaves its file, naming a process that is gone.
 
 At its start the launcher asks `zengine.project` where the project is; a start asked before that
 answer is refused.
@@ -33,7 +40,9 @@ answer is refused.
 
 The View Builder's **Run app** and Files' **start** ask it, each after Workshop has allowed the
 hand that pressed, as a Save and a Build are judged: classes `build` and `write`, so on a weaver's
-host a guest starts nothing. It takes a start only from those two offices.
+host a guest starts nothing. It takes a start only from those two offices and from the palette
+(`zengine.palette`) and the quick setup (`zengine.first-run`), admitted to ask it the same way.
+Any office may ask what it can start.
 
 ## Commands
 
@@ -45,8 +54,8 @@ host a guest starts nothing. It takes a start only from those two offices.
   bytes.
 - **Answers:** `Launched` v1: `ok`, the `kind` and `name` asked, the process's `pid`, and `reason`,
   `started app 'tally', process 4242`.
-- **Refuses:** in `Launched`, with `ok` false and nothing started: `only the View Builder and Files
-  ask the launcher`; `the launcher does not know the project yet; ask again`; `the launcher starts
+- **Refuses:** in `Launched`, with `ok` false and nothing started: `only the View Builder, Files, the
+  palette and the quick setup ask the launcher for a start`; `the launcher does not know the project yet; ask again`; `the launcher starts
   an app or a demo, not '<kind>'`; for an app, a name that is not a plain folder name, `no app
   'tally' in <project>/apps`, `'tally' is not a folder directly in <project>/apps` (a link to
   elsewhere), `the app 'tally' has no plan this Workshop reads: <why>`, `no zengine-app beside this
@@ -54,6 +63,21 @@ host a guest starts nothing. It takes a start only from those two offices.
   `no demo '<name>' among the setups the demo service lists`, `the demo service this Workshop was
   configured with is not there`; and the system's reason when the process could not start.
 - **Example:** after Export app wrote `apps/tally/`, the View Builder asks `Launch{"app", "tally"}`.
+
+### `LaunchCatalogRequested`
+
+`LaunchCatalogRequested` v1 asks what the launcher can start now, from any office.
+
+- **Takes:** nothing.
+- **Answers:** `LaunchCatalog` v1: `entries`, each a `LaunchEntry` v1 -- `kind` and `name` as
+  `Launch` takes them, `title` and `line` (a setup's own, from its `setup.json`; an app's title is
+  its name), and `running`, for an app its host runs now -- the setups the demo service lists
+  first, then each app in the project's `apps/` that `Launch` would start, by name; `left_out`, how
+  many past the <!-- value kMaxListed -->128<!-- /value --> a listing holds; and `note`, why no app is listed while the launcher does not
+  know the project yet.
+- **Refuses:** nothing: a folder in `apps/` that `Launch` would refuse is not listed.
+- **Example:** in a project holding `apps/tally/`, the answer lists the setups, then `app`
+  `tally`, `running` while its `zengine-app` runs.
 
 ## Hears
 
@@ -64,8 +88,9 @@ project is. Apps and demo roots are found there.
 
 ## Follow
 
-The launcher publishes nothing. Its only word is its answer to the asker. What it started says
-for itself. On Windows an app opens its console and its window. On POSIX it has no console: a row
+Each start, as it is answered, is said to any as the launcher's office: the same `Launched` v1,
+`ok` true. A refused start is answered to its asker alone. What it started says for itself after
+that. On Windows an app opens its console and its window. On POSIX it has no console: a row
 of its plan no console has decided ends it at once, exit 5, said in its `app.log`, so an app's
 first start is from a terminal, its `run.sh`, where its console decides its rows; a start from
 Workshop after that runs. Each start's notice says which of these follows.
