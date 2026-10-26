@@ -775,3 +775,44 @@ TEST_CASE("WL-FIRST-02: the quick setup lists the setups the launcher lists, and
     CHECK_FALSE(v.grant.permits_role(zengine::view::ViewWiring::zen_name,
                                      zengine::view::ViewWiring::zen_version, kTallyPanel));
 }
+
+namespace {
+/// A PANE'S WORDS AS THE DESK SHOWS THEM, its rows read in order as one text: each row's leading and
+/// trailing blanks dropped and the rows joined by a space, so a line carried on to the row beneath
+/// reads whole, and one cut at the pane's edge does not.
+std::string read_whole(PaneRig& r, std::int64_t kind) {
+    std::string out;
+    for (const std::string& row : pane_rows(r, kind)) {
+        const std::size_t first = row.find_first_not_of(' ');
+        const std::size_t last = row.find_last_not_of(' ');
+        if (first == std::string::npos) continue;
+        out += (out.empty() ? "" : " ") + row.substr(first, last - first + 1);
+    }
+    return out;
+}
+} // namespace
+
+TEST_CASE("WL-FIRST-02: every line of the quick setup and of Start here is read whole at the pane's "
+          "own size, a line wider than the pane going on in the rows beneath it") {
+    // MUTATION: the lines left as wide as they are written -- the desk cuts each at the pane's
+    // edge, and what ticks a step and a setup's line lose their ends.
+    TempDir dir("first-run-whole");
+    const std::string line = "Inventory, Info and a Reset button with nine captured Input structures, "
+                             "and nothing else on the desk";
+    PaneRig r;
+    (void)start_with_launcher(r, dir.file("prefs.json"),
+                              {{"demo", "values", "Value inspection", line, false}});
+    REQUIRE(on_desk(r));
+    const std::string setup = read_whole(r, setup_kind(r));
+    CHECK_MESSAGE(setup.find("[ Start ] Value inspection -- " + line) != std::string::npos, setup);
+    answer_done(r, 1);
+    REQUIRE(story_on_desk(r));
+    const std::string story = read_whole(r, kind_in(r, fr::kFirstRunRole, fr::kStoryPane));
+    for (const fr::Step& step : fr::steps()) {
+        CHECK_MESSAGE(story.find(std::string(step.what) + "; ticked when " + step.by) !=
+                          std::string::npos,
+                      story);
+        // ...AND A MOVE NAMES WHAT IT PRESSES, never a key the weaver may have moved.
+        CHECK_MESSAGE(std::string(step.move).find("ctrl+") == std::string::npos, step.move);
+    }
+}

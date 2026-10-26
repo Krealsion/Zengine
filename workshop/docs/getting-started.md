@@ -205,7 +205,8 @@ start until you finish it; find either again in the Pane Manager as Quick setup 
 
 ![Start here at a later start, seated beside the desk without the keys: steps 1 and 4 done by their owners' word, step 2 ticked by you, 3 and 5 still to do, each with Show me](images/first-run-start-here.png)
 
-**A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, and the room.
+**A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, Notices at the lower
+left, and the room.
 The Layouts row says `>Default< +` beside `setup: none` — the one layout you have, marked as the
 one you are on, related to no Setup file yet. `none` is not a warning: Workshop remembers that
 layout for you either way. Nothing is painted behind the panes, and the band's first row says

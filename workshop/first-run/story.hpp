@@ -10,6 +10,8 @@
 // suite reads the lines without a bus.
 // Reference: workshop/docs/zengine.first-run.md; law: agents/workshop/first-run.md.
 
+#include "workshop/first-run/setup.hpp"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -45,7 +47,7 @@ inline const std::array<Step, kSteps>& steps() {
     static const std::array<Step, kSteps> all{{
         {"Make a view", "lay out a panel in the View Builder and run it", "zengine.view.builder",
          "view-builder",
-         "place a number field, a button and a label, save the view, then run it (ctrl+r)",
+         "place a number field, a button and a label, save the view, then press Run",
          "a running view is on the desk"},
         {"Wire its button into Flow", "drag the button's intent onto Flow and run the flow",
          "zengine.flow", "flow",
@@ -135,8 +137,9 @@ struct StoryLine {
 
 /// THE LINES OF "START HERE", top to bottom: a heading, then for each step its box and what it
 /// asks, whose fact ticks it, and its Show me; a line when the story is done; the notice last.
+/// Each is read whole in `columns` (`wrapped`).
 // WL-FIRST-04 -- agents/workshop/first-run.md
-inline std::vector<StoryLine> story_lines(const StoryMoment& m) {
+inline std::vector<StoryLine> story_lines(const StoryMoment& m, std::int64_t columns = 0) {
     std::vector<StoryLine> out;
     const auto mark = [&](std::int64_t i) { return std::string(m.cursor == i ? "> " : "  "); };
     out.push_back({"Start here -- the story, a step at a time", StoryLine::Ink::kHeading});
@@ -169,7 +172,7 @@ inline std::vector<StoryLine> story_lines(const StoryMoment& m) {
         out.push_back({""});
         out.push_back({m.notice, StoryLine::Ink::kAlert});
     }
-    return out;
+    return wrapped(out, columns);
 }
 
 /// The cursor one item up or down, stopping at the ends.
