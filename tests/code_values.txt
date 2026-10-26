@@ -142,6 +142,9 @@ kMaxEntries                     workshop/palette/entries.hpp              kMaxEn
 kMaxFilterBytes                 workshop/palette/entries.hpp              kMaxFilterBytes
 kMaxHistory                     workshop/palette/entries.hpp              kMaxHistory
 
+# ---- the launcher's listing
+kMaxListed                      launcher/vocabulary.hpp                   kMaxListed
+
 # ---- the evaluator's bounds
 kEvaluationSpends               operator/catalog.hpp                      kEvaluationSpends
 kEvaluationDepth                operator/catalog.hpp                      kEvaluationDepth

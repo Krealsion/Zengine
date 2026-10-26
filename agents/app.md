@@ -12,6 +12,10 @@ plan's executor), [view](view.md) and [flow host](flow-host.md) (the two hosts i
 - The decisions are Loom's authority store, `app-authority.json` in the app's folder, its lock held
   for the run, so one host runs an app at a time; there is no decision store beside it, and nothing
   is admitted by default. The console speaks Loom's `authority` command over it.
+- While it holds that lock the host's process id stands in the app's folder, `app-session.json`
+  (`app/session_file.hpp`), written after the lock is claimed and removed before it is let go, so a
+  host refused the app writes and removes nothing. It is a fact for a reader (the launcher's
+  listing), who asks the system whether the process still runs; nothing in the host reads it.
 - The Kernel asks the store at `Open`, and the plan's executor asks the same policy before each
   row, a provider's row included: a row with no standing decision, or whose file is not the build
   decided, waits (`PlanExecutor`'s barrier), and nothing of it is opened or mounted. After each
