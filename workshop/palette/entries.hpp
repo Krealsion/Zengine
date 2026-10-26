@@ -7,6 +7,8 @@
 // whom to believe, and keeps no catalog of its own. Reference: workshop/docs/zengine.palette.md.
 #include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
+#include "workshop/settings_seam_vocabulary.hpp"
+#include "launcher/vocabulary.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -16,6 +18,11 @@
 #include <vector>
 
 namespace zengine::palette {
+
+/// THE KINDS THE PALETTE STARTS ITSELF, through the launcher once Workshop allowed the hand: a
+/// setup the demo service lists, and an app in the project's `apps/`.
+inline constexpr const char* kKindSetup = "setup";
+inline constexpr const char* kKindApp = "app";
 
 /// THE BOUNDS: the entries held, the filter's bytes, the choices remembered for the run.
 inline constexpr std::size_t kMaxEntries = 1024;
@@ -33,6 +40,13 @@ struct Entry {
     bool off = false;
     bool gone = false;
     std::string address() const { return kind + "|" + office + "|" + pane + "|" + id; }
+};
+
+/// WHAT THE OTHER OWNERS SAID: the layouts on the shelf, as the layouts' owner answered, and what
+/// the launcher can start, as it answered; each empty until it has.
+struct Others {
+    std::vector<workshop::LayoutSettings> layouts;
+    std::vector<launcher::LaunchEntry> startable;
 };
 
 /// THE ENTRIES, and how many the bound left out and from where.
@@ -53,7 +67,8 @@ inline bool reachable_group(const std::string& group) {
 /// transient mode -- Workshop's, the application's above every mode, and each open pane's in the
 /// mode it is in -- then every pane. The text box's own keys, the palette's own rows and the key
 /// that opens it are not entries. A row with several keys is one entry, its first key shown.
-inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::PaneInventory& inv) {
+inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::PaneInventory& inv,
+                          const Others& others = {}) {
     Listing out;
     std::map<std::pair<std::string, std::string>, const workshop::InventoryPane*> panes;
     for (const workshop::InventoryPane& p : inv.panes) {
@@ -131,10 +146,56 @@ inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::Pan
         }
         add(std::move(e), panes_left);
     }
-    out.left_out = actions_left + panes_left;
-    out.left_from = actions_left > 0 && panes_left > 0 ? "actions and panes"
-                    : actions_left > 0                 ? "actions"
-                                                       : panes_left > 0 ? "panes" : "";
+    // EACH LAYOUT ON THE SHELF, by name, run as a press on its tab.
+    std::size_t others_left = 0;
+    for (const workshop::LayoutSettings& l : others.layouts) {
+        Entry e;
+        e.kind = workshop::kCommandLayout;
+        e.id = std::to_string(l.id);
+        e.label = l.name;
+        e.owner = "layout";
+        e.key = "-";
+        add(std::move(e), others_left);
+    }
+    // EACH OPEN PANE'S MANUAL, while the application declares the row that shows one.
+    bool manuals = false;
+    for (const workshop::ShownBinding& row : keys.rows) {
+        manuals = manuals || (row.office == workshop::kDesktopRole && row.pane.empty() &&
+                              row.id == workshop::kManualAction);
+    }
+    for (const workshop::InventoryPane& p : inv.panes) {
+        if (!manuals || !p.open || !p.available || p.office == workshop::kPaletteRole) {
+            continue;
+        }
+        Entry e;
+        e.kind = workshop::kCommandManual;
+        e.office = p.office;
+        e.pane = p.pane;
+        e.label = p.name + " manual";
+        e.owner = "manual";
+        e.key = "-";
+        add(std::move(e), others_left);
+    }
+    // WHAT THE LAUNCHER CAN START: each setup by its title and line, each app by its name.
+    for (const launcher::LaunchEntry& s : others.startable) {
+        Entry e;
+        e.kind = s.kind == launcher::kKindDemo ? kKindSetup : kKindApp;
+        e.id = s.name;
+        e.label = s.title.empty() ? s.name : s.title;
+        e.owner = s.kind == launcher::kKindDemo ? "setup" : s.running ? "app, running" : "app";
+        e.key = "-";
+        add(std::move(e), others_left);
+    }
+    out.left_out = actions_left + panes_left + others_left;
+    std::string from;
+    for (const auto& [n, what] : {std::pair<std::size_t, const char*>{actions_left, "actions"},
+                                  {panes_left, "panes"},
+                                  {others_left, "layouts, manuals, setups and apps"}}) {
+        if (n > 0) {
+            from += (from.empty() ? "" : " and ") + std::string(what);
+        }
+    }
+    out.left_from = from;
     return out;
 }
 
