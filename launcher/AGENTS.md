@@ -29,8 +29,9 @@ Its cases in shared suites: `view_builder` (`tests/test_view_builder.cpp`, Run a
 ## Others' side
 
 - The View Builder's Run app (`view/view-builder/pane.cpp`) and Files' start and demos
-  (`files/files.cpp`) ask it, each after Workshop's approval for the hand; the palette
-  (`workshop/palette/`) and the quick setup (`workshop/first-run/`) are admitted to ask it too.
+  (`files/files.cpp`) and the palette's setups and apps (`workshop/palette/palette.cpp`) ask it,
+  each after Workshop's approval for the hand; the quick setup (`workshop/first-run/`) is admitted
+  to ask it too.
 - The app host writes the session file a listing reads (`app/session_file.hpp`).
 - Workshop's four load plans load it as an optional row, and Workshop's directory stages it
   (`workshop/CMakeLists.txt`); installed with Zengine's artifacts (`cmake/ZengineInstall.cmake`).

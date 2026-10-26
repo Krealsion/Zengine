@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Command Palette: every action and every pane a hand can reach, found by name and run by
-// Workshop. It reads what Workshop says to any presenter -- the keymap in force and the pane
-// inventory -- keeps no catalog of its own, and asks Workshop to run what is chosen
-// (`CommandRunRequested`), which performs it by the path its key or press takes, as the hand
-// that chose it. It draws only in its own area of the window that shows it.
+// The Command Palette: every action, pane, layout, manual, setup and app a hand can reach, found by
+// name. It reads what their owners say -- the keymap and inventory, the layouts, the launcher's
+// listing -- keeps no catalog of its own, and asks Workshop to run what is chosen by its key's or
+// press's path, as that hand (`CommandRunRequested`); a setup or an app it starts itself, once
+// Workshop allowed the hand. It draws only in its own area of the window that shows it.
 // Reference: workshop/docs/zengine.palette.md; the door: WL-DESK-18, agents/workshop/desktop.md.
 
 #include "workshop/palette/entries.hpp"
@@ -16,7 +16,12 @@
 #include "workshop/pane_drawing.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_rows_block.hpp"
+#include "workshop/pane_operation.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/actor_scope.hpp"
+#include "workshop/settings_seam_vocabulary.hpp"
+
+#include "launcher/vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "component/text_box.hpp"
@@ -64,11 +69,15 @@ class Palette
           Palette, PaletteState,
           loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneKey,
                        ws::PaneTextInput, ws::PaneActionRequested, ws::KeymapShown,
-                       ws::PaneInventory, ws::CommandRunAnswered, gfx::AreaRoom, gfx::DrawnRefused,
+                       ws::PaneInventory, ws::CommandRunAnswered, ws::LayoutSettingsAnswered,
+                       ws::PaneOperationAnswered, zengine::launcher::LaunchCatalog,
+                       zengine::launcher::Launched, gfx::AreaRoom, gfx::DrawnRefused,
                        gfx::AreaButtonChanged>,
           loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::KeymapRequested,
-                     ws::PaneInventoryRequested, ws::CommandRunRequested, gfx::Drawn,
-                     gfx::RoomAsked>> {
+                     ws::PaneInventoryRequested, ws::CommandRunRequested,
+                     ws::LayoutSettingsRequested, ws::v2::PaneOperationRequested,
+                     zengine::launcher::LaunchCatalogRequested, zengine::launcher::Launch,
+                     gfx::Drawn, gfx::RoomAsked>> {
 public:
     /// EVERY ACTIVATION: the pane offered and its rows declared, the two lists asked for, and the
     /// area's room asked while no window has said it.
@@ -170,7 +179,76 @@ public:
             show(mail);
             return;
         }
+        if (e.kind == pal::kKindSetup || e.kind == pal::kKindApp) {
+            start(mail, e);
+            return;
+        }
         run(mail, ws::CommandRunRequested{e.kind, e.office, e.pane, e.id}, e.address());
+    }
+
+    /// THE LAYOUTS ON THE SHELF, the answer to this weave's own ask.
+    void on(const ws::LayoutSettingsAnswered& said, loom::Mail& mail) {
+        if (!answers(mail, layouts_ask_)) {
+            return;
+        }
+        layouts_ask_ = 0;
+        others_.layouts = said.layouts;
+        relist(mail);
+    }
+    /// WHAT THE LAUNCHER CAN START, the answer to this weave's own ask.
+    void on(const zengine::launcher::LaunchCatalog& said, loom::Mail& mail) {
+        if (!answers(mail, listing_ask_)) {
+            return;
+        }
+        listing_ask_ = 0;
+        others_.startable = said.entries;
+        relist(mail);
+    }
+
+    /// WORKSHOP'S WORD ON A START THIS PALETTE ASKED ABOUT, for the hand that pressed its row:
+    /// allowed, the launcher is asked; refused, nothing starts and the refusal is said.
+    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+        if (!answers(mail, approval_ask_)) {
+            return;
+        }
+        approval_ask_ = 0;
+        if (!answer.allowed) {
+            notice_ = "nothing was started -- " + answer.reason;
+            in_flight_ = false;
+            running_.clear();
+            show(mail);
+            return;
+        }
+        launch_ask_ = ++asks_;
+        if (!mail.as_role(kOffice)
+                 .send_to_role(zengine::launcher::kLauncherRole, starting_, launch_ask_)
+                 .valid()) {
+            launch_ask_ = 0;
+            in_flight_ = false;
+            running_.clear();
+            notice_ = "nothing was started -- the launcher could not be asked";
+        } else {
+            notice_ = "starting the " + starting_.kind + " `" + starting_.name + "`";
+        }
+        show(mail);
+    }
+    /// THE LAUNCHER'S ANSWER to this palette's own start: the process, or why nothing started. The
+    /// palette stays open to say it, and remembers the entry when it started.
+    void on(const zengine::launcher::Launched& said, loom::Mail& mail) {
+        if (!answers(mail, launch_ask_)) {
+            return;
+        }
+        launch_ask_ = 0;
+        in_flight_ = false;
+        if (said.ok) {
+            state_.history = pal::remembered(state_.history, running_);
+            notice_ = "started the " + said.kind + " `" + said.name + "`, process " +
+                      std::to_string(said.pid) + ": it goes on without Workshop";
+        } else {
+            notice_ = "nothing was started -- " + said.reason;
+        }
+        running_.clear();
+        show(mail);
     }
 
     /// WORKSHOP'S WORD ON THE RUN, the answer to the ask in flight and no other: the choice
@@ -286,8 +364,9 @@ private:
                                                      input::mod::kNone, "", {}});
         actions.rows.push_back(ws::v3::PaneActionRow{kDown, "next entry", input::scan::kDown,
                                                      input::mod::kNone, "", {}});
-        actions.rows.push_back(ws::v3::PaneActionRow{kRun, "run the entry", input::scan::kReturn,
-                                                     input::mod::kNone, "", runs});
+        actions.rows.push_back(ws::v3::PaneActionRow{
+            kRun, "run the entry", input::scan::kReturn, input::mod::kNone, "",
+            {ws::cause_of<ws::CommandRunRequested>(), ws::cause_of<zengine::launcher::Launch>()}});
         actions.rows.push_back(ws::v3::PaneActionRow{kClose, "put the palette down",
                                                      input::scan::kEscape, input::mod::kNone, "",
                                                      runs});
@@ -297,6 +376,45 @@ private:
     void ask_lists(loom::Mail& mail) {
         (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::KeymapRequested{});
         (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::PaneInventoryRequested{});
+        layouts_ask_ = ++asks_;
+        (void)mail.as_role(kOffice).send_to_role(ws::kLayoutsRole, ws::LayoutSettingsRequested{},
+                                                 layouts_ask_);
+        listing_ask_ = ++asks_;
+        (void)mail.as_role(kOffice).send_to_role(zengine::launcher::kLauncherRole,
+                                                 zengine::launcher::LaunchCatalogRequested{},
+                                                 listing_ask_);
+    }
+
+    /// Whether `mail` answers the ask that went out under `asked`, this weave's own number.
+    static bool answers(const loom::Mail& mail, std::uint64_t asked) {
+        return asked != 0 && mail.answers_ask() && mail.correlation() == asked;
+    }
+
+    /// A SETUP OR AN APP, started as Files starts one: Workshop asked first whether the hand of
+    /// this row's key may build and write, under that key's own number; then the launcher. One
+    /// start, as one run, in flight.
+    void start(loom::Mail& mail, const pal::Entry& e) {
+        if (in_flight_) {
+            notice_ = "the last entry chosen is still being run";
+            show(mail);
+            return;
+        }
+        ws::v2::PaneOperationRequested asked;
+        asked.pane = kPane;
+        asked.gesture = static_cast<std::int64_t>(mail.correlation());
+        asked.classes = {ws::scope::kBuild, ws::scope::kWrite};
+        approval_ask_ = ++asks_;
+        if (!mail.as_role(kOffice).send_to_role(kWorkshop, asked, approval_ask_).valid()) {
+            approval_ask_ = 0;
+            notice_ = "nothing was started -- Workshop could not be asked";
+            show(mail);
+            return;
+        }
+        starting_ = zengine::launcher::Launch{
+            e.kind == pal::kKindSetup ? zengine::launcher::kKindDemo : zengine::launcher::kKindApp,
+            e.id};
+        in_flight_ = true;
+        running_ = e.address();
     }
 
     /// ONE RUN IN FLIGHT: a second waits for the first's answer.
@@ -319,7 +437,7 @@ private:
     }
 
     void relist(loom::Mail& mail) {
-        listing_ = pal::entries_of(keys_, inventory_);
+        listing_ = pal::entries_of(keys_, inventory_, others_);
         const std::size_t n = visible().size();
         cursor_ = n == 0 ? 0 : std::min(cursor_, n - 1);
         show(mail);
@@ -423,6 +541,10 @@ private:
     // flight belong to one opening.
     ws::KeymapShown keys_;
     ws::PaneInventory inventory_;
+    pal::Others others_;
+    /// THIS WEAVE'S OWN NUMBERS for its asks, and the ask each answer is read against.
+    std::uint64_t asks_ = 0, layouts_ask_ = 0, listing_ask_ = 0, approval_ask_ = 0, launch_ask_ = 0;
+    zengine::launcher::Launch starting_; ///< the start waiting on Workshop's word
     pal::Listing listing_;
     zengine::component::TextBox filter_;
     zengine::component::Clipboard clipboard_;
