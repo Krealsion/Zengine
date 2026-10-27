@@ -32,7 +32,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   (`loom::SchemaConflict`, a held name) leaves that view and its session as they were, and the
   answer says why. At the same name the successor is registered unbound, sealed to the host's
   office and given the office by `commit_candidate`, with no delivery between; then the old view
-  is removed. Renamed, the old view stops. The bound counts the pair as one view.
+  is removed, and the successor asks nothing of the desk: its pane stands where it stood and the
+  keys stay where they are. Renamed, the old view stops and the successor asks to be shown, as a
+  run does. The bound counts the pair as one view.
 - A stop queues the view's last picture as its office while it still holds it, to Workshop and,
   drawn whole, to the window that shows its area, then retires the participant behind that
   delivery: the pane says the view stopped until Workshop sees the provider gone and shows it

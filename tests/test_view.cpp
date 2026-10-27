@@ -659,6 +659,34 @@ TEST_CASE("a resumed view offers its pane and asks nothing of the desk; a run as
     CHECK(seat);
 }
 
+TEST_CASE("a view registered afresh at its own name asks nothing of the desk, so its pane keeps its place and the keys stay; renamed, it asks to be shown") {
+    // MUTATION: the successor started as a run is, revealing -- a running view told a new shape
+    // jumps in front of the pane the weaver works in and takes its keys; the first check goes red.
+    Rig rig;
+    REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel(false))}).ok);
+    const auto asked = [&rig](const std::string& office) {
+        bool seat = false;
+        for (const auto& m : rig.desk->heard)
+            if (m.provenance.authored_role() == office)
+                seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
+        return seat;
+    };
+    rig.desk->heard.clear();
+    const auto bound = rig.ask(view::ViewApply{"builder", bytes_of(panel(true))});
+    REQUIRE_MESSAGE(bound.ok, bound.reason);
+    CHECK(bound.fresh);
+    CHECK_FALSE(asked("tally.panel"));
+    // ...and a new name is a new pane, which asks to be shown as a run does.
+    rig.desk->heard.clear();
+    auto renamed = panel(true);
+    renamed.name = "tally.renamed";
+    renamed.intents[0].shape = shape::make(shape::qualified("tally.renamed", "Count"), count_shape()->fields());
+    const auto moved = rig.ask(view::ViewApply{"builder", bytes_of(renamed)});
+    REQUIRE_MESSAGE(moved.ok, moved.reason);
+    CHECK(moved.fresh);
+    CHECK(asked("tally.renamed"));
+}
+
 TEST_CASE("the view host registers a view as its own participant, granted only its intents, its pane conversation and its drawing in a window") {
     Rig rig;
     const auto run = rig.ask(view::ViewRun{"builder", bytes_of(panel())});
