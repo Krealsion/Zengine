@@ -98,7 +98,7 @@ bool WorkshopWeave::placing_press(const PointedAt& at) {
             return false;
         }
     }
-    return take_pane_hold(a.pane, at, sc);
+    return take_pane_hold(a.pane, at, sc, /*top_moves=*/true);
 }
 
 // WL-DESK-19 -- agents/workshop/desktop.md
@@ -623,7 +623,8 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
 // WL-ARR-01 -- agents/workshop/arrangement.md
 // WL-ARR-01, WL-ARR-07 -- agents/workshop/arrangement.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
-bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc) {
+bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc,
+                                   bool top_moves) {
     const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
     // A hand may take hold of any pane this build can resolve: nothing is reserved, and the hand
     // and the keys refuse by one sentence.
@@ -635,7 +636,9 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
         return false;
     }
     const std::int64_t edge = pane_edge_at(mine.rect, at.px.x, at.px.y, at.grain);
-    if (edge != kNoPaneEdge) {
+    // ...THE TOP EDGE MOVES WHERE ASKED: a pane being placed is taken by its title, which in a
+    // window stands on that edge.
+    if (edge != kNoPaneEdge && !(top_moves && edge == pane_edge::kTop)) {
         session_.pane_drag = PaneGesture{};
         session_.pane_drag.active = true;
         session_.pane_drag.pane = ref;
