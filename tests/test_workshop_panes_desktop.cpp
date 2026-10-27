@@ -560,10 +560,18 @@ TEST_CASE("WL-DESK-13: Ctrl+P is a visibility toggle judged by the host -- open 
     d.r.bus.drain_until_idle();
     CHECK(has_pane(d.r.session().setup.active, manager));
 
-    // COVERED, IT IS BROUGHT FORWARD WITH THE KEYS, and stays on the desk.
+    // PART OF IT COVERED, IT IS BROUGHT FORWARD WITH THE KEYS, and stays on the desk.
     // MUTATION: the toggle closing a covered pane -- the Manager leaves the desk; the checks go red.
+    const Screen sc = screen_of(d.r.session());
+    const PixelRect under = room_of_canvas(
+        bounds_of(d.r.session().panes, d.r.session().setup.active,
+                  kind_of(d.r, kDesktopRole, dp::kLauncherPane), sc)
+            .resolved,
+        sc);
     stage_desk(d.r, [&](Setup& desk) {
-        REQUIRE(author_pane_place(desk, PaneRef{"zengine.test.tools", "alpha"}, 0, 0).accepted);
+        REQUIRE(author_pane_place(desk, PaneRef{"zengine.test.tools", "alpha"},
+                                  under.x + under.w / 2, 0)
+                    .accepted);
         REQUIRE(author_pane_size(desk, PaneRef{"zengine.test.tools", "alpha"},
                                  PaneSize{ui::kSizeFill, 0}, PaneSize{ui::kSizeFill, 0})
                     .accepted);
