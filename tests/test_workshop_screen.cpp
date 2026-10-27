@@ -6866,8 +6866,11 @@ TEST_CASE("WL-DESK-19: a pane the layout never had opens at the room's centre, p
     const std::int64_t wy = title_px / gfx::kCellPx - kRoomCellY;
     t.press(wx, wy);
     REQUIRE(t.session().pane_drag.active);
+    // ...WORKSHOP'S AREA IN FRONT FOR THE DRAG ALONE, so a window keeps it to its release.
+    CHECK(desk_in_front(t.session()));
     t.motion(wx - 6, wy + 3);
     t.release(wx - 6, wy + 3);
+    CHECK_FALSE(desk_in_front(t.session()));
     CHECK(t.notice().rfind(std::string("moved ") + stock::kName + ": @", 0) == 0);
     CHECK(t.notice().find(" -> @") != std::string::npos);
     CHECK(t.notice().find("(open)") == std::string::npos);
