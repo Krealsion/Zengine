@@ -120,6 +120,7 @@ EditorSwitchAnswered v1 0xe25a69430c1a820d
 EditorSwitchCancelled v1 0x7784e1a57a6de622
 EditorSwitchConfirmed v1 0xf8e7918e2f898881
 EditorSwitchProgress v1 0x29968dc21f0b782b
+EditorSwitchQuietStatusRequested v1 0x7db80f5ff058517d
 EditorSwitchRequested v1 0x3f06f5830ea04fc5
 EditorSwitchState v1 0x33143293dedd54d0
 EditorSwitchStatusRequested v1 0xd3b1f5bca6c45598

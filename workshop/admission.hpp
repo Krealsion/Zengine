@@ -32,10 +32,10 @@ inline loom::Grant inventory_office_grant() {
 
 // THE QUICK SETUP'S SPEECH, and nothing more: its two panes, its two settings, a launch of a pane
 // to Workshop -- either version -- and its close to the layouts' owner; the room asked of the
-// graphics directory and its drawing to the two windows; the editor switch's four asks, to the
-// switch's office alone; Workshop asked to approve a start for the hand, and the launcher asked
-// for its listing and a start; and every running view asked what its wiring has done, said to any
-// since a view's office is its own name.
+// graphics directory and its drawing to the two windows; the editor switch's four asks, its
+// status the quiet one, to the switch's office alone; Workshop asked to approve a start for the
+// hand, and the launcher asked for its listing and a start; and every running view asked what its
+// wiring has done, said to any since a view's office is its own name.
 // WL-FIRST-03, WL-FIRST-04 -- agents/workshop/first-run.md
 inline loom::Grant first_run_office_grant() {
     loom::Grant g;
@@ -64,7 +64,8 @@ inline loom::Grant first_run_office_grant() {
     to(EditorSwitchRequested::zen_name, EditorSwitchRequested::zen_version, switcher);
     to(EditorSwitchConfirmed::zen_name, EditorSwitchConfirmed::zen_version, switcher);
     to(EditorSwitchCancelled::zen_name, EditorSwitchCancelled::zen_version, switcher);
-    to(EditorSwitchStatusRequested::zen_name, EditorSwitchStatusRequested::zen_version, switcher);
+    to(EditorSwitchQuietStatusRequested::zen_name, EditorSwitchQuietStatusRequested::zen_version,
+       switcher);
     const std::string starts = launcher::kLauncherRole;
     to(launcher::LaunchCatalogRequested::zen_name, launcher::LaunchCatalogRequested::zen_version,
        starts);
