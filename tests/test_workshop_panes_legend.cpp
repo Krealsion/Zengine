@@ -529,7 +529,7 @@ TEST_CASE("a Terminal closed in a layout that hid its legend shows it again when
     // THE CLOSE TAKES THE ROW AND ITS SETTING; THE ROW SHOWN AGAIN KEEPS NONE, AND THE TERMINAL --
     // which never left, and still holds what it was last handed -- is handed that too.
     REQUIRE(hand_close(t.r, terminal_ref()).closed);
-    CHECK(t.r.last_notice().find("hid Terminal and its settings here (legend off) -- ") == 0);
+    CHECK(t.r.last_notice() == "hid Terminal and its settings here (legend off)");
     REQUIRE(seat_pane(t.r, terminal_ref()).opened);
     CHECK(terminal_settings(t.r.run().active).empty());
     CHECK(t.legend_shown());

@@ -692,6 +692,28 @@ TEST_CASE("WL-FIRST-05: Start here opens when the quick setup closes, holding th
     CHECK(done.session().panes.runtime.find(fr::kFirstRunRole, fr::kStoryPane) != nullptr);
 }
 
+TEST_CASE("WL-NOTE-06: what the quick setup keeps for itself is kept without a notice, and a keep "
+          "that was not written is said") {
+    TempDir dir("first-run-quiet");
+    const std::string prefs = dir.file("prefs.json");
+    PaneRig r;
+    (void)start_with_launcher(r, prefs);
+    answer_done(r);
+    REQUIRE(story_on_desk(r));
+    CHECK(slurp(prefs).find("\"answered\"") != std::string::npos);
+    const std::string before = r.last_notice();
+    CHECK_MESSAGE(before.find("committed") == std::string::npos, before);
+    // A BOX TICKED BY HAND IS KEPT, AND NOTHING IS SAID OF THE KEEPING.
+    CHECK(r.workshop_action(fr::kFirstRunRole, fr::kStoryPane, fr::kStoryChoose).delivered);
+    CHECK(story_kept(prefs) == "1h");
+    CHECK_MESSAGE(r.last_notice() == before, r.last_notice());
+    // ...BUT A KEEP THE FILE DID NOT TAKE IS SAID: another hand changed the file.
+    std::ofstream(prefs, std::ios::binary | std::ios::app) << "\n";
+    CHECK(r.workshop_action(fr::kFirstRunRole, fr::kStoryPane, fr::kStoryChoose).delivered);
+    CHECK_MESSAGE(r.last_notice().find("not written") != std::string::npos, r.last_notice());
+    CHECK(r.session().notice_is_bad);
+}
+
 TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone by it, its owner's "
           "fact makes it the owner's, and Show me opens the step's pane and says its next move") {
     // MUTATION: a hand's tick kept over the owner's fact -- the box still says "ticked by you".

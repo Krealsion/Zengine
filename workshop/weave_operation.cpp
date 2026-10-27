@@ -563,7 +563,7 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
     }
     carried_ = {asked.data, asked.label, carrier, value, drag,
                 std::string(mail.authored_role()), asked.pane, std::move(token)};
-    if (!drag) say("Carrying " + asked.label + " — click a receiving pane; Escape cancels", false);
+    if (!drag) say("Carrying " + asked.label + " -- click a receiving pane; Escape cancels", false);
     // A DRAG IS NOW A CARRY: Workshop's area comes in front of the pane's at the repaint, so the
     // window ends the press's hold there, and its later motion and its release are the carry's.
     (void)mail.answer(PaneCarryAnswered{true, {}});
@@ -636,6 +636,12 @@ bool WorkshopWeave::drop_carry(const AreaPoint& at, loom::Mail& mail) {
         say("Item placement could not be queued; it is still held", true);
         return true;
     }
+    // WHAT WAS CARRIED, FROM WHERE AND TO WHERE: its before and its after alone (WL-NOTE-06).
+    const RuntimePane* from =
+        session_.panes.runtime.find(carried_.source_office, carried_.source_pane);
+    const std::string moved = carried_.label + ": " +
+                              (from != nullptr ? from->name : carried_.source_office) + " -> " +
+                              pane->name;
     carried_ = {};
     leave_carry_hover(mail);
     const auto kind = at.kind;
@@ -643,7 +649,7 @@ bool WorkshopWeave::drop_carry(const AreaPoint& at, loom::Mail& mail) {
     session_.panes.selected = kind;
     session_.panes.keyboard = kind;
     note_routed(kind);
-    say(std::string(value ? "Value" : "Reference") + " sent to " + pane->name, false);
+    say(moved, false);
     return true;
 }
 
@@ -695,7 +701,8 @@ bool WorkshopWeave::move_value_drag(const input::PointerMoved& motion, loom::Mai
     if (distance(motion.x, drag.x) >= threshold || distance(motion.y, drag.y) >= threshold)
         drag.moved = true;
     if (!carried_.drag) return false;
-    if (drag.moved) { say("Dragging " + carried_.label + " — release over a receiving pane", false); repaint(mail); }
+    // A DRAG UNDER WAY SAYS NOTHING: its drop says where it went (WL-NOTE-06).
+    if (drag.moved) repaint(mail);
     return true;
 }
 bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom::Mail& mail) {

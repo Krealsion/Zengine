@@ -151,8 +151,11 @@ public:
     PaneSettingsAnswered read_pane(const std::string& refused, const PaneSettingsRequested& asked);
     PaneSettingCommitAnswered commit_pane(const std::string& refused, const PaneSettingCommitRequested& asked);
     OfficeSettingsAnswered read_office(const std::string& refused, const OfficeSettingsRequested& asked);
+    /// `for_itself`: the asker is the office whose setting it is, so a commit kept and written
+    /// whole is its own bookkeeping and is not said.
     OfficeSettingCommitAnswered commit_office(const std::string& refused,
-                                              const OfficeSettingCommitRequested& asked);
+                                              const OfficeSettingCommitRequested& asked,
+                                              bool for_itself = false);
     PaneSettingPinAnswered pin(const std::string& refused, const PaneSettingPinRequested& asked);
     /// `weavers_hand`: the unlock comes from the weaver's own hand, as the holder judged it.
     PaneSettingLockAnswered lock(const std::string& refused, const PaneSettingLockRequested& asked,

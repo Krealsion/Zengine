@@ -642,18 +642,18 @@ TEST_CASE("a close discards a pane's settings with its row, and every close door
     t.open_inspected();
     REQUIRE(info_commit(t.r, dial_ref(), "legend", "off").accepted);
     REQUIRE(hand_close(t.r, dial_ref()).closed);
-    CHECK(t.r.last_notice().find("hid Dial and its settings here (legend off) -- ") == 0);
+    CHECK(t.r.last_notice() == "hid Dial and its settings here (legend off)");
     REQUIRE(seat_pane(t.r, dial_ref()).opened);
     CHECK(t.stored().empty());
 
     REQUIRE(info_commit(t.r, dial_ref(), "step", "4").accepted);
     REQUIRE(hand_toggle(t.r, dial_ref()).closed);
-    CHECK(t.r.last_notice().find("hid Dial and its settings here (step 4) -- ") == 0);
+    CHECK(t.r.last_notice() == "hid Dial and its settings here (step 4)");
 
     // ...AND A CLOSE OF A ROW THAT KEPT NONE SAYS NOTHING ABOUT SETTINGS.
     REQUIRE(hand_toggle(t.r, dial_ref()).opened);
     REQUIRE(hand_close(t.r, dial_ref()).closed);
-    CHECK(t.r.last_notice().find("hid Dial -- ") == 0);
+    CHECK(t.r.last_notice() == "hid Dial");
 }
 
 TEST_CASE("arrangement's remove says the settings and locks it discarded too") {
