@@ -719,6 +719,30 @@ TEST_CASE("the palette lists each layout on the shelf, each open pane's manual w
     CHECK(labels_of(pal::entries_of(keys, inv, others), kCommandManual).empty());
 }
 
+TEST_CASE("WL-DESK-18: a pane chosen in the palette that is already on the desk is the one the keys go to, and the palette's put-down gives them back over nothing") {
+    // MUTATION: the command run before the palette's put-down is answered -- the pane is focused,
+    // then the put-down gives the keys back to the pane the palette opened over; the checks go red.
+    PaneRig r;
+    ProviderSeat* tools = nullptr;
+    start(r, tools);
+    REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+    REQUIRE(r.load_refusals.empty());
+    r.pick(PaneRef{kTools, "beta"});
+    const std::int64_t alpha = kind_of(r, kTools, "alpha");
+    const CellRect body = external_body_rect(r.session(), alpha);
+    r.press_cell(body.x + 1, body.y); // the keys back on Alpha
+    const std::int64_t beta = kind_of(r, kTools, "beta");
+    REQUIRE(on_desk(r, kTools, "beta"));
+    REQUIRE(r.session().panes.keyboard == alpha);
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    r.text("beta");
+    r.key(input::scan::kReturn);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+    CHECK(r.session().panes.keyboard == beta);
+    CHECK(r.session().panes.selected == beta);
+}
+
 TEST_CASE("WL-DESK-18: a layout chosen in the palette is switched to as a press on its tab, and a "
           "pane's manual is asked of the desktop as its ? asks it, each as the hand that chose it") {
     // MUTATION: a layout run by its place instead of its id -- the palette's Default switches to

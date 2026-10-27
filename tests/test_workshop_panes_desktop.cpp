@@ -538,11 +538,11 @@ TEST_CASE("WL-DESK-14: an inventory change queued ahead of a raw press cannot re
     }
 }
 
-TEST_CASE("WL-DESK-13: Ctrl+P is a strict visibility toggle judged by the host -- open becomes closed, closed becomes open and focused, whatever the desktop last heard") {
+TEST_CASE("WL-DESK-13: Ctrl+P is a visibility toggle judged by the host -- open and in sight becomes closed, covered is brought forward, closed becomes open and focused, whatever the desktop last heard") {
     Desk d;
     const PaneRef manager{kDesktopRole, dp::kLauncherPane};
     REQUIRE(has_pane(d.r.session().setup.active, manager));
-    // COVERED AND UNFOCUSED IS STILL OPEN: the toggle closes it.
+    // UNFOCUSED AND IN SIGHT IS STILL OPEN: the toggle closes it.
     const std::int64_t alpha = d.row_of("Alpha");
     d.press(alpha, kMarkCol);
     const std::int64_t alpha_kind = kind_of(d.r, "zengine.test.tools", "alpha");
@@ -559,6 +559,26 @@ TEST_CASE("WL-DESK-13: Ctrl+P is a strict visibility toggle judged by the host -
     queue_key(d.r, input::scan::kP, input::mod::kCtrl);
     d.r.bus.drain_until_idle();
     CHECK(has_pane(d.r.session().setup.active, manager));
+
+    // COVERED, IT IS BROUGHT FORWARD WITH THE KEYS, and stays on the desk.
+    // MUTATION: the toggle closing a covered pane -- the Manager leaves the desk; the checks go red.
+    stage_desk(d.r, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, PaneRef{"zengine.test.tools", "alpha"}, 0, 0).accepted);
+        REQUIRE(author_pane_size(desk, PaneRef{"zengine.test.tools", "alpha"},
+                                 PaneSize{ui::kSizeFill, 0}, PaneSize{ui::kSizeFill, 0})
+                    .accepted);
+        REQUIRE(send_to_front(desk, PaneRef{"zengine.test.tools", "alpha"}));
+    });
+    // The Manager the toggle focused is put down, so nothing lifts it over Alpha.
+    Session& held = const_cast<Session&>(d.r.session());
+    held.panes.selected = kNoPaneKind;
+    held.panes.keyboard = kNoPaneKind;
+    d.r.press_cell(body_x(d.r, alpha_kind, 1), body_y(d.r, alpha_kind, 0));
+    REQUIRE(d.r.session().panes.keyboard == alpha_kind);
+    d.r.key(input::scan::kP, input::mod::kCtrl);
+    CHECK(has_pane(d.r.session().setup.active, manager));
+    CHECK(d.r.session().panes.keyboard == kind_of(d.r, kDesktopRole, dp::kLauncherPane));
+    CHECK(d.r.last_notice().find("forward") != std::string::npos);
 }
 
 TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- show, manage and inspect -- and `manage <pane> >` opens the host's own pane menu on THAT pane; the menu key offers the marked row's") {

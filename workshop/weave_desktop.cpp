@@ -737,6 +737,22 @@ void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
         (void)loom::answer_deferred(*held, m, toggled);
         repaint(m);
     };
+    // ON THE DESK BUT COVERED, it is brought forward and given the keys, as a launch of a pane on
+    // the desk does: a pane the weaver cannot see is not one they asked to put away.
+    if (has_pane(session_.setup.active, ref) && covered_now(ref)) {
+        launch_pane(ref,
+                    [this, answer, ref, finish](const PaneLaunchAnswered& shown,
+                                                loom::Mail& m) mutable {
+                        answer.refusal = shown.refusal;
+                        if (shown.refusal.empty()) {
+                            say("brought " + inventory_name(ref) + " forward -- it was covered",
+                                false);
+                        }
+                        finish(answer, m);
+                    },
+                    mail);
+        return;
+    }
     if (has_pane(session_.setup.active, ref)) {
         unseat_then(ref,
                     [this, answer, ref, finish](const LayoutEditAnswered& closed,
@@ -767,6 +783,17 @@ void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
                     finish(answer, m);
                 },
                 mail);
+}
+
+// WL-DESK-13 -- agents/workshop/desktop.md
+bool WorkshopWeave::covered_now(const PaneRef& ref) const {
+    for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
+        if (row.ref == ref) {
+            return pane_state_of(session_.panes, session_.setup.active, screen_of(session_), row) ==
+                   pane_state::kCovered;
+        }
+    }
+    return false;
 }
 
 // ---- Whether anybody is there to fill a pane -----------------------------------------------
