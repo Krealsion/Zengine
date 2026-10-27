@@ -6901,6 +6901,14 @@ TEST_CASE("WL-DESK-19: a press in the body of a pane being placed is the pane's,
     const PixelRect body = canvas_body_place(
         rect, sc, external_title_rows(t.session().panes, stock::kKind, t.session().pane_titles));
     const SetupPane before = *pane_of(t.session().setup.active, stock_ref());
+    // ITS TOP EDGE MOVES IT, as its title does: in a window the title stands on that edge.
+    const std::int64_t mid = (rect.x + rect.w / 2) / gfx::kCellPx - kRoomCellX;
+    const std::int64_t top = rect.y / gfx::kCellPx - kRoomCellY;
+    t.press(mid, top);
+    REQUIRE(t.session().pane_drag.active);
+    CHECK_FALSE(t.session().pane_drag.sizing);
+    t.release(mid, top);
+    REQUIRE(t.session().arrange.opened);
     const std::int64_t wx = (body.x + body.w / 2) / gfx::kCellPx - kRoomCellX;
     const std::int64_t wy = (body.y + body.h / 2) / gfx::kCellPx - kRoomCellY;
     t.press(wx, wy);

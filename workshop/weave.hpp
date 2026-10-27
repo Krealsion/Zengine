@@ -1485,7 +1485,8 @@ private:
     /// TAKE HOLD OF ONE PANE AT A POINTED POSITION -- the edge ring sizes, the body
     /// moves, and a press outside its rectangle is not this pane's. One function for both
     /// scopes, so the desk and the one-pane state cannot come to grab differently.
-    bool take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc);
+    bool take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc,
+                        bool top_moves = false);
 
     /// A PRESS WHILE ARRANGING, and the two scopes answer it differently because
     /// they are ABOUT different things.

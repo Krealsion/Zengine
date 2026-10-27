@@ -158,7 +158,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 LAW — A pane new to a layout opens at the room's centre, or the hand where `workshop.open-at` says `mouse`, and is placed when its open brings the keys; one taken off comes back where it was left.
 
 MEANS
-- placing takes the hand at the pane's title and edges; a key or a press in its body is the pane's, and the first of either ends the placing, said;
+- placing takes the hand at the pane's title and top edge, which move it, and its other edges, which size it; a key or a press in its body is the pane's, and the first ends the placing, said;
 - where it was left is its row's place and size, kept by the layouts' owner by layout for the run, and a seat that gives it back is answered `returned`;
 - the palette opens centred every time and is never arranged; a seat without the keys arranges nothing.
 
