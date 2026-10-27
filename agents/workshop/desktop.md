@@ -126,12 +126,12 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-13 — A toggle is judged by the host against the desk as it is
 
-LAW — A toggle names a pane by its keys; the host judges it against the desk when handled (on it: close; off it: open and focus) and answers which; a presenter's own reading never judges.
+LAW — A toggle names a pane by its keys; the host judges it against the desk when handled (on it: close, or focus where it is covered; off it: open and focus) and answers which.
 
 MEANS
 - the shipped desktop's `desktop.panes` (`Ctrl+p`) is this toggle on its own Pane Manager;
 - two toggles queued before any reading reaches the presenter end where they began;
-- one arriving while an edit is with the layouts' owner waits for its answer, and is judged then.
+- one arriving while an edit is with the layouts' owner waits for its answer, and is judged then; a presenter's own reading never judges.
 
 DOES NOT MEAN
 - that a launch toggles: the terminal and hotkeys rows still show or focus (WL-DESK-03).
@@ -140,7 +140,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-18 — A command run by name is the path its key takes, for the hand that chose it
 
-LAW — A command the palette names runs only under its own row's unspent number, from its holder; the palette is put down, keys back, and the command performed by its key's path, judged for that hand
+LAW — A command the palette names runs under its row's unspent number, from its holder, once the palette's put-down is answered, keys back: by its key's path, judged for that hand, unless it acted again
 
 MEANS
 - a pane is shown as a launch shows it, a layout switched to as its tab, a manual opened as its `?`; Workshop's own row runs by its key in command mode;
@@ -290,8 +290,10 @@ unloads nothing: a launch finds its unsaved source exactly as it was"
 `workshop/weave_desktop.cpp` on(PaneToggleRequested) judge_toggle launch_pane
 `workshop/weave_session.cpp` unseat_then
 `workshop/desktop-pane/vocabulary.hpp` kActionPanes
-`tests/test_workshop_panes_desktop.cpp` "WL-DESK-13: Ctrl+P is a strict visibility toggle judged by
-the host -- open becomes closed, closed becomes open and focused, whatever the desktop last heard"
+`workshop/weave_desktop.cpp` WorkshopWeave::covered_now
+`tests/test_workshop_panes_desktop.cpp` "WL-DESK-13: Ctrl+P is a visibility toggle judged by the
+host -- open and in sight becomes closed, covered is brought forward, closed becomes open and
+focused, whatever the desktop last heard"
 
 ### WL-DESK-19
 `workshop/layouts/run.hpp` LeftPlace SetupState::left leave_place take_left_place forget_gone_places
@@ -309,7 +311,7 @@ the hand"
 
 ### WL-DESK-18
 `workshop/command_vocabulary.hpp` CommandRunRequested CommandRunAnswered
-`workshop/weave_command.cpp` on(CommandRunRequested) palette_closed
+`workshop/weave_command.cpp` on(CommandRunRequested) run_command palette_closed
 `workshop/weave_desktop.cpp` launch_pane
 `workshop/weave_session.cpp` unseat_then install_live
 `workshop/desktop-pane/vocabulary.hpp` kActionPalette
