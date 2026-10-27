@@ -17,7 +17,8 @@ The catalog holds two kinds:
 - **a demo**: a setup the demo service lists, by its name. It is started by the interpreter and
   the `external-host/demo.py` this build was configured with, on a root of its own,
   `<project>/demo-runs/<name>`, against this build and its Loom. A build configured with no Python
-  or no Loom session tools has no demo service, and starts no demo.
+  or no Loom session tools has no demo service, and starts no demo. A package carries its own,
+  run against the package by a Python 3.8 or newer found on the PATH.
 
 A start is detached: on Windows the process has a console and a process group of its own, inherits
 no handle, and leaves Workshop's job where the job allows it; on POSIX it leads a session of its
@@ -62,7 +63,9 @@ Any office may ask what it can start.
   elsewhere), `the app 'tally' has no plan this Workshop reads: <why>`, `no zengine-app beside this
   Workshop`; for a demo, `this Workshop starts no demo: it was configured with no demo service`,
   `no demo '<name>' among the setups the demo service lists`, `the demo service this Workshop was
-  configured with is not there`; and the system's reason when the process could not start.
+  configured with is not there`, in a package with no Python on the PATH `a setup starts with
+  Python 3.8 or newer, and this machine's PATH holds none: install it (python.org), then start
+  Workshop again`; and the system's reason when the process could not start.
 - **Example:** after Export app wrote `apps/tally/`, the View Builder asks `Launch{"app", "tally"}`.
 
 ### `LaunchCatalogRequested`
@@ -74,8 +77,9 @@ Any office may ask what it can start.
   `Launch` takes them, `title` and `line` (a setup's own, from its `setup.json`; an app's title is
   its name), and `running`, for an app its host runs now -- the setups the demo service lists
   first, then each app in the project's `apps/` that `Launch` would start, by name; `left_out`, how
-  many past the <!-- value kMaxListed -->128<!-- /value --> a listing holds; and `note`, why no app is listed while the launcher does not
-  know the project yet.
+  many past the <!-- value kMaxListed -->128<!-- /value --> a listing holds; and `note`: what a listed setup's start needs that this
+  machine lacks (a package's Python, as `Launch` refuses it), then why no app is listed while the
+  launcher does not know the project yet.
 - **Refuses:** nothing: a folder in `apps/` that `Launch` would refuse is not listed.
 - **Example:** in a project holding `apps/tally/`, the answer lists the setups, then `app`
   `tally`, `running` while its `zengine-app` runs.

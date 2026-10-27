@@ -118,7 +118,10 @@ and each third party's licence text (`workshop/package/`). Under it:
   `ZENGINE_PACKAGE_LOOM_COMMIT`; `project(VERSION)` stays the CMake package's compatibility line;
   `zengine-workshop --version` says the package's facts as `BUILD-INFO.txt` does;
 - Workshop compiles no CMake, so its Builder refuses in its own words and its banner says it
-  builds nothing; the launcher has no demo service;
+  builds nothing;
+- the launcher's demo service is the package's own `share/zengine/loom-tools/demo.py`, beside the
+  tool packages, started against the package by a Python 3.8 or newer found on the PATH, which the
+  package does not carry (`launcher/CMakeLists.txt`, [the launcher](launcher.md));
 - every compile maps its source, build and prefix folders away (`-ffile-prefix-map`), the fetched
   SDL's included, and on MinGW-w64 every executable links its runtime statically, so an image names
   no build machine and needs nothing beside the package but the system;
@@ -147,7 +150,8 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
 - **Judged** on a runner that did not build it, extracted under a folder named with a space and
   letters outside the code page: `--version` naming the commit and a clean tree, then the judges
   (`tests/package/judges/`), then the story (`tests/package/story.py`): the tally setup started
-  from the package (`demo.py start --package`), its walk `export` passed, the exported app's
+  from the package by the package's own demo service (`demo.py start --package`), its walk
+  `export` passed, the exported app's
   launcher naming the package's `zengine-app`, the app answered at its console until every row
   runs, and still running once Workshop has stopped. Its pictures and the app's console are kept on
   the run, red or green. Then `SHA256SUMS`.

@@ -234,10 +234,11 @@ public:
                 }
             }
         }
+        // ...AND WHAT THE LAUNCHER SAYS OF THEM: what a start needs that this machine lacks.
         moment_.setups_note = moment_.setups.empty()
                                   ? "this Workshop starts no setup: it was configured with no demo "
                                     "service"
-                                  : std::string();
+                                  : listed.note;
         const std::vector<fr::Item> items = fr::items_of(moment_);
         if (std::find(items.begin(), items.end(), moment_.cursor) == items.end()) {
             moment_.cursor = fr::Item::kStory; // the setup it stood on is no longer listed
@@ -548,6 +549,7 @@ private:
                                listing_ask_)
                  .valid()) {
             listing_ask_ = 0;
+            moment_.setups.clear();
             moment_.setups_note = "no launcher answers in this Workshop";
         }
     }

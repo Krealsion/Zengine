@@ -49,8 +49,9 @@ The quick setup's items, top to bottom:
   pressed may start it -- as Files' start is asked, classes `build` and `write`, so on a weaver's
   host a guest starts nothing -- then asks the launcher, and says what it answered: the setup
   started, with its process, going on without Workshop; or why nothing started. Each runs in a
-  Workshop of its own ([demo setups](demo-setups.md)). With no demo service or no launcher, the
-  pane says so.
+  Workshop of its own ([demo setups](demo-setups.md)). What the launcher says of its setups -- in
+  the package a stranger downloads, that a setup needs a Python 3.8 or newer on the PATH and none
+  was found -- stands beneath them. With no demo service or no launcher, the pane says so.
 - **The story**, **Done** and **Skip** write `answered`, put the pane down when that is answered,
   and open Start here. A settings file that will not take the write is said, and the pane is put
   down all the same.

@@ -347,6 +347,13 @@ if(ZENGINE_PACKAGE)
     # No recipe catalog: the build's own names this build tree, and an absent catalog is a valid
     # one ("build recipes: none"). No development catalog, runtime script or launch either.
 
+    # THE DEMO SERVICE, `demo.py`, beside the tool packages it approves: the launcher's setups start
+    # from the package (launcher/CMakeLists.txt), run by a Python 3.8 or newer on the PATH.
+    if(LOOM_SESSION_TOOLS AND TARGET zengine-guest-vocabulary)
+        install(FILES ${CMAKE_SOURCE_DIR}/external-host/demo.py
+                DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/loom-tools)
+    endif()
+
     # The launchers, the first page, the identity and the notices.
     set(zengine_package_src ${CMAKE_SOURCE_DIR}/workshop/package)
     if(WIN32)
