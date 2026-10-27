@@ -1514,7 +1514,8 @@ inline constexpr const char* kArrangingCaption = "Arranging Mode Active";
 /// it arranges or "all panes", on a ground of their own.
 // WL-ARR-18 -- agents/workshop/arrangement.md
 void paint_arranging_caption(ScreenPlane& layer, const Session& s, const Screen& sc);
-/// ...what it names beneath its words, and the ground it stands on, empty while nothing arranges.
+/// ...what it names beneath its words, and the ground it stands on: the room's top, or where it
+/// clears the pane arranged; empty while nothing arranges.
 // WL-ARR-18 -- agents/workshop/arrangement.md
 std::string arranging_caption_subject(const Session& s);
 // WL-ARR-18 -- agents/workshop/arrangement.md

@@ -87,7 +87,30 @@ PixelRect arranging_caption_rect(const Session& s, const Screen& sc) {
     const std::size_t longest = (std::max)(std::char_traits<char>::length(kArrangingCaption),
                                            arranging_caption_subject(s).size());
     const std::int64_t w = (std::min)((static_cast<std::int64_t>(longest) + 4) * advance, sc.w);
-    return PixelRect{(sc.w - w) / 2 / advance * advance, sc.room_y + line, w, 4 * line};
+    const std::int64_t x = (sc.w - w) / 2 / advance * advance;
+    // AT THE ROOM'S TOP, unless the pane arranged stands there: then just above it, at the room's
+    // foot or just below it, the first that clears it, so the words never cover its title.
+    const PixelRect top{x, sc.room_y + line, w, 4 * line};
+    if (s.arrange.desk) {
+        return top;
+    }
+    const std::optional<std::int64_t> kind = resolve_pane(s.arrange.pane, s.panes);
+    if (!kind.has_value()) {
+        return top;
+    }
+    const PixelRect held = bounds_of(s.panes, s.setup.active, *kind, sc).rect;
+    const auto meets = [&held](const PixelRect& r) {
+        return r.x < held.x + held.w && held.x < r.x + r.w && r.y < held.y + held.h &&
+               held.y < r.y + r.h;
+    };
+    for (const PixelRect& at : {top, PixelRect{x, held.y - 4 * line, w, 4 * line},
+                                PixelRect{x, sc.room_y + sc.room_h - 5 * line, w, 4 * line},
+                                PixelRect{x, held.y + held.h, w, 4 * line}}) {
+        if (at.y >= 0 && at.y + at.h <= sc.h && !meets(at)) {
+            return at;
+        }
+    }
+    return top;
 }
 
 // WL-ARR-18 -- agents/workshop/arrangement.md
