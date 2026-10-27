@@ -325,6 +325,9 @@ to the Loom's exported `loom_weave_build_contract()`. Do not reintroduce a priva
 for it here — the point of the Loom exporting that function is that the law travels with the
 package instead of being re-derived by each consumer. See
 [supported toolchains](supported-toolchains.md#the-reloadable-weave-build-contract).
+`zengine_weave(<target> <source> MANUAL <page>)` builds the weave carrying its manual, a page
+written in the form [a weave's manual](../../manual/docs/manual.md#the-page) states; the build
+refuses a page out of form.
 
 ## Attribution
 
