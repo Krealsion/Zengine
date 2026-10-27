@@ -6969,6 +6969,11 @@ TEST_CASE("WL-ARR-18: arranging says so at the room's top, naming what it arrang
     };
     CHECK(said(kArrangingCaption));
     CHECK(said(stock::kName));
+    // ...ON A GROUND THAT CLEARS THE PANE IT ARRANGES, whose title the hand takes it by.
+    const PixelRect caption = arranging_caption_rect(t.session(), sc);
+    const PixelRect held = bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect;
+    CHECK_FALSE((caption.x < held.x + held.w && held.x < caption.x + caption.w &&
+                 caption.y < held.y + held.h && held.y < caption.y + caption.h));
     // ...THE OVERLAY'S, which hears nothing, while a pane opened is placed; Workshop's own area
     // while it arranges in front of the panes.
     const auto fades = [&]() {
