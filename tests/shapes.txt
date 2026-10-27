@@ -267,7 +267,7 @@ LaunchCatalogRequested v1 0x92c7abb224c6900a
 LaunchEntry v1 0xc3aadb8d2f36a563
 LauncherState v1 0x77d638e6de58fe46
 LayoutEdit v1 0x451d838b16e25735
-LayoutEditAnswered v1 0xa39b9f5b6c7ff9ed
+LayoutEditAnswered v2 0x7070a57c08344faa
 LayoutEditRequested v1 0x9d8e6fd0dd8c0659
 LayoutPaneSettings v1 0x5bda473ede871192
 LayoutSettings v2 0x17ddead0e760d312

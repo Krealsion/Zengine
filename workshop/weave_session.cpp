@@ -151,7 +151,7 @@ void WorkshopWeave::on(const LayoutEditAnswered& answered, loom::Mail& mail) {
     repaint(mail);
 }
 
-void WorkshopWeave::seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail) {
+void WorkshopWeave::seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail, bool keys) {
     if (has_pane(session_.setup.active, ref)) {
         LayoutEditAnswered seated;
         seated.accepted = true;
@@ -159,11 +159,43 @@ void WorkshopWeave::seat_then(const PaneRef& ref, EditThen then, loom::Mail& mai
         then(seated, mail);
         return;
     }
+    // THE WEAVER PLACES IT: a first open stands at the room's centre or the hand, never at a guess
+    // at free room, and the arrangement that follows is the weaver's to end.
+    PanePlace first{ui::kPlaceCenter, 0, 0};
+    if (session_.open_at_mouse && session_.hand_px.has_value()) {
+        const PixelRect at = room_of_canvas(
+            PixelRect{session_.hand_px->x, session_.hand_px->y, 0, 0}, screen_of(session_));
+        first = PanePlace{pane_unit::kPixels, (std::max)(std::int64_t{0}, at.x),
+                          (std::max)(std::int64_t{0}, at.y)};
+    }
     LayoutEdit seat;
     seat.op = layout_op::kSeat;
     seat.provider = ref.provider;
     seat.pane = ref.pane;
-    ask_layout({seat}, std::move(then), mail, false);
+    seat.place = setup_persist::place_out(first);
+    seat.width = setup_persist::size_out(PaneSize{});
+    seat.height = setup_persist::size_out(PaneSize{});
+    std::vector<LayoutEdit> edits{seat};
+    const bool palette = ref.provider == kPaletteRole && ref.pane == kPalettePane;
+    if (palette) {
+        // ...AND THE PALETTE AT THE CENTRE EVERY TIME, where it was left or not.
+        LayoutEdit centred = seat;
+        centred.op = layout_op::kWindow;
+        centred.place = setup_persist::place_out(PanePlace{ui::kPlaceCenter, 0, 0});
+        edits.push_back(std::move(centred));
+    }
+    ask_layout(std::move(edits),
+               [this, then = std::move(then), ref, keys, palette](const LayoutEditAnswered& seated,
+                                                                  loom::Mail& m) {
+                   then(seated, m);
+                   // ...never over an arrangement the weaver has open: that is theirs to end.
+                   if (seated.accepted && keys && !palette && !seated.returned &&
+                       !session_.arrange.open && has_pane(session_.setup.active, ref)) {
+                       enter_arrange_pane(ref, true);
+                       repaint(m);
+                   }
+               },
+               mail, false);
 }
 
 // WL-DESK-13 -- agents/workshop/desktop.md

@@ -343,7 +343,7 @@ void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail&
                   focus(out);
                   then(out, m);
               },
-              mail);
+              mail, keys);
 }
 
 // WL-DESK-03 -- agents/workshop/desktop.md

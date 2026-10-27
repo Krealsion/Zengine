@@ -165,6 +165,19 @@ MEANS
 
 WHY — `agents/decisions/escape-is-back.md`
 
+## WL-ARR-18 — Arranging cannot be missed: it is said at the room's top and every other pane fades
+
+LAW — While arranging is open the room's top says `Arranging Mode Active` on its own ground, beneath it the pane arranged or `all panes`; in a window every pane but the one arranged fades.
+
+MEANS
+- the fade is a veil of the ground at half strength over what of each other pane the arranged one leaves showing, in Workshop's own area, or its overlay while a pane is placed as it opened;
+- a terminal shows the words and no veil.
+
+DOES NOT MEAN
+- that the desk's arrangement fades a pane: every pane is arranged there.
+
+WHY — `agents/decisions/the-weaver-places-a-pane.md`
+
 ## Do not assume
 
 - That Escape with a pane selected does nothing, or closes the pane — it puts the selection
@@ -320,3 +333,11 @@ sent nothing" "every shipped pane that holds the keys and selects nothing hands 
 first, and are put down next"
 `tests/test_workshop_panes_attention.cpp` "a pane whose holder has no door for a key is put down by
 Escape, and nothing is sent"
+
+### WL-ARR-18
+`workshop/screen_reveal.cpp` paint_arranging_caption arranging_caption_subject arranging_caption_rect
+`workshop/screen.hpp` kArrangingCaption paint_arranging_caption arranging_caption_subject
+arranging_caption_rect
+`workshop/screen_compose.cpp` draw_arranging_veil
+`tests/test_workshop_screen.cpp` "WL-ARR-18: arranging says so at the room's top, naming what it
+arranges, and in a window every other pane fades"

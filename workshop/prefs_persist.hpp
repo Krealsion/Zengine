@@ -70,8 +70,8 @@ inline constexpr const char* kWorkshopOffice = "zengine.workshop";
 
 /// Workshop's own keys: whether the arrangeable panes wear their titles, how the band and the
 /// Hotkeys view spell a key, which pin list an editor edits, how the keyboard's selection is
-/// ringed, the skin graphics areas wear, the order the Terminal offers a shape's fields in, and
-/// the arrangement's measures.
+/// ringed, the skin graphics areas wear, the order the Terminal offers a shape's fields in, the
+/// arrangement's measures, and where a pane first opens.
 inline constexpr const char* kPaneTitlesKey = "workshop.pane-titles";
 inline constexpr const char* kBandKeysKey = "workshop.band-keys";
 inline constexpr const char* kHotkeysKeysKey = "workshop.hotkeys-keys";
@@ -82,6 +82,12 @@ inline constexpr const char* kCompletionOrderKey = "workshop.completion-order";
 inline constexpr const char* kArrangeStepKey = "workshop.arrange-step";
 inline constexpr const char* kSnapReachKey = "workshop.snap-reach";
 inline constexpr const char* kStackRowsKey = "workshop.stack-rows";
+inline constexpr const char* kOpenAtKey = "workshop.open-at";
+
+/// Where a pane opened for the first time in a layout opens: the room's centre, or the hand.
+// WL-DESK-19 -- agents/workshop/desktop.md
+inline constexpr const char* kOpenAtCenter = "center";
+inline constexpr const char* kOpenAtMouse = "mouse";
 
 /// The completion's two orders: the shape's own, or its required fields before its optional ones.
 inline constexpr const char* kCompletionDeclared = "declared";
@@ -163,13 +169,15 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_office_rows() {
             number(kSnapReachKey, kPaneSnapReachPx, kMinSnapReachPx, kMaxSnapReachPx,
                    {"input", "layout"}, "edge snap reach in canvas pixels"),
             number(kStackRowsKey, kStackRows, kMinStackRows, kMaxStackRows, {"layout"},
-                   "overlay stack fallback height in rows")};
+                   "overlay stack fallback height in rows"),
+            text(kOpenAtKey, kOpenAtCenter, {kOpenAtCenter, kOpenAtMouse}, {"layout"}, false,
+                 "where a pane first opens in a layout: center or mouse")};
 }
 
 /// WORKSHOP'S SETTINGS AS THE SESSION SPENDS THEM: whether the arrangeable panes wear their
 /// titles, how the band and the Hotkeys view each spell a key, whether pins are kept per layout,
 /// whether the selection's ring is plain, the skin graphics areas wear, whether the completion
-/// offers required fields first, and the arrangement's measures.
+/// offers required fields first, the arrangement's measures, and where a pane first opens.
 struct Presentation {
     bool titles_shown = kTitlesDefaultValue;
     KeySpelling band_keys = kBandKeysDefaultValue;
@@ -181,6 +189,7 @@ struct Presentation {
     std::int64_t arrange_step_cells = kCoarseStepCells;
     std::int64_t snap_reach_px = kPaneSnapReachPx;
     std::int64_t stack_rows = kStackRows;
+    bool open_at_mouse = false;
 };
 
 // ---- The file's own shape --------------------------------------------------------------
@@ -522,6 +531,8 @@ inline Presentation presentation_of(const Prefs& p) {
         measure(kArrangeStepKey, kCoarseStepCells, kMinArrangeStepCells, kMaxArrangeStepCells);
     out.snap_reach_px = measure(kSnapReachKey, kPaneSnapReachPx, kMinSnapReachPx, kMaxSnapReachPx);
     out.stack_rows = measure(kStackRowsKey, kStackRows, kMinStackRows, kMaxStackRows);
+    const PaneSetting open_at = workshop_value(p, kOpenAtKey);
+    out.open_at_mouse = open_at.text && *open_at.text == kOpenAtMouse;
     return out;
 }
 

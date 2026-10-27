@@ -96,8 +96,8 @@ inline constexpr const char* kRestore = "restore";
 } // namespace layout_op
 
 /// ONE CHANGE A PRESENTER'S GESTURE MAKES. `op` is one word of `layout_op`; the fields it reads
-/// are its own: a row's ops read `provider` and `pane`, and `window` its `place`, `width` and
-/// `height` whole; a layout's ops read `layout`, an id (0 the live one); `step` and `move` read
+/// are its own: a row's ops read `provider` and `pane`, `window` its `place`, `width` and `height`
+/// whole, and `seat` them too where the pane was not left in this layout and `place` names a word; a layout's ops read `layout`, an id (0 the live one); `step` and `move` read
 /// `by`, a direction and a place in the weaver's order; `rename` reads `name`.
 struct LayoutEdit {
     std::string op;
@@ -127,15 +127,18 @@ struct LayoutEditRequested {
 };
 
 /// WHAT THE EDITS CAME TO: stored, or refused in words with nothing written; the revision of the
-/// `LiveLayout` sent before this answer; and, for an unseat, the settings and locks the row took.
+/// `LiveLayout` sent before this answer; for an unseat, the settings and locks the row took; and
+/// whether a seat put its pane back where it was left in this layout.
+// WL-DESK-19 -- agents/workshop/desktop.md
 struct LayoutEditAnswered {
     bool accepted = false;
     std::string refusal;
     std::int64_t revision = 0;
     std::vector<PaneSetting> discarded = {};
     std::vector<std::string> unlocked = {};
-    ZEN_SHAPE(LayoutEditAnswered, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal), ZEN_FIELD(revision),
-              ZEN_FIELD(discarded), ZEN_FIELD(unlocked));
+    bool returned = false;
+    ZEN_SHAPE(LayoutEditAnswered, 2, ZEN_FIELD(accepted), ZEN_FIELD(refusal), ZEN_FIELD(revision),
+              ZEN_FIELD(discarded), ZEN_FIELD(unlocked), ZEN_FIELD(returned));
 };
 
 /// THE PRESENTER'S ORDERLY CLOSE: write the session now. Asked once every pane holding unsaved
