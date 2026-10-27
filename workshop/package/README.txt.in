@@ -10,6 +10,13 @@ START
   Nothing else needs installing, and this folder may stand anywhere: a newer package replaces it
   whole, and nothing of yours is kept in it.
 
+READY-TO-USE SETUPS
+  The quick setup at the first start, and Ctrl+Space, list setups that each start in a Workshop of
+  their own. Starting one needs Python 3.8 or newer on this machine's PATH, which this package does
+  not carry: on Windows from python.org (its py launcher is enough), on Linux the system's python3.
+  Without it the setups are listed, and a start says what is missing. Nothing else in the package
+  needs Python.
+
 YOUR PROJECT
   Workshop's project is a folder of your own, made at the first start and kept across packages,
   and both launchers share it:

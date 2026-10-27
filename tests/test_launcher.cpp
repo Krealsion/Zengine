@@ -77,7 +77,8 @@ struct Project {
         return launcher::Catalog{APP_PROGRAM, (dir / "python").generic_string(), (dir / "demo.py").generic_string(),
                                  "/the/build", "/the/loom",
                                  {{"values", (dir / "setups" / "values").generic_string(), "Value inspection",
-                                   "Inventory, Info and a Reset button."}}};
+                                   "Inventory, Info and a Reset button."}},
+                                 {}, {}, {}};
     }
 };
 
@@ -190,6 +191,95 @@ TEST_CASE("a listed setup is started by the configured interpreter running the c
                                         "--build", "/the/build", "--loom-prefix", "/the/loom"};
     CHECK(judged.plan.args == args);
     CHECK(fs::is_directory(p.dir / "demo-runs"));
+}
+
+TEST_CASE("a package's setup is started by a Python found on the PATH running the package's own demo service, against the package") {
+    // MUTATION: a package's start naming a build tree and a Loom prefix -- the package's own
+    // demo service would be asked for a tree it does not have.
+    Project p;
+    const fs::path package = p.dir / "package";
+    const fs::path tools = package / "share" / "zengine" / "loom-tools";
+    fs::create_directories(tools);
+    std::ofstream(tools / "demo.py", std::ios::binary) << "a demo service";
+    const fs::path on_path = p.dir / "on-path";
+    fs::create_directories(on_path);
+    std::ofstream(on_path / (launcher::kWindowsPath ? "python.exe" : "python3"), std::ios::binary)
+        << "an interpreter";
+    const char separator = launcher::kWindowsPath ? ';' : ':';
+    const auto python =
+        launcher::find_python((p.dir / "empty").string() + separator + on_path.string());
+    REQUIRE(python.has_value());
+    launcher::Catalog catalog = p.catalog();
+    catalog.python = python->program;
+    catalog.python_args = python->args;
+    catalog.demo_script = (tools / "demo.py").generic_string();
+    catalog.build.clear();
+    catalog.loom_prefix.clear();
+    catalog.package = package.generic_string();
+    const auto judged = launcher::judge_launch({"demo", "values"}, p.path(), catalog);
+    REQUIRE_MESSAGE(judged.ok, judged.refusal);
+    CHECK(fs::equivalent(judged.plan.program,
+                         on_path / (launcher::kWindowsPath ? "python.exe" : "python3")));
+    const std::vector<std::string> args{"-B", (tools / "demo.py").generic_string(), "start",
+                                        "--setup", "values", "--root",
+                                        (p.dir / "demo-runs" / "values").generic_string(),
+                                        "--package", package.generic_string()};
+    CHECK(judged.plan.args == args);
+    CHECK(launcher::listing(p.path(), catalog).note.empty()); // nothing is missing
+}
+
+TEST_CASE("a package's Python is found on a PATH in its folders' order: python3 on POSIX; python.exe, then py.exe asked for a Python 3, on Windows, passing over the Store's stand-ins; none is none") {
+    Project p;
+    const auto folder = [&](const std::string& name, const std::vector<const char*>& files) {
+        const fs::path dir = p.dir / name;
+        fs::create_directories(dir);
+        for (const char* file : files) std::ofstream(dir / file, std::ios::binary) << "a program";
+        return dir.string();
+    };
+    const std::string empty = folder("empty", {});
+    const std::string launcher_only = folder("launcher", {"py.exe"});
+    const std::string both = folder("both", {"python.exe", "py.exe"});
+    const std::string store = folder("Microsoft/WindowsApps", {"python.exe"});
+    const auto found = [](const std::string& path, bool windows) {
+        const auto python = launcher::find_python(path, windows);
+        return python ? fs::path(python->program).filename().string() + " " +
+                            fs::path(python->program).parent_path().filename().string() +
+                            (python->args.size() == 2 ? " " + python->args[0] : std::string())
+                      : std::string("none");
+    };
+    CHECK(found(empty + ";" + launcher_only + ";" + both, true) == "py.exe launcher -3");
+    CHECK(found(empty + ";" + both + ";" + launcher_only, true) == "python.exe both");
+    CHECK(found(store + ";" + launcher_only, true) == "py.exe launcher -3");
+    CHECK(found(store, true) == "none");
+    CHECK(found("\"" + both + "\"", true) == "python.exe both");
+    CHECK(found("", true) == "none");
+    CHECK(launcher::find_python(both, true)->args == std::vector<std::string>{"-B"});
+    CHECK(launcher::find_python(launcher_only, true)->args == std::vector<std::string>{"-3", "-B"});
+    if (!launcher::kWindowsPath) {
+        const std::string posix = folder("posix", {"python3"});
+        CHECK(found(empty + ":" + posix, false) == "python3 posix");
+        CHECK(found(both, false) == "none");
+    }
+}
+
+TEST_CASE("with no Python on the PATH a package lists its setups, and the listing and a start say what a setup needs") {
+    // MUTATION: a package with no interpreter listing no setup -- the stranger is told nothing.
+    Project p;
+    launcher::Catalog catalog = p.catalog();
+    catalog.python.clear();
+    catalog.package = (p.dir / "package").generic_string();
+    catalog.python_needed = launcher::kPythonNeeded;
+    const launcher::LaunchCatalog listed = launcher::listing(p.path(), catalog);
+    REQUIRE(listed.entries.size() == 2);
+    CHECK(listed.entries[0].kind == "demo");
+    CHECK(listed.note == launcher::kPythonNeeded);
+    CHECK(has(listed.note, "Python 3.8 or newer"));
+    const auto judged = launcher::judge_launch({"demo", "values"}, p.path(), catalog);
+    CHECK_FALSE(judged.ok);
+    CHECK(judged.refusal == launcher::kPythonNeeded);
+    CHECK(judged.plan.program.empty());
+    // ...AND AN APP STILL STARTS: it needs no Python.
+    CHECK(launcher::judge_launch({"app", "tally"}, p.path(), catalog).ok);
 }
 
 TEST_CASE("an app starts detached as the process the launcher names: zengine-app on its folder, kept by nobody") {

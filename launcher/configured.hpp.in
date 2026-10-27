@@ -3,17 +3,25 @@
 
 // Written by Zengine's configure from launcher/configured.hpp.in, for one build tree: the demo
 // service the launcher may start, fixed here (launcher/catalog.hpp). Empty where this build was
-// configured with no demo service.
+// configured with no demo service. In a package (ZENGINE_PACKAGE) each path is the package's own,
+// relative to it, and found above the running program.
 
 #ifndef ZENGINE_LAUNCHER_CONFIGURED_HPP
 #define ZENGINE_LAUNCHER_CONFIGURED_HPP
 
+#include "app/program.hpp"
+
+#include <filesystem>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 namespace zengine::launcher::configured {
 
+/// This build is the package a stranger downloads: its paths below are relative to the package,
+/// and its interpreter is found on the PATH, not fixed here.
+inline constexpr bool kInPackage = @zengine_launcher_in_package@;
 inline constexpr const char* kPython = "@zengine_launcher_python@";
 inline constexpr const char* kDemoScript = "@zengine_launcher_demo_script@";
 inline constexpr const char* kBuild = "@zengine_launcher_build@";
@@ -21,9 +29,30 @@ inline constexpr const char* kLoomPrefix = "@zengine_launcher_loom_prefix@";
 /// The folder of the demo service's own setups, where Files' way to the demos leads.
 inline constexpr const char* kDemosFolder = "@zengine_launcher_demos_folder@";
 
+/// The package's folder, the one above the running program's; empty outside a package.
+inline std::string package_root() {
+    return kInPackage
+               ? std::filesystem::path(app::program_dir()).parent_path().generic_string()
+               : std::string();
+}
+
+/// A configured path where it stands: in a package, under the package's folder.
+inline std::string placed(const char* path) {
+    return kInPackage && *path != '\0' ? package_root() + "/" + path : std::string(path);
+}
+
+/// The demo service's script, and the folder of its own setups, where they stand.
+inline std::string demo_script() { return placed(kDemoScript); }
+inline std::string demos_folder() { return placed(kDemosFolder); }
+
 /// Each setup the demo service lists, by name, and the directory holding its `setup.json`.
-inline std::vector<std::pair<const char*, const char*>> demo_setups() {
-    return {@zengine_launcher_setups@};
+inline std::vector<std::pair<std::string, std::string>> demo_setups() {
+    std::vector<std::pair<std::string, std::string>> out;
+    for (const auto& [name, dir] : std::vector<std::pair<const char*, const char*>>{
+             @zengine_launcher_setups@}) {
+        out.emplace_back(name, placed(dir));
+    }
+    return out;
 }
 
 /// Each of those setups by name, with its own title and one line from its `setup.json`, empty

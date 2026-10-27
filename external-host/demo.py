@@ -18,13 +18,18 @@ import sys
 import time
 import uuid
 
+if sys.version_info < (3, 8):
+    sys.exit("demo.py needs Python 3.8 or newer; this is Python %d.%d" % sys.version_info[:2])
+
 HERE = Path(__file__).resolve().parent
 # The tool packages a setup's session approves: each by message alone, and its `-machine` sibling,
-# which builds on it and reaches this machine (`workshop-machine/demo-serve` reads the setup).
-PACKAGE = HERE / "tools" / "workshop"
-MACHINE_PACKAGE = HERE / "tools" / "workshop-machine"
-DESK_PACKAGE = HERE / "tools" / "desk"
-DESK_MACHINE_PACKAGE = HERE / "tools" / "desk-machine"  # the reader, `desk-machine/read`
+# which builds on it and reaches this machine (`workshop-machine/demo-serve` reads the setup). In a
+# checkout they stand in `tools/`; in the package a stranger downloads, beside this file.
+TOOLS = HERE / "tools" if (HERE / "tools").is_dir() else HERE
+PACKAGE = TOOLS / "workshop"
+MACHINE_PACKAGE = TOOLS / "workshop-machine"
+DESK_PACKAGE = TOOLS / "desk"
+DESK_MACHINE_PACKAGE = TOOLS / "desk-machine"  # the reader, `desk-machine/read`
 EXAMPLES = HERE.parent / "examples"
 # Where a checkout's setups are found beside the tool package's own: each example's, and each
 # feature's tutorials (`<feature>/docs/tutorials/<name>/`), which an install gathers into the package.
