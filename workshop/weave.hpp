@@ -702,6 +702,10 @@ public:
     /// A COMMAND THE PALETTE'S OWN ROW RAN BY NAME (`command_vocabulary.hpp`), performed by its key's
     /// or press's path as the hand that pressed that row, and answered.
     void on(const CommandRunRequested& asked, loom::Mail& mail);
+    /// ...ONCE THE PALETTE IS DOWN: the command run as the hand `actor`, `held` answered.
+    void run_command(const CommandRunRequested& asked, const InputActor& actor,
+                     std::uint64_t gesture, const std::shared_ptr<loom::DeferredAnswer>& held,
+                     loom::Mail& mail);
     /// SHIFT LET GO: half of a tap toward a double Shift (`shift_tapped`); every other release
     /// is no act.
     void on(const zengine::input::KeyReleased& k, loom::Mail& mail);
@@ -711,6 +715,8 @@ public:
     /// The palette left the desk, by whichever close: the keys go back to the pane that held them
     /// when it opened.
     void palette_closed(const PaneRef& ref);
+    /// Whether `ref` stands on the desk now with another pane over it.
+    bool covered_now(const PaneRef& ref) const;
     /// The current gesture of `pane` approves one operation -- a named (shape, version, role) send,
     /// the action classes the act is, or both -- or why not. Spends the gesture; `approved`, when
     /// given, is told whose hand it was.

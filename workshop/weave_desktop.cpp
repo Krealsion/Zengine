@@ -737,6 +737,22 @@ void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
         (void)loom::answer_deferred(*held, m, toggled);
         repaint(m);
     };
+    // ON THE DESK BUT COVERED, it is brought forward and given the keys, as a launch of a pane on
+    // the desk does: a pane the weaver cannot see is not one they asked to put away.
+    if (has_pane(session_.setup.active, ref) && covered_now(ref)) {
+        launch_pane(ref,
+                    [this, answer, ref, finish](const PaneLaunchAnswered& shown,
+                                                loom::Mail& m) mutable {
+                        answer.refusal = shown.refusal;
+                        if (shown.refusal.empty()) {
+                            say("brought " + inventory_name(ref) + " forward -- it was covered",
+                                false);
+                        }
+                        finish(answer, m);
+                    },
+                    mail);
+        return;
+    }
     if (has_pane(session_.setup.active, ref)) {
         unseat_then(ref,
                     [this, answer, ref, finish](const LayoutEditAnswered& closed,
@@ -765,6 +781,33 @@ void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
                     finish(answer, m);
                 },
                 mail);
+}
+
+// WL-DESK-13 -- agents/workshop/desktop.md
+bool WorkshopWeave::covered_now(const PaneRef& ref) const {
+    // ANY PART OF IT UNDER A PANE DRAWN IN FRONT OF IT, in the order the desk is drawn.
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
+    if (!kind.has_value()) {
+        return false;
+    }
+    const Screen sc = screen_of(session_);
+    const PixelRect mine = bounds_of(session_.panes, session_.setup.active, *kind, sc).rect;
+    bool above = false;
+    for (const std::int64_t other : effective_pane_order(session_.setup.active, session_.panes)) {
+        if (other == *kind) {
+            above = true;
+            continue;
+        }
+        if (!above) {
+            continue;
+        }
+        const PixelRect r = bounds_of(session_.panes, session_.setup.active, other, sc).rect;
+        if (r.x < mine.x + mine.w && mine.x < r.x + r.w && r.y < mine.y + mine.h &&
+            mine.y < r.y + r.h) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // ---- Whether anybody is there to fill a pane -----------------------------------------------

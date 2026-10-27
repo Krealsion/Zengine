@@ -49,6 +49,52 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
         return;
     }
     drop_kept(corr);
+    // THE PALETTE IS PUT DOWN FIRST, and the command runs once the owner has answered it: the keys
+    // are back with the pane the palette opened over, so the command acts where the hand was, and
+    // nothing the command focuses is given back over by the put-down after it.
+    const InputActor actor = by->actor;
+    const std::uint64_t gesture = by->latest;
+    if (has_pane(session_.setup.active, palette)) {
+        unseat_then(palette,
+                    [this, asked, actor, gesture, held](const LayoutEditAnswered&, loom::Mail& m) {
+                        run_command(asked, actor, gesture, held, m);
+                    },
+                    mail);
+        return;
+    }
+    run_command(asked, actor, gesture, held, mail);
+}
+
+// WL-DESK-18 -- agents/workshop/desktop.md
+void WorkshopWeave::run_command(const CommandRunRequested& asked, const InputActor& actor,
+                                std::uint64_t gesture,
+                                const std::shared_ptr<loom::DeferredAnswer>& held,
+                                loom::Mail& mail) {
+    const auto answer_in = [this, held](const std::string& refusal, loom::Mail& m) {
+        if (!refusal.empty()) {
+            say(refusal, true);
+        }
+        (void)loom::answer_deferred(*held, m, CommandRunAnswered{refusal.empty(), refusal});
+        repaint(m);
+    };
+    const auto answer = [&](const std::string& refusal) { answer_in(refusal, mail); };
+    // THE HAND THAT PRESSED THE PALETTE'S ROW, found again after the put-down, and that row still
+    // its latest act: a key or a press of that hand since runs nothing late.
+    Hand* by = nullptr;
+    each_hand([&](Hand& h) {
+        if (h.actor.known == actor.known && h.actor.local == actor.local &&
+            h.actor.participant == actor.participant) {
+            by = &h;
+        }
+    });
+    if (by == nullptr) {
+        answer("the hand that ran it is gone -- nothing was run");
+        return;
+    }
+    if (by->latest != gesture) {
+        answer("the hand acted again before the palette was down -- nothing was run");
+        return;
+    }
     // AS THAT HAND: whatever the path reads as the hand at work is this one, until the run ends.
     struct RestoreInput {
         InputActor& actor;
@@ -56,11 +102,6 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
         ~RestoreInput() { actor = before; }
     } restore{input_actor_, input_actor_};
     input_actor_ = by->actor;
-    // THE PALETTE IS PUT DOWN FIRST, the keys going back to the pane it opened over, so the
-    // command acts where the hand was.
-    if (has_pane(session_.setup.active, palette)) {
-        unseat_then(palette, [](const LayoutEditAnswered&, loom::Mail&) {}, mail);
-    }
     if (asked.kind == kCommandClose) {
         answer(std::string());
         return;
@@ -142,8 +183,8 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
             answer("`" + asked.id + "` answers to no key in command mode here");
             return;
         }
-        // ...and stay Workshop's when the palette goes down after: it gives back no keys it no
-        // longer holds the claim to.
+        // ...and stay Workshop's: the palette, already down, gives back no keys it no longer
+        // holds the claim to.
         session_.panes.keyboard = kNoPaneKind;
         palette_over_ = kNoPaneKind;
         command(input::KeyPressed{key.scancode, std::string(), key.modifiers}, mail);
@@ -182,7 +223,6 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
         answer(why);
         return;
     }
-    const InputActor actor = by->actor;
     const std::string pane_key = asked.pane;
     const std::string id = asked.id;
     launch_pane(
