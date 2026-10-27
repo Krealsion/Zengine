@@ -40,11 +40,21 @@ struct LauncherState {
     ZEN_SHAPE(LauncherState, 1);
 };
 
-/// The catalog as this build was configured, the app host beside the running program.
+/// The catalog as this build was configured, the app host beside the running program; in a
+/// package, the package's own demo service, started by a Python found on the PATH now.
 launcher::Catalog configured_catalog() {
     namespace c = launcher::configured;
-    launcher::Catalog out{zengine::app::app_program(), c::kPython, c::kDemoScript, c::kBuild,
-                          c::kLoomPrefix, {}};
+    launcher::Catalog out{zengine::app::app_program(), c::kPython, c::demo_script(), c::kBuild,
+                          c::kLoomPrefix, {}, {}, {}, {}};
+    if (c::kInPackage) {
+        out.package = c::package_root();
+        if (const auto python = launcher::find_python(launcher::process_path())) {
+            out.python = python->program;
+            out.python_args = python->args;
+        } else {
+            out.python_needed = launcher::kPythonNeeded;
+        }
+    }
     const auto lines = c::demo_lines();
     for (const auto& [name, dir] : c::demo_setups()) {
         launcher::DemoSetup setup{name, dir, {}, {}};
@@ -87,10 +97,15 @@ public:
     /// WHAT CAN BE STARTED, asked by anyone: the catalog as it stands now, each app with whether
     /// it runs. Nothing is started and nothing is kept.
     void on(const launcher::LaunchCatalogRequested&, loom::Mail& mail) {
-        launcher::LaunchCatalog answer = launcher::listing(known_ ? project_ : std::string(),
-                                                           configured_catalog());
+        const launcher::Catalog catalog = configured_catalog();
+        launcher::LaunchCatalog answer =
+            launcher::listing(known_ ? project_ : std::string(), catalog);
         if (!known_) {
-            answer.note = "the launcher does not know the project yet: no app is listed; ask again";
+            // WHAT A SETUP NEEDS, still said first.
+            answer.note = (catalog.demos.empty() || catalog.python_needed.empty()
+                               ? std::string()
+                               : catalog.python_needed + "; ") +
+                          "the launcher does not know the project yet: no app is listed; ask again";
         }
         (void)mail.answer(answer);
     }

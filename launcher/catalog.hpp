@@ -5,11 +5,11 @@
 #define ZENGINE_LAUNCHER_CATALOG_HPP
 
 // WHAT THE LAUNCHER MAY START, judged before anything starts (launcher/docs/zengine.launcher.md):
-// a kind and a name, each looked up in a catalog the configuration fixed. An app is a folder
-// directly in the project's `apps/` holding a plan the load plan's codec reads, started by the
-// `zengine-app` beside Workshop on that folder; a demo is a setup the demo service lists, started
-// by the configured interpreter running the configured `demo.py` on a root of its own in the
-// project's `demo-runs/`. No message names a program, a path or an argument.
+// a kind and a name in a catalog the configuration fixed. An app is a folder directly in the
+// project's `apps/` holding a plan the codec reads, started by the `zengine-app` beside Workshop; a
+// demo is a setup the demo service lists, started by the configured `demo.py` on a root of its own
+// in the project's `demo-runs/` (in a package, its own, by a Python found on the PATH). No message
+// names a program, a path or an argument.
 
 #include "app/folder.hpp"
 #include "app/session_file.hpp"
@@ -19,7 +19,10 @@
 #include "workshop/load_persist.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -42,7 +45,9 @@ struct DemoSetup {
 
 /// WHAT THE CONFIGURATION FIXED: the app host's program, and the demo service's interpreter,
 /// script, build and Loom, with the setups it lists. A demo service left unconfigured starts no
-/// demo.
+/// demo. In a package, `package` is the package's folder, which is both its build and its Loom,
+/// and the interpreter is the one found on the PATH, with the arguments it takes first; where none
+/// was found, `python_needed` says what a setup's start needs.
 struct Catalog {
     std::string app_program;
     std::string python;
@@ -50,7 +55,80 @@ struct Catalog {
     std::string build;
     std::string loom_prefix;
     std::vector<DemoSetup> demos;
+    std::string package;
+    std::vector<std::string> python_args;
+    std::string python_needed;
 };
+
+/// What a package's setup needs beside it, said where a setup is listed and when one is started.
+inline constexpr const char* kPythonNeeded =
+    "a setup starts with Python 3.8 or newer, and this machine's PATH holds none: install it "
+    "(python.org), then start Workshop again";
+
+/// AN INTERPRETER FOUND ON A PATH: its program and the arguments it takes before the script.
+struct Interpreter {
+    std::string program;
+    std::vector<std::string> args;
+};
+
+#if defined(_WIN32)
+inline constexpr bool kWindowsPath = true;
+#else
+inline constexpr bool kWindowsPath = false;
+#endif
+
+/// THE PYTHON A PACKAGE STARTS ITS DEMO SERVICE WITH, found in `path` (a PATH's value), its
+/// folders in order: on Windows `python.exe`, then the launcher `py.exe` asked for a Python 3,
+/// passing over the Store's stand-ins in `Microsoft/WindowsApps`; elsewhere `python3`. Each is
+/// told to write no bytecode, so nothing is written into the package. None found is none.
+inline std::optional<Interpreter> find_python(const std::string& path,
+                                              bool windows = kWindowsPath) {
+    namespace fs = std::filesystem;
+    const char separator = windows ? ';' : ':';
+    std::size_t from = 0;
+    while (from <= path.size()) {
+        const std::size_t to = std::min(path.find(separator, from), path.size());
+        std::string dir = path.substr(from, to - from);
+        from = to + 1;
+        if (dir.size() >= 2 && dir.front() == '"' && dir.back() == '"') {
+            dir = dir.substr(1, dir.size() - 2);
+        }
+        if (dir.empty()) {
+            continue;
+        }
+        std::error_code ec;
+        if (windows) {
+            std::string folded = dir;
+            std::replace(folded.begin(), folded.end(), '\\', '/');
+            std::transform(folded.begin(), folded.end(), folded.begin(), [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            });
+            while (!folded.empty() && folded.back() == '/') {
+                folded.pop_back();
+            }
+            const std::string store = "microsoft/windowsapps";
+            if (folded.size() >= store.size() &&
+                folded.compare(folded.size() - store.size(), store.size(), store) == 0) {
+                continue;
+            }
+            if (fs::is_regular_file(fs::path(dir) / "python.exe", ec)) {
+                return Interpreter{(fs::path(dir) / "python.exe").generic_string(), {"-B"}};
+            }
+            if (fs::is_regular_file(fs::path(dir) / "py.exe", ec)) {
+                return Interpreter{(fs::path(dir) / "py.exe").generic_string(), {"-3", "-B"}};
+            }
+        } else if (fs::is_regular_file(fs::path(dir) / "python3", ec)) {
+            return Interpreter{(fs::path(dir) / "python3").generic_string(), {"-B"}};
+        }
+    }
+    return std::nullopt;
+}
+
+/// The PATH this process was started with, or empty.
+inline std::string process_path() {
+    const char* path = std::getenv("PATH");
+    return path == nullptr ? std::string() : std::string(path);
+}
 
 /// A launch judged: what to start, or why nothing will be.
 struct LaunchJudged {
@@ -121,6 +199,9 @@ inline LaunchJudged judge_launch(const Launch& asked, const std::string& project
                                         "demo service")
                           : "no demo '" + asked.name + "' among the setups the demo service lists");
     }
+    if (catalog.python.empty() && !catalog.python_needed.empty()) {
+        return refuse(catalog.python_needed);
+    }
     if (!fs::is_regular_file(catalog.python, ec) || !fs::is_regular_file(catalog.demo_script, ec)) {
         return refuse("the demo service this Workshop was configured with is not there (" +
                       catalog.python + ", " + catalog.demo_script + ")");
@@ -130,11 +211,17 @@ inline LaunchJudged judge_launch(const Launch& asked, const std::string& project
     if (ec) {
         return refuse("cannot make " + runs.generic_string() + ": " + ec.message());
     }
-    out.plan = StartPlan{catalog.python,
-                         {catalog.demo_script, "start", "--setup", setup->name, "--root",
-                          (runs / setup->name).generic_string(), "--build", catalog.build,
-                          "--loom-prefix", catalog.loom_prefix},
-                         fs::path(project).generic_string(),
+    std::vector<std::string> args = catalog.python_args;
+    const std::vector<std::string> start{catalog.demo_script, "start", "--setup", setup->name,
+                                         "--root", (runs / setup->name).generic_string()};
+    args.insert(args.end(), start.begin(), start.end());
+    // A PACKAGE IS ITS OWN BUILD AND ITS OWN LOOM.
+    const std::vector<std::string> against =
+        catalog.package.empty() ? std::vector<std::string>{"--build", catalog.build,
+                                                           "--loom-prefix", catalog.loom_prefix}
+                                : std::vector<std::string>{"--package", catalog.package};
+    args.insert(args.end(), against.begin(), against.end());
+    out.plan = StartPlan{catalog.python, std::move(args), fs::path(project).generic_string(),
                          (runs / (setup->name + ".log")).generic_string()};
     out.ok = true;
     return out;
@@ -164,8 +251,13 @@ inline LaunchCatalog listing(const std::string& project, const Catalog& catalog)
     for (const DemoSetup& d : catalog.demos) {
         add(LaunchEntry{kKindDemo, d.name, d.title.empty() ? d.name : d.title, d.line, false});
     }
+    // WHAT A LISTED SETUP'S START NEEDS THAT THIS MACHINE LACKS, said with the listing.
+    if (!catalog.demos.empty() && catalog.python.empty()) {
+        out.note = catalog.python_needed;
+    }
     if (project.empty()) {
-        out.note = "no project directory: no app is listed";
+        out.note += (out.note.empty() ? "" : "; ") +
+                    std::string("no project directory: no app is listed");
         return out;
     }
     std::error_code ec;

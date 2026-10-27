@@ -363,6 +363,15 @@ TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the setups the lau
     CHECK(starts[1].find("[ Start ] commands") != std::string::npos);
     CHECK(fr::stepped(m, fr::Item::kNeovim, 1) == fr::setup_item(0));
     CHECK(fr::stepped(m, fr::setup_item(1), 1) == fr::Item::kStory);
+    // ...AND WHAT THE LAUNCHER SAYS OF THEM, beneath them: what a start needs that is missing.
+    m.setups_note = "a setup starts with Python 3.8 or newer";
+    bool needs = false;
+    for (const fr::Line& l : fr::lines_of(m)) {
+        needs = needs || (l.text == "  a setup starts with Python 3.8 or newer" &&
+                          l.ink == fr::Line::Ink::kMuted && l.item == fr::Item::kNone);
+    }
+    CHECK(needs);
+    m.setups_note.clear();
     m.setups.clear();
     // The box says what the switch said; the cursor is marked; the ends hold.
     m.neovim = true;

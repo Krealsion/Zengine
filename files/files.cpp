@@ -731,7 +731,7 @@ public:
                 offer.row(files::kMenuStart, "start the " + launch->kind + " `" + name + "`");
             }
         }
-        if (*zengine::launcher::configured::kDemosFolder != '\0') {
+        if (!zengine::launcher::configured::demos_folder().empty()) {
             offer.row(files::kMenuDemos, "go to the demos");
         }
         offer.row(files::kMenuPickBuildable, "pick something buildable here");
@@ -1384,7 +1384,7 @@ private:
     /// THE WAY TO THE DEMOS: the folder of the demo service's own setups, where a right press on
     /// one starts it.
     void demos(loom::Mail& mail) {
-        const std::string folder = zengine::launcher::configured::kDemosFolder;
+        const std::string folder = zengine::launcher::configured::demos_folder();
         if (folder.empty()) {
             notice_ = "this Workshop was configured with no demo service";
         } else {

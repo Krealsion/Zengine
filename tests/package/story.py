@@ -5,10 +5,10 @@ app, which runs in the package's own `zengine-app` and outlives Workshop.
 
     python story.py <package folder> <work folder> [--env NAME=VALUE]... [--seconds N]
 
-From the checkout this script stands in, with the package in place of a build tree and a Loom
-prefix (`external-host/demo.py start --package`):
-  1 the tally setup (`examples/tally-app/`) starts, ready, in the OS window: Workshop says it
-    loaded `zengine-window-sdl`, and nothing stood in its place;
+With the package's own demo service, `share/zengine/loom-tools/demo.py`, the package in place of a
+build tree and a Loom prefix (`demo.py start --package`):
+  1 the tally setup (`examples/tally-app/` of the checkout this script stands in) starts, ready, in
+    the OS window: Workshop says it loaded `zengine-window-sdl`, and nothing stood in its place;
   2 its walk `export` passes: Flow and the View Builder opened, `tally.view` opened, Export app,
     each step's picture kept in <work folder>/pictures;
   3 the app's launcher (`run.cmd` on Windows, `run.sh` elsewhere) names the package's own
@@ -32,7 +32,9 @@ import time
 from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parents[2]
-DEMO = SOURCE / "external-host" / "demo.py"
+#: The demo service a package carries, beside the tool packages it approves.
+PACKAGED_DEMO = Path("share") / "zengine" / "loom-tools" / "demo.py"
+DEMO = None  # the package's, once it is known
 EXE = ".exe" if os.name == "nt" else ""
 #: The console's ask, in the app's own words: `approve it at the console with:  <line>`.
 ASKED = re.compile(r"approve it at the console with:\s+(authority trust \S+)")
@@ -92,9 +94,15 @@ def main(argv):
     if not (package / "bin" / ("zengine-workshop" + EXE)).is_file():
         print("story: %s holds no bin/zengine-workshop%s" % (package, EXE), file=sys.stderr)
         return 2
+    global DEMO
+    DEMO = package / PACKAGED_DEMO
     work.mkdir(parents=True, exist_ok=True)
     root = work / "root"
-    started = demo(env, seconds, "start", "--setup", "tally-app", "--package", str(package),
+    if not DEMO.is_file():
+        raise Failed("1 the package carries no demo service: %s is not there"
+                     % PACKAGED_DEMO.as_posix())
+    started = demo(env, seconds, "start", "--setup", str(SOURCE / "examples" / "tally-app"),
+                   "--package", str(package),
                    "--root", str(root), "--wait", str(seconds))
     if started.get("state") != "ready":
         raise Failed("1 the tally setup did not come up ready: %s" % started.get("note", started))
