@@ -201,11 +201,12 @@ and opens **Start here**, the story a step at a time, each box ticked as it happ
 start until you finish it; find either again in the Pane Manager as Quick setup and Start here
 ([their manual](zengine.first-run.md)).
 
-![The quick setup at a first start, holding the keys: Edit text with Neovim, each ready-to-use setup the launcher lists with Start, The story, Done and Skip](images/first-run-quick-setup.png)
+![The quick setup at a first start, holding the keys: Edit text with Neovim, each ready-to-use setup the launcher lists with Start and its whole line, The story, Done and Skip](images/first-run-quick-setup.png)
 
-![Start here at a later start, seated beside the desk without the keys: steps 1 and 4 done by their owners' word, step 2 ticked by you, 3 and 5 still to do, each with Show me](images/first-run-start-here.png)
+![Start here at a later start, seated beside the desk without the keys: step 2 ticked by you, the others still to do, each with what ticks it and Show me](images/first-run-start-here.png)
 
-**A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, and the room.
+**A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, Notices at the lower
+left, and the room.
 The Layouts row says `>Default< +` beside `setup: none` — the one layout you have, marked as the
 one you are on, related to no Setup file yet. `none` is not a warning: Workshop remembers that
 layout for you either way. Nothing is painted behind the panes, and the band's first row says

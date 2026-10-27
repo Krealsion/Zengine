@@ -9,6 +9,9 @@
 // it chooses. The weave (first_run.cpp) holds the moment; a suite reads the lines without a bus.
 // Reference: workshop/docs/zengine.first-run.md; law: agents/workshop/first-run.md.
 
+#include "workshop/pane_text.hpp"
+
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -96,6 +99,33 @@ struct Line {
 inline constexpr const char* kSetupsPage = "workshop/docs/demo-setups.md";
 inline constexpr const char* kGettingStartedPage = "workshop/docs/getting-started.md";
 
+/// EACH LINE READ WHOLE IN `columns`: a line wider than the room goes on in the rows beneath it,
+/// at its own indent and two more, each row keeping the line's ink and the item a press on it
+/// chooses. No room said yet (`columns` 0) leaves the lines as written.
+template <class Line>
+std::vector<Line> wrapped(const std::vector<Line>& lines, std::int64_t columns) {
+    if (columns <= 0) {
+        return lines;
+    }
+    std::vector<Line> out;
+    for (const Line& l : lines) {
+        const std::size_t first = l.text.find_first_not_of(' ');
+        if (static_cast<std::int64_t>(l.text.size()) <= columns || first == std::string::npos) {
+            out.push_back(l);
+            continue;
+        }
+        const std::size_t lead = std::min(first, static_cast<std::size_t>(columns / 2));
+        const std::string indent(lead, ' ');
+        for (const std::string& piece : workshop::pane_text::wrap(
+                 l.text.substr(lead), columns - static_cast<std::int64_t>(lead))) {
+            Line row = l;
+            row.text = indent + piece;
+            out.push_back(row);
+        }
+    }
+    return out;
+}
+
 /// THE ITEMS, in the order the cursor moves through them.
 inline std::vector<Item> items_of(const Moment& m) {
     std::vector<Item> out{Item::kNeovim};
@@ -110,9 +140,9 @@ inline std::vector<Item> items_of(const Moment& m) {
 
 /// THE LINES OF THE QUICK SETUP, top to bottom: the editor block, the setups the launcher lists
 /// with Start on each and The story beside them, then Done and Skip; the notice last, when there
-/// is one.
+/// is one. Each is read whole in `columns` (`wrapped`).
 // WL-FIRST-02 -- agents/workshop/first-run.md
-inline std::vector<Line> lines_of(const Moment& m) {
+inline std::vector<Line> lines_of(const Moment& m, std::int64_t columns = 0) {
     const auto mark = [&](Item i) { return std::string(m.cursor == i ? "> " : "  "); };
     const auto ink = [&](Item i) { return m.cursor == i ? Line::Ink::kCursor : Line::Ink::kPlain; };
     std::vector<Line> out;
@@ -157,7 +187,7 @@ inline std::vector<Line> lines_of(const Moment& m) {
         out.push_back({""});
         out.push_back({m.notice, Line::Ink::kAlert});
     }
-    return out;
+    return wrapped(out, columns);
 }
 
 /// The cursor one item up or down among `m`'s items, stopping at the ends.
