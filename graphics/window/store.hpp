@@ -300,20 +300,31 @@ inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
         std::erase_if(a.nodes, [&](const KeptNode& k) { return under_any(k.node.path, removed); });
         std::erase_if(a.records, [&](const ElementRecord& e) { return under_any(e.path, removed); });
     }
-    // EACH PUT FINDS ITS NODE BY PATH: put again it keeps its rank; new, it takes the next.
-    std::unordered_map<std::string, std::size_t> slot;
-    slot.reserve(a.nodes.size() + d.put.size());
-    for (std::size_t i = 0; i < a.nodes.size(); ++i) {
-        slot.try_emplace(a.nodes[i].node.path, i);
+    // EACH PUT FINDS ITS NODE IN ONE PASS OVER THE AREA, the puts indexed by path and the later of
+    // a path put twice winning: a node put again keeps its rank, and a new path takes the next, in
+    // the order it was first put.
+    std::unordered_map<std::string_view, std::size_t> last;
+    last.reserve(d.put.size());
+    for (std::size_t i = 0; i < d.put.size(); ++i) {
+        last.insert_or_assign(std::string_view(d.put[i].path), i);
+        out.changed.insert(d.put[i].path);
+    }
+    std::vector<bool> held(d.put.size(), false);
+    if (!last.empty()) {
+        for (KeptNode& k : a.nodes) {
+            const auto it = last.find(k.node.path);
+            if (it != last.end()) {
+                k.node = d.put[it->second];
+                held[it->second] = true;
+            }
+        }
     }
     for (const Node& n : d.put) {
-        const auto [it, fresh] = slot.try_emplace(n.path, a.nodes.size());
-        if (fresh) {
-            a.nodes.push_back(KeptNode{n, a.next_rank++});
-        } else {
-            a.nodes[it->second].node = n;
+        const std::size_t later = last.at(n.path);
+        if (!held[later]) {
+            held[later] = true;
+            a.nodes.push_back(KeptNode{d.put[later], a.next_rank++});
         }
-        out.changed.insert(n.path);
     }
     for (const ElementRecord& r : d.said) {
         const auto it = std::find_if(a.records.begin(), a.records.end(),
