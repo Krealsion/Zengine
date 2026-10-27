@@ -88,12 +88,13 @@ start ([`zengine.first-run`](zengine.first-run.md)).
 ### `PaneToggleRequested`
 
 `PaneToggleRequested` asks Workshop to show a pane that is not on the desk, or hide one that is,
-judged against the desk at the ask.
+judged against the desk at the ask; one another pane covers is brought forward and focused.
 
 - **Takes:** `office` and `pane`.
 - **Answers:** `PaneToggleAnswered{office, pane, opened, closed, refusal}`, to the asker alone, with
-  the band's `showed <name>` or `hid <name> -- ...`, naming the settings and locks the row took; a
-  hide takes the row off as Workshop's own closes do, by asking `zengine.layouts`.
+  the band's `showed <name>`, `brought <name> forward -- it was covered`, or `hid <name> -- ...`,
+  naming the settings and locks the row took; a hide takes the row off as Workshop's own closes
+  do, by asking `zengine.layouts`.
 - **Refuses:** each refusal [`PaneLaunchRequested`](#panelaunchrequested) words.
 - **Example:** a desktop row bound to one pane sends it on every press.
 

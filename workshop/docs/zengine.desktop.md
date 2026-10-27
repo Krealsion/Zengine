@@ -59,14 +59,15 @@ Shows the Terminal, or focuses it when it is already on the desk.
 
 ### `desktop.panes`
 
-Shows the Pane Manager, focused, when it is hidden, and hides it when it is shown.
+Shows the Pane Manager, focused, when it is hidden, hides it when it is shown, and brings it
+forward, focused, when another pane covers it.
 
 - **Takes:** the desk as Workshop holds it now, not as the Pane Manager last saw it. Default key
   <!-- key desktop.panes -->`ctrl+p`<!-- /key -->.
 - **Answers:** asks Workshop to toggle the Pane Manager
   ([`PaneToggleRequested`](zengine.workshop.md#panetogglerequested)); Workshop says `showed Pane
-  Manager`, or `hid Pane Manager -- its provider and what it holds are untouched; showing it brings
-  it back`.
+  Manager`, `hid Pane Manager -- its provider and what it holds are untouched; showing it brings
+  it back`, or `brought Pane Manager forward -- it was covered`.
 - **Refuses:** Workshop's refusal, shown in the Pane Manager when it is shown.
 - **Example:** press <!-- key desktop.panes -->`ctrl+p`<!-- /key --> twice: shown, then hidden.
 
