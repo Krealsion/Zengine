@@ -168,6 +168,19 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-weaver-places-a-pane.md`
 
+## WL-DESK-20 — A manual opens over the pane it describes
+
+LAW — The Manual the desktop asks Workshop to show stands over the pane whose manual was last asked, `kManualMarginPx` of it showing on every edge, whether it opens or is on the desk already.
+
+MEANS
+- the window is written as the launch seats or finds the Manual, over where it was left, and the Manual is not placed by hand;
+- a pane too small to show the margin round a Manual leaves the Manual where it would have stood.
+
+DOES NOT MEAN
+- that the desktop says where: Workshop knows the subject from the act it asked the desktop for.
+
+WHY — `agents/decisions/the-weaver-places-a-pane.md`
+
 ## Do not assume
 
 - That the desktop can take a gesture from a pane — a pane stands in for an above-the-modes
@@ -306,6 +319,14 @@ placed by its title and edges while its keys and body stay its own; shown again 
 back where it was left" "WL-DESK-19: a press in the body of a pane being placed is the pane's, and
 ends the placing" "WL-DESK-19: where workshop.open-at says mouse, a pane the layout never had opens at
 the hand"
+
+### WL-DESK-20
+`workshop/weave_desktop.cpp` WorkshopWeave::manual_window launch_asked launch_pane request_app_action
+`workshop/weave.hpp` WorkshopWeave::manual_over_
+`workshop/screen.hpp` kManualMarginPx
+`workshop/weave_session.cpp` seat_then
+`tests/test_workshop_panes_desktop.cpp` "WL-DESK-20: the Manual opens over the pane whose manual was
+asked, a margin of it showing on every edge, and moves over the next one asked"
 
 ### WL-DESK-18
 `workshop/command_vocabulary.hpp` CommandRunRequested CommandRunAnswered

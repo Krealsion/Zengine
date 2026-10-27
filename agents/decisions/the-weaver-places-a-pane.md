@@ -14,7 +14,8 @@ and edges take the hand, so the weaver puts it where it belongs, while its keys 
 its body stay its own, the first of either ending the placing. A pane taken off a layout leaves its place and size with the
 layouts' owner, by the layout's id (`SetupState::left`), and a seat there gives them back
 (`LayoutEditAnswered::returned`), so no second arrangement follows. The palette opens centred
-every time and is never arranged. While arranging, the room's top says so in words, the pane it
+every time and is never arranged. A manual opens over the pane it describes, a margin of it
+showing round it, and is not placed by hand. While arranging, the room's top says so in words, the pane it
 arranges or `all panes` beneath them, and every other pane fades.
 
 **Alternatives considered.**
@@ -31,4 +32,5 @@ arranges or `all panes` beneath them, and every other pane fades.
 **Consequences.** A relaunch opens a pane the last run closed as a first open. A terminal shows
 the words and no fade: it draws an image only where it is mostly opaque.
 
-**Laws supported.** [WL-ARR-18](../workshop/arrangement.md), [WL-DESK-19](../workshop/desktop.md).
+**Laws supported.** [WL-ARR-18](../workshop/arrangement.md), [WL-DESK-19](../workshop/desktop.md),
+[WL-DESK-20](../workshop/desktop.md).
