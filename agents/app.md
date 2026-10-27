@@ -11,7 +11,12 @@ plan's executor), [view](view.md) and [flow host](flow-host.md) (the two hosts i
   Timer and the app's own weave are rows of its plan. It never holds `zengine.workshop`.
 - The decisions are Loom's authority store, `app-authority.json` in the app's folder, its lock held
   for the run, so one host runs an app at a time; there is no decision store beside it, and nothing
-  is admitted by default. The console speaks Loom's `authority` command over it.
+  is admitted by default. The console speaks Loom's `authority` command over it, and one line of
+  its own, `trust plan`: each artifact the plan names that would wait, pinned to the build of its
+  file (`loom::file_content_id`) the console showed, an artifact denied left denied and nothing else
+  touched; a build not shown, or changed since, is shown and waits for the line again. Before the
+  first row waits, the console offers that line, naming each artifact and its build; it decides
+  nothing until the line is typed.
 - While it holds that lock the host's process id stands in the app's folder, `app-session.json`
   (`app/session_file.hpp`), written after the lock is claimed and removed before it is let go, so a
   host refused the app writes and removes nothing. It is a fact for a reader (the launcher's

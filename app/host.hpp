@@ -22,6 +22,7 @@
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
 
+#include <zen/content_id.hpp>
 #include <zen/host/authority.hpp>
 #include <zen/host/authority_command.hpp>
 #include <zen/host/grant_wiring.hpp>
@@ -35,9 +36,11 @@
 #include <zen/weave.hpp>
 #include <zen/weave/ask_book.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -277,8 +280,9 @@ public:
         say_notes();
     }
 
-    /// ONE LINE AT THE CONSOLE: Loom's `authority ...`, `status`, `help` or `quit`. After it, the
-    /// row the plan waits on is asked again, and realized once the console has said yes.
+    /// ONE LINE AT THE CONSOLE: Loom's `authority ...`, `trust plan`, `status`, `help` or `quit`.
+    /// After it, the row the plan waits on is asked again, and realized once the console has said
+    /// yes.
     void command(const std::string& line) {
         std::vector<std::string> words;
         std::istringstream split(line);
@@ -290,10 +294,13 @@ public:
         }
         if (words[0] == "authority") {
             loom::host::run_authority_command(store_, *warden_, *desk_, words, out_);
+        } else if (words[0] == "trust" && words.size() == 2 && words[1] == "plan") {
+            trust_plan();
         } else if (words[0] == "status" && words.size() == 1) {
             status();
         } else if (words[0] == "help" && words.size() == 1) {
             out_ << loom::host::authority_help()
+                 << "  trust plan              let each artifact this plan names run, as built here\n"
                  << "  status                  what the plan runs, and what it waits on\n"
                  << "  quit                    end this app\n";
         } else if (words[0] == "quit" && words.size() == 1) {
@@ -481,6 +488,7 @@ private:
             return;
         }
         if (!done.waiting_on.empty()) {
+            offer();
             waiting(done.waiting_on);
             return;
         }
@@ -489,6 +497,117 @@ private:
                  << plan_.artifacts.size()
                  << " artifacts; close its window, or say quit, to end it\n";
             out_.flush();
+        }
+    }
+
+    /// WHERE EACH ROW OF THE PLAN STANDS WITH THE CONSOLE, without asking the store's policy: its
+    /// file's build now, and whether a standing decision lets that build run, denies it, or there
+    /// is none (or one about other bytes), so the row would wait.
+    struct Standing {
+        std::string stem;
+        std::string build; ///< `loom::file_content_id` of its file now; empty when unreadable
+        bool denied = false;
+        bool waits = false;
+    };
+    std::vector<Standing> standings() const {
+        std::vector<Standing> out;
+        for (const load::ArtifactIntent& row : plan_.artifacts) {
+            Standing s{row.stem, loom::file_content_id_or_empty(path_of(row.stem))};
+            const loom::host::AuthorityRule* rule = store_.find(row.stem);
+            s.denied = rule != nullptr && !rule->may_run;
+            s.waits = !s.denied && (rule == nullptr || (!rule->trust_rebuilds &&
+                                                        !rule->content_id.empty() &&
+                                                        rule->content_id != s.build));
+            out.push_back(std::move(s));
+        }
+        return out;
+    }
+
+    /// THE PLAN'S ONE LINE, OFFERED ONCE A RUN, before the first row the walk waits on: each
+    /// artifact of the plan that would wait, by name and the build it would let run, and the line
+    /// that lets them all. Nothing is decided until the weaver types it.
+    void offer() {
+        if (offered_) {
+            return;
+        }
+        offered_ = true;
+        std::vector<Standing> waiting_rows;
+        for (Standing& s : standings()) {
+            if (s.waits && !s.build.empty()) {
+                shown_[s.stem] = s.build;
+                waiting_rows.push_back(std::move(s));
+            }
+        }
+        if (waiting_rows.empty()) {
+            return;
+        }
+        std::size_t width = 0;
+        for (const Standing& s : waiting_rows) {
+            width = std::max(width, s.stem.size());
+        }
+        out_ << "zengine-app - to let this plan's waiting artifacts run, each as built here, type:  "
+                "trust plan\n";
+        for (const Standing& s : waiting_rows) {
+            out_ << "  " << s.stem << std::string(width - s.stem.size(), ' ') << "  build "
+                 << s.build.substr(0, 8) << "\n";
+        }
+        out_ << "  or decide one at a time:  authority trust <name>; a rebuild of any asks again\n";
+        out_.flush();
+    }
+
+    /// `trust plan`: each artifact the plan names that would wait, pinned to the build of its file
+    /// now, as `authority trust` decides one; an artifact the console denied stays denied, one
+    /// whose file cannot be read is not decided, and one whose file changed since the console showed
+    /// its build is not decided until the line is typed again. Nothing the plan does not name is
+    /// touched.
+    void trust_plan() {
+        bool any = false;
+        for (const Standing& s : standings()) {
+            if (s.denied) {
+                out_ << "  '" << s.stem << "' stays denied, as decided here; authority trust "
+                     << s.stem << " lets it run\n";
+                continue;
+            }
+            if (!s.waits) {
+                continue;
+            }
+            any = true;
+            if (s.build.empty()) {
+                out_ << "  '" << s.stem << "' was not decided: its file " << path_of(s.stem)
+                     << " cannot be read\n";
+                continue;
+            }
+            // THE BUILD THE WEAVER WAS SHOWN, or none: bytes that changed since are shown now and
+            // wait for the line again.
+            if (const auto shown = shown_.find(s.stem); shown == shown_.end()) {
+                out_ << "  '" << s.stem << "' (build " << s.build.substr(0, 8)
+                     << ") was not shown before and was not decided; trust plan again lets it "
+                        "run as built now\n";
+                shown_[s.stem] = s.build;
+                continue;
+            } else if (shown->second != s.build) {
+                out_ << "  '" << s.stem << "' changed since it was offered (build "
+                     << shown->second.substr(0, 8) << ", now " << s.build.substr(0, 8)
+                     << ") and was not decided; trust plan again lets it run as built now\n";
+                shown->second = s.build;
+                continue;
+            }
+            const loom::host::AuthorityRule* existing = store_.find(s.stem);
+            loom::host::AuthorityRule rule =
+                existing != nullptr ? *existing : loom::host::AuthorityRule{};
+            rule.artifact = s.stem;
+            rule.may_run = true;
+            rule.content_id = s.build;
+            std::string error;
+            if (!store_.put(std::move(rule), &error)) {
+                out_ << "  " << error << "\n  '" << s.stem << "' is unchanged.\n";
+                continue;
+            }
+            out_ << "  '" << s.stem << "' may run, as built (build " << s.build.substr(0, 8)
+                 << "); a rebuild of it will ask again\n";
+        }
+        if (!any) {
+            out_ << "  nothing of this plan waits on the console\n";
         }
     }
 
@@ -578,6 +697,8 @@ private:
     std::size_t notes_said_ = 0;
     std::string refusal_;      ///< the store's words for the row last asked and refused, or empty
     std::string said_waiting_; ///< the row and the words the console was last told it waits on
+    bool offered_ = false;     ///< the plan's one line was offered this run
+    std::map<std::string, std::string> shown_; ///< each build the console showed, by artifact
     bool ended_ = false;
     int exit_code_ = 0;
 };
