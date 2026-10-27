@@ -104,7 +104,8 @@ pane holding your keys.
 - **Answers:** asks that pane's office for its whole manual
   ([`PaneDocumentRequested`](../pane_document.hpp)), under a number of the desk's own so only that
   answer is shown, and asks Workshop to show the Manual
-  ([`PaneLaunchRequested`](zengine.workshop.md#panelaunchrequested)). The Manual says `asking
+  ([`PaneLaunchRequested`](zengine.workshop.md#panelaunchrequested)), which Workshop opens over that
+  pane, a little of it showing on every edge. The Manual says `asking
   zengine.builder-pane for its manual` until the answer comes.
 - **Refuses:** `no pane was named: press the ? at the top right of a pane, or the manual key while a
   pane holds your keys`; `the ask for the manual of <office> was not sent`; `the manual of <office>

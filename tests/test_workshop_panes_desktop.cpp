@@ -569,6 +569,48 @@ TEST_CASE("WL-DESK-13: Ctrl+P is a strict visibility toggle judged by the host -
     CHECK(has_pane(d.r.session().setup.active, manager));
 }
 
+TEST_CASE("WL-DESK-20: the Manual opens over the pane whose manual was asked, a margin of it showing on every edge, and moves over the next one asked") {
+    // MUTATION: the Manual seated where it would have stood -- it opens at the room's centre, and
+    // the checks of its place go red.
+    Desk d;
+    left_in_column(d.r, PaneRef{kDesktopRole, dp::kManualPane}); // it would stand in the column
+    const auto open_by_mark = [&d](const char* name) {
+        d.press(d.row_of(name), kMarkCol);
+    };
+    open_by_mark("Alpha");
+    const std::int64_t alpha = kind_of(d.r, "zengine.test.tools", "alpha");
+    REQUIRE(d.r.session().panes.has(alpha));
+    const Screen sc = screen_of(d.r.session());
+    const auto room = [&](std::int64_t kind) {
+        return room_of_canvas(
+            bounds_of(d.r.session().panes, d.r.session().setup.active, kind, sc).resolved, sc);
+    };
+    const auto over = [&](std::int64_t subject) {
+        const SetupPane* row = pane_of(d.r.session().setup.active, PaneRef{kDesktopRole, dp::kManualPane});
+        REQUIRE(row != nullptr);
+        const PixelRect under = room(subject);
+        CHECK(row->place == PanePlace{pane_unit::kPixels, under.x + kManualMarginPx,
+                                      under.y + kManualMarginPx});
+        CHECK(row->width == PaneSize{pane_unit::kPixels, under.w - 2 * kManualMarginPx});
+        CHECK(row->height == PaneSize{pane_unit::kPixels, under.h - 2 * kManualMarginPx});
+        CHECK_FALSE(d.r.session().arrange.open);
+    };
+    d.r.press_cell(body_x(d.r, alpha, 1), body_y(d.r, alpha, 0));
+    REQUIRE(d.r.session().panes.keyboard == alpha);
+    d.r.key(input::scan::kF, input::mod::kCtrl);
+    REQUIRE(has_pane(d.r.session().setup.active, PaneRef{kDesktopRole, dp::kManualPane}));
+    over(alpha);
+    // ...AND ASKED FOR ANOTHER PANE'S MANUAL, it moves over that one.
+    stage_desk(d.r, [](Setup& desk) {
+        REQUIRE(author_pane_place(desk, PaneRef{"zengine.test.tools", "alpha"}, 300, 120).accepted);
+    });
+    d.r.key(input::scan::kUnknown);
+    d.r.press_cell(body_x(d.r, alpha, 1), body_y(d.r, alpha, 0));
+    REQUIRE(d.r.session().panes.keyboard == alpha);
+    d.r.key(input::scan::kF, input::mod::kCtrl);
+    over(alpha);
+}
+
 TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- show, manage and inspect -- and `manage <pane> >` opens the host's own pane menu on THAT pane; the menu key offers the marked row's") {
     Desk d;
     const std::int64_t beta = d.row_of("Beta");

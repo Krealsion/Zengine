@@ -952,7 +952,11 @@ public:
     /// `then` with what that came to. A pane the layout never had opens centred, or at the hand
     /// (`workshop.open-at`), and is placed when the open brings the `keys`; one it had comes back
     /// where it was left. The palette opens centred and is never placed.
-    void seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail, bool keys = false);
+    void seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail, bool keys = false,
+                   const std::optional<SetupPane>& window = std::nullopt);
+    /// WHERE THE MANUAL OPENS: over the pane whose manual was last asked, that pane's
+    /// `kManualMarginPx` showing on every edge; nothing while that pane is not on this screen.
+    std::optional<SetupPane> manual_window() const;
     /// ...AND TAKE ITS ROW OFF, one of this desk's own closes: asked of the owner, which takes the
     /// row whole and names its settings and locks in the answer; it unloads nothing.
     void unseat_then(const PaneRef& ref, EditThen then, loom::Mail& mail);
@@ -1013,7 +1017,8 @@ public:
     /// PERFORM ONE LAUNCH, WITHOUT ASKING WHO WANTED IT. The body `on(PaneLaunchRequested)`
     /// and every host-side caller spend, so "launch" means one thing.
     using LaunchThen = std::function<void(const PaneLaunchAnswered&, loom::Mail&)>;
-    void launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail, bool keys = true);
+    void launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail, bool keys = true,
+                     const std::optional<SetupPane>& window = std::nullopt);
 
     /// WHAT THE ONE INVENTORY CALLS A PANE -- its offered name, or its pane key when nothing
     /// names it -- for a sentence about it.
@@ -1727,6 +1732,8 @@ private:
     std::vector<ScreenPlane> window_overlays_;
     /// Every area placed with the directory now, as placed, and the panes among them.
     std::map<std::string, graphics::AreaPlaced> areas_placed_;
+    /// The pane whose manual was last asked, which the Manual opens over (WL-DESK-20).
+    std::int64_t manual_over_ = kNoPaneKind;
     std::set<std::int64_t> placed_kinds_;
     /// The skin each area was last given under this directory.
     std::map<std::string, std::string> skins_chosen_;
