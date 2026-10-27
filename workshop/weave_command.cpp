@@ -8,7 +8,9 @@
 
 #include "weave.hpp"
 
+#include <algorithm>
 #include <memory>
+#include <string>
 
 namespace zengine::workshop {
 
@@ -84,8 +86,40 @@ void WorkshopWeave::on(const CommandRunRequested& asked, loom::Mail& mail) {
                     mail);
         return;
     }
+    // A LAYOUT, by its id: the switch a press on its tab makes.
+    if (asked.kind == kCommandLayout) {
+        for (std::size_t at = 0; at < layout_count(session_.setup); ++at) {
+            if (std::to_string(layout_id_at(session_.setup, at)) == asked.id) {
+                switch_layout(at, mail);
+                answer(std::string());
+                return;
+            }
+        }
+        answer("no layout `" + asked.id + "` on the shelf now");
+        return;
+    }
+    // A PANE'S MANUAL: asked of the desktop as the pane's `?` asks it, while the pane is on the
+    // desk and the application shows manuals.
+    if (asked.kind == kCommandManual) {
+        const RuntimePane* row = session_.panes.runtime.find(asked.office, asked.pane);
+        const bool manuals = std::any_of(session_.keymap.app.begin(), session_.keymap.app.end(),
+                                         [](const AppRow& a) { return a.id == kManualAction; });
+        if (row == nullptr || !session_.panes.has(row->kind)) {
+            answer(asked.pane + " @" + asked.office + " is not on the desk: its manual opens from it");
+            return;
+        }
+        if (!manuals) {
+            answer("the application shows no manuals now -- `" + std::string(kManualAction) +
+                   "` is not declared");
+            return;
+        }
+        request_app_action(kManualAction, mail, *by, row);
+        answer(std::string());
+        return;
+    }
     if (asked.kind != kCommandAction) {
-        answer("`" + asked.kind + "` is not a kind of command -- an action, a pane or close");
+        answer("`" + asked.kind +
+               "` is not a kind of command -- an action, a pane, a layout, a manual or close");
         return;
     }
     // WORKSHOP'S OWN ROW: the keys are Workshop's, as `focus.leave` gives them, and the row is
