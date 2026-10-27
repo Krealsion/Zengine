@@ -18,6 +18,9 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/palette/entries.hpp"
 
+#include "launcher/vocabulary.hpp"
+
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
@@ -636,4 +639,148 @@ TEST_CASE("WL-DESK-18: the space a window types with Ctrl+Space types nowhere --
     REQUIRE(to_palette.size() == 1);
     CHECK(to_palette.front().find("\"x\"") != std::string::npos);
     CHECK(tools->typed.size() == 1);
+}
+
+namespace {
+
+/// A STAND-IN FOR THE LAUNCHER, in its office: it answers a listing with `entries` and records each
+/// start it is asked for, answering it started.
+class PaletteLauncher
+    : public loom::WeaveBase<PaletteLauncher, SeatState,
+                             loom::Accept<zengine::launcher::LaunchCatalogRequested,
+                                          zengine::launcher::Launch>,
+                             loom::Emit<zengine::launcher::LaunchCatalog,
+                                        zengine::launcher::Launched>> {
+public:
+    std::vector<zengine::launcher::LaunchEntry> entries;
+    std::vector<std::string> started; ///< `<kind> <name>` of each start asked
+
+    void on(const zengine::launcher::LaunchCatalogRequested&, loom::Mail& mail) {
+        (void)mail.answer(zengine::launcher::LaunchCatalog{entries, 0, ""});
+    }
+    void on(const zengine::launcher::Launch& asked, loom::Mail& mail) {
+        started.push_back(asked.kind + " " + asked.name);
+        (void)mail.answer(zengine::launcher::Launched{true, asked.kind, asked.name, 4242, "started"});
+    }
+};
+
+PaletteLauncher* mount_launcher(PaneRig& r) {
+    auto weave = std::make_unique<PaletteLauncher>();
+    PaletteLauncher* raw = weave.get();
+    const loom::WeaveId id = r.bus.register_weave(std::move(weave), loom::Grant{}.allow_any(),
+                                                  zengine::launcher::kLauncherRole);
+    raw->zen_set_self(id);
+    return raw;
+}
+
+/// The entries a listing holds of `kind`, by label.
+std::vector<std::string> labels_of(const pal::Listing& l, const std::string& kind) {
+    std::vector<std::string> out;
+    for (const pal::Entry& e : l.entries) {
+        if (e.kind == kind) out.push_back(e.label + " | " + e.owner + " | " + e.id);
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("the palette lists each layout on the shelf, each open pane's manual while the "
+          "application shows manuals, and each setup and app the launcher can start") {
+    // MUTATION: the other owners' entries left out -- the palette lists actions and panes alone.
+    KeymapShown keys;
+    keys.rows.push_back(row("above every mode", kDesktopRole, "", kManualAction, "this pane's manual", "ctrl+f"));
+    PaneInventory inv;
+    inv.panes.push_back(InventoryPane{kTools, "alpha", "Alpha", "", true, true, false});
+    inv.panes.push_back(InventoryPane{kTools, "beta", "Beta", "", false, true, false});
+    pal::Others others;
+    LayoutSettings first;
+    first.id = 1;
+    first.name = "Default";
+    LayoutSettings second;
+    second.id = 7;
+    second.name = "Review";
+    others.layouts = {first, second};
+    others.startable = {{"demo", "values", "Value inspection", "Inventory and Info", false},
+                        {"app", "tally", "tally", "an app", true}};
+    const pal::Listing l = pal::entries_of(keys, inv, others);
+    CHECK(labels_of(l, kCommandLayout) ==
+          std::vector<std::string>{"Default | layout | 1", "Review | layout | 7"});
+    // ...the open pane's manual, never the closed one's.
+    CHECK(labels_of(l, kCommandManual) == std::vector<std::string>{"Alpha manual | manual | "});
+    CHECK(labels_of(l, pal::kKindSetup) ==
+          std::vector<std::string>{"Value inspection | setup | values"});
+    CHECK(labels_of(l, pal::kKindApp) == std::vector<std::string>{"tally | app, running | tally"});
+    // A FILTER FINDS THEM BY NAME, as any entry.
+    const std::vector<std::size_t> found = pal::shown(l, "review", {});
+    REQUIRE(found.size() == 1);
+    CHECK(l.entries[found[0]].label == "Review");
+    // WITH NO MANUAL ROW DECLARED, no manual is listed: its `?` would answer nothing.
+    keys.rows.clear();
+    CHECK(labels_of(pal::entries_of(keys, inv, others), kCommandManual).empty());
+}
+
+TEST_CASE("WL-DESK-18: a layout chosen in the palette is switched to as a press on its tab, and a "
+          "pane's manual is asked of the desktop as its ? asks it, each as the hand that chose it") {
+    // MUTATION: a layout run by its place instead of its id -- the palette's Default switches to
+    // the layout that now stands first, not the one it named.
+    PaneRig r;
+    ProviderSeat* tools = nullptr;
+    start(r, tools);
+    REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+    REQUIRE(r.load_refusals.empty());
+    // A SECOND LAYOUT, made through the palette as Workshop's own row: it goes live.
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    r.text("new layout");
+    r.key(input::scan::kReturn);
+    REQUIRE(layout_count(r.session().setup) == 2);
+    REQUIRE(r.session().setup.active_at == 1);
+    // ...THE FIRST CHOSEN BY NAME: live again.
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    r.text(kDefaultSetupName);
+    r.key(input::scan::kReturn);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+    CHECK(r.session().setup.active_at == 0);
+
+    // A PANE'S MANUAL: the desktop asked for `desktop.manual` on Alpha, as Alpha's ? asks it.
+    REQUIRE(on_desk(r, kTools, "alpha"));
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    r.text("alpha manual");
+    REQUIRE_FALSE(on_desk(r, kDesktopRole, dp::kManualPane));
+    r.key(input::scan::kReturn);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+    CHECK_MESSAGE(on_desk(r, kDesktopRole, dp::kManualPane), r.last_notice());
+}
+
+TEST_CASE("WL-DESK-18: a setup or an app chosen in the palette is started as Files starts one: "
+          "Workshop asked for the hand of its row's key, then the launcher, the palette saying "
+          "what it answered") {
+    // MUTATION: the start asked of the launcher with no approval -- a run under a number Workshop
+    // never sent starts the setup.
+    PaneRig r;
+    ProviderSeat* tools = nullptr;
+    start(r, tools);
+    PaletteLauncher* launcher = mount_launcher(r);
+    launcher->entries = {{"demo", "values", "Value inspection", "Inventory and Info", false}};
+    REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+    REQUIRE(r.load_refusals.empty());
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    const std::int64_t palette = kind_of(r, kPaletteRole, kPalettePane);
+    r.text("value inspection");
+    r.key(input::scan::kReturn);
+    CHECK(launcher->started == std::vector<std::string>{"demo values"});
+    // ...THE PALETTE STAYS TO SAY WHAT THE LAUNCHER ANSWERED.
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    const std::vector<std::string> said = pane_rows(r, palette);
+    CHECK(std::any_of(said.begin(), said.end(), [](const std::string& line) {
+        return line.find("started the demo `values`, process 4242") != std::string::npos;
+    }));
+    // A RUN WORKSHOP NEVER NUMBERED: Workshop refuses the hand, and nothing starts.
+    CHECK(r.workshop_action(kPaletteRole, kPalettePane, "palette.run").delivered);
+    CHECK(launcher->started.size() == 1);
+    const std::vector<std::string> refused = pane_rows(r, palette);
+    CHECK(std::any_of(refused.begin(), refused.end(), [](const std::string& line) {
+        return line.find("nothing was started --") != std::string::npos;
+    }));
 }

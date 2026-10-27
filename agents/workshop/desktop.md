@@ -143,12 +143,12 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 LAW — A command the palette names runs only under its own row's unspent number, from its holder; the palette is put down, keys back, and the command performed by its key's path, judged for that hand
 
 MEANS
-- a pane is shown as a launch shows it; Workshop's own row runs by its key in command mode;
+- a pane is shown as a launch shows it, a layout switched to as its tab, a manual opened as its `?`; Workshop's own row runs by its key in command mode;
 - an application row is asked of the desktop; a pane's row is sent under a number that hand owns;
 - `desktop.palette` (`Ctrl+space`) toggles the palette above every mode, its space never typed.
 
 DOES NOT MEAN
-- that the palette grants anything: a guest's run is refused where its key would be;
+- that the palette grants anything: a guest's run is refused where its key would be, and a setup or app it starts waits on Workshop's word for that key's hand;
 - that a window's press on a line runs it: only a key Workshop numbered does.
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
@@ -284,7 +284,13 @@ the host -- open becomes closed, closed becomes open and focused, whatever the d
 `workshop/weave_desktop.cpp` launch_pane
 `workshop/weave_session.cpp` unseat_then install_live
 `workshop/desktop-pane/vocabulary.hpp` kActionPalette
-`workshop/palette/palette.cpp` Palette
+`workshop/palette/palette.cpp` Palette start
+`workshop/palette/entries.hpp` entries_of Others
+`tests/test_workshop_panes_palette.cpp` "WL-DESK-18: a layout chosen in the palette is switched to as a
+press on its tab, and a pane's manual is asked of the desktop as its ? asks it, each as the hand that
+chose it" "WL-DESK-18: a setup or an app chosen in the palette is started as Files starts one:
+Workshop asked for the hand of its row's key, then the launcher, the palette saying what it
+answered"
 `tests/test_workshop_panes_palette.cpp` "WL-DESK-18: ctrl+space shows the palette over the pane
 holding the keys, its Return runs the entry chosen by its key's path as that hand, and Escape puts
 it down with the keys given back" "WL-DESK-18: the palette closed by an office, through the layouts'

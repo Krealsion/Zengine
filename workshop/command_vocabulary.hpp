@@ -13,15 +13,18 @@ namespace zengine::workshop {
 inline constexpr const char* kPaletteRole = "zengine.palette";
 inline constexpr const char* kPalettePane = "palette";
 
-/// What a command is: an action by its row's id, a pane by its address, or putting the palette
-/// down with nothing run.
+/// What a command is: an action by its row's id, a pane by its address, a layout by its id, a
+/// pane's manual by the pane's address, or putting the palette down with nothing run.
 inline constexpr const char* kCommandAction = "action";
 inline constexpr const char* kCommandPane = "pane";
+inline constexpr const char* kCommandLayout = "layout";
+inline constexpr const char* kCommandManual = "manual";
 inline constexpr const char* kCommandClose = "close";
 
 /// Palette -> Workshop, under the correlation of the palette's own row Workshop sent it: run the
 /// command. An action names its declarer's office, its pane for a pane's row, and its id; a pane
-/// its office and pane. Answered on the asking delivery.
+/// and a manual name the pane's office and pane; a layout its id, in decimal. Answered on the
+/// asking delivery.
 struct CommandRunRequested {
     std::string kind;
     std::string office;
