@@ -528,6 +528,8 @@ TEST_CASE("a key and a wheel's notch move the Notices pane's rows the same") {
     const std::vector<std::string> back = t.shown();
     CHECK(back.back() == "  ... 2 newer");
     t.unfocus(); // a press of its own, which Workshop answers in words too
+    // Two toggles of the titles, so the room the titles take is the room it was.
+    t.statement();
     t.statement();
     const std::vector<std::string> later = t.shown();
     CHECK(std::vector<std::string>(later.begin(), later.end() - 1) ==

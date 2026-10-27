@@ -64,6 +64,21 @@ MEANS
 
 WHY — `agents/decisions/what-workshop-said-is-kept.md`
 
+## WL-NOTE-06 — Workshop says only what helps the weaver understand what just happened
+
+LAW — A notice says what changed for the weaver, in the weaver's words; a step an owner took for itself, or a motion still under way, is not said, and every refusal and every failure is.
+
+MEANS
+- a setting an office commits for itself is said only when it was not handed or not written; one another office commits for it is said as it landed;
+- a hide says what was hidden and what went with it;
+- a drag says its before and its after alone, its size too when that changed; a drop says what it carried, from where `->` to where, and nothing is said while it moves.
+
+DOES NOT MEAN
+- that a refusal or a failure goes unsaid;
+- that the record or the pane chooses: each owner says less, and what is said is kept.
+
+WHY — `agents/decisions/what-workshop-said-is-kept.md`
+
 ## Proven by
 
 ### WL-NOTE-01
@@ -102,3 +117,19 @@ same" "a notice said while the Notices pane is closed is there when it opens"
 `workshop/guests.cpp` carries_the_desk follows_the_desk
 `tests/test_workshop_guests.cpp` "a guest reads Workshop's notices through its row: with capture,
 and a page of the record it observes"
+
+### WL-NOTE-06
+`workshop/weave_operation.cpp` move_value_drag drop_carry
+`workshop/layouts/store.cpp` commit_office close
+`workshop/layouts/owner.cpp` LayoutsOwner
+`workshop/weave_desktop.cpp` judge_toggle
+`tests/test_workshop_panes_first_run.cpp` "WL-NOTE-06: what the quick setup keeps for itself is kept
+without a notice, and a keep that was not written is said"
+`tests/test_workshop_panes_actions.cpp` "WL-DESK-12: a close is the layouts' owner's: the row leaves
+the live layout whole, its settings and this layout's locks named in the answer and on the band, and
+the presenter takes no close"
+`tests/test_workshop_inventory_info.cpp` "a press on a canvas pane drags a value out as a prose press
+does: the hold ends as lost when the carry begins, the value lands where the hand lets go, and a
+click carries nothing" "while an entry is carried the wheel reaches the pane under the hand, past
+Workshop's area in front, and walks its selection; the carry stands, and is dropped where it is
+released"

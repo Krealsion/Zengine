@@ -439,6 +439,15 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
     CHECK(graph.graph.project.definition.on.front().body.nodes.front().arguments.front().input_name() == "input");
     rig.click("[Run]");
     CHECK(rig.live_value() == 0);
+    // FLOW'S LINE IN THE WEAVER'S WORDS: the host's yes is a word, an edit that shows itself says
+    // nothing, and a file written is named (WL-NOTE-06).
+    CHECK(rig.shows("Running"));
+    rig.edit_ok("state-open");
+    CHECK_FALSE(rig.shows_part(" complete"));
+    CHECK_FALSE(rig.shows("Running"));
+    const std::string exported = files.file() + ".project";
+    rig.edit_ok("export-project", {exported});
+    CHECK(rig.shows_part("Exported "));
     rig.click("[Messages]");
     rig.click("[meter.Set]");
     rig.click("input : Int = ", true);
@@ -465,6 +474,7 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
     CHECK(saved.library.find("seven")->value().get("input")->as_int() == 7);
     CHECK(saved.graph.project.state.get("value")->as_int() == 10);
     rig.edit_ok("stop");
+    CHECK(rig.shows("Stopped"));
     rig.edit_ok("new", {"temporary", "discard"});
     rig.edit_ok("open", {files.file(), "discard"});
     CHECK(rig.workspace().graph.places.front().x == 1300);

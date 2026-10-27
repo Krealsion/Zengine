@@ -902,7 +902,8 @@ OfficeSettingsAnswered LayoutStore::read_office(const std::string& refused,
 
 // WL-SETTING-10 -- agents/workshop/settings.md
 OfficeSettingCommitAnswered LayoutStore::commit_office(const std::string& refused,
-                                            const OfficeSettingCommitRequested& asked) {
+                                            const OfficeSettingCommitRequested& asked,
+                                            bool for_itself) {
     load_prefs();
     const auto refuse = [](std::string why, std::int64_t revision) {
         return OfficeSettingCommitAnswered{false, std::move(why), revision, std::string()};
@@ -985,12 +986,17 @@ OfficeSettingCommitAnswered LayoutStore::commit_office(const std::string& refuse
     const std::string not_written = write_prefs();
     const std::string handed =
         applied + (not_written.empty() ? "; written" : "; not written: " + not_written);
-    say((asked.clear ? "cleared " + asked.key
-                     : "committed " + asked.key + " = " +
-                           setting_value_text(
-                               PaneSetting{asked.key, asked.flag, asked.number, asked.text})) +
-            " of " + asked.office + "; " + handed,
-        !not_written.empty() && !host_->prefs_path.empty());
+    const bool failed = !not_written.empty() && !host_->prefs_path.empty();
+    // AN OFFICE'S OWN SETTING, KEPT AS ASKED, IS ITS BOOKKEEPING: said only when it was not handed
+    // or not written; anyone else's commit is said as it landed (WL-NOTE-06).
+    if (!for_itself || failed || applied.rfind("kept; not handed", 0) == 0) {
+        say((asked.clear ? "cleared " + asked.key
+                         : "committed " + asked.key + " = " +
+                               setting_value_text(
+                                   PaneSetting{asked.key, asked.flag, asked.number, asked.text})) +
+                " of " + asked.office + "; " + handed,
+            failed);
+    }
     return OfficeSettingCommitAnswered{true, std::string(), office_revision(asked.office), handed};
 }
 
@@ -2063,9 +2069,7 @@ PaneCloseAnswered LayoutStore::close(const PaneRef& ref) {
     out.closed = true;
     out.settings = taken.discarded;
     out.locks = taken.unlocked;
-    say("hid " + name + discarded_settings(out.settings) + discarded_locks(out.locks) +
-            " -- its provider and what it holds are untouched; showing it brings it back",
-        false);
+    say("hid " + name + discarded_settings(out.settings) + discarded_locks(out.locks), false);
     return out;
 }
 
