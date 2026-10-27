@@ -197,6 +197,9 @@ void WorkshopWeave::request_app_action(const std::string& id, loom::Mail& mail, 
         asked.office = on->provider;
         asked.pane = on->pane;
     }
+    if (id == kManualAction) {
+        manual_over_ = on != nullptr ? on->kind : kNoPaneKind; // the Manual opens over it
+    }
     (void)mail.as_role(kWorkshopProvider).send_to_role(kDesktopRole, asked, answering);
 }
 
@@ -231,7 +234,8 @@ void WorkshopWeave::on(const DeselectRequested&, loom::Mail& mail) {
 // ---- Launching ----------------------------------------------------------------------------
 
 // WL-DESK-03 -- agents/workshop/desktop.md
-void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail, bool keys) {
+void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail, bool keys,
+                                const std::optional<SetupPane>& window) {
     PaneLaunchAnswered out;
     out.office = ref.provider;
     out.pane = ref.pane;
@@ -312,6 +316,12 @@ void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail&
         answer.focused = true;
     };
     if (session_.panes.has(kind)) {
+        if (window.has_value() && has_pane(session_.setup.active, ref)) {
+            SetupPane row = *window;
+            row.ref = ref;
+            ask_layout({window_edit(row)}, [](const LayoutEditAnswered&, loom::Mail&) {}, mail,
+                       false);
+        }
         focus(out);
         then(out, mail);
         return;
@@ -343,7 +353,7 @@ void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail&
                   focus(out);
                   then(out, m);
               },
-              mail, keys);
+              mail, keys, window);
 }
 
 // WL-DESK-03 -- agents/workshop/desktop.md
@@ -360,6 +370,11 @@ void WorkshopWeave::launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail
         return; // an office, and only an office -- the seam's rule for changing the desk
     }
     auto held = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
+    // THE MANUAL OPENS OVER THE PANE IT DESCRIBES, that pane's edge showing round it.
+    const std::optional<SetupPane> window =
+        office == kDesktopRole && ref.provider == kDesktopRole && ref.pane == kManualPane
+            ? manual_window()
+            : std::nullopt;
     launch_pane(
         ref,
         [this, held, ref](const PaneLaunchAnswered& answer, loom::Mail& m) {
@@ -381,7 +396,24 @@ void WorkshopWeave::launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail
             (void)loom::answer_deferred(*held, m, answer);
             repaint(m);
         },
-        mail, keys);
+        mail, keys, window);
+}
+
+// WL-DESK-20 -- agents/workshop/desktop.md
+std::optional<SetupPane> WorkshopWeave::manual_window() const {
+    const RuntimePane* row = session_.panes.runtime.of_kind(manual_over_);
+    if (row == nullptr || !session_.panes.has(manual_over_)) {
+        return std::nullopt;
+    }
+    const PixelRect under = pane_room_rect(session_.setup.active, PaneRef{row->provider, row->pane});
+    if (under.w <= 2 * kManualMarginPx + kPanePxMin || under.h <= 2 * kManualMarginPx + kPanePxMin) {
+        return std::nullopt;
+    }
+    SetupPane over;
+    over.place = PanePlace{pane_unit::kPixels, under.x + kManualMarginPx, under.y + kManualMarginPx};
+    over.width = PaneSize{pane_unit::kPixels, under.w - 2 * kManualMarginPx};
+    over.height = PaneSize{pane_unit::kPixels, under.h - 2 * kManualMarginPx};
+    return over;
 }
 
 // ---- What a pane is called, and where it stands -------------------------------------------

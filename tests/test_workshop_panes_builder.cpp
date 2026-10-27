@@ -3776,6 +3776,11 @@ TEST_CASE("WL-KEY-16: the band's spelling and the Hotkeys view's are set apart f
         b.r.key(input::scan::kDown);
     }
     CHECK(manual_heading() == "builder.build-realize -- shift+b");
+    // THE MANUAL OPENED OVER THE BUILDER (WL-DESK-20): the Builder put in front of it, so its own
+    // header and body are pressed below, and the Manual keeps its words where it was read.
+    stage_desk(b.r, [](Setup& desk) { (void)send_to_front(desk, builder_ref()); });
+    const_cast<Session&>(b.r.session()).panes.selected = kNoPaneKind;
+    b.r.key(input::scan::kUnknown);
 
     // THE GEAR OPENS THE HOST'S OWN MENU OF SETTINGS, ABOUT THAT PANE, and only them.
     b.focus();

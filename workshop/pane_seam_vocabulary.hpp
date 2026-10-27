@@ -34,6 +34,7 @@ inline constexpr const char* kEditorRole = "zengine.editor";
 /// for the same reason, each checked by a case against the weave that declares it.
 inline constexpr const char* kTerminalRole = "zengine.terminal";
 inline constexpr const char* kHotkeysPane = "hotkeys";
+inline constexpr const char* kManualPane = "manual";
 /// The office that shows who is connected, a literal for the same reason: only the weaver's hand
 /// reads or points there.
 inline constexpr const char* kConnectionsRole = "zengine.connections";
