@@ -151,7 +151,8 @@ void WorkshopWeave::on(const LayoutEditAnswered& answered, loom::Mail& mail) {
     repaint(mail);
 }
 
-void WorkshopWeave::seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail, bool keys) {
+void WorkshopWeave::seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail, bool keys,
+                              const std::optional<SetupPane>& window) {
     if (has_pane(session_.setup.active, ref)) {
         LayoutEditAnswered seated;
         seated.accepted = true;
@@ -177,19 +178,25 @@ void WorkshopWeave::seat_then(const PaneRef& ref, EditThen then, loom::Mail& mai
     seat.height = setup_persist::size_out(PaneSize{});
     std::vector<LayoutEdit> edits{seat};
     const bool palette = ref.provider == kPaletteRole && ref.pane == kPalettePane;
-    if (palette) {
+    if (window.has_value()) {
+        // ...A WINDOW ITS ASKER NAMES, where it was left or not: the Manual over its subject.
+        SetupPane row = *window;
+        row.ref = ref;
+        edits.push_back(window_edit(row));
+    } else if (palette) {
         // ...AND THE PALETTE AT THE CENTRE EVERY TIME, where it was left or not.
         LayoutEdit centred = seat;
         centred.op = layout_op::kWindow;
         centred.place = setup_persist::place_out(PanePlace{ui::kPlaceCenter, 0, 0});
         edits.push_back(std::move(centred));
     }
+    const bool placed = palette || window.has_value();
     ask_layout(std::move(edits),
-               [this, then = std::move(then), ref, keys, palette](const LayoutEditAnswered& seated,
-                                                                  loom::Mail& m) {
+               [this, then = std::move(then), ref, keys, placed](const LayoutEditAnswered& seated,
+                                                                 loom::Mail& m) {
                    then(seated, m);
                    // ...never over an arrangement the weaver has open: that is theirs to end.
-                   if (seated.accepted && keys && !palette && !seated.returned &&
+                   if (seated.accepted && keys && !placed && !seated.returned &&
                        !session_.arrange.open && has_pane(session_.setup.active, ref)) {
                        enter_arrange_pane(ref, true);
                        repaint(m);

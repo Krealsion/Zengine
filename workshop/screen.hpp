@@ -1506,6 +1506,10 @@ void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
 // WL-FOCUS-12 -- agents/workshop/focus.md
 void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc);
 
+/// HOW MUCH OF A PANE SHOWS ROUND THE MANUAL OPENED OVER IT, on every edge.
+// WL-DESK-20 -- agents/workshop/desktop.md
+inline constexpr std::int64_t kManualMarginPx = 12;
+
 /// The words that say arranging is on, over what it arranges.
 // WL-ARR-18 -- agents/workshop/arrangement.md
 inline constexpr const char* kArrangingCaption = "Arranging Mode Active";
