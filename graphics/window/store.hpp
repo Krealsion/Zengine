@@ -194,6 +194,24 @@ inline std::vector<std::int64_t> key_of(const std::map<std::string, const KeptNo
     return key;
 }
 
+/// Whether `path` lies in the subtree of a path `roots` holds: the path itself, or one of its
+/// ancestors, each read up to a '/' of `path`. Bounded by the path's depth, not by `roots`.
+inline bool under_any(const std::string& path, const std::set<std::string, std::less<>>& roots) {
+    if (roots.empty()) {
+        return false;
+    }
+    if (roots.count(path) != 0) {
+        return true;
+    }
+    const std::string_view p(path);
+    for (std::size_t at = p.find('/'); at != std::string_view::npos; at = p.find('/', at + 1)) {
+        if (roots.count(p.substr(0, at)) != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /// Every bound and rule, judged before anything changes: "" when admitted, else why not. A record
 /// said again at its path counts as itself, so an area at its bound still takes a change.
 inline std::string judge(const WinArea& a, const Drawer& who, const Drawn& d) {
@@ -207,9 +225,11 @@ inline std::string judge(const WinArea& a, const Drawer& who, const Drawn& d) {
         if (!mine(a, who, r)) {
             return "'" + r + "' is not the sender's to remove";
         }
-        for (auto it = present.begin(); it != present.end();) {
-            it = under(*it, r) ? present.erase(it) : std::next(it);
-        }
+    }
+    // EACH PATH THE AREA WOULD HOLD ASKS ONCE whether it or one of its ancestors was removed.
+    if (!d.removed.empty()) {
+        const std::set<std::string, std::less<>> removed(d.removed.begin(), d.removed.end());
+        std::erase_if(present, [&](const std::string& p) { return under_any(p, removed); });
     }
     for (const Node& n : d.put) {
         if (n.path.empty() || n.path.size() > kMaxPathBytes ||
@@ -266,24 +286,6 @@ struct Applied {
     std::set<std::string> changed;
     std::vector<std::string> gone;
 };
-
-/// Whether `path` lies in the subtree of a path `roots` holds: the path itself, or one of its
-/// ancestors, each read up to a '/' of `path`. Bounded by the path's depth, not by `roots`.
-inline bool under_any(const std::string& path, const std::set<std::string, std::less<>>& roots) {
-    if (roots.empty()) {
-        return false;
-    }
-    if (roots.count(path) != 0) {
-        return true;
-    }
-    const std::string_view p(path);
-    for (std::size_t at = p.find('/'); at != std::string_view::npos; at = p.find('/', at + 1)) {
-        if (roots.count(p.substr(0, at)) != 0) {
-            return true;
-        }
-    }
-    return false;
-}
 
 inline Applied apply(WinArea& a, const Drawer& who, const Drawn& d) {
     Applied out;

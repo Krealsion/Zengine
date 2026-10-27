@@ -344,6 +344,137 @@ TEST_CASE("a change to every one of an area's most nodes, flat siblings, changes
     CHECK(gfx::window::apply(a, {}, sparse).changed == std::set<std::string>{"node7"});
 }
 
+TEST_CASE("the judge takes a removed path's whole subtree out of what the area would hold, and keeps a "
+          "sibling whose path merely begins with it") {
+    gfx::Sketch s;
+    s.group("g", 0, 0, 10, 10);
+    s.text("g/x", 0, 0, "x", gfx::Paint{});
+    s.group("g/x/deep", 0, 0, 5, 5);
+    s.group("gx", 0, 0, 5, 5); // a sibling whose path begins with the group's
+    s.text("h", 0, 1, "h", gfx::Paint{});
+    const gfx::window::WinArea a = store_holding(s);
+    const auto judged = [&](std::vector<std::string> removed, std::vector<std::string> put) {
+        gfx::Drawn d;
+        d.removed = std::move(removed);
+        for (const std::string& p : put) {
+            d.put.push_back(gfx::Node{p, "text", {}});
+        }
+        return gfx::window::judge(a, {}, d);
+    };
+    // A NODE BENEATH A REMOVED PATH IS NOT HELD, at any depth.
+    CHECK(judged({"g"}, {"g/x/deep/new"}) == "'g/x/deep/new' is drawn in 'g/x/deep', which is not drawn");
+    CHECK(judged({"g"}, {"g/new"}) == "'g/new' is drawn in 'g', which is not drawn");
+    CHECK(judged({"h", "g/x"}, {"g/x/new"}) == "'g/x/new' is drawn in 'g/x', which is not drawn");
+    // ...ITS SIBLING AND ITS PARENT ARE.
+    CHECK(judged({"g"}, {"gx/new"}).empty());
+    CHECK(judged({"g/x"}, {"g/new"}).empty());
+    CHECK(judged({"g/x/deep"}, {"g/x/new"}).empty());
+    // A PATH REMOVED AND PUT AGAIN IN ONE DRAWING IS HELD, and so is what is put beneath it after.
+    CHECK(judged({"g"}, {"g", "g/new"}).empty());
+    // A PATH THE AREA DOES NOT HOLD REMOVES NOTHING.
+    CHECK(judged({"zz", "g/zz"}, {"g/x/deep/new"}).empty());
+    // A RECORD SAID AT A REMOVED PATH HAS NO NODE THERE.
+    gfx::Drawn record;
+    record.removed = {"g"};
+    record.said = {gfx::ElementRecord{"g/x", "test.Face", {}, "pick"}};
+    CHECK(gfx::window::judge(a, {}, record) == "record 'g/x' has no node at its path");
+    record.removed = {"gx"};
+    CHECK(gfx::window::judge(a, {}, record).empty());
+}
+
+TEST_CASE("an area at its most nodes takes a removal and as many new nodes as it freed, and refuses "
+          "one more") {
+    const std::string bound = "area 'test.store' would hold more than " +
+                              std::to_string(gfx::kMaxNodesPerArea) + " nodes";
+    // FLAT SIBLINGS, EVERY OTHER ONE REMOVED: half the area freed.
+    gfx::Sketch flat;
+    for (std::size_t i = 0; i < gfx::kMaxNodesPerArea; ++i) {
+        flat.text("node" + std::to_string(i), static_cast<std::int64_t>(i % 80),
+                  static_cast<std::int64_t>(i / 80), "initial", gfx::Paint{});
+    }
+    const gfx::window::WinArea a = store_holding(flat);
+    gfx::Drawn half;
+    for (std::size_t i = 0; i < gfx::kMaxNodesPerArea; i += 2) {
+        half.removed.push_back("node" + std::to_string(i));
+    }
+    for (std::size_t i = 0; i < gfx::kMaxNodesPerArea / 2; ++i) {
+        half.put.push_back(gfx::Node{"new" + std::to_string(i), "text", {}});
+    }
+    CHECK(gfx::window::judge(a, {}, half).empty());
+    half.put.push_back(gfx::Node{"one-more", "text", {}});
+    CHECK(gfx::window::judge(a, {}, half) == bound);
+    // ONE GROUP HOLDING THE REST, REMOVED: the whole area freed by one path.
+    gfx::Sketch grouped;
+    grouped.group("g", 0, 0, 80, 60);
+    for (std::size_t i = 1; i < gfx::kMaxNodesPerArea; ++i) {
+        grouped.text("g/node" + std::to_string(i), static_cast<std::int64_t>(i % 80),
+                     static_cast<std::int64_t>(i / 80), "initial", gfx::Paint{});
+    }
+    const gfx::window::WinArea b = store_holding(grouped);
+    gfx::Drawn all;
+    all.removed = {"g"};
+    for (std::size_t i = 0; i < gfx::kMaxNodesPerArea; ++i) {
+        all.put.push_back(gfx::Node{"new" + std::to_string(i), "text", {}});
+    }
+    CHECK(gfx::window::judge(b, {}, all).empty());
+    all.put.push_back(gfx::Node{"one-more", "text", {}});
+    CHECK(gfx::window::judge(b, {}, all) == bound);
+}
+
+TEST_CASE("a removal outside the sender's own is refused, naming the first such path in the "
+          "drawing's order") {
+    gfx::Sketch s;
+    s.text("label", 0, 0, "label", gfx::Paint{});
+    s.group("field", 0, 1, 10, 1);
+    s.text("field/text", 0, 0, "text", gfx::Paint{});
+    gfx::window::WinArea a = store_holding(s);
+    a.presented.push_back(gfx::window::Presented{"field", "test.Field", 1, 1, {}});
+    gfx::window::Drawer element;
+    element.element = true;
+    element.scope = "field";
+    // THE OWNER REACHES NOTHING THE ELEMENT PRESENTS; THE ELEMENT NOTHING OUTSIDE ITS SUBTREE.
+    gfx::Drawn owner;
+    owner.removed = {"label", "field/text", "field"};
+    CHECK(gfx::window::judge(a, {}, owner) == "'field/text' is not the sender's to remove");
+    gfx::Drawn inside;
+    inside.removed = {"field/text", "label", "elsewhere"};
+    CHECK(gfx::window::judge(a, element, inside) == "'label' is not the sender's to remove");
+    // ...AND A REFUSED REMOVAL IS REFUSED BEFORE ANY PUT IS JUDGED.
+    owner.removed = {"field"};
+    owner.put = {gfx::Node{"", "text", {}}};
+    CHECK(gfx::window::judge(a, {}, owner) == "'field' is not the sender's to remove");
+    // EACH ITS OWN: admitted, the element's subtree held for a node the element puts in it.
+    owner.removed = {"label"};
+    owner.put = {gfx::Node{"title", "text", {}}};
+    CHECK(gfx::window::judge(a, {}, owner).empty());
+    inside.removed = {"field/text"};
+    inside.put = {gfx::Node{"field/other", "text", {}}};
+    CHECK(gfx::window::judge(a, element, inside).empty());
+    inside.put = {gfx::Node{"field/text/under", "text", {}}};
+    CHECK(gfx::window::judge(a, element, inside) ==
+          "'field/text/under' is drawn in 'field/text', which is not drawn");
+}
+
+TEST_CASE("a whole drawing that also removes judges its puts against what the drawing keeps") {
+    gfx::Sketch s;
+    s.group("label", 0, 0, 10, 1);
+    s.group("field", 0, 1, 10, 1);
+    gfx::window::WinArea a = store_holding(s);
+    a.presented.push_back(gfx::window::Presented{"field", "test.Field", 1, 1, {}});
+    gfx::Drawn whole;
+    whole.whole = true;
+    whole.removed = {"label"};
+    whole.put = {gfx::Node{"label/x", "text", {}}};
+    CHECK(gfx::window::judge(a, {}, whole) == "'label/x' is drawn in 'label', which is not drawn");
+    whole.put = {gfx::Node{"label", "group", {}}, gfx::Node{"label/x", "text", {}},
+                 gfx::Node{"field/x", "text", {}}};
+    CHECK(gfx::window::judge(a, {}, whole) == "'field/x' is not the sender's to draw");
+    whole.put.pop_back();
+    CHECK(gfx::window::judge(a, {}, whole).empty());
+    whole.removed = {"field"};
+    CHECK(gfx::window::judge(a, {}, whole) == "'field' is not the sender's to remove");
+}
+
 TEST_CASE("the terminal painter draws all seven operators, each by its fallback") {
     gfx::Sketch s;
     s.group("g", 12, 0);
