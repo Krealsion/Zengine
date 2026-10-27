@@ -38,10 +38,11 @@ answer is refused.
 
 ## Use
 
-The View Builder's **Run app** and Files' **start** ask it, each after Workshop has allowed the
-hand that pressed, as a Save and a Build are judged: classes `build` and `write`, so on a weaver's
-host a guest starts nothing. It takes a start only from those two offices and from the palette
-(`zengine.palette`) and the quick setup (`zengine.first-run`), admitted to ask it the same way.
+The View Builder's **Run app**, Files' **start**, the palette's setups and apps
+([`zengine.palette`](../../workshop/docs/zengine.palette.md)) and the quick setup's **Start**
+([`zengine.first-run`](../../workshop/docs/zengine.first-run.md)) ask it, each after Workshop has
+allowed the hand that pressed, as a Save and a Build are judged: classes `build` and `write`, so on
+a weaver's host a guest starts nothing. It takes a start only from those four offices.
 Any office may ask what it can start.
 
 ## Commands

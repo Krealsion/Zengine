@@ -35,8 +35,10 @@ Attention pane keeps it standing, with the line that cancels it. When a switch w
 something, the notice gives the exact line that confirms it, `op` and `consent` filled in; type it,
 or cancel. [`EditorSwitchStatusRequested`](#editorswitchstatusrequested) says where you are.
 
-Who may send: Workshop's Terminal is granted the four commands to this office and the answer, and
-nothing else of it. Every command is an ask, answered with `EditorSwitchAnswered` v1 to the asker.
+Who may send: Workshop's Terminal is granted the first four commands to this office and the
+answer, and nothing else of it; the quick setup is granted the same with
+[`EditorSwitchQuietStatusRequested`](#editorswitchquietstatusrequested) in place of the status.
+Every command is an ask, answered with `EditorSwitchAnswered` v1 to the asker.
 
 ## Commands
 
@@ -101,6 +103,19 @@ is under way.
   retired <stem> is kept after a failure`. It ends nothing.
 - **Refuses:** nothing.
 - **Example:** `ask @zengine.editor-switch EditorSwitchStatusRequested 1`.
+
+### `EditorSwitchQuietStatusRequested`
+
+`EditorSwitchQuietStatusRequested` v1 asks what
+[`EditorSwitchStatusRequested`](#editorswitchstatusrequested) asks, for a pane that shows the
+answer itself: it is answered to the asker alone, and nothing of it is said in Notices.
+
+- **Takes:** nothing.
+- **Answers:** `EditorSwitchAnswered` with `outcome` `status`, in the words
+  `EditorSwitchStatusRequested` answers with. It ends nothing.
+- **Refuses:** nothing.
+- **Example:** the quick setup's `Edit text with Neovim` box asks it at each activation and when
+  its pane opens, and shows which choice holds the office. The Terminal is not granted it.
 
 ## Hears
 
