@@ -9,6 +9,12 @@ is and the program that runs it). Public contract: [the manual](../launcher/docs
   running program on that folder; or a demo, a setup the demo service lists, started by the
   configured interpreter running the configured `demo.py` on `<project>/demo-runs/<name>`. No
   message names a program, a path or an argument, and nothing a message says widens the catalog.
+- In the package a stranger downloads (`ZENGINE_PACKAGE`) the catalog's paths are the package's
+  own, relative to it and found above the running program (`configured::package_root`): its
+  `demo.py` beside the tool packages and the setups there that build nothing against a development
+  runtime. The interpreter is the one place not fixed at configure: a Python found on the PATH at
+  each listing and start (`find_python`), never one a message names; with none, the setups are
+  listed, the listing's note and a start's refusal say `kPythonNeeded`, and an app still starts.
 - A start is detached and kept by nobody (`launcher/start.hpp`): on Windows a console and a process
   group of its own, no inherited handle, out of the job where the job allows; on POSIX a session of
   its own, its input empty, its output appended to a log, every other descriptor closed. The

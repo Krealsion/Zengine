@@ -13,7 +13,8 @@ target_link_libraries(zengine-launcher-vocabulary INTERFACE loom::core)
 # the Loom this tree builds against, where that Loom carries its session tools; otherwise there is
 # none, and the launcher starts no demo. Its setups are found as `demo.py list` finds them: each
 # folder holding a `setup.json` in the tool package's collection, then in `examples/`, then in each
-# feature's `docs/tutorials/`, the first of a name winning. The package (ZENGINE_PACKAGE) has none.
+# feature's `docs/tutorials/`, the first of a name winning. A package carries its own (below).
+set(zengine_launcher_in_package false)
 set(zengine_launcher_python "")
 set(zengine_launcher_demo_script "")
 set(zengine_launcher_build "")
@@ -73,6 +74,59 @@ if(LOOM_SESSION_TOOLS AND LOOM_HOST_PROGRAM AND NOT ZENGINE_PACKAGE)
             endforeach()
         endforeach()
     endif()
+endif()
+
+# ---- the package's own demo service ----------------------------------------------------------
+# `demo.py` beside the tool packages (cmake/ZengineInstall.cmake) and the setups there a package
+# starts: the tool package's own and the tutorials an install exports, none built against a
+# development runtime. Each is named relative to the package, found above the running program; the
+# interpreter is found on the PATH at each listing and start (launcher/catalog.hpp, `find_python`).
+if(ZENGINE_PACKAGE AND LOOM_SESSION_TOOLS AND TARGET zengine-guest-vocabulary)
+    set(zengine_launcher_in_package true)
+    set(zengine_launcher_tools "${CMAKE_INSTALL_DATADIR}/zengine/loom-tools")
+    set(zengine_launcher_demo_script "${zengine_launcher_tools}/demo.py")
+    set(zengine_launcher_demos_folder "${zengine_launcher_tools}/workshop/setups")
+    file(GLOB zengine_launcher_children LIST_DIRECTORIES true
+         "${CMAKE_SOURCE_DIR}/external-host/tools/workshop/setups/*")
+    find_package(Python3 3.8 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        file(GLOB zengine_launcher_tutorials LIST_DIRECTORIES true
+             "${CMAKE_SOURCE_DIR}/*/docs/tutorials/*")
+        list(APPEND zengine_launcher_children ${zengine_launcher_tutorials})
+    endif()
+    list(SORT zengine_launcher_children)
+    set(zengine_launcher_named "")
+    foreach(child IN LISTS zengine_launcher_children)
+        get_filename_component(name "${child}" NAME)
+        if(NOT EXISTS "${child}/setup.json" OR name IN_LIST zengine_launcher_named)
+            continue()
+        endif()
+        file(READ "${child}/setup.json" setup_json)
+        if(setup_json MATCHES "\"runtime\"[ \t\r\n]*:[ \t\r\n]*\"development\"")
+            continue()
+        endif()
+        list(APPEND zengine_launcher_named "${name}")
+        string(APPEND zengine_launcher_setups
+               "{\"${name}\", \"${zengine_launcher_demos_folder}/${name}\"}, ")
+        set(title "")
+        set(summary "")
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.19)
+            string(JSON title ERROR_VARIABLE no_title GET "${setup_json}" title)
+            string(JSON summary ERROR_VARIABLE no_summary GET "${setup_json}" summary)
+            if(no_title)
+                set(title "")
+            endif()
+            if(no_summary)
+                set(summary "")
+            endif()
+        endif()
+        foreach(said IN ITEMS title summary)
+            string(REPLACE "\\" "\\\\" ${said} "${${said}}")
+            string(REPLACE "\"" "\\\"" ${said} "${${said}}")
+            string(REGEX REPLACE "[\r\n\t]" " " ${said} "${${said}}")
+        endforeach()
+        string(APPEND zengine_launcher_setup_lines "{\"${name}\", \"${title}\", \"${summary}\"}, ")
+    endforeach()
 endif()
 configure_file(configured.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/generated/launcher/configured.hpp
                @ONLY)

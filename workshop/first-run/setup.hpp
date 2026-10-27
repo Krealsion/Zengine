@@ -74,8 +74,8 @@ struct SetupRow {
 };
 
 /// THE MOMENT THE PANE SHOWS: the box as the switch last said it, a switch in flight, the switch's
-/// last word or the consent it asks, the setups the launcher listed (or why none are), the pane's
-/// own notice, and the cursor.
+/// last word or the consent it asks, the setups the launcher listed and what it says of them (or
+/// why none are), the pane's own notice, and the cursor.
 struct Moment {
     bool neovim = false;
     bool switching = false;
@@ -139,8 +139,8 @@ inline std::vector<Item> items_of(const Moment& m) {
 }
 
 /// THE LINES OF THE QUICK SETUP, top to bottom: the editor block, the setups the launcher lists
-/// with Start on each and The story beside them, then Done and Skip; the notice last, when there
-/// is one. Each is read whole in `columns` (`wrapped`).
+/// with Start on each, what the launcher says of them, and The story beside them, then Done and
+/// Skip; the notice last, when there is one. Each is read whole in `columns` (`wrapped`).
 // WL-FIRST-02 -- agents/workshop/first-run.md
 inline std::vector<Line> lines_of(const Moment& m, std::int64_t columns = 0) {
     const auto mark = [&](Item i) { return std::string(m.cursor == i ? "> " : "  "); };
@@ -169,7 +169,7 @@ inline std::vector<Line> lines_of(const Moment& m, std::int64_t columns = 0) {
                            (s.line.empty() ? std::string() : " -- " + s.line),
                        ink(item), item});
     }
-    if (m.setups.empty()) {
+    if (!m.setups_note.empty()) {
         out.push_back({"  " + m.setups_note, Line::Ink::kMuted});
     }
     out.push_back({"  Each one is told in " + std::string(kSetupsPage), Line::Ink::kMuted});

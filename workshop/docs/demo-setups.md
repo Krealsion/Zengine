@@ -58,7 +58,10 @@ Substitute your build tree and installed prefix. A missing prerequisite is named
 build step that supplies it, before anything starts. An extracted package a stranger downloads
 holds both: `--package <its folder>` takes the place of `--build` and `--loom-prefix`, reading
 Workshop from its `bin/` and the guest vocabulary from its `lib/zengine/`, for any setup that builds
-nothing against a development runtime (`tally-app` is walked so, below). `start` makes a **new** root: Workshop, its
+nothing against a development runtime (`tally-app` is walked so, below). The package carries this
+script beside the tool packages, `share/zengine/loom-tools/demo.py`, and its Workshop's quick setup
+and palette start its own setups with it, by a Python 3.8 or newer found on the PATH, which the
+package does not carry. `start` makes a **new** root: Workshop, its
 guest file, a Loom session and the setup's preparation service. It returns once the service says
 the setup is ready -- every declared entry present, every declared hotkey read back ON, and each
 desk pane showing its text rows or the picture it draws; a pane that has not shown within a few
