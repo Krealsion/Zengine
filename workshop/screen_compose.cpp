@@ -225,7 +225,10 @@ std::string pane_window_area(const Panes&, const RuntimePane& row) {
 }
 
 bool desk_in_front(const Session& s) noexcept {
-    return (s.arrange.open && !s.arrange.opened) || s.context.open || s.presented.open;
+    // ...and a pane being placed as it opened stands Workshop's area in front only while the hand
+    // holds it, so the window keeps that drag where the pane's own area moves under the hand.
+    return (s.arrange.open && (!s.arrange.opened || s.pane_drag.active)) || s.context.open ||
+           s.presented.open;
 }
 
 namespace {

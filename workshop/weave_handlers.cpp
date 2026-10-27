@@ -491,8 +491,11 @@ void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
     const auto slot = static_cast<std::size_t>(e.button - 1);
     if (own_pointer_area(e.area, mail)) {
         // ITS RELEASE GOES WHERE IT LANDS, so whatever the button holds in Workshop's own area
-        // ends here.
-        if (slot == 0) {
+        // ends here -- but a pane being placed by its frame, whose hold the window ended as
+        // Workshop's area came in front for the drag: that area carries it to its release.
+        const bool carried = session_.arrange.open && session_.arrange.opened &&
+                             session_.pane_drag.active && !window_.from_window(e.area, mail);
+        if (slot == 0 && !carried) {
             (void)end_held_gestures(mail);
         }
         repaint(mail);
