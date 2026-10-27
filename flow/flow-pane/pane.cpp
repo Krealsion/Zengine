@@ -41,6 +41,17 @@ namespace input = zengine::input;
 namespace gfx = zengine::graphics;
 constexpr const char *workshop_role = "zengine.workshop";
 
+/// WHAT THE FLOW HOST'S YES SAYS IN THE PANE'S LINE, in the weaver's words; an inspection says
+/// nothing of itself, its events and state being the pane's to show.
+std::string done(const fh::FlowAnswer &answer, const std::string &said) {
+  if (answer.action == "run") return "Running";
+  if (answer.action == "apply") return "Applied to the running flow";
+  if (answer.action == "stop") return "Stopped";
+  if (answer.action == "send") return "Sent; Events shows what it did";
+  if (answer.action == "inspect") return said;
+  return answer.action + ": " + (answer.reason.empty() ? "observed" : answer.reason);
+}
+
 /// ONE THING FLOW ASKED AND STILL WAITS ON (`AskFacet`): a request of the Flow host, by its action;
 /// the question to the discovery door; a file write a dialog confirmed, waiting on Workshop's word
 /// for the confirming actor, with the verb and values as confirmed; or a declared message's shape
@@ -743,8 +754,7 @@ public:
         // gate closed through the later inspection that has retained fresh
         // state. Saving the old snapshot cannot erase this outstanding work.
         observed_pending_ = answer.pending;
-        model_.notice = answer.action + ": " +
-                        (answer.reason.empty() ? "observed" : answer.reason);
+        model_.notice = done(answer, model_.notice);
         // Running, applying or stopping a definition mounts or unmounts its contributions, so
         // what the door would say may have moved: it is asked again rather than told.
         if (answer.action == "run" || answer.action == "apply" || answer.action == "stop")

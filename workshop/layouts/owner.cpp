@@ -377,7 +377,8 @@ void LayoutsOwner::on(const OfficeSettingCommitRequested& asked, loom::Mail& mai
     read_host();
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
-    OfficeSettingCommitAnswered acted = store_.commit_office(refused, asked);
+    OfficeSettingCommitAnswered acted =
+        store_.commit_office(refused, asked, mail.authored_from_role(asked.office));
     settle(mail);
     (void)mail.answer(std::move(acted));
 }

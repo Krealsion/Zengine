@@ -23,9 +23,11 @@ action. The band is the legend alone, and the room takes the row.
   a page asked by the reader is bounded by its room.
 - *A notification: a toast, an unread count, an expiry* — refused: a notice is a moment that passed.
 
-**Consequences.** The reserved chrome is five rows. A notice is no longer the desk's words, so
+**Consequences.** What is kept is history a weaver reads, so each owner says only what helps them
+understand what just happened: an office's own bookkeeping and a motion under way go unsaid, and
+every refusal and failure is said. The reserved chrome is five rows. A notice is no longer the desk's words, so
 saying one moves no desk stamp; the pane's rows are. A guest reads notices with `capture`.
 
 **Laws supported.** [WL-NOTE-01](../workshop/notices.md), [WL-NOTE-02](../workshop/notices.md),
 [WL-NOTE-03](../workshop/notices.md), [WL-NOTE-04](../workshop/notices.md),
-[WL-NOTE-05](../workshop/notices.md).
+[WL-NOTE-05](../workshop/notices.md), [WL-NOTE-06](../workshop/notices.md).

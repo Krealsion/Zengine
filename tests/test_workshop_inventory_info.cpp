@@ -893,7 +893,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
                                     bool& removed) {
         return s.r.bus.add_observer([&s, said, role, &removed](const loom::BusEvent& e) {
             if (!removed && e.kind == loom::EventKind::Delivered && e.target == s.r.workshop_id &&
-                s.r.last_notice().rfind(said, 0) == 0)
+                s.r.last_notice().find(said) != std::string::npos)
                 removed = s.r.kernel.unload_role(role);
         });
     };
@@ -908,7 +908,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
         REQUIRE_MESSAGE(field >= 0, s.shown(compose_kind));
         s.acquire();
         bool removed = false;
-        RemoveObserver watch{s.r.bus, leave_once_sent(s, "Reference sent to", kComposerOffice, removed)};
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, " -> Compose", kComposerOffice, removed)};
         s.click(compose_kind, field);
         REQUIRE(removed);
         CHECK_MESSAGE(s.r.last_notice().find(std::string("Reference not delivered to ") +
@@ -920,7 +920,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
         s.append(1, "A");
         REQUIRE(s.flow != 0);
         bool removed = false;
-        RemoveObserver watch{s.r.bus, leave_once_sent(s, "Value sent to", "zengine.flow", removed)};
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, " -> Flow", "zengine.flow", removed)};
         auto press = s.button_at(s.source, 2, true);
         auto release = s.button_at(s.flow, 8, false);
         release.x += 40; // over the graph, right of Flow's rail
@@ -952,7 +952,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
         const std::int64_t at = row_saying(s, kind, "zen.Ack");
         REQUIRE_MESSAGE(at >= 0, s.shown(kind));
         bool removed = false;
-        RemoveObserver watch{s.r.bus, leave_once_sent(s, "Value sent to", slots::kRole, removed)};
+        RemoveObserver watch{s.r.bus, leave_once_sent(s, " -> ", slots::kRole, removed)};
         auto press = s.button_at(kind, at, true), release = s.button_at(s.source, 0, false);
         auto move = release;
         move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
@@ -1002,7 +1002,9 @@ TEST_CASE("a live reference carried from Inventory lands in the Compose field it
     s.acquire();
     s.click(compose_kind, field);
     INFO(s.shown(compose_kind));
-    CHECK(r.last_notice().find("Reference sent to Compose") != std::string::npos);
+    // WHAT WAS CARRIED, FROM WHERE AND TO WHERE (WL-NOTE-06).
+    CHECK_MESSAGE(r.last_notice().find(": Inventory -> Compose") != std::string::npos,
+                  r.last_notice());
     CHECK(s.shown(compose_kind).find("Copied data into form") != std::string::npos);
     const auto rows = pane_rows(r, compose_kind);
     REQUIRE(static_cast<std::size_t>(field) < rows.size());
@@ -1110,16 +1112,18 @@ TEST_CASE("while an entry is carried the wheel reaches the pane under the hand, 
     move.kind = "PointerMoved";
     move.dx = move.x - press.x;
     move.dy = move.y - press.y;
+    const std::string said_before = s.r.last_notice();
     s.event(press);
     s.event(move);
-    REQUIRE_MESSAGE(s.r.last_notice().find("Dragging Alpha") != std::string::npos, s.r.last_notice());
+    // A DRAG UNDER WAY SAYS NOTHING (WL-NOTE-06).
+    CHECK_MESSAGE(s.r.last_notice() == said_before, s.r.last_notice());
     const std::int64_t before = marked_row(s, s.source);
     REQUIRE(before >= 0);
     input::InjectedEvent wheel = move;
     wheel.kind = "PointerWheel";
     wheel.wheel_dy = -1; // toward the weaver: the next entry
     s.event(wheel);
-    CHECK_MESSAGE(s.r.last_notice().find("Dragging Alpha") != std::string::npos, s.r.last_notice());
+    CHECK_MESSAGE(s.r.last_notice() == said_before, s.r.last_notice());
     // The hand carries on over Info, so the carried value is drawn there and Inventory's rows read
     // as it draws them: its marker walked a row.
     input::InjectedEvent release = s.button_at(s.info, 0, false);
@@ -1714,9 +1718,11 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     from.pressed = true; s.event(from);
     auto move = to; move.kind = "PointerMoved"; move.dx = to.x - from.x; move.dy = to.y - from.y;
     s.event(move);
-    CHECK(s.r.last_notice().find("Dragging tally.Total") == 0);
+    CHECK(s.r.last_notice().find("Dragging") == std::string::npos);
     to.pressed = false; s.event(to);
     INFO(s.r.last_notice());
+    // ITS BEFORE AND ITS AFTER ALONE, the arrow one the face draws (WL-NOTE-06).
+    CHECK(s.r.last_notice() == "tally.Total: Flow -> View Builder");
     REQUIRE(told_flow.size() == 2);
     CHECK(told_flow[1] == canvas_pointer::kLost);
     REQUIRE(drops.size() == 1);
