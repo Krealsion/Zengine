@@ -55,7 +55,7 @@ LAW — A step is ticked only when its owner says it happened -- the inventory, 
 MEANS
 - a view's wiring counts only from an office the inventory says runs a view;
 - the owner's fact turns a hand's tick into the owner's, and a press undoes only a hand's tick;
-- Show me launches the step's pane and says its next move.
+- Show me launches the step's pane and says its next move; an owner's fact asks for "Start here" in front, without the keys, while it is open.
 
 DOES NOT MEAN
 - that Workshop knows the story: its steps and their facts are this weave's;

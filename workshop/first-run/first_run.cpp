@@ -167,9 +167,11 @@ public:
         }
         std::set<std::string> views;
         std::vector<std::pair<std::string, std::string>> open;
+        story_open_ = false;
         for (const ws::InventoryPane& p : inventory.panes) {
             if (p.open) {
                 open.emplace_back(p.office, p.pane);
+                story_open_ = story_open_ || (p.office == kOffice && p.pane == kStory);
             }
             if (p.pane == view::kPane && p.available) {
                 views.insert(p.office);
@@ -592,6 +594,10 @@ private:
         ticks_[step] = fr::Tick::kFact;
         flush(mail);
         show_story(mail);
+        // ...AND "START HERE" IN FRONT, where it is open, so the tick is seen; the keys stay.
+        if (story_open_) {
+            launch_story(mail, /*keys=*/false);
+        }
     }
 
     /// THE TICKS WRITTEN when they differ from what the file keeps: one write at a time, the next
@@ -832,6 +838,7 @@ private:
     fr::Moment moment_;
     fr::StoryMoment story_;
     fr::Ticks ticks_{};
+    bool story_open_ = false; ///< "Start here" on the desk, as the inventory last said
     std::string kept_;    ///< the ticks as the settings file last kept them
     std::string writing_; ///< the ticks the write in flight carries
     bool read_ = false;  ///< the settings were read this activation

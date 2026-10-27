@@ -37,10 +37,10 @@ WHY — `agents/decisions/two-bands.md`
 
 ## WL-FRONT-04 — `Panes::selected` is a press's memory
 
-LAW — The selection is a press's memory: session-only, never persisted, none at start, resolved to a pane by one reader; it has four writers and no other.
+LAW — The selection is a press's memory: session-only, never persisted, none at start, resolved to a pane by one reader; it has five writers and no other.
 
 MEANS
-- the press line (in a graphics window also `on(AreaPressed)`), `enter_arrange_pane` after admission, a pane's reveal, Escape's fallthrough;
+- the press line (in a window also `on(AreaPressed)`), `enter_arrange_pane` once admitted, a pane's reveal, Escape's fallthrough, a launch without the keys letting another's lift go;
 - a refused Arrange leaves the selection exactly where it was.
 
 WHY — `agents/decisions/the-selection-lift.md`
@@ -101,6 +101,7 @@ begins"
 
 ### WL-FRONT-04
 `workshop/panes.hpp` Panes::selected selected_pane kNoPaneKind
+`workshop/weave_desktop.cpp` launch_pane
 `workshop/weave_arrange.cpp` enter_arrange_pane
 `workshop/weave_external.cpp` unselect_pane
 `workshop/weave_seam.cpp` on(PaneRevealRequested) revealed

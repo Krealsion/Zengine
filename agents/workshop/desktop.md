@@ -42,7 +42,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 LAW — A launch names a pane by its durable keys; the host resolves it in `inventory_rows`, refuses one nobody holds now, seats a closed one in front, focuses it unless asked for no keys, and answers.
 
 MEANS
-- a pane already on the desk is selected and given the keys, and nothing is closed; asked for no keys (v2), both stay;
+- a pane already on the desk is selected and given the keys, and nothing is closed; asked for no keys (v2), both stay and it is put in front;
 - an unknown name, an unoffered pane and a departed provider are three refusals; room is none;
 - a provider the run is still loading is refused as not here yet, never as something to build.
 
