@@ -150,6 +150,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::EditorSwitchCancelled>(), // EditorSwitchCancelled v1
         shape<::zengine::workshop::EditorSwitchConfirmed>(), // EditorSwitchConfirmed v1
         shape<::zengine::workshop::EditorSwitchProgress>(), // EditorSwitchProgress v1
+        shape<::zengine::workshop::EditorSwitchQuietStatusRequested>(), // EditorSwitchQuietStatusRequested v1
         shape<::zengine::workshop::EditorSwitchRequested>(), // EditorSwitchRequested v1
         shape<::zengine::workshop::EditorSwitchStatusRequested>(), // EditorSwitchStatusRequested v1
         shape<::zengine::workshop::GuestDoorState>(), // GuestDoorState v1

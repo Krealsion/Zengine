@@ -34,19 +34,22 @@ namespace {
 namespace fr = zengine::first_run;
 
 /// A STAND-IN FOR THE EDITOR SWITCH, in its office: it records each ask and answers it as a case
-/// says -- the status with the choice it holds, a switch with what `on_switch` returns.
+/// says -- the status, asked quietly, with the choice it holds, a switch with what `on_switch`
+/// returns.
 class SwitchStandIn
     : public loom::WeaveBase<SwitchStandIn, SeatState,
                              loom::Accept<EditorSwitchRequested, EditorSwitchConfirmed,
-                                          EditorSwitchStatusRequested>,
+                                          EditorSwitchQuietStatusRequested>,
                              loom::Emit<EditorSwitchAnswered>> {
 public:
     std::string active = fr::kStandardChoice;
     std::vector<std::string> asked; ///< `request <destination>` or `confirm <op> <consent>`
     std::function<EditorSwitchAnswered(const EditorSwitchRequested&)> on_switch;
     bool hold = false; ///< a switch asked is answered never: it stays under way
+    int quiet = 0;     ///< the quiet status asks heard
 
-    void on(const EditorSwitchStatusRequested&, loom::Mail& mail) {
+    void on(const EditorSwitchQuietStatusRequested&, loom::Mail& mail) {
+        ++quiet;
         EditorSwitchAnswered a;
         a.outcome = switch_outcome::kStatus;
         a.active = active;
@@ -263,6 +266,9 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
         a.losses = {"unsaved changes in notes.txt"};
         return a;
     };
+    // THE BOX WAS READ FROM THE SWITCH'S STATUS, ASKED QUIETLY: the box shows it, so nothing of it
+    // is said in Notices.
+    CHECK(sw->quiet > 0);
     act(r, fr::kActionChoose);
     CHECK(sw->asked == std::vector<std::string>{"request neovim"});
     // ...CHOSEN AGAIN, the consent is confirmed under the switch's own op and digest.
@@ -299,7 +305,8 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
         CHECK(held->asked == std::vector<std::string>{"request standard"});
     }
 
-    // AND THE OFFICE IS ADMITTED WITH THE SWITCH'S FOUR ASKS, TO THE SWITCH'S OFFICE ALONE.
+    // AND THE OFFICE IS ADMITTED WITH THE SWITCH'S FOUR ASKS, ITS STATUS THE QUIET ONE, TO THE
+    // SWITCH'S OFFICE ALONE.
     loom::AdmissionRequest speak;
     speak.stage = loom::AdmissionStage::Speak;
     speak.role = fr::kFirstRunRole;
@@ -310,11 +317,13 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
              {EditorSwitchRequested::zen_name, EditorSwitchRequested::zen_version},
              {EditorSwitchConfirmed::zen_name, EditorSwitchConfirmed::zen_version},
              {EditorSwitchCancelled::zen_name, EditorSwitchCancelled::zen_version},
-             {EditorSwitchStatusRequested::zen_name, EditorSwitchStatusRequested::zen_version}}) {
+             {EditorSwitchQuietStatusRequested::zen_name, EditorSwitchQuietStatusRequested::zen_version}}) {
         CAPTURE(name);
         CHECK(v.grant.permits_role(name, version, kEditorSwitchRole));
         CHECK_FALSE(v.grant.permits_role(name, version, kWorkshopProvider));
     }
+    CHECK_FALSE(v.grant.permits_role(EditorSwitchStatusRequested::zen_name,
+                                     EditorSwitchStatusRequested::zen_version, kEditorSwitchRole));
     // ...its pictures only to the windows, never to Workshop; and no load.
     CHECK_FALSE(v.grant.permits_role(zengine::graphics::Drawn::zen_name, zengine::graphics::Drawn::zen_version,
                                      kWorkshopProvider));

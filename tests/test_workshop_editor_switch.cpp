@@ -17,11 +17,38 @@
 
 #include "manuals/zengine.editor-switch.hpp"
 
+#include "workshop/first-run/setup.hpp"
+
 namespace {
 
 inline std::vector<load::ChoiceIntent> standard_and_twin() {
     return {load::ChoiceIntent{pane::kEditorPaneRole, "standard", pane::kEditorPaneStem},
             load::ChoiceIntent{pane::kEditorPaneRole, "twin", "zengine-editor-pane-b"}};
+}
+
+struct NoticeEarState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(NoticeEarState, 1, ZEN_FIELD(heard));
+};
+
+/// EVERY NOTICE WORKSHOP SAYS, heard as any weave hears it and kept in order.
+class NoticeEar
+    : public loom::WeaveBase<NoticeEar, NoticeEarState, loom::Accept<NoticeSaid>, loom::Emit<>> {
+public:
+    std::vector<std::string> heard;
+    void on(const NoticeSaid& said, loom::Mail& mail) {
+        if (mail.authored_from_role(kWorkshopProvider)) {
+            heard.push_back(said.text);
+        }
+    }
+};
+
+NoticeEar* mount_notice_ear(PaneRig& r) {
+    auto weave = std::make_unique<NoticeEar>();
+    NoticeEar* raw = weave.get();
+    const loom::WeaveId id = r.bus.register_weave(std::move(weave), loom::Grant{}, std::string());
+    raw->zen_set_self(id);
+    return raw;
 }
 
 } // namespace
@@ -503,6 +530,63 @@ TEST_CASE("the documented Terminal lines, typed through Workshop's own door, ask
     const EditorSwitchAnswered again = s.typed("ask @zengine.editor-switch EditorSwitchRequested 1 destination=twin");
     CHECK(again.outcome == switch_outcome::kAlreadyActive);
     CHECK_MESSAGE(s.r.session().notice.rfind("editor switch: already-active -- ", 0) == 0, s.r.session().notice);
+}
+
+TEST_CASE("the quick setup's own asks for the switch's status are answered to it and say nothing in Notices, while a status typed at the Terminal is said") {
+    namespace fr = zengine::first_run;
+    SwitchRig s("switch-quick-setup");
+    // A START THAT KEEPS SETTINGS, so the quick setup shows; Neovim's choice holds the office, so
+    // the box reads checked only once the switch's status has reached the quick setup.
+    s.r.host.prefs_path = (s.root / "prefs.json").generic_string();
+    NoticeEar* ear = mount_notice_ear(s.r);
+    s.open({load::ChoiceIntent{pane::kEditorPaneRole, fr::kStandardChoice, pane::kEditorPaneStem},
+            load::ChoiceIntent{pane::kEditorPaneRole, fr::kNeovimChoice, "zengine-editor-pane-b"}},
+           "zengine-editor-pane-b");
+    s.mount_terminal();
+    // THE DESK A FRESH START OPENS, so the quick setup shows itself: the Editor's pane put down, its
+    // weave still holding the office.
+    REQUIRE(hand_close(s.r, editor_ref()).closed);
+    REQUIRE_FALSE(has_pane(s.r.session().setup.active, editor_ref()));
+    REQUIRE(s.r.load("zengine-first-run", WORKSHOP_SO_FIRST_RUN, fr::kFirstRunRole).valid());
+    REQUIRE(s.r.load_refusals.empty());
+    s.r.bus.drain_until_idle();
+    const RuntimePane* setup = s.r.session().panes.runtime.find(fr::kFirstRunRole, fr::kSetupPane);
+    REQUIRE_MESSAGE(setup != nullptr, "the quick setup did not show");
+
+    // THE WORK HAPPENED: the quick setup asked and was answered, and shows the switch's choice...
+    const std::vector<std::string> rows = pane_rows(s.r, setup->kind);
+    CHECK_MESSAGE(std::any_of(rows.begin(), rows.end(),
+                              [](const std::string& row) {
+                                  return row.find("[x] Edit text with Neovim") != std::string::npos;
+                              }),
+                  "the box does not show the choice the switch holds");
+    // ...AND NOTHING OF IT WAS SAID: every notice Workshop said is another's.
+    CHECK_FALSE(ear->heard.empty());
+    for (const std::string& said : ear->heard) {
+        CAPTURE(said);
+        CHECK(said.rfind("editor switch", 0) != 0);
+    }
+
+    // THE QUIET STATUS, ASKED BY ANY WEAVE GRANTED IT: answered to the asker in the status's words,
+    // and nothing published -- no progress, no notice.
+    const std::size_t heard = ear->heard.size();
+    const std::size_t progress = s.asker->progress.size();
+    const EditorSwitchAnswered quiet = s.ask(EditorSwitchQuietStatusRequested{});
+    CHECK(quiet.outcome == switch_outcome::kStatus);
+    CHECK(quiet.detail == "`neovim` holds zengine.editor (choices: standard, neovim); no switch is under way");
+    CHECK(s.asker->progress.size() == progress);
+    CHECK(ear->heard.size() == heard);
+
+    // A STATUS TYPED AT THE TERMINAL IS SAID, word for word: the Terminal shows an answer's shape and
+    // not its words.
+    const std::size_t before = ear->heard.size();
+    const EditorSwitchAnswered typed = s.typed("ask @zengine.editor-switch EditorSwitchStatusRequested 1");
+    CHECK(typed.outcome == switch_outcome::kStatus);
+    const std::vector<std::string> after(ear->heard.begin() + static_cast<std::ptrdiff_t>(before),
+                                         ear->heard.end());
+    CHECK(std::count(after.begin(), after.end(),
+                     "editor switch: status -- `neovim` holds zengine.editor (choices: standard, neovim); "
+                     "no switch is under way") == 1);
 }
 
 TEST_CASE("a successor that holds the office and does not serve is a failure after the commitment, and the retired Editor is kept") {
