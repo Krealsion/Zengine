@@ -78,9 +78,10 @@ Builder sends for a view that was running.
   name, telling and saying the same shapes, the running view takes it in place, its field text,
   focus and told values kept: `fresh` false, `reason` `applied in place: example.panel tells and
   says the same shapes`. Any other change registers a successor first, then retires the running
-  view: `fresh` true, `reason` `registered example.panel afresh: its shapes changed`. Under a new
-  name, the running view's last picture names its successor, and the two count once against
-  `view::kMaxViews`.
+  view: `fresh` true, `reason` `registered example.panel afresh: its shapes changed`; the successor
+  asks nothing of the desk, so its pane stands where it stood and the keys stay where they are.
+  Under a new name, the running view's last picture names its successor, which asks Workshop to
+  show it as a run does, and the two count once against `view::kMaxViews`.
 - **Refuses:** `ok` false with `reason`: `a live requesting participant is required`; `a session
   name is 1 to 128 bytes`; `the request's authored office has moved to another participant`; `no
   view runs in this session for this participant`; `the view is no longer running`; `a description

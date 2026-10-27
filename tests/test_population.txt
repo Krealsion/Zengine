@@ -113,7 +113,7 @@ source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  41
 flow_pane                         doctest           always  32
-view                              doctest           always  24
+view                              doctest           always  25
 app_host                          doctest           always  11
 launcher                          doctest           always  9
 view_builder                      doctest           always  41

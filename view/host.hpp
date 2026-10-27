@@ -199,7 +199,9 @@ public:
             if (renamed) host_.stop(found->second, "was renamed " + answer.office);
             else host_.remove(found->second);
             found->second = successor;
-            host_.start(successor);
+            // A successor at the same name asks nothing of the desk: its pane stands where it stood
+            // and the keys stay where they are. Renamed, it is a new pane, and asks as a run does.
+            host_.start(successor, renamed);
             answer.fresh = true;
             answer.reason = "registered " + answer.office + " afresh: its shapes changed" + told;
         });
