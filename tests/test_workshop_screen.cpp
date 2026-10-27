@@ -6877,6 +6877,9 @@ TEST_CASE("WL-DESK-19: a pane the layout never had opens at the room's centre, p
     CHECK(t.session().arrange.opened);
     const SetupPane left = *pane_of(t.session().setup.active, stock_ref());
     CHECK(left.place.mode == pane_unit::kPixels);
+    // ...A MODIFIER PRESSED ALONE ENDS NOTHING -- a window says Alt when it takes the foreground...
+    t.key(kFirstModifierScan + 2); // left Alt
+    CHECK(t.session().arrange.opened);
     // ...AND A KEY IS THE PANE'S: it ends the placing, said, and moves nothing.
     t.key(input::scan::kD);
     CHECK_FALSE(t.session().arrange.open);

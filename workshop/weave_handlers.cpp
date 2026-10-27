@@ -606,8 +606,8 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         return;
     }
     // A PANE BEING PLACED AS IT OPENED KEEPS THE KEYS: the first key ends the placing, said, and
-    // goes on as it would have, an Escape too. A Shift alone does neither.
-    if (session_.arrange.open && session_.arrange.opened && !is_shift_scan(k.scancode)) {
+    // goes on as it would have, an Escape too. A modifier pressed alone does neither.
+    if (session_.arrange.open && session_.arrange.opened && !is_modifier_scan(k.scancode)) {
         leave_placing("a key");
     }
     // THE CONTEXT IS RESOLVED ONCE, AT ENTRY, and every decision this turn -- the
