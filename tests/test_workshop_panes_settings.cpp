@@ -1457,7 +1457,7 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
                       "workshop.pane-titles", "workshop.band-keys", "workshop.hotkeys-keys",
                       "workshop.pinned-scope", "workshop.focus.ring", "workshop.skin",
                       "workshop.completion-order", "workshop.arrange-step", "workshop.snap-reach",
-                      "workshop.stack-rows"});
+                      "workshop.stack-rows", "workshop.open-at"});
     CHECK(shown.rows == prefs_persist::workshop_office_rows());
     // THREE PINNED BY DEFAULT, the most a declaration pins, and every row sound by a pane
     // declaration's rules but its `workshop.` key.

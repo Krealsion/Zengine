@@ -708,6 +708,9 @@ struct PaneArrange {
     bool desk = false;
     PaneRef pane;
     bool resetting = false;
+    /// Begun by the pane's own open: its title and edges take the hand, and the keys and a press
+    /// in its body stay the pane's, the first of either ending the arrangement (WL-DESK-19).
+    bool opened = false;
 
     bool addressed() const { return !pane.provider.empty(); }
 };
@@ -878,6 +881,12 @@ struct Session {
     std::int64_t snap_reach_px = kPaneSnapReachPx;
     // WL-GEO-03 -- agents/workshop/geometry.md
     std::int64_t stack_rows = kStackRows;
+    /// WHETHER A PANE FIRST OPENED IN A LAYOUT OPENS AT THE HAND rather than the room's centre:
+    /// `workshop.open-at`.
+    // WL-DESK-19 -- agents/workshop/desktop.md
+    bool open_at_mouse = false;
+    /// Where the weaver's hand last pressed or moved on the canvas, in pixels, once seen.
+    std::optional<CanvasPoint> hand_px;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -1234,6 +1243,12 @@ FaceAmount parse_face_amount(std::string_view text, std::int64_t cell_px);
 /// A WHOLE PIXEL RECTANGLE, IN THE ACTIVE MEDIUM'S UNIT -- `@x,y WxH unit`.
 std::string pixel_rect_text(const PixelRect& r, std::int64_t cell_px);
 
+/// WHAT A MOVE SAYS: `name`, where it stood and where it stands, in the medium's unit, and its size
+/// before and after too where that changed.
+// WL-GEO-12 -- agents/workshop/geometry.md
+std::string pane_move_text(const std::string& name, const PixelRect& before, const PixelRect& after,
+                           std::int64_t cell_px);
+
 /// WHAT A WEAVER AUTHORED FOR ONE PANE'S WINDOW, each axis in its word, its numbers in the active
 /// medium's own unit.
 std::string pane_window_text(const SetupPane* row, std::int64_t cell_px);
@@ -1490,6 +1505,21 @@ void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
 /// have not entered is told from the pane that has them.
 // WL-FOCUS-12 -- agents/workshop/focus.md
 void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc);
+
+/// The words that say arranging is on, over what it arranges.
+// WL-ARR-18 -- agents/workshop/arrangement.md
+inline constexpr const char* kArrangingCaption = "Arranging Mode Active";
+
+/// ARRANGING SAID AT THE TOP OF THE ROOM, while it is open: its words, and beneath them the pane
+/// it arranges or "all panes", on a ground of their own.
+// WL-ARR-18 -- agents/workshop/arrangement.md
+void paint_arranging_caption(ScreenPlane& layer, const Session& s, const Screen& sc);
+/// ...what it names beneath its words, and the ground it stands on: the room's top, or where it
+/// clears the pane arranged; empty while nothing arranges.
+// WL-ARR-18 -- agents/workshop/arrangement.md
+std::string arranging_caption_subject(const Session& s);
+// WL-ARR-18 -- agents/workshop/arrangement.md
+PixelRect arranging_caption_rect(const Session& s, const Screen& sc);
 
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE.
 void paint_pane_affordances(ScreenPlane& layer, const Session& s,

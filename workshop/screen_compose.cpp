@@ -225,7 +225,10 @@ std::string pane_window_area(const Panes&, const RuntimePane& row) {
 }
 
 bool desk_in_front(const Session& s) noexcept {
-    return s.arrange.open || s.context.open || s.presented.open;
+    // ...and a pane being placed as it opened stands Workshop's area in front only while the hand
+    // holds it, so the window keeps that drag where the pane's own area moves under the hand.
+    return (s.arrange.open && (!s.arrange.opened || s.pane_drag.active)) || s.context.open ||
+           s.presented.open;
 }
 
 namespace {
@@ -388,6 +391,54 @@ graphics::Sketch rooted(const graphics::Sketch& built, const std::string& stem) 
     return out;
 }
 
+/// WHILE ONE PANE IS ARRANGED, EVERY OTHER PANE FADES: a veil of the ground at half strength over
+/// what of each the arranged pane leaves uncovered, drawn in an area that stands in front of the
+/// panes: Workshop's own while a weaver arranges, its overlay while a pane opened is placed. Under
+/// half, so a terminal, which draws an image only where it is mostly opaque, draws none of it.
+// WL-ARR-18 -- agents/workshop/arrangement.md
+void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const Session& s,
+                         const Screen& sc) {
+    if (!s.arrange.open || s.arrange.desk || !s.arrange.addressed()) {
+        return;
+    }
+    const std::optional<std::int64_t> kept = resolve_pane(s.arrange.pane, s.panes);
+    if (!kept.has_value()) {
+        return;
+    }
+    const PixelRect held = bounds_of(s.panes, s.setup.active, *kept, sc).rect;
+    const std::uint8_t tone = s.skin == kSkinDay ? 0xff : 0x00;
+    const loom::Bytes veil{tone, tone, tone, 0x7f};
+    sk.group(group, 0, 0);
+    std::size_t n = 0;
+    for (const std::int64_t kind : effective_pane_order(s.setup.active, s.panes)) {
+        if (kind == *kept) {
+            continue;
+        }
+        const PixelRect r = bounds_of(s.panes, s.setup.active, kind, sc).rect;
+        if (r.empty()) {
+            continue;
+        }
+        // What of `r` the held pane leaves showing: the bands above, below, left and right of it.
+        const std::int64_t x0 = (std::max)(r.x, held.x), x1 = (std::min)(r.x + r.w, held.x + held.w);
+        const std::int64_t y0 = (std::max)(r.y, held.y), y1 = (std::min)(r.y + r.h, held.y + held.h);
+        std::vector<PixelRect> parts;
+        if (held.empty() || x0 >= x1 || y0 >= y1) {
+            parts.push_back(r);
+        } else {
+            parts = {PixelRect{r.x, r.y, r.w, y0 - r.y},
+                     PixelRect{r.x, y1, r.w, r.y + r.h - y1},
+                     PixelRect{r.x, y0, x0 - r.x, y1 - y0},
+                     PixelRect{x1, y0, r.x + r.w - x1, y1 - y0}};
+        }
+        for (const PixelRect& part : parts) {
+            if (part.w > 0 && part.h > 0) {
+                sk.image(group + "/fade" + std::to_string(n++), part.x, part.y, part.w, part.h, 1, 1,
+                         veil);
+            }
+        }
+    }
+}
+
 /// ONE PANE, `kind`, drawn in a group under `desk` as `paint_panes` paints it, over `b`: its edge,
 /// its header and the words its body says, on ground; the header's presses, and the Layouts row's
 /// tabs, as their parts.
@@ -459,8 +510,10 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
     const std::string desk = "desk";
     WorkshopWindowDrawing out;
     out.sketch.group(desk, 0, 0);
-    // THE ARRANGEMENT'S RINGS, THEN A MENU, THEN THE BAND, each over everything before it.
-    {
+    // THE ARRANGEMENT'S RINGS, THEN A MENU, THEN THE BAND, each over everything before it. A pane
+    // placed as it opened leaves Workshop's area behind the panes, so its marks are the overlay's.
+    if (!s.arrange.opened) {
+        draw_arranging_veil(out.sketch, desk + "/veil", s, sc);
         ScreenPlane layer;
         paint_pane_affordances(layer, s, sc);
         draw_plane(out.sketch, desk + "/rings", layer, sc);
@@ -538,6 +591,12 @@ graphics::Sketch workshop_overlay_drawing(const Session& s,
     const std::string marks = "marks";
     graphics::Sketch out;
     out.group(marks, 0, 0);
+    if (s.arrange.open && s.arrange.opened) {
+        draw_arranging_veil(out, marks + "/veil", s, sc);
+        ScreenPlane layer;
+        paint_pane_affordances(layer, s, sc);
+        draw_plane(out, marks + "/rings", layer, sc);
+    }
     for (std::size_t i = 0; i < overlays.size(); ++i) {
         if (!overlays[i].rects.empty() || !overlays[i].labels.empty() ||
             !overlays[i].texts.empty()) {

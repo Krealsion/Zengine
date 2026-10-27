@@ -720,7 +720,7 @@ TEST_CASE("the overlay floor is the workspace's own bottom, which is the band's 
     CHECK(stack_slots_that_fit(screen_of(cells_px(78), cells_px(42))) >= 2);
 }
 
-TEST_CASE("a pane launched when the stack's column is spent lands at the column's top, in front") {
+TEST_CASE("a pane the layout left in the stack, launched when its column is spent, lands at the column's top, in front") {
     // ⚔ MUTATION: the launch judged by a stack rationed to its column's height -- "no room for
     // Other", and the second pane is never seen.
     PaneRig r;
@@ -741,6 +741,8 @@ TEST_CASE("a pane launched when the stack's column is spent lands at the column'
         s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
     });
     const PaneRef other_ref{kOtherOffice, "other"};
+    // The layout kept the column's place for it, so the launch puts it back there.
+    left_in_column(r, other_ref);
     const PaneLaunchAnswered said = hand_launch(r, other_ref);
     CHECK(said.refusal.empty());
     CHECK(said.opened);

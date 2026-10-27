@@ -34,6 +34,18 @@ inline constexpr bool is_shift_scan(std::int64_t sc) noexcept {
     return sc == scan::kLeftShift || sc == scan::kRightShift;
 }
 
+/// The eight modifier keys a window reports pressed alone -- left Ctrl, Shift, Alt and the system
+/// key, then the right four -- as the scancode table numbers them, the two Shifts among them.
+inline constexpr std::int64_t kFirstModifierScan = 224;
+inline constexpr std::int64_t kLastModifierScan = 231;
+static_assert(scan::kLeftShift == kFirstModifierScan + 1 && scan::kRightShift == kLastModifierScan - 2,
+              "the Shifts stand where the table puts them among the eight");
+
+/// Is this scancode one of those eight, pressed or let go alone?
+inline constexpr bool is_modifier_scan(std::int64_t sc) noexcept {
+    return sc >= kFirstModifierScan && sc <= kLastModifierScan;
+}
+
 /// The written name of a named scancode, or nullptr for a value this grammar cannot say.
 // WL-KEY-14 -- agents/workshop/key-spelling.md
 inline constexpr const char* key_name_of(std::int64_t scancode) noexcept {

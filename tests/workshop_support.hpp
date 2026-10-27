@@ -2461,6 +2461,18 @@ inline DoorHand& door_hand(Rig& t) {
     return *t.hand;
 }
 
+/// A PANE A CASE OPENS, STOOD IN THE COLUMN: an open with the keys places a pane the layout never
+/// had at the room's centre (WL-DESK-19), so a case that is not about placement has the layout
+/// keep the code's place and size for it first, past the doors, and the open gives them back.
+template <class Rig>
+inline void left_in_column(Rig& t, const PaneRef& ref) {
+    stage_run(t, [&ref](SetupState& run) {
+        std::vector<LeftPlace>& kept = run.left[run.active_id];
+        std::erase_if(kept, [&ref](const LeftPlace& l) { return l.ref == ref; });
+        kept.push_back(LeftPlace{ref, PanePlace{}, PaneSize{}, PaneSize{}});
+    });
+}
+
 /// ASK THE HOST TO OPEN OR FOCUS THIS PANE, as an office, inside the hand's own delivery.
 template <class Rig>
 inline PaneLaunchAnswered hand_launch(Rig& t, const PaneRef& ref) {
@@ -2727,6 +2739,9 @@ inline PaneLaunchAnswered seat_pane(Rig& t, const PaneRef& ref) {
     Session& s = const_cast<Session&>(t.session());
     const std::int64_t selected = s.panes.selected;
     const std::int64_t keyboard = s.panes.keyboard;
+    if (!has_pane(t.session().setup.active, ref)) {
+        left_in_column(t, ref);
+    }
     const PaneLaunchAnswered said = hand_launch(t, ref);
     s.panes.selected = selected;
     s.panes.keyboard = keyboard;

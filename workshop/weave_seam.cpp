@@ -310,7 +310,7 @@ void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
             }
             revealed(kind, name, pane, *held, m);
         },
-        mail);
+        mail, true);
 }
 
 // WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md

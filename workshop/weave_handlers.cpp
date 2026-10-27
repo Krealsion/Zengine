@@ -383,6 +383,13 @@ void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
 
 void WorkshopWeave::area_pressed(const graphics::AreaPressed& p, std::uint64_t press,
                                  loom::Mail& mail) {
+    if (p.pressed) {
+        session_.hand_px = CanvasPoint{p.x, p.y}; // the window's own point is the canvas's
+        // A press in a pane's own area is that pane's: it ends a pane's placing as it opened.
+        if (session_.arrange.open && session_.arrange.opened) {
+            leave_placing("a press");
+        }
+    }
     // THE PRESENTED MENU'S AREA: the press is its presenter's, and the act it is this host's.
     if (session_.presented.open && p.area == session_.presented.area) {
         const WindowMoment moment{input_actor_, p.local, p.actor};
@@ -484,8 +491,11 @@ void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
     const auto slot = static_cast<std::size_t>(e.button - 1);
     if (own_pointer_area(e.area, mail)) {
         // ITS RELEASE GOES WHERE IT LANDS, so whatever the button holds in Workshop's own area
-        // ends here.
-        if (slot == 0) {
+        // ends here -- but a pane being placed by its frame, whose hold the window ended as
+        // Workshop's area came in front for the drag: that area carries it to its release.
+        const bool carried = session_.arrange.open && session_.arrange.opened &&
+                             session_.pane_drag.active && !window_.from_window(e.area, mail);
+        if (slot == 0 && !carried) {
             (void)end_held_gestures(mail);
         }
         repaint(mail);
@@ -594,6 +604,11 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         say("Reference put down", false);
         repaint(mail);
         return;
+    }
+    // A PANE BEING PLACED AS IT OPENED KEEPS THE KEYS: the first key ends the placing, said, and
+    // goes on as it would have, an Escape too. A modifier pressed alone does neither.
+    if (session_.arrange.open && session_.arrange.opened && !is_modifier_scan(k.scancode)) {
+        leave_placing("a key");
     }
     // THE CONTEXT IS RESOLVED ONCE, AT ENTRY, and every decision this turn -- the
     // above-mode arm, the swallow, the chain -- spends the same answer, so a mode a

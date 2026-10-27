@@ -3666,7 +3666,13 @@ TEST_CASE("Workshop draws its desk in the window that shows its areas -- the ban
     CHECK(paints_inside(painted_cells(*window.weave().find(frame)), local));
     d.type(input::scan::kW, "w");
     REQUIRE(d.r.session().arrange.open);
-    CHECK_FALSE(paints_inside(painted_cells(*window.weave().find(area)), body));
+    // ...but for the words that say arranging is on, at the room's top, which stand over all.
+    const PixelRect caption = arranging_caption_rect(d.r.session(), screen_of(d.r.session()));
+    std::set<std::pair<std::int64_t, std::int64_t>> painted = painted_cells(*window.weave().find(area));
+    std::erase_if(painted, [&caption](const auto& cell) {
+        return caption.contains_at(cell.first * gfx::kCellPx, cell.second * gfx::kCellPx, gfx::kCellPx);
+    });
+    CHECK_FALSE(paints_inside(painted, body));
     d.r.key(input::scan::kEscape);
     REQUIRE_FALSE(d.r.session().arrange.open);
 

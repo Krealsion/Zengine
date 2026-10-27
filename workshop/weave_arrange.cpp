@@ -4,6 +4,7 @@
 // `WorkshopWeave`'s pane management, and the pointer inside arrangement.
 // Workshop law: agents/workshop/arrangement.md (+8 registers; agents/workshop.md routes)
 
+#include "screen_canvas.hpp"
 #include "weave.hpp"
 
 namespace zengine::workshop {
@@ -44,7 +45,7 @@ void WorkshopWeave::open_arrange_desk() {
 // WL-CTX-02 -- agents/workshop/contextual.md
 // WL-FRONT-04 -- agents/workshop/planes.md
 // WL-PRESS-06 -- agents/workshop/press-chain.md
-void WorkshopWeave::enter_arrange_pane(const PaneRef& ref) {
+void WorkshopWeave::enter_arrange_pane(const PaneRef& ref, bool opened) {
     const Written ready = arrange_geometry_ready(ref);
     if (!ready.accepted) {
         say(ready.refusal, true);
@@ -64,9 +65,48 @@ void WorkshopWeave::enter_arrange_pane(const PaneRef& ref) {
     a.desk = false;
     a.resetting = false;
     a.pane = ref;
+    a.opened = opened;
+    if (opened) {
+        say("place " + inventory_name(ref) +
+                " -- drag its title to move it, its edges to size it; a key or a press in it "
+                "goes to it",
+            false);
+        return;
+    }
     say("arranging " + ref_text(ref) + " -- drag its body to move, its edges to size; " +
             hotkey(Act::kManageClose) + " or right-click leaves",
         false);
+}
+
+// WL-DESK-19 -- agents/workshop/desktop.md
+bool WorkshopWeave::placing_press(const PointedAt& at) {
+    const PaneArrange& a = session_.arrange;
+    const std::optional<std::int64_t> kind = resolve_pane(a.pane, session_.panes);
+    if (!kind.has_value()) {
+        return false;
+    }
+    const Screen sc = screen_of(session_);
+    const PixelRect rect = bounds_of(session_.panes, session_.setup.active, *kind, sc).rect;
+    if (!rect.contains_at(at.px.x, at.px.y, at.grain)) {
+        return false;
+    }
+    // ITS BODY IS THE PANE'S: only its edges and the rows above its body take the hand.
+    if (pane_edge_at(rect, at.px.x, at.px.y, at.grain) == kNoPaneEdge && is_runtime_kind(*kind)) {
+        const PixelRect body = canvas_body_place(
+            rect, sc, external_title_rows(session_.panes, *kind, session_.pane_titles));
+        if (body.contains_at(at.px.x, at.px.y, at.grain)) {
+            return false;
+        }
+    }
+    return take_pane_hold(a.pane, at, sc, /*top_moves=*/true);
+}
+
+// WL-DESK-19 -- agents/workshop/desktop.md
+void WorkshopWeave::leave_placing(const std::string& what) {
+    const PaneRef ref = session_.arrange.pane;
+    session_.arrange = PaneArrange{};
+    session_.pane_drag = PaneGesture{};
+    say("placed " + inventory_name(ref) + " -- " + what + " ended placing it", false);
 }
 
 // WL-ARR-03 -- agents/workshop/arrangement.md
@@ -230,6 +270,9 @@ void WorkshopWeave::write_window(const PaneRef& ref, const PaneAxisProposal& hor
         say(done.written.refusal, true);
         return;
     }
+    // A MOVE SAYS WHERE THE PANE STOOD AND WHERE IT STANDS, and an axis whose word it changed:
+    // before, the store's own desk; after, the desk this hand now sees.
+    const PixelRect before = pane_room_rect(session_.setup.owned, ref);
     if (session_.pane_drag.active) {
         // A DRAG PAINTS ITS PROPOSAL: the desk presented moves with the hand, and its release asks
         // the store (`commit_drag`). A place takes the pane out of the stack, so the proposal is
@@ -238,19 +281,42 @@ void WorkshopWeave::write_window(const PaneRef& ref, const PaneAxisProposal& hor
         if (done.place_written) {
             apply_setup(mail);
         }
-        say(arrange_status() + (done.said.empty() ? "" : " -- " + done.said), false);
+        say(moved_words(ref, before) + (done.said.empty() ? "" : " -- " + done.said), false);
         return;
     }
     // AN AXIS WRITTEN IN ANOTHER WORD THAN IT STOOD IN IS SAID, once the store has it.
     ask_layout({window_edit(*pane_of(desk, ref))},
-               [this, said = done.said](const LayoutEditAnswered& answered, loom::Mail&) {
+               [this, ref, before, said = done.said](const LayoutEditAnswered& answered,
+                                                      loom::Mail&) {
                    if (!answered.accepted) {
                        say(answered.refusal, true);
                        return;
                    }
-                   say(arrange_status() + (said.empty() ? "" : " -- " + said), false);
+                   say(moved_words(ref, before) + (said.empty() ? "" : " -- " + said), false);
                },
                mail);
+}
+
+// WL-GEO-12 -- agents/workshop/geometry.md
+PixelRect WorkshopWeave::pane_room_rect(const Setup& desk, const PaneRef& ref) const {
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
+    if (!kind.has_value()) {
+        return PixelRect{};
+    }
+    const Screen sc = screen_of(session_);
+    return room_of_canvas(bounds_of(session_.panes, desk, *kind, sc).resolved, sc);
+}
+
+// WL-GEO-12 -- agents/workshop/geometry.md
+std::string WorkshopWeave::moved_words(const PaneRef& ref, const PixelRect& before) const {
+    std::string text = pane_move_text(inventory_name(ref), before,
+                                      pane_room_rect(session_.setup.active, ref), session_.cell_px);
+    // A HELD SNAP IS SAID AS WELL AS MARKED, so it is heard where it cannot be seen.
+    const PaneGesture& g = session_.pane_drag;
+    if (g.active && g.pane == ref && (g.met_x.has_value() || g.met_y.has_value())) {
+        text += " -- snapped to an edge";
+    }
+    return text;
 }
 
 // WL-ARR-01 -- agents/workshop/arrangement.md
@@ -557,7 +623,8 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
 // WL-ARR-01 -- agents/workshop/arrangement.md
 // WL-ARR-01, WL-ARR-07 -- agents/workshop/arrangement.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
-bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc) {
+bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc,
+                                   bool top_moves) {
     const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
     // A hand may take hold of any pane this build can resolve: nothing is reserved, and the hand
     // and the keys refuse by one sentence.
@@ -569,7 +636,9 @@ bool WorkshopWeave::take_pane_hold(const PaneRef& ref, const PointedAt& at, cons
         return false;
     }
     const std::int64_t edge = pane_edge_at(mine.rect, at.px.x, at.px.y, at.grain);
-    if (edge != kNoPaneEdge) {
+    // ...THE TOP EDGE MOVES WHERE ASKED: a pane being placed is taken by its title, which in a
+    // window stands on that edge.
+    if (edge != kNoPaneEdge && !(top_moves && edge == pane_edge::kTop)) {
         session_.pane_drag = PaneGesture{};
         session_.pane_drag.active = true;
         session_.pane_drag.pane = ref;

@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <utility>
@@ -56,6 +57,16 @@ struct Layout {
     friend bool operator!=(const Layout& a, const Layout& b) { return !(a == b); }
 };
 
+/// WHERE A PANE TAKEN OFF A LAYOUT WAS LEFT: its row's place and size, which a seat in that layout
+/// gives back.
+// WL-DESK-19 -- agents/workshop/desktop.md
+struct LeftPlace {
+    PaneRef ref;
+    PanePlace place;
+    PaneSize width;
+    PaneSize height;
+};
+
 /// THE LAYOUTS ONE RUN HOLDS, WHICH ONE IS LIVE, AND THE ID THE NEXT NEW ONE TAKES.
 // WL-LAYOUT-01, WL-LAYOUT-03 -- agents/workshop/layouts.md
 struct SetupState {
@@ -73,7 +84,57 @@ struct SetupState {
     /// pane on this desk" learns the desk is another one (`InspectedPane::desk`).
     // WL-INFO-14 -- agents/workshop/info-body.md
     std::uint64_t put_live = 0;
+    /// Where each pane taken off a layout was left, by the layout's id, the oldest first: at most
+    /// `kMaxSetupPanes` a layout, held for the run and never persisted.
+    // WL-DESK-19 -- agents/workshop/desktop.md
+    std::map<std::int64_t, std::vector<LeftPlace>> left;
 };
+
+/// THE LIVE LAYOUT LEAVES `row`: where it stood is kept, replacing what was kept for its pane, and
+/// past the bound the oldest goes.
+// WL-DESK-19 -- agents/workshop/desktop.md
+inline void leave_place(SetupState& s, const SetupPane& row) {
+    std::vector<LeftPlace>& kept = s.left[s.active_id];
+    std::erase_if(kept, [&row](const LeftPlace& l) { return l.ref == row.ref; });
+    if (kept.size() >= kMaxSetupPanes) {
+        kept.erase(kept.begin());
+    }
+    kept.push_back(LeftPlace{row.ref, row.place, row.width, row.height});
+}
+
+/// WHAT A LAYOUT NO LONGER IN THE RUN LEFT goes with it, so the run keeps places for its own alone.
+// WL-DESK-19 -- agents/workshop/desktop.md
+inline void forget_gone_places(SetupState& s) {
+    std::erase_if(s.left, [&s](const auto& kept) {
+        if (kept.first == s.active_id) {
+            return false;
+        }
+        for (const Layout& l : s.shelved) {
+            if (l.id == kept.first) {
+                return false;
+            }
+        }
+        return true;
+    });
+}
+
+/// ...AND A SEAT IN THE LIVE LAYOUT TAKES IT BACK: where `ref` was left there, or nothing.
+// WL-DESK-19 -- agents/workshop/desktop.md
+inline std::optional<LeftPlace> take_left_place(SetupState& s, const PaneRef& ref) {
+    const auto found = s.left.find(s.active_id);
+    if (found == s.left.end()) {
+        return std::nullopt;
+    }
+    std::vector<LeftPlace>& kept = found->second;
+    for (auto it = kept.begin(); it != kept.end(); ++it) {
+        if (it->ref == ref) {
+            const LeftPlace out = *it;
+            kept.erase(it);
+            return out;
+        }
+    }
+    return std::nullopt;
+}
 
 /// How many layouts this run holds, the active one included: never zero, as `active` is a value.
 inline std::size_t layout_count(const SetupState& s) noexcept { return s.shelved.size() + 1; }

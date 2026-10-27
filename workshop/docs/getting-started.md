@@ -195,15 +195,16 @@ the right of its title: press it to read what the pane is and every command it h
 
 ## Your first five minutes
 
-**At your first start, the quick setup asks first**, in front and holding the keys: whether to
-edit text with Neovim, and which ready-to-use setup to start. Done or Skip puts it away for good
+**At your first start, the quick setup asks first**, at the room's centre and holding the keys,
+ready for you to drag it where you want it: whether to edit text with Neovim, and which
+ready-to-use setup to start. Done or Skip puts it away for good
 and opens **Start here**, the story a step at a time, each box ticked as it happens, shown at each
 start until you finish it; find either again in the Pane Manager as Quick setup and Start here
 ([their manual](zengine.first-run.md)).
 
-![The quick setup at a first start, holding the keys: Edit text with Neovim, each ready-to-use setup the launcher lists with Start and its whole line, The story, Done and Skip; Notices says only showed Quick setup](images/first-run-quick-setup.png)
+![The quick setup at a first start, at the room's centre and holding the keys, being placed: Arranging Mode Active names it above it, Info and Notices fade beside it; it lists Edit text with Neovim, each ready-to-use setup the launcher lists with Start and its whole line, The story, Done and Skip; Notices says showed Quick setup and how to place it](images/first-run-quick-setup.png)
 
-![Start here at a later start, seated beside the desk without the keys: step 2 ticked by you, the others still to do, each with what ticks it and Show me; Notices says only reopened your last desk "Default" -- 1600x900 px](images/first-run-start-here.png)
+![Start here at a later start, where it was left at the room's centre, without the keys: step 2 ticked by you, the others still to do, each with what ticks it and Show me; Notices says only reopened your last desk "Default" -- 1584x861 px](images/first-run-start-here.png)
 
 **A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, Notices at the lower
 left, and the room.
@@ -293,9 +294,9 @@ privilege the [snake example](../../examples/snake/README.md) does not.
 | colour | each area painted by its skin's painter, the role's ink on the terminal | each area painted by its skin's painter, RGB per role |
 | what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 
-![The Pane Manager, Info and Notices in the terminal window, 120 by 30 cells: the Layouts row on the first row, the frames drawn in characters, Notices saying showed Pane Manager, the band's keys beneath](images/desk-terminal-window.png)
+![The Pane Manager, Info and Notices in the terminal window, 120 by 30 cells: the Layouts row on the first row, the Pane Manager at the room's centre being placed, Arranging Mode Active above it, the frames drawn in characters, Notices saying showed Pane Manager and how to place it, the band's keys beneath](images/desk-terminal-window.png)
 
-![The Pane Manager, Info and Notices in the OS window, 1444 by 901 pixels: text in the window's face, each pane on its own ground, Notices saying showed Pane Manager, each area painted by its skin's painter](images/desk-os-window.png)
+![The Pane Manager, Info and Notices in the OS window, 1444 by 901 pixels: text in the window's face, the Pane Manager at the room's centre being placed, Arranging Mode Active above it, Info and Notices faded, Notices saying showed Pane Manager and how to place it, each area painted by its skin's painter](images/desk-os-window.png)
 
 Neither is a degraded version of the other, and the same published intent produces both.
 
