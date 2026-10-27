@@ -98,8 +98,26 @@ zengine-app <app folder>
 It says where the app is, its plan, its decisions and where it opens artifacts, then walks the plan
 in order. Each row asks the decisions first, a provider's row as much as a weave's: a row with no
 standing decision, or whose file is not the build that was decided, waits, and nothing of it is
-opened. The console says which row waits, in the decisions' own words: the build it saw, and
-the line that answers it, which you type at the console:
+opened.
+
+Before the first row waits, the console offers one line for the whole plan. It names each artifact
+of the plan that would wait, with the build of its file now, and `trust plan`, typed, lets each of
+them run as that build, as `authority trust` lets one. It decides nothing the plan does not name,
+leaves an artifact you denied denied, and decides no build the console has not shown you: a file
+that changed since is shown again and waits for the line again. A rebuild of any asks again:
+
+```text
+zengine-app - to let this plan's waiting artifacts run, each as built here, type:  trust plan
+  zengine-operators-basic  build 23385070
+  zengine-app-weave        build 51cec0b7
+  zengine-graphics         build 4a44f18d
+  zengine-window-sdl       build 801c5290
+  zengine-timer            build a33fb100
+  or decide one at a time:  authority trust <name>; a rebuild of any asks again
+```
+
+Or decide one at a time: the console says which row waits, in the decisions' own words, the build
+it saw and the line that answers it, which you type at the console:
 
 ```text
 zengine-app - waiting on this console: zengine-operators-basic
@@ -127,6 +145,7 @@ Anything else loaded in the app may say only what the console allows (`authority
 | line | what it does |
 |---|---|
 | `authority ...` | Loom's own command over `app-authority.json`: `trust`, `deny`, `allow`, `show`, `pending`, `revoke` and the rest, as `help` lists them |
+| `trust plan` | lets each artifact of the plan that waits run, each pinned to the build the console showed; one you denied stays denied |
 | `status` | each row of the plan, and whether it runs, waits on the console, or was refused |
 | `help` | the lines above |
 | `quit` | ends the app |

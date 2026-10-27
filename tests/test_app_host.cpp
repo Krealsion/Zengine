@@ -19,6 +19,7 @@
 #include "operator/primitives.hpp"
 #include "timer/vocabulary.hpp"
 
+#include <zen/content_id.hpp>
 #include <zen/host/authority.hpp>
 
 #include <algorithm>
@@ -57,6 +58,14 @@ std::string text_of(const fs::path& path) {
 
 bool has(const std::string& text, const std::string& part) {
     return text.find(part) != std::string::npos;
+}
+
+/// The whole line of `text` that begins with `start`, or empty.
+std::string line_starting(const std::string& text, const std::string& start) {
+    const std::size_t at = text.find("\n" + start);
+    if (at == std::string::npos) return std::string();
+    const std::size_t end = text.find('\n', at + 1);
+    return text.substr(at + 1, end == std::string::npos ? std::string::npos : end - at - 1);
 }
 
 /// The probe's plan without its window and Timer rows, which the suite stands in for.
@@ -132,9 +141,9 @@ struct Run {
     Ears* ears = nullptr;
     loom::WeaveId ears_id{};
 
-    explicit Run(const AppFolder& folder) {
+    explicit Run(const AppFolder& folder, std::string artifacts = APP_ARTIFACTS_DIR) {
         host = std::make_unique<app::AppHost>(
-            bus, app::AppPlace{folder.path(), APP_ARTIFACTS_DIR, kSuffix}, said);
+            bus, app::AppPlace{folder.path(), std::move(artifacts), kSuffix}, said);
     }
     ~Run() { host.reset(); }
 
@@ -323,6 +332,132 @@ TEST_CASE("each row of the app's plan waits on its console until decided there, 
         CHECK(rule->may_run);
         CHECK_FALSE(rule->content_id.empty());
     }
+}
+
+TEST_CASE("a start whose plan waits on its console offers one line first that lets each artifact the plan names run as built; the line runs the plan and decides nothing else") {
+    const std::vector<std::string> stems = {"zengine-operators-basic", "zengine-app-weave",
+                                            "zengine-graphics"};
+    const auto build_of = [](const std::string& stem) {
+        return loom::file_content_id(std::string(APP_ARTIFACTS_DIR) + "/" + stem + kSuffix);
+    };
+    AppFolder folder("plan");
+    {
+        Run run(folder);
+        REQUIRE(run.open());
+        run.host->begin();
+        run.turn();
+        CHECK(run.waiting_on() == "zengine-operators-basic");
+        CHECK(run.host->store().rules().empty()); // a start decides nothing
+
+        // SAID FIRST: the one line, before the row the walk waits on, naming each artifact and the
+        // build it would let run.
+        const std::string said = run.said.str();
+        const std::size_t offer = said.find("type:  trust plan");
+        REQUIRE(offer != std::string::npos);
+        CHECK(offer < said.find("waiting on this console: zengine-operators-basic"));
+        for (const std::string& stem : stems) {
+            CHECK(has(line_starting(said.substr(offer), "  " + stem + " "),
+                      "build " + build_of(stem).substr(0, 8)));
+        }
+        CHECK(has(said.substr(offer), "authority trust <name>"));
+
+        // THE ONE LINE: every row runs, and nothing more is asked.
+        run.command("trust plan");
+        CHECK(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
+        CHECK(has(run.said.str(), "running: 3 of 3 artifacts"));
+        CHECK(has(run.said.str(), "'zengine-graphics' may run, as built (build " +
+                                      build_of("zengine-graphics").substr(0, 8) + ")"));
+    }
+    // EXACTLY THE PLAN'S ARTIFACTS, EACH PINNED TO THE BUILD IT SAW: a rebuild asks again.
+    loom::host::AuthorityStore store;
+    std::string why;
+    REQUIRE(store.open((folder.dir / app::kAuthorityName).string(), &why));
+    CHECK(store.rules().size() == stems.size());
+    for (const std::string& stem : stems) {
+        const loom::host::AuthorityRule* rule = store.find(stem);
+        REQUIRE(rule != nullptr);
+        CHECK(rule->may_run);
+        CHECK(rule->content_id == build_of(stem));
+        CHECK_FALSE(rule->trust_rebuilds);
+    }
+    {
+        // A START WHOSE BUILDS ARE THE ONES DECIDED offers nothing.
+        Run again(folder);
+        REQUIRE(again.open());
+        again.host->begin();
+        again.turn();
+        CHECK(again.host->executor().state() == zengine::workshop::load::Realization::Complete);
+        CHECK_FALSE(has(again.said.str(), "trust plan"));
+    }
+    {
+        loom::host::AuthorityRule rule = *store.find("zengine-graphics");
+        rule.content_id = std::string(32, '0');
+        REQUIRE(store.put(rule, &why));
+    }
+    Run rebuilt(folder);
+    REQUIRE(rebuilt.open());
+    rebuilt.host->begin();
+    rebuilt.turn();
+    CHECK(rebuilt.waiting_on() == "zengine-graphics");
+    const std::string said = rebuilt.said.str();
+    REQUIRE(has(said, "type:  trust plan"));
+    CHECK(has(line_starting(said.substr(said.find("type:  trust plan")), "  zengine-graphics "),
+              "build " + build_of("zengine-graphics").substr(0, 8)));
+    CHECK(line_starting(said.substr(said.find("type:  trust plan")), "  zengine-app-weave ").empty());
+}
+
+TEST_CASE("the plan's one line decides each artifact as the build the console showed: a file changed since is not decided until the line is typed again") {
+    AppFolder folder("changed");
+    const fs::path artifacts = folder.dir / "artifacts";
+    fs::create_directories(artifacts);
+    const auto file_of = [&](const std::string& stem) { return artifacts / (stem + kSuffix); };
+    for (const std::string stem : {"zengine-operators-basic", "zengine-app-weave", "zengine-graphics"}) {
+        fs::copy_file(fs::path(APP_ARTIFACTS_DIR) / (stem + kSuffix), file_of(stem));
+    }
+    Run run(folder, artifacts.generic_string());
+    REQUIRE(run.open());
+    run.host->begin();
+    run.turn();
+    REQUIRE(has(run.said.str(), "type:  trust plan"));
+    const std::string shown = loom::file_content_id(file_of("zengine-graphics").string());
+    // THE FILE CHANGES AFTER THE CONSOLE SHOWED ITS BUILD.
+    std::ofstream(file_of("zengine-graphics"), std::ios::binary | std::ios::app) << "changed";
+    const std::string now = loom::file_content_id(file_of("zengine-graphics").string());
+    REQUIRE(now != shown);
+    run.command("trust plan");
+    CHECK(has(run.said.str(), "'zengine-graphics' changed since it was offered (build " +
+                                  shown.substr(0, 8) + ", now " + now.substr(0, 8) + ")"));
+    CHECK(run.host->store().find("zengine-graphics") == nullptr);
+    for (const std::string stem : {"zengine-operators-basic", "zengine-app-weave"}) {
+        const loom::host::AuthorityRule* rule = run.host->store().find(stem);
+        REQUIRE(rule != nullptr);
+        CHECK(rule->content_id == loom::file_content_id(file_of(stem).string()));
+    }
+    // ...TYPED AGAIN, the build it has now been shown is the one decided.
+    run.command("trust plan");
+    const loom::host::AuthorityRule* graphics = run.host->store().find("zengine-graphics");
+    REQUIRE(graphics != nullptr);
+    CHECK(graphics->content_id == now);
+}
+
+TEST_CASE("the plan's one line leaves an artifact the console denied denied, and the line for one still decides it") {
+    AppFolder folder("denied");
+    Run run(folder);
+    REQUIRE(run.open());
+    run.command("authority deny zengine-graphics");
+    run.host->begin();
+    run.turn();
+    run.command("trust plan");
+    CHECK(run.waiting_on() == "zengine-graphics");
+    CHECK(has(run.said.str(), "'zengine-graphics' stays denied, as decided here"));
+    const loom::host::AuthorityRule* denied = run.host->store().find("zengine-graphics");
+    REQUIRE(denied != nullptr);
+    CHECK_FALSE(denied->may_run);
+    CHECK(run.host->executor().state_of("zengine-app-weave") ==
+          zengine::workshop::load::RowState::Resolved);
+
+    run.command("authority trust zengine-graphics");
+    CHECK(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
 }
 
 TEST_CASE("a second start whose builds are unchanged asks nothing; a build the console did not see is asked again; and two hosts never run one app") {
