@@ -56,7 +56,7 @@ workshop_host                   doctest           always  78
 # The panes program, run as eight entries, each its own part's sources (VM-POP-22).
 workshop_panes_seam               doctest           always  173
 # Tripwires in this part read tests/weavelib/legacy_pane.cpp as text (VM-WALL-11).
-workshop_panes_hand               doctest           always  220
+workshop_panes_hand               doctest           always  223
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp,
 # workshop/arrangement.hpp, workshop/powers_door.hpp, workshop/sample_door.hpp,
 # operator/reference.hpp and the Introspection pane's sources and CMake file as text (VM-WALL-11).
@@ -77,7 +77,7 @@ workshop_shapes                   doctest           always  5
 # (VM-WALL-11).
 workshop_persistence              doctest           always  178
 workshop_load                     doctest           always  163
-workshop_editor_switch            doctest           always  12
+workshop_editor_switch            doctest           always  13
 workshop_neovim                   doctest           always  11
 workshop_neovim                   doctest           neovim  30
 # Tripwires in this suite read workshop/workshop.cpp, workshop/recipes.hpp and every pane entry's

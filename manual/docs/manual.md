@@ -41,6 +41,12 @@ has nothing for is left out, never written empty:
 | `## Files` | the files it reads or writes |
 | `## See also` | tutorials, other manuals and pages |
 
+Only the command groups (`## Commands` and each `## Commands in <mode>`), `## Hears` and `## Shows`
+hold `###` sections; every other heading holds prose alone. The build refuses a `###` anywhere
+else, in these words: ``a `###` section stands only under Commands, Hears or Shows, not under
+`Follow` ``. So what a weave says unasked is told in sentences under `## Follow`, not in a section
+for each shape.
+
 A section's heading is its key in backticks and nothing else, so its anchor is the key
 (`#builderbuild`, `#buildrequested`) and stays put while the words change. A command's section has
 four labelled lines, in order:

@@ -39,7 +39,7 @@ LAW — The box asks the editor switch for the plan's `neovim` or `standard` cho
 
 MEANS
 - a consent the switch asked is confirmed only when the box is chosen again;
-- the box is read from the switch's status at every activation and every opening;
+- the box is read from the switch's status, asked quietly, at every activation and every opening, and Notices says nothing of it;
 - the switch's refusal is shown in its words, and the box follows the switch, never the ask.
 
 DOES NOT MEAN
@@ -94,7 +94,7 @@ own item" "WL-FIRST-02: the quick setup lists the setups the launcher lists, and
 Workshop for the hand that pressed, then the launcher, saying what it answered"
 
 ### WL-FIRST-03
-`workshop/first-run/first_run.cpp` on(EditorSwitchAnswered) send_switch
+`workshop/first-run/first_run.cpp` on(EditorSwitchAnswered) send_switch ask_status
 `workshop/admission.hpp` first_run_office_grant
 `tests/test_workshop_panes_first_run.cpp` "WL-FIRST-03: the Neovim box asks the editor switch, shows
 its answer in its words, and confirms a consent only when chosen again"
