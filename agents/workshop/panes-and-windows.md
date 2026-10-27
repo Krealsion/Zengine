@@ -27,7 +27,7 @@ LAW — A band-anchored or authored pane takes no stack slot; a stacked pane the
 MEANS
 - the stack is a column `ui::arrange` lays (`kFlowStack`), each pane's slot its preferred height (or the fallback) and the gap below;
 - a pane taller than the room stands at the column's top;
-- a launch, a reveal and a managed open seat their pane in front, the newest by rank.
+- a launch, a reveal and a managed open seat their pane in front, the newest by rank; a first open of a launch or a reveal is placed at the room's centre (WL-DESK-19).
 
 WHY — `agents/decisions/the-stack-begins-again.md`
 
@@ -192,10 +192,10 @@ not by number"
 `tests/test_workshop_panes_window.cpp` "an authored place spends no room in the stack's column, and
 a spent column begins again at its top"
 `tests/test_workshop_panes_seam.cpp` "an oversubscribed authored setup seats every reference, the
-column beginning again at its top" "a pane launched when the stack's column is spent lands at the
-column's top, in front"
-`tests/test_workshop_panes_canvas.cpp` "a view run when the stack's column is spent is shown at the
-column's top, in front"
+column beginning again at its top" "a pane the layout left in the stack, launched when its column is
+spent, lands at the column's top, in front"
+`tests/test_workshop_panes_canvas.cpp` "a view the layout left in the stack, run when its column is
+spent, is shown at the column's top, in front"
 
 ### WL-PANE-04
 `workshop/screen.hpp` placement_bounds kStackW stack_slots_that_fit

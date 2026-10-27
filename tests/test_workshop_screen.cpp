@@ -13,6 +13,7 @@
 // The historical session shapes and their conversions, an artifact's material, named here
 // because this suite owns the whole-cell-to-fine-lattice claim.
 #include "workshop/layouts/session_history.hpp"
+#include "workshop/screen_canvas.hpp"
 
 // ============================================================================
 // Tier 3 — the whole screen, as a value
@@ -6839,4 +6840,161 @@ TEST_CASE("a batch whose setup file cannot be written is refused whole, the run 
     CHECK_FALSE(answered.refusal.empty());
     CHECK(layout_run(store.run()).size() == 1);
     CHECK(store.revision() == seen);
+}
+
+TEST_CASE("WL-DESK-19: a pane the layout never had opens at the room's centre, placed by its title and edges while its keys and body stay its own; shown again after a hide it comes back where it was left") {
+    // MUTATION: a seat that forgets where a pane was left -- the second open stands at the centre
+    // and is placed again; the checks after the hide go red.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    REQUIRE(hand_launch(t, stock_ref()).opened);
+    const SetupPane* row = pane_of(t.session().setup.active, stock_ref());
+    REQUIRE(row != nullptr);
+    CHECK(row->place.mode == ui::kPlaceCenter);
+    CHECK(t.session().arrange.open);
+    CHECK(t.session().arrange.opened);
+    CHECK(t.session().arrange.pane == stock_ref());
+    CHECK(keyboard_context(t.session()) != KeyContext::kArrangePane);
+    // ITS TITLE TAKES THE HAND, and the move says where it stood and where it stands alone.
+    const Screen sc = screen_of(t.session());
+    const PixelRect rect = bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect;
+    const PixelRect body = canvas_body_place(
+        rect, sc, external_title_rows(t.session().panes, stock::kKind, t.session().pane_titles));
+    const std::int64_t title_px = body.y - gfx::kCellPx;
+    REQUIRE(title_px > rect.y);
+    const std::int64_t wx = (rect.x + rect.w / 2) / gfx::kCellPx - kRoomCellX;
+    const std::int64_t wy = title_px / gfx::kCellPx - kRoomCellY;
+    t.press(wx, wy);
+    REQUIRE(t.session().pane_drag.active);
+    // ...WORKSHOP'S AREA IN FRONT FOR THE DRAG ALONE, so a window keeps it to its release.
+    CHECK(desk_in_front(t.session()));
+    t.motion(wx - 6, wy + 3);
+    t.release(wx - 6, wy + 3);
+    CHECK_FALSE(desk_in_front(t.session()));
+    CHECK(t.notice().rfind(std::string("moved ") + stock::kName + ": @", 0) == 0);
+    CHECK(t.notice().find(" -> @") != std::string::npos);
+    CHECK(t.notice().find("(open)") == std::string::npos);
+    CHECK(t.session().arrange.opened);
+    const SetupPane left = *pane_of(t.session().setup.active, stock_ref());
+    CHECK(left.place.mode == pane_unit::kPixels);
+    // ...A MODIFIER PRESSED ALONE ENDS NOTHING -- a window says Alt when it takes the foreground...
+    t.key(kFirstModifierScan + 2); // left Alt
+    CHECK(t.session().arrange.opened);
+    // ...AND A KEY IS THE PANE'S: it ends the placing, said, and moves nothing.
+    t.key(input::scan::kD);
+    CHECK_FALSE(t.session().arrange.open);
+    CHECK(t.notice().find("ended placing it") != std::string::npos);
+    REQUIRE(has_pane(t.session().setup.active, stock_ref()));
+    CHECK(*pane_of(t.session().setup.active, stock_ref()) == left);
+    REQUIRE(hand_close(t, stock_ref()).closed);
+    REQUIRE_FALSE(has_pane(t.session().setup.active, stock_ref()));
+    REQUIRE(hand_launch(t, stock_ref()).opened);
+    const SetupPane* back = pane_of(t.session().setup.active, stock_ref());
+    REQUIRE(back != nullptr);
+    CHECK(back->place == left.place);
+    CHECK(back->width == left.width);
+    CHECK(back->height == left.height);
+    CHECK_FALSE(t.session().arrange.open);
+}
+
+TEST_CASE("WL-DESK-19: a press in the body of a pane being placed is the pane's, and ends the placing") {
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    REQUIRE(hand_launch(t, stock_ref()).opened);
+    REQUIRE(t.session().arrange.opened);
+    const Screen sc = screen_of(t.session());
+    const PixelRect rect = bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect;
+    const PixelRect body = canvas_body_place(
+        rect, sc, external_title_rows(t.session().panes, stock::kKind, t.session().pane_titles));
+    const SetupPane before = *pane_of(t.session().setup.active, stock_ref());
+    // ITS TOP EDGE MOVES IT, as its title does: in a window the title stands on that edge.
+    const std::int64_t mid = (rect.x + rect.w / 2) / gfx::kCellPx - kRoomCellX;
+    const std::int64_t top = rect.y / gfx::kCellPx - kRoomCellY;
+    t.press(mid, top);
+    REQUIRE(t.session().pane_drag.active);
+    CHECK_FALSE(t.session().pane_drag.sizing);
+    t.release(mid, top);
+    REQUIRE(t.session().arrange.opened);
+    const std::int64_t wx = (body.x + body.w / 2) / gfx::kCellPx - kRoomCellX;
+    const std::int64_t wy = (body.y + body.h / 2) / gfx::kCellPx - kRoomCellY;
+    t.press(wx, wy);
+    CHECK_FALSE(t.session().pane_drag.active);
+    CHECK_FALSE(t.session().arrange.open);
+    CHECK(t.session().panes.selected == stock::kKind);
+    t.motion(wx + 4, wy + 2);
+    t.release(wx + 4, wy + 2);
+    CHECK(*pane_of(t.session().setup.active, stock_ref()) == before);
+}
+
+TEST_CASE("WL-DESK-19: where workshop.open-at says mouse, a pane the layout never had opens at the hand") {
+    TempDir dir("open-at-mouse");
+    prefs_persist::Prefs kept;
+    REQUIRE(prefs_persist::put_workshop_value(
+        kept, prefs_persist::kOpenAtKey,
+        PaneSetting{prefs_persist::kOpenAtKey, std::nullopt, std::nullopt,
+                    std::string(prefs_persist::kOpenAtMouse)}));
+    const std::string path = dir.file("open-at.json");
+    REQUIRE(prefs_persist::save_file(path, kept).accepted);
+    Live t;
+    t.host.prefs_path = path;
+    (void)mount_tool(t, "zengine-snake");
+    t.press(30, 12); // on the bare room: the hand is seen there
+    t.release(30, 12);
+    REQUIRE(t.session().hand_px.has_value());
+    REQUIRE(t.session().open_at_mouse);
+    REQUIRE(hand_launch(t, stock_ref()).opened);
+    const SetupPane* row = pane_of(t.session().setup.active, stock_ref());
+    REQUIRE(row != nullptr);
+    CHECK(row->place.mode == pane_unit::kPixels);
+    const PixelRect at = room_of_canvas(
+        PixelRect{t.session().hand_px->x, t.session().hand_px->y, 0, 0}, screen_of(t.session()));
+    CHECK(row->place.x == at.x);
+    CHECK(row->place.y == at.y);
+}
+
+TEST_CASE("WL-ARR-18: arranging says so at the room's top, naming what it arranges, and in a window every other pane fades") {
+    // MUTATION: no veil -- the window drawing has no fade over the pane not arranged.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    (void)seat_pane(t, second_ref());
+    REQUIRE_FALSE(t.session().arrange.open);
+    REQUIRE(hand_launch(t, stock_ref()).opened);
+    REQUIRE(t.session().arrange.open);
+    const Screen sc = screen_of(t.session());
+    const auto said = [&](const std::string& words) {
+        ScreenPlane layer;
+        paint_pane_affordances(layer, t.session(), sc);
+        return std::any_of(layer.labels.begin(), layer.labels.end(),
+                           [&](const ScreenLabel& l) { return l.text == words; });
+    };
+    CHECK(said(kArrangingCaption));
+    CHECK(said(stock::kName));
+    // ...ON A GROUND THAT CLEARS THE PANE IT ARRANGES, whose title the hand takes it by.
+    const PixelRect caption = arranging_caption_rect(t.session(), sc);
+    const PixelRect held = bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect;
+    CHECK_FALSE((caption.x < held.x + held.w && held.x < caption.x + caption.w &&
+                 caption.y < held.y + held.h && held.y < caption.y + caption.h));
+    // ...THE OVERLAY'S, which hears nothing, while a pane opened is placed; Workshop's own area
+    // while it arranges in front of the panes.
+    const auto fades = [&]() {
+        std::size_t n = 0;
+        const gfx::Sketch desk = workshop_window_drawing(t.session()).sketch;
+        const gfx::Sketch overlay = workshop_overlay_drawing(t.session(), {});
+        for (const gfx::Sketch* drawn : {&desk, &overlay}) {
+            for (const gfx::Node& node : drawn->nodes()) {
+                if (node.path.find("/veil/fade") != std::string::npos) ++n;
+            }
+        }
+        return n;
+    };
+    CHECK(fades() > 0);
+    // ...AND THE DESK'S ARRANGEMENT SAYS `all panes`, fading none.
+    t.key(input::scan::kEscape);
+    release_keys(t); // the stand-in kept the keys its open gave it
+    enter_arrange_desk(t);
+    CHECK(said(kArrangingCaption));
+    CHECK(said("all panes"));
+    CHECK(fades() == 0);
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(said(kArrangingCaption));
 }

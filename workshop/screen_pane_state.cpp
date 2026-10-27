@@ -227,6 +227,25 @@ std::string pixel_rect_text(const PixelRect& r, std::int64_t cell_px) {
     return text;
 }
 
+// WL-GEO-12 -- agents/workshop/geometry.md
+std::string pane_move_text(const std::string& name, const PixelRect& before, const PixelRect& after,
+                           std::int64_t cell_px) {
+    bool projected = false;
+    const auto n = [cell_px, &projected](std::int64_t px) {
+        return geometry_amount_text(px, cell_px, projected);
+    };
+    const bool sized = before.w != after.w || before.h != after.h;
+    const auto at = [&](const PixelRect& r) {
+        return "@" + n(r.x) + "," + n(r.y) + (sized ? " " + n(r.w) + "x" + n(r.h) : std::string());
+    };
+    std::string text = "moved " + name + ": " + at(before) + " -> " + at(after) + " " +
+                       geometry_unit(cell_px);
+    if (projected) {
+        text += kProjectedNote;
+    }
+    return text;
+}
+
 // WL-GEO-09, WL-GEO-12 -- agents/workshop/geometry.md
 std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
     if (row == nullptr) {

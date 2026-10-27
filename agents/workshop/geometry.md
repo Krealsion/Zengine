@@ -143,9 +143,9 @@ WHY — `agents/decisions/the-face-reports-the-unit.md`
 LAW — A window says each axis in its word, `-` for `default`, followed by ` -- now @x,y WxH <unit>` from the resolved, unclipped window wherever an axis is not exact pixels.
 
 MEANS
-- the clause names the unclipped ask — the rectangle a gesture measures from;
+- the clause names the unclipped ask — the rectangle a gesture measures from; a window in pixels on every axis carries none;
 - a share reads `50.00%`, then `fit`, `fill`, and a place its word and the offsets it reads, a share place's as shares;
-- a window in pixels on every axis carries no such clause: its numbers are where it is.
+- a move says `moved <name>: @x,y -> @x,y <unit>`, its place before and after, each size where it changed, and an axis whose word it changed.
 
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
@@ -271,8 +271,10 @@ BYTES" "the medium's device unit reaches no durable file"
 `tests/test_workshop_screen.cpp` "the medium's unit reaches the READOUT and no geometry at all"
 
 ### WL-GEO-12
-`workshop/weave_arrange.cpp` arrange_status managed_bounds
-`workshop/screen_pane_state.cpp` pane_window_reads_words pane_window_text
+`workshop/weave_arrange.cpp` arrange_status managed_bounds WorkshopWeave::moved_words
+WorkshopWeave::pane_room_rect
+`workshop/screen_pane_state.cpp` pane_window_reads_words pane_window_text pane_move_text
+`workshop/screen.hpp` pane_move_text
 `workshop/screen_pane_subject.cpp` pane_axis_text
 `tests/test_workshop_panes_window.cpp` "the notice says where a pane the weaver did not place
 actually is"

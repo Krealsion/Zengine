@@ -401,6 +401,11 @@ def main():
         check("J9 the bus's own order: client 1 left, the run finished, client 2 arrived",
               None not in order and order[0] < order[1] < order[2], order)
 
+        # The chord opened the Pane Manager for the first time, so it is being placed (WL-DESK-19);
+        # a key ends that, and the edited run below starts from a desk no placing is drawn on.
+        c2.start("workshop/inspect-capture", "settled", {"chord": "down"})
+        c2.wait("settled", timeout=120)
+
         # ---- edit the tool; run again; no compiler, no restart, the old run kept ------------------
         # The first version leaves Workshop as its chord left it (the Pane Manager now holds the
         # keyboard). The edit teaches it to put Workshop back: an arrow's opposite, pictured.

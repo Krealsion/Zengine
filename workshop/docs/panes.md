@@ -65,16 +65,18 @@ whatever slid into that row; a repaint that moved no row does not refuse.
 
 ![The Pane Manager's menu for the hidden Powers row: show Powers, manage Powers, inspect in Info, then under a rule naming the Pane Manager, Workshop's own rows for the Pane Manager](images/pane-manager-row-menu.png)
 
-**A pane you show lands in sight.** A pane with no place of its own stands in the column
-down the room's left, under the panes already there; when the column has no room left for it, the
-column begins again at its top, so the pane lands there, in front of whatever it covers. Nothing
-is refused for want of room, from the Pane Manager, a launch key or `n` alike; move it where you
-want it by [arranging](#moving-resizing-and-ordering--arrange). A pane keeps a place you gave it:
+**A pane you show is yours to place.** A pane this layout has not had opens at the room's
+centre -- at your pointer, where Workshop's `workshop.open-at` setting says `mouse` -- and, when it
+opens with the keys, [arranging](#moving-resizing-and-ordering--arrange) it: drag it where you want
+it, then `Esc` or a right-click. Hidden and shown again in the same layout, it comes back where you
+left it, for as long as Workshop runs. The palette opens at the centre every time and is never
+arranged, and a pane opened without the keys is placed but not arranged. Nothing is refused for
+want of room, from the Pane Manager, a launch key or `n` alike. A pane keeps a place you gave it:
 if that place is off this screen, showing it says so on the band, with the two ways back --
 `Reset >` `place` in its menu, which the Pane Manager's `manage <pane> >` reaches, or hiding it
 and showing it again.
 
-![The Pane Manager and Hotkeys fill the column of a 1200 by 600 window; Powers, shown from the Pane Manager, stands at the column's top in front of them, with the keys](images/panes-launch-at-the-top.png)
+![Powers, shown from the Pane Manager in a 1200 by 600 window, opens at the room's centre with the keys, in front of the Pane Manager it was shown from and being placed: Arranging Mode Active names it, and Info and Notices fade](images/panes-show-is-placed.png)
 
 **Showing never toggles.** `Enter` on a shown pane — or `Ctrl`+`t` while the Terminal is up —
 selects it and gives it the keyboard. It does not hide it, does not take it off your layout,
@@ -166,7 +168,9 @@ Arranging has two scopes, and both mean the same thing: manipulate panes directl
 bound to exactly that pane — its eight edge and corner handles appear, dragging its body
 moves it, dragging a handle resizes it, and the arrow keys do the same one cell at a time.
 Clicking anywhere else changes nothing and reminds you which pane you are arranging.
-`Esc` or a right-click leaves.
+`Esc` or a right-click leaves. While you arrange, the top of the room says **Arranging Mode
+Active** with the pane's name beneath it, or `all panes` when you arrange the desk, and in a
+window every other pane fades.
 
 Choosing `arrange` also **selects** that pane, which is the same selection a press into it
 makes — so a pane you arrange comes forward while you work on it, wears the selected border,
@@ -407,6 +411,14 @@ arrange @zengine.workshop/info (open) -- -x- f1 -- now @1668,36 576x108 px
 
 Once you have authored the place and both extents, the `now` clause goes away: what you
 authored *is* the rectangle.
+
+A move says only where the pane stood and where it stands, and its size before and after too when
+the move changed it:
+
+```text
+moved Flow: @400,180 -> @16,60 px
+moved Flow: @16,60 480x320 -> @16,60 560x320 px
+```
 
 **Which unit a face uses is that face's own report, not an assumption.** A terminal has no
 unit finer than its cell and says so; the graphical Workshop reports the size of one canvas

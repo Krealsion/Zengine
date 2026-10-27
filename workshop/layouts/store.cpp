@@ -1728,6 +1728,28 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
         }
         return std::string();
     };
+    // A WINDOW AS AN EDIT SAYS IT, judged as the setup file judges one.
+    const auto window_of = [&e](PanePlace& place, PaneSize& width, PaneSize& height) {
+        if (const Written p = setup_persist::place_in(e.place, place); !p.accepted) {
+            return p.refusal;
+        }
+        if (const Written w = setup_persist::size_in(e.width, width, "width"); !w.accepted) {
+            return w.refusal;
+        }
+        if (const Written h = setup_persist::size_in(e.height, height, "height"); !h.accepted) {
+            return h.refusal;
+        }
+        if (const Written p = check_pane_place(place); !p.accepted) {
+            return p.refusal;
+        }
+        if (const Written w = check_pane_size(width, "width"); !w.accepted) {
+            return w.refusal;
+        }
+        if (const Written h = check_pane_size(height, "height"); !h.accepted) {
+            return h.refusal;
+        }
+        return std::string();
+    };
     if (e.op == kSeat) {
         if (std::string wrong = row_op(); !wrong.empty()) {
             return wrong;
@@ -1738,7 +1760,26 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
         if (live.panes.size() >= kMaxSetupPanes) {
             return "a setup holds at most " + std::to_string(kMaxSetupPanes) + " panes";
         }
+        // WHERE IT WAS LEFT IN THIS LAYOUT, else the window the seat names, else the code's.
+        PanePlace place;
+        PaneSize width;
+        PaneSize height;
+        const std::optional<LeftPlace> back = take_left_place(next, ref);
+        if (back.has_value()) {
+            place = back->place;
+            width = back->width;
+            height = back->height;
+            out.returned = true;
+        } else if (!e.place.mode.empty()) {
+            if (std::string wrong = window_of(place, width, height); !wrong.empty()) {
+                return wrong;
+            }
+        }
         (void)add_pane(live, ref);
+        SetupPane* row = pane_of(live, ref);
+        row->place = place;
+        row->width = width;
+        row->height = height;
         return std::string();
     }
     if (e.op == kUnseat) {
@@ -1750,6 +1791,7 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
             return ref_text(ref) + " is not on this desk";
         }
         out.discarded = row->settings;
+        leave_place(next, *row);
         for (const SetupLock& lock : live.locks) {
             if (lock.ref == ref) {
                 out.unlocked.push_back(lock.key);
@@ -1769,23 +1811,8 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
         PanePlace place;
         PaneSize width;
         PaneSize height;
-        if (const Written p = setup_persist::place_in(e.place, place); !p.accepted) {
-            return p.refusal;
-        }
-        if (const Written w = setup_persist::size_in(e.width, width, "width"); !w.accepted) {
-            return w.refusal;
-        }
-        if (const Written h = setup_persist::size_in(e.height, height, "height"); !h.accepted) {
-            return h.refusal;
-        }
-        if (const Written p = check_pane_place(place); !p.accepted) {
-            return p.refusal;
-        }
-        if (const Written w = check_pane_size(width, "width"); !w.accepted) {
-            return w.refusal;
-        }
-        if (const Written h = check_pane_size(height, "height"); !h.accepted) {
-            return h.refusal;
+        if (std::string wrong = window_of(place, width, height); !wrong.empty()) {
+            return wrong;
         }
         row->place = place;
         row->width = width;
@@ -1999,6 +2026,7 @@ LayoutEditAnswered LayoutStore::edit(const LayoutEditRequested& asked) {
         out.refusal = why;
         out.discarded.clear();
         out.unlocked.clear();
+        out.returned = false;
         out.revision = revision_;
         return out;
     };
@@ -2018,6 +2046,7 @@ LayoutEditAnswered LayoutStore::edit(const LayoutEditRequested& asked) {
         }
     }
     const bool desk_moved = !same_run(next, run_);
+    forget_gone_places(next);
     run_ = std::move(next);
     if (desk_moved || run_moved) {
         settle_live();

@@ -127,6 +127,14 @@ struct Desk {
         });
         desktop = load_real_desktop(r);
         presenter = r.load_presenter(presenter_image); // the shipped one unless a case replaces it
+        // EVERY PANE THESE CASES OPEN STANDS IN THE COLUMN: the layout keeps the column's place
+        // for each, so its first open gives that back rather than placing it (WL-DESK-19).
+        for (const PaneRef& ref : {PaneRef{kDesktopRole, dp::kLauncherPane},
+                                   PaneRef{"zengine.test.tools", "alpha"},
+                                   PaneRef{"zengine.test.tools", "beta"},
+                                   PaneRef{"zengine.test.tools", "gamma"}}) {
+            left_in_column(r, ref);
+        }
         r.key(input::scan::kP, input::mod::kCtrl);
         launcher = kind_of(r, kDesktopRole, dp::kLauncherPane);
         REQUIRE(is_runtime_kind(launcher));
