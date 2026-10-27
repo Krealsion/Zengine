@@ -204,7 +204,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
     bool removed = false;
     RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&s, &removed, seat_id](const loom::BusEvent& e) {
         if (!removed && e.kind == loom::EventKind::Delivered && e.target == s.r.workshop_id &&
-            s.r.last_notice().rfind("Value sent to", 0) == 0)
+            s.r.last_notice().find(" -> ") != std::string::npos)
             removed = s.r.bus.unregister_weave(seat_id) != nullptr;
     })};
     s.drag(s.inventory, s.row_of(s.inventory, "snippet"), 2, rows, 0, 1);

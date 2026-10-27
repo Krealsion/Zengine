@@ -2329,6 +2329,7 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     CHECK_FALSE(has_pane(r.session().setup.active, hello));
     CHECK_FALSE(r.session().panes.has(kind));
     CHECK(r.last_notice().rfind("hid ", 0) == 0);
+    CHECK_MESSAGE(r.last_notice().find(" -- ") == std::string::npos, r.last_notice()); // WL-NOTE-06
     // ⚠ NOTHING WAS UNLOADED: the office is still held, and the catalog still knows the pane.
     CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<gfx::AreaRoom>()));
     CHECK(r.session().panes.runtime.find(kHelloOffice, kHelloPane) != nullptr);
@@ -2400,9 +2401,11 @@ TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row leaves the live 
     CHECK(r.session().setup.revision > before);
     CHECK(r.session().setup.revision == r.owner->layouts().revision());
     CHECK_FALSE(r.session().panes.has(kind));
-    CHECK_MESSAGE(r.last_notice().find(" and its settings here (mode wide) and its locks here "
-                                       "(mode) -- its provider and what it holds are untouched") !=
-                      std::string::npos,
+    // WHAT WAS HIDDEN, AND WHAT WENT WITH IT, and no more (WL-NOTE-06).
+    const std::string tail = " and its settings here (mode wide) and its locks here (mode)";
+    CHECK_MESSAGE((r.last_notice().rfind("hid ", 0) == 0 && r.last_notice().size() > tail.size() &&
+                   r.last_notice().compare(r.last_notice().size() - tail.size(), tail.size(),
+                                           tail) == 0),
                   r.last_notice());
     CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<gfx::AreaRoom>()));
 }

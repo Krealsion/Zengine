@@ -195,6 +195,14 @@ public:
         return {};
     }
     static bool writes_file(const std::string& action) { return !writing(action).empty(); }
+    /// What an edit that wrote a file says it did, and nothing for one that wrote none.
+    static std::string wrote(const std::string& action, const std::vector<std::string>& args) {
+        if (args.empty()) return {};
+        if (action == "export-project") return "Exported " + args[0];
+        if (action == "generate") return "Generated into " + args[0];
+        if (action == "library-save") return "Saved the library to " + args[0];
+        return {};
+    }
     /// A wire's source as `bind` spells one: `$field` or `%node`.
     static zengine::op::Binding wire_source(const std::string& text) {
         if (text.size() > 1 && text[0] == '$') return zengine::op::Binding::input(text.substr(1));
@@ -418,7 +426,9 @@ private:
         } else if (action == "inspect") { need(0); return {Effect::Inspect, {}};
         } else if (action == "catalog") { need(0); return {Effect::Catalog, {}};
         } else throw std::invalid_argument("unknown Flow edit: " + action);
-        if (notice == previous_notice) notice = action + " complete";
+        // AN EDIT THAT DID ITS WORK SAYS NOTHING, the pane showing what it did; a file it wrote
+        // is named.
+        if (notice == previous_notice) notice = wrote(action, args);
         return {};
     }
 };

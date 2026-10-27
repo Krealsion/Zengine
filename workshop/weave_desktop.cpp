@@ -746,9 +746,7 @@ void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
                         if (closed.accepted) {
                             say("hid " + inventory_name(ref) +
                                     discarded_settings(closed.discarded) +
-                                    discarded_locks(closed.unlocked) +
-                                    " -- its provider and what it holds are untouched; showing it "
-                                    "brings it back",
+                                    discarded_locks(closed.unlocked),
                                 false);
                         }
                         finish(answer, m);
