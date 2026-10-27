@@ -215,7 +215,7 @@ std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind, co
                                                            const DeskBounds& laid) const {
     const Screen sc = screen_of(session_);
     std::vector<Cover> out;
-    if (session_.arrange.open) out.push_back(Cover{"arranging", rect});
+    if (session_.arrange.open && !session_.arrange.opened) out.push_back(Cover{"arranging", rect});
     if (session_.presented.open) out.push_back(Cover{"menu", presented_bounds(session_, sc)});
     else if (session_.context.open) out.push_back(Cover{"menu", context_bounds(session_, sc)});
     const std::vector<CatalogRow> rows = inventory_rows(session_.setup.active, session_.panes);

@@ -1988,6 +1988,15 @@ TEST_CASE("views: making a view offers only that view, so a view already on the 
     REQUIRE(row != nullptr);
     const std::int64_t kind = row->kind;
     REQUIRE(s.r.session().panes.has(kind)); // launched as it was made
+    // IN THE COLUMN, so the second view, opened at the room's centre, stands clear of it.
+    stage_desk(s.r, [&row](Setup& desk) {
+        if (SetupPane* seat = pane_of(desk, PaneRef{row->provider, row->pane})) {
+            seat->place = PanePlace{};
+            seat->width = PaneSize{};
+            seat->height = PaneSize{};
+        }
+    });
+    s.r.key(input::scan::kUnknown);
     const std::vector<std::string> before = pane_rows(s.r, kind);
     REQUIRE_FALSE(before.empty());
     // A SECOND VIEW MADE: every showing of the window meanwhile shows the first view as it was.

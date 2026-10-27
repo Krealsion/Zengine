@@ -949,8 +949,10 @@ public:
     void ask_layout(std::vector<LayoutEdit> edits, EditThen then, loom::Mail& mail,
                     bool judged = true);
     /// SEAT `ref` ON THE LIVE LAYOUT, asking the owner only when this desk does not seat it, then
-    /// `then` with what that came to.
-    void seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail);
+    /// `then` with what that came to. A pane the layout never had opens centred, or at the hand
+    /// (`workshop.open-at`), and is placed when the open brings the `keys`; one it had comes back
+    /// where it was left. The palette opens centred and is never placed.
+    void seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail, bool keys = false);
     /// ...AND TAKE ITS ROW OFF, one of this desk's own closes: asked of the owner, which takes the
     /// row whole and names its settings and locks in the answer; it unloads nothing.
     void unseat_then(const PaneRef& ref, EditThen then, loom::Mail& mail);
@@ -1016,6 +1018,10 @@ public:
     /// WHAT THE ONE INVENTORY CALLS A PANE -- its offered name, or its pane key when nothing
     /// names it -- for a sentence about it.
     std::string inventory_name(const PaneRef& ref) const;
+    /// Where `ref` stands on `desk`, resolved and in the room.
+    PixelRect pane_room_rect(const Setup& desk, const PaneRef& ref) const;
+    /// What a move of `ref` says, from where it stood, `before`, to where this desk shows it.
+    std::string moved_words(const PaneRef& ref, const PixelRect& before) const;
 
     /// A SHOWN PANE THAT STANDS OFF THIS SCREEN, said with the two ways back -- or nothing, when
     /// any of it is in sight. Its own place stands, so the band says where it went.
@@ -1408,7 +1414,7 @@ private:
 
     /// Arrange one pane: the pane-local scope, on an explicit target -- the context menu's
     /// captured subject, or the desk's keyboard target.
-    void enter_arrange_pane(const PaneRef& ref);
+    void enter_arrange_pane(const PaneRef& ref, bool opened = false);
 
     /// THE ACTIVE SETUP NO LONGER NAMES THE ADDRESSED PANE, SO NOTHING DOES.
     void forget_removed_selection();
@@ -1484,6 +1490,11 @@ private:
     /// A PRESS WHILE ARRANGING, and the two scopes answer it differently because
     /// they are ABOUT different things.
     void arrange_press(const PointedAt& at);
+    /// A PANE BEING PLACED AS IT OPENED, pressed: its edge or its title taken in hand, true; else
+    /// false, and the press is the press it would have been.
+    bool placing_press(const PointedAt& at);
+    /// ...AND THE PLACING ENDED by `what`, a key or a press, said.
+    void leave_placing(const std::string& what);
 
     /// A MOTION WHILE A PANE GESTURE IS HELD. It targets the pane that CLAIMED THE PRESS,
     /// looked up by its reference, so nothing under the pointer can take the gesture over; its

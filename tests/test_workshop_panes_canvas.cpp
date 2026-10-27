@@ -327,7 +327,7 @@ TEST_CASE("a view asks for its size in pixels and its pane grants exactly that r
     }
 }
 
-TEST_CASE("a view run when the stack's column is spent is shown at the column's top, in front") {
+TEST_CASE("a view the layout left in the stack, run when its column is spent, is shown at the column's top, in front") {
     // ⚔ MUTATION: the view's ask to be shown judged by a stack rationed to its column's height --
     // refused for room, as a view run from the View Builder beside the Pane Manager was.
     namespace view = zengine::view;
@@ -358,6 +358,8 @@ TEST_CASE("a view run when the stack's column is spent is shown at the column's 
     d.height = 48;
     d.elements = {{"hello", view::Kind::label, "Hello", 0, 0, 192, 24, ""}};
     const auto bytes = view::description_bytes(d);
+    // The layout kept the column's place for it, so the view's reveal puts it back there.
+    left_in_column(r, PaneRef{"greeting", view::kPane});
     (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
         loom::Message(loom::to_value(view::ViewRun{"builder", loom::Bytes(bytes.begin(), bytes.end())}), client_id, {}, 1));
     r.bus.drain_until_idle();

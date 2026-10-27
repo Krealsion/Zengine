@@ -317,6 +317,9 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
     }
     // A press puts a carried item's hover down: the gesture it begins owns the pointer.
     if (b.pressed) leave_carry_hover(mail);
+    if (const PointedAt at = canvas_point_of(b.space, b.x, b.y); at.understood) {
+        session_.hand_px = at.px;
+    }
     if (!b.pressed && release_value_drag(b, mail)) {
         (void)end_held_gestures(mail); repaint(mail); return;
     }
@@ -328,6 +331,23 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
         // THE WEAVER'S OWN PRESS ENDS A GUIDE MARK IT LANDS IN; a guest's does not.
         if (!guide_marks_.empty() && (!input_actor_.known || input_actor_.local)) {
             guide_pressed(mail, canvas_point_of(b.space, b.x, b.y));
+        }
+    }
+    // A PANE BEING PLACED AS IT OPENED takes the hand at its title and edges; any other press ends
+    // the placing, said, and goes on as the press it was. A drag it began ends at its release.
+    if (session_.arrange.open && session_.arrange.opened) {
+        const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+        if (!b.pressed && b.button == 1 && session_.pane_drag.active) {
+            (void)end_held_gestures(mail);
+            repaint(mail);
+            return;
+        }
+        if (b.pressed && b.button == 1 && where.understood && placing_press(where)) {
+            repaint(mail);
+            return;
+        }
+        if (b.pressed) {
+            leave_placing("a press");
         }
     }
     // Arrangement is a mode and owns the pointer while open: every press is about a pane. A
@@ -515,6 +535,9 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
     }
     // A carried value tells the pane under it, so a receiver may mark where it would land.
     const PointedAt hand_at = canvas_point_of(m.space, m.x, m.y);
+    if (hand_at.understood) {
+        session_.hand_px = hand_at.px;
+    }
     if (move_value_drag(m, mail)) {
         carry_hover(hand_at.px.x, hand_at.px.y, mail);
         return;
@@ -545,8 +568,8 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
         return;
     }
     // Arrangement owns motion while open, for the press's reason; with no pane gesture held, a
-    // motion does nothing.
-    if (session_.arrange.open) {
+    // motion does nothing. A pane being placed as it opened owns only the motion of its own hold.
+    if (session_.arrange.open && (!session_.arrange.opened || session_.pane_drag.active)) {
         leave_carry_hover(mail);
         const PointedAt here = canvas_point_of(m.space, m.x, m.y);
         if (!here.understood || !session_.pane_drag.active) {

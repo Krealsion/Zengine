@@ -46,6 +46,7 @@ void WorkshopWeave::apply_workshop_settings(const std::vector<PaneSetting>& sett
     session_.arrange_step_cells = said.arrange_step_cells;
     session_.snap_reach_px = said.snap_reach_px;
     session_.stack_rows = said.stack_rows;
+    session_.open_at_mouse = said.open_at_mouse;
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md

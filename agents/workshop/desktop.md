@@ -117,7 +117,7 @@ LAW — A close names a pane by its durable keys; the layouts' owner takes its r
 MEANS
 - a launch finds it as it was: an Editor's unsaved source, a Terminal's history;
 - a close never opens anything, the launcher's Return never closes anything (`x` does), and the live layout is what is asked, not the catalog: an unavailable pane's row closes;
-- the row goes whole and starts afresh; what the weaver sees after is the presenter's: the owner's sentence on its band, the palette's keys given back.
+- the row goes whole, its place and size kept for its layout (WL-DESK-19); what the weaver sees after is the presenter's: the owner's sentence on its band, the palette's keys given back.
 
 DOES NOT MEAN
 - that the presenter has a close door, or forwards one: its own closes ask the owner for an unseat.
@@ -152,6 +152,21 @@ DOES NOT MEAN
 - that a window's press on a line runs it: only a key Workshop numbered does.
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
+
+## WL-DESK-19 — The weaver places a pane: a first open is centred, a pane left comes back where it was
+
+LAW — A pane new to a layout opens at the room's centre, or the hand where `workshop.open-at` says `mouse`, and is placed when its open brings the keys; one taken off comes back where it was left.
+
+MEANS
+- placing takes the hand at the pane's title and edges; a key or a press in its body is the pane's, and the first of either ends the placing, said;
+- where it was left is its row's place and size, kept by the layouts' owner by layout for the run, and a seat that gives it back is answered `returned`;
+- the palette opens centred every time and is never arranged; a seat without the keys arranges nothing.
+
+DOES NOT MEAN
+- that Workshop seats a pane in a guess at free room: the weaver places it;
+- that the place outlives the run: after a relaunch a pane the last run closed opens as a first open.
+
+WHY — `agents/decisions/the-weaver-places-a-pane.md`
 
 ## Do not assume
 
@@ -277,6 +292,20 @@ unloads nothing: a launch finds its unsaved source exactly as it was"
 `workshop/desktop-pane/vocabulary.hpp` kActionPanes
 `tests/test_workshop_panes_desktop.cpp` "WL-DESK-13: Ctrl+P is a strict visibility toggle judged by
 the host -- open becomes closed, closed becomes open and focused, whatever the desktop last heard"
+
+### WL-DESK-19
+`workshop/layouts/run.hpp` LeftPlace SetupState::left leave_place take_left_place forget_gone_places
+`workshop/layouts/store.cpp` LayoutStore::edit_one
+`workshop/layouts/vocabulary.hpp` LayoutEditAnswered
+`workshop/weave_session.cpp` seat_then
+`workshop/weave_arrange.cpp` placing_press leave_placing
+`workshop/prefs_persist.hpp` kOpenAtKey kOpenAtCenter kOpenAtMouse
+`workshop/screen.hpp` Session::open_at_mouse PaneArrange::opened
+`tests/test_workshop_screen.cpp` "WL-DESK-19: a pane the layout never had opens at the room's centre,
+placed by its title and edges while its keys and body stay its own; shown again after a hide it comes
+back where it was left" "WL-DESK-19: a press in the body of a pane being placed is the pane's, and
+ends the placing" "WL-DESK-19: where workshop.open-at says mouse, a pane the layout never had opens at
+the hand"
 
 ### WL-DESK-18
 `workshop/command_vocabulary.hpp` CommandRunRequested CommandRunAnswered

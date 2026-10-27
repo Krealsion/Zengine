@@ -139,7 +139,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::LiveLayout>(), // LiveLayout v2
         shape<::zengine::workshop::LayoutEdit>(), // LayoutEdit v1
         shape<::zengine::workshop::LayoutEditRequested>(), // LayoutEditRequested v1
-        shape<::zengine::workshop::LayoutEditAnswered>(), // LayoutEditAnswered v1
+        shape<::zengine::workshop::LayoutEditAnswered>(), // LayoutEditAnswered v2
         shape<::zengine::workshop::SessionSaveRequested>(), // SessionSaveRequested v1
         shape<::zengine::workshop::SessionSaveAnswered>(), // SessionSaveAnswered v1
         shape<::zengine::workshop::WeaversActRequested>(), // WeaversActRequested v1
