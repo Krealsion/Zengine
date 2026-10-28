@@ -215,7 +215,7 @@ room's centre listing every action, every pane and each open pane's manual; type
 
 ![The quick setup at a first start, at the room's centre and holding the keys, being placed: Arranging Mode Active names it above it, Info and Notices fade beside it; it lists Edit text with Neovim, each ready-to-use setup the launcher lists with Start and its whole line, The story, Done and Skip; Notices says showed Quick setup and how to place it](images/first-run-quick-setup.png)
 
-![Start here at a later start, where it was left at the room's centre, without the keys: step 2 ticked by you, the others still to do, each with what ticks it and Show me; Notices says only reopened your last desk "Default" -- 1584x861 px](images/first-run-start-here.png)
+![Start here at a later start, where it was left at the room's centre, without the keys: step 2 ticked by you, the others still to do, each with what ticks it and Show me, step 4 naming the view saved and its flow exported beside it before Export app; Notices says only reopened your last desk "Default" -- 1584x861 px](images/first-run-start-here.png)
 
 **A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, Notices at the lower
 left, and the room.
