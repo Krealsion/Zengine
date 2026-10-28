@@ -148,4 +148,6 @@ Each box of Start here is ticked by a fact its owner says, never by the desk's w
 
 A step done earlier is ticked when its owner is asked, at each start. A press ticks a box by
 hand, `ticked by you`, or unticks it; the owner's fact makes it the owner's. **Show me** opens the
-step's pane -- the View Builder for 1, 4 and 5, Flow for 2 and 3 -- and says its next move.
+step's pane -- the View Builder for 1, 4 and 5, Flow for 2 and 3 -- and says its next move, plainly;
+a refusal is drawn as an alert. Step 4's names what Export app needs: the view saved, its flow
+exported beside it.
