@@ -216,3 +216,37 @@ Red in `zengine-view-builder-tests`:
 
 - Run app asks Workshop for a build and a write for the hand, then the launcher for the app the
   saved view was exported as, and says what started
+
+## discard-reads-the-file-box
+
+Discard reads again the file the File box names, not the one the view was saved to or opened from.
+
+In `view/view-builder/pane.cpp`:
+
+```diff
+-        const std::string file = file_;
++        const std::string file = model_.path;
+```
+
+Red in `zengine-view-builder-tests`:
+
+- Discard throws away what is unsaved at one press: a view goes back to the file it was saved to
+  or opened from, one never saved becomes a new view; nothing unsaved and a file gone are said, and
+  a running view is waited for
+
+## discard-forgets-the-typed-value
+
+Discard takes a value being typed for nothing unsaved, and leaves its box open.
+
+In `view/view-builder/pane.cpp`:
+
+```diff
+-        const bool typed = shown_.box && shown_.box->text.text() != value_now(*shown_.box);
++        const bool typed = shown_.box && shown_.box->text.text() == value_now(*shown_.box);
+```
+
+Red in `zengine-view-builder-tests`:
+
+- Discard throws away what is unsaved at one press: a view goes back to the file it was saved to
+  or opened from, one never saved becomes a new view; nothing unsaved and a file gone are said, and
+  a running view is waited for

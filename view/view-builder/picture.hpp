@@ -361,11 +361,12 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
     };
 
     // The bar. A New or Open over an unsaved view waits for its second press, and so does an
-    // Export app over an app already there.
+    // Export app over an app already there; Discard acts at its first.
     std::int64_t col = 0;
     col = button(col, 0, p.armed == "new" ? "New: discard?" : "New", "new");
     col = button(col, 0, p.armed == "open" ? "Open: discard?" : "Open", "open");
     col = button(col, 0, m.dirty ? "Save*" : "Save", "save");
+    col = button(col, 0, "Discard", "discard");
     col = button(col, 0, m.running ? "Running" : "Run", "run");
     col = button(col, 0, "Apply", "apply");
     col = button(col, 0, "Stop", "stop");
@@ -700,8 +701,8 @@ inline std::string part_name(const Hit& hit, const view::Description& d) {
         return d.elements[i].id;
     };
     const std::string& a = hit.action;
-    if (a == "new" || a == "open" || a == "save" || a == "run" || a == "apply" || a == "stop" ||
-        a == "export" || a == "run-app" || a == "choices")
+    if (a == "new" || a == "open" || a == "save" || a == "discard" || a == "run" || a == "apply" ||
+        a == "stop" || a == "export" || a == "run-app" || a == "choices")
         return "control:view." + a;
     if (a == "canvas") return "canvas";
     if (a == "kind" && !hit.args.empty()) return "kind:" + hit.args[0];
