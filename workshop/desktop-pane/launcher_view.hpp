@@ -30,6 +30,7 @@
 
 #include <zen/weave.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -111,10 +112,13 @@ public:
     // ---- What the host and Info say to it -----------------------------------------------------
 
     /// WHAT PANES THERE ARE, SAID BY THE HOST -- replaced WHOLE, never merged: this pane keeps no
-    /// copy it edits, and finds the weaver's choice in it again by identity.
+    /// copy it edits, and finds the weaver's choice in it again by identity. It lists them by name,
+    /// alphabetically, whatever order the host said them in.
+    // WL-DESK-10 -- agents/workshop/desktop-presenting.md
     void inventory_said(const std::vector<ws::InventoryPane>& panes, DesktopState& state,
                         const Declared& pane_rows_decl, const Declared& app, loom::Mail& mail) {
         known_ = panes;
+        std::stable_sort(known_.begin(), known_.end(), by_name);
         heard_ = true;
         find_cursor(state);
         say(state, pane_rows_decl, app, mail);
@@ -255,14 +259,21 @@ public:
         (void)pane_menu::pass_back(mail, kDesktopRole, kLauncherPane);
     }
 
-    /// THE WHEEL WALKS THE MARKER, one row per notch, fractions carried (Powers' convention).
+    // WL-DESK-10 -- agents/workshop/desktop-presenting.md
+    /// THE WHEEL SCROLLS THE ROWS HIDDEN ITS WAY FIRST, one row per notch, fractions carried; the
+    /// marker is carried to the window's edge only when a scroll would leave it out of sight, and
+    /// walks a row a notch once no row is hidden that way.
     void wheel(double dy, DesktopState& state, const Declared& pane_rows_decl, const Declared& app,
                loom::Mail& mail) {
         const std::int64_t notches = take_notches(wheel_, dy);
-        if (notches != 0) {
-            step(-notches, state);
-            say(state, pane_rows_decl, app, mail);
+        if (notches == 0) {
+            return;
         }
+        const std::int64_t way = notches > 0 ? -1 : +1; // a notch up shows what is above
+        for (std::int64_t n = notches > 0 ? notches : -notches; n > 0; --n) {
+            wheel_notch(way, state);
+        }
+        say(state, pane_rows_decl, app, mail);
     }
 
     /// What a menu came to, if it answers this image's own ask (`Asked::take`: from the
@@ -338,8 +349,8 @@ public:
                 ? static_cast<std::int64_t>(notes.size())
                 : (room_for_notes > 0 ? room_for_notes : 0);
         budget -= note_rows;
-        const component::ListWindow w = component::cursor_window(
-            known_.size(), choice_.at, first_, budget > 0 ? static_cast<std::size_t>(budget) : 0);
+        budget_ = budget > 0 ? static_cast<std::size_t>(budget) : 0;
+        const component::ListWindow w = list_window();
         first_ = w.first;
         if (const std::size_t earlier = component::earlier_marker(w); earlier > 0) {
             push("  ^ " + std::to_string(earlier) + " more above", graphics::role::kMuted,
@@ -416,6 +427,61 @@ private:
     }
 
     static RefKey key_of_pane(const ws::InventoryPane& p) { return RefKey{p.office, p.pane}; }
+
+    /// THE LIST'S ORDER: by name, letters compared without their case, then by office and pane, so
+    /// two panes of one name keep one order.
+    static bool by_name(const ws::InventoryPane& a, const ws::InventoryPane& b) {
+        const auto lower = [](unsigned char c) {
+            return static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+        };
+        const std::size_t n = (std::min)(a.name.size(), b.name.size());
+        for (std::size_t i = 0; i < n; ++i) {
+            const char x = lower(static_cast<unsigned char>(a.name[i]));
+            const char y = lower(static_cast<unsigned char>(b.name[i]));
+            if (x != y) {
+                return x < y;
+            }
+        }
+        if (a.name.size() != b.name.size()) {
+            return a.name.size() < b.name.size();
+        }
+        return a.office != b.office ? a.office < b.office : a.pane < b.pane;
+    }
+
+    /// THE WINDOW THE LIST SHOWS: the wheel's scroll while it shows the marker, else the least
+    /// motion that keeps the marker in sight.
+    component::ListWindow list_window() {
+        if (scrolled_) {
+            const component::ListWindow scroll =
+                component::scroll_window(known_.size(), first_, budget_);
+            if (scroll.shows(choice_.at)) {
+                return scroll;
+            }
+            scrolled_ = false;
+        }
+        return component::cursor_window(known_.size(), choice_.at, first_, budget_);
+    }
+
+    /// ONE NOTCH OF THE WHEEL, `way` -1 up or +1 down: the window moves a row while a row is hidden
+    /// that way, the marker carried onto its edge only if it would leave it; else the marker steps.
+    void wheel_notch(std::int64_t way, DesktopState& state) {
+        if (known_.empty()) {
+            return;
+        }
+        const component::ListWindow w = list_window();
+        const bool hidden = way > 0 ? w.after > 0 : w.before > 0;
+        if (budget_ == 0 || !hidden) {
+            step(way, state);
+            return;
+        }
+        const component::ListWindow next = component::scroll_window(
+            known_.size(), component::scroll_by(known_.size(), w.first, way), budget_);
+        first_ = next.first;
+        scrolled_ = true;
+        if (!next.shows(choice_.at) && next.count > 0) {
+            hold(static_cast<std::int64_t>(way > 0 ? next.first : next.end() - 1), state);
+        }
+    }
 
     /// THE CHOICE, WRITTEN TO THE RELOAD SHAPE: where the marker stands and which pane it holds.
     void write_choice(DesktopState& state) {
@@ -575,6 +641,10 @@ private:
     PaneCanvas launcher_canvas_{kLauncherPane, kDesktopRole};
     /// WHERE THE LIST'S WINDOW BEGAN LAST TIME, so it scrolls by the least it can.
     std::size_t first_ = 0;
+    /// THE ROWS THE LIST HAD LAST TIME, which the wheel scrolls within.
+    std::size_t budget_ = 0;
+    /// WHETHER THE WINDOW IS THE WHEEL'S SCROLL, kept while it shows the marker.
+    bool scrolled_ = false;
     std::string notice_;
     /// THE NAME THIS IMAGE LAST SAW ON THE CHOSEN ROW, for the sentence if it leaves the list.
     std::string held_name_;

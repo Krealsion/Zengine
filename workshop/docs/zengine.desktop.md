@@ -147,15 +147,16 @@ Shows or hides the [Command Palette](zengine.palette.md), as
 
 ## Commands in the Pane Manager
 
-The Pane Manager lists every pane Workshop can show, one row each. The marker `>` stands on the row
-you chose; you choose with the arrows, the wheel, or a press on the row's name.
+The Pane Manager lists every pane Workshop can show, one row each, by name, alphabetically. The
+marker `>` stands on the row you chose; you choose with the arrows, the wheel, or a press on the
+row's name. The wheel scrolls the rows hidden its way first, and moves the marker once none is.
 
 ### `launcher.up`
 
 Moves your choice up one row.
 
-- **Takes:** the list. Default key <!-- key launcher.up -->`up`<!-- /key -->; the wheel moves one
-  row a notch.
+- **Takes:** the list. Default key <!-- key launcher.up -->`up`<!-- /key -->; the wheel, a notch at
+  a time, once no row is hidden above.
 - **Answers:** the marker moves; it stops at the first row.
 - **Refuses:** nothing.
 - **Example:** <!-- key launcher.up -->`up`<!-- /key -->.

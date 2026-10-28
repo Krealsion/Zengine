@@ -977,8 +977,14 @@ TEST_CASE("the Pane Manager's close takes the Editor off the desk and unloads no
     REQUIRE_MESSAGE(loaded.ok, loaded.refusal);
 
     e.r.key(input::scan::kP, input::mod::kCtrl); // the launcher, holding the keys
-    const std::vector<CatalogRow> rows =
-        inventory_rows(e.r.session().setup.active, e.r.session().panes);
+    std::vector<CatalogRow> rows = inventory_rows(e.r.session().setup.active, e.r.session().panes);
+    const auto lowered = [](std::string s) { // the launcher lists them by name, without case
+        for (char& c : s) c = static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+        return s;
+    };
+    std::stable_sort(rows.begin(), rows.end(), [&](const CatalogRow& a, const CatalogRow& b) {
+        return lowered(a.name) < lowered(b.name);
+    });
     std::size_t at = rows.size();
     for (std::size_t i = 0; i < rows.size(); ++i) {
         at = rows[i].ref == editor_ref() ? i : at;

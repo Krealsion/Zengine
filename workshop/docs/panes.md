@@ -33,16 +33,16 @@ another pane covers it and you have since worked in another pane, comes forward 
 Straight from the Pane Manager — a pane just opened from it, say — the press hides it, covered or
 not. It is a show/hide toggle, judged by Workshop against your layout as it is when the key
 arrives, so a queued second press never quietly means the same thing twice. It lists every pane
-there is:
-the union of what this Workshop can present and what your layout names.
+there is, by name, alphabetically: the union of what this Workshop can present and what your layout
+names.
 
 ```
 PANES -- 8
-  [open] Layouts
-> [    ] Builder          a hidden tool: Enter shows it and puts you in it
-  [open] Terminal         already here: Enter takes you to it, and hides nothing
-  [gone] Info             nothing is offering this pane in this Workshop
   [load] Attention        this run has not finished loading its tool yet
+> [    ] Builder          a hidden tool: Enter shows it and puts you in it
+  [gone] Info             nothing is offering this pane in this Workshop
+  [open] Layouts
+  [open] Terminal         already here: Enter takes you to it, and hides nothing
 ```
 
 `↑` `↓` choose a row, `Enter` shows it and puts you in it (or goes to it when it is shown), `x`
@@ -53,7 +53,9 @@ can meet are in [the desk's manual](zengine.desktop.md#commands-in-the-pane-mana
 **By mouse.** Click the mark — `[    ]` or `[open]` — and the pane is shown or hidden; click the
 name and the marker moves there, opening nothing; click the marked name **again**, with the keys
 already in the Pane Manager, and that is `Enter`: the pane opens, or comes to the front with the
-keys if it was open and covered. The wheel walks the marker a row per notch. Right-click a row
+keys if it was open and covered. The wheel scrolls the rows hidden above or below first, a row a
+notch, carrying the marker only where it would leave sight; once none is hidden that way, it walks
+the marker. Right-click a row
 (or press `m` on the marked one) for its menu beside the pointer: `show Beta`, or `focus Beta`
 and `hide Beta` for a pane on the layout; **`manage Beta >`**, which opens Workshop's own pane
 menu for *that* pane — arrange, order, reset, edit code, hide pane — whether it is covered,
