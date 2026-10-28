@@ -262,8 +262,8 @@ TEST_CASE("the desk says which pane is selected and holds the keys, and a pane p
 }
 
 TEST_CASE("Workshop's notice says a pane's words, and the desk read the pixels they came to") {
-    // ⚔ MUTATION: the readout saying `-` for every word -- the notice says nothing of the share or
-    // the point of the room.
+    // ⚔ MUTATION (tests/mutants/workshop_desk.md#readout-says-dash): the readout saying `-` for
+    // every word -- the notice says nothing of the share or the point of the room.
     DeskRig d;
     const PaneRef alpha{kAlphaOffice, "alpha"};
     stage_desk(d.r, [&](Setup& desk) {
@@ -3418,8 +3418,9 @@ using Skins = std::map<std::string, std::string>;
 
 TEST_CASE("each graphics area wears its pane row's `workshop.skin`, else Workshop's own, and a "
           "skin is said only when an area's moved") {
-    // ⚔ MUTATION: every area given `classic` whatever is kept -- Workshop's `block` never reaches
-    // the directory, and neither does the row's.
+    // ⚔ MUTATION (tests/mutants/workshop_desk.md#every-area-classic): every area given `classic`
+    // whatever is kept -- Workshop's `block` never reaches the directory, and neither does the
+    // row's.
     SkinDesk d;
     const std::string pane = kAttentionArea;
     REQUIRE(d.directory->areas.count(pane) == 1);
@@ -3541,8 +3542,9 @@ TEST_CASE("a pane placed off the cell grid has its body under its title row: at 
 
 TEST_CASE("every pane's graphics area is `<office>.<pane>`, an office's one pane as each of its "
           "several") {
-    // ⚔ MUTATION: an office's area named by the office alone -- two panes of one office would
-    // share it, and its one pane would move area when a second is offered.
+    // ⚔ MUTATION (tests/mutants/workshop_desk.md#area-named-by-its-office): an office's area named
+    // by the office alone -- two panes of one office would share it, and its one pane would move
+    // area when a second is offered.
     Panes panes;
     const auto offered = [&panes](const char* office, const char* pane) {
         RuntimePane row;
@@ -4205,7 +4207,8 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
     }
     SUBCASE("the OS window offered the same way brings Workshop up in it: the skins offered, the "
             "areas placed on it, the place remembered and a paste asked of it") {
-        // ⚔ MUTATION: the offer of any window but the terminal's ignored -- nothing comes up.
+        // ⚔ MUTATION (tests/mutants/workshop_desk.md#only-the-terminal-window): the offer of any
+        // window but the terminal's ignored -- nothing comes up.
         TempDir os_dir("sdl-window-offered");
         PaneRig o;
         o.host.dir = "/zen/sdl-window-desk";

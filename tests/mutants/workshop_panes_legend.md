@@ -1,0 +1,36 @@
+# The mutants `tests/test_workshop_panes_legend.cpp` claims
+
+Each entry is a mutant that a comment in
+[`tests/test_workshop_panes_legend.cpp`](../test_workshop_panes_legend.cpp) claims its cases catch,
+the comment naming the entry by its path and heading. [The corpus's front page](README.md) says how
+an entry reads and how `tests/mutants/run.py` runs it.
+
+## picture-carries-the-panes-keys
+
+The layouts' owner's picture of the desk carries each pane's own settings to Workshop.
+
+In `workshop/layouts/store.cpp`:
+
+```diff
+-                      [](const PaneSetting& s) { return !is_desk_setting_key(s.key); });
++                      [](const PaneSetting& s) { return false && !is_desk_setting_key(s.key); });
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- a layout keeps the Terminal's legend hidden while another shows it, written through Info's rows
+
+## terminal-draws-before-its-row
+
+The Terminal draws its room before it holds its row.
+
+In `terminal/view.hpp`:
+
+```diff
+-    if (!room().granted() || !this->template facet<Settings>().held()) {
++    if (!room().granted()) {
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- after a restart the Terminal's first picture keeps its layout's legend, and so does a reload's

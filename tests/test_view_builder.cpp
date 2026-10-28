@@ -1032,8 +1032,9 @@ TEST_CASE("a place by hand snaps: an edge it moves comes to another element's or
 }
 
 TEST_CASE("the View Builder declares its snap reach and a new view's size as settings, and a layout's values reach the next placing hand and the next `new`") {
-    // ⚔ MUTATION: a place by hand snapping within `kSnapReach` whatever the layout keeps -- the
-    // element still comes to limit's edge -- and `new` making `kNewViewWidth` by `kNewViewHeight`.
+    // ⚔ MUTATION (tests/mutants/view_builder.md#snap-reach-fixed, #new-view-size-fixed): a place by
+    // hand snapping within `kSnapReach` whatever the layout keeps -- the element still comes to
+    // limit's edge -- and `new` making `kNewViewWidth` by `kNewViewHeight`.
     Rig rig;
     const auto said = [&rig]<class Shape>(Shape) {
         std::vector<Shape> out;
@@ -1996,8 +1997,9 @@ vb::ViewBuilderRun run_file(const std::filesystem::path& project) {
 } // namespace
 
 TEST_CASE("the View Builder runs again at a launch the view it ran, its pane seated by the desk") {
-    // ⚔ MUTATION: a launch that forgets the builder's project file -- the second launch runs
-    // nothing, and `notes` has no holder there.
+    // ⚔ MUTATION (tests/mutants/view_builder.md#launch-forgets-the-project-file): a launch that
+    // forgets the builder's project file -- the second launch runs nothing, and `notes` has no
+    // holder there.
     TempDir project;
     const auto dir = project.directory.generic_string();
     const auto saved = (project.directory / "notes.view").generic_string();
@@ -2069,8 +2071,9 @@ TEST_CASE("the View Builder runs again at a launch the view it ran, its pane sea
 }
 
 TEST_CASE("a reload keeps the file a view was saved to apart from a name typed into File and not saved, and the launch record names only the file") {
-    // ⚔ MUTATION: the restore taking the file from the File box -- the record names
-    // `other.view`, which was never saved, and the next launch opens nothing.
+    // ⚔ MUTATION (tests/mutants/view_builder.md#restore-takes-the-file-box): the restore taking the
+    // file from the File box -- the record names `other.view`, which was never saved, and the next
+    // launch opens nothing.
     TempDir project;
     const auto dir = project.directory.generic_string();
     const auto saved = (project.directory / "notes.view").generic_string();
@@ -2100,8 +2103,9 @@ TEST_CASE("a reload keeps the file a view was saved to apart from a name typed i
 }
 
 TEST_CASE("a launch record that could not be written is written at the next chance, a reload among them") {
-    // ⚔ MUTATION: what the record holds counted before its write succeeded -- the next chance
-    // finds nothing to write, and the project keeps no record of the view.
+    // ⚔ MUTATION (tests/mutants/view_builder.md#record-counted-before-written): what the record
+    // holds counted before its write succeeded -- the next chance finds nothing to write, and the
+    // project keeps no record of the view.
     TempDir project;
     const auto dir = project.directory.generic_string();
     const auto record = project.directory / vb::kRunFileName;
@@ -2143,9 +2147,9 @@ void put_run_file(const std::filesystem::path& project, const std::string& path,
 } // namespace
 
 TEST_CASE("a launch record whose view file is missing keeps that file and its run until the view opens again or the weaver opens, saves or starts another; a name typed into File is none of these") {
-    // ⚔ MUTATION: the record written from what the builder holds after a launch that could not
-    // open its file -- an edit or a reload names no file there, and the file's return brings
-    // nothing back.
+    // ⚔ MUTATION (tests/mutants/view_builder.md#record-written-after-a-failed-launch): the record
+    // written from what the builder holds after a launch that could not open its file -- an edit or
+    // a reload names no file there, and the file's return brings nothing back.
     TempDir project;
     const auto dir = project.directory.generic_string();
     const auto saved = project.directory / "notes.view";
@@ -2382,8 +2386,9 @@ struct ExportRig {
 } // namespace
 
 TEST_CASE("Export app writes the app's folder from the saved view and its flow: the probe's plan byte for byte, an app.json the app host reads, the two files, and launchers starting the app host beside this program") {
-    // MUTATION: the export writing the plan by hand rather than through the load plan's codec, or
-    // with another row -- the plan's bytes differ from the probe's.
+    // MUTATION (tests/mutants/view_builder.md#plan-by-hand, #plan-with-another-row): the export
+    // writing the plan by hand rather than through the load plan's codec, or with another row --
+    // the plan's bytes differ from the probe's.
     ExportRig x;
     x.press_export();
     INFO(x.rig.notice());
@@ -2424,7 +2429,8 @@ TEST_CASE("Export app writes the app's folder from the saved view and its flow: 
 }
 
 TEST_CASE("an export Workshop refuses writes nothing, and says why") {
-    // MUTATION: the export writing before Workshop answers -- the folder is there after a refusal.
+    // MUTATION (tests/mutants/view_builder.md#export-written-before-the-answer): the export writing
+    // before Workshop answers -- the folder is there after a refusal.
     ExportRig x;
     x.rig.desk->allow = false;
     const auto asked = x.rig.desk->heard.size();
@@ -2443,8 +2449,8 @@ TEST_CASE("an export Workshop refuses writes nothing, and says why") {
 }
 
 TEST_CASE("an app already there is replaced only after a second press, and its decisions and every other file stay") {
-    // MUTATION: an export over an existing folder without the second press -- app.json is the
-    // export's after one press.
+    // MUTATION (tests/mutants/view_builder.md#no-second-press): an export over an existing folder
+    // without the second press -- app.json is the export's after one press.
     ExportRig x;
     std::filesystem::create_directories(x.apps);
     write_bytes(x.apps / "app.json", "the weaver's own");
@@ -2518,8 +2524,8 @@ TEST_CASE("an export with nothing to make an app from is refused in words, and w
 }
 
 TEST_CASE("the export's own judgement: a program that is not there, and launchers that keep every path whole") {
-    // MUTATION: a launcher that leaves a percent sign single -- the command file reads it as a
-    // variable and starts another path.
+    // MUTATION (tests/mutants/view_builder.md#percent-left-single): a launcher that leaves a
+    // percent sign single -- the command file reads it as a variable and starts another path.
     TempDir dir;
     std::filesystem::copy_file(std::filesystem::path(TALLY_APP_DIR) / "tally.view", dir.directory / "tally.view");
     std::filesystem::copy_file(std::filesystem::path(TALLY_APP_DIR) / "tally.flow", dir.directory / "tally.flow");
@@ -2535,8 +2541,8 @@ TEST_CASE("the export's own judgement: a program that is not there, and launcher
 
 TEST_CASE("an exported app's launcher starts the app host its project's line names, and says why "
           "not when that program is gone") {
-    // MUTATION: a launcher that never reads the project's line -- an app outlives its package
-    // only while the package that exported it stands.
+    // MUTATION (tests/mutants/view_builder.md#project-line-unread): a launcher that never reads the
+    // project's line -- an app outlives its package only while the package that exported it stands.
     namespace fs = std::filesystem;
     namespace app = zengine::app;
     TempDir dir;
@@ -2623,7 +2629,8 @@ LauncherStub* mount_launcher(Rig& rig) {
 } // namespace
 
 TEST_CASE("Run app asks Workshop for a build and a write for the hand, then the launcher for the app the saved view was exported as, and says what started") {
-    // MUTATION: Run app asking the launcher before Workshop -- a refused hand still starts the app.
+    // MUTATION (tests/mutants/view_builder.md#launcher-before-workshop): Run app asking the
+    // launcher before Workshop -- a refused hand still starts the app.
     ExportRig x;
     x.press_export();
     REQUIRE(x.rig.says("Exported"));

@@ -154,7 +154,8 @@ template <class T> T round_trip(const T& v) {
 } // namespace
 
 TEST_CASE("a theme's name is 1 to 32 bytes of lowercase letters, digits and dashes") {
-    // ⚔ MUTATION: a name admitting `.` or `/` would let a theme's file name walk out of its folder.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#name-takes-dot-and-slash): a name admitting `.`
+    // or `/` would let a theme's file name walk out of its folder.
     CHECK(st::check_theme_name("solarized-dark").accepted);
     CHECK(st::check_theme_name("a").accepted);
     CHECK(st::check_theme_name(std::string(st::kMaxThemeNameLen, 'x')).accepted);
@@ -173,7 +174,8 @@ TEST_CASE("a theme setting's target is every pane, an office, or one pane of an 
         CAPTURE(good);
         CHECK(st::check_theme_target(good).accepted);
     }
-    // ⚔ MUTATION: an office with no `.`, a second `/`, or a pane of `*` taken as a target.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#office-without-dot, #pane-with-slash,
+    // #pane-of-star): an office with no `.`, a second `/`, or a pane of `*` taken as a target.
     for (const char* bad : {"foo", "a/b/c", "zengine.editor/*", "*/editor", "zengine.editor/",
                             "/editor", "foo/editor", "**"}) {
         CAPTURE(bad);
@@ -199,7 +201,7 @@ TEST_CASE("a theme setting holds exactly one value, or is a clear holding none")
     st::ThemeSetting two = number("*", "wheel-rows", 1);
     two.flag = true;
     CHECK(says(st::check_theme_setting(two).refusal, "holds more than one value"));
-    // ⚔ MUTATION: a clear that also carries a value, admitted.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#clear-with-value): a clear that also carries a value, admitted.
     st::ThemeSetting clear_and_value = number("*", "wheel-rows", 1);
     clear_and_value.clear = true;
     CHECK(says(st::check_theme_setting(clear_and_value).refusal, "a clear holds no value"));
@@ -229,7 +231,8 @@ TEST_CASE("a theme file sets nothing twice, includes nothing twice or itself, an
                                       number("zengine.skin", "wheel-rows", 3)},
                                      {{"focus.left", "h"}, {"focus.right", "l"}}))
               .accepted);
-    // ⚔ MUTATION: the duplicate scan dropped -- one target and key written twice, by one file.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#setting-twice): the duplicate scan dropped --
+    // one target and key written twice, by one file.
     CHECK(says(st::check_theme_file(theme("t", {}, {number("*", "wheel-rows", 5),
                                                     number("*", "wheel-rows", 6)}))
                    .refusal,
@@ -306,8 +309,9 @@ TEST_CASE("a theme file is refused by what its envelope says it is before its fi
     const st::LoadedTheme other =
         st::from_text(zengine::workshop::prefs_persist::to_text(prefs), "x.json");
     CHECK(says(other.outcome.refusal, "x.json: not a theme file: it says it is `WorkshopPrefs`"));
-    // ⚔ MUTATION: the envelope's version left to admission -- the renamed field would be named
-    // where the version that renamed it should be.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#envelope-version-unread): the envelope's version
+    // left to admission -- the renamed field would be named where the version that renamed it
+    // should be.
     const std::string later = replaced(replaced(good, "\"version\":1", "\"version\":2"),
                                        "\"summary\"", "\"blurb\"");
     CHECK(says(st::from_text(later).outcome.refusal, "theme version 2 -- this build reads version 1"));
@@ -329,7 +333,8 @@ TEST_CASE("a theme file past its ceiling is refused before it is parsed, read or
     CHECK(says(st::from_text(big).outcome.refusal, "65537 bytes is larger than a theme file can be"));
     TempDir d("ceiling");
     write_bytes(st::theme_path(d.dir(), "big"), big);
-    // ⚔ MUTATION: the read given no ceiling -- a hostile file chooses the cost of its refusal.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#read-without-ceiling): the read given no ceiling
+    // -- a hostile file chooses the cost of its refusal.
     CHECK(says(st::load_file(d.dir(), "big").outcome.refusal, "larger than a theme file can be"));
 }
 
@@ -367,7 +372,8 @@ TEST_CASE("a theme is written new, and over itself only when asked and only whil
     const std::string second = read_bytes(path);
     CHECK(second != first.raw_bytes);
     REQUIRE(st::load_file(folder, "evening").theme.settings.at(0).number == 7);
-    // ⚔ MUTATION: the guard skipped -- a second hand's write lost to a stale reader.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#stale-write-unguarded): the guard skipped -- a
+    // second hand's write lost to a stale reader.
     const zengine::workshop::Written stale = st::save_file(
         folder, theme("evening", {}, {number("*", "wheel-rows", 8)}), true, first.raw_bytes);
     CHECK(says(stale.refusal, "`evening` changed on disk since it was read -- nothing was written"));
@@ -400,7 +406,8 @@ TEST_CASE("a theme alone resolves to its own entries, with a fingerprint that is
     const st::ThemeResolved wrapped = st::resolve_theme(d.dir(), "wrapper");
     REQUIRE(wrapped.accepted);
     CHECK(wrapped.fingerprint == r.fingerprint);
-    // ⚔ MUTATION: the giving theme mixed in -- a twin of the same values would read as changed.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#fingerprint-takes-giver): the giving theme mixed
+    // in -- a twin of the same values would read as changed.
     put(d, theme("twin", {}, {number("*", "wheel-rows", 5), flag("zengine.terminal/terminal",
                                                                  "legend", true)},
                  {{"focus.left", "h"}}));
@@ -436,7 +443,8 @@ TEST_CASE("a theme's includes apply first and in order, and later wins, a clear 
     CHECK(r.settings[0].from_theme == "solarized-dark");
     CHECK(r.settings[1].setting == number("zengine.skin", "window.face", 15));
     CHECK(r.settings[1].from_theme == "dark");
-    // ⚔ MUTATION: a clear dropped from the resolution -- applying it would leave base's value.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#clear-dropped): a clear dropped from the
+    // resolution -- applying it would leave base's value.
     CHECK(r.settings[2].setting == cleared("zengine.terminal/terminal", "legend"));
     CHECK(r.settings[2].from_theme == "dark");
     CHECK(r.settings[3].from_theme == "solarized-dark");
@@ -487,8 +495,9 @@ TEST_CASE("a cycle refuses the whole resolution, naming its path") {
     put(d, theme("c", {"a"}));
     const st::ThemeResolved r = st::resolve_theme(d.dir(), "a");
     CHECK_FALSE(r.accepted);
-    // ⚔ MUTATION: the open path not consulted -- the walk would run until a bound refused it, and
-    // the refusal would name the bound rather than the cycle.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#cycle-unseen): the open path not consulted --
+    // the walk would run until a bound refused it, and the refusal would name the bound rather than
+    // the cycle.
     CHECK(r.refusal == "theme cycle: a -> b -> c -> a");
     // Never half resolved: what `x` gave before the cycle was met is not answered.
     CHECK(r.settings.empty());
@@ -539,7 +548,8 @@ TEST_CASE("a resolution past its depth, its themes read or its entries is refuse
     put(d, theme("tip", {"leaf7"}));
     wide.back() = "tip";
     put(d, theme("wider", wide));
-    // ⚔ MUTATION: the count of themes read dropped -- a wide include tree reads without end.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#themes-read-uncounted): the count of themes read
+    // dropped -- a wide include tree reads without end.
     const st::ThemeResolved seventeen = st::resolve_theme(d.dir(), "wider");
     CHECK_FALSE(seventeen.accepted);
     CHECK(seventeen.refusal == "resolving `wider` reads more than 16 themes");
@@ -605,7 +615,8 @@ TEST_CASE("a folder's themes are listed by name, a broken file with its refusal"
     const std::vector<st::ThemeSummary> listed = st::list_themes(d.dir());
     REQUIRE(listed.size() == 3);
     CHECK(listed[0].name == "broken");
-    // ⚔ MUTATION: a file that does not load left out -- the weaver could never see why.
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#broken-file-unlisted): a file that does not load
+    // left out -- the weaver could never see why.
     CHECK(says(listed[0].refusal, "not a theme file"));
     CHECK(listed[1] == st::ThemeSummary{"evening", "the evening", {"zebra"}, 2, 0, ""});
     CHECK(listed[2] == st::ThemeSummary{"zebra", "", {}, 1, 1, ""});

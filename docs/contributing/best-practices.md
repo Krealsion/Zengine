@@ -40,6 +40,9 @@ can move into its surface's own document.
   [VM-FIX-04](../../agents/verification/fixtures.md#vm-fix-04--a-matrix-cannot-find-what-the-code-and-the-cases-agree-on)
 - **A mutation matrix starts with a canary proven red by hand.**
   [VM-MUT-01](../../agents/verification/mutation.md#vm-mut-01--canary-first)
+- **A case's mutants are committed beside it and cited by path**: the comment that says a case
+  catches a mutant points at its entry under `tests/mutants/`, and the pull request names each.
+  [A pull request's mutants](../../tests/mutants/README.md#a-pull-requests-mutants)
 - **A late answer is staged by enqueueing, never by sleeping.**
   [VM-FIX-24](../../agents/verification/fixtures.md#vm-fix-24--stage-a-late-answer-by-enqueueing-a-batch-never-by-sleeping)
 - **A comma splits a doctest filter**: list the selection before trusting a run.

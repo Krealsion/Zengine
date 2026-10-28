@@ -135,8 +135,9 @@ std::map<std::string, std::set<std::string>> declared_shape_names(const std::fil
 } // namespace
 
 TEST_CASE("a shape that encloses a changed shape is a new version, so the shapes published before claim beside the current ones in one registry") {
-    // ⚔ MUTATION: `PaneInventory` kept at version 1 while the `InventoryPane` it carries moved to
-    // version 2 -- two shapes under one name and version, and the registry refuses the second.
+    // ⚔ MUTATION (tests/mutants/workshop_shapes.md#inventory-kept-at-version-one): `PaneInventory`
+    // kept at version 1 while the `InventoryPane` it carries moved to version 2 -- two shapes under
+    // one name and version, and the registry refuses the second.
     //
     // THE PUBLISHED IDS, compiled from Zengine 5901b39 in a worktree of it (the shapes' own
     // headers, not these copies), so the copies above are the shapes that were published.
@@ -163,9 +164,10 @@ TEST_CASE("a shape that encloses a changed shape is a new version, so the shapes
 }
 
 TEST_CASE("no two components of this tree declare a shape of one name") {
-    // ⚔ MUTATION: a component naming its state as another's is named -- Loom claims a library's
-    // state shape and vocabulary at load, so the next version either of the two took would meet
-    // the other's under one name and version, and one of the two libraries would be refused.
+    // ⚔ MUTATION (tests/mutants/workshop_shapes.md#second-component-declares-run-build): a
+    // component naming its state as another's is named -- Loom claims a library's state shape and
+    // vocabulary at load, so the next version either of the two took would meet the other's under
+    // one name and version, and one of the two libraries would be refused.
     //
     // THE READER, MADE TO SAY YES AND NO before it is believed.
     CHECK(shape_names_in("ZEN_SHAPE(Alpha, 1, ZEN_FIELD(x));\nZEN_SHAPE( Beta ,2);") ==
@@ -188,8 +190,9 @@ TEST_CASE("no two components of this tree declare a shape of one name") {
 }
 
 TEST_CASE("the test rig's booter loads a library after a plan has run, its state no shape of Workshop's") {
-    // ⚔ MUTATION: the rig's booter state named as the plan booter's -- `BootState` v1 of another
-    // shape -- and the load after a realized plan is refused by Loom's registry.
+    // ⚔ MUTATION (tests/mutants/workshop_shapes.md#rig-booter-state-named-boot-state): the rig's
+    // booter state named as the plan booter's -- `BootState` v1 of another shape -- and the load
+    // after a realized plan is refused by Loom's registry.
     PaneRig r;
     r.mount_workshop();
     r.ready();

@@ -316,8 +316,10 @@ TEST_CASE("the Neovim editor holding the office under a profile it refuses says 
 }
 
 TEST_CASE("the Neovim editor declares `profile` and `status`: `status` off gives Neovim the row above it, and a layout's `user` is the profile its next start runs where the variable names none") {
-    // ⚔ MUTATION: the row above Neovim drawn whatever `status` says -- the off picture still says
-    // NORMAL. And a start reading the variable alone -- the profile stays `clean`.
+    // ⚔ MUTATION (tests/mutants/workshop_neovim.md#status-row-always-drawn,
+    // #profile-from-the-variable-alone): the row above Neovim drawn whatever `status` says -- the
+    // off picture still says NORMAL. And a start reading the variable alone -- the profile stays
+    // `clean`.
     SwitchRig s("nvim-settings");
     NeovimEnvironment env(s.root, NEOVIM_FIXTURE);
     // THE VARIABLE UNSET BEFORE THE IMAGE LOADS, and never touched after: a weave built against its

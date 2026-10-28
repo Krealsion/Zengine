@@ -1300,7 +1300,8 @@ TEST_CASE("Edit Code asks class open for the guest's hand: a recipe whose source
     // THE ONE RECIPE BEHIND TALLY NAMES THE GUESTS FILE, so its Edit Code would put every row's
     // credential on screen. Chosen by a guest's hand on a weaver's host it is refused in words and
     // nothing reaches the opening office; the weaver's own choice of the same row opens it.
-    // ⚔ MUTATION: `edit_code` without its class `open` judgement: the guest's choice opens it.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_code.md#edit-code-unjudged): `edit_code` without its
+    // class `open` judgement: the guest's choice opens it.
     CodeRig c("code-guest-guests-file");
     const std::filesystem::path guests_at = c.root / "guests.json";
     put_bytes(guests_at, "{\"version\": 2, \"host\": \"weaver\", \"guests\": []}\n");

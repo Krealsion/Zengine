@@ -438,7 +438,8 @@ TEST_CASE("the shipped desk puts it at the room's top-right, by word and not by 
     // THE PLACE MOVED WITH THE OFFICE AND IS SAID AS A WORD. No pair of coordinates can mean
     // "the right edge, at a comfortable size" on a screen the desk does not know, so the row
     // spells `top-right` at no offset and leaves its sizes the pane's own.
-    // ⚔ MUTATION: `default_setup` seating Info with a `default` place -- it stands down the stack.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_info.md#info-seated-by-default): `default_setup`
+    // seating Info with a `default` place -- it stands down the stack.
     InfoRig f;
     f.open();
     const SetupPane* seated = pane_of(f.r.session().setup.active, pane_info_ref());
@@ -485,8 +486,9 @@ struct TypedAxes {
 } // namespace
 
 TEST_CASE("Info's typed axes take a word as well as a number, and each reads back as it was typed") {
-    // ⚔ MUTATION: `write_pane_axis` reading every typed value as a count of the face's unit --
-    // `50%` is refused, and no word can be typed.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_info.md#typed-size-a-count): `write_pane_axis`
+    // reading every typed value as a count of the face's unit -- `50%` is refused, and no word can
+    // be typed.
     TypedAxes t;
     // A SIZE: a share as a percent or in ten-thousandths, `fit`, `fill`, or pixels.
     REQUIRE_MESSAGE(t.type(2, "50%").accepted, t.type(2, "50%").refusal);
@@ -535,8 +537,9 @@ TEST_CASE("Info's typed axes take a word as well as a number, and each reads bac
 }
 
 TEST_CASE("Info's X and Y take a share place as a size's share is typed, and read it back") {
-    // ⚔ MUTATION: `write_pane_axis` reading `33.33%` on a place axis as a count of the face's
-    // unit -- it is refused, and no share place can be typed.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_info.md#typed-place-a-count): `write_pane_axis`
+    // reading `33.33%` on a place axis as a count of the face's unit -- it is refused, and no share
+    // place can be typed.
     TypedAxes t;
     REQUIRE(t.type(0, "4").accepted);
     REQUIRE(t.type(1, "6").accepted);
@@ -573,8 +576,9 @@ TEST_CASE("Info's X and Y take a share place as a size's share is typed, and rea
 }
 
 TEST_CASE("a pane its words leave too small to see, or off the room, is still listed, reached by tab, inspected by Info and given its size back there") {
-    // ⚔ MUTATION: `arrangeable` passing over a pane with no visible cell -- tab never reaches it,
-    // and a pane too small to point at is lost to the keys.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_info.md#tab-passes-over-the-invisible):
+    // `arrangeable` passing over a pane with no visible cell -- tab never reaches it, and a pane
+    // too small to point at is lost to the keys.
     InfoRig f;
     f.open();
     const PaneRef layouts = layouts_ref();
