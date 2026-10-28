@@ -5,6 +5,22 @@ Each entry is a mutant that a comment in
 catch, the comment naming the entry by its path and heading. [The corpus's front page](README.md)
 says how an entry reads and how `tests/mutants/run.py` runs it.
 
+## wheel-walks-the-marker
+
+The Pane Manager's wheel walks the marker a row a notch, whatever rows are hidden its way.
+
+In `workshop/desktop-pane/launcher_view.hpp`:
+
+```diff
+-        if (budget_ == 0 || !hidden) {
++        if (true || budget_ == 0 || !hidden) {
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- WL-DESK-10: the Pane Manager lists the panes by name, and its wheel scrolls the rows hidden its
+  way before it walks the marker
+
 ## toggle-closes-a-covered-pane
 
 Ctrl+P puts away a covered pane rather than bringing it forward.

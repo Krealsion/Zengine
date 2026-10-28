@@ -328,8 +328,6 @@ TEST_CASE("a view asks for its size in pixels and its pane grants exactly that r
 }
 
 TEST_CASE("a view the layout left in the stack, run when its column is spent, is shown at the column's top, in front") {
-    // ⚔ MUTATION: the view's ask to be shown judged by a stack rationed to its column's height --
-    // refused for room, as a view run from the View Builder beside the Pane Manager was.
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();

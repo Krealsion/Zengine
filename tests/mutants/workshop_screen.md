@@ -1071,3 +1071,19 @@ Red in `zengine-workshop-screen-tests`:
 
 - WL-ARR-18: arranging says so at the room's top, naming what it arranges, and in a window every
   other pane fades
+
+## veil-each-pane-whole
+
+`draw_arranging_veil` veils each faded pane whole but for the arranged one, over any veil already
+laid.
+
+In `workshop/screen_compose.cpp`:
+
+```diff
+-        for (const PixelRect& done : veiled) {
++        for (const PixelRect& done : std::vector<PixelRect>{}) {
+```
+
+Red in `zengine-workshop-screen-tests`:
+
+- WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows

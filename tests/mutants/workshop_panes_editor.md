@@ -64,6 +64,22 @@ Red in `zengine-workshop-panes-tests`:
 - the Editor declares four settings, and a layout's tab stop, status row, wheel and undo depth are
   what its rows, its wheel and its history spend
 
+## discard-names-nothing
+
+The quit box's discard asks the quit again naming no pane whose unsaved work it discards.
+
+In `workshop/weave_run.cpp`:
+
+```diff
+-    quit_discard_ = std::move(session_.quit_unsaved);
++    quit_discard_.clear();
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- WL-SESSION-22: a quit refused for unsaved work opens a box at the room's centre; go back keeps
+  everything, and discard quits losing only what the box named
+
 ## quit-answer-unasked
 
 Workshop takes a quit answer without asking whether it answers its own ask.

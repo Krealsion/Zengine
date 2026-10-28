@@ -7042,7 +7042,8 @@ TEST_CASE("WL-ARR-18: arranging says so at the room's top, naming what it arrang
 }
 
 TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows") {
-    // MUTATION: each faded pane veiled whole but for the arranged one -- two veils where they overlap.
+    // MUTATION (tests/mutants/workshop_screen.md#veil-each-pane-whole): each faded pane veiled
+    // whole but for the arranged one -- two veils where they overlap.
     // Two panes that overlap, and the one arranged over part of both, part of their overlap showing.
     PlacedDesk d({PixelRect{0, 0, 400, 300}, PixelRect{200, 150, 400, 300},
                   PixelRect{300, 100, 400, 120}});

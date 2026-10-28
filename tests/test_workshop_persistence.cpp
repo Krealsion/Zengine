@@ -7278,8 +7278,6 @@ TEST_CASE("a place and a size carry a number exactly where the word reads one: a
 }
 
 TEST_CASE("the live layout's picture, the largest edit, the window file and a full desk each decode inside Loom's budget") {
-    // ⚔ MUTATION: a `LiveLayout` carrying every layout's desk rather than the live one's -- the
-    // picture of a full run passes the budget.
     std::vector<Layout> run;
     for (std::size_t i = 0; i < kMaxLayouts; ++i) {
         Setup s = setup_of(std::string(kMaxSetupNameLen, static_cast<char>('a' + i)), {});
