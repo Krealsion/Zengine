@@ -296,14 +296,16 @@ public:
         } else if (answers(mail, story_launch_ask_)) {
             story_launch_ask_ = 0;
             if (!answer.refusal.empty()) {
-                story_.notice = answer.refusal;
+                story_says(answer.refusal);
                 show_story(mail);
             }
         } else if (answers(mail, show_me_ask_)) {
             show_me_ask_ = 0;
-            story_.notice = answer.refusal.empty()
-                                ? "Show me: " + std::string(fr::steps()[show_me_step_].move)
-                                : answer.refusal;
+            if (answer.refusal.empty()) {
+                story_says("Show me: " + std::string(fr::steps()[show_me_step_].move), true);
+            } else {
+                story_says(answer.refusal);
+            }
             show_story(mail);
         }
     }
@@ -340,7 +342,7 @@ public:
             if (acted.accepted) {
                 kept_ = writing_; // what this write carried; a tick since is written next
             } else {
-                story_.notice = "the ticks were not kept: " + acted.refusal;
+                story_says("the ticks were not kept: " + acted.refusal);
                 show_story(mail);
             }
         }
@@ -616,7 +618,7 @@ private:
         commit_ask_ = ++asks_;
         if (!mail.as_role(kOffice).send_to_role(ws::kLayoutsRole, commit, commit_ask_).valid()) {
             commit_ask_ = 0;
-            story_.notice = "the layouts' owner could not be asked to keep the ticks";
+            story_says("the layouts' owner could not be asked to keep the ticks");
             return;
         }
         committing_ = Commit::kTicks;
@@ -726,16 +728,16 @@ private:
         }
         switch (ticks_[step]) {
         case fr::Tick::kFact:
-            story_.notice = std::string("step ") + std::to_string(step + 1) +
-                            " was ticked when " + fr::steps()[step].by;
+            story_says(std::string("step ") + std::to_string(step + 1) + " was ticked when " +
+                       fr::steps()[step].by);
             break;
         case fr::Tick::kHand:
             ticks_[step] = fr::Tick::kNone;
-            story_.notice.clear();
+            story_says({});
             break;
         case fr::Tick::kNone:
             ticks_[step] = fr::Tick::kHand;
-            story_.notice.clear();
+            story_says({});
             break;
         }
         flush(mail);
@@ -768,7 +770,7 @@ private:
             return;
         }
         if (p.moved) {
-            story_.notice = "the list moved -- press again";
+            story_says("the list moved -- press again");
             show_story(mail);
             return;
         }
@@ -831,6 +833,12 @@ private:
     void show_story(loom::Mail& mail) {
         story_.ticks = ticks_;
         draw(story_window_, fr::story_lines(story_, columns(story_window_)), mail);
+    }
+    /// What "Start here" says under its steps: a refusal or a failure, or a `hint` -- a step's next
+    /// move after Show me -- which is not drawn as an alarm.
+    void story_says(std::string words, bool hint = false) {
+        story_.notice = std::move(words);
+        story_.hint = hint;
     }
 
     // NOT STATE: the layouts' owner keeps the settings, the switch the editor, and each owner its

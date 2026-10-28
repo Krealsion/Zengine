@@ -7,15 +7,31 @@ START
   Linux    ./workshop.sh opens Workshop in a window; ./workshop-terminal.sh runs it in a terminal.
   Where no window can open (no display, no video driver), the window's launcher goes on in the
   terminal it was started from and says why once there.
-  Nothing else needs installing, and this folder may stand anywhere: a newer package replaces it
-  whole, and nothing of yours is kept in it.
+  This folder may stand anywhere: a newer package replaces it whole, and nothing of yours is kept
+  in it. What it needs that it does not carry is under DEPENDENCIES.
+
+FIRST STEPS
+  At the first start the quick setup asks a few things once: whether to edit text with Neovim, and
+  whether to start a ready-to-use setup. When it closes, Start here opens: the story, a step at a
+  time, each with a Show me -- make a view in the View Builder, wire its button into Flow, show
+  Flow's answer in the view, export it as an app, and start the app. Ctrl+Space, the palette,
+  lists every action and pane by name; Start here stays in the Pane Manager (Ctrl+P).
+
+DEPENDENCIES
+  Each is on the page "How to install these dependencies", at the link beside it.
+  Python 3.8 or newer, for the ready-to-use setups
+    https://github.com/Krealsion/Zengine/blob/main/workshop/docs/dependencies.md#python-38-or-newer
+  Linux: the C++ runtime and glibc 2.35 or newer
+    https://github.com/Krealsion/Zengine/blob/main/workshop/docs/dependencies.md#linux-the-c-runtime-and-glibc-235-or-newer
+  Linux: a desktop with X11 or Wayland, for the window
+    https://github.com/Krealsion/Zengine/blob/main/workshop/docs/dependencies.md#linux-a-desktop-with-x11-or-wayland-for-the-window
+  Windows 10 or 11 needs nothing more.
 
 READY-TO-USE SETUPS
   The quick setup at the first start, and Ctrl+Space, list setups that each start in a Workshop of
-  their own. Starting one needs Python 3.8 or newer on this machine's PATH, which this package does
-  not carry: on Windows from python.org (its py launcher is enough), on Linux the system's python3.
-  Without it the setups are listed, and a start says what is missing. Nothing else in the package
-  needs Python.
+  their own. Starting one needs Python 3.8 or newer (DEPENDENCIES): on Windows from python.org (its
+  py launcher is enough), on Linux the system's python3. Without it the setups are listed, and a
+  start says what is missing. Nothing else in the package needs Python.
 
 YOUR PROJECT
   Workshop's project is a folder of your own, made at the first start and kept across packages,
@@ -32,11 +48,6 @@ YOUR PROJECT
 
   Keymap and preferences:   Windows %APPDATA%\zengine-workshop      Linux ~/.config/zengine-workshop
   The desk you quit with:   Windows %LOCALAPPDATA%\zengine-workshop Linux ~/.local/state/zengine-workshop
-
-FIRST STEPS
-  Ctrl+Space lists every action and pane by name. The View Builder makes a view; Flow answers it;
-  the View Builder's Export app writes it as an app, and Run app starts it in a window of its own
-  that goes on after Workshop quits.
 
 WHAT RUNS
   Workshop loads the files its plan in bin/ names, in its own process, trusted, with no sandbox.
