@@ -1562,8 +1562,10 @@ TEST_CASE("two builds of one published version cannot both register, and that is
 
 TEST_CASE("an application row is joined, is requested above the modes, and reaches its declarer as "
           "the resolved id") {
-    // ⚔ MUTATION: deleting the above-modes arm in `on(KeyPressed)` -- `asked()` stays empty.
-    // ⚔ MUTATION: joining app rows without applying `authored` -- the moved-key half fails.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#above-modes-arm-deleted): deleting the
+    // above-modes arm in `on(KeyPressed)` -- `asked()` stays empty.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#authored-not-applied): joining app rows
+    // without applying `authored` -- the moved-key half fails.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
     DesktopSeat* desk = mount_desktop(t);
@@ -1629,11 +1631,12 @@ TEST_CASE("an application holds a shortcut for every hotkey Inventory keeps, and
 }
 
 TEST_CASE("a weaver's authored row moves an application row, and `none` disables it") {
-    // ⚔ MUTATION: dropping the `none` arm of `parse_gesture` -- the disable half goes red.
-    // ⚔ MUTATION: dropping the override loop in `join_app_rows` -- the moved half goes red.
-    // The file's own round trip is the case above's, over a pane's rows; an APPLICATION row is
-    // owed the same: the weaver's file names ids nobody has declared yet, they are preserved
-    // unjudged (WL-KEY-06), and the join applies them.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#none-arm-dropped): dropping the `none`
+    // arm of `parse_gesture` -- the disable half goes red. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_actions.md#override-loop-dropped): dropping the override loop
+    // in `join_app_rows` -- the moved half goes red. The file's own round trip is the case above's,
+    // over a pane's rows; an APPLICATION row is owed the same: the weaver's file names ids nobody
+    // has declared yet, they are preserved unjudged (WL-KEY-06), and the join applies them.
     Keymap k;
     k.authored.push_back(AuthoredOverride{"desktop.terminal", "ctrl+g"});
     k.authored.push_back(AuthoredOverride{"desktop.deselect", "none"});
@@ -1670,10 +1673,11 @@ TEST_CASE("a weaver's authored row moves an application row, and `none` disables
 
 TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only an answer that "
           "echoes the ask puts the selection down") {
-    // ⚔ MUTATION: dropping the correlation test in `on(DeselectRequested)` -- the wrong-number
-    // answer below puts the selection down. The ask is left outstanding at a known gesture: a
-    // stand-in that answered at once reset the host's record before the wrong answer arrived,
-    // so the gesture test refused it and the mutation stayed green.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#deselect-correlation-dropped): dropping
+    // the correlation test in `on(DeselectRequested)` -- the wrong-number answer below puts the
+    // selection down. The ask is left outstanding at a known gesture: a stand-in that answered at
+    // once reset the host's record before the wrong answer arrived, so the gesture test refused it
+    // and the mutation stayed green.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
     DesktopSeat* desk = mount_desktop(t);
@@ -1969,10 +1973,12 @@ TEST_CASE("a desktop reloaded in place is not left waiting: its new image asks f
 
 TEST_CASE("an arriving presenter is answered the inventory as it is now, to itself alone, and an "
           "offer makes the next reading be said again") {
-    // ⚔ MUTATION: `on(PaneInventoryRequested)` answering nothing -- `answers` stays empty.
-    // ⚔ MUTATION: `on(PaneOffered)` not clearing `inventory_published_` -- the SECOND, identical
-    // offer below is followed by no publication. The first offer adds the ear's own row and is
-    // said on its own account, so a case asserting only it let this mutation survive.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#inventory-ask-answered-nothing):
+    // `on(PaneInventoryRequested)` answering nothing -- `answers` stays empty.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#offer-keeps-inventory-said):
+    // `on(PaneOffered)` not clearing `inventory_published_` -- the SECOND, identical offer below is
+    // followed by no publication. The first offer adds the ear's own row and is said on its own
+    // account, so a case asserting only it let this mutation survive.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -2020,8 +2026,9 @@ TEST_CASE("an arriving presenter is answered the inventory as it is now, to itse
 }
 
 TEST_CASE("the launcher keeps the row it will open in view, and its feedback on a row of its own") {
-    // ⚔ MUTATION: the launcher's window showing the first rows whatever the cursor -- the marker
-    // and the last tool's name are gone from the text below.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#launcher-window-from-the-top): the
+    // launcher's window showing the first rows whatever the cursor -- the marker and the last
+    // tool's name are gone from the text below.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -2058,8 +2065,9 @@ TEST_CASE("the launcher keeps the row it will open in view, and its feedback on 
 
 TEST_CASE("the launcher's cursor is an identity: rows moving under it do not retarget Return, and "
           "a row that left the list is said, not replaced") {
-    // ⚔ MUTATION: `find_cursor` keeping the index and ignoring the identity -- after the row
-    // above it leaves, the marker lands on the row below and Return opens that one.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#cursor-by-index): `find_cursor` keeping
+    // the index and ignoring the identity -- after the row above it leaves, the marker lands on the
+    // row below and Return opens that one.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -2109,8 +2117,8 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
 
 TEST_CASE("a verdict answers the declaration it judges: a refused attempt is named by its own "
           "number after a later one was accepted, and an accepted one is given Workshop's") {
-    // ⚔ MUTATION: answering the verdict with an ordinary send -- the correlation is zero and
-    // `answers_ask()` is false.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#verdict-by-an-ordinary-send): answering
+    // the verdict with an ordinary send -- the correlation is zero and `answers_ask()` is false.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
     DesktopSeat* desk = mount_desktop(t);
@@ -2148,8 +2156,9 @@ TEST_CASE("a verdict answers the declaration it judges: a refused attempt is nam
 
 TEST_CASE("a declaration the keymap file displaces is withdrawn by the number its verdict gave "
           "it, and a pane that reads verdicts learns both") {
-    // ⚔ MUTATION: `rejoin_app_rows` keeping the rows it could not join -- no withdrawal, and
-    // the application rows stay out of the keymap with their declarer believing them in force.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#rejoin-keeps-what-it-could-not-join):
+    // `rejoin_app_rows` keeping the rows it could not join -- no withdrawal, and the application
+    // rows stay out of the keymap with their declarer believing them in force.
     TempDir dir("desktop-withdrawn");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+c"}}));
@@ -2210,8 +2219,9 @@ TEST_CASE("a withdrawal naming a predecessor's declaration does not reach the su
 
 TEST_CASE("a pane whose provider left is unavailable in the launcher and refused at launch, while "
           "its identity and the desk row naming it stay") {
-    // ⚔ MUTATION: `provider_present` answering from the catalog alone -- Info reads `[open]`
-    // after its library is unloaded, and its launch is not refused.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#provider-present-from-the-catalog):
+    // `provider_present` answering from the catalog alone -- Info reads `[open]` after its library
+    // is unloaded, and its launch is not refused.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -2260,9 +2270,11 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
 
 TEST_CASE("a pane the run is still loading is pending, not unavailable: the launcher marks it "
           "`[load]`, names nothing to build, and a launch says it is not here yet") {
-    // ⚔ MUTATION: `inventory_reading` leaving `pending` unset -- the launcher says `[gone]`
-    // and tells a weaver to build a tool whose plan row has not been reached.
-    // ⚔ MUTATION: the gone note counting every unavailable row, pending or not.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#pending-left-unset): `inventory_reading`
+    // leaving `pending` unset -- the launcher says `[gone]` and tells a weaver to build a tool
+    // whose plan row has not been reached.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#gone-note-counts-pending): the gone note
+    // counting every unavailable row, pending or not.
     PaneRig r;
     bool info_to_come = true; // the host's answer, as `workshop.cpp` wires it over the executor
     r.host.office_pending = [&info_to_come](std::string_view office) {
@@ -2308,9 +2320,10 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
 
 TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider holding; a close "
           "of a pane that is not there is refused and opens nothing") {
-    // ⚔ MUTATION: the owner's `close` answering `closed` without taking the row off -- the
-    // pane stays seated. ⚔ MUTATION: a close that is not on the desk falling through to the
-    // launch door -- the second close opens it.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#close-answered-without-taking): the
+    // owner's `close` answering `closed` without taking the row off -- the pane stays seated. ⚔
+    // MUTATION (tests/mutants/workshop_panes_actions.md#close-falls-through-to-a-seat): a close
+    // that is not on the desk falling through to the launch door -- the second close opens it.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -2356,8 +2369,10 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
 TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row leaves the live layout whole, its "
           "settings and this layout's locks named in the answer and on the band, and the "
           "presenter takes no close") {
-    // ⚔ MUTATION: the owner's close answering without the locks the row took -- the answer names
-    // none. ⚔ MUTATION: the owner answering personal speech's close by taking the row off.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#close-names-no-lock): the owner's close
+    // answering without the locks the row took -- the answer names none. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_actions.md#personal-speech-closes): the owner answering
+    // personal speech's close by taking the row off.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -2455,9 +2470,10 @@ TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return o
 TEST_CASE("a choice whose row left stays unchosen across a desktop replacement and the "
           "publications after it: Return and x reach no neighbour, and a row chosen then is "
           "obeyed") {
-    // ⚔ MUTATION: `find_cursor` clearing the keys of a choice whose row left -- the successor
-    // reads them as never chosen and gives its marker to the pane that slid into the place:
-    // Return then hands Info the keys, and x takes it off the desk.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#lost-choice-cleared): `find_cursor`
+    // clearing the keys of a choice whose row left -- the successor reads them as never chosen and
+    // gives its marker to the pane that slid into the place: Return then hands Info the keys, and x
+    // takes it off the desk.
     TempDir copy("desktop-lost-choice");
     PaneRig r;
     r.mount_workshop();
@@ -2596,8 +2612,9 @@ const PaneRef kViewBuilderRef{"zengine.view.builder", "view-builder"};
 
 TEST_CASE("WL-MAKER-11: the shipped Pane Manager's `n` shows the View Builder through the host's "
           "launch door, and a Workshop without one says so in the door's words") {
-    // ⚔ MUTATION: `n` launching any other pane, or nothing -- the View Builder's pane never
-    // reaches the desk.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#new-launches-another-pane,
+    // #new-launches-nothing): `n` launching any other pane, or nothing -- the View Builder's pane
+    // never reaches the desk.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -2855,8 +2872,9 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
 
 TEST_CASE("the Hotkeys pane names a keymap file whose path a canvas cannot draw with the path made "
           "drawable, in a picture Workshop admits") {
-    // ⚔ MUTATION: the file row carrying the path's bytes as they are -- the whole picture is
-    // refused for one of them, and the pane shows only Workshop's refusal.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#file-row-bytes-as-they-are): the file row
+    // carrying the path's bytes as they are -- the whole picture is refused for one of them, and
+    // the pane shows only Workshop's refusal.
     // A PATH NO FILE IS AT, holding a character a profile directory may hold: the host reads
     // nothing there, and no key is edited here, so nothing is written there either.
     const std::string path = "caf\xC3\xA9/keymap.json";
@@ -2886,7 +2904,8 @@ TEST_CASE("the Hotkeys pane names a keymap file whose path a canvas cannot draw 
 }
 
 TEST_CASE("the Hotkeys pane declares its `help` setting, and a layout keeping it off gives the footer's help lines to the list") {
-    // ⚔ MUTATION: the footer's two help lines kept whatever `help` says -- the off picture is the on.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#help-lines-kept): the footer's two help
+    // lines kept whatever `help` says -- the off picture is the on.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -2939,8 +2958,9 @@ TEST_CASE("the Hotkeys pane declares its `help` setting, and a layout keeping it
 }
 
 TEST_CASE("the Hotkeys pane's example row names a chord no pane on the desk declares") {
-    // ⚔ MUTATION: the example naming `ctrl+g`, which Flow declares for asking for native C++ --
-    // a weaver who copies it is told the two collide.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#example-names-flows-chord): the example
+    // naming `ctrl+g`, which Flow declares for asking for native C++ -- a weaver who copies it is
+    // told the two collide.
     // THE DESKTOP, AND THE PANES BESIDE IT that declare keys of their own, by one plan.
     PaneRig r;
     r.mount_workshop();
@@ -2988,8 +3008,9 @@ TEST_CASE("the Hotkeys pane's example row names a chord no pane on the desk decl
 
 TEST_CASE("a keymap row written for an id whose owner changed is read as its successor, once, and "
           "the load says which rename to make") {
-    // ⚔ MUTATION: dropping the renamed-id pass in `join_app_rows` -- `desktop.terminal` stays
-    // on `ctrl+t` although the weaver's file moved `workshop.terminal`.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#renamed-id-pass-dropped): dropping the
+    // renamed-id pass in `join_app_rows` -- `desktop.terminal` stays on `ctrl+t` although the
+    // weaver's file moved `workshop.terminal`.
     TempDir dir("desktop-renamed-ids");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"workshop.terminal", "ctrl+g"},

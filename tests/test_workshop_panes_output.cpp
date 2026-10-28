@@ -620,9 +620,10 @@ void narrow(OutputRig& o) {
 TEST_CASE("WL-OUT-04: in a room too small for its strip the reader's whole list is in its own menu, and every row of it acts") {
     // THE STRIP'S PROMISE IN A NARROW ROOM: the strip drops what will not fit and writes `+N in
     // menu`, so the reader's menu carries the pan, the two ends and the neighbouring builds --
-    // with `close` and `manage` alone they would be reachable by no hand. ⚔ MUTATION: the reader's
-    // branch of `offer_menu` reduced to `kMenuClose` fails the four `CHECK`s on the offered rows,
-    // and the two choices below reach nothing.
+    // with `close` and `manage` alone they would be reachable by no hand. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_output.md#reader-menu-close-alone): the reader's branch of
+    // `offer_menu` reduced to `kMenuClose` fails the four `CHECK`s on the offered rows, and the two
+    // choices below reach nothing.
     OutputRig o("out-narrow-menu");
     o.open(200, 56, /*with_presenter=*/true);
     o.build(1, "the first build said this\n", 1);

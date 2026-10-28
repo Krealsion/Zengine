@@ -381,7 +381,8 @@ TEST_CASE("a view the layout left in the stack, run when its column is spent, is
 
 
 TEST_CASE("a view shown where its own place stands off this screen stays there, and the band says so and how to bring it back") {
-    // ⚔ MUTATION: the reveal saying the view is shown and has the keys, of a pane no one can see.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_canvas.md#off-screen-reveal-said-shown): the reveal
+    // saying the view is shown and has the keys, of a pane no one can see.
     namespace view = zengine::view;
     PaneRig r;
     r.mount_workshop();

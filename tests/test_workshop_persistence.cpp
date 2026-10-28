@@ -150,8 +150,9 @@ TEST_CASE("an old object document is left exactly as it is: a launch names it on
 
 TEST_CASE("what the plan could not load and gave way from is said on the desk as it comes up, and "
           "nothing is said of it where every row loaded its own") {
-    // ⚔ MUTATION: the startup notes leaving out `HostContext::passed_over` -- the desk comes up
-    // in the terminal window and never says the OS window could not open.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#passed-over-unsaid): the startup notes
+    // leaving out `HostContext::passed_over` -- the desk comes up in the terminal window and never
+    // says the OS window could not open.
     const std::string said = "`zengine-window-sdl` did not load, so `zengine-window-terminal` "
                              "stands in its row -- it would not start here: zengine-window-sdl: "
                              "SDL_Init(SDL_INIT_VIDEO) failed: No available video device";
@@ -2025,8 +2026,9 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
 }
 
 TEST_CASE("the restore notice says the room in the unit the medium names: pixels in a window, cells in a terminal") {
-    // ⚔ MUTATION: the notice said at the restore in the unit the desk held before any window named
-    // one -- a window's launch says `120x75 cells`.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#restore-said-in-the-old-unit): the notice
+    // said at the restore in the unit the desk held before any window named one -- a window's
+    // launch says `120x75 cells`.
     TempDir dir("restore-unit");
     const std::string session = dir.file("session.json");
     REQUIRE(save_last_run(session, one_layout(setup_of("Default", {pane_kind::kLayouts})), 0,
@@ -2451,8 +2453,9 @@ Setup every_word_desk() {
 } // namespace
 
 TEST_CASE("every place and size word survives the setup file and the session byte for byte") {
-    // ⚔ MUTATION: `place_out` writing a word's coordinates whatever the word -- a centred axis
-    // comes back carrying an offset, which the file refuses, so the desk does not come back.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#every-coordinate-written): `place_out`
+    // writing a word's coordinates whatever the word -- a centred axis comes back carrying an
+    // offset, which the file refuses, so the desk does not come back.
     const Setup desk = every_word_desk();
     REQUIRE_MESSAGE(check_setup(desk).accepted, check_setup(desk).refusal);
     const std::string text = setup_persist::to_text(desk);
@@ -2503,7 +2506,8 @@ TEST_CASE("every place and size word survives the setup file and the session byt
 }
 
 TEST_CASE("a word's numbers out of its range are refused in the weaver's words, by the file and by the owner") {
-    // ⚔ MUTATION: `check_pane_size` taking any share -- a share past the whole room is stored.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#share-takes-any-amount): `check_pane_size`
+    // taking any share -- a share past the whole room is stored.
     const Setup good = every_word_desk();
     const auto refused = [&good](const std::function<void(SetupPane&)>& edit) {
         Setup bad = good;
@@ -2527,8 +2531,9 @@ TEST_CASE("a word's numbers out of its range are refused in the weaver's words, 
           "a pane place cannot be negative");
     CHECK(refused([](SetupPane& r) { r.place = PanePlace{42, 0, 0}; })
               .find("a pane place is default, pixels, top") == 0);
-    // ⚔ MUTATION: `check_pane_place` judging a share place's numbers as pixels -- a share past
-    // the whole room is stored, and the pane stands below the floor.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#share-place-judged-as-pixels):
+    // `check_pane_place` judging a share place's numbers as pixels -- a share past the whole room
+    // is stored, and the pane stands below the floor.
     CHECK(refused([](SetupPane& r) { r.place = PanePlace{ui::kPlaceShare, 10001, 0}; }) ==
           "a share pane place's x is 0 to 10000 ten-thousandths of the room's width (3333 is a "
           "third) -- not 10001");
@@ -3416,8 +3421,9 @@ TEST_CASE("the desk remembers where its window sat, and offers it back") {
 
 TEST_CASE("the window file keeps the OS window's own room beside its placement, and a run in the "
           "terminal window writes it back as it read it, as it does the placement") {
-    // ⚔ MUTATION: the save writing this run's room as the OS window's whatever the window -- a run
-    // in the terminal window leaves its own room where the OS window's was.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#room-saved-whatever-the-window): the save
+    // writing this run's room as the OS window's whatever the window -- a run in the terminal
+    // window leaves its own room where the OS window's was.
     TempDir dir("os-room-kept");
     const std::string session = dir.file("session.json");
     {
@@ -3452,8 +3458,9 @@ TEST_CASE("the window file keeps the OS window's own room beside its placement, 
 
 TEST_CASE("a restore in the OS window shapes it to its own room, a smaller one taken, then places "
           "it; a maximized one is shaped before it is maximized; the terminal window keeps its own") {
-    // ⚔ MUTATION: the restore placing the window as soon as it reads the file -- a maximize lands
-    // before the shaping, and restoring the window down returns the room it opened at.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#placed-before-shaped): the restore placing
+    // the window as soon as it reads the file -- a maximize lands before the shaping, and restoring
+    // the window down returns the room it opened at.
     TempDir dir("os-room-shaped");
     const std::string session = dir.file("session.json");
     window_persist::Placement place;
@@ -5956,8 +5963,9 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
 }
 
 TEST_CASE("a version-10 session comes forward whole and is written back in lines") {
-    // ⚔ MUTATION: the v10 edge leaving out a field -- the room, the choices or the live one --
-    // brings a session forward short of what its weaver left.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#v10-edge-drops-the-room): the v10 edge
+    // leaving out a field -- the room, the choices or the live one -- brings a session forward
+    // short of what its weaver left.
     MountedHistory history;
     REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
     window_persist::Placement place;
@@ -6087,8 +6095,9 @@ std::string as_text(const session_history::v5::WorkshopSession& old) {
 TEST_CASE("a real version-5 session comes back with nothing lost") {
     // THE MIGRATION WITNESS. Same layouts, order, names, active position, Setup association
     // AND its verdict, same authored pane geometry -- plus the layout surface every desk of
-    // that vintage had, written down as a pane at the rectangle it always occupied. ⚔ MUTATION:
-    // converting v5 without adding the row; every `materialized` comparison below goes red.
+    // that vintage had, written down as a pane at the rectangle it always occupied. ⚔ MUTATION
+    // (tests/mutants/workshop_persistence.md#v5-without-the-layouts-row): converting v5 without
+    // adding the row; every `materialized` comparison below goes red.
     const std::string artifact = "/kept/code.json";
     const session_history::v5::WorkshopSession old = old_v5_session(artifact);
 
@@ -6214,7 +6223,8 @@ TEST_CASE("an explicit historical row is preserved, never duplicated") {
     // THE OTHER HALF OF "PRESERVE WHAT THE BYTES SAID": a version-5 file CAN already name
     // `zengine.workshop/layouts` (a pane key is an ordinary string), so a conversion appending
     // regardless would author a duplicate `check_setup` refuses, and shadow the weaver's
-    // geometry. ⚔ MUTATION: dropping the `names_layouts` guard; the load below is refused.
+    // geometry. ⚔ MUTATION (tests/mutants/workshop_persistence.md#names-layouts-guard-dropped):
+    // dropping the `names_layouts` guard; the load below is refused.
     session_history::v5::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = session_history::kV5FormatVersion;
@@ -6253,8 +6263,9 @@ TEST_CASE("an explicit historical row is preserved, never duplicated") {
 TEST_CASE("a version-5 file with no conversion live refuses, and is not rewritten") {
     // THE AUTHORITY STORY FOR THE VERSION 5 VINTAGE, unchanged: conversion power comes from a
     // row in an arrangement, not from the bytes, and an unreadable session is never written
-    // over by an orderly close. ⚔ MUTATION: removing the provider's v5 edge reddens the
-    // restart witness above; letting the current reader keep a v5 branch reddens this one.
+    // over by an orderly close. ⚔ MUTATION (tests/mutants/workshop_persistence.md#v5-edge-removed):
+    // removing the provider's v5 edge reddens the restart witness above; letting the current reader
+    // keep a v5 branch reddens this one.
     TempDir dir("wux12-absent");
     const std::string path = dir.file("session.json");
     const std::string before = as_text(old_v5_session(std::string()));
@@ -6341,10 +6352,11 @@ inline Setup desk_with_the_browser() {
 TEST_CASE("a saved setup naming the built-in browser opens as the loaded pane") {
     // THE WHOLE CLAIM, AND IT IS ABOUT ONE ROW. The office moved; the pane key, the
     // place, both sizes and the front order did not, because none of them changed hands.
-    //
-    // ⚔ MUTATION: dropping the rewrite from `setup_in`. The reference comes back naming
-    // `zengine.workshop`, and this build's pane catalog answers nothing for it -- the
-    // weaver's Files pane is a row that resolves to nothing, silently.
+
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#setup-in-without-the-rewrite): dropping the
+    // rewrite from `setup_in`. The reference comes back naming `zengine.workshop`, and this build's
+    // pane catalog answers nothing for it -- the weaver's Files pane is a row that resolves to
+    // nothing, silently.
     const Setup wrote = desk_with_the_browser();
     const setup_persist::LoadedSetup read =
         setup_persist::from_text(setup_persist::to_text(wrote));
@@ -6599,8 +6611,10 @@ TEST_CASE("Info's PLACE moves with its office, and an authored one does not") {
 TEST_CASE("a saved setup naming the host's Pane Manager opens as the desktop's") {
     // THE FIFTH PAIR, AND THE FIRST WHOSE PANE KEY MOVED: `zengine.workshop/pane-editor` names
     // no built-in; its list is the desktop's Pane Manager, and a desk seating the old one seats
-    // the new one where the weaver put it. ⚔ MUTATION: dropping the fifth row from `kRetired`;
-    // the row comes back naming `zengine.workshop/pane-editor`, which nothing offers.
+    // the new one where the weaver put it. ⚔ MUTATION
+    // (tests/mutants/workshop_persistence.md#fifth-retired-row-dropped): dropping the fifth row
+    // from `kRetired`; the row comes back naming `zengine.workshop/pane-editor`, which nothing
+    // offers.
     Setup old;
     old.name = "Managed";
     const PaneRef was{pane_migration::kRetiredManagerProvider, pane_migration::kRetiredManagerPane};
@@ -6964,8 +6978,9 @@ TEST_CASE("a version-8 session converts with every field kept and no choice reme
 }
 
 TEST_CASE("a version-9 session converts with every field kept and no OS window's room") {
-    // ⚔ MUTATION: the conversion taking the viewport as the OS window's room -- a version-9 file a
-    // terminal run wrote would shape the OS window to the terminal's room.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#v9-viewport-as-the-room): the conversion
+    // taking the viewport as the OS window's room -- a version-9 file a terminal run wrote would
+    // shape the OS window to the terminal's room.
     MountedHistory history;
     REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
     const Setup desk = arranged_desk("Kept");
@@ -7084,8 +7099,9 @@ TEST_CASE("a quit saves which choice holds each office, and a start says a choic
 // ---- The window file, and what a version-3 settings file kept for layouts -------------------
 
 TEST_CASE("an older session's room is Workshop's window file's once: read while none stands, and never again once one does") {
-    // ⚔ MUTATION: the import reading the session whatever stands beside it -- the second run takes
-    // the old session's room over the window file the weaver's last close wrote.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#import-over-the-window-file): the import
+    // reading the session whatever stands beside it -- the second run takes the old session's room
+    // over the window file the weaver's last close wrote.
     TempDir dir("window-import");
     const std::string path = dir.file("session.json");
     const std::string old = v11_lines(
@@ -7150,8 +7166,8 @@ std::string shared_run_session() {
 } // namespace
 
 TEST_CASE("what a version-3 settings file kept by layout name goes into each desk of the name, a copy each, and each entry no desk takes is named in full") {
-    // ⚔ MUTATION: the fold given to the first desk of the name alone -- the second "Shared" keeps
-    // no lock.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#fold-to-the-first-desk): the fold given to
+    // the first desk of the name alone -- the second "Shared" keeps no lock.
     TempDir dir("fold-in");
     const std::string path = dir.file("session.json");
     spillout(path, shared_run_session());
@@ -7176,8 +7192,9 @@ TEST_CASE("what a version-3 settings file kept by layout name goes into each des
 }
 
 TEST_CASE("the settings file keeps its layouts' entries until a session holds them: a run that ends without its close finds them again") {
-    // ⚔ MUTATION: the entries dropped from the settings file at the fold -- a run killed before
-    // its close loses them, the session on disk still the older one that holds none.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#entries-dropped-at-the-fold): the entries
+    // dropped from the settings file at the fold -- a run killed before its close loses them, the
+    // session on disk still the older one that holds none.
     TempDir dir("fold-held");
     const std::string path = dir.file("session.json");
     const std::string prefs = dir.file("prefs.json");
@@ -7215,9 +7232,10 @@ TEST_CASE("the settings file keeps its layouts' entries until a session holds th
 }
 
 TEST_CASE("a place and a size carry a number exactly where the word reads one: a version-5 desk converts by its words, and a number where the word reads none is refused") {
-    // ⚔ MUTATION: the version-5 lift copying each number whatever its word -- a named place comes
-    // forward carrying coordinates, which this version refuses. Version 5's `right-column` comes
-    // forward as the room's top-right at no offset.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#named-place-keeps-its-numbers): the
+    // version-5 lift copying each number whatever its word -- a named place comes forward carrying
+    // coordinates, which this version refuses. Version 5's `right-column` comes forward as the
+    // room's top-right at no offset.
     Setup desk = setup_of("Words", {stock::kKind, second::kKind});
     desk.panes[0].place = PanePlace{pane_unit::kPixels, cells_px(3), cells_px(2)};
     desk.panes[0].width = PaneSize{pane_unit::kPixels, cells_px(40)};

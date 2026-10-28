@@ -156,7 +156,8 @@ TEST_CASE("a kind or a name outside the catalog is refused, and nothing is start
 }
 
 TEST_CASE("an app is a folder directly in the project's apps/ holding a plan the codec reads; a link out of it and a folder with no plan are refused") {
-    // MUTATION: the launcher taking any folder a name reaches -- a link in apps/ to elsewhere starts.
+    // MUTATION (tests/mutants/launcher.md#any-folder-a-name-reaches): the launcher taking any
+    // folder a name reaches -- a link in apps/ to elsewhere starts.
     Project p;
     const fs::path apps = p.dir / zengine::app::kAppsFolder;
     fs::create_directories(p.dir / "elsewhere");
@@ -194,8 +195,9 @@ TEST_CASE("a listed setup is started by the configured interpreter running the c
 }
 
 TEST_CASE("a package's setup is started by a Python found on the PATH running the package's own demo service, against the package") {
-    // MUTATION: a package's start naming a build tree and a Loom prefix -- the package's own
-    // demo service would be asked for a tree it does not have.
+    // MUTATION (tests/mutants/launcher.md#package-start-names-a-tree): a package's start naming a
+    // build tree and a Loom prefix -- the package's own demo service would be asked for a tree it
+    // does not have.
     Project p;
     const fs::path package = p.dir / "package";
     const fs::path tools = package / "share" / "zengine" / "loom-tools";
@@ -263,7 +265,8 @@ TEST_CASE("a package's Python is found on a PATH in its folders' order: python3 
 }
 
 TEST_CASE("with no Python on the PATH a package lists its setups, and the listing and a start say what a setup needs") {
-    // MUTATION: a package with no interpreter listing no setup -- the stranger is told nothing.
+    // MUTATION (tests/mutants/launcher.md#no-python-lists-no-setup): a package with no interpreter
+    // listing no setup -- the stranger is told nothing.
     Project p;
     launcher::Catalog catalog = p.catalog();
     catalog.python.clear();
@@ -283,7 +286,8 @@ TEST_CASE("with no Python on the PATH a package lists its setups, and the listin
 }
 
 TEST_CASE("an app starts detached as the process the launcher names: zengine-app on its folder, kept by nobody") {
-    // MUTATION: a start that answers before the process exists -- the pid names no zengine-app.
+    // MUTATION (tests/mutants/launcher.md#answer-before-exec): a start that answers before the
+    // process exists -- the pid names no zengine-app.
     Project p;
     const auto judged = launcher::judge_launch({"app", "tally"}, p.path(), p.catalog());
     REQUIRE_MESSAGE(judged.ok, judged.refusal);
@@ -311,7 +315,8 @@ TEST_CASE("an app starts detached as the process the launcher names: zengine-app
 
 #if defined(__linux__)
 TEST_CASE("a POSIX start hands on its three standard streams and nothing else of the starter's") {
-    // MUTATION: a start that closes nothing -- the started process holds the starter's socket.
+    // MUTATION (tests/mutants/launcher.md#nothing-closed): a start that closes nothing -- the
+    // started process holds the starter's socket.
     // A LISTENING SOCKET the starter holds, open across an exec, as a door's may be.
     const int door = ::socket(AF_INET, SOCK_STREAM, 0);
     REQUIRE(door >= 0);
@@ -483,7 +488,8 @@ struct LauncherRig {
 } // namespace
 
 TEST_CASE("a listing names each setup the demo service lists with its own title and line, then each app the launcher would start, and no folder it would refuse") {
-    // MUTATION: the listing reading every folder in apps/ -- the planless folder is listed.
+    // MUTATION (tests/mutants/launcher.md#every-folder-listed): the listing reading every folder in
+    // apps/ -- the planless folder is listed.
     Project p;
     fs::create_directories(p.dir / zengine::app::kAppsFolder / "planless");
     const launcher::LaunchCatalog listed = launcher::listing(p.path(), p.catalog());
@@ -503,8 +509,9 @@ TEST_CASE("a listing names each setup the demo service lists with its own title 
 }
 
 TEST_CASE("an app is listed running only while its session file stands and names a process that still runs the app host") {
-    // MUTATION: running read from the session file alone -- a file naming an ended process, or a
-    // process that is not the app host, is said running.
+    // MUTATION (tests/mutants/launcher.md#running-from-the-file-alone): running read from the
+    // session file alone -- a file naming an ended process, or a process that is not the app host,
+    // is said running.
     Project p;
     const fs::path tally = p.dir / zengine::app::kAppsFolder / "tally";
     const auto running = [&](const launcher::Catalog& c) {
@@ -540,7 +547,8 @@ TEST_CASE("an app is listed running only while its session file stands and names
 }
 
 TEST_CASE("the launcher answers a listing to any office, and takes a start from the palette and the quick setup as from the View Builder and Files") {
-    // MUTATION: the askers left as they were -- the palette's start is refused as a stranger's.
+    // MUTATION (tests/mutants/launcher.md#askers-as-before): the askers left as they were -- the
+    // palette's start is refused as a stranger's.
     LauncherRig rig;
     const auto stranger = rig.office("zengine.stranger");
     rig.send(stranger, "zengine.stranger", launcher::LaunchCatalogRequested{});
@@ -559,7 +567,8 @@ TEST_CASE("the launcher answers a listing to any office, and takes a start from 
 }
 
 TEST_CASE("each start is said to any as it is answered, as the launcher's office, so an office that did not ask hears it; a refusal is answered to its asker alone") {
-    // MUTATION: the start answered and not published -- the listener hears nothing.
+    // MUTATION (tests/mutants/launcher.md#start-not-published): the start answered and not
+    // published -- the listener hears nothing.
     LauncherRig rig;
     const auto listener = rig.office("zengine.listener");
     const auto files = rig.office("zengine.files");

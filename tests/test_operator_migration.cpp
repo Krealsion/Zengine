@@ -321,11 +321,12 @@ TEST_CASE("the right name and version at the WRONG SHAPE is not spent either") {
 
 
 TEST_CASE("a conversion at the right name converting the WRONG VINTAGE is not spent") {
-    // FOUND BY A MUTATION. The two hostile contributions above lie about their ANSWER; this one
-    // lies about what it reads. With the source check removed the suite stayed green, the gate
-    // refusing the pack anyway -- so what was untested was not the file's safety but whether the
-    // weaver hears the useful thing: `evaluate` would say the bytes claim another schema than
-    // this door, true and silent about the conversion that was wrong.
+    // FOUND BY A MUTATION (tests/mutants/operator_migration.md#source-check-removed). The two
+    // hostile contributions above lie about their ANSWER; this one lies about what it reads. With
+    // the source check removed the suite stayed green, the gate refusing the pack anyway -- so what
+    // was untested was not the file's safety but whether the weaver hears the useful thing:
+    // `evaluate` would say the bytes claim another schema than this door, true and silent about the
+    // conversion that was wrong.
     op::Catalog catalog;
     const std::string identity = op::migration_identity("Rung", 1, 3);
     std::vector<op::OperatorDef> wrong_source;

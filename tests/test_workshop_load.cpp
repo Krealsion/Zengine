@@ -1419,8 +1419,9 @@ TEST_CASE("the default plan's medium is two rows, the directory and the window, 
 TEST_CASE("a row's artifact whose load is refused gives way to the next it names, said once in "
           "Loom's words; one this installation lacks gives way unsaid; the first that loads "
           "stands in the row") {
-    // ⚔ MUTATION: `answered` failing the row on its first refusal -- the plan stops at the
-    // provider-only image, and the alternative never loads.
+    // ⚔ MUTATION (tests/mutants/workshop_load.md#first-refusal-fails-the-row): `answered` failing
+    // the row on its first refusal -- the plan stops at the provider-only image, and the
+    // alternative never loads.
     const char* role = "zengine.test.window";
     load::ArtifactIntent row = weaves("zengine-operators-basic", role);
     row.otherwise = {load::AlternativeIntent{"zengine-plain-weave", load::WeaveIntent{role}}};
@@ -1478,8 +1479,9 @@ TEST_CASE("the shipped window row in the OS window's absence: told a driver it l
     load::Executed done;
     {
 #ifdef WINDOW_SDL_SO
-        // ⚔ MUTATION: the OS window's backend keeping a window it could not open -- its load is
-        // answered, nothing gives way, and the desk would go to a window nothing shows.
+        // ⚔ MUTATION (tests/mutants/workshop_load.md#window-kept-without-opening): the OS window's
+        // backend keeping a window it could not open -- its load is answered, nothing gives way,
+        // and the desk would go to a window nothing shows.
         const VideoDriver lacking("zengine-no-such-driver");
 #endif
         done = rig.realize(plan_of({directory, window}));
@@ -1699,8 +1701,9 @@ TEST_CASE("a plan naming a retired artifact is refused by name, with its fix, be
     constexpr const char* kMediumFix =
         "put the default plan's zengine-graphics row and its window row, zengine-window-sdl "
         "otherwise zengine-window-terminal, where it stands";
-    // ⚔ MUTATION: `begin` walking the plan with no look at its stems -- the retired row opens and
-    // fails to load, naming no fix, and the rows before it are loaded.
+    // ⚔ MUTATION (tests/mutants/workshop_load.md#retired-row-opened): `begin` walking the plan with
+    // no look at its stems -- the retired row opens and fails to load, naming no fix, and the rows
+    // before it are loaded.
     for (const auto& [stem, fix] : {
              std::pair<const char*, const char*>{"zengine-skin-tui-classic", kMediumFix},
              {"zengine-skin-tui-block", kMediumFix},
@@ -6089,8 +6092,9 @@ TEST_CASE("`append` is refused mid-row and after a refusal, and a duplicate stem
 
 TEST_CASE("the project plan `load it` writes carries the window row as it was read, `otherwise` "
           "and all, never the window that opened") {
-    // ⚔ MUTATION: the author seeded from the plan as run -- the file names the terminal window
-    // alone, and the next launch in that project never tries the OS window.
+    // ⚔ MUTATION (tests/mutants/workshop_load.md#author-takes-the-plan-as-run): the author seeded
+    // from the plan as run -- the file names the terminal window alone, and the next launch in that
+    // project never tries the OS window.
     const load_persist::LoadedPlan shipped =
         load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(shipped.outcome.accepted, shipped.outcome.refusal);
@@ -7245,10 +7249,12 @@ TEST_CASE("a switch is recorded only for an authored choice, and a refused recor
 
 TEST_CASE("an optional row that refuses is an unavailable tool: it is stepped over, named, and "
           "the rows behind it are still performed in authored order") {
-    // ⚔ MUTATION: dropping the optional arm in `fail` -- the walk stops and `Complete` below
-    // goes red. ⚔ MUTATION: advancing the cursor inside that arm as well as in the caller --
-    // the row AFTER the refused one is skipped and `resolved()` goes short. The refusing row
-    // is `zengine-timer` under a role an earlier row took, so only the authored flag is new.
+    // ⚔ MUTATION (tests/mutants/workshop_load.md#optional-arm-dropped): dropping the optional arm
+    // in `fail` -- the walk stops and `Complete` below goes red. ⚔ MUTATION
+    // (tests/mutants/workshop_load.md#cursor-advanced-twice): advancing the cursor inside that arm
+    // as well as in the caller -- the row AFTER the refused one is skipped and `resolved()` goes
+    // short. The refusing row is `zengine-timer` under a role an earlier row took, so only the
+    // authored flag is new.
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 weaves("zengine-plain-weave", tmr::kTimerRole),
@@ -7283,8 +7289,9 @@ TEST_CASE("an optional row that refuses is an unavailable tool: it is stepped ov
 
 TEST_CASE("an optional row that refused stays `unavailable` in the owner's own answers -- never "
           "`authored` -- with its reason, the next step and its optional flag") {
-    // ⚔ MUTATION: dropping the `stepped_over_` arm of `state_of` -- the row answers
-    // `Authored`, the token the Arrangement and Project panes read as "not reached".
+    // ⚔ MUTATION (tests/mutants/workshop_load.md#stepped-over-arm-dropped): dropping the
+    // `stepped_over_` arm of `state_of` -- the row answers `Authored`, the token the Arrangement
+    // and Project panes read as "not reached".
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 weaves("zengine-plain-weave", tmr::kTimerRole),
@@ -7344,8 +7351,9 @@ TEST_CASE("an optional row that refused stays `unavailable` in the owner's own a
 
 TEST_CASE("an office is still to come while a plan row loading it has not settled, and is owed "
           "nothing once every such row resolved or was stepped over") {
-    // ⚔ MUTATION: `office_pending` answering false whatever the rows' states -- the first
-    // half fails before the walk has reached the timer's rows.
+    // ⚔ MUTATION (tests/mutants/workshop_load.md#office-never-pending): `office_pending` answering
+    // false whatever the rows' states -- the first half fails before the walk has reached the
+    // timer's rows.
     PlanRig rig;
     rig.executor.begin(plan_of({provides("zengine-operators-basic"),
                                 weaves("zengine-plain-weave", tmr::kTimerRole),

@@ -1190,7 +1190,8 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
 }
 
 TEST_CASE("a reveal from an office that offered no such pane is dropped") {
-    // ⚔ MUTATION: `on(PaneRevealRequested)` seating by NAME rather than by the offer's row.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_editor.md#reveal-seats-by-name):
+    // `on(PaneRevealRequested)` seating by NAME rather than by the offer's row.
     EditorRig e("edit-stray-reveal");
     e.open(160, 48, /*pick_it=*/false);
     const std::string notice = e.r.session().notice;
@@ -1317,9 +1318,9 @@ TEST_CASE("CRLF and the final-newline state round-trip; tabs stay tabs and Tab i
 }
 
 TEST_CASE("the Editor declares four settings, and a layout's tab stop, status row, wheel and undo depth are what its rows, its wheel and its history spend") {
-    // ⚔ MUTATION: the geometry reading `kEditorTabStop` whatever the layout keeps -- the tab is
-    // still drawn four wide; and the undo bound reading `kEditorUndoDepth` -- three undos take
-    // back three steps.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_editor.md#tab-stop-fixed, #undo-depth-fixed): the
+    // geometry reading `kEditorTabStop` whatever the layout keeps -- the tab is still drawn four
+    // wide; and the undo bound reading `kEditorUndoDepth` -- three undos take back three steps.
     EditorRig e("edit-settings");
     e.open();
     namespace w = zengine::workshop;
@@ -1652,9 +1653,9 @@ TEST_CASE("a Workshop with no custodian in the room quits at once") {
 }
 
 TEST_CASE("a forged quit answer moves nothing -- only Loom's answer to the host's ask decides") {
-    // ⚔ MUTATION: `on(PaneQuitAnswered)` reading `permitted` without `answers_ask()` and the
-    // correlation. A stranger who could say "permitted" could end a process holding a weaver's
-    // work.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_editor.md#quit-answer-unasked):
+    // `on(PaneQuitAnswered)` reading `permitted` without `answers_ask()` and the correlation. A
+    // stranger who could say "permitted" could end a process holding a weaver's work.
     EditorRig e("edit-quit-forged");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -5931,8 +5932,8 @@ TEST_CASE("the manual the standard Editor answers is the office's page, naming e
 }
 
 TEST_CASE("an orderly close writes the window file and the session, and a refused quit writes neither") {
-    // ⚔ MUTATION: the window file written as the quit is asked -- a quit the Editor refuses
-    // leaves a window file behind.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_editor.md#window-written-at-the-ask): the window
+    // file written as the quit is asked -- a quit the Editor refuses leaves a window file behind.
     TempDir dir("quit-writes");
     const std::string path = dir.file("session.json");
     EditorRig e("quit-writes-edit");

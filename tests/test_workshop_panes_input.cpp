@@ -3143,8 +3143,8 @@ TEST_CASE("a focused external pane keeps Escape; a press on a pane that takes no
     // declarer and proves the whole path: the key resolves to the row, the host asks its owner,
     // the owner answers under the number the ask went out on, and only then is the selection
     // put down. A Workshop with no desktop has no such row, and Escape does nothing.
-    // ⚔ MUTATION: removing the final Escape branch -- `selected` stays `pane_kind::kLayouts`
-    // below.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_input.md#final-escape-removed): removing the final
+    // Escape branch -- `selected` stays `pane_kind::kLayouts` below.
     PaneRig r;
     r.mount_workshop();
     r.ready();
@@ -3721,8 +3721,9 @@ struct TwoSeats {
 
 TEST_CASE("Tab and the arrows move the keyboard's selection between panes and give none of them "
           "the keys") {
-    // ⚔ MUTATION: `focus.next` writing the keys as well as the selection -- the next Tab is the
-    // pane's, and the selection stops moving.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_input.md#next-writes-the-keys): `focus.next` writing
+    // the keys as well as the selection -- the next Tab is the pane's, and the selection stops
+    // moving.
     TwoSeats t;
     t.r.key(input::scan::kTab);
     CHECK(t.r.session().panes.selected == t.a);
@@ -3755,8 +3756,8 @@ TEST_CASE("Tab and the arrows move the keyboard's selection between panes and gi
 }
 
 TEST_CASE("Return gives the selected pane the keys with no press, and a typed key reaches it") {
-    // ⚔ MUTATION: `focus.enter` moving only the selection -- the `a` below is Workshop's, and
-    // opens the contextual surface.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_input.md#enter-selects-only): `focus.enter` moving
+    // only the selection -- the `a` below is Workshop's, and opens the contextual surface.
     TwoSeats t;
     t.r.key(input::scan::kTab);
     t.r.key(input::scan::kTab);
@@ -3789,8 +3790,8 @@ TEST_CASE("Return gives the selected pane the keys with no press, and a typed ke
 
 TEST_CASE("ctrl+q gives Workshop the keys back from a pane that keeps Escape, and the pane stays "
           "selected") {
-    // ⚔ MUTATION: no `focus.leave` arm -- the chord crosses to the pane like any other key, and
-    // the keys stay there.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_input.md#no-leave-arm): no `focus.leave` arm -- the
+    // chord crosses to the pane like any other key, and the keys stay there.
     TwoSeats t;
     press_body(t.r, t.a);
     REQUIRE(t.r.session().panes.keyboard == t.a);
@@ -3821,8 +3822,9 @@ TEST_CASE("ctrl+q gives Workshop the keys back from a pane that keeps Escape, an
 }
 
 TEST_CASE("ctrl+q leaves every Workshop mode over a pane, and the pane with them") {
-    // ⚔ MUTATION: `focus.leave` returning the pane's keys alone -- the arrangement, the menu and
-    // the name editor stay open over the desk.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_input.md#leave-gives-the-pane-keys-alone):
+    // `focus.leave` returning the pane's keys alone -- the arrangement, the menu and the name
+    // editor stay open over the desk.
     TwoSeats t;
     press_body(t.r, t.a);
     REQUIRE(t.r.session().panes.keyboard == t.a);
@@ -3849,8 +3851,9 @@ TEST_CASE("ctrl+q leaves every Workshop mode over a pane, and the pane with them
 
 TEST_CASE("the focus actions move with a weaver's keymap, and focus.leave's chord stands clear of "
           "every shipped row") {
-    // ⚔ MUTATION: `focus.leave` declared in command mode -- a pane's row on its chord is admitted,
-    // and the chord is the pane's while it holds the keys.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_input.md#leave-in-command-mode): `focus.leave`
+    // declared in command mode -- a pane's row on its chord is admitted, and the chord is the
+    // pane's while it holds the keys.
     Keymap k;
     const Written moved = apply_overrides({{"focus.next", "n"},
                                            {"focus.left", "h"},

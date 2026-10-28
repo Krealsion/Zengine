@@ -1357,11 +1357,13 @@ TEST_CASE("the editing vocabulary's declaration rows and consume() agree, both w
 }
 
 TEST_CASE("one run definition, and the keyboard's two answers are composed from it") {
-    // ⚔ MUTATION: giving `word_at` a definition of its own -- an identifier class, a
-    // punctuation class, a "select to the next boundary" rule. The sweep below is what
-    // makes that visible: every position of a line with runs, single spaces, a double
-    // space and a leading space is asked all three questions, and each keyboard answer is
-    // re-derived from the run scanners the pointer's answer uses. A second definition
+    // ⚔ MUTATION (tests/mutants/component.md#word-at-identifier-class, #word-at-punctuation-class,
+    // #word-at-to-next-boundary): giving `word_at` a definition of its own -- an identifier class,
+    // a punctuation class, a "select to the next boundary" rule.
+
+    // The sweep below is what makes that visible: every position of a line with runs, single
+    // spaces, a double space and a leading space is asked all three questions, and each keyboard
+    // answer is re-derived from the run scanners the pointer's answer uses. A second definition
     // makes one of these disagree at some position, and the CAPTURE names which.
     const std::string line = " ab  cde f";
     for (std::size_t at = 0; at <= line.size(); ++at) {
@@ -1405,8 +1407,9 @@ TEST_CASE("the word at a position, including at both of its edges") {
     CHECK(word(99) == "world"); // ...clamped, and still the same word
 
     // A POSITION WITH A SEPARATOR ON BOTH SIDES IS IN NO WORD, and says so rather than
-    // inventing the nearest one. ⚔ MUTATION: falling back to `word_before` here, which
-    // would make a double-click in blank space select whatever preceded it.
+    // inventing the nearest one. ⚔ MUTATION
+    // (tests/mutants/component.md#blank-falls-back-to-word-before): falling back to `word_before`
+    // here, which would make a double-click in blank space select whatever preceded it.
     const std::string gapped = "a  b";
     CHECK_FALSE(word_at(gapped, 2).present());
     CHECK(word_at(gapped, 1).present()); // the separator ending `a` still belongs to `a`
@@ -1466,7 +1469,7 @@ TEST_CASE("pointer and keyboard agree about which bytes are one word") {
     // THE PROPERTY THE EXTRACTION EXISTS FOR. `ctrl+shift+Left` from the end of a word
     // selects exactly what a double-click on that word selects -- not because the two
     // paths were written to match, but because both are the same two run scanners.
-    // ⚔ MUTATION: re-spelling either walk inline.
+    // ⚔ MUTATION (tests/mutants/component.md#word-before-spelled-inline): re-spelling either walk inline.
     TextBox keys;
     TextBox pointer;
     const std::string line = "alpha beta gamma";
