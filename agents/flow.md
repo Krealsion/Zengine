@@ -48,7 +48,11 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   A refused command leaves its previous model intact. Form edits update retained workspace
   data and dirty state; reopening restores active context by exact schema identity.
 - A graphical dialog is an unfinished edit owned by its current interaction context. All
-  `FlowEdit` requests are refused while it is open; failure to confirm preserves its text.
+  `FlowEdit` requests are refused while it is open; failure to confirm preserves its text. Keeping
+  a field, saying a message and declaring one open in place (`flow_pane::in_place`): beside the
+  press that opened them, or what they edit where none did, the page drawn round them, and a press
+  outside one puts it down and is spent on nothing more. A kept field's kind is chosen from
+  `flow_pane::field_kinds`, never typed.
   While one is open the pane declares Return as its `dialog-confirm` row, so a confirm arrives
   under a gesture; a writing verb's confirm (save, generate, export, library save) asks Workshop
   for class `write` before any byte, and a refusal keeps the dialog and its text.
@@ -133,10 +137,12 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   `tests/test_flow_view.cpp` covers canvas clipping, dense views, long text, independent measured
   axes, device-grain hit testing, the rail's grouping and preview, the rule's sentence, the Next
   line's walk, the journal read one line a message, the tally drawn in light and in cells, a card
-  chosen and put, what makes two presses one double click, and a step named by its operator.
+  chosen and put, what makes two presses one double click, a step named by its operator, and the
+  kinds a kept field is chosen from.
   `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
   reload preservation, the right press handed back, the empty press and the pan, the chosen step's
-  x and Delete, the When and Then cards moved, the double clicks that add, the box at a port,
+  x and Delete, the When and Then cards moved, the double clicks that add, the box at a port, the
+  editors in place,
   finding through the door
   and the pane in a graphics window; host behavior is witnessed under [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

@@ -49,8 +49,9 @@ its button does it -- a message ([`ask-message`](#ask-message)), a field the rul
 message it says ([`ask-say`](#ask-say)) and [`restart`](#restart). Change a step and
 [`apply`](#apply): the running participant keeps its state.
 
-Most commands open a dialog first; [`dialog-confirm`](#dialog-confirm) does what it asks. While a
-dialog is open every other command says `Confirm or cancel the open dialog before another edit`.
+Most commands open a dialog first, and three open theirs in place, beside what opened them
+([`ask-keep`](#ask-keep)); [`dialog-confirm`](#dialog-confirm) does what it asks. While one is open
+every other command says `Confirm or cancel the open dialog before another edit`.
 Outside a dialog, what you type goes to the search line on the Graph page; the Escape key puts down
 one thing per press (a wire's search and its wire, a dropped value, the wire in hand, the selected
 port, an open body slot, the preview, the selected node, the search line) and only then hands the
@@ -376,9 +377,10 @@ and no trigger reacts to one yet, that message's trigger is made too, writing th
 - **Takes:** a name and a type. No default key; the When lane's `+ keep a field`, the Next line's
   `[+ keep a field]`, the gear's `Keep a field...`, and the menu a double click on the Then lane's
   empty room opens.
-- **Answers:** the dialog `Keep a field between messages: what the rule remembers`, with Name
-  `total` and Kind `Int`. Confirmed: the When lane's card `kept between messages` lists it, `total
-  Int = 0`, and the Graph page shows.
+- **Answers:** a box beside what opened it, the graph drawn round it, `Keep a field between
+  messages`, with Name `total` and Kind chosen from `Int`, `Bool`, `Float`, `Text` and `Bytes`,
+  `Int` held; a press outside it closes it, `<its title> was closed; nothing changed`. Confirmed:
+  the When lane's card `kept between messages` lists it, `total Int = 0`, and the Graph page shows.
 - **Refuses:** `state field name is empty or already used`; the type's refusals, as
   [`ask-state-field`](#ask-state-field).
 - **Example:** press `+ keep a field`, confirm `total`, `Int`.
@@ -392,8 +394,8 @@ message already declared under that name is said as it is.
 - **Takes:** a name and the kept fields it carries. No default key; the Then lane's `+ say
   <definition>.<Field>`, the Next line's `[+ say <definition>.<Field>]` once the rule runs, the
   gear's `Say a message...`, and the menu a double click on the Then lane's empty room opens.
-- **Answers:** the dialog `Say a message after the change, with what the rule keeps`, with `Message
-  name` the kept field's name capitalised, `Total`, and `With` the field the trigger writes,
+- **Answers:** a box beside what opened it, as [`ask-keep`](#ask-keep)'s, `Say a message after
+  the change`, with `Message name` the kept field's name capitalised, `Total`, and `With` the field the trigger writes,
   `total`. Confirmed: the Then lane shows the card `say tally.Total`, and the Next line asks for a
   [`restart`](#restart), since a running rule says only the messages it was run with.
 - **Refuses:** `A rule says a message after its change: give it a message and what it keeps
@@ -446,8 +448,8 @@ Declares a message the definition accepts.
 - **Takes:** a name; one without a `.` is put inside the definition's own name. No default key; the
   Messages page's `[New message]`, the When lane's while no message is declared, and a double click
   on the When lane's empty room.
-- **Answers:** the dialog `Declare an input message`, `Message name` `Set`. Confirmed: the
-  message's form opens.
+- **Answers:** a box beside what opened it, as [`ask-keep`](#ask-keep)'s, `Declare an input
+  message`, `Message name` `Set`, selected. Confirmed: the message's form opens.
 - **Refuses:** `a message needs a name`; `a message named <name> is already declared`.
 - **Example:** type `Reading`, confirm: `water.Reading`.
 
@@ -581,8 +583,9 @@ Puts the dropped value down; nothing is done with it.
 ## Commands in a dialog
 
 These are declared beside the others only while a dialog is open. Tab moves to the next field, and
-a field takes what you type and its editing keys; the dialog's last line says so, `Tab changes
-field; Enter confirms; Escape cancels`.
+a field takes what you type and its editing keys; a field chosen from words takes the arrow keys
+and nothing typed. A dialog over the page says so on its last line, `Tab changes field; Enter
+confirms; Escape cancels`.
 
 ### `dialog-confirm`
 

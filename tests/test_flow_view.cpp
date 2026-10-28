@@ -192,6 +192,23 @@ TEST_CASE("a step is named by its operator, and which one where two share it; a 
     CHECK_FALSE(pane::whole_number("99999999999999999999"));
 }
 
+TEST_CASE("a kept field's kind is chosen from kinds Flow takes, each the kind of one value") {
+    pane::Model model;
+    for (const auto& kind : pane::field_kinds()) {
+        INFO(kind);
+        const auto type = flow::shape::type_named(kind, model.workspace.library);
+        CHECK(type.kind != loom::Kind::List);
+        CHECK(type.kind != loom::Kind::Message);
+    }
+    model.ask("Keep a field between messages", "keep", {{"Name", "total"}, {"Kind", "Int"}});
+    CHECK(model.dialog->entries.at(0).choices.empty());
+    CHECK(model.dialog->entries.at(1).choices == pane::field_kinds());
+    CHECK(pane::in_place("keep"));
+    CHECK(pane::in_place("say"));
+    CHECK(pane::in_place("message"));
+    CHECK_FALSE(pane::in_place("save"));
+}
+
 TEST_CASE("Flow keeps a long dialog draft editable without rejecting its picture") {
     pane::Model model;
     const std::string contents(4096, 'x');

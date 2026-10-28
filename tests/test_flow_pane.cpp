@@ -2535,3 +2535,80 @@ TEST_CASE("a press on a port opens a box at it: what is in scope of its type and
     CHECK(argument(rig, 1, 1).input_name().empty());
     }
 }
+
+namespace {
+/// THE BOX AN EDITOR IN PLACE STANDS IN: its part.
+ws::CanvasPart editor_box(Rig& rig) {
+    const auto shown = rig.picture();
+    const auto box = std::find_if(shown.parts.begin(), shown.parts.end(),
+                                  [](const auto& part) { return part.name == "dialog-box:box"; });
+    REQUIRE(box != shown.parts.end());
+    return *box;
+}
+} // namespace
+
+TEST_CASE("Keep a field, Say a message and New message edit in place beside what opened them, the "
+          "graph still in view, and a kept field's kind is chosen from the kinds Flow takes") {
+    Rig rig;
+    rig.edit_ok("new", {"meter", "discard"});
+    // NEW MESSAGE beside its button in the When lane, the graph drawn round it, its name ready to
+    // be typed over.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#editor-covers-the-page): an editor is drawn as the
+    // dialog that covers the page.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#editor-ignores-its-opener): an editor stands beside
+    // what it edits, never beside the press that opened it.
+    const auto asked = rig.label("[New message]");
+    rig.click("[New message]");
+    auto box = editor_box(rig);
+    CHECK(box.x == asked.x);
+    CHECK(box.y > asked.y);
+    CHECK(rig.shows("WHEN"));
+    CHECK(rig.shows("Declare an input message"));
+    rig.text("Reading");
+    rig.key(in::scan::kReturn);
+    REQUIRE(rig.workspace().graph.project.definition.accepts.size() == 1);
+    CHECK(rig.workspace().graph.project.definition.accepts.front()->name() == "meter.Reading");
+    rig.click("[Graph]");
+
+    // KEEP A FIELD beside its button; its kind is pressed, and typing never reaches it.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#kind-choice-ignored): a kind pressed is not held.
+    const auto keep = rig.label("[+ keep a field]");
+    rig.click("[+ keep a field]");
+    box = editor_box(rig);
+    CHECK(box.x == keep.x);
+    CHECK(box.y > keep.y);
+    CHECK(rig.shows("meter.Reading"));
+    for (const char* kind : {"[Int]", "[Bool]", "[Float]", "[Text]", "[Bytes]"}) {
+        INFO(kind);
+        CHECK(rig.shows(kind));
+    }
+    rig.click("[Bool]");
+    rig.text("Int");
+    rig.key(in::scan::kLeft);
+    rig.key(in::scan::kRight);
+    rig.key(in::scan::kReturn);
+    const auto* kept = rig.workspace().graph.project.definition.state->find("total");
+    REQUIRE(kept != nullptr);
+    CHECK(kept->type.kind == loom::Kind::Bool);
+
+    // A PRESS OUTSIDE IT PUTS IT DOWN, and is spent on nothing more: the tab pressed stays unshown.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#editor-outlives-a-press-outside): a press outside
+    // leaves it open.
+    rig.choose("more", "ask-keep");
+    REQUIRE(rig.state().dialog_action == "keep");
+    rig.click("[State]");
+    CHECK(rig.state().dialog_action.empty());
+    CHECK(rig.shows("Keep a field between messages was closed; nothing changed"));
+    CHECK(rig.shows("WHEN"));
+
+    // SAY A MESSAGE beside its button in the Then lane.
+    rig.edit_ok("add-node", rig.ref("math.max"));
+    const auto say = rig.label("[+ say meter.Total]");
+    rig.click("[+ say meter.Total]");
+    box = editor_box(rig);
+    CHECK(box.y > say.y);
+    CHECK(rig.shows("Say a message after the change"));
+    CHECK(rig.shows("WHEN"));
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.definition.on.front().emits.size() == 1);
+}

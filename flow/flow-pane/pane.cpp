@@ -174,6 +174,7 @@ public:
                 state_.dialog_selected, std::int64_t{0},
                 static_cast<std::int64_t>(dialog.entries.size() - 1)));
             model_.dialog = std::move(dialog);
+            model_.dress();
           }
         } catch (const std::exception &e) {
           model_.notice = std::string("Could not restore Flow: ") + e.what();
@@ -230,9 +231,20 @@ public:
       } else if (key.scancode == input::scan::kTab) {
         auto &d = *model_.dialog;
         d.selected = (d.selected + 1) % d.entries.size();
+      } else if (auto &entry = model_.dialog->entries.at(model_.dialog->selected);
+                 !entry.choices.empty()) {
+        // A FIELD CHOSEN FROM WORDS takes the arrows across them, and nothing typed.
+        if (key.scancode == input::scan::kLeft || key.scancode == input::scan::kRight) {
+          const auto &words = entry.choices;
+          const auto at = std::find(words.begin(), words.end(), entry.text.text());
+          const auto n = static_cast<std::ptrdiff_t>(words.size());
+          auto i = at == words.end() ? 0 : at - words.begin();
+          i = (i + (key.scancode == input::scan::kRight ? 1 : n - 1)) % n;
+          const auto &chosen = words[static_cast<std::size_t>(i)];
+          entry.text.set(chosen, chosen.size());
+        }
       } else
-        model_.dialog->entries.at(model_.dialog->selected)
-            .text.consume(key.scancode, key.modifiers, clipboard_);
+        entry.text.consume(key.scancode, key.modifiers, clipboard_);
       show(mail);
       return;
     }
@@ -309,6 +321,8 @@ public:
       return;
     // Outside a dialog, typed text is the number box's at a chosen port while it is open, and
     // else the search line's.
+    if (model_.dialog && !model_.dialog->entries.at(model_.dialog->selected).choices.empty())
+      return; // a field chosen from words takes nothing typed
     auto &box = model_.dialog  ? model_.dialog->entries.at(model_.dialog->selected).text
                 : number_box() ? model_.port_value
                                : model_.search;
@@ -460,6 +474,23 @@ public:
         show(mail);
         return;
       }
+      // AN EDITOR OPEN IN PLACE: a press on it does what it names there; a press anywhere else puts
+      // it down, and is spent on nothing more.
+      if (model_.dialog && pane::in_place(model_.dialog->action)) {
+        const auto *on = pictured != nullptr &&
+                                 pictured->revision ==
+                                     model_.workspace.graph.project.definition.revision
+                             ? pictured->hit(event.x, event.y)
+                             : nullptr;
+        if (event.button == 1 && on != nullptr && editor_part(on->action)) {
+          const auto part = *on; // a copy: performing it clears the pictures it points into
+          perform(part.action, part.args, mail);
+          return;
+        }
+        put_editor_down();
+        show(mail);
+        return;
+      }
       // WITH A WIRE'S SEARCH OPEN a press on one of its rows makes it, a press elsewhere in the
       // list does nothing, and a press anywhere else closes it and is spent on nothing more.
       if (model_.wire_search) {
@@ -573,7 +604,9 @@ public:
       // A PRESS ON A WIRE'S END does what it does today, and the press is held: moved past a
       // character cell, it drags the wire, and its release says where the wire goes.
       const auto end = wire_end(chosen);
+      opener_ = spot_of(chosen);
       perform(chosen.action, chosen.args, mail);
+      opener_.reset();
       if (end && model_.page == pane::Page::Graph && !model_.dialog) {
         Drag wire{event.gesture, 0, model_.workspace.graph.project.definition.revision,
                   event.x, event.y, 0, 0};
@@ -643,7 +676,9 @@ public:
       show(mail);
       return;
     }
+    opener_ = spot_of(chosen);
     perform(chosen.action, chosen.args, mail);
+    opener_.reset();
   }
   /// A VALUE A PERSON CARRIED HERE, placed on the picture Flow last drew in its area. An operator
   /// reference becomes a node -- into the port it landed on, as the body of the fold whose slot it
@@ -731,8 +766,11 @@ public:
   void on_menu(const std::string &id, const std::string &subject, loom::Mail &mail) {
     const auto &rows = menu_rows(subject);
     if (!rows.empty()) {
-      if (std::any_of(rows.begin(), rows.end(), [&](const auto &row) { return id == row.first; }))
+      if (std::any_of(rows.begin(), rows.end(), [&](const auto &row) { return id == row.first; })) {
+        opener_ = menu_opener_;
         perform(id, {}, mail);
+        opener_.reset();
+      }
       return;
     }
     if (id != "carry")
@@ -1047,11 +1085,15 @@ private:
       return;
     }
     if (target == "column:when") {
+      opener_ = pane::Spot{event.x, event.y, 1, 1};
       perform("ask-message", {}, mail);
+      opener_.reset();
       return;
     }
-    if (target == "column:then")
+    if (target == "column:then") {
+      menu_opener_ = pane::Spot{event.x, event.y, 1, 1};
       open_menu("then", mail);
+    }
   }
   /// The end of a wire a press on `hit` takes hold of: an output button, a field in scope, or an
   /// input port while no wire is in hand; none for anything else.
@@ -1066,6 +1108,33 @@ private:
   }
   /// The picture last drawn in the window, which a drag's later moments are read against.
   const pane::Picture *latest() const { return window_shown_ ? &*window_shown_ : nullptr; }
+  /// THE PARTS OF AN EDITOR IN PLACE: its fields, its choices, its own room, Confirm and Cancel.
+  static bool editor_part(const std::string &action) {
+    return action == "dialog-field" || action == "dialog-choose" || action == "dialog-box" ||
+           action == "dialog-confirm" || action == "dialog-cancel";
+  }
+  /// PUT AN EDITOR IN PLACE DOWN, nothing done, and say so.
+  void put_editor_down() {
+    if (!model_.dialog)
+      return;
+    model_.notice = model_.dialog->title + " was closed; nothing changed";
+    model_.dialog.reset();
+    drag_.reset();
+    drop_writing();
+  }
+  /// AN EDITOR JUST OPENED STANDS BESIDE THE PRESS THAT OPENED IT; a name it asks for is ready to be
+  /// typed over, all of it selected.
+  void beside_opener(bool name) {
+    model_.dialog->beside = opener_;
+    if (!name)
+      return;
+    auto &text = model_.dialog->entries.front().text;
+    const auto held = text.text();
+    text.set(held, 0);
+    text.drag_to_column(static_cast<std::int64_t>(held.size()));
+  }
+  /// Where a part a press landed on stands, which an editor it opens stands beside.
+  static pane::Spot spot_of(const pane::Hit &hit) { return {hit.x, hit.y, hit.w, hit.h}; }
   /// IS THE NUMBER BOX AT THE CHOSEN PORT OPEN: an Int port chosen on the Graph page and drawn in
   /// the picture last shown, with no dialog and no wire's search holding the keys.
   bool number_box() const {
@@ -1632,7 +1701,8 @@ private:
     // revision. Held gestures and old dialog/form hit maps cannot cross that
     // boundary.
     if (model_.dialog && action != "dialog-field" && action != "dialog-confirm" &&
-        action != "dialog-cancel" && action != "discard")
+        action != "dialog-cancel" && action != "dialog-choose" && action != "dialog-box" &&
+        action != "discard")
       throw std::invalid_argument("Confirm or cancel the open dialog before another edit");
     drag_.reset();
     model_.wire_drawn.reset();
@@ -1699,9 +1769,10 @@ private:
           "Message:preset",
           "state-field",
           {{"Name", "value"}, {"Kind", "Int"}, {"Presence", "required"}});
-    else if (action == "ask-message")
-      model_.ask("Declare an input message", "message",
-                 {{"Message name", "Set"}});
+    else if (action == "ask-message") {
+      model_.ask("Declare an input message", "message", {{"Message name", "Set"}});
+      beside_opener(true);
+    }
     else if (action == "ask-message-field")
       model_.ask("Add field to the selected message", "message-field",
                  {{"Message index", std::to_string(model_.message)},
@@ -1721,6 +1792,19 @@ private:
                  {{"Path", "examples.flow-values"}});
     else if (action == "dialog-field") {
       model_.dialog->selected = flow::index_of(args.at(0));
+    } else if (action == "dialog-choose") {
+      // ONE OF A FIELD'S WORDS, chosen: the field holds it, and the keys move to it.
+      if (!model_.dialog)
+        return;
+      const auto at = flow::index_of(args.at(0));
+      auto &entry = model_.dialog->entries.at(at);
+      if (std::find(entry.choices.begin(), entry.choices.end(), args.at(1)) == entry.choices.end())
+        throw std::invalid_argument(entry.label + " is chosen from " + std::to_string(entry.choices.size()) +
+                                    " words, and " + args.at(1) + " is none of them");
+      entry.text.set(args.at(1), args.at(1).size());
+      model_.dialog->selected = at;
+    } else if (action == "dialog-box") {
+      // A press inside an editor on none of its parts: nothing.
     } else if (action == "dialog-cancel") {
       model_.dialog.reset();
       drop_writing();
@@ -1750,6 +1834,7 @@ private:
         pane::reveal_graph(model_, window_room_);
       drag_.reset();
     } else if (action == "menu") {
+      menu_opener_ = opener_;
       open_menu(args.at(0), mail);
     } else if (action == "restart") {
       // STOP, THEN RUN THE DRAFT: what it kept carries on where its shape is unchanged.
@@ -1762,16 +1847,17 @@ private:
       restarting_ = true;
       model_.notice = "Restarting: stopping, then running the draft";
     } else if (action == "ask-keep") {
-      model_.ask("Keep a field between messages: what the rule remembers", "keep",
-                 {{"Name", "total"}, {"Kind", "Int"}});
+      model_.ask("Keep a field between messages", "keep", {{"Name", "total"}, {"Kind", "Int"}});
+      beside_opener(false);
     } else if (action == "ask-say") {
       const auto &def = model_.workspace.graph.project.definition;
       if (def.on.empty())
         throw std::invalid_argument(
             "A rule says a message after its change: give it a message and what it keeps first");
       const auto &on = def.on.at(model_.trigger());
-      model_.ask("Say a message after the change, with what the rule keeps", "say",
+      model_.ask("Say a message after the change", "say",
                  {{"Message name", pane::say_name(on.output)}, {"With", on.output}});
+      beside_opener(true);
     } else if (action == "write") {
       // A STEP'S ANSWER, held, given to what the rule writes: it becomes that answer.
       if (!model_.connecting || model_.connecting->from() != zengine::op::Binding::From::Node)
@@ -2121,6 +2207,10 @@ private:
   bool restored_ = false;
   /// What the last first-button press named, so the next can complete a double click.
   pane::ClickMemory click_;
+  /// WHERE THE PRESS THAT IS BEING DONE LANDED, so an editor it opens stands beside it; and where
+  /// the press that opened the menu now shown landed, for an editor a row of it opens. None for a
+  /// row Workshop pressed or a key.
+  std::optional<pane::Spot> opener_, menu_opener_;
   /// A double click's second press on empty space, done when it lets go where it stood.
   struct SecondPress {
     std::int64_t gesture = 0;

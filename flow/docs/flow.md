@@ -57,6 +57,12 @@ Generate native C++, the library's save -- asks Workshop first whether your hand
 a [weaver's host](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)
 a guest's is refused. Confirm or cancel before changing pages, starting another edit, or quitting.
 
+Three open in place instead of over the page: **Keep a field**, **Say a message** and **New
+message** open a small box beside what you pressed to open them, with the graph still drawn round
+it, and a name they ask for is selected, so what you type replaces it. A kept field's kind is a
+row of buttons, **Int**, **Bool**, **Float**, **Text** and **Bytes**, chosen by a press or the
+arrow keys rather than typed. A press anywhere outside the box closes it, changing nothing.
+
 ## Find what to compose
 
 The rail beside the graph finds operators through the host's

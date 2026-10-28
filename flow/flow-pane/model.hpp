@@ -18,8 +18,30 @@ namespace md = zengine::message_draft;
 enum class Page { Graph, State, Messages, Library, Events };
 enum class Effect { None, Run, Apply, Stop, Send, Catalog, Inspect };
 struct Action { Effect effect = Effect::None; loom::Bytes payload; };
-struct Entry { std::string label; zengine::component::TextBox text; };
-struct Dialog { std::string title, action; std::vector<Entry> entries; std::size_t selected = 0; };
+/// One field of a dialog: its label and text, and the words it is chosen from where it is chosen
+/// rather than typed.
+struct Entry { std::string label; zengine::component::TextBox text; std::vector<std::string> choices; };
+/// A place on the pane's area, in its pixels: where the press that opened an editor landed.
+struct Spot { std::int64_t x = 0, y = 0, w = 0, h = 0; };
+/// An unfinished edit: what it asks, its fields and the one the keys are in, and, for one that
+/// opens in place, what opened it -- none where nothing pressed did.
+struct Dialog {
+    std::string title, action;
+    std::vector<Entry> entries;
+    std::size_t selected = 0;
+    std::optional<Spot> beside;
+};
+/// AN EDITOR THAT OPENS IN PLACE, beside what opened it with the page still shown round it: keeping
+/// a field, saying a message, declaring one.
+inline bool in_place(const std::string& action) {
+    return action == "keep" || action == "say" || action == "message";
+}
+/// THE KINDS A KEPT FIELD IS CHOSEN FROM, each a spelling `flow::shape::type_named` takes for a field
+/// of one value.
+inline const std::vector<std::string>& field_kinds() {
+    static const std::vector<std::string> kinds{"Int", "Bool", "Float", "Text", "Bytes"};
+    return kinds;
+}
 /// An input port a maker selected to fill: its node by the place's stable id, so removing
 /// another node never moves the choice onto a different one.
 struct PortChoice { std::int64_t place = 0; std::size_t port = 0; };
@@ -131,9 +153,16 @@ public:
         ++state_epoch; state_edited = true; touched();
     }
     void ask(std::string title, std::string action, const std::vector<std::pair<std::string,std::string>>& fields) {
-        Dialog next{std::move(title), std::move(action), {}, 0};
+        Dialog next{std::move(title), std::move(action), {}, 0, std::nullopt};
         for (const auto& [label, value] : fields) { Entry e; e.label = label; e.text.set(value, value.size()); next.entries.push_back(std::move(e)); }
         dialog = std::move(next);
+        dress();
+    }
+    /// What an open dialog's fields are chosen from: a kept field's kind, from the kinds Flow takes.
+    void dress() {
+        if (!dialog) return;
+        for (auto& e : dialog->entries)
+            if (dialog->action == "keep" && e.label == "Kind") e.choices = field_kinds();
     }
     void retain_form() {
         if (!form) return;

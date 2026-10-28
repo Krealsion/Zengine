@@ -72,6 +72,9 @@ struct Picture : Drawing {
     /// Where the chosen port stands on its step's card, and that card, for the box that opens there.
     std::optional<std::pair<std::int64_t, std::int64_t>> port_at;
     std::optional<Box> port_card;
+    /// What each editor in place edits on the graph, by its action: where one opens that nothing
+    /// pressed opened.
+    std::map<std::string, Box> subjects;
     /// Every run of text it draws, in paint order.
     std::vector<std::string> texts() const {
         std::vector<std::string> out;
@@ -400,7 +403,8 @@ inline void tabs(Pen& pen, const Model& model, std::int64_t y, std::int64_t heig
                                                "page-library", "page-events"};
     std::int64_t x = m.light ? 8 : 0;
     for (std::size_t i = 0; i < std::size(kPages); ++i) {
-        const bool on = model.page == kPages[i].first && !model.dialog && !model.dropped;
+        const bool on = model.page == kPages[i].first &&
+                        !(model.dialog && !in_place(model.dialog->action)) && !model.dropped;
         const std::string words = kPages[i].second;
         if (m.light) {
             const auto w = pen.width(words) - 2 * m.inset + 20;
@@ -858,6 +862,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         ty += light ? 10 : 0;
         const auto bw = pen.button_width("New message");
         pen.button(box.x + std::max<std::int64_t>(0, (box.w - bw) / 2), ty, "New message", "ask-message", {}, Face::Gilt, Icon::None, when_room);
+        pen.p.subjects["message"] = box;
         y = box.bottom() + (light ? 16 : m.row);
     } else {
         std::vector<loom::Field> fields;
@@ -879,6 +884,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             from_field[fields[i].name] = {rows.box.right() - (light ? 0 : m.ch), rows.middles[i + 1]};
         }
         handle(rows, name, when_room);
+        pen.p.subjects["message"] = rows.box;
         y = stacked.box.bottom() + (light ? 16 : 0);
     }
     // WHAT IT KEEPS BETWEEN MESSAGES, or a place to keep something.
@@ -889,6 +895,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             const auto bw = pen.button_width("+ keep a field");
             pen.button(box.x + std::max<std::int64_t>(0, (box.w - bw) / 2), box.y + (box.h - (light ? m.tall : m.row)) / 2, "+ keep a field",
                        "ask-keep", {}, Face::Teal, Icon::None, when_room);
+            pen.p.subjects["keep"] = box;
             y = box.bottom() + (light ? 16 : m.row);
         }
     } else {
@@ -908,6 +915,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             from_kept[fields[i].name] = {rows.box.right() - (light ? 0 : m.ch), rows.middles[i]};
         }
         handle(rows, "kept", when_room);
+        pen.p.subjects["keep"] = rows.box;
         y = stacked.box.bottom() + (light ? 16 : m.row);
     }
     // THE OTHER MESSAGES THAT WAKE A TRIGGER, each to show in its place.
@@ -961,6 +969,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
                  hue::quiet(), then_room);
         pen.press(rows.box.cut(then_room), "write", {std::to_string(model.trigger())});
         if (nodes) handle(rows, write_name, then_room);
+        pen.p.subjects["say"] = rows.box;
         write_port = std::pair{rows.box.x, light ? rows.box.y + m.card / 2 : rows.box.y + m.row / 2};
         // THE THREAD from what it writes down to the first thing it says, where that stands below.
         if (threaded) {
@@ -994,6 +1003,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             pen.text(sx, said.rows[0], fields, heard ? hue::text() : hue::quiet(), then_room);
             pen.press(said.box.cut(then_room), "say", {std::to_string(e)});
             handle(said, say_names[e], then_room);
+            pen.p.subjects["say"] = said.box;
             const auto xw = pen.button_width("x");
             pen.button(said.box.right() - xw - (light ? 4 : 0), said.head - (light ? 3 : 0), "x", "emit-remove",
                        {std::to_string(e)}, Face::Quiet, Icon::None, then_room);
@@ -1005,6 +1015,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             const auto bw = pen.button_width(label);
             pen.button(box.x + std::max<std::int64_t>(0, (box.w - bw) / 2), box.y + (box.h - (light ? m.tall : m.row)) / 2,
                        label, "ask-say", {}, Face::Gilt, Icon::None, then_room);
+            pen.p.subjects["say"] = box;
         }
     }
     // THE STEPS ON THE OPEN CANVAS, each a card at its place.
@@ -1263,6 +1274,109 @@ inline void events_band(Pen& pen, const Model& model, const Box& box, std::size_
     }
 }
 
+/// ONE TYPED FIELD OF A DIALOG at (x, y) inside `within`: its label and a field to its right where
+/// light, `> Label: text` where a character is a cell, the caret and selection drawn in the field
+/// the keys are in; a press on its row chooses it.
+inline void entry_row(Pen& pen, const Box& within, std::int64_t x, std::int64_t y, const Entry& e, std::size_t i,
+                      bool on) {
+    const auto& m = pen.m;
+    const auto prefix = (m.light ? std::string() : std::string(on ? "> " : "  ")) + e.label + ": ";
+    auto text = e.text;
+    if (m.light) {
+        pen.text(x, y, prefix, on ? hue::text() : hue::quiet(), within);
+        const auto fx = x + pen.width(prefix);
+        const Box field{fx, y - 3, within.right() - fx - 12, m.tall};
+        pen.rect(field, hue::field(), on ? hue::wire() : hue::edge(), 3, false, within);
+        const auto columns = std::max<std::int64_t>(1, m.fits(field.w - 8));
+        text.keep_caret_visible(columns);
+        auto& run = pen.text(field.x + 4, y, text.visible(columns), hue::text(), field);
+        if (on) {
+            run.caret_col = static_cast<std::int64_t>(text.caret_column());
+            const auto selection = text.visible_selection(columns);
+            if (selection.present()) {
+                run.sel_begin_col = selection.begin;
+                run.sel_end_col = selection.end;
+            }
+        }
+    } else {
+        const auto columns = std::max(std::int64_t{1}, m.fits(within.w) - static_cast<std::int64_t>(prefix.size()) - 1);
+        text.keep_caret_visible(columns);
+        // A selected entry's caret after its text stands on a blank of its own.
+        const bool after = on && text.caret_column() >= text.visible(columns).size();
+        auto& run = pen.text(x, y, prefix + text.visible(columns) + (after ? " " : ""), hue::text(), within);
+        if (on) {
+            const auto prefix_columns = static_cast<std::int64_t>(prefix.size());
+            run.caret_col = prefix_columns + static_cast<std::int64_t>(text.caret_column());
+            const auto selection = text.visible_selection(columns);
+            if (selection.present()) {
+                run.sel_begin_col = prefix_columns + selection.begin;
+                run.sel_end_col = prefix_columns + selection.end;
+            }
+        }
+    }
+    pen.press(Box{within.x, y - (m.light ? 3 : 0), within.w, m.light ? m.tall : m.row}.cut(within), "dialog-field",
+              {std::to_string(i)});
+}
+
+/// AN EDITOR IN PLACE: the open dialog as a small box beside what opened it -- under it where the
+/// area has room, else over it -- or, where nothing pressed opened it, beside what it edits on the
+/// graph; the page stays drawn round it. A field chosen from words is a row of them, the one held
+/// lit; a typed one a field with its caret. A press inside it lands on it.
+inline void editor(Pen& pen, const Model& model, const Box& area) {
+    const auto& m = pen.m;
+    const auto& d = *model.dialog;
+    const bool light = m.light;
+    const auto pad = light ? std::int64_t{10} : std::int64_t{0};
+    const auto line = light ? m.tall + 10 : 2 * m.row;
+    const auto control_h = light ? m.tall + 6 : m.row;
+    const auto w = std::min(area.w, light ? std::max<std::int64_t>(m.chars(40), 360) : m.chars(48));
+    const auto h = std::min(area.h, 2 * pad + m.row + (light ? 10 : m.row) +
+                                        static_cast<std::int64_t>(d.entries.size()) * line + control_h);
+    std::optional<Box> at;
+    if (d.beside) at = Box{d.beside->x, d.beside->y, d.beside->w, d.beside->h};
+    else if (const auto it = pen.p.subjects.find(d.action); it != pen.p.subjects.end()) at = it->second;
+    std::int64_t bx = area.x + (area.w - w) / 2, by = area.y + (area.h - h) / 2;
+    if (at) {
+        const auto gap = light ? std::int64_t{6} : std::int64_t{0};
+        bx = at->x;
+        by = at->bottom() + gap;
+        if (by + h > area.bottom()) by = at->y - h - gap;
+    }
+    const auto snap = [&](std::int64_t v) { return gfx::floor_div_px(v, m.grain) * m.grain; };
+    bx = snap(std::clamp(bx, area.x, std::max(area.x, area.right() - w)));
+    by = snap(std::clamp(by, area.y, std::max(area.y, area.bottom() - h)));
+    const Box box{bx, by, w, h};
+    pen.rect(box, light ? hue::band() : hue::well(), hue::wire(), light ? 4 : 0);
+    pen.press(box, "dialog-box", {"box"});
+    const auto x = bx + (light ? pad + 2 - m.inset : m.ch);
+    std::int64_t y = by + pad;
+    pen.text(x, y, d.title, hue::message(), box);
+    y += m.row + (light ? 10 : m.row);
+    const Box inside{bx + (light ? 2 : m.ch), by, w - (light ? 4 : 2 * m.ch), h};
+    for (std::size_t i = 0; i < d.entries.size(); ++i) {
+        const auto& e = d.entries[i];
+        const bool on = i == d.selected;
+        if (e.choices.empty()) {
+            entry_row(pen, inside, x, y, e, i, on);
+        } else {
+            const auto prefix = (light ? std::string() : std::string(on ? "> " : "  ")) + e.label + ": ";
+            pen.text(x, y, prefix, on ? hue::text() : hue::quiet(), box);
+            auto cx = x + pen.width(prefix) - (light ? 2 * m.inset : 0);
+            for (const auto& choice : e.choices) {
+                const bool held = e.text.text() == choice;
+                cx += pen.button(cx, y - (light ? 3 : 0), choice, "dialog-choose", {std::to_string(i), choice},
+                                 held ? Face::Teal : Face::Plain, Icon::None, box) +
+                      (light ? 6 : m.ch);
+            }
+        }
+        y += line;
+    }
+    const auto step = light ? 8 : m.chars(2);
+    auto cx = x + (light ? m.inset : 0);
+    cx += pen.button(cx, y, "Confirm", "dialog-confirm", {}, Face::Gold, Icon::None, box) + step;
+    pen.button(cx, y, "Cancel", "dialog-cancel", {}, Face::Plain, Icon::None, box);
+}
+
 /// THE BOX AT THE CHOSEN PORT: what is in scope of its type, each a button by its own name and
 /// where it comes from; then one value of the port's own kind -- a number typed and checked as it
 /// is typed for an Int, yes or no for a Bool. It stands beside the port's step, inside `within`,
@@ -1496,7 +1610,13 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
     const Box body{margin, top + (light ? 10 : 0), W - 2 * margin, std::max<std::int64_t>(0, foot - top - (light ? 14 : 0))};
     const auto line_h = light ? m.row : m.row;
     const auto control_h = light ? m.tall + 6 : m.row;
-    if (model.dialog) {
+    // AN EDITOR IN PLACE is drawn over the page it was opened on, which stays drawn round it.
+    const auto done = [&]() {
+        if (model.dialog && in_place(model.dialog->action))
+            editor(pen, model, Box{0, top, W, std::max<std::int64_t>(0, foot - top)});
+        return finish(std::move(out), room);
+    };
+    if (model.dialog && !in_place(model.dialog->action)) {
         const auto& dialog = *model.dialog;
         const Box card_box{body.x, body.y, std::min(body.w, m.chars(90)), body.h};
         if (light) pen.rect(card_box, hue::band(), hue::edge(), 4);
@@ -1505,44 +1625,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
         pen.text(x, y, dialog.title, hue::message(), card_box);
         y += 2 * line_h;
         for (std::size_t i = 0; i < dialog.entries.size(); ++i) {
-            const auto& e = dialog.entries[i];
-            const bool on = i == dialog.selected;
-            const auto prefix = (light ? std::string() : std::string(on ? "> " : "  ")) + e.label + ": ";
-            auto text = e.text;
-            if (light) {
-                pen.text(x, y, prefix, on ? hue::text() : hue::quiet(), card_box);
-                const auto fx = x + pen.width(prefix);
-                const Box field{fx, y - 3, card_box.right() - fx - 12, m.tall};
-                pen.rect(field, hue::field(), on ? hue::wire() : hue::edge(), 3, false, card_box);
-                const auto columns = std::max<std::int64_t>(1, m.fits(field.w - 8));
-                text.keep_caret_visible(columns);
-                auto& run = pen.text(field.x + 4, y, text.visible(columns), hue::text(), field);
-                if (on) {
-                    run.caret_col = static_cast<std::int64_t>(text.caret_column());
-                    const auto selection = text.visible_selection(columns);
-                    if (selection.present()) {
-                        run.sel_begin_col = selection.begin;
-                        run.sel_end_col = selection.end;
-                    }
-                }
-            } else {
-                const auto columns = std::max(std::int64_t{1}, m.fits(card_box.w) - static_cast<std::int64_t>(prefix.size()) - 1);
-                text.keep_caret_visible(columns);
-                // A selected entry's caret after its text stands on a blank of its own.
-                const bool after = on && text.caret_column() >= text.visible(columns).size();
-                auto& run = pen.text(x, y, prefix + text.visible(columns) + (after ? " " : ""), hue::text(), card_box);
-                if (on) {
-                    const auto prefix_columns = static_cast<std::int64_t>(prefix.size());
-                    run.caret_col = prefix_columns + static_cast<std::int64_t>(text.caret_column());
-                    const auto selection = text.visible_selection(columns);
-                    if (selection.present()) {
-                        run.sel_begin_col = prefix_columns + selection.begin;
-                        run.sel_end_col = prefix_columns + selection.end;
-                    }
-                }
-            }
-            pen.press(Box{card_box.x, y - (light ? 3 : 0), card_box.w, light ? m.tall : m.row}.cut(card_box), "dialog-field",
-                      {std::to_string(i)});
+            entry_row(pen, card_box, x, y, dialog.entries[i], i, i == dialog.selected);
             y += light ? m.tall + 10 : 2 * m.row;
         }
         const auto step = light ? 8 : m.chars(2);
@@ -1575,7 +1658,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
             pen.button(body.x, y, offer.title, offer.action, offer.args, Face::Plain, Icon::None, body);
             y += control_h;
         }
-        return finish(std::move(out), room);
+        return done();
     }
     const auto& graph = model.workspace.graph;
     const auto& def = graph.project.definition;
@@ -1610,7 +1693,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
         const auto ny = y0 + graph_h + (light ? 10 : 0);
         next_line(pen, model, Box{margin, ny, W - 2 * margin, next_h});
         if (band_h > 0) events_band(pen, model, Box{margin, ny + next_h + (light ? 10 : 0), W - 2 * margin, band_h}, lines);
-        return finish(std::move(out), room);
+        return done();
     }
     if (model.page == Page::Events) {
         // A long event -- a refusal in its owner's words -- continues on the rows beneath it,
@@ -1646,7 +1729,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
         }
         if (model.events.empty() && y < body.bottom())
             pen.text(body.x, y, "Run and send a message. Observed results appear here.", hue::quiet(), body);
-        return finish(std::move(out), room);
+        return done();
     }
     std::int64_t y = body.y;
     const auto step = light ? 8 : m.ch;
@@ -1725,7 +1808,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
         if (!model.form->ready() && y < body.bottom())
             pen.text(body.x, y, "Unfinished draft: save it now, complete before sending.", hue::message(), body);
     }
-    return finish(std::move(out), room);
+    return done();
 }
 
 /// Pan a graph that runs past the bottom of its canvas up, as far as its topmost node allows, so a

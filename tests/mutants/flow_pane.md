@@ -251,3 +251,68 @@ Red in `zengine-flow-pane-tests`:
 
 - a press on a port opens a box at it: what is in scope of its type and an earlier step's answer,
   each by its own name, then one value of the port's kind
+
+## editor-covers-the-page
+
+An editor in place is drawn as the dialog that covers the page.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-    if (model.dialog && !in_place(model.dialog->action)) {
++    if (model.dialog) {
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- Keep a field, Say a message and New message edit in place beside what opened them, the graph
+  still in view, and a kept field's kind is chosen from the kinds Flow takes
+
+## editor-ignores-its-opener
+
+An editor in place stands beside what it edits on the graph, never beside the press that opened it.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-    if (d.beside) at = Box{d.beside->x, d.beside->y, d.beside->w, d.beside->h};
++    if (d.beside && d.entries.empty()) at = Box{d.beside->x, d.beside->y, d.beside->w, d.beside->h};
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- Keep a field, Say a message and New message edit in place beside what opened them, the graph
+  still in view, and a kept field's kind is chosen from the kinds Flow takes
+
+## kind-choice-ignored
+
+A kind pressed in a kept field's editor is not held.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-      entry.text.set(args.at(1), args.at(1).size());
++      entry.text.set(entry.text.text(), entry.text.size());
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- Keep a field, Say a message and New message edit in place beside what opened them, the graph
+  still in view, and a kept field's kind is chosen from the kinds Flow takes
+
+## editor-outlives-a-press-outside
+
+A press outside an editor in place leaves it open.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-        put_editor_down();
++        (void)mail;
+         show(mail);
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- Keep a field, Say a message and New message edit in place beside what opened them, the graph
+  still in view, and a kept field's kind is chosen from the kinds Flow takes
