@@ -213,6 +213,7 @@ In `workshop/setup_persist.hpp`:
 ```diff
      // converted candidate then meets the whole law, so a file naming both spellings is refused.
 -    add_converted(converted, pane_migration::convert_retired_panes(candidate));
++    (void)converted;
 ```
 
 Red in `zengine-workshop-persistence-tests`:

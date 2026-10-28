@@ -192,6 +192,7 @@ In `workshop/weave_desktop.cpp`:
 -    say_withdrawn(std::string(kDesktopRole),
 -                  ActionsWithdrawn{std::string(), was, "the application's keys: " + joined.refusal},
 -                  mail);
++    (void)mail;
 ```
 
 Red in `zengine-workshop-panes-tests`:
