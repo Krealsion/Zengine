@@ -193,7 +193,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
     // nothing of the view lies outside it.
     {
         auto wide = panel_model();
-        wide.command("size", {"1400", "1000"});
+        wide.command("size", {"1800", "1000"});
         wide.command("element", {"4", "total", "Total", "900", "700", "192", "24"});
         vb::Presentation panned;
         panned.pan_x = 480;
@@ -204,7 +204,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(panned.pan_x == 480);
         CHECK(pic.view.x == area.x - 480);
         CHECK(pic.view.y == area.y - 300);
-        CHECK(pic.view.w == 1400);
+        CHECK(pic.view.w == 1800);
         CHECK(pic.view.h == 1000 + view::notice_band(room));
         const ws::CanvasRoom inner{pic.view.w, pic.view.h, room.grain, room.graphical,
                                    room.text_advance_px, room.text_line_px};
@@ -246,13 +246,102 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         // its handles sit, at the area's right edge.
         panned.pan_x = 9000;
         (void)vb::picture(wide, panned, room);
-        CHECK(panned.pan_x == 1400 + 12 - gfx::floor_div_px(area.w, gfx::kPixelGrainPx));
+        CHECK(panned.pan_x == 1800 + 12 - gfx::floor_div_px(area.w, gfx::kPixelGrainPx));
     }
     // An empty view says what to do, in the list's place.
     vb::Presentation none;
     const auto empty = vb::picture(vb::Model{}, none, terminal_room());
     CHECK(std::any_of(empty.content.texts.begin(), empty.content.texts.end(),
                       [](const auto& t) { return t.text == "  none yet: drag a kind in"; }));
+}
+
+TEST_CASE("one layout at every width: the left column keeps its width, Add's kinds a row each beneath Grid and the values below the list, and every column more goes to the design canvas") {
+    // ⚔ MUTATION (tests/mutants/view_builder.md#side-grows-with-the-pane, #kinds-share-a-row,
+    // #list-keeps-four-rows): a column that grows with the pane moves the canvas's start; kinds
+    // along one row leave the rows beneath Grid; a list keeping four rows pushes a button's boxes
+    // under a short pane's status.
+    auto m = panel_model();
+    m.selected = 4;
+    for (const bool graphical : {true, false}) {
+        INFO("graphical: " << graphical);
+        const auto room_of = [&](std::int64_t columns) {
+            if (!graphical) return ws::CanvasRoom{columns * unit, 30 * unit, unit, false};
+            const auto inset = ws::canvas_text_metrics(window_room()).inset;
+            return ws::CanvasRoom{columns * 8 + 2 * inset, 640, gfx::kPixelGrainPx, true, 8, 16};
+        };
+        std::optional<vb::Area> before;
+        std::int64_t before_width = 0;
+        // ACROSS EVERY WIDTH A LAYOUT ONCE STEPPED AT -- two fifths of a narrow pane, a quarter each
+        // side from 110 columns -- from the narrowest pane holding the whole column and ten columns
+        // of canvas.
+        for (const std::int64_t columns : {50, 80, 96, 100, 109, 110, 111, 140, 200}) {
+            INFO("columns: " << columns);
+            const auto room = room_of(columns);
+            vb::Presentation none;
+            const auto pic = vb::picture(m, none, room);
+            const auto& area = pic.design;
+            REQUIRE_FALSE(area.empty());
+            // THE CANVAS TAKES THE REST: it begins at one place at every width and reaches the
+            // room's right edge, so a column more is a column of canvas.
+            CHECK(area.x + area.w == room.width);
+            if (before) {
+                CHECK(area.x == before->x);
+                CHECK(area.w - before->w == room.width - before_width);
+            }
+            before = area;
+            before_width = room.width;
+            // ADD'S KINDS, beneath Grid a row each, one under another, above the list.
+            std::vector<const vb::Hit*> kinds, listed;
+            const vb::Hit* grid = nullptr;
+            for (const auto& h : pic.hits) {
+                if (h.action == "kind") kinds.push_back(&h);
+                if (h.action == "select") listed.push_back(&h);
+                if (h.action == "box" && h.args.at(0) == "grid") grid = &h;
+            }
+            REQUIRE(grid != nullptr);
+            REQUIRE(kinds.size() == 3);
+            REQUIRE(listed.size() == m.description.elements.size());
+            CHECK(kinds[0]->args.at(0) == "label");
+            CHECK(kinds[1]->args.at(0) == "number");
+            CHECK(kinds[2]->args.at(0) == "button");
+            for (std::size_t i = 0; i < kinds.size(); ++i) {
+                CHECK(kinds[i]->at.x == kinds[0]->at.x);
+                CHECK(kinds[i]->at.y == grid->at.y + static_cast<std::int64_t>(i + 1) * grid->at.h);
+                CHECK(kinds[i]->at.y < listed.front()->at.y);
+                CHECK(kinds[i]->at.x + kinds[i]->at.w <= area.x);
+            }
+            // THE SELECTED ELEMENT'S VALUES, below the list and left of the canvas.
+            std::size_t values = 0;
+            for (const auto& h : pic.hits) {
+                if (h.action != "box" || h.args.at(1) != "4") continue;
+                ++values;
+                CHECK(h.at.y > listed.back()->at.y);
+                CHECK(h.at.x + h.at.w <= area.x);
+            }
+            CHECK(values == vb::element_fields(m.description.elements[4]).size());
+        }
+        // A SHORT PANE: the list keeps two rows when the selected element's values need the rest,
+        // so a button's boxes stand in sight above the status.
+        {
+            auto b = panel_model();
+            b.selected = 3;
+            vb::Presentation none;
+            const auto shortened = graphical ? ws::CanvasRoom{room_of(110).width, 20 * 20, gfx::kPixelGrainPx, true, 8, 16}
+                                             : ws::CanvasRoom{110 * unit, 20 * unit, unit, false};
+            const auto pic = vb::picture(b, none, shortened);
+            std::vector<std::string> boxes;
+            for (const auto& h : pic.hits)
+                if (h.action == "box" && h.args.at(1) == "3") boxes.push_back(h.args.at(0));
+            CHECK(boxes == std::vector<std::string>{"id", "label", "x", "y", "w", "h"});
+        }
+        // A NARROWER PANE NARROWS THE COLUMN FIRST, down to thirty columns, so its canvas stays in
+        // sight.
+        vb::Presentation none;
+        const auto narrow = vb::picture(m, none, room_of(40));
+        CHECK_FALSE(narrow.design.empty());
+        CHECK(narrow.design.x < before->x);
+        CHECK(narrow.design.x + narrow.design.w == room_of(40).width);
+    }
 }
 
 TEST_CASE("WL-HAND-06: the View Builder names its controls, kinds, boxes, list rows, elements and handles, an element by its id") {
@@ -1179,7 +1268,7 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     TempDir dir;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
-    REQUIRE(rig.edit("size", {"2000", "1200"}).ok);
+    REQUIRE(rig.edit("size", {"2400", "1200"}).ok);
     REQUIRE(rig.edit("add", {"button"}).ok);
     REQUIRE(rig.edit("element", {"5", "far", "Far", "1500", "900", "96", "24"}).ok);
     REQUIRE(rig.edit("save", {(dir.directory / "far.view").string()}).ok);
@@ -1264,7 +1353,7 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     const vb::Area reached{area.x - reach_x, area.y - reach_y, 0, 0};
     distant = vb::element_area(reached, rig.now().elements[5]);
     CHECK(far_box(distant) == 1);
-    CHECK(std::abs(reached.x + (2000 + 12) - (area.x + area.w)) <= 1);
+    CHECK(std::abs(reached.x + (2400 + 12) - (area.x + area.w)) <= 1);
     CHECK(std::abs(reached.y + 1200 + view::notice_band(window_room()) - (area.y + area.h)) <=
           1); // the notice rows beneath the size in sight too
     // ...and back to the view's corner, no further.
@@ -1287,7 +1376,7 @@ TEST_CASE("in a terminal the middle button pans the design canvas by whole cells
     Rig rig;
     rig.host(terminal_room(++rig.grant));
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
-    REQUIRE(rig.edit("size", {"1400", "700"}).ok);
+    REQUIRE(rig.edit("size", {"1800", "700"}).ok);
     REQUIRE(rig.edit("add", {"button"}).ok);
     REQUIRE(rig.edit("element", {"5", "far", "Far", "1200", "600", "96", "24"}).ok);
     REQUIRE(rig.edit("select", {"0"}).ok);
@@ -1677,11 +1766,11 @@ TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret
     const std::string long_label = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMN";
     REQUIRE(rig.edit("set", {"4", "label", long_label}).ok);
     REQUIRE(rig.edit("select", {"4"}).ok);
-    // The label's box, beside the design area, holding the front of the label.
+    // The label's box, below the list left of the design area, holding the front of the label.
     const auto boxed = [&](const std::string& start) -> const ws::CanvasText* {
         const auto area = rig.design();
         for (const auto& t : rig.picture().texts)
-            if (t.text.rfind(start, 0) == 0 && t.x >= area.x + area.w) return &t;
+            if (t.text.rfind(start, 0) == 0 && t.x < area.x) return &t;
         return nullptr;
     };
     const auto* box = boxed("abcdefgh");
@@ -1716,15 +1805,14 @@ TEST_CASE("every field a label could show can be chosen: the choice wraps within
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     REQUIRE(rig.edit("select", {"4"}).ok);
     // Is `[name]` drawn whole inside its column, so a press on it chooses that field? The values
-    // sit right of the design area in a wide pane, and left of it in a narrow one.
+    // sit below the list, left of the design area, at every width.
     auto room = window_room();
     const auto offered = [&](const std::string& name) -> const ws::CanvasText* {
         const auto* t = rig.text("[" + name + "]");
         if (!t || t->text != "[" + name + "]") return nullptr;
         const auto area = rig.design();
-        const auto right = t->x >= area.x + area.w ? room.width : area.x;
         const auto metrics = ws::canvas_text_metrics(room);
-        return t->x + static_cast<std::int64_t>(t->text.size()) * metrics.advance <= right ? t : nullptr;
+        return t->x + static_cast<std::int64_t>(t->text.size()) * metrics.advance <= area.x ? t : nullptr;
     };
     std::int64_t gesture = 60;
     const auto choose = [&](const std::string& name) {
@@ -1748,7 +1836,7 @@ TEST_CASE("every field a label could show can be chosen: the choice wraps within
     for (const auto& n : names) CHECK_MESSAGE(offered(n) != nullptr, n);
     choose(names.back());
     CHECK(shown() == "tally.Wide.the_last_value_counted_in");
-    // ...and in a pane too narrow for a values column, where they sit below the list.
+    // ...and in a narrower pane, where the column and its choice are the same.
     room = window_room(++rig.grant);
     room.width = 800;
     rig.host(room);
@@ -1901,13 +1989,13 @@ TEST_CASE("a control in the values column is drawn whole inside it whatever the 
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     const auto metrics = ws::canvas_text_metrics(window_room());
-    // Is exactly `words` drawn, whole, right of the design area and inside the room -- on the row
-    // of `beside` when it is named?
+    // Is exactly `words` drawn, whole, in the left column below the list, short of the design
+    // area -- on the row of `beside` when it is named?
     const auto whole = [&](const std::string& words, const ws::CanvasText* beside = nullptr) -> const ws::CanvasText* {
         const auto area = rig.design();
         for (const auto& t : rig.picture().texts)
-            if (t.text == words && t.x >= area.x + area.w && (!beside || t.y == beside->y) &&
-                t.x + static_cast<std::int64_t>(words.size()) * metrics.advance <= window_room().width)
+            if (t.text == words && (!beside || t.y == beside->y) &&
+                t.x + static_cast<std::int64_t>(words.size()) * metrics.advance <= area.x)
                 return &t;
         return nullptr;
     };

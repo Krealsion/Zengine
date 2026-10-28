@@ -18,12 +18,12 @@ front, with the keys: where the column has no room left for it, at the column's 
 
 ## The builder
 
-On the left are the view's name and file in boxes, **Add** with the three kinds of element, the
-view's **Size** and the **Grid** in boxes, and the list of the view's elements. In the middle is
-the design canvas: the view drawn by its own picture code at its own pixels, 12 to a cell, in a
-room exactly its size with its notice rows beneath, the same picture it shows when it runs. In a
-wide
-pane the selected element's values sit in boxes on the right; in a narrow one, below the list.
+On the left, in a column that keeps its width however wide the pane, are the view's name and file
+in boxes, the view's **Size** and the **Grid** in boxes, **Add** with the three kinds of element a
+row each, the list of the view's elements, and below the list the selected element's values in
+boxes. To its right is the design canvas: the view drawn by its own picture code at its own pixels,
+12 to a cell, in a room exactly its size with its notice rows beneath, the same picture it shows
+when it runs. Widening the pane widens the canvas alone.
 
 - **Size** the view by dragging the handles on its right and bottom edges, or their corner, or
   type its width and height into the boxes beside **Size**. A new view is 480 by 240. Beneath
@@ -110,8 +110,8 @@ then click where it goes.
   **Emitted** onto the `Total` label on the canvas, or onto its row in the list. While you hold it
   over a label, the label is marked where it would land. A shape with one field a label can show
   is bound at once (`shows tally.Total.total`); with several, the builder asks which, with a
-  button for each, wrapped to the values' width; when they are more than the pane's rows hold,
-  **More** shows the next of them. A binding longer than the values column is cut to end in
+  button for each, wrapped to the column's width; when they are more than the pane's rows hold,
+  **More** shows the next of them. A binding longer than the column is cut to end in
   `...`, so **Unshow** beside it stays whole. Let go anywhere but a label and nothing is bound: the
   builder says where to drop it. A value from Inventory binds by its shape, and a field carried
   from Info binds that field.

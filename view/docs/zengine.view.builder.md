@@ -14,11 +14,12 @@ message each button says, its *intent* ([the description](view.md#the-descriptio
 is the office it runs under and the namespace of what it says.
 
 The pane draws the view you are making with the view's own picture code, at its own pixels, on the
-design canvas in its middle, so what you see there is what runs. Along the top is the bar, `[New]`
+design canvas, so what you see there is what runs. Along the top is the bar, `[New]`
 `[Open]` `[Save]` `[Run]` `[Apply]` `[Stop]` `[Export app]` `[Run app]`; `[Save*]` says the view is unsaved,
-`[Running]` that it runs. Down the left: the view's name in `View`, its file in `File`, `Add` with `[Label]`
-`[Number]` `[Button]`, its `Size` and the `Grid` in boxes, and the list of its elements. The
-selected element's values sit in boxes on the right in a wide pane, below the list in a narrow one.
+`[Running]` that it runs. Down the left, in a column that keeps its width however wide the pane:
+the view's name in `View`, its file in `File`, its `Size` and the `Grid` in boxes, `Add` with
+`[Label]`, `[Number]` and `[Button]` a row each, the list of its elements, and below the list the
+selected element's values in boxes. The canvas takes the rest of the pane's width.
 Beneath the canvas a row says the view's name, `running` or `stopped`, and its file; the last two
 rows are the notice, where every answer and refusal is said. It draws in a graphics window too
 ([Hears](#arearoom)).

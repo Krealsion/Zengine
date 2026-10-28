@@ -97,7 +97,13 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   and an app's own host ([app](app.md)), where the app's own weave asks it. The View Builder
   is an ordinary pane in `zengine.view.builder`: it edits a description through
   `view_builder::Model`, every edit whole or refused whole, and asks the host to run, apply and
-  stop one session of its office. By hand: a kind dragged from its palette is made where it is
+  stop one session of its office. Its picture is one layout at every width: a left column holds
+  the view's name and file, its size and the grid, the kinds a row each beneath the grid, the
+  element list and below it the selected element's values, `view_builder::kSideColumns` text
+  columns wide wherever the room holds it beside a canvas of `view_builder::kLeastCanvasColumns`
+  (a narrower room narrows it first, to no less than `view_builder::kLeastSideColumns`); the
+  design canvas takes the rest of the room's width. By hand: a kind dragged from its palette is
+  made where it is
   let go (`add` at a place); an element dragged moves, a side's handle moves that side alone and
   a corner's the two it joins (`place`). The view's size is set by the handles on its right and
   bottom edges or typed into its boxes (`size`). Each place by hand snaps (`view_builder::snap`,
@@ -143,9 +149,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   row, as what that label shows, a description read with the shapes it carries alone
   (`flow::shape::described`); dropped on no label it is refused in words, whatever is selected.
   A shape of several fields it could show is a choice of every one: buttons wrapped within the
-  values column (`view_builder::lay_choices`), and More where the rows cannot hold them. A
-  control in the values column (Remove, Unshow, an intent's box) is drawn whole inside it: the
-  words before it give way, cut to end in `...`.
+  left column (`view_builder::lay_choices`), and More where the rows cannot hold them. A control
+  among the selected element's values (Remove, Unshow, an intent's box) is drawn whole inside the
+  column: the words before it give way, cut to end in `...`.
 - Export app makes an app of the saved view through `app/folder.hpp` and nothing of its own
   ([app host](app.md)): an unsaved view or one with no file is refused before anything is asked; a
   hand's export asks Workshop for class `write` under its gesture, as Save does, one at a time; an

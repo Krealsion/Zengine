@@ -173,6 +173,14 @@ inline constexpr std::int64_t kSnapReach = 6;
 inline constexpr std::int64_t kMostSnapReach = graphics::kCellPx - 1;
 inline constexpr std::int64_t kMaxGrid = 96;
 
+/// THE LEFT COLUMN'S WIDTH, in text columns: the view's name and file, its size, the grid, the
+/// kinds, the element list and the selected element's values. Wherever the pane holds it beside a
+/// design canvas of `kLeastCanvasColumns`, every column more is the canvas's; a narrower pane
+/// narrows the column first, to no less than `kLeastSideColumns`.
+inline constexpr std::int64_t kSideColumns = 40;
+inline constexpr std::int64_t kLeastSideColumns = 30;
+inline constexpr std::int64_t kLeastCanvasColumns = 10;
+
 /// Which edges of an element the hand moves along one axis: both (a move), the low or the high
 /// one (a side or a corner of a resize), or neither.
 enum class Edges { both, low, high, none };
@@ -291,31 +299,28 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
     const auto& d = m.description;
     const bool chosen = m.selected && *m.selected < d.elements.size();
 
-    // THE LAYOUT: the bar across the top; on the left the view's name and file, the kinds and the
-    // element list; the design area beside it; the selected element's values in a column of their
-    // own on the right where the room is wide, else below the list; the status and the notice
-    // across the last three rows.
+    // THE LAYOUT, one at every width: the bar across the top; on the left a column of
+    // `kSideColumns`, narrower only in a narrow room -- the view's name and file, its size and the
+    // grid, the kinds, the element list and the selected element's values below it; the design
+    // area from there to the room's right edge; the status and the notice across the last three
+    // rows.
     const auto cell = graphics::kCellPx;
     const auto up_to_cell = [&](std::int64_t v) { return (v + cell - 1) / cell * cell; };
     const auto rule = room.graphical ? graphics::kPixelGrainPx : out.grain;
-    const bool beside = columns >= 110;
-    const auto side = beside ? std::clamp<std::int64_t>(columns / 4, 30, 36)
-                             : std::min(columns, std::clamp<std::int64_t>(columns * 2 / 5, 30, 40));
-    const auto details = beside ? std::clamp<std::int64_t>(columns / 4, 30, 40) : std::int64_t{0};
-    const auto details_col = columns - details;
+    const auto side = std::clamp<std::int64_t>(columns - kLeastCanvasColumns,
+                                               std::min(columns, kLeastSideColumns), kSideColumns);
     const auto status = std::max<std::int64_t>(1, rows - 3);
     out.design.x = up_to_cell(side * advance + 2 * metrics.inset + rule);
     out.design.y = up_to_cell(line + rule);
-    out.design.w = (beside ? details_col * advance - rule : room.width) - out.design.x;
+    out.design.w = room.width - out.design.x;
     out.design.h = status * line - out.design.y;
 
-    // A line keeps to its column, from `from` to `limit`, and a row of a column above the status.
-    std::int64_t from = 0, limit = columns, stop = rows;
+    // A line keeps to its column, up to `limit`, and a row of a column above the status.
+    std::int64_t limit = columns, stop = rows;
     const auto put = [&](std::int64_t col, std::int64_t row, std::string text, std::int64_t role = ink::kFill) {
         if (row < 0 || row >= stop) return std::int64_t{0};
         ws::CanvasText run{col * advance, row * line, clean(std::move(text)), role};
-        const auto left = from * advance;
-        const ws::CanvasTextBox clip{left, 0, std::min(room.width, limit * advance + 2 * metrics.inset) - left, room.height};
+        const ws::CanvasTextBox clip{0, 0, std::min(room.width, limit * advance + 2 * metrics.inset), room.height};
         auto placed = ws::clip_canvas_text(run, clip, room);
         if (placed.visible()) out.content.texts.push_back(placed.text);
         return static_cast<std::int64_t>(run.text.size());
@@ -469,7 +474,8 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
         return row - top;
     };
 
-    // THE LEFT COLUMN: the view's name and file, the kinds to drag, then the list.
+    // THE LEFT COLUMN: the view's name and file, its size and the grid, the kinds to drag, then
+    // the list and the selected element's values.
     limit = side;
     stop = status;
     const auto wide = std::max<std::int64_t>(4, side - 6);
@@ -477,27 +483,28 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
     box(5, 1, wide, "name", std::nullopt, d.name);
     put(0, 2, "File");
     box(5, 2, wide, "path", std::nullopt, m.path);
-    col = put(0, 3, "Add ");
+    // THE VIEW'S SIZE, in whole pixels, as values in boxes.
+    col = put(0, 3, "Size ");
+    col = box(col, 3, 6, "width", std::nullopt, std::to_string(d.width));
+    col += put(col, 3, "by ");
+    box(col, 3, 6, "height", std::nullopt, std::to_string(d.height));
+    // THE GRID a place by hand snaps to: the builder's own, never the view's.
+    col = put(0, 4, "Grid ");
+    col = box(col, 4, 4, "grid", std::nullopt, std::to_string(p.grid));
+    put(col, 4, p.grid <= 1 ? "px: none" : "px", ink::kMuted);
+    // THE KINDS TO MAKE, beneath the grid, a row each, in line with the boxes above.
+    std::int64_t row = 5;
+    put(0, row, "Add");
     for (const auto kind : {view::Kind::label, view::Kind::number, view::Kind::button}) {
         const std::string word = view::kind_word(kind);
         const std::string title = kind == view::Kind::number ? "Number" : kind == view::Kind::button ? "Button" : "Label";
-        col = button(col, 3, title, "kind", {word});
+        button(5, row++, title, "kind", {word});
     }
-    // THE VIEW'S SIZE, in whole pixels, as values in boxes.
-    col = put(0, 4, "Size ");
-    col = box(col, 4, 6, "width", std::nullopt, std::to_string(d.width));
-    col += put(col, 4, "by ");
-    box(col, 4, 6, "height", std::nullopt, std::to_string(d.height));
-    // THE GRID a place by hand snaps to: the builder's own, never the view's.
-    col = put(0, 5, "Grid ");
-    col = box(col, 5, 4, "grid", std::nullopt, std::to_string(p.grid));
-    put(col, 5, p.grid <= 1 ? "px: none" : "px", ink::kMuted);
-    std::int64_t row = 6;
     put(0, row++, "Elements (" + std::to_string(d.elements.size()) + ")", ink::kAccent);
-    // Stacked, the values take the rows below the list, which keeps a few rows whatever they
-    // need; the list follows the selected element.
+    // The values take the rows below the list, which keeps two rows whatever they need; the list
+    // follows the selected element.
     std::int64_t below = 0;
-    if (chosen && !beside) {
+    if (chosen) {
         const auto& e = d.elements[*m.selected];
         below = 1 + (e.kind == view::Kind::number ? 3 : 2) + 2;
         below += e.kind == view::Kind::button ? 4 : e.kind == view::Kind::label ? 2 : 0;
@@ -506,8 +513,8 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
             below += laid.empty() ? 0 : laid.back().row;
         }
     }
-    const auto few = std::min<std::int64_t>(4, std::max<std::int64_t>(1, static_cast<std::int64_t>(d.elements.size())));
-    const auto list_end = std::max(row + few, beside ? status : status - below - 1);
+    const auto few = std::min<std::int64_t>(2, std::max<std::int64_t>(1, static_cast<std::int64_t>(d.elements.size())));
+    const auto list_end = std::max(row + few, status - below - 1);
     const auto shown_rows = static_cast<std::size_t>(std::max<std::int64_t>(1, list_end - row));
     auto first = std::min(m.first_row, d.elements.size());
     if (chosen) {
@@ -526,15 +533,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
         ++row;
     }
     if (d.elements.empty()) put(0, row++, "  none yet: drag a kind in", ink::kMuted);
-    if (chosen && !beside) (void)values(0, side, std::max(row, list_end) + 1);
-    if (beside) {
-        // THE DETAILS COLUMN: the selected element's values, or what selecting one shows.
-        from = details_col;
-        limit = columns;
-        if (chosen) (void)values(details_col, details, 1);
-        else put(details_col, 1, "select an element to see its values", ink::kMuted);
-    }
-    from = 0;
+    if (chosen) (void)values(0, side, std::max(row, list_end) + 1);
     limit = columns;
     stop = rows;
 
@@ -548,7 +547,6 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
         out.content.rects.push_back({area.x, area.y, area.w, area.h, ink::kGround});
         out.content.rects.push_back({area.x - rule, area.y - rule, area.w + rule, rule, ink::kMuted});
         out.content.rects.push_back({area.x - rule, area.y, rule, area.h, ink::kMuted});
-        if (beside) out.content.rects.push_back({area.x + area.w, area.y - rule, rule, area.h + rule, ink::kMuted});
         const auto [reach_x, reach_y] = pan_reach(d, area, view::notice_band(room));
         p.pan_x = std::clamp<std::int64_t>(p.pan_x, 0, reach_x);
         p.pan_y = std::clamp<std::int64_t>(p.pan_y, 0, reach_y);

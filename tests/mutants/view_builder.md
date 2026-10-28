@@ -216,3 +216,53 @@ Red in `zengine-view-builder-tests`:
 
 - Run app asks Workshop for a build and a write for the hand, then the launcher for the app the
   saved view was exported as, and says what started
+
+## side-grows-with-the-pane
+
+The left column takes two fifths of a pane narrower than 100 columns, as it once did, so the canvas
+begins further right as the pane widens.
+
+In `view/view-builder/picture.hpp`:
+
+```diff
+-    const auto side = std::clamp<std::int64_t>(columns - kLeastCanvasColumns,
+-                                               std::min(columns, kLeastSideColumns), kSideColumns);
++    const auto side = std::min(columns, std::clamp<std::int64_t>(columns * 2 / 5, 30, kSideColumns));
+```
+
+Red in `zengine-view-builder-tests`:
+
+- one layout at every width: the left column keeps its width, Add's kinds a row each beneath Grid
+  and the values below the list, and every column more goes to the design canvas
+
+## kinds-share-a-row
+
+Add's kinds share one row beside `Add`, as they once did.
+
+In `view/view-builder/picture.hpp`:
+
+```diff
+-        button(5, row++, title, "kind", {word});
++        button(5 + 9 * (row - 5), 5, title, "kind", {word}), ++row;
+```
+
+Red in `zengine-view-builder-tests`:
+
+- one layout at every width: the left column keeps its width, Add's kinds a row each beneath Grid
+  and the values below the list, and every column more goes to the design canvas
+
+## list-keeps-four-rows
+
+The element list keeps four rows before the selected element's values get any, as it once did.
+
+In `view/view-builder/picture.hpp`:
+
+```diff
+-    const auto few = std::min<std::int64_t>(2, std::max<std::int64_t>(1, static_cast<std::int64_t>(d.elements.size())));
++    const auto few = std::min<std::int64_t>(4, std::max<std::int64_t>(1, static_cast<std::int64_t>(d.elements.size())));
+```
+
+Red in `zengine-view-builder-tests`:
+
+- one layout at every width: the left column keeps its width, Add's kinds a row each beneath Grid
+  and the values below the list, and every column more goes to the design canvas
