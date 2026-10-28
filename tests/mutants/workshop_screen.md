@@ -391,23 +391,6 @@ Red in `zengine-workshop-screen-tests`:
 
 - a pane's interior is its outer rectangle less one cell of chrome
 
-## painter-inset-alone
-
-The painter's prose place keeps a cell's inset while the body and the room go thin.
-
-In `workshop/screen_pane_state.cpp`:
-
-```diff
--    const PaneInside inside = pane_inside(b, sc);
--    p.inside = inside.rect;
-+    const PaneInside inside = detail::pane_inside_at(b, sc, kChromePx);
-+    p.inside = inside.rect;
-```
-
-Red in `zengine-workshop-screen-tests`:
-
-- the border a weaver sees and the room a pane spends are one subtraction
-
 ## hit-walks-the-authored-order
 
 `occupied_at` walks the authored order, not the effective one with the selection lifted.
@@ -520,16 +503,15 @@ Red in `zengine-workshop-screen-tests`:
 
 - the contextual surface is its actions, and its width is theirs
 
-## gesture-claim-in-the-layouts-pane
+## gesture-claim-in-a-pane-body
 
-The Layouts pane's status line teaches a key the keymap owns.
+The words Workshop draws in an external pane's body teach a key the keymap owns.
 
-In `workshop/screen_layouts.cpp`:
+In `workshop/screen_external.cpp`:
 
 ```diff
--    line += status == setup_link::kCurrent ? kSetupLinkCurrent : kSetupLinkModified;
-+    line += status == setup_link::kCurrent ? kSetupLinkCurrent : kSetupLinkModified;
-+    line += "  ctrl+n new layout";
+-    return pane.held && !pane.in_window ? name + kExternalNoWindow : kExternalWaiting + name;
++    return (pane.held && !pane.in_window ? name + kExternalNoWindow : kExternalWaiting + name) + "  ctrl+p panes";
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -585,7 +567,7 @@ In `workshop/screen_pane_state.cpp`:
 
 Red in `zengine-workshop-screen-tests`:
 
-- the graphical boundary is one device pixel, drawn INSIDE the pane
+- the border a weaver sees and the room a pane spends are one subtraction
 
 ## body-keeps-the-cell-inset
 
@@ -818,7 +800,7 @@ Red in `zengine-workshop-screen-tests`:
 In `workshop/layouts/run.hpp`:
 
 ```diff
-     if (to >= layout_count(s) || to == s.active_at) {
+     if (layout_count(s) >= ceiling) {
          return false;
      }
 -    s.shelved.insert(s.shelved.begin() + static_cast<std::ptrdiff_t>(s.active_at),
@@ -1059,7 +1041,7 @@ Red in `zengine-workshop-screen-tests`:
 
 ## no-veil
 
-The window's drawing has no veil over the panes not arranged.
+The window's drawing has no veil over the panes not arranged while a weaver arranges.
 
 In `workshop/screen_compose.cpp`:
 
@@ -1069,8 +1051,7 @@ In `workshop/screen_compose.cpp`:
 
 Red in `zengine-workshop-screen-tests`:
 
-- WL-ARR-18: arranging says so at the room's top, naming what it arranges, and in a window every
-  other pane fades
+- WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows
 
 ## veil-each-pane-whole
 

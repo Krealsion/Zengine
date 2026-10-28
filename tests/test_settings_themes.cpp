@@ -176,8 +176,8 @@ TEST_CASE("a theme setting's target is every pane, an office, or one pane of an 
     }
     // ⚔ MUTATION (tests/mutants/settings_themes.md#office-without-dot, #pane-with-slash,
     // #pane-of-star): an office with no `.`, a second `/`, or a pane of `*` taken as a target.
-    for (const char* bad : {"foo", "a/b/c", "zengine.editor/*", "*/editor", "zengine.editor/",
-                            "/editor", "foo/editor", "**"}) {
+    for (const char* bad : {"foo", "a/b/c", "zengine.editor/a/b", "zengine.editor/*", "*/editor",
+                            "zengine.editor/", "/editor", "foo/editor", "**"}) {
         CAPTURE(bad);
         CHECK(says(st::check_theme_target(bad).refusal, "is `*`, `<office>` or"));
     }
@@ -336,6 +336,8 @@ TEST_CASE("a theme file past its ceiling is refused before it is parsed, read or
     // ⚔ MUTATION (tests/mutants/settings_themes.md#read-without-ceiling): the read given no ceiling
     // -- a hostile file chooses the cost of its refusal.
     CHECK(says(st::load_file(d.dir(), "big").outcome.refusal, "larger than a theme file can be"));
+    // ...BY THE READ ITSELF, before a byte of it is held: the parse would refuse it too.
+    CHECK(says(st::load_file(d.dir(), "big").outcome.refusal, "cannot read "));
 }
 
 TEST_CASE("a theme file holding another name than its own is refused") {

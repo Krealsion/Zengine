@@ -1702,12 +1702,15 @@ TEST_CASE("the answer the pane asked for does not erase what it just said") {
     REQUIRE(f.first().rfind("build recipes:", 0) == 0);
 
     // THE ANSWER TO THE PANE'S OWN ASK: the same world, described again. Nothing was built,
-    // so `builds` is unchanged and there is no news in it.
+    // so `builds` is unchanged and there is no news in it -- nothing is listed again, so a file
+    // put down meanwhile waits for news.
+    put_file(f.root / "put-down-meanwhile.txt", "not news\n");
     zengine::builder::BuildStatus described;
     described.outcome = zengine::builder::outcome::kNeverBuilt;
     described.builds = 0;
     f.r.publish(loom::to_value(described));
     CHECK(f.first().rfind("build recipes:", 0) == 0);
+    CHECK_FALSE(any_row(f.shown(), "put-down-meanwhile.txt"));
 
     // ...AND A BUILD THAT REALLY FINISHED IS STILL NEWS: the listing is taken again, because
     // a build can create or remove files.
@@ -2928,12 +2931,16 @@ TEST_CASE("two queued presses on the row painted as one entry open THAT entry") 
         put_file(f.root / entry_name(i), "x\n");
     }
     f.open(160, 48, /*with_editor=*/true);
+    // THE CURSOR WELL INTO THE LISTING, and the row aimed at the window's top entry above it, so
+    // a window that centred the cursor would have rows to move.
+    f.point_at(entry_name(12));
     SeamTap tap(f.r.bus, f.files_id(), f.keys_here());
 
     const std::vector<std::string> before = f.shown();
     std::int64_t row = -1;
-    for (std::int64_t i = static_cast<std::int64_t>(before.size()) - 1; i >= 0; --i) {
-        if (entry_shown(before[static_cast<std::size_t>(i)]) >= 0) {
+    for (std::int64_t i = 0; i < static_cast<std::int64_t>(before.size()); ++i) {
+        const std::int64_t shown = entry_shown(before[static_cast<std::size_t>(i)]);
+        if (shown >= 0 && shown != cursor_said(before)) {
             row = i;
             break;
         }
@@ -3492,9 +3499,9 @@ TEST_CASE("a Files menu choice that begins authoring takes the keyboard the menu
     // A CHOSEN ROW THAT BEGINS AN EDIT TAKES THE KEYS. A right press is focus-neutral, so a
     // weaver could right-press a candidate, choose `author a recipe for oven.cpp`, and get a line
     // no character reaches; the choice asks through `pane_menu::take_keyboard`, granted only
-    // while it is the weaver's latest act (the host's case is in the button suite). ⚔ MUTATIONS
-    // (tests/mutants/workshop_panes_files.md#no-take-keys, #keyboard-ask-not-emitted): no
-    // `take_keys`, or `PaneKeyboardRequested` not among the emissions: the word reaches nothing.
+    // while it is the weaver's latest act (the host's case is in the button suite). ⚔ MUTATION
+    // (tests/mutants/workshop_panes_files.md#no-take-keys): no `take_keys`, and the word reaches
+    // nothing.
     FilesRig f("files-menu-takes-keys");
     put_file(f.root / "oven.cpp", "// weave source\n");
     f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);

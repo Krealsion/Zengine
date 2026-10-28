@@ -4009,9 +4009,9 @@ TEST_CASE("a pane's interior is its outer rectangle less one cell of chrome") {
 }
 
 TEST_CASE("the border a weaver sees and the room a pane spends are one subtraction") {
-    // ⚔ MUTATION (tests/mutants/workshop_screen.md#painter-inset-alone): insetting the PAINTER and
-    // not the press inverse, or not the room grant. The three resolutions below are the only three,
-    // and they answer one rectangle.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#ring-outside-the-pane): the ring drawn on the
+    // pixel outside the pane. The three resolutions below are the only three, and they answer one
+    // rectangle, from one call.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
@@ -4299,7 +4299,7 @@ TEST_CASE("the contextual surface is its actions, and its width is theirs") {
 }
 
 TEST_CASE("no ordinary pane spends a row teaching a key the keymap already owns") {
-    // ⚔ MUTATION (tests/mutants/workshop_screen.md#gesture-claim-in-the-layouts-pane): putting a
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#gesture-claim-in-a-pane-body): putting a
     // gesture claim back into a pane's header or body. The audit is over the PROJECTION -- what a
     // weaver reads at each pane's rectangle -- so a hint anywhere in a built-in pane's composition
     // is caught, keymap-spelled or hard-coded. Not audited: an EXTERNAL pane's rows (the provider's
@@ -4393,10 +4393,8 @@ TEST_CASE("the chrome a pane wears is one unit of the face in front of the weave
 }
 
 TEST_CASE("the graphical boundary is one device pixel, drawn INSIDE the pane") {
-    // ⚔ MUTATION (tests/mutants/workshop_screen.md#ring-outside-the-pane): growing the pane outward
-    // to pay for its boundary, or drawing the ring on the pixel outside it. The authored rectangle
-    // is the outer rectangle; the ring is subtracted from it, and every number below is a pixel of
-    // the shipped face.
+    // The authored rectangle is the outer rectangle, never grown to pay for its boundary; the ring
+    // is subtracted from it, and every number below is a pixel of the shipped face.
     const Screen sdl = sdl_screen();
     const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
     const PixelRect inside = pane_inside(outer, sdl).rect;
@@ -4517,6 +4515,15 @@ TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") 
     const ScreenCanvas c = paint(t.session());
     const CellRect box = cells_covered(outer);
     CHECK(has_rect(c, box.x, box.y, box.w, box.h, kPaneChrome)); // the whole pane, once
+    std::size_t frames = 0; // ...and no stroke of its own beside it
+    for (const ScreenRect& r : all_rects(c)) {
+        const CellRect at = covered_cells(r);
+        if (r.role == kPaneChrome && at.x >= box.x && at.y >= box.y &&
+            at.x + at.w <= box.x + box.w && at.y + at.h <= box.y + box.h) {
+            ++frames;
+        }
+    }
+    CHECK(frames == 1);
 
     // ON A TERMINAL the interior it publishes leaves a one-CELL ring...
     const CellRect body = pane_body_cells(outer);
@@ -4812,6 +4819,30 @@ TEST_CASE("every pane a weaver can point at can be arranged, and the refusals ar
     CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, sized_cells.x,
                       sized_cells.y)
               .kind == second::kKind);
+
+    // THREE: A REFUSAL MOVES NOTHING. The pane placed off this screen and arranged from the
+    // desk is refused, and the selection stands where it stood.
+    t.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.session().arrange.open);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(second::kKind), cells_px(400), 0).accepted);
+    });
+    release_keys(t); // the arranged pane kept the keys
+    const CellRect left = cells_covered(
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
+                  screen_of(t.session()))
+            .rect);
+    t.press_canvas(left.x, left.y); // the selection a refusal must leave alone
+    REQUIRE(t.session().panes.selected == stock::kKind);
+    release_keys(t);
+    enter_arrange_desk(t);
+    for (int step = 0; step < 8 && !(t.session().arrange.pane == ref_of(second::kKind)); ++step) {
+        t.key(input::scan::kTab);
+    }
+    REQUIRE(t.session().arrange.pane == ref_of(second::kKind));
+    t.key(input::scan::kReturn);
+    CHECK(t.notice().find("is off this screen") != std::string::npos);
+    CHECK(t.session().panes.selected == stock::kKind);
 }
 
 TEST_CASE("the arrangement desk's pointer takes what is visibly in front") {
@@ -6994,8 +7025,6 @@ TEST_CASE("WL-DESK-19: where workshop.open-at says mouse, a pane the layout neve
 }
 
 TEST_CASE("WL-ARR-18: arranging says so at the room's top, naming what it arranges, and in a window every other pane fades") {
-    // MUTATION (tests/mutants/workshop_screen.md#no-veil): no veil -- the window drawing has no
-    // fade over the pane not arranged.
     Live t;
     (void)mount_tool(t, "zengine-snake");
     (void)seat_pane(t, second_ref());
@@ -7043,7 +7072,8 @@ TEST_CASE("WL-ARR-18: arranging says so at the room's top, naming what it arrang
 
 TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows") {
     // MUTATION (tests/mutants/workshop_screen.md#veil-each-pane-whole): each faded pane veiled
-    // whole but for the arranged one -- two veils where they overlap.
+    // whole but for the arranged one -- two veils where they overlap. MUTATION
+    // (tests/mutants/workshop_screen.md#no-veil): no veil at all while a weaver arranges.
     // Two panes that overlap, and the one arranged over part of both, part of their overlap showing.
     PlacedDesk d({PixelRect{0, 0, 400, 300}, PixelRect{200, 150, 400, 300},
                   PixelRect{300, 100, 400, 120}});
