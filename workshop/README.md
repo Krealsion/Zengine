@@ -23,7 +23,7 @@ and menus are tools too, and you can change or replace them while Workshop runs.
 - [The realization owner](docs/zengine.realization.md), `zengine.realization`: the load plan
   performed, and what becomes of a build offered to the running project
 
-![The Pane Manager wearing its ? at its top right, and the Manual showing the desk's own manual](docs/images/zengine.desktop-manual.png)
+![The Manual over the Pane Manager, opened by the ? at the Pane Manager's top right, showing the desk's own manual](docs/images/zengine.desktop-manual.png)
 
 ## Pages
 
