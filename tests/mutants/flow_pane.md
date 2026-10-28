@@ -157,6 +157,7 @@ In `flow/flow-pane/pane.cpp`:
 ```diff
      if (target == "column:do") {
 -      open_wire_search(pane::WireEnd{}, event.x, event.y, event.x, event.y, it, mail);
++      (void)it, (void)event;
        return;
 ```
 

@@ -12,7 +12,7 @@ In `flow/flow-pane/gesture.hpp`:
 
 ```diff
 -    return now_ms >= prior.at_ms && now_ms - prior.at_ms <= kDoublePressMs;
-+    return true;
++    return now_ms >= prior.at_ms;
 ```
 
 Red in `zengine-flow-tests`:
@@ -28,7 +28,7 @@ In `flow/flow-pane/gesture.hpp`:
 
 ```diff
 -    if (!prior.armed || prior.target.empty() || prior.target != target) return false;
-+    if (!prior.armed || prior.target.empty()) return false;
++    if (!prior.armed || prior.target.empty() || target.empty()) return false;
 ```
 
 Red in `zengine-flow-tests`:
