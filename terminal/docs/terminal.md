@@ -1,9 +1,9 @@
 # Terminal
 
-**How-to.** Three things a weaver does with the Terminal and the panes beside it: hiding the
-legend in one layout, keeping a command or a reply in Inventory to use again, and finding a power
-from the line. What each key does, what the rows say and every refusal are in
-[the Terminal's manual](zengine.terminal.md).
+**How-to.** Four things a weaver does with the Terminal and the panes beside it: hiding the
+legend in one layout, keeping a command or a reply in Inventory to use again, finding a power from
+the line, and taking a completion or running the line as typed. What each key does, what the rows
+say and every refusal are in [the Terminal's manual](zengine.terminal.md).
 
 ## Hiding the legend in one layout
 
@@ -75,3 +75,17 @@ open it in Info ([above](#dragging-a-command-or-reply-into-inventory)).
 
 Asking describes and does nothing else. The Terminal is granted these two asks to the door's office
 and nothing more: knowing a power is not leave to send it anything, mount it or open it.
+
+## Taking a completion, or running the line as typed
+
+As you type, the list above the line offers what can come next, `> ` before the row its cursor is
+on, and <!-- key terminal.complete -->`tab`<!-- /key --> takes that row. Move the cursor with
+<!-- key terminal.previous -->`up`<!-- /key --> or <!-- key terminal.next -->`down`<!-- /key -->, or
+press a row, and <!-- key terminal.submit -->`return`<!-- /key --> takes it too; the heading then
+ends `-- Enter: take it, Shift+Enter: run the line` where the pane has room for it, after the list's
+own words. To run the line as you typed it instead, press
+<!-- key terminal.submit-early -->`shift+return`<!-- /key --> (`ctrl+e` from a POSIX terminal).
+With the cursor where the list put it, <!-- key terminal.submit -->`return`<!-- /key --> runs the
+line ([`terminal.submit`](zengine.terminal.md#terminalsubmit)).
+
+![The Terminal's list of the two verbs, asked for with Tab on an empty line, its cursor moved down to ask, the heading ending -- Enter: take it, Shift+Enter: run the line](images/terminal-enter-takes-a-candidate.png)
