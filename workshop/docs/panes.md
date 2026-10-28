@@ -29,9 +29,11 @@ tell them apart to use them:
 
 Press **`Ctrl`+`p`**, from anywhere — it works while your hands are inside another pane — and
 the **Pane Manager** shows with the keys; press it again and the Pane Manager hides, or, where
-another pane covers it, comes forward with the keys. It is a show/hide toggle, judged by Workshop
-against your layout as it is when the key arrives, so a queued second press never quietly means
-the same thing twice. It lists every pane there is:
+another pane covers it and you have since worked in another pane, comes forward with the keys.
+Straight from the Pane Manager — a pane just opened from it, say — the press hides it, covered or
+not. It is a show/hide toggle, judged by Workshop against your layout as it is when the key
+arrives, so a queued second press never quietly means the same thing twice. It lists every pane
+there is:
 the union of what this Workshop can present and what your layout names.
 
 ```

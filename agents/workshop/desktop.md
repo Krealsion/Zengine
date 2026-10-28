@@ -126,10 +126,10 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-13 — A toggle is judged by the host against the desk as it is
 
-LAW — A toggle names a pane by its keys; the host judges it against the desk when handled (on it: close, or focus where it is covered; off it: open and focus) and answers which.
+LAW — A toggle names a pane by its keys; the host judges it against the desk when handled (on it: close, or focus where covered and not last reached; off it: open and focus) and answers which.
 
 MEANS
-- the shipped desktop's `desktop.panes` (`Ctrl+p`) is this toggle on its own Pane Manager;
+- the shipped desktop's `desktop.panes` (`Ctrl+p`) is this toggle on its own Pane Manager, put away covered or not while the weaver comes straight from it;
 - two toggles queued before any reading reaches the presenter end where they began;
 - one arriving while an edit is with the layouts' owner waits for its answer, and is judged then; a presenter's own reading never judges.
 
@@ -304,9 +304,13 @@ unloads nothing: a launch finds its unsaved source exactly as it was"
 `workshop/weave_session.cpp` unseat_then
 `workshop/desktop-pane/vocabulary.hpp` kActionPanes
 `workshop/weave_desktop.cpp` WorkshopWeave::covered_now
+`workshop/weave_managed.cpp` note_routed
+`workshop/weave_pointer.cpp` pointer_button
+`workshop/weave.hpp` WorkshopWeave::reached_
 `tests/test_workshop_panes_desktop.cpp` "WL-DESK-13: Ctrl+P is a visibility toggle judged by the
 host -- open and in sight becomes closed, covered is brought forward, closed becomes open and
-focused, whatever the desktop last heard"
+focused, whatever the desktop last heard" "WL-DESK-13: Ctrl+P puts away a covered Pane Manager the
+weaver comes straight from, and brings it forward once they have moved on from it"
 
 ### WL-DESK-19
 `workshop/layouts/run.hpp` LeftPlace SetupState::left leave_place take_left_place forget_gone_places

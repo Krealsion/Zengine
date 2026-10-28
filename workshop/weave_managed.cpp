@@ -80,9 +80,12 @@ std::int64_t WorkshopWeave::managed_kind() const {
 /// Every input routed to the managed pane moves `routed` in the desk's claim, so a trial prepared
 /// before it cannot commit (WL-OPEN-03). Conservative: a caret key aborts an open a finer guard
 /// could have let through.
-void WorkshopWeave::note_routed(std::int64_t kind) {
+void WorkshopWeave::note_routed(std::int64_t kind, bool reaches) {
     if (kind != kNoPaneKind && kind == managed_kind()) {
         ++routed_;
+    }
+    if (reaches && kind != kNoPaneKind) {
+        reached_ = kind;
     }
 }
 
