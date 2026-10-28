@@ -1552,7 +1552,7 @@ TEST_CASE("a carried undo history is put back within the buffer's two bounds: pa
 TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it is not") {
     // The quit is an ask: `q` publishes `PaneQuitRequested`, the pane answers about this
     // instant, and the host decides on the answer and says the pane's own refusal on its notice
-    // line. There is no confirmation surface and no armed second press.
+    // line. No armed second press: the box the refusal opens is its own question (WL-SESSION-22).
     EditorRig e("edit-quit");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1566,11 +1566,64 @@ TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it
     // THE SAME DOOR FROM THE NATIVE CLOSE BOX.
     e.r.close_requested();
     CHECK_FALSE(e.r.host.quit);
-    // SAVE, AND THE NEXT `q` ENDS THE PROCESS WITHOUT CEREMONY.
+    // SAVE, AND THE NEXT `q` ENDS THE PROCESS WITHOUT CEREMONY -- the box the refusal opened put
+    // away first, as `Esc` puts away any menu.
+    REQUIRE(e.r.session().context.open);
+    e.r.key(input::scan::kEscape);
     e.focus();
     e.save();
     REQUIRE(e.clean());
     CHECK(e.quit_by_key());
+}
+
+TEST_CASE("WL-SESSION-22: a quit refused for unsaved work opens a box at the room's centre; go back keeps everything, and discard quits losing only what the box named") {
+    // MUTATION: the discard asking the quit again with nothing named -- the Editor refuses it once
+    // more and Workshop stays open.
+    EditorRig e("edit-quit-box");
+    e.open();
+    e.open_file("a.cpp", "one\n");
+    e.press_doc(0, 3);
+    e.type("!");
+    REQUIRE(e.dirty());
+    const auto box_open = [&]() {
+        return e.r.session().context.open &&
+               e.r.session().context.subject == context_subject::kQuit;
+    };
+    const auto rows = [&]() { return context_line_names(e.r.session(), screen_of(e.r.session())); };
+    // REFUSED, THE BOX OPENS: back first, then discard, naming the pane that refused.
+    CHECK_FALSE(e.quit_by_key());
+    REQUIRE(box_open());
+    CHECK(rows() == std::vector<std::string>{"workshop.quit-back", "workshop.quit-discard"});
+    CHECK(e.r.session().context.cursor == 0);
+    REQUIRE(e.r.session().quit_unsaved.size() == 1);
+    const std::string named = e.r.session().quit_unsaved.front();
+    const ContextEntry discard = context_population(e.r.session().context)[1];
+    CHECK(context_annotation(e.r.session(), discard) == named);
+    // ...AT THE ROOM'S CENTRE.
+    const Screen sc = screen_of(e.r.session());
+    const PixelRect box = context_bounds(e.r.session(), sc);
+    CHECK(std::abs((box.x + box.w / 2) - sc.w / 2) <= sc.text_advance_px);
+    CHECK(std::abs((box.y + box.h / 2) - (sc.room_y + sc.room_h / 2)) <= sc.text_line_px);
+    // GO BACK, chosen by the key that reaches the box first: nothing discarded, nothing quit.
+    e.r.key(input::scan::kReturn);
+    CHECK_FALSE(box_open());
+    CHECK_FALSE(e.r.host.quit);
+    CHECK(e.dirty());
+    CHECK(e.r.session().notice.find("nothing was discarded") != std::string::npos);
+    // A BOX THAT NAMED ANOTHER PANE discards nothing of the Editor's: it still refuses.
+    CHECK_FALSE(e.quit_by_key());
+    REQUIRE(box_open());
+    const_cast<Session&>(e.r.session()).quit_unsaved = {"some other pane"};
+    e.r.key(input::scan::kDown);
+    e.r.key(input::scan::kReturn);
+    CHECK_FALSE(e.r.host.quit);
+    CHECK(e.dirty());
+    REQUIRE(box_open()); // refused again, by the Editor, and asked again
+    CHECK(e.r.session().quit_unsaved == std::vector<std::string>{named});
+    // DISCARD, by the weaver's press of it: the quit asked again ends the run.
+    e.r.key(input::scan::kDown);
+    e.r.key(input::scan::kReturn);
+    CHECK(e.r.host.quit);
 }
 
 namespace {

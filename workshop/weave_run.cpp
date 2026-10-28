@@ -424,6 +424,7 @@ void WorkshopWeave::quit(loom::Mail& mail) {
     quitting_ = true;
     quit_outstanding_ = asked.recipients;
     quit_refusals_.clear();
+    quit_refused_panes_.clear();
     held_input_.clear();
     held_dropped_ = 0;
 }
@@ -493,10 +494,14 @@ void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
     if (!mail.answers_ask() || !quitting_ || mail.correlation() != quit_ask_) {
         return; // not Loom's answer to the ask this host is waiting on
     }
-    if (!said.permitted) {
+    // A PANE THE QUIT BOX NAMED, discarded by the weaver's own press there, has permitted it.
+    const bool discarded =
+        std::find(quit_discard_.begin(), quit_discard_.end(), said.pane) != quit_discard_.end();
+    if (!said.permitted && !discarded) {
         quit_refusals_.push_back(said.refusal.empty()
                                      ? said.pane + " refused the quit and gave no reason"
                                      : said.refusal);
+        quit_refused_panes_.push_back(said.pane);
     }
     if (quit_outstanding_ > 0) {
         --quit_outstanding_;
@@ -506,6 +511,7 @@ void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
     }
     if (quit_refusals_.empty()) {
         quitting_ = false;
+        quit_discard_.clear();
         answer_quit_ask({}, mail);
         finish_quit(mail);
         return;
@@ -517,7 +523,37 @@ void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
         }
         why += one;
     }
+    // A QUIT THE WEAVER ASKED HERE gets the box; one asked by message is answered in words alone.
+    const bool here = !quit_asked_.valid();
+    std::vector<std::string> unsaved = quit_refused_panes_;
     refuse_quit(std::move(why), mail);
+    if (here) {
+        offer_quit_box(std::move(unsaved));
+        repaint(mail);
+    }
+}
+
+// WL-SESSION-22 -- agents/workshop/session.md
+void WorkshopWeave::offer_quit_box(std::vector<std::string> panes) {
+    session_.quit_unsaved = std::move(panes);
+    ContextMenu box;
+    box.open = true;
+    box.subject = context_subject::kQuit;
+    session_.context = box; // its cursor on "go back to work", first
+}
+
+// WL-SESSION-22 -- agents/workshop/session.md
+void WorkshopWeave::discard_and_quit(loom::Mail& mail) {
+    if (session_.quit_unsaved.empty()) {
+        say("nothing to discard -- the box is offered when a quit finds unsaved work", true);
+        return;
+    }
+    quit_discard_ = std::move(session_.quit_unsaved);
+    session_.quit_unsaved.clear();
+    quit(mail);
+    if (!quitting_) {
+        quit_discard_.clear(); // refused or ended at once: the press settled nothing further
+    }
 }
 
 // WL-SESSION-19 -- agents/workshop/session.md
@@ -559,6 +595,8 @@ void WorkshopWeave::refuse_quit(std::string why, loom::Mail& mail) {
     quit_ask_ = 0;
     quit_outstanding_ = 0;
     quit_refusals_.clear();
+    quit_refused_panes_.clear();
+    quit_discard_.clear();
     if (held_dropped_ > 0) {
         why += " (" + std::to_string(held_dropped_) +
                " gesture(s) that arrived while the quit was pending were dropped)";

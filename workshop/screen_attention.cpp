@@ -132,6 +132,14 @@ std::string context_annotation(const Session& s, const ContextEntry& entry) {
     if (entry.is_group || entry.row == nullptr) {
         return std::string(); // folders are not actions
     }
+    // THE QUIT BOX'S DISCARD NAMES WHAT IT DISCARDS: the panes that refused the quit.
+    if (entry.row->act == Act::kQuitDiscard) {
+        std::string names;
+        for (const std::string& pane : s.quit_unsaved) {
+            names += (names.empty() ? "" : ", ") + pane;
+        }
+        return names;
+    }
     const KeyContext beneath = keyboard_context_beneath_menu(s);
     bool requestable = false;
     for (const ActionRow& row : kActionCatalog) {
@@ -183,7 +191,12 @@ PixelRect context_bounds(const Session& s, const Screen& sc) {
     const std::int64_t want_rows = static_cast<std::int64_t>(rows.size());
     std::int64_t x = menu.anchor_x;
     std::int64_t y = menu.anchor_y;
-    if (!menu.anchored) {
+    if (menu.subject == context_subject::kQuit) {
+        // THE QUIT BOX STANDS AT THE ROOM'S CENTRE, where the weaver's eyes are.
+        const PixelRect at = popup_bounds_at(want_cols, want_rows, 0, sc.room_y, sc);
+        x = (sc.w - at.w) / 2;
+        y = sc.room_y + (sc.room_h - at.h) / 2;
+    } else if (!menu.anchored) {
         const PixelRect slot = placement_bounds(placement::kOverlayStack, 0, sc);
         x = slot.x;
         y = slot.y;

@@ -28,7 +28,7 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-03 — Custody is the weave's, and that is the no-silent-loss floor
 
-LAW — Hide, move, cover, reorder or remove the pane and no document is touched; a dirty buffer refuses another source and, asked, an orderly quit; `editor.discard` (`ctrl+d`) is the one discard door.
+LAW — Hide, move, cover, reorder or remove the pane and no document is touched; a dirty buffer refuses another source and, asked, an orderly quit; only `editor.discard` (`ctrl+d`) or the quit box discards.
 
 MEANS
 - discard is undoable through `revert_to`, which keeps the history;
