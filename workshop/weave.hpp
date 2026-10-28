@@ -2039,6 +2039,8 @@ private:
     std::vector<std::string> quit_refused_panes_;
     /// ...and, for a discard the quit box asked, the panes whose refusal the weaver's press settled.
     std::vector<std::string> quit_discard_;
+    /// Whether the weaver's own hand asked the quit in flight: only that quit opens the quit box.
+    bool quit_by_weaver_ = false;
     loom::DeferredAnswer quit_asked_; ///< a guest's ask for this quit, owed its outcome
     std::vector<HeldInput> held_input_;
     std::size_t held_dropped_ = 0;

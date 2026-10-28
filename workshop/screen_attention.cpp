@@ -132,11 +132,20 @@ std::string context_annotation(const Session& s, const ContextEntry& entry) {
     if (entry.is_group || entry.row == nullptr) {
         return std::string(); // folders are not actions
     }
-    // THE QUIT BOX'S DISCARD NAMES WHAT IT DISCARDS: the panes that refused the quit.
+    // THE QUIT BOX'S DISCARD NAMES WHAT IT DISCARDS: the panes that refused the quit, each by the
+    // name the catalog holds for it where one pane answers to it, else as it answered.
     if (entry.row->act == Act::kQuitDiscard) {
         std::string names;
         for (const std::string& pane : s.quit_unsaved) {
-            names += (names.empty() ? "" : ", ") + pane;
+            const RuntimePane* named = nullptr;
+            std::size_t found = 0;
+            for (const RuntimePane& row : s.panes.runtime.entries) {
+                if (row.pane == pane) {
+                    named = &row;
+                    ++found;
+                }
+            }
+            names += (names.empty() ? "" : ", ") + (found == 1 ? named->name : pane);
         }
         return names;
     }

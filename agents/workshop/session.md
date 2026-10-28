@@ -94,7 +94,7 @@ WHY — `agents/decisions/a-quit-that-cannot-be-asked-is-refused.md`
 
 ## WL-SESSION-22 — A quit refused for unsaved work asks in a box
 
-LAW — A quit the weaver asked here that panes refused opens Workshop's menu at the room's centre: go back to work, or discard what those panes hold and quit.
+LAW — A quit the weaver's hand asked here that panes refused opens Workshop's menu at the room's centre: go back to work, or discard what those panes hold and quit.
 
 MEANS
 - the box opens after the held gestures replay, `go back to work` first, so a key that reaches it first loses nothing;
@@ -102,7 +102,7 @@ MEANS
 - its rows are the menu's alone: no key reaches them and the palette does not list them.
 
 DOES NOT MEAN
-- that a quit asked by message opens it: that asker is answered in words.
+- that a quit asked by message, or by a guest's hand, opens it: that asker is answered in words.
 
 WHY — `agents/decisions/leaving-with-unsaved-work-asks-in-a-box.md`
 
