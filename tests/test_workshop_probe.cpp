@@ -657,9 +657,10 @@ std::vector<std::string> asked_of(const Rig& r, const char* shape) {
 } // namespace
 
 TEST_CASE("probe: a picture is asked of the OS window, then the terminal window, and fetched from the office that described it") {
-    // ⚔ MUTATION: the capture asked of the OS window alone -- every terminal plan would stop at
-    // capture.
-    // ⚔ MUTATION: the chunks asked of the OS window after the terminal window described the picture.
+    // ⚔ MUTATION (tests/mutants/workshop_probe.md#capture-of-the-os-window-alone): the capture
+    // asked of the OS window alone -- every terminal plan would stop at capture.
+    // ⚔ MUTATION (tests/mutants/workshop_probe.md#chunks-of-the-os-window): the chunks asked of the
+    // OS window after the terminal window described the picture.
     for (const char* holder : {"zengine.window.sdl", "zengine.window.terminal"}) {
         CAPTURE(holder);
         const bool terminal = std::string(holder) == "zengine.window.terminal";
@@ -689,8 +690,8 @@ TEST_CASE("probe: a picture is asked of the OS window, then the terminal window,
 }
 
 TEST_CASE("probe: when no office holds the picture the run stops on the first refusal, and a refusal while fetching asks no other office") {
-    // ⚔ MUTATION: the run stopped on the last office's refusal, which names the last window asked
-    // rather than the first.
+    // ⚔ MUTATION (tests/mutants/workshop_probe.md#stopped-on-the-last-refusal): the run stopped on
+    // the last office's refusal, which names the last window asked rather than the first.
     Rig r;
     picture_held_by(r, "nobody");
     const std::string said = r.run();
@@ -704,7 +705,8 @@ TEST_CASE("probe: when no office holds the picture the run stops on the first re
     CHECK(r.asks_of(gfx::SurfaceCaptureChunkRequested::zen_name) == 0);
     // A CHUNK REFUSED MID-PICTURE: the office that described the picture is the only one that
     // holds it, so the run stops there and asks no other office for a capture.
-    // ⚔ MUTATION: a dispatch refusal while fetching sent the run on to the next office.
+    // ⚔ MUTATION (tests/mutants/workshop_probe.md#falls-back-mid-fetch): a dispatch refusal while
+    // fetching sent the run on to the next office.
     Rig s;
     s.answer_with(gfx::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value&) {
         return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: zengine.window.sdl");

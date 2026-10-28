@@ -608,7 +608,8 @@ std::string story_kept(const std::string& prefs) {
 TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the inventory, a running "
           "view's wiring, the launcher's listing and its start -- and kept; a view's wiring said "
           "by an office no running view holds ticks nothing") {
-    // MUTATION: the wiring believed from any office -- a stranger's ViewWiring ticks steps 2 and 3.
+    // MUTATION (tests/mutants/workshop_panes_first_run.md#wiring-from-any-office): the wiring
+    // believed from any office -- a stranger's ViewWiring ticks steps 2 and 3.
     TempDir dir("first-run-facts");
     const std::string prefs = dir.file("prefs.json");
     PaneRig r;
@@ -655,8 +656,9 @@ TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the in
 }
 
 TEST_CASE("WL-FIRST-04: a step ticked while Start here stands behind another pane brings it in front, the keys left where they are") {
-    // MUTATION: a fact that asks nothing of the desk -- Start here stays behind, and the tick is
-    // not seen; the order check goes red.
+    // MUTATION (tests/mutants/workshop_panes_first_run.md#fact-asks-nothing): a fact that asks
+    // nothing of the desk -- Start here stays behind, and the tick is not seen; the order check
+    // goes red.
     TempDir dir("first-run-tick-front");
     const std::string prefs = dir.file("prefs.json");
     PaneRig r;
@@ -691,7 +693,8 @@ TEST_CASE("WL-FIRST-04: a step ticked while Start here stands behind another pan
 
 TEST_CASE("WL-FIRST-05: Start here opens when the quick setup closes, holding the keys, and at "
           "each later start until the story is done beside what holds the keys, never taking them") {
-    // MUTATION: a later start launching Start here as the first does -- it takes the keys.
+    // MUTATION (tests/mutants/workshop_panes_first_run.md#later-start-takes-the-keys): a later
+    // start launching Start here as the first does -- it takes the keys.
     TempDir dir("first-run-story-shown");
     const std::string prefs = dir.file("prefs.json");
     {
@@ -751,7 +754,8 @@ TEST_CASE("WL-NOTE-06: what the quick setup keeps for itself is kept without a n
 
 TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone by it, its owner's "
           "fact makes it the owner's, and Show me opens the step's pane and says its next move") {
-    // MUTATION: a hand's tick kept over the owner's fact -- the box still says "ticked by you".
+    // MUTATION (tests/mutants/workshop_panes_first_run.md#hand-tick-kept-over-the-fact): a hand's
+    // tick kept over the owner's fact -- the box still says "ticked by you".
     TempDir dir("first-run-hand");
     const std::string prefs = dir.file("prefs.json");
     PaneRig r;
@@ -797,8 +801,9 @@ TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone 
 
 TEST_CASE("WL-FIRST-02: the quick setup lists the setups the launcher lists, and a Start asks "
           "Workshop for the hand that pressed, then the launcher, saying what it answered") {
-    // MUTATION: a Start sent to the launcher before Workshop approved the hand -- a guest's press
-    // on a weaver's host starts the setup.
+    // MUTATION (tests/mutants/workshop_panes_first_run.md#start-before-approval): a Start sent to
+    // the launcher before Workshop approved the hand -- a guest's press on a weaver's host starts
+    // the setup.
     TempDir dir("first-run-setups");
     PaneRig r;
     StoryStart s = start_with_launcher(r, dir.file("prefs.json"),
@@ -869,8 +874,9 @@ std::string read_whole(PaneRig& r, std::int64_t kind) {
 
 TEST_CASE("WL-FIRST-02: every line of the quick setup and of Start here is read whole at the pane's "
           "own size, a line wider than the pane going on in the rows beneath it") {
-    // MUTATION: the lines left as wide as they are written -- the desk cuts each at the pane's
-    // edge, and what ticks a step and a setup's line lose their ends.
+    // MUTATION (tests/mutants/workshop_panes_first_run.md#lines-left-as-written): the lines left as
+    // wide as they are written -- the desk cuts each at the pane's edge, and what ticks a step and
+    // a setup's line lose their ends.
     TempDir dir("first-run-whole");
     const std::string line = "Inventory, Info and a Reset button with nine captured Input structures, "
                              "and nothing else on the desk";

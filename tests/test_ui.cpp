@@ -287,8 +287,8 @@ TEST_CASE("every place word stands its part at its own point of the frame") {
 }
 
 TEST_CASE("a share place stands its part a share of the frame's width and height from its top-left, floored to the step") {
-    // ⚔ MUTATION: `edges_of` reading a share place's offsets as pixels -- the bar stands 3333
-    // pixels down, past the room's floor.
+    // ⚔ MUTATION (tests/mutants/ui.md#share-offset-as-pixels): `edges_of` reading a share place's
+    // offsets as pixels -- the bar stands 3333 pixels down, past the room's floor.
     // A BAR A THIRD OF THE WAY DOWN, across the whole frame: 600 * 3333 / 10000 is 199.98.
     const Element bar = make(1, "bar", Place{kPlaceShare, 0, 3333}, word(kSizeFill), px(48));
     CHECK(solve_one(bar, Room{900, 600, 1}) == Rect{0, 199, 900, 48});
@@ -979,8 +979,9 @@ TEST_CASE("problem names a share in a frame that fits, a missing context and a l
                   .find("#2 is centred across #1") == 0);
     }
     SUBCASE("and a share place, which reads the frame's span to stand") {
-        // ⚔ MUTATION: `reads_of_frame` reading a share place as its anchor alone -- a share
-        // place in a frame that fits reads as standing from the start, and nothing is named.
+        // ⚔ MUTATION (tests/mutants/ui.md#share-place-as-its-anchor): `reads_of_frame` reading a
+        // share place as its anchor alone -- a share place in a frame that fits reads as standing
+        // from the start, and nothing is named.
         CHECK(problem({fits, make(2, "bar", Place{kPlaceShare, 0, 3333}, px(12), px(12), 1)}) ==
               "#2 \"bar\" stands a share of the width into #1 \"panel\", which fits its width to "
               "its parts: give #1 \"panel\" a width");

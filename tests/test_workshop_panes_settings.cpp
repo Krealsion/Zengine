@@ -83,8 +83,8 @@ struct DialRig {
 } // namespace
 
 TEST_CASE("the layouts' owner hands a seated pane its row's settings, whether or not it declared") {
-    // ⚔ MUTATION: the owner's hand-off sent as Workshop's office -- a pane takes a row from the
-    // layouts' owner alone.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#hand-off-as-workshop): the owner's
+    // hand-off sent as Workshop's office -- a pane takes a row from the layouts' owner alone.
     DialRig t;
     t.open({legend_off()});
     t.offer();
@@ -137,8 +137,8 @@ TEST_CASE("a holder that takes no settings is handed none") {
 }
 
 TEST_CASE("a layout switch hands a pane its new layout's settings once, and only when they differ") {
-    // ⚔ MUTATION: the owner's record of what a holder holds ignored -- every switch hands every
-    // row.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#record-of-the-holder-ignored): the
+    // owner's record of what a holder holds ignored -- every switch hands every row.
     DialRig t;
     t.open({legend_off()});
     t.offer();
@@ -175,8 +175,9 @@ TEST_CASE("a layout switch hands a pane its new layout's settings once, and only
 }
 
 TEST_CASE("a pane that asks for its row and a reopened row are handed their settings again") {
-    // ⚔ MUTATION: an ask that leaves the owner's record of what the holder holds -- a reloaded
-    // image is handed nothing, since its row did not move.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#ask-keeps-the-record): an ask that
+    // leaves the owner's record of what the holder holds -- a reloaded image is handed nothing,
+    // since its row did not move.
     DialRig t;
     t.open({legend_off()});
     t.offer();
@@ -569,8 +570,9 @@ TEST_CASE("a kept setting takes only `-`, and the rows are named anew when it go
 }
 
 TEST_CASE("the row Info reads moves with what it is built from: a declaration, and a new holder") {
-    // ⚔ MUTATION: the revision minted without the counted declaration -- a declaration arriving
-    // leaves the reading's revision, and a commit judged before it is written.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#revision-without-the-declaration): the
+    // revision minted without the counted declaration -- a declaration arriving leaves the
+    // reading's revision, and a commit judged before it is written.
     DialRig t;
     t.open({});
     t.offer();
@@ -657,7 +659,8 @@ TEST_CASE("a close discards a pane's settings with its row, and every close door
 }
 
 TEST_CASE("arrangement's remove says the settings and locks it discarded too") {
-    // ⚔ MUTATION: the store's unseat naming no lock of the row it takes.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#unseat-names-no-lock): the store's
+    // unseat naming no lock of the row it takes.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     stage_desk(t, [](Setup& desk) {
@@ -1393,7 +1396,8 @@ TEST_CASE("an asker the settings doors do not serve is answered that it was with
 }
 
 TEST_CASE("a pane's word that it cannot use a setting is kept against its revision by the layouts' owner, said, and goes when a newer one is handed") {
-    // ⚔ MUTATION: the owner keeping a word that names a revision its holder was not last handed.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#word-of-another-revision-kept): the
+    // owner keeping a word that names a revision its holder was not last handed.
     RevisionRig t;
     t.open({PaneSetting{"step", {}, 4, {}}});
     const std::int64_t at = t.seat->handed.back().revision;
@@ -1882,7 +1886,8 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
 
     // THE RIGHT COLUMN'S WIDTH IS NO SETTING: `workshop.side-columns` is not taken by a commit,
     // and a file still keeping it reads, the key carried and read by nothing.
-    // ⚔ MUTATION: a declaration that still lists `workshop.side-columns` -- the commit is taken.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#side-columns-still-declared): a
+    // declaration that still lists `workshop.side-columns` -- the commit is taken.
     const OfficeSettingCommitAnswered retired = t.commit_office(number("workshop.side-columns", 40));
     CHECK_FALSE(retired.accepted);
     CHECK(retired.revision == rev);
@@ -2521,8 +2526,9 @@ TEST_CASE("a batch writes what it can across layouts, says each write's outcome,
 }
 
 TEST_CASE("a layout is named by its id: a lock by id lands on it after it moved, and two layouts of one name keep their own") {
-    // ⚔ MUTATION: an id read as the layout's place -- after the move the lock lands on the copy
-    // now standing where the first layout stood.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#id-read-as-place): an id read as the
+    // layout's place -- after the move the lock lands on the copy now standing where the first
+    // layout stood.
     RevisionRig t;
     t.open();
     duplicate_live_layout(t.r);

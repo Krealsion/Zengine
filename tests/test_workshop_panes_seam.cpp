@@ -779,8 +779,9 @@ cells_covered(bounds_of(r.session().panes, r.session().setup.active, p.kind, sc)
 }
 
 TEST_CASE("a pane launched where its own place stands off this screen stays there, and the band says so and how to bring it back") {
-    // ⚔ MUTATION: a launch of a pane already on the desk that focuses it and says nothing -- the
-    // keys go to a pane no one can see, and nothing says where it went.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_seam.md#launch-off-screen-silent): a launch of a
+    // pane already on the desk that focuses it and says nothing -- the keys go to a pane no one can
+    // see, and nothing says where it went.
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -1391,8 +1392,9 @@ TEST_CASE("the built-in panes behave exactly as they did, with a provider in the
 }
 
 TEST_CASE("the off-screen sentence fits a hundred-column terminal whole, both ways back included") {
-    // ⚔ MUTATION: the sentence naming the pane twice and spelling each way back in full -- 133
-    // characters for `Hello`, and a hundred columns end it at the Pane Manager's route.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_seam.md#off-screen-sentence-long): the sentence
+    // naming the pane twice and spelling each way back in full -- 133 characters for `Hello`, and a
+    // hundred columns end it at the Pane Manager's route.
     // A PANE OF THE SHIPPED NAMES' LENGTH AND ONE OF SIXTEEN CHARACTERS, the longest the sentence
     // is written to hold beside both ways back.
     for (const std::string& name : {std::string("Hello"), std::string("Sixteen chars ok")}) {

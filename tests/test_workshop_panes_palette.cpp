@@ -347,8 +347,9 @@ TEST_CASE("WL-DESK-18: ctrl+space shows the palette over the pane holding the ke
 
 TEST_CASE("WL-DESK-18: the palette closed by an office, through the layouts' owner, is put down "
           "with the keys given back, as its own Escape puts it down") {
-    // ⚔ MUTATION: the presenter giving the keys back only on its own closes -- an office's close
-    // leaves them nowhere.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_palette.md#keys-back-on-own-closes-only): the
+    // presenter giving the keys back only on its own closes -- an office's close leaves them
+    // nowhere.
     PaneRig r;
     ProviderSeat* tools = nullptr;
     start(r, tools);
@@ -686,7 +687,8 @@ std::vector<std::string> labels_of(const pal::Listing& l, const std::string& kin
 
 TEST_CASE("the palette lists each layout on the shelf, each open pane's manual while the "
           "application shows manuals, and each setup and app the launcher can start") {
-    // MUTATION: the other owners' entries left out -- the palette lists actions and panes alone.
+    // MUTATION (tests/mutants/workshop_panes_palette.md#other-owners-left-out): the other owners'
+    // entries left out -- the palette lists actions and panes alone.
     KeymapShown keys;
     keys.rows.push_back(row("above every mode", kDesktopRole, "", kManualAction, "this pane's manual", "ctrl+f"));
     PaneInventory inv;
@@ -720,8 +722,9 @@ TEST_CASE("the palette lists each layout on the shelf, each open pane's manual w
 }
 
 TEST_CASE("WL-DESK-18: a pane chosen in the palette that is already on the desk is the one the keys go to, and the palette's put-down gives them back over nothing") {
-    // MUTATION: the command run before the palette's put-down is answered -- the pane is focused,
-    // then the put-down gives the keys back to the pane the palette opened over; the checks go red.
+    // MUTATION (tests/mutants/workshop_panes_palette.md#command-before-the-put-down): the command
+    // run before the palette's put-down is answered -- the pane is focused, then the put-down gives
+    // the keys back to the pane the palette opened over; the checks go red.
     PaneRig r;
     ProviderSeat* tools = nullptr;
     start(r, tools);
@@ -745,8 +748,9 @@ TEST_CASE("WL-DESK-18: a pane chosen in the palette that is already on the desk 
 
 TEST_CASE("WL-DESK-18: a layout chosen in the palette is switched to as a press on its tab, and a "
           "pane's manual is asked of the desktop as its ? asks it, each as the hand that chose it") {
-    // MUTATION: a layout run by its place instead of its id -- the palette's Default switches to
-    // the layout that now stands first, not the one it named.
+    // MUTATION (tests/mutants/workshop_panes_palette.md#layout-by-place): a layout run by its place
+    // instead of its id -- the palette's Default switches to the layout that now stands first, not
+    // the one it named.
     PaneRig r;
     ProviderSeat* tools = nullptr;
     start(r, tools);
@@ -779,8 +783,8 @@ TEST_CASE("WL-DESK-18: a layout chosen in the palette is switched to as a press 
 TEST_CASE("WL-DESK-18: a setup or an app chosen in the palette is started as Files starts one: "
           "Workshop asked for the hand of its row's key, then the launcher, the palette saying "
           "what it answered") {
-    // MUTATION: the start asked of the launcher with no approval -- a run under a number Workshop
-    // never sent starts the setup.
+    // MUTATION (tests/mutants/workshop_panes_palette.md#start-without-approval): the start asked of
+    // the launcher with no approval -- a run under a number Workshop never sent starts the setup.
     PaneRig r;
     ProviderSeat* tools = nullptr;
     start(r, tools);

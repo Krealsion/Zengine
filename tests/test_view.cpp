@@ -628,8 +628,9 @@ TEST_CASE("a view has a size that holds its elements; one saved without a size r
 }
 
 TEST_CASE("a resumed view offers its pane and asks nothing of the desk; a run asks to be shown") {
-    // ⚔ MUTATION: `start` revealing whatever it is told -- the resumed view asks for a seat, and
-    // a pane a weaver hid comes back on the desk at every relaunch; the second check goes red.
+    // ⚔ MUTATION (tests/mutants/view.md#start-always-reveals): `start` revealing whatever it is
+    // told -- the resumed view asks for a seat, and a pane a weaver hid comes back on the desk at
+    // every relaunch; the second check goes red.
     Rig rig;
     const auto resumed = rig.ask(view::ViewResume{"builder", bytes_of(panel())});
     REQUIRE_MESSAGE(resumed.ok, resumed.reason);
@@ -660,8 +661,9 @@ TEST_CASE("a resumed view offers its pane and asks nothing of the desk; a run as
 }
 
 TEST_CASE("a view registered afresh at its own name asks nothing of the desk, so its pane keeps its place and the keys stay; renamed, it asks to be shown") {
-    // MUTATION: the successor started as a run is, revealing -- a running view told a new shape
-    // jumps in front of the pane the weaver works in and takes its keys; the first check goes red.
+    // MUTATION (tests/mutants/view.md#successor-reveals): the successor started as a run is,
+    // revealing -- a running view told a new shape jumps in front of the pane the weaver works in
+    // and takes its keys; the first check goes red.
     Rig rig;
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel(false))}).ok);
     const auto asked = [&rig](const std::string& office) {
@@ -1202,7 +1204,8 @@ TEST_CASE("a press the window landed on a view where it now draws another elemen
 }
 
 TEST_CASE("a view hears the pointer of the window that shows its area: a field pressed takes the focus and what is typed, a button pressed is used once, and the same from any other office changes nothing") {
-    // MUTATION: a view that hears no pointer of its window -- a press on a field there focuses nothing.
+    // MUTATION (tests/mutants/view.md#deaf-to-the-pointer): a view that hears no pointer of its
+    // window -- a press on a field there focuses nothing.
     Rig rig;
     const auto d = panel();
     REQUIRE(rig.ask(view::ViewRun{"app", bytes_of(d)}).ok);
@@ -1462,8 +1465,8 @@ TEST_CASE("a refusal reaches the notice row only when Loom attests it answers th
 }
 
 TEST_CASE("a running view says what its wiring has done, as its own office: each intent's last send accepted or refused, each field told, and again only when a row changes") {
-    // ⚔ MUTATION: the grant without `ViewWiring` -- Loom refuses the office's publication and no
-    // hearer hears a word; the first check goes red.
+    // ⚔ MUTATION (tests/mutants/view.md#grant-without-wiring): the grant without `ViewWiring` --
+    // Loom refuses the office's publication and no hearer hears a word; the first check goes red.
     Rig rig;
     auto ear = std::make_unique<Listener>(std::vector{loom::schema_of<view::ViewWiring>()});
     auto* hearer = ear.get();
@@ -1534,8 +1537,9 @@ TEST_CASE("a running view says what its wiring has done, as its own office: each
 }
 
 TEST_CASE("a view's intent that nothing accepts is said unheard, a refusal of an earlier send changes nothing of the last, and an office that arrives later asks and is answered alone") {
-    // ⚔ MUTATION: a refusal counted against whatever send of the intent it answers -- the late
-    // refusal of the first send turns the second's `accepted`; the late-refusal check goes red.
+    // ⚔ MUTATION (tests/mutants/view.md#refusal-of-any-send): a refusal counted against whatever
+    // send of the intent it answers -- the late refusal of the first send turns the second's
+    // `accepted`; the late-refusal check goes red.
     Rig rig;
     auto ear = std::make_unique<Listener>(std::vector{loom::schema_of<view::ViewWiring>()});
     auto* hearer = ear.get();

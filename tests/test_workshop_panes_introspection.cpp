@@ -2155,8 +2155,8 @@ const PressDriverOf kIntrospectionPresses{kIntroOffice, [](PressWitness& w) {
 } // namespace
 
 TEST_CASE("Powers declares its chrome row's widths as settings, and a layout's widths pad its view control and space the row's parts") {
-    // ⚔ MUTATION: the row drawn at `kViewWidth` and `kGap` whatever the layout keeps -- the wide
-    // picture is the default one.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#row-at-fixed-widths): the row drawn
+    // at `kViewWidth` and `kGap` whatever the layout keeps -- the wide picture is the default one.
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     const PaneRef powers{kIntroOffice, intro::kPowersPane};
@@ -2311,7 +2311,8 @@ TEST_CASE("the browser this host used to compile is named by no presentation sou
 }
 
 TEST_CASE("Powers asks the window that shows it for a paste into its query, the OS window or the terminal's") {
-    // ⚔ MUTATION: Powers' paste asked of another office than the window showing its area.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#paste-asked-elsewhere): Powers'
+    // paste asked of another office than the window showing its area.
     namespace gfx = zengine::graphics;
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);

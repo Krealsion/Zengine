@@ -2090,8 +2090,9 @@ private:
 TEST_CASE("a key, its release and the text it types go from the window to the owner of each area "
           "placed to hear that moment, and to no other, each naming that area and the weaver's own "
           "hand; an owner placed for keys alone is given nothing else, and nothing is refused") {
-    // MUTATION: every key moment to each area placed to hear keys -- the owner that takes keys
-    // alone refuses each release and each text on the bus.
+    // MUTATION (tests/mutants/graphics.md#key-moments-to-keys): every key moment to each area
+    // placed to hear keys -- the owner that takes keys alone refuses each release and each text on
+    // the bus.
     TypedWindow t;
     t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
     t.r.drain();
@@ -4214,13 +4215,14 @@ class RowForger
 
 TEST_CASE("the Attention pane draws nothing in its room before it holds its row, takes a row from "
           "the layouts' owner alone, and draws whole once it holds one") {
-    // ⚔ MUTATION: a pane that draws its room before it holds a row -- the room alone draws it.
+    // ⚔ MUTATION (tests/mutants/graphics.md#attention-draws-before-its-row): a pane that draws its
+    // room before it holds a row -- the room alone draws it.
     AttentionWindow a(/*held=*/true);
     REQUIRE(a.layouts != nullptr);
     CHECK(a.layouts->asks == 1); // it asked once, as it arrived
     CHECK(a.drawn(0).empty());
     // ...A ROW ANOTHER OFFICE HANDS IS NOT ITS ROW, and draws nothing either.
-    // ⚔ MUTATION: a pane that takes a row from any office.
+    // ⚔ MUTATION (tests/mutants/graphics.md#row-from-any-office): a pane that takes a row from any office.
     const loom::WeaveId forger = mount_as<RowForger>(a.r, "test.forger");
     a.r.bus.office_send_to_role_as(
         forger, "test.forger", apane::kAttentionPaneRole,
@@ -6601,7 +6603,8 @@ TEST_CASE("a shaped window is as large as asked, a side of 0 keeping its own, ne
 
 TEST_CASE("an OS window takes its title and its size from an office that arranges an area in it, "
           "and from no other; a shaped window is not grown back by what it held before") {
-    // MUTATION: a shaping taken from any office -- the window is shaped by `test.other`.
+    // MUTATION (tests/mutants/graphics.md#shaped-by-any-office): a shaping taken from any office --
+    // the window is shaped by `test.other`.
     LitWindow t(nullptr, true);
     t.own("test.other", 0, 0, 100, 50, "night");
     t.own("test.app", 0, 0, 1000, 800, "night", 1);

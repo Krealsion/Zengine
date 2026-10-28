@@ -1644,10 +1644,12 @@ TEST_CASE("the recipe list chooses by hand, and looking is not choosing") {
 TEST_CASE("the control that loads what was built names the BUILT recipe, not the choice") {
     // THE SUBJECT THAT IS NOT THE WEAVER'S CHOICE: `builder.build-realize` resends the FINISHED
     // build's recipe with the second intention aboard, so `load built a` loads `a` whatever the
-    // weaver has picked since, and reading that face arms no next build. ⚔ MUTATIONS:
-    // `load_built` sending `known_.recipes[cursor_row()].recipe` builds `two`; without its
-    // `ready_to_load` guard the arm-only branch is never reached and arming while an artifact
-    // stands built stops being refused.
+    // weaver has picked since, and reading that face arms no next build.
+
+    // ⚔ MUTATIONS (tests/mutants/workshop_panes_builder.md#load-built-sends-the-choice,
+    // #arm-only-unguarded): `load_built` sending `known_.recipes[cursor_row()].recipe` builds
+    // `two`; without its `ready_to_load` guard the arm-only branch is never reached and arming
+    // while an artifact stands built stops being refused.
     BuilderRig b("bld-load-built");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();
@@ -1790,7 +1792,8 @@ TEST_CASE("an open menu row naming an artifact loads THAT artifact or refuses") 
     // the constant `builder` as its subject, `load the built `a` now` stayed a row of this mode
     // when a newer status for `b` arrived, and choosing it built `b` while the sentence said `a`.
     // Each row's promise is kept beside the ask and established again when the answer lands.
-    // ⚔ MUTATION: `offer_menu` recording no advertised subject for `kMenuLoadBuilt` asks for `two`.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_builder.md#load-row-advertises-nothing):
+    // `offer_menu` recording no advertised subject for `kMenuLoadBuilt` asks for `two`.
     BuilderRig b("bld-menu-artifact");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
@@ -1963,9 +1966,10 @@ TEST_CASE("a press the window landed on a face naming one build spends that buil
 TEST_CASE("a held load menu cannot switch recipes sharing an artifact stem") {
     // TWO RECIPES PRODUCING ONE STEM (WL-PROJ-14): `one` and `two` both build `a`, so the menu's
     // advertised subject reads "a" before and after the second build settles, and only the
-    // operation behind it (`target_op_of`) tells the two builds apart. ⚔ MUTATION: `target_op_of`
-    // returning 0 unconditionally (or `perform_on` skipping the operation check) lets the name
-    // alone match, and the stale choice asks the tool for `two` instead of refusing.
+    // operation behind it (`target_op_of`) tells the two builds apart. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_builder.md#target-op-always-zero): `target_op_of` returning 0
+    // unconditionally (or `perform_on` skipping the operation check) lets the name alone match, and
+    // the stale choice asks the tool for `two` instead of refusing.
     BuilderRig b("bld-menu-shared-stem");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
     b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
@@ -2074,12 +2078,15 @@ TEST_CASE("the promote control acts on the image it names once a newer build mak
 }
 
 TEST_CASE("a held promote or revert menu row cannot switch images sharing an artifact stem") {
-    // THE MENU ROUTE'S OWN DISCRIMINATING CASE: a menu answers by `Offered::op` alone (the
-    // picture fence of WL-HAND-03 never applies to a menu choice), so `perform_on`'s comparison
-    // is this route's ONLY fence. Two recipes realizing one stem write `promote `a`...` and
-    // `revert `a`...` in identical words both times. ⚔ MUTATION: `perform_on` without its
-    // operation comparison (or `target_op_of` returning 0 for `kActionPromote`/`kActionRevert`)
-    // promotes or reverts `two`'s realization instead of refusing.
+    // THE MENU ROUTE'S OWN DISCRIMINATING CASE: a menu answers by `Offered::op` alone (the picture
+    // fence of WL-HAND-03 never applies to a menu choice), so `perform_on`'s comparison is this
+    // route's ONLY fence. Two recipes realizing one stem write `promote `a`...` and `revert `a`...`
+    // in identical words both times.
+
+    // ⚔ MUTATION (tests/mutants/workshop_panes_builder.md#perform-on-without-the-op): `perform_on`
+    // without its operation comparison (or `target_op_of` returning 0 for
+    // `kActionPromote`/`kActionRevert`) promotes or reverts `two`'s realization instead of
+    // refusing.
     BuilderRig b("bld-menu-promote-revert-shared-stem");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
     b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
@@ -2146,8 +2153,11 @@ TEST_CASE("`edit source` in the recipe list opens the row the list is standing o
     // THE LIST MENU'S `edit `one`'s source` REACHES `edit_source`, which reads the LIST's cursor
     // while the list is open and leaves the committed choice alone (WL-PROJ-14: looking is not
     // choosing). A dispatcher with no branch for it closed the menu with no Editor and no word.
-    // ⚔ MUTATIONS: no `kActionEditSource` branch in `choose_in_list` opens no Editor;
-    // `edit_source` reading `cursor_row()` opens `two.cpp`, the choice and not the named row.
+
+    // ⚔ MUTATIONS (tests/mutants/workshop_panes_builder.md#list-has-no-edit-source,
+    // #edit-source-reads-the-choice): no `kActionEditSource` branch in `choose_in_list` opens no
+    // Editor; `edit_source` reading `cursor_row()` opens `two.cpp`, the choice and not the named
+    // row.
     BuilderRig b("bld-list-edit-source");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     put_source(b.root / "one.cpp", "// one\n");
@@ -2188,8 +2198,9 @@ TEST_CASE("`edit source` in the recipe list opens the row the list is standing o
 TEST_CASE("a capital letter typed into the Builder's role line is text, not this pane's menu") {
     // THE ROLE LINE HAS NO DEFAULT MENU KEY. Workshop resolves the KEY TRANSITION before the
     // character arrives, so a menu on `Shift+M` opened on the `M` of a role like `Main` and the
-    // letter was lost. ⚔ MUTATION: the role row declared on `kM`/`kShift` opens the menu and the
-    // line reads `x`.
+    // letter was lost. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_builder.md#role-line-menu-on-shift-m): the role row declared on
+    // `kM`/`kShift` opens the menu and the line reads `x`.
     BuilderRig b("bld-shift-m-text");
     b.tool->catalog = catalog_of({{"one", "a"}});
     b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
@@ -2244,8 +2255,10 @@ TEST_CASE("a Builder menu choice that opens the role line takes the keyboard acr
           "it waits on") {
     // A CHOSEN ROW THAT BEGINS AN EDIT TAKES THE KEYS, as in Files, one delivery later: the role
     // line opens only once the project office has answered, so the choice's number rides across
-    // that round trip and the grab is spent there. ⚔ MUTATIONS: `names_.choice` never set leaves the
-    // typed role reaching nothing; `take_keys` in `chose` spends the grab before the line exists.
+    // that round trip and the grab is spent there. ⚔ MUTATIONS
+    // (tests/mutants/workshop_panes_builder.md#names-choice-never-set,
+    // #keys-taken-before-the-line): `names_.choice` never set leaves the typed role reaching
+    // nothing; `take_keys` in `chose` spends the grab before the line exists.
     BuilderRig b("bld-menu-takes-keys");
     b.tool->catalog = catalog_of({{"one", "a"}});
     b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
@@ -2352,8 +2365,9 @@ TEST_CASE("a reader waiting on its first page still offers its whole list in a n
     // A READER WHOSE PAGE THE BUILDER HAS NOT ANSWERED draws a header and nothing else, and a
     // narrow strip leaves `[menu]` the only route, so the menu carries the reader's operations,
     // not `close` and `manage` alone. The reader over REAL output is the output suite's; this is
-    // the state a fixture tool can hold open. ⚔ MUTATION: the reader's branch of `offer_menu`
-    // reduced to `kMenuClose` fails both checks.
+    // the state a fixture tool can hold open. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_builder.md#reader-menu-close-alone): the reader's branch of
+    // `offer_menu` reduced to `kMenuClose` fails both checks.
     BuilderRig b("bld-reader-waiting");
     b.tool->catalog = catalog_of({{"one", "a"}});
     b.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
@@ -2399,7 +2413,8 @@ TEST_CASE("the wheel walks the Builder's recipe list, three rows a notch, and me
 }
 
 TEST_CASE("the Builder's role line asks the window that shows the pane for a paste, the OS window or the terminal's") {
-    // ⚔ MUTATION: the Builder's paste asked of another office than the window showing its area.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_builder.md#paste-asked-of-another-office): the
+    // Builder's paste asked of another office than the window showing its area.
     namespace gfx = zengine::graphics;
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);

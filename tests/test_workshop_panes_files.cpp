@@ -985,9 +985,10 @@ TEST_CASE("the wheel moves the cursor, and a header press names no entry") {
 }
 
 TEST_CASE("Files declares its wheel and its listing's bound as settings, and a layout's values move the cursor and stop the walk") {
-    // ⚔ MUTATION: the wheel reading `kFilesWheelRows` whatever the layout keeps -- one notch still
-    // moves three rows. And the walk bounded by `kMaxListedEntries` alone -- the header still
-    // counts every entry.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#wheel-rows-fixed,
+    // #walk-bounded-by-the-constant): the wheel reading `kFilesWheelRows` whatever the layout keeps
+    // -- one notch still moves three rows. And the walk bounded by `kMaxListedEntries` alone -- the
+    // header still counts every entry.
     FilesRig f("files-settings");
     for (int i = 0; i < 150; ++i) {
         const std::string n = std::to_string(i);
@@ -1690,7 +1691,8 @@ TEST_CASE("the answer the pane asked for does not erase what it just said") {
     // and this pane asks, itself, right after an accepted catalog choice. Taking that answer as a
     // finished build re-listed and re-said, so the catalog sentence was gone before a weaver could
     // read it -- on a real terminal, `u` showed no visible row at all.
-    // ⚔ MUTATION: dropping the `builds` gate. The first row goes back to being the header.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#builds-gate-dropped): dropping the `builds`
+    // gate. The first row goes back to being the header.
     FilesRig f("files-status");
     put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
     f.open();
@@ -1720,9 +1722,10 @@ TEST_CASE("the answer the pane asked for does not erase what it just said") {
 TEST_CASE("a notice stands until the weaver's next act") {
     // THE NOTICE'S LIFETIME (`agents/panes.md`): a gesture makes several publications in one
     // drain and Workshop keeps only the last picture, so a sentence spent by the first `say` is
-    // one no weaver reads. ⚔ MUTATION: `notice_.clear()` at the end of `say` turns the standing
-    // check red -- the row is the header one publication later. The spend check still passes, a
-    // spent sentence looking like one the next act spent, so the first half carries the claim.
+    // one no weaver reads. ⚔ MUTATION (tests/mutants/workshop_panes_files.md#notice-spent-by-say):
+    // `notice_.clear()` at the end of `say` turns the standing check red -- the row is the header
+    // one publication later. The spend check still passes, a spent sentence looking like one the
+    // next act spent, so the first half carries the claim.
     FilesRig f("files-notice-stands");
     put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
     f.open();
@@ -1755,9 +1758,10 @@ TEST_CASE("a notice stands until the weaver's next act") {
 TEST_CASE("the notice takes its row from the listing, not from the room's end") {
     // A NOTICE THAT STANDS HAS TO HAVE SOMEWHERE TO STAND: `say` cuts the whole composition to the
     // room, so a full room loses `... N more` to the notice, and an overrun one shows no notice at
-    // all. The listing is asked for the rows actually free. ⚔ MUTATION: `body_budget()` as
-    // `rows_ - kHeaderRows` ends the readable list at `  entry-03.txt`, a list that goes on without
-    // saying so. The first half holds the marker before any notice exists.
+    // all. The listing is asked for the rows actually free. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_files.md#body-budget-from-the-room): `body_budget()` as `rows_
+    // - kHeaderRows` ends the readable list at ` entry-03.txt`, a list that goes on without saying
+    // so. The first half holds the marker before any notice exists.
     FilesRig f("files-notice-room");
     for (int i = 0; i < 40; ++i) {
         put_file(f.root / ("entry-" + std::string(i < 10 ? "0" : "") + std::to_string(i) + ".txt"),
@@ -2107,7 +2111,8 @@ TEST_CASE("the authoring line's caret is the medium's, where the line's is, and 
 }
 
 TEST_CASE("the authoring line asks the window that shows Files for a paste, the OS window or the terminal's") {
-    // ⚔ MUTATION: Files' paste asked of another office than the window showing its area.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#paste-asked-elsewhere): Files' paste asked
+    // of another office than the window showing its area.
     namespace gfx = zengine::graphics;
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);
@@ -2679,9 +2684,11 @@ TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
         REQUIRE_MESSAGE(held_canvas_rows(*pane).columns > 178, "granted only ",
                         held_canvas_rows(*pane).columns,
                         " columns -- too narrow for this case to mean anything");
-        // ADMITTED, NOT REFUSED. ⚔ MUTATION: `ascii_spelling` dropped from `push_row` turns this
-        // red -- the canvas refuses the whole picture over the byte it cannot draw, and the
-        // picture Workshop holds is the one before the answer, which says nothing of it.
+        // ADMITTED, NOT REFUSED. ⚔ MUTATION
+        // (tests/mutants/workshop_panes_files.md#rows-not-spelled): `ascii_spelling` dropped from
+        // `push_row` turns this red -- the canvas refuses the whole picture over the byte it cannot
+        // draw, and the picture Workshop holds is the one before the answer, which says nothing of
+        // it.
         const std::vector<std::string> held = held_row_texts(*pane);
         REQUIRE(any_row(held, "MalformedBytes"));
         // THE EM DASH SURVIVED AS ITS ASCII TWIN -- spelled, not dropped, not left as raw UTF-8.
@@ -2909,9 +2916,12 @@ void press_face(FilesRig& f, const std::string& face) {
 TEST_CASE("two queued presses on the row painted as one entry open THAT entry") {
     // A DOUBLE PRESS ON ONE ROW OF A LONG LISTING, both queued before either is handled, selects
     // the entry aimed at, where a window that re-centred under the hand selected the entry that
-    // slid into the row (`entry-03` aimed, `entry-04` taken). The window moves by the least it
-    // can, and a press names the picture it was aimed at, so one against replaced rows is refused
-    // in words. ⚔ MUTATIONS: the centring window refuses the second press (`the rows moved --
+    // slid into the row (`entry-03` aimed, `entry-04` taken). The window moves by the least it can,
+    // and a press names the picture it was aimed at, so one against replaced rows is refused in
+    // words.
+
+    // ⚔ MUTATIONS (tests/mutants/workshop_panes_files.md#centring-window,
+    // #centring-window-unfenced): the centring window refuses the second press (`the rows moved --
     // press again`); no fence as well: `entry-04`.
     FilesRig f("files-pwork25");
     for (std::int64_t i = 0; i < kLongListing; ++i) {
@@ -3175,8 +3185,9 @@ TEST_CASE("a cut the window reserved no row for is not said, and the strip keeps
     // A MARKER IS A ROW OF THE SAME BUDGET the entries come out of, and `cursor_window` says how
     // many it RESERVED (`ListWindow::markers`). Saying `... N more` anyway overran the
     // composition, and the room cut the control strip -- a hand's only route. A cut nobody
-    // reserved a row for is left to the header's count. ⚔ MUTATION: `more_marker` answering
-    // `after` alone ends the pane on `  ... N more` with no control on it at all.
+    // reserved a row for is left to the header's count. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_files.md#more-marker-unreserved): `more_marker` answering
+    // `after` alone ends the pane on ` ... N more` with no control on it at all.
     FilesRig f("files-marker-budget");
     for (int i = 0; i < 6; ++i) {
         put_file(f.root / ("entry-0" + std::to_string(i) + ".txt"), "x");
@@ -3202,8 +3213,9 @@ TEST_CASE("a cut the window reserved no row for is not said, and the strip keeps
 TEST_CASE("scrolled into a long listing, Files says on a row of each side how many entries the window left out") {
     // EACH CUT SIDE HAS THE ROW THE WINDOW RESERVED FOR IT, next to the entries it bounds: the
     // count above the first entry shown, the entries, the count below the last, and together the
-    // whole listing. ⚔ MUTATION: `PaneRowsFacet::push_window` saying no earlier marker leaves the
-    // entries above the window uncounted, and every other Files case stays green.
+    // whole listing. ⚔ MUTATION (tests/mutants/workshop_panes_files.md#no-earlier-marker):
+    // `PaneRowsFacet::push_window` saying no earlier marker leaves the entries above the window
+    // uncounted, and every other Files case stays green.
     FilesRig f("files-marker-counts");
     for (std::int64_t i = 0; i < kLongListing; ++i) {
         put_file(f.root / entry_name(i), "x\n");
@@ -3308,8 +3320,11 @@ TEST_CASE("the unavailable `(next field)` control refuses in its own words and w
     // On the last field the control is drawn `(next field)`, the unavailable face, and it
     // dispatched `files.commit-field` -- Return's operation, which writes the recipe -- so a press
     // on an unavailable `next field` beside a separate `[write the recipe]` wrote the recipe.
-    // ⚔ MUTATIONS: `authoring_controls` carrying `kActionCommitField` writes `oven` and fails the
-    // first two checks; `next_field` without its last-field branch steps nowhere, no refusal.
+
+    // ⚔ MUTATIONS (tests/mutants/workshop_panes_files.md#next-field-commits,
+    // #next-field-without-last): `authoring_controls` carrying `kActionCommitField` writes `oven`
+    // and fails the first two checks; `next_field` without its last-field branch steps nowhere, no
+    // refusal.
     FilesRig f("files-next-field-last");
     open_authoring(f);
     press_face(f, "[next field]");
@@ -3355,8 +3370,9 @@ TEST_CASE("a short Files pane keeps the authoring field being typed into on the 
     // A SHORT ROOM SHOWS THE FIELD BEING TYPED INTO. Fields drawn from zero to the budget showed
     // fields 0 and 1 while the weaver typed into field 2, and the authoring mode spends no wheel;
     // the fields go through the listing's least-motion window, which seats the cursor's row
-    // first. ⚔ MUTATION: `say_authoring` drawing `for (i = 0; i < kFieldCount && i < body_rows;
-    // ++i)` puts the typed `zen::` on no row.
+    // first. ⚔ MUTATION (tests/mutants/workshop_panes_files.md#fields-from-the-first):
+    // `say_authoring` drawing `for (i = 0; i < kFieldCount && i < body_rows; ++i)` puts the typed
+    // `zen::` on no row.
     FilesRig f("files-short-authoring");
     open_authoring(f);
     f.author_height(7, 160, 47);
@@ -3391,7 +3407,8 @@ TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column auth
     // A NARROW ROOM SHOWS WHAT IS TYPED: `say_field` drew the field's whole label before fitting
     // the row, so a thirty-column body showed only `package prefix (comma-separ...` and none of
     // the value. The label gives way in a narrow room (`active_prompt`), never the value -- as the
-    // short room keeps the field on screen. ⚔ MUTATION: `active_prompt` returning
+    // short room keeps the field on screen. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_files.md#prompt-whole): `active_prompt` returning
     // `authoring_.prompt` unconditionally fills the row with the label; `narrowvalue` is absent.
     FilesRig f("files-narrow-field");
     open_authoring(f);
@@ -3454,8 +3471,9 @@ TEST_CASE("the authoring menu offers next-field on the last field too, and its r
 TEST_CASE("a capital letter typed into the Files authoring line is text, not this pane's menu") {
     // THE MENU HAS NO DEFAULT KEY WHILE AUTHORING. Workshop resolves the KEY TRANSITION before
     // the character arrives, so a menu on `Shift+M` opened on a name's shifted `M` and the letter
-    // was lost; the `[menu]` control and the second button are its routes. ⚔ MUTATION: the row
-    // declared on `kM`/`kShift` opens the menu and the line reads `ovenm`.
+    // was lost; the `[menu]` control and the second button are its routes. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_files.md#authoring-menu-on-shift-m): the row declared on
+    // `kM`/`kShift` opens the menu and the line reads `ovenm`.
     FilesRig f("files-shift-m-text");
     open_authoring(f);
     f.r.key(input::scan::kM);
@@ -3474,8 +3492,9 @@ TEST_CASE("a Files menu choice that begins authoring takes the keyboard the menu
     // A CHOSEN ROW THAT BEGINS AN EDIT TAKES THE KEYS. A right press is focus-neutral, so a
     // weaver could right-press a candidate, choose `author a recipe for oven.cpp`, and get a line
     // no character reaches; the choice asks through `pane_menu::take_keyboard`, granted only
-    // while it is the weaver's latest act (the host's case is in the button suite). ⚔ MUTATIONS:
-    // no `take_keys`, or `PaneKeyboardRequested` not among the emissions: the word reaches nothing.
+    // while it is the weaver's latest act (the host's case is in the button suite). ⚔ MUTATIONS
+    // (tests/mutants/workshop_panes_files.md#no-take-keys, #keyboard-ask-not-emitted): no
+    // `take_keys`, or `PaneKeyboardRequested` not among the emissions: the word reaches nothing.
     FilesRig f("files-menu-takes-keys");
     put_file(f.root / "oven.cpp", "// weave source\n");
     f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
@@ -3588,7 +3607,8 @@ TEST_CASE("a multi-config tree's fifth field has a menu row short enough to offe
     // The fifth field's explanation, prefixed by a menu row's longest lead, is past
     // `kMaxPaneMenuLabelLen`, and a presenter refuses a menu whole past one long row -- so every
     // menu of this form was empty, which the keyboard-only four-field case cannot see. ⚔
-    // MUTATION: `field_menu_label` returning `field.name` fails at the first `open_menu`, field 0.
+    // MUTATION (tests/mutants/workshop_panes_files.md#menu-label-is-the-name): `field_menu_label`
+    // returning `field.name` fails at the first `open_menu`, field 0.
     FilesRig f("files-tree-multi-menu");
     std::filesystem::create_directories(f.root / "tree");
     put_file(f.root / "tree" / "CMakeCache.txt",
@@ -3796,8 +3816,9 @@ TEST_CASE("on a weaver's host a guest is refused u, a mark and a written recipe 
     // A GUEST WITH `input` WALKS AND READS LIKE THE WEAVER, and every act that would write is
     // refused in the pane's own row before anything is sent or saved: the catalog in force, the
     // marks file and the recipe catalog on disk stay as the weaver left them, and the draft stays.
-    // ⚔ MUTATION: `judge`'s `write` branch answering empty: the catalog moves to `theirs.json`, a
-    // marks file appears, and `oven` is written.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#write-judged-for-nobody): `judge`'s `write`
+    // branch answering empty: the catalog moves to `theirs.json`, a marks file appears, and `oven`
+    // is written.
     FilesRig f("files-guest-weaver-host");
     put_file(f.root / "oven.cpp", "// a weaver's weave\n");
     std::filesystem::create_directory(f.root / "src");
@@ -3886,7 +3907,8 @@ TEST_CASE("on a weaver's host a guest opening the guests file through Files is r
     // THE GUESTS FILE PUTS EVERY ROW'S CREDENTIAL ON SCREEN, so on a weaver's host only the
     // weaver's hand opens it. Files asks class `open` with the path before it sends, and the
     // refused ask sends nothing to the opening office; any other file the guest opens goes through.
-    // ⚔ MUTATION: `judge`'s `open` branch answering empty: the guests file reaches the opening.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#guests-file-opens): `judge`'s `open` branch
+    // answering empty: the guests file reaches the opening.
     FilesRig f("files-guest-guests-file");
     put_file(f.root / "alpha.cpp", "int alpha;\n");
     put_file(f.root / "guests.json", "{\"version\": 2, \"host\": \"weaver\", \"guests\": []}\n");
@@ -3973,7 +3995,8 @@ TEST_CASE("Files asks class open for the path before it sends the open") {
     // THE ORDER ON THE BUS, NOT TWO COUNTS: the weaver's Return on a file asks Workshop whether
     // this gesture's hand may open exactly that path, hears yes, and only then asks the opening
     // office for the same path. A folder is walked into, and asks nothing.
-    // ⚔ MUTATION: `open` sending `open_file` at once: the open precedes, or comes without, its ask.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#open-sent-at-once): `open` sending
+    // `open_file` at once: the open precedes, or comes without, its ask.
     FilesRig f("files-open-asks-first");
     std::filesystem::create_directory(f.root / "src");
     put_file(f.root / "src" / "inner.cpp", "int inner;\n");
@@ -4021,7 +4044,8 @@ public:
 } // namespace
 
 TEST_CASE("a right press on a folder in the project's apps/ offers to start that app, and the start is asked of Workshop and then of the launcher") {
-    // MUTATION: Files offering a start on any folder -- a folder outside apps/ offers it too.
+    // MUTATION (tests/mutants/workshop_panes_files.md#start-on-any-folder): Files offering a start
+    // on any folder -- a folder outside apps/ offers it too.
     FilesRig f("files-start");
     std::filesystem::create_directories(f.root / "apps" / "tally");
     std::filesystem::create_directories(f.root / "elsewhere");

@@ -282,8 +282,9 @@ TEST_CASE("arguments offer field NAMES, never values, and the heading is compose
 }
 
 TEST_CASE("arguments offer a shape's fields in its order, or its required fields first and its optional ones after, each in its order") {
-    // ⚔ MUTATION: the second pass dropped -- `required-first` offers only the required fields,
-    // or the split ignored and the shape's order kept.
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#second-pass-dropped, #split-ignored): the second
+    // pass dropped -- `required-first` offers only the required fields, or the split ignored and
+    // the shape's order kept.
     loom::TerminalVocabulary vocab;
     vocab.knows(loom::SchemaBuilder("Fetch", 1)
                     .field("limit", loom::Kind::Int, false)
@@ -974,8 +975,10 @@ TEST_CASE("what is true is said to whoever presents it, healthy or not") {
 TEST_CASE("an unavailable tool is named by its artifact on the host's own condition row, which "
           "no tool paints") {
     // THE CONDITION AN OPTIONAL ROW'S REFUSAL IS, as `workshop.cpp` establishes it for a row
-    // the run stepped over. ⚔ MUTATION: `unavailable_tool` saying a fixed "a tool is not in this
-    // Workshop" -- the slot still reads, and names nothing to build or look for. ⚔ MUTATION:
+    // the run stepped over. ⚔ MUTATION
+    // (tests/mutants/workshop_host.md#unavailable-tool-fixed-words): `unavailable_tool` saying a
+    // fixed "a tool is not in this Workshop" -- the slot still reads, and names nothing to build or
+    // look for. ⚔ MUTATION (tests/mutants/workshop_host.md#unavailable-tool-keyed-by-sentence):
     // keying it by the sentence rather than the artifact -- the key half fails.
     const std::string said =
         "artifact 'zengine-desktop-pane': weave load refused: open failed: no such file";
@@ -1003,10 +1006,13 @@ TEST_CASE("an unavailable tool is named by its artifact on the host's own condit
 
 TEST_CASE("a development host and each row's losses stand as conditions on Attention") {
     // WHAT A GUESTS FILE STANDS AS FOR THE WHOLE RUN, pushed as `workshop.cpp` pushes it at launch
-    // and read through the one projection a presenter spends. ⚔ MUTATION: `conditions_of` keying a
-    // row by its name -- the second file's two rows share one, and its key half fails. ⚔ MUTATION:
-    // a row standing whenever it is a guest's -- the second file's count fails, since a row that
-    // reaches everything its powers name here has nothing to say.
+    // and read through the one projection a presenter spends. ⚔ MUTATION
+    // (tests/mutants/workshop_host.md#row-keyed-by-name): `conditions_of` keying a row by its name
+    // -- the second file's two rows share one, and its key half fails.
+
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#row-stands-whenever-a-guest): a row standing
+    // whenever it is a guest's -- the second file's count fails, since a row that reaches
+    // everything its powers name here has nothing to say.
     const auto stand = [](const guests::GuestsFile& file, Live& t) {
         for (const Condition& c : guests::conditions_of(file)) t.host.standing_conditions.push_back(c);
         ++t.host.conditions_generation;
@@ -1359,7 +1365,8 @@ TEST_CASE("what is true is said across the seam, in the host's own order and wor
     // THE HOST-TO-PANE SENTENCE (WL-ATTN-12). The pane showing these rows derives none of them
     // and could not: they are this host's reading of its own state, said ranked, `to_any`,
     // with the action resolved into words, since resolving needs the effective keymap.
-    // ⚔ MUTATION, MEASURED: drop `say_conditions` from `repaint`; the first check is fatal.
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#repaint-says-no-conditions), MEASURED: drop
+    // `say_conditions` from `repaint`; the first check is fatal.
     Live t;
     Session& s = const_cast<Session&>(t.session());
     s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why it is quiet",
@@ -1391,8 +1398,9 @@ TEST_CASE("what is true is said across the seam, in the host's own order and wor
 TEST_CASE("nothing new is nothing said, which is what stops the seam looping") {
     // THE SILENCE IS LOAD-BEARING, and measured: `on(PaneContent)` ends in a repaint, and a
     // repaint that published unconditionally would say it again, leaving no quiet state -- so
-    // the host compares against its own last utterance. ⚔ MUTATION, MEASURED: drop the
-    // `same_conditions` arm; the count climbs across repaints with no news in them.
+    // the host compares against its own last utterance. ⚔ MUTATION
+    // (tests/mutants/workshop_host.md#silence-arm-dropped), MEASURED: drop the `same_conditions`
+    // arm; the count climbs across repaints with no news in them.
     Live t;
     t.ready();
     const std::size_t after_first = t.said_conditions.size();
@@ -2650,9 +2658,9 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
 }
 
 TEST_CASE("a typed place reseats the stack through `apply_setup`") {
-    // ⚔ MUTATION: a live layout presented without the reseat. `bounds_of` reads the setup live,
-    // so a moved pane MOVES either way -- what a bypass leaves behind is a row the store keeps
-    // and the desk does not seat.
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#live-layout-without-reseat): a live layout
+    // presented without the reseat. `bounds_of` reads the setup live, so a moved pane MOVES either
+    // way -- what a bypass leaves behind is a row the store keeps and the desk does not seat.
     Live t;
     open_stock_pane(t);
     REQUIRE(t.session().panes.has(stock::kKind));
@@ -2669,8 +2677,9 @@ TEST_CASE("a typed place reseats the stack through `apply_setup`") {
 }
 
 TEST_CASE("a typed value that is not admissible is refused, and the authored row is untouched") {
-    // ⚔ MUTATION: clamping a typed value to the room or to the lattice. Every
-    // comparison against `before` below is value identity over the whole desk.
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#typed-size-clamped): clamping a typed value to the
+    // room or to the lattice. Every comparison against `before` below is value identity over the
+    // whole desk.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const PaneRef layouts = ref_of(pane_kind::kLayouts);
@@ -2719,8 +2728,9 @@ TEST_CASE("a typed value that is not admissible is refused, and the authored row
 }
 
 TEST_CASE("looking never authors") {
-    // ⚔ MUTATION: an inspection that writes a resolved rectangle back into the setup.
-    // Every read below is followed by value identity over the whole desk.
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#inspection-writes-back): an inspection that writes
+    // a resolved rectangle back into the setup. Every read below is followed by value identity over
+    // the whole desk.
     Live t;
     const Setup born = t.session().setup.active;
     // NAMING A SUBJECT AUTHORS NOTHING.
@@ -2752,9 +2762,11 @@ TEST_CASE("looking never authors") {
 }
 
 TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") {
-    // ⚔ MUTATION: dropping the subject when its pane leaves the layout. The subject
-    // below is closed and launched again through the doors and stands throughout.
-    // ⚔ MUTATION: filtering unresolved refs out of the inventory, or out of the setup.
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#subject-dropped-with-its-pane): dropping the
+    // subject when its pane leaves the layout. The subject below is closed and launched again
+    // through the doors and stands throughout.
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#unresolved-refs-filtered): filtering unresolved
+    // refs out of the inventory, or out of the setup.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const PaneRef closed = stock_ref();
@@ -2817,9 +2829,9 @@ TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") 
 }
 
 TEST_CASE("editing a pane in a layout related to a current Setup makes it modified") {
-    // ⚔ MUTATION: an editor-local dirty bit, or a comparison that stays `current`.
-    // The verdict below is `link_status`, derived by comparing the desk to the known value,
-    // and the inspection holds no flag of its own.
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#status-stays-current): an editor-local dirty bit,
+    // or a comparison that stays `current`. The verdict below is `link_status`, derived by
+    // comparing the desk to the known value, and the inspection holds no flag of its own.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
     stage_run(t, [](SetupState& run) { link_live_setup(run, "somewhere.json"); });
@@ -2838,8 +2850,8 @@ TEST_CASE("editing a pane in a layout related to a current Setup makes it modifi
 }
 
 TEST_CASE("moving, resizing and closing Layouts through the doors leaves the reservation alone") {
-    // ⚔ MUTATION: coupling `screen_of`'s reservation to the Layouts pane. Every
-    // comparison below moves.
+    // ⚔ MUTATION (tests/mutants/workshop_host.md#reservation-follows-layouts): coupling
+    // `screen_of`'s reservation to the Layouts pane. Every comparison below moves.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const Screen before = screen_of(t.session());
@@ -2928,8 +2940,9 @@ TEST_CASE("Escape clears the ordinary selection last, and the inspected subject 
     // THE PARTY THAT OWNS THIS MEANING (WL-DESK-02): Escape-to-deselect is a DECLARED
     // application row, so this case supplies the declarer -- the key resolves to the row, the
     // host asks its owner, the owner answers under the ask's number, and only then is the
-    // selection put down. ⚔ MUTATION: removing the final Escape branch, or clearing the
-    // subject beside the selection, reddens the matching check below.
+    // selection put down. ⚔ MUTATION (tests/mutants/workshop_host.md#final-escape-removed,
+    // #subject-cleared-with-selection): removing the final Escape branch, or clearing the subject
+    // beside the selection, reddens the matching check below.
     Live t;
     mount_desktop(t);
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
@@ -2984,8 +2997,9 @@ TEST_CASE("Escape clears the ordinary selection last, and the inspected subject 
 
 TEST_CASE("every more-specific Escape meaning answers first, and deselection waits") {
     // THE SAME DECLARED PATH (WL-DESK-02), with a mode above the panes, whose Escape comes
-    // first. ⚔ MUTATION: asking the final fallthrough BEFORE the resolved context -- the
-    // surface would still be open with the selection already gone.
+    // first. ⚔ MUTATION (tests/mutants/workshop_host.md#fallthrough-asked-first): asking the final
+    // fallthrough BEFORE the resolved context -- the surface would still be open with the selection
+    // already gone.
     Live t;
     mount_desktop(t);
     t.extent_px(cells_px(132), cells_px(46), 0, 0);

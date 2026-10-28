@@ -429,8 +429,9 @@ cells_covered(bounds_of(panes, setup_for(panes), p.kind, sc).rect);
 }
 
 TEST_CASE("an anchored pane keeps its corner where its word puts it, at every size of the window") {
-    // ⚔ MUTATION: `pane_part` reading every place word as `pixels` -- the pane stands at its
-    // offsets from the room's top-left, and its corner leaves the room's bottom-right.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#place-word-read-as-pixels): `pane_part` reading
+    // every place word as `pixels` -- the pane stands at its offsets from the room's top-left, and
+    // its corner leaves the room's bottom-right.
     Live t;
     pick(t, second::kKind);
     stage_desk(t, [](Setup& desk) {
@@ -466,7 +467,8 @@ TEST_CASE("an anchored pane keeps its corner where its word puts it, at every si
 }
 
 TEST_CASE("a centred pane stands in the middle of the room, and a fill runs to the room's far edge") {
-    // ⚔ MUTATION: a `center` place read as `default` -- the pane stands down the stack.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#center-read-as-default): a `center` place read
+    // as `default` -- the pane stands down the stack.
     Live t;
     pick(t, second::kKind);
     stage_desk(t, [](Setup& desk) {
@@ -501,8 +503,8 @@ TEST_CASE("a centred pane stands in the middle of the room, and a fill runs to t
 }
 
 TEST_CASE("a bar a third of the way down stays a third down at every size, in both windows, its ends at the room's sides") {
-    // ⚔ MUTATION: `ui_place_of` dropping a share place's numbers -- the bar stands at the
-    // room's top.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#share-place-numbers-dropped): `ui_place_of`
+    // dropping a share place's numbers -- the bar stands at the room's top.
     Live t;
     pick(t, second::kKind);
     stage_desk(t, [](Setup& desk) {
@@ -2045,8 +2047,9 @@ struct TwoPaneRig : FineRig {
 } // namespace
 
 TEST_CASE("a hand pulling a share's edge writes the share whose edge is the hand's pixel, at every pixel of the widest room") {
-    // ⚔ MUTATION: `author_pane_window` writing the hand's extent as `pixels` whatever the word --
-    // the width comes back a count of pixels, and the share is gone.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#pulled-share-written-as-pixels):
+    // `author_pane_window` writing the hand's extent as `pixels` whatever the word -- the width
+    // comes back a count of pixels, and the share is gone.
     FineRig t;
     stage_desk(t, [](Setup& s) {
         REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
@@ -2106,8 +2109,9 @@ TEST_CASE("a hand pulling a share's edge writes the share whose edge is the hand
 }
 
 TEST_CASE("a hand moving a share place writes the share whose edge is the hand's pixel, at every pixel of the widest room") {
-    // ⚔ MUTATION: `author_pane_window` reading a share place as an anchor -- the place is
-    // written as a count of pixels in a word that reads ten-thousandths.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#share-place-moved-as-an-anchor):
+    // `author_pane_window` reading a share place as an anchor -- the place is written as a count of
+    // pixels in a word that reads ten-thousandths.
     FineRig t;
     stage_desk(t, [](Setup& s) {
         SetupPane* row = pane_of(s, ref_of(stock::kKind));
@@ -2166,8 +2170,8 @@ TEST_CASE("a hand moving a share place writes the share whose edge is the hand's
 }
 
 TEST_CASE("a fill pulled at its far edge, with nothing sharing its frame, writes the share whose edge is the hand's pixel, and says so") {
-    // ⚔ MUTATION: a fill pulled at its far edge written as pixels -- the width stops following the
-    // room, and nothing is said.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#fill-far-edge-as-pixels): a fill pulled at its
+    // far edge written as pixels -- the width stops following the room, and nothing is said.
     FineRig t;
     stage_desk(t, [](Setup& s) {
         REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
@@ -2211,8 +2215,9 @@ TEST_CASE("a fill pulled at its far edge, with nothing sharing its frame, writes
 }
 
 TEST_CASE("an anchored pane pulled past its own edge is refused across and still follows the hand down") {
-    // ⚔ MUTATION: the size of an axis whose offset was refused written anyway -- the width grows
-    // though its edge could not go where the hand took it.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#refused-axis-sized-anyway): the size of an axis
+    // whose offset was refused written anyway -- the width grows though its edge could not go where
+    // the hand took it.
     FineRig t;
     stage_desk(t, [](Setup& s) {
         SetupPane* row = pane_of(s, ref_of(stock::kKind));
@@ -2235,8 +2240,9 @@ TEST_CASE("an anchored pane pulled past its own edge is refused across and still
 }
 
 TEST_CASE("a hand moves an anchored pane in its word, a centred one into pixels, and pulls a fitted size into pixels, each said") {
-    // ⚔ MUTATION: an anchored place written as pixels from the room's top-left -- the word is
-    // gone, and the pane no longer keeps its corner when the window changes.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#anchored-move-as-pixels): an anchored place
+    // written as pixels from the room's top-left -- the word is gone, and the pane no longer keeps
+    // its corner when the window changes.
     FineRig t;
     stage_desk(t, [](Setup& s) {
         SetupPane* row = pane_of(s, ref_of(stock::kKind));
@@ -2284,8 +2290,8 @@ TEST_CASE("a hand moves an anchored pane in its word, a centred one into pixels,
 }
 
 TEST_CASE("a pane dragged near another pane's edge or the room's comes to it, and the edge met is marked across the room while held") {
-    // ⚔ MUTATION: no snap -- the place stays where the hand left it, a few pixels short of the
-    // edge, and nothing is marked.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#drag-without-snap): no snap -- the place stays
+    // where the hand left it, a few pixels short of the edge, and nothing is marked.
     TwoPaneRig t;
     const PixelRect at = t.builder_rect();
     REQUIRE(at.x == 100);
@@ -2328,7 +2334,8 @@ TEST_CASE("a pane dragged near another pane's edge or the room's comes to it, an
 }
 
 TEST_CASE("Alt held while dragging sets every snap aside, and the hand places to the pixel") {
-    // ⚔ MUTATION: the modifier ignored -- the pane comes to the room's edge with Alt held.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#alt-ignored): the modifier ignored -- the pane
+    // comes to the room's edge with Alt held.
     TwoPaneRig t;
     const PixelRect at = t.builder_rect();
     const std::int64_t press_x = at.x + 30;
@@ -2388,8 +2395,9 @@ std::int64_t left_edge_dragged_to(TwoPaneRig& t, std::int64_t left) {
 } // namespace
 
 TEST_CASE("the snap reaches as far as `workshop.snap-reach` says: eleven pixels meets an edge ten away, six misses one seven away") {
-    // ⚔ MUTATION: the reach left at `kPaneSnapReachPx` -- the far hand stops ten pixels short and
-    // the near one is still pulled seven.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#reach-left-at-the-constant): the reach left at
+    // `kPaneSnapReachPx` -- the far hand stops ten pixels short and the near one is still pulled
+    // seven.
     TempDir dir("measures-snap");
     TwoPaneRig standard;
     REQUIRE(standard.session().snap_reach_px == kPaneSnapReachPx);
@@ -2408,7 +2416,8 @@ TEST_CASE("the snap reaches as far as `workshop.snap-reach` says: eleven pixels 
 }
 
 TEST_CASE("the coarse step is `workshop.arrange-step` cells, read from Workshop's settings file") {
-    // ⚔ MUTATION: the grow spends `kCoarseStepCells` -- four cells where the file says eight.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#step-left-at-the-constant): the grow spends
+    // `kCoarseStepCells` -- four cells where the file says eight.
     TempDir dir("measures-step");
     FineRig t(measures_file(dir, "step.json", {{"workshop.arrange-step", 8}}));
     REQUIRE(t.session().arrange_step_cells == 8);
@@ -2424,9 +2433,10 @@ TEST_CASE("the coarse step is `workshop.arrange-step` cells, read from Workshop'
 }
 
 TEST_CASE("a stacked pane is `workshop.stack-rows` tall, read from Workshop's settings file, and a file still keeping `workshop.side-columns` reads") {
-    // ⚔ MUTATION: `placement_bounds` spends `kStackRows` -- nine rows, whatever the file says.
-    // The retired key is still in the file: it is carried and read by nothing, so a pane at the
-    // room's top-right is the width its row says.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#stack-rows-left-at-the-constant):
+    // `placement_bounds` spends `kStackRows` -- nine rows, whatever the file says. The retired key
+    // is still in the file: it is carried and read by nothing, so a pane at the room's top-right is
+    // the width its row says.
     TempDir dir("measures-room");
     Live t;
     t.host.prefs_path = measures_file(dir, "room.json",
@@ -2453,7 +2463,8 @@ TEST_CASE("a stacked pane is `workshop.stack-rows` tall, read from Workshop's se
 }
 
 TEST_CASE("an edge pulled near another pane's edge or the room's comes to it, its opposite edge held") {
-    // ⚔ MUTATION: no snap -- the width stops where the hand did, three pixels short.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#edge-pull-without-snap): no snap -- the width
+    // stops where the hand did, three pixels short.
     TwoPaneRig t;
     const PixelRect at = t.builder_rect();
     // THE RIGHT EDGE, pulled to three pixels short of the second pane's left edge.
@@ -2479,8 +2490,8 @@ TEST_CASE("an edge pulled near another pane's edge or the room's comes to it, it
 }
 
 TEST_CASE("the arrow keys and a typed value place exactly, near an edge or not") {
-    // ⚔ MUTATION: the keys or a typed value snapped -- eight would come to the room's edge at
-    // zero, five likewise.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#keys-snapped): the keys or a typed value snapped
+    // -- eight would come to the room's edge at zero, five likewise.
     Live t;
     t.extent_on_window(160, 44);
     open_pane(t, ref_of(stock::kKind));
@@ -2498,8 +2509,9 @@ TEST_CASE("the arrow keys and a typed value place exactly, near an edge or not")
 }
 
 TEST_CASE("in a terminal a hand moving by cells meets an edge between them, and the mark is a cell across the room") {
-    // ⚔ MUTATION: no snap -- a pane 500 pixels wide moved by whole cells never meets the room's
-    // right edge, its own right edge four pixels short of it.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#cells-without-snap): no snap -- a pane 500
+    // pixels wide moved by whole cells never meets the room's right edge, its own right edge four
+    // pixels short of it.
     Live t;
     t.extent_px(cells_px(120), cells_px(40), 0, 0);
     open_pane(t, ref_of(stock::kKind));
@@ -2533,9 +2545,10 @@ TEST_CASE("in a terminal a hand moving by cells meets an edge between them, and 
 }
 
 TEST_CASE("a pane dragged out of the stack meets the desk as its move leaves it, the pane below risen") {
-    // ⚔ MUTATION: the lines measured with the held pane where it stands. The move takes it out of
-    // the stack and the pane below rises into its slot, so a snap to that pane's edge as it stood
-    // meets a line nothing stands on once the write lands -- and one motion keeps that place.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#lines-of-the-desk-as-it-stands): the lines
+    // measured with the held pane where it stands. The move takes it out of the stack and the pane
+    // below rises into its slot, so a snap to that pane's edge as it stood meets a line nothing
+    // stands on once the write lands -- and one motion keeps that place.
     const auto stacked = [](FineRig& t, PixelRect& first, PixelRect& below) {
         open_pane(t, ref_of(second::kKind));
         select_pane(t, ref_of(stock::kKind));
@@ -3602,7 +3615,8 @@ TEST_CASE("the medium's unit reaches the READOUT and no geometry at all") {
 TEST_CASE("which parts of a pane's window its numbers alone do not place") {
     // The question the arrangement readout asks before it adds where the pane actually is: any
     // axis that is not exact pixels -- the code's answer, or a word.
-    // ⚔ MUTATION: asking only for `default` -- a share-wide pane is read without where it is.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#only-default-unplaced): asking only for
+    // `default` -- a share-wide pane is read without where it is.
     SetupPane none;
     CHECK(pane_window_reads_words(&none));
 
@@ -3627,8 +3641,9 @@ TEST_CASE("which parts of a pane's window its numbers alone do not place") {
 }
 
 TEST_CASE("the readout says each word, and where the words put the pane") {
-    // ⚔ MUTATION: `pane_window_text` saying `-` for every axis that is not pixels -- a share, a
-    // fit and a point of the room all read as the code's answer.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#readout-says-dash): `pane_window_text` saying
+    // `-` for every axis that is not pixels -- a share, a fit and a point of the room all read as
+    // the code's answer.
     SetupPane row;
     row.front = 2;
     row.place = PanePlace{ui::kPlaceBottomRight, cells_px(1), cells_px(2)};
@@ -3643,7 +3658,8 @@ TEST_CASE("the readout says each word, and where the words put the pane") {
     row.width = PaneSize{ui::kSizeShare, 3333};
     row.height = PaneSize{};
     CHECK(pane_window_text(&row, 0) == "@center 33.33%x- f2"); // no number, so no unit
-    // A SHARE PLACE says both its numbers as shares. ⚔ MUTATION: `pane_window_text` saying a
+    // A SHARE PLACE says both its numbers as shares. ⚔ MUTATION
+    // (tests/mutants/workshop_screen.md#share-place-said-as-counts): `pane_window_text` saying a
     // share place's numbers as counts of the face's unit -- `@share 0,277 cells`.
     row.place = PanePlace{ui::kPlaceShare, 0, 3333};
     row.width = PaneSize{ui::kSizeFill, 0};
@@ -3965,8 +3981,9 @@ TEST_CASE("shortcut annotations teach only truthful surrounding bindings") {
 // every pane's edge is where the pane says it is.
 
 TEST_CASE("a pane's interior is its outer rectangle less one cell of chrome") {
-    // ⚔ MUTATION: delete the border -- `pane_interior` answering its own argument. Every
-    // number below moves, in both directions, so the picture and the room move together.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#interior-is-its-argument): delete the border --
+    // `pane_interior` answering its own argument. Every number below moves, in both directions, so
+    // the picture and the room move together.
     const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
     CHECK(cells_covered(pane_interior(outer, kChromePx)) == CellRect{5, 4, 18, 7});
 
@@ -3977,7 +3994,8 @@ TEST_CASE("a pane's interior is its outer rectangle less one cell of chrome") {
     CHECK(cells_covered(pane_interior(pixels_of_cells(grown), kChromePx)) == CellRect{1, 1, 18, 7});
 
     // A PANE TOO SMALL FOR ITS OWN CHROME HAS NO INTERIOR, and says so with an empty
-    // rectangle rather than a negative one -- ⚔ MUTATION: dropping the guard, which would
+    // rectangle rather than a negative one -- ⚔ MUTATION
+    // (tests/mutants/workshop_screen.md#interior-guard-dropped): dropping the guard, which would
     // hand every `w <= 0` consumer a wrapped-around width instead of "nowhere".
     for (const CellRect tiny : {CellRect{0, 0, 2, 9}, CellRect{0, 0, 20, 2},
                                 CellRect{0, 0, 1, 1}, CellRect{0, 0, 0, 0}}) {
@@ -3991,8 +4009,9 @@ TEST_CASE("a pane's interior is its outer rectangle less one cell of chrome") {
 }
 
 TEST_CASE("the border a weaver sees and the room a pane spends are one subtraction") {
-    // ⚔ MUTATION: insetting the PAINTER and not the press inverse, or not the room grant.
-    // The three resolutions below are the only three, and they answer one rectangle.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#painter-inset-alone): insetting the PAINTER and
+    // not the press inverse, or not the room grant. The three resolutions below are the only three,
+    // and they answer one rectangle.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
@@ -4062,7 +4081,8 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
           second::kKind);
 
     // SELECTED: press the Builder where only the Builder is, and it comes forward.
-    // ⚔ MUTATION: `paint_panes` or `occupied_at` walking `presentation_order` again.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#hit-walks-the-authored-order): `paint_panes` or
+    // `occupied_at` walking `presentation_order` again.
     t.press_canvas(side.x - 3, side.y + 3);
     REQUIRE(t.session().panes.selected == stock::kKind);
     const std::vector<std::int64_t> lifted = painted_order(t.session());
@@ -4073,8 +4093,10 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
           stock::kKind);
 
     // AND THE PAINT AGREES WITH IT: the plane carrying the Builder's backdrop is after the one
-    // carrying the right-column pane's. ⚔ MUTATION: lifting the hit order and not the paint
-    // order, the exact defect "what I see in front is what my pointer reaches" forbids.
+    // carrying the right-column pane's. ⚔ MUTATION
+    // (tests/mutants/workshop_screen.md#paint-walks-the-authored-order): lifting the hit order and
+    // not the paint order, the exact defect "what I see in front is what my pointer reaches"
+    // forbids.
     const CellRect builder_cells =
         cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                                 screen_of(t.session()))
@@ -4106,9 +4128,10 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
 }
 
 TEST_CASE("the selected pane wears its own chrome, and only it") {
-    // The second pane is authored into the right column. ⚔ MUTATION: `paint_panes` handing
-    // every pane `kPaneChrome`, which collapses the selected style into the ordinary one -- the
-    // picture would still be bordered and a weaver could not tell which pane they work with.
+    // The second pane is authored into the right column. ⚔ MUTATION
+    // (tests/mutants/workshop_screen.md#every-pane-ordinary-chrome): `paint_panes` handing every
+    // pane `kPaneChrome`, which collapses the selected style into the ordinary one -- the picture
+    // would still be bordered and a weaver could not tell which pane they work with.
     Live t;
     open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
@@ -4145,10 +4168,10 @@ TEST_CASE("the selected pane wears its own chrome, and only it") {
 }
 
 TEST_CASE("the selection lift never reaches the file, and no session starts with one") {
-    // ⚔ MUTATION: writing `front` on selection -- which is what "raise on click" would be, and
-    // what a selection that never writes the order forbids. The authored BYTES are compared and
-    // not only the ranks, so a rewrite that happened to produce the same permutation is still
-    // caught if it moved anything else.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#selection-writes-front): writing `front` on
+    // selection -- which is what "raise on click" would be, and what a selection that never writes
+    // the order forbids. The authored BYTES are compared and not only the ranks, so a rewrite that
+    // happened to produce the same permutation is still caught if it moved anything else.
     Live t;
     open_at_top_right(t, second::kKind);
     open_pane(t, ref_of(stock::kKind));
@@ -4189,8 +4212,9 @@ TEST_CASE("the selection lift never reaches the file, and no session starts with
 }
 
 TEST_CASE("a transient surface stays over the pane it covers, selected or not") {
-    // ⚔ MUTATION: giving the selection lift priority over the overlay planes -- a pane
-    // drawn in front of the contextual surface a weaver just opened on it.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#lift-over-the-overlay): giving the selection
+    // lift priority over the overlay planes -- a pane drawn in front of the contextual surface a
+    // weaver just opened on it.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
@@ -4226,9 +4250,10 @@ TEST_CASE("a transient surface stays over the pane it covers, selected or not") 
 }
 
 TEST_CASE("the contextual surface is its actions, and its width is theirs") {
-    // ⚔ MUTATION: putting the heading or the hint row back. The row COUNT is the
-    // population's exactly, and the width is bounded by the widest row that remains --
-    // which the removed heading, being the longest string on this level, would break.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#heading-row-back): putting the heading or the
+    // hint row back. The row COUNT is the population's exactly, and the width is bounded by the
+    // widest row that remains -- which the removed heading, being the longest string on this level,
+    // would break.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
@@ -4274,12 +4299,12 @@ TEST_CASE("the contextual surface is its actions, and its width is theirs") {
 }
 
 TEST_CASE("no ordinary pane spends a row teaching a key the keymap already owns") {
-    // ⚔ MUTATION: putting a gesture claim back into a pane's header or body. The audit is over
-    // the PROJECTION -- what a weaver reads at each pane's rectangle -- so a hint anywhere in a
-    // built-in pane's composition is caught, keymap-spelled or hard-coded. Not audited: an
-    // EXTERNAL pane's rows (the provider's words about bindings Workshop is never told), the
-    // band and the full hotkey view (the help surfaces), and the attention view and the
-    // contextual surface (modes, not panes).
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#gesture-claim-in-the-layouts-pane): putting a
+    // gesture claim back into a pane's header or body. The audit is over the PROJECTION -- what a
+    // weaver reads at each pane's rectangle -- so a hint anywhere in a built-in pane's composition
+    // is caught, keymap-spelled or hard-coded. Not audited: an EXTERNAL pane's rows (the provider's
+    // words about bindings Workshop is never told), the band and the full hotkey view (the help
+    // surfaces), and the attention view and the contextual surface (modes, not panes).
     Live t;
     t.extent_px(cells_px(160), cells_px(60), 0, 0);
     for (const PaneRef& ref : {ref_of(stock::kKind), ref_of(second::kKind)}) {
@@ -4334,9 +4359,10 @@ inline Screen sdl_screen() {
 }
 
 TEST_CASE("the chrome a pane wears is one unit of the face in front of the weaver") {
-    // ⚔ MUTATION: `chrome_grain` answering `kChromePx` whatever the medium said -- what "SDL
-    // still subtracts one full text cell" looks like from inside. ⚔ MUTATION (the other
-    // direction): a terminal adopting the pixel answer, which floors to nothing there and
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#grain-always-a-cell): `chrome_grain` answering
+    // `kChromePx` whatever the medium said -- what "SDL still subtracts one full text cell" looks
+    // like from inside. ⚔ MUTATION (tests/mutants/workshop_screen.md#grain-always-a-pixel) (the
+    // other direction): a terminal adopting the pixel answer, which floors to nothing there and
     // leaves a pane with no edge at all.
     const Screen tui = tui_screen();
     const Screen sdl = sdl_screen();
@@ -4367,9 +4393,10 @@ TEST_CASE("the chrome a pane wears is one unit of the face in front of the weave
 }
 
 TEST_CASE("the graphical boundary is one device pixel, drawn INSIDE the pane") {
-    // ⚔ MUTATION: growing the pane outward to pay for its boundary, or drawing the ring on
-    // the pixel outside it. The authored rectangle is the outer rectangle; the ring is
-    // subtracted from it, and every number below is a pixel of the shipped face.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#ring-outside-the-pane): growing the pane outward
+    // to pay for its boundary, or drawing the ring on the pixel outside it. The authored rectangle
+    // is the outer rectangle; the ring is subtracted from it, and every number below is a pixel of
+    // the shipped face.
     const Screen sdl = sdl_screen();
     const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
     const PixelRect inside = pane_inside(outer, sdl).rect;
@@ -4395,10 +4422,10 @@ TEST_CASE("the graphical boundary is one device pixel, drawn INSIDE the pane") {
 }
 
 TEST_CASE("the interior a window no longer reserves goes back to the pane") {
-    // ⚔ MUTATION: painting a one-pixel line while the body, the room and the press inverse
-    // keep spending a whole cell -- the "looks thin, acts thick" pane. The capacity below is
-    // derived from the ACTUAL post-chrome pixels, so a body that kept the cell inset shows up
-    // as fewer rows than the arithmetic says.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#body-keeps-the-cell-inset): painting a one-pixel
+    // line while the body, the room and the press inverse keep spending a whole cell -- the "looks
+    // thin, acts thick" pane. The capacity below is derived from the ACTUAL post-chrome pixels, so
+    // a body that kept the cell inset shows up as fewer rows than the arithmetic says.
     const Screen sdl = sdl_screen();
     const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
 
@@ -4418,20 +4445,23 @@ TEST_CASE("the interior a window no longer reserves goes back to the pane") {
     CHECK(thin.rows > was.rows);
     CHECK(thin.columns > was.columns);
 
-    // AND NOTHING WAS PADDED BACK. ⚔ MUTATION: an invisible cell-sized reservation kept "so
-    // the row counts do not move" -- the body would then be a whole cell narrower than the
+    // AND NOTHING WAS PADDED BACK. ⚔ MUTATION
+    // (tests/mutants/workshop_screen.md#cell-reservation-kept): an invisible cell-sized reservation
+    // kept "so the row counts do not move" -- the body would then be a whole cell narrower than the
     // pixels it was granted.
     CHECK(thin.inside.w == outer.w - 2 * chrome_grain(sdl));
     CHECK(thin.inside.h == outer.h - 2 * chrome_grain(sdl));
 }
 
 TEST_CASE("a face that describes an interior in CELLS pays the cell") {
-    // THE HALF THAT MAKES THE THIN BOUNDARY HONEST: where a face projects a pane's interior
-    // onto covered CELLS -- a terminal always, a window whose font never opened, a window whose
-    // face is too tall for this pane -- an inset finer than a cell is projected away, and the
-    // interior would spill over its own left and top edge. ⚔ MUTATION: `pane_inside` returning
-    // the thin candidate unconditionally fails every symmetric-ring check below, on exactly
-    // the faces that cannot draw the pixel.
+    // THE HALF THAT MAKES THE THIN BOUNDARY HONEST: where a face projects a pane's interior onto
+    // covered CELLS -- a terminal always, a window whose font never opened, a window whose face is
+    // too tall for this pane -- an inset finer than a cell is projected away, and the interior
+    // would spill over its own left and top edge.
+
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#thin-candidate-always): `pane_inside` returning
+    // the thin candidate unconditionally fails every symmetric-ring check below, on exactly the
+    // faces that cannot draw the pixel.
     const PixelRect outer = pixels_of_cells(CellRect{4, 3, 20, 9});
     const CellRect box = cells_covered(outer);
 
@@ -4472,10 +4502,11 @@ TEST_CASE("a face that describes an interior in CELLS pays the cell") {
 }
 
 TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") {
-    // ⚔ MUTATION: a painter that strokes a border of its own. There is no thickness on
-    // `paint_pane_frame` to get wrong -- it pushes the OUTER rect and the body's own
-    // ground clears what it occupies -- so what a weaver sees is a subtraction rather than
-    // a drawing, and it is the same subtraction the room and the press inverse spend.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#painter-strokes-its-own-border): a painter that
+    // strokes a border of its own. There is no thickness on `paint_pane_frame` to get wrong -- it
+    // pushes the OUTER rect and the body's own ground clears what it occupies -- so what a weaver
+    // sees is a subtraction rather than a drawing, and it is the same subtraction the room and the
+    // press inverse spend.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const Screen tui = screen_of(t.session());
@@ -4511,10 +4542,10 @@ TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") 
 }
 
 TEST_CASE("selected and ordinary differ in INK, and in nothing else") {
-    // ⚔ MUTATION: a painter that insets a SELECTED pane further, so its boundary reads
-    // heavier. The pane's contents would then jump the moment a weaver pointed at it, which
-    // is the one thing a selection must never do. The picture is compared field by field:
-    // same backdrop rectangle, same published region, different ROLE.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#selected-inset-further): a painter that insets a
+    // SELECTED pane further, so its boundary reads heavier. The pane's contents would then jump the
+    // moment a weaver pointed at it, which is the one thing a selection must never do. The picture
+    // is compared field by field: same backdrop rectangle, same published region, different ROLE.
     Live t;
     t.extent_on_window(160, 60);
     open_pane(t, ref_of(stock::kKind));
@@ -4566,16 +4597,17 @@ TEST_CASE("a content-sized surface reserves the coarsest boundary, once") {
     // is ONE whole-cell `CellRect` shown on whichever face draws it -- so it reserves the
     // boundary the COARSEST face spends, and a graphical face hands the difference to the
     // popup's interior; a popup sized for pixels would cut a row off itself on a terminal.
-    // ⚔ MUTATION: a medium-specific `chrome_outer_of`, making the popup's placement depend on
-    // the face.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#outer-sized-for-pixels): a medium-specific
+    // `chrome_outer_of`, making the popup's placement depend on the face.
     const CellRect grown = cells_covered(chrome_outer_of(0, 0, cells_px(18), cells_px(7)));
     CHECK(grown.w == 18 + 2 * kChromeCells);
     CHECK(grown.h == 7 + 2 * kChromeCells);
     CHECK(cells_covered(pane_interior(pixels_of_cells(grown), kChromePx)) ==
           CellRect{1, 1, 18, 7}); // exact on the face that reserved it
 
-    // AND THE POPUP'S RECTANGLE IS THE SAME RECTANGLE ON BOTH FACES. ⚔ MUTATION: anchoring
-    // the contextual surface to a pane's BODY rather than to the pane.
+    // AND THE POPUP'S RECTANGLE IS THE SAME RECTANGLE ON BOTH FACES. ⚔ MUTATION
+    // (tests/mutants/workshop_screen.md#surface-anchored-to-the-body): anchoring the contextual
+    // surface to a pane's BODY rather than to the pane.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     const CellRect pane = cells_covered(
@@ -4600,9 +4632,9 @@ TEST_CASE("a content-sized surface reserves the coarsest boundary, once") {
 
 TEST_CASE("what makes two presses on a tab one double-click, and what does not") {
     // THE QUALIFICATION IS PURE AND TOTAL, so every one of its conditions is stated here as an
-    // ordinary comparison rather than raced against a stopwatch. ⚔ MUTATION: dropping any one
-    // of them reddens exactly the subcase that names it. A tab's double-click is the one this
-    // host reads.
+    // ordinary comparison rather than raced against a stopwatch. ⚔ MUTATION
+    // (tests/mutants/workshop_screen.md#double-click-on-any-tab): dropping any one of them reddens
+    // exactly the subcase that names it. A tab's double-click is the one this host reads.
     const TabClickMemory armed{true, 2, 1000};
     REQUIRE(armed.armed);
 
@@ -4670,8 +4702,9 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     const std::int64_t keyboard_before = t.session().panes.keyboard;
 
     // THE GESTURE: right-press where only the Builder is, and choose the first row.
-    // ⚔ MUTATION: `spend_context_choice` re-hit-testing after the action instead of
-    // spending the CAPTURED subject -- the topmost pane would be arranged.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#context-arranges-the-topmost):
+    // `spend_context_choice` re-hit-testing after the action instead of spending the CAPTURED
+    // subject -- the topmost pane would be arranged.
     t.right_press_canvas(side.x - 3, side.y + 3);
     REQUIRE(t.menu().open);
     REQUIRE(t.menu().subject == context_subject::kPane);
@@ -4680,8 +4713,8 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     t.key(input::scan::kReturn);
 
     // AFTER: the addressed pane is the selected one, it is in front, and the hand reaches
-    // what the eye sees. ⚔ MUTATION: `enter_arrange_pane` binding the scope without
-    // writing `Panes::selected`.
+    // what the eye sees. ⚔ MUTATION (tests/mutants/workshop_screen.md#arrange-without-selecting):
+    // `enter_arrange_pane` binding the scope without writing `Panes::selected`.
     CHECK(t.session().arrange.open);
     CHECK_FALSE(t.session().arrange.desk);
     CHECK(t.session().arrange.pane == ref_of(stock::kKind));
@@ -4699,7 +4732,9 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     CHECK(setup_persist::to_text(t.session().setup.active) == desk);
 
     // ...AND THE KEYBOARD CANDIDATE IS A SEPARATE FACT, untouched by an entrance that
-    // happens to change the selection. ⚔ MUTATION: writing `panes.keyboard` here too.
+    // happens to change the selection. ⚔ MUTATION
+    // (tests/mutants/workshop_screen.md#arrange-writes-the-keyboard): writing `panes.keyboard` here
+    // too.
     CHECK(t.session().panes.keyboard == keyboard_before);
 
     // THE ARRANGEMENT OPERATION ADDRESSES THE SAME PANE the selection names.
@@ -4735,9 +4770,10 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
 TEST_CASE("every pane a weaver can point at can be arranged, and the refusals are blind") {
     // ADMISSION PRECEDES BINDING, and that includes the selection: a refusal that had quietly
     // re-selected something would have moved the desk while saying it changed nothing.
-    // ⚔ MUTATION: selecting before `arrange_geometry_ready`. Two facts: every pane a weaver can
-    // point at is arrangeable, and every refusal left belongs to a pane with no rectangle to
-    // point at -- so the admission and the pointer cannot disagree.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#select-before-admission): selecting before
+    // `arrange_geometry_ready`. Two facts: every pane a weaver can point at is arrangeable, and
+    // every refusal left belongs to a pane with no rectangle to point at -- so the admission and
+    // the pointer cannot disagree.
     Live t;
     // THE PANE IN THE RIGHT COLUMN IS AUTHORED: its occupant is a desk row.
     open_at_top_right(t, second::kKind);
@@ -4940,10 +4976,11 @@ TEST_CASE("new is BLANK and appended, and it is a value of its own") {
 }
 
 TEST_CASE("a new layout appends however far into the run you stand") {
-    // FOUND BY A MUTATION: `add_layout` puts the ORIGINAL back at `active_at` and takes the
-    // appended position; a `push_back` of the original is identical while the live layout is
-    // LAST -- where every other case here stands, because that is where `new` leaves you --
-    // and swaps two layouts the moment a weaver adds one from the middle of their own run.
+    // FOUND BY A MUTATION (tests/mutants/workshop_screen.md#new-layout-pushed-back): `add_layout`
+    // puts the ORIGINAL back at `active_at` and takes the appended position; a `push_back` of the
+    // original is identical while the live layout is LAST -- where every other case here stands,
+    // because that is where `new` leaves you -- and swaps two layouts the moment a weaver adds one
+    // from the middle of their own run.
     const std::string blank = default_setup().name;
     SetupState s = shelf_of({"A", "B", "C"}, 1);
     REQUIRE(s.active.name == "B");
@@ -5951,8 +5988,8 @@ TEST_CASE("a two-cell pane keeps its content and drops its boundary") {
     // face a side, and on a character medium the two-row rectangle would keep ZERO rows of
     // interior. `pane_inside`'s last candidate is no boundary at all: the terminal pays nothing
     // and keeps both rows; the shipped face's band is fitted to its two rows of type.
-    // ⚔ MUTATION: dropping that candidate -- `rows` goes to 0 and `band_status(...).text` is
-    // empty.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#no-boundary-candidate-dropped): dropping that
+    // candidate -- `rows` goes to 0 and `band_status(...).text` is empty.
     Session cells = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     const PaneInside on_cells =
         pane_inside(top_band_bounds(screen_of(cells)), screen_of(cells));
@@ -6030,8 +6067,9 @@ TEST_CASE("authored geometry moves the Layouts pane, and the tabs with it") {
 TEST_CASE("a pane in front of the Layouts pane takes the press") {
     // THE FALSIFIER: a band painted in FRONT of every pane that answered presses on the tabs
     // alone would draw over a pane authored over the tab run and still take its press --
-    // see-here, press-there. ⚔ MUTATION: asking `band_tab_at` before the occupancy walk; the
-    // Builder stops being selected, `switch_layout` runs, and both checks below move.
+    // see-here, press-there. ⚔ MUTATION (tests/mutants/workshop_screen.md#tabs-before-occupancy):
+    // asking `band_tab_at` before the occupancy walk; the Builder stops being selected,
+    // `switch_layout` runs, and both checks below move.
     Live t;
     t.extent_px(cells_px(120), cells_px(40), 0, 0);
     const LayoutKeys k = layout_keys(t);
@@ -6101,7 +6139,8 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
 TEST_CASE("the reservation does not follow the Layouts pane") {
     // THE FIXED-RESERVATION PROOF, a claim about the DOCUMENT rather than chrome: `room_w` and
     // `room_h` are what a `%`-sized object resolves against, so moving, resizing or removing
-    // the layout surface must not change a weaver's material's size. ⚔ MUTATION: `screen_of`
+    // the layout surface must not change a weaver's material's size. ⚔ MUTATION
+    // (tests/mutants/workshop_screen.md#reservation-follows-the-layouts-pane): `screen_of`
     // subtracting `kTopRows` only when the pane participates; every comparison below moves.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
@@ -6252,9 +6291,9 @@ std::vector<PixelRect> window_selection_rings(const Session& s) {
 
 TEST_CASE("the keyboard's selection walks the open panes in reading order, whatever order they were "
           "authored in, and wraps both ways") {
-    // ⚔ MUTATION: the walk in authored order -- `focus.next` from the left pane goes to the
-    // right one, the order this desk was written in.
-    // Authored middle, right, left on one row, and a fourth pane below them all.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#walk-in-authored-order): the walk in authored
+    // order -- `focus.next` from the left pane goes to the right one, the order this desk was
+    // written in. Authored middle, right, left on one row, and a fourth pane below them all.
     const PlacedDesk d({PixelRect{30 * kCell, 0, 20 * kCell, 8 * kCell},
                         PixelRect{60 * kCell, 0, 20 * kCell, 8 * kCell},
                         PixelRect{0, 0, 20 * kCell, 8 * kCell},
@@ -6289,9 +6328,9 @@ TEST_CASE("the keyboard's selection walks the open panes in reading order, whate
 
 TEST_CASE("a direction selects the neighbour past the selected pane's edge, and nothing past the "
           "desk's") {
-    // ⚔ MUTATION: right and left swapped in `spatial_neighbour`'s filter -- `right` from the top
-    // left reaches nothing, and `left` from it reaches the top right.
-    // A two-by-two grid with a gap between the columns and the rows.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#left-and-right-swapped): right and left swapped
+    // in `spatial_neighbour`'s filter -- `right` from the top left reaches nothing, and `left` from
+    // it reaches the top right. A two-by-two grid with a gap between the columns and the rows.
     const PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
                         PixelRect{40 * kCell, 0, 30 * kCell, 10 * kCell},
                         PixelRect{0, 14 * kCell, 30 * kCell, 10 * kCell},
@@ -6314,8 +6353,8 @@ TEST_CASE("a direction selects the neighbour past the selected pane's edge, and 
 }
 
 TEST_CASE("misalignment across the direction counts twice the gap along it") {
-    // ⚔ MUTATION: misalignment weighted once -- the near pane fourteen cells lower wins, 5 + 14
-    // against the level pane's 30.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#misalignment-weighted-once): misalignment
+    // weighted once -- the near pane fourteen cells lower wins, 5 + 14 against the level pane's 30.
     // From the first pane, `right` meets a near pane fourteen cells lower (gap 5, across 14: 33)
     // and a far pane level with it (gap 30, across 0: 30). The level one wins.
     const PlacedDesk d({PixelRect{0, 0, 10 * kCell, 10 * kCell},
@@ -6330,10 +6369,9 @@ TEST_CASE("misalignment across the direction counts twice the gap along it") {
 }
 
 TEST_CASE("two neighbours scored alike go to the one in front") {
-    // ⚔ MUTATION: a tie kept by the first candidate read -- the pane behind is chosen whichever
-    // is in front.
-    // From the left pane, `right` meets two panes the same distance off, one above its centre and
-    // one below.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#tie-to-the-pane-behind): a tie kept by the first
+    // candidate read -- the pane behind is chosen whichever is in front. From the left pane,
+    // `right` meets two panes the same distance off, one above its centre and one below.
     PlacedDesk d({PixelRect{0, 6 * kCell, 10 * kCell, 10 * kCell},
                   PixelRect{20 * kCell, 0, 10 * kCell, 10 * kCell},
                   PixelRect{20 * kCell, 12 * kCell, 10 * kCell, 10 * kCell}});
@@ -6348,9 +6386,9 @@ TEST_CASE("two neighbours scored alike go to the one in front") {
 }
 
 TEST_CASE("a pane overlapping the selected one is reached past its centre") {
-    // ⚔ MUTATION: the edge filter alone -- a pane half over the selected one is never past its
-    // edge, so `right` reaches nothing.
-    // The second's centre is five cells short of the first's right edge, and ten past its centre.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#edge-filter-alone): the edge filter alone -- a
+    // pane half over the selected one is never past its edge, so `right` reaches nothing. The
+    // second's centre is five cells short of the first's right edge, and ten past its centre.
     const PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
                         PixelRect{10 * kCell, 2 * kCell, 30 * kCell, 10 * kCell}});
     CHECK(d.toward(0, Act::kFocusRight) == 1);
@@ -6360,8 +6398,8 @@ TEST_CASE("a pane overlapping the selected one is reached past its centre") {
 
 TEST_CASE("command mode marks the selected pane, with brackets where text is a cell and rings where "
           "an edge is finer, and the pane the keys are in wears none") {
-    // ⚔ MUTATION: no ring -- the selected pane looks as it does with the keys in it, but for the
-    // two-character mark.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#no-ring): no ring -- the selected pane looks as
+    // it does with the keys in it, but for the two-character mark.
     PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
                   PixelRect{40 * kCell, 0, 30 * kCell, 10 * kCell}});
     const Screen sc = screen_of(d.s);
@@ -6715,8 +6753,9 @@ loom::ObserverId tap_layout_edits(loom::Switchboard& bus, std::vector<std::strin
 } // namespace
 
 TEST_CASE("every writer of the live desk asks the layouts' owner, and the picture is the owner's next copy") {
-    // ⚔ MUTATION: a gesture writing Workshop's copy of the desk itself -- its op never reaches
-    // the owner, and the copy Workshop draws parts from the owner's desk.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#gesture-writes-workshops-copy): a gesture
+    // writing Workshop's copy of the desk itself -- its op never reaches the owner, and the copy
+    // Workshop draws parts from the owner's desk.
     TempDir dir("one-writer");
     FineRig t;
     Live k;
@@ -6757,8 +6796,8 @@ TEST_CASE("every writer of the live desk asks the layouts' owner, and the pictur
 }
 
 TEST_CASE("two edits judged from one picture: the first is written, the second refused whole, and the picture is the owner's") {
-    // ⚔ MUTATION: an edit judged from an older picture applied anyway -- the second edit lands on
-    // a desk its gesture never saw.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#stale-edit-written): an edit judged from an
+    // older picture applied anyway -- the second edit lands on a desk its gesture never saw.
     Live t;
     t.ready();
     t.extent_px(cells_px(160), cells_px(44));
@@ -6791,8 +6830,9 @@ TEST_CASE("two edits judged from one picture: the first is written, the second r
 }
 
 TEST_CASE("a batch's setup file is written once every edit in it is judged, and not at all when one is refused") {
-    // ⚔ MUTATION: the save written as its own edit is judged, before the rest of the batch -- a
-    // refused batch leaves the file written.
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#save-before-the-whole-batch): the save written
+    // as its own edit is judged, before the rest of the batch -- a refused batch leaves the file
+    // written.
     TempDir dir("batch-save");
     Live t;
     t.host.setup_path = dir.file("setup.json");
@@ -6843,8 +6883,9 @@ TEST_CASE("a batch whose setup file cannot be written is refused whole, the run 
 }
 
 TEST_CASE("WL-DESK-19: a pane the layout never had opens at the room's centre, placed by its title and edges while its keys and body stay its own; shown again after a hide it comes back where it was left") {
-    // MUTATION: a seat that forgets where a pane was left -- the second open stands at the centre
-    // and is placed again; the checks after the hide go red.
+    // MUTATION (tests/mutants/workshop_screen.md#seat-forgets-where-left): a seat that forgets
+    // where a pane was left -- the second open stands at the centre and is placed again; the checks
+    // after the hide go red.
     Live t;
     (void)mount_tool(t, "zengine-snake");
     REQUIRE(hand_launch(t, stock_ref()).opened);
@@ -6953,7 +6994,8 @@ TEST_CASE("WL-DESK-19: where workshop.open-at says mouse, a pane the layout neve
 }
 
 TEST_CASE("WL-ARR-18: arranging says so at the room's top, naming what it arranges, and in a window every other pane fades") {
-    // MUTATION: no veil -- the window drawing has no fade over the pane not arranged.
+    // MUTATION (tests/mutants/workshop_screen.md#no-veil): no veil -- the window drawing has no
+    // fade over the pane not arranged.
     Live t;
     (void)mount_tool(t, "zengine-snake");
     (void)seat_pane(t, second_ref());

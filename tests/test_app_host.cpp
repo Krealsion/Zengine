@@ -500,8 +500,8 @@ TEST_CASE("a second start whose builds are unchanged asks nothing; a build the c
 }
 
 TEST_CASE("while a host holds an app, its session file stands in the app's folder naming the host's process; a host refused the app writes none, and the file goes when the host does") {
-    // MUTATION: the file written before the lock is claimed -- the refused second host removes
-    // the first's file as it goes.
+    // MUTATION (tests/mutants/app_host.md#session-before-lock): the file written before the lock is
+    // claimed -- the refused second host removes the first's file as it goes.
     AppFolder folder("session");
     const fs::path session = folder.dir / app::kSessionName;
     CHECK_FALSE(fs::exists(session));
@@ -555,7 +555,8 @@ TEST_CASE("the app's weave runs its flow and its view, and its panel is drawn in
 }
 
 TEST_CASE("a field of the app's view is clicked into in its window and typed into, and Count gives what was typed") {
-    // MUTATION: the app's weave placing its views deaf to the pointer -- the click focuses nothing.
+    // MUTATION (tests/mutants/app_host.md#views-deaf-to-pointer): the app's weave placing its views
+    // deaf to the pointer -- the click focuses nothing.
     AppFolder folder("click");
     Run run(folder);
     REQUIRE(run.open());
@@ -579,9 +580,10 @@ TEST_CASE("a field of the app's view is clicked into in its window and typed int
 
 TEST_CASE("the app's window tells the app's weave and its views nothing they do not take: its "
           "showings, a press and typing put no refused notice on the bus") {
-    // MUTATION: the window telling every arranger what an area shows settled -- the app's weave,
-    // which places its areas and takes no such word, refuses it at each showing. And every key
-    // moment to each area placed to hear keys -- a view, which takes no release, refuses each.
+    // MUTATION (tests/mutants/app_host.md#settled-to-every-arranger, #key-moments-to-keys): the
+    // window telling every arranger what an area shows settled -- the app's weave, which places its
+    // areas and takes no such word, refuses it at each showing. And every key moment to each area
+    // placed to hear keys -- a view, which takes no release, refuses each.
     AppFolder folder("quiet");
     Run run(folder);
     REQUIRE(run.open());
@@ -654,7 +656,8 @@ TEST_CASE("an app.json the app's weave cannot read is said on the app's own line
 }
 
 TEST_CASE("the app's window takes the title and the size its app.json says, once a window, and the app's line stands at its new foot") {
-    // MUTATION: the app's weave saying nothing of its window -- it stays 1600 by 900, untitled.
+    // MUTATION (tests/mutants/app_host.md#window-unshaped): the app's weave saying nothing of its
+    // window -- it stays 1600 by 900, untitled.
     AppFolder folder("shaped");
     Run run(folder);
     REQUIRE(run.open());

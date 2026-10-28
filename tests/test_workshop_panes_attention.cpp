@@ -276,7 +276,8 @@ TEST_CASE("the pane shows every current condition in its owner's own words") {
 }
 
 TEST_CASE("the Attention pane declares its `detail` setting, and a layout keeping it off lists each condition without the cursor's explanation") {
-    // ⚔ MUTATION: the cursor's block drawn whatever `detail` says -- the off picture keeps it.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_attention.md#detail-drawn-whatever-the-setting): the
+    // cursor's block drawn whatever `detail` says -- the off picture keeps it.
     AttentionRig f;
     f.open();
     f.establish(thing("a.one", "the first thing", "a sentence its owner already had"));
@@ -328,8 +329,9 @@ TEST_CASE("WL-HAND-06: Attention names each condition's row by its key") {
 
 TEST_CASE("a press on a condition's row in the Attention pane puts the cursor there, and a press where its picture names nothing moves nothing") {
     // THE ROW'S OWN ACTION, ASKED BY A PRESS: the pane names each condition's row, and a press on
-    // it reaches the pane as that row's action, never as a place it reads. ⚔ MUTATION: a press on
-    // a part that asks nothing of the pane, and the second condition's explanation never opens.
+    // it reaches the pane as that row's action, never as a place it reads. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_attention.md#press-moves-no-cursor): a press on a part that
+    // asks nothing of the pane, and the second condition's explanation never opens.
     AttentionRig f;
     f.open();
     f.unfocus(); // `establish` repaints with a key, which must not be this pane's
@@ -420,7 +422,8 @@ TEST_CASE("WL-HAND-06: a notice leading the Attention pane moves each condition'
 TEST_CASE("a pane that arrives after the host has spoken is told again") {
     // A PANE LOADED AFTER THE HOST LAST SPOKE HEARS WHAT IS TRUE: `say_conditions` is quiet when
     // the reading has not changed -- or the seam would not terminate -- so an OFFER, the one moment
-    // a new listener certainly exists, makes the next reading news again. ⚔ MUTATION: drop
+    // a new listener certainly exists, makes the next reading news again. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_attention.md#offer-keeps-conditions-said): drop
     // `conditions_said_ = false` from `on(PaneOffered)` and all three checks go red: the pane opens
     // into `ATTENTION (waiting)` and stays there until something about the world changes.
     AttentionRig f;
@@ -451,8 +454,9 @@ TEST_CASE("a pane that arrives after the host has spoken is told again") {
 }
 TEST_CASE("the Attention pane leads with the glance: the loudest condition that is true and how "
           "many more, hidden ones counted") {
-    // ⚔ MUTATION: the glance counting only what is listed -- after the loudest is hidden it names
-    // the quiet one, and the last check goes red.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_attention.md#glance-counts-the-listed): the glance
+    // counting only what is listed -- after the loudest is hidden it names the quiet one, and the
+    // last check goes red.
     AttentionRig f;
     f.open();
     CHECK(f.shown().front() == "nothing needs your attention right now");
@@ -485,8 +489,9 @@ TEST_CASE("the Attention pane leads with the glance: the loudest condition that 
 TEST_CASE("an Attention pane too short to seat a condition between two markers says only how many it leaves out") {
     // THE LIST'S FLOOR OF THREE ROWS: under the glance, two rows cannot hold a condition between
     // the markers its window would need, so the list spends them on the count, and a condition is
-    // never dropped quietly. ⚔ MUTATION: drop the floor, and the window seats the cursor's row with
-    // a count beside it.
+    // never dropped quietly. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_attention.md#list-floor-dropped): drop the floor, and the
+    // window seats the cursor's row with a count beside it.
     AttentionRig f;
     f.open();
     f.unfocus(); // `establish` repaints with a key, which must not be this pane's
@@ -547,9 +552,10 @@ TEST_CASE("a dismissed condition comes back when it materially changes") {
 TEST_CASE("a dismissal does not outlive the condition it was about") {
     // AN ENTRY THAT OUTLIVED ITS SUBJECT IS DROPPED: the dismissal set is the pane's own state and
     // crosses a reload, so a kept entry would be a decision about a fact that no longer exists,
-    // re-applied silently if it returned. ⚔ MUTATION: drop `forget_resolved` and the last check
-    // goes red on its own -- the condition comes back invisible, hidden by a decision about a
-    // moment that is over.
+    // re-applied silently if it returned. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_attention.md#resolved-dismissals-kept): drop `forget_resolved`
+    // and the last check goes red on its own -- the condition comes back invisible, hidden by a
+    // decision about a moment that is over.
     AttentionRig f;
     f.open();
     f.establish(thing("test.wall", "a wall", "why"));
@@ -702,8 +708,8 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
     // A CONDITION'S WORDS ARE ITS OWNER'S, and nothing requires them to be printable ASCII, while
     // the seam refuses a row carrying a byte a canvas cannot draw (`judge_content`) -- so the
     // pane gates its rows at its own door, as `files.cpp` does for typed and pasted text. ⚔
-    // MUTATION: drop `drawable` from `push` and every picture is refused whole, so none of the
-    // words below is shown.
+    // MUTATION (tests/mutants/workshop_panes_attention.md#rows-drawn-as-they-are): drop `drawable`
+    // from `push` and every picture is refused whole, so none of the words below is shown.
     AttentionRig f;
     f.open();
     f.establish(Condition{"test.wall", "a wall",
