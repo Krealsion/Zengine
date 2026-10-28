@@ -285,21 +285,6 @@ Red in `zengine-workshop-panes-tests`:
 
 - a Files menu choice that begins authoring takes the keyboard the menu left behind
 
-## keyboard-ask-not-emitted
-
-Files does not declare `PaneKeyboardRequested` among what it emits.
-
-In `files/files.cpp`:
-
-```diff
--                     ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
-+                     ws::PaneEscapeUnspent, gfx::ClipboardCopy,
-```
-
-Red in `zengine-workshop-panes-tests`:
-
-- a Files menu choice that begins authoring takes the keyboard the menu left behind
-
 ## menu-label-is-the-name
 
 `field_menu_label` answers each field's name, the long ones too.

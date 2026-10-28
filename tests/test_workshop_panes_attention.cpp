@@ -705,11 +705,8 @@ TEST_CASE("the action a condition names arrives as words and not as a name") {
 }
 
 TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
-    // A CONDITION'S WORDS ARE ITS OWNER'S, and nothing requires them to be printable ASCII, while
-    // the seam refuses a row carrying a byte a canvas cannot draw (`judge_content`) -- so the
-    // pane gates its rows at its own door, as `files.cpp` does for typed and pasted text. ⚔
-    // MUTATION (tests/mutants/workshop_panes_attention.md#rows-drawn-as-they-are): drop `drawable`
-    // from `push` and every picture is refused whole, so none of the words below is shown.
+    // A CONDITION'S WORDS ARE ITS OWNER'S, and nothing requires them to be printable ASCII, so the
+    // pane gates its rows at its own door, as `files.cpp` does for typed and pasted text.
     AttentionRig f;
     f.open();
     f.establish(Condition{"test.wall", "a wall",

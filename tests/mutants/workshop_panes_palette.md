@@ -34,8 +34,10 @@ In `workshop/palette/palette.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- the palette lists each layout on the shelf, each open pane's manual while the application shows
-  manuals, and each setup and app the launcher can start
+- WL-DESK-18: a layout chosen in the palette is switched to as a press on its tab, and a pane's
+  manual is asked of the desktop as its ? asks it, each as the hand that chose it
+- WL-DESK-18: a setup or an app chosen in the palette is started as Files starts one: Workshop
+  asked for the hand of its row's key, then the launcher, the palette saying what it answered
 
 ## command-before-the-put-down
 

@@ -37,7 +37,7 @@ In `builder/builder-pane/pane.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- the control that loads what was built names the BUILT recipe, not the choice
+- while an artifact stands built, arming the next build is a different answer and says so
 
 ## load-row-advertises-nothing
 

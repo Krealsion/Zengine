@@ -5963,9 +5963,9 @@ TEST_CASE("a maximal session decodes a line at a time, each line with room for a
 }
 
 TEST_CASE("a version-10 session comes forward whole and is written back in lines") {
-    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#v10-edge-drops-the-room): the v10 edge
-    // leaving out a field -- the room, the choices or the live one -- brings a session forward
-    // short of what its weaver left.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#v10-edge-drops-the-room): the room a
+    // version-10 file keeps left unread on its way to the window file -- the session comes
+    // forward short of what its weaver left.
     MountedHistory history;
     REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
     window_persist::Placement place;
@@ -6978,7 +6978,7 @@ TEST_CASE("a version-8 session converts with every field kept and no choice reme
 }
 
 TEST_CASE("a version-9 session converts with every field kept and no OS window's room") {
-    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#v9-viewport-as-the-room): the conversion
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#v9-viewport-as-the-room): the import
     // taking the viewport as the OS window's room -- a version-9 file a terminal run wrote would
     // shape the OS window to the terminal's room.
     MountedHistory history;
