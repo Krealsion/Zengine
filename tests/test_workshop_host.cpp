@@ -2997,9 +2997,7 @@ TEST_CASE("Escape clears the ordinary selection last, and the inspected subject 
 
 TEST_CASE("every more-specific Escape meaning answers first, and deselection waits") {
     // THE SAME DECLARED PATH (WL-DESK-02), with a mode above the panes, whose Escape comes
-    // first. ⚔ MUTATION (tests/mutants/workshop_host.md#fallthrough-asked-first): asking the final
-    // fallthrough BEFORE the resolved context -- the surface would still be open with the selection
-    // already gone.
+    // first.
     Live t;
     mount_desktop(t);
     t.extent_px(cells_px(132), cells_px(46), 0, 0);

@@ -128,20 +128,13 @@ Red in `zengine-workshop-persistence-tests`:
 
 ## v10-edge-drops-the-room
 
-Version 10's edge leaves out the OS window's room.
+A version-10 session's OS window room is left unread on its way to the window file.
 
-In `workshop/layouts/session_history.hpp`:
+In `workshop/window_persist.hpp`:
 
 ```diff
--    out.window_room = old.window_room;
--    return out;
--}
--
--/// A DESK OF SETUP VERSION 5 IN THE CURRENT SHAPE, by its words, or the session's refusal naming
-+    return out;
-+}
-+
-+/// A DESK OF SETUP VERSION 5 IN THE CURRENT SHAPE, by its words, or the session's refusal naming
+-    if (*version >= kSessionWindowRoomVersion) {
++    if (*version > kSessionWindowRoomVersion) {
 ```
 
 Red in `zengine-workshop-persistence-tests`:
@@ -237,22 +230,15 @@ Red in `zengine-workshop-persistence-tests`:
 
 ## v9-viewport-as-the-room
 
-A version-9 session converts taking its viewport as the OS window's room.
+A session older than version 10 has its viewport taken as the OS window's room.
 
-In `workshop/layouts/session_history.hpp`:
+In `workshop/window_persist.hpp`:
 
 ```diff
--    out.choices = old.choices;
--    return out;
--}
--
--/// A SESSION OF VERSION 10 AS ONE OF VERSION 11: every field as it was; only its file's form
-+    out.choices = old.choices;
-+    out.window_room = old.viewport;
-+    return out;
-+}
-+
-+/// A SESSION OF VERSION 10 AS ONE OF VERSION 11: every field as it was; only its file's form
+-    if (*version >= kSessionWindowRoomVersion) {
+-        const std::optional<std::string_view> room = persist::json::member(*fields, "window_room");
++    if (true) {
++        const std::optional<std::string_view> room = *version >= kSessionWindowRoomVersion ? persist::json::member(*fields, "window_room") : viewport;
 ```
 
 Red in `zengine-workshop-persistence-tests`:

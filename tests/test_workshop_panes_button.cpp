@@ -1362,10 +1362,10 @@ TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- 
     // a row that opens a line, chosen by a right press into an UNFOCUSED pane, needs the keys:
     // `take_keyboard` asks, judged as a manage request is.
 
-    // ⚔ MUTATIONS (tests/mutants/workshop_panes_button.md#keyboard-grab-spent-twice,
-    // #keyboard-grab-any-number): the guard's `choice_answered_.spent` check removed takes the keys
-    // back on the second continuation below; its `correlation` check removed grants keys on a stale
-    // number the weaver never asked for.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_button.md#keyboard-grab-any-number): the guard's
+    // `correlation` check removed grants keys on a number no choice answered while the choice is
+    // still the weaver's latest act (the second rig below). A spent choice's number comes back
+    // only after another act, which the latest-act check refuses first.
     Rigged t;
     t.guard->menu_on_press = true;
     t.guard->keys_on_choice = true;
@@ -1408,6 +1408,31 @@ TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- 
     CHECK(t.r.session().panes.keyboard == t.hello_kind);
     drive_seat(t.r, t.guard_id, t.guard, [](ButtonSeat& s, loom::Mail& m) { s.ask_keys(m, 0); });
     CHECK(t.r.session().panes.keyboard == t.hello_kind);
+
+    // ...AND WHILE THE CHOICE IS STILL THE LATEST ACT: a pane that asks after its choice, under
+    // a number no choice answered, is given nothing, and under the choice's own is given them.
+    Rigged u;
+    u.guard->menu_on_press = true;
+    const CellRect there = u.hello_body();
+    button_cell(u.r, 1, true, there.x + 1, there.y + 1);
+    button_cell(u.r, 1, false, there.x + 1, there.y + 1);
+    REQUIRE(u.r.session().panes.keyboard == u.hello_kind);
+    u.right_in_guard();
+    u.right_in_guard(false);
+    REQUIRE(u.foreign_open());
+    u.r.key(input::scan::kReturn);
+    REQUIRE(u.guard->answers.size() == 1);
+    REQUIRE(u.r.session().panes.keyboard == u.hello_kind);
+    const std::uint64_t chosen = u.guard->answer_correlations[0];
+    REQUIRE(chosen != 0);
+    drive_seat(u.r, u.guard_id, u.guard, [chosen](ButtonSeat& s, loom::Mail& m) {
+        s.ask_keys(m, chosen + 7);
+    });
+    CHECK(u.r.session().panes.keyboard == u.hello_kind);
+    drive_seat(u.r, u.guard_id, u.guard, [chosen](ButtonSeat& s, loom::Mail& m) {
+        s.ask_keys(m, chosen);
+    });
+    CHECK(u.r.session().panes.keyboard == u.guard_kind);
 }
 
 TEST_CASE("WL-CTX-09: a menu with more rows than the room is windowed by the presenter, and every row is still reachable") {

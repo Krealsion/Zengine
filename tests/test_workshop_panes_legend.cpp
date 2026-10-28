@@ -366,9 +366,6 @@ TEST_CASE("after a restart the Terminal's first picture keeps its layout's legen
 
     // A RELOAD OF THE SAME IMAGE HOLDS NOTHING IT WAS HANDED: IT ASKS, AND HOLDS ITS ROW BEFORE
     // ITS FIRST PICTURE.
-    // ⚔ MUTATION (tests/mutants/workshop_panes_legend.md#terminal-draws-before-its-row): a pane
-    // that draws its room before it holds a row -- the reloaded image's first picture shows the
-    // legend its layout hides.
     const std::size_t mark = tap.heard.size();
     const std::string image =
         dir.file(("terminal-again" +

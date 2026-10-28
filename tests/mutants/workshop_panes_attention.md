@@ -98,18 +98,3 @@ In `attention/pane.cpp`:
 Red in `zengine-workshop-panes-tests`:
 
 - a dismissal does not outlive the condition it was about
-
-## rows-drawn-as-they-are
-
-The pane draws each row's words as their bytes are.
-
-In `attention/pane.cpp`:
-
-```diff
--            f.text(path, 0, row * height, drawable(fit(text, columns)), gfx::by_role(role));
-+            f.text(path, 0, row * height, fit(text, columns), gfx::by_role(role));
-```
-
-Red in `zengine-workshop-panes-tests`:
-
-- a condition carrying a byte a canvas cannot draw is still shown

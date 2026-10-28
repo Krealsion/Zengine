@@ -1566,8 +1566,6 @@ TEST_CASE("an application row is joined, is requested above the modes, and reach
           "the resolved id") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#above-modes-arm-deleted): deleting the
     // above-modes arm in `on(KeyPressed)` -- `asked()` stays empty.
-    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#authored-not-applied): joining app rows
-    // without applying `authored` -- the moved-key half fails.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
     DesktopSeat* desk = mount_desktop(t);
@@ -2745,6 +2743,9 @@ TEST_CASE("WL-KEY-08: shown in a POSIX terminal's terminal window, a row's POSIX
 
 TEST_CASE("the band and the Hotkeys pane teach the application's keys as they are in force: a "
           "moved row where it moved, a disabled one as having no key") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#authored-not-applied): joining the
+    // application's rows without applying the weaver's file -- the band says `^t` for a row the
+    // weaver moved to `ctrl+g`.
     TempDir dir("desktop-effective-keys");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+g"},
@@ -2825,9 +2826,6 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
 
 TEST_CASE("the Hotkeys pane names a keymap file whose path a canvas cannot draw with the path made "
           "drawable, in a picture Workshop admits") {
-    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#file-row-bytes-as-they-are): the file row
-    // carrying the path's bytes as they are -- the whole picture is refused for one of them, and
-    // the pane shows only Workshop's refusal.
     // A PATH NO FILE IS AT, holding a character a profile directory may hold: the host reads
     // nothing there, and no key is edited here, so nothing is written there either.
     const std::string path = "caf\xC3\xA9/keymap.json";

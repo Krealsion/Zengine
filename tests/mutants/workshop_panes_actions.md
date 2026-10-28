@@ -32,7 +32,7 @@ Joining the application's rows keeps each row's declared key, whatever the weave
 In `workshop/keymap_join.hpp`:
 
 ```diff
-             const AuthoredGestures set = authored_gestures_for(k.authored, row.id, false);
+             const AuthoredGestures set = authored_gestures_for(k.authored, row.id, true);
              if (!set.outcome.accepted) {
                  return set.outcome;
              }
@@ -44,8 +44,8 @@ In `workshop/keymap_join.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- an application row is joined, is requested above the modes, and reaches its declarer as the
-  resolved id
+- the band and the Hotkeys pane teach the application's keys as they are in force: a moved row
+  where it moved, a disabled one as having no key
 
 ## none-arm-dropped
 
@@ -378,22 +378,6 @@ Red in `zengine-workshop-panes-tests`:
 
 - WL-MAKER-11: the shipped Pane Manager's `n` shows the View Builder through the host's launch door,
   and a Workshop without one says so in the door's words
-
-## file-row-bytes-as-they-are
-
-The Hotkeys pane's file row carries the keymap file's path as its bytes are.
-
-In `workshop/desktop-pane/hotkeys_view.hpp`:
-
-```diff
--                                                                     : drawable(keymap_.file)));
-+                                                                     : keymap_.file));
-```
-
-Red in `zengine-workshop-panes-tests`:
-
-- the Hotkeys pane names a keymap file whose path a canvas cannot draw with the path made drawable,
-  in a picture Workshop admits
 
 ## help-lines-kept
 
