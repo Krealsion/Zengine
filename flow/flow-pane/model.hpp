@@ -4,6 +4,7 @@
 #define ZENGINE_FLOW_PANE_MODEL_HPP
 #include "flow/workspace.hpp"
 #include "flow/author.hpp"
+#include "flow/flow-pane/observed.hpp"
 #include "flow/generate.hpp"
 #include "flow/graph.hpp"
 #include "operator/reference.hpp"
@@ -32,15 +33,15 @@ struct SlotReference { std::int64_t slot = 0; zengine::op::OperatorRef ref; };
 /// One end of a wire a hand holds: an output -- a node's answer or a field in scope -- or an input
 /// port, by its node's stable place.
 struct WireEnd { std::optional<zengine::op::Binding> source; std::optional<PortChoice> port; };
-/// A wire dragged from where it was pressed to the hand, in the picture's grid units, and the
-/// port it would bind to there, lit.
+/// A wire dragged from where it was pressed to the hand, in the area's pixels, and the port it
+/// would bind to there, lit.
 struct WireDrawn {
     std::int64_t from_x = 0, from_y = 0, to_x = 0, to_y = 0;
     std::optional<PortChoice> lit;
 };
 /// THE SEARCH A WIRE LET GO ON EMPTY GRAPH ROOM OPENED: the end it wires, where the list stands in
-/// the picture's grid, where a node made from it is placed in the graph, the draft's revision it
-/// was opened against, the row the keys are on, and whether the door has answered its question.
+/// the area's pixels, where a node made from it is placed in the graph, the draft's revision it was
+/// opened against, the row the keys are on, and whether the door has answered its question.
 struct WireSearch {
     WireEnd from;
     std::int64_t x = 0, y = 0, place_x = 0, place_y = 0, revision = 0;
@@ -79,7 +80,27 @@ public:
     zengine::workshop::PowersFound discovered;
     bool discovered_read = false;
     std::string preview, preview_kind;
+    /// Run was refused: the Next line says what it needs first, until an edit is taken.
+    bool nudge = false;
+    /// The rule ran and has been stopped since: the Next line says it is put away.
+    bool ran = false;
+    /// The definition the Flow host runs, as its last answer said; none while nothing runs.
+    std::optional<zengine::maker::Definition> running_definition;
+    /// The state the running rule was run with, and what its journal says it did since.
+    std::optional<loom::Value> started;
+    Observed observed;
+    /// What reached the rule in the runs before this one, oldest first: a restart starts a journal
+    /// afresh, and the Events go on from these.
+    std::vector<Arrival> earlier;
     std::size_t trigger() const { return static_cast<std::size_t>(workspace.active_trigger); }
+    /// Another rule in the draft's place: what the rule before it did is not this one's to show.
+    void forget_runs() {
+        ran = false;
+        started.reset();
+        observed = {};
+        earlier.clear();
+        events.clear();
+    }
     void touched() { dirty = true; }
     void edited_state() {
         if (state_epoch == std::numeric_limits<std::uint64_t>::max()) throw std::invalid_argument("state edit epoch exhausted");
@@ -165,6 +186,8 @@ public:
         auto result = candidate.perform(action, args);
         // Every committed authoring state must fit the same envelope used by reload.
         (void)flow::workspace_bytes(candidate.workspace);
+        // An edit taken answers the refused Run: the Next line reads the draft afresh.
+        candidate.nudge = false;
         *this = std::move(candidate);
         return result;
     }
@@ -211,6 +234,17 @@ public:
         throw std::invalid_argument("a wire's source is $field or %node");
     }
 private:
+    /// A port's binding as `bind` spells one: `$field`, `%node`, or a constant of the port's kind.
+    zengine::op::Binding binding_of(std::size_t n, std::size_t port, const std::string& text) const {
+        if (!text.empty() && text[0] == '$') return zengine::op::Binding::input(text.substr(1));
+        if (!text.empty() && text[0] == '%') return zengine::op::Binding::node(flow::index_of(text.substr(1)));
+        const auto& on = workspace.graph.project.definition.on.at(trigger());
+        (void)on.body.nodes.at(n);
+        const auto ports = workspace.graph.node_ports(trigger(), n, palette);
+        const auto kind = ports.inputs->fields().at(port).type.kind;
+        if (kind != loom::Kind::Int && kind != loom::Kind::Bool) throw std::invalid_argument("operator constants currently support Int and Bool; wire another kind from a field");
+        return zengine::op::Binding::constant(flow::scalar(kind, text));
+    }
     /// Set node `n`'s place in the graph, within the workspace's bounds.
     void place_at(std::size_t n, const std::string& xs, const std::string& ys) {
         auto& p = workspace.graph.place(trigger(), n);
@@ -223,15 +257,51 @@ private:
         const auto previous_notice = notice;
         auto need = [&](std::size_t size) { if (args.size() != size) throw std::invalid_argument(action + " expects " + std::to_string(size) + " arguments"); };
         if (action == "describe") {
-            notice = "new(name,discard), state-field(name,type,required), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity,authored_in,authored_out[,before]), add-node-into(identity,authored_in,authored_out,node,port[,x,y]), add-node-from(identity,authored_in,authored_out,$field|%node,port[,x,y]), add-fold([before]), add-fold-from($field|%node,port[,x,y]), fold-body(node,identity,authored_in,authored_out,count,accumulator), emitted-message(name), emitted-field(index,name,type,required), emit(index,field=$state|field=constant...), emit-remove(index), generate(directory), bind(node,port,$field|%node|constant), result(node), move(node,x,y), remove(node), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
+            notice = "new(name,discard), state-field(name,type,required), keep(name,type), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity,authored_in,authored_out[,before]), add-node-into(identity,authored_in,authored_out,node,port[,x,y]), add-node-from(identity,authored_in,authored_out,$field|%node,port[,x,y]), add-fold([before]), add-fold-from($field|%node,port[,x,y]), fold-body(node,identity,authored_in,authored_out,count,accumulator), emitted-message(name), emitted-field(index,name,type,required), emit(index,field=$state|field=constant...), emit-remove(index), generate(directory), bind(node,port,$field|%node|constant), bind-all(node,binding...), say(name,fields), result(node), move(node,x,y), remove(node), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
         } else if (action == "new") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before creating another");
-            workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(args[0]);
+            workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(args[0]); forget_runs();
             node.reset(); form.reset(); form_key.clear(); form_title.clear(); form_state = false; state_edited = false; connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); dropped.reset(); page = Page::Graph; path.clear(); touched();
         } else if (action == "state-field") {
             need(3); if (args[2] != "required" && args[2] != "optional") throw std::invalid_argument("presence must be required or optional");
             workspace.graph.state_field(args[0], type(args[1]), args[2] == "required"); edited_state(); state_form();
+        } else if (action == "keep") {
+            // A FIELD THE RULE KEEPS BETWEEN MESSAGES, and, where a message is declared and no
+            // trigger yet reacts to one, the trigger that message wakes, writing this field.
+            need(2);
+            workspace.graph.state_field(args[0], type(args[1]), true);
+            auto& def = workspace.graph.project.definition;
+            if (def.on.empty() && !def.accepts.empty())
+                workspace.active_trigger = static_cast<std::int64_t>(workspace.graph.trigger(0, args[0]));
+            edited_state(); page = Page::Graph;
+        } else if (action == "bind-all") {
+            // A STEP'S PORTS WIRED AT ONE PRESS: the node, then a binding a port, an empty one leaving
+            // that port as it is; one edit, refused whole.
+            if (args.empty()) throw std::invalid_argument("bind-all expects a node, then a binding a port");
+            const auto n = flow::index_of(args[0]);
+            for (std::size_t p = 1; p < args.size(); ++p)
+                if (!args[p].empty()) workspace.graph.bind(trigger(), n, p - 1, binding_of(n, p - 1, args[p]), palette);
+            touched();
+        } else if (action == "say") {
+            // A MESSAGE THE ACTIVE TRIGGER SAYS AFTER ITS WRITE: declared inside the definition's
+            // name with the kept fields it carries, unless declared already, then said -- one edit.
+            need(2);
+            auto& def = workspace.graph.project.definition;
+            if (def.on.empty()) throw std::invalid_argument("a rule says a message after its change: give it a message and what it keeps first");
+            const auto name = flow::shape::qualified(def.name, args[0]);
+            std::optional<std::size_t> index;
+            for (std::size_t i = 0; i < def.emits.size(); ++i)
+                if (def.emits[i]->name() == name) index = i;
+            if (!index) {
+                index = workspace.graph.message(args[0], {}, true);
+                for (const auto& word : flow::words(args[1])) {
+                    const auto* kept = workspace.graph.project.definition.state->find(word);
+                    if (!kept) throw std::invalid_argument("the rule keeps no `" + word + "` to say");
+                    workspace.graph.emitted_field(*index, word, kept->type, true);
+                }
+            }
+            workspace.graph.emit(trigger(), *index, {}); page = Page::Graph; touched();
         } else if (action == "message") {
             need(1); message = workspace.graph.message(args[0], {}); touched(); message_form(message);
         } else if (action == "message-field") {
@@ -332,18 +402,7 @@ private:
             node = n; body_slot.reset(); slot_reference.reset(); touched();
         } else if (action == "bind") {
             need(3); const auto n = flow::index_of(args[0]), port = flow::index_of(args[1]);
-            zengine::op::Binding binding = zengine::op::Binding::input("");
-            if (!args[2].empty() && args[2][0] == '$') binding = zengine::op::Binding::input(args[2].substr(1));
-            else if (!args[2].empty() && args[2][0] == '%') binding = zengine::op::Binding::node(flow::index_of(args[2].substr(1)));
-            else {
-                const auto& on = workspace.graph.project.definition.on.at(trigger());
-                (void)on.body.nodes.at(n);
-                const auto ports = workspace.graph.node_ports(trigger(), n, palette);
-                const auto kind = ports.inputs->fields().at(port).type.kind;
-                if (kind != loom::Kind::Int && kind != loom::Kind::Bool) throw std::invalid_argument("operator constants currently support Int and Bool; wire another kind from a field");
-                binding = zengine::op::Binding::constant(flow::scalar(kind, args[2]));
-            }
-            workspace.graph.bind(trigger(), n, port, std::move(binding), palette); touched();
+            workspace.graph.bind(trigger(), n, port, binding_of(n, port, args[2]), palette); touched();
         } else if (action == "result") {
             need(1); workspace.graph.result(trigger(), flow::index_of(args[0]), palette); touched();
         } else if (action == "remove") {
@@ -358,7 +417,7 @@ private:
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop the session before importing another project");
             auto project = flow::open_project(args[0]);
-            workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(std::move(project));
+            workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(std::move(project)); forget_runs();
             form.reset(); form_key.clear(); form_title.clear(); form_state = false;
             node.reset(); connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); dropped.reset(); path.clear(); page = Page::Graph; state_edited = false; touched();
         } else if (action == "save") {
@@ -366,7 +425,7 @@ private:
         } else if (action == "open") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before opening another");
-            auto opened = flow::open_workspace(args[0]); workspace = std::move(opened); path = args[0]; dirty = false;
+            auto opened = flow::open_workspace(args[0]); workspace = std::move(opened); path = args[0]; dirty = false; forget_runs();
             state_edited = false; node.reset(); restore_form(); connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); dropped.reset(); page = Page::Graph;
         } else if (action == "message-open") { need(1); message_form(flow::index_of(args[0]));
         } else if (action == "state-open") { need(0); state_form();

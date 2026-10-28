@@ -300,6 +300,17 @@ struct Rig {
         as_said(m, [&](const auto& said) { shown->post(kFlowArea, said, corr != 0 ? corr : m.gesture); });
     }
     void click(const std::string& text, bool prefix = false) { click(press_for(text, prefix)); }
+    /// A ROW OF ONE OF FLOW'S MENUS, chosen as a weaver chooses one: the control that opens it
+    /// pressed, and the presenter's answer to the menu Flow asked for under that press.
+    void choose(const std::string& which, const std::string& id) {
+        const std::string opener = which == "file" ? "[File v]" : which == "view" ? "[View v]" : "[More]";
+        const Moment at = press_for(opener);
+        click(at);
+        REQUIRE(bus.office_send_to_role_as(menus, ws::kPresenterRole, fp::kRole,
+            loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, which, true, id, ""}), menus, {},
+                          at.gesture)).valid());
+        pump();
+    }
     /// A press and its release, as the window landed them.
     void click(Moment m) {
         host(m);
@@ -410,7 +421,7 @@ std::size_t escapes_unspent(const Presenter& presenter) {
 TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project with reusable examples") {
     TempFiles files;
     Rig rig;
-    rig.click("[New]");
+    rig.choose("file", "ask-new");
     rig.replace_text("meter");
     rig.key(in::scan::kReturn);
     rig.click("[State]");
@@ -422,17 +433,17 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
     rig.click("[Add field]");
     rig.key(in::scan::kReturn);
     rig.click("[Graph]");
-    rig.click("[Add trigger]");
+    rig.choose("more", "ask-trigger");
     rig.key(in::scan::kReturn);
     rig.click("  math.max");
-    rig.click("[Add]");
+    rig.click("[Add to the rule]");
     rig.click("input.input : Int");
     rig.click("o lhs = ", true);
     rig.click("o rhs = ", true);
     rig.click("[Int constant]");
     (void)rig.label("> Value: 0", true);
     rig.key(in::scan::kReturn);
-    rig.click("[Use as result]");
+    CHECK_FALSE(rig.shows("[Use as result]")); // the one step is the result already
     const auto graph = rig.workspace();
     REQUIRE(graph.graph.project.definition.on.size() == 1);
     REQUIRE(graph.graph.project.definition.on.front().body.nodes.size() == 1);
@@ -493,10 +504,10 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
     const auto named = [&](const std::string& name) {
         return std::any_of(said.parts.begin(), said.parts.end(), [&](const auto& p) { return p.name == name; });
     };
-    CHECK(named("control:ask-save"));
+    CHECK(named("menu:file"));
     CHECK(named("control:page-graph"));
     // A GRAPH WITH A NODE: the node and its arguments named by its place, whatever index it has.
-    rig.click("[New]");
+    rig.choose("file", "ask-new");
     rig.replace_text("meter");
     rig.key(in::scan::kReturn);
     rig.click("[State]");
@@ -508,10 +519,10 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
     rig.click("[Add field]");
     rig.key(in::scan::kReturn);
     rig.click("[Graph]");
-    rig.click("[Add trigger]");
+    rig.choose("more", "ask-trigger");
     rig.key(in::scan::kReturn);
     rig.click("  math.max");
-    rig.click("[Add]");
+    rig.click("[Add to the rule]");
     said = rig.picture();
     std::size_t nodes = 0, ports = 0;
     for (const auto& p : said.parts) {
@@ -656,8 +667,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK(seen.heard.size() == heard);
         CHECK(other.weave().heard.empty());
         // ...A CONFIRMED WRITE asked from the window waits, since no Workshop gesture made the press.
-        REQUIRE(window.press(kFlowArea, "control:ask-save"));
-        rig.pump();
+        rig.choose("file", "ask-save");
         REQUIRE(window.press(kFlowArea, "control:dialog-confirm"));
         rig.pump();
         CHECK(rig.shows_part("came under no gesture Workshop numbered, as a raw key or a press"));
@@ -749,7 +759,7 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
     const auto impostor = rig.bus.register_weave(std::move(foreign), std::move(authority));
     rig.click("  math.max");
     const auto before = rig.state().workspace;
-    const auto add = rig.press_for("[Add]");
+    const auto add = rig.press_for("[Add to the rule]");
     rig.bus.send_as_to_role(impostor, fp::kRole,
         loom::Message(loom::to_value(gfx::AreaButtonChanged{kFlowArea, 1, true, add.x, add.y, 0}), impostor, {},
                       add.gesture));
@@ -777,7 +787,7 @@ TEST_CASE("loaded Flow pane hands a right press back to Workshop under the press
     Rig rig;
     const auto before = rig.state();
     const auto pictures = rig.drawings();
-    auto press = rig.press_for("[New]"); // a control a primary press would act on
+    auto press = rig.press_for("[State]"); // a control a primary press would act on
     press.button = 3;
     rig.host(press, 77);
     std::vector<loom::Message> passed;
@@ -981,7 +991,7 @@ TEST_CASE("a press the window landed on Flow takes where the same part is drawn 
     const auto first = body();
     // A DEFINITION EDITED draws [Add] again where it stood: the press takes, and adds the node.
     rig.click("  math.max");
-    const auto across_edit = rig.landed("[Add]");
+    const auto across_edit = rig.landed("[Add to the rule]");
     REQUIRE(across_edit.part.rfind("add-found:", 0) == 0);
     rig.edit_ok("bind", {"0", "1", "4"});
     REQUIRE(rig.part_at(across_edit.x, across_edit.y) == across_edit.part);
@@ -989,14 +999,14 @@ TEST_CASE("a press the window landed on Flow takes where the same part is drawn 
     CHECK_MESSAGE(body() == first + 1, rig.workspace().graph.project.definition.name);
     // A ROOM GIVEN AFRESH draws it there again too.
     rig.click("  math.max");
-    const auto across_room = rig.landed("[Add]");
+    const auto across_room = rig.landed("[Add to the rule]");
     ++rig.grant;
     rig.room();
     REQUIRE(rig.part_at(across_room.x, across_room.y) == across_room.part);
     rig.click(across_room);
     CHECK(body() == first + 2);
     // A DIALOG TYPED IN draws its Cancel again in its place: the press takes, and puts it down.
-    rig.click("[Save*]");
+    rig.choose("file", "ask-save");
     const auto cancel = rig.landed("[Cancel]");
     rig.replace_text("elsewhere.flow-workspace");
     REQUIRE_FALSE(rig.state().dialog_entries.empty());
@@ -1004,11 +1014,11 @@ TEST_CASE("a press the window landed on Flow takes where the same part is drawn 
     CHECK(rig.state().dialog_entries.empty());
     // ANOTHER DIALOG'S CONFIRM IN ITS PLACE, under the same name: Save's Confirm, pressed once
     // Export asks, is another element. Refused in words; Export's dialog stays, unconfirmed.
-    rig.click("[Save*]");
+    rig.choose("file", "ask-save");
     const auto save_confirm = rig.landed("[Confirm]");
     REQUIRE(save_confirm.part == "control:dialog-confirm");
     rig.click("[Cancel]");
-    rig.click("[Export]");
+    rig.choose("file", "ask-export");
     REQUIRE(rig.part_at(save_confirm.x, save_confirm.y) == save_confirm.part);
     const auto asked = rig.state();
     REQUIRE_FALSE(asked.dialog_entries.empty());
@@ -1018,10 +1028,10 @@ TEST_CASE("a press the window landed on Flow takes where the same part is drawn 
     CHECK(rig.state().workspace == asked.workspace);
     // ...AND THE OLD CONFIRM BEFORE NEW, where New's second field now stands, confirms nothing.
     rig.click("[Cancel]");
-    rig.click("[Save*]");
+    rig.choose("file", "ask-save");
     const auto old_confirm = rig.landed("[Confirm]");
     rig.click("[Cancel]");
-    rig.click("[New]");
+    rig.choose("file", "ask-new");
     rig.click(old_confirm);
     CHECK(rig.workspace().graph.project.definition.name == "meter");
 }
@@ -1171,7 +1181,7 @@ TEST_CASE("loaded Flow pane keeps an unfinished dialog bound to its original for
     rig.click("[State]");
     (void)rig.label("Edit input");
     (void)rig.label("> Value: 99", true);
-    rig.click("[Save*]");
+    rig.choose("file", "ask-save");
     (void)rig.label("Edit input");
     (void)rig.label("> Value: 99", true);
     const auto retarget = rig.edit("state-open");
@@ -1208,8 +1218,8 @@ TEST_CASE("a query typed to the search line's end is drawn whole in a window, it
     rig.pump();
     rig.shown = &native;
     rig.text("abcdefghijklmno"); // the field's fifteen columns, the caret after them
-    const ws::CanvasText line = rig.label("find: abcdefghijklmno"); // exactly: not cut
-    CHECK(line.caret_col == 21);
+    const ws::CanvasText line = rig.label("abcdefghijklmno"); // exactly: not cut
+    CHECK(line.caret_col == 15);
 }
 
 TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan save and reload") {
@@ -1224,7 +1234,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     rig.edit_ok("save", {files.file()});
     REQUIRE_FALSE(rig.state().dirty);
     const auto start = rig.workspace().graph.places.front();
-    auto drag = rig.press_for("%0 math.max", true);
+    auto drag = rig.press_for("math.max");
     rig.host(drag);
     auto motion = drag;
     motion.phase = ws::canvas_pointer::kMove;
@@ -1236,7 +1246,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     auto release = motion; release.phase = ws::canvas_pointer::kRelease;
     rig.host(release);
 
-    auto pan = rig.press_for("%0 math.max", true);
+    auto pan = rig.press_for("math.max");
     pan.button = 2;
     rig.host(pan);
     motion = pan; motion.phase = ws::canvas_pointer::kMove;
@@ -1261,9 +1271,10 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     motion.x += 36;
     rig.host(motion);
     CHECK(rig.state().workspace == saved);
-    rig.click("o rhs = 0", true);
-    rig.click("[Int constant]");
-    (void)rig.label("> Value: 0", true);
+    rig.click("rhs");
+    rig.click("Int constant");
+    REQUIRE(rig.state().dialog_entries.size() == 3);
+    CHECK(rig.state().dialog_entries.at(2).text == "0");
     rig.replace_text("12");
     rig.key(in::scan::kReturn);
     CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.front()
@@ -1297,13 +1308,14 @@ TEST_CASE("Flow finds what to compose through the discovery door, by what a powe
 
     // THE PREVIEW is the row expanded, in its contributor's words, and reading it runs nothing.
     rig.click("  math.max");
-    (void)rig.label("math.max -- operator, native, from flowtest.basic");
+    (void)rig.label("math.max");
+    CHECK(rig.shows("operator, native, from flowtest.basic"));
     (void)rig.label("(lhs: Int, rhs: Int) -> result: Int");
     (void)rig.label("the larger of two integers");
     CHECK(op::invocations() == spent);
 
     // ADD IS TODAY'S add-node, and the node it adds is the one selected.
-    rig.click("[Add]");
+    rig.click("[Add to the rule]");
     const auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 2);
     CHECK(nodes.back().identity == "math.max");
@@ -1342,8 +1354,8 @@ TEST_CASE("a selected port lists what could fill it: in scope, a typed constant,
     const std::vector<std::int64_t> order{
         rig.label("In scope").y, rig.label("  state.value").y, rig.label("  input.input").y,
         rig.label("  %0 math.max").y, rig.label("Constant").y, rig.label("[Int constant]").y,
-        rig.label("Sources").y, rig.label("  flowtest.answer").y, rig.label("Operators").y,
-        rig.label("  math.max").y};
+        rig.label("Operators").y, rig.label("SOURCES").y, rig.label("  flowtest.answer").y,
+        rig.label("MATH").y, rig.label("  math.max").y};
     CHECK(std::is_sorted(order.begin(), order.end()));
     CHECK(std::adjacent_find(order.begin(), order.end()) == order.end());
     // ...and nothing that yields another type.
@@ -1359,10 +1371,11 @@ TEST_CASE("a selected port lists what could fill it: in scope, a typed constant,
 
     // A FOUND SOURCE THE GRAPH'S PORTS DID NOT YET DESCRIBE is read from the host, then added.
     rig.click("  flowtest.answer");
-    (void)rig.label("flowtest.answer -- source, native, from flowtest.sources");
+    (void)rig.label("flowtest.answer");
+    CHECK(rig.shows("source, native, from flowtest.sources"));
     (void)rig.label("forty-two, whenever it is asked");
     const auto before = op::invocations();
-    rig.click("[Add]");
+    rig.click("[Add to the rule]");
     const auto grown = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(grown.nodes.size() == 3);
     CHECK(grown.nodes.back().identity == "flowtest.answer");
@@ -1460,10 +1473,11 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
 
     // FOUND BY WHAT IT IS FOR, a form ahead of the operators, and placed with its step at 1.
     rig.text("count");
-    (void)rig.label("Forms");
+    (void)rig.label("FORMS");
     rig.click("  fold");
-    (void)rig.label("fold -- a form the evaluator spends");
-    rig.click("[Add]");
+    (void)rig.label("fold");
+    CHECK(rig.shows("a form the evaluator spends"));
+    rig.click("[Add to the rule]");
     (void)rig.label("%0 fold");
     (void)rig.label("o step = 1");
 
@@ -1511,7 +1525,7 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     rig.click("[Events]");
     (void)rig.label("state.total = 45");
     CHECK(rig.shows_part("tally.Total"));
-    (void)rig.label("  total = 45");
+    CHECK(rig.shows_part("said tally.Total 45"));
 
     // GENERATION REFUSES A FOLD in words, and writes nothing.
     const auto out = std::filesystem::temp_directory_path() / "zengine-flow-pane-fold-generated";
@@ -1525,13 +1539,59 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     CHECK_FALSE(std::filesystem::exists(out));
 }
 
+TEST_CASE("Restart stops the running rule and runs the draft: a message it now says, what it kept "
+          "carried on, and the Events of the run before kept") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("message", {"tally.panel.Count"});
+    rig.edit_ok("message-field", {"0", "amount", "Int", "required"});
+    rig.edit_ok("keep", {"total", "Int"});
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    rig.edit_ok("bind-all", {"0", "$amount", "$total"});
+    rig.edit_ok("run");
+    const auto total = [&rig]() {
+        const auto subject = rig.bus.role_holder("tally");
+        REQUIRE(subject.valid());
+        return rig.bus.weave(subject)->snapshot().get("total")->as_int();
+    };
+    rig.edit_ok("message-open", {"0"});
+    rig.edit_ok("value", {"0", "3"});
+    rig.edit_ok("send");
+    REQUIRE(total() == 3);
+
+    // A MESSAGE THE RULE NOW SAYS is no change Apply can take: the bar offers Restart in its place.
+    rig.edit_ok("say", {"Total", "total"});
+    CHECK(rig.shows("[Restart]"));
+    CHECK_FALSE(rig.shows("[Apply]"));
+    rig.click("[Restart]");
+    CHECK(total() == 3);
+    CHECK(rig.shows_part("tally - running r"));
+    CHECK(rig.shows("[Apply]"));
+
+    // THE RESTARTED RULE SAYS IT; the arrival before the restart stays in the Events.
+    rig.edit_ok("message-open", {"0"});
+    rig.edit_ok("value", {"0", "3"});
+    rig.edit_ok("send");
+    CHECK(total() == 6);
+    rig.click("[Events]");
+    CHECK(rig.shows_part("tally.panel.Count  amount 3  ->  total 3 -> 6  ->  said tally.Total 6"));
+    CHECK(rig.shows_part("tally.panel.Count  amount 3  ->  total 0 -> 3"));
+
+    // NOTHING RUNNING, NOTHING TO RESTART: refused in words.
+    rig.edit_ok("stop");
+    rig.click("[Graph]");
+    rig.choose("more", "restart");
+    CHECK(rig.shows("Nothing runs to restart; press Run"));
+    CHECK_FALSE(rig.bus.role_holder("tally").valid());
+}
+
 TEST_CASE("a dropped operator reference becomes a node: where it was released, into the port it "
           "lands on, or as the body the fold's slot then offers; a stale one is refused") {
     Rig rig;
     rig.graph_semantically();
     // WHERE IT WAS RELEASED: a step at the end, its box placed at the drop.
-    const auto& graph = rig.label("[Reset view]");
-    rig.drop(rig.reference("math.max"), graph.x - 40 * unit, graph.y - 12 * unit);
+    const auto graph = rig.label("DO");
+    rig.drop(rig.reference("math.max"), graph.x + 20 * unit, graph.y + 20 * unit);
     auto body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 2);
     CHECK(body.nodes.at(1).identity == "math.max");
@@ -1545,7 +1605,7 @@ TEST_CASE("a dropped operator reference becomes a node: where it was released, i
     CHECK(body.nodes.at(1).arguments.at(1).node_index() == 0);
 
     // STALE: its ports changed since it was found, so it is refused and nothing is added.
-    rig.drop(op::encode_reference({"math.max", 1, 2}), graph.x - 40 * unit, graph.y - 12 * unit);
+    rig.drop(op::encode_reference({"math.max", 1, 2}), graph.x + 20 * unit, graph.y + 20 * unit);
     CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.size() == 3);
     (void)rig.label("'math.max' is not the operator this reference was found at: its ports "
                     "changed since; find it again");
@@ -1607,27 +1667,40 @@ TEST_CASE("a form and an operator that share a name are two rows: each previews 
     const auto both = std::count_if(listed.begin(), listed.end(),
                                     [](const auto& t) { return t.text == "  fold"; });
     REQUIRE(both == 2);
-    // The form's row, under Forms, previews and adds the form.
-    rig.click("  fold");
-    (void)rig.label("fold -- a form the evaluator spends");
-    rig.click("[Add]");
+    // The form's row, under FORMS, previews and adds the form.
+    const auto press_row = [&](bool form) {
+        const auto forms = rig.label("FORMS");
+        const auto texts = rig.picture().texts;
+        const ws::CanvasText* row = nullptr;
+        for (const auto& t : texts)
+            if (t.text == "  fold" && (t.y > forms.y) == form) row = &t;
+        REQUIRE(row != nullptr);
+        Moment at;
+        at.gesture = ++rig.gesture;
+        at.x = row->x + 4; at.y = row->y + 4;
+        rig.click(at);
+    };
+    press_row(true);
+    (void)rig.label("fold");
+    CHECK(rig.shows("a form the evaluator spends"));
+    rig.click("[Add to the rule]");
     auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 2);
     CHECK(nodes.back().fold.has_value());
-    // The operator's row, under Operators, previews and adds the operator.
+    // The operator's row, under its group above, previews and adds the operator.
     rig.key(in::scan::kEscape); // the preview
     rig.key(in::scan::kEscape); // the node
-    const auto operators = rig.label("Operators");
     const auto texts = rig.picture().texts;
     const ws::CanvasText* named = nullptr;
     for (const auto& t : texts)
-        if (t.text == "  fold" && t.y > operators.y) named = &t;
+        if (t.text == "  fold" && named == nullptr) named = &t;
     REQUIRE(named != nullptr);
     Moment press;
     press.gesture = ++rig.gesture;
     press.x = named->x + 4; press.y = named->y + 4;
     rig.host(press);
-    (void)rig.label("fold -- operator, native, from flowtest.named-fold");
+    (void)rig.label("fold");
+    CHECK(rig.shows("operator, native, from flowtest.named-fold"));
     rig.key(in::scan::kReturn);
     nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 3);
@@ -1873,7 +1946,7 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         // lines at the foot, the draft's and the notice.
         w.window.room(kFlowArea, fp::kRole, 170, 16, 2);
         rig.pump();
-        w.drag(w.at("source-field:input"), w.empty(60, 140, 4, 8));
+        w.drag(w.at("source-field:input"), w.empty(80, 140, 4, 8));
         REQUIRE(w.showing("what takes it"));
         const auto shown = w.window.rows(kFlowArea);
         REQUIRE(shown.size() >= 2);

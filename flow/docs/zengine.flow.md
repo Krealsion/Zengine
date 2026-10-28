@@ -36,18 +36,18 @@ an ellipsis; neither changes what is stored.
 ## Use
 
 Open it from the Pane Manager, <!-- key desktop.panes -->`ctrl+p`<!-- /key -->, and give it room.
-The bar along its top holds New, Open, Import, Export, Save, Run, Apply, Stop, Inspect, Catalog and
-Discard, then the pages: Graph, State, Messages, Library and Events. Each page draws its own
-buttons, and every button with no argument is one of the commands below; a press on a node, a port,
-a row or a field is the page's own ([Shows](#shows)), and so is one in a graphics window
-([Hears](#arearoom)). The last two lines are the latest notice, and the definition's name and
-draft revision with `interpreted live` or `stopped`.
+The bar holds Run, Apply -- Restart in its place when the draft changed what the running rule
+hears, keeps or says -- and Stop, beside the rule's name and revision, running or stopped; then
+File, View and a gear for the rest; under it, a tab a page: Graph, State, Messages, Library and
+Events. Every button or menu row with no argument is one of the commands below; a press on a node,
+a port, a row or a field is the page's own ([Shows](#shows)), and so is one in a graphics window
+([Hears](#arearoom)). The last line is the latest notice.
 
-The ordinary path: [`ask-new`](#ask-new), a state field ([`ask-state-field`](#ask-state-field)),
-a message ([`ask-message`](#ask-message), [`ask-message-field`](#ask-message-field)), a trigger
-([`ask-trigger`](#ask-trigger)), operators found on the Graph page and wired port by port, then
-[`run`](#run) and [`send`](#send). Change the graph and [`apply`](#apply): the running participant
-keeps its state.
+The ordinary path is the Graph page's Next line: it names the one thing the rule still needs, and
+its button does it -- a message ([`ask-message`](#ask-message)), a field the rule keeps
+([`ask-keep`](#ask-keep)), the trigger, a step found in the rail and wired, [`run`](#run), then a
+message it says ([`ask-say`](#ask-say)) and [`restart`](#restart). Change a step and
+[`apply`](#apply): the running participant keeps its state.
 
 Most commands open a dialog first; [`dialog-confirm`](#dialog-confirm) does what it asks. While a
 dialog is open every other command says `Confirm or cancel the open dialog before another edit`.
@@ -64,8 +64,8 @@ While a wire's search is open, the arrow keys move among its rows and Return mak
 Saves the whole workspace: the draft, its layout and view, your examples and retained forms, and
 the saved state.
 
-- **Takes:** the workspace. Default key <!-- key ask-save -->`ctrl+s`<!-- /key -->; the bar's
-  `[Save]`, `[Save*]` while there is unsaved work.
+- **Takes:** the workspace. Default key <!-- key ask-save -->`ctrl+s`<!-- /key -->; File's
+  `Save`.
 - **Answers:** the dialog `Save complete workspace`, its Path the file last saved or opened, else
   `my-flow.flow-workspace`. Confirmed, it asks Workshop for the write (`Saving is waiting for
   Workshop's approval`), then writes and says `Saved <path>`.
@@ -79,10 +79,9 @@ the saved state.
 Opens a saved workspace in place of the draft.
 
 - **Takes:** a path and what to do with unsaved work. Default key
-  <!-- key ask-open -->`ctrl+o`<!-- /key -->; the bar's `[Open]`.
+  <!-- key ask-open -->`ctrl+o`<!-- /key -->; File's `Open...`.
 - **Answers:** the dialog `Open workspace (replaces the current draft)`, with Path and
-  `Unsaved disposition` set to `discard`. Confirmed: `open complete`, the Graph page, scrolled so
-  its nodes show.
+  `Unsaved disposition` set to `discard`. Confirmed: the Graph page, scrolled so its nodes show.
 - **Refuses:** `save the draft or explicitly choose discard`, with unsaved work and another
   disposition; `stop this project's session before opening another` while it runs; the file
   reader's reason.
@@ -93,15 +92,17 @@ Opens a saved workspace in place of the draft.
 Runs the definition: the Flow host makes a fresh participant from it, with the draft's state.
 
 - **Takes:** the draft, checked first. Default key <!-- key run -->`ctrl+r`<!-- /key -->; the bar's
-  `[Run]`, `[Running]` once it runs.
+  `Run`, gold while the rule is ready, `Running` once it runs; the Next line's `[Run]` once nothing
+  is missing.
 - **Answers:** asks the Flow host ([`FlowRun`](flow-runtime.md#conversation)); the notice says `run
   queued`, which means only that the request went. The answer then says `run: observed`, or its
-  reason, the bar reads `[Running]`, and the discovery door is asked again
+  reason, the bar reads `Running`, and the discovery door is asked again
   ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)), since running mounts the
   definition's operators.
 - **Refuses:** the draft's first problem, such as an unwired port or `incompatible type`, naming
-  the place; `run refused: <the host's reason>`; `run was not delivered: <the bus's reason>`;
-  `Flow has 16 unanswered requests; inspect the host before retrying`.
+  the place, and the Next line leads with `Run needs this first:` and the press that does it; `run
+  refused: <the host's reason>`; `run was not delivered: <the bus's reason>`; `Flow has 16
+  unanswered requests; inspect the host before retrying`.
 - **Example:** press <!-- key run -->`ctrl+r`<!-- /key -->, then [`send`](#send) an example.
 
 ### `ask-generate`
@@ -109,7 +110,7 @@ Runs the definition: the Flow host makes a fresh participant from it, with the d
 Writes the definition as a C++ project that builds into a weave like any other.
 
 - **Takes:** the draft, checked first. Default key <!-- key ask-generate -->`ctrl+g`<!-- /key -->;
-  no control of its own.
+  File's `Generate C++...`.
 - **Answers:** the dialog `Generate native C++ for this definition into a directory`, Directory
   `flow-generated`. Confirmed, it asks Workshop for the write, then writes `generated.cpp`,
   `CMakeLists.txt`, `definition.bin` and `graph.svg` there and says `Generated <the source's
@@ -128,7 +129,7 @@ could be. Letting a dragged wire go on empty graph room opens the same search wh
 ([`graph`](#graph)).
 
 - **Takes:** a wire held by a press on an output or a field under In scope, or a selected input
-  port. Default key <!-- key find-wire -->`ctrl+n`<!-- /key -->; no control of its own.
+  port. Default key <!-- key find-wire -->`ctrl+n`<!-- /key -->; View's `Find a wire`.
 - **Answers:** a list at the graph's centre, `From <%n or $field> : <type> -- what takes it` or
   `Into %n <port> : <type> -- what fills it`, the search line above its rows, and asks the discovery
   door ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)): from an output, each
@@ -155,212 +156,261 @@ lose: `Flow has unsaved work. Save it or explicitly Discard before quitting.`, `
 unfinished dialog. Confirm or cancel it before quitting.`, or `Flow is waiting for its host to
 settle work. Quit again after the result arrives.`
 
-- **Takes:** the word `discard`, typed. No default key; the bar's `[Discard]`.
+- **Takes:** the word `discard`, typed. No default key; File's `Discard`.
 - **Answers:** the dialog `Allow closing without saving (type discard)`, one field,
   Confirmation. Confirmed with `discard`: `Unsaved work may now be discarded on close`. Nothing is
   deleted.
 - **Refuses:** `type discard to acknowledge unsaved work`.
-- **Example:** press `[Discard]`, type `discard`, confirm.
+- **Example:** choose File's `Discard`, type `discard`, confirm.
 
 ### `ask-new`
 
 Starts a new definition in place of the draft.
 
-- **Takes:** a project name and what to do with unsaved work. No default key; the bar's `[New]`.
+- **Takes:** a project name and what to do with unsaved work. No default key; File's `New...`.
 - **Answers:** the dialog `New project (replaces the current draft)`, with `Project name`
-  `my_flow` and `Unsaved disposition` `discard`. Confirmed: `new complete`, an empty draft on the
-  Graph page, no file path.
+  `my_flow` and `Unsaved disposition` `discard`. Confirmed: an empty draft on the Graph page, no
+  file path.
 - **Refuses:** `save the draft or explicitly choose discard`; `stop this project's session before
   creating another`; `use a project name of 1 to 120 bytes`.
-- **Example:** press `[New]`, type `water`, confirm.
+- **Example:** choose File's `New...`, type `water`, confirm.
 
 ### `ask-import`
 
 Brings in an executable Flow project, as the standalone workbench saves one, in place of the draft.
 
-- **Takes:** a path and what to do with unsaved work. No default key; the bar's `[Import]`.
+- **Takes:** a path and what to do with unsaved work. No default key; File's `Import...`.
 - **Answers:** the dialog `Import executable Flow project (replaces this draft)`, Path
-  `my-flow.flow`, `Unsaved disposition` `discard`. Confirmed: `import-project complete`, the Graph
-  page.
+  `my-flow.flow`, `Unsaved disposition` `discard`. Confirmed: the Graph page.
 - **Refuses:** `save the draft or explicitly choose discard`; `stop the session before importing
   another project`; the project reader's reason.
-- **Example:** press `[Import]`, type `thermostat.flow`, confirm.
+- **Example:** choose File's `Import...`, type `thermostat.flow`, confirm.
 
 ### `ask-export`
 
 Writes the definition and its state as an executable project for the standalone workbench. A
 workspace keeps unfinished work too; a project does not.
 
-- **Takes:** the draft, checked first. No default key; the bar's `[Export]`.
+- **Takes:** the draft, checked first. No default key; File's `Export...`.
 - **Answers:** the dialog `Export executable project for the standalone Flow workbench`, Path
-  `my-flow.flow`. Confirmed, it asks Workshop for the write, then writes it:
-  `export-project complete`.
+  `my-flow.flow`. Confirmed, it asks Workshop for the write, then writes it: `Exported <path>`.
 - **Refuses:** the draft's first problem; the writes' refusals; the file writer's reason.
-- **Example:** press `[Export]`, confirm.
+- **Example:** choose File's `Export...`, confirm.
 
 ### `apply`
 
 Changes the running participant's behaviour to the draft's, keeping its state.
 
-- **Takes:** the draft, checked first; a running participant. No default key; the bar's
-  `[Apply]`.
+- **Takes:** the draft, checked first; a running participant. No default key; the bar's `Apply`,
+  and the Next line's `[Apply]` while the draft differs from what runs.
 - **Answers:** asks the Flow host ([`FlowApply`](flow-runtime.md#conversation)): `apply queued`,
   then `apply: observed`, and the discovery door is asked again
   ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)). The participant keeps its
-  state and its accepted, emitted and state shapes; a change to any of those needs [`stop`](#stop)
-  and [`run`](#run).
+  state and its accepted, emitted and state shapes; a change to any of those needs
+  [`restart`](#restart).
 - **Refuses:** the draft's first problem; `apply refused: <the host's reason>`, such as a changed
   shape; `apply was not delivered: <the bus's reason>`.
-- **Example:** bind a port to another constant, press `[Apply]`, send the same example again.
+- **Example:** bind a port to another constant, press `Apply`, send the same example again.
 
 ### `stop`
 
 Stops the running participant; its last state comes back as the draft's.
 
-- **Takes:** the session. No default key; the bar's `[Stop]`.
+- **Takes:** the session. No default key; the bar's `Stop`.
 - **Answers:** asks the Flow host ([`FlowStop`](flow-runtime.md#conversation)): `stop queued`, then
-  `stop: observed`; the bar reads `[Run]` again and the discovery door is asked again
+  `stop: observed`; the bar reads `Run` again and the discovery door is asked again
   ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)).
 - **Refuses:** `stop refused: <the host's reason>`, such as while a send is still being
   delivered; `stop was not delivered: <the bus's reason>`.
-- **Example:** press `[Stop]` before a schema change.
+- **Example:** press `Stop`.
+
+### `restart`
+
+Stops the running participant and runs the draft in its place, for a change [`apply`](#apply)
+cannot make: a message it hears, a field it keeps or a message it says. What it kept carries on
+where the kept fields' shape is unchanged; otherwise it starts again from the draft's state.
+
+- **Takes:** the draft, checked first; a running participant. No default key; the bar's `Restart`,
+  in Apply's place while the draft changed one of those; the Next line's `[Restart]`; the gear's
+  `Restart`.
+- **Answers:** asks the Flow host to stop ([`FlowStop`](flow-runtime.md#conversation)), `Restarting:
+  stopping, then running the draft`; once it has stopped, the draft runs
+  ([`FlowRun`](flow-runtime.md#conversation)), `Restarting: the draft runs, keeping what it kept`,
+  then `run: observed`. Each asks the discovery door again
+  ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)).
+- **Refuses:** `Nothing runs to restart; press Run`; the draft's first problem; a stop's or a run's
+  refusals, as [`stop`](#stop) and [`run`](#run).
+- **Example:** with the rule running, add `+ say tally.Total`, then press `Restart`.
 
 ### `inspect`
 
 Reads the running participant again: its state and what it did.
 
-- **Takes:** the session. No default key; the bar's `[Inspect]`.
+- **Takes:** the session. No default key; View's `Inspect`.
 - **Answers:** asks the Flow host ([`FlowInspect`](flow-runtime.md#conversation)): `inspect queued`,
   then the Events page's rows ([`events`](#events)), and, unless you have edited the state since,
-  the draft's state becomes the observed one. The pane inspects by itself when it starts and
-  whenever the host says the session changed ([Hears](#flowchanged)).
+  the draft's state becomes the observed one. The pane inspects by itself when it starts and,
+  saying nothing, whenever the host says the session changed ([Hears](#flowchanged)).
 - **Refuses:** `inspect refused: <the host's reason>` while it runs; while nothing runs it says
   nothing.
-- **Example:** press `[Inspect]`, then `[Events]`.
+- **Example:** choose View's `Inspect`, then the `Events` tab.
 
 ### `catalog`
 
 Reads the host's operators again: the ports the graph checks its wiring against.
 
-- **Takes:** nothing. No default key; the bar's `[Catalog]`.
+- **Takes:** nothing. No default key; View's `Catalog`.
 - **Answers:** asks the Flow host ([`FlowCatalog`](flow-runtime.md#conversation)) and the discovery
   door again ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)): `catalog
   queued`, then `Host operators refreshed`.
 - **Refuses:** the host's reason; `operator descriptor identity disagrees`; `catalog was not
   delivered: <the bus's reason>`.
-- **Example:** after a provider is loaded, press `[Catalog]`.
+- **Example:** after a provider is loaded, choose View's `Catalog`.
 
 ### `page-graph`
 
 Shows the Graph page ([`graph`](#graph)).
 
-- **Takes:** nothing. No default key; the bar's `[Graph]`.
+- **Takes:** nothing. No default key; the `Graph` tab.
 - **Answers:** the Graph page, from its first row.
 - **Refuses:** nothing.
-- **Example:** press `[Graph]`.
+- **Example:** press the `Graph` tab.
 
 ### `page-state`
 
 Shows the State page ([`state`](#state)), with the state's form open.
 
-- **Takes:** the definition's state. No default key; the bar's `[State]`.
-- **Answers:** the State page and the form `Initial / saved state`: `state-open complete`.
+- **Takes:** the definition's state. No default key; the `State` tab.
+- **Answers:** the State page and the form `Initial / saved state`.
 - **Refuses:** nothing.
-- **Example:** press `[State]`.
+- **Example:** press the `State` tab.
 
 ### `page-messages`
 
 Shows the Messages page ([`messages`](#messages)).
 
-- **Takes:** nothing. No default key; the bar's `[Messages]`.
+- **Takes:** nothing. No default key; the `Messages` tab.
 - **Answers:** the Messages page, from its first row.
 - **Refuses:** nothing.
-- **Example:** press `[Messages]`.
+- **Example:** press the `Messages` tab.
 
 ### `page-library`
 
 Shows the Library page ([`library`](#library)).
 
-- **Takes:** nothing. No default key; the bar's `[Library]`.
+- **Takes:** nothing. No default key; the `Library` tab.
 - **Answers:** the Library page, from its first row.
 - **Refuses:** nothing.
-- **Example:** press `[Library]`.
+- **Example:** press the `Library` tab.
 
 ### `page-events`
 
 Shows the Events page ([`events`](#events)).
 
-- **Takes:** nothing. No default key; the bar's `[Events]`.
+- **Takes:** nothing. No default key; the `Events` tab.
 - **Answers:** the Events page, from its first row.
 - **Refuses:** nothing.
-- **Example:** press `[Events]` after a send.
+- **Example:** press the `Events` tab after a send.
 
 ### `fit`
 
 Resets the graph's pan and zoom, then scrolls so its nodes show.
 
-- **Takes:** the view. No default key; the Graph page's `[Reset view]`.
+- **Takes:** the view. No default key; View's `Fit`; the recovery picture's `[Reset view]`.
 - **Answers:** the graph redrawn; the view is part of the workspace, so it is unsaved work.
 - **Refuses:** nothing.
-- **Example:** press `[Reset view]` after panning away.
+- **Example:** choose View's `Fit` after panning away.
 
 ### `zoom-in`
 
 Zooms the graph in one step, up to the largest.
 
-- **Takes:** the view. No default key; the Graph page's `[+]`.
+- **Takes:** the view. No default key; View's `Zoom in`.
 - **Answers:** node positions and widths grow; text and port rows keep their size.
 - **Refuses:** nothing; at the largest nothing moves.
-- **Example:** press `[+]`.
+- **Example:** choose View's `Zoom in`.
 
 ### `zoom-out`
 
 Zooms the graph out one step, down to the smallest.
 
-- **Takes:** the view. No default key; the Graph page's `[-]`.
+- **Takes:** the view. No default key; View's `Zoom out`.
 - **Answers:** node positions and widths shrink; text and port rows keep their size.
 - **Refuses:** nothing; at the smallest nothing moves.
-- **Example:** press `[-]`.
+- **Example:** choose View's `Zoom out`.
 
 ### `ask-trigger`
 
 Adds a trigger: an accepted message that runs a row of nodes and writes one state field.
 
 - **Takes:** a message, by its place among the accepted ones, and a state field. No default key;
-  the Graph page's `[Add trigger]`.
+  the gear's `Add a trigger...`. The Next line's `[Use <message>]` makes the first trigger at a
+  press, writing the first field the rule keeps.
 - **Answers:** the dialog `An input message updates one state field`, with `Message index` (the
-  selected message) and `State output field` `value`. Confirmed: `trigger complete`, and the new
-  trigger is the active one.
+  selected message) and `State output field` `value`. Confirmed: the new trigger is the active
+  one.
 - **Refuses:** `select a declared state output field`; `message already has a trigger`.
-- **Example:** press `[Add trigger]`, keep `0` and `value`, confirm.
+- **Example:** choose the gear's `Add a trigger...`, keep `0` and `value`, confirm.
 
 ### `ask-emit`
 
 Makes the active trigger publish an emitted message after its write.
 
 - **Takes:** an emitted message by its place, and each field's source, `field=$state` or
-  `field=constant`. No default key; the Graph page's `[Emit]`, while there are a trigger and an
-  emitted message.
+  `field=constant`. No default key; the gear's `Add an emit...`, while there are a trigger and an
+  emitted message; [`ask-say`](#ask-say) declares a message and says it at once.
 - **Answers:** the dialog `After the write, publish an emitted message`, with `Emitted index` `0`
   and `Fields (field=$state or field=constant)` filled from the state fields of the same names,
-  `total=$total`. Confirmed: `emit complete`; the trigger lists `emits <name>` with `[x]` to
-  remove it.
+  `total=$total`. Confirmed: the Then lane shows a card `say <name>` with `x` to remove it.
 - **Refuses:** `add the trigger's nodes before its emits: an empty trigger is kept without them`;
   `<message> has no field <name>`.
-- **Example:** press `[Emit]`, confirm `total=$total`.
+- **Example:** choose the gear's `Add an emit...`, confirm `total=$total`.
+
+### `ask-keep`
+
+Adds a field the rule keeps between messages: a state field, at a press. Where a message is declared
+and no trigger reacts to one yet, that message's trigger is made too, writing this field.
+
+- **Takes:** a name and a type. No default key; the When lane's `+ keep a field`, the Next line's
+  `[+ keep a field]`, the gear's `Keep a field...`.
+- **Answers:** the dialog `Keep a field between messages: what the rule remembers`, with Name
+  `total` and Kind `Int`. Confirmed: the When lane's card `kept between messages` lists it, `total
+  Int = 0`, and the Graph page shows.
+- **Refuses:** `state field name is empty or already used`; the type's refusals, as
+  [`ask-state-field`](#ask-state-field).
+- **Example:** press `+ keep a field`, confirm `total`, `Int`.
+
+### `ask-say`
+
+Makes the rule say a message after its change: a message declared inside the definition's own name,
+carrying the kept fields named, and said by the active trigger after its write, in one edit. A
+message already declared under that name is said as it is.
+
+- **Takes:** a name and the kept fields it carries. No default key; the Then lane's `+ say
+  <definition>.<Field>`, the Next line's `[+ say <definition>.<Field>]` once the rule runs, the
+  gear's `Say a message...`.
+- **Answers:** the dialog `Say a message after the change, with what the rule keeps`, with `Message
+  name` the kept field's name capitalised, `Total`, and `With` the field the trigger writes,
+  `total`. Confirmed: the Then lane shows the card `say tally.Total`, and the Next line asks for a
+  [`restart`](#restart), since a running rule says only the messages it was run with.
+- **Refuses:** `A rule says a message after its change: give it a message and what it keeps
+  first`; `` the rule keeps no `<field>` to say ``; the emitted-name refusal of
+  [`ask-emitted-message`](#ask-emitted-message).
+- **Example:** press `+ say tally.Total`, confirm.
 
 ### `add-fold`
 
 Adds a fold at the end of the active trigger: the form that runs one operator for each count from a
 start toward a limit by a step, threading an answer through.
 
-- **Takes:** the active trigger. No default key; a fold row's `[Add]` under Forms on the Graph page.
-- **Answers:** a node `body = [choose]`, its `step` bound to `1`: `add-fold complete`, and a fold's
-  open body slot shut, so the discovery door is asked again
+- **Takes:** the active trigger. No default key; a fold row's `[Add to the rule]`, under `FORMS` in
+  the Graph page's rail.
+- **Answers:** a node `body: [choose]`, its `step` bound to `1`, and a fold's open body slot shut,
+  so the discovery door is asked again
   ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)). Press its body row to
   choose the body ([`graph`](#graph)).
 - **Refuses:** `add a trigger before adding a node`, with no trigger yet.
-- **Example:** type `count`, press the fold's row, press `[Add]`.
+- **Example:** type `count`, press the fold's row, press `[Add to the rule]`.
 
 ### `ask-state-field`
 
@@ -369,8 +419,7 @@ Adds a field to the state.
 - **Takes:** a name, a type and a presence. No default key; the State page's
   `[Add state field]`.
 - **Answers:** the dialog `State field: Int, Bool, Float, Text, Bytes, List:Kind, Message:preset`,
-  with Name `value`, Kind `Int`, Presence `required`. Confirmed: `state-field complete`, the State
-  page and its form.
+  with Name `value`, Kind `Int`, Presence `required`. Confirmed: the State page and its form.
 - **Refuses:** `state field name is empty or already used`; `presence must be required or
   optional`; `scalar authoring accepts Int, Bool, Float, Text; import-json carries full maker
   schemas`; `Message:<saved draft name> needs an existing library schema`.
@@ -381,8 +430,8 @@ Adds a field to the state.
 Makes the state form's value the definition's state: what a run starts with and a save keeps.
 
 - **Takes:** the open state form, complete. No default key; the State page's `[Keep state]`.
-- **Answers:** `keep-state complete`. Until a run takes it, the state you kept is not replaced by
-  what the running participant reports.
+- **Answers:** the form's value as the draft's state. Until a run takes it, the state you kept is
+  not replaced by what the running participant reports.
 - **Refuses:** `open a value first`; `state schema changed; reopen its form`; Loom's words for a
   value that does not fit its shape.
 - **Example:** set `value` to `5`, press `[Keep state]`.
@@ -392,9 +441,9 @@ Makes the state form's value the definition's state: what a run starts with and 
 Declares a message the definition accepts.
 
 - **Takes:** a name; one without a `.` is put inside the definition's own name. No default key; the
-  Messages page's `[New message]`.
-- **Answers:** the dialog `Declare an input message`, `Message name` `Set`. Confirmed:
-  `message complete`, and the message's form opens.
+  Messages page's `[New message]`, and the When lane's while no message is declared.
+- **Answers:** the dialog `Declare an input message`, `Message name` `Set`. Confirmed: the
+  message's form opens.
 - **Refuses:** `a message needs a name`; `a message named <name> is already declared`.
 - **Example:** type `Reading`, confirm: `water.Reading`.
 
@@ -405,7 +454,8 @@ Adds a field to an accepted message.
 - **Takes:** the message by its place, a name, a type and a presence. No default key; the Messages
   page's `[Add field]`.
 - **Answers:** the dialog `Add field to the selected message`, with `Message index` (the selected
-  message), Name `input`, Kind `Int`, Presence `required`. Confirmed: `message-field complete`.
+  message), Name `input`, Kind `Int`, Presence `required`. Confirmed: the message's form, with the
+  field.
 - **Refuses:** `message field name is empty or already used`; `presence must be required or
   optional`; the type's refusals, as [`ask-state-field`](#ask-state-field).
 - **Example:** confirm `0`, `input`, `Int`, `required`.
@@ -417,7 +467,7 @@ definition speaks only for itself.
 
 - **Takes:** a name. No default key; the Messages page's `[New emitted]`.
 - **Answers:** the dialog `Declare a message this definition publishes`, `Message name` `Said`.
-  Confirmed: `emitted-message complete`.
+  Confirmed: the Messages page lists it under `Emitted`.
 - **Refuses:** `` an emitted message's name must begin `water.`; `other.Said` does not ``; `a
   message named <name> is already declared`.
 - **Example:** type `Total`, confirm: `water.Total`.
@@ -429,8 +479,8 @@ Adds a field to an emitted message.
 - **Takes:** the emitted message by its place, a name, a type and a presence. No default key; the
   Messages page's `[Add emitted field]`.
 - **Answers:** the dialog `Add a field to an emitted message`, with `Emitted index` `0`, Name
-  `value`, Kind `Int`, Presence `required`. Confirmed: `emitted-field complete`; an emit already
-  sending that message fills the field from the state field of its name.
+  `value`, Kind `Int`, Presence `required`. Confirmed: an emit already sending that message fills
+  the field from the state field of its name.
 - **Refuses:** `` the emit of <message> on <trigger> would write no `<name>`; remove that emit or
   declare state.<name> ``; the field and type refusals, as
   [`ask-message-field`](#ask-message-field).
@@ -441,8 +491,8 @@ Adds a field to an emitted message.
 Brings named examples in from a library file, beside the ones the workspace holds.
 
 - **Takes:** a path. No default key; the Library page's `[Import]`.
-- **Answers:** the dialog `Reusable value library`, Path `examples.flow-values`. Confirmed:
-  `library-open complete`; an example of the same name is replaced.
+- **Answers:** the dialog `Reusable value library`, Path `examples.flow-values`. Confirmed: the
+  Library page lists them; an example of the same name is replaced.
 - **Refuses:** the library reader's reason.
 - **Example:** press the Library page's `[Import]`, confirm.
 
@@ -453,7 +503,7 @@ Writes the workspace's named examples to a library file of their own.
 - **Takes:** a path. No default key; the Library page's `[Export]`.
 - **Answers:** the dialog `Reusable value library`, Path `examples.flow-values`. Confirmed, it asks
   Workshop for the write (`Saving the library is waiting for Workshop's approval`), then writes:
-  `library-save complete`.
+  `Saved the library to <path>`.
 - **Refuses:** the writes' refusals; the library writer's reason.
 - **Example:** press the Library page's `[Export]`, confirm.
 
@@ -463,7 +513,7 @@ Saves the open form's value as a named example, complete or not.
 
 - **Takes:** the open form; a name. No default key; a form's `[Save example]`.
 - **Answers:** the dialog `Save this value, complete or unfinished`, `Example name` the form's
-  title. Confirmed: `preset complete`; the Library page lists it, `(unfinished)` when it is.
+  title. Confirmed: the Library page lists it, `(unfinished)` when it is.
 - **Refuses:** `open a value first`.
 - **Example:** with `input` set to `3`, save it as `low`.
 
@@ -478,7 +528,7 @@ Sends the open message form's value to the running participant.
   the Events page ([`events`](#events)).
 - **Refuses:** `open a message or reusable value to send`; Loom's words for an incomplete value;
   `send refused: <the host's reason>`; `send was not delivered: <the bus's reason>`.
-- **Example:** open the example `low`, press `[Send]`, then `[Events]`.
+- **Example:** open the example `low`, press `[Send]`, then the `Events` tab.
 
 ### `drop-send`
 
@@ -498,7 +548,7 @@ definition accepts, exactly as it came.
 
 - **Takes:** the dropped value. No default key; its page's `[Declare <name> vN as an accepted
   message]`.
-- **Answers:** `Declared <name> as an accepted message; Add trigger reacts to it`.
+- **Answers:** `Declared <name> as an accepted message; a trigger on it wakes the rule`.
 - **Refuses:** `Nothing dropped is waiting`; `That description names shapes it does not carry`;
   `a message named <name> is already declared`.
 - **Example:** drop a carried shape, press its `[Declare ...]`.
@@ -635,12 +685,11 @@ on the bus like any weave's, and any subscriber hears them.
 
 ### `graph`
 
-The Graph page: the trigger list with `[Add trigger]` and `[Emit]`, the search line `find: `, the
-rail of what is in scope and what the door found, the active trigger's nodes and wires, and a
-preview of the row you chose with its `[Add]`. A press selects a node, a port or a row; drag a node
-to move it, blank room to pan. Drag a wire from an output, an In scope field or a port: let go on
-its other end it binds, on empty room it opens [`find-wire`](#find-wire)'s list, elsewhere it is
-put down.
+The Graph page: the rule as one sentence, a part still to choose dashed; the rail, with the search
+line, what is in scope, the door's rows grouped and the chosen row's preview; the graph in three
+lanes, WHEN a message arrives, DO its steps, THEN what changes; the Next line; the Events band. A
+press selects; drag a node to move it, blank room to pan, a wire to bind where it lands -- on empty
+room it opens [`find-wire`](#find-wire)'s list.
 
 ### `state`
 
@@ -660,9 +709,10 @@ The Library page: `[Import]`, `[Export]`, each named example, `(unfinished)` whe
 
 ### `events`
 
-The Events page: `Dispatch pending: <n> / older events omitted: <n>`, the live state, `state.value
-= 7`, then each event the host kept, `#<sequence> <kind> (send <correlation>) <detail>`, a long one
-continued on the rows beneath; then the draft's problems.
+The Events page: one line a message the running rule took, newest first -- what came in, what
+changed, what was said, `tally.panel.Count  amount 3  ->  total 0 -> 3  ->  said tally.Total 3` --
+then the runs before, the host's other words, the live state, `state.total = 3`, and `Dispatch
+pending: <n> / older events omitted: <n>`; a long line continues beneath.
 
 ### `dropped`
 

@@ -2,7 +2,14 @@
 
 Flow is a replaceable pane for creating message-driven weaves from the operators available in
 the current host. The graph edits a draft. **Run** creates an interpreted participant; **Apply**
-changes its behavior while keeping compatible live state. A rejected edit leaves it running.
+changes its behavior while keeping compatible live state; **Restart** runs a draft that hears, keeps
+or says something new. A rejected edit leaves it running.
+
+The bar holds **Run**, **Apply** and **Stop** with the rule's state beside them, then **File**,
+**View** and a gear for the rest. The Graph page reads the rule as one sentence above the graph,
+and the graph has three lanes: **When** a message arrives at the left, **Then** what changes at the
+right, and **Do**, the steps between them. The **Next** line under the graph names the one thing
+the rule still needs, with a button that does it.
 
 Build and launch [development Workshop](../../workshop/docs/develop-workshop.md), open Pane Manager, and choose
 **Flow**. The shipped plans include the optional `zengine-flow-pane` artifact in the `zengine.flow`
@@ -13,30 +20,33 @@ refusal named here is in [the pane's manual](zengine.flow.md).
 
 ## Create a high-water tracker
 
-1. Choose **New**, name the project `water`, and confirm. The dialog states that it replaces the
-   current draft. Save existing work first. Stop an existing run before opening another project.
+1. Choose **File > New**, name the project `water`, and confirm. The dialog states that it
+   replaces the current draft. Save existing work first. Stop an existing run before opening
+   another project.
 2. Open **State**, choose **Add state field**, and declare `value`, `Int`, `required`. Its initial
    value is zero. Click a value to edit it; **Keep state** installs the completed form as initial
    or saved state. Editing an initial-state form does not change a running participant.
 3. Open **Messages**, choose **New message**, and name it `Reading`. Choose **Add field** for
    message index `0`, name `input`, kind `Int`, presence `required`.
-4. Open **Graph**, choose **Add trigger**, select message index `0` and state output `value`.
-   Type `larger` (the search line beside the graph takes what you type) and click `math.max`
-   under **Operators**. The strip beneath the graph previews it: what it is and whose, its
-   signature, and what its contributor says it is for. Choose **Add**.
+4. Open **Graph**. Its Next line asks for the trigger: choose **Use water.Reading**, or the
+   gear's **Add a trigger** with message index `0` and state output `value`. Type `larger` (the
+   search line in the rail takes what you type) and click `max` under **MATH**. The rail's foot
+   previews it: what it is and whose, its signature, and what its contributor says it is for.
+   Choose **Add to the rule**.
 5. Click `input.input` under **In scope**, then the node's `lhs` port -- or drag from one to the
    other. Click the `rhs` port: the rail lists what could fill it
    ([below](#find-what-to-compose)). Click `state.value` there. The graph executes in order; forward
    or cyclic connections are refused.
 6. Select the node header and choose **Use as result**. Drag its header to move it. Drag blank
    graph room or use the middle button to pan; the wheel pans vertically over the graph.
-   The **-** and **+** controls change node positions and widths from 50% to 200%, in 25% steps.
-   Text and port-row height stay fixed at the host's measured text size. SDL uses the normal
-   Workshop font over Flow's black background; the terminal uses its cell grid. Dragging and panning
-   use those same measurements. Saved layouts keep their authored coordinates when the font
-   or medium changes. Layout changes do not change executable behavior.
-7. Choose **Run**. An unwired port or incompatible type names the place to repair. **Run queued**
-   means a request was queued; the host's later answer establishes whether the participant exists.
+   **View > Zoom out** and **Zoom in** change node positions and widths from 50% to 200%, in 25%
+   steps. Text and port-row height stay fixed at the host's measured text size. SDL uses the
+   normal Workshop font over Flow's own dark ground; the terminal uses its cell grid. Dragging
+   and panning use those same measurements. Saved layouts keep their authored coordinates when
+   the font or medium changes. Layout changes do not change executable behavior.
+7. Choose **Run**. An unwired port or incompatible type names the place to repair, and the Next
+   line leads with **Run needs this first:** and the press that does it. **Run queued** means a
+   request was queued; the host's later answer establishes whether the participant exists.
 
 In a dialog, **Tab** selects the next field, **Ctrl+A** selects its text,
 <!-- key dialog-confirm -->`return`<!-- /key --> confirms
@@ -54,22 +64,23 @@ The rail beside the graph finds operators through the host's
 
 - **The search line** takes what you type while no dialog is open. A power matches when each word
   appears in its name or in what its contributor says it is for. The rows come in the catalog's
-  order, grouped as **Forms**, **Sources**, **Operators** and **Conversions**, and a count says how
-  many more matched than one answer carries. **Forms** holds the fold, found by what it is for:
-  type `count` or `total`.
+  order: operators under their namespace's name, such as **MATH**, then **SOURCES**,
+  **CONVERSIONS** and **FORMS**, each row its name and what its contributor says it is for; a
+  count says how many more matched than one answer carries. **FORMS** holds the fold, found by
+  what it is for: type `count` or `total`.
 - **A selected port** narrows the search to what yields its type, and lists before that what is
   **In scope** of the type (state and message fields, and earlier nodes' outputs), then a typed
-  constant for an `Int` or `Bool` port. An in-scope row wires the port; the constant opens the
-  binding editor. Click the port again to put it down.
+  constant for an `Int` or `Bool` port, then **SOURCES** before the operators. An in-scope row
+  wires the port; the constant opens the binding editor. Click the port again to put it down.
 - **A row previews; it never runs.** A form and an operator that share a name are two rows, and
   each previews and adds itself. The preview is the door's row, and showing it evaluates
-  nothing. **Add**, or **Enter**, adds the previewed power at the end of the trigger's graph, by
-  the reference the row carries; if its ports have changed since it was found, Add says so and
-  adds nothing, and so it does when the graph changed while Flow read those ports from the host.
-  With a node selected, **Add before %n** places it ahead of that node instead, and
-  with a port selected, **Add into %n port** places it ahead of the port's node and wires it there,
-  so a found operator can feed the port you were filling. The graph executes in order, and the
-  nodes that follow are renumbered.
+  nothing. **Add to the rule**, or **Enter**, adds the previewed power at the end of the
+  trigger's graph, by the reference the row carries; if its ports have changed since it was
+  found, Add says so and adds nothing, and so it does when the graph changed while Flow read
+  those ports from the host. With a node selected, **Add before %n** places it ahead of that node
+  instead, and with a port selected, **Add into %n port** places it ahead of the port's node and
+  wires it there, so a found operator can feed the port you were filling. The graph executes in
+  order, and the nodes that follow are renumbered.
 - **A wire let go on empty room asks what it could feed.** Drag from a node's output, or a field
   under **In scope**, and let go on empty graph room: a list opens there of what takes the wire's
   type, a row for each port of that type (`math.add -> lhs`, `math.add -> rhs`), with the search
@@ -78,11 +89,11 @@ The rail beside the graph finds operators through the host's
   and **Enter**, and the node is made where you let go, wired, and selected, in one edit, after the
   node it reads from or before the port's node. Let go on the other end and the wire binds; let go
   anywhere else and it is put down. **Escape**, or a press outside the list, closes it and makes
-  nothing. With a wire held by clicks or a port selected,
-  <!-- key find-wire -->`ctrl+n`<!-- /key --> opens the same list at the graph's centre.
+  nothing. With a wire held by clicks or a port selected, **View > Find a wire**, or
+  <!-- key find-wire -->`ctrl+n`<!-- /key -->, opens the same list at the graph's centre.
 - **A fold** runs an operator once for each count from a start toward a limit by a step,
-  threading an accumulator. Add it from **Forms**: it arrives with `step` bound to `1`. Click its
-  `body = [choose]` row: the rail then lists only what a fold could spend -- one answer, an `Int`
+  threading an accumulator. Add it from **FORMS**: it arrives with `step` bound to `1`. Click its
+  `body: [choose]` row: the rail then lists only what a fold could spend -- one answer, an `Int`
   port for the count and another port of the answer's type -- and the preview offers each way to
   thread it, such as **count rhs, acc lhs** for `math.add`. You choose which port takes the count;
   port names only suggest. The node then reads `fold math.add`, its body row `count rhs, acc lhs`,
@@ -117,6 +128,9 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
   whose `body` row it lands on, the slot opening with it found so you choose the count's port; or
   anywhere else on the graph, at the end of the trigger, where you released it. A reference whose
   operator's ports have changed since it was found is refused with that sentence.
+- **A message carried onto the When lane** -- a button's message, from the View Builder's says
+  row -- is declared as the message the rule hears, as it came; with a field kept already, it
+  wakes the rule at once.
 - **Any other value** opens a page of offers: **Send as example** when this definition accepts
   its shape and the participant is running; **Use field = value on %n port** for each field of
   the port's kind when it landed on an `Int` or `Bool` port; **Declare ... as an accepted
@@ -127,7 +141,8 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
   names that shape, what it nests and each field's type. A description naming a shape it does
   not carry offers no declaration, and its page says why in Loom's words (`Not declarable: ...`). A declared shape is the one that came -- its name,
   version and fields -- so values of it match it exactly. **Cancel** or **Escape** puts it down,
-  and so do **New**, **Open** and **Import**, since its offers belong to the graph it landed on.
+  and so do **File > New**, **Open** and **Import**, since its offers belong to the graph it
+  landed on.
 
 ![A dropped tally.panel.Count example: send it as an example, or declare its shape as emitted](images/flow-dropped-example.png)
 
@@ -141,14 +156,15 @@ then click that pane. What travels is the message's shape, as a description: the
 A definition publishes messages of its own after a trigger writes its state field. In
 **Messages**, **New emitted** declares one -- a name without a dot is put in the definition's
 namespace, and a name outside it is refused, so a definition can only speak for itself -- and
-**Add emitted field** gives it fields. On the graph, **Emit** (beside **Add trigger**) publishes
-one after the active trigger's write: the dialog fills each field from the state field of its
-name, `total=$total`, and you may write any field from another state field or a constant instead.
-The active trigger lists what it emits, each with **x** to remove it. An emit is a publication by
-this participant, of its own shapes, after every successful write; there is no conditional emit
-and no addressed send. A new emitted shape changes what a running participant may say, so
-**Stop** and **Run** it again rather than **Apply**; **Events** then shows each publication and
-its fields.
+**Add emitted field** gives it fields. The gear's **Add an emit** publishes one after the active
+trigger's write: the dialog fills each field from the state field of its name, `total=$total`, and
+you may write any field from another state field or a constant instead. The **Then** lane's
+**+ say water.Value** does both at once: it declares the message with the kept field it carries
+and says it. The **Then** lane lists what the rule says, each with **x** to remove it. An emit is a
+publication by this participant, of its own shapes, after every successful write; there is no
+conditional emit and no addressed send. A new emitted shape changes what a running participant may
+say, so **Restart** it rather than **Apply**; the bar and the Next line offer it, and **Events**
+then shows each publication and its fields.
 
 ![The tally's Events: totals 45, 30 and 18 published for three counts, then a step of 0 refused in words with the total unchanged](images/flow-fold-tally.png)
 
@@ -166,24 +182,27 @@ In **Messages**, open `water.Reading`, click `input`, enter `3`, and confirm. **
 stores this as `low`. Change the field to `7` and save `high`. These values are reusable data;
 they carry their schemas and no sender identity, destination, grants or reply provenance.
 
-Choose **Send**, then **Events**. The current exposed state and observed outputs/refusals appear
-with send correlations; a long one, such as a refusal in its owner's words, continues on the rows
-beneath it. Dispatch settlement is distinct from an application result; a quiet weave
-does not promise a reply. **Inspect** refreshes the owner's bounded record. An omission count says
-when older observations were dropped. Loom's host Recorder/Logger remain the broader history tools.
+Choose **Send**, then **Events**. Each message the rule took is one line, newest first: what came
+in, what changed and what was said, `water.Reading  input 3  ->  value 0 -> 3`; then the host's
+other words, such as a refusal in its owner's words, which continue on the rows beneath, and the
+current state. The same lines stand under the graph. Dispatch settlement is distinct from an
+application result; a quiet weave does not promise a reply. **View > Inspect** refreshes the
+owner's bounded record. An omission count says when older observations were dropped. Loom's host
+Recorder/Logger remain the broader history tools.
 
 Open `low` in **Library** and send it. The high-water state remains `7`. Return to Graph, click
 the `rhs` port, choose **Int constant** and bind `10`. Choose **Apply**, then send `low` again: the state now
 becomes `10`. Apply preserves live state and requires the existing accepted/emitted/state contract.
-A schema change needs an explicit stop and fresh run; this pane does not invent a migration policy.
+A schema change needs a restart -- a stop and a fresh run; this pane does not invent a migration
+policy.
 
 ## Save unfinished work and return to it
 
-**Save** writes one workspace containing the definition draft, node positions, view, named examples,
-retained forms and saved state. Empty triggers and unwired ports can be saved. Forms preserve
-absence, empty text and `false` separately. Missing required fields prevent sending, not saving.
-Opening a changed schema retains the previous form under its previous identity. **Library** also
-shows retained forms, including those historical shapes.
+**File > Save** writes one workspace containing the definition draft, node positions, view, named
+examples, retained forms and saved state. Empty triggers and unwired ports can be saved. Forms
+preserve absence, empty text and `false` separately. Missing required fields prevent sending, not
+saving. Opening a changed schema retains the previous form under its previous identity.
+**Library** also shows retained forms, including those historical shapes.
 
 Click an absent Message or List field to create it. Clicking a present list appends an item;
 its nested fields become editable rows. A present Message keeps its existing contents. **unset**
@@ -200,9 +219,9 @@ After execution, newly observed state becomes the saved state unless an explicit
 edit is awaiting a fresh run. The Events page continues to show live state independently. Saving
 does not save process identity, pending queues, grants or resumable native continuations.
 
-**Export** writes a completed executable Flow project for the standalone workbench and its C++
-generation path. **Import** brings such a project into this editor.
-<!-- key ask-generate -->`ctrl+g`<!-- /key -->, Generate native C++, writes the generated project --
+**File > Export** writes a completed executable Flow project for the standalone workbench and its
+C++ generation path. **File > Import** brings such a project into this editor. **File > Generate
+C++**, or <!-- key ask-generate -->`ctrl+g`<!-- /key -->, writes the generated project --
 `generated.cpp`, its CMake file, `definition.bin` and `graph.svg` -- into a directory, as the
 workbench's `generate` does; a definition with a fold is refused in words and nothing is written,
 because the fold is the evaluator's and runs interpreted. Workspace files additionally contain
@@ -212,9 +231,9 @@ unfinished authoring work and presentation; they are not executable projects.
 
 An orderly Workshop quit is refused while host work or its fresh state inspection is pending.
 Try quitting again after the result arrives. Saving an older snapshot while a send is pending
-does not bypass that refusal. Save unsaved Flow work, or choose **Discard** and type `discard`
-to allow closing without saving, or choose `discard unsaved work and quit` in the box Workshop opens
-when the quit is refused. Pane reload restores the workspace and reconnects to
+does not bypass that refusal. Save unsaved Flow work, or choose **File > Discard** and type
+`discard` to allow closing without saving, or choose `discard unsaved work and quit` in the box
+Workshop opens when the quit is refused. Pane reload restores the workspace and reconnects to
 the session through its office. The selected page, unconfirmed dialog text and selection, and
 the distinction between a deliberate initial-state edit and observed live state also survive
 reload. Unconfirmed dialog text is separate from a saved workspace. Drawing grants and hit maps

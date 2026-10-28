@@ -11,6 +11,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `flow-host/` | the session host, headers only: `runtime.hpp` (`RuntimeHost`), `vocabulary.hpp` |
 | `flow-pane/` | `zengine-flow-pane`, a loadable weave in office `zengine.flow`: `pane.cpp` |
 | `flow-pane/*.hpp` | `model.hpp` edits, `view.hpp` picture, `find.hpp` door ask, `vocabulary.hpp` |
+| | `look.hpp` colours, marks and the window's sketch; `next.hpp` the sentence and the Next line |
+| | `observed.hpp` the host's journal read as one line a message |
 | `author.hpp` | `Draft`: a definition authored by text commands |
 | `graph_edit.hpp`, `graph.hpp` | `GraphDraft` and node places; a definition as text lines and SVG |
 | `shape.hpp` | the one model of an authored message shape, the View Builder's too |

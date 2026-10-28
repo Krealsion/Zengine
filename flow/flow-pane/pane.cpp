@@ -26,6 +26,7 @@
 #include <deque>
 #include <map>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -331,7 +332,7 @@ public:
           const Drag held = *drag_;
           drag_.reset();
           if (held.wire)
-            let_go(held, event, room, mail);
+            let_go(held, event, mail);
         }
         return;
       }
@@ -379,8 +380,7 @@ public:
           return;
         const auto dy =
             static_cast<std::int64_t>(std::clamp(event.dy, -100.0, 100.0));
-        if (model_.page == pane::Page::Graph &&
-            event.x > pane::GridProjection(room).x(22 * pane::unit)) {
+        if (model_.page == pane::Page::Graph && pictured->graph && event.x >= pictured->graph->x) {
           model_.workspace.pan_y =
               std::clamp(model_.workspace.pan_y + dy * 2 * pane::unit,
                          std::int64_t{-10000000}, std::int64_t{10000000});
@@ -552,6 +552,17 @@ public:
       if (zengine::op::is_reference(value)) {
         drop_reference(zengine::op::decode_reference(value), hit, *it, drop, mail);
         reveal();
+      } else if (hit && hit->action == "drop-zone") {
+        const auto shape = pane::dropped_shape(value);
+        if (!shape)
+          throw std::invalid_argument("That carries no shape to declare: " +
+                                      pane::summarize_drop(value).why);
+        model_.declare(shape, false);
+        const auto &def = model_.workspace.graph.project.definition;
+        if (def.on.empty() && !def.state->fields().empty())
+          effect(model_.command("trigger", {"0", def.state->fields().front().name}), mail);
+        model_.notice = "Declared " + shape->name() + "; it wakes the rule" +
+                        (def.on.empty() ? " once it keeps something" : "");
       } else {
         std::optional<pane::PortChoice> port;
         if (hit && hit->action == "port" && hit->args.size() == 2)
@@ -567,9 +578,43 @@ public:
     drag_.reset();
     show(mail);
   }
-  /// THE MENU'S CHOICE: carry the declared message's shape out as a description, under the
-  /// gesture the choice continues. The message must still be declared, or nothing is carried.
+  /// THE ROWS OF FLOW'S OWN MENUS, by the control that opens each: File, View and the gear, each
+  /// row a command Flow declares.
+  static const std::vector<std::pair<const char *, const char *>> &menu_rows(const std::string &which) {
+    static const std::vector<std::pair<const char *, const char *>> kFile{
+        {"ask-new", "New..."},       {"ask-open", "Open..."},     {"ask-save", "Save"},
+        {"ask-import", "Import..."}, {"ask-export", "Export..."}, {"ask-generate", "Generate C++..."},
+        {"ask-discard", "Discard"}};
+    static const std::vector<std::pair<const char *, const char *>> kView{
+        {"fit", "Fit"},           {"zoom-in", "Zoom in"},  {"zoom-out", "Zoom out"},
+        {"find-wire", "Find a wire"}, {"inspect", "Inspect"}, {"catalog", "Catalog"}};
+    static const std::vector<std::pair<const char *, const char *>> kMore{
+        {"ask-trigger", "Add a trigger..."}, {"ask-keep", "Keep a field..."},
+        {"ask-say", "Say a message..."},     {"ask-emit", "Add an emit..."},
+        {"restart", "Restart"}};
+    static const std::vector<std::pair<const char *, const char *>> kNone{};
+    return which == "file" ? kFile : which == "view" ? kView : which == "more" ? kMore : kNone;
+  }
+  /// OPEN ONE OF FLOW'S MENUS where the press that asked for it was made.
+  void open_menu(const std::string &which, loom::Mail &mail) {
+    const auto &rows = menu_rows(which);
+    if (rows.empty())
+      throw std::invalid_argument("Flow has no menu `" + which + "`");
+    auto offer = menu().offer(which);
+    for (const auto &[id, label] : rows)
+      offer.row(id, label);
+    menu().send(mail, offer);
+  }
+  /// THE MENU'S CHOICE: a row of File, View or the gear does its command; a carry carries the
+  /// declared message's shape out as a description, under the gesture the choice continues -- the
+  /// message must still be declared, or nothing is carried.
   void on_menu(const std::string &id, const std::string &subject, loom::Mail &mail) {
+    const auto &rows = menu_rows(subject);
+    if (!rows.empty()) {
+      if (std::any_of(rows.begin(), rows.end(), [&](const auto &row) { return id == row.first; }))
+        perform(id, {}, mail);
+      return;
+    }
     if (id != "carry")
       return;
     const auto shape = declared(subject);
@@ -694,6 +739,9 @@ public:
     const auto pending = settle(mail, answer.action);
     if (!pending || answer.session != "workshop")
       return;
+    // A RESTART RUNS THE DRAFT once its stop is answered, and only then: another answer between
+    // them leaves it waiting.
+    const bool restarting = answer.action == "stop" && std::exchange(restarting_, false);
     try {
       if (!answer.ok) {
         if (!(answer.action == "inspect" && !model_.running))
@@ -719,37 +767,41 @@ public:
             }
           }
           live_state_ = zengine::message_draft::Draft(observed.state);
+          // WHAT RUNS NOW, the state it was run with, and what its journal says it did, each read
+          // against the definition the host runs.
+          // A RUN STARTS A JOURNAL AFRESH: what reached the run before it goes on in the Events.
+          if (answer.action == "run") {
+            model_.started = observed.state;
+            for (auto &arrival : model_.observed.arrivals)
+              model_.earlier.push_back(std::move(arrival));
+            if (model_.earlier.size() > 64)
+              model_.earlier.erase(model_.earlier.begin(),
+                                   model_.earlier.end() - static_cast<std::ptrdiff_t>(64));
+          }
+          if (model_.running)
+            model_.running_definition = observed.definition;
+          model_.observed = pane::observe(answer, observed.definition, model_.started);
         }
+        if (answer.action == "run")
+          model_.ran = false;
+        if (answer.action == "stop") {
+          model_.ran = true;
+          model_.running_definition.reset();
+        }
+        // THE EVENTS PAGE: one line a message, newest first, then the host's other words and
+        // what the journal holds.
         model_.events.clear();
-        model_.events.push_back(
-            "Dispatch pending: " + std::to_string(answer.pending) +
-            " / older events omitted: " + std::to_string(answer.dropped));
+        for (auto at = model_.observed.arrivals.rbegin(); at != model_.observed.arrivals.rend(); ++at)
+          model_.events.push_back(pane::line_of(*at));
+        for (auto at = model_.earlier.rbegin(); at != model_.earlier.rend(); ++at)
+          model_.events.push_back(pane::line_of(*at));
+        for (const auto &note : model_.observed.notes)
+          model_.events.push_back(note);
         if (live_state_)
           for (const auto &row : live_state_->rows())
             model_.events.push_back("state." + row.label + " = " + row.summary);
-        for (const auto &event : answer.events) {
-          model_.events.push_back("#" + std::to_string(event.sequence) + " " +
-                                  event.kind + " (send " + event.correlation +
-                                  ") " + event.detail);
-          if (!event.payload.empty()) {
-            const auto unverified =
-                loom::parse(flow::byte_string(event.payload));
-            // The host carries the observed shape in its project. Decode only
-            // an agreed output; arbitrary event bytes remain a stated
-            // observation.
-            const auto &emits = model_.workspace.graph.project.definition.emits;
-            for (const auto &schema : emits) {
-              const auto value = loom::admit(unverified, schema);
-              if (value) {
-                for (const auto &row :
-                     zengine::message_draft::Draft(value.value()).rows())
-                  model_.events.push_back("  " + row.label + " = " +
-                                          row.summary);
-                break;
-              }
-            }
-          }
-        }
+        model_.events.push_back("Dispatch pending: " + std::to_string(answer.pending) +
+                                " / older events omitted: " + std::to_string(answer.dropped));
         // A Send answer describes the enqueue, not its result. Keep the quit
         // gate closed through the later inspection that has retained fresh
         // state. Saving the old snapshot cannot erase this outstanding work.
@@ -759,6 +811,10 @@ public:
         // what the door would say may have moved: it is asked again rather than told.
         if (answer.action == "run" || answer.action == "apply" || answer.action == "stop")
           find(mail, true);
+        if (restarting) {
+          effect(model_.command("run"), mail);
+          model_.notice = "Restarting: the draft runs, keeping what it kept";
+        }
       }
     } catch (const std::exception &e) {
       model_.notice = e.what();
@@ -773,7 +829,10 @@ public:
           return a.kind == FlowAsk::Kind::kHost && a.action == "inspect";
         }))
       return;
+    // AN INSPECTION FLOW ASKS BY ITSELF says nothing: the line keeps what the weaver last did.
+    const auto said = model_.notice;
     request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
+    model_.notice = said;
   }
   /// LOOM'S WORD THAT EXACTLY ONE OF FLOW'S ASKS WAS REFUSED BEFORE ANY HANDLER RAN, matched by
   /// `AskFacet`: the question to the door, a write Workshop never heard, or a host request -- and
@@ -791,6 +850,8 @@ public:
       model_.notice = asked.action + " was not delivered: " + refused.reason;
       if (adding_ && adding_->request == asked.request)
         adding_.reset(); // the Add waited on this request, which will never be answered
+      if (asked.action == "stop")
+        restarting_ = false; // a stop never delivered runs nothing after it
       break;
     case FlowAsk::Kind::kCarry: return;
     }
@@ -813,7 +874,7 @@ private:
   std::optional<pane::WireEnd> wire_end(const pane::Hit &hit) const {
     if (hit.action == "source-node" && hit.args.size() == 1)
       return pane::WireEnd{zengine::op::Binding::node(flow::index_of(hit.args[0])), {}};
-    if (hit.action == "source-field" && hit.args.size() == 1)
+    if ((hit.action == "source-field" || hit.action == "field") && hit.args.size() == 1)
       return pane::WireEnd{zengine::op::Binding::input(hit.args[0]), {}};
     if (hit.action == "port" && hit.args.size() == 2 && !model_.connecting)
       return pane::WireEnd{{}, pane::PortChoice{hit.subject, flow::index_of(hit.args[1])}};
@@ -824,16 +885,15 @@ private:
   /// THE HAND MOVED WITH A WIRE: past one character cell from the press it is a drag, drawn from
   /// the press to the hand, a port it would bind to lit.
   void wire_moved(const Moment &event, const ws::CanvasRoom &room, loom::Mail &mail) {
-    const pane::GridProjection grid(room);
+    const pane::Measure measure(room);
     const auto at = [](std::int64_t v) {
       return std::clamp(v, std::int64_t{-100000000}, std::int64_t{100000000});
     };
-    const auto hx = grid.grid_x(at(event.x)), hy = grid.grid_y(at(event.y));
-    const auto px = grid.grid_x(drag_->x), py = grid.grid_y(drag_->y);
-    if (!drag_->crossed && std::abs(hx - px) < pane::unit && std::abs(hy - py) < pane::unit)
+    const auto hx = at(event.x), hy = at(event.y);
+    if (!drag_->crossed && std::abs(hx - drag_->x) < measure.ch && std::abs(hy - drag_->y) < measure.row)
       return;
     drag_->crossed = true;
-    pane::WireDrawn drawn{px, py, hx, hy, {}};
+    pane::WireDrawn drawn{drag_->x, drag_->y, hx, hy, {}};
     if (drag_->from.source)
       if (const auto *it = latest();
           it != nullptr && it->revision == model_.workspace.graph.project.definition.revision)
@@ -844,20 +904,14 @@ private:
     show(mail);
   }
   /// IS (x, y) EMPTY GRAPH ROOM in `it`: inside the graph's viewport, on the Graph page.
-  static bool graph_room(const pane::Picture &it, const ws::CanvasRoom &room, std::int64_t x,
-                         std::int64_t y) {
-    if (!it.graph_top)
-      return false;
-    const pane::GridProjection grid(room);
-    const auto gx = grid.grid_x(x), gy = grid.grid_y(y);
-    return gx >= 22 * pane::unit && gx < grid.grid_x(room.width) && gy >= it.view_upper &&
-           gy < it.view_lower;
+  static bool graph_room(const pane::Picture &it, std::int64_t x, std::int64_t y) {
+    return it.canvas && x >= it.canvas->x && x < it.canvas->right() && y >= it.canvas->y &&
+           y < it.canvas->bottom();
   }
   /// THE WIRE LET GO. Before the threshold, or back on its origin, it was a click, and what the
   /// press did stands. On the other end it binds; on empty graph room its search opens there;
   /// anywhere else the wire is put down and nothing is made.
-  void let_go(const Drag &held, const Moment &event, const ws::CanvasRoom &room,
-              loom::Mail &mail) {
+  void let_go(const Drag &held, const Moment &event, loom::Mail &mail) {
     const bool drawn = model_.wire_drawn.has_value();
     model_.wire_drawn.reset();
     if (!held.crossed || event.phase != ws::canvas_pointer::kRelease) {
@@ -884,9 +938,14 @@ private:
       perform("port", hit->args, mail);
       return;
     }
+    if (held.from.source && hit != nullptr && hit->action == "write") {
+      model_.connecting = *held.from.source;
+      perform("write", hit->args, mail);
+      return;
+    }
     if (held.from.port && hit != nullptr &&
         (hit->action == "source-node" || hit->action == "source-field" ||
-         hit->action == "scope")) {
+         hit->action == "field" || hit->action == "scope")) {
       try {
         if (hit->action == "scope") {
           act("scope", hit->args, mail);
@@ -903,10 +962,8 @@ private:
       show(mail);
       return;
     }
-    if (hit == nullptr && graph_room(*it, room, event.x, event.y)) {
-      const pane::GridProjection grid(room);
-      const auto gx = grid.grid_x(event.x), gy = grid.grid_y(event.y);
-      open_wire_search(held.from, gx, gy, gx, gy, *it, mail);
+    if (hit == nullptr && graph_room(*it, event.x, event.y)) {
+      open_wire_search(held.from, event.x, event.y, event.x, event.y, *it, mail);
       return;
     }
     put_wire_down("let go off the graph");
@@ -919,9 +976,9 @@ private:
         return {static_cast<std::size_t>(p.node), port.port};
     throw std::invalid_argument("That port's node is gone; nothing was wired");
   }
-  /// OPEN A WIRE'S SEARCH from `from`, its list at (x, y) in the picture's grid and a node made
-  /// from it placed at the graph's point under (px, py), as `it` draws the graph. The search line
-  /// starts empty, and the door is asked afresh.
+  /// OPEN A WIRE'S SEARCH from `from`, its list at (x, y) of the area and a node made from it
+  /// placed at the graph's place under (px, py), as `it` draws the graph. The search line starts
+  /// empty, and the door is asked afresh.
   void open_wire_search(const pane::WireEnd &from, std::int64_t x, std::int64_t y, std::int64_t px,
                         std::int64_t py, const pane::Picture &it, loom::Mail &mail) {
     if (from.source && !pane::source_type(model_, *from.source)) {
@@ -929,16 +986,11 @@ private:
       show(mail);
       return;
     }
-    const auto zoom = std::max<std::int64_t>(1, it.zoom);
-    const auto bound = [](std::int64_t v) {
-      return std::clamp<std::int64_t>(v, -10000000, 10000000);
-    };
     pane::WireSearch search;
     search.from = from;
     search.x = x;
     search.y = y;
-    search.place_x = bound((px - it.pan_x) * 100 / zoom);
-    search.place_y = bound((py - it.graph_top.value_or(0) - it.pan_y) * 100 / zoom);
+    std::tie(search.place_x, search.place_y) = pane::place_at(it, window_room_, px, py);
     search.revision = model_.workspace.graph.project.definition.revision;
     model_.wire_search = search;
     if (from.source)
@@ -1077,12 +1129,11 @@ private:
         model_.page != pane::Page::Graph)
       throw std::invalid_argument("A new node from the wire needs the graph shown");
     const auto drawn = pane::picture(model_, room);
-    if (!drawn.graph_top)
+    if (!drawn.canvas)
       throw std::invalid_argument("A new node from the wire needs the graph shown");
-    const pane::GridProjection grid(room);
-    const auto cx = (22 * pane::unit + grid.grid_x(room.width)) / 2;
-    const auto cy = (drawn.view_upper + drawn.view_lower) / 2;
-    open_wire_search(from, cx - 18 * pane::unit, cy - 3 * pane::unit, cx, cy, drawn, mail);
+    const pane::Measure measure(room);
+    const auto cx = drawn.canvas->x + drawn.canvas->w / 2, cy = drawn.canvas->y + drawn.canvas->h / 2;
+    open_wire_search(from, cx - measure.chars(18), cy - 3 * measure.row, cx, cy, drawn, mail);
   }
   /// The declared message a press landed on, in the picture it was aimed at: an accepted
   /// message's row or an emitted one's, on the Messages page.
@@ -1092,10 +1143,16 @@ private:
       return nullptr;
     const auto *hit = it->hit(event.x, event.y);
     if (!hit || hit->args.empty() ||
-        (hit->action != "message-open" && hit->action != "emitted-row"))
+        (hit->action != "message-open" && hit->action != "emitted-row" && hit->action != "say"))
       return nullptr;
     const auto &def = model_.workspace.graph.project.definition;
     const auto at = flow::index_of(hit->args.front());
+    if (hit->action == "say") {
+      if (def.on.empty())
+        return nullptr;
+      const auto &on = def.on.at(model_.trigger());
+      return at < on.emits.size() ? on.emits[at].message : nullptr;
+    }
     if (hit->action == "message-open" && at < def.accepts.size())
       return def.accepts[at];
     if (hit->action == "emitted-row" && at < def.emits.size())
@@ -1249,6 +1306,7 @@ private:
         {"ask-export", "Export the Flow definition"},
         {"apply", "Apply to the running graph"},
         {"stop", "Stop the running graph"},
+        {"restart", "Restart the running graph"},
         {"inspect", "Inspect the running graph"},
         {"catalog", "Read the catalog"},
         {"page-graph", "Show the graph"},
@@ -1261,6 +1319,8 @@ private:
         {"zoom-out", "Zoom out"},
         {"ask-trigger", "Add a trigger"},
         {"ask-emit", "Add an emit"},
+        {"ask-keep", "Keep a field between messages"},
+        {"ask-say", "Say a message after the change"},
         {"add-fold", "Add the form shown"},
         {"ask-state-field", "Add a state field"},
         {"keep-state", "Keep the state"},
@@ -1294,6 +1354,8 @@ private:
         row.causes = {ws::cause_of<fh::FlowApply>(), found};
       else if (row.id == "stop")
         row.causes = {ws::cause_of<fh::FlowStop>(), found};
+      else if (row.id == "restart")
+        row.causes = {ws::cause_of<fh::FlowStop>(), ws::cause_of<fh::FlowRun>(), found};
       else if (row.id == "inspect")
         row.causes = {ws::cause_of<fh::FlowInspect>()};
       else if (row.id == "send" || row.id == "drop-send")
@@ -1311,6 +1373,9 @@ private:
       act(action, args, mail);
     } catch (const std::exception &e) {
       model_.notice = e.what();
+      // RUN NEVER REFUSES BLIND: the Next line says what it needs first.
+      if (action == "run")
+        model_.nudge = true;
     }
     show(mail);
   }
@@ -1437,6 +1502,50 @@ private:
       if ((saved.action == "open" || saved.action == "import-project"))
         pane::reveal_graph(model_, window_room_);
       drag_.reset();
+    } else if (action == "menu") {
+      open_menu(args.at(0), mail);
+    } else if (action == "restart") {
+      // STOP, THEN RUN THE DRAFT: what it kept carries on where its shape is unchanged.
+      if (!model_.running)
+        throw std::invalid_argument("Nothing runs to restart; press Run");
+      const auto errors = model_.workspace.graph.problems(model_.palette);
+      if (!errors.empty())
+        throw std::invalid_argument(errors.front());
+      effect({pane::Effect::Stop, {}}, mail);
+      restarting_ = true;
+      model_.notice = "Restarting: stopping, then running the draft";
+    } else if (action == "ask-keep") {
+      model_.ask("Keep a field between messages: what the rule remembers", "keep",
+                 {{"Name", "total"}, {"Kind", "Int"}});
+    } else if (action == "ask-say") {
+      const auto &def = model_.workspace.graph.project.definition;
+      if (def.on.empty())
+        throw std::invalid_argument(
+            "A rule says a message after its change: give it a message and what it keeps first");
+      const auto &on = def.on.at(model_.trigger());
+      model_.ask("Say a message after the change, with what the rule keeps", "say",
+                 {{"Message name", pane::say_name(on.output)}, {"With", on.output}});
+    } else if (action == "write") {
+      // A STEP'S ANSWER, held, given to what the rule writes: it becomes that answer.
+      if (!model_.connecting || model_.connecting->from() != zengine::op::Binding::From::Node)
+        throw std::invalid_argument("Press a step's answer, then this, to make the kept field "
+                                    "that answer");
+      const auto n = model_.connecting->node_index();
+      effect(model_.command("result", {std::to_string(n)}), mail);
+      model_.connecting.reset();
+    } else if (action == "say") {
+      // A SAY CARD PRESSED, whether a drag carries it on or not: where it goes to be shown.
+      const auto &def = model_.workspace.graph.project.definition;
+      const auto at = flow::index_of(args.at(0));
+      std::string said = "it";
+      if (!def.on.empty() && at < def.on.at(model_.trigger()).emits.size())
+        said = def.on.at(model_.trigger()).emits[at].message->name();
+      model_.notice = "Carry " + said + " onto a label to show it there: drag it, or right-press it";
+    } else if (action == "drop-zone") {
+      model_.notice = "Carry a button's message here, or press New message";
+    } else if (action == "field") {
+      model_.connecting = zengine::op::Binding::input(args.at(0));
+      model_.notice = "Choose an input port to connect " + args.at(0);
     } else if (action == "page-graph") {
       model_.page = pane::Page::Graph;
       model_.first_row = 0;
@@ -1648,11 +1757,8 @@ private:
       command = "add-node-into";
       arguments.push_back(hit->args[0]);
       arguments.push_back(hit->args[1]);
-    } else if (pictured.graph_top) {
-      const pane::GridProjection grid(window_room_);
-      const auto zoom = std::max<std::int64_t>(1, pictured.zoom);
-      landing = std::pair{(grid.grid_x(drop.x) - pictured.pan_x) * 100 / zoom,
-                          (grid.grid_y(drop.y) - *pictured.graph_top - pictured.pan_y) * 100 / zoom};
+    } else if (pictured.canvas) {
+      landing = pane::place_at(pictured, window_room_, drop.x, drop.y);
     }
     if (!described(ref.identity)) {
       request(fh::FlowCatalog{}, "catalog", mail);
@@ -1703,7 +1809,7 @@ private:
     model_.dropped.reset();
     model_.notice = "Declared " + shape->name() +
                     (action == "drop-emit" ? " as an emitted message"
-                                           : " as an accepted message; Add trigger reacts to it");
+                                           : " as an accepted message; a trigger on it wakes the rule");
   }
   static std::string raw(const loom::Cell &cell) {
     if (cell.kind() == loom::Kind::Text)
@@ -1761,6 +1867,7 @@ private:
   std::optional<pane::Picture> window_shown_;     ///< the picture last sent there, and its room
   ws::CanvasRoom window_room_;
   bool room_asked_ = false;                       ///< its area's room asked in this life
+  bool restarting_ = false; ///< a Restart's stop is asked: its answer runs the draft
   zengine::component::Clipboard clipboard_;
   /// An Add waiting on the host request numbered `request` -- the catalog request that will
   /// describe what it adds -- its node and port numbers meaning what they meant in `draft`.

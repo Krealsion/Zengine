@@ -65,9 +65,15 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   invalidates old picture maps, including a change of text metrics. A right press means nothing
   on the graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane
   menu opens where it landed.
+- Flow draws its own look (`flow/flow-pane/look.hpp`): each exact colour beside the theme role it
+  stands for, only the marks the graphics library draws, a part the rule still lacks dashed, and
+  in cells each medium's fallback. The rule's sentence and the Next line are read from the draft
+  (`next.hpp`); the Events lines and the values on wires from the host's journal, read against
+  the definition that runs (`observed.hpp`).
 - The graphics window that shows the area `zengine.flow` is sent the same picture, composed for
-  the window's room (`flow_pane::window_picture`) and projected as any canvas picture is
-  (`workshop::canvas_sketch`); one more than a window keeps is the recovery picture. Its room is
+  the window's room (`flow_pane::window_picture`) and sketched by Flow (`flow_pane::sketch_of`),
+  every mark at one name for its life, since a window paints a newly held name after its
+  siblings; one more than a window keeps is the recovery picture. Its room is
   the window's word alone (`AreaRoom`, as that window's office), asked of `zengine.graphics` once a
   life. A refused change goes whole at once; a refused whole picture is said in the notice and
   draws nothing more until the next change, so a window that keeps refusing starts no loop. The
@@ -98,16 +104,18 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   `add-fold` with `step` bound to 1 and given its body by `fold-body` from a slot that asks the
   door `fits=fold`; the maker names the count's port. A reference the slot offered that the
   graph refused is put down, so the slot offers the door's row next. A node's words stay inside
-  its box, and a node just added or given its body is panned into view above the preview band. `GraphDraft::node_ports` is the one answer
-  to a node's ports, a fold's derived from its body by `op::fold_ports`.
+  its box, and a node just added or given its body is panned into view inside the Do lane.
+  `GraphDraft::node_ports` is the one answer to a node's ports, a fold's derived from its body by
+  `op::fold_ports`.
 - `tests/test_flow.cpp` compares state, outputs, refusal reasons, live overlays, authority and
   admission. `tests/package` builds and loads generated code using installed packages only.
   `tests/test_flow_graph.cpp` covers incomplete graph persistence, retained forms, schema
   changes and command atomicity. `tests/test_flow_view.cpp` covers canvas clipping, dense views,
-  long text, independent measured axes, device-grain hit testing and the rail's grouping and
-  preview. `tests/test_flow_pane.cpp` covers modal commands, native text dragging, reload
-  preservation, the right press handed back, finding through the door and the pane in a graphics
-  window; host
+  long text, independent measured axes, device-grain hit testing, the rail's grouping and
+  preview, the rule's sentence, the Next line's walk, the journal read one line a message, and the
+  tally drawn in light and in cells. `tests/test_flow_pane.cpp` covers modal commands, native
+  text dragging, reload preservation, the right press handed back, finding through the door and
+  the pane in a graphics window; host
   behavior is witnessed under
   [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.
