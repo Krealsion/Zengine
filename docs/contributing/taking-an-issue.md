@@ -159,6 +159,9 @@ The case comes first, and it fails on the unchanged code for the reason the issu
 
 A case asserts what *done when* requires, not what the code prints today, and it goes red on the
 defect rather than on an incidental difference ([best practices](best-practices.md#the-witness)).
+A case whose comment claims a mutant commits the mutant under `tests/mutants/`, the comment
+pointing at its entry, and runs it red before the push
+([a pull request's mutants](../../tests/mutants/README.md#a-pull-requests-mutants)).
 For an issue about a page, the red is the page as it reads before the change, quoted, or a text
 check that fails on it.
 
@@ -216,8 +219,9 @@ gh pr create --base main --title "<what is true now>" --body-file <file outside 
   "The desk reader keeps each pane's provider and pane as a pair, so two panes whose names join
   alike stay two". The merge makes it the subject of a commit on `main`.
 - **The body** says what was wrong and what changed, in a few sentences. Then the evidence: the
-  case, the commit it was red on and what it printed; the lanes that passed, each with its
-  repository, configuration and compiler; what did not run, and why. Then screenshots of a
+  case, the commit it was red on and what it printed; each mutant the change's cases claim, by
+  its path under `tests/mutants/`; the lanes that passed, each with its repository, configuration
+  and compiler; what did not run, and why. Then screenshots of a
   visible result, captured from the tested state, or the sentence that screenshots do not apply.
   A picture is attached on the pull request's web page, or committed under a `docs/` folder and
   linked at its commit; [witnesses](../../agents/verification/witnesses.md) says how a live one is taken.

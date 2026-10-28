@@ -28,12 +28,15 @@ that can falsify its behavioral claims. Both judgments matter.
    header, exported link line or `cmake/ZengineInstall.cmake`.
 4. **The live witness** — the real window or terminal, when a claim is about the screen; owed
    and named, never assumed.
-5. **The mutation matrix** — the evidence that a case would have complained; canary first.
+5. **The mutation matrix** — the evidence that a case would have complained; canary first. Every
+   mutant a case claims is kept in [`tests/mutants/`](../tests/mutants/README.md) and run there
+   every week (VM-MUT-33).
 
-CI runs on pull requests, on pushes to `main` and nightly on `main`, and a run is read job by
-job, because a job under `continue-on-error` is red only in the jobs list. Windows is two standard
-libraries: MinGW-w64/libstdc++ is REQUIRED, MSVC's STL is ADVISORY, and a Windows claim names the
-one it was measured on.
+CI runs on pull requests, on pushes to `main` and nightly on `main`, and the mutants weekly on
+`main` in a workflow of their own; a run is read job by job, because a job under
+`continue-on-error` is red only in the jobs list. Windows is two standard libraries:
+MinGW-w64/libstdc++ is REQUIRED, MSVC's STL is ADVISORY, and a Windows claim names the one it was
+measured on.
 
 ## What a green means
 
@@ -104,6 +107,8 @@ self-test before they answer:
 | judging a dependency, a package option, a toolchain | [dependencies](verification/dependencies.md) `VM-DEP` |
 
 A register's proofs name their witnesses by exact case; the router of the folder it serves, that
-folder's `AGENTS.md`, names the folder's suites. The working harnesses for the live
-witness and the mutation matrix are kept outside this repository (VM-WIT-24); a register
-restates the method, never the program.
+folder's `AGENTS.md`, names the folder's suites. The working harnesses for the live witness are
+kept outside this repository (VM-WIT-24); the mutation matrix's runner and the corpus of every
+mutant a case claims are in it, `tests/mutants/run.py` beside the corpus in `tests/mutants/`, run
+weekly by `.github/workflows/mutants.yml` (VM-MUT-33). A register restates the method, never the
+program.
