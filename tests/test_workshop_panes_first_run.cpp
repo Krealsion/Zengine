@@ -654,6 +654,41 @@ TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the in
     CHECK(rows_say(r, story, "The story is done"));
 }
 
+TEST_CASE("WL-FIRST-04: a step ticked while Start here stands behind another pane brings it in front, the keys left where they are") {
+    // MUTATION: a fact that asks nothing of the desk -- Start here stays behind, and the tick is
+    // not seen; the order check goes red.
+    TempDir dir("first-run-tick-front");
+    const std::string prefs = dir.file("prefs.json");
+    PaneRig r;
+    StoryStart s = start_with_launcher(r, prefs);
+    answer_done(r);
+    REQUIRE(story_on_desk(r));
+    const std::int64_t story = kind_in(r, fr::kFirstRunRole, fr::kStoryPane);
+    // ANOTHER PANE IN FRONT OF IT, holding the keys.
+    ProviderSeat* tools = r.mount_provider("zengine.test.tools");
+    r.drive(tools, [](ProviderSeat& seat, loom::Mail& m) {
+        seat.offer(m, PaneOffered{"alpha", "Alpha", "a fixture"});
+    });
+    (void)seat_pane(r, PaneRef{"zengine.test.tools", "alpha"});
+    const std::int64_t alpha = kind_in(r, "zengine.test.tools", "alpha");
+    REQUIRE(r.session().panes.has(alpha));
+    const CellRect body = external_body_rect(r.session(), alpha);
+    r.press_cell(body.x + 1, body.y);
+    REQUIRE(r.session().panes.keyboard == alpha);
+    REQUIRE(effective_pane_order(r.session().setup.active, r.session().panes).back() == alpha);
+    // THE LAUNCHER SAYS IT STARTED THE APP: step 5, and Start here comes in front.
+    drive_any<LauncherStandIn>(r, s.launcher_id, s.launcher, [](LauncherStandIn&, loom::Mail& m) {
+        (void)m.as_role(zengine::launcher::kLauncherRole)
+            .publish(zengine::launcher::Launched{true, "app", "tally", 4242, "started"});
+    });
+    CHECK(rows_say(r, story, "[x] 5. Start it"));
+    const SetupPane* row = pane_of(r.session().setup.active, PaneRef{fr::kFirstRunRole, fr::kStoryPane});
+    REQUIRE(row != nullptr);
+    CHECK(row->front == static_cast<std::int64_t>(r.session().setup.active.panes.size()) - 1);
+    CHECK(effective_pane_order(r.session().setup.active, r.session().panes).back() == story);
+    CHECK(r.session().panes.keyboard == alpha);
+}
+
 TEST_CASE("WL-FIRST-05: Start here opens when the quick setup closes, holding the keys, and at "
           "each later start until the story is done beside what holds the keys, never taking them") {
     // MUTATION: a later start launching Start here as the first does -- it takes the keys.

@@ -322,6 +322,18 @@ void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail&
             ask_layout({window_edit(row)}, [](const LayoutEditAnswered&, loom::Mail&) {}, mail,
                        false);
         }
+        // ...AND ASKED WITHOUT THE KEYS, it is put in front, the keys left where they are.
+        if (!keys && has_pane(session_.setup.active, ref)) {
+            LayoutEdit front;
+            front.op = layout_op::kFront;
+            front.provider = ref.provider;
+            front.pane = ref.pane;
+            ask_layout({front}, [](const LayoutEditAnswered&, loom::Mail&) {}, mail, false);
+            // ...the lift of another pane let go, so nothing is drawn over it but by rank.
+            if (session_.panes.selected != kind) {
+                session_.panes.selected = kNoPaneKind;
+            }
+        }
         focus(out);
         then(out, mail);
         return;
