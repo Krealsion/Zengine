@@ -133,7 +133,7 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
     }
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers}, answering);
-    note_routed(kind);
+    note_routed(kind, !is_modifier_scan(k.scancode));
     if (escape) {
         hand().escape_sent = GestureSent{kind, hand().latest, answering};
     }

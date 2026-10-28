@@ -60,7 +60,8 @@ Shows the Terminal, or focuses it when it is already on the desk.
 ### `desktop.panes`
 
 Shows the Pane Manager, focused, when it is hidden, hides it when it is shown, and brings it
-forward, focused, when another pane covers it.
+forward, focused, when another pane covers it and the weaver has moved on from it: one they come
+straight from, the last pane their keys or presses reached, is hidden even when covered.
 
 - **Takes:** the desk as Workshop holds it now, not as the Pane Manager last saw it. Default key
   <!-- key desktop.panes -->`ctrl+p`<!-- /key -->.
