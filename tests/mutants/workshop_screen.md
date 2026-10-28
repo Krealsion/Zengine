@@ -589,13 +589,13 @@ Red in `zengine-workshop-screen-tests`:
 
 ## body-keeps-the-cell-inset
 
-An external pane's body place keeps a cell's inset while its paint goes thin.
+A pane's body and room keep a cell's inset while its paint goes thin.
 
-In `workshop/screen_external.cpp`:
+In `workshop/screen_pane_state.cpp`:
 
 ```diff
--    const PaneInside inside = pane_inside(pane_rect, sc);
-+    const PaneInside inside = detail::pane_inside_at(pane_rect, sc, kChromePx);
+-    const PaneInside inside = pane_inside(b, sc);
++    const PaneInside inside = detail::pane_inside_at(b, sc, kChromePx);
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -606,11 +606,11 @@ Red in `zengine-workshop-screen-tests`:
 
 The room a pane is granted keeps the cell-inset capacity while its body goes thin.
 
-In `workshop/screen_external.cpp`:
+In `workshop/screen_pane_state.cpp`:
 
 ```diff
 -    p.fit = inside.fit;
-+    p.fit = detail::pane_inside_at(pane_rect, sc, kChromePx).fit;
++    p.fit = detail::pane_inside_at(b, sc, kChromePx).fit;
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -719,6 +719,7 @@ In `workshop/screen_arrange.cpp`:
 
 ```diff
 -    if (!prior.armed || prior.at != at) {
++    (void)at;
 +    if (!prior.armed) {
 ```
 
