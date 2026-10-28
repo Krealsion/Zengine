@@ -1942,6 +1942,15 @@ const op::Binding& argument(Rig& rig, std::size_t node, std::size_t port) {
 bool from_node(const op::Binding& b, std::size_t n) {
     return b.from() == op::Binding::From::Node && b.node_index() == n;
 }
+/// Whether a step is chosen: what takes the chosen step away is drawn.
+bool step_chosen(Rig& rig) { return rig.shows_part("Delete node"); }
+/// Where the graph keeps step `node`, in its grid.
+std::pair<std::int64_t, std::int64_t> place_of(Rig& rig, std::int64_t node) {
+    for (const auto& p : rig.workspace().graph.places)
+        if (p.node == node) return {p.x, p.y};
+    FAIL("no place for node " << node);
+    return {};
+}
 } // namespace
 
 TEST_CASE("a wire dragged from an output and let go on empty graph room asks what takes its type, "
@@ -2244,4 +2253,41 @@ TEST_CASE("ctrl+n's find-wire opens the same search for a wire held by clicks or
     (void)rig.label("'math.add' is not the operator this reference was found at: its ports "
                     "changed since; find it again");
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
+}
+
+TEST_CASE("a press on empty graph room lets go of the chosen step and its port, a drag from there "
+          "moves the view, and a step moves only by a drag that starts on it") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto head = "node:" + std::to_string(place_id(rig, 0));
+    // CHOSEN, THEN LET GO by a press on empty room, and nothing moves.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#empty-press-keeps-the-step): the step stays chosen.
+    w.click(w.at(head));
+    REQUIRE(step_chosen(rig));
+    const auto before = rig.workspace();
+    w.click(w.room());
+    CHECK_FALSE(step_chosen(rig));
+    CHECK(flow::workspace_bytes(rig.workspace()) == flow::workspace_bytes(before));
+    // ...A CHOSEN PORT goes with it.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#empty-press-keeps-the-port): the port stays chosen.
+    w.click(w.at(port_part(rig, 0, 1)));
+    REQUIRE(rig.shows("For %0 rhs : Int"));
+    w.click(w.room());
+    CHECK_FALSE(rig.shows("For %0 rhs : Int"));
+
+    // A DRAG FROM EMPTY ROOM moves the view, and leaves the step where it stands.
+    const auto stood = place_of(rig, 0);
+    const auto from = w.room();
+    w.drag(from, Cell{from.first + 6, from.second + 3});
+    const auto panned = rig.workspace();
+    CHECK(panned.pan_x != before.pan_x);
+    CHECK(panned.pan_y != before.pan_y);
+    CHECK(place_of(rig, 0) == stood);
+    // A DRAG FROM THE STEP moves the step, and leaves the view where it stands.
+    const auto at = w.at(head);
+    w.drag(at, Cell{at.first + 6, at.second + 3});
+    CHECK(rig.workspace().pan_x == panned.pan_x);
+    CHECK(rig.workspace().pan_y == panned.pan_y);
+    CHECK(place_of(rig, 0) != stood);
 }

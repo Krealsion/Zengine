@@ -37,8 +37,9 @@ refusal named here is in [the pane's manual](zengine.flow.md).
    other. Click the `rhs` port: the rail lists what could fill it
    ([below](#find-what-to-compose)). Click `state.value` there. The graph executes in order; forward
    or cyclic connections are refused.
-6. Select the node header and choose **Use as result**. Drag its header to move it. Drag blank
-   graph room or use the middle button to pan; the wheel pans vertically over the graph.
+6. Select the node header and choose **Use as result**. Drag its header to move it; a press on
+   blank graph room lets go of it and of a selected port. Drag blank graph room or use the middle
+   button to pan; the wheel pans vertically over the graph.
    **View > Zoom out** and **Zoom in** change node positions and widths from 50% to 200%, in 25%
    steps. Text and port-row height stay fixed at the host's measured text size. SDL uses the
    normal Workshop font over Flow's own dark ground; the terminal uses its cell grid. Dragging

@@ -54,7 +54,8 @@ dialog is open every other command says `Confirm or cancel the open dialog befor
 Outside a dialog, what you type goes to the search line on the Graph page; the Escape key puts down
 one thing per press (a wire's search and its wire, a dropped value, the wire in hand, the selected
 port, an open body slot, the preview, the selected node, the search line) and only then hands the
-pane back to Workshop; the Delete key removes the selected node; Return adds the previewed row.
+pane back to Workshop; a press on empty graph room lets go of the selected node and port, and a
+drag from there pans; the Delete key removes the selected node; Return adds the previewed row.
 While a wire's search is open, the arrow keys move among its rows and Return makes the one marked.
 
 ## Commands

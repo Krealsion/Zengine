@@ -450,6 +450,12 @@ public:
       }
       const auto *hit = it->hit(event.x, event.y);
       if (event.button == 2 || (!hit && event.button == 1)) {
+        // A PRESS ON EMPTY SPACE LETS GO of the chosen step and its port; its drag moves the view.
+        if (!hit && (model_.node || model_.filling)) {
+          model_.node.reset();
+          model_.filling.reset();
+          show(mail);
+        }
         if (model_.page == pane::Page::Graph && !model_.dialog)
           drag_ = Drag{event.gesture,
                        0,

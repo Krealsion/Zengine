@@ -65,9 +65,10 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   pane's ground beneath it. Zoom scales node positions and widths, not glyph size or port-row
   height. Pointer hit tests spend the room's device grain, and an interaction spends the
   pictured meaning or is refused. Every room change immediately ends held gestures and
-  invalidates old picture maps, including a change of text metrics. A right press means nothing
-  on the graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane
-  menu opens where it landed.
+  invalidates old picture maps, including a change of text metrics. A press on empty graph room
+  lets go of the chosen step and its port, and its drag pans; a step moves only by a drag from its
+  own head. A right press means nothing on the graph or its pages, so the pane hands it back
+  (`PanePassRequested`) and Workshop's pane menu opens where it landed.
 - Flow draws its own look (`flow/flow-pane/look.hpp`): each exact colour beside the theme role it
   stands for, only the marks the graphics library draws, a part the rule still lacks dashed, and
   in cells each medium's fallback. The rule's sentence and the Next line are read from the draft
@@ -117,8 +118,8 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   long text, independent measured axes, device-grain hit testing, the rail's grouping and
   preview, the rule's sentence, the Next line's walk, the journal read one line a message, and the
   tally drawn in light and in cells. `tests/test_flow_pane.cpp` covers modal commands, native
-  text dragging, reload preservation, the right press handed back, finding through the door and
-  the pane in a graphics window; host
+  text dragging, reload preservation, the right press handed back, the empty press and the pan,
+  finding through the door and the pane in a graphics window; host
   behavior is witnessed under
   [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.
