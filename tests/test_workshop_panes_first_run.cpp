@@ -793,6 +793,23 @@ TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone 
     REQUIRE(has_pane(r.session().setup.active, PaneRef{"zengine.view.builder", "view-builder"}));
     CHECK(r.session().panes.keyboard == kind_in(r, "zengine.view.builder", "view-builder"));
     CHECK(rows_say(r, story, "Show me: place a number field"));
+    // ...IN THE PANE'S OWN INK: a step's next move is a hint, not an alarm.
+    bool hint_drawn = false;
+    for (const HeldRun& run : held_runs(story)) {
+        if (run.text.find("Show me: place a number field") != std::string::npos) {
+            hint_drawn = true;
+            CHECK(run.role == gfx::role::kFill);
+        }
+    }
+    CHECK(hint_drawn);
+    // STEP 4 NAMES WHAT EXPORT APP NEEDS FIRST: the view saved, and its flow exported beside it --
+    // read from what the pane drew, the View Builder now standing over it.
+    bool step4_says = false;
+    for (const HeldRun& run : held_runs(story)) {
+        step4_says = step4_says || run.text.find("save the view, export its flow beside it") !=
+                                       std::string::npos;
+    }
+    CHECK(step4_says);
 }
 
 TEST_CASE("WL-FIRST-02: the quick setup lists the setups the launcher lists, and a Start asks "

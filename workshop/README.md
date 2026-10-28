@@ -28,6 +28,8 @@ and menus are tools too, and you can change or replace them while Workshop runs.
 ## Pages
 
 - [Getting started with Workshop](docs/getting-started.md): launch it and find your way around
+- [How to install these dependencies](docs/dependencies.md): what the package needs that it does
+  not carry, and how to install each
 - [Panes](docs/panes.md): open, close, move, resize and order panes
 - [Hotkeys and the keymap](docs/hotkeys.md): what a key means, and how to change a binding
 - [Setups and workspace continuity](docs/setups.md): how your desk is kept and comes back
