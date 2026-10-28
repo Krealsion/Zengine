@@ -738,14 +738,24 @@ struct EditorRig {
     bool clean() { return status().rfind("saved", 0) == 0; }
     bool no_source() { return status().rfind("no source open", 0) == 0; }
 
+    /// A MENU OF WORKSHOP'S OWN PUT AWAY FIRST, as a weaver does -- the box a refused quit opens
+    /// among them: a press outside it only dismisses it.
+    void put_away_menu() {
+        if (r.session().context.open) {
+            r.key(input::scan::kEscape);
+        }
+    }
+
     /// PRESS INTO THE PANE ON ITS STATUS ROW -- a row that means nothing but focus.
     void focus() {
+        put_away_menu();
         press_pane(r, kind, 0, 0);
         REQUIRE(r.session().panes.keyboard == kind);
     }
 
     /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
+        put_away_menu();
         r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1);
         REQUIRE(r.session().panes.keyboard != kind);
     }
@@ -1558,7 +1568,7 @@ TEST_CASE("a carried undo history is put back within the buffer's two bounds: pa
 TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it is not") {
     // The quit is an ask: `q` publishes `PaneQuitRequested`, the pane answers about this
     // instant, and the host decides on the answer and says the pane's own refusal on its notice
-    // line. There is no confirmation surface and no armed second press.
+    // line. No armed second press: the box the refusal opens is its own question (WL-SESSION-22).
     EditorRig e("edit-quit");
     e.open();
     e.open_file("a.cpp", "one\n");
@@ -1572,11 +1582,66 @@ TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it
     // THE SAME DOOR FROM THE NATIVE CLOSE BOX.
     e.r.close_requested();
     CHECK_FALSE(e.r.host.quit);
-    // SAVE, AND THE NEXT `q` ENDS THE PROCESS WITHOUT CEREMONY.
+    // SAVE, AND THE NEXT `q` ENDS THE PROCESS WITHOUT CEREMONY -- the box the refusal opened put
+    // away first, as `Esc` puts away any menu.
+    REQUIRE(e.r.session().context.open);
+    e.r.key(input::scan::kEscape);
     e.focus();
     e.save();
     REQUIRE(e.clean());
     CHECK(e.quit_by_key());
+}
+
+TEST_CASE("WL-SESSION-22: a quit refused for unsaved work opens a box at the room's centre; go back keeps everything, and discard quits losing only what the box named") {
+    // MUTATION: the discard asking the quit again with nothing named -- the Editor refuses it once
+    // more and Workshop stays open.
+    EditorRig e("edit-quit-box");
+    e.open();
+    e.open_file("a.cpp", "one\n");
+    e.press_doc(0, 3);
+    e.type("!");
+    REQUIRE(e.dirty());
+    const auto box_open = [&]() {
+        return e.r.session().context.open &&
+               e.r.session().context.subject == context_subject::kQuit;
+    };
+    const auto rows = [&]() { return context_line_names(e.r.session(), screen_of(e.r.session())); };
+    // REFUSED, THE BOX OPENS: back first, then discard, naming the pane that refused.
+    CHECK_FALSE(e.quit_by_key());
+    REQUIRE(box_open());
+    CHECK(rows() == std::vector<std::string>{"workshop.quit-back", "workshop.quit-discard"});
+    CHECK(e.r.session().context.cursor == 0);
+    REQUIRE(e.r.session().quit_unsaved.size() == 1);
+    const std::string named = e.r.session().quit_unsaved.front();
+    const ContextEntry discard = context_population(e.r.session().context)[1];
+    const RuntimePane* editor = e.r.session().panes.runtime.of_kind(e.kind);
+    REQUIRE(editor != nullptr);
+    CHECK(context_annotation(e.r.session(), discard) == editor->name); // its name, not its id
+    // ...AT THE ROOM'S CENTRE.
+    const Screen sc = screen_of(e.r.session());
+    const PixelRect box = context_bounds(e.r.session(), sc);
+    CHECK(std::abs((box.x + box.w / 2) - sc.w / 2) <= sc.text_advance_px);
+    CHECK(std::abs((box.y + box.h / 2) - (sc.room_y + sc.room_h / 2)) <= sc.text_line_px);
+    // GO BACK, chosen by the key that reaches the box first: nothing discarded, nothing quit.
+    e.r.key(input::scan::kReturn);
+    CHECK_FALSE(box_open());
+    CHECK_FALSE(e.r.host.quit);
+    CHECK(e.dirty());
+    CHECK(e.r.session().notice.find("nothing was discarded") != std::string::npos);
+    // A BOX THAT NAMED ANOTHER PANE discards nothing of the Editor's: it still refuses.
+    CHECK_FALSE(e.quit_by_key());
+    REQUIRE(box_open());
+    const_cast<Session&>(e.r.session()).quit_unsaved = {"some other pane"};
+    e.r.key(input::scan::kDown);
+    e.r.key(input::scan::kReturn);
+    CHECK_FALSE(e.r.host.quit);
+    CHECK(e.dirty());
+    REQUIRE(box_open()); // refused again, by the Editor, and asked again
+    CHECK(e.r.session().quit_unsaved == std::vector<std::string>{named});
+    // DISCARD, by the weaver's press of it: the quit asked again ends the run.
+    e.r.key(input::scan::kDown);
+    e.r.key(input::scan::kReturn);
+    CHECK(e.r.host.quit);
 }
 
 namespace {
@@ -1719,9 +1784,11 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     CHECK(e.r.session().notice.find("unsaved changes") != std::string::npos);
     CHECK(e.r.session().panes.keyboard == e.kind); // the held press was replayed...
     CHECK(e.doc_row(0) == "on?e!");                  // ...and the held text landed
-    CHECK_FALSE(e.r.session().context.open);         // ...and the held key went to the pane
+    // ...and the held key went to the pane: the menu open is the refused quit's box, not `a`'s.
+    CHECK(e.r.session().context.subject == context_subject::kQuit);
     // CLEAN, WITH AN EDIT RACING: the quit is answered on the clean document and the process
     // ends; the character never reached a pane, so nothing was dirtied and nothing was lost.
+    e.put_away_menu();
     e.save();
     REQUIRE(e.clean());
     e.unfocus();

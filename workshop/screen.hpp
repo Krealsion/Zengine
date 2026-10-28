@@ -862,6 +862,10 @@ struct Session {
     // WL-KEY-16 -- agents/workshop/key-spelling.md
     KeySpelling band_keys = KeySpelling::kFull;
     KeySpelling hotkeys_keys = KeySpelling::kFull;
+    /// THE PANES THE LAST REFUSED QUIT FOUND HOLDING UNSAVED WORK, by the names they answered with:
+    /// what the quit box offers to discard, and nothing else.
+    // WL-SESSION-22 -- agents/workshop/session.md
+    std::vector<std::string> quit_unsaved;
     /// WHETHER THE KEYBOARD'S SELECTION IS RINGED PLAIN -- one ring in the chrome's ink -- rather
     /// than in the accent's two: `workshop.focus.ring`.
     // WL-FOCUS-12 -- agents/workshop/focus.md

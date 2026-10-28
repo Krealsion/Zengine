@@ -718,7 +718,8 @@ or a guest's. Workshop routes it as that hand's; the producer's unattributed cop
 
 `PaneQuitAnswered`, from a pane answering `PaneQuitRequested`: `permitted`, or a `refusal` in its
 words. The last answer decides: every pane permitting ends Workshop; any refusal keeps it open, the
-band saying each refusal, or `<pane> refused the quit and gave no reason`.
+band saying each refusal, or `<pane> refused the quit and gave no reason`. A quit asked here then
+opens a box at the room's centre: go back, or discard what those panes hold and quit.
 
 ### `QuitDeliveryRefusalNoted`
 

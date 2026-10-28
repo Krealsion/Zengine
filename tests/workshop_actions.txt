@@ -25,6 +25,8 @@ command workshop.context a actions
 command workshop.pane-titles t titles
 command workshop.band-keys unbound band key spelling
 command workshop.hotkeys-keys unbound Hotkeys key spelling
+context workshop.quit-back unbound go back to work
+context workshop.quit-discard unbound discard unsaved work and quit
 command focus.next tab next pane
 command focus.previous shift+tab previous pane
 command focus.left left pane left

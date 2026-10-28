@@ -127,6 +127,8 @@ enum class Act : std::uint8_t {
     kPaneTitles,
     kBandKeys,
     kHotkeysKeys,
+    kQuitBack,
+    kQuitDiscard,
     kEditCode,
     kFocusNext,
     kFocusPrevious,
@@ -247,6 +249,11 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kBandKeys, "workshop.band-keys", "band key spelling", KeyContext::kCommand, kNoGesture},
     {Act::kHotkeysKeys, "workshop.hotkeys-keys", "Hotkeys key spelling", KeyContext::kCommand,
      kNoGesture},
+    // ...and the two rows of the box a quit refused for unsaved work opens: back to work, or the
+    // weaver's own discard of what the box names. Rows of Workshop's menu alone: no key, no palette.
+    {Act::kQuitBack, "workshop.quit-back", "go back to work", KeyContext::kContext, kNoGesture},
+    {Act::kQuitDiscard, "workshop.quit-discard", "discard unsaved work and quit",
+     KeyContext::kContext, kNoGesture},
     // ...and the keyboard's way to a pane: a selection moved in reading order or by direction,
     // and entered. Moving it gives no pane the keys; only `focus.enter` does.
     {Act::kFocusNext, "focus.next", "next pane", KeyContext::kCommand, {scan::kTab, mod::kNone}},

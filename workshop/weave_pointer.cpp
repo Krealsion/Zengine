@@ -182,6 +182,12 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     case Act::kPaneTitles:
     case Act::kBandKeys:
     case Act::kHotkeysKeys: state_presentation(a, mail); break;
+    // -- the quit box -----------------------------------------------------------------
+    case Act::kQuitBack:
+        session_.quit_unsaved.clear();
+        say("Workshop stays open -- nothing was discarded", false);
+        break;
+    case Act::kQuitDiscard: discard_and_quit(mail); break;
     default: break;
     }
 }
