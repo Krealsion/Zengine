@@ -19,6 +19,8 @@
 
 #include <zen/registry.hpp>
 
+#include <algorithm>
+
 namespace {
 
 v2::PaneActionRow declared(const char* id, const char* label, std::int64_t scancode,
@@ -1889,6 +1891,21 @@ std::string marked_row(PaneRig& r) {
     return std::string();
 }
 
+/// THE MARKER WALKED ONTO THE ROW SAYING `words` by the keys -- to the top, then down the list in
+/// the order it shows (by name) -- or false when no row says them.
+bool walk_marker_to(PaneRig& r, const std::string& words) {
+    for (int i = 0; i < 60; ++i) {
+        r.key(input::scan::kUp);
+    }
+    for (int i = 0; i < 60; ++i) {
+        if (marked_row(r).find(words) != std::string::npos) {
+            return true;
+        }
+        r.key(input::scan::kDown);
+    }
+    return false;
+}
+
 /// A PRESENTER THAT LISTENS TO THE INVENTORY, AND ASKS FOR IT. It counts publications and
 /// keeps each answer with Loom's word on whether it answers this weave's ask.
 struct InventoryEarState {
@@ -2035,9 +2052,20 @@ TEST_CASE("the launcher keeps the row it will open in view, and its feedback on 
     });
     load_real_desktop(r);
     manager_here(r);
-    const std::vector<CatalogRow> inventory =
-        inventory_rows(r.session().setup.active, r.session().panes);
+    std::vector<CatalogRow> inventory = inventory_rows(r.session().setup.active, r.session().panes);
     REQUIRE(inventory.size() > 8); // longer than the launcher's room, which is the point
+    // THE LAUNCHER LISTS THEM BY NAME, letters compared without their case.
+    const auto lowered = [](std::string s) {
+        for (char& c : s) c = static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+        return s;
+    };
+    std::stable_sort(inventory.begin(), inventory.end(),
+                     [&](const CatalogRow& a, const CatalogRow& b) {
+                         return lowered(a.name) < lowered(b.name);
+                     });
+    for (std::size_t i = 1; i < inventory.size(); ++i) { // from the row the marker holds, to the top
+        r.key(input::scan::kUp);
+    }
     CHECK(marked_row(r).find(inventory.front().name) != std::string::npos);
 
     for (std::size_t i = 1; i < inventory.size(); ++i) {
@@ -2065,23 +2093,13 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
     r.ready();
     r.extent(160, 60);
     load_real_desktop(r);
-    Session& s = const_cast<Session&>(r.session());
     for (const char* ghost : {"g1", "g2", "g3"}) {
         stage_desk(r, [&](Setup& desk) {
             REQUIRE(add_pane(desk, PaneRef{"zengine.test.ghost", ghost}));
         });
     }
     manager_here(r);
-    std::vector<CatalogRow> inventory = inventory_rows(s.setup.active, s.panes);
-    std::size_t g2 = inventory.size();
-    for (std::size_t i = 0; i < inventory.size(); ++i) {
-        g2 = inventory[i].ref.pane == "g2" ? i : g2;
-    }
-    REQUIRE(g2 < inventory.size());
-    for (std::size_t i = 0; i < g2; ++i) {
-        r.key(input::scan::kDown);
-    }
-    REQUIRE(marked_row(r).find("g2") != std::string::npos);
+    REQUIRE(walk_marker_to(r, "g2"));
 
     // THE ROW ABOVE LEAVES THE LIST: g2 now has g1's index, and the marker follows g2.
     stage_desk(r, [&](Setup& desk) {
@@ -2233,19 +2251,7 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
           std::string::npos);
 
     // THE LAUNCH JUDGMENT ASKS THE SAME FACT, AT ITS OWN MOMENT.
-    const std::vector<CatalogRow> rows = inventory_rows(r.session().setup.active,
-                                                        r.session().panes);
-    std::size_t at = rows.size();
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        at = rows[i].ref == info ? i : at;
-    }
-    REQUIRE(at < rows.size());
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        r.key(input::scan::kUp);
-    }
-    for (std::size_t i = 0; i < at; ++i) {
-        r.key(input::scan::kDown);
-    }
+    REQUIRE(walk_marker_to(r, "[gone] Info"));
     r.key(input::scan::kReturn);
     CHECK(r.last_notice().find("nothing holds `zengine.info` now") != std::string::npos);
     // ...AND NOTHING AUTHORED MOVED: the desk still names Info, and its identity is known.
@@ -2282,19 +2288,7 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
     CHECK(launcher_text(r).find("build its provider") == std::string::npos);
 
     // THE LAUNCH IS STILL REFUSED -- a launch loads nothing -- IN WORDS THAT ARE NOT A VERDICT.
-    const std::vector<CatalogRow> rows = inventory_rows(r.session().setup.active,
-                                                        r.session().panes);
-    std::size_t at = rows.size();
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        at = rows[i].ref == info ? i : at;
-    }
-    REQUIRE(at < rows.size());
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        r.key(input::scan::kUp);
-    }
-    for (std::size_t i = 0; i < at; ++i) {
-        r.key(input::scan::kDown);
-    }
+    REQUIRE(walk_marker_to(r, "[load] info"));
     r.key(input::scan::kReturn);
     CHECK(r.last_notice().find("is not here yet") != std::string::npos);
     CHECK(r.last_notice().find("build it") == std::string::npos);
@@ -2422,20 +2416,7 @@ TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return o
     REQUIRE(has_pane(r.session().setup.active, info)); // the shipped desk names it
 
     manager_here(r); // the launcher, open and holding the keys
-    const std::vector<CatalogRow> rows =
-        inventory_rows(r.session().setup.active, r.session().panes);
-    std::size_t at = rows.size();
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        at = rows[i].ref == info ? i : at;
-    }
-    REQUIRE(at < rows.size());
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        r.key(input::scan::kUp);
-    }
-    for (std::size_t i = 0; i < at; ++i) {
-        r.key(input::scan::kDown);
-    }
-    REQUIRE(marked_row(r).find("[open] Info") != std::string::npos);
+    REQUIRE(walk_marker_to(r, "[open] Info"));
 
     r.key(input::scan::kX);
     CHECK_FALSE(has_pane(r.session().setup.active, info));
@@ -2467,9 +2448,9 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     REQUIRE(r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
     Session& s = const_cast<Session&>(r.session());
     const PaneRef info{"zengine.info", "info"};
-    const PaneRef ghost{"zengine.test.ghost", "removed-pane"};
-    // authored, and offered by nobody: unresolved -- on a desk of Layouts and Info alone, so Info
-    // is the row's neighbour
+    const PaneRef ghost{"zengine.test.ghost", "idle-pane"};
+    // authored, and offered by nobody: unresolved -- named to stand just above Info in the list's
+    // order (by name), so Info is the row's neighbour
     stage_desk(r, [&](Setup& desk) {
         REQUIRE(remove_pane(desk, notices_pane_ref()));
         REQUIRE(add_pane(desk, ghost));
@@ -2478,24 +2459,12 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     // THE WEAVER CHOOSES THE UNRESOLVED ROW AND CLOSES IT WITH THE ORDINARY `x`, which takes it off
     // the desk -- and, since nothing offers it, out of the list.
     manager_here(r);
-    const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panes);
-    std::size_t at = rows.size();
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        at = rows[i].ref == ghost ? i : at;
-    }
-    REQUIRE(at < rows.size());
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        r.key(input::scan::kUp);
-    }
-    for (std::size_t i = 0; i < at; ++i) {
-        r.key(input::scan::kDown);
-    }
-    REQUIRE(marked_row(r).find("removed-pane") != std::string::npos);
+    REQUIRE(walk_marker_to(r, "idle-pane"));
     r.key(input::scan::kX);
     REQUIRE_FALSE(has_pane(s.setup.active, ghost));
     // INFO SLID INTO THE PLACE THE CHOSEN ROW HELD: the neighbour a replacement must not take.
     REQUIRE(marked_row(r).rfind("? [open] Info", 0) == 0);
-    REQUIRE(launcher_text(r).find("removed-pane left the list") != std::string::npos);
+    REQUIRE(launcher_text(r).find("idle-pane left the list") != std::string::npos);
 
     // AN UNCHANGED COPY OF THE DESKTOP, RELOADED THROUGH THE KERNEL -- then one publication more.
     const std::string image =
@@ -2507,13 +2476,13 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     r.bus.drain_until_idle();
     REQUIRE(r.load_refusals.empty());
     CHECK(marked_row(r).rfind("? ", 0) == 0);
-    CHECK(launcher_text(r).find("removed-pane left the list") != std::string::npos);
+    CHECK(launcher_text(r).find("idle-pane left the list") != std::string::npos);
     ProviderSeat* tools = r.mount_provider("zengine.test.tools");
     r.drive(tools, [](ProviderSeat& p, loom::Mail& m) {
         p.offer(m, PaneOffered{"tool", "Tool", "a publication after the replacement"});
     });
     CHECK(marked_row(r).rfind("? ", 0) == 0);
-    CHECK(launcher_text(r).find("removed-pane left the list") != std::string::npos);
+    CHECK(launcher_text(r).find("idle-pane left the list") != std::string::npos);
 
     // x AND RETURN, EACH WITH THE PANE MANAGER HOLDING THE KEYS: Info stays on the desk, the keys
     // stay where they are, and the desk is as it was. Each is pressed from the Pane Manager, so
@@ -2537,19 +2506,7 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     CHECK(launcher_text(r).find("Return showed nothing") != std::string::npos);
 
     // A ROW THE WEAVER CHOOSES NOW IS THE CHOICE, and Return obeys it.
-    const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panes);
-    std::size_t info_at = now.size();
-    for (std::size_t i = 0; i < now.size(); ++i) {
-        info_at = now[i].ref == info ? i : info_at;
-    }
-    REQUIRE(info_at < now.size());
-    for (std::size_t i = 0; i < now.size(); ++i) {
-        r.key(input::scan::kUp);
-    }
-    for (std::size_t i = 0; i < info_at; ++i) {
-        r.key(input::scan::kDown);
-    }
-    REQUIRE(marked_row(r).rfind("> [open] Info", 0) == 0);
+    REQUIRE(walk_marker_to(r, "> [open] Info"));
     r.key(input::scan::kReturn);
     CHECK(s.panes.keyboard == inspector->kind);
 }
@@ -2642,9 +2599,7 @@ TEST_CASE("the shipped Pane Manager cuts a long pane name at its room and MARKS 
     REQUIRE(hand_inspect(r, PaneRef{kDesktopRole, dp::kLauncherPane}).accepted);
     const PaneSubjectActed narrowed = hand_commit(r, "Width", "30");
     REQUIRE_MESSAGE(narrowed.accepted, narrowed.refusal);
-    for (int i = 0; i < 8; ++i) {
-        r.key(input::scan::kDown); // bring the last row into the list's window
-    }
+    REQUIRE(walk_marker_to(r, "a-very-long")); // bring its row into the list's window
     const std::string shown = launcher_text(r);
     INFO(shown);
     CHECK(shown.find(long_name) == std::string::npos); // it did not fit...

@@ -21,12 +21,12 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-10 — The launcher's cursor is a pane's identity, and its window keeps it in view
 
-LAW — The launcher holds the row a weaver is on by its two durable keys, shows it through a window that follows it, and reserves its feedback rows before the list is laid out.
+LAW — The launcher lists panes by name, holds the row a weaver is on by its two durable keys in a window that follows it, and reserves its feedback rows before the list is laid out.
 
 MEANS
 - a row moving under the cursor moves the marker with it, and Return opens what is marked;
 - a chosen pane that leaves is said; Return and `x` wait for a choice -- across a reload too;
-- every cut in the list is counted on a row of its own.
+- every cut in the list is counted on a row of its own, and the wheel scrolls what a cut hides before it moves the marker.
 
 DOES NOT MEAN
 - that the launcher owns the inventory: it keeps the host's last reading and edits none of it.
@@ -36,7 +36,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-14 — Both panes are usable by mouse, and a press is read against the rows it landed on
 
-LAW — A composition is numbered by what its rows mean; a press acts on the row the window drew under the hand, refused where another stands now; the wheel walks the cursor; a right press or `m` offers a menu.
+LAW — A composition is numbered by what its rows mean; a press acts on the row the window drew under the hand, refused where another stands now; the wheel turns the list; a right press or `m` offers a menu.
 
 MEANS
 - the Manager: the mark shows or hides, the name chooses, a second marked-name press is Return;
@@ -95,13 +95,16 @@ reading be said again"
 `workshop/desktop-pane/vocabulary.hpp` DesktopState DesktopState::cursor_office
 DesktopState::cursor_pane
 `workshop/desktop-pane/launcher_view.hpp` find_cursor write_choice launch_cursor close_cursor
+inventory_said wheel
 `component/held_choice.hpp` HeldChoice
-`component/list_window.hpp` ListWindow cursor_window
+`component/list_window.hpp` ListWindow cursor_window scroll_window
 `tests/test_workshop_panes_actions.cpp` "the launcher keeps the row it will open in view, and its
 feedback on a row of its own" "the launcher's cursor is an identity: rows moving under it do not
 retarget Return, and a row that left the list is said, not replaced" "a choice whose row left stays
 unchosen across a desktop replacement and the publications after it: Return and x reach no
 neighbour, and a row chosen then is obeyed"
+`tests/test_workshop_panes_desktop.cpp` "WL-DESK-10: the Pane Manager lists the panes by name, and its
+wheel scrolls the rows hidden its way before it walks the marker"
 
 ### WL-DESK-14
 `graphics/vocabulary.hpp` AreaButtonChanged AreaWheelTurned
@@ -122,9 +125,7 @@ window lands the press on the row it shows, refused where the list has since mov
 where it showed the new row" "WL-DESK-14: a press queued behind a change of the list is
 refused, never resolved against the moved rows" "WL-DESK-14: a press on a row's mark shows or hides that pane; a press on its name only moves the
 marker" "WL-DESK-14: a deliberate second press on the marked name, with the keys already here, opens
-it -- or focuses and lifts it when it is open and covered" "WL-DESK-14: the wheel walks the marker
-one row per notch, and a press names the picture it was aimed at -- a press queued behind a change
-of the list is refused, never resolved against the moved rows" "WL-DESK-14: a right press on a row
+it -- or focuses and lifts it when it is open and covered" "WL-DESK-14: a right press on a row
 offers its menu -- show, manage and inspect -- and `manage <pane> >` opens the host's own pane menu
 on THAT pane; the menu key offers the marked row's" "WL-DESK-14: the Pane Manager renders within
 every budget the screen grants -- down to a heading alone -- and never says an omission marker it

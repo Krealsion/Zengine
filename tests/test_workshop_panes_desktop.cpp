@@ -185,8 +185,12 @@ TEST_CASE("WL-DESK-14: a press on a row's mark shows or hides that pane; a press
     const std::int64_t alpha = d.row_of("Alpha");
     REQUIRE(alpha >= 0);
     REQUIRE_FALSE(d.open("alpha"));
+    for (int i = 0; i < 40; ++i) d.r.key(input::scan::kUp); // the marker off Alpha's row: on Gamma
+    for (int i = 0; i < 40 && marked(d.rows()).find("Gamma") == std::string::npos; ++i) {
+        d.r.key(input::scan::kDown);
+    }
     const std::string marked_before = marked(d.rows());
-    REQUIRE(marked_before.find("Alpha") == std::string::npos);
+    REQUIRE(marked_before.find("Gamma") != std::string::npos);
     d.press(alpha, kMarkCol);
     CHECK(d.open("alpha"));
     CHECK(d.rows()[static_cast<std::size_t>(alpha)].find("[open]") != std::string::npos);
@@ -422,16 +426,65 @@ TEST_CASE("WL-DESK-14: a deliberate second press on the marked name, with the ke
     CHECK(d.r.session().panes.keyboard == beta_kind);
 }
 
-TEST_CASE("WL-DESK-14: the wheel walks the marker one row per notch, and a press names the picture it was aimed at -- a press queued behind a change of the list is refused, never resolved against the moved rows") {
+TEST_CASE("WL-DESK-10: the Pane Manager lists the panes by name, and its wheel scrolls the rows hidden its way before it walks the marker") {
+    // MUTATION: the wheel walking the marker a row a notch -- the list does not move under it.
     Desk d;
     author_test_pane_room(d.r, d.launcher, 7, 100); // the gone note keeps a row of its own
     d.r.extent(161, 60);
-    const std::string first = marked(d.rows());
-    d.r.wheel_cell(-1.0, body_x(d.r, d.launcher, kNameCol), body_y(d.r, d.launcher, 1));
-    CHECK(marked(d.rows()) != first);
-    d.r.wheel_cell(1.0, body_x(d.r, d.launcher, kNameCol), body_y(d.r, d.launcher, 1));
-    CHECK(marked(d.rows()) == first);
-
+    const auto name_of = [](const std::string& row) {
+        const std::size_t at = row.find("] ");
+        return at == std::string::npos ? std::string() : row.substr(at + 2);
+    };
+    const auto lowered = [](std::string s) {
+        for (char& c : s) c = static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+        return s;
+    };
+    const auto cut = [&](const char* word) { // how many rows the list says it hides `word`
+        for (const std::string& row : d.rows()) {
+            const std::size_t at = row.find(word);
+            if (at != std::string::npos && row.size() > 4) return std::stoll(row.substr(4, at - 4));
+        }
+        return 0LL;
+    };
+    // BY NAME: the marker walked down the whole list meets the names in alphabetical order.
+    std::vector<std::string> names{name_of(marked(d.rows()))};
+    for (int i = 0; i < 60; ++i) {
+        d.r.key(input::scan::kDown);
+        const std::string now = name_of(marked(d.rows()));
+        if (now == names.back()) break;
+        names.push_back(now);
+    }
+    REQUIRE(names.size() > 5); // longer than the room, which the wheel needs
+    for (std::size_t i = 1; i < names.size(); ++i) {
+        CAPTURE(names[i - 1]);
+        CAPTURE(names[i]);
+        CHECK(lowered(names[i - 1]) <= lowered(names[i]));
+    }
+    for (std::size_t i = 1; i < names.size(); ++i) d.r.key(input::scan::kUp);
+    REQUIRE(name_of(marked(d.rows())) == names.front());
+    REQUIRE(cut("more below") > 0);
+    const auto notch = [&](double dy) {
+        d.r.wheel_cell(dy, body_x(d.r, d.launcher, kNameCol), body_y(d.r, d.launcher, 1));
+    };
+    // A NOTCH DOWN WITH ROWS HIDDEN BELOW SCROLLS: the first row goes out of sight, and the marker
+    // is carried onto the window's top row, never out of sight.
+    notch(-1.0);
+    CHECK(cut("more above") >= 1);
+    CHECK(row_containing(d.rows(), names.front()) < 0);
+    CHECK(name_of(marked(d.rows())) != names.front());
+    // ...UNTIL NOTHING IS HIDDEN BELOW; then a notch walks the marker and the list stands.
+    for (int i = 0; i < 60 && cut("more below") > 0; ++i) notch(-1.0);
+    REQUIRE(cut("more below") == 0);
+    const long long above = cut("more above");
+    const std::string top = name_of(marked(d.rows()));
+    notch(-1.0);
+    CHECK(name_of(marked(d.rows())) != top);
+    CHECK(cut("more above") == above);
+    // A NOTCH UP WITH ROWS HIDDEN ABOVE SCROLLS BACK a row, and the marker, still in sight, stays.
+    const std::string held = marked(d.rows());
+    notch(1.0);
+    CHECK(cut("more above") == above - 1);
+    CHECK(marked(d.rows()) == held);
 }
 
 // The press lands on the rows the window shows, and says the row it landed on; the Pane Manager
@@ -469,8 +522,8 @@ TEST_CASE("WL-DESK-14: a press queued behind a change of the list is refused, ne
 
 namespace {
 
-/// THE INVENTORY AS WORKSHOP LAST SAID IT, two of the test tools' panes swapped in its order, said to
-/// the desktop again; nothing is delivered.
+/// THE INVENTORY AS WORKSHOP LAST SAID IT, two of the test tools' panes' names swapped, said to the
+/// desktop again; nothing is delivered. The list goes by name, so each pane takes the other's row.
 void swap_in_inventory(Desk& d, const char* one, const char* other) {
     PaneInventory inventory = d.r.w->inventory_reading();
     std::size_t a = inventory.panes.size();
@@ -483,7 +536,7 @@ void swap_in_inventory(Desk& d, const char* one, const char* other) {
     }
     REQUIRE(a < inventory.panes.size());
     REQUIRE(b < inventory.panes.size());
-    std::swap(inventory.panes[a], inventory.panes[b]);
+    std::swap(inventory.panes[a].name, inventory.panes[b].name);
     REQUIRE(d.r.bus.office_send_to_role_as(d.r.workshop_id, kWorkshopProvider, kDesktopRole,
         loom::Message(loom::to_value(inventory), d.r.workshop_id, d.r.workshop_id, 0)).valid());
 }
@@ -499,7 +552,7 @@ TEST_CASE("WL-DESK-14: a same-length inventory swap puts another pane's row unde
     SUBCASE("another pane's row in its place") {
         swap_in_inventory(d, "alpha", "gamma");
         d.r.bus.drain_until_idle();
-        REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Gamma") != std::string::npos);
+        REQUIRE(part_drawn_at(d.launcher, row, kMarkCol) == "mark:zengine.test.tools/gamma");
         press_as_drawn(d.r, d.launcher, row, kMarkCol, alpha);
         CHECK_FALSE(d.open("gamma"));
         CHECK_FALSE(d.open("alpha"));
@@ -528,7 +581,7 @@ TEST_CASE("WL-DESK-14: an inventory change queued ahead of a raw press cannot re
     swap_in_inventory(d, "alpha", "gamma");
     if (shown_first) {
         d.r.bus.drain_until_idle();
-        REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Gamma") != std::string::npos);
+        REQUIRE(part_drawn_at(d.launcher, row, kMarkCol) == "mark:zengine.test.tools/gamma");
     }
     // THE PRESS ON THE PLATFORM, landed at the window's next beat, asked on the bus behind the
     // inventory: the desktop draws the new rows before it reads the press.
@@ -604,7 +657,10 @@ TEST_CASE("WL-DESK-13: Ctrl+P puts away a covered Pane Manager the weaver comes 
     const PaneRef manager{kDesktopRole, dp::kLauncherPane};
     const PaneRef alpha_ref{"zengine.test.tools", "alpha"};
     // FROM THE MANAGER, ALPHA IS OPENED: its row chosen, then Return, as a walk does it.
-    d.press(d.row_of("Alpha"), kNameCol);
+    for (int i = 0; i < 40 && marked(d.rows()).find("Alpha") == std::string::npos; ++i) {
+        d.r.key(input::scan::kUp); // Alpha is first by name
+    }
+    REQUIRE(marked(d.rows()).find("Alpha") != std::string::npos);
     d.r.key(input::scan::kReturn);
     REQUIRE(d.open("alpha"));
     const std::int64_t alpha = kind_of(d.r, "zengine.test.tools", "alpha");
