@@ -6,7 +6,8 @@
 
 // The Terminal pane's two helps to the line: the participant's commands walked as history, and a
 // recalled line locked in (WL-TERM-12, WL-TERM-13); and the one read, what could be said next,
-// taken only by the intent that asked, with the list's own cursor (WL-TERM-11). The members are
+// taken only by the intent that asked, with the list's own cursor (WL-TERM-11), whose candidate
+// Enter takes once the weaver moved it (WL-TERM-21). The members are
 // `TerminalPaneWeave`'s, declared in `pane.cpp`, which includes this file after the class; it
 // compiles in no other place.
 // Workshop law: agents/workshop/terminal-pane.md, agents/workshop/terminal.md
@@ -99,7 +100,7 @@ inline void TerminalPaneWeave::show_recalled(const Recallable& c) {
     recall_.seq = c.seq;
     dismissed_ = false;
     asked_for_list_ = false;
-    selected_ = 0;
+    unmove_cursor();
     moved();
     offered_ = TerminalCompletionOffered{};
     offered_about_ = here();
@@ -175,7 +176,7 @@ inline void TerminalPaneWeave::ask_completion(loom::Mail& mail) {
         offered_.heading = "completion follows the END of the line -- this caret is inside it";
         offered_about_ = here();
         offered_intent_ = intent_;
-        selected_ = 0;
+        unmove_cursor();
         return;
     }
     // AN UNTOUCHED LINE ASKS NOTHING. The line is empty immediately after a submit, and a
@@ -185,7 +186,7 @@ inline void TerminalPaneWeave::ask_completion(loom::Mail& mail) {
         offered_ = TerminalCompletionOffered{};
         offered_about_ = here();
         offered_intent_ = intent_;
-        selected_ = 0;
+        unmove_cursor();
         return;
     }
     if (completing_) {
@@ -229,10 +230,13 @@ inline bool TerminalPaneWeave::selectable() const {
     return offer_applies() && offered_.open && !dismissed_ && !offered_.candidates.empty();
 }
 
+/// THE CURSOR MOVED BY THE WEAVER'S UP OR DOWN -- moved even where an end holds it in place, for
+/// the weaver is choosing in the list, and Enter then takes what it stands on.
 inline void TerminalPaneWeave::move_selection(int by) {
     if (!selectable()) {
         return;
     }
+    cursor_moved_ = true;
     const std::size_t last = offered_.candidates.size() - 1;
     if (by < 0) {
         selected_ = selected_ == 0 ? 0 : selected_ - 1;
@@ -257,6 +261,23 @@ inline void TerminalPaneWeave::accept_candidate() {
     text += c.insert;
     const std::size_t at = text.size();
     line_.set(std::move(text), at);
+}
+
+/// THE CANDIDATE THE CURSOR IS ON, TAKEN -- by Tab, or by Enter once the weaver moved the cursor
+/// -- and what could follow the line it leaves asked again. The cursor is the list's once more,
+/// so the next Enter runs the line unless the weaver moves it.
+inline void TerminalPaneWeave::take_candidate(loom::Mail& mail) {
+    accept_candidate();
+    cursor_moved_ = false;
+    moved();
+    remember_line();
+    ask_completion(mail);
+}
+
+/// THE LIST'S CURSOR ON ITS FIRST ROW, where the list puts it and no weaver moved it.
+inline void TerminalPaneWeave::unmove_cursor() {
+    selected_ = 0;
+    cursor_moved_ = false;
 }
 
 } // namespace

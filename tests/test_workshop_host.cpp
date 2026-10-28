@@ -263,11 +263,12 @@ TEST_CASE("arguments offer field NAMES, never values, and the heading is compose
           "RigNote v1 -- missing: text");
 
     // READY IS A REAL VERDICT AND IT MEANS WHAT SUBMISSION WILL MEAN, because it is the
-    // same ladder -- `compose()` stopped one step before anything is authored.
+    // same ladder -- `compose()` stopped one step before anything is authored. It names no key:
+    // which key submits is the pane's, and Return takes a candidate the weaver moved to.
     CHECK(complete_line(me, "send * RigNote 1 slot=score text=hi ").heading ==
-          "RigNote v1 -- ready; Return submits it");
+          "RigNote v1 -- ready to submit");
     CHECK(complete_line(me, "send * RigNote 1 score hi ").heading ==
-          "RigNote v1 -- ready; Return submits it");
+          "RigNote v1 -- ready to submit");
 
     // ...and an ERROR is the ladder's words, not a second vocabulary invented here.
     CHECK(complete_line(me, "send * RigNote 1 nope=1 ").heading.find("no field 'nope'") !=
