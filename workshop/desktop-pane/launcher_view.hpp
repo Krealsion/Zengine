@@ -414,8 +414,16 @@ private:
     /// Find the row the weaver chose, in the list as the host just said it, by identity. A choice
     /// whose row left is still a choice: the keys stay in `DesktopState`, the marker holds nothing
     /// and says so, and Return and `x` wait for a new choice, here and in any image a reload hands
-    /// the state to. Only a cursor never given a pane takes the row it stands on.
+    /// the state to. A cursor the weaver has not moved stands on the top row.
     void find_cursor(DesktopState& state) {
+        // A MARKER THE WEAVER HAS NOT MOVED STANDS ON THE TOP ROW of each reading: the list is kept
+        // by name, so the row the first reading put first is not the top once more panes arrive.
+        if (by_default_ || (state.cursor_office.empty() && state.cursor_pane.empty())) {
+            state.cursor = 0;
+            state.cursor_office.clear();
+            state.cursor_pane.clear();
+            by_default_ = true;
+        }
         choice_.key = RefKey{state.cursor_office, state.cursor_pane};
         choice_.chosen = !state.cursor_office.empty() || !state.cursor_pane.empty();
         choice_.at = state.cursor < 0 ? 0 : static_cast<std::size_t>(state.cursor);
@@ -494,6 +502,7 @@ private:
         if (at < 0 || static_cast<std::size_t>(at) >= known_.size()) {
             return;
         }
+        by_default_ = false;
         choice_.hold(known_, static_cast<std::size_t>(at), key_of_pane);
         held_name_ = known_[choice_.at].name;
         write_choice(state);
@@ -503,6 +512,7 @@ private:
         if (known_.empty()) {
             return;
         }
+        by_default_ = false;
         (void)choice_.step(known_, by, key_of_pane);
         held_name_ = known_[choice_.at].name;
         write_choice(state);
@@ -645,6 +655,9 @@ private:
     std::size_t budget_ = 0;
     /// WHETHER THE WINDOW IS THE WHEEL'S SCROLL, kept while it shows the marker.
     bool scrolled_ = false;
+    /// WHETHER THE MARKER STANDS WHERE NO WEAVER PUT IT -- the top row -- until a key, a press or the
+    /// wheel moves it. Image-local: a successor holds the pane it was handed.
+    bool by_default_ = false;
     std::string notice_;
     /// THE NAME THIS IMAGE LAST SAW ON THE CHOSEN ROW, for the sentence if it leaves the list.
     std::string held_name_;

@@ -30,7 +30,7 @@ MEANS
 
 DOES NOT MEAN
 - that the launcher owns the inventory: it keeps the host's last reading and edits none of it.
-- that both keys empty is a lost choice: it is a cursor never given a pane, which takes its row.
+- that both keys empty is a lost choice: it is a cursor never given a pane, on the top row until the weaver moves it.
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 

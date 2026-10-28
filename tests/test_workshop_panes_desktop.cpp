@@ -446,7 +446,10 @@ TEST_CASE("WL-DESK-10: the Pane Manager lists the panes by name, and its wheel s
         }
         return 0LL;
     };
-    // BY NAME: the marker walked down the whole list meets the names in alphabetical order.
+    // THE MARKER NO WEAVER MOVED STANDS ON THE TOP ROW, whatever reading came first...
+    REQUIRE(d.rows().size() > 1);
+    CHECK(marked(d.rows()) == d.rows()[1]);
+    // ...AND BY NAME: the marker walked down the whole list meets the names in alphabetical order.
     std::vector<std::string> names{name_of(marked(d.rows()))};
     for (int i = 0; i < 60; ++i) {
         d.r.key(input::scan::kDown);
