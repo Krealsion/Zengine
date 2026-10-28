@@ -92,6 +92,20 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-quit-that-cannot-be-asked-is-refused.md`
 
+## WL-SESSION-22 — A quit refused for unsaved work asks in a box
+
+LAW — A quit the weaver's hand asked here that panes refused opens Workshop's menu at the room's centre: go back to work, or discard what those panes hold and quit.
+
+MEANS
+- the box opens after the held gestures replay, `go back to work` first, so a key that reaches it first loses nothing;
+- discard asks again, each pane the box named taken as permitting; one not named still refuses;
+- its rows are the menu's alone: no key reaches them and the palette does not list them.
+
+DOES NOT MEAN
+- that a quit asked by message, or by a guest's hand, opens it: that asker is answered in words.
+
+WHY — `agents/decisions/leaving-with-unsaved-work-asks-in-a-box.md`
+
 ## Do not assume
 
 - That a session save can be trusted after a crash: it is written on an orderly close and
@@ -188,3 +202,13 @@ no quit, and the refusal Loom records for that authorship is not made a particip
 box and the interrupt chord meet the same refusal as q when the held Editor cannot be asked" "the
 shipped host mounts the quit watch from Workshop's own mount, after the bus and the HostContext
 whose book it writes"
+
+### WL-SESSION-22
+`workshop/weave_run.cpp` on(PaneQuitAnswered) WorkshopWeave::offer_quit_box
+WorkshopWeave::discard_and_quit
+`workshop/weave.hpp` WorkshopWeave::offer_quit_box WorkshopWeave::discard_and_quit
+`workshop/context.hpp` kQuit kOnQuit
+`workshop/screen.hpp` Session::quit_unsaved
+`workshop/keymap.hpp` kQuitBack kQuitDiscard
+`tests/test_workshop_panes_editor.cpp` "WL-SESSION-22: a quit refused for unsaved work opens a box at
+the room's centre; go back keeps everything, and discard quits losing only what the box named"

@@ -271,6 +271,10 @@ how to open one: `ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys`.
    makes a new layout, **<!-- key layout.next -->`.`<!-- /key -->** and
    **<!-- key layout.previous -->`,`<!-- /key -->** step between them. See [setups](setups.md).
 7. **<!-- key workshop.quit -->`q`<!-- /key -->** or **<!-- key workshop.quit -->`ctrl+c`<!-- /key -->** — quit.
+   A pane holding unsaved work refuses, in its own words, and a box at the room's centre asks:
+   **go back to work**, first, or **discard unsaved work and quit**, beside the panes that hold it.
+
+   ![The box a refused quit opens, at the room's centre over the View Builder, which holds an unsaved view: go back to work, marked, then discard unsaved work and quit beside View Builder; Notices says the View Builder has an unsaved view](images/quit-box.png)
 
 > **Your desk comes back.** The panes you had open, where you put them, how big you made them
 > and how big the window was are all restored automatically from the last session and the window
