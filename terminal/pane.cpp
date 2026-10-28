@@ -61,7 +61,7 @@ namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::terminal_pane;
 
-using ws::v3::PaneActionRow;
+using ws::v4::PaneActionRow;
 using ws::PaneEscapeUnspent;
 using ws::PaneKey;
 using ws::v2::PaneOffered;
@@ -111,7 +111,7 @@ class TerminalPaneWeave
                        loom::DispatchRefused, PaneKey, PaneTextInput, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, gfx::ClipboardCopy,
                        gfx::ClipboardText>,
-          loom::Emit<ws::v2::PaneSettingsDeclared, PaneEscapeUnspent,
+          loom::Emit<ws::v2::PaneSettingsDeclared, ws::v4::PaneActions, PaneEscapeUnspent,
                      ws::TerminalValueRequested,
                      ws::PaneValueCarryRequested, TerminalActRequested,
                      TerminalCompletionRequested, gfx::ClipboardCopy,
@@ -260,7 +260,7 @@ public:
             const std::size_t last = offered_.candidates.size() - 1;
             selected_ = selected_ < last ? selected_ : last;
         } else {
-            selected_ = 0;
+            unmove_cursor();
         }
         // A DISMISSAL BELONGS TO THE PART OF THE LINE IT WAS MADE IN. Moving on to the next
         // word is a new question, so the list comes back for it.
@@ -395,11 +395,12 @@ public:
             if (at < 0) {
                 return;
             }
-            // ONE SELECTION, WHICHEVER HAND MOVED IT: this writes the field Up/Down write,
-            // so the row a click chooses is a row the completion key then accepts.
+            // ONE SELECTION, WHICHEVER HAND MOVED IT: this writes the fields Up/Down write,
+            // so the row a click chooses is a row the completion key, and Enter, then take.
             const std::size_t index = list_shown_first_ + static_cast<std::size_t>(at);
             if (index < offered_.candidates.size()) {
                 selected_ = index;
+                cursor_moved_ = true;
                 say(mail);
             }
         }
@@ -517,11 +518,16 @@ public:
 private:
     // ---- Offering and declaring ---------------------------------------------------------
 
-    /// What this pane answers to: nine rows, and they never change. No modes, unlike Info's and
+    /// What this pane answers to: ten rows, and they never change. No modes, unlike Info's and
     /// Files': the line is always open (it is the pane), so each id names one gesture whose
     /// meaning the pane resolves against its state (a recall, a list, a line), and every other
-    /// key reaches the line as a `PaneKey`.
-    void declare(loom::Mail& mail) { this->template facet<Actions>().declare(mail, action_rows()); }
+    /// key reaches the line as a `PaneKey`. Declared as v4, so the early submit names its key for
+    /// a POSIX terminal, which cannot tell Shift on Return.
+    void declare(loom::Mail& mail) {
+        (void)mail.as_role(pane::kTerminalPaneRole)
+            .send_to_role(kWorkshopRole,
+                          ws::v4::PaneActions{pane::kTerminalPane, {}, action_rows(), {}});
+    }
 
     /// THE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the pane
     /// acts on and what it said it acts on are one list -- each with what its press may send
@@ -532,8 +538,12 @@ private:
                                  std::vector<ws::ActionCause> causes = {}) {
             rows.push_back(PaneActionRow{id, label, sc, input::mod::kNone, {}, std::move(causes)});
         };
-        row(pane::kActionSubmit, "run the line / keep a recall", input::scan::kReturn,
+        row(pane::kActionSubmit, "run, take moved row, keep recall", input::scan::kReturn,
             {ws::cause_of<TerminalActRequested>()});
+        rows.push_back(PaneActionRow{pane::kActionSubmitEarly, "run the line as typed",
+                                     input::scan::kReturn, input::mod::kShift, {},
+                                     {ws::cause_of<TerminalActRequested>()}, {}, input::scan::kE,
+                                     input::mod::kCtrl});
         row(pane::kActionComplete, "what can this terminal say?", input::scan::kTab,
             {ws::cause_of<TerminalCompletionRequested>()});
         row(pane::kActionUp, "older command / list up", input::scan::kUp);
@@ -559,7 +569,7 @@ private:
         dismissed_ = false;
         asked_for_list_ = false;
         offered_ = TerminalCompletionOffered{};
-        selected_ = 0;
+        unmove_cursor();
         moved();
         remember_line();
         // A SUBMITTED LINE IS READ WHERE ITS OUTPUT ARRIVES: the view follows the newest again.
@@ -633,6 +643,8 @@ private:
     bool selectable() const;
     void move_selection(int by);
     void accept_candidate();
+    void take_candidate(loom::Mail& mail);
+    void unmove_cursor();
 
     // ---- Reading the record, defined in `view.hpp` ------------------------------------------
 
@@ -740,6 +752,9 @@ private:
     Asking offered_about_;
     std::uint64_t offered_intent_ = 0;
     std::size_t selected_ = 0;
+    /// WHETHER THE WEAVER MOVED THE LIST'S CURSOR -- by Up, Down or a press on a candidate's row
+    /// -- since the list put it on its first row: what makes Enter take the candidate it is on.
+    bool cursor_moved_ = false;
     bool dismissed_ = false;
     std::string dismissed_at_;
     bool asked_for_list_ = false;
@@ -827,17 +842,25 @@ void TerminalPaneWeave::on_action(const std::string& id, loom::Mail& mail) {
     word_press_ = false;
     notice_.clear();
     history_note_.clear();
-    // (!) ENTER AND TAB ON A RECALLED LINE LOCK IT IN AND DO NOTHING ELSE. The press is spent
-    // whole on ending the recall: no submission, no candidate taken, and no list asked for.
-    // The next Enter or Tab has its ordinary meaning.
-    if (id == pane::kActionSubmit || id == pane::kActionComplete) {
+    // (!) ENTER, SHIFT+ENTER AND TAB ON A RECALLED LINE LOCK IT IN AND DO NOTHING ELSE. The
+    // press is spent whole on ending the recall: no submission, no candidate taken, and no list
+    // asked for. The next press has its ordinary meaning.
+    if (id == pane::kActionSubmit || id == pane::kActionSubmitEarly ||
+        id == pane::kActionComplete) {
         if (settle_recall()) {
             remember_line();
             say(mail);
             return;
         }
     }
-    if (id == pane::kActionSubmit) {
+    // ENTER TAKES THE CANDIDATE THE WEAVER MOVED THE LIST'S CURSOR TO, as Tab does; with the
+    // cursor where the list put it, it runs the line. Shift+Enter runs the line as typed.
+    if (id == pane::kActionSubmit && cursor_moved_ && selectable()) {
+        take_candidate(mail);
+        say(mail);
+        return;
+    }
+    if (id == pane::kActionSubmit || id == pane::kActionSubmitEarly) {
         submit(mail);
         return;
     }
@@ -858,10 +881,7 @@ void TerminalPaneWeave::on_action(const std::string& id, loom::Mail& mail) {
         // selected candidate; with nothing on screen it is asking for one, which is the
         // only gesture discovery needs because every other entry point is typing.
         if (selectable()) {
-            accept_candidate();
-            moved();
-            remember_line();
-            ask_completion(mail);
+            take_candidate(mail);
         } else {
             asked_for_list_ = true;
             dismissed_ = false;
@@ -882,6 +902,7 @@ void TerminalPaneWeave::on_action(const std::string& id, loom::Mail& mail) {
             dismissed_ = true;
             dismissed_at_ = offered_.slot;
             asked_for_list_ = false;
+            cursor_moved_ = false; // a list brought back is one the weaver has not moved in
             moved();
         } else if (!composing_nothing()) {
             // ABANDONING THE LINE ABANDONS THE DISMISSAL WITH IT. The dismissal was made

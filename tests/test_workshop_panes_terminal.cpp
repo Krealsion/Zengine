@@ -310,12 +310,13 @@ TEST_CASE("the five keys are the pane's rows, on the built-in's own spellings") 
     TerminalRig t;
     t.open();
     const std::vector<std::string> ids = t.declared();
-    // sorted: back, complete, newest, next, oldest, previous, scroll-down, scroll-up, submit
+    // sorted: back, complete, newest, next, oldest, previous, scroll-down, scroll-up, submit,
+    // submit-early
     CHECK(ids == std::vector<std::string>{pane::kActionBack, pane::kActionComplete,
                                           pane::kActionNewest, pane::kActionDown,
                                           pane::kActionOldest, pane::kActionUp,
                                           pane::kActionScrollDown, pane::kActionScrollUp,
-                                          pane::kActionSubmit});
+                                          pane::kActionSubmit, pane::kActionSubmitEarly});
     const RuntimePane* row = t.row();
     REQUIRE(row != nullptr);
     const auto gesture_of = [row](const char* id) {
@@ -1779,6 +1780,151 @@ TEST_CASE("a completion answer asked before a recall is neither shown on the rec
     t.r.key(input::scan::kTab);
     CHECK(t.input_text() == "> send ");
     CHECK(t.text().find("where it goes") != std::string::npos);
+}
+
+// ============================================================================
+// ENTER TAKES THE CANDIDATE THE WEAVER MOVED TO; SHIFT+ENTER RUNS THE LINE AS TYPED
+// ============================================================================
+// The list `send #1 Extra` opens is the participant's `Extra0 v1`, `Extra1 v1`, ... in order, its
+// cursor on the first: a list whose second row is known, and a line that is no command yet.
+
+namespace {
+
+/// A LIVE TERMINAL WITH THE FIRST THREE EXTRAS KNOWN AND ROOM FOR THEIR LIST, its line composing
+/// `send #1 Extra`, the list's cursor where the list put it.
+void compose_extras(TerminalRig& t) {
+    t.open(240, 100, /*shapes=*/3);
+    t.give_room(16, 120);
+    t.type("send #1 Extra");
+    REQUIRE(t.row_of("> Extra0 v1") >= 0);
+    REQUIRE(t.row_of("  Extra2 v1") >= 0);
+}
+
+} // namespace
+
+TEST_CASE("Down then Enter takes the candidate the cursor moved to and runs nothing, and the next Enter runs the line") {
+    // ENTER TAKES WHAT THE WEAVER MOVED TO, as Tab does: the line is written and nothing is
+    // authored. Taking it leaves the cursor unmoved, so the next Enter runs the line as it stands.
+    TerminalRig t;
+    compose_extras(t);
+    const std::size_t before = commands_run(t);
+    t.r.key(input::scan::kDown);
+    REQUIRE(t.row_of("> Extra1 v1") >= 0);
+    t.r.key(input::scan::kReturn);
+    CHECK(commands_run(t) == before);
+    CHECK(t.input_text() == "> send #1 Extra1 1 ");
+    t.r.key(input::scan::kReturn);
+    CHECK(commands_run(t) == before + 1);
+    CHECK(last_command(t).rfind("send #1 Extra1 1", 0) == 0);
+}
+
+TEST_CASE("a press on a candidate's row moves the cursor there, and Enter then takes it") {
+    TerminalRig t;
+    compose_extras(t);
+    const std::size_t before = commands_run(t);
+    const std::int64_t third = t.row_of("  Extra2 v1");
+    t.press_row(third);
+    REQUIRE(t.row_of("> Extra2 v1") == third);
+    t.r.key(input::scan::kReturn);
+    CHECK(commands_run(t) == before);
+    CHECK(t.input_text() == "> send #1 Extra2 1 ");
+}
+
+TEST_CASE("Enter with the list's cursor unmoved, or moved and then left by a new word or a dismissal, runs the line as typed") {
+    // THE CURSOR THE LIST PUT ON ITS FIRST ROW IS NOT ONE THE WEAVER MOVED: Enter runs the line.
+    TerminalRig t;
+    compose_extras(t);
+    std::size_t before = commands_run(t);
+    t.r.key(input::scan::kReturn);
+    CHECK(commands_run(t) == before + 1);
+    CHECK(last_command(t) == "send #1 Extra");
+    CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
+
+    // ...A NEW WORD IS A NEW LIST, its cursor unmoved again: Enter runs the line.
+    t.type("send #1 Extra");
+    t.r.key(input::scan::kDown);
+    REQUIRE(t.row_of("> Extra1 v1") >= 0);
+    t.type("2");
+    REQUIRE(t.row_of("> Extra2 v1") >= 0);
+    before = commands_run(t);
+    t.r.key(input::scan::kReturn);
+    CHECK(commands_run(t) == before + 1);
+    CHECK(last_command(t) == "send #1 Extra2");
+
+    // ...AND A DISMISSED LIST TAKES NOTHING: Escape puts it away and Enter runs the line.
+    t.type("send #1 Extra");
+    t.r.key(input::scan::kDown);
+    REQUIRE(t.row_of("> Extra1 v1") >= 0);
+    t.r.key(input::scan::kEscape);
+    REQUIRE(t.row_of("> Extra1 v1") < 0);
+    before = commands_run(t);
+    t.r.key(input::scan::kReturn);
+    CHECK(commands_run(t) == before + 1);
+    CHECK(last_command(t) == "send #1 Extra");
+}
+
+TEST_CASE("while the cursor is moved the list's heading says Enter takes the row and Shift+Enter runs the line") {
+    TerminalRig t;
+    compose_extras(t);
+    CHECK(t.text().find("Enter: take it") == std::string::npos);
+    t.r.key(input::scan::kDown);
+    CHECK(t.text().find("Enter: take it, Shift+Enter: run the line") != std::string::npos);
+    // ...and a list the cursor has not moved in says nothing of the kind.
+    t.r.key(input::scan::kReturn);
+    CHECK(t.text().find("Enter: take it") == std::string::npos);
+}
+
+TEST_CASE("Shift+Enter runs the line as typed though the cursor moved to a candidate") {
+    TerminalRig t;
+    compose_extras(t);
+    const std::size_t before = commands_run(t);
+    t.r.key(input::scan::kDown);
+    REQUIRE(t.row_of("> Extra1 v1") >= 0);
+    t.r.key(input::scan::kReturn, input::mod::kShift);
+    CHECK(commands_run(t) == before + 1);
+    CHECK(last_command(t) == "send #1 Extra");
+    CHECK(t.input_text().find("Tab: what can this terminal say?") != std::string::npos);
+}
+
+TEST_CASE("Shift+Enter on a recalled line locks it in and runs nothing, and the next Shift+Enter runs it") {
+    // THE RECALL'S RULE HOLDS FOR SHIFT+ENTER AS FOR ENTER AND TAB: the press that locks does
+    // nothing else.
+    TerminalRig t;
+    t.open();
+    t.give_room(12, 100);
+    run(t, "first");
+    const std::size_t before = commands_run(t);
+    t.r.key(input::scan::kUp);
+    REQUIRE(t.text().find("history 1 of 1") != std::string::npos);
+    t.r.key(input::scan::kReturn, input::mod::kShift);
+    CHECK(commands_run(t) == before);
+    CHECK(t.input_text().rfind("> first", 0) == 0);
+    CHECK(t.text().find("history ") == std::string::npos);
+    t.r.key(input::scan::kReturn, input::mod::kShift);
+    CHECK(commands_run(t) == before + 1);
+    CHECK(last_command(t) == "first");
+}
+
+TEST_CASE("Shift+Enter is a row of its own, on Return with Shift, and on ctrl+e where the keys come from a POSIX terminal") {
+    // A POSIX TERMINAL CANNOT TELL SHIFT ON RETURN (`posix_gap`), so the row names a key that
+    // terminal delivers beside its default, and either runs the line as typed.
+    TerminalRig t;
+    t.open();
+    const RuntimePane* row = t.row();
+    REQUIRE(row != nullptr);
+    const v4::PaneActionRow* early = nullptr;
+    for (const v4::PaneActionRow& a : row->actions) {
+        if (a.id == pane::kActionSubmitEarly) {
+            early = &a;
+        }
+    }
+    REQUIRE(early != nullptr);
+    CHECK(early->scancode == input::scan::kReturn);
+    CHECK(early->modifiers == input::mod::kShift);
+    CHECK(posix_gap(Gesture{early->scancode, early->modifiers}) != nullptr);
+    CHECK(early->posix_scancode == input::scan::kE);
+    CHECK(early->posix_modifiers == input::mod::kCtrl);
+    CHECK(posix_gap(Gesture{early->posix_scancode, early->posix_modifiers}) == nullptr);
 }
 
 // ============================================================================
