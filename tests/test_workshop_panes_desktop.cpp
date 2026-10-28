@@ -625,7 +625,8 @@ TEST_CASE("WL-DESK-13: Ctrl+P is a visibility toggle judged by the host -- open 
     CHECK(has_pane(d.r.session().setup.active, manager));
 
     // PART OF IT COVERED, IT IS BROUGHT FORWARD WITH THE KEYS, and stays on the desk.
-    // MUTATION: the toggle closing a covered pane -- the Manager leaves the desk; the checks go red.
+    // MUTATION (tests/mutants/workshop_panes_desktop.md#toggle-closes-a-covered-pane): the toggle
+    // closing a covered pane -- the Manager leaves the desk; the checks go red.
     const Screen sc = screen_of(d.r.session());
     const PixelRect under = room_of_canvas(
         bounds_of(d.r.session().panes, d.r.session().setup.active,
@@ -654,8 +655,9 @@ TEST_CASE("WL-DESK-13: Ctrl+P is a visibility toggle judged by the host -- open 
 }
 
 TEST_CASE("WL-DESK-13: Ctrl+P puts away a covered Pane Manager the weaver comes straight from, and brings it forward once they have moved on from it") {
-    // MUTATION: the toggle judging a covered pane by its cover alone -- the Manager the weaver
-    // opened Alpha from comes forward instead of going, and the first checks go red.
+    // MUTATION (tests/mutants/workshop_panes_desktop.md#toggle-judges-cover-alone): the toggle
+    // judging a covered pane by its cover alone -- the Manager the weaver opened Alpha from comes
+    // forward instead of going, and the first checks go red.
     Desk d;
     const PaneRef manager{kDesktopRole, dp::kLauncherPane};
     const PaneRef alpha_ref{"zengine.test.tools", "alpha"};
@@ -704,8 +706,9 @@ TEST_CASE("WL-DESK-13: Ctrl+P puts away a covered Pane Manager the weaver comes 
 }
 
 TEST_CASE("WL-DESK-20: the Manual opens over the pane whose manual was asked, a margin of it showing on every edge, and moves over the next one asked") {
-    // MUTATION: the Manual seated where it would have stood -- it opens at the room's centre, and
-    // the checks of its place go red.
+    // MUTATION (tests/mutants/workshop_panes_desktop.md#manual-where-it-would-stand): the Manual
+    // seated where it would have stood -- it opens at the room's centre, and the checks of its
+    // place go red.
     Desk d;
     left_in_column(d.r, PaneRef{kDesktopRole, dp::kManualPane}); // it would stand in the column
     const auto open_by_mark = [&d](const char* name) {
@@ -1529,7 +1532,8 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawab
 }
 
 TEST_CASE("the Hotkeys pane asks the window that shows it for a paste into a spelling") {
-    // ⚔ MUTATION: the Hotkeys pane's paste asked of another office than the window showing it.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_desktop.md#hotkeys-paste-asked-elsewhere): the
+    // Hotkeys pane's paste asked of another office than the window showing it.
     // THE WINDOW SHOWING THE DESK SHOWS THE PANE, so the pane has a room to compose its spelling
     // in, and the paste is that window's: the OS window's platform clipboard.
     Keys k("hotkeys-paste-window");

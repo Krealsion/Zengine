@@ -1,0 +1,217 @@
+name: Mutants
+
+# THE REPOSITORY'S MUTANTS, RUN EVERY WEEK ON `main` (tests/mutants/README.md): every mutant a
+# case's comment claims, put into the tree one at a time, built and its cases run. It runs on no
+# pull request and holds none: a mutant that survives or no longer applies turns this run red and is
+# said in one open issue, which the report job opens or adds to. The corpus runs in pieces, each a
+# job of its own under its own limit, so no job here is long and no other workflow's job changes.
+on:
+  schedule:
+    - cron: '41 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time: a second waits for the first rather than replacing it.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-loom:
+    name: Resolve canonical Loom
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.loom.outputs.sha }}
+    steps:
+      - name: Resolve Loom main once for this run
+        id: loom
+        run: |
+          loom_sha="$(git ls-remote https://github.com/Krealsion/Loom.git refs/heads/main | awk 'NR == 1 { print $1 }')"
+          if [[ ! "$loom_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Could not resolve canonical Loom main" >&2
+            exit 1
+          fi
+          echo "Canonical Loom: $loom_sha"
+          echo "sha=$loom_sha" >> "$GITHUB_OUTPUT"
+
+  # A PIECE: the tree built as the Linux lane builds it, then its share of the corpus, every
+  # mutant in turn (`--shard <piece>/<pieces>`). At most four at once, so the runners a pull
+  # request's checks wait for are not all taken.
+  piece:
+    name: Mutants / piece ${{ matrix.piece }} of 8
+    needs: resolve-loom
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        piece: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - name: Check out Zengine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Fetch pinned canonical Loom
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          loom_source="$RUNNER_TEMP/loom-src"
+          git init "$loom_source"
+          git -C "$loom_source" remote add origin https://github.com/Krealsion/Loom.git
+          git -C "$loom_source" fetch --depth=1 origin "$LOOM_SHA"
+          git -C "$loom_source" checkout --detach FETCH_HEAD
+          test "$(git -C "$loom_source" rev-parse HEAD)" = "$LOOM_SHA"
+
+      - name: Build and install Loom to a fresh prefix
+        run: |
+          loom_prefix="$RUNNER_TEMP/loom-prefix"
+          test ! -e "$loom_prefix"
+          cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS_DEBUG=-g0 \
+            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF
+          cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
+          cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
+
+      # The `neovim` gate open, as in the Linux lane: a mutant whose case needs a real Neovim runs it.
+      - name: Fetch pinned Neovim 0.11.6
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz" \
+            https://github.com/neovim/neovim/releases/download/v0.11.6/nvim-linux-x86_64.tar.gz
+          echo "2fc90b962327f73a78afbfb8203fd19db8db9cdf4ee5e2bef84704339add89cc  $RUNNER_TEMP/nvim-linux-x86_64.tar.gz" \
+            | sha256sum --check --strict -
+          tar -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim" --version
+
+      # THE LINUX LANE'S COMPILER CACHE, read and never written: `main`'s newest store for this
+      # compiler, which `ci.yml` keeps. A mutant's object is never taken from it unchanged -- the
+      # runner checks every object a mutant compiles against the bytes it first had (VM-MUT-25).
+      - name: Fetch pinned ccache 4.13.6
+        id: ccache
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/ccache.tar.xz" \
+            https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-musl-static.tar.xz
+          echo "156ec57c5198cc849d92834023d09910b83dc5504c6cf405d09e6ae7b208a3e5  $RUNNER_TEMP/ccache.tar.xz" \
+            | sha256sum --check --strict -
+          mkdir "$RUNNER_TEMP/ccache-bin"
+          tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP/ccache-bin" --strip-components=1
+          compilers="$(readlink -f "$(command -v cc)") $(readlink -f "$(command -v c++)")"
+          compiler="$(sha256sum $compilers | cut -d ' ' -f 1 | sha256sum | cut -c 1-16)"
+          {
+            echo "ZEN_CCACHE=$RUNNER_TEMP/ccache-bin/ccache"
+            echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
+            echo "CCACHE_MAXSIZE=3G"
+            echo "CCACHE_COMPILERCHECK=content"
+          } >> "$GITHUB_ENV"
+          echo "compiler=$compiler" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Linux lane's compiler cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-
+
+      # As the Linux lane configures it, but with Ninja: the runner reads Ninja's own record of what
+      # each object was compiled from.
+      - name: Configure Zengine as the Linux lane does, with Ninja
+        run: |
+          ninja --version
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS_DEBUG=-g0 \
+            -DCMAKE_CXX_FLAGS_DEBUG=-g0 \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
+            -DCMAKE_C_COMPILER_LAUNCHER="$ZEN_CCACHE" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER="$ZEN_CCACHE" \
+            -DZEN_LOOM_DEV=OFF \
+            -DBUILD_TESTING=ON \
+            -DZENGINE_NEOVIM_PROGRAM="$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim"
+
+      # The runner's own exit, written beside its verdicts, is this step's: 0 every mutant caught,
+      # 1 one survived or is stale, 2 a run that cannot be believed. The report job reads them all.
+      - name: Run this piece of the corpus
+        env:
+          PIECE: ${{ matrix.piece }}
+        run: |
+          set +e
+          python3 tests/mutants/run.py --build build --shard "$PIECE/8" \
+            --out "$RUNNER_TEMP/mutants" --jobs "$(nproc)" 2>&1 | tee "$RUNNER_TEMP/mutants.log"
+          code="${PIPESTATUS[0]}"
+          echo "$code" > "$RUNNER_TEMP/mutants/exit"
+          cat "$RUNNER_TEMP/mutants/table.md" >> "$GITHUB_STEP_SUMMARY" || true
+          exit "$code"
+
+      - name: Keep this piece's verdicts and logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutants-piece-${{ matrix.piece }}
+          path: ${{ runner.temp }}/mutants
+          if-no-files-found: warn
+          retention-days: 30
+
+  # THE ONE PLACE THE OWNER READS IT: every piece's verdicts gathered, said in the run's summary,
+  # and, when a mutant survived or no longer applies, in the one open issue this job keeps --
+  # opened if there is none, added to if there is. Its only permission beyond reading is to write
+  # issues.
+  report:
+    name: Mutants / report
+    needs: piece
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out Zengine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Fetch every piece's verdicts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: mutants-piece-*
+          path: ${{ runner.temp }}/pieces
+
+      - name: Gather the verdicts
+        id: gather
+        run: |
+          set +e
+          dirs=()
+          for n in 1 2 3 4 5 6 7 8; do dirs+=("$RUNNER_TEMP/pieces/mutants-piece-$n"); done
+          python3 tests/mutants/run.py --gather "${dirs[@]}" --summary "$RUNNER_TEMP/summary.md"
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          {
+            printf '## The weekly mutants at %s\n\n' "$GITHUB_SHA"
+            cat "$RUNNER_TEMP/summary.md"
+          } | tee "$RUNNER_TEMP/said.md" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+      - name: Say it in the issue
+        if: ${{ steps.gather.outputs.code != '0' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          printf '\nThe run: %s\n' "$RUN_URL" >> "$RUNNER_TEMP/said.md"
+          title="The weekly mutants: what survived or no longer applies"
+          open="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" \
+            --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/said.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/said.md"
+          fi
+
+      - name: The run's verdict
+        env:
+          CODE: ${{ steps.gather.outputs.code }}
+        run: exit "$CODE"

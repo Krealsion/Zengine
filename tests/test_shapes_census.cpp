@@ -189,8 +189,9 @@ std::vector<std::string> lines_of(const std::string& path) {
 } // namespace
 
 TEST_CASE("every shape this tree publishes is pinned by content id under its name and version") {
-    // ⚔ MUTATION: a field added to a published shape at the same version -- its content id moves,
-    // and so does every enclosing shape's, and the census names each.
+    // ⚔ MUTATION (tests/mutants/shapes_census.md#field-at-same-version): a field added to a
+    // published shape at the same version -- its content id moves, and so does every enclosing
+    // shape's, and the census names each.
     //
     // THE READER, MADE TO SAY YES AND NO before it is believed.
     CHECK(shapes_declared_in("ZEN_SHAPE(Alpha, 1, ZEN_FIELD(x));\nZEN_SHAPE( Beta , 12);") ==
@@ -270,8 +271,9 @@ TEST_CASE("every shape this tree publishes is pinned by content id under its nam
 }
 
 TEST_CASE("a weave the census cannot make is named in the words it refused to be made in") {
-    // ⚔ MUTATION: the census handing `create` no sink -- the OS window told a driver SDL lacks is
-    // named as making nothing, and SDL's words are lost.
+    // ⚔ MUTATION (tests/mutants/shapes_census.md#create-given-no-sink): the census handing `create`
+    // no sink -- the OS window told a driver SDL lacks is named as making nothing, and SDL's words
+    // are lost.
     std::string window;
     for (const std::string& path : lines_of(ZENGINE_CENSUS_WEAVES)) {
         if (std::filesystem::path(path).filename().string().find("zengine-window-sdl") !=
@@ -295,8 +297,8 @@ TEST_CASE("a weave the census cannot make is named in the words it refused to be
 }
 
 TEST_CASE("every weave that takes a pane's row asks the layouts' owner for it, and none hands one") {
-    // ⚔ MUTATION: a pane office that takes `PaneSettings` without the settings facet -- it never
-    // asks for its row, and draws no room.
+    // ⚔ MUTATION (tests/mutants/shapes_census.md#facet-never-asks): a pane office that takes
+    // `PaneSettings` without the settings facet -- it never asks for its row, and draws no room.
     const std::string takes = ::zengine::workshop::PaneSettings::zen_name;
     const std::string asks = ::zengine::workshop::PaneSettingsAsked::zen_name;
     std::set<std::string> taking;

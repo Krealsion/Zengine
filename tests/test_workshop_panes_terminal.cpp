@@ -364,7 +364,8 @@ class RowForger
 
 TEST_CASE("the Terminal draws nothing in a window's room before it holds its row, takes a row from "
           "the layouts' owner alone, and draws whole once it holds one") {
-    // ⚔ MUTATION: a pane that draws its room before it holds a row -- the room alone draws it.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_terminal.md#draws-before-its-row): a pane that draws
+    // its room before it holds a row -- the room alone draws it.
     PaneRig r;
     zengine::testing::LayoutsStandIn* layouts =
         zengine::testing::mount_layouts_stand_in(r.bus, /*hold=*/true);
@@ -378,7 +379,7 @@ TEST_CASE("the Terminal draws nothing in a window's room before it holds its row
     window.room(area, pane::kTerminalPaneRole, 40, 10);
     CHECK(window.weave().heard.empty());
     // ...A ROW ANOTHER OFFICE HANDS IS NOT ITS ROW, and draws nothing either.
-    // ⚔ MUTATION: a pane that takes a row from any office.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_terminal.md#row-from-any-office): a pane that takes a row from any office.
     auto forger = std::make_unique<RowForger>();
     RowForger* raw = forger.get();
     loom::Grant hands;
@@ -646,8 +647,9 @@ TEST_CASE("a pane that loaded after the last publication still hears the reading
     t.r.pick(pane_terminal_ref());
     REQUIRE(t.r.session().panes.has(t.kind));
 
-    // ⚔ MUTATION: dropping `say_again()` from `accept_pane_offer` puts
-    // "no participant was mounted on this bus" here, which is the sentence a weaver read.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_terminal.md#offer-says-nothing-again): dropping
+    // `say_again()` from `accept_pane_offer` puts "no participant was mounted on this bus" here,
+    // which is the sentence a weaver read.
     CHECK(t.text().find("TERMINAL -- weave #") != std::string::npos);
     CHECK(t.text().find("no participant was mounted") == std::string::npos);
 }
@@ -2499,8 +2501,9 @@ TEST_CASE("a Terminal not widened to settings cannot ask for them: the line is r
 }
 
 TEST_CASE("`workshop.completion-order` puts a shape's required fields first in the Terminal's list, so accepting the first offer names what the message needs") {
-    // ⚔ MUTATION: the door asks `complete_line` in the shape's order whatever the session says --
-    // the first offer after `key=` stays `flag=`, an optional field.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_terminal.md#door-ignores-the-order): the door asks
+    // `complete_line` in the shape's order whatever the session says -- the first offer after
+    // `key=` stays `flag=`, an optional field.
     TerminalRig t;
     t.r.terminal_edits_settings = true;
     t.open();

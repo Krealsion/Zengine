@@ -455,8 +455,8 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
 
     SUBCASE("in a window that sets type, the same lines a line of its face apart, and a press on "
             "the words of the button resets") {
-        // ⚔ MUTATION: the picture set a row a cell in every window -- its lines stand 12 pixels
-        // apart in a face 18 tall.
+        // ⚔ MUTATION (tests/mutants/workshop_demo.md#rows-a-cell-apart): the picture set a row a
+        // cell in every window -- its lines stand 12 pixels apart in a face 18 tall.
         DemoRig w; w.ready();
         zengine::testing::pane_window::Window window(w.bus, "light");
         const gfx::TextMeasure face{8, 18};
@@ -663,9 +663,11 @@ Screen os_window_of(std::int64_t w, std::int64_t h) {
 } // namespace
 
 TEST_CASE("pane comfort: `fit` follows a pane switching between two sizes each time, in both windows, and `default` keeps the first") {
-    // ⚔ MUTATION: `pane_measure` reading the first offer for `fit` -- the fitted pane stays as tall
-    // as its first offer asked, whatever it asks now.
-    // ⚔ MUTATION: every re-offer held in the OS window -- the accordion shut there stays open.
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#fit-reads-first-offer): `pane_measure` reading the
+    // first offer for `fit` -- the fitted pane stays as tall as its first offer asked, whatever it
+    // asks now.
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#every-reoffer-held): every re-offer held in the OS
+    // window -- the accordion shut there stays open.
     Panes p;
     Setup setup;
     setup.name = "Comfort";
@@ -721,9 +723,10 @@ TEST_CASE("pane comfort: `fit` follows a pane switching between two sizes each t
 }
 
 TEST_CASE("pane comfort: a re-offer within one pixel of what `fit` stands on is held in the OS window alone, and the terminal window follows it") {
-    // ⚔ MUTATION: no hold -- the OS window's pane follows a one-pixel wobble.
-    // ⚔ MUTATION: the terminal window holding too -- it stays where the wobble began.
-    // ⚔ MUTATION: a hold of two pixels -- an offer two pixels off is held.
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#no-hold): no hold -- the OS window's pane follows a one-pixel wobble.
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#terminal-holds-too): the terminal window holding
+    // too -- it stays where the wobble began.
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#two-pixel-hold): a hold of two pixels -- an offer two pixels off is held.
     Panes p;
     Setup setup;
     setup.name = "Wobble";
@@ -772,8 +775,9 @@ TEST_CASE("pane comfort: a re-offer within one pixel of what `fit` stands on is 
 }
 
 TEST_CASE("pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer") {
-    // ⚔ MUTATION: `pane_fit_note` saying nothing of a held measure -- the weaver sees a pane that
-    // stopped following its offer and is not told why.
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#held-note-silent): `pane_fit_note` saying nothing
+    // of a held measure -- the weaver sees a pane that stopped following its offer and is not told
+    // why.
     Session s;
     s.cell_px = zengine::graphics::kCellPx;
     s.text_advance_px = 8;
@@ -909,8 +913,9 @@ TEST_CASE("an agent's desk holding a setting with no value is refused by its key
 }
 
 TEST_CASE("a desk put live keeps every lock: `r` and an agent's desk are refused whole naming each locked value they would change, and a lock the desk brings joins") {
-    // ⚔ MUTATION: `replacement_refused` answering nothing -- the incoming desk changes the locked
-    // legend, and the lock stands over a value nobody locked.
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#replacement-over-a-lock): `replacement_refused`
+    // answering nothing -- the incoming desk changes the locked legend, and the lock stands over a
+    // value nobody locked.
     TempDir dir("replace-keeps-locks");
     Live live;
     live.host.setup_path = dir.file("setup.json");

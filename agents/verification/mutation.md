@@ -105,6 +105,12 @@ METHOD — An in-place editor that writes a work file and renames it cannot writ
 BECAUSE — twelve mutations, twelve unedited files, twelve BUILD-FAILED lines, indistinguishable
 from twelve caught falsifiers to a skimmed log.
 
+## VM-MUT-33 — A case's mutants are kept in the tree and run every week
+
+METHOD — Every mutant a case's comment claims is an entry under `tests/mutants/` that the comment points at, the whole corpus runs every week, and a pull request commits its mutants and cites them by path.
+BECAUSE — a matrix kept outside the repository is evidence no one can run again, and a case that
+stops catching what its comment says is found by nobody once the code it guards moves under it.
+
 ## Seen
 
 ### VM-MUT-01
@@ -114,7 +120,7 @@ nowhere yet
 nowhere yet
 
 ### VM-MUT-05
-nowhere yet
+`tests/mutants/run.py` run make
 
 ### VM-MUT-06
 nowhere yet
@@ -123,34 +129,39 @@ nowhere yet
 nowhere yet
 
 ### VM-MUT-08
-nowhere yet
+`tests/mutants/run.py` mutate_one write_in_place
 
 ### VM-MUT-09
-nowhere yet
+`tests/mutants/run.py` mutate_one digest
 
 ### VM-MUT-32
-nowhere yet
+`tests/mutants/run.py` READ_RE mutate_one
 
 ### VM-MUT-10
-nowhere yet
+`tests/mutants/run.py` main
 
 ### VM-MUT-19
 nowhere yet
 
 ### VM-MUT-20
-nowhere yet
+`tests/mutants/run.py` only_comments
 
 ### VM-MUT-21
-nowhere yet
+`tests/mutants/run.py` stop_on_signal Stopped
 
 ### VM-MUT-22
-nowhere yet
+`tests/mutants/run.py` main (a lock in the build tree: one runner a tree)
 
 ### VM-MUT-24
-nowhere yet
+`tests/mutants/run.py` main (the tree's git status, before and after)
 
 ### VM-MUT-25
-nowhere yet
+`tests/mutants/run.py` mutate_one
+`.github/workflows/mutants.yml`
 
 ### VM-MUT-26
-nowhere yet
+`tests/mutants/run.py` write_in_place
+
+### VM-MUT-33
+`tests/mutants/run.py` load_corpus claimed shard_of
+`.github/workflows/mutants.yml`

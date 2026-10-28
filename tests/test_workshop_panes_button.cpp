@@ -1260,8 +1260,9 @@ TEST_CASE("WL-CTX-09: a pane that leaves the desk while its menu is open has it 
 }
 
 TEST_CASE("WL-CTX-09: another desk going live withdraws a pane's open menu, answered unchosen, and closes the host's own; an edit of the same desk leaves either open") {
-    // ⚔ MUTATION: the live layout installed with its menu left standing -- a menu about the desk
-    // the weaver was on stays open over another.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_button.md#menu-left-over-another-desk): the live
+    // layout installed with its menu left standing -- a menu about the desk the weaver was on stays
+    // open over another.
     Rigged t;
     LayoutStore& store = t.r.owner->store();
     const auto live = [&t, &store](const char* op) {
@@ -1359,9 +1360,12 @@ TEST_CASE("WL-CTX-09: a chosen row may continue into the host's own pane menu on
 TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- once, while the choice is the weaver's latest act, and never under another number") {
     // THE OTHER CONTINUATION, THE ONE THE PANES SPEND. A menu leaves the keyboard where it was, so
     // a row that opens a line, chosen by a right press into an UNFOCUSED pane, needs the keys:
-    // `take_keyboard` asks, judged as a manage request is. ⚔ MUTATIONS: the guard's
-    // `choice_answered_.spent` check removed takes the keys back on the second continuation below;
-    // its `correlation` check removed grants keys on a stale number the weaver never asked for.
+    // `take_keyboard` asks, judged as a manage request is.
+
+    // ⚔ MUTATIONS (tests/mutants/workshop_panes_button.md#keyboard-grab-spent-twice,
+    // #keyboard-grab-any-number): the guard's `choice_answered_.spent` check removed takes the keys
+    // back on the second continuation below; its `correlation` check removed grants keys on a stale
+    // number the weaver never asked for.
     Rigged t;
     t.guard->menu_on_press = true;
     t.guard->keys_on_choice = true;

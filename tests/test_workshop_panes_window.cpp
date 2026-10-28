@@ -236,7 +236,8 @@ TEST_CASE("a file's `right-column` reads as `top-right` at no offset, and is wri
     // saying it reads as that point with its sizes as the row says them, and is written as the
     // word it now is. Asked of the Editor, whose default place is the overlay stack, so a reading
     // that dropped the word would leave it in the stack and redden here.
-    // ⚔ MUTATION: `place_in` reading `right-column` as `default` -- the Editor stays stacked.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_window.md#right-column-read-as-default): `place_in`
+    // reading `right-column` as `default` -- the Editor stays stacked.
     const Setup good = two_overlays();
     const std::string valid = setup_persist::to_text(good);
     const std::string old = forged_setup(good, "\"place\":{\"mode\":\"default\"}",
@@ -2043,9 +2044,10 @@ TEST_CASE("an arrow steps the AUTHORED value, not the medium's floor") {
 TEST_CASE("on the shipped face the border is chrome and the first body pixel is row 0") {
     // THE SHARPEST FALSIFIER HERE: on the window a pane's boundary is ONE DEVICE PIXEL, so the
     // press inverse has one pixel of margin to get wrong -- invisible in cells. Every position
-    // below is an exact window pixel. ⚔ MUTATION: a body/hit inversion keeping the old cell
-    // inset while the paint went thin puts the border press on the provider's row 0 (check 1),
-    // or refuses the first real body pixel as border (check 2).
+    // below is an exact window pixel. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_window.md#body-keeps-the-cell-inset): a body/hit inversion
+    // keeping the old cell inset while the paint went thin puts the border press on the provider's
+    // row 0 (check 1), or refuses the first real body pixel as border (check 2).
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -2088,8 +2090,9 @@ TEST_CASE("on the shipped face the border is chrome and the first body pixel is 
     r.press_pixel(body_x(0), top);
     CHECK(seat->presses.empty());
 
-    // 2. ONE PIXEL FURTHER IN IS THE BODY. ⚔ MUTATION: a chrome band still a cell thick --
-    // this press is 11 pixels inside a 12-pixel cell's border and would be swallowed.
+    // 2. ONE PIXEL FURTHER IN IS THE BODY. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_window.md#chrome-a-cell-thick): a chrome band still a cell
+    // thick -- this press is 11 pixels inside a 12-pixel cell's border and would be swallowed.
     seat->presses.clear();
     r.press_pixel(body_x(0), body_y(0));
     REQUIRE(seat->presses.size() == 1);
@@ -2132,7 +2135,8 @@ namespace gfx = zengine::graphics;
 TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot move it") {
     SUBCASE("a pane a graphics window shows asks that window for a paste, the OS window or the "
             "terminal's") {
-        // ⚔ MUTATION: the Terminal pane's paste asked of another office than the window showing it.
+        // ⚔ MUTATION (tests/mutants/workshop_panes_window.md#paste-asked-elsewhere): the Terminal
+        // pane's paste asked of another office than the window showing it.
         namespace term = zengine::terminal_pane;
         for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
             CAPTURE(window);
@@ -2182,9 +2186,10 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     // TWO CLAIMS AT ONCE, because they are the same number seen twice: the room a provider
     // is granted on the window is derived from the body it actually has, and NOTHING about
     // choosing a pane changes it.
-    //
-    // ⚔ MUTATION: selected chrome drawn thicker than ordinary chrome -- the pane's content
-    // would jump under the weaver's hand the moment they pointed at it.
+
+    // ⚔ MUTATION (tests/mutants/workshop_panes_window.md#selected-chrome-thicker): selected chrome
+    // drawn thicker than ordinary chrome -- the pane's content would jump under the weaver's hand
+    // the moment they pointed at it.
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -2198,7 +2203,8 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     REQUIRE(on_window.present);
 
     // THE ROOM IS THE PIXELS, DIVIDED BY THE FACE -- not a cell count wearing a new name.
-    // ⚔ MUTATION: the room kept at the cell-inset capacity "so the tests do not move".
+    // ⚔ MUTATION (tests/mutants/workshop_panes_window.md#room-at-the-cell-inset): the room kept at
+    // the cell-inset capacity "so the tests do not move".
     const PixelRect cell_inset = pane_interior(outer, kChromePx);
     const RegionFit was = fit_region(
         cell_inset.x, cell_inset.y, cell_inset.w, cell_inset.h, 8, 18);
@@ -2228,11 +2234,12 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     // ...and no new room was granted, because nothing about the room changed.
     CHECK(seat->rooms.size() == rooms_before);
 
-    // AND THE PICTURE ITSELF, not only the resolution. ⚔ MUTATION: a PAINTER insetting a selected
-    // pane further -- no body place, room or press inverse would notice, and the contents would
-    // jump under the hand. So this pane's published region is compared where it is, to the
-    // pixel, searched BACK TO FRONT as `context_rows_on` searches: the pane's own
-    // plane is published after what it covers, and the topmost region inside it is its body.
+    // AND THE PICTURE ITSELF, not only the resolution. ⚔ MUTATION
+    // (tests/mutants/workshop_panes_window.md#painter-insets-the-selected): a PAINTER insetting a
+    // selected pane further -- no body place, room or press inverse would notice, and the contents
+    // would jump under the hand. So this pane's published region is compared where it is, to the
+    // pixel, searched BACK TO FRONT as `context_rows_on` searches: the pane's own plane is
+    // published after what it covers, and the topmost region inside it is its body.
     const auto published = [&](const ScreenCanvas& c) {
         for (std::size_t li = c.layers.size(); li > 0; --li) {
             const ScreenPlane& l = c.layers[li - 1];
@@ -2268,8 +2275,9 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
 }
 
 TEST_CASE("the thinner boundary rewrites no authored value and no foreground law") {
-    // ⚔ MUTATIONS: arrangement reading a stale body rectangle; a medium writing its own
-    // projection back over what a weaver authored; a selection reaching the authored order.
+    // ⚔ MUTATIONS (tests/mutants/workshop_panes_window.md#selection-reaches-the-order): arrangement
+    // reading a stale body rectangle; a medium writing its own projection back over what a weaver
+    // authored; a selection reaching the authored order.
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);

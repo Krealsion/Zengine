@@ -270,7 +270,8 @@ class Closer : public loom::WeaveBase<Closer, CloserState, loom::Accept<>,
 } // namespace
 
 TEST_CASE("a close is the window's that shows the desk: one said by anyone else ends nothing") {
-    // ⚔ MUTATION: Workshop quitting on any `SurfaceCloseRequested`, whoever said it.
+    // ⚔ MUTATION (tests/mutants/workshop_document.md#close-from-anyone): Workshop quitting on any
+    // `SurfaceCloseRequested`, whoever said it.
     Live t;
     bool stopped = false;
     t.host.request_stop = [&stopped] { stopped = true; };
@@ -877,8 +878,9 @@ std::string hotkeys_guide_example() {
 } // namespace
 
 TEST_CASE("the hotkeys guide's keymap example is a file Workshop reads and applies") {
-    // ⚔ MUTATION: the example in another envelope (`"value"` for `"fields"`, its numbers quoted) --
-    // Workshop refuses it, and the defaults stand.
+    // ⚔ MUTATION (tests/mutants/workshop_document.md#example-in-another-envelope): the example in
+    // another envelope (`"value"` for `"fields"`, its numbers quoted) -- Workshop refuses it, and
+    // the defaults stand.
     const std::string example = hotkeys_guide_example();
     const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(example);
     INFO(loaded.outcome.refusal);
@@ -1799,8 +1801,9 @@ std::vector<std::string> hotkeys_guide_typed_spellings() {
 } // namespace
 
 TEST_CASE("the keys the hotkeys guide gives to type are keys no pane on the desk declares") {
-    // ⚔ MUTATION: the guide spelling `ctrl+g`, Flow's own chord for asking for native C++ -- a
-    // weaver who types it for another action is told the two collide.
+    // ⚔ MUTATION (tests/mutants/workshop_document.md#guide-spells-flows-chord): the guide spelling
+    // `ctrl+g`, Flow's own chord for asking for native C++ -- a weaver who types it for another
+    // action is told the two collide.
     PaneRig r;
     r.mount_workshop();
     load::LoadPlan plan;
