@@ -72,7 +72,12 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   own head, and the Delete key or the x on the chosen step's corner takes it away. A When or Then
   card is chosen by its head and moved by a drag from there up and down its own column, where it
   stays; an empty press or Escape lets it go. A wire let go on the write card's head lands on the
-  write, and a say card is carried out by its row of values. A right press means nothing on the
+  write, and a say card is carried out by its row of values. Two presses on one place within
+  `flow_pane::kDoublePressMs` are one gesture there, Flow's own reading with time its argument
+  (`flow_pane::doubles`, as WL-PTR-01 reads Workshop's, on an interval `tests/test_workshop_screen.cpp`
+  keeps equal): an operator row is added; empty Do room opens the wire's search with no wire there,
+  at its second release, so a click and then a drag pans; empty When room asks for a new message;
+  empty Then room offers to keep a field or say a message. A right press means nothing on the
   graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane menu
   opens where it landed.
 - Flow draws its own look (`flow/flow-pane/look.hpp`): each exact colour beside the theme role it
@@ -123,9 +128,9 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   changes, command atomicity and the cards' places with the files version 1 wrote.
   `tests/test_flow_view.cpp` covers canvas clipping, dense views, long text, independent measured
   axes, device-grain hit testing, the rail's grouping and preview, the rule's sentence, the Next
-  line's walk, the journal read one line a message, the tally drawn in light and in cells, and a
-  card chosen and put. `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
+  line's walk, the journal read one line a message, the tally drawn in light and in cells, a card
+  chosen and put, and what makes two presses one double click. `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
   reload preservation, the right press handed back, the empty press and the pan, the chosen step's
-  x and Delete, the When and Then cards moved, finding through the door and the pane in a graphics
-  window; host behavior is witnessed under [host integration](flow-host.md).
+  x and Delete, the When and Then cards moved, the double clicks that add, finding through the door
+  and the pane in a graphics window; host behavior is witnessed under [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

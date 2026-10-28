@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
+#include "flow/flow-pane/gesture.hpp"
 #include "flow/flow-pane/view.hpp"
 #include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_picture.hpp"
@@ -741,4 +742,26 @@ TEST_CASE("a chosen When or Then card is edged as a chosen step is, and a card p
     m.place_dock("kept", 1000 * pane::unit);
     pic = pane::picture(m, room);
     CHECK(pic.cards.at("kept").bottom() <= pic.docks->bottom());
+}
+
+TEST_CASE("two presses are one double click on one target, near where the first landed, within the "
+          "interval, and time is its argument") {
+    const pane::ClickMemory armed{true, "column:do", 100, 100, 1000};
+    // SOON ENOUGH, the boundary included; LATER, or a reading that went back, is two presses.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#doubles-at-any-time): any time doubles.
+    CHECK(pane::doubles(armed, "column:do", 100, 100, 8, 1000));
+    CHECK(pane::doubles(armed, "column:do", 100, 100, 8, 1000 + pane::kDoublePressMs));
+    CHECK_FALSE(pane::doubles(armed, "column:do", 100, 100, 8, 1001 + pane::kDoublePressMs));
+    CHECK_FALSE(pane::doubles(armed, "column:do", 100, 100, 8, 999));
+    // THE SAME TARGET, within the slack either way.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#doubles-on-any-target): another target doubles.
+    CHECK_FALSE(pane::doubles(armed, "column:when", 100, 100, 8, 1100));
+    CHECK(pane::doubles(armed, "column:do", 108, 92, 8, 1100));
+    CHECK_FALSE(pane::doubles(armed, "column:do", 109, 100, 8, 1100));
+    CHECK_FALSE(pane::doubles(armed, "column:do", 100, 91, 8, 1100));
+    // NOTHING ARMED, or a press that named nothing, doubles nothing.
+    auto spent = armed;
+    spent.armed = false;
+    CHECK_FALSE(pane::doubles(spent, "column:do", 100, 100, 8, 1100));
+    CHECK_FALSE(pane::doubles(pane::ClickMemory{true, "", 100, 100, 1000}, "", 100, 100, 8, 1100));
 }

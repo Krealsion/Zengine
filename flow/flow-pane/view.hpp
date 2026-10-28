@@ -1283,6 +1283,8 @@ inline void wire_list(Pen& pen, const Model& model, const Box& within) {
         carries = "From " + flow::binding_text(*search.from.source) + " : " + type.value_or("?") + " -- what takes it";
     } else if (const auto port = wire_port(model)) {
         carries = "Into %" + std::to_string(port->node) + " " + port->field.name + " : " + port->type + " -- what fills it";
+    } else if (!search.from.port) {
+        carries = "A step here -- what is it for?";
     }
     pen.text(x, y, carries, hue::message(), box);
     y += m.row;

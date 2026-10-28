@@ -40,8 +40,9 @@ Its cases in shared suites: `workshop_panes_terminal` (`tests/test_workshop_pane
 Flow asking the discovery door, its action census driver and its answered manual),
 `workshop_panes_info` (`tests/test_workshop_inventory_info.cpp`: values and shapes dragged onto
 Flow's canvas),
-`workshop_files` (`tests/test_workshop_files.cpp`: the pane's recipe entry)
-and `workshop_shapes` (`tests/census_headers.hpp`: its shapes). Outside CTest,
+`workshop_files` (`tests/test_workshop_files.cpp`: the pane's recipe entry),
+`workshop_shapes` (`tests/census_headers.hpp`: its shapes) and `workshop_screen`
+(`tests/test_workshop_screen.cpp`: its double click on the host's interval). Outside CTest,
 `tests/package/run.cmake` builds `tests/package/flow_author.cpp` and `tests/package/flow_host.cpp`
 against the installed package.
 

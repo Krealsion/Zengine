@@ -14,6 +14,7 @@
 // because this suite owns the whole-cell-to-fine-lattice claim.
 #include "workshop/layouts/session_history.hpp"
 #include "workshop/screen_canvas.hpp"
+#include "flow/flow-pane/gesture.hpp" // Flow's double click, on this host's interval
 
 // ============================================================================
 // Tier 3 — the whole screen, as a value
@@ -4636,6 +4637,11 @@ TEST_CASE("a content-sized surface reserves the coarsest boundary, once") {
 }
 
 // ---- two presses, one gesture ------------------------------------------------------------
+
+TEST_CASE("Flow reads a double click on the interval this host reads one on") {
+    // ⚔ MUTATION (tests/mutants/workshop_screen.md#flow-doubles-on-its-own-interval): one moves.
+    CHECK(zengine::flow_pane::kDoublePressMs == kDoubleClickMs);
+}
 
 TEST_CASE("what makes two presses on a tab one double-click, and what does not") {
     // THE QUALIFICATION IS PURE AND TOTAL, so every one of its conditions is stated here as an

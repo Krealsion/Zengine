@@ -129,3 +129,72 @@ Red in `zengine-flow-pane-tests`:
 
 - a When or Then card is chosen by its head and moved up and down its own column, where it stays
   through a save, an open and a reload; a wire let go on the write card's head lands
+
+## a-row-twice-adds-nothing
+
+An operator row of the rail pressed twice at once is only shown, as one press shows it.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+       } else {
+-        perform("add-found", row.args, mail);
+       }
+       return;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a double click adds: an operator row as Add to the rule adds it, empty Do room a step found where
+  it was clicked, empty When room a new message, empty Then room keep or say
+
+## empty-room-twice-opens-nothing
+
+Empty Do room pressed twice opens no search there.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+     if (target == "column:do") {
+-      open_wire_search(pane::WireEnd{}, event.x, event.y, event.x, event.y, it, mail);
+       return;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a double click adds: an operator row as Add to the rule adds it, empty Do room a step found where
+  it was clicked, empty When room a new message, empty Then room keep or say
+
+## when-twice-asks-nothing
+
+Empty When room pressed twice asks for no message.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+     if (target == "column:when") {
+-      perform("ask-message", {}, mail);
+       return;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a double click adds: an operator row as Add to the rule adds it, empty Do room a step found where
+  it was clicked, empty When room a new message, empty Then room keep or say
+
+## then-twice-offers-nothing
+
+Empty Then room pressed twice offers nothing.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+     if (target == "column:then")
+-      open_menu("then", mail);
++      return;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a double click adds: an operator row as Add to the rule adds it, empty Do room a step found where
+  it was clicked, empty When room a new message, empty Then room keep or say

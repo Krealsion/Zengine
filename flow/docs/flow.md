@@ -119,6 +119,26 @@ edits the search line.
 
 ![A fold's open body slot: the rail lists what a fold could spend, and math.add's preview offers each way to thread the count and the accumulator](images/flow-fold-body.png)
 
+## The pointer on the graph
+
+A press on a step's head selects it; drag the head to move the step. A press on empty graph room
+lets go of the selected step, its port or a card, and a drag from there pans; the middle button
+pans too, and the wheel pans vertically. **Delete**, or the **x** on the selected step's corner,
+removes it. A **When** or **Then** card's head selects it, and dragging the head moves the card up
+or down its own lane, where it stays.
+
+Two presses on one place within a double click's time are one gesture there:
+
+- **An operator in the rail** is added to **Do**, as **Add to the rule** adds it.
+- **Empty Do room** opens a search where it was clicked, `A step here -- what is it for?`: type to
+  narrow it, and the row chosen is made there. A click there followed by a drag still pans.
+- **Empty When room** asks for a new message.
+- **Empty Then room** offers **Keep a field** or **Say a message**.
+
+A wire dragged from a port, a step's answer or a field and let go on empty Do room opens the same
+search, listing only what fits; the row chosen is made where the wire was let go, already wired
+([Find what to compose](#find-what-to-compose)).
+
 ## Carry material into Flow
 
 Drag a value from Inventory, Info or Powers onto Flow, or pick it up with the keyboard and click

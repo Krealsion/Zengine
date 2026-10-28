@@ -54,10 +54,9 @@ dialog is open every other command says `Confirm or cancel the open dialog befor
 Outside a dialog, what you type goes to the search line on the Graph page; the Escape key puts down
 one thing per press (a wire's search and its wire, a dropped value, the wire in hand, the selected
 port, an open body slot, the preview, the selected node, the search line) and only then hands the
-pane back to Workshop; a press on empty graph room lets go of the selected node, port or card, and
-a drag from there pans; the Delete key, or the x on its corner, removes the selected node; a When or
-Then card's head selects it, and a drag from there moves it up or down its column, where it stays;
-Return adds the previewed row.
+pane back to Workshop; the Delete key, or the x on its corner, removes the selected node; Return
+adds the previewed row. A press, a drag and a double click on the graph do what [the pointer on the
+graph](flow.md#the-pointer-on-the-graph) says.
 While a wire's search is open, the arrow keys move among its rows and Return makes the one marked.
 
 ## Commands
@@ -375,7 +374,8 @@ Adds a field the rule keeps between messages: a state field, at a press. Where a
 and no trigger reacts to one yet, that message's trigger is made too, writing this field.
 
 - **Takes:** a name and a type. No default key; the When lane's `+ keep a field`, the Next line's
-  `[+ keep a field]`, the gear's `Keep a field...`.
+  `[+ keep a field]`, the gear's `Keep a field...`, and the menu a double click on the Then lane's
+  empty room opens.
 - **Answers:** the dialog `Keep a field between messages: what the rule remembers`, with Name
   `total` and Kind `Int`. Confirmed: the When lane's card `kept between messages` lists it, `total
   Int = 0`, and the Graph page shows.
@@ -391,7 +391,7 @@ message already declared under that name is said as it is.
 
 - **Takes:** a name and the kept fields it carries. No default key; the Then lane's `+ say
   <definition>.<Field>`, the Next line's `[+ say <definition>.<Field>]` once the rule runs, the
-  gear's `Say a message...`.
+  gear's `Say a message...`, and the menu a double click on the Then lane's empty room opens.
 - **Answers:** the dialog `Say a message after the change, with what the rule keeps`, with `Message
   name` the kept field's name capitalised, `Total`, and `With` the field the trigger writes,
   `total`. Confirmed: the Then lane shows the card `say tally.Total`, and the Next line asks for a
@@ -444,7 +444,8 @@ Makes the state form's value the definition's state: what a run starts with and 
 Declares a message the definition accepts.
 
 - **Takes:** a name; one without a `.` is put inside the definition's own name. No default key; the
-  Messages page's `[New message]`, and the When lane's while no message is declared.
+  Messages page's `[New message]`, the When lane's while no message is declared, and a double click
+  on the When lane's empty room.
 - **Answers:** the dialog `Declare an input message`, `Message name` `Set`. Confirmed: the
   message's form opens.
 - **Refuses:** `a message needs a name`; `a message named <name> is already declared`.

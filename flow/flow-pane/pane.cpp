@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "flow/flow-host/vocabulary.hpp"
+#include "flow/flow-pane/gesture.hpp"
 #include "flow/flow-pane/view.hpp"
 #include "flow/flow-pane/vocabulary.hpp"
 #include "graphics/canvas.hpp"
@@ -22,6 +23,7 @@
 #include "workshop/powers_vocabulary.hpp"
 #include "manuals/zengine.flow.hpp" // this pane's manual, compiled in from its page
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <deque>
 #include <map>
@@ -321,8 +323,12 @@ public:
     const bool other_dialog = p->told && p->drawing != dialog_number() &&
                               (p->part.rfind("dialog-", 0) == 0 ||
                                p->part.rfind("control:dialog-", 0) == 0);
-    const Moment event{gesture, p->phase, p->button, p->x, p->y, p->dx, p->dy,
-                       p->moved || other_dialog};
+    Moment event{gesture, p->phase, p->button, p->x, p->y, p->dx, p->dy,
+                 p->moved || other_dialog};
+    event.modifiers = p->modifiers;
+    event.at_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                      std::chrono::steady_clock::now().time_since_epoch())
+                      .count();
     pointer(event, window_shown_ ? &*window_shown_ : nullptr, window_room_, mail);
   }
   /// ONE MOMENT OF THE POINTER IN FLOW'S AREA: its press's number, its phase
@@ -332,6 +338,8 @@ public:
     std::int64_t gesture = 0, phase = 0, button = 0, x = 0, y = 0;
     double dx = 0, dy = 0;
     bool moved = false;
+    /// The modifiers held, and when the pane read the moment: a steady clock's milliseconds.
+    std::int64_t modifiers = 0, at_ms = 0;
   };
   /// ...about `pictured`, the picture last drawn there (none before one is), in `room`.
   void pointer(const Moment &event, const pane::Picture *pictured,
@@ -339,6 +347,28 @@ public:
     try {
       if (event.phase == ws::canvas_pointer::kLost ||
           event.phase == ws::canvas_pointer::kRelease) {
+        // A DOUBLE CLICK ON EMPTY SPACE is done when its second press lets go where it stood; one
+        // whose hand moved was a drag, and what the drag did stands.
+        if (second_ && second_->gesture == event.gesture) {
+          const auto held = *second_;
+          second_.reset();
+          const auto slack = pane::GridProjection(room).advance;
+          const auto *at = latest();
+          if (event.phase == ws::canvas_pointer::kRelease && at != nullptr &&
+              std::abs(event.x - held.x) <= slack && std::abs(event.y - held.y) <= slack) {
+            if (drag_ && drag_->gesture == event.gesture && drag_->node_id == 0 && !drag_->wire &&
+                drag_->card.empty()) {
+              model_.workspace.pan_x = drag_->base_x;
+              model_.workspace.pan_y = drag_->base_y;
+            }
+            drag_.reset();
+            Moment pressed = event;
+            pressed.x = held.x;
+            pressed.y = held.y;
+            double_click(held.target, nullptr, *at, pressed, mail);
+            return;
+          }
+        }
         if (drag_ && drag_->gesture == event.gesture) {
           const Drag held = *drag_;
           drag_.reset();
@@ -454,6 +484,21 @@ public:
         return;
       }
       const auto *hit = it->hit(event.x, event.y);
+      // TWO PRESSES ON ONE PLACE within a double click's time are one gesture there; a press with a
+      // modifier neither completes one nor begins one.
+      if (event.button == 1) {
+        const auto target = event.modifiers == 0 ? double_target(hit, *it, event) : std::string();
+        const bool twice = pane::doubles(click_, target, event.x, event.y,
+                                         pane::GridProjection(room).advance, event.at_ms);
+        click_ = pane::ClickMemory{!target.empty() && !twice, target, event.x, event.y, event.at_ms};
+        // On a row it is done at once; on empty space at its release, unless the hand moved.
+        if (twice && target.rfind("column:", 0) != 0) {
+          double_click(target, hit, *it, event, mail);
+          return;
+        }
+        if (twice)
+          second_ = SecondPress{event.gesture, target, event.x, event.y};
+      }
       if (event.button == 2 || (!hit && event.button == 1)) {
         // A PRESS ON EMPTY SPACE LETS GO of the chosen step, its port and the chosen card; its drag
         // moves the view.
@@ -647,8 +692,14 @@ public:
         {"ask-trigger", "Add a trigger..."}, {"ask-keep", "Keep a field..."},
         {"ask-say", "Say a message..."},     {"ask-emit", "Add an emit..."},
         {"restart", "Restart"}};
+    static const std::vector<std::pair<const char *, const char *>> kThen{
+        {"ask-keep", "Keep a field..."}, {"ask-say", "Say a message..."}};
     static const std::vector<std::pair<const char *, const char *>> kNone{};
-    return which == "file" ? kFile : which == "view" ? kView : which == "more" ? kMore : kNone;
+    return which == "file"   ? kFile
+           : which == "view" ? kView
+           : which == "more" ? kMore
+           : which == "then" ? kThen
+                             : kNone;
   }
   /// OPEN ONE OF FLOW'S MENUS where the press that asked for it was made.
   void open_menu(const std::string &which, loom::Mail &mail) {
@@ -942,6 +993,52 @@ private:
     return model_.connecting && model_.connecting->from() == zengine::op::Binding::From::Node &&
            !hit.args.empty() && hit.args.front().rfind("write:", 0) == 0;
   }
+  /// WHAT A DOUBLE CLICK ON THIS PLACE WOULD MEAN, by name: an operator row of the rail, or the
+  /// When, Do or Then column under empty space on the Graph page; empty for anything else.
+  std::string double_target(const pane::Hit *hit, const pane::Picture &it, const Moment &event) const {
+    if (hit != nullptr)
+      return hit->action == "found" && hit->args.size() == 2
+                 ? "found:" + hit->args[0] + ":" + hit->args[1]
+                 : std::string();
+    if (model_.page != pane::Page::Graph || model_.dialog || !it.graph || !it.canvas)
+      return {};
+    const auto &g = *it.graph;
+    if (event.x < g.x || event.x >= g.right() || event.y < g.y || event.y >= g.bottom())
+      return {};
+    if (event.x < it.canvas->x)
+      return "column:when";
+    if (event.x >= it.canvas->right())
+      return "column:then";
+    return graph_room(it, event.x, event.y) ? "column:do" : std::string();
+  }
+  /// A DOUBLE CLICK DOES WHAT THE PLACE HOLDS: an operator row is added as Add to the rule adds
+  /// it; empty Do room opens a search there whose choice lands there; empty When room asks for a
+  /// new message; empty Then room offers to keep a field or say a message.
+  void double_click(const std::string &target, const pane::Hit *hit, const pane::Picture &it,
+                    const Moment &event, loom::Mail &mail) {
+    if (target.rfind("found:", 0) == 0 && hit != nullptr) {
+      const auto row = *hit; // a copy: what it does clears the pictures it points into
+      if (model_.workspace.graph.project.definition.on.empty()) {
+        model_.notice = "A rule needs its message and what it keeps before its first step.";
+        show(mail);
+      } else if (row.args.at(0) == ws::kFormKind) {
+        perform("add-fold", {}, mail);
+      } else {
+        perform("add-found", row.args, mail);
+      }
+      return;
+    }
+    if (target == "column:do") {
+      open_wire_search(pane::WireEnd{}, event.x, event.y, event.x, event.y, it, mail);
+      return;
+    }
+    if (target == "column:when") {
+      perform("ask-message", {}, mail);
+      return;
+    }
+    if (target == "column:then")
+      open_menu("then", mail);
+  }
   /// The end of a wire a press on `hit` takes hold of: an output button, a field in scope, or an
   /// input port while no wire is in hand; none for anything else.
   std::optional<pane::WireEnd> wire_end(const pane::Hit &hit) const {
@@ -1083,12 +1180,16 @@ private:
   /// says nothing was made.
   void put_wire_down(const std::string &by = std::string()) {
     const bool held = model_.wire_search || model_.connecting || model_.filling;
+    const bool wire = model_.connecting || model_.filling ||
+                      (model_.wire_search &&
+                       (model_.wire_search->from.source || model_.wire_search->from.port));
     model_.wire_search.reset();
     model_.wire_drawn.reset();
     model_.connecting.reset();
     model_.filling.reset();
     if (held && !by.empty())
-      model_.notice = "The wire was put down: " + by + "; nothing was made";
+      model_.notice = (wire ? "The wire was put down: " : "The search was closed: ") + by +
+                      "; nothing was made";
   }
   /// Move the keys to the next choosable row of a wire's search, down or up.
   void step_wire_choice(bool down) {
@@ -1131,6 +1232,27 @@ private:
     const std::vector<std::string> place{std::to_string(search.place_x),
                                          std::to_string(search.place_y)};
     std::string said;
+    if (!search.from.source && !search.from.port) {
+      // NO WIRE: the step is made at the end and stood where the search was opened.
+      if (row.kind == "power" && !described(row.args.at(0))) {
+        effect({pane::Effect::Catalog, {}}, mail);
+        model_.notice =
+            "Reading the ports of " + row.args.at(0) + " from the host; choose it again";
+        return;
+      }
+      if (row.kind == "power")
+        effect(model_.command("add-node", {row.args.at(0), row.args.at(1), row.args.at(2)}), mail);
+      else
+        effect(model_.command("add-fold", {}), mail);
+      const auto made = model_.node;
+      if (made)
+        effect(model_.command("move", {std::to_string(*made), place[0], place[1]}), mail);
+      put_wire_down();
+      const auto named = row.label.find_first_not_of(' ');
+      model_.notice = "Added %" + (made ? std::to_string(*made) : std::string("?")) + " " +
+                      (named == std::string::npos ? row.label : row.label.substr(named)) + " here";
+      return;
+    }
     if (search.from.source) {
       const auto source = flow::binding_text(*search.from.source);
       if (row.kind == "unread") {
@@ -1934,6 +2056,15 @@ private:
   /// This image's one outstanding menu (`PaneMenuFacet`).
   Menu &menu() { return this->template facet<Menu>(); }
   bool restored_ = false;
+  /// What the last first-button press named, so the next can complete a double click.
+  pane::ClickMemory click_;
+  /// A double click's second press on empty space, done when it lets go where it stood.
+  struct SecondPress {
+    std::int64_t gesture = 0;
+    std::string target;
+    std::int64_t x = 0, y = 0;
+  };
+  std::optional<SecondPress> second_;
   /// The number of the last host request asked, which an Add names to wait on its answer.
   std::uint64_t requests_ = 0;
   std::int64_t observed_pending_ = 0;

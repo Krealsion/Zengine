@@ -125,8 +125,10 @@ inline workshop::FindPowers flow_question(const Model& m) {
     if (m.wire_search && m.wire_search->from.source) {
         // A type the wire cannot name asks for nothing it could not wire: no power carries it.
         asked.takes = source_type(m, *m.wire_search->from.source).value_or(std::string("?"));
-    } else if (m.wire_search) {
+    } else if (m.wire_search && m.wire_search->from.port) {
         asked.yields = wire_port(m) ? wire_port(m)->type : std::string("?");
+    } else if (m.wire_search) {
+        // A SEARCH WITH NO WIRE, opened on empty room, asks for whatever a step could be there.
     } else if (body_slot_node(m)) asked.fits = workshop::kFitsFold;
     else if (const auto port = selected_port(m)) asked.yields = port->type;
     asked.offered = true;
@@ -223,7 +225,8 @@ struct WireRow {
 /// T: each power in force with a port of exactly T, one row a port, grouped as the rail groups
 /// them, and the fold's counting ports when T is `Int`. From an input port of type T: what is in
 /// scope of T, a typed constant for `Int` and `Bool`, then each power that yields T; the fold,
-/// whose answer is its body's, is chosen from the rail. Nothing while the door has not answered.
+/// whose answer is its body's, is chosen from the rail. With no wire: each power, and the fold.
+/// Nothing while the door has not answered.
 inline std::vector<WireRow> wire_rows(const Model& m) {
     std::vector<WireRow> out;
     if (!m.wire_search) return out;
@@ -252,6 +255,12 @@ inline std::vector<WireRow> wire_rows(const Model& m) {
             const std::vector<std::string> reference{row.identity,
                                                      std::to_string(row.inputs.content_id),
                                                      std::to_string(row.outputs.content_id)};
+            const bool free = !from.source && !from.port;
+            if (row.kind == workshop::kFormKind && free) {
+                head();
+                out.push_back({"  " + row.identity, "fold", {}});
+                continue;
+            }
             if (row.kind == workshop::kFormKind) {
                 if (!from.source || taken != "Int") continue;
                 head();
@@ -262,7 +271,7 @@ inline std::vector<WireRow> wire_rows(const Model& m) {
                 continue;
             }
             head();
-            if (from.port) {
+            if (from.port || free) {
                 out.push_back({"  " + row.identity, "power", reference});
                 continue;
             }

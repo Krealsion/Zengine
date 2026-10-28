@@ -2369,3 +2369,67 @@ TEST_CASE("a When or Then card is chosen by its head and moved up and down its o
     REQUIRE(rig.workspace().docks.size() == 1);
     CHECK(rig.workspace().docks.front().y == placed.front().y);
 }
+
+TEST_CASE("a double click adds: an operator row as Add to the rule adds it, empty Do room a step "
+          "found where it was clicked, empty When room a new message, empty Then room keep or say") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto steps = [&rig]() { return rig.workspace().graph.project.definition.on.front().body.nodes; };
+    // AN OPERATOR ROW pressed twice at once is added.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#a-row-twice-adds-nothing): the second press only shows it.
+    const auto row = w.at("found:" + std::string(ws::kOperatorKind) + ":math.add");
+    w.click(row);
+    w.click(row);
+    REQUIRE(steps().size() == 2);
+    CHECK(steps().back().identity == "math.add");
+
+    // EMPTY DO ROOM pressed twice: a search opens there, and the row chosen stands where it was.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#empty-room-twice-opens-nothing): no search opens.
+    const auto room = w.room();
+    w.click(room);
+    w.click(room);
+    REQUIRE(rig.shows("A step here -- what is it for?"));
+    const auto max = w.showing("  math.max"); // the search's row, not the step already there
+    REQUIRE(max);
+    w.click(*max);
+    REQUIRE(steps().size() == 3);
+    CHECK(steps().back().identity == "math.max");
+    CHECK_FALSE(rig.shows_part("what is it for"));
+    const auto header = w.at("node:" + std::to_string(place_id(rig, 2)));
+    CHECK(std::abs(header.first - room.first) <= 1);
+    CHECK(std::abs(header.second - room.second) <= 1);
+
+    // EMPTY WHEN ROOM pressed twice asks for a new message.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#when-twice-asks-nothing): no message is asked.
+    const auto when_head = w.showing("WHEN");
+    REQUIRE(when_head);
+    const auto when = w.empty(when_head->first, when_head->first + 10, when_head->second + 16, when_head->second + 40);
+    w.click(when);
+    w.click(when);
+    CHECK(rig.shows_part("Declare an input message"));
+    rig.key(in::scan::kEscape);
+
+    // EMPTY THEN ROOM pressed twice offers to keep a field or say a message, and Say opens its dialog.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#then-twice-offers-nothing): no menu is offered.
+    const auto then_head = w.showing("THEN");
+    REQUIRE(then_head);
+    const auto then = w.empty(then_head->first, then_head->first + 10, then_head->second + 16, then_head->second + 40);
+    w.click(then);
+    w.click(then);
+    const loom::Message* menu = nullptr;
+    for (const auto& m : rig.presenter->messages)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>()) &&
+            loom::from_value<ws::PaneMenuRequested>(m.payload).subject == "then")
+            menu = &m;
+    REQUIRE(menu != nullptr);
+    const auto asked = loom::from_value<ws::PaneMenuRequested>(menu->payload);
+    REQUIRE(asked.rows.size() == 2);
+    CHECK(asked.rows[0].id == "ask-keep");
+    CHECK(asked.rows[1].id == "ask-say");
+    REQUIRE(rig.bus.office_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
+        loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, "then", true, "ask-say", ""}),
+                      rig.menus, {}, menu->correlation)).valid());
+    rig.pump();
+    CHECK(rig.shows_part("Say a message after the change"));
+}
