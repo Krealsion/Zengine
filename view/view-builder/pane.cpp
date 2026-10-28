@@ -272,12 +272,18 @@ public:
         }
     }
     void on_action(const std::string& id, loom::Mail& mail) {
+        // A row's id is `view.` and the control it presses. Discard takes a value being typed with
+        // the rest; any other control keeps that value first.
+        const std::string control = id.rfind("view.", 0) == 0 ? id.substr(5) : std::string();
+        if (control == "discard") {
+            discard();
+            show(mail);
+            return;
+        }
         if (shown_.box && !commit()) {
             show(mail);
             return;
         }
-        // A row's id is `view.` and the control it presses.
-        const std::string control = id.rfind("view.", 0) == 0 ? id.substr(5) : std::string();
         if (control == "save") ask_save(mail);
         else if (control == "export") ask_export(mail);
         else if (control == "run-app") ask_start(mail);
@@ -667,6 +673,11 @@ private:
     /// areas were read from again.
     void choose(vb::Hit chosen, const Moment* event, vb::Area design, vb::Area placed,
                 loom::Mail& mail) {
+        if (chosen.action == "discard") {
+            discard();
+            show(mail);
+            return;
+        }
         // A value being typed is kept before anything else is pressed; a refusal keeps its box.
         if (shown_.box && !(chosen.action == "box" && same_box(chosen)) && !commit()) {
             show(mail);
@@ -1200,6 +1211,8 @@ private:
                    {"view.run", "Run the view", input::scan::kR, input::mod::kCtrl, {},
                     {ws::cause_of<view::ViewRun>()}},
                    {"view.new", "Start a new view", input::scan::kUnknown, input::mod::kNone},
+                   {"view.discard", "Discard the unsaved changes", input::scan::kUnknown,
+                    input::mod::kNone},
                    {"view.export", "Export the saved view as an app", input::scan::kUnknown,
                     input::mod::kNone},
                    {"view.run-app", "Run the exported app on its own", input::scan::kUnknown,
@@ -1263,6 +1276,40 @@ private:
         } catch (const std::exception& e) {
             model_.notice = e.what();
         }
+    }
+    /// DISCARD WHAT IS UNSAVED, at one press: the view as the file it was saved to or opened from
+    /// holds it, read again, or, where it has none, a new view as New makes one; a value being
+    /// typed goes with the rest. Like New and Open it waits for the running view to stop. A file
+    /// that cannot be read leaves everything as it was. It writes nothing and asks nothing.
+    void discard() {
+        shown_.armed.clear();
+        const bool typed = shown_.box && shown_.box->text.text() != value_now(*shown_.box);
+        if (!model_.dirty && !typed) {
+            model_.notice = "Nothing to discard: the view has no unsaved changes";
+            return;
+        }
+        if (model_.running) {
+            model_.notice = "Stop the running view before discarding its unsaved changes";
+            return;
+        }
+        if (!model_.dirty) {
+            settle();
+            model_.notice = "Discarded the value being typed";
+            return;
+        }
+        const std::string file = file_;
+        try {
+            (void)(file.empty() ? model_.command("new", {"my.view", "discard"})
+                                : model_.command("open", {file, "discard"}));
+        } catch (const std::exception& e) {
+            model_.notice = "Not discarded: " + std::string(e.what());
+            return;
+        }
+        settle();
+        from_corner();
+        model_.notice = file.empty() ? "Discarded the unsaved view and started a new one"
+                                     : "Discarded the unsaved changes and opened " + file + " again";
+        edited(file.empty() ? "new" : "open");
     }
     /// AN EDIT THAT WAS TAKEN: an open or a save names the file the draft is, a new names none, and
     /// each makes the project file the builder's to write again.
