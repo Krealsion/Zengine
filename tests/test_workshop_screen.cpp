@@ -6998,3 +6998,52 @@ TEST_CASE("WL-ARR-18: arranging says so at the room's top, naming what it arrang
     t.key(input::scan::kEscape);
     CHECK_FALSE(said(kArrangingCaption));
 }
+
+TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows") {
+    // MUTATION: each faded pane veiled whole but for the arranged one -- two veils where they overlap.
+    // Two panes that overlap, and the one arranged over part of both, part of their overlap showing.
+    PlacedDesk d({PixelRect{0, 0, 400, 300}, PixelRect{200, 150, 400, 300},
+                  PixelRect{300, 100, 400, 120}});
+    Session& s = d.s;
+    s.arrange.open = true;
+    s.arrange.pane = PaneRef{stock::kOffice, "placed2"};
+    const Screen sc = screen_of(s);
+    const PixelRect held = d.rect(2);
+    std::vector<PixelRect> faded; // every pane but the arranged one, the Layouts row too
+    for (const std::int64_t kind : effective_pane_order(s.setup.active, s.panes)) {
+        const PixelRect r = bounds_of(s.panes, s.setup.active, kind, sc).rect;
+        if (kind != d.kinds[2] && !r.empty()) faded.push_back(r);
+    }
+    REQUIRE(faded.size() >= 2);
+    std::vector<PixelRect> veils;
+    const gfx::Sketch desk = workshop_window_drawing(s).sketch;
+    const gfx::Sketch overlay = workshop_overlay_drawing(s, {});
+    for (const gfx::Sketch* drawn : {&desk, &overlay}) {
+        for (const gfx::Node& node : drawn->nodes()) {
+            if (node.path.find("/veil/fade") == std::string::npos) continue;
+            const auto a = gfx::from_body<gfx::ImageArgs>(node.args);
+            REQUIRE(a.has_value());
+            veils.push_back(PixelRect{a->x, a->y, a->w, a->h});
+        }
+    }
+    const auto inside = [](const PixelRect& r, std::int64_t x, std::int64_t y) {
+        return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+    };
+    // EVERY PIXEL OF THE ROOM: one veil where a faded pane shows past the arranged one, else none.
+    std::size_t twice = 0, missed = 0, stray = 0;
+    for (std::int64_t y = 0; y < sc.room_y + sc.room_h; ++y) {
+        for (std::int64_t x = 0; x < sc.room_w; ++x) {
+            std::size_t over = 0;
+            for (const PixelRect& v : veils) over += inside(v, x, y) ? 1u : 0u;
+            const bool shows = !inside(held, x, y) &&
+                               std::any_of(faded.begin(), faded.end(),
+                                           [&](const PixelRect& r) { return inside(r, x, y); });
+            if (over > 1) ++twice;
+            if (shows && over == 0) ++missed;
+            if (!shows && over > 0) ++stray;
+        }
+    }
+    CHECK(twice == 0);
+    CHECK(missed == 0);
+    CHECK(stray == 0);
+}

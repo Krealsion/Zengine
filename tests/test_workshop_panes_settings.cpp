@@ -669,10 +669,8 @@ TEST_CASE("arrangement's remove says the settings and locks it discarded too") {
     select_pane(t, ref_of(stock::kKind));
     t.key(input::scan::kD);
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
-    CHECK(t.notice().find("hid " + ref_text(ref_of(stock::kKind)) +
-                          " and its settings here (mode wide) and its locks here (mode) -- ") ==
-          0);
-    CHECK(t.notice().find("nothing behind it was touched") != std::string::npos);
+    CHECK(t.notice() == "hid " + std::string(stock::kName) +
+                            " and its settings here (mode wide) and its locks here (mode)");
 }
 
 TEST_CASE("a pane's settings are part of what makes a linked layout modified") {

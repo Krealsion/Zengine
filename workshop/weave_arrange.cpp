@@ -501,7 +501,7 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     // presentation, and removing one removes a presentation. A removal works on an
     // unresolved row exactly as on an open one (rule).
     case Act::kManageRemove: {
-        const std::string name = ref_text(ref);
+        const std::string name = inventory_name(ref);
         unseat_then(ref,
                     [this, name](const LayoutEditAnswered& answered, loom::Mail&) {
                         if (!answered.accepted) {
@@ -511,9 +511,7 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
                             return;
                         }
                         say("hid " + name + discarded_settings(answered.discarded) +
-                                discarded_locks(answered.unlocked) +
-                                " -- the Pane Manager shows it again; nothing behind it was "
-                                "touched",
+                                discarded_locks(answered.unlocked),
                             false);
                     },
                     mail);
