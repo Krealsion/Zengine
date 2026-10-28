@@ -38,7 +38,9 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
 - `GraphDraft` keeps maker graph meaning; node positions and the viewport are workspace
   presentation metadata. Empty triggers and unwired ports may be saved as unfinished work
   without relaxing maker admission or live operator checks.
-- `Workspace` owns the graph, layout, named examples and retained forms. Historical form
+- `Workspace` owns the graph, layout, named examples and retained forms, and where each When
+  and Then card was put (`DockPlace`, in version 2 of its file; version 1 is read with none put
+  and is listed for the census as `flow::v1::WorkspaceFile`). Historical form
   shapes are separate observations, not competing definitions published in a host registry.
   A changed shape never silently overwrites authored values. Initial-state edits stay
   distinct from incomplete form contents and observed running state.
@@ -67,8 +69,12 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   pictured meaning or is refused. Every room change immediately ends held gestures and
   invalidates old picture maps, including a change of text metrics. A press on empty graph room
   lets go of the chosen step and its port, and its drag pans; a step moves only by a drag from its
-  own head, and the Delete key or the x on the chosen step's corner takes it away. A right press means nothing on the graph or its pages, so the pane hands it back
-  (`PanePassRequested`) and Workshop's pane menu opens where it landed.
+  own head, and the Delete key or the x on the chosen step's corner takes it away. A When or Then
+  card is chosen by its head and moved by a drag from there up and down its own column, where it
+  stays; an empty press or Escape lets it go. A wire let go on the write card's head lands on the
+  write, and a say card is carried out by its row of values. A right press means nothing on the
+  graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane menu
+  opens where it landed.
 - Flow draws its own look (`flow/flow-pane/look.hpp`): each exact colour beside the theme role it
   stands for, only the marks the graphics library draws, a part the rule still lacks dashed, and
   in cells each medium's fallback. The rule's sentence and the Next line are read from the draft
@@ -114,12 +120,12 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
 - `tests/test_flow.cpp` compares state, outputs, refusal reasons, live overlays, authority and
   admission. `tests/package` builds and loads generated code using installed packages only.
   `tests/test_flow_graph.cpp` covers incomplete graph persistence, retained forms, schema
-  changes and command atomicity. `tests/test_flow_view.cpp` covers canvas clipping, dense views,
-  long text, independent measured axes, device-grain hit testing, the rail's grouping and
-  preview, the rule's sentence, the Next line's walk, the journal read one line a message, and the
-  tally drawn in light and in cells. `tests/test_flow_pane.cpp` covers modal commands, native
-  text dragging, reload preservation, the right press handed back, the empty press and the pan,
-  finding through the door and the pane in a graphics window; host
-  behavior is witnessed under
-  [host integration](flow-host.md).
+  changes, command atomicity and the cards' places with the files version 1 wrote.
+  `tests/test_flow_view.cpp` covers canvas clipping, dense views, long text, independent measured
+  axes, device-grain hit testing, the rail's grouping and preview, the rule's sentence, the Next
+  line's walk, the journal read one line a message, the tally drawn in light and in cells, and a
+  card chosen and put. `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
+  reload preservation, the right press handed back, the empty press and the pan, the chosen step's
+  x and Delete, the When and Then cards moved, finding through the door and the pane in a graphics
+  window; host behavior is witnessed under [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

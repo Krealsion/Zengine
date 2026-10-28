@@ -66,6 +66,9 @@ struct Picture : Drawing {
     std::optional<Box> canvas, graph;
     std::int64_t pan_x = 0, pan_y = 0, zoom = 100;
     std::optional<std::pair<std::int64_t, std::int64_t>> node_extent, graph_extent;
+    /// Where the When and Then columns stand under their heads, and each card in them by its name.
+    std::optional<Box> docks;
+    std::map<std::string, Box> cards;
     /// Every run of text it draws, in paint order.
     std::vector<std::string> texts() const {
         std::vector<std::string> out;
@@ -811,6 +814,22 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
     const auto cw = dock - 2 * inset;
     const Box when_room{when.x, g.y + head_h, when.w, g.h - head_h};
     const Box then_room{then.x, g.y + head_h, then.w, g.h - head_h};
+    // A CARD THE MAKER MOVED stands where they put it, down its own column and inside it; the rest
+    // stand where the column stacks them. Its head chooses it, and a drag from there moves it.
+    const GridProjection dock_grid(pen.room);
+    pen.p.docks = Box{when.x, when_room.y, g.w, when_room.h};
+    const auto stood_at = [&](const std::string& name, std::int64_t stacked, std::int64_t h, const Box& room) {
+        const auto at = model.dock_y(name);
+        if (!at) return stacked;
+        return std::clamp(gfx::add_cells(room.y, dock_grid.y(*at)), room.y, std::max(room.y, room.bottom() - h));
+    };
+    const auto handle = [&](const CardRows& rows, const std::string& name, const Box& room) {
+        pen.p.cards[name] = rows.box;
+        pen.press(Box{rows.box.x, rows.box.y, rows.box.w, light ? m.card : m.row}.cut(room), "card", {name});
+    };
+    const auto edge_of = [&](const std::string& name) {
+        return model.dock && *model.dock == name ? hue::wire() : hue::edge();
+    };
     const auto seen = carried(model.observed);
     const bool live = model.running && seen.known();
     // Where each wire leaves: a field of the message, a field kept, a step's answer.
@@ -841,8 +860,10 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         std::vector<loom::Field> fields;
         for (const auto& f : message->fields())
             if (!def.state->find(f.name)) fields.push_back(f);
-        const auto rows = card_rows(m, when.x + inset, y, cw, fields.size() + 1);
-        card(pen, rows.box, hue::edge(), when_room);
+        const auto name = "message:" + message->name();
+        const auto stacked = card_rows(m, when.x + inset, y, cw, fields.size() + 1);
+        const auto rows = card_rows(m, when.x + inset, stood_at(name, y, stacked.box.h, when_room), cw, fields.size() + 1);
+        card(pen, rows.box, edge_of(name), when_room);
         pen.text(rows.box.x + (light ? 8 - m.inset : m.ch), rows.head, message->name(), hue::message(), when_room);
         pen.text(rows.box.x + (light ? 8 - m.inset : m.ch), rows.rows[0],
                  on ? "wakes the rule" : "waits for a kept field", hue::quiet(), when_room);
@@ -854,7 +875,8 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room), "field", {fields[i].name});
             from_field[fields[i].name] = {rows.box.right() - (light ? 0 : m.ch), rows.middles[i + 1]};
         }
-        y = rows.box.bottom() + (light ? 16 : 0);
+        handle(rows, name, when_room);
+        y = stacked.box.bottom() + (light ? 16 : 0);
     }
     // WHAT IT KEEPS BETWEEN MESSAGES, or a place to keep something.
     if (def.state->fields().empty()) {
@@ -868,8 +890,9 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         }
     } else {
         const auto& fields = def.state->fields();
-        const auto rows = card_rows(m, when.x + inset, y, cw, fields.size());
-        card(pen, rows.box, hue::edge(), when_room);
+        const auto stacked = card_rows(m, when.x + inset, y, cw, fields.size());
+        const auto rows = card_rows(m, when.x + inset, stood_at("kept", y, stacked.box.h, when_room), cw, fields.size());
+        card(pen, rows.box, edge_of("kept"), when_room);
         pen.text(rows.box.x + (light ? 8 - m.inset : m.ch), rows.head, "kept between messages", hue::quiet(), when_room);
         for (std::size_t i = 0; i < fields.size(); ++i) {
             const auto ry = rows.rows[i];
@@ -881,7 +904,8 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room), "field", {fields[i].name});
             from_kept[fields[i].name] = {rows.box.right() - (light ? 0 : m.ch), rows.middles[i]};
         }
-        y = rows.box.bottom() + (light ? 16 : m.row);
+        handle(rows, "kept", when_room);
+        y = stacked.box.bottom() + (light ? 16 : m.row);
     }
     // THE OTHER MESSAGES THAT WAKE A TRIGGER, each to show in its place.
     if (def.on.size() > 1) {
@@ -901,9 +925,23 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
     y = then_room.y + (light ? 12 : 0);
     if (on) {
         const bool nodes = !on->body.nodes.empty();
-        const auto rows = card_rows(m, then.x + inset, y, cw, 1);
+        const auto write_name = "write:" + on->message->name();
+        const auto write_stacked = card_rows(m, then.x + inset, y, cw, 1);
+        const auto rows = card_rows(m, then.x + inset, stood_at(write_name, y, write_stacked.box.h, then_room), cw, 1);
+        // Where each card it says stands: stacked after the write and its thread, or where it was put.
+        const bool threaded = nodes || !on->emits.empty();
+        const auto thread_h = light ? std::int64_t{26} : m.row;
+        y = write_stacked.box.bottom() + (threaded ? thread_h : 0);
+        std::vector<CardRows> says;
+        std::vector<std::string> say_names;
+        for (const auto& emit : on->emits) {
+            say_names.push_back("say:" + on->message->name() + ":" + emit.message->name());
+            const auto stacked = card_rows(m, then.x + inset, y, cw, 1);
+            says.push_back(card_rows(m, then.x + inset, stood_at(say_names.back(), y, stacked.box.h, then_room), cw, 1));
+            y = stacked.box.bottom() + (light ? 10 : 0);
+        }
         if (nodes) {
-            card(pen, rows.box, hue::edge(), then_room);
+            card(pen, rows.box, edge_of(write_name), then_room);
         } else {
             open_place(pen, rows.box, then_room);
             if (!light) pen.rect(rows.box, hue::well(), hue::faint(), 0, false, then_room);
@@ -919,18 +957,22 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
                                         : std::string("when the rule runs"),
                  hue::quiet(), then_room);
         pen.press(rows.box.cut(then_room), "write", {std::to_string(model.trigger())});
+        if (nodes) handle(rows, write_name, then_room);
         write_port = std::pair{rows.box.x, light ? rows.box.y + m.card / 2 : rows.box.y + m.row / 2};
-        y = rows.box.bottom();
-        if (nodes || !on->emits.empty()) {
-            const auto thread_x = rows.box.x + (light ? 22 : m.ch);
-            if (light) pen.rect({thread_x, y, 2, 26}, hue::thread(), gfx::no_paint(), 0, false, then_room);
-            pen.text(thread_x + (light ? 10 - m.inset : m.ch), y + (light ? 2 : 0), "then", hue::quiet(), then_room);
-            y += light ? 26 : m.row;
+        // THE THREAD from what it writes down to the first thing it says, where that stands below.
+        if (threaded) {
+            const auto top = rows.box.bottom();
+            const auto end = says.empty() ? top + thread_h : says.front().box.y;
+            if (end - top >= (light ? std::int64_t{8} : m.row)) {
+                const auto thread_x = rows.box.x + (light ? 22 : m.ch);
+                if (light) pen.rect({thread_x, top, 2, end - top}, hue::thread(), gfx::no_paint(), 0, false, then_room);
+                pen.text(thread_x + (light ? 10 - m.inset : m.ch), top + (light ? 2 : 0), "then", hue::quiet(), then_room);
+            }
         }
         for (std::size_t e = 0; e < on->emits.size(); ++e) {
             const auto& emit = on->emits[e];
-            const auto said = card_rows(m, then.x + inset, y, cw, 1);
-            card(pen, said.box, hue::edge(), then_room);
+            const auto& said = says[e];
+            card(pen, said.box, edge_of(say_names[e]), then_room);
             const auto sx = said.box.x + (light ? 8 - m.inset : m.ch);
             pen.text(sx, said.head, "say", hue::text(), then_room);
             pen.text(sx + pen.width("say") - (light ? 2 * m.inset : 0) + m.ch, said.head, emit.message->name(),
@@ -948,10 +990,10 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             }
             pen.text(sx, said.rows[0], fields, heard ? hue::text() : hue::quiet(), then_room);
             pen.press(said.box.cut(then_room), "say", {std::to_string(e)});
+            handle(said, say_names[e], then_room);
             const auto xw = pen.button_width("x");
             pen.button(said.box.right() - xw - (light ? 4 : 0), said.head - (light ? 3 : 0), "x", "emit-remove",
                        {std::to_string(e)}, Face::Quiet, Icon::None, then_room);
-            y = said.box.bottom() + (light ? 10 : 0);
         }
         if (nodes && on->emits.empty()) {
             const Box box{then.x + inset, y, cw, light ? 56 : m.row * 2};

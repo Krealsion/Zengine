@@ -2320,3 +2320,52 @@ TEST_CASE("the chosen step goes by the Delete key or by the x on its corner, whi
     rig.key(in::scan::kDelete);
     CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.empty());
 }
+
+TEST_CASE("a When or Then card is chosen by its head and moved up and down its own column, where it "
+          "stays through a save, an open and a reload; a wire let go on the write card's head lands") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("math.max"));
+    WireWindow w(rig);
+    const auto write = "card:write:" + rig.workspace().graph.project.definition.on.front().message->name();
+    const auto write_at = w.at(write);
+    // THE KEPT CARD dragged down its column stands lower there, and the graph keeps where.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#card-drag-places-nothing): the drag puts it nowhere.
+    const auto kept = w.at("card:kept");
+    w.drag(kept, Cell{kept.first, kept.second + 6});
+    const auto moved = w.at("card:kept");
+    CHECK(moved.first == kept.first);
+    CHECK(moved.second > kept.second);
+    const auto placed = rig.workspace().docks;
+    REQUIRE(placed.size() == 1);
+    CHECK(placed.front().card == "kept");
+    CHECK(placed.front().y > 0);
+    // ...AND A CARD IT DID NOT MOVE stands where it stood.
+    CHECK(w.at(write) == write_at);
+    // A WIRE LET GO ON THE WRITE CARD'S HEAD makes its step the answer, as on the rest of the card.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#write-head-misses-the-wire): the head takes no wire.
+    w.drag(w.at("source-node:1"), w.at(write));
+    CHECK(rig.workspace().graph.project.definition.on.front().body.result_node == 1);
+    // ...AND A STEP'S ANSWER PRESSED, THEN THE WRITE CARD'S HEAD, makes that step the answer too.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#write-head-ignores-a-held-answer): the head chooses.
+    w.click(w.at("source-node:0"));
+    w.click(w.at(write));
+    CHECK(rig.workspace().graph.project.definition.on.front().body.result_node == 0);
+
+    // THROUGH A SAVE AND AN OPEN, the card stands where it was put.
+    TempFiles files;
+    rig.edit_ok("save", {files.file()});
+    rig.edit_ok("new", {"other", "discard"});
+    CHECK(rig.workspace().docks.empty());
+    rig.edit_ok("open", {files.file(), "discard"});
+    REQUIRE(rig.workspace().docks.size() == 1);
+    CHECK(rig.workspace().docks.front().y == placed.front().y);
+    // ...AND THROUGH A RELOAD.
+    const auto reload = rig.kernel.reload_from("flow-pane", FLOW_PANE_ARTIFACT);
+    INFO(reload.error);
+    REQUIRE(reload.ok);
+    REQUIRE(reload.reloaded);
+    rig.activate();
+    REQUIRE(rig.workspace().docks.size() == 1);
+    CHECK(rig.workspace().docks.front().y == placed.front().y);
+}

@@ -272,6 +272,8 @@ public:
       }
       else if (model_.node)
         model_.node.reset();
+      else if (model_.dock)
+        model_.dock.reset();
       else if (!model_.search.empty())
         model_.search.clear();
       else
@@ -360,7 +362,10 @@ public:
                                    std::int64_t{100000000});
         const pane::GridProjection grid(room);
         const auto dx = grid.grid_x(ex - drag_->x), dy = grid.grid_y(ey - drag_->y);
-        if (drag_->node_id == 0) {
+        if (!drag_->card.empty()) {
+          model_.place_dock(drag_->card,
+                            std::clamp(drag_->base_y + dy, std::int64_t{0}, drag_->card_max));
+        } else if (drag_->node_id == 0) {
           model_.workspace.pan_x =
               std::clamp(drag_->base_x + dx, std::int64_t{-10000000},
                          std::int64_t{10000000});
@@ -450,10 +455,12 @@ public:
       }
       const auto *hit = it->hit(event.x, event.y);
       if (event.button == 2 || (!hit && event.button == 1)) {
-        // A PRESS ON EMPTY SPACE LETS GO of the chosen step and its port; its drag moves the view.
-        if (!hit && (model_.node || model_.filling)) {
+        // A PRESS ON EMPTY SPACE LETS GO of the chosen step, its port and the chosen card; its drag
+        // moves the view.
+        if (!hit && (model_.node || model_.filling || model_.dock)) {
           model_.node.reset();
           model_.filling.reset();
+          model_.dock.reset();
           show(mail);
         }
         if (model_.page == pane::Page::Graph && !model_.dialog)
@@ -473,8 +480,30 @@ public:
       if (const auto shape = pressed_message(event, pictured))
         carry(shape, mail.correlation(), true, mail);
       const auto chosen = *hit;
+      if (chosen.action == "card" && onto_write_with_wire(chosen)) {
+        perform("write", {std::to_string(model_.trigger())}, mail);
+        return;
+      }
+      if (chosen.action == "card") {
+        // A WHEN OR THEN CARD chosen by its head; a drag from there moves it up and down its own
+        // column, as far as the column's room lets it.
+        model_.dock = chosen.args.at(0);
+        model_.node.reset();
+        const auto box = it->cards.find(*model_.dock);
+        if (box != it->cards.end() && it->docks) {
+          const pane::GridProjection grid(room);
+          Drag held{event.gesture, 0, it->revision, event.x, event.y, 0,
+                    grid.grid_y(box->second.y - it->docks->y)};
+          held.card = *model_.dock;
+          held.card_max = std::max<std::int64_t>(0, grid.grid_y(it->docks->h - box->second.h));
+          drag_ = std::move(held);
+        }
+        show(mail);
+        return;
+      }
       if (chosen.action == "node") {
         model_.node = flow::index_of(chosen.args.at(0));
+        model_.dock.reset();
         const auto &pos =
             model_.workspace.graph.place(model_.trigger(), *model_.node);
         drag_ = Drag{event.gesture, pos.id, it->revision, event.x,
@@ -534,8 +563,19 @@ public:
       return;
     }
     try {
+      if (chosen.action == "card" && onto_write_with_wire(chosen)) {
+        perform("write", {std::to_string(model_.trigger())}, mail);
+        return;
+      }
+      if (chosen.action == "card") {
+        model_.dock = chosen.args.at(0);
+        model_.node.reset();
+        show(mail);
+        return;
+      }
       if (chosen.action == "node") {
         model_.node = flow::index_of(chosen.args.at(0));
+        model_.dock.reset();
         show(mail);
         return;
       }
@@ -889,10 +929,19 @@ private:
     /// A wire's drag: the end it was pressed on, as a part and as an end, and whether the hand
     /// has moved past the threshold that makes it a drag rather than a click.
     bool wire = false, crossed = false;
+    /// A card's drag: the card it moves, by its name, and the lowest place its column has room for.
+    std::string card{};
+    std::int64_t card_max = 0;
     pane::WireEnd from{};
     std::string origin{};
     std::vector<std::string> origin_args{};
   };
+  /// A PRESS ON THE WRITE CARD'S HEAD WITH A STEP'S ANSWER HELD is a press on the write card: it
+  /// makes that step the answer, as a press on the rest of the card does.
+  bool onto_write_with_wire(const pane::Hit &hit) const {
+    return model_.connecting && model_.connecting->from() == zengine::op::Binding::From::Node &&
+           !hit.args.empty() && hit.args.front().rfind("write:", 0) == 0;
+  }
   /// The end of a wire a press on `hit` takes hold of: an output button, a field in scope, or an
   /// input port while no wire is in hand; none for anything else.
   std::optional<pane::WireEnd> wire_end(const pane::Hit &hit) const {
@@ -962,9 +1011,13 @@ private:
       perform("port", hit->args, mail);
       return;
     }
-    if (held.from.source && hit != nullptr && hit->action == "write") {
+    const bool onto_write = hit != nullptr &&
+                            (hit->action == "write" ||
+                             (hit->action == "card" && !hit->args.empty() &&
+                              hit->args.front().rfind("write:", 0) == 0));
+    if (held.from.source && onto_write) {
       model_.connecting = *held.from.source;
-      perform("write", hit->args, mail);
+      perform("write", {std::to_string(model_.trigger())}, mail);
       return;
     }
     if (held.from.port && hit != nullptr &&

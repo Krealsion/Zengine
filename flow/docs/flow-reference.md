@@ -47,8 +47,10 @@ else, and reads a bare `zen.SchemaDesc` of a shape that nests nothing; a descrip
 shape it does not carry is refused in Loom's words.
 
 `flow/workspace.hpp` provides `Workspace`, its byte codecs and explicit file save/open
-functions. A workspace retains a project, node positions, viewport, reusable examples
-and unfinished value forms. Layout does not change executable graph meaning. Empty
+functions. A workspace retains a project, node positions, where each When and Then card was
+put (`DockPlace`), viewport, reusable examples and unfinished value forms; a file version 1
+wrote is read with every card where its lane stacks it. Layout does not change executable graph
+meaning. Empty
 triggers are stored as draft metadata and restored to the graph; unwired ports retain
 their missing input names. Neither makes an unfinished graph executable. `problems`
 provides node/port diagnostics before Run or Apply, followed by the existing admission

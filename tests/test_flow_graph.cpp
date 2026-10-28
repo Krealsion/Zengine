@@ -513,3 +513,47 @@ TEST_CASE("a message shape keeps one model wherever it is authored: the pane and
     CHECK_THROWS_WITH(shape::type_named("Message:none", md::Library{}),
                       "Message:<saved draft name> needs an existing library schema");
 }
+
+TEST_CASE("a workspace keeps where each When and Then card was put, reads one version 1 wrote with "
+          "none put, and refuses a card put twice") {
+    auto author = model();
+    author.command("trigger", {"0", "total"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    // KEPT WHERE IT WAS PUT, through the bytes a save writes.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#card-places-unwritten): a save writes no place.
+    author.place_dock("kept", 12);
+    author.place_dock("write:flowgraph.Input", 30);
+    const auto text = flow::workspace_bytes(author.workspace);
+    const auto reopened = flow::read_workspace(text);
+    REQUIRE(reopened.docks.size() == 2);
+    CHECK(reopened.docks[0].card == "kept");
+    CHECK(reopened.docks[0].y == 12);
+    CHECK(reopened.docks[1].card == "write:flowgraph.Input");
+    CHECK(reopened.docks[1].y == 30);
+    // A FILE VERSION 1 WROTE reads with each card where its column stacks it, the rest as it was.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#version-one-refused): version 1 is refused.
+    const auto admitted = loom::admit(loom::parse(text), loom::schema_of<flow::WorkspaceFile>());
+    REQUIRE(admitted);
+    const auto file = loom::from_value<flow::WorkspaceFile>(admitted.value());
+    flow::v1::WorkspaceFile old;
+    old.project = file.project;
+    old.library = file.library;
+    old.places = file.places;
+    old.empty_triggers = file.empty_triggers;
+    old.forms = file.forms;
+    old.active_form = file.active_form;
+    old.next_id = file.next_id;
+    old.active_trigger = file.active_trigger;
+    old.pan_x = file.pan_x;
+    old.pan_y = file.pan_y;
+    old.zoom = file.zoom;
+    const auto read = flow::read_workspace(loom::serialize(loom::to_value(old)));
+    CHECK(read.docks.empty());
+    CHECK(read.graph.places.size() == reopened.graph.places.size());
+    CHECK(flow::project_bytes(read.graph.project) == flow::project_bytes(reopened.graph.project));
+    // A CARD PUT TWICE is refused, whole.
+    auto twice = file;
+    twice.docks = {{"kept", 1}, {"kept", 2}};
+    CHECK_THROWS_WITH_AS(flow::read_workspace(loom::serialize(loom::to_value(twice))),
+                         "invalid card place in workspace", std::invalid_argument);
+}

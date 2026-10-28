@@ -11,7 +11,7 @@ A press on empty graph room keeps the chosen step chosen.
 In `flow/flow-pane/pane.cpp`:
 
 ```diff
-         if (!hit && (model_.node || model_.filling)) {
+         if (!hit && (model_.node || model_.filling || model_.dock)) {
 -          model_.node.reset();
            model_.filling.reset();
 ```
@@ -28,10 +28,10 @@ A press on empty graph room keeps the chosen port chosen.
 In `flow/flow-pane/pane.cpp`:
 
 ```diff
-         if (!hit && (model_.node || model_.filling)) {
+         if (!hit && (model_.node || model_.filling || model_.dock)) {
            model_.node.reset();
 -          model_.filling.reset();
-           show(mail);
+           model_.dock.reset();
 ```
 
 Red in `zengine-flow-pane-tests`:
@@ -72,3 +72,60 @@ Red in `zengine-flow-pane-tests`:
 
 - the chosen step goes by the Delete key or by the x on its corner, which the Do lane's head no
   longer holds
+
+## card-drag-places-nothing
+
+A drag from a When or Then card's head puts the card nowhere.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+         if (!drag_->card.empty()) {
+-          model_.place_dock(drag_->card,
+-                            std::clamp(drag_->base_y + dy, std::int64_t{0}, drag_->card_max));
+         } else if (drag_->node_id == 0) {
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a When or Then card is chosen by its head and moved up and down its own column, where it stays
+  through a save, an open and a reload; a wire let go on the write card's head lands
+
+## write-head-misses-the-wire
+
+A wire let go on the write card's head lands on nothing.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+     const bool onto_write = hit != nullptr &&
+-                            (hit->action == "write" ||
+-                             (hit->action == "card" && !hit->args.empty() &&
+-                              hit->args.front().rfind("write:", 0) == 0));
++                            hit->action == "write";
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a When or Then card is chosen by its head and moved up and down its own column, where it stays
+  through a save, an open and a reload; a wire let go on the write card's head lands
+
+## write-head-ignores-a-held-answer
+
+A press on the write card's head, with a step's answer held, chooses the card and writes nothing.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+       if (chosen.action == "card" && onto_write_with_wire(chosen)) {
+-        perform("write", {std::to_string(model_.trigger())}, mail);
+-        return;
+       }
+       if (chosen.action == "card") {
+         // A WHEN OR THEN CARD chosen by its head; a drag from there moves it up and down its own
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a When or Then card is chosen by its head and moved up and down its own column, where it stays
+  through a save, an open and a reload; a wire let go on the write card's head lands

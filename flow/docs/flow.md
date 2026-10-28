@@ -161,7 +161,10 @@ namespace, and a name outside it is refused, so a definition can only speak for 
 trigger's write: the dialog fills each field from the state field of its name, `total=$total`, and
 you may write any field from another state field or a constant instead. The **Then** lane's
 **+ say water.Value** does both at once: it declares the message with the kept field it carries
-and says it. The **Then** lane lists what the rule says, each with **x** to remove it. An emit is a
+and says it. The **Then** lane lists what the rule says, each with **x** to remove it; drag a say
+card by its row of values onto a label to show it there. A **When** or **Then** card's head selects
+it, and dragging that head moves the card up or down its own lane, where it stays and is saved with
+the workspace; a wire let go on the head of what the rule writes lands there too. An emit is a
 publication by this participant, of its own shapes, after every successful write; there is no
 conditional emit and no addressed send. A new emitted shape changes what a running participant may
 say, so **Restart** it rather than **Apply**; the bar and the Next line offer it, and **Events**

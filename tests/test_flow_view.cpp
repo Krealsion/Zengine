@@ -713,3 +713,32 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
     CHECK(cells.parts.count("port:1.0") == 1);
     CHECK(cells.parts.count("menu:file") == 1);
 }
+
+TEST_CASE("a chosen When or Then card is edged as a chosen step is, and a card put lower stands lower, "
+          "never past its column's floor") {
+    auto m = tally();
+    const auto room = light_room();
+    const auto edge = [&](const pane::Picture& p, const std::string& name) -> std::int64_t {
+        const auto box = p.cards.at(name);
+        for (const auto& k : p.marks)
+            if (k.op == pane::Mark::Op::Rect && k.x == box.x && k.y == box.y && k.w == box.w && k.h == box.h)
+                return k.stroke.rgb;
+        return -1;
+    };
+    auto pic = pane::picture(m, room);
+    REQUIRE(pic.cards.count("kept") == 1);
+    REQUIRE(pic.docks.has_value());
+    const auto stacked = pic.cards.at("kept");
+    CHECK(edge(pic, "kept") != 0x88c0d0);
+    m.dock = "kept";
+    pic = pane::picture(m, room);
+    CHECK(edge(pic, "kept") == 0x88c0d0);
+    // PUT LOWER, it stands lower, in its own column; put past the column's floor, it stands on it.
+    m.place_dock("kept", 10 * pane::unit);
+    pic = pane::picture(m, room);
+    CHECK(pic.cards.at("kept").y > stacked.y);
+    CHECK(pic.cards.at("kept").x == stacked.x);
+    m.place_dock("kept", 1000 * pane::unit);
+    pic = pane::picture(m, room);
+    CHECK(pic.cards.at("kept").bottom() <= pic.docks->bottom());
+}

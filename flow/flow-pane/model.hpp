@@ -55,6 +55,8 @@ public:
     flow::Palette palette;
     Page page = Page::Graph;
     std::optional<std::size_t> node;
+    /// The chosen When or Then card, by the name its place is kept under (`flow::DockPlace`).
+    std::optional<std::string> dock;
     std::size_t message = 0, first_row = 0;
     std::optional<md::Draft> form;
     std::string form_title, form_key, path, notice = "Create state, an input message and a trigger; then connect operators.";
@@ -97,6 +99,21 @@ public:
     std::vector<std::string> earlier;
     static constexpr std::size_t kMaxEarlier = 64;
     std::size_t trigger() const { return static_cast<std::size_t>(workspace.active_trigger); }
+    /// Where card `name` stands down its column, as the maker put it; none where it stacks.
+    std::optional<std::int64_t> dock_y(const std::string& name) const {
+        for (const auto& d : workspace.docks)
+            if (d.card == name) return d.y;
+        return std::nullopt;
+    }
+    void place_dock(const std::string& name, std::int64_t y) {
+        for (auto& d : workspace.docks)
+            if (d.card == name) {
+                d.y = y;
+                return;
+            }
+        if (workspace.docks.size() >= flow::kMaxDockPlaces) throw std::invalid_argument("too many cards placed");
+        workspace.docks.push_back({name, y});
+    }
     /// Another rule in the draft's place: what the rule before it did is not this one's to show.
     void forget_runs() {
         ran = false;
@@ -267,7 +284,7 @@ private:
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before creating another");
             workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(args[0]); forget_runs();
-            node.reset(); form.reset(); form_key.clear(); form_title.clear(); form_state = false; state_edited = false; connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); dropped.reset(); page = Page::Graph; path.clear(); touched();
+            node.reset(); dock.reset(); form.reset(); form_key.clear(); form_title.clear(); form_state = false; state_edited = false; connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); dropped.reset(); page = Page::Graph; path.clear(); touched();
         } else if (action == "state-field") {
             need(3); if (args[2] != "required" && args[2] != "optional") throw std::invalid_argument("presence must be required or optional");
             workspace.graph.state_field(args[0], type(args[1]), args[2] == "required"); edited_state(); state_form();
@@ -313,9 +330,9 @@ private:
             need(4); if (args[3] != "required" && args[3] != "optional") throw std::invalid_argument("presence must be required or optional");
             message = flow::index_of(args[0]); workspace.graph.message_field(message, args[1], type(args[2]), args[3] == "required"); touched(); message_form(message);
         } else if (action == "trigger") {
-            need(2); workspace.active_trigger = static_cast<std::int64_t>(workspace.graph.trigger(flow::index_of(args[0]), args[1])); page = Page::Graph; node.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); touched();
+            need(2); workspace.active_trigger = static_cast<std::int64_t>(workspace.graph.trigger(flow::index_of(args[0]), args[1])); page = Page::Graph; node.reset(); dock.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); touched();
         } else if (action == "select-trigger") {
-            need(1); const auto at = flow::index_of(args[0]); (void)workspace.graph.project.definition.on.at(at); workspace.active_trigger = static_cast<std::int64_t>(at); node.reset(); connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); first_row = 0;
+            need(1); const auto at = flow::index_of(args[0]); (void)workspace.graph.project.definition.on.at(at); workspace.active_trigger = static_cast<std::int64_t>(at); node.reset(); dock.reset(); connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); first_row = 0;
         } else if (action == "add-node") {
             // An operator reference -- the identity and the two content ids it was found at -- and
             // where: at the end, or before a node, renumbering what follows.
@@ -424,14 +441,14 @@ private:
             auto project = flow::open_project(args[0]);
             workspace = flow::Workspace{}; workspace.graph = flow::GraphDraft(std::move(project)); forget_runs();
             form.reset(); form_key.clear(); form_title.clear(); form_state = false;
-            node.reset(); connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); dropped.reset(); path.clear(); page = Page::Graph; state_edited = false; touched();
+            node.reset(); dock.reset(); connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); dropped.reset(); path.clear(); page = Page::Graph; state_edited = false; touched();
         } else if (action == "save") {
             need(1); retain_form(); flow::save_workspace(args[0], workspace); path = args[0]; dirty = false; notice = "Saved " + path; return {};
         } else if (action == "open") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before opening another");
             auto opened = flow::open_workspace(args[0]); workspace = std::move(opened); path = args[0]; dirty = false; forget_runs();
-            state_edited = false; node.reset(); restore_form(); connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); dropped.reset(); page = Page::Graph;
+            state_edited = false; node.reset(); dock.reset(); restore_form(); connecting.reset(); filling.reset(); body_slot.reset(); slot_reference.reset(); dropped.reset(); page = Page::Graph;
         } else if (action == "message-open") { need(1); message_form(flow::index_of(args[0]));
         } else if (action == "state-open") { need(0); state_form();
         } else if (action == "value") {
