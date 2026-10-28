@@ -1720,8 +1720,8 @@ TEST_CASE("manage.remove removes the addressed pane by its own key") {
     CHECK(t.session().arrange.open);
     CHECK(t.session().arrange.desk);
     CHECK_FALSE(t.session().arrange.addressed());
-    CHECK(t.notice().find("hid ") == 0);
-    CHECK(t.notice().find("nothing behind it was touched") != std::string::npos);
+    // It says what it hid, by the pane's name, and nothing after.
+    CHECK(t.notice() == "hid " + std::string(stock::kName));
 }
 
 TEST_CASE("a contextual remove removes the pointed pane") {
