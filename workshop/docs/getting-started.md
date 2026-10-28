@@ -294,9 +294,9 @@ privilege the [snake example](../../examples/snake/README.md) does not.
 | colour | each area painted by its skin's painter, the role's ink on the terminal | each area painted by its skin's painter, RGB per role |
 | what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 
-![The Pane Manager, Info and Notices in the terminal window, 120 by 30 cells: the Layouts row on the first row, the Pane Manager at the room's centre being placed, Arranging Mode Active above it, the frames drawn in characters, Notices saying showed Pane Manager and how to place it, the band's keys beneath](images/desk-terminal-window.png)
+![The Pane Manager, Info and Notices in the terminal window, 120 by 30 cells: the Layouts row on the first row, the Pane Manager at the room's centre being placed, its panes listed by name with Attention first and marked, Arranging Mode Active above it, the frames drawn in characters, Notices saying showed Pane Manager and how to place it, the band's keys beneath](images/desk-terminal-window.png)
 
-![The Pane Manager, Info and Notices in the OS window, 1444 by 901 pixels: text in the window's face, the Pane Manager at the room's centre being placed, Arranging Mode Active above it, Info and Notices faded, Notices saying showed Pane Manager and how to place it, each area painted by its skin's painter](images/desk-os-window.png)
+![The Pane Manager, Info and Notices in the OS window, 1444 by 901 pixels: text in the window's face, the Pane Manager at the room's centre being placed, its panes listed by name with Attention first and marked, Arranging Mode Active above it, Info and Notices faded, Notices saying showed Pane Manager and how to place it, each area painted by its skin's painter](images/desk-os-window.png)
 
 Neither is a degraded version of the other, and the same published intent produces both.
 

@@ -68,7 +68,7 @@ itself. A click that arrives after the list moved under it — a pane arrived, a
 was queued ahead of it — is refused with `the list moved -- press again` rather than acting on
 whatever slid into that row; a repaint that moved no row does not refuse.
 
-![The Pane Manager's menu for the hidden Powers row: show Powers, manage Powers, inspect in Info, then under a rule naming the Pane Manager, Workshop's own rows for the Pane Manager](images/pane-manager-row-menu.png)
+![The Pane Manager scrolled by the wheel to Powers, and its menu for the hidden Powers row: show Powers, manage Powers, inspect in Info, then under a rule naming the Pane Manager, Workshop's own rows for the Pane Manager](images/pane-manager-row-menu.png)
 
 **A pane you show is yours to place.** A pane this layout has not had opens at the room's
 centre -- at your pointer, where Workshop's `workshop.open-at` setting says `mouse` -- and, when it
@@ -215,7 +215,7 @@ adds `snapped to an edge`. Hold **`Alt`** to place it free of them. The arrow ke
 value typed in Info always place exactly. A snap leaves an ordinary place and size in whole
 pixels: nothing about it is saved, and nothing keeps two panes together or apart.
 
-![The Pane Manager dragged until its right edge met the left edge of Hotkeys: a line across the room marks the edge it met while the button is held, and the band says snapped to an edge](images/panes-snap.png)
+![Hotkeys dragged until its left edge met the right edge of the Pane Manager: a line across the room marks the edge it met while the button is held, and Notices says snapped to an edge](images/panes-snap.png)
 
 `=` and `-` are the same resize, the coarse step at a time on both axes — one press is the
 difference between a pane that is technically open and a pane you can work in. They move no
@@ -596,7 +596,7 @@ keeps the file it has open and whether its view runs, and when you launch Worksh
 runs that view again, its pane where your layout left it — or still hidden, if you hid it. A
 Workshop without the View Builder says so when you press `n`, in the launch's own words.
 
-![n in the Pane Manager: the View Builder shown beneath it with the keys in it, ready to lay out a view](images/pane-manager-new-view-builder.png)
+![n in the Pane Manager: the View Builder shown at the room's centre in front of it, with the keys, being placed, ready to lay out a view](images/pane-manager-new-view-builder.png)
 
 ## Pane titles
 
