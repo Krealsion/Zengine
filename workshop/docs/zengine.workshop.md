@@ -88,7 +88,8 @@ start ([`zengine.first-run`](zengine.first-run.md)).
 ### `PaneToggleRequested`
 
 `PaneToggleRequested` asks Workshop to show a pane that is not on the desk, or hide one that is,
-judged against the desk at the ask; one another pane covers is brought forward and focused.
+judged against the desk at the ask; one another pane covers is brought forward and focused,
+unless it is the last pane the weaver's input reached, which is hidden.
 
 - **Takes:** `office` and `pane`.
 - **Answers:** `PaneToggleAnswered{office, pane, opened, closed, refusal}`, to the asker alone, with

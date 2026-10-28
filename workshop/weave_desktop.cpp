@@ -770,8 +770,11 @@ void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
         repaint(m);
     };
     // ON THE DESK BUT COVERED, it is brought forward and given the keys, as a launch of a pane on
-    // the desk does: a pane the weaver cannot see is not one they asked to put away.
-    if (has_pane(session_.setup.active, ref) && covered_now(ref)) {
+    // the desk does: a pane the weaver cannot see is not one they asked to put away -- unless the
+    // weaver comes straight from it, the last pane their input reached, when it goes.
+    const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panes);
+    const bool straight_from = kind.has_value() && *kind == reached_;
+    if (has_pane(session_.setup.active, ref) && !straight_from && covered_now(ref)) {
         launch_pane(ref,
                     [this, answer, ref, finish](const PaneLaunchAnswered& shown,
                                                 loom::Mail& m) mutable {

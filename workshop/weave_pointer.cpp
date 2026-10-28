@@ -496,6 +496,9 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
                     kind_takes_keyboard(session_.panes.selected)
                 ? session_.panes.selected
                 : kNoPaneKind;
+        if (here.occupied) {
+            reached_ = here.kind; // ...and it is the pane the hand reached last (WL-DESK-13)
+        }
         // A press on a pane's frame chooses it and says nothing more: what is pressed in its own
         // area is the pane's, heard there. A built-in says so on the notice line rather than
         // leaving the last gesture's sentence standing; the bare room never hears a press.

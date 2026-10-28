@@ -597,6 +597,53 @@ TEST_CASE("WL-DESK-13: Ctrl+P is a visibility toggle judged by the host -- open 
     CHECK(d.r.last_notice().find("forward") != std::string::npos);
 }
 
+TEST_CASE("WL-DESK-13: Ctrl+P puts away a covered Pane Manager the weaver comes straight from, and brings it forward once they have moved on from it") {
+    // MUTATION: the toggle judging a covered pane by its cover alone -- the Manager the weaver
+    // opened Alpha from comes forward instead of going, and the first checks go red.
+    Desk d;
+    const PaneRef manager{kDesktopRole, dp::kLauncherPane};
+    const PaneRef alpha_ref{"zengine.test.tools", "alpha"};
+    // FROM THE MANAGER, ALPHA IS OPENED: its row chosen, then Return, as a walk does it.
+    d.press(d.row_of("Alpha"), kNameCol);
+    d.r.key(input::scan::kReturn);
+    REQUIRE(d.open("alpha"));
+    const std::int64_t alpha = kind_of(d.r, "zengine.test.tools", "alpha");
+    REQUIRE(d.r.session().panes.keyboard == alpha);
+    // ...AND IT STANDS OVER PART OF THE MANAGER, in front of it.
+    const Screen sc = screen_of(d.r.session());
+    const PixelRect under = room_of_canvas(
+        bounds_of(d.r.session().panes, d.r.session().setup.active, d.launcher, sc).resolved, sc);
+    stage_desk(d.r, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, alpha_ref, under.x + under.w / 2, 0).accepted);
+        REQUIRE(author_pane_size(desk, alpha_ref, PaneSize{ui::kSizeFill, 0},
+                                 PaneSize{ui::kSizeFill, 0})
+                    .accepted);
+        (void)send_to_front(desk, alpha_ref); // opened last, it may stand in front already
+    });
+    REQUIRE(effective_pane_order(d.r.session().setup.active, d.r.session().panes).back() == alpha);
+    // CTRL+P, THE NEXT ACT: the Manager goes, and Alpha keeps the keys.
+    d.r.key(input::scan::kP, input::mod::kCtrl);
+    CHECK_FALSE(has_pane(d.r.session().setup.active, manager));
+    CHECK(d.r.last_notice().rfind("hid Pane Manager", 0) == 0);
+    CHECK(d.r.session().panes.keyboard == alpha);
+
+    // MOVED ON FROM IT -- a press in Alpha since -- the covered Manager is brought forward.
+    d.r.key(input::scan::kP, input::mod::kCtrl);
+    REQUIRE(has_pane(d.r.session().setup.active, manager));
+    REQUIRE(d.r.session().panes.keyboard == kind_of(d.r, kDesktopRole, dp::kLauncherPane));
+    // ...pressed where Alpha stands clear of the Manager.
+    const CellRect manager_body =
+        external_body_rect(d.r.session(), kind_of(d.r, kDesktopRole, dp::kLauncherPane));
+    const CellRect alpha_body = external_body_rect(d.r.session(), alpha);
+    REQUIRE(manager_body.x + manager_body.w + 4 < alpha_body.x + alpha_body.w);
+    d.r.press_cell(manager_body.x + manager_body.w + 4, alpha_body.y);
+    REQUIRE(d.r.session().panes.keyboard == alpha);
+    d.r.key(input::scan::kP, input::mod::kCtrl);
+    CHECK(has_pane(d.r.session().setup.active, manager));
+    CHECK(d.r.session().panes.keyboard == kind_of(d.r, kDesktopRole, dp::kLauncherPane));
+    CHECK(d.r.last_notice().find("forward") != std::string::npos);
+}
+
 TEST_CASE("WL-DESK-20: the Manual opens over the pane whose manual was asked, a margin of it showing on every edge, and moves over the next one asked") {
     // MUTATION: the Manual seated where it would have stood -- it opens at the room's centre, and
     // the checks of its place go red.

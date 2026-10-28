@@ -1246,8 +1246,9 @@ private:
     };
     /// The kind the managed reference resolves to right now, or `kNoPaneKind`.
     std::int64_t managed_kind() const;
-    /// ONE MORE INPUT ROUTED TO THIS PANE -- the admission counter the claim carries.
-    void note_routed(std::int64_t kind);
+    /// ONE MORE INPUT ROUTED TO THIS PANE -- the admission counter the claim carries -- and the
+    /// pane the hand last reached, unless `reaches` is false (a bare modifier key).
+    void note_routed(std::int64_t kind, bool reaches = true);
     /// The managed pane's presentation, derived from the live session.
     PanePresentation derive_presentation() const;
     /// Claim it if it moved.
@@ -2019,6 +2020,10 @@ private:
     bool shift_press_ = false;
     /// The pane that held the keys when the palette last took them, which it gives them back to.
     std::int64_t palette_over_ = kNoPaneKind;
+    /// The pane the weaver's input last reached -- a press on it, or a key, a row or text routed to
+    /// it, a bare modifier apart: one a toggle puts away even covered, as the weaver comes
+    /// straight from it (WL-DESK-13).
+    std::int64_t reached_ = kNoPaneKind;
     /// The quit in flight: its ask, the answers still owed, the refusals, the gestures held.
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;
