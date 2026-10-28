@@ -213,7 +213,8 @@ unfinished authoring work and presentation; they are not executable projects.
 An orderly Workshop quit is refused while host work or its fresh state inspection is pending.
 Try quitting again after the result arrives. Saving an older snapshot while a send is pending
 does not bypass that refusal. Save unsaved Flow work, or choose **Discard** and type `discard`
-to allow closing without saving. Pane reload restores the workspace and reconnects to
+to allow closing without saving, or choose `discard unsaved work and quit` in the box Workshop opens
+when the quit is refused. Pane reload restores the workspace and reconnects to
 the session through its office. The selected page, unconfirmed dialog text and selection, and
 the distinction between a deliberate initial-state edit and observed live state also survive
 reload. Unconfirmed dialog text is separate from a saved workspace. Drawing grants and hit maps

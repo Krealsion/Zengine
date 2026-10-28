@@ -1781,6 +1781,13 @@ private:
     /// deliver): `why` is said with the count of gestures dropped, the held gestures replay in
     /// order, and the desk repaints. Nothing is saved and the bus keeps running.
     void refuse_quit(std::string why, loom::Mail& mail);
+    /// THE QUIT BOX: a quit the weaver asked here, refused by panes holding unsaved work, opens
+    /// Workshop's own menu at the room's centre -- back to work, or discard what those panes hold
+    /// and quit -- so no typing and no pane is needed to leave.
+    void offer_quit_box(std::vector<std::string> panes);
+    /// ...ITS DISCARD: the quit asked again, each pane the box named answered as having permitted
+    /// it; a pane that refuses and was not named refuses the quit as before.
+    void discard_and_quit(loom::Mail& mail);
     /// Answer the guest's `WorkshopQuitRequested` still owed, if any: `Ack`, or `Refused{why}`.
     void answer_quit_ask(const std::string& why, loom::Mail& mail);
 
@@ -2028,6 +2035,10 @@ private:
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;
     std::vector<std::string> quit_refusals_;
+    /// ...the panes that refused it, by the names they answered with...
+    std::vector<std::string> quit_refused_panes_;
+    /// ...and, for a discard the quit box asked, the panes whose refusal the weaver's press settled.
+    std::vector<std::string> quit_discard_;
     loom::DeferredAnswer quit_asked_; ///< a guest's ask for this quit, owed its outcome
     std::vector<HeldInput> held_input_;
     std::size_t held_dropped_ = 0;
