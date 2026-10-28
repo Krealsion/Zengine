@@ -86,17 +86,22 @@ public:
     bool ran = false;
     /// The definition the Flow host runs, as its last answer said; none while nothing runs.
     std::optional<zengine::maker::Definition> running_definition;
-    /// The state the running rule was run with, and what its journal says it did since.
+    /// The state the running rule was run with, and what its journal says it did since. A pane
+    /// restored from its snapshot holds that state as text (`kept_start`) until an answer says
+    /// what runs, to read it back against.
     std::optional<loom::Value> started;
+    loom::Bytes started_kept;
     Observed observed;
-    /// What reached the rule in the runs before this one, oldest first: a restart starts a journal
-    /// afresh, and the Events go on from these.
-    std::vector<Arrival> earlier;
+    /// What reached the rule in the runs before this one, an Events line a message, oldest first:
+    /// a restart starts a journal afresh, and the Events go on from these, the last `kMaxEarlier`.
+    std::vector<std::string> earlier;
+    static constexpr std::size_t kMaxEarlier = 64;
     std::size_t trigger() const { return static_cast<std::size_t>(workspace.active_trigger); }
     /// Another rule in the draft's place: what the rule before it did is not this one's to show.
     void forget_runs() {
         ran = false;
         started.reset();
+        started_kept.clear();
         observed = {};
         earlier.clear();
         events.clear();

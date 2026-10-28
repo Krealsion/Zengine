@@ -1191,11 +1191,13 @@ inline void events_band(Pen& pen, const Model& model, const Box& box, std::size_
     const std::string order = "newest first";
     pen.text(box.right() - pen.width(order) - (m.light ? 10 - m.inset : 0), y, order, hue::quiet(), box);
     y += m.row;
-    // This run's arrivals, newest first, then the runs' before it.
-    std::vector<const Arrival*> arrivals;
-    for (auto at = model.observed.arrivals.rbegin(); at != model.observed.arrivals.rend(); ++at) arrivals.push_back(&*at);
-    for (auto at = model.earlier.rbegin(); at != model.earlier.rend(); ++at) arrivals.push_back(&*at);
-    if (arrivals.empty()) {
+    // This run's arrivals, newest first, then the runs' before it, as many as the band has lines.
+    std::vector<std::string> shown;
+    for (auto at = model.observed.arrivals.rbegin(); at != model.observed.arrivals.rend() && shown.size() < lines; ++at)
+        shown.push_back(line_of(*at));
+    for (auto at = model.earlier.rbegin(); at != model.earlier.rend() && shown.size() < lines; ++at)
+        shown.push_back(*at);
+    if (model.observed.arrivals.empty() && model.earlier.empty()) {
         const auto& def = model.workspace.graph.project.definition;
         pen.text(x, y,
                  model.running ? "nothing yet: send " + (def.on.empty() ? std::string("its message")
@@ -1204,8 +1206,8 @@ inline void events_band(Pen& pen, const Model& model, const Box& box, std::size_
                  hue::quiet(), box);
         return;
     }
-    for (std::size_t i = 0; i < lines && i < arrivals.size(); ++i) {
-        pen.text(x, y, line_of(*arrivals[i]), hue::text(), box);
+    for (const auto& line : shown) {
+        pen.text(x, y, line, hue::text(), box);
         y += m.row;
     }
 }

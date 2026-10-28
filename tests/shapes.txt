@@ -156,7 +156,7 @@ FlowHostClockState v1 0x472b0dfbb61c4c41
 FlowHostPulse v1 0x3759ed2d37f4db35
 FlowInspect v1 0x5fb9b1dc0dd20d79
 FlowOperator v1 0x98534fa5dde6c3ef
-FlowPaneState v1 0xae922b054d89c9d9
+FlowPaneState v2 0xf755ec3f4e64472b
 FlowRun v1 0xf302d236bacd5899
 FlowSend v1 0xe9410dc99c886b02
 FlowStop v1 0x278297d584178707

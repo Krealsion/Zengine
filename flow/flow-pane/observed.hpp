@@ -10,6 +10,7 @@
 #include "maker/definition.hpp"
 #include "message-draft/draft.hpp"
 #include "operator/operator.hpp"
+#include <zen/serialize.hpp>
 #include <zen/value.hpp>
 #include <limits>
 #include <map>
@@ -128,6 +129,17 @@ inline Observed observe(const fh::FlowAnswer& answer, const maker::Definition& d
         else if (answer.dropped == 0) out.arrivals[i].before = started;
     }
     return out;
+}
+
+/// THE STATE A RUN STARTED WITH, AS A RELOAD KEEPS IT: the text the host journals a value in, read
+/// back against the state the definition it runs keeps, or none when it no longer fits that.
+inline loom::Bytes kept_start(const loom::Value& started) {
+    const auto text = loom::serialize(started);
+    return {text.begin(), text.end()};
+}
+inline std::optional<loom::Value> start_of(const loom::Bytes& kept, const maker::Definition& def) {
+    if (!def.state) return std::nullopt;
+    return observed_detail::admitted(kept, {def.state});
 }
 
 /// ONE ARRIVAL AS ONE LINE: what came in, what changed, what was said --

@@ -120,6 +120,9 @@ public:
              static_cast<std::int64_t>(entry.text.caret()),
              static_cast<std::int64_t>(entry.text.anchor())});
     }
+    saved.started = model_.started ? pane::kept_start(*model_.started)
+                                   : model_.started_kept;
+    saved.earlier = model_.earlier;
     return loom::to_value(saved);
   }
   void on_activated(loom::Mail &mail) {
@@ -139,6 +142,12 @@ public:
           model_.dirty = state_.dirty;
           model_.restore_form();
           model_.state_edited = state_.state_edited;
+          model_.started_kept = state_.started;
+          model_.earlier = state_.earlier;
+          if (model_.earlier.size() > pane::Model::kMaxEarlier)
+            model_.earlier.erase(model_.earlier.begin(),
+                                 model_.earlier.end() -
+                                     static_cast<std::ptrdiff_t>(pane::Model::kMaxEarlier));
           if (state_.page >= 0 &&
               state_.page <= static_cast<std::int64_t>(pane::Page::Events))
             model_.page = static_cast<pane::Page>(state_.page);
@@ -772,11 +781,20 @@ public:
           // A RUN STARTS A JOURNAL AFRESH: what reached the run before it goes on in the Events.
           if (answer.action == "run") {
             model_.started = observed.state;
-            for (auto &arrival : model_.observed.arrivals)
-              model_.earlier.push_back(std::move(arrival));
-            if (model_.earlier.size() > 64)
+            model_.started_kept.clear();
+            for (const auto &arrival : model_.observed.arrivals)
+              model_.earlier.push_back(pane::line_of(arrival));
+            if (model_.earlier.size() > pane::Model::kMaxEarlier)
               model_.earlier.erase(model_.earlier.begin(),
-                                   model_.earlier.end() - static_cast<std::ptrdiff_t>(64));
+                                   model_.earlier.end() -
+                                       static_cast<std::ptrdiff_t>(pane::Model::kMaxEarlier));
+          }
+          // A RESTORED PANE'S RUN is the one its first answer names: the state it was run with,
+          // kept as text, is read back against that and is not held for any later run.
+          if (!model_.started_kept.empty()) {
+            if (!model_.started)
+              model_.started = pane::start_of(model_.started_kept, observed.definition);
+            model_.started_kept.clear();
           }
           if (model_.running)
             model_.running_definition = observed.definition;
@@ -794,7 +812,7 @@ public:
         for (auto at = model_.observed.arrivals.rbegin(); at != model_.observed.arrivals.rend(); ++at)
           model_.events.push_back(pane::line_of(*at));
         for (auto at = model_.earlier.rbegin(); at != model_.earlier.rend(); ++at)
-          model_.events.push_back(pane::line_of(*at));
+          model_.events.push_back(*at);
         for (const auto &note : model_.observed.notes)
           model_.events.push_back(note);
         if (live_state_)

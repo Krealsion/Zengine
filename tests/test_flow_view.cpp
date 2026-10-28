@@ -612,13 +612,24 @@ TEST_CASE("a run's journal reads as one line a message, each output with the mes
     const auto later = pane::observe(answer, def, start);
     REQUIRE(later.arrivals.size() == 1);
     CHECK(pane::line_of(later.arrivals[0]) == "tally.panel.Count  amount 4  ->  total -> 7  ->  said tally.Total 7");
+    // THE STATE A RUN STARTED WITH, AS A RELOAD KEEPS IT, reads back against the state the rule
+    // keeps, and against no other.
+    const auto kept = pane::kept_start(start);
+    const auto back = pane::start_of(kept, def);
+    REQUIRE(back);
+    CHECK(back->get("total")->as_int() == 0);
+    auto other = def;
+    other.state = loom::SchemaBuilder("tally.Other", 1).field("count", loom::Kind::Int).build();
+    CHECK_FALSE(pane::start_of(kept, other));
     // ANOTHER RULE IN THE DRAFT'S PLACE shows nothing of what this one did.
     m.observed = seen;
-    m.earlier = later.arrivals;
+    m.earlier = {pane::line_of(later.arrivals[0])};
+    m.started_kept = kept;
     m.events = {"tally.panel.Count  amount 3"};
     m.command("new", {"other", "discard"});
     CHECK(m.observed.arrivals.empty());
     CHECK(m.earlier.empty());
+    CHECK(m.started_kept.empty());
     CHECK(m.events.empty());
     CHECK(text_has(pane::picture(m, room()), "nothing yet: the rule is not running"));
 }

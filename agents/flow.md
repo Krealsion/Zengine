@@ -51,8 +51,11 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   under a gesture; a writing verb's confirm (save, generate, export, library save) asks Workshop
   for class `write` before any byte, and a refusal keeps the dialog and its text.
   Pane reload retains the page, dialog text/caret/selection, dirty flag and deliberate-state
-  flag separately from the saved workspace. New observations cannot overwrite an initial-state
-  edit awaiting Run. Grants, hit maps, held gestures and pending asks are reacquired or ended.
+  flag separately from the saved workspace, and the Events as they read: the state the running
+  rule was run with, as the host's text for it, read back against the definition the first
+  answer after the reload names, and the earlier runs' Events lines, the last
+  `Model::kMaxEarlier`. New observations cannot overwrite an initial-state edit awaiting Run.
+  Grants, hit maps, held gestures and pending asks are reacquired or ended.
 - Canvas pictures clip invisible primitives before spending the shared budgets. A still-dense
   view becomes an explicit recovery picture with no graph hit regions; it never silently drops
   visible nodes. Ellipses mark shortened text. ASCII display substitution changes no values.

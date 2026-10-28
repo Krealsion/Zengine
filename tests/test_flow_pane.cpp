@@ -1585,6 +1585,52 @@ TEST_CASE("Restart stops the running rule and runs the draft: a message it now s
     CHECK_FALSE(rig.bus.role_holder("tally").valid());
 }
 
+TEST_CASE("a reload keeps the Events as they read: the state the run started with, and the runs "
+          "before it") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("message", {"tally.panel.Count"});
+    rig.edit_ok("message-field", {"0", "amount", "Int", "required"});
+    rig.edit_ok("keep", {"total", "Int"});
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    rig.edit_ok("bind-all", {"0", "$amount", "$total"});
+    rig.edit_ok("say", {"Total", "total"});
+    const auto send = [&rig](const std::string& amount) {
+        rig.edit_ok("message-open", {"0"});
+        rig.edit_ok("value", {"0", amount});
+        rig.edit_ok("send");
+    };
+    rig.edit_ok("run");
+    send("3");
+    // RUN AGAIN: a journal afresh, and the arrival before it goes on in the Events.
+    rig.edit_ok("stop");
+    rig.edit_ok("run");
+    send("4");
+    const std::string now = "tally.panel.Count  amount 4  ->  total 3 -> 7  ->  said tally.Total 7";
+    const std::string before = "tally.panel.Count  amount 3  ->  total 0 -> 3  ->  said tally.Total 3";
+    rig.click("[Events]");
+    REQUIRE(rig.shows_part(now));
+    REQUIRE(rig.shows_part(before));
+    const auto kept = rig.state();
+    CHECK_FALSE(kept.started.empty());
+    REQUIRE(kept.earlier.size() == 1);
+    CHECK(kept.earlier.front() == before);
+
+    const auto reload = rig.kernel.reload_from("flow-pane", FLOW_PANE_ARTIFACT);
+    INFO(reload.error);
+    REQUIRE(reload.ok);
+    REQUIRE(reload.reloaded);
+    rig.activate();
+    ++rig.grant;
+    rig.room();
+    // THE SAME LINES on the page and in the graph's band, the first still saying what total was.
+    CHECK(rig.shows_part(now));
+    CHECK(rig.shows_part(before));
+    rig.click("[Graph]");
+    CHECK(rig.shows_part(now));
+    CHECK(rig.shows_part(before));
+}
+
 TEST_CASE("a dropped operator reference becomes a node: where it was released, into the port it "
           "lands on, or as the body the fold's slot then offers; a stale one is refused") {
     Rig rig;

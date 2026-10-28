@@ -732,8 +732,9 @@ carried shape`, its fields, and what it can become here: [`drop-send`](#drop-sen
 - **A generated project**, a directory, by [`ask-generate`](#ask-generate).
 
 What each holds is [the Flow reference](flow-reference.md)'s.
-A reload of the pane keeps the workspace, its file's path, whether it is saved, the page and an
-open dialog's words; it keeps no wait on the host, no search, preview or selected port.
+A reload of the pane keeps the workspace, its file's path, whether it is saved, the page, an open
+dialog's words, the state the running rule was run with and the Events of the runs before it, so
+the Events read as they did; it keeps no wait on the host, no search, preview or selected port.
 
 ## See also
 
