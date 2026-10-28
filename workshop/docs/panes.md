@@ -70,14 +70,16 @@ whatever slid into that row; a repaint that moved no row does not refuse.
 
 **A pane you show is yours to place.** A pane this layout has not had opens at the room's
 centre -- at your pointer, where Workshop's `workshop.open-at` setting says `mouse` -- and, when it
-opens with the keys, [arranging](#moving-resizing-and-ordering--arrange) it: drag it where you want
-it, then `Esc` or a right-click. Hidden and shown again in the same layout, it comes back where you
-left it, for as long as Workshop runs. The palette opens at the centre every time and is never
-arranged, and a pane opened without the keys is placed but not arranged. Nothing is refused for
-want of room, from the Pane Manager, a launch key or `n` alike. A pane keeps a place you gave it:
-if that place is off this screen, showing it says so on the band, with the two ways back --
-`Reset >` `place` in its menu, which the Pane Manager's `manage <pane> >` reaches, or hiding it
-and showing it again.
+opens with the keys, you place it there, the room saying **Arranging Mode Active** as when you
+[arrange](#moving-resizing-and-ordering--arrange): drag its title to move it and its edges to size
+it. The placing ends at the first key, or the first press anywhere but its title and edges, and that
+key or press goes on as it would have: in the pane it is the pane's, `Esc` too. Hidden and shown
+again in the same layout, it comes back where you left it, for as long as Workshop runs. The
+palette opens at the centre every time and is never arranged, and a pane opened without the keys is
+placed but not arranged. Nothing is refused for want of room, from the Pane Manager, a launch key or
+`n` alike. A pane keeps a place you gave it: if that place is off this screen, showing it says so on
+the band, with the two ways back -- `Reset >` `place` in its menu, which the Pane Manager's
+`manage <pane> >` reaches, or hiding it and showing it again.
 
 ![Powers, shown from the Pane Manager in a 1200 by 600 window, opens at the room's centre with the keys, in front of the Pane Manager it was shown from and being placed: Arranging Mode Active names it, and Info and Notices fade](images/panes-show-is-placed.png)
 

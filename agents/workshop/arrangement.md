@@ -171,6 +171,7 @@ LAW — While arranging is open the room's top says `Arranging Mode Active` on i
 
 MEANS
 - the fade is a veil of the ground at half strength over what of each other pane the arranged one leaves showing, in Workshop's own area, or its overlay while a pane is placed as it opened;
+- where faded panes overlap the veil falls once, so every faded pane fades alike;
 - a terminal shows the words and no veil.
 
 DOES NOT MEAN
@@ -340,4 +341,5 @@ Escape, and nothing is sent"
 arranging_caption_rect
 `workshop/screen_compose.cpp` draw_arranging_veil
 `tests/test_workshop_screen.cpp` "WL-ARR-18: arranging says so at the room's top, naming what it
-arranges, and in a window every other pane fades"
+arranges, and in a window every other pane fades" "WL-ARR-18: where faded panes overlap the veil falls
+once, and on all of each that shows"

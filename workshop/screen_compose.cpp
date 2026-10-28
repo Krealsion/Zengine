@@ -391,10 +391,30 @@ graphics::Sketch rooted(const graphics::Sketch& built, const std::string& stem) 
     return out;
 }
 
+/// What of `r` lies outside `cut`: up to four bands, above, below, left and right of it.
+std::vector<PixelRect> outside_of(const PixelRect& r, const PixelRect& cut) {
+    const std::int64_t x0 = (std::max)(r.x, cut.x), x1 = (std::min)(r.x + r.w, cut.x + cut.w);
+    const std::int64_t y0 = (std::max)(r.y, cut.y), y1 = (std::min)(r.y + r.h, cut.y + cut.h);
+    if (cut.empty() || x0 >= x1 || y0 >= y1) {
+        return {r};
+    }
+    std::vector<PixelRect> out;
+    for (const PixelRect& part : {PixelRect{r.x, r.y, r.w, y0 - r.y},
+                                  PixelRect{r.x, y1, r.w, r.y + r.h - y1},
+                                  PixelRect{r.x, y0, x0 - r.x, y1 - y0},
+                                  PixelRect{x1, y0, r.x + r.w - x1, y1 - y0}}) {
+        if (part.w > 0 && part.h > 0) {
+            out.push_back(part);
+        }
+    }
+    return out;
+}
+
 /// WHILE ONE PANE IS ARRANGED, EVERY OTHER PANE FADES: a veil of the ground at half strength over
 /// what of each the arranged pane leaves uncovered, drawn in an area that stands in front of the
 /// panes: Workshop's own while a weaver arranges, its overlay while a pane opened is placed. Under
-/// half, so a terminal, which draws an image only where it is mostly opaque, draws none of it.
+/// half, so a terminal, which draws an image only where it is mostly opaque, draws none of it. The
+/// veil falls once where faded panes overlap: each pane is veiled only where no veil lies yet.
 // WL-ARR-18 -- agents/workshop/arrangement.md
 void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const Session& s,
                          const Screen& sc) {
@@ -409,7 +429,7 @@ void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const S
     const std::uint8_t tone = s.skin == kSkinDay ? 0xff : 0x00;
     const loom::Bytes veil{tone, tone, tone, 0x7f};
     sk.group(group, 0, 0);
-    std::size_t n = 0;
+    std::vector<PixelRect> veiled; // what the veil covers so far, in parts that do not overlap
     for (const std::int64_t kind : effective_pane_order(s.setup.active, s.panes)) {
         if (kind == *kept) {
             continue;
@@ -418,23 +438,21 @@ void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const S
         if (r.empty()) {
             continue;
         }
-        // What of `r` the held pane leaves showing: the bands above, below, left and right of it.
-        const std::int64_t x0 = (std::max)(r.x, held.x), x1 = (std::min)(r.x + r.w, held.x + held.w);
-        const std::int64_t y0 = (std::max)(r.y, held.y), y1 = (std::min)(r.y + r.h, held.y + held.h);
-        std::vector<PixelRect> parts;
-        if (held.empty() || x0 >= x1 || y0 >= y1) {
-            parts.push_back(r);
-        } else {
-            parts = {PixelRect{r.x, r.y, r.w, y0 - r.y},
-                     PixelRect{r.x, y1, r.w, r.y + r.h - y1},
-                     PixelRect{r.x, y0, x0 - r.x, y1 - y0},
-                     PixelRect{x1, y0, r.x + r.w - x1, y1 - y0}};
+        // What of `r` the held pane leaves showing, less what is veiled already.
+        std::vector<PixelRect> parts = outside_of(r, held);
+        for (const PixelRect& done : veiled) {
+            std::vector<PixelRect> left;
+            for (const PixelRect& part : parts) {
+                for (const PixelRect& rest : outside_of(part, done)) {
+                    left.push_back(rest);
+                }
+            }
+            parts = std::move(left);
         }
         for (const PixelRect& part : parts) {
-            if (part.w > 0 && part.h > 0) {
-                sk.image(group + "/fade" + std::to_string(n++), part.x, part.y, part.w, part.h, 1, 1,
-                         veil);
-            }
+            sk.image(group + "/fade" + std::to_string(veiled.size()), part.x, part.y, part.w,
+                     part.h, 1, 1, veil);
+            veiled.push_back(part);
         }
     }
 }
