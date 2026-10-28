@@ -313,6 +313,13 @@ def main():
         state, said = run("desk/resolve", {"shape": "BuildRequested"})
         build = re.search(r"zengine\.builder-pane/builder:builder\.build \[open; part "
                           r"control:builder\.build@(\d+),(\d+) shown", said)
+        if not build and "builder.build [hidden" in said:
+            # THE ROW WAS SHOWN WITHOUT THE MANAGER'S MARKER ON IT, so the press only chose it; the
+            # weaver presses it again, the marked name, which opens it.
+            term.press(int(row.group(1)), int(row.group(2)))
+            state, said = run("desk/resolve", {"shape": "BuildRequested"})
+            build = re.search(r"zengine\.builder-pane/builder:builder\.build \[open; part "
+                              r"control:builder\.build@(\d+),(\d+) shown", said)
         if not check("R3 the weaver's press opened the Builder, and builder.build is shown there", state == "passed" and build, said):
             return 1
         state, said = run("desk/guide", {"pane": "zengine.builder-pane/builder", "control": "builder.build",
