@@ -1610,10 +1610,13 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
     const Box body{margin, top + (light ? 10 : 0), W - 2 * margin, std::max<std::int64_t>(0, foot - top - (light ? 14 : 0))};
     const auto line_h = light ? m.row : m.row;
     const auto control_h = light ? m.tall + 6 : m.row;
-    // AN EDITOR IN PLACE is drawn over the page it was opened on, which stays drawn round it.
+    // AN EDITOR IN PLACE is drawn over the page it was opened on, which stays drawn round it and is
+    // pressed nowhere: a press outside the editor puts it down, so only the editor's parts are named.
     const auto done = [&]() {
-        if (model.dialog && in_place(model.dialog->action))
+        if (model.dialog && in_place(model.dialog->action)) {
+            out.hits.clear();
             editor(pen, model, Box{0, top, W, std::max<std::int64_t>(0, foot - top)});
+        }
         return finish(std::move(out), room);
     };
     if (model.dialog && !in_place(model.dialog->action)) {

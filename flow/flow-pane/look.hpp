@@ -430,6 +430,13 @@ inline Sketched sketch_of(const Drawing& d, const ws::CanvasRoom& room) {
         if (k.op == Mark::Op::Path && moved) return 2;
         return 1;
     };
+    // WHAT A PLACE CARRIES: each mark that meets it, but a run of words only where its whole row
+    // stands inside the place, since a window draws a run whole once its row begins inside a group,
+    // and a run a place only grazes would stand there over what was drawn after it.
+    const auto carries = [](const Box& place, const Mark& k) {
+        if (!k.bounds().meets(place)) return false;
+        return k.op != Mark::Op::Text || (k.y >= place.y && k.y + k.h <= place.bottom());
+    };
     std::size_t nodes = 3, records = 0;
     for (const auto& k : d.marks)
         nodes += k.clip && k.op != Mark::Op::Text && k.op != Mark::Op::Rect ? 1 + count(k, true) : count(k, false);
@@ -437,7 +444,7 @@ inline Sketched sketch_of(const Drawing& d, const ws::CanvasRoom& room) {
         const Box at{p.x, p.y, p.w, p.h};
         records += p.name.empty() ? std::size_t{0} : std::size_t{1};
         ++nodes;
-        for (const auto& k : d.marks) nodes += k.bounds().meets(at) ? count(k, true) : std::size_t{0};
+        for (const auto& k : d.marks) nodes += carries(at, k) ? count(k, true) : std::size_t{0};
         if (nodes > gfx::kMaxNodesPerArea || records > gfx::kMaxElementsPerArea) break;
     }
     std::size_t carets = 0;
@@ -480,7 +487,7 @@ inline Sketched sketch_of(const Drawing& d, const ws::CanvasRoom& room) {
         if (!p.name.empty()) out.sketch.action(group, p.name);
         std::size_t n = 0;
         for (const auto& k : d.marks) {
-            if (!k.bounds().meets(place)) continue;
+            if (!carries(place, k)) continue;
             put(out.sketch, group + "/" + std::to_string(n++), k, p.x, p.y);
         }
     }

@@ -51,8 +51,8 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   `FlowEdit` requests are refused while it is open; failure to confirm preserves its text. Keeping
   a field, saying a message and declaring one open in place (`flow_pane::in_place`): beside the
   press that opened them, or what they edit where none did, the page drawn round them, and a press
-  outside one puts it down and is spent on nothing more. A kept field's kind is chosen from
-  `flow_pane::field_kinds`, never typed.
+  outside one puts it down and is spent on nothing more, so while one is open only its own parts
+  are named. A kept field's kind is chosen from `flow_pane::field_kinds`, never typed.
   While one is open the pane declares Return as its `dialog-confirm` row, so a confirm arrives
   under a gesture; a writing verb's confirm (save, generate, export, library save) asks Workshop
   for class `write` before any byte, and a refusal keeps the dialog and its text.
@@ -92,7 +92,9 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
 - The graphics window that shows the area `zengine.flow` is sent the same picture, composed for
   the window's room (`flow_pane::window_picture`) and sketched by Flow (`flow_pane::sketch_of`),
   every mark at one name for its life, since a window paints a newly held name after its
-  siblings; one more than a window keeps is the recovery picture. Its room is
+  siblings; a part carries a run of words only where the run's whole row stands inside it, since a
+  window draws a run whole once its row begins inside a group; one more than a window keeps is the
+  recovery picture. Its room is
   the window's word alone (`AreaRoom`, as that window's office), asked of `zengine.graphics` once a
   life. A refused change goes whole at once; a refused whole picture is said in the notice and
   draws nothing more until the next change, so a window that keeps refusing starts no loop. The

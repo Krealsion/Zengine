@@ -209,6 +209,40 @@ TEST_CASE("a kept field's kind is chosen from kinds Flow takes, each the kind of
     CHECK_FALSE(pane::in_place("save"));
 }
 
+TEST_CASE("a part carries a run of words only where the run's whole row stands inside it") {
+    const auto at = light_room();
+    pane::Drawing d;
+    d.width = at.width;
+    d.height = at.height;
+    d.light = true;
+    pane::Mark words;
+    words.op = pane::Mark::Op::Text;
+    words.x = 10;
+    words.y = 30;
+    words.w = 80;
+    words.h = 18;
+    words.words = "grazed";
+    words.fill = gfx::by_role(gfx::role::kFill);
+    d.marks.push_back(words);
+    d.hits.push_back({0, 0, 200, 40, "graze", {"a"}, 0});
+    d.hits.push_back({0, 20, 200, 40, "hold", {"b"}, 0});
+    const auto sketched = pane::sketch_of(d, at);
+    REQUIRE(sketched.over.empty());
+    std::map<std::string, std::string> group_of;
+    for (const auto& r : sketched.sketch.records()) group_of[r.action] = r.path;
+    REQUIRE(group_of.count("graze:a") == 1);
+    REQUIRE(group_of.count("hold:b") == 1);
+    const auto carries = [&](const std::string& group) {
+        for (const auto& n : sketched.sketch.nodes())
+            if (n.op == "text" && n.path.rfind(group + "/", 0) == 0) return true;
+        return false;
+    };
+    // ⚔ MUTATION (tests/mutants/flow_view.md#place-carries-a-grazed-row): a place carries every run
+    // it meets.
+    CHECK_FALSE(carries(group_of["graze:a"]));
+    CHECK(carries(group_of["hold:b"]));
+}
+
 TEST_CASE("Flow keeps a long dialog draft editable without rejecting its picture") {
     pane::Model model;
     const std::string contents(4096, 'x');

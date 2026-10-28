@@ -52,3 +52,19 @@ Red in `zengine-flow-tests`:
 
 - a step is named by its operator, and which one where two share it; a whole number is the whole
   of the text
+
+## place-carries-a-grazed-row
+
+A part carries every run of words it meets, a run whose row it only grazes too.
+
+In `flow/flow-pane/look.hpp`:
+
+```diff
+         if (!k.bounds().meets(place)) return false;
+-        return k.op != Mark::Op::Text || (k.y >= place.y && k.y + k.h <= place.bottom());
++        return k.op != Mark::Op::Text || k.y + k.h <= place.bottom() + k.h;
+```
+
+Red in `zengine-flow-tests`:
+
+- a part carries a run of words only where the run's whole row stands inside it
