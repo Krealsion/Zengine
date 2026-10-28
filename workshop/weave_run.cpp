@@ -422,6 +422,7 @@ void WorkshopWeave::quit(loom::Mail& mail) {
         return;
     }
     quitting_ = true;
+    quit_by_weaver_ = !input_actor_.known || input_actor_.local;
     quit_outstanding_ = asked.recipients;
     quit_refusals_.clear();
     quit_refused_panes_.clear();
@@ -523,8 +524,9 @@ void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
         }
         why += one;
     }
-    // A QUIT THE WEAVER ASKED HERE gets the box; one asked by message is answered in words alone.
-    const bool here = !quit_asked_.valid();
+    // A QUIT THE WEAVER'S OWN HAND ASKED HERE gets the box; one asked by message, or by a guest's
+    // hand, is answered in words alone.
+    const bool here = quit_by_weaver_ && !quit_asked_.valid();
     std::vector<std::string> unsaved = quit_refused_panes_;
     refuse_quit(std::move(why), mail);
     if (here) {

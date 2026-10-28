@@ -1608,7 +1608,9 @@ TEST_CASE("WL-SESSION-22: a quit refused for unsaved work opens a box at the roo
     REQUIRE(e.r.session().quit_unsaved.size() == 1);
     const std::string named = e.r.session().quit_unsaved.front();
     const ContextEntry discard = context_population(e.r.session().context)[1];
-    CHECK(context_annotation(e.r.session(), discard) == named);
+    const RuntimePane* editor = e.r.session().panes.runtime.of_kind(e.kind);
+    REQUIRE(editor != nullptr);
+    CHECK(context_annotation(e.r.session(), discard) == editor->name); // its name, not its id
     // ...AT THE ROOM'S CENTRE.
     const Screen sc = screen_of(e.r.session());
     const PixelRect box = context_bounds(e.r.session(), sc);

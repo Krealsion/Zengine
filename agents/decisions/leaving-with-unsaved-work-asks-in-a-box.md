@@ -8,7 +8,7 @@ in its own words. The weaver then had to go into that pane and save or discard t
 door -- for Flow, typing `discard` -- before a second quit could leave. A weaver who wanted to leave
 and lose the work had no way to say so where the refusal was said.
 
-**Decision.** A quit the weaver asked here and the panes refused opens Workshop's own menu at the
+**Decision.** A quit the weaver's own hand asked here and the panes refused opens Workshop's own menu at the
 room's centre, after the gestures held while it asked have replayed: `go back to work` first, then
 `discard unsaved work and quit`, annotated with the panes that refused. Discard asks the quit again,
 and each pane the box named is taken as permitting it; a pane that refuses and was not named
@@ -22,8 +22,8 @@ no key reaches them and the palette does not list them.
   and the process's end already takes what the weaver chose to leave.
 - *Discard first in the box* -- refused: a key held while the quit asked replays before the box
   opens, and a key that reaches it first must lose nothing.
-- *A box for a quit asked by message* -- refused: the asker is answered in words, and nobody stands
-  at the box.
+- *A box for a quit asked by message or by a guest's hand* -- refused: the asker is answered in
+  words, and the box would stand on the weaver's desk for a question the weaver never asked.
 
 **Consequences.** Work is lost only by the weaver's press of discard, and only what the box named.
 A pane whose refusal is about work still settling is named the same way; the founder may narrow

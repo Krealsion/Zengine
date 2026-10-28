@@ -826,6 +826,8 @@ TEST_CASE("the orderly quit is refused while Neovim holds unsaved changes, namin
     CHECK_FALSE(quit_by_key(s));
     CHECK(s.r.session().notice.find("unsaved changes") != std::string::npos);
     CHECK(s.r.session().notice.find("quit.txt") != std::string::npos);
+    REQUIRE(s.r.session().context.open); // the box the refusal opened, put away as a weaver does
+    s.r.key(input::scan::kEscape);
     focus(s);
     s.r.key(input::scan::kS, input::mod::kCtrl);
     REQUIRE(beat_until(s, [&] { return s.read("modified") == "false"; }));
