@@ -1985,10 +1985,6 @@ TEST_CASE("views: every view Inventory makes is offered beside the other panes, 
 }
 
 TEST_CASE("views: making a view offers only that view, so a view already on the desk never stands blank") {
-    // ⚔ MUTATION (tests/mutants/workshop_inventory_info.md#every-view-offered-again): every view
-    // offered again at each change. Workshop takes a re-offer as a reloaded image arriving and
-    // starts that pane's picture over, so each view on the desk would stand blank until it drew
-    // again -- every view, at every change.
     InventoryStory s;
     const std::string first = s.create("single");
     const RuntimePane* row = s.r.session().panes.runtime.find(slots::kRole, first);

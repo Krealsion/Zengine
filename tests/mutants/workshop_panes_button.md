@@ -21,27 +21,6 @@ Red in `zengine-workshop-panes-tests`:
 - WL-CTX-09: another desk going live withdraws a pane's open menu, answered unchosen, and closes the
   host's own; an edit of the same desk leaves either open
 
-## keyboard-grab-spent-twice
-
-A chosen row's keyboard grab is taken again once it was spent.
-
-In `workshop/weave_external.cpp`:
-
-```diff
-     // chosen row begins an edit asks for them here.
-     ChoiceAnswered* choice = nullptr;
-     each_hand([&](Hand& h) {
--        if (!h.choice_answered.spent && h.choice_answered.kind == row->kind &&
--            h.choice_answered.correlation == mail.correlation() && h.choice_answered.gesture == h.latest)
-+        if (h.choice_answered.kind == row->kind &&
-+            h.choice_answered.correlation == mail.correlation() && h.choice_answered.gesture == h.latest)
-```
-
-Red in `zengine-workshop-panes-tests`:
-
-- WL-CTX-09: a chosen row that begins an edit may take the keyboard -- once, while the choice is the
-  weaver's latest act, and never under another number
-
 ## keyboard-grab-any-number
 
 A keyboard grab is taken under any number, the weaver's latest choice or not.

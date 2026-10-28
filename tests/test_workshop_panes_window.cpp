@@ -2330,6 +2330,9 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
     // foreground answer is still the one `effective_pane_order` gives.
     r.press_pixel(on_window.x + 4, on_window.y + 4);
     REQUIRE(r.session().panes.selected == kind);
+    const SetupPane* selected_row = pane_of(r.session().setup.active, hello_ref());
+    REQUIRE(selected_row != nullptr);
+    CHECK(selected_row->front == authored.front);
     CHECK(presentation_order(r.session().setup.active, r.session().panes) == order);
     const std::vector<std::int64_t> lifted =
         effective_pane_order(r.session().setup.active, r.session().panes);

@@ -1361,11 +1361,11 @@ TEST_CASE("one run definition, and the keyboard's two answers are composed from 
     // #word-at-to-next-boundary): giving `word_at` a definition of its own -- an identifier class,
     // a punctuation class, a "select to the next boundary" rule.
 
-    // The sweep below is what makes that visible: every position of a line with runs, single
-    // spaces, a double space and a leading space is asked all three questions, and each keyboard
-    // answer is re-derived from the run scanners the pointer's answer uses. A second definition
-    // makes one of these disagree at some position, and the CAPTURE names which.
-    const std::string line = " ab  cde f";
+    // The sweep below is what makes that visible: every position of a line with runs, runs holding
+    // punctuation, single spaces, a double space and a leading space is asked all three questions,
+    // and each keyboard answer is re-derived from the run scanners the pointer's answer uses. A
+    // second definition makes one of these disagree at some position, and the CAPTURE names which.
+    const std::string line = " ab  c.de f/g-h,i";
     for (std::size_t at = 0; at <= line.size(); ++at) {
         CAPTURE(at);
         // `word_before` IS "skip separators back, then take the run".

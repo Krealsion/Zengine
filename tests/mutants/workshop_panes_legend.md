@@ -19,18 +19,3 @@ In `workshop/layouts/store.cpp`:
 Red in `zengine-workshop-panes-tests`:
 
 - a layout keeps the Terminal's legend hidden while another shows it, written through Info's rows
-
-## terminal-draws-before-its-row
-
-The Terminal draws its room before it holds its row.
-
-In `terminal/view.hpp`:
-
-```diff
--    if (!room().granted() || !this->template facet<Settings>().held()) {
-+    if (!room().granted()) {
-```
-
-Red in `zengine-workshop-panes-tests`:
-
-- after a restart the Terminal's first picture keeps its layout's legend, and so does a reload's

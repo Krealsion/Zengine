@@ -687,8 +687,6 @@ std::vector<std::string> labels_of(const pal::Listing& l, const std::string& kin
 
 TEST_CASE("the palette lists each layout on the shelf, each open pane's manual while the "
           "application shows manuals, and each setup and app the launcher can start") {
-    // MUTATION (tests/mutants/workshop_panes_palette.md#other-owners-left-out): the other owners'
-    // entries left out -- the palette lists actions and panes alone.
     KeymapShown keys;
     keys.rows.push_back(row("above every mode", kDesktopRole, "", kManualAction, "this pane's manual", "ctrl+f"));
     PaneInventory inv;
@@ -750,7 +748,8 @@ TEST_CASE("WL-DESK-18: a layout chosen in the palette is switched to as a press 
           "pane's manual is asked of the desktop as its ? asks it, each as the hand that chose it") {
     // MUTATION (tests/mutants/workshop_panes_palette.md#layout-by-place): a layout run by its place
     // instead of its id -- the palette's Default switches to the layout that now stands first, not
-    // the one it named.
+    // the one it named. MUTATION (tests/mutants/workshop_panes_palette.md#other-owners-left-out):
+    // the other owners' entries left out of the pane's listing -- no layout is there to choose.
     PaneRig r;
     ProviderSeat* tools = nullptr;
     start(r, tools);
@@ -785,6 +784,8 @@ TEST_CASE("WL-DESK-18: a setup or an app chosen in the palette is started as Fil
           "what it answered") {
     // MUTATION (tests/mutants/workshop_panes_palette.md#start-without-approval): the start asked of
     // the launcher with no approval -- a run under a number Workshop never sent starts the setup.
+    // MUTATION (tests/mutants/workshop_panes_palette.md#other-owners-left-out): the other owners'
+    // entries left out of the pane's listing -- no setup is there to choose.
     PaneRig r;
     ProviderSeat* tools = nullptr;
     start(r, tools);

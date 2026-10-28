@@ -1646,10 +1646,8 @@ TEST_CASE("the control that loads what was built names the BUILT recipe, not the
     // build's recipe with the second intention aboard, so `load built a` loads `a` whatever the
     // weaver has picked since, and reading that face arms no next build.
 
-    // ⚔ MUTATIONS (tests/mutants/workshop_panes_builder.md#load-built-sends-the-choice,
-    // #arm-only-unguarded): `load_built` sending `known_.recipes[cursor_row()].recipe` builds
-    // `two`; without its `ready_to_load` guard the arm-only branch is never reached and arming
-    // while an artifact stands built stops being refused.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_builder.md#load-built-sends-the-choice):
+    // `load_built` sending `known_.recipes[cursor_row()].recipe` builds `two`.
     BuilderRig b("bld-load-built");
     b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
     b.open();
@@ -1674,6 +1672,8 @@ TEST_CASE("the control that loads what was built names the BUILT recipe, not the
 
 TEST_CASE("while an artifact stands built, arming the next build is a different answer "
           "and says so") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_builder.md#arm-only-unguarded): `arm_only` without
+    // its `ready_to_load` guard -- arming while an artifact stands built stops being refused.
     BuilderRig b("bld-arm-refused");
     b.tool->catalog = catalog_of({{"one", "a"}});
     b.open();
@@ -1995,6 +1995,12 @@ TEST_CASE("a held load menu cannot switch recipes sharing an artifact stem") {
                   bp_last_asked(b));
     CHECK(b.tool->asked.empty());
     CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
+    // ...AND THE MENU ASKED AGAIN LOADS WHAT IS BUILT NOW: its row was written for build 12.
+    bp_press_face(b, "[menu]");
+    REQUIRE(menu_shown(b.r.session()));
+    bp_choose_row(b, "load the built `a` now");
+    REQUIRE_FALSE_MESSAGE(b.tool->asked.empty(), b.text());
+    CHECK(b.tool->asked.back() == "two");
 }
 
 TEST_CASE("rebuilding the same recipe replaces an offered load, and settling again does not") {
@@ -2275,6 +2281,23 @@ TEST_CASE("a Builder menu choice that opens the role line takes the keyboard acr
     CHECK(b.r.session().panes.keyboard == b.kind);
     b.r.text("example.tally");
     CHECK_MESSAGE(b.text().find("role for a> example.tally") != std::string::npos, b.text());
+
+    // ...AND A CHOICE WHOSE LINE NEVER OPENS TAKES NOTHING: a stem the plan already names is
+    // refused before the line, and the keys stay where the menu left them.
+    BuilderRig n("bld-menu-named-keeps-keys");
+    n.tool->catalog = catalog_of({{"one", "a"}});
+    n.plan_rows.push_back("a");
+    n.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_project_door=*/true,
+           /*with_presenter=*/true);
+    n.unfocus();
+    REQUIRE(n.r.session().panes.keyboard != n.kind);
+    const std::int64_t named = bp_row(n.shown(), "recipe   one -> a");
+    REQUIRE_MESSAGE(named >= 0, n.text());
+    bp_button(n.r, n.kind, 3, true, named, 0);
+    REQUIRE(menu_shown(n.r.session()));
+    bp_choose_row(n, "add `one`'s artifact to the load plan...");
+    REQUIRE_MESSAGE(n.text().find("already in this project's plan") != std::string::npos, n.text());
+    CHECK(n.r.session().panes.keyboard != n.kind);
 }
 
 TEST_CASE("a Builder menu choice that opens no line leaves the keyboard where the weaver put it") {
