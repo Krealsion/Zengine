@@ -416,6 +416,12 @@ std::size_t escapes_unspent(const Presenter& presenter) {
     return static_cast<std::size_t>(std::count_if(presenter.messages.begin(), presenter.messages.end(),
         [](const auto& m) { return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>()); }));
 }
+/// Whether a step is chosen: the x on its corner, which takes it away, is drawn.
+bool step_chosen(Rig& rig) {
+    const auto parts = rig.picture().parts;
+    return std::any_of(parts.begin(), parts.end(),
+                       [](const auto& p) { return p.name.rfind("remove:", 0) == 0; });
+}
 } // namespace
 
 TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project with reusable examples") {
@@ -641,12 +647,12 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         // ...A PRESS ON A NODE selects it and begins no drag, so Delete removes that node.
         REQUIRE(window.press(kFlowArea, "control:page-graph"));
         rig.pump();
-        for (int put_down = 0; put_down < 4 && rig.shows_part("Delete node"); ++put_down)
+        for (int put_down = 0; put_down < 4 && step_chosen(rig); ++put_down)
             rig.key(in::scan::kEscape);
-        REQUIRE_FALSE(rig.shows_part("Delete node"));
+        REQUIRE_FALSE(step_chosen(rig));
         REQUIRE(window.press(kFlowArea, node));
         rig.pump();
-        CHECK(rig.shows_part("Delete node"));
+        CHECK(step_chosen(rig));
         rig.key(in::scan::kDelete);
         const auto after = rig.picture().parts;
         CHECK(std::none_of(after.begin(), after.end(), [&](const auto& p) { return p.name == node; }));
@@ -1319,16 +1325,16 @@ TEST_CASE("Flow finds what to compose through the discovery door, by what a powe
     const auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 2);
     CHECK(nodes.back().identity == "math.max");
-    (void)rig.label("[Delete node]");
+    REQUIRE(step_chosen(rig));
     CHECK(op::invocations() == spent);
 
     // ESCAPE SHEDS ONE LAYER PER PRESS: the preview, the node, the search line -- and only then is
     // the pane put down.
     rig.key(in::scan::kEscape);
     CHECK_FALSE(rig.shows("the larger of two integers"));
-    (void)rig.label("[Delete node]");
+    REQUIRE(step_chosen(rig));
     rig.key(in::scan::kEscape);
-    CHECK_FALSE(rig.shows("[Delete node]"));
+    CHECK_FALSE(step_chosen(rig));
     (void)rig.label("find: larger", true);
     rig.key(in::scan::kEscape);
     CHECK_FALSE(rig.questions.back().text.has_value());
@@ -1942,8 +1948,6 @@ const op::Binding& argument(Rig& rig, std::size_t node, std::size_t port) {
 bool from_node(const op::Binding& b, std::size_t n) {
     return b.from() == op::Binding::From::Node && b.node_index() == n;
 }
-/// Whether a step is chosen: what takes the chosen step away is drawn.
-bool step_chosen(Rig& rig) { return rig.shows_part("Delete node"); }
 /// Where the graph keeps step `node`, in its grid.
 std::pair<std::int64_t, std::int64_t> place_of(Rig& rig, std::int64_t node) {
     for (const auto& p : rig.workspace().graph.places)
@@ -1990,7 +1994,7 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         CHECK(body.nodes[1].arguments.at(0).from() == op::Binding::From::Input);
         CHECK(body.nodes[1].arguments.at(0).input_name().empty());
         CHECK(rig.shows("Added %1 math.add, wired from %0"));
-        CHECK(rig.shows_part("Delete node")); // the node made is selected
+        CHECK(step_chosen(rig)); // the node made is selected
         CHECK_FALSE(w.showing("what takes it"));
         // ...WHERE THE HAND LET GO: its header stands at the release's cell.
         const auto header = w.at("node:" + std::to_string(place_id(rig, 1)));
@@ -2159,9 +2163,9 @@ TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outsi
     rig.graph_semantically();
     WireWindow w(rig);
     // Nothing selected, so a press spent on a node would show.
-    for (int put_down = 0; put_down < 4 && rig.shows_part("Delete node"); ++put_down)
+    for (int put_down = 0; put_down < 4 && step_chosen(rig); ++put_down)
         rig.key(in::scan::kEscape);
-    REQUIRE_FALSE(rig.shows_part("Delete node"));
+    REQUIRE_FALSE(step_chosen(rig));
     const auto before = flow::workspace_bytes(rig.workspace());
     const auto escapes = escapes_unspent(*rig.presenter);
     // NOTHING HALF MADE: a node whose wire is refused is not made either.
@@ -2193,7 +2197,7 @@ TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outsi
     // A PRESS OUTSIDE IT closes it, and is not also a press on the node it landed on.
     w.click(w.at("node:" + std::to_string(place_id(rig, 0))));
     CHECK_FALSE(rig.shows_part("what takes it"));
-    CHECK_FALSE(rig.shows_part("Delete node"));
+    CHECK_FALSE(step_chosen(rig));
     CHECK(rig.shows("The wire was put down: a press outside its list; nothing was made"));
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
 
@@ -2290,4 +2294,29 @@ TEST_CASE("a press on empty graph room lets go of the chosen step and its port, 
     CHECK(rig.workspace().pan_x == panned.pan_x);
     CHECK(rig.workspace().pan_y == panned.pan_y);
     CHECK(place_of(rig, 0) != stood);
+}
+
+TEST_CASE("the chosen step goes by the Delete key or by the x on its corner, which the Do lane's "
+          "head no longer holds") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    WireWindow w(rig);
+    // CHOSEN BY ITS HEAD: the x stands on its corner, and the Do lane's head offers no removal.
+    w.click(w.at("node:" + std::to_string(place_id(rig, 1))));
+    REQUIRE(step_chosen(rig));
+    CHECK_FALSE(rig.shows_part("Delete node"));
+    // ITS x takes that step away, and no other.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#the-x-names-the-first-step): step 1's x is step 0's.
+    w.click(w.at("remove:1"));
+    const auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
+    REQUIRE(nodes.size() == 1);
+    CHECK(nodes.front().identity == "math.max");
+    CHECK_FALSE(step_chosen(rig));
+    // THE DELETE KEY takes the chosen step away.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#delete-keeps-the-step): the Delete key does nothing.
+    w.click(w.at("node:" + std::to_string(place_id(rig, 0))));
+    REQUIRE(step_chosen(rig));
+    rig.key(in::scan::kDelete);
+    CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.empty());
 }

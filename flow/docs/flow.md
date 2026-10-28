@@ -108,8 +108,8 @@ The rail beside the graph finds operators through the host's
 
 **Escape** sheds one layer per press: a wire's search, the wire in hand, the selected port, an
 open body slot, the preview, the selected node, then the search line, and only then is the pane put
-down. **Delete** removes the
-selected node; with none selected, it edits the search line.
+down. **Delete**, or the **x** on its corner, removes the selected node; with none selected, Delete
+edits the search line.
 
 ![Flow's search line finding math.max by what it is for, previewed beneath the graph](images/flow-find.png)
 

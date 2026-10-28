@@ -67,7 +67,7 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   pictured meaning or is refused. Every room change immediately ends held gestures and
   invalidates old picture maps, including a change of text metrics. A press on empty graph room
   lets go of the chosen step and its port, and its drag pans; a step moves only by a drag from its
-  own head. A right press means nothing on the graph or its pages, so the pane hands it back
+  own head, and the Delete key or the x on the chosen step's corner takes it away. A right press means nothing on the graph or its pages, so the pane hands it back
   (`PanePassRequested`) and Workshop's pane menu opens where it landed.
 - Flow draws its own look (`flow/flow-pane/look.hpp`): each exact colour beside the theme role it
   stands for, only the marks the graphics library draws, a part the rule still lacks dashed, and

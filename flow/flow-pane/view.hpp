@@ -785,19 +785,15 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         pen.rect({lane.x + 2, g.y + 1, lane.w - 4, g.h - 2}, hue::do_lane());
         pen.rect({then.x + 3, g.y + 1, then.w - 4, g.h - 2}, hue::then_lane());
     }
-    // THE SELECTED STEP'S CONTROLS at the right of the DO lane's head -- Use as result while another
-    // step is the result -- and each head's words where they stand clear of them.
+    // THE SELECTED STEP'S CONTROL at the right of the DO lane's head -- Use as result while another
+    // step is the result -- and each head's words where they stand clear of it.
     auto do_end = lane.right();
-    if (on && model.node && *model.node < on->body.nodes.size()) {
+    if (on && model.node && *model.node < on->body.nodes.size() && on->body.result_node != *model.node) {
         const auto n = std::to_string(*model.node);
         auto right = lane.right() - (light ? 8 : m.ch);
         const auto y_head = g.y + (light ? (head_h - m.tall) / 2 : 0);
-        right -= pen.button_width("Delete node");
-        pen.button(right, y_head, "Delete node", "remove", {n}, Face::Quiet, Icon::None, lane);
-        if (on->body.result_node != *model.node) {
-            right -= pen.button_width("Use as result") + (light ? 6 : m.ch);
-            pen.button(right, y_head, "Use as result", "result", {n}, Face::Plain, Icon::None, lane);
-        }
+        right -= pen.button_width("Use as result");
+        pen.button(right, y_head, "Use as result", "result", {n}, Face::Plain, Icon::None, lane);
         do_end = right - (light ? 6 : m.ch);
     }
     const auto header = [&](const Box& in, const std::string& word, gfx::Paint ink, const std::string& rest,
@@ -1017,7 +1013,10 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         const Box inside = rows.box.cut(canvas);
         card(pen, rows.box, selected ? hue::wire() : hue::edge(), canvas);
         const auto tx = rows.box.x + (light ? 8 - m.inset : m.ch);
-        const Box head{rows.box.x, rows.box.y, rows.box.w - (light ? 4 : m.ch), light ? m.card : m.row};
+        // THE CHOSEN STEP'S x on its corner takes it away; the head's words stop short of it.
+        const auto xw = pen.button_width("x");
+        const auto x_room = selected ? xw + (light ? 4 : 0) : 0;
+        const Box head{rows.box.x, rows.box.y, rows.box.w - (light ? 4 : m.ch) - x_room, light ? m.card : m.row};
         if (light) {
             const auto name = short_name(node);
             pen.text(tx, rows.head, name, hue::wire(), head.cut(canvas));
@@ -1027,6 +1026,9 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
                      selected ? hue::message() : hue::wire(), head.cut(canvas));
         }
         pen.press(Box{rows.box.x, rows.box.y, rows.box.w, light ? m.card : m.row}.cut(canvas), "node", {std::to_string(n)}, id);
+        if (selected)
+            pen.button(rows.box.right() - xw - (light ? 4 : 0), rows.head - (light ? 3 : 0), "x", "remove",
+                       {std::to_string(n)}, Face::Quiet, Icon::None, canvas);
         if (node.fold) {
             const bool open = slot && *slot == n;
             const auto words = body_slot_text(node);

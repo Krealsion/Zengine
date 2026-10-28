@@ -409,6 +409,7 @@ TEST_CASE("the fold node's picture fits: its words inside its card, and a node j
     CHECK(opened.workspace.pan_y < 0);
     // Every word of the node stays inside its card, however long its title: shortened and marked.
     auto long_name = model;
+    long_name.node.reset();
     long_name.palette.front().identity = "math.add_with_a_very_long_identity";
     long_name.workspace.graph.project.definition.on.front().body.nodes.front().identity = "math.add_with_a_very_long_identity";
     const auto clipped = pane::picture(long_name, offered);
@@ -423,6 +424,22 @@ TEST_CASE("the fold node's picture fits: its words inside its card, and a node j
             marked = marked || (k.words.size() >= 3 && k.words.substr(k.words.size() - 3) == "...");
         }
     CHECK(marked);
+    // ...CHOSEN, its words stop short of the x on its corner, still shortened and marked.
+    long_name.node = 0;
+    const auto chosen = pane::picture(long_name, offered);
+    const auto head = std::find_if(chosen.hits.begin(), chosen.hits.end(),
+        [](const auto& hit) { return hit.action == "node"; });
+    const auto x = std::find_if(chosen.hits.begin(), chosen.hits.end(),
+        [](const auto& hit) { return hit.action == "remove"; });
+    REQUIRE(head != chosen.hits.end());
+    REQUIRE(x != chosen.hits.end());
+    bool short_of_x = false;
+    for (const auto& k : chosen.marks)
+        if (k.op == pane::Mark::Op::Text && k.y >= head->y && k.y < head->y + head->h && k.x < x->x) {
+            CHECK(k.x + k.w <= x->x);
+            short_of_x = short_of_x || (k.words.size() >= 3 && k.words.substr(k.words.size() - 3) == "...");
+        }
+    CHECK(short_of_x);
 }
 
 TEST_CASE("Flow's rail says what is in scope and where it comes from, and groups the door's rows: operators by their first word, then Sources, Conversions and Forms") {

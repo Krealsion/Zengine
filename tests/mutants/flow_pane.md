@@ -38,3 +38,37 @@ Red in `zengine-flow-pane-tests`:
 
 - a press on empty graph room lets go of the chosen step and its port, a drag from there moves the
   view, and a step moves only by a drag that starts on it
+
+## the-x-names-the-first-step
+
+The x on the chosen step's corner names the first step, whichever step it stands on.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+             pen.button(rows.box.right() - xw - (light ? 4 : 0), rows.head - (light ? 3 : 0), "x", "remove",
+-                       {std::to_string(n)}, Face::Quiet, Icon::None, canvas);
++                       {"0"}, Face::Quiet, Icon::None, canvas);
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- the chosen step goes by the Delete key or by the x on its corner, which the Do lane's head no
+  longer holds
+
+## delete-keeps-the-step
+
+The Delete key leaves the chosen step where it is.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+     } else if (key.scancode == input::scan::kDelete && model_.node) {
+-      perform("remove", {std::to_string(*model_.node)}, mail);
+     } else if (key.scancode == input::scan::kReturn) {
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- the chosen step goes by the Delete key or by the x on its corner, which the Do lane's head no
+  longer holds
