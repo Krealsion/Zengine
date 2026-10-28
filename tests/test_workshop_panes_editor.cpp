@@ -738,14 +738,24 @@ struct EditorRig {
     bool clean() { return status().rfind("saved", 0) == 0; }
     bool no_source() { return status().rfind("no source open", 0) == 0; }
 
+    /// A MENU OF WORKSHOP'S OWN PUT AWAY FIRST, as a weaver does -- the box a refused quit opens
+    /// among them: a press outside it only dismisses it.
+    void put_away_menu() {
+        if (r.session().context.open) {
+            r.key(input::scan::kEscape);
+        }
+    }
+
     /// PRESS INTO THE PANE ON ITS STATUS ROW -- a row that means nothing but focus.
     void focus() {
+        put_away_menu();
         press_pane(r, kind, 0, 0);
         REQUIRE(r.session().panes.keyboard == kind);
     }
 
     /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
+        put_away_menu();
         r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1);
         REQUIRE(r.session().panes.keyboard != kind);
     }
@@ -1766,9 +1776,11 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     CHECK(e.r.session().notice.find("unsaved changes") != std::string::npos);
     CHECK(e.r.session().panes.keyboard == e.kind); // the held press was replayed...
     CHECK(e.doc_row(0) == "on?e!");                  // ...and the held text landed
-    CHECK_FALSE(e.r.session().context.open);         // ...and the held key went to the pane
+    // ...and the held key went to the pane: the menu open is the refused quit's box, not `a`'s.
+    CHECK(e.r.session().context.subject == context_subject::kQuit);
     // CLEAN, WITH AN EDIT RACING: the quit is answered on the clean document and the process
     // ends; the character never reached a pane, so nothing was dirtied and nothing was lost.
+    e.put_away_menu();
     e.save();
     REQUIRE(e.clean());
     e.unfocus();
