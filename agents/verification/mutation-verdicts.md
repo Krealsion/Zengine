@@ -31,6 +31,12 @@ BECAUSE — four of fourteen mutations were refused by three assertions written 
 composition; relaxing one and mutating again changed the claim from the type system alone to the
 type system and a case, and only that run could tell.
 
+## VM-MUT-34 — A mutant that does not build is stale, not caught
+
+METHOD — A mutant that does not build is stale, not caught, unless a `static_assert` refused it (VM-MUT-12): read its log, and fix a break it made in passing (VM-MUT-19).
+BECAUSE — three mutants that stopped reading a parameter failed under `-Werror`, so no case of
+theirs ran; written again with `(void)` the parameter, each built, and each case went red.
+
 ## VM-MUT-13 — Express the behaviour, not the deletion of a line
 
 METHOD — Express the BEHAVIOUR, not the deletion of a line: an inserted branch must be armed, a deleted check often leaves a second refusal, and a real mutation undone downstream is restated where it is observable.
@@ -127,6 +133,10 @@ nowhere yet
 
 ### VM-MUT-12
 nowhere yet
+
+### VM-MUT-34
+`tests/mutants/run.py` mutate_one (a build that fails is stale, a `static_assert` read apart as
+caught)
 
 ### VM-MUT-13
 nowhere yet

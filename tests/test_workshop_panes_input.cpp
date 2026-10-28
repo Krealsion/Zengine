@@ -3059,8 +3059,6 @@ TEST_CASE("a wheel over an external pane's body reaches it unchanged from the wi
 
 TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the selection "
           "lift moves it") {
-    // ⚔ MUTATION: routing the wheel by anything but `occupied_at`'s effective order -- the
-    // covered pane would receive the notch and `wheels.back().pane` would name it.
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);

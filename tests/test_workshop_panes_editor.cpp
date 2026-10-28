@@ -1594,8 +1594,9 @@ TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it
 }
 
 TEST_CASE("WL-SESSION-22: a quit refused for unsaved work opens a box at the room's centre; go back keeps everything, and discard quits losing only what the box named") {
-    // MUTATION: the discard asking the quit again with nothing named -- the Editor refuses it once
-    // more and Workshop stays open.
+    // MUTATION (tests/mutants/workshop_panes_editor.md#discard-names-nothing): the discard asking
+    // the quit again with nothing named -- the Editor refuses it once more and Workshop stays
+    // open.
     EditorRig e("edit-quit-box");
     e.open();
     e.open_file("a.cpp", "one\n");

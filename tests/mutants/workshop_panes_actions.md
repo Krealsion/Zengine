@@ -138,8 +138,8 @@ The launcher's list window starts at its first row wherever the cursor stands.
 In `workshop/desktop-pane/launcher_view.hpp`:
 
 ```diff
--            known_.size(), choice_.at, first_, budget > 0 ? static_cast<std::size_t>(budget) : 0);
-+            known_.size(), 0, 0, budget > 0 ? static_cast<std::size_t>(budget) : 0);
+-        return component::cursor_window(known_.size(), choice_.at, first_, budget_);
++        return component::cursor_window(known_.size(), 0, 0, budget_);
 ```
 
 Red in `zengine-workshop-panes-tests`:
