@@ -6,7 +6,8 @@ through everything the session has said, and offers, as you type, what can come 
 *weave*: a piece of Workshop that is loaded, replaced and spoken to by messages, built as
 `zengine-terminal-pane`. Other weaves reach it by its *office*, the name it answers to,
 `zengine.terminal`, and it offers one pane, `terminal`. Hiding its legend in one layout, keeping a
-reply in Inventory and finding a power from the line are walked through in [Terminal](terminal.md).
+reply in Inventory, finding a power from the line and taking a completion are walked through in
+[Terminal](terminal.md).
 
 ## About
 
@@ -263,8 +264,9 @@ can be scrolled to, entries dropped for good cannot.
 
 One row of the list above the line, `> ` before the one you are on, then what it is and means. The
 heading says what the list is and, when cut, which slice, `1-5 of 12`. A press on a row makes it the
-one you are on. Once you have moved to a row, by a press or the arrows, the heading ends `-- Enter:
-take it, Shift+Enter: run the line`, and [`terminal.submit`](#terminalsubmit) takes it.
+one you are on. Once you have moved to a row, by a press or the arrows,
+[`terminal.submit`](#terminalsubmit) takes it, and the heading ends `-- Enter: take it, Shift+Enter:
+run the line` where the pane has room for it after the list's own words.
 
 ## Files
 
@@ -273,7 +275,7 @@ run: a new launch starts with none.
 
 ## See also
 
-- [Terminal](terminal.md): keep a command or a reply in Inventory, find a power, and hide the legend
-  in one layout.
+- [Terminal](terminal.md): keep a command or a reply in Inventory, find a power, hide the legend in
+  one layout, and take a completion or run the line as typed.
 - [The terminal seam](../../workshop/terminal_seam_vocabulary.hpp), the shapes the pane and Workshop
   exchange, and [the pane protocol](../../workshop/pane_vocabulary.hpp).
