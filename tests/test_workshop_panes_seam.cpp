@@ -721,8 +721,6 @@ TEST_CASE("the overlay floor is the workspace's own bottom, which is the band's 
 }
 
 TEST_CASE("a pane the layout left in the stack, launched when its column is spent, lands at the column's top, in front") {
-    // ⚔ MUTATION: the launch judged by a stack rationed to its column's height -- "no room for
-    // Other", and the second pane is never seen.
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);

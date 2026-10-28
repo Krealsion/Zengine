@@ -796,9 +796,6 @@ TEST_CASE("THE LIVE WEAVER WITNESS, end to end through the real pane") {
 // ---- The Powers list past its window is reached by the wheel ------------------------------
 
 TEST_CASE("the Powers list past its window is reached by the wheel, through the real pane") {
-    // ⚔ MUTATION: dropping `PaneWheel` from Workshop's send, from the grant, or from the
-    // provider's accept-set -- the marker below never leaves `-/N` and no hidden row arrives. A
-    // source grep would not notice a grant; this witness does.
     PaneRig r;
     const op::MountResult sourced =
         op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
