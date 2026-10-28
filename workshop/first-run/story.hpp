@@ -56,8 +56,12 @@ inline const std::array<Step, kSteps>& steps() {
         {"Show Flow's answer in the view", "drag the field Flow emits onto the view's label",
          "zengine.flow", "flow", "drag the field the flow emits onto the view's label",
          "the view was told a field it shows"},
-        {"Make it an app", "the View Builder's Export app", "zengine.view.builder", "view-builder",
-         "press Export app: the app is written in the project's apps/",
+        {"Make it an app",
+         "save the view, export its flow beside it under the view's name, then the View Builder's "
+         "Export app",
+         "zengine.view.builder", "view-builder",
+         "save the view, export its flow from Flow beside it under the view's name (my.view, "
+         "my.flow), then press Export app: the app is written in the project's apps/",
          "the launcher lists the app"},
         {"Start it, and close Workshop", "the View Builder's Run app, then quit",
          "zengine.view.builder", "view-builder",
@@ -120,12 +124,13 @@ inline bool story_done(const Ticks& ticks) {
 inline constexpr std::int64_t kStoryItems = static_cast<std::int64_t>(2 * kSteps);
 inline constexpr std::int64_t kNoStoryItem = -1;
 
-/// THE MOMENT THE PANE SHOWS: the ticks, the cursor, and its notice -- a step's next move after
-/// Show me, or why a write or a launch did not land.
+/// THE MOMENT THE PANE SHOWS: the ticks, the cursor, and its notice -- a hint (a step's next move
+/// after Show me), or why a press, a write or a launch did not land.
 struct StoryMoment {
     Ticks ticks{};
     std::int64_t cursor = 0;
     std::string notice;
+    bool hint = false; ///< the notice is a hint, drawn plain; anything else is drawn as an alert
 };
 
 /// One line drawn: its text, how it is inked, and the item a press on it chooses.
@@ -170,7 +175,7 @@ inline std::vector<StoryLine> story_lines(const StoryMoment& m, std::int64_t col
     }
     if (!m.notice.empty()) {
         out.push_back({""});
-        out.push_back({m.notice, StoryLine::Ink::kAlert});
+        out.push_back({m.notice, m.hint ? StoryLine::Ink::kPlain : StoryLine::Ink::kAlert});
     }
     return wrapped(out, columns);
 }

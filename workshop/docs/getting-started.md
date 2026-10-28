@@ -20,6 +20,21 @@ rebuilt weave whose shape changed needs a prepared replacement rather than a rel
 
 ## Launch it
 
+**From a package** ([download and run](../../README.md#download-and-run)), the launchers in its
+folder start Workshop for you: `Workshop.cmd` or `./workshop.sh` in a window (in the console or
+terminal that ran it where no window can open), `Workshop-terminal.cmd` or
+`./workshop-terminal.sh` in that console or terminal (`--tui`). Both start in your project,
+`%USERPROFILE%\Zengine` or `~/Zengine`, made at the first start and kept when a newer package
+replaces the old one; a `workshop-plan.json` there starts instead of the shipped plan. Each start
+also writes `zengine-app.path` there, the package's `zengine-app`, which the apps you export start
+([which `zengine-app`](../../app/docs/app.md#which-zengine-app-the-launchers-start)). What the
+package needs that it does not carry -- Python 3.8 or newer for the ready-to-use setups, and on
+Linux its C++ runtime and a desktop for the window -- is on
+[how to install these dependencies](dependencies.md). At the first start the quick setup and
+Start here take it from there ([your first five minutes](#your-first-five-minutes)).
+
+**From a source build** ([build it](../../README.md#build-it)):
+
 ```sh
 build/workshop/zengine-workshop
 ```
@@ -38,15 +53,6 @@ build/workshop/zengine-workshop --tui
 Both are the one shipped plan: its window row loads the OS window, otherwise the terminal window,
 and `--tui` takes the terminal window alone. Workshop's own code is identical in both. See
 [load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window).
-
-**From a package** ([download and run](../../README.md#download-and-run)), the launchers in its
-folder start Workshop for you: `Workshop.cmd` or `./workshop.sh` in a window (in the console or
-terminal that ran it where no window can open), `Workshop-terminal.cmd` or
-`./workshop-terminal.sh` in that console or terminal (`--tui`). Both start in your project,
-`%USERPROFILE%\Zengine` or `~/Zengine`, made at the first start and kept when a newer package
-replaces the old one; a `workshop-plan.json` there starts instead of the shipped plan. Each start also writes
-`zengine-app.path` there, the package's `zengine-app`, which the apps you export start
-([which `zengine-app`](../../app/docs/app.md#which-zengine-app-the-launchers-start)).
 
 ### Arguments
 
@@ -202,9 +208,14 @@ and opens **Start here**, the story a step at a time, each box ticked as it happ
 start until you finish it; find either again in the Pane Manager as Quick setup and Start here
 ([their manual](zengine.first-run.md)).
 
+**The palette finds anything by name**: <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, or
+in the OS window <!-- key desktop.palette-shift -->`double-shift`<!-- /key -->, opens it at the
+room's centre listing every action, every pane and each open pane's manual; type a few letters and
+`Enter` runs the one you mean ([its manual](zengine.palette.md)).
+
 ![The quick setup at a first start, at the room's centre and holding the keys, being placed: Arranging Mode Active names it above it, Info and Notices fade beside it; it lists Edit text with Neovim, each ready-to-use setup the launcher lists with Start and its whole line, The story, Done and Skip; Notices says showed Quick setup and how to place it](images/first-run-quick-setup.png)
 
-![Start here at a later start, where it was left at the room's centre, without the keys: step 2 ticked by you, the others still to do, each with what ticks it and Show me; Notices says only reopened your last desk "Default" -- 1584x861 px](images/first-run-start-here.png)
+![Start here at a later start, where it was left at the room's centre, without the keys: step 2 ticked by you, the others still to do, each with what ticks it and Show me, step 4 naming the view saved and its flow exported beside it before Export app; Notices says only reopened your last desk "Default" -- 1584x861 px](images/first-run-start-here.png)
 
 **A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, Notices at the lower
 left, and the room.

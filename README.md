@@ -76,11 +76,13 @@ archive per platform, with `SHA256SUMS` and the notes on checking them.
 | Windows 10 or 11, x64 | `zengine-0.1.N-windows-x64.zip` | extract it anywhere, then `Workshop.cmd` (a window) or `Workshop-terminal.cmd` (this console) |
 | Linux x86-64, glibc 2.35 or newer | `zengine-0.1.N-linux-x86_64.tar.gz` | extract it anywhere, then `./workshop.sh` (a window) or `./workshop-terminal.sh` (this terminal) |
 
-Nothing else needs installing. Your project is a folder of your own, made at the first start and
-kept when a newer package replaces the old one: `%USERPROFILE%\Zengine` on Windows, `~/Zengine`
-on Linux. The package's `README.txt` says where everything goes, and `bin/zengine-workshop
---version` names the commits it was made from. Windows may warn that the publisher is unknown:
-the package is not signed. What it does not do yet is in [Workshop
+What it needs that it does not carry -- Python 3.8 or newer for the ready-to-use setups, and on
+Linux its C++ runtime and a desktop for the window -- is on [how to install these
+dependencies](workshop/docs/dependencies.md). Your project is a folder of your own, made at the
+first start and kept when a newer package replaces the old one: `%USERPROFILE%\Zengine` on
+Windows, `~/Zengine` on Linux. The package's `README.txt` says where everything goes, and
+`bin/zengine-workshop --version` names the commits it was made from. Windows may warn that the
+publisher is unknown: the package is not signed. What it does not do yet is in [Workshop
 limitations](workshop/docs/limitations.md#the-package-a-stranger-downloads-is-an-alpha-made-each-night).
 
 ## Build it
