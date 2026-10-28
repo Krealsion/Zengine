@@ -54,6 +54,7 @@ followed there, and reconstructed from there later. A taker says each step as a 
 | on taking the issue | `Research for fix in progress` |
 | before building the change | `Proposed idea`, with the approach |
 | on pushing it | `Fix pushed, awaiting CI`, with the pull request |
+| once its hosted run has ended green | `CI passed, ready for review`, with the run |
 
 ```sh
 gh issue comment <n> --body "Research for fix in progress"
@@ -269,6 +270,8 @@ A check's link ends in its job's id.
   next push.
 - **A red is diagnosed before the next push**: name the job, the step and the case, reproduce it
   where the platform allows, and fix it on the branch.
+- **The issue gets its `CI passed, ready for review` comment**, with the run, once every job has
+  ended green (step 1); a fix pushed after a red says `Fix pushed, awaiting CI` again.
 - **A red verification in a Linux job keeps what the journeys left**: each journey's roots and
   evidence, in one archive, `journey-work.tar.gz`, the run's artifact
   `journey-work-linux-attempt-<n>` or `journey-work-sanitizer-attempt-<n>`, kept as long as

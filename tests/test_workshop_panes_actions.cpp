@@ -2745,8 +2745,6 @@ TEST_CASE("WL-KEY-08: shown in a POSIX terminal's terminal window, a row's POSIX
 
 TEST_CASE("the band and the Hotkeys pane teach the application's keys as they are in force: a "
           "moved row where it moved, a disabled one as having no key") {
-    // ⚔ MUTATION: the band teaching the declared defaults -- it says `^t` for a row the weaver
-    // moved to `ctrl+g`.
     TempDir dir("desktop-effective-keys");
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"desktop.terminal", "ctrl+g"},

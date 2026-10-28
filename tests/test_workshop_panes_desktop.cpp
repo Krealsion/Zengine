@@ -427,7 +427,8 @@ TEST_CASE("WL-DESK-14: a deliberate second press on the marked name, with the ke
 }
 
 TEST_CASE("WL-DESK-10: the Pane Manager lists the panes by name, and its wheel scrolls the rows hidden its way before it walks the marker") {
-    // MUTATION: the wheel walking the marker a row a notch -- the list does not move under it.
+    // MUTATION (tests/mutants/workshop_panes_desktop.md#wheel-walks-the-marker): the wheel walking
+    // the marker a row a notch -- the list does not move under it.
     Desk d;
     author_test_pane_room(d.r, d.launcher, 7, 100); // the gone note keeps a row of its own
     d.r.extent(161, 60);
