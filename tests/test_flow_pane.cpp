@@ -447,7 +447,7 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
     rig.click("o lhs = ", true);
     rig.click("o rhs = ", true);
     rig.click("[Int constant]");
-    (void)rig.label("> Value: 0", true);
+    rig.text("0");
     rig.key(in::scan::kReturn);
     CHECK_FALSE(rig.shows("[Use as result]")); // the one step is the result already
     const auto graph = rig.workspace();
@@ -1279,8 +1279,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     CHECK(rig.state().workspace == saved);
     rig.click("rhs");
     rig.click("Int constant");
-    REQUIRE(rig.state().dialog_entries.size() == 3);
-    CHECK(rig.state().dialog_entries.at(2).text == "0");
+    CHECK(rig.state().dialog_entries.empty()); // the port's own box takes it, not a dialog
     rig.replace_text("12");
     rig.key(in::scan::kReturn);
     CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.front()
@@ -2081,12 +2080,15 @@ TEST_CASE("a wire dragged from an input port and let go on empty graph room asks
         CHECK(std::abs(header.first - room.first) <= 1);
         CHECK(std::abs(header.second - room.second) <= 1);
 
-        // THE CONSTANT ROW opens the binding editor, as the rail's does.
+        // THE CONSTANT ROW readies the port's own box, as the rail's does: typed there, it binds.
         w.drag(w.at(port_part(rig, 1, 0)), w.room());
         const auto typed = w.showing("Int constant");
         REQUIRE(typed);
         w.click(*typed);
-        (void)rig.label("> Value: 0", true);
+        CHECK(w.showing("or a number"));
+        rig.text("5");
+        rig.key(in::scan::kReturn);
+        CHECK(argument(rig, 1, 0).constant_cell().as_int() == 5);
     }
 }
 
@@ -2241,7 +2243,7 @@ TEST_CASE("ctrl+n's find-wire opens the same search for a wire held by clicks or
     rig.key(in::scan::kDown);
     CHECK(w.showing("> Int constant"));
     rig.key(in::scan::kReturn);
-    (void)rig.label("> Value: 0", true);
+    CHECK(w.showing("or a number"));
     rig.key(in::scan::kEscape);
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
 
@@ -2432,4 +2434,104 @@ TEST_CASE("a double click adds: an operator row as Add to the rule adds it, empt
                       rig.menus, {}, menu->correlation)).valid());
     rig.pump();
     CHECK(rig.shows_part("Say a message after the change"));
+}
+
+namespace {
+/// THE WORDS OF THE BOX AT THE CHOSEN PORT: every run of text inside its part, top to bottom.
+std::vector<std::string> port_box_words(Rig& rig) {
+    const auto shown = rig.picture();
+    const auto box = std::find_if(shown.parts.begin(), shown.parts.end(),
+                                  [](const auto& part) { return part.name.rfind("port-box:", 0) == 0; });
+    REQUIRE(box != shown.parts.end());
+    std::vector<std::string> out;
+    for (const auto& t : shown.texts)
+        if (t.x >= box->x && t.y >= box->y && t.x < box->x + box->w && t.y < box->y + box->h)
+            out.push_back(t.text);
+    return out;
+}
+bool says(const std::vector<std::string>& words, const std::string& text) {
+    return std::find(words.begin(), words.end(), text) != words.end();
+}
+} // namespace
+
+TEST_CASE("a press on a port opens a box at it: what is in scope of its type and an earlier step's "
+          "answer, each by its own name, then one value of the port's kind") {
+    {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    // The new step stands under the first, so the box beside it stands on empty room.
+    rig.edit_ok("move", {"1", "1056", "1440"});
+    WireWindow w(rig);
+    // WHAT FITS, AS BUTTONS by their own names and where each comes from; no node or port to type
+    // and no $ or % anywhere in it.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#port-box-offers-nothing): the box lists nothing.
+    rig.click("o lhs = [unwired]");
+    auto words = port_box_words(rig);
+    for (const char* expected : {"lhs : Int", "[value]", "kept", "[input]", "from the message", "[max]",
+                                 "a step's answer", "or a number", "[Use]"}) {
+        INFO(expected);
+        CHECK(says(words, expected));
+    }
+    for (const auto& said : words) {
+        INFO(said);
+        CHECK(said.find('$') == std::string::npos);
+        CHECK(said.find('%') == std::string::npos);
+        CHECK(said.find("Node") == std::string::npos);
+        CHECK(said.find("Port") == std::string::npos);
+    }
+    // A BUTTON BINDS, and the box closes.
+    rig.click("[max]");
+    CHECK(from_node(argument(rig, 1, 0), 0));
+    CHECK_FALSE(rig.shows("lhs : Int"));
+
+    // A NUMBER, CHECKED AS IT IS TYPED: what is not one is marked and refused in words.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#port-number-check-inverted): the check passes what is
+    // not a number and marks what is.
+    rig.click("o rhs = [unwired]");
+    rig.text("x1");
+    CHECK(says(port_box_words(rig), "a whole number, like 12"));
+    rig.key(in::scan::kReturn);
+    CHECK(rig.shows("rhs takes a whole number, like 12"));
+    CHECK(argument(rig, 1, 1).input_name().empty());
+    rig.replace_text("12");
+    CHECK_FALSE(says(port_box_words(rig), "a whole number, like 12"));
+    rig.key(in::scan::kReturn);
+    CHECK(argument(rig, 1, 1).constant_cell().as_int() == 12);
+
+    // ...ITS NUMBER READY when it holds one, and Use binds what is typed over it.
+    rig.click("o rhs = 12");
+    CHECK(says(port_box_words(rig), "[12]"));
+    rig.text("7");
+    rig.click("[Use]");
+    CHECK(argument(rig, 1, 1).constant_cell().as_int() == 7);
+
+    }
+    {
+    // YES OR NO for a port that takes a truth.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#port-yes-says-no): yes binds false.
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("logic.select_int"));
+    rig.edit_ok("move", {"1", "1056", "1440"});
+    WireWindow w(rig);
+    rig.click("o condition = [unwired]");
+    const auto words = port_box_words(rig);
+    CHECK(says(words, "condition : Bool"));
+    CHECK(says(words, "nothing in scope is Bool yet"));
+    CHECK(says(words, "[yes]"));
+    CHECK(says(words, "[no]"));
+    CHECK_FALSE(says(words, "or a number"));
+    rig.click("[yes]");
+    CHECK(argument(rig, 1, 0).constant_cell().as_bool());
+
+    // ITS x AND THE ESCAPE KEY PUT IT DOWN, binding nothing.
+    rig.click("o when_true = [unwired]");
+    w.click(w.at("port-close:1:1"));
+    CHECK_FALSE(rig.shows("when_true : Int"));
+    rig.click("o when_true = [unwired]");
+    rig.key(in::scan::kEscape);
+    CHECK_FALSE(rig.shows("when_true : Int"));
+    CHECK(argument(rig, 1, 1).input_name().empty());
+    }
 }

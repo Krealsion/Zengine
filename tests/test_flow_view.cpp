@@ -174,6 +174,24 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
     }
 }
 
+TEST_CASE("a step is named by its operator, and which one where two share it; a whole number is "
+          "the whole of the text") {
+    std::vector<zengine::op::Node> nodes(3);
+    nodes[0].identity = "math.add";
+    nodes[1].identity = "math.max";
+    nodes[2].identity = "math.add";
+    CHECK(pane::step_name(nodes, 0) == "add (1)");
+    CHECK(pane::step_name(nodes, 1) == "max");
+    CHECK(pane::step_name(nodes, 2) == "add (2)");
+    // ⚔ MUTATION (tests/mutants/flow_view.md#whole-number-takes-a-start): a number's start is enough.
+    CHECK(pane::whole_number("12"));
+    CHECK(pane::whole_number("-3"));
+    CHECK_FALSE(pane::whole_number(""));
+    CHECK_FALSE(pane::whole_number("12x"));
+    CHECK_FALSE(pane::whole_number("x12"));
+    CHECK_FALSE(pane::whole_number("99999999999999999999"));
+}
+
 TEST_CASE("Flow keeps a long dialog draft editable without rejecting its picture") {
     pane::Model model;
     const std::string contents(4096, 'x');

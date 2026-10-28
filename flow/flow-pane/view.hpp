@@ -69,6 +69,9 @@ struct Picture : Drawing {
     /// Where the When and Then columns stand under their heads, and each card in them by its name.
     std::optional<Box> docks;
     std::map<std::string, Box> cards;
+    /// Where the chosen port stands on its step's card, and that card, for the box that opens there.
+    std::optional<std::pair<std::int64_t, std::int64_t>> port_at;
+    std::optional<Box> port_card;
     /// Every run of text it draws, in paint order.
     std::vector<std::string> texts() const {
         std::vector<std::string> out;
@@ -1114,6 +1117,10 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
                          marked ? hue::message() : hue::text(), inside);
             }
             pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(canvas), "port", {std::to_string(n), std::to_string(a)}, id);
+            if (chosen_port && chosen_port->node == n && chosen_port->port == a) {
+                pen.p.port_at = std::pair{rows.box.x, rows.middles[a + extra]};
+                pen.p.port_card = rows.box;
+            }
         }
         const auto ay = rows.rows.back();
         if (light) {
@@ -1253,6 +1260,95 @@ inline void events_band(Pen& pen, const Model& model, const Box& box, std::size_
     for (const auto& line : shown) {
         pen.text(x, y, line, hue::text(), box);
         y += m.row;
+    }
+}
+
+/// THE BOX AT THE CHOSEN PORT: what is in scope of its type, each a button by its own name and
+/// where it comes from; then one value of the port's own kind -- a number typed and checked as it
+/// is typed for an Int, yes or no for a Bool. It stands beside the port's step, inside `within`,
+/// on the side with room; a press inside it lands on it.
+inline void port_box(Pen& pen, const Model& model, const Box& within) {
+    const auto& m = pen.m;
+    const auto port = selected_port(model);
+    if (!port || !pen.p.port_at || !pen.p.port_card) return;
+    const auto n = std::to_string(port->node), a = std::to_string(port->port);
+    const auto offers = in_scope(model, *port);
+    const auto kind = port->field.type.kind;
+    const bool number = kind == loom::Kind::Int, truth = kind == loom::Kind::Bool;
+    const auto typed = model.port_value.text();
+    const bool wrong = number && !typed.empty() && !whole_number(typed);
+    const auto line = m.light ? m.tall + 4 : m.row;
+    const auto pad = m.light ? std::int64_t{8} : std::int64_t{0};
+    std::int64_t inner = m.row + (offers.empty() ? m.row : static_cast<std::int64_t>(offers.size()) * line);
+    if (number) inner += m.row + line + (wrong ? m.row : 0);
+    if (truth) inner += m.row + line;
+    const auto w = std::min(within.w, m.chars(30));
+    const auto h = std::min(within.h, inner + 2 * pad);
+    // Beside the step: on its left where there is room, else on its right, else under the port.
+    const auto& card = *pen.p.port_card;
+    const auto gap = m.light ? std::int64_t{12} : m.ch;
+    std::int64_t bx = card.x - gap - w, by = pen.p.port_at->second - m.row / 2 - pad;
+    if (bx < within.x) bx = card.right() + gap;
+    if (bx + w > within.right()) {
+        bx = card.x;
+        by = pen.p.port_at->second + m.row;
+    }
+    const auto snap = [&](std::int64_t v) { return gfx::floor_div_px(v, m.grain) * m.grain; };
+    bx = snap(std::clamp(bx, within.x, std::max(within.x, within.right() - w)));
+    by = snap(std::clamp(by, within.y, std::max(within.y, within.bottom() - h)));
+    const Box box{bx, by, w, h};
+    pen.rect(box, m.light ? hue::band() : hue::well(), hue::wire(), m.light ? 4 : 0);
+    pen.press(box, "port-box", {n, a});
+    const auto x = bx + (m.light ? pad - m.inset : m.ch);
+    std::int64_t y = by + pad;
+    pen.text(x, y, port->field.name + " : " + loom::name_of(kind), hue::message(), box);
+    const auto xw = pen.button_width("x");
+    pen.button(box.right() - xw - (m.light ? 4 : m.ch), y - (m.light ? 3 : 0), "x", "port-close", {n, a},
+               Face::Quiet, Icon::None, box);
+    y += m.row;
+    const auto bx0 = bx + (m.light ? pad : m.ch);
+    if (offers.empty()) {
+        pen.text(x, y, "nothing in scope is " + std::string(loom::name_of(kind)) + " yet", hue::quiet(), box);
+        y += m.row;
+    }
+    for (const auto& offer : offers) {
+        const auto said = offer.from == InScope::From::Kept      ? "kept"
+                          : offer.from == InScope::From::Message ? "from the message"
+                                                                 : "a step's answer";
+        const auto bw = pen.button(bx0, y, offer.name, "scope", {n, a, offer.bind},
+                                   offer.from == InScope::From::Kept ? Face::Teal : Face::Plain, Icon::None, box);
+        pen.text(bx0 + bw + (m.light ? 8 - m.inset : m.ch), y + (m.light ? (m.tall - m.row) / 2 : 0), said,
+                 hue::quiet(), box);
+        y += line;
+    }
+    if (number) {
+        pen.text(x, y, "or a number", hue::quiet(), box);
+        y += m.row;
+        const auto use_w = pen.button_width("Use");
+        const Box field{bx0, y, std::max<std::int64_t>(m.ch, box.right() - bx0 - use_w - 2 * gap),
+                        m.light ? m.tall : m.row};
+        if (m.light) pen.rect(field, hue::field(), wrong ? hue::warn() : hue::wire(), 3, false, box);
+        auto value = model.port_value;
+        const auto columns = std::max<std::int64_t>(1, m.fits(field.w - (m.light ? 8 : 2 * m.ch)));
+        value.keep_caret_visible(columns);
+        const auto shown = m.light ? value.visible(columns) : "[" + value.visible(columns) + "]";
+        auto& run = pen.text(field.x + (m.light ? 4 - m.inset : 0), y + (m.light ? (m.tall - m.row) / 2 : 0), shown,
+                             wrong ? hue::warn() : hue::text(), field.cut(box));
+        run.caret_col = static_cast<std::int64_t>(value.caret_column()) + (m.light ? 0 : 1);
+        const auto selection = value.visible_selection(columns);
+        if (selection.present()) {
+            run.sel_begin_col = selection.begin + (m.light ? 0 : 1);
+            run.sel_end_col = selection.end + (m.light ? 0 : 1);
+        }
+        pen.button(field.right() + gap, y, "Use", "port-set", {n, a}, wrong ? Face::Quiet : Face::Gold, Icon::None, box);
+        y += line;
+        if (wrong) pen.text(x, y, "a whole number, like 12", hue::warn(), box);
+    }
+    if (truth) {
+        pen.text(x, y, "or", hue::quiet(), box);
+        y += m.row;
+        const auto yes = pen.button(bx0, y, "yes", "port-set", {n, a, "true"}, Face::Plain, Icon::None, box);
+        pen.button(bx0 + yes + gap, y, "no", "port-set", {n, a, "false"}, Face::Plain, Icon::None, box);
     }
 }
 
@@ -1506,6 +1602,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
                             W - 2 * margin - rail_w - margin - (light ? 0 : m.ch), graph_h};
         rail(pen, model, rail_box);
         lanes(pen, model, graph_box);
+        if (!model.wire_search && !model.wire_drawn && !model.dialog && out.canvas) port_box(pen, model, *out.canvas);
         if (model.wire_search && out.canvas) wire_list(pen, model, *out.canvas);
         out.pan_x = model.workspace.pan_x;
         out.pan_y = model.workspace.pan_y;

@@ -255,6 +255,18 @@ public:
       show(mail);
       return;
     }
+    if (number_box() && key.scancode != input::scan::kEscape) {
+      // THE NUMBER BOX AT THE CHOSEN PORT holds the keys: Return uses what it holds, and the rest
+      // edit it.
+      if (key.scancode == input::scan::kReturn) {
+        if (const auto port = pane::selected_port(model_))
+          perform("port-set", {std::to_string(port->node), std::to_string(port->port)}, mail);
+        return;
+      }
+      if (model_.port_value.consume(key.scancode, key.modifiers, clipboard_))
+        show(mail);
+      return;
+    }
     if (key.scancode == input::scan::kEscape) {
       // One layer per press, the most specific first; the search line clears before the
       // pane is put down.
@@ -295,9 +307,11 @@ public:
   void on(const ws::PaneTextInput &text, loom::Mail &mail) {
     if (!host(mail, text.pane))
       return;
-    // Outside a dialog, typed text is the search line's: it is the one field there.
-    auto &box = model_.dialog ? model_.dialog->entries.at(model_.dialog->selected).text
-                              : model_.search;
+    // Outside a dialog, typed text is the number box's at a chosen port while it is open, and
+    // else the search line's.
+    auto &box = model_.dialog  ? model_.dialog->entries.at(model_.dialog->selected).text
+                : number_box() ? model_.port_value
+                               : model_.search;
     if (box.size() + text.text.size() > 4096) {
       model_.notice = "Field editing is limited to 4096 bytes";
       show(mail);
@@ -1052,6 +1066,40 @@ private:
   }
   /// The picture last drawn in the window, which a drag's later moments are read against.
   const pane::Picture *latest() const { return window_shown_ ? &*window_shown_ : nullptr; }
+  /// IS THE NUMBER BOX AT THE CHOSEN PORT OPEN: an Int port chosen on the Graph page and drawn in
+  /// the picture last shown, with no dialog and no wire's search holding the keys.
+  bool number_box() const {
+    if (model_.dialog || model_.wire_search || model_.page != pane::Page::Graph)
+      return false;
+    const auto *it = latest();
+    if (it == nullptr || !it->port_at)
+      return false;
+    const auto port = pane::selected_port(model_);
+    return port && port->field.type.kind == loom::Kind::Int;
+  }
+  /// The number port `a` of step `n` holds now, as its box starts: its Int constant, or nothing.
+  std::string held_number(std::size_t n, std::size_t a) const {
+    const auto &def = model_.workspace.graph.project.definition;
+    if (def.on.empty())
+      return {};
+    const auto &nodes = def.on.at(model_.trigger()).body.nodes;
+    if (n >= nodes.size() || a >= nodes[n].arguments.size())
+      return {};
+    const auto &b = nodes[n].arguments[a];
+    if (b.from() != zengine::op::Binding::From::Constant ||
+        b.constant_cell().kind() != loom::Kind::Int)
+      return {};
+    return std::to_string(b.constant_cell().as_int());
+  }
+  /// CHOOSE PORT `a` OF STEP `n`, its box ready: the number it holds, all of it selected, so what
+  /// is typed replaces it.
+  void choose_port(std::size_t n, std::size_t a) {
+    model_.filling =
+        pane::PortChoice{model_.workspace.graph.place(model_.trigger(), n).id, a};
+    const auto held = held_number(n, a);
+    model_.port_value.set(held, 0);
+    model_.port_value.drag_to_column(static_cast<std::int64_t>(held.size()));
+  }
   /// THE HAND MOVED WITH A WIRE: past one character cell from the press it is a drag, drawn from
   /// the press to the hand, a port it would bind to lit.
   void wire_moved(const Moment &event, const ws::CanvasRoom &room, loom::Mail &mail) {
@@ -1775,27 +1823,42 @@ private:
         effect(model_.command("bind", {args.at(0), args.at(1), text}), mail);
         model_.connecting.reset();
       } else {
-        // The port to fill: the rail lists what could, and a second press puts it down.
-        const pane::PortChoice chosen{
-            model_.workspace.graph.place(model_.trigger(), flow::index_of(args.at(0))).id,
-            flow::index_of(args.at(1))};
+        // The port to fill: a box opens at it, the rail lists what could fill it, and a second
+        // press puts it down.
+        const auto n = flow::index_of(args.at(0)), a = flow::index_of(args.at(1));
+        const pane::PortChoice chosen{model_.workspace.graph.place(model_.trigger(), n).id, a};
         const bool again = model_.filling && model_.filling->place == chosen.place &&
                            model_.filling->port == chosen.port;
         if (again)
           model_.filling.reset();
         else
-          model_.filling = chosen;
+          choose_port(n, a);
       }
     } else if (action == "scope") {
       // What the pressed row named, in the picture it was pressed in: node, port and binding.
       effect(model_.command("bind", {args.at(0), args.at(1), args.at(2)}), mail);
       model_.filling.reset();
     } else if (action == "constant") {
-      model_.ask(
-          "Bind a constant, $field, or %earlier-node", "bind",
-          {{"Node", args.at(0)}, {"Port", args.at(1)}, {"Value", "0"}});
-      model_.dialog->selected = 2;
+      // A VALUE OF THE PORT'S OWN KIND is typed in the box at the port: the port is chosen, and
+      // its number ready.
+      choose_port(flow::index_of(args.at(0)), flow::index_of(args.at(1)));
+    } else if (action == "port-set") {
+      // THE PORT TAKES A VALUE OF ITS KIND: the number its box holds, checked, or yes or no.
+      if (args.size() != 2 && args.size() != 3)
+        throw std::invalid_argument("port-set expects a node, a port and optionally the value");
+      const auto value = args.size() == 3 ? args.at(2) : model_.port_value.text();
+      if (args.size() == 2 && !pane::whole_number(value)) {
+        const auto port = pane::selected_port(model_);
+        throw std::invalid_argument((port ? port->field.name : std::string("That port")) +
+                                    " takes a whole number, like 12");
+      }
+      effect(model_.command("bind", {args.at(0), args.at(1), value}), mail);
       model_.filling.reset();
+      model_.port_value.set("", 0);
+    } else if (action == "port-close") {
+      model_.filling.reset();
+    } else if (action == "port-box") {
+      // A press inside the port's box on none of its buttons: nothing.
     } else if (action == "found") {
       model_.preview_kind = args.at(0);
       model_.preview = args.at(1);

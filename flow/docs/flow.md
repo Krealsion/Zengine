@@ -69,10 +69,13 @@ The rail beside the graph finds operators through the host's
   **CONVERSIONS** and **FORMS**, each row its name and what its contributor says it is for; a
   count says how many more matched than one answer carries. **FORMS** holds the fold, found by
   what it is for: type `count` or `total`.
-- **A selected port** narrows the search to what yields its type, and lists before that what is
-  **In scope** of the type (state and message fields, and earlier nodes' outputs), then a typed
-  constant for an `Int` or `Bool` port, then **SOURCES** before the operators. An in-scope row
-  wires the port; the constant opens the binding editor. Click the port again to put it down.
+- **A press on a port** opens a small box beside its step: what is in scope of its type, each a
+  button by its own name and where it comes from -- a kept field, a field of the message, an
+  earlier step's answer -- then one value of the port's own kind: a number for an `Int`, checked
+  as you type it, which **Use** or **Enter** binds, or **yes** or **no** for a `Bool`. Its **x**,
+  **Escape** or the port pressed again puts it down. The rail meanwhile narrows the search to what
+  yields the port's type, and lists before that what is **In scope** of the type, then a typed
+  constant, which readies the box's number, then **SOURCES** before the operators.
 - **A row previews; it never runs.** A form and an operator that share a name are two rows, and
   each previews and adds itself. The preview is the door's row, and showing it evaluates
   nothing. **Add to the rule**, or **Enter**, adds the previewed power at the end of the
@@ -86,7 +89,8 @@ The rail beside the graph finds operators through the host's
   under **In scope**, and let go on empty graph room: a list opens there of what takes the wire's
   type, a row for each port of that type (`math.add -> lhs`, `math.add -> rhs`), with the search
   line above it. Drag from an input port instead and the list holds what fills it: what is in
-  scope of its type, a typed constant, then what yields it. Choose a row, by a click or the arrows
+  scope of its type, a typed constant, which readies the box at the port, then what yields it.
+  Choose a row, by a click or the arrows
   and **Enter**, and the node is made where you let go, wired, and selected, in one edit, after the
   node it reads from or before the port's node. Let go on the other end and the wire binds; let go
   anywhere else and it is put down. **Escape**, or a press outside the list, closes it and makes
@@ -215,8 +219,9 @@ owner's bounded record. An omission count says when older observations were drop
 Recorder/Logger remain the broader history tools.
 
 Open `low` in **Library** and send it. The high-water state remains `7`. Return to Graph, click
-the `rhs` port, choose **Int constant** and bind `10`. Choose **Apply**, then send `low` again: the state now
-becomes `10`. Apply preserves live state and requires the existing accepted/emitted/state contract.
+the `rhs` port, type `10` in the box beside it and press **Enter**. Choose **Apply**, then send `low`
+again: the state now becomes `10`. Apply preserves live state and requires the existing
+accepted/emitted/state contract.
 A schema change needs a restart -- a stop and a fresh run; this pane does not invent a migration
 policy.
 

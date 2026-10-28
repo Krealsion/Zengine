@@ -35,3 +35,20 @@ Red in `zengine-flow-tests`:
 
 - two presses are one double click on one target, near where the first landed, within the interval,
   and time is its argument
+
+## whole-number-takes-a-start
+
+A number's start is read as the whole of the text, so `12x` is a whole number.
+
+In `flow/flow-pane/find.hpp`:
+
+```diff
+     const auto read = std::from_chars(text.data(), text.data() + text.size(), value);
+-    return !text.empty() && read.ec == std::errc{} && read.ptr == text.data() + text.size();
++    return !text.empty() && read.ec == std::errc{};
+```
+
+Red in `zengine-flow-tests`:
+
+- a step is named by its operator, and which one where two share it; a whole number is the whole
+  of the text

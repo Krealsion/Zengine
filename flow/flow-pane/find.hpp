@@ -12,8 +12,10 @@
 #include <zen/terminal/composer.hpp> // `describe_schema`: Loom's one spelling of a type
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -21,6 +23,37 @@ namespace zengine::flow_pane {
 
 /// A node's words are the operator package's, so a refusal names a node as this graph shows it.
 using op::node_title;
+
+/// A NODE BY ITS SHORT NAME: its operator's last word (`add` for `math.add`), a fold's with the
+/// word fold before it.
+inline std::string short_name(const op::Node& node) {
+    const auto last = [](const std::string& identity) {
+        const auto dot = identity.rfind('.');
+        return dot == std::string::npos ? identity : identity.substr(dot + 1);
+    };
+    if (!node.fold) return last(node.identity);
+    return node.identity.empty() ? "fold" : "fold " + last(node.identity);
+}
+
+/// STEP `n` BY ITS OPERATOR, as a weaver reads it: its short name, and where the trigger has more
+/// than one step of that name, which of them it is, counted from the first (`add (2)`).
+inline std::string step_name(const std::vector<op::Node>& nodes, std::size_t n) {
+    const auto name = short_name(nodes.at(n));
+    std::size_t same = 0, before = 0;
+    for (std::size_t i = 0; i < nodes.size(); ++i)
+        if (short_name(nodes[i]) == name) {
+            ++same;
+            if (i < n) ++before;
+        }
+    return same > 1 ? name + " (" + std::to_string(before + 1) + ")" : name;
+}
+
+/// Is `text` a whole number as `flow::integer` reads one: the whole of it, nothing around it.
+inline bool whole_number(std::string_view text) {
+    std::int64_t value = 0;
+    const auto read = std::from_chars(text.data(), text.data() + text.size(), value);
+    return !text.empty() && read.ec == std::errc{} && read.ptr == text.data() + text.size();
+}
 
 /// A fold's body slot as its node shows it: the choice still to make, or which ports its body
 /// threads the count and the accumulator through.
@@ -136,10 +169,14 @@ inline workshop::FindPowers flow_question(const Model& m) {
     return asked;
 }
 
-/// Something already in scope that could fill the selected port, and the `bind` argument that
-/// wires it there.
+/// Something already in scope that could fill the selected port: how the rail and a wire's search
+/// list it, the `bind` argument that wires it there, and how the port's box names it -- the field's
+/// own name or the step's, and where it comes from.
 struct InScope {
+    enum class From { Kept, Message, Step };
     std::string label, bind;
+    std::string name;
+    From from = From::Kept;
 };
 
 /// What is in scope for the selected port, of exactly its type: a required state field, a required
@@ -150,16 +187,17 @@ inline std::vector<InScope> in_scope(const Model& m, const PortView& port) {
     const auto& on = def.on.at(m.trigger());
     for (const auto& f : def.state->fields())
         if (f.required && op::detail::same_type(f.type, port.field.type))
-            out.push_back({"state." + f.name, "$" + f.name});
+            out.push_back({"state." + f.name, "$" + f.name, f.name, InScope::From::Kept});
     for (const auto& f : on.message->fields())
         if (f.required && !def.state->find(f.name) && op::detail::same_type(f.type, port.field.type))
-            out.push_back({"input." + f.name, "$" + f.name});
+            out.push_back({"input." + f.name, "$" + f.name, f.name, InScope::From::Message});
     for (std::size_t n = 0; n < port.node; ++n) {
         try {
             if (op::detail::same_type(m.workspace.graph.node_answer_type(m.trigger(), n, m.palette),
                                       port.field.type))
                 out.push_back({"%" + std::to_string(n) + " " + node_title(on.body.nodes[n]),
-                               "%" + std::to_string(n)});
+                               "%" + std::to_string(n), step_name(on.body.nodes, n),
+                               InScope::From::Step});
         } catch (const std::exception&) {
         }
     }

@@ -71,6 +71,8 @@ public:
     // previewed, by its kind and identity.
     zengine::component::TextBox search;
     std::optional<PortChoice> filling;
+    /// The number typed into the box at the chosen port, for a port that takes one.
+    zengine::component::TextBox port_value;
     /// A fold whose body slot is open, by its node's stable place id: the door is asked for what
     /// a fold could spend, and choosing a row chooses its body.
     std::optional<std::int64_t> body_slot;

@@ -199,3 +199,55 @@ Red in `zengine-flow-pane-tests`:
 
 - a double click adds: an operator row as Add to the rule adds it, empty Do room a step found where
   it was clicked, empty When room a new message, empty Then room keep or say
+
+## port-box-offers-nothing
+
+The box at a chosen port lists nothing in scope of its type.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+     const auto n = std::to_string(port->node), a = std::to_string(port->port);
+-    const auto offers = in_scope(model, *port);
++    const std::vector<InScope> offers;
+     const auto kind = port->field.type.kind;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a press on a port opens a box at it: what is in scope of its type and an earlier step's answer,
+  each by its own name, then one value of the port's kind
+
+## port-number-check-inverted
+
+The box at an Int port passes what is not a whole number and marks one that is.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+     const auto typed = model.port_value.text();
+-    const bool wrong = number && !typed.empty() && !whole_number(typed);
++    const bool wrong = number && !typed.empty() && whole_number(typed);
+     const auto line = m.light ? m.tall + 4 : m.row;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a press on a port opens a box at it: what is in scope of its type and an earlier step's answer,
+  each by its own name, then one value of the port's kind
+
+## port-yes-says-no
+
+The box at a Bool port binds `false` for its yes.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-        const auto yes = pen.button(bx0, y, "yes", "port-set", {n, a, "true"}, Face::Plain, Icon::None, box);
++        const auto yes = pen.button(bx0, y, "yes", "port-set", {n, a, "false"}, Face::Plain, Icon::None, box);
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a press on a port opens a box at it: what is in scope of its type and an earlier step's answer,
+  each by its own name, then one value of the port's kind

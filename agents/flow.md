@@ -112,7 +112,11 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   them: it matches nothing again and classifies nothing. A row is known by its kind and its
   identity together, since a form and an operator may share a name. A selected port is held by its node's
   place id, so removing another node never moves it; replacing the graph or changing the
-  trigger puts it down. A preview evaluates nothing. Add takes an operator reference (the row's
+  trigger puts it down. A port pressed with no wire in hand opens a box beside its step: what
+  `in_scope` holds of its type, each by its own name and where it comes from, and one value of its
+  own kind -- a number checked as it is typed (`flow_pane::whole_number`, the rule `flow::integer`
+  reads by), or yes or no -- whose words name no node or port by number, and no `$` or `%`.
+  A preview evaluates nothing. Add takes an operator reference (the row's
   identity and two content ids): `add-node` places a step at the end or before a node, and
   `add-node-into` before a port's node and into that port, one renumbering edit; a stale
   reference is refused against the graph's ports, never re-bound. The fold is placed by
@@ -129,8 +133,10 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   `tests/test_flow_view.cpp` covers canvas clipping, dense views, long text, independent measured
   axes, device-grain hit testing, the rail's grouping and preview, the rule's sentence, the Next
   line's walk, the journal read one line a message, the tally drawn in light and in cells, a card
-  chosen and put, and what makes two presses one double click. `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
+  chosen and put, what makes two presses one double click, and a step named by its operator.
+  `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
   reload preservation, the right press handed back, the empty press and the pan, the chosen step's
-  x and Delete, the When and Then cards moved, the double clicks that add, finding through the door
+  x and Delete, the When and Then cards moved, the double clicks that add, the box at a port,
+  finding through the door
   and the pane in a graphics window; host behavior is witnessed under [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

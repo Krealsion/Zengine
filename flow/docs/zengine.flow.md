@@ -141,7 +141,7 @@ could be. Letting a dragged wire go on empty graph room opens the same search wh
   (at the trigger's start for a field) or before the port's node, where the list was opened, wired,
   and selected, in one edit: `Added %k <power>, wired from <%n or $field>` or `Added %k <power>,
   wired into %m <port>`; an In scope row binds the port, `Bound %n <port> to <binding>`; the
-  constant row opens the binding editor. Escape, or a press outside the list, closes it and puts the
+  constant row readies the port's own box. Escape, or a press outside the list, closes it and puts the
   wire down: `The wire was put down: <why>; nothing was made`.
 - **Refuses:** `Hold a wire first -- click an output or a field In scope, or select a port -- then
   ask for a new node from it`; `A new node from the wire needs the graph shown`; a row whose ports
@@ -693,7 +693,7 @@ The Graph page: the rule as one sentence, a part still to choose dashed; the rai
 line, what is in scope, the door's rows grouped and the chosen row's preview; the graph in three
 lanes, WHEN a message arrives, DO its steps, THEN what changes; the Next line; the Events band. A
 press selects; drag a node to move it, blank room to pan, a wire to bind where it lands -- on empty
-room it opens [`find-wire`](#find-wire)'s list.
+room it opens [`find-wire`](#find-wire)'s list. A port pressed opens a box of what fits it.
 
 ### `state`
 

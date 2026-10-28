@@ -14,17 +14,6 @@
 
 namespace zengine::flow_pane {
 
-/// A NODE BY ITS SHORT NAME: its operator's last word (`add` for `math.add`), a fold's with the
-/// word fold before it.
-inline std::string short_name(const op::Node& node) {
-    const auto last = [](const std::string& identity) {
-        const auto dot = identity.rfind('.');
-        return dot == std::string::npos ? identity : identity.substr(dot + 1);
-    };
-    if (!node.fold) return last(node.identity);
-    return node.identity.empty() ? "fold" : "fold " + last(node.identity);
-}
-
 /// Is the port unwired: an input naming nothing?
 inline bool unwired(const op::Binding& b) {
     return b.from() == op::Binding::From::Input && b.input_name().empty();
