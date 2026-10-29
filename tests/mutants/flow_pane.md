@@ -383,3 +383,35 @@ Red in `zengine-flow-pane-tests`:
 
 - a message's name is offered as it is typed: what the rule says and what running views say or
   show, each view asked by message; a name not among them still works
+
+## wired-names-another
+
+The notice of an In scope row chosen names another value than the one it wired.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-          if (candidate.bind == row.args.at(0))
++          if (candidate.bind != row.args.at(0))
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a wire dragged from an input port and let go on empty graph room asks what fills it: in scope, a
+  constant, then what yields its type, each made at the hand
+
+## search-cuts-its-heading
+
+A wire's search stands at its old width, so what it says it carries is cut.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-    const auto w = std::min(within.w, std::max(m.chars(36), pen.width(carries) + 2 * m.ch));
++    const auto w = std::min(within.w, m.chars(36));
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a wire dragged from an input port and let go on empty graph room asks what fills it: in scope, a
+  constant, then what yields its type, each made at the hand

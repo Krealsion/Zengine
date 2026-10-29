@@ -118,7 +118,9 @@ TEST_CASE("Flow clips a large offscreen graph before spending the picture's budg
         model.workspace.graph.places[i].y = 500000;
     const auto view = pane::picture(model, room());
     CHECK(window_refuses(view).empty());
-    CHECK(text_has(view, "view.Rule"));
+    // ⚔ MUTATION (tests/mutants/flow_view.md#card-head-says-its-identity): a head says its identity.
+    CHECK(text_has(view, "Rule (1)"));
+    CHECK_FALSE(text_has(view, "view.Rule"));
     CHECK_FALSE(text_has(view, "View limit reached"));
     CHECK(action_has(view, "node"));
     CHECK(std::none_of(view.marks.begin(), view.marks.end(), [](const auto& k) {
@@ -520,7 +522,8 @@ TEST_CASE("Flow's rail says what is in scope and where it comes from, and groups
                      found_row("view.src", ws::kSourceKind), found_row("math.other", ws::kOperatorKind)});
     const auto view = pane::picture(model, room());
     CHECK(row_of(view, "In scope") >= 0);
-    CHECK(text_has(view, "state.total"));
+    CHECK(text_has(view, "total : Int"));
+    CHECK_FALSE(text_has(view, "state.total"));
     CHECK(text_has(view, " kept"));
     const auto operators = row_of(view, "Operators"), view_ns = row_of(view, "VIEW"), math = row_of(view, "MATH"),
                sources = row_of(view, "SOURCES"), conversions = row_of(view, "CONVERSIONS");
@@ -530,22 +533,24 @@ TEST_CASE("Flow's rail says what is in scope and where it comes from, and groups
     REQUIRE(sources >= 0);
     REQUIRE(conversions >= 0);
     CHECK(operators < view_ns);
-    CHECK(view_ns < row_of(view, "  view.op"));
-    CHECK(row_of(view, "  view.op") < math);
-    CHECK(math < row_of(view, "  math.other"));
-    CHECK(row_of(view, "  math.other") < sources);
-    CHECK(sources < row_of(view, "  view.src"));
-    CHECK(row_of(view, "  view.src") < conversions);
-    CHECK(conversions < row_of(view, "  view.edge"));
+    CHECK(view_ns < row_of(view, "  op"));
+    CHECK(row_of(view, "  op") < math);
+    CHECK(math < row_of(view, "  other"));
+    CHECK(row_of(view, "  other") < sources);
+    CHECK(sources < row_of(view, "  src"));
+    CHECK(row_of(view, "  src") < conversions);
+    CHECK(conversions < row_of(view, "  edge"));
 
     // A PREVIEW IS THE ROW EXPANDED AT THE RAIL'S FOOT: what it is, its ports, what it is for,
     // and Add, the list above it stopping where it begins.
     model.preview = "view.op";
     const auto previewed = pane::picture(model, room());
-    const auto said = row_of(previewed, "view.op");
+    const auto said = row_of(previewed, "op");
     REQUIRE(said >= 0);
-    CHECK(row_of(previewed, "operator, native, from") > said);
-    CHECK(row_of(previewed, "view.provider") > said);
+    // ⚔ MUTATION (tests/mutants/flow_view.md#preview-names-its-provider): it names its provider.
+    CHECK(row_of(previewed, "an operator") > said);
+    CHECK_FALSE(text_has(previewed, "view.provider"));
+    CHECK_FALSE(text_has(previewed, "view.op"));
     CHECK(row_of(previewed, "(a: Int) -> value: Int") > said);
     CHECK(row_of(previewed, "what this power is for") > said);
     REQUIRE(action_has(previewed, "add-found"));
@@ -559,13 +564,108 @@ TEST_CASE("Flow's rail says what is in scope and where it comes from, and groups
         measured.width = 120 * 9;
         measured.height = height;
         const auto band = pane::picture(model, measured);
-        CHECK_MESSAGE(row_of(band, "view.op") >= 0, height);
+        CHECK_MESSAGE(row_of(band, "op") >= 0, height);
         CHECK_MESSAGE(row_of(band, "what this power is for") >= 0, height);
         CHECK_MESSAGE(row_of(band, "Add to the rule") >= 0, height);
     }
     // ...and a row the latest answer no longer carries is previewed by nobody.
     answered(model, {found_row("view.src", ws::kSourceKind)});
     CHECK_FALSE(action_has(pane::picture(model, room()), "add-found"));
+}
+
+TEST_CASE("Flow names a step by its operator, a port by its step and a field by its name: no step "
+          "number, field spelling, revision or operator identity on screen") {
+    // TWO STEPS OF ONE OPERATOR, the second reading the first's answer: each counted by its operator.
+    auto m = tally();
+    m.command("add-node", add_ref(m));
+    m.command("bind", {"1", "0", "%0"});
+    m.command("move", {"1", std::to_string(pane::kPlaceX), "720"});
+    m.node = 1;
+    answered(m, {found_row("math.add", ws::kOperatorKind)});
+    m.preview = "math.add";
+    m.preview_kind = ws::kOperatorKind;
+    const auto internal = [](const pane::Picture& view) {
+        for (const auto& words : view.texts()) {
+            // A revision as the bar once said one: ` r` and a digit.
+            bool revision = false;
+            for (std::size_t at = 1; at + 1 < words.size(); ++at)
+                revision = revision || (words[at - 1] == ' ' && words[at] == 'r' && words[at + 1] >= '0' &&
+                                        words[at + 1] <= '9');
+            if (words.find('%') != std::string::npos || words.find('$') != std::string::npos ||
+                words.find("state.") != std::string::npos || words.find("input.") != std::string::npos ||
+                words.find("math.add") != std::string::npos || words.find("provider") != std::string::npos ||
+                revision)
+                return words;
+        }
+        return std::string();
+    };
+    // ⚔ MUTATION (tests/mutants/flow_view.md#card-head-says-its-identity): a head says its identity.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#preview-names-its-provider): it names its provider.
+    for (const auto& at : {room(), light_room()}) {
+        const auto view = pane::picture(m, at);
+        CHECK_MESSAGE(internal(view).empty(), internal(view));
+        CHECK(text_has(view, "add (1)"));
+        CHECK(text_has(view, "add (2)"));
+        CHECK(text_has(view, "<- add (1)"));
+        CHECK(text_has(view, "Add before add (2)"));
+        CHECK(text_has(view, "an operator"));
+    }
+    // A PORT CHOSEN: the rail and the box at it name it by its step.
+    m.filling = pane::PortChoice{m.workspace.graph.place(0, 1).id, 1};
+    m.preview.clear();
+    for (const auto& at : {room(), light_room()}) {
+        const auto view = pane::picture(m, at);
+        CHECK_MESSAGE(internal(view).empty(), internal(view));
+        CHECK(text_has(view, "For add (2)'s rhs : Int"));
+        CHECK(text_has(view, "from the message"));
+        CHECK(text_has(view, "a step's answer"));
+    }
+    CHECK(pane::next_step(m).text == "give add (2) its values.");
+    CHECK(pane::next_step(m).button == "Wire amount into add (2)");
+    // THE BAR SAYS WHETHER WHAT RUNS IS BEHIND THE DRAFT, not at which revision.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#bar-says-the-revision): the bar says the revision.
+    m.filling.reset();
+    m.running = true;
+    m.running_definition = m.workspace.graph.project.definition;
+    m.command("bind", {"1", "1", "$amount"});
+    for (const auto& at : {room(), light_room()}) {
+        const auto view = pane::picture(m, at);
+        CHECK_MESSAGE(internal(view).empty(), internal(view));
+        CHECK(text_has(view, "changed, not applied"));
+    }
+    m.command("say", {"Again", "total"});
+    CHECK(text_has(pane::picture(m, light_room()), "changed, needs a restart"));
+    CHECK(internal(pane::picture(m, light_room())).empty());
+
+    // WHAT THE DRAFT LACKS, each by its step, its port or its message.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#lacks-in-the-graphs-words): said in the graph's words.
+    pane::Model less;
+    less.palette.push_back({"compare.less",
+                            loom::SchemaBuilder("compare.less.in", 1).field("lhs", loom::Kind::Int)
+                                .field("rhs", loom::Kind::Int).build(),
+                            loom::SchemaBuilder("compare.less.out", 1).field("result", loom::Kind::Bool).build()});
+    less.command("new", {"tally", "discard"});
+    less.command("message", {"tally.Set"});
+    less.command("keep", {"total", "Int"});
+    less.command("add-node", {"compare.less",
+                              std::to_string(static_cast<std::int64_t>(less.palette.front().inputs->content_id())),
+                              std::to_string(static_cast<std::int64_t>(less.palette.front().outputs->content_id()))});
+    CHECK(less.lacks().front() == "less's lhs has no value yet");
+    less.command("bind-all", {"0", "$total", "$total"});
+    REQUIRE(less.lacks().size() == 1);
+    CHECK(less.lacks().front() == "less answers Bool, and total keeps Int");
+    try {
+        less.ready();
+        FAIL("a draft that lacks something is not ready");
+    } catch (const std::invalid_argument& e) {
+        CHECK(std::string(e.what()) == "less answers Bool, and total keeps Int");
+    }
+    less.command("message", {"tally.Reset"});
+    less.command("trigger", {"1", "total"});
+    CHECK(less.lacks().back() == "tally.Reset has no step yet");
+    // ...where the graph's own lines keep its words, for whoever reads them as text.
+    CHECK(less.workspace.graph.problems(less.palette).front() ==
+          "tally.Set / node 0: result type does not match state.total");
 }
 
 TEST_CASE("the rule reads as one sentence, each part still to choose open") {
@@ -739,9 +839,10 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
     REQUIRE(light.picture.canvas.has_value());
     CHECK(light.sketch.nodes().size() <= gfx::kMaxNodesPerArea);
     for (const char* words : {"WHEN", "DO", "THEN", "tally.panel.Count", "amount", "kept between messages",
-                              "add", "math.add", "lhs", "rhs", "answer", "becomes the answer", "now 3", "say",
+                              "add", "lhs", "rhs", "answer", "becomes the answer", "now 3", "say",
                               "tally.Total", "total = 3", "Events", "newest first", "Done."})
         CHECK_MESSAGE(text_has(light.picture, words), std::string(words));
+    CHECK_FALSE(text_has(light.picture, "math.add"));
     CHECK(text_has(light.picture, "tally.panel.Count  amount 3  ->  total 0 -> 3  ->  said tally.Total 3"));
     std::size_t curves = 0, ports = 0;
     std::set<std::int64_t> colours;

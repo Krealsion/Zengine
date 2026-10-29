@@ -48,6 +48,36 @@ inline const std::vector<std::string>& field_kinds() {
     static const std::vector<std::string> kinds{"Int", "Bool", "Float", "Text", "Bytes"};
     return kinds;
 }
+/// AN OPERATOR BY ITS SHORT NAME: its identity's last word (`add` for `math.add`).
+inline std::string power_name(const std::string& identity) {
+    const auto dot = identity.rfind('.');
+    return dot == std::string::npos ? identity : identity.substr(dot + 1);
+}
+/// A NODE BY ITS SHORT NAME: its operator's, a fold's with the word fold before it.
+inline std::string short_name(const op::Node& node) {
+    if (!node.fold) return power_name(node.identity);
+    return node.identity.empty() ? "fold" : "fold " + power_name(node.identity);
+}
+/// STEP `n` BY ITS OPERATOR, as a weaver reads it: its short name, and where the trigger has more
+/// than one step of that name, which of them it is, counted from the first (`add (2)`).
+inline std::string step_name(const std::vector<op::Node>& nodes, std::size_t n) {
+    const auto name = short_name(nodes.at(n));
+    std::size_t same = 0, before = 0;
+    for (std::size_t i = 0; i < nodes.size(); ++i)
+        if (short_name(nodes[i]) == name) {
+            ++same;
+            if (i < n) ++before;
+        }
+    return same > 1 ? name + " (" + std::to_string(before + 1) + ")" : name;
+}
+/// WHAT A PORT READS, as a weaver reads it: a field by its name, a step's answer by the step, a
+/// value as itself.
+inline std::string source_words(const std::vector<op::Node>& nodes, const op::Binding& b) {
+    if (b.from() == op::Binding::From::Input) return b.input_name();
+    if (b.from() == op::Binding::From::Node)
+        return b.node_index() < nodes.size() ? step_name(nodes, b.node_index()) : std::string("a step");
+    return flow::binding_text(b);
+}
 /// An input port a maker selected to fill: its node by the place's stable id, so removing
 /// another node never moves the choice onto a different one.
 struct PortChoice { std::int64_t place = 0; std::size_t port = 0; };
@@ -158,6 +188,65 @@ public:
         events.clear();
     }
     void touched() { dirty = true; }
+    /// WHAT THE DRAFT LACKS BEFORE IT RUNS, in the order the graph finds them, each in a weaver's
+    /// words: a step by its operator, a port by its step, what it keeps by name.
+    std::vector<std::string> lacks() const {
+        using Lack = flow::GraphDraft::Problem::Lack;
+        const auto& graph = workspace.graph;
+        const auto& def = graph.project.definition;
+        const auto kind = [](const loom::TypeRef& t) { return std::string(loom::name_of(t.kind)); };
+        std::vector<std::string> out;
+        for (const auto& p : graph.problem_list(palette)) {
+            const auto& on = def.on.at(p.trigger);
+            const auto& nodes = on.body.nodes;
+            const bool named = p.node && *p.node < nodes.size();
+            const auto step = named ? step_name(nodes, *p.node) : std::string("a step");
+            const auto port = step + "'s " + p.port_name;
+            std::string said;
+            try {
+                const bool at_port = named && p.port;
+                const auto* kept = def.state->find(on.output);
+                const auto open = [&](const op::Binding& b) {
+                    return b.from() == op::Binding::From::Input && b.input_name().empty();
+                };
+                if (at_port && open(nodes[*p.node].arguments.at(*p.port))) said = port + " has no value yet";
+                else switch (p.lack) {
+                case Lack::Steps: said = on.message->name() + " has no step yet"; break;
+                case Lack::Body: said = step + " needs its body chosen"; break;
+                case Lack::Ports: said = step + "'s operator changed its ports: add it again"; break;
+                case Lack::Order:
+                    if (at_port)
+                        said = port + " reads " + source_words(nodes, nodes[*p.node].arguments.at(*p.port)) +
+                               ", which comes after it";
+                    break;
+                case Lack::Type:
+                    if (at_port) {
+                        const auto takes = graph.node_ports(p.trigger, *p.node, palette).inputs->fields().at(*p.port).type;
+                        const auto& b = nodes[*p.node].arguments.at(*p.port);
+                        said = port + " takes " + kind(takes) + ", and " + source_words(nodes, b) + " is " +
+                               kind(graph.source_type(p.trigger, b, palette));
+                    }
+                    break;
+                case Lack::Answer:
+                    if (named && kept)
+                        said = step + " answers " + kind(graph.node_answer_type(p.trigger, *p.node, palette)) +
+                               ", and " + on.output + " keeps " + kind(kept->type);
+                    break;
+                case Lack::Other: break;
+                }
+            } catch (const std::exception&) {
+                said.clear();
+            }
+            if (said.empty()) said = (named ? (p.port ? port : step) : on.message->name()) + ": " + p.why;
+            out.push_back(std::move(said));
+        }
+        return out;
+    }
+    /// The draft runs only with nothing lacking: refused with the first thing it lacks.
+    void ready() const {
+        const auto lacking = lacks();
+        if (!lacking.empty()) throw std::invalid_argument(lacking.front());
+    }
     void edited_state() {
         if (state_epoch == std::numeric_limits<std::uint64_t>::max()) throw std::invalid_argument("state edit epoch exhausted");
         ++state_epoch; state_edited = true; touched();
@@ -450,8 +539,7 @@ private:
             need(1); workspace.graph.remove_emit(trigger(), flow::index_of(args[0])); touched();
         } else if (action == "generate") {
             // Native C++ for the definition, or the refusal in words; nothing is written then.
-            need(1); const auto errors = workspace.graph.problems(palette);
-            if (!errors.empty()) throw std::invalid_argument(errors.front());
+            need(1); ready();
             notice = "Generated " + flow::write_generated(workspace.graph.project.definition, args[0]);
             return {};
         } else if (action == "add-fold") {
@@ -473,8 +561,7 @@ private:
         } else if (action == "move") {
             need(3); place_at(flow::index_of(args[0]), args[1], args[2]); touched();
         } else if (action == "export-project") {
-            need(1); const auto errors = workspace.graph.problems(palette);
-            if (!errors.empty()) throw std::invalid_argument(errors.front());
+            need(1); ready();
             flow::save_project(args[0], workspace.graph.project);
         } else if (action == "import-project") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
@@ -537,7 +624,7 @@ private:
         } else if (action == "library-save") { need(1); md::save_library(args[0], workspace.library);
         } else if (action == "library-open") { need(1); auto loaded = md::open_library(args[0]); auto combined = workspace.library; for (const auto& p : loaded.entries()) combined.put(p.title, p.draft); workspace.library = std::move(combined); touched();
         } else if (action == "run" || action == "apply") {
-            need(0); const auto errors = workspace.graph.problems(palette); if (!errors.empty()) throw std::invalid_argument(errors.front());
+            need(0); ready();
             if (action == "run") return {Effect::Run, flow::byte_vector(flow::project_bytes(workspace.graph.project))};
             return {Effect::Apply, flow::byte_vector(zengine::maker::definition_bytes(workspace.graph.project.definition))};
         } else if (action == "send") {

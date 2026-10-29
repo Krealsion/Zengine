@@ -1641,11 +1641,11 @@ TEST_CASE("shapes cross between Flow and the View Builder by carry: what Flow sa
              {"add", {"label"}}, {"select", {"2"}}})
         tell(s, vb::kRole, vb::ViewEdit{action, args});
     press_text(s, s.flow, "[Messages]");
-    REQUIRE(pictured(s, s.flow, "0 tally.Total {total: Int}"));
+    REQUIRE(pictured(s, s.flow, "tally.Total {total: Int}"));
 
     // FLOW'S EMITTED MESSAGE ONTO THE LABEL: a right press offers to carry it, the choice carries
     // its shape, and a click on the label's row in the builder is where it lands.
-    press_text(s, s.flow, "0 tally.Total", 3);
+    press_text(s, s.flow, "tally.Total {", 3);
     choose(s, "Carry tally.Total");
     INFO(s.r.last_notice());
     press_text(s, s.builder, "> label1  label");
@@ -1675,7 +1675,7 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
              {"new", {"tally.panel", "discard"}}, {"add", {"label"}}, {"select", {"0"}}})
         tell(s, vb::kRole, vb::ViewEdit{action, args});
     press_text(s, s.flow, "[Messages]");
-    REQUIRE(pictured(s, s.flow, "0 tally.Total {total: Int}"));
+    REQUIRE(pictured(s, s.flow, "tally.Total {total: Int}"));
     const auto* flow = s.r.session().panes.runtime.of_kind(s.flow);
     REQUIRE(flow != nullptr);
     const auto flow_id = s.r.bus.role_holder(flow->provider);
@@ -1699,7 +1699,7 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
 
     // A CLICK ON THE MESSAGE: Flow asks to carry it under the press, and the carry begins, so the
     // press's hold ends as lost; the hand never moved, so nothing lands and nothing is held.
-    auto click = at_text(s, s.flow, "0 tally.Total");
+    auto click = at_text(s, s.flow, "tally.Total {");
     click.pressed = true; s.event(click);
     REQUIRE(told_flow.size() == 2);
     CHECK(told_flow[0] == canvas_pointer::kPress);
@@ -1713,7 +1713,7 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     // A DRAG FROM IT TO THE LABEL'S ROW, the hand's moments one by one: the motion is the
     // carry's, never Flow's, and the builder is told where the value was released.
     told_flow.clear();
-    auto from = at_text(s, s.flow, "0 tally.Total");
+    auto from = at_text(s, s.flow, "tally.Total {");
     auto to = at_text(s, s.builder, "> label1  label");
     from.pressed = true; s.event(from);
     auto move = to; move.kind = "PointerMoved"; move.dx = to.x - from.x; move.dy = to.y - from.y;
@@ -1736,7 +1736,7 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     drops.clear();
     tell(s, vb::kRole, vb::ViewEdit{"unshow", {"0"}});
     REQUIRE_FALSE(pictured(s, s.builder, "shows tally.Total"));
-    drag_between(s, at_text(s, s.flow, "0 tally.Total"), at_text(s, s.builder, "> label1  label"));
+    drag_between(s, at_text(s, s.flow, "tally.Total {"), at_text(s, s.builder, "> label1  label"));
     REQUIRE(told_flow.size() == 3);
     CHECK(told_flow[2] == canvas_pointer::kRelease);
     REQUIRE(drops.size() == 1);
@@ -1760,7 +1760,7 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
              {"add", {"label"}}, {"select", {"1"}}})
         tell(s, vb::kRole, vb::ViewEdit{action, args});
     press_text(s, s.flow, "[Messages]");
-    REQUIRE(pictured(s, s.flow, "0 tally.Total {total: Int}"));
+    REQUIRE(pictured(s, s.flow, "tally.Total {total: Int}"));
 
     // THE INTENT ONTO FLOW: dragged from what `count` says, and let go over Flow's messages.
     drag_between(s, at_text(s, s.builder, "says tally.panel."), at_text(s, s.flow, "Emitted"));
@@ -1774,7 +1774,7 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
     // builder marks where it would land, and the label shows it once the hand lets go.
     const auto area = design_of(s);
     const auto label = vb::element_area(area, zengine::view::Element{"label1", zengine::view::Kind::label, "", 0, 56, 192, 24, ""});
-    auto from = at_text(s, s.flow, "0 tally.Total");
+    auto from = at_text(s, s.flow, "tally.Total {");
     from.pressed = true;
     s.event(from);
     auto over = at_local(s, s.builder, label.x + 2 * gfx::kCellPx, label.y + gfx::kCellPx / 2, "PointerMoved");

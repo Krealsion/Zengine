@@ -436,55 +436,81 @@ public:
                           1056 + static_cast<std::int64_t>(n % 3) * 1344,
                           240 + static_cast<std::int64_t>(n / 3) * 720});
   }
-  std::vector<std::string> problems(const Palette &palette) const {
-    std::vector<std::string> out;
+  /// ONE THING THE DRAFT LACKS BEFORE IT RUNS: what kind of lack it is, the trigger it is in, the
+  /// node and its port where it names them, and why, in this library's words.
+  struct Problem {
+    enum class Lack { Steps, Body, Ports, Order, Type, Answer, Other };
+    Lack lack = Lack::Other;
+    std::size_t trigger = 0;
+    std::optional<std::size_t> node, port;
+    std::string port_name, why;
+  };
+  std::vector<Problem> problem_list(const Palette &palette) const {
+    using Lack = Problem::Lack;
+    std::vector<Problem> out;
+    // A refusal by a kind, its words in this library's; any other is said as it was thrown.
+    struct Lacking : std::invalid_argument {
+      Lack lack;
+      Lacking(Lack l, const std::string &why) : std::invalid_argument(why), lack(l) {}
+    };
+    const auto lack_of = [](const std::exception &e) {
+      const auto *said = dynamic_cast<const Lacking *>(&e);
+      return said != nullptr ? said->lack : Lack::Other;
+    };
     for (std::size_t t = 0; t < project.definition.on.size(); ++t) {
       const auto &on = project.definition.on[t];
       if (on.body.nodes.empty()) {
-        out.push_back(on.message->name() + ": add a result node");
+        out.push_back({Lack::Steps, t, std::nullopt, std::nullopt, {}, "add a result node"});
         continue;
       }
       for (std::size_t n = 0; n < on.body.nodes.size(); ++n) {
         const auto &node = on.body.nodes[n];
         try {
           if (node.fold && node.identity.empty())
-            throw std::invalid_argument("choose the fold's body");
+            throw Lacking(Lack::Body, "choose the fold's body");
           const auto &operator_ports = ports(palette, node.identity);
           if (node.authored_in != operator_ports.inputs->content_id() ||
               node.authored_out != operator_ports.outputs->content_id())
-            throw std::invalid_argument("operator signature changed");
+            throw Lacking(Lack::Ports, "operator signature changed");
           const auto p = node_ports(t, n, palette);
           if (!p.inputs || !p.outputs || p.outputs->fields().size() != 1)
-            throw std::invalid_argument("operator has no single output");
+            throw Lacking(Lack::Ports, "operator has no single output");
           if (!project.definition.state->find(on.output))
             throw std::invalid_argument("unknown state output");
           if (node.arguments.size() != p.inputs->fields().size())
-            throw std::invalid_argument("port count changed");
+            throw Lacking(Lack::Ports, "port count changed");
           for (std::size_t a = 0; a < node.arguments.size(); ++a) {
             const auto &b = node.arguments[a];
             try {
               if (b.from() == op::Binding::From::Node && b.node_index() >= n)
-                throw std::invalid_argument("forward or cyclic connection");
+                throw Lacking(Lack::Order, "forward or cyclic connection");
               if (!op::detail::same_type(source_type(t, b, palette),
                                          p.inputs->fields()[a].type))
-                throw std::invalid_argument("incompatible type");
+                throw Lacking(Lack::Type, "incompatible type");
             } catch (const std::exception &e) {
-              out.push_back(on.message->name() + " / node " +
-                            std::to_string(n) + " / " +
-                            p.inputs->fields()[a].name + ": " + e.what());
+              out.push_back({lack_of(e), t, n, a, p.inputs->fields()[a].name, e.what()});
             }
           }
           if (n == on.body.result_node &&
               !op::detail::same_type(
                   p.outputs->fields()[0].type,
                   project.definition.state->find(on.output)->type))
-            throw std::invalid_argument("result type does not match state." +
-                                        on.output);
+            throw Lacking(Lack::Answer, "result type does not match state." + on.output);
         } catch (const std::exception &e) {
-          out.push_back(on.message->name() + " / node " + std::to_string(n) +
-                        ": " + e.what());
+          out.push_back({lack_of(e), t, n, std::nullopt, {}, e.what()});
         }
       }
+    }
+    return out;
+  }
+  /// Each problem as one line: its trigger's message, its node and port where it names them, why.
+  std::vector<std::string> problems(const Palette &palette) const {
+    std::vector<std::string> out;
+    for (const auto &p : problem_list(palette)) {
+      auto line = project.definition.on.at(p.trigger).message->name();
+      if (p.node) line += " / node " + std::to_string(*p.node);
+      if (p.port) line += " / " + p.port_name;
+      out.push_back(line + ": " + p.why);
     }
     return out;
   }

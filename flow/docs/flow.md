@@ -31,12 +31,13 @@ refusal named here is in [the pane's manual](zengine.flow.md).
 4. Open **Graph**. Its Next line asks for the trigger: choose **Use water.Reading**, or the
    gear's **Add a trigger** with message index `0` and state output `value`. Type `larger` (the
    search line in the rail takes what you type) and click `max` under **MATH**. The rail's foot
-   previews it: what it is and whose, its signature, and what its contributor says it is for.
+   previews it: what kind of thing it is, its signature, and what its contributor says it is for.
    Choose **Add to the rule**.
-5. Click `input.input` under **In scope**, then the node's `lhs` port -- or drag from one to the
+5. Click `input` under **In scope**, then the node's `lhs` port -- or drag from one to the
    other. Click the `rhs` port: the rail lists what could fill it
-   ([below](#find-what-to-compose)). Click `state.value` there. The graph executes in order; forward
-   or cyclic connections are refused.
+   ([below](#find-what-to-compose)). Click `value` there. The graph executes in order; forward
+   or cyclic connections are refused. Flow names a step by its operator -- `max`, and `max (2)`
+   where two share one -- a port by its step, `max's rhs`, and a field by its name.
 6. Select the node header and choose **Use as result**. Drag its header to move it; a press on
    blank graph room lets go of it and of a selected port. Drag blank graph room or use the middle
    button to pan; the wheel pans vertically over the graph.
@@ -92,8 +93,8 @@ The rail beside the graph finds operators through the host's
   nothing. **Add to the rule**, or **Enter**, adds the previewed power at the end of the
   trigger's graph, by the reference the row carries; if its ports have changed since it was
   found, Add says so and adds nothing, and so it does when the graph changed while Flow read
-  those ports from the host. With a node selected, **Add before %n** places it ahead of that node
-  instead, and with a port selected, **Add into %n port** places it ahead of the port's node and
+  those ports from the host. With a node selected, **Add before** that step places it ahead of the
+  node instead, and with a port selected, **Add into** that port places it ahead of the port's node and
   wires it there, so a found operator can feed the port you were filling. The graph executes in
   order, and the nodes that follow are renumbered.
 - **A wire let go on empty room asks what it could feed.** Drag from a node's output, or a field
@@ -111,8 +112,8 @@ The rail beside the graph finds operators through the host's
   threading an accumulator. Add it from **FORMS**: it arrives with `step` bound to `1`. Click its
   `body: [choose]` row: the rail then lists only what a fold could spend -- one answer, an `Int`
   port for the count and another port of the answer's type -- and the preview offers each way to
-  thread it, such as **count rhs, acc lhs** for `math.add`. You choose which port takes the count;
-  port names only suggest. The node then reads `fold math.add`, its body row `count rhs, acc lhs`,
+  thread it, such as **count rhs, acc lhs** for `add`. You choose which port takes the count;
+  port names only suggest. The node then reads `fold add`, its body row `count rhs, acc lhs`,
   and it is brought into view whole. A reference the slot refuses is put down, so choosing again
   spends the row the door holds now. Wire `start`, `limit`, `step` and `initial`, and any other port of the
   body from scope.

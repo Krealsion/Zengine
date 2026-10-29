@@ -37,7 +37,7 @@ an ellipsis; neither changes what is stored.
 
 Open it from the Pane Manager, <!-- key desktop.panes -->`ctrl+p`<!-- /key -->, and give it room.
 The bar holds Run, Apply -- Restart in its place when the draft changed what the running rule
-hears, keeps or says -- and Stop, beside the rule's name and revision, running or stopped; then
+hears, keeps or says -- and Stop, beside the rule's name, running or stopped, and changed; then
 File, View and a gear for the rest; under it, a tab a page: Graph, State, Messages, Library and
 Events. Every button or menu row with no argument is one of the commands below; a press on a node,
 a port, a row or a field is the page's own ([Shows](#shows)), and so is one in a graphics window
@@ -133,15 +133,15 @@ could be. Letting a dragged wire go on empty graph room opens the same search wh
 
 - **Takes:** a wire held by a press on an output or a field under In scope, or a selected input
   port. Default key <!-- key find-wire -->`ctrl+n`<!-- /key -->; View's `Find a wire`.
-- **Answers:** a list at the graph's centre, `From <%n or $field> : <type> -- what takes it` or
-  `Into %n <port> : <type> -- what fills it`, the search line above its rows, and asks the discovery
+- **Answers:** a list at the graph's centre, `From <step or field> : <type> -- what takes it` or
+  `Into <step>'s <port> : <type> -- what fills it`, the search line above its rows, and asks the discovery
   door ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)): from an output, each
-  power with a port of exactly that type, a row a port (`math.add -> lhs`), and the fold's counting
+  power with a port of exactly that type, a row a port (`add -> lhs`), and the fold's counting
   ports for an `Int`; from a port, what is in scope of its type, a typed constant for `Int` and
   `Bool`, then each power that yields it. A row chosen makes the node, placed after what it reads
   (at the trigger's start for a field) or before the port's node, where the list was opened, wired,
-  and selected, in one edit: `Added %k <power>, wired from <%n or $field>` or `Added %k <power>,
-  wired into %m <port>`; an In scope row binds the port, `Bound %n <port> to <binding>`; the
+  and selected, in one edit: `Added <step>, wired from <step or field>` or `Added <step>, wired
+  into <step>'s <port>`; an In scope row binds the port, `Wired <name> into <step>'s <port>`; the
   constant row readies the port's own box. Escape, or a press outside the list, closes it and puts the
   wire down: `The wire was put down: <why>; nothing was made`.
 - **Refuses:** `Hold a wire first -- click an output or a field In scope, or select a port -- then
@@ -727,14 +727,14 @@ declared message, or right-press it and choose `Carry`, to carry its shape to an
 ### `library`
 
 The Library page: `[Import]`, `[Export]`, each named example, `(unfinished)` when it is, and under
-`Retained forms` each form the workspace keeps, by its title and its shape's content id.
+`Retained forms` each form the workspace keeps, by its title, counted where two share one.
 
 ### `events`
 
 The Events page: one line a message the running rule took, newest first -- what came in, what
 changed, what was said, `tally.panel.Count  amount 3  ->  total 0 -> 3  ->  said tally.Total 3` --
-then the runs before, the host's other words, the live state, `state.total = 3`, and `Dispatch
-pending: <n> / older events omitted: <n>`; a long line continues beneath.
+then the runs before, the host's other words, the live state, `total = 3`, and `<n> waiting to
+be handled; <n> older lines not kept`; a long line continues beneath.
 
 ### `dropped`
 

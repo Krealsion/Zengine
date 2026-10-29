@@ -126,6 +126,10 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   `in_scope` holds of its type, each by its own name and where it comes from, and one value of its
   own kind -- a number checked as it is typed (`flow_pane::whole_number`, the rule `flow::integer`
   reads by), or yes or no -- whose words name no node or port by number, and no `$` or `%`.
+  Wherever it draws, a step is named by its operator (`flow_pane::step_name`), counted where two
+  share one, a port by its step and a field by its name, and what the draft lacks is said so too
+  (`Model::lacks`, over `GraphDraft::problem_list`, whose `problems` lines keep the library's own
+  words): no step number, `$`, `%`, revision or operator identity is drawn.
   A preview evaluates nothing. Add takes an operator reference (the row's
   identity and two content ids): `add-node` places a step at the end or before a node, and
   `add-node-into` before a port's node and into that port, one renumbering edit; a stale
@@ -143,8 +147,8 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   `tests/test_flow_view.cpp` covers canvas clipping, dense views, long text, independent measured
   axes, device-grain hit testing, the rail's grouping and preview, the rule's sentence, the Next
   line's walk, the journal read one line a message, the tally drawn in light and in cells, a card
-  chosen and put, what makes two presses one double click, a step named by its operator, and the
-  kinds a kept field is chosen from.
+  chosen and put, what makes two presses one double click, a step named by its operator and no
+  internal word drawn, and the kinds a kept field is chosen from.
   `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
   reload preservation, the right press handed back, the empty press and the pan, the chosen step's
   x and Delete, the When and Then cards moved, the double clicks that add, the box at a port, the

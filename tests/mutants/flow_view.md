@@ -68,3 +68,70 @@ In `flow/flow-pane/look.hpp`:
 Red in `zengine-flow-tests`:
 
 - a part carries a run of words only where the run's whole row stands inside it
+
+## bar-says-the-revision
+
+The bar says the revision that runs.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-        said.push_back("running");
++        said.push_back("running r" + std::to_string(model.running_definition->revision));
+```
+
+Red in `zengine-flow-tests`:
+
+- Flow names a step by its operator, a port by its step and a field by its name: no step number,
+  field spelling, revision or operator identity on screen
+
+## card-head-says-its-identity
+
+A step's card is headed by its operator's identity.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-        pen.text(tx, rows.head, step_name(on->body.nodes, n), !light && selected ? hue::message() : hue::wire(),
++        pen.text(tx, rows.head, node.identity, !light && selected ? hue::message() : hue::wire(),
+```
+
+Red in `zengine-flow-tests`:
+
+- Flow clips a large offscreen graph before spending the picture's budget
+- Flow names a step by its operator, a port by its step and a field by its name: no step number,
+  field spelling, revision or operator identity on screen
+
+## lacks-in-the-graphs-words
+
+What the draft lacks is said in the graph's own words, by node number and the library's why.
+
+In `flow/flow-pane/model.hpp`:
+
+```diff
+-            if (said.empty()) said = (named ? (p.port ? port : step) : on.message->name()) + ": " + p.why;
++            said = (named ? (p.port ? port : step) : on.message->name()) + ": " + p.why;
+```
+
+Red in `zengine-flow-tests`:
+
+- Flow names a step by its operator, a port by its step and a field by its name: no step number,
+  field spelling, revision or operator identity on screen
+
+## preview-names-its-provider
+
+The preview says whose a row is, by its provider's office.
+
+In `flow/flow-pane/find.hpp`:
+
+```diff
+-    return row.construction == workshop::kCompositeConstruction ? kind + ", made of other steps" : kind;
++    return kind + ", from " + row.provider;
+```
+
+Red in `zengine-flow-tests`:
+
+- Flow's rail says what is in scope and where it comes from, and groups the door's rows:
+  operators by their first word, then Sources, Conversions and Forms
+- Flow names a step by its operator, a port by its step and a field by its name: no step number,
+  field spelling, revision or operator identity on screen

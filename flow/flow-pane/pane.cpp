@@ -895,14 +895,14 @@ public:
       model_.notice = "Host operators refreshed";
       if (adding) {
         if (flow::workspace_bytes(model_.workspace) != adding->draft)
-          model_.notice = "The graph changed while the ports of " + adding->identity +
-                          " were read; Add it again";
+          model_.notice = "The graph changed while the ports of " +
+                          pane::power_name(adding->identity) + " were read; Add it again";
         else if (described(adding->identity)) {
           effect(model_.command(adding->command, adding->arguments), mail);
           reveal();
         }
         else
-          model_.notice = adding->identity + " is not in the host's catalog now";
+          model_.notice = pane::power_name(adding->identity) + " is not in the host's catalog now";
       }
     } catch (const std::exception &e) {
       model_.notice = e.what();
@@ -1020,9 +1020,9 @@ public:
           model_.events.push_back(note);
         if (live_state_)
           for (const auto &row : live_state_->rows())
-            model_.events.push_back("state." + row.label + " = " + row.summary);
-        model_.events.push_back("Dispatch pending: " + std::to_string(answer.pending) +
-                                " / older events omitted: " + std::to_string(answer.dropped));
+            model_.events.push_back(row.label + " = " + row.summary);
+        model_.events.push_back(std::to_string(answer.pending) + " waiting to be handled; " +
+                                std::to_string(answer.dropped) + " older lines not kept");
         // A Send answer describes the enqueue, not its result. Keep the quit
         // gate closed through the later inspection that has retained fresh
         // state. Saving the old snapshot cannot erase this outstanding work.
@@ -1413,8 +1413,8 @@ private:
       // NO WIRE: the step is made at the end and stood where the search was opened.
       if (row.kind == "power" && !described(row.args.at(0))) {
         effect({pane::Effect::Catalog, {}}, mail);
-        model_.notice =
-            "Reading the ports of " + row.args.at(0) + " from the host; choose it again";
+        model_.notice = "Reading the ports of " + pane::power_name(row.args.at(0)) +
+                        " from the host; choose it again";
         return;
       }
       if (row.kind == "power")
@@ -1425,17 +1425,18 @@ private:
       if (made)
         effect(model_.command("move", {std::to_string(*made), place[0], place[1]}), mail);
       put_wire_down();
-      const auto named = row.label.find_first_not_of(' ');
-      model_.notice = "Added %" + (made ? std::to_string(*made) : std::string("?")) + " " +
-                      (named == std::string::npos ? row.label : row.label.substr(named)) + " here";
+      model_.notice = "Added " + (made ? step(*made) : std::string("a step")) + " here";
       return;
     }
     if (search.from.source) {
       const auto source = flow::binding_text(*search.from.source);
+      const auto source_said = pane::source_words(
+          model_.workspace.graph.project.definition.on.at(model_.trigger()).body.nodes,
+          *search.from.source);
       if (row.kind == "unread") {
         effect({pane::Effect::Catalog, {}}, mail);
-        model_.notice =
-            "Reading the ports of " + row.args.at(0) + " from the host; choose it again";
+        model_.notice = "Reading the ports of " + pane::power_name(row.args.at(0)) +
+                        " from the host; choose it again";
         return;
       }
       std::vector<std::string> args;
@@ -1448,7 +1449,7 @@ private:
       }
       args.insert(args.end(), place.begin(), place.end());
       effect(model_.command(command, args), mail);
-      said = ", wired from " + source;
+      said = ", wired from " + source_said;
     } else {
       const auto port = pane::wire_port(model_);
       if (!port) {
@@ -1457,9 +1458,15 @@ private:
       }
       const auto n = std::to_string(port->node), a = std::to_string(port->port);
       if (row.kind == "scope") {
+        // What it wires, by its own name, as the port's step stood before the edit.
+        const auto port_said = pane::port_words(model_, *port);
+        std::string named = row.args.at(0);
+        for (const auto &candidate : pane::in_scope(model_, *port))
+          if (candidate.bind == row.args.at(0))
+            named = candidate.name;
         effect(model_.command("bind", {n, a, row.args.at(0)}), mail);
         put_wire_down();
-        model_.notice = "Bound %" + n + " " + port->field.name + " to " + row.args.at(0);
+        model_.notice = "Wired " + named + " into " + port_said;
         return;
       }
       if (row.kind == "constant") {
@@ -1474,20 +1481,24 @@ private:
         adding_ = Adding{row.args.at(0), "add-node-into", std::move(args), requests_,
                          flow::workspace_bytes(model_.workspace)};
         put_wire_down();
-        model_.notice = "Reading the ports of " + row.args.at(0) + " from the host";
+        model_.notice = "Reading the ports of " + pane::power_name(row.args.at(0)) + " from the host";
         return;
       }
       effect(model_.command("add-node-into", args), mail);
-      said = ", wired into %" + std::to_string(port->node + 1) + " " + port->field.name;
+      said = ", wired into " + step(port->node + 1) + "'s " + port->field.name;
     }
     const auto added = model_.node;
     put_wire_down();
     model_.node = added;
     if (added)
-      model_.notice = "Added %" + std::to_string(*added) + " " +
-                      pane::node_title(model_.workspace.graph.project.definition
-                                           .on.at(model_.trigger()).body.nodes.at(*added)) +
-                      said;
+      model_.notice = "Added " + step(*added) + said;
+  }
+  /// Step `n` of the active trigger by its operator, as the graph shows it now.
+  std::string step(std::size_t n) const {
+    const auto &def = model_.workspace.graph.project.definition;
+    if (def.on.empty() || n >= def.on.at(model_.trigger()).body.nodes.size())
+      return "a step";
+    return pane::step_name(def.on.at(model_.trigger()).body.nodes, n);
   }
   /// `find-wire`: the same search, at the graph's centre, for a wire held by clicks or a port
   /// selected.
@@ -1912,9 +1923,7 @@ private:
       // STOP, THEN RUN THE DRAFT: what it kept carries on where its shape is unchanged.
       if (!model_.running)
         throw std::invalid_argument("Nothing runs to restart; press Run");
-      const auto errors = model_.workspace.graph.problems(model_.palette);
-      if (!errors.empty())
-        throw std::invalid_argument(errors.front());
+      model_.ready();
       effect({pane::Effect::Stop, {}}, mail);
       restarting_ = true;
       model_.notice = "Restarting: stopping, then running the draft";
@@ -1972,7 +1981,8 @@ private:
     } else if (action == "source-node") {
       model_.connecting =
           zengine::op::Binding::node(flow::index_of(args.at(0)));
-      model_.notice = "Choose an input port to connect node " + args.at(0);
+      model_.notice = "Choose an input port to connect " + step(flow::index_of(args.at(0))) +
+                      "'s answer";
     } else if (action == "port") {
       if (model_.connecting) {
         const auto binding = *model_.connecting;
@@ -2125,7 +2135,8 @@ private:
     const auto row = std::find_if(model_.discovered.rows.begin(), model_.discovered.rows.end(),
                                   [&](const auto &r) { return r.kind == kind && r.identity == identity; });
     if (row == model_.discovered.rows.end())
-      throw std::invalid_argument(identity + " is not among the powers the door last found");
+      throw std::invalid_argument(pane::power_name(identity) +
+                                  " is not among the powers the door last found");
     if (row->kind == ws::kFormKind) {
       effect(model_.command("add-fold", command == "add-node" ? where : std::vector<std::string>{}),
              mail);
@@ -2141,7 +2152,7 @@ private:
     request(fh::FlowCatalog{}, "catalog", mail);
     adding_ = Adding{identity, command, std::move(arguments), requests_,
                      flow::workspace_bytes(model_.workspace)};
-    model_.notice = "Reading the ports of " + identity + " from the host";
+    model_.notice = "Reading the ports of " + pane::power_name(identity) + " from the host";
   }
   /// A dropped operator reference becomes a node: into the port it landed on, or as the body of
   /// the fold whose slot it landed on (the slot opens with it found, for the maker to say which
@@ -2169,7 +2180,7 @@ private:
       model_.search.set(ref.identity, ref.identity.size());
       model_.preview = ref.identity;
       model_.preview_kind.clear();
-      model_.notice = "Choose which port of " + ref.identity + " takes the count";
+      model_.notice = "Choose which port of " + pane::power_name(ref.identity) + " takes the count";
       return;
     }
     std::string command = "add-node";
@@ -2185,7 +2196,7 @@ private:
       request(fh::FlowCatalog{}, "catalog", mail);
       adding_ = Adding{ref.identity, command, std::move(arguments), requests_,
                        flow::workspace_bytes(model_.workspace)};
-      model_.notice = "Reading the ports of " + ref.identity + " from the host";
+      model_.notice = "Reading the ports of " + pane::power_name(ref.identity) + " from the host";
       return;
     }
     effect(model_.command(command, arguments), mail);

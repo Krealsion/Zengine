@@ -254,6 +254,29 @@ struct Rig {
         m.y = row.y + 4;
         return m;
     }
+    /// A PRESS ON THE PART `name` NAMES in the picture shown now, at its first cell.
+    Moment press_on(const std::string& name) {
+        for (const auto& part : picture().parts)
+            if (part.name == name) {
+                Moment m;
+                m.gesture = ++gesture;
+                m.x = part.x + 4;
+                m.y = part.y + 4;
+                return m;
+            }
+        INFO("no part named " << name);
+        REQUIRE(false);
+        return {};
+    }
+    /// ...ON STEP `n`'S HEAD, by the place the graph keeps it under.
+    Moment press_on_step(std::size_t n) {
+        for (const auto& place : workspace().graph.places)
+            if (place.node == static_cast<std::int64_t>(n))
+                return press_on("node:" + std::to_string(place.id));
+        INFO("no place for step " << n);
+        REQUIRE(false);
+        return {};
+    }
     /// A PRESS THE WINDOW LANDS ON `text` NOW, with its word of what it drew there: the narrowest
     /// part over the point, and the drawing's number. Delivered later, Flow judges it by that word.
     Moment landed(const std::string& text, bool prefix = false) {
@@ -445,11 +468,11 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
     rig.click("[Graph]");
     rig.choose("more", "ask-trigger");
     rig.key(in::scan::kReturn);
-    rig.click("  math.max");
+    rig.click("  max");
     rig.click("[Add to the rule]");
-    rig.click("input.input : Int");
-    rig.click("o lhs = ", true);
-    rig.click("o rhs = ", true);
+    rig.click("input : Int");
+    rig.click("o lhs", true);
+    rig.click("o rhs", true);
     rig.click("[Int constant]");
     rig.text("0");
     rig.key(in::scan::kReturn);
@@ -531,7 +554,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
     rig.click("[Graph]");
     rig.choose("more", "ask-trigger");
     rig.key(in::scan::kReturn);
-    rig.click("  math.max");
+    rig.click("  max");
     rig.click("[Add to the rule]");
     said = rig.picture();
     std::size_t nodes = 0, ports = 0;
@@ -767,7 +790,7 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
     authority.allow_to_role(fh::FlowAnswer::zen_name, fh::FlowAnswer::zen_version, fp::kRole);
     authority.allow_to_role(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version, fp::kRole);
     const auto impostor = rig.bus.register_weave(std::move(foreign), std::move(authority));
-    rig.click("  math.max");
+    rig.click("  max");
     const auto before = rig.state().workspace;
     const auto add = rig.press_for("[Add to the rule]");
     rig.bus.send_as_to_role(impostor, fp::kRole,
@@ -821,7 +844,7 @@ TEST_CASE("a right press on a declared message offers to carry its shape, and th
     rig.edit_ok("emitted-message", {"Total"});
     rig.edit_ok("emitted-field", {"0", "total", "Int", "required"});
     rig.click("[Messages]");
-    auto press = rig.press_for("0 tally.Total {total: Int}");
+    auto press = rig.press_for("tally.Total {total: Int}");
     press.button = 3;
     rig.host(press, 91);
     const loom::Message* menu = nullptr;
@@ -865,7 +888,7 @@ TEST_CASE("a press on a declared message asks under that press to drag its shape
     rig.edit_ok("emitted-message", {"Total"});
     rig.edit_ok("emitted-field", {"0", "total", "Int", "required"});
     rig.click("[Messages]");
-    rig.host(rig.press_for("0 tally.Total {total: Int}"), 93);
+    rig.host(rig.press_for("tally.Total {total: Int}"), 93);
     const loom::Message* carried = nullptr;
     for (const auto& m : rig.presenter->messages)
         if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
@@ -881,7 +904,7 @@ TEST_CASE("a press on a declared message asks under that press to drag its shape
     rig.edit_ok("message", {"Count"});
     rig.edit_ok("message-field", {"0", "by", "Int", "required"});
     rig.edit_ok("trigger", {"0", "total"});
-    auto found = rig.press_for("  math.max");
+    auto found = rig.press_for("  max");
     found.button = 3;
     rig.host(found, 94);
     CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
@@ -958,9 +981,9 @@ TEST_CASE("a dropped description that names a shape it does not carry declares n
 TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and interaction context") {
     Rig rig;
     rig.graph_semantically();
-    rig.click("  math.max");
+    rig.click("  max");
 
-    auto drag = rig.press_for("%0 math.max", true);
+    auto drag = rig.press_on_step(0);
     rig.host(drag);
     const auto start = rig.workspace().graph.places.front();
     auto motion = drag;
@@ -980,7 +1003,7 @@ TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and i
     rig.host(motion);
     CHECK(rig.workspace().graph.places.front().x == start.x + 97 * fp::unit / unit);
 
-    drag = rig.press_for("%0 math.max", true);
+    drag = rig.press_on_step(0);
     rig.host(drag);
     rig.click("[State]");
     const auto hidden = rig.workspace().graph.places.front();
@@ -1000,7 +1023,7 @@ TEST_CASE("a press the window landed on Flow takes where the same part is drawn 
     };
     const auto first = body();
     // A DEFINITION EDITED draws [Add] again where it stood: the press takes, and adds the node.
-    rig.click("  math.max");
+    rig.click("  max");
     const auto across_edit = rig.landed("[Add to the rule]");
     REQUIRE(across_edit.part.rfind("add-found:", 0) == 0);
     rig.edit_ok("bind", {"0", "1", "4"});
@@ -1008,7 +1031,7 @@ TEST_CASE("a press the window landed on Flow takes where the same part is drawn 
     rig.click(across_edit);
     CHECK_MESSAGE(body() == first + 1, rig.workspace().graph.project.definition.name);
     // A ROOM GIVEN AFRESH draws it there again too.
-    rig.click("  math.max");
+    rig.click("  max");
     const auto across_room = rig.landed("[Add to the rule]");
     ++rig.grant;
     rig.room();
@@ -1244,7 +1267,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     rig.edit_ok("save", {files.file()});
     REQUIRE_FALSE(rig.state().dirty);
     const auto start = rig.workspace().graph.places.front();
-    auto drag = rig.press_for("math.max");
+    auto drag = rig.press_on_step(0);
     rig.host(drag);
     auto motion = drag;
     motion.phase = ws::canvas_pointer::kMove;
@@ -1256,7 +1279,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     auto release = motion; release.phase = ws::canvas_pointer::kRelease;
     rig.host(release);
 
-    auto pan = rig.press_for("math.max");
+    auto pan = rig.press_on_step(0);
     pan.button = 2;
     rig.host(pan);
     motion = pan; motion.phase = ws::canvas_pointer::kMove;
@@ -1299,7 +1322,7 @@ TEST_CASE("Flow finds what to compose through the discovery door, by what a powe
     (void)rig.label("In scope");
     CHECK_FALSE(rig.shows_part("(click to wire)"));
     (void)rig.label("Operators");
-    (void)rig.label("  math.max");
+    (void)rig.label("  max");
     const auto spent = op::invocations();
 
     // THE SEARCH LINE: typed text is the door's question, and the rail is the door's answer.
@@ -1312,13 +1335,14 @@ TEST_CASE("Flow finds what to compose through the discovery door, by what a powe
     CHECK_FALSE(asked.yields.has_value());
     REQUIRE_FALSE(rig.answers.empty());
     CHECK(rig.answers.back() == loom::serialize(loom::to_value(ws::find_powers(rig.catalog, asked))));
-    (void)rig.label("  math.max");
-    CHECK_FALSE(rig.shows("  logic.select_int"));
+    (void)rig.label("  max");
+    CHECK_FALSE(rig.shows("  select_int"));
 
     // THE PREVIEW is the row expanded, in its contributor's words, and reading it runs nothing.
-    rig.click("  math.max");
-    (void)rig.label("math.max");
-    CHECK(rig.shows("operator, native, from flowtest.basic"));
+    rig.click("  max");
+    (void)rig.label("max");
+    CHECK(rig.shows("an operator"));
+    CHECK_FALSE(rig.shows_part("flowtest.basic"));
     (void)rig.label("(lhs: Int, rhs: Int) -> result: Int");
     (void)rig.label("the larger of two integers");
     CHECK(op::invocations() == spent);
@@ -1353,35 +1377,36 @@ TEST_CASE("a selected port lists what could fill it: in scope, a typed constant,
     // A SOURCE MOUNTED AFTER THE PANE READ ITS PORTS: the door finds it all the same.
     REQUIRE(rig.catalog.mount("flowtest.sources", {answer_source()}));
     rig.edit_ok("add-node", rig.ref("math.max"));
-    rig.click("o rhs = [unwired]");
-    (void)rig.label("For %1 rhs : Int");
+    rig.click("o rhs [unwired]");
+    (void)rig.label("For max (2)'s rhs : Int");
     REQUIRE_FALSE(rig.questions.empty());
     CHECK(rig.questions.back().yields == std::optional<std::string>("Int"));
     CHECK(rig.questions.back().offered == std::optional<bool>(true));
 
     // IN THE ORDER A MAKER REACHES FOR THEM.
     const std::vector<std::int64_t> order{
-        rig.label("In scope").y, rig.label("  state.value").y, rig.label("  input.input").y,
-        rig.label("  %0 math.max").y, rig.label("Constant").y, rig.label("[Int constant]").y,
-        rig.label("Operators").y, rig.label("SOURCES").y, rig.label("  flowtest.answer").y,
-        rig.label("MATH").y, rig.label("  math.max").y};
+        rig.label("In scope").y, rig.label("  value").y, rig.label("  input").y,
+        rig.label("  max (1)").y, rig.label("Constant").y, rig.label("[Int constant]").y,
+        rig.label("Operators").y, rig.label("SOURCES").y, rig.label("  answer").y,
+        rig.label("MATH").y, rig.label("  max").y};
     CHECK(std::is_sorted(order.begin(), order.end()));
     CHECK(std::adjacent_find(order.begin(), order.end()) == order.end());
     // ...and nothing that yields another type.
-    CHECK_FALSE(rig.shows("  logic.select_bool"));
+    CHECK_FALSE(rig.shows("  select_bool"));
 
     // A CANDIDATE IN SCOPE FILLS THE PORT through today's bind, and the port is put down.
-    rig.click("  %0 math.max");
+    rig.click("  max (1)");
     const auto body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 2);
     CHECK(body.nodes.at(1).arguments.at(1).from() == op::Binding::From::Node);
     CHECK(body.nodes.at(1).arguments.at(1).node_index() == 0);
-    CHECK_FALSE(rig.shows("For %1 rhs : Int"));
+    CHECK_FALSE(rig.shows("For max (2)'s rhs : Int"));
 
     // A FOUND SOURCE THE GRAPH'S PORTS DID NOT YET DESCRIBE is read from the host, then added.
-    rig.click("  flowtest.answer");
-    (void)rig.label("flowtest.answer");
-    CHECK(rig.shows("source, native, from flowtest.sources"));
+    rig.click("  answer");
+    (void)rig.label("answer");
+    CHECK(rig.shows("a source"));
+    CHECK_FALSE(rig.shows_part("flowtest.sources"));
     (void)rig.label("forty-two, whenever it is asked");
     const auto before = op::invocations();
     rig.click("[Add to the rule]");
@@ -1397,9 +1422,9 @@ TEST_CASE("an Add waiting on the host for an operator's ports is refused when th
     rig.graph_semantically();
     REQUIRE(rig.catalog.mount("flowtest.sources", {answer_source()}));
     rig.edit_ok("add-node", rig.ref("math.max"));
-    rig.click("o rhs = [unwired]");
-    rig.click("  flowtest.answer");
-    const auto press = rig.press_for("[Add into %1 rhs]");
+    rig.click("o rhs [unwired]");
+    rig.click("  answer");
+    const auto press = rig.press_for("[Add into max (2)'s rhs]");
 
     // THE ADD ASKS THE HOST, and before its answer comes, %1 is removed and another takes its place.
     rig.post(press);
@@ -1411,7 +1436,7 @@ TEST_CASE("an Add waiting on the host for an operator's ports is refused when th
     const auto& nodes = after.graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 2);
     CHECK(nodes.at(1).identity == "math.max");
-    CHECK(rig.shows("The graph changed while the ports of flowtest.answer were read; Add it again"));
+    CHECK(rig.shows("The graph changed while the ports of answer were read; Add it again"));
 }
 
 TEST_CASE("Flow never offers a running definition's trigger body, which the door lists as not offered") {
@@ -1449,25 +1474,25 @@ TEST_CASE("Add places a found operator before the selected node, or before the n
     Rig rig;
     rig.graph_semantically();
     rig.text("larger");
-    rig.click("%0 math.max");
-    rig.click("  math.max");
-    rig.click("[Add before %0]");
+    rig.click(rig.press_on_step(0));
+    rig.click("  max");
+    rig.click("[Add before max]");
     auto body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 2);
     CHECK(body.result_node == 1); // the node that was %0 is %1, and still the result
     CHECK(body.nodes.at(1).arguments.at(0).input_name() == "input");
 
     // INTO A PORT: the port being filled names the node to place before, and Add wires it there.
-    rig.click("o rhs = 0");
-    (void)rig.label("For %1 rhs : Int");
-    rig.click("  math.max");
-    rig.click("[Add into %1 rhs]");
+    rig.click("o rhs <- 0");
+    (void)rig.label("For max (2)'s rhs : Int");
+    rig.click("  max");
+    rig.click("[Add into max (2)'s rhs]");
     body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 3);
     CHECK(body.nodes.at(2).arguments.at(1).from() == op::Binding::From::Node);
     CHECK(body.nodes.at(2).arguments.at(1).node_index() == 1);
     CHECK(body.result_node == 2);
-    CHECK_FALSE(rig.shows("For %2 rhs : Int"));
+    CHECK_FALSE(rig.shows("For max (3)'s rhs : Int"));
 }
 
 TEST_CASE("the tally composed in the pane: the fold found by what it is for, placed with its step "
@@ -1485,10 +1510,10 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     (void)rig.label("FORMS");
     rig.click("  fold");
     (void)rig.label("fold");
-    CHECK(rig.shows("a form the evaluator spends"));
+    CHECK(rig.shows("a form: it repeats a step"));
     rig.click("[Add to the rule]");
-    (void)rig.label("%0 fold");
-    (void)rig.label("o step = 1");
+    (void)rig.label("fold");
+    (void)rig.label("o step <- 1");
 
     // THE BODY SLOT asks the door for what a fold could spend, and the maker names the count's port.
     rig.key(in::scan::kEscape); // the preview
@@ -1497,15 +1522,15 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     rig.click("body = [choose]");
     REQUIRE_FALSE(rig.questions.empty());
     CHECK(rig.questions.back().fits == std::optional<std::string>("fold"));
-    (void)rig.label("For %0 fold's body");
-    CHECK(rig.shows("  logic.select_int"));
-    CHECK_FALSE(rig.shows("  compare.less_int"));
-    rig.click("  math.add");
+    (void)rig.label("For fold's body");
+    CHECK(rig.shows("  select_int"));
+    CHECK_FALSE(rig.shows("  less_int"));
+    rig.click("  add");
     (void)rig.label("[count lhs, acc rhs]");
     rig.click("[count rhs, acc lhs]");
-    (void)rig.label("%0 fold math.add");
+    (void)rig.label("fold add");
     (void)rig.label("count rhs, acc lhs");
-    CHECK_FALSE(rig.shows("For %0 fold's body"));
+    CHECK_FALSE(rig.shows("For fold's body"));
 
     rig.edit_ok("bind", {"0", "0", "$start"});
     rig.edit_ok("bind", {"0", "1", "$limit"});
@@ -1532,7 +1557,7 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     rig.edit_ok("message-open", {"0"});
     rig.edit_ok("send");
     rig.click("[Events]");
-    (void)rig.label("state.total = 45");
+    (void)rig.label("total = 45");
     CHECK(rig.shows_part("tally.Total"));
     CHECK(rig.shows_part("said tally.Total 45"));
 
@@ -1574,7 +1599,8 @@ TEST_CASE("Restart stops the running rule and runs the draft: a message it now s
     CHECK_FALSE(rig.shows("[Apply]"));
     rig.click("[Restart]");
     CHECK(total() == 3);
-    CHECK(rig.shows_part("tally - running r"));
+    CHECK(rig.shows_part("tally - running"));
+    CHECK_FALSE(rig.shows_part("running r"));
     CHECK(rig.shows("[Apply]"));
 
     // THE RESTARTED RULE SAYS IT; the arrival before the restart stays in the Events.
@@ -1650,10 +1676,10 @@ TEST_CASE("a dropped operator reference becomes a node: where it was released, i
     auto body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 2);
     CHECK(body.nodes.at(1).identity == "math.max");
-    (void)rig.label("%1 math.max");
+    (void)rig.label("max (2)");
 
     // INTO THE PORT IT LANDS ON: placed before that port's node and wired there.
-    rig.drop_on(rig.reference("math.max"), "o rhs = 0");
+    rig.drop_on(rig.reference("math.max"), "o rhs <- 0");
     body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 3);
     CHECK(body.nodes.at(1).arguments.at(1).from() == op::Binding::From::Node);
@@ -1668,7 +1694,7 @@ TEST_CASE("a dropped operator reference becomes a node: where it was released, i
     // ON A FOLD'S BODY SLOT: the slot opens with the operator found, for the maker to name the count.
     rig.edit_ok("add-fold");
     rig.drop_on(rig.reference("math.add"), "body = [choose]");
-    (void)rig.label("For %3 fold's body");
+    (void)rig.label("For fold's body");
     (void)rig.label("[count rhs, acc lhs]");
 }
 
@@ -1706,7 +1732,7 @@ TEST_CASE("a stale reference dropped on a fold's body slot is refused in words, 
     CHECK(chosen.identity == "math.add");
     REQUIRE(chosen.fold.has_value());
     CHECK(chosen.fold->count == "rhs");
-    (void)rig.label("%1 fold math.add");
+    (void)rig.label("fold add");
 }
 
 TEST_CASE("a form and an operator that share a name are two rows: each previews and adds itself") {
@@ -1737,7 +1763,7 @@ TEST_CASE("a form and an operator that share a name are two rows: each previews 
     };
     press_row(true);
     (void)rig.label("fold");
-    CHECK(rig.shows("a form the evaluator spends"));
+    CHECK(rig.shows("a form: it repeats a step"));
     rig.click("[Add to the rule]");
     auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 2);
@@ -1755,7 +1781,7 @@ TEST_CASE("a form and an operator that share a name are two rows: each previews 
     press.x = named->x + 4; press.y = named->y + 4;
     rig.host(press);
     (void)rig.label("fold");
-    CHECK(rig.shows("operator, native, from flowtest.named-fold"));
+    CHECK(rig.shows("an operator"));
     rig.key(in::scan::kReturn);
     nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 3);
@@ -1779,8 +1805,8 @@ TEST_CASE("a dropped value waiting on a port is put down when another workspace 
     rig.click("[Declare tally.panel.Count v1 as an accepted message]");
     rig.edit_ok("trigger", {"0", "total"});
     rig.edit_ok("add-fold");
-    rig.drop_on(count, "o start = [unwired]");
-    (void)rig.label("[Use start = 7 on %0 start]");
+    rig.drop_on(count, "o start [unwired]");
+    (void)rig.label("[Use start = 7 on fold's start]");
 
     // The same places, numbered afresh, in a new graph: the offer is gone with the old one.
     rig.edit_ok("new", {"other", "discard"});
@@ -1789,7 +1815,7 @@ TEST_CASE("a dropped value waiting on a port is put down when another workspace 
     rig.edit_ok("trigger", {"0", "total"});
     rig.edit_ok("add-fold");
     CHECK_FALSE(rig.shows("Dropped tally.panel.Count v1"));
-    CHECK_FALSE(rig.shows("[Use start = 7 on %0 start]"));
+    CHECK_FALSE(rig.shows("[Use start = 7 on fold's start]"));
     const auto other = rig.workspace();
     const auto& fresh = other.graph.project.definition.on[0].body.nodes[0].arguments;
     REQUIRE_FALSE(fresh.empty());
@@ -1826,10 +1852,10 @@ TEST_CASE("a dropped value offers what it can be here: its shape declared, then 
     rig.edit_ok("bind", {"0", "0", "$start"});
     rig.edit_ok("bind", {"0", "1", "$limit"});
     rig.edit_ok("bind", {"0", "2", "$step"});
-    rig.drop_on(count, "o initial = [unwired]");
-    (void)rig.label("[Use start = 0 on %0 initial]");
-    (void)rig.label("[Use limit = 10 on %0 initial]");
-    rig.click("[Use start = 0 on %0 initial]");
+    rig.drop_on(count, "o initial [unwired]");
+    (void)rig.label("[Use start = 0 on fold add's initial]");
+    (void)rig.label("[Use limit = 10 on fold add's initial]");
+    rig.click("[Use start = 0 on fold add's initial]");
     CHECK(rig.workspace().graph.project.definition.on[0].body.nodes[0].arguments[3].constant_cell().as_int() == 0);
     rig.edit_ok("result", {"0"});
     rig.edit_ok("run");
@@ -1932,6 +1958,17 @@ struct WireWindow {
     void click(Cell c) { window.click(kFlowArea, c.first, c.second); rig.pump(); }
     /// Empty graph room, well right of the nodes the fixture places.
     Cell room() { return empty(100, 140, 25, 40); }
+    /// The first cell of a wire's search row showing `words`, right of the rail: a press there
+    /// asks a `wire-row`, never a step that shows the same words.
+    std::optional<Cell> row_of_search(const std::string& words) {
+        const auto rows = window.rows(kFlowArea);
+        for (std::size_t r = 0; r < rows.size(); ++r)
+            for (auto c = rows[r].find(words, 22); c != std::string::npos; c = rows[r].find(words, c + 1)) {
+                const Cell at{static_cast<std::int64_t>(c + words.size() - 1), static_cast<std::int64_t>(r)};
+                if (window.action_at(kFlowArea, at.first, at.second).rfind("wire-row:", 0) == 0) return at;
+            }
+        return std::nullopt;
+    }
 };
 
 std::int64_t place_id(Rig& rig, std::int64_t node) {
@@ -1972,17 +2009,17 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
 
         // THE SEARCH AT THE HAND, in the window's rows and its picture alike, its question the
         // output's type as what a power takes.
-        CHECK(w.showing("From %0 : Int -- what takes it"));
-        CHECK(rig.shows("From %0 : Int -- what takes it"));
+        CHECK(w.showing("From max : Int -- what takes it"));
+        CHECK(rig.shows("From max : Int -- what takes it"));
         REQUIRE_FALSE(rig.questions.empty());
         CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
         CHECK_FALSE(rig.questions.back().yields.has_value());
         // ...A ROW A PORT of that type, and nothing made yet.
-        const auto lhs = w.showing("math.add -> lhs");
-        const auto rhs = w.showing("math.add -> rhs");
+        const auto lhs = w.showing("add -> lhs");
+        const auto rhs = w.showing("add -> rhs");
         REQUIRE(lhs);
         REQUIRE(rhs);
-        CHECK(w.showing("math.max -> lhs"));
+        CHECK(w.showing("max -> lhs"));
         CHECK(lhs->first == rhs->first);
         CHECK(lhs->second != rhs->second);
         CHECK(flow::workspace_bytes(rig.workspace()) == flow::workspace_bytes(before));
@@ -1996,7 +2033,7 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         CHECK(from_node(body.nodes[1].arguments.at(1), 0));
         CHECK(body.nodes[1].arguments.at(0).from() == op::Binding::From::Input);
         CHECK(body.nodes[1].arguments.at(0).input_name().empty());
-        CHECK(rig.shows("Added %1 math.add, wired from %0"));
+        CHECK(rig.shows("Added add, wired from max"));
         CHECK(step_chosen(rig)); // the node made is selected
         CHECK_FALSE(w.showing("what takes it"));
         // ...WHERE THE HAND LET GO: its header stands at the release's cell.
@@ -2018,7 +2055,7 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
     SUBCASE("in the rig's window, by its pixels") {
         Rig rig;
         rig.graph_semantically();
-        auto press = rig.press_for("[-> state.value]");
+        auto press = rig.press_for("[answer -> value]");
         rig.host(press);
         auto motion = press;
         motion.phase = ws::canvas_pointer::kMove;
@@ -2028,15 +2065,15 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         auto release = motion;
         release.phase = ws::canvas_pointer::kRelease;
         rig.host(release);
-        CHECK(rig.shows("From %0 : Int -- what takes it"));
+        CHECK(rig.shows("From max : Int -- what takes it"));
         CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
-        rig.click("  math.add -> rhs");
+        rig.click("  add -> rhs");
         const auto after = rig.workspace();
         const auto& body = after.graph.project.definition.on.front().body;
         REQUIRE(body.nodes.size() == 2);
         CHECK(body.nodes[1].identity == "math.add");
         CHECK(from_node(body.nodes[1].arguments.at(1), 0));
-        const auto title = rig.label("%1 math.add");
+        const auto title = rig.label("add");
         CHECK(std::abs(title.x - motion.x) <= unit);
         CHECK(std::abs(title.y - motion.y) <= unit);
     }
@@ -2050,28 +2087,31 @@ TEST_CASE("a wire dragged from an input port and let go on empty graph room asks
         WireWindow w(rig);
         const auto room = w.room();
         w.drag(w.at(port_part(rig, 0, 1)), room);
-        CHECK(rig.shows("Into %0 rhs : Int -- what fills it"));
+        // ⚔ MUTATION (tests/mutants/flow_pane.md#search-cuts-its-heading): the heading is cut.
+        CHECK(rig.shows("Into max's rhs : Int -- what fills it"));
         REQUIRE_FALSE(rig.questions.empty());
         CHECK(rig.questions.back().yields == std::optional<std::string>("Int"));
         CHECK_FALSE(rig.questions.back().takes.has_value());
         // IN THE ORDER A MAKER REACHES FOR THEM.
-        const auto scope = w.showing("input.input");
+        const auto scope = w.showing("input  from the message");
         const auto constant = w.showing("Int constant");
-        const auto found = w.showing("  math.add");
+        const auto found = w.showing("  add");
         REQUIRE(scope);
         REQUIRE(constant);
         REQUIRE(found);
         CHECK(scope->second < constant->second);
         CHECK(constant->second < found->second);
 
-        // AN IN SCOPE ROW binds the port and makes nothing.
+        // AN IN SCOPE ROW binds the port and makes nothing, said by its own name.
+        // ⚔ MUTATION (tests/mutants/flow_pane.md#wired-names-another): another value is named.
         w.click(*scope);
         CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.size() == 1);
         CHECK(argument(rig, 0, 1).input_name() == "input");
+        CHECK(rig.shows("Wired input into max's rhs"));
 
         // A FOUND POWER is placed before the port's node, wired into the port, at the hand.
         w.drag(w.at(port_part(rig, 0, 1)), room);
-        const auto add = w.showing("  math.add");
+        const auto add = w.showing("  add");
         REQUIRE(add);
         w.click(*add);
         const auto made = rig.workspace();
@@ -2079,7 +2119,7 @@ TEST_CASE("a wire dragged from an input port and let go on empty graph room asks
         REQUIRE(body.nodes.size() == 2);
         CHECK(body.nodes[0].identity == "math.add");
         CHECK(from_node(body.nodes[1].arguments.at(1), 0));
-        CHECK(rig.shows("Added %0 math.add, wired into %1 rhs"));
+        CHECK(rig.shows("Added add, wired into max's rhs"));
         const auto header = w.at("node:" + std::to_string(place_id(rig, 0)));
         CHECK(std::abs(header.first - room.first) <= 1);
         CHECK(std::abs(header.second - room.second) <= 1);
@@ -2107,10 +2147,10 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
     {
         const auto n = w.window.next_press();
         const auto port = w.at(port_part(rig, 1, 0));
-        CHECK(rig.label("o lhs = [unwired]").role == gfx::role::kFill);
+        CHECK(rig.label("o lhs [unwired]").role == gfx::role::kFill);
         w.press(w.at("source-node:0"), n);
         w.move(port, n);
-        CHECK(rig.label("o lhs = [unwired]").role == gfx::role::kAccent);
+        CHECK(rig.label("o lhs [unwired]").role == gfx::role::kAccent);
         w.release(port, n);
     }
     CHECK(from_node(argument(rig, 1, 0), 0));
@@ -2124,7 +2164,7 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
     {
         const auto n = w.window.next_press();
         w.press(w.at(port_part(rig, 1, 1)), n);
-        (void)rig.label("For %1 rhs : Int");
+        (void)rig.label("For add's rhs : Int");
         const auto field = w.at("scope:1:1:$input");
         w.move(field, n);
         w.release(field, n);
@@ -2138,7 +2178,7 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
         const auto out = w.at("source-node:0");
         w.press(out, n);
         w.release(out, n);
-        CHECK(rig.shows("Choose an input port to connect node 0"));
+        CHECK(rig.shows("Choose an input port to connect max's answer"));
         CHECK_FALSE(rig.shows_part("what takes it"));
         rig.key(in::scan::kEscape);
     }
@@ -2150,7 +2190,7 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
         w.move(w.room(), n);
         w.move(out, n);
         w.release(out, n);
-        CHECK(rig.shows("Choose an input port to connect node 0"));
+        CHECK(rig.shows("Choose an input port to connect max's answer"));
         CHECK_FALSE(rig.shows_part("what takes it"));
         rig.key(in::scan::kEscape);
     }
@@ -2160,7 +2200,7 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
     CHECK(flow::workspace_bytes(rig.workspace()) == flow::workspace_bytes(bound));
     // ...and nothing is left in hand: a press on a port now selects it rather than binding it.
     w.click(w.at(port_part(rig, 1, 0)));
-    (void)rig.label("For %1 lhs : Int");
+    (void)rig.label("For add's lhs : Int");
 }
 
 TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outside its list, which "
@@ -2182,7 +2222,7 @@ TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outsi
 
     // ESCAPE closes it and puts the wire down; the pane keeps the key.
     w.drag(w.at("source-node:0"), w.room());
-    REQUIRE(rig.shows("From %0 : Int -- what takes it"));
+    REQUIRE(rig.shows("From max : Int -- what takes it"));
     rig.key(in::scan::kEscape);
     CHECK_FALSE(rig.shows_part("what takes it"));
     CHECK(rig.shows("The wire was put down: Escape; nothing was made"));
@@ -2190,16 +2230,16 @@ TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outsi
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
     // ...nothing is left in hand: a press on a port selects it rather than binding it.
     w.click(w.at(port_part(rig, 0, 1)));
-    (void)rig.label("For %0 rhs : Int");
+    (void)rig.label("For max's rhs : Int");
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
     rig.key(in::scan::kEscape);
 
     // A PRESS INSIDE THE LIST on none of its rows keeps it open.
     w.drag(w.at("source-node:0"), w.room());
-    const auto heading = w.showing("From %0 : Int");
+    const auto heading = w.showing("From max : Int");
     REQUIRE(heading);
     w.click(*heading);
-    CHECK(rig.shows("From %0 : Int -- what takes it"));
+    CHECK(rig.shows("From max : Int -- what takes it"));
     // A PRESS OUTSIDE IT closes it, and is not also a press on the node it landed on.
     w.click(w.at("node:" + std::to_string(place_id(rig, 0))));
     CHECK_FALSE(rig.shows_part("what takes it"));
@@ -2234,15 +2274,15 @@ TEST_CASE("ctrl+n's find-wire opens the same search for a wire held by clicks or
     // A WIRE HELD BY A CLICK on an output.
     w.click(w.at("source-node:0"));
     rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
-    CHECK(rig.shows("From %0 : Int -- what takes it"));
+    CHECK(rig.shows("From max : Int -- what takes it"));
     CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
     rig.key(in::scan::kEscape);
 
     // A PORT SELECTED: the keys move to the constant and choose it.
     w.click(w.at(port_part(rig, 0, 1)));
     rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
-    REQUIRE(rig.shows("Into %0 rhs : Int -- what fills it"));
-    CHECK(w.showing("> state.value"));
+    REQUIRE(rig.shows("Into max's rhs : Int -- what fills it"));
+    CHECK(w.showing("> value  kept"));
     rig.key(in::scan::kDown);
     rig.key(in::scan::kDown);
     CHECK(w.showing("> Int constant"));
@@ -2257,7 +2297,7 @@ TEST_CASE("ctrl+n's find-wire opens the same search for a wire held by clicks or
     REQUIRE(rig.catalog.mount("flowtest.reshaped",
         {op::make_operator<&op::add_int>(op::kAddInt, {"lhs", "rhs"}, "sum")}));
     w.drag(w.at("source-node:0"), w.room());
-    const auto row = w.showing("math.add -> lhs");
+    const auto row = w.showing("add -> lhs");
     REQUIRE(row);
     w.click(*row);
     (void)rig.label("'math.add' is not the operator this reference was found at: its ports "
@@ -2282,9 +2322,9 @@ TEST_CASE("a press on empty graph room lets go of the chosen step and its port, 
     // ...A CHOSEN PORT goes with it.
     // ⚔ MUTATION (tests/mutants/flow_pane.md#empty-press-keeps-the-port): the port stays chosen.
     w.click(w.at(port_part(rig, 0, 1)));
-    REQUIRE(rig.shows("For %0 rhs : Int"));
+    REQUIRE(rig.shows("For max's rhs : Int"));
     w.click(w.room());
-    CHECK_FALSE(rig.shows("For %0 rhs : Int"));
+    CHECK_FALSE(rig.shows("For max's rhs : Int"));
 
     // A DRAG FROM EMPTY ROOM moves the view, and leaves the step where it stands.
     const auto stood = place_of(rig, 0);
@@ -2396,7 +2436,7 @@ TEST_CASE("a double click adds: an operator row as Add to the rule adds it, empt
     w.click(room);
     w.click(room);
     REQUIRE(rig.shows("A step here -- what is it for?"));
-    const auto max = w.showing("  math.max"); // the search's row, not the step already there
+    const auto max = w.row_of_search("  max"); // the search's row, not the step already there
     REQUIRE(max);
     w.click(*max);
     REQUIRE(steps().size() == 3);
@@ -2470,7 +2510,7 @@ TEST_CASE("a press on a port opens a box at it: what is in scope of its type and
     // WHAT FITS, AS BUTTONS by their own names and where each comes from; no node or port to type
     // and no $ or % anywhere in it.
     // ⚔ MUTATION (tests/mutants/flow_pane.md#port-box-offers-nothing): the box lists nothing.
-    rig.click("o lhs = [unwired]");
+    rig.click("o lhs [unwired]");
     auto words = port_box_words(rig);
     for (const char* expected : {"lhs : Int", "[value]", "kept", "[input]", "from the message", "[max]",
                                  "a step's answer", "or a number", "[Use]"}) {
@@ -2492,7 +2532,7 @@ TEST_CASE("a press on a port opens a box at it: what is in scope of its type and
     // A NUMBER, CHECKED AS IT IS TYPED: what is not one is marked and refused in words.
     // ⚔ MUTATION (tests/mutants/flow_pane.md#port-number-check-inverted): the check passes what is
     // not a number and marks what is.
-    rig.click("o rhs = [unwired]");
+    rig.click("o rhs [unwired]");
     rig.text("x1");
     CHECK(says(port_box_words(rig), "a whole number, like 12"));
     rig.key(in::scan::kReturn);
@@ -2504,7 +2544,7 @@ TEST_CASE("a press on a port opens a box at it: what is in scope of its type and
     CHECK(argument(rig, 1, 1).constant_cell().as_int() == 12);
 
     // ...ITS NUMBER READY when it holds one, and Use binds what is typed over it.
-    rig.click("o rhs = 12");
+    rig.click("o rhs <- 12");
     CHECK(says(port_box_words(rig), "[12]"));
     rig.text("7");
     rig.click("[Use]");
@@ -2519,7 +2559,7 @@ TEST_CASE("a press on a port opens a box at it: what is in scope of its type and
     rig.edit_ok("add-node", rig.ref("logic.select_int"));
     rig.edit_ok("move", {"1", "1056", "1440"});
     WireWindow w(rig);
-    rig.click("o condition = [unwired]");
+    rig.click("o condition [unwired]");
     const auto words = port_box_words(rig);
     CHECK(says(words, "condition : Bool"));
     CHECK(says(words, "nothing in scope is Bool yet"));
@@ -2530,10 +2570,10 @@ TEST_CASE("a press on a port opens a box at it: what is in scope of its type and
     CHECK(argument(rig, 1, 0).constant_cell().as_bool());
 
     // ITS x AND THE ESCAPE KEY PUT IT DOWN, binding nothing.
-    rig.click("o when_true = [unwired]");
+    rig.click("o when_true [unwired]");
     w.click(w.at("port-close:1:1"));
     CHECK_FALSE(rig.shows("when_true : Int"));
-    rig.click("o when_true = [unwired]");
+    rig.click("o when_true [unwired]");
     rig.key(in::scan::kEscape);
     CHECK_FALSE(rig.shows("when_true : Int"));
     CHECK(argument(rig, 1, 1).input_name().empty());

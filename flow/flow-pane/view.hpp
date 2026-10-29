@@ -359,14 +359,13 @@ inline void bar(Pen& pen, const Model& model, std::int64_t height) {
         pen.button(right, y, "File", "menu", {"file"}, Face::Plain, Icon::Chevron);
         right -= step;
     }
-    // THE RULE'S STATE: its name, and running at a revision or stopped at its draft's.
+    // THE RULE'S STATE: its name, running or stopped, and whether what runs is behind the draft.
     std::vector<std::string> said{def.name};
     if (model.running && model.running_definition) {
-        said.push_back("running r" + std::to_string(model.running_definition->revision));
-        if (restart) said.push_back("draft r" + std::to_string(def.revision) + " waits for a restart");
-        else if (changed) said.push_back("draft r" + std::to_string(def.revision) + " not applied");
+        said.push_back("running");
+        if (restart) said.push_back("changed, needs a restart");
+        else if (changed) said.push_back("changed, not applied");
     } else {
-        said.push_back("draft r" + std::to_string(def.revision));
         said.push_back("stopped");
     }
     const auto ink = model.running ? hue::done() : hue::quiet();
@@ -513,12 +512,6 @@ inline std::vector<RailRow> rail_rows(const Model& model) {
     kind_group(workshop::kFormKind, "FORMS");
     return out;
 }
-/// A power's short name: its identity's last word.
-inline std::string power_name(const std::string& identity) {
-    const auto dot = identity.rfind('.');
-    return dot == std::string::npos ? identity : identity.substr(dot + 1);
-}
-
 /// THE RAIL: find by what it is for, what is in scope -- or, with a port selected, what could fill
 /// it -- the door's rows grouped, and the preview of the one chosen with what Add does.
 inline void rail(Pen& pen, const Model& model, const Box& rail) {
@@ -586,7 +579,9 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
             note = "A rule needs its message and what it keeps before its first step.";
         } else if (shown->kind == workshop::kFormKind) {
             offers.push_back({"Add to the rule", {"add-fold"}});
-            if (model.node) offers.push_back({"Add before %" + std::to_string(*model.node), {"add-fold", std::to_string(*model.node)}});
+            if (model.node && *model.node < def.on.at(model.trigger()).body.nodes.size())
+                offers.push_back({"Add before " + step_name(def.on.at(model.trigger()).body.nodes, *model.node),
+                                  {"add-fold", std::to_string(*model.node)}});
         } else if (slot) {
             auto in = static_cast<std::int64_t>(shown->inputs.content_id);
             auto out = static_cast<std::int64_t>(shown->outputs.content_id);
@@ -602,11 +597,11 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
         } else {
             offers.push_back({"Add to the rule", {"add-found", shown->kind, shown->identity}});
             if (chosen_port)
-                offers.push_back({"Add into %" + std::to_string(chosen_port->node) + " " + chosen_port->field.name,
+                offers.push_back({"Add into " + port_words(model, *chosen_port),
                                   {"add-into", shown->kind, shown->identity, std::to_string(chosen_port->node),
                                    std::to_string(chosen_port->port)}});
-            else if (model.node)
-                offers.push_back({"Add before %" + std::to_string(*model.node),
+            else if (model.node && *model.node < def.on.at(model.trigger()).body.nodes.size())
+                offers.push_back({"Add before " + step_name(def.on.at(model.trigger()).body.nodes, *model.node),
                                   {"add-found", shown->kind, shown->identity, std::to_string(*model.node)}});
         }
     }
@@ -642,21 +637,24 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
     if (slot) {
         // A FOLD'S BODY SLOT lists what a fold could spend: one answer, an Int port for the count
         // and another of the answer's type for the accumulator. The preview says which port is which.
-        heading("For %" + std::to_string(*slot) + " fold's body");
+        heading("For " + step_name(def.on.at(model.trigger()).body.nodes, *slot) + "'s body");
         pen.text(x - (m.light ? m.inset : 0), y, "(acc: T, count: Int) -> T", hue::quiet(), list);
         y += line_h;
     } else if (chosen_port) {
         // A SELECTED PORT lists what could fill it, in the order a maker reaches for it: what is in
         // scope, a typed constant, then the door's Sources and operators that yield its type.
         const auto n = std::to_string(chosen_port->node), a = std::to_string(chosen_port->port);
-        heading("For %" + n + " " + chosen_port->field.name + " : " + chosen_port->type);
+        heading("For " + port_words(model, *chosen_port) + " : " + chosen_port->type);
         heading("In scope");
         const auto scope = in_scope(model, *chosen_port);
         const auto indent = [&](const std::string& words) { return m.light ? words : "  " + words; };
         const auto ix = x + (m.light ? 8 - m.inset : 0);
         for (const auto& candidate : scope) {
             if (y >= list.bottom()) break;
-            pen.text(ix, y, indent(candidate.label), hue::text(), list);
+            const auto name = indent(candidate.name);
+            const auto ink = candidate.from == InScope::From::Kept ? hue::kept() : hue::wire();
+            pen.text(ix, y, name, ink, list);
+            pen.text(ix + pen.width(name) - (m.light ? 2 * m.inset : 0) + m.ch, y, whence(candidate), hue::quiet(), list);
             pen.press(Box{rail.x, y, rail.w, line_h}.cut(list), "scope", {n, a, candidate.bind});
             y += line_h;
         }
@@ -683,7 +681,7 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
                 pen.text(at, y, type, hue::text(), list);
                 at += pen.width(type) - 2 * m.inset;
             } else {
-                const auto spelled = (kept ? "state." : "input.") + f.name + " : " + loom::name_of(f.type.kind);
+                const auto spelled = f.name + " : " + loom::name_of(f.type.kind);
                 pen.text(tx, y, spelled, kept ? hue::kept() : hue::wire(), list);
                 at += pen.width(spelled);
             }
@@ -722,12 +720,12 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
                 if (on) pen.rect({rail.x, y, rail.w, h}, hue::chosen(), hue::wire(), 3, false, list);
                 pen.text(rail.x + 8 - m.inset, y + 2, power_name(r.row->identity) + composite, hue::text(), list);
                 pen.text(rail.x + 8 - m.inset, y + 2 + m.row,
-                         r.row->about.empty() ? r.row->identity : r.row->about, hue::quiet(),
-                         Box{rail.x, y, rail.w - 4, h}.cut(list));
+                         r.row->about.empty() ? std::string("says nothing of what it is for") : r.row->about,
+                         r.row->about.empty() ? hue::faint() : hue::quiet(), Box{rail.x, y, rail.w - 4, h}.cut(list));
                 pen.press(Box{rail.x, y, rail.w, h}.cut(list), "found", {r.row->kind, r.row->identity});
                 y += h + 2;
             } else {
-                pen.text(x, y, "  " + r.row->identity + composite, on ? hue::message() : hue::text(), list);
+                pen.text(x, y, "  " + power_name(r.row->identity) + composite, on ? hue::message() : hue::text(), list);
                 pen.press(Box{rail.x, y, rail.w, line_h}.cut(list), "found", {r.row->kind, r.row->identity});
                 y += line_h;
             }
@@ -746,13 +744,7 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
     if (m.light) pen.rect(box, hue::band(), hue::frame(), 4);
     const auto px = box.x + (m.light ? 8 - m.inset : 0);
     std::int64_t py = box.y + (m.light ? 6 : 0);
-    if (m.light) {
-        const auto name = power_name(shown->identity);
-        pen.text(px, py, name, hue::text(), box);
-        pen.text(px + pen.width(name) - 2 * m.inset + m.ch, py, shown->identity, hue::quiet(), box);
-    } else {
-        pen.text(px, py, shown->identity, hue::message(), box);
-    }
+    pen.text(px, py, power_name(shown->identity), m.light ? hue::text() : hue::message(), box);
     py += line_h;
     for (const auto& [words, ink] : said) {
         pen.text(px, py, words, ink, box);
@@ -1073,14 +1065,8 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         const auto xw = pen.button_width("x");
         const auto x_room = selected ? xw + (light ? 4 : 0) : 0;
         const Box head{rows.box.x, rows.box.y, rows.box.w - (light ? 4 : m.ch) - x_room, light ? m.card : m.row};
-        if (light) {
-            const auto name = short_name(node);
-            pen.text(tx, rows.head, name, hue::wire(), head.cut(canvas));
-            pen.text(tx + pen.width(name) - 2 * m.inset + m.ch, rows.head, node.identity, hue::quiet(), head.cut(canvas));
-        } else {
-            pen.text(tx, rows.head, "%" + std::to_string(n) + " " + node_title(node),
-                     selected ? hue::message() : hue::wire(), head.cut(canvas));
-        }
+        pen.text(tx, rows.head, step_name(on->body.nodes, n), !light && selected ? hue::message() : hue::wire(),
+                 head.cut(canvas));
         pen.press(Box{rows.box.x, rows.box.y, rows.box.w, light ? m.card : m.row}.cut(canvas), "node", {std::to_string(n)}, id);
         if (selected)
             pen.button(rows.box.right() - xw - (light ? 4 : 0), rows.head - (light ? 3 : 0), "x", "remove",
@@ -1115,17 +1101,14 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
                     } catch (const std::exception&) {
                         from = "?";
                     }
-                } else if (b.from() == op::Binding::From::Node && b.node_index() < on->body.nodes.size()) {
-                    from = "<- " + short_name(on->body.nodes[b.node_index()]);
                 } else {
-                    from = "<- " + (b.from() == op::Binding::From::Input ? b.input_name() : flow::binding_text(b));
+                    from = "<- " + source_words(on->body.nodes, b);
                 }
                 pen.text(rows.box.right() - pen.width(from) - (8 - m.inset), ry, from, hue::quiet(), inside);
             } else {
                 // Where a character is a cell, the port is the `o` its row begins with, on the edge.
-                pen.text(rows.box.x, ry,
-                         "o " + port_name + " = " + (unwired(b) ? std::string("[unwired]") : flow::binding_text(b)),
-                         marked ? hue::message() : hue::text(), inside);
+                const auto reads = unwired(b) ? std::string(" [unwired]") : " <- " + source_words(on->body.nodes, b);
+                pen.text(rows.box.x, ry, "o " + port_name + reads, marked ? hue::message() : hue::text(), inside);
             }
             pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(canvas), "port", {std::to_string(n), std::to_string(a)}, id);
             if (chosen_port && chosen_port->node == n && chosen_port->port == a) {
@@ -1143,7 +1126,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             }
             pen.text(rows.box.right() - pen.width(type) - (14 - m.inset), ay, type, hue::quiet(), inside);
         } else {
-            pen.text(tx, ay, on->body.result_node == n ? "[-> state." + on->output + "]" : std::string("[output]"),
+            pen.text(tx, ay, on->body.result_node == n ? "[answer -> " + on->output + "]" : std::string("[answer]"),
                      hue::message(), inside);
         }
         pen.press(Box{rows.box.x, ay, rows.box.w, m.row}.cut(canvas), "source-node", {std::to_string(n)}, id);
@@ -1495,7 +1478,20 @@ inline void wire_list(Pen& pen, const Model& model, const Box& within) {
     const auto choice = wire_choice(model, rows);
     const auto room_rows = (within.h - (m.light ? 16 : 0)) / m.row - 2;
     const std::size_t visible = static_cast<std::size_t>(std::clamp<std::int64_t>(room_rows, 1, 10));
-    const auto w = std::min(within.w, m.chars(36));
+    std::string carries;
+    if (search.from.source) {
+        const auto type = source_type(model, *search.from.source);
+        const auto& def = model.workspace.graph.project.definition;
+        const auto from = def.on.empty() ? std::string("it")
+                                         : source_words(def.on.at(model.trigger()).body.nodes, *search.from.source);
+        carries = "From " + from + " : " + type.value_or("?") + " -- what takes it";
+    } else if (const auto port = wire_port(model)) {
+        carries = "Into " + port_words(model, *port) + " : " + port->type + " -- what fills it";
+    } else if (!search.from.port) {
+        carries = "A step here -- what is it for?";
+    }
+    // As wide as what it says it carries, so a name is never cut from it.
+    const auto w = std::min(within.w, std::max(m.chars(36), pen.width(carries) + 2 * m.ch));
     const auto listed = std::max<std::size_t>(1, std::min(rows.size(), visible));
     const auto h = static_cast<std::int64_t>(listed + 2) * m.row + (m.light ? 16 : 0);
     const auto snap = [&](std::int64_t v) { return gfx::floor_div_px(v, m.grain) * m.grain; };
@@ -1506,15 +1502,6 @@ inline void wire_list(Pen& pen, const Model& model, const Box& within) {
     pen.press(box, "wire-list", {"box"});
     const auto x = bx + (m.light ? 8 - m.inset : m.ch);
     std::int64_t y = by + (m.light ? 8 : 0);
-    std::string carries;
-    if (search.from.source) {
-        const auto type = source_type(model, *search.from.source);
-        carries = "From " + flow::binding_text(*search.from.source) + " : " + type.value_or("?") + " -- what takes it";
-    } else if (const auto port = wire_port(model)) {
-        carries = "Into %" + std::to_string(port->node) + " " + port->field.name + " : " + port->type + " -- what fills it";
-    } else if (!search.from.port) {
-        carries = "A step here -- what is it for?";
-    }
     pen.text(x, y, carries, hue::message(), box);
     y += m.row;
     {
@@ -1745,7 +1732,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
         if (!model.events.empty()) lines("Events, newest first", hue::message());
         for (std::size_t i = model.first_row; i < model.events.size() && y < body.bottom(); ++i)
             lines(model.events[i], hue::text());
-        for (const auto& error : graph.problems(model.palette)) {
+        for (const auto& error : model.lacks()) {
             if (y >= body.bottom()) break;
             lines(error, hue::message());
         }
@@ -1781,7 +1768,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
             std::string fields;
             for (const auto& f : def.emits[i]->fields())
                 fields += (fields.empty() ? "" : ", ") + f.name + ": " + loom::name_of(f.type.kind);
-            pen.text(body.x + m.ch, y, std::to_string(i) + " " + def.emits[i]->name() + " {" + fields + "}", hue::text(), body);
+            pen.text(body.x + m.ch, y, def.emits[i]->name() + " {" + fields + "}", hue::text(), body);
             pen.press({body.x, y, body.w, line_h}, "emitted-row", {std::to_string(i)});
             y += line_h;
         }
@@ -1802,7 +1789,10 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
         y += line_h;
         for (std::size_t i = 0; i < model.workspace.forms.size() && y + control_h <= body.bottom(); ++i) {
             const auto& saved = model.workspace.forms[i];
-            pen.button(body.x, y, saved.title + " #" + std::to_string(saved.draft.schema()->content_id()),
+            std::size_t before = 0;
+            for (std::size_t k = 0; k < i; ++k)
+                if (model.workspace.forms[k].title == saved.title) ++before;
+            pen.button(body.x, y, saved.title + (before > 0 ? " (" + std::to_string(before + 1) + ")" : std::string()),
                        "draft-open", {std::to_string(i)});
             y += control_h;
         }

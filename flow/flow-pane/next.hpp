@@ -187,9 +187,9 @@ inline NextStep next_step(const Model& m) {
             return out;
         }
         if (def.revision != m.running_definition->revision) {
-            const auto problems = graph.problems(m.palette);
-            if (!problems.empty()) {
-                out.text = "the change still needs: " + problems.front();
+            const auto lacking = m.lacks();
+            if (!lacking.empty()) {
+                out.text = "the change still needs: " + lacking.front();
                 return out;
             }
             out.text = "it changed since it ran.";
@@ -279,10 +279,11 @@ inline NextStep next_step(const Model& m) {
             }
             taken.insert(*from);
             args[a + 1] = *from;
-            // A field by its name, an earlier step's answer as Flow spells a step, `%0`.
-            names.push_back((*from)[0] == '%' ? *from : from->substr(1));
+            // A field by its name, an earlier step's answer by that step's operator.
+            names.push_back((*from)[0] == '%' ? step_name(on->body.nodes, flow::index_of(from->substr(1)))
+                                              : from->substr(1));
         }
-        const auto name = short_name(node);
+        const auto name = step_name(on->body.nodes, n);
         if (!every) {
             std::string port = std::to_string(open.front());
             try {
@@ -303,9 +304,9 @@ inline NextStep next_step(const Model& m) {
         out.hint = "or click a port, then a value";
         return nudged(out);
     }
-    const auto problems = graph.problems(m.palette);
-    if (!problems.empty()) {
-        out.text = problems.front();
+    const auto lacking = m.lacks();
+    if (!lacking.empty()) {
+        out.text = lacking.front();
         return nudged(out);
     }
     out.tone = T::Good;
