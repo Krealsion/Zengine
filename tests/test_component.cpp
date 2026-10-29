@@ -2061,6 +2061,20 @@ TEST_CASE("IndependentAccordions: the open sections are the owner's list, read t
     CHECK_FALSE(group.shut_all());
 }
 
+TEST_CASE("IndependentAccordions: an open on a list in any order adds its key once and keeps every key the list held") {
+    // An owner's list out of key order, as an edit may leave it: no search over it may assume an
+    // order (libstdc++'s debug mode refuses `upper_bound` over this list).
+    std::vector<std::string> state = {"terminal", "files", "terminal"};
+    IndependentAccordions<std::string> group(state);
+    CHECK(group.open("info"));
+    CHECK(std::count(state.begin(), state.end(), "info") == 1);
+    CHECK(std::count(state.begin(), state.end(), "terminal") == 2);
+    CHECK(std::count(state.begin(), state.end(), "files") == 1);
+    CHECK(state.size() == 4);
+    CHECK_FALSE(group.open("info"));
+    CHECK(state.size() == 4);
+}
+
 TEST_CASE("shown_tree: a row shows while every branch above it is open, a branch is a row whose next row stands deeper, and tree_parent finds the nearest shallower row before it") {
     // ⚔ MUTATION (tests/mutants/component.md#tree-shows-under-a-shut-branch,
     // #tree-hides-a-shut-branchs-sibling): rows under a shut branch shown; a shut branch hiding
