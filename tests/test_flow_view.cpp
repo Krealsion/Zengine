@@ -893,6 +893,48 @@ TEST_CASE("resting tells: a port its kind and what it reads, an answer or a fiel
     CHECK(text_has(pane::picture(two, light_room()), "add's lhs takes Int, and less is Bool"));
 }
 
+TEST_CASE("what the last message changed stays lit while the rule runs, until the next: the wires "
+          "whose values changed, the steps they reach, what it wrote where the kept value changed, what it said") {
+    auto m = tally();
+    m.running = true;
+    m.running_definition = m.workspace.graph.project.definition;
+    const auto& def = m.workspace.graph.project.definition;
+    const auto count = def.accepts.front(), total = def.emits.front();
+    const auto id = std::to_string(pane::place_of(m, 0));
+    loom::Value start(def.state);
+    start.set("total", loom::Cell::integer(0));
+    std::vector<fh::FlowEvent> journal;
+    std::int64_t sequence = 0;
+    const auto message = [&](std::int64_t amount, std::int64_t kept) {
+        const auto at = ++sequence;
+        const auto after = "after #" + std::to_string(at);
+        journal.push_back(event(at, "arrived", valued(count, "amount", amount), count->name()));
+        journal.push_back(event(++sequence, "kept", valued(def.state, "total", kept), after));
+        journal.push_back(event(++sequence, "output", valued(total, "total", kept), total->name() + " " + after));
+        fh::FlowAnswer answer;
+        answer.events = journal;
+        m.observed = pane::observe(answer, def, start);
+        return pane::picture(m, light_room()).happened;
+    };
+    using Keys = std::set<std::string>;
+    const std::string came = "card:message:tally.panel.Count", wrote = "card:write:tally.panel.Count",
+                      said = "card:say:tally.panel.Count:tally.Total";
+    // ⚔ MUTATION (tests/mutants/flow_view.md#the-last-message-lights-nothing): nothing stays lit.
+    // THE FIRST: everything it reached changed.
+    CHECK(message(3, 3) == Keys{came, "wire:" + id + ".0", "wire:" + id + ".1", "step:" + id, wrote, "wire:write", said});
+    // ⚔ MUTATION (tests/mutants/flow_view.md#an-unchanged-wire-lights): a wire that carried what it
+    // carried before is lit.
+    // THE SAME AMOUNT AGAIN: its wire carried what it carried before; the rest changed.
+    CHECK(message(3, 6) == Keys{came, "wire:" + id + ".1", "step:" + id, wrote, "wire:write", said});
+    // ⚔ MUTATION (tests/mutants/flow_view.md#an-unchanged-write-lights): what it wrote is lit though
+    // what it keeps stayed.
+    // AN AMOUNT OF NOTHING: the answer is the one before, so neither what it wrote nor its wire is lit.
+    CHECK(message(0, 6) == Keys{came, "wire:" + id + ".0", "wire:" + id + ".1", "step:" + id, said});
+    // STOPPED, nothing stays lit.
+    m.running = false;
+    CHECK(pane::picture(m, light_room()).happened.empty());
+}
+
 TEST_CASE("the rule reads as one sentence, each part still to choose open") {
     using K = pane::Chip::Kind;
     const auto kinds = [](const pane::Model& m) {
@@ -1090,7 +1132,8 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
     const auto texts = light.picture.texts();
     CHECK(std::count(texts.begin(), texts.end(), "3") == 2);
     CHECK(std::count(texts.begin(), texts.end(), "0") == 1);
-    for (const std::int64_t rgb : {0x262b35, 0x1a1d24, 0x242629, 0x20252d, 0x20252c, 0x323846, 0x88c0d0})
+    // ...its wires, every one the message just changed, in the done colour until the next.
+    for (const std::int64_t rgb : {0x262b35, 0x1a1d24, 0x242629, 0x20252d, 0x20252c, 0x323846, 0xa3be8c})
         CHECK_MESSAGE(colours.count(rgb) == 1, rgb);
     CHECK(light.parts.count("port:1.0") == 1);
     CHECK(light.parts.count("write:0") == 1);

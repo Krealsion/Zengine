@@ -138,7 +138,9 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   lights its parts (`lighting`), and a press ends the rest. A dashed part, pressed, does what the
   Next line's button does. Resting on a port, an answer, a field or a wire tells it in words
   (`told`), a wire's two ends lit; a wire that does not fit a port (`flow_pane::unfit`) says why
-  before it is let go, and is refused in those words, never handed to the graph to refuse.
+  before it is let go, and is refused in those words, never handed to the graph to refuse. While
+  the rule runs, what the last message changed against the one before it (`changed_by_last`) stays
+  lit until the next; nothing is lit while it is stopped.
   A preview evaluates nothing. Add takes an operator reference (the row's
   identity and two content ids): `add-node` places a step at the end or before a node, and
   `add-node-into` before a port's node and into that port, one renumbering edit; a stale
@@ -158,7 +160,8 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   line's walk, the journal read one line a message, the tally drawn in light and in cells, a card
   chosen and put, what makes two presses one double click, a step named by its operator and no
   internal word drawn, the rail's words broken to two lines, the sentence and the graph lighting
-  each other, what resting tells, and the kinds a kept field is chosen from.
+  each other, what resting tells, what the last message changed lit, and the kinds a kept field is
+  chosen from.
   `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
   reload preservation, the right press handed back, the empty press and the pan, the chosen step's
   x and Delete, the When and Then cards moved, the double clicks that add, the box at a port, the

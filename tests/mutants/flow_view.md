@@ -264,3 +264,52 @@ Red in `zengine-flow-tests`:
 
 - resting tells: a port its kind and what it reads, an answer or a field what reads it, a wire its
   two ends lit and what it last carried; a wire in the hand says why a port does not fit
+
+## the-last-message-lights-nothing
+
+Nothing the last message changed stays lit.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-    out.happened = changed_by_last(model);
++    out.happened.clear();
+```
+
+Red in `zengine-flow-tests`:
+
+- what the last message changed stays lit while the rule runs, until the next: the wires whose
+  values changed, the steps they reach, what it wrote where the kept value changed, what it said
+
+## an-unchanged-wire-lights
+
+A wire from a field of the message is lit whatever it carried before.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-                                            : !before || value(before->carried, name) != value(last.carried, name);
++                                            : true;
+```
+
+Red in `zengine-flow-tests`:
+
+- what the last message changed stays lit while the rule runs, until the next: the wires whose
+  values changed, the steps they reach, what it wrote where the kept value changed, what it said
+
+## an-unchanged-write-lights
+
+What the rule writes is lit though what it keeps stayed what it was.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-    if (value(last.before, on.output) != value(last.after, on.output)) out.insert("card:write:" + on.message->name());
++    if (value(last.before, on.output) != value(last.after, on.output) || last.message == on.message->name())
++        out.insert("card:write:" + on.message->name());
+```
+
+Red in `zengine-flow-tests`:
+
+- what the last message changed stays lit while the rule runs, until the next: the wires whose
+  values changed, the steps they reach, what it wrote where the kept value changed, what it said

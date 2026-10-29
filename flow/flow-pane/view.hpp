@@ -90,6 +90,8 @@ struct Picture : Drawing {
     std::vector<Line> lines;
     std::int64_t reach = 1;
     std::set<std::string> lit;
+    /// Every key drawn lit for what the last message changed.
+    std::set<std::string> happened;
     /// Where the box of what resting tells stands, a pointer inside it resting on nothing.
     std::optional<Box> tip;
     /// Every run of text it draws, in paint order.
@@ -326,9 +328,9 @@ inline void card(Pen& pen, const Box& b, gfx::Paint rim, std::optional<Box> clip
 inline void open_place(Pen& pen, const Box& b, std::optional<Box> clip, bool lit = false) {
     if (pen.m.light) pen.rect(b, gfx::no_paint(), lit ? hue::text() : hue::faint(), 4, true, clip);
 }
-/// A CARD OR A STEP LIT: a bright line round it, where light.
-inline void glow(Pen& pen, const Box& b, std::optional<Box> clip) {
-    if (pen.m.light) pen.rect({b.x - 2, b.y - 2, b.w + 4, b.h + 4}, gfx::no_paint(), hue::text(), 6, false, clip);
+/// A CARD OR A STEP LIT: a line round it, where light, bright for what the pointer rests on.
+inline void glow(Pen& pen, const Box& b, std::optional<Box> clip, gfx::Paint ink = hue::text()) {
+    if (pen.m.light) pen.rect({b.x - 2, b.y - 2, b.w + 4, b.h + 4}, gfx::no_paint(), ink, 6, false, clip);
 }
 /// A PORT: a dot at a card's edge -- a ring until wired, where light; an `o` on the edge where a
 /// character is a cell -- bright, and ringed where light, while lit.
@@ -401,12 +403,65 @@ inline void badge(Pen& pen, std::int64_t x0, std::int64_t y0, std::int64_t x1, s
 
 /// WHAT IS LIT: what the pointer rests on and what goes with it -- a part of the sentence and the
 /// cards, steps and places it stands for; a card or a step and the parts that stand for it, every
-/// kept field's part for the card of what it keeps -- each by its key, the parts by their place.
+/// kept field's part for the card of what it keeps -- each by its key, the parts by their place; and
+/// what the last message changed (`changed_by_last`).
 struct Lighting {
     std::set<std::string> pointed;
     std::set<std::size_t> chips;
+    std::set<std::string> happened;
     bool on(const std::string& key) const { return pointed.count(key) != 0; }
+    bool done(const std::string& key) const { return happened.count(key) != 0; }
 };
+
+/// WHAT THE LAST MESSAGE CHANGED, while the rule runs, against the message before it of the same
+/// trigger, or everything where none came before: the card of the message that came; each wire whose
+/// value changed -- a field of the message, a kept field as it was before, a step's answer where a
+/// wire into that step changed -- and the steps they reach; what the rule writes where the value it
+/// keeps changed, and its wire where the answer did; each card of a message it said. Each by the key
+/// the picture lights it by; nothing while the rule is stopped or before a message reaches it.
+inline std::set<std::string> changed_by_last(const Model& m) {
+    std::set<std::string> out;
+    const auto& def = m.workspace.graph.project.definition;
+    const auto& seen = m.observed.arrivals;
+    if (!m.running || def.on.empty() || seen.empty()) return out;
+    const auto& on = def.on.at(m.trigger());
+    const auto& last = seen.back();
+    if (last.message != on.message->name()) return out;
+    const Arrival* before = seen.size() > 1 ? &seen[seen.size() - 2] : nullptr;
+    if (before && before->message != last.message) before = nullptr;
+    const auto value = [](const std::optional<loom::Value>& v, const std::string& name) -> std::optional<std::string> {
+        if (!v || !v->get(name)) return std::nullopt;
+        return message_draft::summary(v->get(name));
+    };
+    out.insert("card:message:" + on.message->name());
+    const auto& nodes = on.body.nodes;
+    std::vector<bool> moved(nodes.size(), false);
+    for (std::size_t n = 0; n < nodes.size(); ++n) {
+        const auto id = std::to_string(place_of(m, n));
+        for (std::size_t a = 0; a < nodes[n].arguments.size(); ++a) {
+            const auto& b = nodes[n].arguments[a];
+            bool now = false;
+            if (b.from() == op::Binding::From::Input && !unwired(b)) {
+                const auto& name = b.input_name();
+                now = def.state->find(name) ? !before || value(before->before, name) != value(last.before, name)
+                                            : !before || value(before->carried, name) != value(last.carried, name);
+            } else if (b.from() == op::Binding::From::Node && b.node_index() < n) {
+                now = moved[b.node_index()];
+            }
+            if (!now) continue;
+            out.insert("wire:" + id + "." + std::to_string(a));
+            moved[n] = true;
+        }
+        if (moved[n]) out.insert("step:" + id);
+    }
+    if (value(last.before, on.output) != value(last.after, on.output)) out.insert("card:write:" + on.message->name());
+    if (!before || value(before->after, on.output) != value(last.after, on.output)) out.insert("wire:write");
+    for (const auto& emit : on.emits)
+        for (const auto& said : last.said)
+            if (said.message == emit.message->name())
+                out.insert("card:say:" + on.message->name() + ":" + emit.message->name());
+    return out;
+}
 /// THE TWO ENDS OF A WIRE, by key: the answer or the field it leaves, and the port it reaches.
 inline std::vector<std::string> wire_ends(const Model& m, const std::string& key) {
     const auto& def = m.workspace.graph.project.definition;
@@ -431,6 +486,7 @@ inline std::vector<std::string> wire_ends(const Model& m, const std::string& key
 }
 inline Lighting lighting(const Model& model, const std::vector<Chip>& chips) {
     Lighting out;
+    out.happened = changed_by_last(model);
     if (!model.hover) return out;
     const auto& key = *model.hover;
     out.pointed.insert(key);
@@ -1007,13 +1063,18 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
     // pointer rests on it.
     const auto edge_of = [&](const std::string& name) {
         if (lit.on("card:" + name)) return hue::text();
+        if (lit.done("card:" + name)) return hue::done();
         return model.dock && *model.dock == name ? hue::wire() : hue::edge();
     };
     const auto card_at = [&](const CardRows& rows, const std::string& name, const Box& room) {
         pen.p.rests.push_back({"card:" + name, rows.box.cut(room)});
-        if (!lit.on("card:" + name)) return;
-        pen.p.lit.insert("card:" + name);
-        glow(pen, rows.box, room);
+        if (lit.done("card:" + name)) pen.p.happened.insert("card:" + name);
+        if (lit.on("card:" + name)) {
+            pen.p.lit.insert("card:" + name);
+            glow(pen, rows.box, room);
+        } else if (lit.done("card:" + name)) {
+            glow(pen, rows.box, room, hue::done());
+        }
     };
     const auto place_at = [&](const std::string& name, const Box& box, const Box& room) {
         pen.p.rests.push_back({"place:" + name, box.cut(room)});
@@ -1265,11 +1326,16 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
         if (!rows.box.meets(canvas)) continue;
         const Box inside = rows.box.cut(canvas);
         const auto step_key = "step:" + std::to_string(id);
-        card(pen, rows.box, lit.on(step_key) ? hue::text() : selected ? hue::wire() : hue::edge(), canvas);
+        card(pen, rows.box,
+             lit.on(step_key) ? hue::text() : lit.done(step_key) ? hue::done() : selected ? hue::wire() : hue::edge(),
+             canvas);
         pen.p.rests.push_back({step_key, inside});
+        if (lit.done(step_key)) pen.p.happened.insert(step_key);
         if (lit.on(step_key)) {
             pen.p.lit.insert(step_key);
             glow(pen, rows.box, canvas);
+        } else if (lit.done(step_key)) {
+            glow(pen, rows.box, canvas, hue::done());
         }
         const auto tx = rows.box.x + (light ? 8 - m.inset : m.ch);
         // THE CHOSEN STEP'S x on its corner takes it away; the head's words stop short of it.
@@ -1387,8 +1453,10 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
                                (kept_wire && lit.on("card:kept")) ||
                                (field_wire && lit.on("card:message:" + on->message->name()));
             if (shine) pen.p.lit.insert(key);
+            if (lit.done(key)) pen.p.happened.insert(key);
             pen.p.lines.push_back({key, wire_points(m, from->first, from->second, to_x, to_y)});
-            wire(pen, from->first, from->second, to_x, to_y, shine ? hue::text() : ink, g, shine);
+            wire(pen, from->first, from->second, to_x, to_y, shine ? hue::text() : lit.done(key) ? hue::done() : ink, g,
+                 shine || lit.done(key));
             if (const auto v = value_of(b)) badge(pen, from->first, from->second, to_x, to_y, *v, g);
         }
     }
@@ -1396,10 +1464,12 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
         if (const auto it = from_node.find(std::to_string(on->body.result_node)); it != from_node.end()) {
             const bool shine = lit.on("wire:write") || lit.on("card:write:" + on->message->name());
             if (shine) pen.p.lit.insert("wire:write");
+            if (lit.done("wire:write")) pen.p.happened.insert("wire:write");
             pen.p.lines.push_back(
                 {"wire:write", wire_points(m, it->second.first, it->second.second, write_port->first, write_port->second)});
             wire(pen, it->second.first, it->second.second, write_port->first, write_port->second,
-                 shine ? hue::text() : hue::wire(), g, shine);
+                 shine ? hue::text() : lit.done("wire:write") ? hue::done() : hue::wire(), g,
+                 shine || lit.done("wire:write"));
             if (live)
                 if (const auto v = seen.after.find(on->output); v != seen.after.end())
                     badge(pen, it->second.first, it->second.second, write_port->first, write_port->second, v->second, g);

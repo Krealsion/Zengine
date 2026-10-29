@@ -184,7 +184,7 @@ Flow, and Flow says what it can be here. Carrying copies data; it grants nothing
   row -- is declared as the message the rule hears, as it came; with a field kept already, it
   wakes the rule at once.
 - **Any other value** opens a page of offers: **Send as example** when this definition accepts
-  its shape and the participant is running; **Use field = value on %n port** for each field of
+  its shape and the participant is running; **Use field = value on** a step's port for each field of
   the port's kind when it landed on an `Int` or `Bool` port; **Declare ... as an accepted
   message** when no message of its name is declared, and **as an emitted message** when its name
   is inside the definition's namespace. A dropped shape description -- a carried shape, which
@@ -240,8 +240,10 @@ they carry their schemas and no sender identity, destination, grants or reply pr
 Choose **Send**, then **Events**. Each message the rule took is one line, newest first: what came
 in, what changed and what was said, `water.Reading  input 3  ->  value 0 -> 3`; then the host's
 other words, such as a refusal in its owner's words, which continue on the rows beneath, and the
-current state. The same lines stand under the graph. Dispatch settlement is distinct from an
-application result; a quiet weave does not promise a reply. **View > Inspect** refreshes the
+current state. The same lines stand under the graph, and on it what the last message changed stays
+lit in green until the next one: each wire whose value changed and the steps it reaches, what the
+rule wrote where the value it keeps changed, and each message it said. Dispatch settlement is
+distinct from an application result; a quiet weave does not promise a reply. **View > Inspect** refreshes the
 owner's bounded record. An omission count says when older observations were dropped. Loom's host
 Recorder/Logger remain the broader history tools.
 
