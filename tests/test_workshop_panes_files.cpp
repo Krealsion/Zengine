@@ -1587,7 +1587,7 @@ TEST_CASE("Return on a source opens it in the Editor, through the one door") {
 
 TEST_CASE("Return enters a folder and opens a file named beyond ASCII, through the bytes the row holds") {
     // THE ROW HOLDS THE FILESYSTEM'S OWN BYTES, so the press names exactly this folder and this
-    // file; the screen draws each byte it cannot place as `?`.
+    // file; the screen draws each character it cannot place as one `?`.
     FilesRig f("files-beyond-ascii");
     const auto held = [](const std::string& utf8) {
         return std::filesystem::path(
@@ -1598,11 +1598,11 @@ TEST_CASE("Return enters a folder and opens a file named beyond ASCII, through t
     put_file(folder / held("caf\xc3\xa9.cpp"), "the letters\n");
     f.open(160, 48, /*with_editor=*/true);
 
-    f.point_at("Zo?? ?" "?/"); // split, so no trigraph
+    f.point_at("Zo? ?/");
     f.r.key(input::scan::kReturn);
-    CHECK(any_row(f.shown(), "caf??.cpp"));
+    CHECK(any_row(f.shown(), "caf?.cpp"));
 
-    f.point_at("caf??.cpp");
+    f.point_at("caf?.cpp");
     f.r.key(input::scan::kReturn);
     const std::int64_t editor = f.editor_kind();
     REQUIRE(f.r.session().panes.has(editor));
