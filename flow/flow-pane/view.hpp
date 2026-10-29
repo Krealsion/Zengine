@@ -344,6 +344,18 @@ inline void port(Pen& pen, std::int64_t x, std::int64_t middle, gfx::Paint ink, 
         pen.text(x, middle - pen.m.row / 2, "o", lit ? hue::text() : ink, clip);
     }
 }
+/// WHERE A PORT'S DOT TAKES A PRESS AND A REST, where light: a square round the whole dot, so the
+/// half outside its card's row is pressed as its row is, doing what the row does. Pushed after the
+/// rows, so it is the one a press there finds. Nothing where a character is a cell: the `o` stands
+/// inside its row.
+inline void dot_reach(Pen& pen, std::int64_t x, std::int64_t middle, std::optional<Box> clip, const std::string& rest,
+                      std::string action, std::vector<std::string> args, std::int64_t subject = 0) {
+    if (!pen.m.light) return;
+    const Box reach{x - 9, middle - 9, 18, 18};
+    const auto at = clip ? reach.cut(*clip) : reach;
+    pen.press(at, std::move(action), std::move(args), subject);
+    pen.p.rests.push_back({rest, at});
+}
 /// THE POINTS OF A WIRE'S LINE as `wire` draws it, for the pointer to rest on: the curve's, where
 /// light; its three runs' corners where a character is a cell.
 inline std::vector<std::pair<std::int64_t, std::int64_t>> wire_points(const Measure& m, std::int64_t x0, std::int64_t y0,
@@ -1183,10 +1195,14 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
         pen.p.lit.insert(key);
         return true;
     };
-    for (const auto& [name, at] : from_field)
+    for (const auto& [name, at] : from_field) {
         port(pen, at.first, at.second, hue::wire(), true, when_room, lit_port("field:" + name));
-    for (const auto& [name, at] : from_kept)
+        dot_reach(pen, at.first, at.second, when_room, "field:" + name, "field", {name});
+    }
+    for (const auto& [name, at] : from_kept) {
         port(pen, at.first, at.second, hue::kept(), true, when_room, lit_port("field:" + name));
+        dot_reach(pen, at.first, at.second, when_room, "field:" + name, "field", {name});
+    }
     // WHAT IT WRITES AND WHAT IT SAYS.
     std::optional<std::pair<std::int64_t, std::int64_t>> write_port;
     y = then_room.y + (light ? 12 : 0);
@@ -1486,15 +1502,24 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
         if (!rows.box.meets(canvas)) continue;
         const auto at = std::to_string(placed[n].id);
         if (light)
-            for (std::size_t a = 0; a < node.arguments.size(); ++a)
+            for (std::size_t a = 0; a < node.arguments.size(); ++a) {
+                const auto key = "port:" + at + "." + std::to_string(a);
                 port(pen, rows.box.x, rows.middles[a + placed[n].extra], hue::wire(), !unwired(node.arguments[a]), canvas,
-                     lit_port("port:" + at + "." + std::to_string(a)));
+                     lit_port(key));
+                dot_reach(pen, rows.box.x, rows.middles[a + placed[n].extra], canvas, key, "port",
+                          {std::to_string(n), std::to_string(a)}, placed[n].id);
+            }
         port(pen, rows.box.right() - (light ? 0 : m.ch), rows.middles.back(), hue::wire(),
              on->body.result_node == n, canvas, lit_port("answer:" + at));
+        dot_reach(pen, rows.box.right(), rows.middles.back(), canvas, "answer:" + at, "source-node", {std::to_string(n)},
+                  placed[n].id);
     }
-    if (write_port)
+    if (write_port) {
         port(pen, write_port->first, write_port->second, hue::kept(), !on->body.nodes.empty(), then_room,
              lit_port("port:write"));
+        dot_reach(pen, write_port->first, write_port->second, then_room, "port:write", "write",
+                  {std::to_string(model.trigger())});
+    }
     // A WIRE IN THE HAND, drawn from where it was pressed to the hand, in the ink of wires.
     if (const auto& w = model.wire_drawn) wire(pen, w->from_x, w->from_y, w->to_x, w->to_y, hue::wire(), g);
 }

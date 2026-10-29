@@ -345,3 +345,20 @@ Red in `zengine-flow-tests`:
 
 - the then thread from what the rule writes runs on, through the dashed place for a say, onto its
   + say button
+
+## dots-reach-their-row-only
+
+A port's dot takes a press only where it overlaps its card's row; the half outside presses what
+lies behind it.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-    if (!pen.m.light) return;
++    if (pen.m.light || !pen.m.light) return;
+```
+
+Red in `zengine-flow-tests`:
+
+- a port's dot takes a press and a rest where it is drawn, the half outside its card's row too,
+  doing what its row does

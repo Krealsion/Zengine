@@ -961,6 +961,49 @@ TEST_CASE("the then thread from what the rule writes runs on, through the dashed
     for (std::size_t i = 1; i < runs.size(); ++i) CHECK(runs[i].y == runs[i - 1].bottom());
 }
 
+TEST_CASE("a port's dot takes a press and a rest where it is drawn, the half outside its card's row too, "
+          "doing what its row does") {
+    auto m = tally();
+    const auto view = pane::picture(m, light_room());
+    const auto id = std::to_string(pane::place_of(m, 0));
+    // Each port's dot middle, as the marks draw it: a dot 10 wide ringed in the ink of wires or of
+    // what is kept.
+    const auto ringed = [](const gfx::Paint& p, const gfx::Paint& q) { return p.role == q.role && p.rgb == q.rgb; };
+    std::vector<std::pair<std::int64_t, std::int64_t>> dots;
+    for (const auto& k : view.marks)
+        if (k.op == pane::Mark::Op::Ellipse && k.w == 10 && k.h == 10 &&
+            (ringed(k.stroke, pane::hue::wire()) || ringed(k.stroke, pane::hue::kept())))
+            dots.emplace_back(k.x + 5, k.y + 5);
+    REQUIRE(dots.size() >= 5);
+    const auto pressed = [&](std::int64_t x, std::int64_t y) { return view.hit(x, y); };
+    const auto rest = [&](std::int64_t x, std::int64_t y) {
+        for (auto r = view.rests.rbegin(); r != view.rests.rend(); ++r)
+            if (r->box.holds(pane::Box{x, y, 1, 1})) return r->key;
+        return std::string();
+    };
+    // ⚔ MUTATION (tests/mutants/flow_view.md#dots-reach-their-row-only): a dot takes a press only
+    // where it overlaps its card's row.
+    // EVERY DOT: its left and right edges take the press its middle does, and a rest there names
+    // the dot.
+    for (const auto& [x, y] : dots) {
+        const auto* middle = pressed(x, y);
+        REQUIRE(middle != nullptr);
+        for (const auto dx : {-4, 4}) {
+            const auto* edge = pressed(x + dx, y);
+            REQUIRE(edge != nullptr);
+            CHECK(edge->action == middle->action);
+            CHECK(edge->args == middle->args);
+            CHECK_FALSE(rest(x + dx, y).empty());
+        }
+    }
+    // THE DOTS AND WHAT THEY DO: the step's ports, its answer, the message's field, the kept field,
+    // what the rule writes.
+    std::set<std::string> actions;
+    for (const auto& [x, y] : dots) actions.insert(pressed(x + 4, y)->action);
+    CHECK(actions == std::set<std::string>{"port", "source-node", "field", "write"});
+    CHECK(std::any_of(dots.begin(), dots.end(), [&](const auto& d) { return rest(d.first + 4, d.second) == "answer:" + id; }));
+}
+
 TEST_CASE("the rule reads as one sentence, each part still to choose open") {
     using K = pane::Chip::Kind;
     const auto kinds = [](const pane::Model& m) {

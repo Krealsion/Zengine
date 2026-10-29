@@ -81,7 +81,8 @@ The rail beside the graph finds operators through the host's
   **CONVERSIONS** and **FORMS**, each row its name and what its contributor says it is for,
   broken to two lines rather than cut; a count says how many more matched than one answer
   carries. **FORMS** holds the fold, found by what it is for: type `count` or `total`.
-- **A press on a port** opens a small box beside its step: what is in scope of its type, each a
+- **A press on a port** -- its row, or anywhere on its dot, the half outside the card too --
+  opens a small box beside its step: what is in scope of its type, each a
   button by its own name and where it comes from -- a kept field, a field of the message, an
   earlier step's answer -- then one value of the port's own kind: a number for an `Int`, checked
   as you type it, which **Use** or **Enter** binds, or **yes** or **no** for a `Bool`. Its **x**,
