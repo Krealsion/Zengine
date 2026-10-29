@@ -66,8 +66,10 @@ for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journ
 setups, each feature's tutorials (`<feature>/docs/tutorials/<name>/`) among them, exported whole by
 `demo.py export` so the files a tutorial shares from elsewhere in the tree travel with it;
 `share/zengine/loom-tools/desk`, the agent's desk guide and resolver; and beside each its
-`-machine` package (`workshop-machine`, `desk-machine`), the tools that also reach this machine. An
-operator approves a package whole, so a package's name says how far its tools reach. The generic
+`-machine` package (`workshop-machine`, `desk-machine`), the tools that also reach this machine;
+and `share/zengine/loom-tools/accounts-machine`, a checkout's Git and pull requests, which reach the
+session user's accounts. An operator approves a package whole, so a package's name says how far
+its tools reach. The generic
 `zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs, and so
 does `zengine-app`, the host an app runs in with no Workshop (`app/docs/app.md`): it opens the
 artifacts from `lib/zengine/` by a path relative to its own, so it names no machine's layout, and

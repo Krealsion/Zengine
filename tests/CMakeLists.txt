@@ -1576,7 +1576,8 @@ if(LOOM_SESSION_TOOLS)
         # UTF-8, as a Windows Python decodes it by default.
         # WHAT A SHIPPED TOOL REACHES, BY ITS IMPORTS (tests/session/tool_reach.py): a package's name
         # says it. Every tool of a package not named `-machine` reaches nothing but the bus and a
-        # clock, and every tool's imports are found in its package or the packages it uses.
+        # clock, only a package named `accounts-machine` runs GitHub's client or Git's push, and
+        # every tool's imports are found in its package or the packages it uses.
         zengine_program_test(tool_reach Python3::Interpreter -I
             ${CMAKE_CURRENT_SOURCE_DIR}/session/tool_reach.py
             --packages ${CMAKE_SOURCE_DIR}/external-host/tools
