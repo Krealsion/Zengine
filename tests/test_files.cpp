@@ -371,9 +371,11 @@ TEST_CASE("a name beyond ASCII is carried exactly and opens, drawn as the screen
     REQUIRE(in != nullptr);
     REQUIRE(named != nullptr);
     CHECK(in->directory);
-    // ...AND THE SCREEN STILL DRAWS ASCII: each byte it cannot place is a `?`, never raw.
-    CHECK(shown_name(in->name) == "Zo?? ??");
-    CHECK(shown_name(named->name).find('?') != std::string::npos);
+    // ...AND THE SCREEN STILL DRAWS ASCII: each character it cannot place is one `?`, as the
+    // header spells its path, never raw; a byte that spells no character is one `?` too.
+    CHECK(shown_name(in->name) == "Zo? ?");
+    CHECK(shown_name(named->name) == "caf? ?.cpp");
+    CHECK(shown_name("a\x80\xc3" "b\x1f") == "a??b?");
 
     // WHAT A PATH IN WORKSHOP IS SPELLED IN: any letter, and no control character or bytes that
     // spell none -- a stray continuation, a cut sequence, an overlong form, a surrogate.
