@@ -4220,14 +4220,15 @@ TEST_CASE("in a window that reports a resting pointer, Files' shut places peek o
         return i < static_cast<std::int64_t>(now.size()) ? now[static_cast<std::size_t>(i)]
                                                          : std::string();
     };
-    REQUIRE(row(at + 1).find("a/") != std::string::npos);
+    // THE LISTING'S FIRST ROW, the cursor on `a/`; a place's path may hold `a/` anywhere.
+    REQUIRE(row(at + 1).rfind("> a/", 0) == 0);
 
     // THE POINTER COMES TO REST ON THE HEADER: the places stand over the listing's first rows, the
     // header keeps its words, and the pane asks no more room.
     window.move(area, 3, at);
     CHECK(row(at) == shut[static_cast<std::size_t>(at)]);
     CHECK(row(at + 1).find("origin") != std::string::npos);
-    CHECK(row(at + 1).find("a/") == std::string::npos);
+    CHECK(row(at + 1).rfind("> a/", 0) == std::string::npos);
     CHECK(f.row()->latest.rows == 9);
     CHECK_FALSE(places_kept(f).has_value());
     // ...ON WHAT THE PEEK SHOWS, IT STAYS; and a move a held press carries is a drag, no rest.
