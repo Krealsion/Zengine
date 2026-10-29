@@ -413,7 +413,8 @@ they peek: its path, cut in the middle to the column the places share, and why i
 ### `entry`
 
 One row of the listing, `> ` before the cursor's. A folder ends in `/`, a link in `/  (link)`. Each
-byte outside printable ASCII is drawn `?`. A name Workshop cannot carry in a path ends `(name this
+character outside printable ASCII is drawn as one `?`, as the header spells its path, and so is each
+byte that spells no character. A name Workshop cannot carry in a path ends `(name this
 Workshop cannot open)`, and does not open. Where the window cuts the list, `... 4 earlier` and `...
 12 more`.
 
