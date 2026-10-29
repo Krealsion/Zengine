@@ -169,6 +169,13 @@ its kind and what it reads; on a step's answer or a field, what reads it; on a w
 lit, and the value it last carried. A press, or the pointer leaving Flow, ends the rest. A dashed
 part of the sentence, still to choose, pressed, does what the Next line's button does.
 
+![The pointer resting on add's rhs port while the rule runs: the port ringed and a box beside it saying rhs : Int, reads total, kept](images/flow-rest-port.png)
+
+While the rule runs, what the last message changed stays edged in green until the next one: the
+wires whose values changed and the steps they reach, what the rule wrote, and what it said.
+
+![The tally rule running after two counts: the sentence and the three lanes, the wires carrying 3, 12 and 15, what the last message changed edged in green, total now 15, and two Events lines, 9 -> 12 and 12 -> 15](images/flow-running-lit.png)
+
 A right press on the graph opens a menu of what can be done to what it landed on:
 
 - **A message's card**: **Add a field...**, **Rename...**, **Remove from the rule** (its steps go;
@@ -188,6 +195,8 @@ A right press on the graph opens a menu of what can be done to what it landed on
 
 Each takes what it breaks with it: a port that read what went is left open, and a say that carried a
 field that went, or changed kind, goes. A row chosen after the rule changed does nothing, and says so.
+
+![A right press on the add step's head: Flow's rows, Disconnect all and Delete, above Workshop's own rows for the pane](images/flow-right-menu.png)
 
 A wire dragged over a port it does not fit says why under the hand before you let go -- the step
 it would read is not before the port's, or it carries another type -- and letting it go there wires
