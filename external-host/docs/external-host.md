@@ -1009,7 +1009,8 @@ the lowest part of a kind saying a text (a Terminal's newest value), `hand.first
 word, `hand.control` a `[label]` by its word, `hand.spot` a text by the word holding it (an
 Inventory crumb, or `[Up]`), `hand.row_starting` the topmost row starting with a text, pressed at
 its third character as `hand.row` presses (inside an Inventory view's first box), and `hand.field`
-an Info view's field by its part `field:<path>`, wheeling the view's selection until it shows, so
+an Info view's field by its part `field:<path>`, wheeling the view's selection until it shows, and
+`hand.level` opens a level of an Info view's value by its fold mark `fold:<path>`, so
 a tool reads a pane that draws a picture as it reads a text pane; `act.rows_by_place` numbers a
 pane's lines by where they stand, a blank row a canvas draws as no word among them. `hand.point`
 reckons where one cell of a pane's text lattice stands in a reading, by its row and column, from the

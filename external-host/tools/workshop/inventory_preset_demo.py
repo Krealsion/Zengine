@@ -81,7 +81,9 @@ def run(ctx):
     ctx.step("pick up a typed field from the saved capture and fill the missing argument")
     # Inventory Capture stores the owner's typed PokeStructure answer, not its displayed text.
     hand.drag(hand.row(*inv, label + " : ", scroll=True), hand.first(*info), 350)
-    selected = hand.row(*info, "fields[0].name:")
+    hand.level(*info, "fields")
+    hand.level(*info, "fields[0]")
+    selected = hand.field(*info, "fields[0].name")
     hand.click(selected); hand.key("ctrl+g")
     # Workshop holds the copy and says it is carried; Info says nothing of a carry it no longer holds.
     says_no_pickup(ctx, hand, info)
@@ -96,7 +98,7 @@ def run(ctx):
     hand.press("compose.submit")
     after = next(e for e in entries() if e["reference"] == source["reference"])
     # The visible field is only an assertion oracle; the copied payload travelled through Zengine.
-    expected = selected["text"].split("fields[0].name: ", 1)[1]
+    expected = selected["text"].split("name: ", 1)[1]
     ctx.check(after["label"] == expected and after["revision"] == source["revision"] + 1,
               "submission did not apply the acquired field to the intended entry")
     ctx.check(read(complete)["pair"] == complete["pair"], "complete command source changed")

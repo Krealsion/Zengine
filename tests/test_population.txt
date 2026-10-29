@@ -19,7 +19,7 @@ input                             doctest           always  56
 graphics                          doctest           always  121
 graphics                          doctest           sdl     7
 ui                                doctest           always  30
-component                         doctest           always  56
+component                         doctest           always  59
 editor                            doctest           always  20
 # Tripwires in this suite read workshop/workshop.cpp, workshop/load_execute.hpp,
 # operator/source.hpp, operator/migration.hpp and tests/weavelib/operator_consumer_weave.cpp as
@@ -62,7 +62,7 @@ workshop_panes_hand               doctest           always  230
 # operator/reference.hpp and the Introspection pane's sources and CMake file as text (VM-WALL-11).
 workshop_panes_inspect            doctest           always  128
 # Tripwires in this part read info/pane.cpp as text (VM-WALL-11).
-workshop_panes_info               doctest           always  183
+workshop_panes_info               doctest           always  185
 workshop_panes_settings           doctest           always  57
 # Tripwires in this part read the Terminal pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_terminal           doctest           always  75

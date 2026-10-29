@@ -4,8 +4,8 @@
 know nothing about the medium showing them. The stateful pieces are `TextBox`; four list
 mechanics — a window onto a list, a composition read backwards, a choice held by identity, and
 a table's columns; a strip of labelled controls; a strip of tabs over a settings list; and an
-accordion, one section shut, open or peeking, with the independent group over accordions. A pure
-`motion::Path` also supplies
+accordion, one section shut, open or peeking, with the independent group over accordions and the
+rows a tree shows, an accordion at every level. A pure `motion::Path` also supplies
 linear/cubic Bezier sampling and elapsed-time progress.
 
 The rule this package is built on: **extract from repeated working behaviour, never from a list
@@ -80,11 +80,18 @@ component/accordion.hpp     Fold{kShut, kOpen, kPeek}, fold_mark
                                           from the room while open, over what follows while it
                                           peeks -- and what did not fit, counted
                             IndependentAccordions<Key>: section / fold / press / open / shut
-                            shut_all / rest / rest_none / opened / restore / keep
-                                          the independent group: sections by identity, each
-                                          opened and shut alone, every one shut by one act,
-                                          one at most peeking; kept across a population that
-                                          moves until it no longer holds them
+                            shut_all / rest / rest_none / keep
+                                          the independent group over the open sections its
+                                          owner keeps: sections by identity, each opened and
+                                          shut alone, every one shut by one act, one at most
+                                          peeking; kept across a population that moves until
+                                          it no longer holds them
+                            TreeRow{row, depth, branch}, shown_tree, tree_parent
+                                          a tree's shown rows, from each row's depth in
+                                          depth-first order: a row shows while every branch
+                                          above it is open; a branch is a row whose next row
+                                          stands deeper; a row's parent is the nearest
+                                          shallower row before it
 ```
 
 **A peek is the open seen early, and nothing keeps it.** While the pointer rests on a shut
@@ -92,9 +99,14 @@ section's header its body shows over what follows, taking none of the room, so n
 under the hand; a press then opens what was already showing. A press that shuts a section under
 the resting pointer does not bring the peek straight back: it waits for the pointer to leave and
 come again. Where the fold is kept is the owner's -- a word in its layout's row, its own state, or
-nothing -- and where the pointer is is the owner's to tell it: the component holds what follows from
-both and no medium, so the same section serves rows of characters and a drawn picture. The group
-here is the independent one: opening a section shuts none of the others.
+nothing. The group keeps none of it: it is made over the owner's list of open sections, reads it
+there and writes it there, so an edit to the owner's state is what the next fold reads, and a key
+written twice or out of order still reads as open. Where the pointer is is the owner's to tell
+it: the component holds what follows from both and no medium, so the same section serves rows of
+characters and a drawn picture. The group here is the independent one: opening a section shuts
+none of the others. A tree is the same fold at every level: its branches are sections, a level
+open beside its siblings, and the owner says which rows are open; `shown_tree` says which rows
+show, each with its depth and whether it holds rows of its own.
 
 Each owns arithmetic and a value, and nothing else: no Loom, no medium, no policy.
 

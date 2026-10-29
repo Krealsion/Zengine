@@ -84,7 +84,7 @@ LAW — The Hotkeys pane shows its keys in sections, a pane's or a place Worksho
 MEANS
 - `hotkeys.open` opens the section under the cursor or steps in, `hotkeys.shut` steps out or shuts it, `hotkeys.shut-all` shuts all; a press on a header opens or shuts it;
 - the pointer resting on a shut header shows its keys over what follows, taking no room; a press on one opens the section there;
-- the open ones are the desk weave's reload state (`DesktopState`), forgotten once neither the keymap nor the inventory holds them.
+- the open ones are the desk weave's state (`DesktopState`), read and written there with no copy beside it, forgotten once neither the keymap nor the inventory holds them.
 
 DOES NOT MEAN
 - that opening a section shuts another, that a grey one cannot be opened or edited, or that the open ones are kept across runs.
@@ -183,7 +183,7 @@ words once closed, and a pane reloaded in place shows its new words at the next 
 ### WL-DESK-21
 `workshop/desktop-pane/hotkeys_view.hpp` HotkeysView KeysSection section_key compose_lines
 keys_open_here keys_shut_here keys_shut_all inventory_said rest pointer_left
-`workshop/desktop-pane/pane.cpp` keep_keys_open on_window_rest on_window_left
+`workshop/desktop-pane/pane.cpp` hotkeys_ on_window_rest on_window_left
 `workshop/desktop-pane/vocabulary.hpp` DesktopState kActionKeysOpen kActionKeysShut
 kActionKeysShutAll
 `component/accordion.hpp` IndependentAccordions
