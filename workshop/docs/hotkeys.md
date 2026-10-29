@@ -309,11 +309,10 @@ never touches a file that was refused or that changed under it
 The file and its folder may be named in any language. Below, Workshop was launched with its
 per-user folders, and the file its `--keymap` names, in a folder named `Zoë Ж`, then quit and
 launched again: the desk, the hidden titles and the keymap came back from there. The keymap gives
-the Pane Manager `alt+up` beside `ctrl+p`; Workshop's notice names the file whole -- shown at
-the foot of this picture, where Workshop said it before it had a pane for it -- and the Hotkeys
-pane spells what it cannot draw as `?`.
+the Pane Manager `alt+up` beside `ctrl+p`; Workshop's notice in the Notices pane and the Hotkeys
+pane both spell what they cannot draw as `?`.
 
-![Workshop launched again from a folder named Zoë Ж: the desk saved there restored, the legend offering ^p and ^q for panes, the Hotkeys pane naming the keymap file Zo? ?/keymap.json, and the notice line naming it Zoë Ж/keymap.json, applied with 2 overrides](images/hotkeys-keymap-folder-window.png)
+![Workshop launched again from a folder named Zoë Ж: the desk saved there restored with its titles hidden, the legend offering ctrl+p and alt+up for panes, the Hotkeys pane naming the keymap file Zo? ?/keymap.json, and Notices saying it was applied with 2 overrides](images/hotkeys-keymap-folder-window.png)
 
 **What is refused, by name:**
 

@@ -76,7 +76,7 @@ little while; the `last` row says `running` meanwhile, and Workshop stays usable
 Press <!-- key desktop.panes -->`ctrl+p`<!-- /key --> for the Pane Manager, move to `Tally` with
 `down` and `up`, and press `return`.
 
-![Tally on the desk below the Pane Manager: Tally: 0 on its card, and its +1 button beside it](images/step-5.png)
+![Tally on the desk in front of the Pane Manager, placed where it opened: Tally: 0 on its card, and its +1 button beside it](images/step-5.png)
 
 Tally says `Tally: 0`, and your keys are in it. It draws its own picture: a card, a badge, its
 words and a button where it puts them
