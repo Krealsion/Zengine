@@ -21,8 +21,8 @@ The panes report and do not act. None of them loads, unloads, mounts, overlays o
 anything, and browsing `Powers` runs no power: a Source runs once, when you ask for a sample.
 
 A pane asks its owner when Workshop gives it room: when it opens, moves or changes size, and when a
-reloaded weave offers it again. `Loaded` asks again when you scroll it, and `Powers` when your
-search or your selection changes. Between readings the rows are a snapshot, and the pane's last
+reloaded weave offers it again. `Loaded` and `Project` ask again when you scroll them, and
+`Powers` when your search or your selection changes. Between readings the rows are a snapshot, and the pane's last
 line says whose. A host that mounts no arrangement or discovery door leaves `Project` and `Powers`
 at `(waiting for the provider)`.
 
@@ -35,7 +35,9 @@ only while a pane holds your keys: press into it first.
   weave you chose ([Follow](#follow)); the Composer takes it as its target. The wheel scrolls the
   list without moving your choice. Escape lets the choice go; with nothing chosen, Escape puts the
   pane down.
-- **Project**: read it. A press gives it the keys and does nothing else.
+- **Project**: read it. The wheel moves its list an artifact a notch, and so do
+  [`project.up`](#projectup) and [`project.down`](#projectdown) once it holds your keys; a press
+  gives it the keys and does nothing else.
 - **Powers**: type to search; the query is the pane's one field, edited, copied and pasted as any
   text field is. Text carrying a byte that is not printable ASCII is refused whole. Choose a view
   ([`powers.view`](#powersview)), walk the list ([`powers.down`](#powersdown)) or press a power to
@@ -53,7 +55,7 @@ the default and is said to Workshop; Loaded and Project take none.
 
 ## Commands
 
-The `Powers` pane's; `Loaded` and `Project` declare none.
+The `Powers` pane's, then `Project`'s; `Loaded` declares none.
 
 ### `powers.view`
 
@@ -150,6 +152,32 @@ power can be opened or edited.
 - **Refuses:** nothing; a filter nothing passes shows `none here match the current search`.
 - **Example:** press `[ ] Composite` in the Operators view.
 
+### `project.up`
+
+Moves Project's list up an artifact: the block above the first one shown comes into the pane,
+whole.
+
+- **Takes:** the list on screen. Default key <!-- key project.up -->`up`<!-- /key -->; the wheel
+  moves it an artifact a notch.
+- **Answers:** the arrangement door is asked again
+  ([`ArrangementRequested`](zengine.arrangement.md#arrangementrequested)), and its answer is
+  drawn from the artifact now first; the row that counts what is not shown says what is above it
+  too, `  ... 1 earlier, 3 more`.
+- **Refuses:** nothing; at the first artifact, or with every artifact shown, nothing moves and
+  nothing is asked.
+- **Example:** press <!-- key project.up -->`up`<!-- /key -->.
+
+### `project.down`
+
+Moves Project's list down an artifact. Otherwise as [`project.up`](#projectup).
+
+- **Takes:** the list on screen. Default key <!-- key project.down -->`down`<!-- /key -->.
+- **Answers:** the door is asked again
+  ([`ArrangementRequested`](zengine.arrangement.md#arrangementrequested)), and the next artifact
+  comes into the pane.
+- **Refuses:** nothing; once the last artifact shows, nothing moves and nothing is asked.
+- **Example:** in a pane that counts `  ... 5 more`, press <!-- key project.down -->`down`<!-- /key -->.
+
 ## Follow
 
 A press on a weave's row of `Loaded` publishes `LoadedSelected` v1 as `zengine.introspection`:
@@ -175,7 +203,8 @@ map`: Workshop's own weaves are not in this list. `snapshot from zen.ListLoaded`
 `6 of 6 artifacts resolved -- 2 providers, 5 weaves` (with `, 1 unavailable` when an optional row
 was stepped over), then a block an authored artifact, in plan order: its stem, its
 [`authored`](#authored) row, then its [`resolved`](#resolved) rows or its [state](#state). A block
-is shown whole or counted, `  ... 3 more`. Then `in-process participants are not authored
+is shown whole or counted, `  ... 3 more`, and `  ... 2 earlier, 3 more` once the list is moved
+down. Then `in-process participants are not authored
 artifacts`, and `plan: <the file the host read>` when there is room.
 
 ### `authored`

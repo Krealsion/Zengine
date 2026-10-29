@@ -60,7 +60,7 @@ workshop_panes_hand               doctest           always  228
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp,
 # workshop/arrangement.hpp, workshop/powers_door.hpp, workshop/sample_door.hpp,
 # operator/reference.hpp and the Introspection pane's sources and CMake file as text (VM-WALL-11).
-workshop_panes_inspect            doctest           always  113
+workshop_panes_inspect            doctest           always  127
 # Tripwires in this part read info/pane.cpp as text (VM-WALL-11).
 workshop_panes_info               doctest           always  179
 workshop_panes_settings           doctest           always  57
