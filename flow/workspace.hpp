@@ -18,6 +18,57 @@ struct StoredFormFile {
     loom::Bytes draft;
     ZEN_SHAPE(StoredFormFile, 1, ZEN_FIELD(key), ZEN_FIELD(title), ZEN_FIELD(state), ZEN_FIELD(draft));
 };
+/// A WHEN OR THEN CARD WHERE THE MAKER PUT IT, down its own column in the graph's grid: `card`
+/// names it as the pane does (`kept`, or `message:`, `write:` or `say:` with the messages it is
+/// for), and a card no place names stands where the column stacks it.
+struct DockPlace {
+    std::string card;
+    std::int64_t y = 0;
+    ZEN_SHAPE(DockPlace, 1, ZEN_FIELD(card), ZEN_FIELD(y));
+};
+inline constexpr std::size_t kMaxDockPlaces = 1024;
+inline constexpr std::size_t kMaxDockCardBytes = 512;
+/// THE WORKSPACE FILE: the project, and what the editor holds beside it. `unanswered` names each
+/// trigger, by its place among them all, whose answer was deleted and none chosen since: the
+/// project holds it answered by its first node, as an executable project must.
+struct WorkspaceFile {
+    loom::Bytes project, library;
+    std::vector<NodePlace> places;
+    std::vector<EmptyTrigger> empty_triggers;
+    std::vector<StoredFormFile> forms;
+    std::string active_form;
+    std::int64_t next_id = 1, active_trigger = 0, pan_x = 0, pan_y = 0, zoom = 100;
+    std::vector<DockPlace> docks;
+    std::vector<std::int64_t> unanswered;
+    ZEN_SHAPE(WorkspaceFile, 3, ZEN_FIELD(project), ZEN_FIELD(library), ZEN_FIELD(places),
+              ZEN_FIELD(empty_triggers), ZEN_FIELD(forms), ZEN_FIELD(active_form), ZEN_FIELD(next_id), ZEN_FIELD(active_trigger),
+              ZEN_FIELD(pan_x), ZEN_FIELD(pan_y), ZEN_FIELD(zoom), ZEN_FIELD(docks), ZEN_FIELD(unanswered));
+};
+namespace v2 {
+/// THE WORKSPACE FILE AS VERSION 2 WROTE IT, read still: every trigger in it has its answer.
+struct WorkspaceFile {
+    loom::Bytes project, library;
+    std::vector<NodePlace> places;
+    std::vector<EmptyTrigger> empty_triggers;
+    std::vector<StoredFormFile> forms;
+    std::string active_form;
+    std::int64_t next_id = 1, active_trigger = 0, pan_x = 0, pan_y = 0, zoom = 100;
+    std::vector<DockPlace> docks;
+    ZEN_SHAPE(WorkspaceFile, 2, ZEN_FIELD(project), ZEN_FIELD(library), ZEN_FIELD(places),
+              ZEN_FIELD(empty_triggers), ZEN_FIELD(forms), ZEN_FIELD(active_form), ZEN_FIELD(next_id), ZEN_FIELD(active_trigger),
+              ZEN_FIELD(pan_x), ZEN_FIELD(pan_y), ZEN_FIELD(zoom), ZEN_FIELD(docks));
+};
+inline zengine::flow::WorkspaceFile to_current(const WorkspaceFile& old) {
+    zengine::flow::WorkspaceFile out;
+    out.project = old.project; out.library = old.library; out.places = old.places;
+    out.empty_triggers = old.empty_triggers; out.forms = old.forms; out.active_form = old.active_form;
+    out.next_id = old.next_id; out.active_trigger = old.active_trigger;
+    out.pan_x = old.pan_x; out.pan_y = old.pan_y; out.zoom = old.zoom; out.docks = old.docks;
+    return out;
+}
+} // namespace v2
+namespace v1 {
+/// THE WORKSPACE FILE AS VERSION 1 WROTE IT, read still: no card has a place of its own.
 struct WorkspaceFile {
     loom::Bytes project, library;
     std::vector<NodePlace> places;
@@ -29,6 +80,15 @@ struct WorkspaceFile {
               ZEN_FIELD(empty_triggers), ZEN_FIELD(forms), ZEN_FIELD(active_form), ZEN_FIELD(next_id), ZEN_FIELD(active_trigger),
               ZEN_FIELD(pan_x), ZEN_FIELD(pan_y), ZEN_FIELD(zoom));
 };
+inline zengine::flow::WorkspaceFile to_current(const WorkspaceFile& old) {
+    zengine::flow::WorkspaceFile out;
+    out.project = old.project; out.library = old.library; out.places = old.places;
+    out.empty_triggers = old.empty_triggers; out.forms = old.forms; out.active_form = old.active_form;
+    out.next_id = old.next_id; out.active_trigger = old.active_trigger;
+    out.pan_x = old.pan_x; out.pan_y = old.pan_y; out.zoom = old.zoom;
+    return out;
+}
+} // namespace v1
 inline loom::Bytes byte_vector(std::string_view text) { return {text.begin(), text.end()}; }
 inline std::string byte_string(const loom::Bytes& bytes) { return {bytes.begin(), bytes.end()}; }
 // Historical form schemas are separate observations. They must not be combined
@@ -44,6 +104,7 @@ struct Workspace {
     std::vector<StoredForm> forms;
     std::string active_form;
     std::int64_t active_trigger = 0, pan_x = 0, pan_y = 0, zoom = 100;
+    std::vector<DockPlace> docks;
 };
 
 // Empty triggers are editor work, not executable compositions. Preserve them as
@@ -53,6 +114,10 @@ inline std::string workspace_bytes(const Workspace& workspace) {
     auto project = workspace.graph.project;
     auto& ons = project.definition.on;
     for (std::size_t i = 0; i < ons.size(); ++i) {
+        if (!ons[i].body.nodes.empty() && !answered(ons[i])) {
+            file.unanswered.push_back(static_cast<std::int64_t>(i));
+            ons[i].body.result_node = 0;
+        }
         if (!ons[i].body.nodes.empty()) continue;
         const auto& accepts = project.definition.accepts;
         const auto found = std::find_if(accepts.begin(), accepts.end(), [&](const auto& s) {
@@ -81,6 +146,7 @@ inline std::string workspace_bytes(const Workspace& workspace) {
     file.next_id = workspace.graph.next_id;
     file.active_trigger = workspace.active_trigger;
     file.pan_x = workspace.pan_x; file.pan_y = workspace.pan_y; file.zoom = workspace.zoom;
+    file.docks = workspace.docks;
     auto bytes = loom::serialize(loom::to_value(file));
     if (bytes.size() > maker::kMaxFileBytes) throw std::invalid_argument("workspace exceeds 1 MiB; export or remove saved drafts before adding more");
     return bytes;
@@ -88,9 +154,22 @@ inline std::string workspace_bytes(const Workspace& workspace) {
 
 inline Workspace read_workspace(std::string_view bytes) {
     if (bytes.size() > maker::kMaxFileBytes) throw std::invalid_argument("workspace exceeds 1 MiB");
-    const auto gate = loom::admit(loom::parse(bytes), loom::schema_of<WorkspaceFile>());
-    if (!gate) throw std::invalid_argument(gate.first_error().message());
-    const auto file = loom::from_value<WorkspaceFile>(gate.value());
+    // A FILE VERSION 1 WROTE is read as the current one with no card placed.
+    const auto claim = loom::parse(bytes);
+    WorkspaceFile file;
+    if (claim.claimed_version() == v1::WorkspaceFile::zen_version) {
+        const auto old = loom::admit(claim, loom::schema_of<v1::WorkspaceFile>());
+        if (!old) throw std::invalid_argument(old.first_error().message());
+        file = v1::to_current(loom::from_value<v1::WorkspaceFile>(old.value()));
+    } else if (claim.claimed_version() == v2::WorkspaceFile::zen_version) {
+        const auto old = loom::admit(claim, loom::schema_of<v2::WorkspaceFile>());
+        if (!old) throw std::invalid_argument(old.first_error().message());
+        file = v2::to_current(loom::from_value<v2::WorkspaceFile>(old.value()));
+    } else {
+        const auto gate = loom::admit(claim, loom::schema_of<WorkspaceFile>());
+        if (!gate) throw std::invalid_argument(gate.first_error().message());
+        file = loom::from_value<WorkspaceFile>(gate.value());
+    }
     Workspace out;
     out.graph = GraphDraft(read_project(byte_string(file.project)));
     auto& def = out.graph.project.definition;
@@ -101,6 +180,15 @@ inline Workspace read_workspace(std::string_view bytes) {
             throw std::invalid_argument("invalid empty trigger in workspace");
         def.on.insert(def.on.begin() + empty.index, {def.accepts[static_cast<std::size_t>(empty.message)], {}, empty.output, {}});
         previous = empty.index;
+    }
+    previous = -1;
+    for (const auto t : file.unanswered) {
+        if (t <= previous || t < 0 || static_cast<std::size_t>(t) >= def.on.size() ||
+            def.on[static_cast<std::size_t>(t)].body.nodes.empty())
+            throw std::invalid_argument("invalid unanswered trigger in workspace");
+        auto& body = def.on[static_cast<std::size_t>(t)].body;
+        body.result_node = body.nodes.size();
+        previous = t;
     }
     out.library = message_draft::read_library(byte_string(file.library));
     std::set<std::string> form_keys;
@@ -130,6 +218,12 @@ inline Workspace read_workspace(std::string_view bytes) {
         file.pan_y < -10000000 || file.pan_y > 10000000 || file.active_trigger < 0 ||
         (!def.on.empty() && static_cast<std::size_t>(file.active_trigger) >= def.on.size()))
         throw std::invalid_argument("invalid workspace view");
+    if (file.docks.size() > kMaxDockPlaces) throw std::invalid_argument("workspace places too many cards");
+    std::set<std::string> cards;
+    for (const auto& d : file.docks)
+        if (d.card.empty() || d.card.size() > kMaxDockCardBytes || !cards.insert(d.card).second ||
+            d.y < -10000000 || d.y > 10000000) throw std::invalid_argument("invalid card place in workspace");
+    out.docks = file.docks;
     out.graph.places = file.places; out.graph.next_id = file.next_id;
     out.active_trigger = file.active_trigger; out.pan_x = file.pan_x; out.pan_y = file.pan_y; out.zoom = file.zoom;
     return out;

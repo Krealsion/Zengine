@@ -73,9 +73,11 @@ remain pending. Apply and Stop refuse while these managed input fences are open.
 claim global quiescence: unrelated host traffic and future external work are outside them.
 
 Direct input delivery facts are captured from the bus at delivery rather than recovered later
-from its rolling outcome journal. Output payloads are recorded by the session's ordinary
-listener. This is a bounded working view; the host's Loom logger and recorder remain the homes
-for broader or durable observation.
+from its rolling outcome journal, and so are every message of an accepted shape that reaches the
+subject, whoever sent it, the state the subject keeps once each is handled, and each output it
+says, with the arrival whose handling said it. Refusals the subject says are recorded by the
+session's ordinary listener. This is a bounded working view; the host's Loom logger and recorder
+remain the homes for broader or durable observation.
 
 Bounds are eight sessions per manager, 16 retained input fences per session, and 128 events or
 256 KiB of event payload/detail per session, whichever is reached first. An event payload above

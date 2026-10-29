@@ -1068,3 +1068,18 @@ In `workshop/screen_compose.cpp`:
 Red in `zengine-workshop-screen-tests`:
 
 - WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows
+
+## flow-doubles-on-its-own-interval
+
+Flow reads a double click on an interval of its own, apart from this host's.
+
+In `flow/flow-pane/gesture.hpp`:
+
+```diff
+-inline constexpr std::int64_t kDoublePressMs = 400;
++inline constexpr std::int64_t kDoublePressMs = 500;
+```
+
+Red in `zengine-workshop-screen-tests`:
+
+- Flow reads a double click on the interval this host reads one on

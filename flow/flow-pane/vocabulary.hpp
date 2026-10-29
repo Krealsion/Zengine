@@ -27,6 +27,8 @@ struct FlowDialogEntry {
     std::int64_t caret = 0, anchor = 0;
     ZEN_SHAPE(FlowDialogEntry, 1, ZEN_FIELD(label), ZEN_FIELD(text), ZEN_FIELD(caret), ZEN_FIELD(anchor));
 };
+// What a reload of the pane keeps. `started` is the state the running rule was run with, in the
+// text the Flow host journals a value in; `earlier` the Events lines of the runs before it.
 struct FlowPaneState {
     loom::Bytes workspace;
     std::string path;
@@ -34,9 +36,12 @@ struct FlowPaneState {
     std::int64_t page = 0, dialog_selected = 0;
     std::string dialog_title, dialog_action;
     std::vector<FlowDialogEntry> dialog_entries;
-    ZEN_SHAPE(FlowPaneState, 1, ZEN_FIELD(workspace), ZEN_FIELD(path), ZEN_FIELD(dirty),
+    loom::Bytes started;
+    std::vector<std::string> earlier;
+    ZEN_SHAPE(FlowPaneState, 2, ZEN_FIELD(workspace), ZEN_FIELD(path), ZEN_FIELD(dirty),
               ZEN_FIELD(state_edited), ZEN_FIELD(page), ZEN_FIELD(dialog_selected),
-              ZEN_FIELD(dialog_title), ZEN_FIELD(dialog_action), ZEN_FIELD(dialog_entries));
+              ZEN_FIELD(dialog_title), ZEN_FIELD(dialog_action), ZEN_FIELD(dialog_entries),
+              ZEN_FIELD(started), ZEN_FIELD(earlier));
 };
 } // namespace zengine::flow_pane
 #endif

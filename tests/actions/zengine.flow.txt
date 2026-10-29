@@ -10,6 +10,7 @@ zengine.flow - ask-import unbound - - Import a Flow definition
 zengine.flow - ask-export unbound - - Export the Flow definition
 zengine.flow - apply unbound FlowApply/1,FindPowers/2 - Apply to the running graph
 zengine.flow - stop unbound FlowStop/1,FindPowers/2 - Stop the running graph
+zengine.flow - restart unbound FlowStop/1,FlowRun/1,FindPowers/2 - Restart the running graph
 zengine.flow - inspect unbound FlowInspect/1 - Inspect the running graph
 zengine.flow - catalog unbound FlowCatalog/1,FindPowers/2 - Read the catalog
 zengine.flow - page-graph unbound - - Show the graph
@@ -22,10 +23,12 @@ zengine.flow - zoom-in unbound - - Zoom in
 zengine.flow - zoom-out unbound - - Zoom out
 zengine.flow - ask-trigger unbound - - Add a trigger
 zengine.flow - ask-emit unbound - - Add an emit
+zengine.flow - ask-keep unbound - - Keep a field between messages
+zengine.flow - ask-say unbound ViewWiringRequested/1 - Say a message after the change
 zengine.flow - add-fold unbound FindPowers/2 - Add the form shown
 zengine.flow - ask-state-field unbound - - Add a state field
 zengine.flow - keep-state unbound - - Keep the state
-zengine.flow - ask-message unbound - - New message
+zengine.flow - ask-message unbound ViewWiringRequested/1 - New message
 zengine.flow - ask-message-field unbound - - Add a message field
 zengine.flow - ask-emitted-message unbound - - New emitted message
 zengine.flow - ask-emitted-field unbound - - Add an emitted field

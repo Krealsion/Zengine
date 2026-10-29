@@ -20,8 +20,11 @@ Every running project belongs to a session, named by the asker and scoped to it:
 ask was sent as, while that office's holder is still the one asking, or else to the asker's own
 identity on the bus. Another weave cannot reach a session by guessing its name. Each session sends
 its examples from a participant of its own, granted only the definition's accepted shapes to its
-subject, and keeps a journal of what happened: each input queued, delivered or refused, each output,
-each refusal the subject said.
+subject, and keeps a journal of what happened: each input it sent, queued, delivered or refused;
+every message of an accepted shape that reached the subject, whoever sent it (`arrived`), and the
+state the subject kept once that message was handled (`kept`, `after #<n>`); each output the subject
+said, with the arrival whose handling said it (`<shape> after #<n>`); and each refusal the subject
+said.
 
 Every bound is the host's own, declared in [`flow/flow-host/runtime.hpp`](../flow-host/runtime.hpp):
 `kMaxSessions` running sessions; `kMaxPendingInputs` inputs a session holds before they settle;

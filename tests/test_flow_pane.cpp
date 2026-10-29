@@ -18,6 +18,7 @@
 #include "workshop/pane_picture.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_door.hpp"
+#include "view/vocabulary.hpp"
 #include "lifecycle_door.hpp"
 #include "pane_window.hpp"
 #include "shown_picture.hpp"
@@ -150,6 +151,9 @@ struct Rig {
         // authorize mail.answer(), even when that requester holds Workshop.
         pane_grant.allow(ws::PaneQuitAnswered::zen_name, ws::PaneQuitAnswered::zen_version, workshop);
         pane_grant.allow_to_any(fp::FlowEdited::zen_name, fp::FlowEdited::zen_version);
+        // ...and every running view, asked what its wiring names.
+        pane_grant.allow_to_any(zengine::view::ViewWiringRequested::zen_name,
+                                zengine::view::ViewWiringRequested::zen_version);
         // ...and its drawing, to the window that shows its area, and its room, asked of the directory.
         pane_grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
         pane_grant.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
@@ -250,6 +254,29 @@ struct Rig {
         m.y = row.y + 4;
         return m;
     }
+    /// A PRESS ON THE PART `name` NAMES in the picture shown now, at its first cell.
+    Moment press_on(const std::string& name) {
+        for (const auto& part : picture().parts)
+            if (part.name == name) {
+                Moment m;
+                m.gesture = ++gesture;
+                m.x = part.x + 4;
+                m.y = part.y + 4;
+                return m;
+            }
+        INFO("no part named " << name);
+        REQUIRE(false);
+        return {};
+    }
+    /// ...ON STEP `n`'S HEAD, by the place the graph keeps it under.
+    Moment press_on_step(std::size_t n) {
+        for (const auto& place : workspace().graph.places)
+            if (place.node == static_cast<std::int64_t>(n))
+                return press_on("node:" + std::to_string(place.id));
+        INFO("no place for step " << n);
+        REQUIRE(false);
+        return {};
+    }
     /// A PRESS THE WINDOW LANDS ON `text` NOW, with its word of what it drew there: the narrowest
     /// part over the point, and the drawing's number. Delivered later, Flow judges it by that word.
     Moment landed(const std::string& text, bool prefix = false) {
@@ -300,6 +327,17 @@ struct Rig {
         as_said(m, [&](const auto& said) { shown->post(kFlowArea, said, corr != 0 ? corr : m.gesture); });
     }
     void click(const std::string& text, bool prefix = false) { click(press_for(text, prefix)); }
+    /// A ROW OF ONE OF FLOW'S MENUS, chosen as a weaver chooses one: the control that opens it
+    /// pressed, and the presenter's answer to the menu Flow asked for under that press.
+    void choose(const std::string& which, const std::string& id) {
+        const std::string opener = which == "file" ? "[File v]" : which == "view" ? "[View v]" : "[More]";
+        const Moment at = press_for(opener);
+        click(at);
+        REQUIRE(bus.office_send_to_role_as(menus, ws::kPresenterRole, fp::kRole,
+            loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, which, true, id, ""}), menus, {},
+                          at.gesture)).valid());
+        pump();
+    }
     /// A press and its release, as the window landed them.
     void click(Moment m) {
         host(m);
@@ -405,12 +443,18 @@ std::size_t escapes_unspent(const Presenter& presenter) {
     return static_cast<std::size_t>(std::count_if(presenter.messages.begin(), presenter.messages.end(),
         [](const auto& m) { return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>()); }));
 }
+/// Whether a step is chosen: the x on its corner, which takes it away, is drawn.
+bool step_chosen(Rig& rig) {
+    const auto parts = rig.picture().parts;
+    return std::any_of(parts.begin(), parts.end(),
+                       [](const auto& p) { return p.name.rfind("remove:", 0) == 0; });
+}
 } // namespace
 
 TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project with reusable examples") {
     TempFiles files;
     Rig rig;
-    rig.click("[New]");
+    rig.choose("file", "ask-new");
     rig.replace_text("meter");
     rig.key(in::scan::kReturn);
     rig.click("[State]");
@@ -422,17 +466,17 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
     rig.click("[Add field]");
     rig.key(in::scan::kReturn);
     rig.click("[Graph]");
-    rig.click("[Add trigger]");
+    rig.choose("more", "ask-trigger");
     rig.key(in::scan::kReturn);
-    rig.click("  math.max");
-    rig.click("[Add]");
-    rig.click("input.input : Int");
-    rig.click("o lhs = ", true);
-    rig.click("o rhs = ", true);
+    rig.click("  max");
+    rig.click("[Add to the rule]");
+    rig.click("input : Int");
+    rig.click("o lhs", true);
+    rig.click("o rhs", true);
     rig.click("[Int constant]");
-    (void)rig.label("> Value: 0", true);
+    rig.text("0");
     rig.key(in::scan::kReturn);
-    rig.click("[Use as result]");
+    CHECK_FALSE(rig.shows("[Use as result]")); // the one step is the result already
     const auto graph = rig.workspace();
     REQUIRE(graph.graph.project.definition.on.size() == 1);
     REQUIRE(graph.graph.project.definition.on.front().body.nodes.size() == 1);
@@ -493,10 +537,10 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
     const auto named = [&](const std::string& name) {
         return std::any_of(said.parts.begin(), said.parts.end(), [&](const auto& p) { return p.name == name; });
     };
-    CHECK(named("control:ask-save"));
+    CHECK(named("menu:file"));
     CHECK(named("control:page-graph"));
     // A GRAPH WITH A NODE: the node and its arguments named by its place, whatever index it has.
-    rig.click("[New]");
+    rig.choose("file", "ask-new");
     rig.replace_text("meter");
     rig.key(in::scan::kReturn);
     rig.click("[State]");
@@ -508,10 +552,10 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
     rig.click("[Add field]");
     rig.key(in::scan::kReturn);
     rig.click("[Graph]");
-    rig.click("[Add trigger]");
+    rig.choose("more", "ask-trigger");
     rig.key(in::scan::kReturn);
-    rig.click("  math.max");
-    rig.click("[Add]");
+    rig.click("  max");
+    rig.click("[Add to the rule]");
     said = rig.picture();
     std::size_t nodes = 0, ports = 0;
     for (const auto& p : said.parts) {
@@ -630,12 +674,12 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         // ...A PRESS ON A NODE selects it and begins no drag, so Delete removes that node.
         REQUIRE(window.press(kFlowArea, "control:page-graph"));
         rig.pump();
-        for (int put_down = 0; put_down < 4 && rig.shows_part("Delete node"); ++put_down)
+        for (int put_down = 0; put_down < 4 && step_chosen(rig); ++put_down)
             rig.key(in::scan::kEscape);
-        REQUIRE_FALSE(rig.shows_part("Delete node"));
+        REQUIRE_FALSE(step_chosen(rig));
         REQUIRE(window.press(kFlowArea, node));
         rig.pump();
-        CHECK(rig.shows_part("Delete node"));
+        CHECK(step_chosen(rig));
         rig.key(in::scan::kDelete);
         const auto after = rig.picture().parts;
         CHECK(std::none_of(after.begin(), after.end(), [&](const auto& p) { return p.name == node; }));
@@ -656,8 +700,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK(seen.heard.size() == heard);
         CHECK(other.weave().heard.empty());
         // ...A CONFIRMED WRITE asked from the window waits, since no Workshop gesture made the press.
-        REQUIRE(window.press(kFlowArea, "control:ask-save"));
-        rig.pump();
+        rig.choose("file", "ask-save");
         REQUIRE(window.press(kFlowArea, "control:dialog-confirm"));
         rig.pump();
         CHECK(rig.shows_part("came under no gesture Workshop numbered, as a raw key or a press"));
@@ -747,9 +790,9 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
     authority.allow_to_role(fh::FlowAnswer::zen_name, fh::FlowAnswer::zen_version, fp::kRole);
     authority.allow_to_role(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version, fp::kRole);
     const auto impostor = rig.bus.register_weave(std::move(foreign), std::move(authority));
-    rig.click("  math.max");
+    rig.click("  max");
     const auto before = rig.state().workspace;
-    const auto add = rig.press_for("[Add]");
+    const auto add = rig.press_for("[Add to the rule]");
     rig.bus.send_as_to_role(impostor, fp::kRole,
         loom::Message(loom::to_value(gfx::AreaButtonChanged{kFlowArea, 1, true, add.x, add.y, 0}), impostor, {},
                       add.gesture));
@@ -777,7 +820,7 @@ TEST_CASE("loaded Flow pane hands a right press back to Workshop under the press
     Rig rig;
     const auto before = rig.state();
     const auto pictures = rig.drawings();
-    auto press = rig.press_for("[New]"); // a control a primary press would act on
+    auto press = rig.press_for("[State]"); // a control a primary press would act on
     press.button = 3;
     rig.host(press, 77);
     std::vector<loom::Message> passed;
@@ -801,7 +844,7 @@ TEST_CASE("a right press on a declared message offers to carry its shape, and th
     rig.edit_ok("emitted-message", {"Total"});
     rig.edit_ok("emitted-field", {"0", "total", "Int", "required"});
     rig.click("[Messages]");
-    auto press = rig.press_for("0 tally.Total {total: Int}");
+    auto press = rig.press_for("tally.Total {total: Int}");
     press.button = 3;
     rig.host(press, 91);
     const loom::Message* menu = nullptr;
@@ -845,7 +888,7 @@ TEST_CASE("a press on a declared message asks under that press to drag its shape
     rig.edit_ok("emitted-message", {"Total"});
     rig.edit_ok("emitted-field", {"0", "total", "Int", "required"});
     rig.click("[Messages]");
-    rig.host(rig.press_for("0 tally.Total {total: Int}"), 93);
+    rig.host(rig.press_for("tally.Total {total: Int}"), 93);
     const loom::Message* carried = nullptr;
     for (const auto& m : rig.presenter->messages)
         if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneValueCarryRequested>())) carried = &m;
@@ -861,7 +904,7 @@ TEST_CASE("a press on a declared message asks under that press to drag its shape
     rig.edit_ok("message", {"Count"});
     rig.edit_ok("message-field", {"0", "by", "Int", "required"});
     rig.edit_ok("trigger", {"0", "total"});
-    auto found = rig.press_for("  math.max");
+    auto found = rig.press_for("  max");
     found.button = 3;
     rig.host(found, 94);
     CHECK(loom::same_identity(rig.presenter->messages.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
@@ -938,9 +981,9 @@ TEST_CASE("a dropped description that names a shape it does not carry declares n
 TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and interaction context") {
     Rig rig;
     rig.graph_semantically();
-    rig.click("  math.max");
+    rig.click("  max");
 
-    auto drag = rig.press_for("%0 math.max", true);
+    auto drag = rig.press_on_step(0);
     rig.host(drag);
     const auto start = rig.workspace().graph.places.front();
     auto motion = drag;
@@ -960,7 +1003,7 @@ TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and i
     rig.host(motion);
     CHECK(rig.workspace().graph.places.front().x == start.x + 97 * fp::unit / unit);
 
-    drag = rig.press_for("%0 math.max", true);
+    drag = rig.press_on_step(0);
     rig.host(drag);
     rig.click("[State]");
     const auto hidden = rig.workspace().graph.places.front();
@@ -980,23 +1023,23 @@ TEST_CASE("a press the window landed on Flow takes where the same part is drawn 
     };
     const auto first = body();
     // A DEFINITION EDITED draws [Add] again where it stood: the press takes, and adds the node.
-    rig.click("  math.max");
-    const auto across_edit = rig.landed("[Add]");
+    rig.click("  max");
+    const auto across_edit = rig.landed("[Add to the rule]");
     REQUIRE(across_edit.part.rfind("add-found:", 0) == 0);
     rig.edit_ok("bind", {"0", "1", "4"});
     REQUIRE(rig.part_at(across_edit.x, across_edit.y) == across_edit.part);
     rig.click(across_edit);
     CHECK_MESSAGE(body() == first + 1, rig.workspace().graph.project.definition.name);
     // A ROOM GIVEN AFRESH draws it there again too.
-    rig.click("  math.max");
-    const auto across_room = rig.landed("[Add]");
+    rig.click("  max");
+    const auto across_room = rig.landed("[Add to the rule]");
     ++rig.grant;
     rig.room();
     REQUIRE(rig.part_at(across_room.x, across_room.y) == across_room.part);
     rig.click(across_room);
     CHECK(body() == first + 2);
     // A DIALOG TYPED IN draws its Cancel again in its place: the press takes, and puts it down.
-    rig.click("[Save*]");
+    rig.choose("file", "ask-save");
     const auto cancel = rig.landed("[Cancel]");
     rig.replace_text("elsewhere.flow-workspace");
     REQUIRE_FALSE(rig.state().dialog_entries.empty());
@@ -1004,24 +1047,24 @@ TEST_CASE("a press the window landed on Flow takes where the same part is drawn 
     CHECK(rig.state().dialog_entries.empty());
     // ANOTHER DIALOG'S CONFIRM IN ITS PLACE, under the same name: Save's Confirm, pressed once
     // Export asks, is another element. Refused in words; Export's dialog stays, unconfirmed.
-    rig.click("[Save*]");
+    rig.choose("file", "ask-save");
     const auto save_confirm = rig.landed("[Confirm]");
     REQUIRE(save_confirm.part == "control:dialog-confirm");
     rig.click("[Cancel]");
-    rig.click("[Export]");
+    rig.choose("file", "ask-export");
     REQUIRE(rig.part_at(save_confirm.x, save_confirm.y) == save_confirm.part);
     const auto asked = rig.state();
     REQUIRE_FALSE(asked.dialog_entries.empty());
     rig.click(save_confirm);
-    CHECK(rig.shows_part("The picture changed under the press"));
+    CHECK(rig.shows_part("Nothing was done: what was under the press changed as it landed"));
     CHECK(rig.state().dialog_entries.size() == asked.dialog_entries.size());
     CHECK(rig.state().workspace == asked.workspace);
     // ...AND THE OLD CONFIRM BEFORE NEW, where New's second field now stands, confirms nothing.
     rig.click("[Cancel]");
-    rig.click("[Save*]");
+    rig.choose("file", "ask-save");
     const auto old_confirm = rig.landed("[Confirm]");
     rig.click("[Cancel]");
-    rig.click("[New]");
+    rig.choose("file", "ask-new");
     rig.click(old_confirm);
     CHECK(rig.workspace().graph.project.definition.name == "meter");
 }
@@ -1171,7 +1214,7 @@ TEST_CASE("loaded Flow pane keeps an unfinished dialog bound to its original for
     rig.click("[State]");
     (void)rig.label("Edit input");
     (void)rig.label("> Value: 99", true);
-    rig.click("[Save*]");
+    rig.choose("file", "ask-save");
     (void)rig.label("Edit input");
     (void)rig.label("> Value: 99", true);
     const auto retarget = rig.edit("state-open");
@@ -1194,7 +1237,7 @@ TEST_CASE("loaded Flow pane keeps an unfinished dialog bound to its original for
     CHECK(after_stale.dialog_entries.empty());
     CHECK(after_stale.workspace == before_stale.workspace);
     CHECK(rig.live_value() == 99);
-    CHECK(rig.shows_part("The picture changed under the press"));
+    CHECK(rig.shows_part("Nothing was done: what was under the press changed as it landed"));
 }
 
 TEST_CASE("a query typed to the search line's end is drawn whole in a window, its caret a bar after it") {
@@ -1208,8 +1251,8 @@ TEST_CASE("a query typed to the search line's end is drawn whole in a window, it
     rig.pump();
     rig.shown = &native;
     rig.text("abcdefghijklmno"); // the field's fifteen columns, the caret after them
-    const ws::CanvasText line = rig.label("find: abcdefghijklmno"); // exactly: not cut
-    CHECK(line.caret_col == 21);
+    const ws::CanvasText line = rig.label("abcdefghijklmno"); // exactly: not cut
+    CHECK(line.caret_col == 15);
 }
 
 TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan save and reload") {
@@ -1224,7 +1267,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     rig.edit_ok("save", {files.file()});
     REQUIRE_FALSE(rig.state().dirty);
     const auto start = rig.workspace().graph.places.front();
-    auto drag = rig.press_for("%0 math.max", true);
+    auto drag = rig.press_on_step(0);
     rig.host(drag);
     auto motion = drag;
     motion.phase = ws::canvas_pointer::kMove;
@@ -1236,7 +1279,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     auto release = motion; release.phase = ws::canvas_pointer::kRelease;
     rig.host(release);
 
-    auto pan = rig.press_for("%0 math.max", true);
+    auto pan = rig.press_on_step(0);
     pan.button = 2;
     rig.host(pan);
     motion = pan; motion.phase = ws::canvas_pointer::kMove;
@@ -1261,9 +1304,9 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     motion.x += 36;
     rig.host(motion);
     CHECK(rig.state().workspace == saved);
-    rig.click("o rhs = 0", true);
-    rig.click("[Int constant]");
-    (void)rig.label("> Value: 0", true);
+    rig.click("rhs");
+    rig.click("Int constant");
+    CHECK(rig.state().dialog_entries.empty()); // the port's own box takes it, not a dialog
     rig.replace_text("12");
     rig.key(in::scan::kReturn);
     CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.front()
@@ -1279,7 +1322,7 @@ TEST_CASE("Flow finds what to compose through the discovery door, by what a powe
     (void)rig.label("In scope");
     CHECK_FALSE(rig.shows_part("(click to wire)"));
     (void)rig.label("Operators");
-    (void)rig.label("  math.max");
+    (void)rig.label("  max");
     const auto spent = op::invocations();
 
     // THE SEARCH LINE: typed text is the door's question, and the rail is the door's answer.
@@ -1292,31 +1335,33 @@ TEST_CASE("Flow finds what to compose through the discovery door, by what a powe
     CHECK_FALSE(asked.yields.has_value());
     REQUIRE_FALSE(rig.answers.empty());
     CHECK(rig.answers.back() == loom::serialize(loom::to_value(ws::find_powers(rig.catalog, asked))));
-    (void)rig.label("  math.max");
-    CHECK_FALSE(rig.shows("  logic.select_int"));
+    (void)rig.label("  max");
+    CHECK_FALSE(rig.shows("  select_int"));
 
     // THE PREVIEW is the row expanded, in its contributor's words, and reading it runs nothing.
-    rig.click("  math.max");
-    (void)rig.label("math.max -- operator, native, from flowtest.basic");
+    rig.click("  max");
+    (void)rig.label("max");
+    CHECK(rig.shows("an operator"));
+    CHECK_FALSE(rig.shows_part("flowtest.basic"));
     (void)rig.label("(lhs: Int, rhs: Int) -> result: Int");
     (void)rig.label("the larger of two integers");
     CHECK(op::invocations() == spent);
 
     // ADD IS TODAY'S add-node, and the node it adds is the one selected.
-    rig.click("[Add]");
+    rig.click("[Add to the rule]");
     const auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 2);
     CHECK(nodes.back().identity == "math.max");
-    (void)rig.label("[Delete node]");
+    REQUIRE(step_chosen(rig));
     CHECK(op::invocations() == spent);
 
     // ESCAPE SHEDS ONE LAYER PER PRESS: the preview, the node, the search line -- and only then is
     // the pane put down.
     rig.key(in::scan::kEscape);
     CHECK_FALSE(rig.shows("the larger of two integers"));
-    (void)rig.label("[Delete node]");
+    REQUIRE(step_chosen(rig));
     rig.key(in::scan::kEscape);
-    CHECK_FALSE(rig.shows("[Delete node]"));
+    CHECK_FALSE(step_chosen(rig));
     (void)rig.label("find: larger", true);
     rig.key(in::scan::kEscape);
     CHECK_FALSE(rig.questions.back().text.has_value());
@@ -1332,37 +1377,39 @@ TEST_CASE("a selected port lists what could fill it: in scope, a typed constant,
     // A SOURCE MOUNTED AFTER THE PANE READ ITS PORTS: the door finds it all the same.
     REQUIRE(rig.catalog.mount("flowtest.sources", {answer_source()}));
     rig.edit_ok("add-node", rig.ref("math.max"));
-    rig.click("o rhs = [unwired]");
-    (void)rig.label("For %1 rhs : Int");
+    rig.click("o rhs [unwired]");
+    (void)rig.label("For max (2)'s rhs : Int");
     REQUIRE_FALSE(rig.questions.empty());
     CHECK(rig.questions.back().yields == std::optional<std::string>("Int"));
     CHECK(rig.questions.back().offered == std::optional<bool>(true));
 
     // IN THE ORDER A MAKER REACHES FOR THEM.
     const std::vector<std::int64_t> order{
-        rig.label("In scope").y, rig.label("  state.value").y, rig.label("  input.input").y,
-        rig.label("  %0 math.max").y, rig.label("Constant").y, rig.label("[Int constant]").y,
-        rig.label("Sources").y, rig.label("  flowtest.answer").y, rig.label("Operators").y,
-        rig.label("  math.max").y};
+        rig.label("In scope").y, rig.label("  value").y, rig.label("  input").y,
+        rig.label("  max (1)").y, rig.label("Constant").y, rig.label("[Int constant]").y,
+        rig.label("Operators").y, rig.label("SOURCES").y, rig.label("  answer").y,
+        rig.label("MATH").y, rig.label("  max").y};
     CHECK(std::is_sorted(order.begin(), order.end()));
     CHECK(std::adjacent_find(order.begin(), order.end()) == order.end());
     // ...and nothing that yields another type.
-    CHECK_FALSE(rig.shows("  logic.select_bool"));
+    CHECK_FALSE(rig.shows("  select_bool"));
 
     // A CANDIDATE IN SCOPE FILLS THE PORT through today's bind, and the port is put down.
-    rig.click("  %0 math.max");
+    rig.click("  max (1)");
     const auto body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 2);
     CHECK(body.nodes.at(1).arguments.at(1).from() == op::Binding::From::Node);
     CHECK(body.nodes.at(1).arguments.at(1).node_index() == 0);
-    CHECK_FALSE(rig.shows("For %1 rhs : Int"));
+    CHECK_FALSE(rig.shows("For max (2)'s rhs : Int"));
 
     // A FOUND SOURCE THE GRAPH'S PORTS DID NOT YET DESCRIBE is read from the host, then added.
-    rig.click("  flowtest.answer");
-    (void)rig.label("flowtest.answer -- source, native, from flowtest.sources");
+    rig.click("  answer");
+    (void)rig.label("answer");
+    CHECK(rig.shows("a source"));
+    CHECK_FALSE(rig.shows_part("flowtest.sources"));
     (void)rig.label("forty-two, whenever it is asked");
     const auto before = op::invocations();
-    rig.click("[Add]");
+    rig.click("[Add to the rule]");
     const auto grown = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(grown.nodes.size() == 3);
     CHECK(grown.nodes.back().identity == "flowtest.answer");
@@ -1375,9 +1422,9 @@ TEST_CASE("an Add waiting on the host for an operator's ports is refused when th
     rig.graph_semantically();
     REQUIRE(rig.catalog.mount("flowtest.sources", {answer_source()}));
     rig.edit_ok("add-node", rig.ref("math.max"));
-    rig.click("o rhs = [unwired]");
-    rig.click("  flowtest.answer");
-    const auto press = rig.press_for("[Add into %1 rhs]");
+    rig.click("o rhs [unwired]");
+    rig.click("  answer");
+    const auto press = rig.press_for("[Add into max (2)'s rhs]");
 
     // THE ADD ASKS THE HOST, and before its answer comes, %1 is removed and another takes its place.
     rig.post(press);
@@ -1389,7 +1436,7 @@ TEST_CASE("an Add waiting on the host for an operator's ports is refused when th
     const auto& nodes = after.graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 2);
     CHECK(nodes.at(1).identity == "math.max");
-    CHECK(rig.shows("The graph changed while the ports of flowtest.answer were read; Add it again"));
+    CHECK(rig.shows("The graph changed while the ports of answer were read; Add it again"));
 }
 
 TEST_CASE("Flow never offers a running definition's trigger body, which the door lists as not offered") {
@@ -1427,25 +1474,25 @@ TEST_CASE("Add places a found operator before the selected node, or before the n
     Rig rig;
     rig.graph_semantically();
     rig.text("larger");
-    rig.click("%0 math.max");
-    rig.click("  math.max");
-    rig.click("[Add before %0]");
+    rig.click(rig.press_on_step(0));
+    rig.click("  max");
+    rig.click("[Add before max]");
     auto body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 2);
     CHECK(body.result_node == 1); // the node that was %0 is %1, and still the result
     CHECK(body.nodes.at(1).arguments.at(0).input_name() == "input");
 
     // INTO A PORT: the port being filled names the node to place before, and Add wires it there.
-    rig.click("o rhs = 0");
-    (void)rig.label("For %1 rhs : Int");
-    rig.click("  math.max");
-    rig.click("[Add into %1 rhs]");
+    rig.click("o rhs <- 0");
+    (void)rig.label("For max (2)'s rhs : Int");
+    rig.click("  max");
+    rig.click("[Add into max (2)'s rhs]");
     body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 3);
     CHECK(body.nodes.at(2).arguments.at(1).from() == op::Binding::From::Node);
     CHECK(body.nodes.at(2).arguments.at(1).node_index() == 1);
     CHECK(body.result_node == 2);
-    CHECK_FALSE(rig.shows("For %2 rhs : Int"));
+    CHECK_FALSE(rig.shows("For max (3)'s rhs : Int"));
 }
 
 TEST_CASE("the tally composed in the pane: the fold found by what it is for, placed with its step "
@@ -1460,12 +1507,13 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
 
     // FOUND BY WHAT IT IS FOR, a form ahead of the operators, and placed with its step at 1.
     rig.text("count");
-    (void)rig.label("Forms");
+    (void)rig.label("FORMS");
     rig.click("  fold");
-    (void)rig.label("fold -- a form the evaluator spends");
-    rig.click("[Add]");
-    (void)rig.label("%0 fold");
-    (void)rig.label("o step = 1");
+    (void)rig.label("fold");
+    CHECK(rig.shows("a form: it repeats a step"));
+    rig.click("[Add to the rule]");
+    (void)rig.label("fold");
+    (void)rig.label("o step <- 1");
 
     // THE BODY SLOT asks the door for what a fold could spend, and the maker names the count's port.
     rig.key(in::scan::kEscape); // the preview
@@ -1474,15 +1522,15 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     rig.click("body = [choose]");
     REQUIRE_FALSE(rig.questions.empty());
     CHECK(rig.questions.back().fits == std::optional<std::string>("fold"));
-    (void)rig.label("For %0 fold's body");
-    CHECK(rig.shows("  logic.select_int"));
-    CHECK_FALSE(rig.shows("  compare.less_int"));
-    rig.click("  math.add");
+    (void)rig.label("For fold's body");
+    CHECK(rig.shows("  select_int"));
+    CHECK_FALSE(rig.shows("  less_int"));
+    rig.click("  add");
     (void)rig.label("[count lhs, acc rhs]");
     rig.click("[count rhs, acc lhs]");
-    (void)rig.label("%0 fold math.add");
+    (void)rig.label("fold add");
     (void)rig.label("count rhs, acc lhs");
-    CHECK_FALSE(rig.shows("For %0 fold's body"));
+    CHECK_FALSE(rig.shows("For fold's body"));
 
     rig.edit_ok("bind", {"0", "0", "$start"});
     rig.edit_ok("bind", {"0", "1", "$limit"});
@@ -1509,9 +1557,9 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     rig.edit_ok("message-open", {"0"});
     rig.edit_ok("send");
     rig.click("[Events]");
-    (void)rig.label("state.total = 45");
+    (void)rig.label("total = 45");
     CHECK(rig.shows_part("tally.Total"));
-    (void)rig.label("  total = 45");
+    CHECK(rig.shows_part("said tally.Total 45"));
 
     // GENERATION REFUSES A FOLD in words, and writes nothing.
     const auto out = std::filesystem::temp_directory_path() / "zengine-flow-pane-fold-generated";
@@ -1525,27 +1573,120 @@ TEST_CASE("the tally composed in the pane: the fold found by what it is for, pla
     CHECK_FALSE(std::filesystem::exists(out));
 }
 
+TEST_CASE("Restart stops the running rule and runs the draft: a message it now says, what it kept "
+          "carried on, and the Events of the run before kept") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("message", {"tally.panel.Count"});
+    rig.edit_ok("message-field", {"0", "amount", "Int", "required"});
+    rig.edit_ok("keep", {"total", "Int"});
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    rig.edit_ok("bind-all", {"0", "$amount", "$total"});
+    rig.edit_ok("run");
+    const auto total = [&rig]() {
+        const auto subject = rig.bus.role_holder("tally");
+        REQUIRE(subject.valid());
+        return rig.bus.weave(subject)->snapshot().get("total")->as_int();
+    };
+    rig.edit_ok("message-open", {"0"});
+    rig.edit_ok("value", {"0", "3"});
+    rig.edit_ok("send");
+    REQUIRE(total() == 3);
+
+    // A MESSAGE THE RULE NOW SAYS is no change Apply can take: the bar offers Restart in its place.
+    rig.edit_ok("say", {"Total", "total"});
+    CHECK(rig.shows("[Restart]"));
+    CHECK_FALSE(rig.shows("[Apply]"));
+    rig.click("[Restart]");
+    CHECK(total() == 3);
+    CHECK(rig.shows_part("tally - running"));
+    CHECK_FALSE(rig.shows_part("running r"));
+    CHECK(rig.shows("[Apply]"));
+
+    // THE RESTARTED RULE SAYS IT; the arrival before the restart stays in the Events.
+    rig.edit_ok("message-open", {"0"});
+    rig.edit_ok("value", {"0", "3"});
+    rig.edit_ok("send");
+    CHECK(total() == 6);
+    rig.click("[Events]");
+    CHECK(rig.shows_part("tally.panel.Count  amount 3  ->  total 3 -> 6  ->  said tally.Total 6"));
+    CHECK(rig.shows_part("tally.panel.Count  amount 3  ->  total 0 -> 3"));
+
+    // NOTHING RUNNING, NOTHING TO RESTART: refused in words.
+    rig.edit_ok("stop");
+    rig.click("[Graph]");
+    rig.choose("more", "restart");
+    CHECK(rig.shows("Nothing runs to restart; press Run"));
+    CHECK_FALSE(rig.bus.role_holder("tally").valid());
+}
+
+TEST_CASE("a reload keeps the Events as they read: the state the run started with, and the runs "
+          "before it") {
+    Rig rig;
+    rig.edit_ok("new", {"tally", "discard"});
+    rig.edit_ok("message", {"tally.panel.Count"});
+    rig.edit_ok("message-field", {"0", "amount", "Int", "required"});
+    rig.edit_ok("keep", {"total", "Int"});
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    rig.edit_ok("bind-all", {"0", "$amount", "$total"});
+    rig.edit_ok("say", {"Total", "total"});
+    const auto send = [&rig](const std::string& amount) {
+        rig.edit_ok("message-open", {"0"});
+        rig.edit_ok("value", {"0", amount});
+        rig.edit_ok("send");
+    };
+    rig.edit_ok("run");
+    send("3");
+    // RUN AGAIN: a journal afresh, and the arrival before it goes on in the Events.
+    rig.edit_ok("stop");
+    rig.edit_ok("run");
+    send("4");
+    const std::string now = "tally.panel.Count  amount 4  ->  total 3 -> 7  ->  said tally.Total 7";
+    const std::string before = "tally.panel.Count  amount 3  ->  total 0 -> 3  ->  said tally.Total 3";
+    rig.click("[Events]");
+    REQUIRE(rig.shows_part(now));
+    REQUIRE(rig.shows_part(before));
+    const auto kept = rig.state();
+    CHECK_FALSE(kept.started.empty());
+    REQUIRE(kept.earlier.size() == 1);
+    CHECK(kept.earlier.front() == before);
+
+    const auto reload = rig.kernel.reload_from("flow-pane", FLOW_PANE_ARTIFACT);
+    INFO(reload.error);
+    REQUIRE(reload.ok);
+    REQUIRE(reload.reloaded);
+    rig.activate();
+    ++rig.grant;
+    rig.room();
+    // THE SAME LINES on the page and in the graph's band, the first still saying what total was.
+    CHECK(rig.shows_part(now));
+    CHECK(rig.shows_part(before));
+    rig.click("[Graph]");
+    CHECK(rig.shows_part(now));
+    CHECK(rig.shows_part(before));
+}
+
 TEST_CASE("a dropped operator reference becomes a node: where it was released, into the port it "
           "lands on, or as the body the fold's slot then offers; a stale one is refused") {
     Rig rig;
     rig.graph_semantically();
     // WHERE IT WAS RELEASED: a step at the end, its box placed at the drop.
-    const auto& graph = rig.label("[Reset view]");
-    rig.drop(rig.reference("math.max"), graph.x - 40 * unit, graph.y - 12 * unit);
+    const auto graph = rig.label("DO");
+    rig.drop(rig.reference("math.max"), graph.x + 20 * unit, graph.y + 20 * unit);
     auto body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 2);
     CHECK(body.nodes.at(1).identity == "math.max");
-    (void)rig.label("%1 math.max");
+    (void)rig.label("max (2)");
 
     // INTO THE PORT IT LANDS ON: placed before that port's node and wired there.
-    rig.drop_on(rig.reference("math.max"), "o rhs = 0");
+    rig.drop_on(rig.reference("math.max"), "o rhs <- 0");
     body = rig.workspace().graph.project.definition.on.front().body;
     REQUIRE(body.nodes.size() == 3);
     CHECK(body.nodes.at(1).arguments.at(1).from() == op::Binding::From::Node);
     CHECK(body.nodes.at(1).arguments.at(1).node_index() == 0);
 
     // STALE: its ports changed since it was found, so it is refused and nothing is added.
-    rig.drop(op::encode_reference({"math.max", 1, 2}), graph.x - 40 * unit, graph.y - 12 * unit);
+    rig.drop(op::encode_reference({"math.max", 1, 2}), graph.x + 20 * unit, graph.y + 20 * unit);
     CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.size() == 3);
     (void)rig.label("'math.max' is not the operator this reference was found at: its ports "
                     "changed since; find it again");
@@ -1553,7 +1694,7 @@ TEST_CASE("a dropped operator reference becomes a node: where it was released, i
     // ON A FOLD'S BODY SLOT: the slot opens with the operator found, for the maker to name the count.
     rig.edit_ok("add-fold");
     rig.drop_on(rig.reference("math.add"), "body = [choose]");
-    (void)rig.label("For %3 fold's body");
+    (void)rig.label("For fold's body");
     (void)rig.label("[count rhs, acc lhs]");
 }
 
@@ -1591,7 +1732,7 @@ TEST_CASE("a stale reference dropped on a fold's body slot is refused in words, 
     CHECK(chosen.identity == "math.add");
     REQUIRE(chosen.fold.has_value());
     CHECK(chosen.fold->count == "rhs");
-    (void)rig.label("%1 fold math.add");
+    (void)rig.label("fold add");
 }
 
 TEST_CASE("a form and an operator that share a name are two rows: each previews and adds itself") {
@@ -1607,27 +1748,40 @@ TEST_CASE("a form and an operator that share a name are two rows: each previews 
     const auto both = std::count_if(listed.begin(), listed.end(),
                                     [](const auto& t) { return t.text == "  fold"; });
     REQUIRE(both == 2);
-    // The form's row, under Forms, previews and adds the form.
-    rig.click("  fold");
-    (void)rig.label("fold -- a form the evaluator spends");
-    rig.click("[Add]");
+    // The form's row, under FORMS, previews and adds the form.
+    const auto press_row = [&](bool form) {
+        const auto forms = rig.label("FORMS");
+        const auto texts = rig.picture().texts;
+        const ws::CanvasText* row = nullptr;
+        for (const auto& t : texts)
+            if (t.text == "  fold" && (t.y > forms.y) == form) row = &t;
+        REQUIRE(row != nullptr);
+        Moment at;
+        at.gesture = ++rig.gesture;
+        at.x = row->x + 4; at.y = row->y + 4;
+        rig.click(at);
+    };
+    press_row(true);
+    (void)rig.label("fold");
+    CHECK(rig.shows("a form: it repeats a step"));
+    rig.click("[Add to the rule]");
     auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 2);
     CHECK(nodes.back().fold.has_value());
-    // The operator's row, under Operators, previews and adds the operator.
+    // The operator's row, under its group above, previews and adds the operator.
     rig.key(in::scan::kEscape); // the preview
     rig.key(in::scan::kEscape); // the node
-    const auto operators = rig.label("Operators");
     const auto texts = rig.picture().texts;
     const ws::CanvasText* named = nullptr;
     for (const auto& t : texts)
-        if (t.text == "  fold" && t.y > operators.y) named = &t;
+        if (t.text == "  fold" && named == nullptr) named = &t;
     REQUIRE(named != nullptr);
     Moment press;
     press.gesture = ++rig.gesture;
     press.x = named->x + 4; press.y = named->y + 4;
     rig.host(press);
-    (void)rig.label("fold -- operator, native, from flowtest.named-fold");
+    (void)rig.label("fold");
+    CHECK(rig.shows("an operator"));
     rig.key(in::scan::kReturn);
     nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
     REQUIRE(nodes.size() == 3);
@@ -1651,8 +1805,8 @@ TEST_CASE("a dropped value waiting on a port is put down when another workspace 
     rig.click("[Declare tally.panel.Count v1 as an accepted message]");
     rig.edit_ok("trigger", {"0", "total"});
     rig.edit_ok("add-fold");
-    rig.drop_on(count, "o start = [unwired]");
-    (void)rig.label("[Use start = 7 on %0 start]");
+    rig.drop_on(count, "o start [unwired]");
+    (void)rig.label("[Use start = 7 on fold's start]");
 
     // The same places, numbered afresh, in a new graph: the offer is gone with the old one.
     rig.edit_ok("new", {"other", "discard"});
@@ -1661,7 +1815,7 @@ TEST_CASE("a dropped value waiting on a port is put down when another workspace 
     rig.edit_ok("trigger", {"0", "total"});
     rig.edit_ok("add-fold");
     CHECK_FALSE(rig.shows("Dropped tally.panel.Count v1"));
-    CHECK_FALSE(rig.shows("[Use start = 7 on %0 start]"));
+    CHECK_FALSE(rig.shows("[Use start = 7 on fold's start]"));
     const auto other = rig.workspace();
     const auto& fresh = other.graph.project.definition.on[0].body.nodes[0].arguments;
     REQUIRE_FALSE(fresh.empty());
@@ -1698,10 +1852,10 @@ TEST_CASE("a dropped value offers what it can be here: its shape declared, then 
     rig.edit_ok("bind", {"0", "0", "$start"});
     rig.edit_ok("bind", {"0", "1", "$limit"});
     rig.edit_ok("bind", {"0", "2", "$step"});
-    rig.drop_on(count, "o initial = [unwired]");
-    (void)rig.label("[Use start = 0 on %0 initial]");
-    (void)rig.label("[Use limit = 10 on %0 initial]");
-    rig.click("[Use start = 0 on %0 initial]");
+    rig.drop_on(count, "o initial [unwired]");
+    (void)rig.label("[Use start = 0 on fold add's initial]");
+    (void)rig.label("[Use limit = 10 on fold add's initial]");
+    rig.click("[Use start = 0 on fold add's initial]");
     CHECK(rig.workspace().graph.project.definition.on[0].body.nodes[0].arguments[3].constant_cell().as_int() == 0);
     rig.edit_ok("result", {"0"});
     rig.edit_ok("run");
@@ -1804,6 +1958,17 @@ struct WireWindow {
     void click(Cell c) { window.click(kFlowArea, c.first, c.second); rig.pump(); }
     /// Empty graph room, well right of the nodes the fixture places.
     Cell room() { return empty(100, 140, 25, 40); }
+    /// The first cell of a wire's search row showing `words`, right of the rail: a press there
+    /// asks a `wire-row`, never a step that shows the same words.
+    std::optional<Cell> row_of_search(const std::string& words) {
+        const auto rows = window.rows(kFlowArea);
+        for (std::size_t r = 0; r < rows.size(); ++r)
+            for (auto c = rows[r].find(words, 22); c != std::string::npos; c = rows[r].find(words, c + 1)) {
+                const Cell at{static_cast<std::int64_t>(c + words.size() - 1), static_cast<std::int64_t>(r)};
+                if (window.action_at(kFlowArea, at.first, at.second).rfind("wire-row:", 0) == 0) return at;
+            }
+        return std::nullopt;
+    }
 };
 
 std::int64_t place_id(Rig& rig, std::int64_t node) {
@@ -1823,6 +1988,13 @@ const op::Binding& argument(Rig& rig, std::size_t node, std::size_t port) {
 bool from_node(const op::Binding& b, std::size_t n) {
     return b.from() == op::Binding::From::Node && b.node_index() == n;
 }
+/// Where the graph keeps step `node`, in its grid.
+std::pair<std::int64_t, std::int64_t> place_of(Rig& rig, std::int64_t node) {
+    for (const auto& p : rig.workspace().graph.places)
+        if (p.node == node) return {p.x, p.y};
+    FAIL("no place for node " << node);
+    return {};
+}
 } // namespace
 
 TEST_CASE("a wire dragged from an output and let go on empty graph room asks what takes its type, "
@@ -1837,17 +2009,17 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
 
         // THE SEARCH AT THE HAND, in the window's rows and its picture alike, its question the
         // output's type as what a power takes.
-        CHECK(w.showing("From %0 : Int -- what takes it"));
-        CHECK(rig.shows("From %0 : Int -- what takes it"));
+        CHECK(w.showing("From max : Int -- what takes it"));
+        CHECK(rig.shows("From max : Int -- what takes it"));
         REQUIRE_FALSE(rig.questions.empty());
         CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
         CHECK_FALSE(rig.questions.back().yields.has_value());
         // ...A ROW A PORT of that type, and nothing made yet.
-        const auto lhs = w.showing("math.add -> lhs");
-        const auto rhs = w.showing("math.add -> rhs");
+        const auto lhs = w.showing("add -> lhs");
+        const auto rhs = w.showing("add -> rhs");
         REQUIRE(lhs);
         REQUIRE(rhs);
-        CHECK(w.showing("math.max -> lhs"));
+        CHECK(w.showing("max -> lhs"));
         CHECK(lhs->first == rhs->first);
         CHECK(lhs->second != rhs->second);
         CHECK(flow::workspace_bytes(rig.workspace()) == flow::workspace_bytes(before));
@@ -1861,8 +2033,8 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         CHECK(from_node(body.nodes[1].arguments.at(1), 0));
         CHECK(body.nodes[1].arguments.at(0).from() == op::Binding::From::Input);
         CHECK(body.nodes[1].arguments.at(0).input_name().empty());
-        CHECK(rig.shows("Added %1 math.add, wired from %0"));
-        CHECK(rig.shows_part("Delete node")); // the node made is selected
+        CHECK(rig.shows("Added add, wired from max"));
+        CHECK(step_chosen(rig)); // the node made is selected
         CHECK_FALSE(w.showing("what takes it"));
         // ...WHERE THE HAND LET GO: its header stands at the release's cell.
         const auto header = w.at("node:" + std::to_string(place_id(rig, 1)));
@@ -1873,7 +2045,7 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         // lines at the foot, the draft's and the notice.
         w.window.room(kFlowArea, fp::kRole, 170, 16, 2);
         rig.pump();
-        w.drag(w.at("source-field:input"), w.empty(60, 140, 4, 8));
+        w.drag(w.at("source-field:input"), w.empty(80, 140, 4, 8));
         REQUIRE(w.showing("what takes it"));
         const auto shown = w.window.rows(kFlowArea);
         REQUIRE(shown.size() >= 2);
@@ -1883,7 +2055,7 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
     SUBCASE("in the rig's window, by its pixels") {
         Rig rig;
         rig.graph_semantically();
-        auto press = rig.press_for("[-> state.value]");
+        auto press = rig.press_for("[answer -> value]");
         rig.host(press);
         auto motion = press;
         motion.phase = ws::canvas_pointer::kMove;
@@ -1893,15 +2065,15 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         auto release = motion;
         release.phase = ws::canvas_pointer::kRelease;
         rig.host(release);
-        CHECK(rig.shows("From %0 : Int -- what takes it"));
+        CHECK(rig.shows("From max : Int -- what takes it"));
         CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
-        rig.click("  math.add -> rhs");
+        rig.click("  add -> rhs");
         const auto after = rig.workspace();
         const auto& body = after.graph.project.definition.on.front().body;
         REQUIRE(body.nodes.size() == 2);
         CHECK(body.nodes[1].identity == "math.add");
         CHECK(from_node(body.nodes[1].arguments.at(1), 0));
-        const auto title = rig.label("%1 math.add");
+        const auto title = rig.label("add");
         CHECK(std::abs(title.x - motion.x) <= unit);
         CHECK(std::abs(title.y - motion.y) <= unit);
     }
@@ -1915,28 +2087,31 @@ TEST_CASE("a wire dragged from an input port and let go on empty graph room asks
         WireWindow w(rig);
         const auto room = w.room();
         w.drag(w.at(port_part(rig, 0, 1)), room);
-        CHECK(rig.shows("Into %0 rhs : Int -- what fills it"));
+        // ⚔ MUTATION (tests/mutants/flow_pane.md#search-cuts-its-heading): the heading is cut.
+        CHECK(rig.shows("Into max's rhs : Int -- what fills it"));
         REQUIRE_FALSE(rig.questions.empty());
         CHECK(rig.questions.back().yields == std::optional<std::string>("Int"));
         CHECK_FALSE(rig.questions.back().takes.has_value());
         // IN THE ORDER A MAKER REACHES FOR THEM.
-        const auto scope = w.showing("input.input");
+        const auto scope = w.showing("input  from the message");
         const auto constant = w.showing("Int constant");
-        const auto found = w.showing("  math.add");
+        const auto found = w.showing("  add");
         REQUIRE(scope);
         REQUIRE(constant);
         REQUIRE(found);
         CHECK(scope->second < constant->second);
         CHECK(constant->second < found->second);
 
-        // AN IN SCOPE ROW binds the port and makes nothing.
+        // AN IN SCOPE ROW binds the port and makes nothing, said by its own name.
+        // ⚔ MUTATION (tests/mutants/flow_pane.md#wired-names-another): another value is named.
         w.click(*scope);
         CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.size() == 1);
         CHECK(argument(rig, 0, 1).input_name() == "input");
+        CHECK(rig.shows("Wired input into max's rhs"));
 
         // A FOUND POWER is placed before the port's node, wired into the port, at the hand.
         w.drag(w.at(port_part(rig, 0, 1)), room);
-        const auto add = w.showing("  math.add");
+        const auto add = w.showing("  add");
         REQUIRE(add);
         w.click(*add);
         const auto made = rig.workspace();
@@ -1944,17 +2119,20 @@ TEST_CASE("a wire dragged from an input port and let go on empty graph room asks
         REQUIRE(body.nodes.size() == 2);
         CHECK(body.nodes[0].identity == "math.add");
         CHECK(from_node(body.nodes[1].arguments.at(1), 0));
-        CHECK(rig.shows("Added %0 math.add, wired into %1 rhs"));
+        CHECK(rig.shows("Added add, wired into max's rhs"));
         const auto header = w.at("node:" + std::to_string(place_id(rig, 0)));
         CHECK(std::abs(header.first - room.first) <= 1);
         CHECK(std::abs(header.second - room.second) <= 1);
 
-        // THE CONSTANT ROW opens the binding editor, as the rail's does.
+        // THE CONSTANT ROW readies the port's own box, as the rail's does: typed there, it binds.
         w.drag(w.at(port_part(rig, 1, 0)), w.room());
         const auto typed = w.showing("Int constant");
         REQUIRE(typed);
         w.click(*typed);
-        (void)rig.label("> Value: 0", true);
+        CHECK(w.showing("or a number"));
+        rig.text("5");
+        rig.key(in::scan::kReturn);
+        CHECK(argument(rig, 1, 0).constant_cell().as_int() == 5);
     }
 }
 
@@ -1969,10 +2147,10 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
     {
         const auto n = w.window.next_press();
         const auto port = w.at(port_part(rig, 1, 0));
-        CHECK(rig.label("o lhs = [unwired]").role == gfx::role::kFill);
+        CHECK(rig.label("o lhs [unwired]").role == gfx::role::kFill);
         w.press(w.at("source-node:0"), n);
         w.move(port, n);
-        CHECK(rig.label("o lhs = [unwired]").role == gfx::role::kAccent);
+        CHECK(rig.label("o lhs [unwired]").role == gfx::role::kAccent);
         w.release(port, n);
     }
     CHECK(from_node(argument(rig, 1, 0), 0));
@@ -1986,7 +2164,7 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
     {
         const auto n = w.window.next_press();
         w.press(w.at(port_part(rig, 1, 1)), n);
-        (void)rig.label("For %1 rhs : Int");
+        (void)rig.label("For add's rhs : Int");
         const auto field = w.at("scope:1:1:$input");
         w.move(field, n);
         w.release(field, n);
@@ -2000,7 +2178,7 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
         const auto out = w.at("source-node:0");
         w.press(out, n);
         w.release(out, n);
-        CHECK(rig.shows("Choose an input port to connect node 0"));
+        CHECK(rig.shows("Choose an input port to connect max's answer"));
         CHECK_FALSE(rig.shows_part("what takes it"));
         rig.key(in::scan::kEscape);
     }
@@ -2012,7 +2190,7 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
         w.move(w.room(), n);
         w.move(out, n);
         w.release(out, n);
-        CHECK(rig.shows("Choose an input port to connect node 0"));
+        CHECK(rig.shows("Choose an input port to connect max's answer"));
         CHECK_FALSE(rig.shows_part("what takes it"));
         rig.key(in::scan::kEscape);
     }
@@ -2022,7 +2200,7 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
     CHECK(flow::workspace_bytes(rig.workspace()) == flow::workspace_bytes(bound));
     // ...and nothing is left in hand: a press on a port now selects it rather than binding it.
     w.click(w.at(port_part(rig, 1, 0)));
-    (void)rig.label("For %1 lhs : Int");
+    (void)rig.label("For add's lhs : Int");
 }
 
 TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outside its list, which "
@@ -2031,9 +2209,9 @@ TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outsi
     rig.graph_semantically();
     WireWindow w(rig);
     // Nothing selected, so a press spent on a node would show.
-    for (int put_down = 0; put_down < 4 && rig.shows_part("Delete node"); ++put_down)
+    for (int put_down = 0; put_down < 4 && step_chosen(rig); ++put_down)
         rig.key(in::scan::kEscape);
-    REQUIRE_FALSE(rig.shows_part("Delete node"));
+    REQUIRE_FALSE(step_chosen(rig));
     const auto before = flow::workspace_bytes(rig.workspace());
     const auto escapes = escapes_unspent(*rig.presenter);
     // NOTHING HALF MADE: a node whose wire is refused is not made either.
@@ -2044,7 +2222,7 @@ TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outsi
 
     // ESCAPE closes it and puts the wire down; the pane keeps the key.
     w.drag(w.at("source-node:0"), w.room());
-    REQUIRE(rig.shows("From %0 : Int -- what takes it"));
+    REQUIRE(rig.shows("From max : Int -- what takes it"));
     rig.key(in::scan::kEscape);
     CHECK_FALSE(rig.shows_part("what takes it"));
     CHECK(rig.shows("The wire was put down: Escape; nothing was made"));
@@ -2052,20 +2230,20 @@ TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outsi
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
     // ...nothing is left in hand: a press on a port selects it rather than binding it.
     w.click(w.at(port_part(rig, 0, 1)));
-    (void)rig.label("For %0 rhs : Int");
+    (void)rig.label("For max's rhs : Int");
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
     rig.key(in::scan::kEscape);
 
     // A PRESS INSIDE THE LIST on none of its rows keeps it open.
     w.drag(w.at("source-node:0"), w.room());
-    const auto heading = w.showing("From %0 : Int");
+    const auto heading = w.showing("From max : Int");
     REQUIRE(heading);
     w.click(*heading);
-    CHECK(rig.shows("From %0 : Int -- what takes it"));
+    CHECK(rig.shows("From max : Int -- what takes it"));
     // A PRESS OUTSIDE IT closes it, and is not also a press on the node it landed on.
     w.click(w.at("node:" + std::to_string(place_id(rig, 0))));
     CHECK_FALSE(rig.shows_part("what takes it"));
-    CHECK_FALSE(rig.shows_part("Delete node"));
+    CHECK_FALSE(step_chosen(rig));
     CHECK(rig.shows("The wire was put down: a press outside its list; nothing was made"));
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
 
@@ -2096,20 +2274,20 @@ TEST_CASE("ctrl+n's find-wire opens the same search for a wire held by clicks or
     // A WIRE HELD BY A CLICK on an output.
     w.click(w.at("source-node:0"));
     rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
-    CHECK(rig.shows("From %0 : Int -- what takes it"));
+    CHECK(rig.shows("From max : Int -- what takes it"));
     CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
     rig.key(in::scan::kEscape);
 
     // A PORT SELECTED: the keys move to the constant and choose it.
     w.click(w.at(port_part(rig, 0, 1)));
     rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
-    REQUIRE(rig.shows("Into %0 rhs : Int -- what fills it"));
-    CHECK(w.showing("> state.value"));
+    REQUIRE(rig.shows("Into max's rhs : Int -- what fills it"));
+    CHECK(w.showing("> value  kept"));
     rig.key(in::scan::kDown);
     rig.key(in::scan::kDown);
     CHECK(w.showing("> Int constant"));
     rig.key(in::scan::kReturn);
-    (void)rig.label("> Value: 0", true);
+    CHECK(w.showing("or a number"));
     rig.key(in::scan::kEscape);
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
 
@@ -2119,10 +2297,715 @@ TEST_CASE("ctrl+n's find-wire opens the same search for a wire held by clicks or
     REQUIRE(rig.catalog.mount("flowtest.reshaped",
         {op::make_operator<&op::add_int>(op::kAddInt, {"lhs", "rhs"}, "sum")}));
     w.drag(w.at("source-node:0"), w.room());
-    const auto row = w.showing("math.add -> lhs");
+    const auto row = w.showing("add -> lhs");
     REQUIRE(row);
     w.click(*row);
     (void)rig.label("'math.add' is not the operator this reference was found at: its ports "
                     "changed since; find it again");
     CHECK(flow::workspace_bytes(rig.workspace()) == before);
+}
+
+TEST_CASE("a press on empty graph room lets go of the chosen step and its port, a drag from there "
+          "moves the view, and a step moves only by a drag that starts on it") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto head = "node:" + std::to_string(place_id(rig, 0));
+    // CHOSEN, THEN LET GO by a press on empty room, and nothing moves.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#empty-press-keeps-the-step): the step stays chosen.
+    w.click(w.at(head));
+    REQUIRE(step_chosen(rig));
+    const auto before = rig.workspace();
+    w.click(w.room());
+    CHECK_FALSE(step_chosen(rig));
+    CHECK(flow::workspace_bytes(rig.workspace()) == flow::workspace_bytes(before));
+    // ...A CHOSEN PORT goes with it.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#empty-press-keeps-the-port): the port stays chosen.
+    w.click(w.at(port_part(rig, 0, 1)));
+    REQUIRE(rig.shows("For max's rhs : Int"));
+    w.click(w.room());
+    CHECK_FALSE(rig.shows("For max's rhs : Int"));
+
+    // A DRAG FROM EMPTY ROOM moves the view, and leaves the step where it stands.
+    const auto stood = place_of(rig, 0);
+    const auto from = w.room();
+    w.drag(from, Cell{from.first + 6, from.second + 3});
+    const auto panned = rig.workspace();
+    CHECK(panned.pan_x != before.pan_x);
+    CHECK(panned.pan_y != before.pan_y);
+    CHECK(place_of(rig, 0) == stood);
+    // A DRAG FROM THE STEP moves the step, and leaves the view where it stands.
+    const auto at = w.at(head);
+    w.drag(at, Cell{at.first + 6, at.second + 3});
+    CHECK(rig.workspace().pan_x == panned.pan_x);
+    CHECK(rig.workspace().pan_y == panned.pan_y);
+    CHECK(place_of(rig, 0) != stood);
+}
+
+TEST_CASE("a press the window landed on nothing, where Flow has redrawn since and shows nothing either, "
+          "is a press on nothing: it lets go of the chosen step, with nothing refused") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto head = w.at("node:" + std::to_string(place_id(rig, 0)));
+    w.click(head);
+    REQUIRE(step_chosen(rig));
+    // A PRESS ON EMPTY ROOM, as the window says one: under Flow's area, no part named there, in
+    // the drawing it shows now.
+    const auto room = w.room();
+    const auto& face = w.window.measure();
+    Moment pressed;
+    pressed.gesture = w.window.next_press();
+    pressed.x = room.first * face.advance + face.advance / 2;
+    pressed.y = room.second * face.line + face.line / 2;
+    pressed.under = kFlowArea;
+    REQUIRE(rig.part_at(pressed.x, pressed.y).empty());
+    // THE POINTER RESTS ON THE STEP, so Flow lights it and draws again; the press lands under a
+    // drawing Flow has since replaced -- this window numbers none, so one said by a number of its own.
+    w.move(head, 0);
+    pressed.drawing = 424242;
+    rig.click(pressed);
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#nothing-pressed-refused): a press on nothing under an
+    // older drawing is refused.
+    CHECK_FALSE(step_chosen(rig));
+    CHECK_FALSE(rig.shows_part("Nothing was done"));
+    // ...WHERE FLOW NOW SHOWS A STEP, the window having named nothing there, the press is refused:
+    // what it meant is unknown.
+    Moment on_step = pressed;
+    on_step.gesture = w.window.next_press();
+    on_step.x = head.first * face.advance + face.advance / 2;
+    on_step.y = head.second * face.line + face.line / 2;
+    REQUIRE_FALSE(rig.part_at(on_step.x, on_step.y).empty());
+    rig.click(on_step);
+    CHECK_FALSE(step_chosen(rig));
+    CHECK(rig.shows_part("Nothing was done: what was under the press changed as it landed"));
+}
+
+TEST_CASE("a right press on the graph opens what can be done to what it landed on, a row does it, a row "
+          "that needs words asks only for them, and a menu the rule changed under does nothing") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto& face = w.window.measure();
+    const auto id = std::to_string(place_id(rig, 0));
+    // A RIGHT PRESS AT A CELL, and the menu Flow asked for under it: its subject and rows.
+    const auto right = [&](Cell c) {
+        Moment m;
+        m.gesture = w.window.next_press();
+        m.button = 3;
+        m.x = c.first * face.advance + face.advance / 2;
+        m.y = c.second * face.line + face.line / 2;
+        const auto before = rig.presenter->messages.size();
+        rig.click(m);
+        std::optional<ws::PaneMenuRequested> asked;
+        std::uint64_t corr = 0;
+        for (std::size_t i = before; i < rig.presenter->messages.size(); ++i) {
+            const auto& msg = rig.presenter->messages[i];
+            if (loom::same_identity(msg.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>())) {
+                asked = loom::from_value<ws::PaneMenuRequested>(msg.payload);
+                corr = msg.correlation;
+            }
+        }
+        return std::pair{asked, corr};
+    };
+    const auto labels = [](const ws::PaneMenuRequested& asked) {
+        std::vector<std::string> out;
+        for (const auto& r : asked.rows) out.push_back(r.label);
+        return out;
+    };
+    const auto choose = [&](const std::pair<std::optional<ws::PaneMenuRequested>, std::uint64_t>& menu,
+                            const std::string& label) {
+        REQUIRE(menu.first);
+        const auto row = std::find_if(menu.first->rows.begin(), menu.first->rows.end(),
+                                      [&](const auto& r) { return r.label == label; });
+        REQUIRE(row != menu.first->rows.end());
+        REQUIRE(rig.bus.office_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
+            loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, menu.first->subject, true, row->id, ""}),
+                          rig.menus, {}, menu.second)).valid());
+        rig.pump();
+    };
+    const auto& def = [&]() { return rig.workspace().graph.project.definition; };
+    using V = std::vector<std::string>;
+
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#graph-right-press-handed-back): a right press on the
+    // graph is handed back to Workshop, no menu of Flow's.
+    // THE MESSAGE'S CARD, declared here: a field added, renamed, taken out of the rule, carried.
+    auto menu = right(w.at("card:message:meter.Set"));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Add a field...", "Rename...", "Remove from the rule", "Carry meter.Set"});
+    // RENAME asks only for the name, and the rule wakes on the renamed message.
+    choose(menu, "Rename...");
+    CHECK(rig.shows_part("Rename meter.Set"));
+    CHECK_FALSE(rig.shows_part("Index"));
+    rig.replace_text("Reading");
+    rig.key(in::scan::kReturn);
+    CHECK(def().on.at(0).message->name() == "meter.Reading");
+
+    // A FIELD OF IT: renamed, retyped or removed; removed, the port that read it is open.
+    menu = right(w.at("field:input"));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Rename input...", "Change kind...", "Remove input"});
+    choose(menu, "Remove input");
+    CHECK(fp::unwired(def().on.at(0).body.nodes.at(0).arguments.at(0)));
+
+    // WHAT IT KEEPS: renamed, retyped, started, removed, or another kept.
+    menu = right(w.at("field:value"));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) ==
+          V{"Rename value...", "Change kind...", "Start value...", "Remove value", "Keep another field..."});
+    choose(menu, "Start value...");
+    rig.replace_text("5");
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.state.get("value")->as_int() == 5);
+
+    // A PORT: disconnected, or given a value. THE STEP, the answer: disconnected whole, or deleted.
+    menu = right(w.at(port_part(rig, 0, 1)));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Disconnect", "Give it a value..."});
+    menu = right(w.at("node:" + id));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Disconnect all", "Delete"});
+    choose(menu, "Disconnect all");
+    CHECK(fp::unwired(def().on.at(0).body.nodes.at(0).arguments.at(1)));
+    CHECK_FALSE(flow::answered(def().on.at(0)));
+    menu = right(w.at("node:" + id));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Make it the answer", "Disconnect all", "Delete"});
+
+    // EMPTY ROOM: a step made there, by the search standing where the menu opened.
+    menu = right(w.room());
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Add a step here..."});
+    choose(menu, "Add a step here...");
+    CHECK(rig.shows_part("Choose what to make from the wire"));
+    rig.key(in::scan::kEscape);
+
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#stale-menu-acts): a row chosen after the rule changed
+    // does its edit.
+    // A MENU THE RULE CHANGED UNDER does nothing, and says so.
+    menu = right(w.at("node:" + id));
+    rig.edit_ok("result", {"0"});
+    const auto steps = def().on.at(0).body.nodes.size();
+    choose(menu, "Delete");
+    CHECK(def().on.at(0).body.nodes.size() == steps);
+    CHECK(rig.shows_part("Nothing was done: the rule changed since the menu opened"));
+}
+
+TEST_CASE("the chosen step goes by the Delete key or by the x on its corner, which the Do lane's "
+          "head no longer holds") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    WireWindow w(rig);
+    // CHOSEN BY ITS HEAD: the x stands on its corner, and the Do lane's head offers no removal.
+    w.click(w.at("node:" + std::to_string(place_id(rig, 1))));
+    REQUIRE(step_chosen(rig));
+    CHECK_FALSE(rig.shows_part("Delete node"));
+    // ITS x takes that step away, and no other.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#the-x-names-the-first-step): step 1's x is step 0's.
+    w.click(w.at("remove:1"));
+    const auto nodes = rig.workspace().graph.project.definition.on.front().body.nodes;
+    REQUIRE(nodes.size() == 1);
+    CHECK(nodes.front().identity == "math.max");
+    CHECK_FALSE(step_chosen(rig));
+    // THE DELETE KEY takes the chosen step away.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#delete-keeps-the-step): the Delete key does nothing.
+    w.click(w.at("node:" + std::to_string(place_id(rig, 0))));
+    REQUIRE(step_chosen(rig));
+    rig.key(in::scan::kDelete);
+    CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.empty());
+}
+
+TEST_CASE("a When or Then card is chosen by its head and moved up and down its own column, where it "
+          "stays through a save, an open and a reload; a wire let go on the write card's head lands") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("math.max"));
+    WireWindow w(rig);
+    const auto write = "card:write:" + rig.workspace().graph.project.definition.on.front().message->name();
+    const auto write_at = w.at(write);
+    // THE KEPT CARD dragged down its column stands lower there, and the graph keeps where.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#card-drag-places-nothing): the drag puts it nowhere.
+    const auto kept = w.at("card:kept");
+    w.drag(kept, Cell{kept.first, kept.second + 6});
+    const auto moved = w.at("card:kept");
+    CHECK(moved.first == kept.first);
+    CHECK(moved.second > kept.second);
+    const auto placed = rig.workspace().docks;
+    REQUIRE(placed.size() == 1);
+    CHECK(placed.front().card == "kept");
+    CHECK(placed.front().y > 0);
+    // ...AND A CARD IT DID NOT MOVE stands where it stood.
+    CHECK(w.at(write) == write_at);
+    // A WIRE LET GO ON THE WRITE CARD'S HEAD makes its step the answer, as on the rest of the card.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#write-head-misses-the-wire): the head takes no wire.
+    w.drag(w.at("source-node:1"), w.at(write));
+    CHECK(rig.workspace().graph.project.definition.on.front().body.result_node == 1);
+    // ...AND A STEP'S ANSWER PRESSED, THEN THE WRITE CARD'S HEAD, makes that step the answer too.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#write-head-ignores-a-held-answer): the head chooses.
+    w.click(w.at("source-node:0"));
+    w.click(w.at(write));
+    CHECK(rig.workspace().graph.project.definition.on.front().body.result_node == 0);
+
+    // THROUGH A SAVE AND AN OPEN, the card stands where it was put.
+    TempFiles files;
+    rig.edit_ok("save", {files.file()});
+    rig.edit_ok("new", {"other", "discard"});
+    CHECK(rig.workspace().docks.empty());
+    rig.edit_ok("open", {files.file(), "discard"});
+    REQUIRE(rig.workspace().docks.size() == 1);
+    CHECK(rig.workspace().docks.front().y == placed.front().y);
+    // ...AND THROUGH A RELOAD.
+    const auto reload = rig.kernel.reload_from("flow-pane", FLOW_PANE_ARTIFACT);
+    INFO(reload.error);
+    REQUIRE(reload.ok);
+    REQUIRE(reload.reloaded);
+    rig.activate();
+    REQUIRE(rig.workspace().docks.size() == 1);
+    CHECK(rig.workspace().docks.front().y == placed.front().y);
+}
+
+TEST_CASE("a double click adds: an operator row as Add to the rule adds it, empty Do room a step "
+          "found where it was clicked, empty When room a new message, empty Then room keep or say") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto steps = [&rig]() { return rig.workspace().graph.project.definition.on.front().body.nodes; };
+    // AN OPERATOR ROW pressed twice at once is added.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#a-row-twice-adds-nothing): the second press only shows it.
+    const auto row = w.at("found:" + std::string(ws::kOperatorKind) + ":math.add");
+    w.click(row);
+    w.click(row);
+    REQUIRE(steps().size() == 2);
+    CHECK(steps().back().identity == "math.add");
+
+    // EMPTY DO ROOM pressed twice: a search opens there, and the row chosen stands where it was.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#empty-room-twice-opens-nothing): no search opens.
+    const auto room = w.room();
+    w.click(room);
+    w.click(room);
+    REQUIRE(rig.shows("A step here -- what is it for?"));
+    const auto max = w.row_of_search("  max"); // the search's row, not the step already there
+    REQUIRE(max);
+    w.click(*max);
+    REQUIRE(steps().size() == 3);
+    CHECK(steps().back().identity == "math.max");
+    CHECK_FALSE(rig.shows_part("what is it for"));
+    const auto header = w.at("node:" + std::to_string(place_id(rig, 2)));
+    CHECK(std::abs(header.first - room.first) <= 1);
+    CHECK(std::abs(header.second - room.second) <= 1);
+
+    // EMPTY WHEN ROOM pressed twice asks for a new message.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#when-twice-asks-nothing): no message is asked.
+    const auto when_head = w.showing("WHEN");
+    REQUIRE(when_head);
+    const auto when = w.empty(when_head->first, when_head->first + 10, when_head->second + 16, when_head->second + 40);
+    w.click(when);
+    w.click(when);
+    CHECK(rig.shows_part("Declare an input message"));
+    rig.key(in::scan::kEscape);
+
+    // EMPTY THEN ROOM pressed twice offers to keep a field or say a message, and Say opens its dialog.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#then-twice-offers-nothing): no menu is offered.
+    const auto then_head = w.showing("THEN");
+    REQUIRE(then_head);
+    const auto then = w.empty(then_head->first, then_head->first + 10, then_head->second + 16, then_head->second + 40);
+    w.click(then);
+    w.click(then);
+    const loom::Message* menu = nullptr;
+    for (const auto& m : rig.presenter->messages)
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>()) &&
+            loom::from_value<ws::PaneMenuRequested>(m.payload).subject == "then")
+            menu = &m;
+    REQUIRE(menu != nullptr);
+    const auto asked = loom::from_value<ws::PaneMenuRequested>(menu->payload);
+    REQUIRE(asked.rows.size() == 2);
+    CHECK(asked.rows[0].id == "ask-keep");
+    CHECK(asked.rows[1].id == "ask-say");
+    REQUIRE(rig.bus.office_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
+        loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, "then", true, "ask-say", ""}),
+                      rig.menus, {}, menu->correlation)).valid());
+    rig.pump();
+    CHECK(rig.shows_part("Say a message after the change"));
+}
+
+namespace {
+/// THE WORDS OF THE BOX AT THE CHOSEN PORT: every run of text inside its part, top to bottom.
+std::vector<std::string> port_box_words(Rig& rig) {
+    const auto shown = rig.picture();
+    const auto box = std::find_if(shown.parts.begin(), shown.parts.end(),
+                                  [](const auto& part) { return part.name.rfind("port-box:", 0) == 0; });
+    REQUIRE(box != shown.parts.end());
+    std::vector<std::string> out;
+    for (const auto& t : shown.texts)
+        if (t.x >= box->x && t.y >= box->y && t.x < box->x + box->w && t.y < box->y + box->h)
+            out.push_back(t.text);
+    return out;
+}
+bool says(const std::vector<std::string>& words, const std::string& text) {
+    return std::find(words.begin(), words.end(), text) != words.end();
+}
+} // namespace
+
+TEST_CASE("a wire in hand from a step's answer narrows the rail to what takes it, and the preview "
+          "adds a step wired from it at the port chosen") {
+    Rig rig;
+    rig.graph_semantically();
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#held-wire-asks-nothing): the door is asked for every
+    // power, a wire in hand or not.
+    rig.click("[answer -> value]");
+    REQUIRE_FALSE(rig.questions.empty());
+    CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
+    CHECK(rig.shows("Wire from max : Int"));
+    rig.click("  add");
+    (void)rig.label("[Add, wired into lhs]");
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#add-from-wires-the-first-port): it is wired at the first
+    // port, whichever was chosen.
+    rig.click("[Add, wired into rhs]");
+    const auto body = rig.workspace().graph.project.definition.on.front().body;
+    REQUIRE(body.nodes.size() == 2);
+    CHECK(body.nodes.at(1).identity == "math.add");
+    CHECK(body.nodes.at(1).arguments.at(1).from() == op::Binding::From::Node);
+    CHECK(body.nodes.at(1).arguments.at(1).node_index() == 0);
+    CHECK(body.nodes.at(1).arguments.at(0).input_name().empty());
+    CHECK(rig.shows("Added add, wired from max"));
+    // The wire is spent: the door is asked for every power again.
+    CHECK_FALSE(rig.questions.back().takes.has_value());
+}
+
+TEST_CASE("the pointer resting with no button held lights the sentence and the graph together, and a "
+          "press on a part still to choose does what the Next line's button does") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#rest-heard-as-nothing): a move with no button held
+    // lights nothing.
+    // RESTING ON THE MESSAGE'S CARD lights its part of the sentence, in angle brackets here.
+    REQUIRE(rig.shows("[meter.Set]"));
+    const auto card = w.at("card:message:meter.Set");
+    w.move(card, 0);
+    CHECK(rig.shows("<meter.Set>"));
+    CHECK_FALSE(rig.shows("[meter.Set]"));
+    // ...resting on empty room lights nothing, and a press ends a rest.
+    w.move(w.room(), 0);
+    CHECK(rig.shows("[meter.Set]"));
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#leaving-keeps-the-rest): the pointer leaving the area
+    // leaves what it rested on lit.
+    // ...and so does the pointer leaving the area, as its window says.
+    w.move(card, 0);
+    REQUIRE(rig.shows("<meter.Set>"));
+    w.window.left(kFlowArea);
+    rig.pump();
+    CHECK(rig.shows("[meter.Set]"));
+    w.move(card, 0);
+    REQUIRE(rig.shows("<meter.Set>"));
+    w.click(w.room());
+    CHECK(rig.shows("[meter.Set]"));
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#a-part-to-choose-does-nothing): the press does nothing.
+    // A PART STILL TO CHOOSE, pressed, does what the Next line's button does: a new message.
+    rig.edit_ok("new", {"blank", "discard"});
+    rig.click("[a message]");
+    CHECK(rig.shows("Declare an input message"));
+}
+
+TEST_CASE("resting on a port tells its kind and what it reads; a wire over a port it does not fit "
+          "says why before it is let go, and wires nothing, and a press there says the same") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("logic.select_int"));
+    rig.edit_ok("move", {"1", "1056", "1440"});
+    WireWindow w(rig);
+    w.move(w.at(port_part(rig, 0, 1)), 0);
+    CHECK(rig.shows("rhs : Int"));
+    CHECK(rig.shows("is 0"));
+    w.move(w.at(port_part(rig, 0, 0)), 0);
+    CHECK(rig.shows("lhs : Int"));
+    CHECK(rig.shows("reads input, from the message"));
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#a-dragged-wire-says-nothing): nothing is said before it
+    // is let go.
+    // A WIRE DRAGGED from max's answer over select_int's condition, a truth: why, before it is let go.
+    const auto out = w.at("source-node:0");
+    const auto condition = w.at(port_part(rig, 1, 0));
+    {
+        const auto n = w.window.next_press();
+        w.press(out, n);
+        w.move(condition, n);
+        CHECK(rig.shows("select_int's condition takes Bool, and max is Int"));
+        w.release(condition, n);
+    }
+    CHECK(rig.shows("select_int's condition takes Bool, and max is Int; nothing was wired"));
+    CHECK(argument(rig, 1, 0).input_name().empty());
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#a-press-binds-what-does-not-fit): the press asks the
+    // graph, whose refusal names no step.
+    // A WIRE HELD BY A CLICK, pressed on a port it does not fit: said the same, and still held.
+    w.click(out);
+    w.click(condition);
+    CHECK(rig.shows("select_int's condition takes Bool, and max is Int; nothing was wired"));
+    CHECK(argument(rig, 1, 0).input_name().empty());
+    w.click(w.at(port_part(rig, 1, 2)));
+    CHECK(from_node(argument(rig, 1, 2), 0));
+    // ...and dragged over a port it fits, nothing is said, and it wires.
+    w.drag(out, w.at(port_part(rig, 1, 1)));
+    CHECK(from_node(argument(rig, 1, 1), 0));
+}
+
+TEST_CASE("a press on a port opens a box at it: what is in scope of its type and an earlier step's "
+          "answer, each by its own name, then one value of the port's kind") {
+    {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    // The new step stands under the first, so the box beside it stands on empty room.
+    rig.edit_ok("move", {"1", "1056", "1440"});
+    WireWindow w(rig);
+    // WHAT FITS, AS BUTTONS by their own names and where each comes from; no node or port to type
+    // and no $ or % anywhere in it.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#port-box-offers-nothing): the box lists nothing.
+    rig.click("o lhs [unwired]");
+    auto words = port_box_words(rig);
+    for (const char* expected : {"lhs : Int", "[value]", "kept", "[input]", "from the message", "[max]",
+                                 "a step's answer", "or a number", "[Use]"}) {
+        INFO(expected);
+        CHECK(says(words, expected));
+    }
+    for (const auto& said : words) {
+        INFO(said);
+        CHECK(said.find('$') == std::string::npos);
+        CHECK(said.find('%') == std::string::npos);
+        CHECK(said.find("Node") == std::string::npos);
+        CHECK(said.find("Port") == std::string::npos);
+    }
+    // A BUTTON BINDS, and the box closes.
+    rig.click("[max]");
+    CHECK(from_node(argument(rig, 1, 0), 0));
+    CHECK_FALSE(rig.shows("lhs : Int"));
+
+    // A NUMBER, CHECKED AS IT IS TYPED: what is not one is marked and refused in words.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#port-number-check-inverted): the check passes what is
+    // not a number and marks what is.
+    rig.click("o rhs [unwired]");
+    rig.text("x1");
+    CHECK(says(port_box_words(rig), "a whole number, like 12"));
+    rig.key(in::scan::kReturn);
+    CHECK(rig.shows("rhs takes a whole number, like 12"));
+    CHECK(argument(rig, 1, 1).input_name().empty());
+    rig.replace_text("12");
+    CHECK_FALSE(says(port_box_words(rig), "a whole number, like 12"));
+    rig.key(in::scan::kReturn);
+    CHECK(argument(rig, 1, 1).constant_cell().as_int() == 12);
+
+    // ...ITS NUMBER READY when it holds one, and Use binds what is typed over it.
+    rig.click("o rhs <- 12");
+    CHECK(says(port_box_words(rig), "[12]"));
+    rig.text("7");
+    rig.click("[Use]");
+    CHECK(argument(rig, 1, 1).constant_cell().as_int() == 7);
+
+    }
+    {
+    // YES OR NO for a port that takes a truth.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#port-yes-says-no): yes binds false.
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("logic.select_int"));
+    rig.edit_ok("move", {"1", "1056", "1440"});
+    WireWindow w(rig);
+    rig.click("o condition [unwired]");
+    const auto words = port_box_words(rig);
+    CHECK(says(words, "condition : Bool"));
+    CHECK(says(words, "nothing in scope is Bool yet"));
+    CHECK(says(words, "[yes]"));
+    CHECK(says(words, "[no]"));
+    CHECK_FALSE(says(words, "or a number"));
+    rig.click("[yes]");
+    CHECK(argument(rig, 1, 0).constant_cell().as_bool());
+
+    // ITS x AND THE ESCAPE KEY PUT IT DOWN, binding nothing.
+    rig.click("o when_true [unwired]");
+    w.click(w.at("port-close:1:1"));
+    CHECK_FALSE(rig.shows("when_true : Int"));
+    rig.click("o when_true [unwired]");
+    rig.key(in::scan::kEscape);
+    CHECK_FALSE(rig.shows("when_true : Int"));
+    CHECK(argument(rig, 1, 1).input_name().empty());
+    }
+}
+
+namespace {
+/// THE BOX AN EDITOR IN PLACE STANDS IN: its part.
+ws::CanvasPart editor_box(Rig& rig) {
+    const auto shown = rig.picture();
+    const auto box = std::find_if(shown.parts.begin(), shown.parts.end(),
+                                  [](const auto& part) { return part.name == "dialog-box:box"; });
+    REQUIRE(box != shown.parts.end());
+    return *box;
+}
+} // namespace
+
+TEST_CASE("Keep a field, Say a message and New message edit in place beside what opened them, the "
+          "graph still in view, and a kept field's kind is chosen from the kinds Flow takes") {
+    Rig rig;
+    rig.edit_ok("new", {"meter", "discard"});
+    // NEW MESSAGE beside its button in the When lane, the graph drawn round it, its name ready to
+    // be typed over.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#editor-covers-the-page): an editor is drawn as the
+    // dialog that covers the page.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#editor-ignores-its-opener): an editor stands beside
+    // what it edits, never beside the press that opened it.
+    const auto asked = rig.label("[New message]");
+    rig.click("[New message]");
+    auto box = editor_box(rig);
+    CHECK(box.x == asked.x);
+    CHECK(box.y > asked.y);
+    CHECK(rig.shows("WHEN"));
+    CHECK(rig.shows("Declare an input message"));
+    rig.text("Reading");
+    rig.key(in::scan::kReturn);
+    REQUIRE(rig.workspace().graph.project.definition.accepts.size() == 1);
+    CHECK(rig.workspace().graph.project.definition.accepts.front()->name() == "meter.Reading");
+    rig.click("[Graph]");
+
+    // KEEP A FIELD beside its button; its kind is pressed, and typing never reaches it.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#kind-choice-ignored): a kind pressed is not held.
+    const auto keep = rig.label("[+ keep a field]");
+    rig.click("[+ keep a field]");
+    box = editor_box(rig);
+    CHECK(box.x == keep.x);
+    CHECK(box.y > keep.y);
+    CHECK(rig.shows("meter.Reading"));
+    for (const char* kind : {"[Int]", "[Bool]", "[Float]", "[Text]", "[Bytes]"}) {
+        INFO(kind);
+        CHECK(rig.shows(kind));
+    }
+    rig.click("[Bool]");
+    rig.text("Int");
+    rig.key(in::scan::kLeft);
+    rig.key(in::scan::kRight);
+    rig.key(in::scan::kReturn);
+    const auto chosen = rig.workspace();
+    const auto* kept = chosen.graph.project.definition.state->find("total");
+    REQUIRE(kept != nullptr);
+    CHECK(kept->type.kind == loom::Kind::Bool);
+
+    // A PRESS OUTSIDE IT PUTS IT DOWN, and is spent on nothing more: the tab pressed stays unshown.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#editor-outlives-a-press-outside): a press outside
+    // leaves it open.
+    rig.choose("more", "ask-keep");
+    REQUIRE(rig.state().dialog_action == "keep");
+    rig.click("[State]");
+    CHECK(rig.state().dialog_action.empty());
+    CHECK(rig.shows("Keep a field between messages was closed; nothing changed"));
+    CHECK(rig.shows("WHEN"));
+
+    // SAY A MESSAGE beside its button in the Then lane.
+    rig.edit_ok("add-node", rig.ref("math.max"));
+    const auto say = rig.label("[+ say meter.Total]");
+    rig.click("[+ say meter.Total]");
+    box = editor_box(rig);
+    CHECK(box.y > say.y);
+    CHECK(rig.shows("Say a message after the change"));
+    CHECK(rig.shows("WHEN"));
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.definition.on.front().emits.size() == 1);
+}
+
+namespace {
+/// A RUNNING VIEW standing in for one the View Builder made: asked what its wiring names, it
+/// answers the asker alone, as its own office, that its Count button says tally.Set and its Total
+/// label shows tally.Shown.
+class FakeView final : public loom::Weave {
+public:
+    loom::WeaveId self{};
+    int asked = 0;
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
+        return {loom::schema_of<zengine::view::ViewWiringRequested>()};
+    }
+    void handle(const loom::Message& in, loom::Bus& bus) override {
+        if (!loom::same_identity(in.payload.schema(), *loom::schema_of<zengine::view::ViewWiringRequested>()))
+            return;
+        ++asked;
+        zengine::view::ViewWiring said;
+        said.intents.push_back({"Count", "tally.Set", 1, false, 0, 0, "", false});
+        said.fields.push_back({"Total", "tally.Shown", 1, "total", false});
+        (void)bus.office_send("tally.panel", in.sender,
+                              loom::Message(loom::to_value(said), self, {}, in.correlation));
+    }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("flowtest.FakeView", 1, {})); }
+    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
+    void revive(const loom::Value&) override {}
+};
+FakeView* run_view(Rig& rig) {
+    loom::Grant tell;
+    tell.allow_to_any(zengine::view::ViewWiring::zen_name, zengine::view::ViewWiring::zen_version);
+    auto view = std::make_unique<FakeView>();
+    FakeView* raw = view.get();
+    raw->self = rig.bus.register_weave(std::move(view), std::move(tell), "tally.panel");
+    REQUIRE(raw->self.valid());
+    return raw;
+}
+} // namespace
+
+TEST_CASE("a message's name is offered as it is typed: what the rule says and what running views say "
+          "or show, each view asked by message; a name not among them still works") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("emitted-message", {"Done"});
+    const auto* view = run_view(rig);
+
+    // NEW MESSAGE: each running view is asked as it opens, and what they name is offered as the name
+    // is typed -- never one the rule hears already, nor one it says.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#views-never-asked): the editor asks no view.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#view-answer-dropped): what a view answers is kept nowhere.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#offers-ignore-typing): every name is offered, whatever is
+    // typed.
+    rig.click("[Messages]");
+    rig.click("[New message]");
+    CHECK(view->asked == 1);
+    CHECK(rig.shows("  tally.Set"));
+    CHECK(rig.shows("a button says it"));
+    CHECK_FALSE(rig.shows("  tally.Shown"));
+    CHECK_FALSE(rig.shows("  meter.Set"));
+    rig.replace_text("e");
+    CHECK(rig.shows("  tally.Set"));
+    CHECK_FALSE(rig.shows("  meter.Done"));
+    rig.replace_text("sh");
+    CHECK(rig.shows("  tally.Shown"));
+    CHECK(rig.shows("a label shows it"));
+    CHECK_FALSE(rig.shows("  tally.Set"));
+    // ...TAKEN BY THE ARROWS AND RETURN, then confirmed.
+    rig.key(in::scan::kDown);
+    CHECK(rig.shows("> tally.Shown"));
+    rig.key(in::scan::kReturn);
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.definition.accepts.back()->name() == "tally.Shown");
+
+    // ...OR BY A PRESS.
+    rig.click("[New message]");
+    CHECK(view->asked == 2);
+    rig.click("  tally.Set");
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.definition.accepts.back()->name() == "tally.Set");
+
+    // A NAME NOT AMONG THEM STILL WORKS.
+    rig.click("[New message]");
+    rig.replace_text("Ping");
+    CHECK_FALSE(rig.shows("a button says it"));
+    CHECK_FALSE(rig.shows("a label shows it"));
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.definition.accepts.back()->name() == "meter.Ping");
+
+    // SAY A MESSAGE: what the rule says already is offered, never what it hears, which it would hear
+    // again from itself.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#say-offers-what-it-hears): a name the rule hears is offered
+    // to say.
+    rig.click("[Graph]");
+    rig.click("[+ say meter.Value]");
+    CHECK(view->asked == 4);
+    rig.replace_text("d");
+    CHECK(rig.shows("  meter.Done"));
+    CHECK(rig.shows("this rule says it"));
+    rig.replace_text("t");
+    CHECK_FALSE(rig.shows("  tally.Set"));
+    CHECK_FALSE(rig.shows("  tally.Shown"));
+    rig.key(in::scan::kEscape);
 }
