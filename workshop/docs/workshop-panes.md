@@ -795,7 +795,18 @@ of the weave; a member the facet calls only when present is optional.
 
 ## A pane's picture
 
-A pane's picture is a value it composes and draws in its own area
+A pane draws in one of three ways ([`workshop/pane_facets.hpp`](../pane_facets.hpp)):
+
+- **Rows.** A pane on `PaneRowsFacet` pushes rows of text, each with what it means, and the facet
+  draws them for its whole area through one `RowsBlock`, below: Files, the Terminal, the Builder,
+  Compose and Notices.
+- **A sketch, drawn straight.** A pane on `PaneDrawingFacet` has its weave's `picture(gfx::Sketch&)`
+  drawn in the window's measure over its room's ground, whatever it places there, rows among it
+  where it wants them (`place_rows`, below): Attention, Connections and the demo controls.
+- **A canvas picture.** A pane offered a body of canvas pixels composes a picture as a value and
+  draws it with `canvas_sketch`, as this section says: the views the View Builder makes, and Flow.
+
+A canvas picture is a value a pane composes and draws in its own area
 ([`workshop/pane_picture.hpp`](../pane_picture.hpp)): rectangles (`CanvasRect`), labels
 (`CanvasLabel`, one canvas cell per printable ASCII byte), runs of text in the window's measure
 (`CanvasText`) and the parts it names (`CanvasPart`), for the room it is composed in
