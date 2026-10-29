@@ -528,3 +528,20 @@ Red in `zengine-flow-pane-tests`:
 
 - the pointer resting with no button held lights the sentence and the graph together, and a press on
   a part still to choose does what the Next line's button does
+
+## nothing-pressed-refused
+
+A press the window landed on nothing, under a drawing Flow has since replaced, is refused though
+Flow's picture shows nothing there either.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-      if (event.moved && !on_nothing && (event.button == 1 || event.button == 3)) {
++      if (event.moved && (on_nothing || !on_nothing) && (event.button == 1 || event.button == 3)) {
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a press the window landed on nothing, where Flow has redrawn since and shows nothing either, is a
+  press on nothing: it lets go of the chosen step, with nothing refused

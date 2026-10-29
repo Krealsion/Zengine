@@ -1056,7 +1056,7 @@ TEST_CASE("a press the window landed on Flow takes where the same part is drawn 
     const auto asked = rig.state();
     REQUIRE_FALSE(asked.dialog_entries.empty());
     rig.click(save_confirm);
-    CHECK(rig.shows_part("The picture changed under the press"));
+    CHECK(rig.shows_part("Nothing was done: what was under the press changed as it landed"));
     CHECK(rig.state().dialog_entries.size() == asked.dialog_entries.size());
     CHECK(rig.state().workspace == asked.workspace);
     // ...AND THE OLD CONFIRM BEFORE NEW, where New's second field now stands, confirms nothing.
@@ -1237,7 +1237,7 @@ TEST_CASE("loaded Flow pane keeps an unfinished dialog bound to its original for
     CHECK(after_stale.dialog_entries.empty());
     CHECK(after_stale.workspace == before_stale.workspace);
     CHECK(rig.live_value() == 99);
-    CHECK(rig.shows_part("The picture changed under the press"));
+    CHECK(rig.shows_part("Nothing was done: what was under the press changed as it landed"));
 }
 
 TEST_CASE("a query typed to the search line's end is drawn whole in a window, its caret a bar after it") {
@@ -2340,6 +2340,45 @@ TEST_CASE("a press on empty graph room lets go of the chosen step and its port, 
     CHECK(rig.workspace().pan_x == panned.pan_x);
     CHECK(rig.workspace().pan_y == panned.pan_y);
     CHECK(place_of(rig, 0) != stood);
+}
+
+TEST_CASE("a press the window landed on nothing, where Flow has redrawn since and shows nothing either, "
+          "is a press on nothing: it lets go of the chosen step, with nothing refused") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto head = w.at("node:" + std::to_string(place_id(rig, 0)));
+    w.click(head);
+    REQUIRE(step_chosen(rig));
+    // A PRESS ON EMPTY ROOM, as the window says one: under Flow's area, no part named there, in
+    // the drawing it shows now.
+    const auto room = w.room();
+    const auto& face = w.window.measure();
+    Moment pressed;
+    pressed.gesture = w.window.next_press();
+    pressed.x = room.first * face.advance + face.advance / 2;
+    pressed.y = room.second * face.line + face.line / 2;
+    pressed.under = kFlowArea;
+    REQUIRE(rig.part_at(pressed.x, pressed.y).empty());
+    // THE POINTER RESTS ON THE STEP, so Flow lights it and draws again; the press lands under a
+    // drawing Flow has since replaced -- this window numbers none, so one said by a number of its own.
+    w.move(head, 0);
+    pressed.drawing = 424242;
+    rig.click(pressed);
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#nothing-pressed-refused): a press on nothing under an
+    // older drawing is refused.
+    CHECK_FALSE(step_chosen(rig));
+    CHECK_FALSE(rig.shows_part("Nothing was done"));
+    // ...WHERE FLOW NOW SHOWS A STEP, the window having named nothing there, the press is refused:
+    // what it meant is unknown.
+    Moment on_step = pressed;
+    on_step.gesture = w.window.next_press();
+    on_step.x = head.first * face.advance + face.advance / 2;
+    on_step.y = head.second * face.line + face.line / 2;
+    REQUIRE_FALSE(rig.part_at(on_step.x, on_step.y).empty());
+    rig.click(on_step);
+    CHECK_FALSE(step_chosen(rig));
+    CHECK(rig.shows_part("Nothing was done: what was under the press changed as it landed"));
 }
 
 TEST_CASE("the chosen step goes by the Delete key or by the x on its corner, which the Do lane's "

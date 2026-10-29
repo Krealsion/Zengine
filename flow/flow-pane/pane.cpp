@@ -388,6 +388,7 @@ public:
                                p->part.rfind("control:dialog-", 0) == 0);
     Moment event{gesture, p->phase, p->button, p->x, p->y, p->dx, p->dy,
                  p->moved || other_dialog};
+    event.named = !p->part.empty();
     event.modifiers = p->modifiers;
     event.at_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::steady_clock::now().time_since_epoch())
@@ -401,6 +402,8 @@ public:
     std::int64_t gesture = 0, phase = 0, button = 0, x = 0, y = 0;
     double dx = 0, dy = 0;
     bool moved = false;
+    /// The window named a part under the hand: a press on nothing named is `named` false.
+    bool named = false;
     /// The modifiers held, and when the pane read the moment: a steady clock's milliseconds.
     std::int64_t modifiers = 0, at_ms = 0;
   };
@@ -507,9 +510,13 @@ public:
       // A PRESS ENDS A REST: what the press does is drawn unlit, until the pointer rests again.
       model_.hover.reset();
       // A PRESS THE WINDOW LANDED ON ANOTHER PART than Flow's picture shows there now acts on
-      // nothing, and is said.
-      if (event.moved && (event.button == 1 || event.button == 3)) {
-        model_.notice = "The picture changed under the press; press again";
+      // nothing, and is said. One it landed on nothing, where Flow's picture shows nothing either,
+      // is a press on nothing whatever was redrawn meanwhile -- a resting pointer's light redraws
+      // the picture -- and goes on as one.
+      const bool on_nothing =
+          !event.named && (pictured == nullptr || pictured->hit(event.x, event.y) == nullptr);
+      if (event.moved && !on_nothing && (event.button == 1 || event.button == 3)) {
+        model_.notice = "Nothing was done: what was under the press changed as it landed";
         show(mail);
         return;
       }
@@ -563,7 +570,7 @@ public:
       const pane::Picture *it = pictured;
       if (it == nullptr ||
           it->revision != model_.workspace.graph.project.definition.revision) {
-        model_.notice = "That picture has changed; choose again.";
+        model_.notice = "Nothing was done: the rule changed under the press";
         show(mail);
         return;
       }
@@ -1310,7 +1317,7 @@ private:
     }
     const auto *it = latest();
     if (it == nullptr || it->revision != model_.workspace.graph.project.definition.revision) {
-      model_.notice = "That picture has changed; choose again.";
+      model_.notice = "Nothing was done: the rule changed under the wire";
       show(mail);
       return;
     }

@@ -676,10 +676,10 @@ Workshop numbered no gesture for it.
 ### `AreaButtonChanged`
 
 `AreaButtonChanged` v3, from that window: a button pressed or let go in Flow's area, on the part the
-window drew there: a node held for a drag, a wire's end held, a control done, a declared message
-offered to carry out, the graph panned by a press on nothing, a right press handed back. One on
-another part than Flow shows there now, or on another dialog's, is refused in words. Its moves and
-release carry the window's number for the press, which a carry it asks continues.
+window drew there: a node held for a drag, a wire's end held, a control done, a message offered to
+carry out, the graph panned by a press on nothing, a right press handed back. One on another part
+than Flow shows now, or another dialog's, is refused in words; on nothing, where Flow shows none, it
+is a press on nothing. Its moves and release carry the press's number, which a carry continues.
 
 ### `AreaPointerMoved`
 
