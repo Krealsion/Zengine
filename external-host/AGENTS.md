@@ -19,6 +19,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `tools/workshop/setups/` | the described setups, each a folder: `setup.json`, `desk.json`, `README.md` |
 | `tools/workshop-machine/` | the `workshop-machine` tool package, which `uses` `workshop`: the tools that reach the machine |
 | `tools/workshop/toolboxes/` | the inspection workbench's packaged toolboxes, which the `workbench` setup names (`workshop-machine/workbench.py`) |
+| `tools/accounts-machine/` | the `accounts-machine` tool package: `repo`, a checkout's Git and pull requests, which reach the session user's accounts |
 | `tools/desk/` | the `desk` tool package, by message alone: `desk/guide` and `desk/resolve` |
 | `tools/desk-machine/` | the `desk-machine` tool package, which `uses` `desk`: `read` and `watch`, the desk written as text |
 
@@ -34,7 +35,8 @@ No register of its own. Workshop's side is in `agents/workshop/guests.md` (a gue
 
 - `demo_recipes` — setups and their preparation, no window (`tests/session/demo_recipes.py`)
 - `tool_reach` — a package's name says how far its tools reach: a tool of a package not named
-  `-machine` reaches no process, file or socket by its imports (`tests/session/tool_reach.py`)
+  `-machine` reaches no process, file or socket by its imports, and only one of a package named
+  `accounts-machine` runs GitHub's client or Git's push (`tests/session/tool_reach.py`)
 - `tutorial_walks` — every tutorial's `tutorial` walk replayed from an installed prefix
   (`tests/session/tutorial_walks.py`)
 - `guest_journey` — a real Workshop admitting this program as a guest (`tests/guest_journey.cpp`)
@@ -62,7 +64,7 @@ and their manual); `graphics`
   `Demo*` shapes to `zengine.demo`); a guest's hand: `workshop/actor_scope.hpp`.
 - Seam vocabulary: `workshop/guest_seam_vocabulary.hpp` (`GuestConnections`, asked of
   `zengine.guests`); setup preparation's owner doors: `workshop/setup_control.hpp`.
-- Installed by `cmake/ZengineInstall.cmake` (the weave, the four tool packages under
+- Installed by `cmake/ZengineInstall.cmake` (the weave, the five tool packages under
   `share/zengine/loom-tools`, each feature's tutorials exported into `workshop/setups/`); the public
   setups page: `workshop/docs/demo-setups.md`.
 

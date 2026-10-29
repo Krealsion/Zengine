@@ -1,0 +1,132 @@
+{
+  "package": "accounts-machine",
+  "version": "1",
+  "summary": "A checkout's Git and its pull requests on GitHub, as the session's user: tools that reach this machine and, through it, that user's accounts -- a push, a pull request.",
+  "tools": [
+    {
+      "name": "repo",
+      "script": "repo.py",
+      "summary": "Git and a GitHub pull request for one named repository: status, diff, log, show and fetch; stage named paths; commit as a named author with no trailer; push the current branch; open, edit or read a pull request and its checks.",
+      "description": "Scoped local work from the external host: git in root, and gh for a pull request, as this session's user with that user's own credentials. commit takes author as `Name <email>`, who is also the committer; a message carrying a trailer is refused before anything is written, the made commit is read back (its trailers must be empty, its author and committer the named one) and a repository that carries tests/check_commit_attribution.cmake must pass it. push pushes the current branch to the same name on the remote and refuses the default branch. pr-checks answers what `gh pr checks` says, pending and failing included; run-view reads one workflow run, with --log-failed when asked. It never merges, never enables auto-merge, never force-pushes, never rewrites history and never deletes a branch, a file or a pull request.",
+      "inputs": [
+        {
+          "name": "root",
+          "type": "text",
+          "default": "",
+          "help": "an absolute path to the Git checkout"
+        },
+        {
+          "name": "op",
+          "type": "text",
+          "default": "status",
+          "help": "status, diff, log, show, fetch, add, commit, push, pr-create, pr-edit, pr-view, pr-checks or run-view"
+        },
+        {
+          "name": "paths",
+          "type": "text",
+          "default": "[]",
+          "help": "add: a JSON list of paths, relative to root"
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "default": "",
+          "help": "commit: the whole message; a trailer in it is refused"
+        },
+        {
+          "name": "author",
+          "type": "text",
+          "default": "",
+          "help": "commit: `Name <email>`, the author and the committer"
+        },
+        {
+          "name": "range",
+          "type": "text",
+          "default": "",
+          "help": "diff, log, show: revisions or a range, e.g. origin/main..HEAD"
+        },
+        {
+          "name": "count",
+          "type": "int",
+          "default": 10,
+          "help": "log: how many commits"
+        },
+        {
+          "name": "remote",
+          "type": "text",
+          "default": "origin",
+          "help": "fetch, push: the remote"
+        },
+        {
+          "name": "branch",
+          "type": "text",
+          "default": "",
+          "help": "push: the branch the checkout must be on (a guard); empty takes the current one"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "default": "",
+          "help": "pr-create: the pull request's title"
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "default": "",
+          "help": "pr-create, pr-edit: the pull request's description, Markdown"
+        },
+        {
+          "name": "base",
+          "type": "text",
+          "default": "",
+          "help": "pr-create: the base branch; empty is the remote's default"
+        },
+        {
+          "name": "pr",
+          "type": "int",
+          "default": 0,
+          "help": "pr-edit, pr-view, pr-checks: the pull request's number"
+        },
+        {
+          "name": "run",
+          "type": "int",
+          "default": 0,
+          "help": "run-view: the workflow run's id"
+        },
+        {
+          "name": "log_failed",
+          "type": "bool",
+          "default": false,
+          "help": "run-view: the failed steps' logs too"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "repo.json",
+          "help": "each command's argv, exit code, seconds, output size and last lines"
+        },
+        {
+          "name": "<op>-<n>.log",
+          "help": "each command's whole output"
+        }
+      ],
+      "requires": [
+        "git on this machine, and gh signed in for the pull-request operations"
+      ],
+      "asks": [],
+      "vocabulary": [],
+      "terms": [
+        "git",
+        "commit",
+        "push",
+        "pull request",
+        "github",
+        "attribution",
+        "trailer",
+        "ci"
+      ],
+      "example": "loom-session run <dir> accounts-machine/repo --name commit-story --input root=<checkout> --input op=commit --input author=\"A Weaver <weaver@example.org>\" --input message=\"Add the tower defense example\"",
+      "recovery": "Read repo.json and the logs. A refused commit wrote nothing; a made commit that failed its read-back stays made and is named in the failure -- inspect it with op=show before anything is pushed. Nothing is ever pushed by force."
+    }
+  ]
+}

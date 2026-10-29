@@ -337,13 +337,16 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   draft never saved included, is refused untouched -- and after `:w` whether it saved the planned
   text, which the file must equal too), `workshop-machine/source` (list, read, search or compare
   files) and `workshop-machine/lane` (this repository's build, `tests/verify.cmake` or one test
-  case, with the logs kept). `workshop-machine/repo` does a checkout's Git and pull-request chores
-  as the session's user: status, diff, staging named paths, a commit as a named author with no
-  trailer, pushing a branch, and opening or reading a pull request and its checks; it never merges
-  and never force-pushes. [The tower defense example](../../examples/tower-defense/README.md) was
-  made with them, and replays how. The demos that read a setup's files or write a project's are here
-  too: `workshop-machine/demo-serve`, `inventory-slots-demo`, `terminal-inventory-demo`,
+  case, with the logs kept). [The tower defense example](../../examples/tower-defense/README.md)
+  was made with them, and replays how. The demos that read a setup's files or write a project's are
+  here too: `workshop-machine/demo-serve`, `inventory-slots-demo`, `terminal-inventory-demo`,
   `toolbox-fixture`, `workbench` and `editor-materials-demo`.
+- **The `accounts-machine` tool package**, installed at `share/zengine/loom-tools/accounts-machine`,
+  reaches this machine and, through it, the session user's accounts: `accounts-machine/repo` does a
+  checkout's Git and pull-request chores as that user, with that user's credentials: status, diff,
+  staging named paths, a commit as a named author with no trailer, pushing a branch, and opening or
+  reading a pull request and its checks; it never merges and never force-pushes. No setup and no
+  example approves it.
 - **The `desk` tool package**, installed at `share/zengine/loom-tools/desk`, by message alone:
   `desk/guide` marks a control for a guest, and `desk/resolve` finds the controls whose press
   may cause a message and the steps to one. **`desk-machine`**, beside it and building on it,
@@ -357,9 +360,11 @@ package whole. Every tool of `workshop`, of `desk` and of the tower-defense exam
 `tower-defense` reaches nothing but the bus and a clock -- no process, no file and no socket of
 its own -- so approving those gives an agent Workshop's doors under its own row and nothing on
 this machine. A `-machine` package's tools run processes and read and write files as the
-session's user: approve one only for a client you would let do that. The `tool_reach` entry holds
-every package to its name, following each tool's imports; it reads names, so it is a guard, not a
-sandbox.
+session's user: approve one only for a client you would let do that. Only `accounts-machine`'s
+tools push and open pull requests, which reach that user's accounts beyond this machine: approve it
+only for a client you would let act there as that user. The `tool_reach` entry holds every package
+to its name, following each tool's imports and the text that names GitHub's client or Git's push;
+it reads names, so it is a guard, not a sandbox.
 
 **Steps kept with a setup.** A [ready-to-use setup](../../workshop/docs/demo-setups.md) may carry named **walks** --
 lists of `workshop/act` steps, the same steps its `starting` list uses -- and
@@ -447,7 +452,8 @@ Workshop (`.dll` for `.so` on Windows):
 Its `loom-tools.json` approves the packages: `workshop` and `desk`, which reach nothing but the
 bus, and a `-machine` package beside each only where the session's user would let its runs reach
 this machine -- `desk-machine` to have the desk written as files, `workshop-machine` for a
-recipe read back, a checkout or a lane:
+recipe read back, a project's files or a lane -- and `accounts-machine` only where they would let
+its runs push and open pull requests as them:
 
 ```json
 { "packages": [ { "path": "<zengine prefix>/share/zengine/loom-tools/workshop",
