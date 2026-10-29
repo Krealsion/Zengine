@@ -13,7 +13,7 @@ In `info/value_view.hpp`:
 
 ```diff
 -            return std::find(open.begin(), open.end(), field_name(fields[i].ref)) != open.end();
-+            return true;
++            return i < fields.size(); // every level open
 ```
 
 Red in `zengine-workshop-panes-tests`:
