@@ -46,6 +46,7 @@ In `flow/graph_edit.hpp`:
 ```diff
 -          b = op::Binding::input("");
 +          throw std::invalid_argument("another node uses this output; reconnect it before deleting");
+     body.nodes.erase(body.nodes.begin() + static_cast<std::ptrdiff_t>(n));
 ```
 
 Red in `zengine-flow-tests`:
