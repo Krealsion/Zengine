@@ -294,13 +294,16 @@ inline void EditorPaneWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail& 
     if (chosen.empty() || held_still()) {
         return; // nothing chosen, or a switch holds the Editor still: no act
     }
-    // EACH ROW DOES WHAT ITS KEY DOES, through the same act (WL-EDIT-22): the carries against the
-    // document as it stood when the menu opened, the buffer's own rows through its `consume`, the
-    // declared rows through their act.
+    // EACH ROW DOES WHAT ITS KEY DOES, through the same act (WL-EDIT-22), on the document as it
+    // stood when the menu opened: the carries through `acquire`, the buffer's own rows through its
+    // `consume`, the declared rows through their act. Another document, an edit or a caret moved
+    // since, and the row does nothing, said, as a carry chosen then does.
     end_grab();
     if (chosen == pane::kActionExtract || chosen == pane::kActionLocation) {
         acquire(chosen == pane::kActionExtract ? Take::Selection : Take::Location, false,
                 mail.correlation(), menu_mark_, mail);
+    } else if (!(menu_mark_ == mark_now())) {
+        notice("nothing was done -- the document changed after you pointed at it", true);
     } else {
         bool buffer = false;
         for (const BufferRow& row : kMenuBufferRows) {

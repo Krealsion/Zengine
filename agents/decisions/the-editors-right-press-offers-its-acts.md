@@ -12,11 +12,12 @@ moved in the keymap file is known to the keymap's projection (`KeymapShown`), no
 **Decision.** A right press on the Editor's rows opens its own menu, Workshop's standard rows
 beneath: undo and redo while a step is there, cut and copy with a selection, paste, select all,
 extract with a selection, the location, save, discard while there is unsaved work, and close. The
-press's own subject keeps the first row. Each row does what its key does, through the same act. The
-Editor follows the keymap's projection and writes each row's key in its label after a mark
-(`kMenuKeyMark`); the shipped presenter draws the key apart, beside the words, and cuts the words
-first. Close is a declared row, `editor.close`, unbound, and refuses unsaved work as the Editor's
-other exits do.
+press's own subject keeps the first row. Each row does what its key does, through the same act, on
+the document as it stood when the menu opened: a row chosen after it moved does nothing, said, as a
+carry chosen then does. The Editor follows the keymap's projection and writes each row's key in its
+label after a mark (`kMenuKeyMark`); the shipped presenter draws the key apart, beside the words,
+and cuts the words first. Close is a declared row, `editor.close`, unbound, and refuses unsaved work
+as the Editor's other exits do.
 
 **Alternatives considered.**
 - *A key field on a new version of the row* -- not chosen: four shapes would take new versions and

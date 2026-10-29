@@ -75,8 +75,9 @@ keys, Workshop's own rows for the pane beneath: `Undo` and `Redo` while there is
 selection, **Carry this file's location**, `Save source`, `Discard source edits` while there is
 unsaved work, and `Close file` ([`editor.close`](#editorclose)). Each row does what its key does,
 and shows the key that does it now beside its words: a key you moved in your keymap file shows
-moved. On the highlight Extract comes first, and on `status` the location. An empty Editor hands a
-right press back, and Workshop's own menu opens.
+moved. On the highlight Extract comes first, and on `status` the location. A row chosen after the
+document changed under the menu does nothing: `nothing was done -- the document changed after you
+pointed at it`. An empty Editor hands a right press back, and Workshop's own menu opens.
 
 ### `editor.save`
 

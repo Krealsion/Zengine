@@ -293,6 +293,28 @@ TEST_CASE("Close file lets a clean document go, and refuses unsaved work as the 
     CHECK(s.r.session().context.open);
 }
 
+TEST_CASE("a row of the Editor's menu chosen after another document took the Editor does nothing to it, and says so") {
+    // THE CHOICE IS ABOUT THE DOCUMENT THE MENU OPENED ON, as it stood: a source opened while the
+    // menu is up takes the Editor, and a row chosen then acts on nothing, as a carry chosen then.
+    EditorStory s("menu-stale");
+    const std::string first = s.write("a.txt", "one\n");
+    const std::string second = s.write("b.txt", "two\n");
+    REQUIRE(s.open(first).accepted);
+    s.right_doc(0, 2);
+    REQUIRE(s.r.session().presented.open);
+    REQUIRE(s.open(second).accepted);
+    REQUIRE(s.doc().path == second);
+    REQUIRE(s.r.session().presented.open);
+    choose(s, "Close file");
+    CHECK(s.notice() == "nothing was done -- the document changed after you pointed at it");
+    CHECK(s.doc().path == second);
+    CHECK(s.doc().text == "two\n");
+    // ...AND A MENU OPENED ON THE DOCUMENT THERE NOW CLOSES IT.
+    s.right_doc(0, 2);
+    choose(s, "Close file");
+    CHECK(s.doc().path.empty());
+}
+
 TEST_CASE("the keyboard carries the selection by pick-and-place, and with nothing selected it carries nothing in its place") {
     EditorStory s("xfer-key");
     REQUIRE(s.open(s.write("a.txt", "line one\nline two\n")).accepted);
