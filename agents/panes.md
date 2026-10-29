@@ -233,7 +233,9 @@ behind it. Workshop routes only the wheel its own area hears.
   retired; every list is a pane's now.
 - **Loaded scrolls its viewport without changing selection.** Its origin is separate from
   the selected library identity. A whole wheel step obtains a new owner snapshot; it never
-  publishes LoadedSelected. Arrangement remains static and ignores the wheel.
+  publishes LoadedSelected. Project moves its window by whole artifacts: a whole wheel step, or
+  its declared `project.up` and `project.down`, moves the first block shown and asks the
+  arrangement door again; the start is presentation, held within each reading.
 
 ## The reveal and the quit cross as four more shapes
 
@@ -813,7 +815,7 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   GRAPHICAL FACE, AND `kStackRows` IS FIXED**, so a bigger TERMINAL
   buys columns and no rows. A block-per-entry projection and an eight-row default are in
   tension: the shipped six-artifact `Project` pane shows ONE artifact and `... 5 more` until a
-  weaver authors a taller window. That is counted rather than hidden, and a second denser
+  weaver scrolls it or authors a taller window. That is counted rather than hidden, and a second denser
   layout was deliberately not invented.
 - **The pane KEY is `arrangement` and the pane NAME is `Project`**, because the retired
   picker's name column (`kPickerNameCols`) was ten cells and `Arrangement` is eleven. The key is

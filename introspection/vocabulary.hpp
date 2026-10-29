@@ -64,6 +64,11 @@ inline constexpr const char* kPowersActionSources = "powers.sources";
 inline constexpr const char* kPowersActionOperators = "powers.operators";
 inline constexpr const char* kPowersActionComposite = "powers.composite";
 
+/// The ids of what the Project pane answers to: its list moved an artifact up or down, as the wheel
+/// moves it.
+inline constexpr const char* kProjectActionUp = "project.up";
+inline constexpr const char* kProjectActionDown = "project.down";
+
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable
 /// the way the two keys above are -- it is a file name, and it is here because the
 /// host's boot list and the suite's loader must agree on it.

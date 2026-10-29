@@ -260,8 +260,9 @@ private:
 // Project: the realization owner's plan and rows
 // =============================================================================
 
-/// THE PROJECT PANE: the host's arrangement, asked at every grant, spent and dropped -- nothing
-/// retains a row. Read-only: a press there gives it the keys and says nothing.
+/// THE PROJECT PANE: the host's arrangement, asked at every grant and every scroll, spent and
+/// dropped -- nothing retains a row. What it keeps is where its window starts, presentation held
+/// within each reading. Read-only: a press there gives it the keys and says nothing.
 class ArrangementSeat : public PaneSeat {
 public:
     ArrangementSeat() : PaneSeat(kArrangementPane) {}
@@ -271,6 +272,20 @@ public:
                                          kArrangementPaneSummary, 9, 64};
     }
 
+    /// What it answers to: its list moved an artifact, a question to the door each.
+    static workshop::v3::PaneActions actions() {
+        const std::vector<workshop::ActionCause> asks{
+            workshop::cause_of<workshop::ArrangementRequested>()};
+        workshop::v3::PaneActions declared;
+        declared.pane = kArrangementPane;
+        declared.rows.push_back(workshop::v3::PaneActionRow{
+            kProjectActionUp, "scroll up", input::scan::kUp, input::mod::kNone, {}, asks});
+        declared.rows.push_back(workshop::v3::PaneActionRow{
+            kProjectActionDown, "scroll down", input::scan::kDown, input::mod::kNone, {}, asks});
+        return declared;
+    }
+
+    /// A ROOM GRANTED: the door asked again; the window keeps its start, held within the reading.
     void grant(Voice voice) {
         ask(voice, workshop::kArrangementRole, workshop::ArrangementRequested{});
     }
@@ -284,9 +299,54 @@ public:
         if (!answering(mail)) {
             return false;
         }
-        say_rows(mail, project_arrangement(said, rows(), columns()));
+        ArrangementView view = project_arrangement_from(said, rows(), columns(), origin_);
+        origin_ = view.first;
+        furthest_ = view.furthest;
+        say_rows(mail, std::move(view.rows));
         return true;
     }
+
+    /// THE WHEEL MOVES THE WINDOW an artifact a notch; fractional notches wait until they are
+    /// worth one.
+    void wheel(Voice voice, double dy) {
+        if (!std::isfinite(dy)) {
+            return;
+        }
+        step(voice, -component::take_wheel_notches(wheel_, std::clamp(dy, -1000.0, 1000.0)));
+    }
+
+    /// ONE OF ITS DECLARED ACTIONS, BY ITS RESOLVED ID: the window an artifact up or down. False
+    /// for an id this pane never declared.
+    bool on_action(Voice voice, const std::string& id) {
+        if (id == kProjectActionUp) {
+            step(voice, -1);
+        } else if (id == kProjectActionDown) {
+            step(voice, +1);
+        } else {
+            return false;
+        }
+        return true;
+    }
+
+private:
+    /// The window moved `by` artifacts, between the first and the furthest the last reading
+    /// allowed, and the door asked again; at either end, or while a reading is awaited, nothing
+    /// moves and nothing is asked.
+    void step(Voice voice, std::int64_t by) {
+        if (by == 0 || awaiting()) {
+            return;
+        }
+        const auto next = std::clamp<std::int64_t>(static_cast<std::int64_t>(origin_) + by, 0,
+                                                   static_cast<std::int64_t>(furthest_));
+        if (next == static_cast<std::int64_t>(origin_)) {
+            return;
+        }
+        origin_ = static_cast<std::size_t>(next);
+        ask(voice, workshop::kArrangementRole, workshop::ArrangementRequested{});
+    }
+
+    std::size_t origin_ = 0, furthest_ = 0;
+    double wheel_ = 0;
 };
 
 // =============================================================================
