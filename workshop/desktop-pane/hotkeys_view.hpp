@@ -107,6 +107,10 @@ using DeclareKeys = std::function<void(loom::Mail&)>;
 
 class HotkeysView {
 public:
+    /// A VIEW OVER THE OPEN SECTIONS `open` HOLDS: its pane's state (`DesktopState::hotkeys_open`),
+    /// which every fold reads and writes.
+    explicit HotkeysView(std::vector<std::string>& open) : groups_(open) {}
+
     /// THE HOTKEYS PANE'S MODE, as its declaration names it.
     const char* keys_mode() const {
         return capture_.active  ? kKeysCaptureMode
@@ -417,11 +421,6 @@ public:
             say_keys(keys_rows_decl, mail);
         }
     }
-
-    /// THE SECTIONS OPEN, by identity: what the weave keeps in its state (`DesktopState`)...
-    const std::vector<std::string>& opened() const { return groups_.opened(); }
-    /// ...and set again from it, in a new image.
-    void restore(const std::vector<std::string>& kept) { groups_.restore(kept); }
 
     /// A RIGHT PRESS on a binding a weaver may move OFFERS its menu, beside the press, continuing
     /// it; a right press on anything else (a heading, a marker, a footer, the spelling line) is
@@ -1011,9 +1010,9 @@ private:
     PaneCanvas keys_canvas_{kHotkeysPane, kDesktopRole};
     ws::KeymapShown keymap_;
     bool keys_heard_ = false;
-    /// THE TABLE'S SECTIONS, which of them are open and the one the pointer peeks
-    /// (`component::IndependentAccordions`), and what the inventory last said: the panes the desk
-    /// holds, and every pane it knows, so a section of a pane off the desk is kept.
+    /// THE TABLE'S SECTIONS, the group over the open ones the pane's state holds, with the one the
+    /// pointer peeks (`component::IndependentAccordions`), and what the inventory last said: the
+    /// panes the desk holds, and every pane it knows, so a section of a pane off the desk is kept.
     std::vector<KeysSection> sections_;
     component::IndependentAccordions<std::string> groups_;
     std::set<std::string> on_desk_;

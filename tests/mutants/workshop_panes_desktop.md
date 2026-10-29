@@ -130,13 +130,15 @@ Red in `zengine-workshop-panes-tests`:
 
 ## sections-not-kept-across-a-reload
 
-The desk weave keeps none of the Hotkeys pane's open sections in its state, so a reload shuts them.
+The Hotkeys pane keeps its open sections in a list beside the desk weave's state, not in it, so a
+reload shuts them.
 
 In `workshop/desktop-pane/pane.cpp`:
 
 ```diff
--    void keep_keys_open() { state_.hotkeys_open = hotkeys_.opened(); }
-+    void keep_keys_open() {}
+-    pane::HotkeysView hotkeys_{state_.hotkeys_open};
++    std::vector<std::string> beside_ = {};
++    pane::HotkeysView hotkeys_{beside_};
 ```
 
 Red in `zengine-workshop-panes-tests`:
