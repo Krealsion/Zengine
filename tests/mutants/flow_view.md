@@ -354,8 +354,8 @@ lies behind it.
 In `flow/flow-pane/view.hpp`:
 
 ```diff
--    if (!pen.m.light) return;
-+    if (pen.m.light || !pen.m.light) return;
+-inline std::int64_t dot_reach(const Measure& m) { return m.light ? 9 : 0; }
++inline std::int64_t dot_reach(const Measure& m) { return m.light ? 0 : 0; }
 ```
 
 Red in `zengine-flow-tests`:
@@ -380,3 +380,38 @@ Red in `zengine-flow-tests`:
 
 - the Next line names the one thing the rule still needs, with the press that does it, in place of
   Run's refusals
+
+## dot-a-second-press
+
+A port's dot is a press of its own, under its row's name, which a second place of that name loses:
+the window says it landed on nothing.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-    pen.p.rests.push_back({key, clip ? reach.cut(*clip) : reach});
++    pen.p.rests.push_back({key, clip ? reach.cut(*clip) : reach});
++    pen.press(clip ? reach.cut(*clip) : reach, "dot", {key});
++    pen.press(clip ? reach.cut(*clip) : reach, "dot", {key});
+```
+
+Red in `zengine-flow-tests`:
+
+- a port's dot takes a press and a rest where it is drawn, the half outside its card's row too,
+  doing what its row does
+
+## write-dot-under-the-handle
+
+The head of what the rule writes is held across its dot, so a press on the dot drags the card.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-        if (nodes) handle(rows, write_name, then_room, true);
++        if (nodes) handle(rows, write_name, then_room, false);
+```
+
+Red in `zengine-flow-tests`:
+
+- a port's dot takes a press and a rest where it is drawn, the half outside its card's row too,
+  doing what its row does

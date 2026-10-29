@@ -344,17 +344,20 @@ inline void port(Pen& pen, std::int64_t x, std::int64_t middle, gfx::Paint ink, 
         pen.text(x, middle - pen.m.row / 2, "o", lit ? hue::text() : ink, clip);
     }
 }
-/// WHERE A PORT'S DOT TAKES A PRESS AND A REST, where light: a square round the whole dot, so the
-/// half outside its card's row is pressed as its row is, doing what the row does. Pushed after the
-/// rows, so it is the one a press there finds. Nothing where a character is a cell: the `o` stands
-/// inside its row.
-inline void dot_reach(Pen& pen, std::int64_t x, std::int64_t middle, std::optional<Box> clip, const std::string& rest,
-                      std::string action, std::vector<std::string> args, std::int64_t subject = 0) {
+/// HOW FAR A PORT'S DOT REACHES PAST ITS CARD'S EDGE, where light: its row's press and rest are
+/// widened by this on the dot's side, so the whole dot is pressed as its row is, under the row's
+/// one name. None where a character is a cell: the `o` stands inside its row.
+inline std::int64_t dot_reach(const Measure& m) { return m.light ? 9 : 0; }
+/// A ROW'S PRESS AND REST BOX, widened over the dot at its left edge (`left`) or its right.
+inline Box with_dot(const Measure& m, Box row, bool left) {
+    const auto r = dot_reach(m);
+    return left ? Box{row.x - r, row.y, row.w + r, row.h} : Box{row.x, row.y, row.w + r, row.h};
+}
+/// THE REST ROUND A DOT, where light: a square round the whole of it.
+inline void dot_rest(Pen& pen, std::int64_t x, std::int64_t middle, std::optional<Box> clip, const std::string& key) {
     if (!pen.m.light) return;
     const Box reach{x - 9, middle - 9, 18, 18};
-    const auto at = clip ? reach.cut(*clip) : reach;
-    pen.press(at, std::move(action), std::move(args), subject);
-    pen.p.rests.push_back({rest, at});
+    pen.p.rests.push_back({key, clip ? reach.cut(*clip) : reach});
 }
 /// THE POINTS OF A WIRE'S LINE as `wire` draws it, for the pointer to rest on: the curve's, where
 /// light; its three runs' corners where a character is a cell.
@@ -1067,9 +1070,11 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
         if (!at) return stacked;
         return std::clamp(gfx::add_cells(room.y, dock_grid.y(*at)), room.y, std::max(room.y, room.bottom() - h));
     };
-    const auto handle = [&](const CardRows& rows, const std::string& name, const Box& room) {
+    // A card whose head holds a dot at its left edge (`dotted`) is held by its head right of it.
+    const auto handle = [&](const CardRows& rows, const std::string& name, const Box& room, bool dotted = false) {
         pen.p.cards[name] = rows.box;
-        pen.press(Box{rows.box.x, rows.box.y, rows.box.w, light ? m.card : m.row}.cut(room), "card", {name});
+        const auto skip = dotted ? dot_reach(m) : std::int64_t{0};
+        pen.press(Box{rows.box.x + skip, rows.box.y, rows.box.w - skip, light ? m.card : m.row}.cut(room), "card", {name});
     };
     // A CARD'S RIM: bright while lit, the wire's colour while chosen; a card lit glows, and the
     // pointer rests on it.
@@ -1138,8 +1143,9 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             pen.text(rows.box.x + (light ? 8 - m.inset : m.ch), ry, fields[i].name, hue::wire(), when_room);
             const std::string type = loom::name_of(fields[i].type.kind);
             pen.text(rows.box.right() - pen.width(type) - (light ? 14 - m.inset : 2 * m.ch), ry, type, hue::quiet(), when_room);
-            pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room), "field", {fields[i].name});
-            pen.p.rests.push_back({"field:" + fields[i].name, Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room)});
+            const auto row = with_dot(m, Box{rows.box.x, ry, rows.box.w, m.row}, false).cut(when_room);
+            pen.press(row, "field", {fields[i].name});
+            pen.p.rests.push_back({"field:" + fields[i].name, row});
             from_field[fields[i].name] = {rows.box.right() - (light ? 0 : m.ch), rows.middles[i + 1]};
         }
         handle(rows, name, when_room);
@@ -1171,8 +1177,9 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             const std::string type = std::string(loom::name_of(fields[i].type.kind)) +
                                      (cell ? " = " + message_draft::summary(cell) : std::string());
             pen.text(rows.box.right() - pen.width(type) - (light ? 14 - m.inset : 2 * m.ch), ry, type, hue::quiet(), when_room);
-            pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room), "field", {fields[i].name});
-            pen.p.rests.push_back({"field:" + fields[i].name, Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room)});
+            const auto row = with_dot(m, Box{rows.box.x, ry, rows.box.w, m.row}, false).cut(when_room);
+            pen.press(row, "field", {fields[i].name});
+            pen.p.rests.push_back({"field:" + fields[i].name, row});
             from_kept[fields[i].name] = {rows.box.right() - (light ? 0 : m.ch), rows.middles[i]};
         }
         handle(rows, "kept", when_room);
@@ -1197,11 +1204,11 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
     };
     for (const auto& [name, at] : from_field) {
         port(pen, at.first, at.second, hue::wire(), true, when_room, lit_port("field:" + name));
-        dot_reach(pen, at.first, at.second, when_room, "field:" + name, "field", {name});
+        dot_rest(pen, at.first, at.second, when_room, "field:" + name);
     }
     for (const auto& [name, at] : from_kept) {
         port(pen, at.first, at.second, hue::kept(), true, when_room, lit_port("field:" + name));
-        dot_reach(pen, at.first, at.second, when_room, "field:" + name, "field", {name});
+        dot_rest(pen, at.first, at.second, when_room, "field:" + name);
     }
     // WHAT IT WRITES AND WHAT IT SAYS.
     std::optional<std::pair<std::int64_t, std::int64_t>> write_port;
@@ -1242,8 +1249,8 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
                  : model.running && now ? "now " + message_draft::summary(now)
                                         : std::string("when the rule runs"),
                  hue::quiet(), then_room);
-        pen.press(rows.box.cut(then_room), "write", {std::to_string(model.trigger())});
-        if (nodes) handle(rows, write_name, then_room);
+        pen.press(with_dot(m, rows.box, true).cut(then_room), "write", {std::to_string(model.trigger())});
+        if (nodes) handle(rows, write_name, then_room, true);
         pen.p.subjects["say"] = rows.box;
         write_port = std::pair{rows.box.x, light ? rows.box.y + m.card / 2 : rows.box.y + m.row / 2};
         // THE THREAD from what it writes down to the first thing it says, or to the place for one,
@@ -1410,9 +1417,9 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
                 const auto reads = unwired(b) ? std::string(" [unwired]") : " <- " + source_words(on->body.nodes, b);
                 pen.text(rows.box.x, ry, "o " + port_name + reads, marked ? mark : hue::text(), inside);
             }
-            pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(canvas), "port", {std::to_string(n), std::to_string(a)}, id);
-            pen.p.rests.push_back({"port:" + std::to_string(id) + "." + std::to_string(a),
-                                   Box{rows.box.x, ry, rows.box.w, m.row}.cut(canvas)});
+            const auto row = with_dot(m, Box{rows.box.x, ry, rows.box.w, m.row}, true).cut(canvas);
+            pen.press(row, "port", {std::to_string(n), std::to_string(a)}, id);
+            pen.p.rests.push_back({"port:" + std::to_string(id) + "." + std::to_string(a), row});
             if (chosen_port && chosen_port->node == n && chosen_port->port == a) {
                 pen.p.port_at = std::pair{rows.box.x, rows.middles[a + extra]};
                 pen.p.port_card = rows.box;
@@ -1431,8 +1438,9 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             pen.text(tx, ay, on->body.result_node == n ? "[answer -> " + on->output + "]" : std::string("[answer]"),
                      hue::message(), inside);
         }
-        pen.press(Box{rows.box.x, ay, rows.box.w, m.row}.cut(canvas), "source-node", {std::to_string(n)}, id);
-        pen.p.rests.push_back({"answer:" + std::to_string(id), Box{rows.box.x, ay, rows.box.w, m.row}.cut(canvas)});
+        const auto answer_row = with_dot(m, Box{rows.box.x, ay, rows.box.w, m.row}, false).cut(canvas);
+        pen.press(answer_row, "source-node", {std::to_string(n)}, id);
+        pen.p.rests.push_back({"answer:" + std::to_string(id), answer_row});
         from_node[std::to_string(n)] = {rows.box.right() - (light ? 0 : m.ch), rows.middles.back()};
     }
     // THE WIRES, and the value each last carried while the rule runs, then the ports over them.
@@ -1506,19 +1514,16 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
                 const auto key = "port:" + at + "." + std::to_string(a);
                 port(pen, rows.box.x, rows.middles[a + placed[n].extra], hue::wire(), !unwired(node.arguments[a]), canvas,
                      lit_port(key));
-                dot_reach(pen, rows.box.x, rows.middles[a + placed[n].extra], canvas, key, "port",
-                          {std::to_string(n), std::to_string(a)}, placed[n].id);
+                dot_rest(pen, rows.box.x, rows.middles[a + placed[n].extra], canvas, key);
             }
         port(pen, rows.box.right() - (light ? 0 : m.ch), rows.middles.back(), hue::wire(),
              on->body.result_node == n, canvas, lit_port("answer:" + at));
-        dot_reach(pen, rows.box.right(), rows.middles.back(), canvas, "answer:" + at, "source-node", {std::to_string(n)},
-                  placed[n].id);
+        dot_rest(pen, rows.box.right(), rows.middles.back(), canvas, "answer:" + at);
     }
     if (write_port) {
         port(pen, write_port->first, write_port->second, hue::kept(), !on->body.nodes.empty(), then_room,
              lit_port("port:write"));
-        dot_reach(pen, write_port->first, write_port->second, then_room, "port:write", "write",
-                  {std::to_string(model.trigger())});
+        dot_rest(pen, write_port->first, write_port->second, then_room, "port:write");
     }
     // A WIRE IN THE HAND, drawn from where it was pressed to the hand, in the ink of wires.
     if (const auto& w = model.wire_drawn) wire(pen, w->from_x, w->from_y, w->to_x, w->to_y, hue::wire(), g);

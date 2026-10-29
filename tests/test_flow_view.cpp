@@ -984,7 +984,8 @@ TEST_CASE("a port's dot takes a press and a rest where it is drawn, the half out
     // ⚔ MUTATION (tests/mutants/flow_view.md#dots-reach-their-row-only): a dot takes a press only
     // where it overlaps its card's row.
     // EVERY DOT: its left and right edges take the press its middle does, and a rest there names
-    // the dot.
+    // the dot; and every place a press reaches has a name of its own, so the window's word of what
+    // it drew under the hand names it.
     for (const auto& [x, y] : dots) {
         const auto* middle = pressed(x, y);
         REQUIRE(middle != nullptr);
@@ -1002,6 +1003,16 @@ TEST_CASE("a port's dot takes a press and a rest where it is drawn, the half out
     for (const auto& [x, y] : dots) actions.insert(pressed(x + 4, y)->action);
     CHECK(actions == std::set<std::string>{"port", "source-node", "field", "write"});
     CHECK(std::any_of(dots.begin(), dots.end(), [&](const auto& d) { return rest(d.first + 4, d.second) == "answer:" + id; }));
+    // ⚔ MUTATION (tests/mutants/flow_view.md#dot-a-second-press): the dot is a press of its own,
+    // of its row's name, which goes unnamed.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#write-dot-under-the-handle): the write card's head
+    // takes the press on its dot.
+    for (const auto& [x, y] : dots) {
+        const auto name = pane::part_name(*pressed(x, y));
+        CHECK_MESSAGE(std::count_if(view.hits.begin(), view.hits.end(),
+                                    [&](const auto& h) { return pane::part_name(h) == name; }) == 1,
+                      name);
+    }
 }
 
 TEST_CASE("the rule reads as one sentence, each part still to choose open") {
