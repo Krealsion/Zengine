@@ -117,7 +117,8 @@ public:
     }
 
     /// Every pane this office has, offered directly to Workshop, one offer per pane, so an offer
-    /// this build gets wrong costs one pane; then the actions the Powers pane answers to.
+    /// this build gets wrong costs one pane; then the actions the Powers and Project panes answer
+    /// to.
     void announce(loom::Mail& mail) {
         for (const ws::v2::PaneOffered& said :
              {loaded_.offering(), arrangement_.offering(), powers_.offering()}) {
@@ -125,6 +126,8 @@ public:
             (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
         }
         (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, powers_.actions());
+        (void)mail.as_role(kIntrospectionRole)
+            .send_to_role(kWorkshopRole, arrangement_.actions());
         (void)mail.as_role(kIntrospectionRole)
             .send_to_role(ws::kLayoutsRole,
                           ws::v2::PaneSettingsDeclared{kPowersPane, setting_rows()});
@@ -194,6 +197,7 @@ public:
         if (p.phase == cp::kWheel) {
             if (powers) powers_.wheel(speaking(mail), p.dy);
             if (pane == kLoadedPane) loaded_.wheel(speaking(mail), p.dy);
+            if (pane == kArrangementPane) arrangement_.wheel(speaking(mail), p.dy);
         } else if (p.phase == cp::kMove) {
             if (powers) powers_.drag(speaking(mail), p.at.row, p.at.column);
         } else if (p.phase == cp::kRelease || p.phase == cp::kLost) {
@@ -250,9 +254,14 @@ public:
 
     /// One of a pane's declared actions, by its resolved id, guarded by pane as a key is.
     void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {
-        if (workshop_said(mail) && asked.pane == kPowersPane &&
-            powers_.on_action(speaking(mail), asked.id)) {
+        if (!workshop_said(mail)) {
+            return;
+        }
+        if (asked.pane == kPowersPane && powers_.on_action(speaking(mail), asked.id)) {
             ++state_.samples;
+        }
+        if (asked.pane == kArrangementPane) {
+            (void)arrangement_.on_action(speaking(mail), asked.id);
         }
     }
 

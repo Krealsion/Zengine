@@ -1246,11 +1246,19 @@ TEST_CASE("Powers declares its actions, acts on the resolved id, and its typing 
     std::vector<std::string> declared;
     for (const v4::PaneActionRow& row : retained(r, kind)) declared.push_back(row.id);
     CHECK(declared == ids);
-    for (const char* pane : {intro::kLoadedPane, intro::kArrangementPane}) {
-        const RuntimePane* row = intro_row(r, pane);
+    // LOADED DECLARES NONE, and Project its two rows alone.
+    {
+        const RuntimePane* row = intro_row(r, intro::kLoadedPane);
         REQUIRE(row != nullptr);
         CHECK(row->actions.empty());
         CHECK(r.session().keymap.pane_rows(row->kind) == nullptr);
+    }
+    {
+        const RuntimePane* row = intro_row(r, intro::kArrangementPane);
+        REQUIRE(row != nullptr);
+        std::vector<std::string> project;
+        for (const v4::PaneActionRow& action : row->actions) project.push_back(action.id);
+        CHECK(project == std::vector<std::string>{intro::kProjectActionUp, intro::kProjectActionDown});
     }
     const PaneRows* rows = r.session().keymap.pane_rows(kind);
     REQUIRE(rows != nullptr);

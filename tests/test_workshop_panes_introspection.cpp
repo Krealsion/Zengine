@@ -1459,6 +1459,100 @@ TEST_CASE("the Arrangement pane shows what THIS host actually resolved") {
     CHECK(any_row(shown, "plan: default-load-plan.json"));
 }
 
+TEST_CASE("Project scrolls: the wheel over it and its Up and Down bring every artifact into the pane, a whole block a step, each step one more reading of the door and nothing else sent") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#project-hears-no-wheel,
+    // #project-asks-at-its-ends, #window-starts-at-the-first, #earlier-uncounted): a wheel kept from
+    // Project, a step asked at an end, a window held at the first, or what is above left uncounted.
+    PaneRig r;
+    const std::int64_t kind = open_intro_pane(r, intro::kArrangementPane);
+    const loom::WeaveId door = r.bus.role_holder(kArrangementRole);
+    REQUIRE(door.valid());
+    // THE DOOR'S OWN COUNT OF THE READINGS IT ANSWERED.
+    const auto readings = [&] {
+        const auto admitted = loom::admit(loom::parse(r.bus.snapshot_bytes(door)),
+                                          loom::schema_of<ArrangementDoorState>());
+        REQUIRE(admitted);
+        return loom::from_value<ArrangementDoorState>(admitted.value()).arrangements;
+    };
+    const loom::WeaveId who = r.bus.role_holder(kIntroOffice);
+    std::vector<std::string> said;
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.sender == who && !e.schema_name.empty()) said.push_back(e.schema_name);
+    });
+    const std::string last = "  " + std::string(intro::kIntrospectionStem);
+    const auto shows_last = [&] { return any_row(pane_rows(r, kind), last); };
+    const CellRect body = external_body_rect(r.session(), kind);
+    const auto wheel = [&](double dy) { r.wheel_cell(dy, body.x + 2, body.y + kExternalHeaderRows + 1); };
+
+    // AT ITS DEFAULT SIZE the pane shows its first artifacts and counts the last.
+    REQUIRE(any_row(pane_rows(r, kind), "... 1 more"));
+    REQUIRE_FALSE(shows_last());
+    auto before = readings();
+    // A NOTCH TOWARD THE WEAVER brings the last artifact in, whole, and says what is above it.
+    wheel(-1.0);
+    CHECK(readings() == before + 1);
+    CHECK(shows_last());
+    CHECK(any_row(pane_rows(r, kind), "earlier, 0 more"));
+    // A PRESS IN IT GIVES IT THE KEYS, and moves nothing.
+    before = readings();
+    r.press_cell(body.x + 2, body.y + kExternalHeaderRows + 1);
+    REQUIRE(r.session().panes.keyboard == kind);
+    CHECK(readings() == before);
+    // AT THE END, DOWN MOVES NOTHING AND ASKS NOTHING.
+    r.key(input::scan::kDown);
+    CHECK(readings() == before);
+    CHECK(shows_last());
+    // UP walks back to the first, and Down to the last again, each one more reading.
+    r.key(input::scan::kUp);
+    CHECK(readings() == before + 1);
+    CHECK_FALSE(shows_last());
+    CHECK(any_row(pane_rows(r, kind), "... 1 more"));
+    r.key(input::scan::kDown);
+    CHECK(readings() == before + 2);
+    CHECK(shows_last());
+    // A NOTCH AWAY FROM THE WEAVER walks back up; at the top, Up asks nothing.
+    wheel(1.0);
+    CHECK(readings() == before + 3);
+    CHECK_FALSE(shows_last());
+    r.key(input::scan::kUp);
+    CHECK(readings() == before + 3);
+    r.bus.remove_observer(tap);
+    // ALL IT SAID WHILE IT SCROLLED: its question to the door, and its picture.
+    std::vector<std::string> distinct = said;
+    std::sort(distinct.begin(), distinct.end());
+    distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
+    CHECK(distinct == std::vector<std::string>{std::string(ArrangementRequested::zen_name), "Drawn"});
+}
+
+TEST_CASE("Project's window starts at an artifact, shows whole blocks from it, counts what is above and below, and is held within the reading") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#window-starts-at-the-first,
+    // #earlier-uncounted): a window held at the first, or what is above it left uncounted.
+    const ws::ResolvedArrangement said = shaped_arrangement(); // blocks of 3, 3, 4 and 3 rows
+    const auto texts = [](const intro::ArrangementView& v) { return texts_of(v.rows); };
+    // FROM THE FIRST: two whole blocks in ten rows, and the rest counted.
+    const intro::ArrangementView top = intro::project_arrangement_from(said, 10, 60, 0);
+    CHECK(top.first == 0);
+    CHECK(top.rows.size() <= 10);
+    CHECK(row_with(top.rows, "  ... 2 more") >= 0);
+    CHECK(texts(top) == texts_of(intro::project_arrangement(said, 10, 60)));
+    // FROM THE SECOND: its block first, and what is above it counted with what is below.
+    const intro::ArrangementView second = intro::project_arrangement_from(said, 10, 60, 1);
+    CHECK(second.first == 1);
+    CHECK(texts(second).at(1) == "  zengine-window-terminal");
+    CHECK(row_with(second.rows, "  ... 1 earlier, 1 more") >= 0);
+    // PAST THE END: held at the furthest start that still fills the window.
+    const intro::ArrangementView past = intro::project_arrangement_from(said, 10, 60, 99);
+    CHECK(past.first == 2);
+    CHECK(past.furthest == 2);
+    CHECK(texts(past).at(1) == "  zengine-timer");
+    CHECK(row_with(past.rows, "  ... 2 earlier, 0 more") >= 0);
+    // A ROOM THAT HOLDS THEM ALL starts at the first, whatever was asked.
+    const intro::ArrangementView all = intro::project_arrangement_from(said, 24, 60, 3);
+    CHECK(all.first == 0);
+    CHECK(all.furthest == 0);
+    CHECK(row_with(all.rows, "more") < 0);
+}
+
 TEST_CASE("the Project pane spells the words a plan and its loader carry, and its picture is "
           "drawn") {
     // A ROLE, A STEM, THE LOADER'S REFUSAL AND THE PLAN'S PATH, each holding a letter no canvas
