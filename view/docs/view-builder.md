@@ -10,11 +10,11 @@ in [its manual](zengine.view.builder.md); the contract beneath this page is the
 [view reference](view.md).
 
 Open the Pane Manager and press `n`, or choose **View Builder**. The shipped plans include the
-optional `zengine-view-builder` artifact in the `zengine.view.builder` office. The builder takes
-its place in the column down the room's left like any pane you show, and a view you run opens in
-front, with the keys: where the column has no room left for it, at the column's top.
+optional `zengine-view-builder` artifact in the `zengine.view.builder` office. The builder opens
+at the room's centre, in front, to be placed: drag its title to move it or its edges to size it,
+or press in it to leave it where it is. A view you run opens the same way, in front, with the keys.
 
-![n in the Pane Manager showed the View Builder beneath it; the view greeting, run from it, opened at the column's top in front of both, with the keys](images/view-builder-run-in-front.png)
+![n in the Pane Manager showed the View Builder; the view greeting, run from it, opened at the room's centre in front of it, with the keys, being placed while the others are faded](images/view-builder-run-in-front.png)
 
 ## The builder
 
@@ -65,15 +65,15 @@ when it runs. Widening the pane widens the canvas alone.
 - `Delete` or **Remove** removes the selected element. **New** or **Open** over an unsaved view
   asks for a second press before it discards it.
 
-![A new view, 480 by 240, its right and bottom edges ruled with their handles; button1 selected, with a handle on each side and at each corner, while the pointer resting on field2 marks it and its row](images/view-builder-hand.png)
+![A new view, 480 by 240, its right and bottom edges ruled with their handles; button1 selected, with a handle on each side and at each corner and its values below the list, while the pointer resting on field2 marks it; Add's kinds a row each beneath Grid, and the canvas to the pane's right edge](images/view-builder-hand.png)
 
-![A view 1500 by 900, panned by the middle button to its far corner; label1, placed at 1100,700 and dragged onto button2, made there while panned, snaps to button2's left edge and top, both lines marked while the button is held](images/view-builder-pan-snap.png)
+![A view 1500 by 900, panned by the middle button to its far corner; label1, dragged onto button1 there, snaps to button1's left edge and top, both lines marked while the button is held](images/view-builder-pan-snap.png)
 
-![label1's right side dragged alone to button2's right edge: its width 96, its left side and its row where they were](images/view-builder-side.png)
+![label1's right side dragged alone to button1's right edge: its width 96, its left side and its row where they were](images/view-builder-side.png)
 
 ![label1 dragged far right stops at the view's right edge, at 1404 in a view 1500 wide, the edge it met marked](images/view-builder-size.png)
 
-![The tally panel shrunk by its handles to its elements, 249 by 203, Total bound and not yet told: Total: waiting stays above the size's edge, and the notice, waiting to be told tally.Total, sits in its rows beneath](images/view-builder-notice.png)
+![The tally panel set in its Size boxes to 200 by 140 around its elements, Total bound and not yet told: Total: waiting stays above the size's edge, and the notice, waiting to be told tally.Total, sits in its rows beneath](images/view-builder-notice.png)
 
 ## Make the tally panel
 
@@ -94,7 +94,7 @@ named `tally` works out.
 5. Press **Run**. The panel opens in its own pane; `Total` says `waiting`, and so does its last
    row, until something tells it `tally.Total`.
 
-![The tally panel made by hand: its elements on the design canvas, count selected with its handles and its values, beside Flow running tally and the panel in its own pane](images/view-builder-tally.png)
+![The tally panel: its elements on the design canvas, count selected with its handles and its values below the list, beside Flow running tally and the panel running in its own pane](images/view-builder-tally.png)
 
 ## Drag shapes between the builder and Flow
 
@@ -116,11 +116,11 @@ then click where it goes.
   builder says where to drop it. A value from Inventory binds by its shape, and a field carried
   from Info binds that field.
 
-![The intent's says dragged onto Flow: Dropped the shape tally.panel.Count v1, its three Int fields, and the offer to declare it](images/view-builder-intent-onto-flow.png)
+![The intent's says carried onto Flow by its menu: Dropped the shape tally.panel.Count v1, its three Int fields, and the offer to declare it as an accepted message](images/view-builder-intent-onto-flow.png)
 
-![Flow's emitted tally.Total dragged onto the Total label on the design canvas: shows tally.Total.total](images/view-builder-carry.png)
+![Flow's emitted tally.Total carried onto the Total label on the design canvas: shows tally.Total.total](images/view-builder-carry.png)
 
-![The panel's own intent, its number fields given long ids, dragged onto Total: a button for each field, each on a row of its own within the values column](images/view-builder-choice.png)
+![The panel's own intent, its number fields given long ids, carried onto Total: a button for each field, each on a row of its own within the left column](images/view-builder-choice.png)
 
 ![The last of them chosen: the binding's words cut to end in ..., and Unshow whole beside them inside the column](images/view-builder-unshow.png)
 
@@ -133,7 +133,7 @@ view cannot register -- an intent whose fields changed while something still lis
 old ones under the same name and version, say -- **Apply** says why, and the running panel goes
 on as it was.
 
-![step's id changed and the intent made again as tally.panel.Count v1, which tally still means with step: Apply refused in Loom's words, and the running panel still counting](images/view-builder-apply-refused.png)
+![The number fields given long ids and the intent made again as tally.panel.Count v1, which tally still means with start, limit and step: Apply refused in Loom's words, and the running panel still counting](images/view-builder-apply-refused.png)
 
 ## Use it
 

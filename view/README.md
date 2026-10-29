@@ -20,7 +20,7 @@ pane to the other. Workshop runs the views; this folder has no headers for other
 - [Described views](docs/view.md): the reference beneath the guide: a view's description and its
   file format, the view host, and the renderer that draws a view.
 
-![The View Builder wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.view.builder-manual.png)
+![The Manual over the View Builder, showing its manual: the bar, and down the left a column that keeps its width, Add's kinds a row each beneath Grid](docs/images/zengine.view.builder-manual.png)
 
 ## What is in this folder
 
