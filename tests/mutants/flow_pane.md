@@ -173,9 +173,9 @@ Empty When room pressed twice asks for no message.
 In `flow/flow-pane/pane.cpp`:
 
 ```diff
-     if (target == "column:when") {
+       opener_ = pane::Spot{event.x, event.y, 1, 1};
 -      perform("ask-message", {}, mail);
-       return;
+       opener_.reset();
 ```
 
 Red in `zengine-flow-pane-tests`:
@@ -190,9 +190,9 @@ Empty Then room pressed twice offers nothing.
 In `flow/flow-pane/pane.cpp`:
 
 ```diff
-     if (target == "column:then")
+       menu_opener_ = pane::Spot{event.x, event.y, 1, 1};
 -      open_menu("then", mail);
-+      return;
+     }
 ```
 
 Red in `zengine-flow-pane-tests`:
@@ -291,6 +291,7 @@ A kind pressed in a kept field's editor is not held.
 In `flow/flow-pane/pane.cpp`:
 
 ```diff
+                                     " words, and " + args.at(1) + " is none of them");
 -      entry.text.set(args.at(1), args.at(1).size());
 +      entry.text.set(entry.text.text(), entry.text.size());
 ```
