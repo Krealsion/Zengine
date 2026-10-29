@@ -116,3 +116,56 @@ Red in `zengine-workshop-panes-tests`:
   below, and is held within the reading
 - Project scrolls: the wheel over it and its Up and Down bring every artifact into the pane, a whole
   block a step, each step one more reading of the door and nothing else sent
+
+## search-ignores-the-office
+
+Loaded's search reads the weaves' names alone, never their offices.
+
+In `introspection/loaded.hpp`:
+
+```diff
+-    return lower(w.name).find(needle) != std::string::npos ||
+-           lower(w.role).find(needle) != std::string::npos;
++    return lower(w.name).find(needle) != std::string::npos;
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- Loaded's search: typed text narrows its rows to the weaves whose name or office holds it,
+  ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing
+  is sent but the Manager's question and the selection
+
+## search-minds-case
+
+Loaded's search matches only text typed in the case the names are spelled in.
+
+In `introspection/loaded.hpp`:
+
+```diff
+-            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
++            c = static_cast<char>(c);
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- Loaded's search: typed text narrows its rows to the weaves whose name or office holds it,
+  ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing
+  is sent but the Manager's question and the selection
+
+## search-unasked
+
+A changed search redraws the last reading and asks the Manager nothing.
+
+In `introspection/seats.hpp`:
+
+```diff
+         origin_ = 0;
+-        ask(voice, loom::kManagerRole, loom::ListLoaded{});
++        say(voice.mail);
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- Loaded's search: typed text narrows its rows to the weaves whose name or office holds it,
+  ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing
+  is sent but the Manager's question and the selection
