@@ -135,8 +135,9 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   It hears the pointer resting with no button held and keeps what it rests on, never saved
   (`Model::hover`, found by `rest_at` among the picture's rests and wire lines); a part of the
   sentence lights the cards, steps and places it stands for (`Chip::subjects`), a card or a step
-  lights its parts (`lighting`), and a press ends the rest. A dashed part, pressed, does what the
-  Next line's button does. Resting on a port, an answer, a field or a wire tells it in words
+  lights its parts (`lighting`), and a press or the pointer leaving the area ends the rest. A
+  dashed part, pressed, does what the Next line's button does. Resting on a port, an answer, a
+  field or a wire tells it in words
   (`told`), a wire's two ends lit; a wire that does not fit a port (`flow_pane::unfit`) says why
   before it is let go, and is refused in those words, never handed to the graph to refuse. While
   the rule runs, what the last message changed against the one before it (`changed_by_last`) stays

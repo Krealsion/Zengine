@@ -697,6 +697,11 @@ page as on Workshop's canvas.
 `AreaHoldEnded` v1, from that window, about Flow's area: the press held there ended with no
 release, and the drag ends where it stands.
 
+### `AreaPointerLeft`
+
+`AreaPointerLeft` v1, from that window, about Flow's area: the pointer left it, so it rests on
+nothing there, and what was lit for it goes out.
+
 ## Follow
 
 The pane publishes one ask of its own, `ViewWiringRequested` v1, as a message is about to be named

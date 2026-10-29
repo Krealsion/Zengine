@@ -98,7 +98,7 @@ class FlowPane final
                        ws::PaneCanvasValueDrop, ws::PaneCarryAnswered, gfx::AreaRoom,
                        gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
                        gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded,
-                       zengine::view::ViewWiring>,
+                       gfx::AreaPointerLeft, zengine::view::ViewWiring>,
           loom::Emit<ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop, fh::FlowCatalog,
@@ -369,6 +369,13 @@ public:
   void on(const gfx::AreaPointerMoved &m, loom::Mail &mail) { on_window(window_.pointer(m, mail, 0, 0), mail); }
   void on(const gfx::AreaWheelTurned &w, loom::Mail &mail) { on_window(window_.pointer(w, mail, 0, 0), mail); }
   void on(const gfx::AreaHoldEnded &e, loom::Mail &mail) { on_window(window_.pointer(e, mail), mail); }
+  /// THE POINTER LEFT FLOW'S AREA, said by the window that shows it: it rests on nothing there.
+  void on(const gfx::AreaPointerLeft &left, loom::Mail &mail) {
+    if (!window_.from_window(left.area, mail) || !model_.hover)
+      return;
+    model_.hover.reset();
+    show(mail);
+  }
   void on_window(const std::optional<ws::WindowPointer> &p, loom::Mail &mail) {
     if (!p)
       return;

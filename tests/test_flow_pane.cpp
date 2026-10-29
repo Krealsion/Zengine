@@ -2540,6 +2540,14 @@ TEST_CASE("the pointer resting with no button held lights the sentence and the g
     // ...resting on empty room lights nothing, and a press ends a rest.
     w.move(w.room(), 0);
     CHECK(rig.shows("[meter.Set]"));
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#leaving-keeps-the-rest): the pointer leaving the area
+    // leaves what it rested on lit.
+    // ...and so does the pointer leaving the area, as its window says.
+    w.move(card, 0);
+    REQUIRE(rig.shows("<meter.Set>"));
+    w.window.left(kFlowArea);
+    rig.pump();
+    CHECK(rig.shows("[meter.Set]"));
     w.move(card, 0);
     REQUIRE(rig.shows("<meter.Set>"));
     w.click(w.room());

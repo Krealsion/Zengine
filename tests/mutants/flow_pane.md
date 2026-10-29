@@ -511,3 +511,19 @@ Red in `zengine-flow-pane-tests`:
 
 - resting on a port tells its kind and what it reads; a wire over a port it does not fit says why
   before it is let go, and wires nothing, and a press there says the same
+
+## leaving-keeps-the-rest
+
+The pointer leaving Flow's area leaves what it rested on lit.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-    if (!window_.from_window(left.area, mail) || !model_.hover)
++    if (window_.from_window(left.area, mail) || !model_.hover)
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- the pointer resting with no button held lights the sentence and the graph together, and a press on
+  a part still to choose does what the Next line's button does

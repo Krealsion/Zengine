@@ -163,8 +163,8 @@ The pointer resting there, with no button held, lights what goes together: a par
 sentence lights its card, the steps it reads and their wires, and a card or a step lights its parts
 of the sentence -- what the rule keeps, every part naming a kept field. Resting on a port tells
 its kind and what it reads; on a step's answer or a field, what reads it; on a wire, its two ends,
-lit, and the value it last carried. A press ends the rest. A dashed part of the sentence, still to
-choose, pressed, does what the Next line's button does.
+lit, and the value it last carried. A press, or the pointer leaving Flow, ends the rest. A dashed
+part of the sentence, still to choose, pressed, does what the Next line's button does.
 
 A wire dragged over a port it does not fit says why under the hand before you let go -- the step
 it would read is not before the port's, or it carries another type -- and letting it go there wires
