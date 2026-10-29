@@ -243,7 +243,10 @@ TEST_CASE("each edit row of the Editor's menu does what its key does: select all
 }
 
 TEST_CASE("a key the weaver's keymap moved shows moved in the Editor's menu, whose row still saves") {
-    EditorStory s("menu-moved", kEverything, {}, ed::kEditorPaneStem, false, {{"editor.save", "ctrl+g"}});
+    // TWO KEYS FOR ONE ROW: the menu shows the first, as the legend spells one, so no number of
+    // keys a weaver gives a row can stretch its label past what a presenter shows.
+    EditorStory s("menu-moved", kEverything, {}, ed::kEditorPaneStem, false,
+                  {{"editor.save", "ctrl+g"}, {"editor.save", "ctrl+b"}});
     const std::string path = s.write("a.txt", "one\n");
     REQUIRE(s.open(path).accepted);
     s.click_doc(0, 0);
