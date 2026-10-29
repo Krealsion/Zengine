@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop-machine/repo -- Git, and a pull request on GitHub, for one named repository, from the external
+"""accounts-machine/repo -- Git, and a pull request on GitHub, for one named repository, from the external
 host: read its state, stage named paths, commit, push the current branch, open or read a pull
 request. loom-tool.json describes the inputs.
 

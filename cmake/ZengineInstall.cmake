@@ -254,15 +254,16 @@ endif()
 
 # ---- The Workshop tool packages, for a Loom session's run manager ------------------------------
 # Python tools another Loom host's session runs against Workshop: `workshop`, and `desk`, the desk
-# guided and resolved, by message alone; and each one's `-machine` package, which builds on it and
-# reaches this machine as well. An operator approves a package whole, so its name says its reach.
-# DATA, not a target: a session's catalog names each directory and its operator approves it. They
-# ride the condition of the vocabulary weave they need (a Loom that can host loadable weaves).
+# guided and resolved, by message alone; each one's `-machine` package, which builds on it and
+# reaches this machine as well; and `accounts-machine`, whose Git pushes and opens pull requests as
+# the session's user. An operator approves a package whole, so its name says its reach. DATA, not a
+# target, riding the condition of the vocabulary weave they need (a Loom that hosts loadable weaves).
 if(TARGET zengine-guest-vocabulary)
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/external-host/tools/workshop
                       ${CMAKE_SOURCE_DIR}/external-host/tools/workshop-machine
                       ${CMAKE_SOURCE_DIR}/external-host/tools/desk
                       ${CMAKE_SOURCE_DIR}/external-host/tools/desk-machine
+                      ${CMAKE_SOURCE_DIR}/external-host/tools/accounts-machine
             DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/loom-tools
             PATTERN "__pycache__" EXCLUDE
             PATTERN "*.pyc" EXCLUDE)
