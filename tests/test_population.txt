@@ -70,7 +70,7 @@ workshop_panes_terminal           doctest           always  75
 workshop_panes_project            doctest           always  198
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp and the
 # Editor pane's source and CMake file as text (VM-WALL-11).
-workshop_panes_editor             doctest           always  135
+workshop_panes_editor             doctest           always  136
 # The shapes this tree publishes, and their census against tests/shapes.txt.
 workshop_shapes                   doctest           always  5
 # Tripwires in this suite read workshop/workshop.cpp and workshop/layouts/session_persist.hpp as text

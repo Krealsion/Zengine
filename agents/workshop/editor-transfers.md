@@ -80,7 +80,7 @@ LAW — A right press on an open document's rows opens the Editor's menu, the ho
 MEANS
 - the press's subject first, Extract on the highlight and the location on the status row; then undo, redo, cut, copy, paste, select all, the carries, save, discard and close as they apply;
 - a declared row's key as the keymap's projection holds it, moved where moved, the first of several, none where unbound; the buffer's own keys as they are, in the weaver's spelling;
-- `Close file` is `editor.close`, unbound, which refuses as WL-EDIT-03 says.
+- `Close file` is `editor.close`, unbound, which refuses as WL-EDIT-03 says; a row chosen once the document moved since the menu opened does nothing, said.
 
 DOES NOT MEAN — that an empty Editor, one a switch holds still, or a press beside the rows offers anything: each is handed back.
 
@@ -179,4 +179,5 @@ rows above the standard rows" "the Editor's menu offers the acts the document al
 the key that does it now" "each edit row of the Editor's menu does what its key does: select all,
 cut, paste, undo, redo and copy" "a key the weaver's keymap moved shows moved in the Editor's menu,
 whose row still saves" "Close file lets a clean document go, and refuses unsaved work as the
-Editor's other exits do, leaving the document as it was"
+Editor's other exits do, leaving the document as it was" "a row of the Editor's menu chosen after
+another document took the Editor does nothing to it, and says so"
