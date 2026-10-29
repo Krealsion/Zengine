@@ -20,6 +20,7 @@
 #include "workshop/pane_text.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -150,11 +151,33 @@ inline bool names(const std::vector<LoadedWeave>& weaves, std::string_view name)
 /// The pane's content and the map back from it: `rows` go to Workshop, `shown` are the entries
 /// that reached a row, and `entry_of_row` indexes `shown` or is `kNoEntry`. The omission marker
 /// is `kNoEntry`: a count, not a hidden entry. Bounded by the room, never by the population.
+/// `listed` is how many weaves the search keeps, and `search_column` where the search stands on
+/// the heading, none when no search is typed or the heading was cut.
 struct LoadedView {
     std::vector<workshop::TextRow> rows;
     std::vector<LoadedWeave> shown;
     std::vector<std::int64_t> entry_of_row;
+    std::size_t listed = 0;
+    std::int64_t search_column = -1;
 };
+
+/// Does this weave's name or office hold the search, ignoring case? An empty search holds every
+/// weave.
+inline bool matches(const LoadedWeave& w, std::string_view search) {
+    if (search.empty()) {
+        return true;
+    }
+    const auto lower = [](std::string_view text) {
+        std::string out(text);
+        for (char& c : out) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        return out;
+    };
+    const std::string needle = lower(search);
+    return lower(w.name).find(needle) != std::string::npos ||
+           lower(w.role).find(needle) != std::string::npos;
+}
 
 /// Which entry a row names, or nothing; total over every row, since a provider is handed a row
 /// off a wire.
@@ -214,15 +237,23 @@ inline void mark_selected(LoadedView& view, std::string_view selected, std::int6
     }
 }
 
-/// The whole view, spent against the room its area holds, most-protected first: the heading and count,
-/// `kNotInProcess`, the list (windowed, omissions counted), `kSnapshotSource`, one blank. The
-/// caveat is reserved before the list gets more than its first row, since a list read as the
-/// whole system is worse than one row short; an entry and its marker are one demand. Projected
-/// unmarked (`mark_selected` applies a selection), and inside the room, since a row past it is
-/// not drawn.
-inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::int64_t rows,
-                                 std::int64_t columns, std::size_t origin = 0) {
+/// The whole view, spent against the room its area holds, most-protected first: the heading and count
+/// (with a search, how many of the population it keeps), `kNotInProcess`, the list of the weaves
+/// the search keeps (windowed, omissions counted), `kSnapshotSource`, one blank. The caveat is
+/// reserved before the list gets more than its first row, since a list read as the whole system is
+/// worse than one row short; an entry and its marker are one demand. Projected unmarked
+/// (`mark_selected` applies a selection), and inside the room, since a row past it is not drawn.
+inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std::int64_t rows,
+                                 std::int64_t columns, std::size_t origin = 0,
+                                 std::string_view search = {}) {
     LoadedView view;
+    std::vector<LoadedWeave> weaves;
+    for (const LoadedWeave& w : population) {
+        if (matches(w, search)) {
+            weaves.push_back(w);
+        }
+    }
+    view.listed = weaves.size();
     // Every row appended pairs with one map entry, so no row can lose its entry.
     const auto say = [&view](workshop::TextRow row, std::int64_t which) {
         view.rows.push_back(std::move(row));
@@ -231,9 +262,17 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::in
     if (rows <= 0 || columns <= 0) {
         return view;
     }
-    say(workshop::TextRow{fit("loaded weaves -- " + std::to_string(weaves.size()), columns),
-                                graphics::role::kAccent},
-        kNoEntry);
+    // THE HEADING STATES THE POPULATION, and a search's narrowing beside it, the search last.
+    std::string heading = "loaded weaves -- " + std::to_string(population.size());
+    if (!search.empty()) {
+        const std::string narrowed = "loaded weaves -- " + std::to_string(weaves.size()) + " of " +
+                                     std::to_string(population.size()) + " match ";
+        heading = narrowed + spelled(std::string(search));
+        if (static_cast<std::int64_t>(heading.size()) <= columns) {
+            view.search_column = static_cast<std::int64_t>(narrowed.size());
+        }
+    }
+    say(workshop::TextRow{fit(heading, columns), graphics::role::kAccent}, kNoEntry);
 
     std::int64_t left = rows - 1;
     // The caveat, unless taking it would leave the list with no row at all.

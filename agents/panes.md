@@ -686,9 +686,15 @@ stem         zengine-introspection                  a line in the HOST'S boot li
   event, so there is nothing to subscribe to and nothing here polls or times out. It re-reads
   when the pane opens, when a valid re-offer refreshes it, at every room granted it again -- on
   its canvas whenever its body moves or changes size, as prose when the resolved prose capacity
-  moves -- and when the weaver scrolls. A separate list origin moves the viewport without
-  changing selection or publishing LoadedSelected. The last row of the pane says `snapshot`, because between readings that is
-  what it is.
+  moves -- and when the weaver scrolls or changes its search. A separate list origin moves the
+  viewport without changing selection or publishing LoadedSelected. The last row of the pane says
+  `snapshot`, because between readings that is what it is.
+- **Typed text is Loaded's search.** Its rows narrow to the weaves whose name or office holds
+  it, ignoring case (`matches`), and the heading states the narrowing beside the population,
+  `loaded weaves -- 1 of 3 match plain`, the search's caret after it. The search is
+  presentation, kept across a room granted; a selection is still cleared only when the whole
+  population lacks it, so a weave the search hides stays selected. It is typed: its clipboard
+  chords are left alone.
 - **A COUNT WITH AN UNSTATED POPULATION IS THE DEFECT THIS VIEW IS SHAPED AROUND.**
   `ListLoaded` enumerates kernel-loaded libraries, so every in-process weave — Workshop itself,
   the Builder, the runner, the terminal participant, the Manager, the control door — is

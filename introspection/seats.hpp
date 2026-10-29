@@ -6,7 +6,7 @@
 
 // The three panes of the Introspection weave, each in a seat of its own: the rooms it holds, the
 // question it has outstanding and the pictures it says (`PaneSeat`), then what each pane knows and
-// does -- Loaded's selection and scroll, Project's reading, and Powers' search, cursor, sample,
+// does -- Loaded's selection, scroll and search, Project's reading, and Powers' search, cursor, sample,
 // carry and clipboard. The weave (introspection.cpp) checks who is speaking, routes each delivery
 // to its seat and counts what the seat says happened. Nothing here crosses a reload.
 // Pane law: agents/panes.md
@@ -139,10 +139,10 @@ private:
 // Loaded: the Kernel's loaded() map
 // =============================================================================
 
-/// THE LOADED PANE: the Manager's map, asked at every grant and every scroll, projected into the
-/// room and spent. What it keeps is the presentation, bounded by the room and emptied at every
-/// grant, and the weaver's selection, by the library name the row showed -- a name survives a
-/// resize, a row does not. Nothing else in the process has one.
+/// THE LOADED PANE: the Manager's map, asked at every grant, every scroll and every change of its
+/// search, projected into the room and spent. What it keeps is the presentation, bounded by the
+/// room and emptied at every grant, its search, and the weaver's selection, by the library name
+/// the row showed -- a name survives a resize, a row does not. Nothing else in the process has one.
 class LoadedSeat : public PaneSeat {
 public:
     LoadedSeat() : PaneSeat(kLoadedPane) {}
@@ -172,8 +172,9 @@ public:
         if (!names(read, selected_)) {
             selected_.clear();
         }
-        total_ = static_cast<std::int64_t>(read.size());
-        view_ = project_loaded(read, rows(), columns(), static_cast<std::size_t>(origin_));
+        view_ = project_loaded(read, rows(), columns(), static_cast<std::size_t>(origin_),
+                               search_.text());
+        total_ = static_cast<std::int64_t>(view_.listed);
         origin_ = std::min(origin_, total_ - static_cast<std::int64_t>(view_.shown.size()));
         mark_selected(view_, selected_, columns());
         say(mail);
@@ -232,6 +233,32 @@ public:
         return true;
     }
 
+    /// A KEY WHILE LOADED HOLDS THE KEYBOARD: its search's editing vocabulary. The clipboard's
+    /// chords are left alone, since nothing here reads or writes the clipboard.
+    void on_key(Voice voice, const workshop::PaneKey& key) {
+        if ((key.modifiers & input::mod::kCtrl) != 0 &&
+            (key.scancode == input::scan::kC || key.scancode == input::scan::kX ||
+             key.scancode == input::scan::kV)) {
+            return;
+        }
+        const std::string searched = search_.text();
+        if (!search_.consume(key.scancode, key.modifiers, clip_)) {
+            return; // a key the search has no word for changes nothing, says nothing
+        }
+        after_search(voice, searched);
+    }
+
+    /// TYPED CHARACTERS: the search, refused whole unless every byte is printable ASCII, a row's
+    /// contract.
+    void on_typed(Voice voice, const std::string& text) {
+        if (text.empty() || !workshop::pane_text::admissible(text)) {
+            return;
+        }
+        const std::string searched = search_.text();
+        search_.type(text);
+        after_search(voice, searched);
+    }
+
     /// WHAT LOADED CALLS ITS ROWS: a loaded weave's row by its name, `weave:<name>`.
     std::vector<workshop::RowPart> loaded_parts() const {
         workshop::PartNames<workshop::RowPart> named;
@@ -245,15 +272,40 @@ public:
     }
 
 private:
-    /// Loaded's rows, each press meaning the weave it names.
+    /// A SEARCH CHANGED starts the list at its first row and asks the Manager again; a caret moved
+    /// alone is drawn where it stands now.
+    void after_search(Voice voice, const std::string& before) {
+        if (search_.text() == before) {
+            say(voice.mail);
+            return;
+        }
+        origin_ = 0;
+        ask(voice, loom::kManagerRole, loom::ListLoaded{});
+    }
+
+    /// Loaded's rows, each press meaning the weave it names, and the search's caret after it on
+    /// the heading.
     void say(loom::Mail& mail) {
-        say_rows(mail, view_.rows, loaded_parts(), {}, press_meaning(view_));
+        workshop::RowsCaret caret;
+        if (view_.search_column >= 0) {
+            const std::int64_t at =
+                view_.search_column + static_cast<std::int64_t>(search_.caret_column());
+            if (at < columns()) {
+                caret.row = 0;
+                caret.column = at;
+            }
+        }
+        say_rows(mail, view_.rows, loaded_parts(), caret, press_meaning(view_));
     }
 
     LoadedView view_;
     std::string selected_;
     std::int64_t origin_ = 0, total_ = 0;
     double wheel_ = 0;
+    /// THE SEARCH, presentation only: kept across a room granted, never across a reload. Its
+    /// clipboard is its own and is never said.
+    component::TextBox search_;
+    component::Clipboard clip_;
 };
 
 // =============================================================================

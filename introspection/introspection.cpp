@@ -240,7 +240,7 @@ public:
     void on(const ws::SourceSampled& said, loom::Mail& mail) { powers_.on_sampled(said, mail); }
 
     /// A key, the pane checked before any state moves since this office offers three. Escape
-    /// lets go of a pane's selection; anything else is Powers' query field's.
+    /// lets go of a pane's selection; anything else is Powers' query field's or Loaded's search's.
     void on(const ws::PaneKey& key, loom::Mail& mail) {
         if (!workshop_said(mail) ||
             ws::pane_escape::answer(key, mail, kIntrospectionRole,
@@ -249,6 +249,9 @@ public:
         }
         if (key.pane == kPowersPane) {
             powers_.on_key(speaking(mail), key);
+        }
+        if (key.pane == kLoadedPane) {
+            loaded_.on_key(speaking(mail), key);
         }
     }
 
@@ -265,10 +268,16 @@ public:
         }
     }
 
-    /// Typed characters, the Powers query's.
+    /// Typed characters: the Powers query's, and Loaded's search.
     void on(const ws::PaneTextInput& typed, loom::Mail& mail) {
-        if (workshop_said(mail) && typed.pane == kPowersPane) {
+        if (!workshop_said(mail)) {
+            return;
+        }
+        if (typed.pane == kPowersPane) {
             powers_.on_typed(speaking(mail), typed.text);
+        }
+        if (typed.pane == kLoadedPane) {
+            loaded_.on_typed(speaking(mail), typed.text);
         }
     }
 
