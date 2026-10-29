@@ -42,7 +42,7 @@ back to Workshop.
 In the standard Editor, typing edits the source and the ordinary editing keys work across lines:
 moving, selecting, erasing, copy, cut, paste, select all, undo and redo. Those keys are the
 buffer's own (`kEditorVocabulary`, `editor/editor-pane/editor.hpp`) and are not remappable; the
-Hotkeys pane, <!-- key desktop.hotkeys -->`ctrl+k`<!-- /key -->, lists the six rows below under
+Hotkeys pane, <!-- key desktop.hotkeys -->`ctrl+k`<!-- /key -->, lists the seven rows below under
 the Editor's heading and describes the rest as the pane's own. The mouse places the caret, a drag
 sweeps a selection, and the wheel scrolls without moving the caret. Save with [`editor.save`](#editorsave) before you build: an unsaved document is
 not built.
@@ -68,6 +68,16 @@ default and is said to Workshop; a key the holder does not declare is passed ove
 
 The standard Editor's declared rows. Each moves in your keymap file like any pane's row, and acts
 only while the Editor holds your keys.
+
+A right press on the document or its `status` row offers them as a menu, beside the buffer's own
+keys, Workshop's own rows for the pane beneath: `Undo` and `Redo` while there is a step to take,
+`Cut` and `Copy` with a selection, `Paste`, `Select all`, **Extract selection to Inventory** with a
+selection, **Carry this file's location**, `Save source`, `Discard source edits` while there is
+unsaved work, and `Close file` ([`editor.close`](#editorclose)). Each row does what its key does,
+and shows the key that does it now beside its words: a key you moved in your keymap file shows
+moved. On the highlight Extract comes first, and on `status` the location. A row chosen after the
+document changed under the menu does nothing: `nothing was done -- the document changed after you
+pointed at it`. An empty Editor hands a right press back, and Workshop's own menu opens.
 
 ### `editor.save`
 
@@ -150,6 +160,19 @@ the caret line's text beside them. A drag that starts on the `status` row, or a 
 - **Refuses:** as [`editor.extract`](#editorextract): `nothing was carried -- no source is open`,
   `nothing was carried -- the document changed after you pointed at it`, and Workshop's reason.
 - **Example:** press <!-- key editor.location -->`ctrl+l`<!-- /key -->, click an Inventory folder.
+
+### `editor.close`
+
+Closes the document: the Editor holds no source after it, and the file is as you last saved it.
+
+- **Takes:** the open document. No default key: choose `Close file` from the Editor's right-press
+  menu, or bind it in your keymap file.
+- **Answers:** `closed <the file>`; the `status` row reads `no source open`.
+- **Refuses:** `no source is open -- nothing to close`; over unsaved work, `the Editor holds unsaved
+  changes to <the file> -- save source or discard source edits in the Editor first; nothing was
+  closed`; while a paste is still arriving or an opening is under way, in words ending `nothing was
+  closed`. A refused close leaves the document as it was.
+- **Example:** after [`editor.save`](#editorsave), right-press the document and choose `Close file`.
 
 ## Commands in Neovim
 
@@ -241,6 +264,12 @@ first; Workshop stays open`. Neovim refuses `Neovim holds unsaved changes to <fi
 (:w) or discard them in Neovim first; Workshop stays open`, or a running terminal job. Both refuse
 while a switch holds them still.
 
+### `KeymapShown`
+
+`KeymapShown` v4 ([`workshop/desktop_seam_vocabulary.hpp`](../../workshop/desktop_seam_vocabulary.hpp)),
+Workshop's account of the keys in force. The standard Editor asks for it as it starts and hears it
+again whenever it changes: the keys its right-press menu shows beside its rows.
+
 ### `NeovimStartRequested`
 
 `NeovimStartRequested` v1 ([`editor/neovim-editor/vocabulary.hpp`](../neovim-editor/vocabulary.hpp)),
@@ -319,7 +348,8 @@ which a poke does not read); the Neovim-backed Editor's `NeovimEditorState`
 `ready`, `profile`, `path`, `modified` and `mode`, written from what Neovim last said. A switch's
 own account is the switch's ([Follow](zengine.editor-switch.md#follow)). Beside its picture it
 tells the layouts' owner only `PaneSettingsAsked`, for its row when it arrives, and
-`PaneSettingUnused`, about a setting a layout handed it and it cannot use.
+`PaneSettingUnused`, about a setting a layout handed it and it cannot use; the standard Editor asks
+Workshop for the keys in force, `KeymapRequested`, as it starts.
 
 ## Shows
 

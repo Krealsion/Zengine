@@ -948,9 +948,9 @@ TEST_CASE("the four keys are the pane's rows, on the built-in's own spellings") 
     // file names; the pane answers them.
     EditorRig e("edit-rows");
     e.open();
-    CHECK(e.declared() == std::vector<std::string>{"editor.discard", "editor.extract",
-                                                   "editor.location", "editor.newline",
-                                                   "editor.save", "editor.tab"});
+    CHECK(e.declared() == std::vector<std::string>{"editor.close", "editor.discard",
+                                                   "editor.extract", "editor.location",
+                                                   "editor.newline", "editor.save", "editor.tab"});
     // ...on the keys the built-in bound them to.
     const PaneRow* save = e.r.session().keymap.pane_action_for(e.kind, input::scan::kS,
                                                                 input::mod::kCtrl);
@@ -964,6 +964,14 @@ TEST_CASE("the four keys are the pane's rows, on the built-in's own spellings") 
           nullptr);
     CHECK(e.r.session().keymap.pane_action_for(e.kind, input::scan::kTab, input::mod::kNone) !=
           nullptr);
+    // ...and the close, on no key: the right-press menu offers it, and a weaver's file may bind it.
+    const RuntimePane* held = e.r.session().panes.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
+    REQUIRE(held != nullptr);
+    bool unbound = false;
+    for (const v4::PaneActionRow& a : held->actions) {
+        unbound = unbound || (a.id == pane::kActionClose && a.scancode == input::scan::kUnknown);
+    }
+    CHECK(unbound);
 }
 
 TEST_CASE("the Pane Manager's close takes the Editor off the desk and unloads nothing: a launch "
@@ -1039,9 +1047,9 @@ TEST_CASE("^s is the Editor's save while it holds the keys, and the host answers
     // saves the SOURCE.
     EditorRig e("edit-ctrl-s");
     e.open();
-    CHECK(e.declared() == std::vector<std::string>{"editor.discard", "editor.extract",
-                                                   "editor.location", "editor.newline",
-                                                   "editor.save", "editor.tab"});
+    CHECK(e.declared() == std::vector<std::string>{"editor.close", "editor.discard",
+                                                   "editor.extract", "editor.location",
+                                                   "editor.newline", "editor.save", "editor.tab"});
     CHECK_FALSE(e.r.session().keymap.pane_supersedes(e.kind, kOwnableDocumentSave));
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 3);
@@ -1817,6 +1825,34 @@ TEST_CASE("a paste still arriving refuses the quit, because its answer could dir
     CHECK(e.dirty());
     CHECK_FALSE(e.quit_by_key());
     CHECK(e.r.session().notice.find("unsaved changes") != std::string::npos);
+}
+
+TEST_CASE("a close bound in the weaver's keymap refuses while a paste is still arriving, and lets the document go once it is saved") {
+    // A CLOSE IS AN EXIT, AS A QUIT AND A REPLACEMENT ARE: a paste still arriving could land in the
+    // document after the answer, so the close is refused in words and the document stays.
+    EditorRig e("edit-close-paste");
+    e.overrides = {{"editor.close", "ctrl+g"}};
+    e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
+    const std::string path = e.open_file("a.cpp", "one\n");
+    e.press_doc(0, 3);
+    e.slow->platform = "PASTED";
+    e.key(input::scan::kV, input::mod::kCtrl);
+    REQUIRE(e.slow->held);
+    e.key(input::scan::kG, input::mod::kCtrl);
+    const auto notice = [&e] {
+        return loom::from_value<pane::EditorPaneState>(e.snapshot()).notice;
+    };
+    CHECK(notice() == "the Editor is still waiting for a clipboard answer for " + path +
+                          " -- try again once it has arrived; nothing was closed");
+    CHECK_FALSE(e.no_source());
+    // The answer lands and dirties the document; saved, the close lets it go.
+    e.answer_now();
+    CHECK(e.doc_row(0) == "onePASTED");
+    e.key(input::scan::kS, input::mod::kCtrl);
+    REQUIRE(e.clean());
+    e.key(input::scan::kG, input::mod::kCtrl);
+    CHECK(e.no_source());
+    CHECK(notice().rfind("closed ", 0) == 0);
 }
 
 // ============================================================================

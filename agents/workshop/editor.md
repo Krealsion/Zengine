@@ -28,7 +28,7 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-03 — Custody is the weave's, and that is the no-silent-loss floor
 
-LAW — Hide, move, cover, reorder or remove the pane and no document is touched; a dirty buffer refuses another source and, asked, an orderly quit; only `editor.discard` (`ctrl+d`) or the quit box discards.
+LAW — Hide, move, cover, reorder or remove the pane and no document is touched; a dirty buffer refuses another source, a close and, asked, an orderly quit; only `editor.discard` or the quit box discards.
 
 MEANS
 - discard is undoable through `revert_to`, which keeps the history;
@@ -187,13 +187,16 @@ groups typing, treats joins and pastes as one edit, and redo returns" "set_lines
 -- undo cannot resurrect another document"
 
 ### WL-EDIT-03
-`editor/editor-pane/pane.cpp` discard_source_edits on(PaneQuitRequested)
+`editor/editor-pane/pane.cpp` discard_source_edits close_source on(PaneQuitRequested)
 `editor/editor-pane/opening_switch.hpp` judge_source
 `editor/editor-pane/editor.hpp` EditorBuffer::revert_to EditorState
 `workshop/weave_run.cpp` quit on(PaneQuitAnswered)
 `tests/test_workshop_panes_editor.cpp` "removing and reopening the pane cannot lose a byte, a caret,
 or a step of history" "a dirty buffer refuses a different source, and a save opens the way" "an
-orderly quit refuses while source is unsaved, and proceeds once it is not"
+orderly quit refuses while source is unsaved, and proceeds once it is not" "a close bound in the
+weaver's keymap refuses while a paste is still arriving, and lets the document go once it is saved"
+`tests/test_workshop_editor_transfers.cpp` "Close file lets a clean document go, and refuses unsaved
+work as the Editor's other exits do, leaving the document as it was"
 
 ### WL-EDIT-05
 `editor/editor-pane/opening_switch.hpp` on(OpenSourceRequested) on(SourceOpened)
