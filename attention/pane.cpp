@@ -325,6 +325,8 @@ public:
         std::int64_t row = 0;
         const auto line = [&](const std::string& path, const std::string& text,
                               std::int64_t role) {
+            // A SECOND GUARD: the window marks a byte it cannot draw and keeps the row, so this
+            // matters only to a window that refused a picture for one such byte.
             f.text(path, 0, row * height, drawable(fit(text, columns)), gfx::by_role(role));
             ++row;
         };
