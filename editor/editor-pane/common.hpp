@@ -32,6 +32,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -246,6 +247,47 @@ struct PictureKey {
 
 constexpr const char* kInsertLine = "editor.insert-line";
 constexpr const char* kInsertCpp = "editor.insert-cpp";
+
+/// ONE ROW OF THE EDITOR'S MENU FOR A KEY OF THE BUFFER'S OWN, which no keymap moves: its id and
+/// words, the gesture it does and shows, and what the buffer's vocabulary calls that gesture.
+struct BufferRow {
+    const char* id;
+    const char* label;
+    std::int64_t scancode;
+    std::int64_t modifiers;
+    const char* means;
+};
+
+constexpr BufferRow kMenuUndo{"edit.undo", "Undo", zengine::input::scan::kZ,
+                              zengine::input::mod::kCtrl, "undo"};
+constexpr BufferRow kMenuRedo{"edit.redo", "Redo", zengine::input::scan::kY,
+                              zengine::input::mod::kCtrl, "redo"};
+constexpr BufferRow kMenuCut{"edit.cut", "Cut", zengine::input::scan::kX,
+                             zengine::input::mod::kCtrl, "cut"};
+constexpr BufferRow kMenuCopy{"edit.copy", "Copy", zengine::input::scan::kC,
+                              zengine::input::mod::kCtrl, "copy"};
+constexpr BufferRow kMenuPaste{"edit.paste", "Paste", zengine::input::scan::kV,
+                               zengine::input::mod::kCtrl, "paste"};
+constexpr BufferRow kMenuSelectAll{"edit.select-all", "Select all", zengine::input::scan::kA,
+                                   zengine::input::mod::kCtrl, "select all"};
+constexpr BufferRow kMenuBufferRows[] = {kMenuUndo, kMenuRedo,  kMenuCut,
+                                         kMenuCopy, kMenuPaste, kMenuSelectAll};
+
+/// WHETHER THE BUFFER'S OWN VOCABULARY ANSWERS A ROW'S GESTURE WITH THE ROW'S ACT, so the menu
+/// never shows a key that does something else, or nothing.
+constexpr bool buffer_does(const BufferRow& row) {
+    for (const auto& g : ws::kEditorVocabulary) {
+        if (g.scancode == row.scancode && g.modifiers == row.modifiers &&
+            std::string_view(g.label) == std::string_view(row.means)) {
+            return true;
+        }
+    }
+    return false;
+}
+static_assert(buffer_does(kMenuUndo) && buffer_does(kMenuRedo) && buffer_does(kMenuCut) &&
+                  buffer_does(kMenuCopy) && buffer_does(kMenuPaste) &&
+                  buffer_does(kMenuSelectAll),
+              "a row of the Editor's menu shows a key its buffer does not answer with that act");
 
 // ---- Pure helpers ---------------------------------------------------------------------------
 

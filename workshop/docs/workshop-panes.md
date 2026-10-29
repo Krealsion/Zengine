@@ -1031,7 +1031,9 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (office,
 - **The helpers are optional and installed beside the protocol.** `workshop/pane_escape.hpp` is
   Escape's default ([above](#escape-in-a-pane-that-holds-the-keys)). `workshop/pane_menu.hpp`:
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
-  request continuing the delivery's gesture and returns its `Asked`; `.submenu(id, label)` is a
+  request continuing the delivery's gesture and returns its `Asked`; `.row(id, label, key)` is a
+  row beside the key that does what it does now, carried in its label after `kMenuKeyMark`, which
+  the shipped presenter draws in a column of its own; `.submenu(id, label)` is a
   row whose choice opens another menu, its label ending in the one mark the host's own groups
   wear (`kSubmenuMark`, " >") -- a row that asks for more input ends in "..." instead; `pass_back`, `manage`
   and `take_keyboard` are the other lines a consumer would otherwise write.

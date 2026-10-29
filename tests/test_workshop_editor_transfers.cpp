@@ -10,8 +10,10 @@
 
 #include "editor_transfer_story.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -28,7 +30,51 @@ struct EditorStory : TransferStory {
     /// A document row and column, as the pane's own lattice names it.
     void click_doc(std::int64_t row, std::int64_t col) { click(editor, chrome() + row, col); }
     std::string notice() { return doc().notice; }
+    /// A RIGHT PRESS on a document row and column.
+    void right_doc(std::int64_t row, std::int64_t col) { click(editor, chrome() + row, col, 3); }
 };
+
+/// THE EDITOR'S OWN ROWS OF THE MENU ON THE SCREEN, down to the rule above the host's rows: each
+/// line's words after its two-column marker, the blanks between words and key squeezed to one, so
+/// a row reads `Save source ctrl+s`.
+std::vector<std::string> editor_rows(EditorStory& s) {
+    std::vector<std::string> out;
+    for (const std::string& line : presented_texts(s.r)) {
+        const std::string text = line.size() > 2 ? line.substr(2) : std::string();
+        if (text.rfind("--", 0) == 0) {
+            break; // the rule naming the pane, above the host's own rows
+        }
+        std::string squeezed;
+        for (const char c : text) {
+            if (c != ' ' || (!squeezed.empty() && squeezed.back() != ' ')) {
+                squeezed += c;
+            }
+        }
+        while (!squeezed.empty() && squeezed.back() == ' ') {
+            squeezed.pop_back();
+        }
+        out.push_back(squeezed);
+    }
+    return out;
+}
+
+/// CHOOSE THE EDITOR'S ROW WHOSE WORDS ARE `words`, as a weaver does by keys: Down to it, Return.
+void choose(EditorStory& s, const std::string& words) {
+    const std::vector<std::string> rows = editor_rows(s);
+    std::size_t at = rows.size();
+    for (std::size_t i = 0; i < rows.size() && at == rows.size(); ++i) {
+        if (rows[i] == words || rows[i].rfind(words + " ", 0) == 0) {
+            at = i;
+        }
+    }
+    std::string all;
+    for (const std::string& row : rows) all += "\n  " + row;
+    REQUIRE_MESSAGE(at < rows.size(), "no row of the Editor's menu reads " << words << ":" << all);
+    for (std::size_t i = 0; i < at; ++i) {
+        s.key(input::scan::kDown);
+    }
+    s.key(input::scan::kReturn);
+}
 
 } // namespace
 
@@ -99,7 +145,7 @@ TEST_CASE("a press on the highlight that never moves is an ordinary press, and a
     CHECK(d.text == "one two\nthree\nfour\n");
 }
 
-TEST_CASE("right-click on the highlight offers Extract above the standard rows, which carries by pick-and-place; right-click off it opens the standard pane menu") {
+TEST_CASE("right-click on the highlight puts Extract first in the Editor's menu and carries by pick-and-place; right-click off it opens the Editor's menu there, its rows above the standard rows") {
     EditorStory s("xfer-menu");
     REQUIRE(s.open(s.write("a.txt", "keep this\nand not this\n")).accepted);
     s.click_doc(0, 0);
@@ -107,24 +153,25 @@ TEST_CASE("right-click on the highlight offers Extract above the standard rows, 
     s.key(input::scan::kRight, input::mod::kShift);
     s.key(input::scan::kRight, input::mod::kShift);
     s.key(input::scan::kRight, input::mod::kShift);
-    s.click(s.editor, s.chrome() + 1, 4, 3); // off the highlight
-    // OFF IT, THE EDITOR OFFERS NOTHING AND HANDS THE PRESS BACK: the host's pane menu opens for
-    // the Editor, and the selection stands.
-    CHECK_FALSE(s.r.session().presented.open);
-    REQUIRE(s.r.session().context.open);
-    CHECK(s.r.session().context.subject == context_subject::kPane);
-    CHECK(s.r.session().context.pane.pane == ed::kEditorPane);
+    s.right_doc(1, 4); // off the highlight
+    // OFF IT, THE EDITOR'S OWN MENU OPENS THERE, the host's standard rows beneath its rows, and the
+    // selection stands.
+    REQUIRE(s.r.session().presented.open);
+    CHECK_FALSE(s.r.session().context.open);
+    std::vector<std::string> rows = editor_rows(s);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows.front() == "Cut ctrl+x");
+    CHECK(presented_texts(s.r).back().find("hide pane") != std::string::npos);
     CHECK(s.doc().caret_byte == 4);
     s.key(input::scan::kEscape);
-    REQUIRE_FALSE(s.r.session().context.open);
-    s.click(s.editor, s.chrome() + 0, 1, 3); // on it
+    REQUIRE_FALSE(s.r.session().presented.open);
+    s.right_doc(0, 1); // on it
     REQUIRE(s.r.session().presented.open);
-    // EXTRACT FIRST, THE STANDARD ROWS BENEATH IT.
-    const std::vector<std::string> lines = presented_texts(s.r);
-    REQUIRE(lines.size() >= 3);
-    CHECK(lines[0].find("Extract selection to Inventory") != std::string::npos);
-    CHECK(lines[2].find("arrange") != std::string::npos);
-    CHECK(lines.back().find("hide pane") != std::string::npos);
+    // EXTRACT FIRST, THE EDITOR'S OTHER ROWS AND THE STANDARD ROWS BENEATH IT.
+    rows = editor_rows(s);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows.front() == "Extract selection to Inventory ctrl+e");
+    CHECK(presented_texts(s.r).back().find("hide pane") != std::string::npos);
     s.key(input::scan::kReturn);
     INFO(s.notice() << " / " << s.r.last_notice());
     CHECK(s.r.last_notice().find("Carrying") != std::string::npos);
@@ -132,6 +179,140 @@ TEST_CASE("right-click on the highlight offers Extract above the standard rows, 
     const auto kept = s.stored();
     REQUIRE(kept.size() == 1);
     CHECK(loom::from_value<st::SourceText>(kept[0].pair.item).text == "keep");
+}
+
+TEST_CASE("the Editor's menu offers the acts the document allows now, each beside the key that does it now") {
+    // EACH ROW AS THE DOCUMENT STANDS: a step to undo or redo, a selection to cut, copy or carry,
+    // unsaved work to discard -- and beside each, the key that does what it does.
+    EditorStory s("menu-rows");
+    REQUIRE(s.open(s.write("a.txt", "one\ntwo\n")).accepted);
+    s.click_doc(1, 0);
+    s.right_doc(1, 2);
+    REQUIRE(s.r.session().presented.open);
+    CHECK(editor_rows(s) == std::vector<std::string>{"Paste ctrl+v", "Select all ctrl+a",
+                                                     "Carry this file's location ctrl+l",
+                                                     "Save source ctrl+s", "Close file"});
+    s.key(input::scan::kEscape);
+    s.text("x");
+    s.key(input::scan::kRight, input::mod::kShift);
+    s.right_doc(1, 3); // off the highlight
+    REQUIRE(s.r.session().presented.open);
+    CHECK(editor_rows(s) == std::vector<std::string>{
+                                "Undo ctrl+z", "Cut ctrl+x", "Copy ctrl+c", "Paste ctrl+v",
+                                "Select all ctrl+a", "Extract selection to Inventory ctrl+e",
+                                "Carry this file's location ctrl+l", "Save source ctrl+s",
+                                "Discard source edits ctrl+d", "Close file"});
+    choose(s, "Undo");
+    CHECK(s.doc().text == "one\ntwo\n");
+    // ...A STEP TO REDO; AND A PRESS ON THE STATUS ROW PUTS THE LOCATION FIRST, AND ONCE.
+    s.click(s.editor, 0, 4, 3);
+    REQUIRE(s.r.session().presented.open);
+    CHECK(editor_rows(s) == std::vector<std::string>{"Carry this file's location ctrl+l",
+                                                     "Redo ctrl+y", "Paste ctrl+v",
+                                                     "Select all ctrl+a", "Save source ctrl+s",
+                                                     "Close file"});
+}
+
+TEST_CASE("each edit row of the Editor's menu does what its key does: select all, cut, paste, undo, redo and copy") {
+    EditorStory s("menu-edits");
+    REQUIRE(s.open(s.write("a.txt", "keep this\n")).accepted);
+    s.click_doc(0, 2);
+    s.right_doc(0, 2);
+    choose(s, "Select all");
+    s.right_doc(0, 2);
+    choose(s, "Cut");
+    CHECK(s.doc().text.empty());
+    // THE TERMINAL'S CLIPBOARD CANNOT BE READ, so a paste lands what this process copied last.
+    s.right_doc(0, 0);
+    choose(s, "Paste");
+    CHECK(s.doc().text == "keep this\n");
+    s.right_doc(0, 0);
+    choose(s, "Undo");
+    CHECK(s.doc().text.empty());
+    s.right_doc(0, 0);
+    choose(s, "Redo");
+    CHECK(s.doc().text == "keep this\n");
+    s.right_doc(0, 0);
+    choose(s, "Select all");
+    s.right_doc(0, 0);
+    choose(s, "Copy");
+    s.key(input::scan::kEnd, input::mod::kCtrl);
+    s.right_doc(0, 0);
+    choose(s, "Paste");
+    CHECK(s.doc().text == "keep this\nkeep this\n");
+}
+
+TEST_CASE("a key the weaver's keymap moved shows moved in the Editor's menu, whose row still saves") {
+    // TWO KEYS FOR ONE ROW: the menu shows the first, as the legend spells one, so no number of
+    // keys a weaver gives a row can stretch its label past what a presenter shows.
+    EditorStory s("menu-moved", kEverything, {}, ed::kEditorPaneStem, false,
+                  {{"editor.save", "ctrl+g"}, {"editor.save", "ctrl+b"}});
+    const std::string path = s.write("a.txt", "one\n");
+    REQUIRE(s.open(path).accepted);
+    s.click_doc(0, 0);
+    s.text("x");
+    s.right_doc(0, 2);
+    REQUIRE(s.r.session().presented.open);
+    const std::vector<std::string> rows = editor_rows(s);
+    CHECK(std::find(rows.begin(), rows.end(), "Save source ctrl+g") != rows.end());
+    CHECK(std::find(rows.begin(), rows.end(), "Save source ctrl+s") == rows.end());
+    choose(s, "Save source");
+    CHECK(s.notice().rfind("saved -- ", 0) == 0);
+    CHECK(s.doc().saved_text == "xone\n");
+}
+
+TEST_CASE("Close file lets a clean document go, and refuses unsaved work as the Editor's other exits do, leaving the document as it was") {
+    EditorStory s("menu-close");
+    const std::string path = s.write("a.txt", "one\n");
+    REQUIRE(s.open(path).accepted);
+    s.click_doc(0, 0);
+    s.text("x");
+    s.right_doc(0, 2);
+    choose(s, "Close file");
+    CHECK(s.notice() == "the Editor holds unsaved changes to " + path +
+                            " -- save source or discard source edits in the Editor first; nothing "
+                            "was closed");
+    CHECK(s.doc().path == path);
+    CHECK(s.doc().text == "xone\n");
+    // ...DISCARD, ONE WAY OUT THE REFUSAL NAMES, IS ON THE SAME MENU; THEN THE CLOSE LETS IT GO.
+    s.right_doc(0, 2);
+    choose(s, "Discard source edits");
+    CHECK(s.doc().text == "one\n");
+    s.right_doc(0, 2);
+    choose(s, "Close file");
+    CHECK(s.doc().path.empty());
+    CHECK(s.notice().rfind("closed ", 0) == 0);
+    bool none = false;
+    for (const std::string& row : s.rows(s.editor)) {
+        none = none || row.find("no source open") != std::string::npos;
+    }
+    CHECK(none);
+    // AN EMPTY EDITOR HANDS A RIGHT PRESS BACK, and Workshop's own pane menu opens.
+    s.click(s.editor, 0, 2, 3);
+    CHECK_FALSE(s.r.session().presented.open);
+    CHECK(s.r.session().context.open);
+}
+
+TEST_CASE("a row of the Editor's menu chosen after another document took the Editor does nothing to it, and says so") {
+    // THE CHOICE IS ABOUT THE DOCUMENT THE MENU OPENED ON, as it stood: a source opened while the
+    // menu is up takes the Editor, and a row chosen then acts on nothing, as a carry chosen then.
+    EditorStory s("menu-stale");
+    const std::string first = s.write("a.txt", "one\n");
+    const std::string second = s.write("b.txt", "two\n");
+    REQUIRE(s.open(first).accepted);
+    s.right_doc(0, 2);
+    REQUIRE(s.r.session().presented.open);
+    REQUIRE(s.open(second).accepted);
+    REQUIRE(s.doc().path == second);
+    REQUIRE(s.r.session().presented.open);
+    choose(s, "Close file");
+    CHECK(s.notice() == "nothing was done -- the document changed after you pointed at it");
+    CHECK(s.doc().path == second);
+    CHECK(s.doc().text == "two\n");
+    // ...AND A MENU OPENED ON THE DOCUMENT THERE NOW CLOSES IT.
+    s.right_doc(0, 2);
+    choose(s, "Close file");
+    CHECK(s.doc().path.empty());
 }
 
 TEST_CASE("the keyboard carries the selection by pick-and-place, and with nothing selected it carries nothing in its place") {

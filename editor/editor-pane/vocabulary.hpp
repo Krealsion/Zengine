@@ -12,9 +12,10 @@
 // Workshop law: agents/workshop/editor.md
 
 // The declared actions keep the spellings and keys weavers' overrides name (`editor.save`
-// ctrl+s, `editor.newline` Return, `editor.tab` Tab, `editor.discard` ctrl+d). The editing
-// vocabulary -- copy, cut, paste, select, undo, word movement -- is the buffer's own
-// (`kEditorVocabulary`), reached raw through `PaneKey`, and deliberately not remappable.
+// ctrl+s, `editor.newline` Return, `editor.tab` Tab, `editor.discard` ctrl+d, `editor.close`
+// unbound). The editing vocabulary -- copy, cut, paste, select, undo, word movement -- is the
+// buffer's own (`kEditorVocabulary`), reached raw through `PaneKey`, and deliberately not
+// remappable.
 
 #include <zen/weave/shape.hpp>
 
@@ -53,6 +54,8 @@ inline constexpr const char* kActionDiscard = "editor.discard"; ///< back to the
 /// by pick-and-place (the keyboard route beside the highlight's drag and the right-click menu).
 inline constexpr const char* kActionExtract = "editor.extract";
 inline constexpr const char* kActionLocation = "editor.location";
+/// Let a clean document go, so the Editor holds none; unbound, and on the right-press menu.
+inline constexpr const char* kActionClose = "editor.close";
 
 /// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): the
 /// columns between tab stops, whether the status row shows, the lines a wheel notch scrolls, and

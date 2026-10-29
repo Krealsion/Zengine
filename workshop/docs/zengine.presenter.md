@@ -32,8 +32,11 @@ pane protocol.
 A pane asks for its menu when you right-press it, or press the key it declares for its menu (the
 Builder pane's is [`builder.menu`](../../builder/docs/zengine.builder-pane.md#buildermenu)), and
 Workshop hands the menu here. The pane's rows come first, then a rule naming the pane, `  -- Builder --`, then Workshop's
-standard rows. The row under the cursor is drawn `> label`, every other `  label`. A menu taller
-than its room is windowed, with `  ... 3 earlier` above and `  ... 5 more` below.
+standard rows. The row under the cursor is drawn `> label`, every other `  label`. A row whose
+label carries the key that does it, after `kMenuKeyMark`, shows the key in a column of its own two
+blanks after the widest words, `> Save source  ctrl+s`; a narrow room cuts the words, never the
+key. A menu taller than its room is windowed, with `  ... 3 earlier` above and `  ... 5 more`
+below.
 
 Move with the keys your keymap gives an open menu's up and down ([hotkeys](hotkeys.md)): they pass
 over the rule and stop at the ends. Its choose key chooses the row under the cursor, and its back

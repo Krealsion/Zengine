@@ -213,6 +213,63 @@ inline std::string menu_refusal_of(const MenuGranted& g, std::int64_t marks) {
     return std::string();
 }
 
+/// A ROW'S LABEL READ AS ITS WORDS AND THE KEY AFTER THE MARK (`kMenuKeyMark`), the key empty for
+/// a row that names none.
+struct MenuRowWords {
+    std::string words;
+    std::string key;
+};
+inline MenuRowWords menu_row_words(const std::string& label) {
+    const std::size_t mark = label.find(kMenuKeyMark);
+    if (mark == std::string::npos) {
+        return MenuRowWords{label, std::string()};
+    }
+    return MenuRowWords{label.substr(0, mark), label.substr(mark + 1)};
+}
+
+/// THE COLUMNS A MENU'S ROWS ARE LAID IN after a mark `marks` columns wide, in a room `columns`
+/// wide: the words, and the keys apart from them, two blanks after the widest words. A room too
+/// narrow for both cuts the words column, never a key; one with no column left for a word beside
+/// the widest key shows the words alone (`keys` 0).
+struct MenuWidths {
+    std::size_t words = 0;
+    std::size_t keys = 0;
+};
+inline MenuWidths menu_widths(std::initializer_list<const std::vector<PaneMenuRow>*> runs,
+                              std::int64_t marks, std::int64_t columns) {
+    MenuWidths w;
+    for (const std::vector<PaneMenuRow>* run : runs) {
+        for (const PaneMenuRow& r : *run) {
+            const MenuRowWords parts = menu_row_words(r.label);
+            w.words = parts.words.size() > w.words ? parts.words.size() : w.words;
+            w.keys = parts.key.size() > w.keys ? parts.key.size() : w.keys;
+        }
+    }
+    if (w.keys == 0) {
+        return w;
+    }
+    const std::int64_t room = columns - marks - 2 - static_cast<std::int64_t>(w.keys);
+    if (room < 1) {
+        w.keys = 0;
+        return w;
+    }
+    w.words = w.words < static_cast<std::size_t>(room) ? w.words : static_cast<std::size_t>(room);
+    return w;
+}
+
+/// ONE ROW'S TEXT AFTER ITS MARK, laid in the columns `w`: its words, and for a row that names a key
+/// in a menu showing keys, its words cut to the words column, blanks to it and two more, then its
+/// key.
+inline std::string menu_row_text(const PaneMenuRow& row, const MenuWidths& w) {
+    const MenuRowWords parts = menu_row_words(row.label);
+    if (w.keys == 0 || parts.key.empty()) {
+        return parts.words;
+    }
+    std::string out = parts.words.substr(0, w.words);
+    out.resize(w.words, ' ');
+    return out + "  " + parts.key;
+}
+
 /// THE MENU A GRANT HOLDS, granted under `correlation`, its cursor on the first row.
 inline HeldMenu held_menu_of(const MenuGranted& g, std::uint64_t correlation) {
     return HeldMenu{g.menu,
