@@ -25,7 +25,7 @@ editor                            doctest           always  20
 # operator/source.hpp, operator/migration.hpp and tests/weavelib/operator_consumer_weave.cpp as
 # text (VM-WALL-11).
 operator                          doctest           always  142
-composer                          doctest           always  41
+composer                          doctest           always  42
 # Tripwires in this suite read files/CMakeLists.txt and workshop/CMakeLists.txt as text
 # (VM-WALL-11).
 files_weave                       doctest           always  20

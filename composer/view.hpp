@@ -180,6 +180,19 @@ inline Window window_of(std::int64_t population, std::int64_t focus, std::int64_
     return w;
 }
 
+/// What a message carries, as its catalog row says it after the name and version: each field in
+/// the order the shape declares it, `name: Type` in the shape's own spelling (`describe_schema`,
+/// as the form's), `?` after an optional field's type, `{}` for a message with none.
+inline std::string fields_text(const loom::Schema& shape) {
+    const loom::ShapeDesc desc = loom::describe_schema(shape);
+    std::string out = "{";
+    for (std::size_t i = 0; i < desc.fields.size(); ++i) {
+        const loom::FieldDesc& f = desc.fields[i];
+        out += (i > 0 ? ", " : "") + f.name + ": " + f.type + (f.required ? "" : "?");
+    }
+    return out + "}";
+}
+
 /// The one sentence an omission is ever said in. Both sides, in one row.
 inline std::string omission_text(const Window& w) {
     if (w.before > 0 && w.after > 0) {
@@ -434,9 +447,10 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             const bool chosen = i == c.cursor;
             // (name, version) AND NEVER A MERGED NAME. `Foo v1` and `Foo v2` are two
             // message identities and this pane draws no conclusion about either from
-            // the other -- no compatibility, no supersession, no "latest".
+            // the other -- no compatibility, no supersession, no "latest". Then what it
+            // carries, fitted with the rest, since the row is the pane's.
             say(fit(std::string(chosen ? kSelectedMark : kUnselectedMark) + root->name() + " v" +
-                        std::to_string(root->version()),
+                        std::to_string(root->version()) + "  " + fields_text(*root),
                     columns),
                 chosen ? graphics::role::kAccent : graphics::role::kFill,
                 RowMeaning{meaning::kMessage, i},

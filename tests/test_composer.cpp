@@ -491,6 +491,52 @@ TEST_CASE("the catalog says ACCEPTED MESSAGES and filters nothing") {
     CHECK_FALSE(any_row(v, "Safe"));
 }
 
+TEST_CASE("the catalog says each message's fields after its name and version, as the shape declares and spells them, and a row too long for its pane is cut to it") {
+    // ⚔ MUTATION (tests/mutants/composer.md#fields-unsaid, #optional-unmarked,
+    // #fields-past-the-pane): rows naming no field, an optional field drawn as a required one, and
+    // fields added after the row was fitted to its pane.
+    cmp::Composing c;
+    c.stage = cmp::stage::kCatalog;
+    c.role = "zengine.example";
+    c.snapshot = snapshot_of({no_fields(), three_scalars(), mixed(), structural()});
+    const auto messages = [&c](std::int64_t columns) {
+        std::vector<std::string> out;
+        for (const cmp::RenderedRow& r : cmp::project(c, 12, columns).rows) {
+            if (r.meaning.what == cmp::meaning::kMessage) out.push_back(r.row.text);
+        }
+        return out;
+    };
+    // Each field in the order the shape declares it, `name: Type` in the form's own spelling, `?`
+    // after an optional one's, and `{}` for a message with none.
+    CHECK(messages(120) ==
+          std::vector<std::string>{"> Nothing v1  {}",
+                                   "  Whatever v1  {id: Text, delay_ms: Int, repeat: Bool}",
+                                   "  Mixed v1  {must: Text, may: Text?, flag: Bool?}",
+                                   "  Structural v1  {name: Text, leaf: Message(Leaf v1), counts: "
+                                   "List<Int>, leaves: List<Message(Leaf v1)>, blob: Bytes}"});
+
+    // A row longer than its pane is cut to the pane's columns and says so; a row that fits is whole.
+    CHECK(messages(40) == std::vector<std::string>{"> Nothing v1  {}",
+                                                   "  Whatever v1  {id: Text, delay_ms: I...",
+                                                   "  Mixed v1  {must: Text, may: Text?, ...",
+                                                   "  Structural v1  {name: Text, leaf: M..."});
+
+    // ...and what a row means and what it is called stay the message's identity.
+    c.cursor = 3;
+    const cmp::ComposerView v = cmp::project(c, 12, 40);
+    std::vector<std::string> names;
+    for (const cmp::RenderedRow& r : v.rows) {
+        if (r.meaning.what == cmp::meaning::kMessage) {
+            CHECK(r.meaning.part == "message:" + c.snapshot.roots[static_cast<std::size_t>(
+                                                     r.meaning.which)]->name() + " v1");
+            names.push_back(r.meaning.part);
+        }
+    }
+    CHECK(names == std::vector<std::string>{"message:Nothing v1", "message:Whatever v1",
+                                            "message:Mixed v1", "message:Structural v1"});
+    CHECK(any_row(v, "> Structural v1  {name: Text, leaf: M..."));
+}
+
 TEST_CASE("the form is generated from the Schema, and nothing else") {
     // Three fields, in declaration order, each carrying the schema's own type spelling.
     // `Whatever v1` is a shape this binary and the Composer both first met at run time.

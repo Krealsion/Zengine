@@ -36,12 +36,14 @@ in flight is not carried.
 Open it from the Pane Manager, <!-- key desktop.panes -->`ctrl+p`<!-- /key -->, then press a row in
 the Loaded pane. Its keys act only while it holds your keys: press into it first.
 [`compose.up`](#composeup) and [`compose.down`](#composedown) move the cursor, and the mouse wheel
-moves it too; choose a message with [`compose.enter`](#composeenter), or press its row. In the
-form, [`compose.include`](#composeinclude) includes the field under the cursor or leaves it absent
-(a `Bool` field goes absent, `false`, `true`, absent), typing writes its value, and the ordinary
-editing keys move, select, copy and paste inside it. [`compose.back`](#composeback) leaves the form
-for the list; at the list a bare Escape is handed back to Workshop. A key no command names changes
-nothing. A right press opens Workshop's pane menu.
+moves it too; choose a message with [`compose.enter`](#composeenter), or press its row. Each row
+says the message's fields after its name and version, with `?` after an optional field's type,
+`StartTimer v1  {id: Text, delay_ms: Int, repeat: Bool}`, so the message that takes a value is
+found without opening each. In the form, [`compose.include`](#composeinclude) includes the field
+under the cursor or leaves it absent (a `Bool` field goes absent, `false`, `true`, absent), typing
+writes its value, and the ordinary editing keys move, select, copy and paste inside it.
+[`compose.back`](#composeback) leaves the form for the list; at the list a bare Escape is handed
+back to Workshop. A key no command names changes nothing. A right press opens Workshop's pane menu.
 
 Drop an Inventory entry onto a field's row to make it that field's value, or onto any other row to
 fill the whole form with the command or preset it holds. A drop never sends. It is refused, and the
@@ -272,8 +274,11 @@ queued`, `Discovery was not delivered: ` and Loom's reason, `the discovery reque
 
 ### `message`
 
-One accepted message, `StartTimer v1`, the cursor's marked `>`. A list longer than the pane ends
-with `... 3 above, 5 below`.
+One accepted message, its name and version, then its fields in the order the shape declares
+them, each `name: Type` as the form spells it, `?` after an optional one's type:
+`StartTimer v1  {id: Text, delay_ms: Int, repeat: Bool}`, and `{}` for a message with none. The
+cursor's is marked `>`. A row longer than the pane ends `...`, and a list longer than the pane
+ends with `... 3 above, 5 below`.
 
 ### `form`
 
