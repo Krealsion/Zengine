@@ -77,6 +77,74 @@ public:
             loom::make_schema(node.identity + ".fold.in", 1, std::move(derived.inputs)),
             body.outputs};
   }
+  void own(const loom::Schema &shape) const {
+    if (!owns(shape))
+      throw std::invalid_argument(shape.name() + " came from elsewhere: its sender says it as it is");
+  }
+  /// Accepted message `i` replaced by `next`, and each trigger it woke wakes on `next`.
+  void replace_accepted(std::size_t i, std::shared_ptr<const loom::Schema> next) {
+    auto &shape = project.definition.accepts.at(i);
+    const auto previous = shape;
+    shape = std::move(next);
+    for (auto &on : project.definition.on)
+      if (loom::same_identity(*on.message, *previous))
+        on.message = shape;
+    changed();
+  }
+  /// Each port of `on` reading `name` -- a kept field, or a field of its message where nothing kept
+  /// is so named -- reads `to` instead.
+  static void reads_of(maker::On &on, const std::string &name, const op::Binding &to) {
+    for (auto &node : on.body.nodes)
+      for (auto &b : node.arguments)
+        if (b.from() == op::Binding::From::Input && b.input_name() == name)
+          b = to;
+  }
+  /// Each trigger on `shape` reading its field `name`, where nothing kept is so named, reads `to`.
+  void rewire_message_reads(const loom::Schema &shape, const std::string &name, const op::Binding &to) {
+    if (project.definition.state->find(name))
+      return;
+    for (auto &on : project.definition.on)
+      if (loom::same_identity(*on.message, shape))
+        reads_of(on, name, to);
+  }
+  /// The state as `fields`, each value carried from the field `was` names it was, but `fresh`, which
+  /// starts at its kind's default.
+  template <class Was>
+  void rekeep(std::vector<loom::Field> fields, Was was, const std::string &fresh = {}) {
+    const auto schema = loom::make_schema(project.definition.state->name(),
+                                          project.definition.state->version(), std::move(fields));
+    loom::Value state(schema);
+    for (const auto &f : schema->fields()) {
+      const auto *c = f.name == fresh ? nullptr : project.state.get(was(f.name));
+      if (c)
+        state.set(f.name, *c);
+      else if (f.required)
+        state.set(f.name, maker::default_cell(f.type));
+    }
+    project.definition.state = schema;
+    project.state = std::move(state);
+  }
+  /// Each say a kept field no longer feeds as it was declared goes: a source that names no kept
+  /// field of the said field's kind is dropped, and an emit then missing a required field goes.
+  void prune_emits() {
+    const auto &state = *project.definition.state;
+    for (auto &on : project.definition.on) {
+      for (auto &e : on.emits)
+        e.fields.erase(std::remove_if(e.fields.begin(), e.fields.end(), [&](const auto &s) {
+          if (!s.source) return false;
+          const auto *kept = state.find(*s.source);
+          const auto *said = e.message->find(s.field);
+          return !kept || !said || !op::detail::same_type(kept->type, said->type);
+        }), e.fields.end());
+      on.emits.erase(std::remove_if(on.emits.begin(), on.emits.end(), [](const auto &e) {
+        for (const auto &f : e.message->fields())
+          if (f.required && std::none_of(e.fields.begin(), e.fields.end(),
+                                         [&](const auto &s) { return s.field == f.name; }))
+            return true;
+        return false;
+      }), on.emits.end());
+    }
+  }
   void editable() const {
     if (project.definition.revision == std::numeric_limits<std::int64_t>::max())
       throw std::invalid_argument("definition revision exhausted");
@@ -198,6 +266,210 @@ public:
     on.emits.push_back({shape, std::move(fields)});
     changed();
   }
+  // ---- THE EDITS A RIGHT PRESS OFFERS ---------------------------------------------------------
+
+  /// RENAME ACCEPTED MESSAGE `i`, declared in the definition's namespace: its fields and version
+  /// stay, and the trigger it wakes follows it. A message from elsewhere keeps the name it came with,
+  /// or it would no longer be the one its sender says.
+  void rename_message(std::size_t i, const std::string &name) {
+    editable();
+    auto &shape = project.definition.accepts.at(i);
+    own(*shape);
+    const auto next_name = shape::qualified(project.definition.name, name);
+    if (next_name == shape->name())
+      return;
+    shape::refuse_taken(project.definition.accepts, next_name);
+    shape::refuse_taken(project.definition.emits, next_name);
+    replace_accepted(i, loom::make_schema(next_name, shape->version(), shape->fields()));
+  }
+  /// RENAME, RETYPE OR REMOVE A FIELD of accepted message `i`, declared here. A port reading it
+  /// reads the new name; retyped, a port of another kind is a lack to repair; removed, it is open.
+  void rename_message_field(std::size_t i, const std::string &from, const std::string &to) {
+    editable();
+    const auto shape = project.definition.accepts.at(i);
+    own(*shape);
+    if (!shape->find(from))
+      throw std::invalid_argument(shape->name() + " has no field " + from);
+    if (to.empty() || (to != from && shape->find(to)))
+      throw std::invalid_argument("message field name is empty or already used");
+    auto fields = shape->fields();
+    for (auto &f : fields)
+      if (f.name == from)
+        f.name = to;
+    rewire_message_reads(*shape, from, op::Binding::input(to));
+    replace_accepted(i, loom::make_schema(shape->name(), shape->version(), std::move(fields)));
+  }
+  void retype_message_field(std::size_t i, const std::string &name, loom::TypeRef type) {
+    editable();
+    const auto shape = project.definition.accepts.at(i);
+    own(*shape);
+    if (!shape->find(name))
+      throw std::invalid_argument(shape->name() + " has no field " + name);
+    auto fields = shape->fields();
+    for (auto &f : fields)
+      if (f.name == name)
+        f.type = std::move(type);
+    replace_accepted(i, loom::make_schema(shape->name(), shape->version(), std::move(fields)));
+  }
+  void remove_message_field(std::size_t i, const std::string &name) {
+    editable();
+    const auto shape = project.definition.accepts.at(i);
+    own(*shape);
+    if (!shape->find(name))
+      throw std::invalid_argument(shape->name() + " has no field " + name);
+    auto fields = shape->fields();
+    fields.erase(std::remove_if(fields.begin(), fields.end(), [&](const auto &f) { return f.name == name; }),
+                 fields.end());
+    rewire_message_reads(*shape, name, op::Binding::input(""));
+    replace_accepted(i, loom::make_schema(shape->name(), shape->version(), std::move(fields)));
+  }
+  /// TAKE TRIGGER `t` OUT OF THE RULE: its steps and places go with it; the message stays declared.
+  void remove_trigger(std::size_t t) {
+    editable();
+    auto &ons = project.definition.on;
+    (void)ons.at(t);
+    ons.erase(ons.begin() + static_cast<std::ptrdiff_t>(t));
+    const auto at = static_cast<std::int64_t>(t);
+    places.erase(std::remove_if(places.begin(), places.end(), [&](const auto &p) { return p.trigger == at; }),
+                 places.end());
+    for (auto &p : places)
+      if (p.trigger > at)
+        --p.trigger;
+    changed();
+  }
+  /// RENAME A KEPT FIELD: its value, the ports that read it, what a trigger writes into it and what
+  /// a say carries from it follow the new name.
+  void rename_kept(const std::string &from, const std::string &to) {
+    editable();
+    const auto &state = *project.definition.state;
+    if (!state.find(from))
+      throw std::invalid_argument("the rule keeps no " + from);
+    if (to.empty() || (to != from && state.find(to)))
+      throw std::invalid_argument("state field name is empty or already used");
+    if (to == from)
+      return;
+    auto fields = state.fields();
+    for (auto &f : fields)
+      if (f.name == from)
+        f.name = to;
+    rekeep(std::move(fields), [&](const std::string &name) { return name == to ? from : name; });
+    for (auto &on : project.definition.on) {
+      reads_of(on, from, op::Binding::input(to));
+      if (on.output == from)
+        on.output = to;
+      for (auto &e : on.emits)
+        for (auto &s : e.fields)
+          if (s.source && *s.source == from)
+            s.source = to;
+    }
+    changed();
+  }
+  /// A KEPT FIELD OF ANOTHER KIND: its value starts again at that kind's default, and a say that
+  /// carried it as the old kind no longer does.
+  void retype_kept(const std::string &name, loom::TypeRef type) {
+    editable();
+    if (!project.definition.state->find(name))
+      throw std::invalid_argument("the rule keeps no " + name);
+    auto fields = project.definition.state->fields();
+    for (auto &f : fields)
+      if (f.name == name)
+        f.type = std::move(type);
+    rekeep(std::move(fields), [](const std::string &n) { return n; }, name);
+    prune_emits();
+    changed();
+  }
+  /// REMOVE A KEPT FIELD: the ports that read it are left open and a say that carried it goes.
+  /// The field a trigger writes is refused: that trigger writes another first.
+  void remove_kept(const std::string &name) {
+    editable();
+    if (!project.definition.state->find(name))
+      throw std::invalid_argument("the rule keeps no " + name);
+    for (const auto &on : project.definition.on)
+      if (on.output == name)
+        throw std::invalid_argument(on.message->name() + " writes " + name +
+                                    ": choose another field for it to write first");
+    auto fields = project.definition.state->fields();
+    fields.erase(std::remove_if(fields.begin(), fields.end(), [&](const auto &f) { return f.name == name; }),
+                 fields.end());
+    rekeep(std::move(fields), [](const std::string &n) { return n; });
+    for (auto &on : project.definition.on)
+      reads_of(on, name, op::Binding::input(""));
+    prune_emits();
+    changed();
+  }
+  /// A KEPT FIELD'S VALUE, as the rule starts with it.
+  void start_kept(const std::string &name, loom::Cell cell) {
+    editable();
+    if (!project.definition.state->find(name))
+      throw std::invalid_argument("the rule keeps no " + name);
+    auto state = project.state;
+    state.set(name, std::move(cell));
+    project.state = std::move(state);
+    changed();
+  }
+  /// PORT `argument` OF NODE `n` LEFT OPEN.
+  void unbind(std::size_t t, std::size_t n, std::size_t argument) {
+    editable();
+    project.definition.on.at(t).body.nodes.at(n).arguments.at(argument) = op::Binding::input("");
+    changed();
+  }
+  /// EVERY WIRE TO AND FROM NODE `n` TAKEN AWAY: its ports open, the ports that read it open, and
+  /// where it was the answer the trigger has none.
+  void disconnect(std::size_t t, std::size_t n) {
+    editable();
+    auto &body = project.definition.on.at(t).body;
+    for (auto &b : body.nodes.at(n).arguments)
+      b = op::Binding::input("");
+    for (auto &node : body.nodes)
+      for (auto &b : node.arguments)
+        if (b.from() == op::Binding::From::Node && b.node_index() == n)
+          b = op::Binding::input("");
+    if (body.result_node == n)
+      body.result_node = body.nodes.size();
+    changed();
+  }
+  /// THE WIRE INTO WHAT TRIGGER `t` WRITES TAKEN AWAY: it has no answer until one is chosen.
+  void unanswer(std::size_t t) {
+    editable();
+    auto &body = project.definition.on.at(t).body;
+    body.result_node = body.nodes.size();
+    changed();
+  }
+  /// TRIGGER `t` WRITES ANOTHER KEPT FIELD.
+  void write_into(std::size_t t, const std::string &name) {
+    editable();
+    if (!project.definition.state->find(name))
+      throw std::invalid_argument("the rule keeps no " + name);
+    project.definition.on.at(t).output = name;
+    changed();
+  }
+  /// WHAT EMIT `e` OF TRIGGER `t` CARRIES: these kept fields, each under its own name. The message
+  /// it says changes with it, wherever it is said.
+  void say_with(std::size_t t, std::size_t e, const std::vector<std::string> &names) {
+    editable();
+    const auto previous = project.definition.on.at(t).emits.at(e).message;
+    std::vector<loom::Field> fields;
+    for (const auto &name : names) {
+      const auto *kept = project.definition.state->find(name);
+      if (!kept)
+        throw std::invalid_argument("the rule keeps no `" + name + "` to say");
+      fields.push_back({name, kept->type, true});
+    }
+    const auto next = shape::make(previous->name(), std::move(fields));
+    for (auto &shape : project.definition.emits)
+      if (loom::same_identity(*shape, *previous))
+        shape = next;
+    for (auto &on : project.definition.on)
+      for (auto &emit : on.emits)
+        if (loom::same_identity(*emit.message, *previous)) {
+          emit.message = next;
+          emit.fields.clear();
+          for (const auto &name : names)
+            emit.fields.push_back({name, name, std::nullopt});
+        }
+    changed();
+  }
+
   void remove_emit(std::size_t t, std::size_t which) {
     editable();
     auto &emits = project.definition.on.at(t).emits;
@@ -420,6 +692,11 @@ public:
           p.node > static_cast<std::int64_t>(n))
         --p.node;
     changed();
+  }
+  /// WHETHER `shape` WAS DECLARED IN THIS DEFINITION'S NAMESPACE, as only such a message is
+  /// renamed or reshaped here.
+  bool owns(const loom::Schema &shape) const {
+    return shape.name().rfind(project.definition.name + ".", 0) == 0;
   }
   NodePlace &place(std::size_t t, std::size_t n) {
     const auto found =

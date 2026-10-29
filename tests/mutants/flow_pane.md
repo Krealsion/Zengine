@@ -545,3 +545,36 @@ Red in `zengine-flow-pane-tests`:
 
 - a press the window landed on nothing, where Flow has redrawn since and shows nothing either, is a
   press on nothing: it lets go of the chosen step, with nothing refused
+
+## graph-right-press-handed-back
+
+A right press on the graph is handed back to Workshop: Flow offers no menu of its own there.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-        if (context_menu(event, pictured, mail))
++        if (false && context_menu(event, pictured, mail))
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a right press on the graph opens what can be done to what it landed on, a row does it, a row that
+  needs words asks only for them, and a menu the rule changed under does nothing
+
+## stale-menu-acts
+
+A row of a right press's menu chosen after the rule changed does its edit on the rule as it is now.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-      if (opened.empty() ||
+-          opened.front() != std::to_string(model_.workspace.graph.project.definition.revision)) {
++      if (opened.empty()) {
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a right press on the graph opens what can be done to what it landed on, a row does it, a row that
+  needs words asks only for them, and a menu the rule changed under does nothing

@@ -43,7 +43,10 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   was deleted with none chosen since (`unanswered`, version 3). Versions 1 and 2 are read still,
   and listed for the census as `flow::v1::WorkspaceFile` and `flow::v2::WorkspaceFile`. A delete
   takes every connection with it: ports that read the step are left open, and deleting the answer
-  leaves the trigger unanswered (`answered`). Historical form
+  leaves the trigger unanswered (`answered`). The right-press menus' edits are `GraphDraft`
+  operations, each taking what it breaks with it (`prune_emits`, `reads_of`); a message declared
+  elsewhere is never renamed or reshaped (`owns`). A dialog about something carries it in its
+  action (`pane::about`), so it shows only what is typed. Historical form
   shapes are separate observations, not competing definitions published in a host registry.
   A changed shape never silently overwrites authored values. Initial-state edits stay
   distinct from incomplete form contents and observed running state.

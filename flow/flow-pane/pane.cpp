@@ -558,6 +558,9 @@ public:
       // A RIGHT PRESS MEANS NOTHING ON THE GRAPH OR ITS PAGES: handed back, so the host's pane
       // menu opens where it landed.
       if (event.button == 3) {
+        // A RIGHT PRESS ON THE GRAPH opens what can be done to what it landed on.
+        if (context_menu(event, pictured, mail))
+          return;
         // A RIGHT PRESS ON A DECLARED MESSAGE offers to carry its shape out; anywhere else it is
         // handed back, so Workshop's pane menu opens where it landed.
         if (const auto shape = pressed_message(event, pictured)) {
@@ -813,6 +816,179 @@ public:
            : which == "then" ? kThen
                              : kNone;
   }
+  /// A RIGHT PRESS'S MENU, by what it landed on in the graph as the picture shows it now: the
+  /// rows that apply to it, each an edit (`pane::about` names its verb and what it is about); a
+  /// message declared elsewhere is never renamed or reshaped here. False where nothing on the graph
+  /// was pressed, or a dialog or a search is open: the press goes on as it did.
+  bool context_menu(const Moment &event, const pane::Picture *it, loom::Mail &mail) {
+    const auto &def = model_.workspace.graph.project.definition;
+    if (it == nullptr || it->revision != def.revision || model_.page != pane::Page::Graph ||
+        model_.dialog || model_.wire_search)
+      return false;
+    const auto key = pane::rest_at(*it, event.x, event.y);
+    const zengine::maker::On *rule = def.on.empty() ? nullptr : &def.on.at(model_.trigger());
+    std::vector<std::pair<std::string, std::string>> rows;
+    const auto row = [&](std::string action, std::vector<std::string> args, std::string label) {
+      rows.emplace_back(pane::about(std::move(action), args), std::move(label));
+    };
+    const auto starts = [&](const std::string &prefix) { return key && key->rfind(prefix, 0) == 0; };
+    const auto accepted = [&](const std::string &name) -> std::optional<std::size_t> {
+      for (std::size_t i = 0; i < def.accepts.size(); ++i)
+        if (def.accepts[i]->name() == name)
+          return i;
+      return std::nullopt;
+    };
+    const auto kept_rows = [&](const std::string &f) {
+      row("keep-rename-ask", {f}, "Rename " + f + "...");
+      row("keep-kind-ask", {f}, "Change kind...");
+      row("keep-start-ask", {f}, "Start value...");
+      row("keep-remove", {f}, "Remove " + f);
+    };
+    const auto step = [&](const std::string &id) -> std::optional<std::size_t> {
+      try {
+        return pane::step_at(model_, flow::integer(id));
+      } catch (const std::exception &) {
+        return std::nullopt;
+      }
+    };
+    if (!key) {
+      // EMPTY ROOM on the graph's open canvas: a step made there.
+      if (!rule || !it->canvas || !it->canvas->holds(pane::Box{event.x, event.y, 1, 1}))
+        return false;
+      row("add-here", {std::to_string(event.x), std::to_string(event.y)}, "Add a step here...");
+    } else if (starts("card:message:")) {
+      const auto name = key->substr(13);
+      const auto i = accepted(name);
+      if (!i)
+        return false;
+      if (model_.workspace.graph.owns(*def.accepts[*i])) {
+        row("message-field-ask", {std::to_string(*i)}, "Add a field...");
+        row("message-rename-ask", {std::to_string(*i)}, "Rename...");
+      }
+      for (std::size_t t = 0; t < def.on.size(); ++t)
+        if (def.on[t].message->name() == name)
+          row("untrigger", {std::to_string(t)}, "Remove from the rule");
+      row("carry", {name}, "Carry " + name);
+    } else if (starts("field:")) {
+      const auto f = key->substr(6);
+      if (def.state->find(f)) {
+        kept_rows(f);
+        row("ask-keep", {}, "Keep another field...");
+      } else if (rule && rule->message->find(f)) {
+        const auto i = accepted(rule->message->name());
+        if (!i || !model_.workspace.graph.owns(*rule->message))
+          return false;
+        row("message-field-rename-ask", {std::to_string(*i), f}, "Rename " + f + "...");
+        row("message-field-kind-ask", {std::to_string(*i), f}, "Change kind...");
+        row("message-field-remove", {std::to_string(*i), f}, "Remove " + f);
+      } else {
+        return false;
+      }
+    } else if (*key == "card:kept") {
+      row("ask-keep", {}, "Keep a field...");
+    } else if (starts("step:") || starts("answer:")) {
+      const auto n = step(key->substr(key->find(':') + 1));
+      if (!n || !rule)
+        return false;
+      if (rule->body.result_node != *n)
+        row("result", {std::to_string(*n)}, "Make it the answer");
+      row("disconnect", {std::to_string(*n)}, "Disconnect all");
+      row("remove", {std::to_string(*n)}, "Delete");
+    } else if (starts("port:") || starts("wire:")) {
+      if (*key == "port:write" || *key == "wire:write") {
+        if (!rule || !flow::answered(*rule))
+          return false;
+        row("unanswer", {}, *key == "wire:write" ? "Delete wire" : "Disconnect");
+      } else {
+        const auto at = key->find(':') + 1, dot = key->find('.');
+        const auto n = step(key->substr(at, dot - at));
+        if (!n || !rule || dot == std::string::npos)
+          return false;
+        const auto a = key->substr(dot + 1);
+        const bool wired = !pane::unwired(rule->body.nodes.at(*n).arguments.at(flow::index_of(a)));
+        if (starts("wire:")) {
+          row("unbind", {std::to_string(*n), a}, "Delete wire");
+        } else {
+          if (wired)
+            row("unbind", {std::to_string(*n), a}, "Disconnect");
+          row("port", {std::to_string(*n), a}, "Give it a value...");
+        }
+      }
+    } else if (starts("card:write:")) {
+      if (!rule)
+        return false;
+      for (const auto &f : def.state->fields())
+        if (f.name != rule->output)
+          row("write-field", {f.name}, "Write " + f.name + " instead");
+      row("ask-keep", {}, "Keep another field...");
+    } else if (starts("card:say:")) {
+      if (!rule)
+        return false;
+      const auto said = key->substr(key->rfind(':') + 1);
+      for (std::size_t e = 0; e < rule->emits.size(); ++e)
+        if (rule->emits[e].message->name() == said) {
+          row("say-with-ask", {std::to_string(e)}, "Edit what it says...");
+          row("emit-remove", {std::to_string(e)}, "Stop saying it");
+          row("carry", {said}, "Carry " + said);
+          break;
+        }
+    } else {
+      return false;
+    }
+    if (rows.empty())
+      return false;
+    model_.hover.reset();
+    menu_opener_ = pane::Spot{event.x, event.y, 1, 1};
+    auto offer = menu().offer(pane::about("ctx", {std::to_string(def.revision)}));
+    for (const auto &[id, label] : rows)
+      offer.row(id, label);
+    menu().send(mail, offer);
+    show(mail);
+    return true;
+  }
+  /// THE DIALOGS A MENU'S ROW OPENS, each about what the row was: true where `action` is one.
+  bool ask_about(const std::string &action, const std::vector<std::string> &args) {
+    const auto &def = model_.workspace.graph.project.definition;
+    const auto kind_of = [](const loom::Field *f) {
+      return f ? std::string(loom::name_of(f->type.kind)) : std::string("Int");
+    };
+    if (action == "message-field-ask") {
+      const auto &shape = def.accepts.at(flow::index_of(args.at(0)));
+      model_.ask("Add a field to " + shape->name(), pane::about("message-field-add", args),
+                 {{"Name", ""}, {"Kind", "Int"}});
+    } else if (action == "message-rename-ask") {
+      const auto &shape = def.accepts.at(flow::index_of(args.at(0)));
+      const auto dot = shape->name().rfind('.');
+      model_.ask("Rename " + shape->name(), pane::about("message-rename", args),
+                 {{"Name", shape->name().substr(dot + 1)}});
+    } else if (action == "message-field-rename-ask") {
+      model_.ask("Rename " + args.at(1), pane::about("message-field-rename", args), {{"Name", args.at(1)}});
+    } else if (action == "message-field-kind-ask") {
+      const auto &shape = def.accepts.at(flow::index_of(args.at(0)));
+      model_.ask("Kind of " + args.at(1), pane::about("message-field-kind", args),
+                 {{"Kind", kind_of(shape->find(args.at(1)))}});
+    } else if (action == "keep-rename-ask") {
+      model_.ask("Rename " + args.at(0), pane::about("keep-rename", args), {{"Name", args.at(0)}});
+    } else if (action == "keep-kind-ask") {
+      model_.ask("Kind of " + args.at(0), pane::about("keep-kind", args),
+                 {{"Kind", kind_of(def.state->find(args.at(0)))}});
+    } else if (action == "keep-start-ask") {
+      const auto *now = model_.workspace.graph.project.state.get(args.at(0));
+      model_.ask(args.at(0) + " starts as", pane::about("keep-start", args),
+                 {{"Start value", now ? zengine::message_draft::summary(now) : std::string()}});
+    } else if (action == "say-with-ask") {
+      const auto &on = def.on.at(model_.trigger());
+      const auto &said = on.emits.at(flow::index_of(args.at(0)));
+      std::string with;
+      for (const auto &f : said.message->fields())
+        with += (with.empty() ? "" : " ") + f.name;
+      model_.ask("What " + said.message->name() + " carries", pane::about("say-with", args), {{"With", with}});
+    } else {
+      return false;
+    }
+    model_.dialog->beside = opener_;
+    return true;
+  }
   /// OPEN ONE OF FLOW'S MENUS where the press that asked for it was made.
   void open_menu(const std::string &which, loom::Mail &mail) {
     const auto &rows = menu_rows(which);
@@ -827,6 +1003,25 @@ public:
   /// declared message's shape out as a description, under the gesture the choice continues -- the
   /// message must still be declared, or nothing is carried.
   void on_menu(const std::string &id, const std::string &subject, loom::Mail &mail) {
+    // A ROW OF A RIGHT PRESS'S MENU does its edit, if the rule is still the one it was opened on.
+    if (const auto [kind, opened] = pane::about_of(subject); kind == "ctx") {
+      const auto [action, args] = pane::about_of(id);
+      if (opened.empty() ||
+          opened.front() != std::to_string(model_.workspace.graph.project.definition.revision)) {
+        model_.notice = "Nothing was done: the rule changed since the menu opened";
+        show(mail);
+        return;
+      }
+      if (action == "carry") {
+        if (const auto shape = declared(args.at(0)))
+          carry(shape, mail.correlation(), false, mail);
+        return;
+      }
+      opener_ = menu_opener_;
+      perform(action, args, mail);
+      opener_.reset();
+      return;
+    }
     const auto &rows = menu_rows(subject);
     if (!rows.empty()) {
       if (std::any_of(rows.begin(), rows.end(), [&](const auto &row) { return id == row.first; })) {
@@ -1958,8 +2153,10 @@ private:
       if (const FlowAsk *writing = asks().find(of_kind(FlowAsk::Kind::kWrite)))
         throw std::invalid_argument(pane::Model::writing(writing->action) +
                                     " is already waiting for Workshop's approval");
-      const auto saved = *model_.dialog;
-      std::vector<std::string> values;
+      auto saved = *model_.dialog;
+      // WHAT A DIALOG IS ABOUT goes before what was typed in it.
+      auto [command, values] = pane::about_of(saved.action);
+      saved.action = command;
       for (const auto &entry : saved.entries)
         values.push_back(entry.text.text());
       // A WRITE IS ASKED UNDER THE CONFIRMING GESTURE, and runs at Workshop's answer.
@@ -2111,6 +2308,14 @@ private:
     } else if (action == "drop-send" || action == "drop-constant" || action == "drop-accept" ||
                action == "drop-emit" || action == "drop-cancel") {
       act_on_drop(action, args, mail);
+    } else if (action == "add-here") {
+      // A STEP MADE WHERE THE MENU WAS OPENED: the search, standing there.
+      const auto *it = latest();
+      if (it == nullptr)
+        throw std::invalid_argument("Adding a step needs the graph shown");
+      const auto x = flow::integer(args.at(0)), y = flow::integer(args.at(1));
+      open_wire_search(pane::WireEnd{}, x, y, x, y, *it, mail);
+    } else if (ask_about(action, args)) {
     } else if (action == "add-found") {
       std::vector<std::string> before(args.begin() + 2, args.end());
       add_found(args.at(0), args.at(1), "add-node", std::move(before), mail);

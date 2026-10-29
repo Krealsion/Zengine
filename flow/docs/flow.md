@@ -169,6 +169,26 @@ its kind and what it reads; on a step's answer or a field, what reads it; on a w
 lit, and the value it last carried. A press, or the pointer leaving Flow, ends the rest. A dashed
 part of the sentence, still to choose, pressed, does what the Next line's button does.
 
+A right press on the graph opens a menu of what can be done to what it landed on:
+
+- **A message's card**: **Add a field...**, **Rename...**, **Remove from the rule** (its steps go;
+  the message stays declared) and **Carry** it. Adding, renaming and reshaping are offered only for
+  a message the rule declared itself: one a panel sends keeps the shape the panel says.
+- **A field of the message**: **Rename...**, **Change kind...**, **Remove** -- a port reading it reads
+  the new name, or is left open.
+- **What it keeps**, on a field: **Rename...**, **Change kind...** (its value starts again),
+  **Start value...**, **Remove** -- refused for the field the rule writes, until it writes another --
+  and **Keep another field...**.
+- **A step**: **Make it the answer**, **Disconnect all**, **Delete**. **A port**: **Disconnect**,
+  **Give it a value...**. **A wire**: **Delete wire**.
+- **What it writes**: **Write** another kept field **instead**, or keep another.
+- **What it says**: **Edit what it says...** (the kept fields it carries), **Stop saying it**,
+  **Carry** it.
+- **Empty Do room**: **Add a step here...**, the search a double click opens.
+
+Each takes what it breaks with it: a port that read what went is left open, and a say that carried a
+field that went, or changed kind, goes. A row chosen after the rule changed does nothing, and says so.
+
 A wire dragged over a port it does not fit says why under the hand before you let go -- the step
 it would read is not before the port's, or it carries another type -- and letting it go there wires
 nothing; a press on that port with the wire held by a click says the same and keeps the wire.

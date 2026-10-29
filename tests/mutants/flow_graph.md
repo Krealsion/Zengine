@@ -102,3 +102,94 @@ Red in `zengine-flow-tests`:
 
 - a delete takes every connection with it, no questions asked: the ports that read the step are
   left open, and deleting the answer leaves the rule with none, which a save keeps
+
+## foreign-message-renamed
+
+A message declared elsewhere is renamed, so its sender's no longer wakes the rule.
+
+In `flow/graph_edit.hpp`:
+
+```diff
+-    if (!owns(shape))
++    if (!owns(shape) && false)
+```
+
+Red in `zengine-flow-tests`:
+
+- the edits a right press offers each take what they break with them: a message or a field renamed,
+  retyped or removed, a trigger taken out, a kept field renamed, retyped, removed or started, a step
+  or a port disconnected, another field written, what a say carries
+
+## renamed-field-unread
+
+A message field renamed leaves the ports that read it on the old name.
+
+In `flow/graph_edit.hpp`:
+
+```diff
+-    rewire_message_reads(*shape, from, op::Binding::input(to));
++    (void)to;
+```
+
+Red in `zengine-flow-tests`:
+
+- the edits a right press offers each take what they break with them: a message or a field renamed,
+  retyped or removed, a trigger taken out, a kept field renamed, retyped, removed or started, a step
+  or a port disconnected, another field written, what a say carries
+
+## renamed-kept-unwritten
+
+A kept field renamed leaves the trigger writing the old name.
+
+In `flow/graph_edit.hpp`:
+
+```diff
+-      if (on.output == from)
++      if (on.output == from && false)
+```
+
+Red in `zengine-flow-tests`:
+
+- the edits a right press offers each take what they break with them: a message or a field renamed,
+  retyped or removed, a trigger taken out, a kept field renamed, retyped, removed or started, a step
+  or a port disconnected, another field written, what a say carries
+
+## removed-kept-still-said
+
+A kept field removed leaves the say that carried it.
+
+In `flow/graph_edit.hpp`:
+
+```diff
+     rekeep(std::move(fields), [](const std::string &n) { return n; });
+     for (auto &on : project.definition.on)
+       reads_of(on, name, op::Binding::input(""));
+-    prune_emits();
+```
+
+Red in `zengine-flow-tests`:
+
+- the edits a right press offers each take what they break with them: a message or a field renamed,
+  retyped or removed, a trigger taken out, a kept field renamed, retyped, removed or started, a step
+  or a port disconnected, another field written, what a say carries
+
+## disconnect-keeps-readers
+
+Disconnecting a step leaves the ports that read it wired.
+
+In `flow/graph_edit.hpp`:
+
+```diff
+     for (auto &b : body.nodes.at(n).arguments)
+       b = op::Binding::input("");
+     for (auto &node : body.nodes)
+       for (auto &b : node.arguments)
+-        if (b.from() == op::Binding::From::Node && b.node_index() == n)
++        if (b.from() == op::Binding::From::Node && b.node_index() == n && false)
+```
+
+Red in `zengine-flow-tests`:
+
+- the edits a right press offers each take what they break with them: a message or a field renamed,
+  retyped or removed, a trigger taken out, a kept field renamed, retyped, removed or started, a step
+  or a port disconnected, another field written, what a say carries

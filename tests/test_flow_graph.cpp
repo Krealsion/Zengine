@@ -566,6 +566,109 @@ TEST_CASE("a delete takes every connection with it, no questions asked: the port
     CHECK(flow::answered(author.workspace.graph.project.definition.on.at(0)));
 }
 
+TEST_CASE("the edits a right press offers each take what they break with them: a message or a field "
+          "renamed, retyped or removed, a trigger taken out, a kept field renamed, retyped, removed or "
+          "started, a step or a port disconnected, another field written, what a say carries") {
+    using B = zengine::op::Binding;
+    auto author = model();
+    author.command("state-field", {"seen", "Int", "required"});
+    author.command("trigger", {"0", "total"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("bind", {"0", "0", "$input"});
+    author.command("bind", {"1", "0", "%0"});
+    author.command("result", {"1"});
+    author.command("say", {"Total", "total seen"});
+    const auto def = [&]() -> const zengine::maker::Definition& { return author.workspace.graph.project.definition; };
+    const auto body = [&]() -> const zengine::op::Composite& { return def().on.at(0).body; };
+    const auto open = [](const B& b) { return b.from() == B::From::Input && b.input_name().empty(); };
+    const auto reopens = [&] { (void)flow::read_workspace(flow::workspace_bytes(author.workspace)); };
+
+    // A MESSAGE DECLARED HERE, RENAMED: its trigger follows it. One from elsewhere keeps its name.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#foreign-message-renamed): a message declared
+    // elsewhere is renamed.
+    author.command("message-rename", {"0", "Reading"});
+    CHECK(def().accepts.at(0)->name() == "my_flow.Reading");
+    CHECK(def().on.at(0).message->name() == "my_flow.Reading");
+    author.workspace.graph.declare(flow::shape::make("panel.Press", {}), false);
+    CHECK_THROWS_WITH(author.command("message-rename", {"2", "Other"}),
+                      "panel.Press came from elsewhere: its sender says it as it is");
+    reopens();
+    // ITS FIELD RENAMED: the port reading it reads the new name. RETYPED: still read, a lack to
+    // repair. REMOVED: the port is open.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#renamed-field-unread): the port reads the old name.
+    author.command("message-field-rename", {"0", "input", "amount"});
+    CHECK(body().nodes[0].arguments[0].input_name() == "amount");
+    author.command("message-field-kind", {"0", "amount", "Bool"});
+    CHECK(def().accepts.at(0)->find("amount")->type.kind == loom::Kind::Bool);
+    CHECK_FALSE(author.lacks().empty());
+    reopens();
+    author.command("message-field-remove", {"0", "amount"});
+    CHECK(open(body().nodes[0].arguments[0]));
+    CHECK(def().accepts.at(0)->fields().empty());
+    reopens();
+
+    // A KEPT FIELD RENAMED: its value, what the trigger writes and what the say carries follow.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#renamed-kept-unwritten): the trigger still writes
+    // the old name.
+    author.command("keep-start", {"total", "7"});
+    author.command("keep-rename", {"total", "sum"});
+    CHECK(def().on.at(0).output == "sum");
+    CHECK(author.workspace.graph.project.state.get("sum")->as_int() == 7);
+    CHECK(def().on.at(0).emits.at(0).fields.at(0).source == std::optional<std::string>("sum"));
+    reopens();
+    // THE FIELD IT WRITES IS NOT REMOVED: it writes another first.
+    CHECK_THROWS_WITH(author.command("keep-remove", {"sum"}),
+                      "my_flow.Reading writes sum: choose another field for it to write first");
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#removed-kept-still-said): a say that carried the
+    // removed field stays.
+    // ANOTHER FIELD REMOVED: the say that carried it goes; a port reading it is open.
+    author.command("bind", {"0", "0", "$seen"});
+    author.command("keep-remove", {"seen"});
+    CHECK(def().on.at(0).emits.empty());
+    CHECK(open(body().nodes[0].arguments[0]));
+    reopens();
+    // RETYPED: it starts again at its kind's default.
+    author.command("keep-kind", {"sum", "Bool"});
+    CHECK(author.workspace.graph.project.state.get("sum")->as_bool() == false);
+    author.command("keep-kind", {"sum", "Int"});
+    reopens();
+
+    // ANOTHER FIELD WRITTEN.
+    author.command("state-field", {"best", "Int", "required"});
+    author.command("write-field", {"best"});
+    CHECK(def().on.at(0).output == "best");
+    // WHAT A SAY CARRIES: these kept fields.
+    author.command("say", {"Both", "sum"});
+    author.command("say-with", {"0", "sum best"});
+    REQUIRE(def().on.at(0).emits.size() == 1);
+    CHECK(def().on.at(0).emits[0].message->fields().size() == 2);
+    CHECK(def().on.at(0).emits[0].fields.size() == 2);
+    reopens();
+
+    // A PORT DISCONNECTED; EVERY WIRE OF A STEP; THE WIRE INTO WHAT IT WRITES.
+    author.command("bind", {"0", "0", "$sum"});
+    author.command("unbind", {"1", "0"});
+    CHECK(open(body().nodes[1].arguments[0]));
+    author.command("bind", {"1", "0", "%0"});
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#disconnect-keeps-readers): a port that read the step
+    // stays wired.
+    author.command("disconnect", {"0"});
+    CHECK(open(body().nodes[0].arguments[0]));
+    CHECK(open(body().nodes[1].arguments[0]));
+    CHECK(flow::answered(def().on.at(0)));
+    author.command("unanswer", {});
+    CHECK_FALSE(flow::answered(def().on.at(0)));
+    reopens();
+
+    // THE TRIGGER TAKEN OUT: its steps go, the message stays declared.
+    author.command("untrigger", {"0"});
+    CHECK(def().on.empty());
+    CHECK(author.workspace.graph.places.empty());
+    CHECK(def().accepts.at(0)->name() == "my_flow.Reading");
+    reopens();
+}
+
 TEST_CASE("a workspace keeps where each When and Then card was put, reads one version 1 wrote with "
           "none put, and refuses a card put twice") {
     auto author = model();

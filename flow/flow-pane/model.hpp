@@ -42,6 +42,25 @@ struct Known { std::string name; bool shown = false; };
 inline bool in_place(const std::string& action) {
     return action == "keep" || action == "say" || action == "message";
 }
+/// A DIALOG ABOUT SOMETHING carries it in its action, after the command, each part after a unit
+/// separator: what it is about is never a field on screen, and a reload keeps it with the action.
+inline constexpr char kAbout = '\x1f';
+inline std::string about(std::string action, const std::vector<std::string>& parts) {
+    for (const auto& part : parts) action += kAbout + part;
+    return action;
+}
+/// ...read back: the command, and what it is about, which go before the dialog's typed values.
+inline std::pair<std::string, std::vector<std::string>> about_of(const std::string& action) {
+    std::vector<std::string> parts;
+    std::size_t at = action.find(kAbout);
+    const auto command = action.substr(0, at);
+    while (at != std::string::npos) {
+        const auto next = action.find(kAbout, at + 1);
+        parts.push_back(action.substr(at + 1, next == std::string::npos ? std::string::npos : next - at - 1));
+        at = next;
+    }
+    return {command, parts};
+}
 /// THE KINDS A KEPT FIELD IS CHOSEN FROM, each a spelling `flow::shape::type_named` takes for a field
 /// of one value.
 inline const std::vector<std::string>& field_kinds() {
@@ -268,7 +287,8 @@ public:
     void dress() {
         if (!dialog) return;
         for (auto& e : dialog->entries)
-            if (dialog->action == "keep" && e.label == "Kind") e.choices = field_kinds();
+            if (e.label == "Kind" && (dialog->action == "keep" || about_of(dialog->action).first.ends_with("-kind")))
+                e.choices = field_kinds();
     }
     void retain_form() {
         if (!form) return;
@@ -416,7 +436,7 @@ private:
         const auto previous_notice = notice;
         auto need = [&](std::size_t size) { if (args.size() != size) throw std::invalid_argument(action + " expects " + std::to_string(size) + " arguments"); };
         if (action == "describe") {
-            notice = "new(name,discard), state-field(name,type,required), keep(name,type), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity,authored_in,authored_out[,before]), add-node-into(identity,authored_in,authored_out,node,port[,x,y]), add-node-from(identity,authored_in,authored_out,$field|%node,port[,x,y]), add-fold([before]), add-fold-from($field|%node,port[,x,y]), fold-body(node,identity,authored_in,authored_out,count,accumulator), emitted-message(name), emitted-field(index,name,type,required), emit(index,field=$state|field=constant...), emit-remove(index), generate(directory), bind(node,port,$field|%node|constant), bind-all(node,binding...), say(name,fields), result(node), move(node,x,y), remove(node), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
+            notice = "new(name,discard), state-field(name,type,required), keep(name,type), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity,authored_in,authored_out[,before]), add-node-into(identity,authored_in,authored_out,node,port[,x,y]), add-node-from(identity,authored_in,authored_out,$field|%node,port[,x,y]), add-fold([before]), add-fold-from($field|%node,port[,x,y]), fold-body(node,identity,authored_in,authored_out,count,accumulator), emitted-message(name), emitted-field(index,name,type,required), emit(index,field=$state|field=constant...), emit-remove(index), generate(directory), bind(node,port,$field|%node|constant), bind-all(node,binding...), say(name,fields), result(node), move(node,x,y), remove(node), message-rename(index,name), message-field-rename(index,from,to), message-field-kind(index,name,kind), message-field-remove(index,name), untrigger(trigger), keep-rename(from,to), keep-kind(name,kind), keep-remove(name), keep-start(name,value), unbind(node,port), disconnect(node), unanswer, write-field(name), say-with(index,fields), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
         } else if (action == "new") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before creating another");
@@ -542,6 +562,48 @@ private:
                     else fields.push_back({field, std::nullopt, flow::scalar(target->type.kind, value)});
                 }
             workspace.graph.emit(trigger(), which, std::move(fields)); touched();
+        } else if (action == "message-field-add") {
+            need(3); message = flow::index_of(args[0]);
+            workspace.graph.message_field(message, args[1], type(args[2]), true); touched();
+        } else if (action == "message-rename") {
+            need(2); workspace.graph.rename_message(flow::index_of(args[0]), args[1]); touched();
+        } else if (action == "message-field-rename") {
+            need(3); workspace.graph.rename_message_field(flow::index_of(args[0]), args[1], args[2]); touched();
+        } else if (action == "message-field-kind") {
+            need(3); workspace.graph.retype_message_field(flow::index_of(args[0]), args[1], type(args[2])); touched();
+        } else if (action == "message-field-remove") {
+            need(2); workspace.graph.remove_message_field(flow::index_of(args[0]), args[1]); connecting.reset(); touched();
+        } else if (action == "untrigger") {
+            // THE TRIGGER TAKEN OUT OF THE RULE, its steps with it; the one shown is the one before.
+            need(1); const auto t = flow::index_of(args[0]);
+            workspace.graph.remove_trigger(t);
+            const auto left = static_cast<std::int64_t>(workspace.graph.project.definition.on.size());
+            if (workspace.active_trigger > static_cast<std::int64_t>(t) || workspace.active_trigger >= left)
+                workspace.active_trigger = std::max<std::int64_t>(0, workspace.active_trigger - 1);
+            node.reset(); dock.reset(); connecting.reset(); filling.reset(); body_slot.reset();
+            slot_reference.reset(); touched();
+        } else if (action == "keep-rename") {
+            need(2); workspace.graph.rename_kept(args[0], args[1]); edited_state(); touched();
+        } else if (action == "keep-kind") {
+            need(2); workspace.graph.retype_kept(args[0], type(args[1])); edited_state(); touched();
+        } else if (action == "keep-remove") {
+            need(1); workspace.graph.remove_kept(args[0]); edited_state(); connecting.reset(); touched();
+        } else if (action == "keep-start") {
+            need(2); const auto* kept = workspace.graph.project.definition.state->find(args[0]);
+            if (!kept) throw std::invalid_argument("the rule keeps no " + args[0]);
+            workspace.graph.start_kept(args[0], flow::scalar(kept->type.kind, args[1])); edited_state(); touched();
+        } else if (action == "unbind") {
+            need(2); workspace.graph.unbind(trigger(), flow::index_of(args[0]), flow::index_of(args[1]));
+            filling.reset(); touched();
+        } else if (action == "disconnect") {
+            need(1); workspace.graph.disconnect(trigger(), flow::index_of(args[0]));
+            connecting.reset(); filling.reset(); touched();
+        } else if (action == "unanswer") {
+            need(0); workspace.graph.unanswer(trigger()); touched();
+        } else if (action == "write-field") {
+            need(1); workspace.graph.write_into(trigger(), args[0]); touched();
+        } else if (action == "say-with") {
+            need(2); workspace.graph.say_with(trigger(), flow::index_of(args[0]), flow::words(args[1])); touched();
         } else if (action == "emit-remove") {
             need(1); workspace.graph.remove_emit(trigger(), flow::index_of(args[0])); touched();
         } else if (action == "generate") {

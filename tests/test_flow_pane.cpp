@@ -2381,6 +2381,116 @@ TEST_CASE("a press the window landed on nothing, where Flow has redrawn since an
     CHECK(rig.shows_part("Nothing was done: what was under the press changed as it landed"));
 }
 
+TEST_CASE("a right press on the graph opens what can be done to what it landed on, a row does it, a row "
+          "that needs words asks only for them, and a menu the rule changed under does nothing") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto& face = w.window.measure();
+    const auto id = std::to_string(place_id(rig, 0));
+    // A RIGHT PRESS AT A CELL, and the menu Flow asked for under it: its subject and rows.
+    const auto right = [&](Cell c) {
+        Moment m;
+        m.gesture = w.window.next_press();
+        m.button = 3;
+        m.x = c.first * face.advance + face.advance / 2;
+        m.y = c.second * face.line + face.line / 2;
+        const auto before = rig.presenter->messages.size();
+        rig.click(m);
+        std::optional<ws::PaneMenuRequested> asked;
+        std::uint64_t corr = 0;
+        for (std::size_t i = before; i < rig.presenter->messages.size(); ++i) {
+            const auto& msg = rig.presenter->messages[i];
+            if (loom::same_identity(msg.payload.schema(), *loom::schema_of<ws::PaneMenuRequested>())) {
+                asked = loom::from_value<ws::PaneMenuRequested>(msg.payload);
+                corr = msg.correlation;
+            }
+        }
+        return std::pair{asked, corr};
+    };
+    const auto labels = [](const ws::PaneMenuRequested& asked) {
+        std::vector<std::string> out;
+        for (const auto& r : asked.rows) out.push_back(r.label);
+        return out;
+    };
+    const auto choose = [&](const std::pair<std::optional<ws::PaneMenuRequested>, std::uint64_t>& menu,
+                            const std::string& label) {
+        REQUIRE(menu.first);
+        const auto row = std::find_if(menu.first->rows.begin(), menu.first->rows.end(),
+                                      [&](const auto& r) { return r.label == label; });
+        REQUIRE(row != menu.first->rows.end());
+        REQUIRE(rig.bus.office_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
+            loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, menu.first->subject, true, row->id, ""}),
+                          rig.menus, {}, menu.second)).valid());
+        rig.pump();
+    };
+    const auto& def = [&]() { return rig.workspace().graph.project.definition; };
+    using V = std::vector<std::string>;
+
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#graph-right-press-handed-back): a right press on the
+    // graph is handed back to Workshop, no menu of Flow's.
+    // THE MESSAGE'S CARD, declared here: a field added, renamed, taken out of the rule, carried.
+    auto menu = right(w.at("card:message:meter.Set"));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Add a field...", "Rename...", "Remove from the rule", "Carry meter.Set"});
+    // RENAME asks only for the name, and the rule wakes on the renamed message.
+    choose(menu, "Rename...");
+    CHECK(rig.shows_part("Rename meter.Set"));
+    CHECK_FALSE(rig.shows_part("Index"));
+    rig.replace_text("Reading");
+    rig.key(in::scan::kReturn);
+    CHECK(def().on.at(0).message->name() == "meter.Reading");
+
+    // A FIELD OF IT: renamed, retyped or removed; removed, the port that read it is open.
+    menu = right(w.at("field:input"));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Rename input...", "Change kind...", "Remove input"});
+    choose(menu, "Remove input");
+    CHECK(fp::unwired(def().on.at(0).body.nodes.at(0).arguments.at(0)));
+
+    // WHAT IT KEEPS: renamed, retyped, started, removed, or another kept.
+    menu = right(w.at("field:value"));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) ==
+          V{"Rename value...", "Change kind...", "Start value...", "Remove value", "Keep another field..."});
+    choose(menu, "Start value...");
+    rig.replace_text("5");
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.state.get("value")->as_int() == 5);
+
+    // A PORT: disconnected, or given a value. THE STEP, the answer: disconnected whole, or deleted.
+    menu = right(w.at(port_part(rig, 0, 1)));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Disconnect", "Give it a value..."});
+    menu = right(w.at("node:" + id));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Disconnect all", "Delete"});
+    choose(menu, "Disconnect all");
+    CHECK(fp::unwired(def().on.at(0).body.nodes.at(0).arguments.at(1)));
+    CHECK_FALSE(flow::answered(def().on.at(0)));
+    menu = right(w.at("node:" + id));
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Make it the answer", "Disconnect all", "Delete"});
+
+    // EMPTY ROOM: a step made there, by the search standing where the menu opened.
+    menu = right(w.room());
+    REQUIRE(menu.first);
+    CHECK(labels(*menu.first) == V{"Add a step here..."});
+    choose(menu, "Add a step here...");
+    CHECK(rig.shows_part("Choose what to make from the wire"));
+    rig.key(in::scan::kEscape);
+
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#stale-menu-acts): a row chosen after the rule changed
+    // does its edit.
+    // A MENU THE RULE CHANGED UNDER does nothing, and says so.
+    menu = right(w.at("node:" + id));
+    rig.edit_ok("result", {"0"});
+    const auto steps = def().on.at(0).body.nodes.size();
+    choose(menu, "Delete");
+    CHECK(def().on.at(0).body.nodes.size() == steps);
+    CHECK(rig.shows_part("Nothing was done: the rule changed since the menu opened"));
+}
+
 TEST_CASE("the chosen step goes by the Delete key or by the x on its corner, which the Do lane's "
           "head no longer holds") {
     Rig rig;
