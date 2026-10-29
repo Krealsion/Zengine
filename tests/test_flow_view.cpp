@@ -848,6 +848,31 @@ TEST_CASE("resting tells: a port its kind and what it reads, an answer or a fiel
     m.hover_x = 60 * cell;
     m.hover_y = 20 * cell;
     CHECK(text_has(pane::picture(m, room()), "reads amount, from the message"));
+    // ...A PART OF ITS OWN, painted after every part it lies over and carrying its own words; a
+    // pointer inside it rests on nothing.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#the-box-has-no-part): the box is no part, and the parts
+    // beneath it paint over it.
+    for (const auto& rest : pane::picture(m, light_room()).rests)
+        if (rest.key == "port:" + id + ".0") {
+            m.hover_x = rest.box.x + rest.box.w / 2;
+            m.hover_y = rest.box.y + rest.box.h / 2;
+        }
+    const auto drawn = pane::window_picture(m, light_room());
+    REQUIRE(drawn.picture.tip.has_value());
+    std::vector<std::string> named;
+    std::string group;
+    for (const auto& r : drawn.sketch.records()) {
+        named.push_back(r.action);
+        if (r.action == "tip:box") group = r.path;
+    }
+    REQUIRE_FALSE(named.empty());
+    CHECK(named.back() == "tip:box");
+    CHECK(std::any_of(drawn.sketch.nodes().begin(), drawn.sketch.nodes().end(), [&](const auto& n) {
+        return n.op == "text" && !group.empty() && n.path.rfind(group + "/", 0) == 0;
+    }));
+    const auto box = *drawn.picture.tip;
+    CHECK_FALSE(pane::rest_at(drawn.picture, box.x + 2, box.y + 2).has_value());
+    CHECK_FALSE(box.holds(pane::Box{m.hover_x, m.hover_y, 1, 1}));
 
     // A WIRE IN THE HAND over a port it does not fit: a later step, or another type, said there.
     auto two = tally();

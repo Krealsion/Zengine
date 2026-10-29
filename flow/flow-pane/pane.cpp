@@ -2076,6 +2076,8 @@ private:
       model_.port_value.set("", 0);
     } else if (action == "port-close") {
       model_.filling.reset();
+    } else if (action == "tip") {
+      // A press on the box of what resting tells: nothing.
     } else if (action == "port-box") {
       // A press inside the port's box on none of its buttons: nothing.
     } else if (action == "found") {

@@ -90,6 +90,8 @@ struct Picture : Drawing {
     std::vector<Line> lines;
     std::int64_t reach = 1;
     std::set<std::string> lit;
+    /// Where the box of what resting tells stands, a pointer inside it resting on nothing.
+    std::optional<Box> tip;
     /// Every run of text it draws, in paint order.
     std::vector<std::string> texts() const {
         std::vector<std::string> out;
@@ -103,6 +105,7 @@ struct Picture : Drawing {
 /// smallest places; then a wire within reach; then whatever rests on top there. None for nothing.
 inline std::optional<std::string> rest_at(const Picture& p, std::int64_t x, std::int64_t y) {
     const auto inside = [&](const Box& b) { return x >= b.x && x < b.right() && y >= b.y && y < b.bottom(); };
+    if (p.tip && inside(*p.tip)) return std::nullopt;
     const auto port = [](const std::string& key) {
         return key.rfind("port:", 0) == 0 || key.rfind("answer:", 0) == 0 || key.rfind("field:", 0) == 0;
     };
@@ -1515,8 +1518,10 @@ inline std::vector<std::string> told(const Model& m) {
     }
 }
 
-/// WHAT RESTING TELLS, in a box below and right of where the pointer came to rest, kept inside
-/// `area`; and a wire in the hand over a port it does not fit, why, beside the hand.
+/// WHAT RESTING TELLS, in a box below and right of where the pointer came to rest -- left of it or
+/// above it where `area` has no room there, so it never stands under the pointer -- and a wire in the
+/// hand over a port it does not fit, why, beside the hand. The box is a part of its own, so it stands
+/// over the parts beneath it, and a press on it does nothing.
 inline void tell(Pen& pen, const Model& model, const Box& area) {
     const auto& m = pen.m;
     std::vector<std::string> lines;
@@ -1539,11 +1544,14 @@ inline void tell(Pen& pen, const Model& model, const Box& area) {
     const auto h = std::min(area.h, static_cast<std::int64_t>(lines.size()) * m.row + (m.light ? 10 : 2 * m.row));
     const auto gap = m.light ? std::int64_t{14} : m.ch;
     auto bx = x + gap, by = y + (m.light ? gap : m.row);
-    if (by + h > area.bottom()) by = y - h - (m.light ? 6 : 0);
+    if (bx + w > area.right()) bx = x - gap - w;
+    if (by + h > area.bottom()) by = y - h - (m.light ? 6 : m.row);
     const auto snap = [&](std::int64_t v) { return gfx::floor_div_px(v, m.grain) * m.grain; };
     bx = snap(std::clamp(bx, area.x, std::max(area.x, area.right() - w)));
     by = snap(std::clamp(by, area.y, std::max(area.y, area.bottom() - h)));
     const Box box{bx, by, w, h};
+    pen.p.tip = box;
+    pen.press(box, "tip", {"box"});
     pen.rect(box, m.light ? hue::field() : hue::well(), refused ? hue::warn() : hue::edge(), m.light ? 4 : 0);
     auto ty = by + (m.light ? 5 : m.row);
     for (std::size_t i = 0; i < lines.size(); ++i) {

@@ -248,3 +248,19 @@ Red in `zengine-flow-tests`:
 
 - resting tells: a port its kind and what it reads, an answer or a field what reads it, a wire its
   two ends lit and what it last carried; a wire in the hand says why a port does not fit
+
+## the-box-has-no-part
+
+The box of what resting tells is no part of its own, so the parts beneath it paint over it.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-    pen.press(box, "tip", {"box"});
++    pen.press(Box{}, "tip", {"box"});
+```
+
+Red in `zengine-flow-tests`:
+
+- resting tells: a port its kind and what it reads, an answer or a field what reads it, a wire its
+  two ends lit and what it last carried; a wire in the hand says why a port does not fit
