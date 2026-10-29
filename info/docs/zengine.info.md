@@ -185,9 +185,10 @@ nothing.
 
 ### `info.value.up`
 
-Selects the field before the selected one. The wheel walks the fields too.
+Selects the field shown before the selected one; a field inside a shut level is passed over. The
+wheel walks the fields too.
 
-- **Takes:** the fields, the value's then its capture's metadata. Default key
+- **Takes:** the fields shown, the value's then its capture's metadata. Default key
   <!-- key info.value.up -->`up`<!-- /key -->.
 - **Answers:** the `>` moves. A field is held by its path, so new data keeps it selected; a field the
   new data lacks leaves nothing selected until you choose one.
@@ -214,6 +215,40 @@ Opens a line on the selected field ([commands in a field edit](#commands-in-a-fi
   `Capture metadata is read-only`; `Select a scalar field inside this value; byte fields are
   read-only here`; frozen, `Edit field unavailable: wait: ...`.
 - **Example:** press the `count` row, then <!-- key info.value.edit -->`return`<!-- /key -->.
+
+### `info.value.open`
+
+Opens the level the selected field is: a message, or a list holding items. Pressed on one already
+open, selects its first field.
+
+- **Takes:** the selected field. Default key <!-- key info.value.open -->`right`<!-- /key -->; or
+  a press on a level's `+`.
+- **Answers:** `+ position: {x 12, y 40}` becomes `- position`, its fields beneath it a level
+  deeper, `x: 12`. Levels open alone: two side by side stay open.
+- **Refuses:** on a field that holds none, nothing moves; before a value, `Open level unavailable:
+  open a value first: drag an Inventory entry here`.
+- **Example:** select `position`, press <!-- key info.value.open -->`right`<!-- /key -->.
+
+### `info.value.shut`
+
+Shuts the open level the selected field is; on any other field, selects the level it is in.
+
+- **Takes:** the selected field. Default key <!-- key info.value.shut -->`left`<!-- /key -->; or a
+  press on a level's `-`.
+- **Answers:** `- position` becomes `+ position: {x 12, y 40}`; a selected field inside a level that
+  shuts leaves the selection on the level.
+- **Refuses:** at the top level on a field that holds none, nothing moves.
+- **Example:** select `x`, press <!-- key info.value.shut -->`left`<!-- /key --> twice.
+
+### `info.value.shut-all`
+
+Shuts every level and selects the first field: the value as it was first shown.
+
+- **Takes:** the value. Default key <!-- key info.value.shut-all -->`shift+left`<!-- /key -->.
+- **Answers:** every level `+`, the `>` on the first field.
+- **Refuses:** before a value, `Shut every level unavailable: open a value first: drag an Inventory
+  entry here`.
+- **Example:** <!-- key info.value.shut-all -->`shift+left`<!-- /key -->.
 
 ### `info.value.save`
 
@@ -574,9 +609,11 @@ The commands as controls, `[Save] [Save copy] [Refresh] [Watch] [New] [Fork] [Sa
 
 ### `fields`
 
-A row per field, `>*count: 41`: `>` selected, `*` changed by you, `~` changed by the last observation,
-cleared by your next act; ` (required)` on an absent required field. A capture's metadata follows,
-dim and read-only, `meta[0].source`. Each row's part is `field:<path>`, or `field:meta[0].<path>`.
+A row per field shown, `>*  count: 41`: `>` selected, `*` changed by you, `~` by the last
+observation; ` (required)` on an absent required field. A row names its own field, `x` or `[1]`,
+two columns in a level; a message or a list holding items is a level, shut when a value is first
+shown, `+ position: {x 12, y 40}`, and `-` open. A capture's metadata follows, dim and read-only,
+`meta[0].source`. A row's part is `field:<path>`, a level's mark `fold:<path>`.
 
 ## Files
 

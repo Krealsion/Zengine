@@ -75,6 +75,11 @@ inline constexpr const char* kActionInventory = "info.inventory"; ///< pane prop
 inline constexpr const char* kValueUp = "info.value.up";
 inline constexpr const char* kValueDown = "info.value.down";
 inline constexpr const char* kValueEdit = "info.value.edit";
+/// THE VALUE'S LEVELS, a tree: open the level under the cursor or step into it, shut it or step
+/// out to the level above, and shut every level with the cursor on the first field.
+inline constexpr const char* kValueOpen = "info.value.open";
+inline constexpr const char* kValueShut = "info.value.shut";
+inline constexpr const char* kValueShutAll = "info.value.shut-all";
 inline constexpr const char* kActionSave = "info.value.save";
 inline constexpr const char* kActionSaveCopy = "info.value.save-copy";
 inline constexpr const char* kActionRefresh = "info.value.fresh";
@@ -99,11 +104,11 @@ inline constexpr const char* kActionRenameAccept = "info.view.rename.accept";
 inline constexpr const char* kActionRenameCancel = "info.view.rename.cancel";
 
 /// ONE VALUE VIEW A RELOAD KEEPS, by its slot: its title; whether the default view shows its value;
-/// the draft it holds, as a stored-draft Inventory pair with its metadata, whether it is a preset
-/// and the preset's title; the entry it was read from or last saved, by reference and revision,
-/// and that entry's pair; its label and its marks; the selected field and the fields edited, each
-/// by its place among the view's fields; and whether a watch was on. Never a request in flight, a
-/// lease, a sample or a pickup.
+/// its draft, a stored-draft Inventory pair with its metadata, and whether it is a preset, titled;
+/// the entry it read or last saved, by reference and revision, and its pair; its label and marks;
+/// the selected and edited fields, by their place among its fields; whether a watch was on; and
+/// its open levels, by path (`history[1]`, `meta[0].source`). Never a request in flight, a lease,
+/// a sample or a pickup.
 struct InfoViewState {
     std::int64_t slot = 0;
     std::string title;
@@ -119,22 +124,24 @@ struct InfoViewState {
     std::int64_t selected = -1;
     std::vector<std::int64_t> edited;
     bool watched = false;
-    ZEN_SHAPE(InfoViewState, 1, ZEN_FIELD(slot), ZEN_FIELD(title), ZEN_FIELD(active), ZEN_FIELD(draft),
+    std::vector<std::string> open; ///< the open levels, read and written here while the view lives
+    ZEN_SHAPE(InfoViewState, 2, ZEN_FIELD(slot), ZEN_FIELD(title), ZEN_FIELD(active), ZEN_FIELD(draft),
               ZEN_FIELD(preset), ZEN_FIELD(preset_title), ZEN_FIELD(owner), ZEN_FIELD(entry),
               ZEN_FIELD(revision), ZEN_FIELD(saved), ZEN_FIELD(label), ZEN_FIELD(detached),
               ZEN_FIELD(dirty), ZEN_FIELD(sampled), ZEN_FIELD(stale), ZEN_FIELD(selected),
-              ZEN_FIELD(edited), ZEN_FIELD(watched));
+              ZEN_FIELD(edited), ZEN_FIELD(watched), ZEN_FIELD(open));
 };
 
 /// The state a same-shape reload keeps: the weaver's position and work, one `views` row an
-/// allocated view (at most `kMaxInfoViews`). What the default pane shows is the host's reading
-/// (`agents/decisions/a-presentation-owns-no-facts.md`). The property cursor is an index over a
-/// stable list; a pane-property draft is work in flight a reload may drop. Version 4: a live
-/// reload from version 3 is refused.
+/// allocated view (at most `kMaxInfoViews`), which while the weave runs holds its slot and its open
+/// levels, every fold reading and writing them there, the rest written as a reload takes the state.
+/// What the default pane shows is the host's reading (`agents/decisions/a-presentation-owns-no-facts.md`).
+/// The property cursor is an index over a stable list; a pane-property draft is work in flight a
+/// reload may drop. Version 5: a live reload from version 4 is refused.
 struct InfoPaneState {
     std::int64_t cursor = 0; ///< which property row the weaver is on
     std::vector<InfoViewState> views;
-    ZEN_SHAPE(InfoPaneState, 4, ZEN_FIELD(cursor), ZEN_FIELD(views));
+    ZEN_SHAPE(InfoPaneState, 5, ZEN_FIELD(cursor), ZEN_FIELD(views));
 };
 
 } // namespace zengine::info_pane
