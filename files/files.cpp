@@ -228,6 +228,8 @@ class FilesWeave
                        gfx::ClipboardText, ws::PaneSettingCommitAnswered>,
           loom::Emit<ProjectRootRequested, RecipeUseRequested, RecipeAuthorRequested,
                      OpenSourceRequested, zengine::builder::StatusRequested, zengine::launcher::Launch,
+                     // A SECOND GUARD: Loom admits this ask undeclared, since `Emit` registers a
+                     // shape rather than granting a send; it matters to a host that grants by it.
                      ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
                      gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
                      ws::PaneSettingCommitRequested>> {
