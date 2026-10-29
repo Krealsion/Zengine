@@ -843,8 +843,9 @@ public:
 private:
     /// EACH PANE OFFERED WHEN WORKSHOP HAS NOT HEARD IT, OR HEARD IT OTHERWISE: every one on an
     /// activation or a catalog request, and after a change only a view it made or altered.
-    /// Workshop takes a re-offer as a reloaded image arriving and starts that pane's picture over,
-    /// so offering an unchanged view again would blank and redraw every view on the desk.
+    /// Workshop takes a re-offer as a correction made in place, and withdraws a menu it presented
+    /// for that pane, as for a reloaded image arriving; so offering an unchanged view again would
+    /// close a menu open on it, and cost a message a view.
     void announce_views(loom::Mail& m,bool all=false) {
         const auto offer=[&](const ws::v2::PaneOffered& o) {
             const std::string said=o.name+"\n"+o.summary+"\n"+std::to_string(o.rows)+"x"+std::to_string(o.columns);

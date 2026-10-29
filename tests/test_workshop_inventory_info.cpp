@@ -2021,6 +2021,23 @@ TEST_CASE("views: making a view offers only that view, so a view already on the 
     CHECK(s.r.session().panes.has(second->kind));
 }
 
+TEST_CASE("views: making a view leaves a menu open on main Inventory open, since only the view made is offered again") {
+    // ⚔ MUTATION (tests/mutants/workshop_inventory_info.md#every-view-offered-again): every view
+    // offered again at each change -- Workshop withdraws the menu it presented for main Inventory,
+    // which was offered again unchanged.
+    InventoryStory s(191, true);
+    s.append(1, "A");
+    const std::int64_t a = s.row_of(s.source, "A");
+    REQUIRE(a >= 0);
+    press_as_drawn(s.r, s.source, a, 2, part_drawn_at(s.source, a, 2), 0, 3);
+    REQUIRE(s.r.session().presented.open);
+    const std::string pane = s.r.session().presented.pane;
+    (void)s.create("single");
+    REQUIRE(s.layout().views.size() == 1);
+    CHECK(s.r.session().presented.open);
+    CHECK(s.r.session().presented.pane == pane);
+}
+
 TEST_CASE("a right press and a drop the window landed on Inventory's rows before another entry stood there are refused in words and change nothing, and a right press on the entry still there offers its menu") {
     InventoryStory s(191, true);
     s.append(1, "A");
