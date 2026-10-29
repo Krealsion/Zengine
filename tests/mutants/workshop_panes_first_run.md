@@ -40,27 +40,24 @@ Red in `zengine-workshop-panes-tests`:
 - WL-FIRST-04: a step ticked while Start here stands behind another pane brings it in front, the
   keys left where they are
 
-## later-start-takes-the-keys
+## later-start-opens-the-story
 
-A later start opens Start here holding the keys, as the first start does.
+A later start opens Start here beside what holds the keys while the story is not done.
 
 In `workshop/first-run/first_run.cpp`:
 
 ```diff
--                state_.story_shown = true;
--                launch_story(mail, /*keys=*/false);
--            }
--            return;
-+                state_.story_shown = true;
-+                launch_story(mail, /*keys=*/true);
-+            }
+         if (answered_) {
+-            return; // a later start: Start here opened when the quick setup was put down
++            if (!fr::story_done(ticks_)) launch_story(mail, /*keys=*/false);
 +            return;
+         }
 ```
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-FIRST-05: Start here opens when the quick setup closes, holding the keys, and at each later
-  start until the story is done beside what holds the keys, never taking them
+- WL-FIRST-05: Start here opens when the quick setup closes, holding the keys, and no later start
+  opens it again
 
 ## hand-tick-kept-over-the-fact
 

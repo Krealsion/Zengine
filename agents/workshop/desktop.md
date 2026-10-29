@@ -228,8 +228,7 @@ and refused at launch, while its identity and the desk row naming it stay" "a pa
 loading is pending, not unavailable: the launcher marks it `[load]`, names nothing to build, and a
 launch says it is not here yet"
 `tests/test_workshop_panes_first_run.cpp` "WL-FIRST-05: Start here opens when the quick setup
-closes, holding the keys, and at each later start until the story is done beside what holds the
-keys, never taking them"
+closes, holding the keys, and no later start opens it again"
 
 ### WL-DESK-04
 `workshop/desktop_seam_vocabulary.hpp` InventoryPane PaneInventory
