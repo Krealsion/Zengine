@@ -56,7 +56,7 @@ struct Control {
 
 /// ONE FIELD ROW: the field it means, its words, and its marks. A row names its own field (`x`,
 /// `[1]`), indented by its depth; a field holding fields of its own is a level, which folds, and
-/// shut it says what it holds in its summary.
+/// shut it says what it holds in its summary. A value with no level draws no fold column.
 struct FieldLine {
     FieldRef ref;
     std::string label, summary;
@@ -82,6 +82,7 @@ struct Shown {
     std::vector<Control> controls;
     bool holds_value = false;
     std::vector<FieldLine> fields;
+    bool levels = false;        ///< some field holds fields: every row keeps a column for a fold mark
     std::size_t selected = 0;   ///< the field the window keeps in sight
 };
 
@@ -172,7 +173,7 @@ public:
             if (f.branch)
                 (void)map_.span(row, 0, static_cast<std::int64_t>(3 + indent.size()), width,
                                 Meaning{Meaning::kFold, {}, f.ref});
-            const char* fold = !f.branch ? "  " : f.open ? "- " : "+ ";
+            const char* fold = !s.levels ? "" : !f.branch ? "  " : f.open ? "- " : "+ ";
             push(std::string(f.here ? ">" : " ") + f.mark + indent + fold + f.label +
                      (f.branch && f.open ? std::string() : ": " + f.summary) + (f.missing ? " (required)" : ""),
                  f.metadata ? graphics::role::kMuted : graphics::role::kFill);

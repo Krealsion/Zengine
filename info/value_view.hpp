@@ -1308,6 +1308,7 @@ private:
             line.mark = edited(f.ref) || inside(edited_) ? '*' : observed(f.ref) || inside(observed_) ? '~' : ' ';
             s.fields.push_back(std::move(line));
         }
+        for (std::size_t i = 0; i + 1 < t.depths.size() && !s.levels; ++i) s.levels = t.depths[i + 1] > t.depths[i];
         s.selected = here;
         return s;
     }

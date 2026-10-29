@@ -649,10 +649,10 @@ TEST_CASE("info views: a watch adopts clean changes, holds newer data while dirt
     CHECK(s.shows(a, "[Pause]"));
     const auto ref = s.entry("Watched").reference;
     s.write(ref, 1, 8);
-    CHECK_MESSAGE(s.shows(a, "~  count: 8"), s.shown(a)); // adopted, marked as observed
+    CHECK_MESSAGE(s.shows(a, "~count: 8"), s.shown(a)); // adopted, marked as observed
     CHECK(s.shows(a, "saved rev 2"));
     s.edit_field(a, "count", "50");
-    CHECK(s.shows(a, "*  count: 50"));
+    CHECK(s.shows(a, "*count: 50"));
     s.write(ref, 2, 9);
     CHECK_MESSAGE(s.shows(a, "count: 50"), s.shown(a));
     CHECK(s.shows(a, "NEWER rev 3 waiting"));
@@ -1656,7 +1656,7 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
     s.link_into(again, "Capture preset");
     REQUIRE_MESSAGE(s.shows(again, "target_role: absent (required)"), s.shown(again));
     s.drag_between(a, s.field_at(a, "meta[0].requested_role"), again, s.field_at(again, "target_role"));
-    CHECK_MESSAGE(s.shows(again, "*  target_role: story.source"), s.shown(again));
+    CHECK_MESSAGE(s.shows(again, "*target_role: story.source"), s.shown(again));
     s.button(again, "Save");
     // EXPLICIT USE: Compose submits the finished preset under the actor's own authority.
     auto& r = s.r;
@@ -1725,7 +1725,7 @@ TEST_CASE("info views: a view waiting for its sample keeps its draft frozen and 
     CHECK_FALSE(s.shows(a, "typed_not_accepted"));
     // SETTLED: the sample is the draft, and editing it works.
     s.edit_field(a, "state_schema", "my_local_edit");
-    CHECK_MESSAGE(s.shows(a, "*  state_schema: my_local_edit"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "*state_schema: my_local_edit"), s.shown(a));
     CHECK(s.shows(a, "UNSAVED 1 edit(s)"));
 }
 
@@ -1765,7 +1765,7 @@ TEST_CASE("info views: a view opening another entry keeps the value it shows fro
     CHECK(s.shows(a, "saved rev 1"));
     s.inventory->hold.clear();
     s.edit_field(a, "count", "77");
-    CHECK_MESSAGE(s.shows(a, "*  count: 77"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "*count: 77"), s.shown(a));
     s.button(a, "Save");
     CHECK(s.count("beta") == 77);
     CHECK(s.count("alpha") == 1);
@@ -1791,7 +1791,7 @@ TEST_CASE("info views: a view reading its entry again keeps its draft frozen and
     CHECK_FALSE(s.shows(a, "UNSAVED"));
     s.inventory->hold.clear();
     s.edit_field(a, "count", "63");
-    CHECK_MESSAGE(s.shows(a, "*  count: 63"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "*count: 63"), s.shown(a));
 }
 
 TEST_CASE("info views: an edit opened while a save waits stays open when the save answers") {
@@ -1813,7 +1813,7 @@ TEST_CASE("info views: an edit opened while a save waits stays open when the sav
     s.key(input::scan::kA, input::mod::kCtrl);
     s.text("43");
     s.key(input::scan::kReturn);
-    CHECK_MESSAGE(s.shows(a, "*  count: 43"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "*count: 43"), s.shown(a));
     s.inventory->hold.clear();
     s.button(a, "Save");
     CHECK(s.count("alpha") == 43);
@@ -1832,10 +1832,10 @@ TEST_CASE("info views: Stop waiting leaves a silent link or sample with the draf
         CHECK_MESSAGE(s.shows(s.info, "Stopped waiting"), s.shown(s.info));
         CHECK(s.shows(s.info, "LINKED 'Alpha'"));
         s.edit_field(s.info, "count", "3");
-        CHECK_MESSAGE(s.shows(s.info, "*  count: 3"), s.shown(s.info));
+        CHECK_MESSAGE(s.shows(s.info, "*count: 3"), s.shown(s.info));
         s.release(0); // Beta's answer arrives after all, and is not this view's any more
         CHECK_MESSAGE(s.shows(s.info, "LINKED 'Alpha'"), s.shown(s.info));
-        CHECK(s.shows(s.info, "*  count: 3"));
+        CHECK(s.shows(s.info, "*count: 3"));
         s.inventory->hold.clear();
         s.button(s.info, "Save");
         CHECK(s.count("alpha") == 3);
@@ -2047,7 +2047,7 @@ TEST_CASE("info views: a watch the reset door retires before its approval has th
     s.button(a, "Watch");
     CHECK(s.r.w->observation_leases() == 1);
     s.write(ref, 2, 7);
-    CHECK_MESSAGE(s.shows(a, "~  count: 7"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "~count: 7"), s.shown(a));
 }
 
 TEST_CASE("info views: a reloaded Info holds no observation and its predecessor's leases end") {
