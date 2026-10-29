@@ -173,10 +173,10 @@ inline std::string fitted_label(const std::string& full, std::int64_t columns,
 }
 
 /// EVERY BYTE A CANVAS CAN DRAW, AT THE PANE'S OWN DOOR. A weaver's own text -- an object's
-/// name, a property's value, a path -- has never been required to be printable ASCII, and a
-/// publication is judged WHOLE: one undrawable byte refuses every row the pane sent. Replacing
-/// the byte with a space costs the weaver a character they can see is missing; sending it costs
-/// them the pane.
+/// name, a property's value, a path -- has never been required to be printable ASCII. The window
+/// marks a byte it cannot draw and keeps the row, so this is a second guard, for a window that
+/// would refuse a picture for one such byte: a space costs the weaver a character they can see is
+/// missing, and a refusal would cost them the pane.
 inline std::string drawable(std::string text) {
     for (char& c : text) {
         const unsigned char byte = static_cast<unsigned char>(c);

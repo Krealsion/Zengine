@@ -220,8 +220,11 @@ inline std::int64_t TerminalPaneWeave::page() const { return view_rows_ > 1 ? vi
 /// legend; the rest is split between the list (at most half) and the transcript. Every row is
 /// budgeted before it is composed, so a late row can never take back the input line.
 inline void TerminalPaneWeave::say(loom::Mail& mail) {
+    // No room, or no row yet: there is nothing this pane could truthfully fill. The row's half is a
+    // second guard: Workshop hands a pane its row before it grants the room, so it matters only to
+    // a host that grants the room first.
     if (!room().granted() || !this->template facet<Settings>().held()) {
-        return; // no room, or no row yet: there is nothing this pane could truthfully fill
+        return;
     }
     room().begin();
     input_row_ = -1;
