@@ -252,8 +252,9 @@ public:
     }
 
     /// THE KEYMAP AS IT IS IN FORCE, said by Workshop on this pane's ask and whenever it changes:
-    /// the keys each of this pane's declared rows answers to now, and how the weaver spells keys --
-    /// what the right-press menu shows beside a row's words (WL-EDIT-22).
+    /// the key each of this pane's declared rows answers to now, its first where a weaver gave it
+    /// several, as the legend spells one, and how the weaver spells keys -- what the right-press
+    /// menu shows beside a row's words (WL-EDIT-22).
     void on(const ws::KeymapShown& said, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole)) {
             return;
@@ -263,8 +264,7 @@ public:
             if (b.office != pane::kEditorPaneRole || b.pane != pane::kEditorPane || b.shown.empty()) {
                 continue;
             }
-            std::string& keys = keys_in_force_[b.id];
-            keys += (keys.empty() ? "" : ", ") + b.shown;
+            (void)keys_in_force_.emplace(b.id, b.shown); // the rows come in the authored order
         }
         key_spelling_ = said.spelling;
     }
@@ -1236,8 +1236,8 @@ private:
     Pickup pickup_;
     ws::pane_menu::Asked menu_;
     Mark menu_mark_;
-    /// THE KEYS IN FORCE FOR THIS PANE'S DECLARED ROWS, by id, and how the weaver spells keys, as
-    /// the keymap's projection last said them: image state, asked again on every activation.
+    /// THE KEY IN FORCE FOR EACH OF THIS PANE'S DECLARED ROWS, by id, and how the weaver spells keys,
+    /// as the keymap's projection last said them: image state, asked again on every activation.
     std::map<std::string, std::string> keys_in_force_;
     std::string key_spelling_;
     Dropped drop_;
