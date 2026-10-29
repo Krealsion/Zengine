@@ -609,7 +609,7 @@ The commands as controls, `[Save] [Save copy] [Refresh] [Watch] [New] [Fork] [Sa
 
 ### `fields`
 
-A row per field shown, `>*  count: 41`: `>` selected, `*` changed by you, `~` by the last
+A row per field shown, `>*count: 41`: `>` selected, `*` changed by you, `~` by the last
 observation; ` (required)` on an absent required field. A row names its own field, `x` or `[1]`,
 two columns in a level; a message or a list holding items is a level, shut when a value is first
 shown, `+ position: {x 12, y 40}`, and `-` open. A capture's metadata follows, dim and read-only,
