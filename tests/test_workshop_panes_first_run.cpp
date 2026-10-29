@@ -691,10 +691,10 @@ TEST_CASE("WL-FIRST-04: a step ticked while Start here stands behind another pan
     CHECK(r.session().panes.keyboard == alpha);
 }
 
-TEST_CASE("WL-FIRST-05: Start here opens when the quick setup closes, holding the keys, and at "
-          "each later start until the story is done beside what holds the keys, never taking them") {
-    // MUTATION (tests/mutants/workshop_panes_first_run.md#later-start-takes-the-keys): a later
-    // start launching Start here as the first does -- it takes the keys.
+TEST_CASE("WL-FIRST-05: Start here opens when the quick setup closes, holding the keys, and no "
+          "later start opens it again") {
+    // MUTATION (tests/mutants/workshop_panes_first_run.md#later-start-opens-the-story): a later
+    // start opening Start here while its story is not done.
     TempDir dir("first-run-story-shown");
     const std::string prefs = dir.file("prefs.json");
     {
@@ -707,27 +707,13 @@ TEST_CASE("WL-FIRST-05: Start here opens when the quick setup closes, holding th
         REQUIRE(story_on_desk(r));
         CHECK(r.session().panes.keyboard == kind_in(r, fr::kFirstRunRole, fr::kStoryPane));
     }
-    {
-        PaneRig again;
-        (void)start_with_launcher(again, prefs);
-        CHECK_FALSE(on_desk(again));
-        REQUIRE(story_on_desk(again));
-        CHECK(again.session().panes.keyboard != kind_in(again, fr::kFirstRunRole, fr::kStoryPane));
-        // EVERY BOX TICKED BY HAND: the story is done.
-        for (std::size_t step = 0; step < fr::kSteps; ++step) {
-            if (step > 0) {
-                CHECK(again.workshop_action(fr::kFirstRunRole, fr::kStoryPane, fr::kStoryDown).delivered);
-                CHECK(again.workshop_action(fr::kFirstRunRole, fr::kStoryPane, fr::kStoryDown).delivered);
-            }
-            CHECK(again.workshop_action(fr::kFirstRunRole, fr::kStoryPane, fr::kStoryChoose).delivered);
-        }
-        CHECK(story_kept(prefs) == "1h 2h 3h 4h 5h");
-    }
-    PaneRig done;
-    (void)start_with_launcher(done, prefs);
-    CHECK_FALSE(on_desk(done));
-    CHECK_FALSE(story_on_desk(done));
-    CHECK(done.session().panes.runtime.find(fr::kFirstRunRole, fr::kStoryPane) != nullptr);
+    // A LATER START, THE STORY NOT DONE: neither pane opens by itself, and both are still listed.
+    PaneRig again;
+    (void)start_with_launcher(again, prefs);
+    CHECK_FALSE(on_desk(again));
+    CHECK_FALSE(story_on_desk(again));
+    CHECK(story_kept(prefs).empty());
+    CHECK(again.session().panes.runtime.find(fr::kFirstRunRole, fr::kStoryPane) != nullptr);
 }
 
 TEST_CASE("WL-NOTE-06: what the quick setup keeps for itself is kept without a notice, and a keep "

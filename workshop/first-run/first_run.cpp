@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The quick setup and "Start here": how a weaver edits text and the setups to start, asked once;
-// then the story as a checklist, shown at each start until done. It keeps `answered` and `story`
-// with the layouts' owner, and shows itself only at a start that keeps a settings file. Every answer
-// goes to the owner of what it changes, and every tick is a fact its owner said.
+// then the story as a checklist, opened when the quick setup is put down. It keeps `answered` and
+// `story` with the layouts' owner, and shows itself only at a start that keeps a settings file.
+// Every answer goes to the owner of what it changes, and every tick is a fact its owner said.
 // Reference: workshop/docs/zengine.first-run.md; law: agents/workshop/first-run.md.
 
 #include "workshop/first-run/setup.hpp"
@@ -123,8 +123,7 @@ public:
     }
 
     /// ITS SETTINGS AS THE LAYOUTS' OWNER KEEPS THEM -- and, at a start that keeps a settings file,
-    /// the quick setup shown once a run while it is not answered, or "Start here" seated beside
-    /// what holds the keys while the story is not done.
+    /// the quick setup shown once a run while it is not answered.
     // WL-FIRST-01, WL-FIRST-05 -- agents/workshop/first-run.md
     void on(const ws::OfficeSettingsAnswered& shown, loom::Mail& mail) {
         if (!answers(mail, settings_ask_) || shown.office != kOffice) {
@@ -135,11 +134,7 @@ public:
             return;
         }
         if (answered_) {
-            if (!state_.story_shown && !fr::story_done(ticks_)) {
-                state_.story_shown = true;
-                launch_story(mail, /*keys=*/false);
-            }
-            return;
+            return; // a later start: Start here opened when the quick setup was put down
         }
         if (state_.launched) {
             return;
@@ -314,6 +309,7 @@ public:
     /// A SETTING WRITTEN, as the layouts' owner answered it: Done and Skip put the quick setup
     /// down and open "Start here" either way, so a settings file that would not take it never
     /// holds the weaver at this pane; a story's write that did not land is said in its pane.
+    // WL-FIRST-05 -- agents/workshop/first-run.md
     void on(const ws::OfficeSettingCommitAnswered& acted, loom::Mail& mail) {
         if (commit_ask_ == 0 || !answers(mail, commit_ask_)) {
             return;
