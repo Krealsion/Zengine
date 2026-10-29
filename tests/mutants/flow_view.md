@@ -362,3 +362,21 @@ Red in `zengine-flow-tests`:
 
 - a port's dot takes a press and a rest where it is drawn, the half outside its card's row too,
   doing what its row does
+
+## guide-pushes-a-say
+
+Running with nothing said, the guide pushes a say as the next step.
+
+In `flow/flow-pane/next.hpp`:
+
+```diff
+-            out.text = wakes + " wakes it: the wires and " + on->output + " follow each one.";
++            out.text = wakes + " wakes it. Next: say " + on->output + ", so a panel can show it.";
++            out.button = "+ say " + def.name + "." + say_name(on->output);
++            out.action = "ask-say";
+```
+
+Red in `zengine-flow-tests`:
+
+- the Next line names the one thing the rule still needs, with the press that does it, in place of
+  Run's refusals

@@ -1076,13 +1076,17 @@ TEST_CASE("the Next line names the one thing the rule still needs, with the pres
     CHECK(step.tone == T::Good);
     CHECK(step.action == "run");
 
-    // RUNNING, WITH NOTHING SAID: say what it keeps. A NEW MESSAGE WAITS FOR A RESTART, said up front.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#guide-pushes-a-say): running with nothing said, the
+    // guide offers a say as the next step.
+    // RUNNING, WITH NOTHING SAID: done, and no say pushed -- the Then lane offers one. A NEW MESSAGE
+    // WAITS FOR A RESTART, said up front.
     m.running = true;
     m.running_definition = m.workspace.graph.project.definition;
     step = pane::next_step(m);
-    CHECK(step.lead == "Running.");
-    CHECK(step.button == "+ say tally.Total");
-    CHECK(step.action == "ask-say");
+    CHECK(step.lead == "Done.");
+    CHECK(step.text == "tally.panel.Count wakes it: the wires and total follow each one.");
+    CHECK(step.button.empty());
+    CHECK(step.action.empty());
     m.command("say", {"Total", "total"});
     step = pane::next_step(m);
     CHECK(step.text == "a new message needs a restart: Apply keeps a running rule's messages as they are.");

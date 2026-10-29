@@ -228,15 +228,14 @@ inline NextStep next_step(const Model& m) {
             out.hint = "Apply keeps what it remembers";
             return out;
         }
+        // RUNNING IS DONE, whether or not it says anything: a say is offered in the Then lane, never
+        // pushed as the next step.
         out.tone = T::Good;
+        out.lead = "Done.";
         if (on && on->emits.empty()) {
-            out.lead = "Running.";
-            out.text = wakes + " wakes it. Next: say " + on->output + ", so a panel can show it.";
-            out.button = "+ say " + def.name + "." + say_name(on->output);
-            out.action = "ask-say";
+            out.text = wakes + " wakes it: the wires and " + on->output + " follow each one.";
             return out;
         }
-        out.lead = "Done.";
         out.text = wakes + " wakes it: the wires, " + (on ? on->output : std::string("what it keeps")) +
                    " and what it says follow each one.";
         if (on && !on->emits.empty())

@@ -45,8 +45,9 @@ a port, a row or a field is the page's own ([Shows](#shows)), and so is one in a
 
 The ordinary path is the Graph page's Next line: it names the one thing the rule still needs, and
 its button does it -- a message ([`ask-message`](#ask-message)), a field the rule keeps
-([`ask-keep`](#ask-keep)), the trigger, a step found in the rail and wired, [`run`](#run), then a
-message it says ([`ask-say`](#ask-say)) and [`restart`](#restart). Change a step and
+([`ask-keep`](#ask-keep)), the trigger, a step found in the rail and wired, [`run`](#run). A
+message it says ([`ask-say`](#ask-say)) is the Then lane's offer, and a new one asks a
+[`restart`](#restart). Change a step and
 [`apply`](#apply): the running participant keeps its state.
 
 Most commands open a dialog first, and three open theirs in place, beside what opened them
