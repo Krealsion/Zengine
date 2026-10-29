@@ -20,12 +20,22 @@ inline bool unwired(const op::Binding& b) {
 }
 
 /// THE RULE'S PART OF THE SENTENCE: plain words, a message, a kept field, a step, or a part still
-/// to choose -- a step with a port still open, or nothing chosen yet.
+/// to choose -- a step with a port still open, or nothing chosen yet -- and what it stands for on
+/// the graph, by the keys the picture lights them by: a card (`card:<name>`), a step
+/// (`step:<place>`) or a place still to fill (`place:message`, `place:keep`, `place:do`).
 struct Chip {
     enum class Kind { Plain, Message, Kept, Step, StepOpen, Open };
     Kind kind = Kind::Plain;
     std::string text;
+    std::vector<std::string> subjects{};
 };
+
+/// The stable place step `n` of the active trigger is kept under; 0 where it has none.
+inline std::int64_t place_of(const Model& m, std::size_t n) {
+    for (const auto& p : m.workspace.graph.places)
+        if (p.trigger == m.workspace.active_trigger && p.node == static_cast<std::int64_t>(n)) return p.id;
+    return 0;
+}
 
 namespace next_detail {
 /// The step's expression: its short name and what each port reads, a node's answer as that node's
@@ -59,29 +69,42 @@ inline std::vector<Chip> sentence(const Model& m) {
     const auto& def = m.workspace.graph.project.definition;
     std::vector<Chip> out{{K::Plain, "When"}};
     const maker::On* on = def.on.empty() ? nullptr : &def.on.at(m.trigger());
-    if (on) out.push_back({K::Message, on->message->name()});
-    else if (!def.accepts.empty()) out.push_back({K::Message, def.accepts.front()->name()});
-    else out.push_back({K::Open, "a message"});
+    const auto message = on ? on->message->name() : def.accepts.empty() ? std::string() : def.accepts.front()->name();
+    if (!message.empty()) out.push_back({K::Message, message, {"card:message:" + message}});
+    else out.push_back({K::Open, "a message", {"place:message"}});
     out.push_back({K::Plain, "arrives,"});
-    if (on) out.push_back({K::Kept, on->output});
-    else if (!def.state->fields().empty()) out.push_back({K::Kept, def.state->fields().front().name});
-    else out.push_back({K::Open, "something"});
+    if (on) out.push_back({K::Kept, on->output, {"card:write:" + on->message->name()}});
+    else if (!def.state->fields().empty()) out.push_back({K::Kept, def.state->fields().front().name, {"card:kept"}});
+    else out.push_back({K::Open, "something", {"place:keep"}});
     out.push_back({K::Plain, "becomes"});
     if (!on || on->body.nodes.empty()) {
-        out.push_back({K::Open, "..."});
+        out.push_back({K::Open, "...", {on ? "place:do" : "place:keep"}});
         return out;
     }
     bool open = false;
     const auto said = next_detail::expression(*on, on->body.result_node, 0, open);
-    out.push_back({open ? K::StepOpen : K::Step, said});
+    // The step it becomes stands for every step its answer reads, however deep.
+    std::vector<std::string> steps;
+    std::vector<std::size_t> reading{on->body.result_node};
+    std::set<std::size_t> seen;
+    while (!reading.empty()) {
+        const auto n = reading.back();
+        reading.pop_back();
+        if (n >= on->body.nodes.size() || !seen.insert(n).second) continue;
+        steps.push_back("step:" + std::to_string(place_of(m, n)));
+        for (const auto& b : on->body.nodes[n].arguments)
+            if (b.from() == op::Binding::From::Node) reading.push_back(b.node_index());
+    }
+    out.push_back({open ? K::StepOpen : K::Step, said, std::move(steps)});
     for (std::size_t e = 0; e < on->emits.size(); ++e) {
+        const auto card = "card:say:" + on->message->name() + ":" + on->emits[e].message->name();
         out.push_back({K::Plain, e == 0 ? ", then says" : "and says"});
-        out.push_back({K::Message, on->emits[e].message->name()});
+        out.push_back({K::Message, on->emits[e].message->name(), {card}});
         bool with = false;
         for (const auto& f : on->emits[e].fields) {
             if (!f.source) continue;
             out.push_back({K::Plain, with ? "and" : "with"});
-            out.push_back({K::Kept, *f.source});
+            out.push_back({K::Kept, *f.source, {card}});
             with = true;
         }
     }

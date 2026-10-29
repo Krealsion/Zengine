@@ -167,3 +167,36 @@ Red in `zengine-flow-tests`:
 
 - the rail breaks a row's words and a heading to two lines, never cutting the first, and a wire in
   hand asks for and lists what takes it, each port of its type a way to add it
+
+## a-part-lights-nothing
+
+A part of the sentence rested on lights itself alone, none of what it stands for.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+             out.chips.insert(i);
+-            out.pointed.insert(chips[i].subjects.begin(), chips[i].subjects.end());
++            out.pointed.insert(chips[i].text);
+```
+
+Red in `zengine-flow-tests`:
+
+- the sentence and the graph light each other: a part rested on lights its cards, steps and wires, a
+  card or a step its parts, and a part still to choose is pressed as Next is
+
+## a-card-lights-no-part
+
+A card or a step rested on lights no part of the sentence.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-        if (std::find(said.begin(), said.end(), key) != said.end() ||
++        if (std::find(said.begin(), said.end(), key) == said.end() &&
+```
+
+Red in `zengine-flow-tests`:
+
+- the sentence and the graph light each other: a part rested on lights its cards, steps and wires, a
+  card or a step its parts, and a part still to choose is pressed as Next is

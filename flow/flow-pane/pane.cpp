@@ -434,9 +434,11 @@ public:
         return;
       }
       if (event.phase == ws::canvas_pointer::kMove) {
-        if (!drag_ || drag_->gesture != event.gesture ||
-            drag_->revision !=
-                model_.workspace.graph.project.definition.revision)
+        if (!drag_ || drag_->gesture != event.gesture) {
+          rest(event, pictured, mail);
+          return;
+        }
+        if (drag_->revision != model_.workspace.graph.project.definition.revision)
           return;
         if (drag_->wire) {
           wire_moved(event, room, mail);
@@ -495,6 +497,8 @@ public:
       }
       if (event.phase != ws::canvas_pointer::kPress)
         return;
+      // A PRESS ENDS A REST: what the press does is drawn unlit, until the pointer rests again.
+      model_.hover.reset();
       // A PRESS THE WINDOW LANDED ON ANOTHER PART than Flow's picture shows there now acts on
       // nothing, and is said.
       if (event.moved && (event.button == 1 || event.button == 3)) {
@@ -648,6 +652,21 @@ public:
       model_.notice = e.what();
       show(mail);
     }
+  }
+  /// THE POINTER RESTING with no button held, on the Graph page with nothing over it: what it
+  /// rests on in the picture last drawn, lit with what goes with it, and drawn again only when that
+  /// changes.
+  void rest(const Moment &event, const pane::Picture *pictured, loom::Mail &mail) {
+    std::optional<std::string> on;
+    if (pictured != nullptr &&
+        pictured->revision == model_.workspace.graph.project.definition.revision &&
+        model_.page == pane::Page::Graph && !model_.dialog && !model_.dropped &&
+        !model_.wire_search)
+      on = pane::rest_at(*pictured, event.x, event.y);
+    if (on == model_.hover)
+      return;
+    model_.hover = on;
+    show(mail);
   }
   /// THE ROOM, from the graphics window that shows Flow's area, as that window's office: a window,
   /// an incarnation or a size it has not drawn in holds none of its picture, so it goes whole.
@@ -2052,6 +2071,20 @@ private:
     } else if (action == "add-into") {
       add_found(args.at(0), args.at(1), "add-node-into", {args.at(2), args.at(3)}, mail);
       reveal();
+    } else if (action == "chip") {
+      // A PART OF THE SENTENCE STILL TO CHOOSE does what the Next line's button does, or says what
+      // the maker's own choice is where the Next line has no button.
+      const auto chips = pane::sentence(model_);
+      const auto i = flow::index_of(args.at(0));
+      if (i >= chips.size() || (chips[i].kind != pane::Chip::Kind::Open &&
+                                chips[i].kind != pane::Chip::Kind::StepOpen))
+        return;
+      const auto next = pane::next_step(model_);
+      if (next.action.empty()) {
+        model_.notice = next.text + (next.hint.empty() ? std::string() : " (" + next.hint + ")");
+        return;
+      }
+      act(next.action, next.args, mail);
     } else if (action == "add-from") {
       // A FOUND POWER FROM THE WIRE IN HAND: placed after what the wire reads, wired at its port.
       if (!model_.connecting)

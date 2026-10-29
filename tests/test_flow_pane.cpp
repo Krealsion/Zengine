@@ -2524,6 +2524,33 @@ TEST_CASE("a wire in hand from a step's answer narrows the rail to what takes it
     CHECK_FALSE(rig.questions.back().takes.has_value());
 }
 
+TEST_CASE("the pointer resting with no button held lights the sentence and the graph together, and a "
+          "press on a part still to choose does what the Next line's button does") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#rest-heard-as-nothing): a move with no button held
+    // lights nothing.
+    // RESTING ON THE MESSAGE'S CARD lights its part of the sentence, in angle brackets here.
+    REQUIRE(rig.shows("[meter.Set]"));
+    const auto card = w.at("card:message:meter.Set");
+    w.move(card, 0);
+    CHECK(rig.shows("<meter.Set>"));
+    CHECK_FALSE(rig.shows("[meter.Set]"));
+    // ...resting on empty room lights nothing, and a press ends a rest.
+    w.move(w.room(), 0);
+    CHECK(rig.shows("[meter.Set]"));
+    w.move(card, 0);
+    REQUIRE(rig.shows("<meter.Set>"));
+    w.click(w.room());
+    CHECK(rig.shows("[meter.Set]"));
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#a-part-to-choose-does-nothing): the press does nothing.
+    // A PART STILL TO CHOOSE, pressed, does what the Next line's button does: a new message.
+    rig.edit_ok("new", {"blank", "discard"});
+    rig.click("[a message]");
+    CHECK(rig.shows("Declare an input message"));
+}
+
 TEST_CASE("a press on a port opens a box at it: what is in scope of its type and an earlier step's "
           "answer, each by its own name, then one value of the port's kind") {
     {

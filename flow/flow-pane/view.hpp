@@ -75,6 +75,21 @@ struct Picture : Drawing {
     /// What each editor in place edits on the graph, by its action: where one opens that nothing
     /// pressed opened.
     std::map<std::string, Box> subjects;
+    /// WHERE THE POINTER CAN REST, each by the key `Model::hover` keeps (a later one over an earlier),
+    /// each wire by the points of its line, a pointer within `reach` pixels of one resting on it, and
+    /// every key drawn lit.
+    struct Rest {
+        std::string key;
+        Box box;
+    };
+    struct Line {
+        std::string key;
+        std::vector<std::pair<std::int64_t, std::int64_t>> points;
+    };
+    std::vector<Rest> rests;
+    std::vector<Line> lines;
+    std::int64_t reach = 1;
+    std::set<std::string> lit;
     /// Every run of text it draws, in paint order.
     std::vector<std::string> texts() const {
         std::vector<std::string> out;
@@ -83,6 +98,33 @@ struct Picture : Drawing {
         return out;
     }
 };
+
+/// WHAT THE POINTER RESTS ON at (x, y): a port, a field's row or a step's answer first, the
+/// smallest places; then a wire within reach; then whatever rests on top there. None for nothing.
+inline std::optional<std::string> rest_at(const Picture& p, std::int64_t x, std::int64_t y) {
+    const auto inside = [&](const Box& b) { return x >= b.x && x < b.right() && y >= b.y && y < b.bottom(); };
+    const auto port = [](const std::string& key) {
+        return key.rfind("port:", 0) == 0 || key.rfind("answer:", 0) == 0 || key.rfind("field:", 0) == 0;
+    };
+    for (auto it = p.rests.rbegin(); it != p.rests.rend(); ++it)
+        if (port(it->key) && inside(it->box)) return it->key;
+    const auto px = static_cast<double>(x), py = static_cast<double>(y);
+    const auto reach = static_cast<double>(p.reach);
+    for (const auto& line : p.lines)
+        for (std::size_t i = 1; i < line.points.size(); ++i) {
+            const auto& [x0, y0] = line.points[i - 1];
+            const auto& [x1, y1] = line.points[i];
+            const auto ax = static_cast<double>(x0), ay = static_cast<double>(y0);
+            const auto bx = static_cast<double>(x1), by = static_cast<double>(y1);
+            const auto dx = bx - ax, dy = by - ay, length = dx * dx + dy * dy;
+            const auto t = length > 0 ? std::clamp(((px - ax) * dx + (py - ay) * dy) / length, 0.0, 1.0) : 0.0;
+            const auto ex = ax + t * dx - px, ey = ay + t * dy - py;
+            if (ex * ex + ey * ey <= reach * reach) return line.key;
+        }
+    for (auto it = p.rests.rbegin(); it != p.rests.rend(); ++it)
+        if (inside(it->box)) return it->key;
+    return std::nullopt;
+}
 
 /// The most a picture draws before it is the bounded recovery picture instead.
 inline constexpr std::size_t kMaxMarks = 2048;
@@ -276,9 +318,14 @@ inline void card(Pen& pen, const Box& b, gfx::Paint rim, std::optional<Box> clip
         pen.rect(b, hue::well(), rim, 0, false, clip);
     }
 }
-/// A dashed place still to fill, where light; where a character is a cell, its words alone.
-inline void open_place(Pen& pen, const Box& b, std::optional<Box> clip) {
-    if (pen.m.light) pen.rect(b, gfx::no_paint(), hue::faint(), 4, true, clip);
+/// A dashed place still to fill, where light, its dashes bright while lit; where a character is a
+/// cell, its words alone.
+inline void open_place(Pen& pen, const Box& b, std::optional<Box> clip, bool lit = false) {
+    if (pen.m.light) pen.rect(b, gfx::no_paint(), lit ? hue::text() : hue::faint(), 4, true, clip);
+}
+/// A CARD OR A STEP LIT: a bright line round it, where light.
+inline void glow(Pen& pen, const Box& b, std::optional<Box> clip) {
+    if (pen.m.light) pen.rect({b.x - 2, b.y - 2, b.w + 4, b.h + 4}, gfx::no_paint(), hue::text(), 6, false, clip);
 }
 /// A PORT: a dot at a card's edge -- a ring until wired, where light; an `o` on the edge where a
 /// character is a cell.
@@ -290,12 +337,35 @@ inline void port(Pen& pen, std::int64_t x, std::int64_t middle, gfx::Paint ink, 
         pen.text(x, middle - pen.m.row / 2, "o", ink, clip);
     }
 }
-/// A WIRE from an answer to a port, leaving and arriving level: a curve twice drawn, where light;
-/// three straight runs where a character is a cell.
+/// THE POINTS OF A WIRE'S LINE as `wire` draws it, for the pointer to rest on: the curve's, where
+/// light; its three runs' corners where a character is a cell.
+inline std::vector<std::pair<std::int64_t, std::int64_t>> wire_points(const Measure& m, std::int64_t x0, std::int64_t y0,
+                                                                      std::int64_t x1, std::int64_t y1) {
+    std::vector<std::pair<std::int64_t, std::int64_t>> out;
+    if (m.light) {
+        const double mx = (static_cast<double>(x0) + static_cast<double>(x1)) / 2.0;
+        for (int i = 0; i <= 24; ++i) {
+            const double t = i / 24.0, u = 1.0 - t;
+            const double x = u * u * u * static_cast<double>(x0) + 3 * u * u * t * mx + 3 * u * t * t * mx +
+                             t * t * t * static_cast<double>(x1);
+            const double y = (u * u * u + 3 * u * u * t) * static_cast<double>(y0) +
+                             (3 * u * t * t + t * t * t) * static_cast<double>(y1);
+            out.emplace_back(static_cast<std::int64_t>(x), static_cast<std::int64_t>(y));
+        }
+        return out;
+    }
+    const auto a = x0 + m.ch, z = x1 - m.ch;
+    const auto mid = a + ((z - a) / 2 / m.ch) * m.ch;
+    if (z > a) out = {{a, y0}, {mid, y0}, {mid, y1}, {z, y1}};
+    return out;
+}
+/// A WIRE from an answer to a port, leaving and arriving level: a curve twice drawn, where light --
+/// three times while lit -- and three straight runs where a character is a cell.
 inline void wire(Pen& pen, std::int64_t x0, std::int64_t y0, std::int64_t x1, std::int64_t y1,
-                 gfx::Paint ink, std::optional<Box> clip) {
+                 gfx::Paint ink, std::optional<Box> clip, bool lit = false) {
     if (pen.m.light) {
-        const Box b{std::min(x0, x1), std::min(y0, y1) - 1, std::abs(x1 - x0) + 1, std::abs(y1 - y0) + 3};
+        const Box b{std::min(x0, x1), std::min(y0, y1) - 2, std::abs(x1 - x0) + 1, std::abs(y1 - y0) + 4};
+        if (lit) pen.path(curve(x0, y0 - 1, x1, y1 - 1), b, gfx::no_paint(), ink, clip);
         pen.path(curve(x0, y0, x1, y1), b, gfx::no_paint(), ink, clip);
         pen.path(curve(x0, y0 + 1, x1, y1 + 1), b, gfx::no_paint(), ink, clip);
         return;
@@ -322,6 +392,40 @@ inline void badge(Pen& pen, std::int64_t x0, std::int64_t y0, std::int64_t x1, s
         const auto said = "(" + value + ")";
         pen.text(cx - pen.width(said) / 2, cy - pen.m.row / 2, said, hue::text(), clip);
     }
+}
+
+/// WHAT IS LIT: what the pointer rests on and what goes with it -- a part of the sentence and the
+/// cards, steps and places it stands for; a card or a step and the parts that stand for it, every
+/// kept field's part for the card of what it keeps -- each by its key, the parts by their place.
+struct Lighting {
+    std::set<std::string> pointed;
+    std::set<std::size_t> chips;
+    bool on(const std::string& key) const { return pointed.count(key) != 0; }
+};
+inline Lighting lighting(const Model& model, const std::vector<Chip>& chips) {
+    Lighting out;
+    if (!model.hover) return out;
+    const auto& key = *model.hover;
+    out.pointed.insert(key);
+    if (key.rfind("chip:", 0) == 0) {
+        std::size_t i = chips.size();
+        try {
+            i = flow::index_of(key.substr(5));
+        } catch (const std::exception&) {
+        }
+        if (i < chips.size()) {
+            out.chips.insert(i);
+            out.pointed.insert(chips[i].subjects.begin(), chips[i].subjects.end());
+        }
+        return out;
+    }
+    for (std::size_t i = 0; i < chips.size(); ++i) {
+        const auto& said = chips[i].subjects;
+        if (std::find(said.begin(), said.end(), key) != said.end() ||
+            (key == "card:kept" && chips[i].kind == Chip::Kind::Kept))
+            out.chips.insert(i);
+    }
+    return out;
 }
 
 /// THE BAR: Run, Apply or Restart, and Stop, the rule's state beside them, and the File and View
@@ -422,8 +526,9 @@ inline void tabs(Pen& pen, const Model& model, std::int64_t y, std::int64_t heig
 }
 
 /// THE RULE IN ONE SENTENCE, on a band of its own: each chosen part a chip of its colour, each part
-/// still to choose dashed.
-inline void rule_row(Pen& pen, const Model& model, const Box& row) {
+/// still to choose dashed and pressed as the Next line's button is; a part lit, bright round it where
+/// light and in angle brackets where a character is a cell.
+inline void rule_row(Pen& pen, const Model& model, const Box& row, const Lighting& lit) {
     const auto& m = pen.m;
     if (m.light) {
         pen.rect(row, hue::band());
@@ -437,11 +542,17 @@ inline void rule_row(Pen& pen, const Model& model, const Box& row) {
         x += pen.width(words) - (m.light ? 2 * m.inset : 0) + (m.light ? 6 : m.ch);
     };
     say("The rule:", hue::quiet());
-    for (const auto& chip : sentence(model)) {
+    const auto chips = sentence(model);
+    for (std::size_t i = 0; i < chips.size(); ++i) {
+        const auto& chip = chips[i];
         if (chip.kind == Chip::Kind::Plain) {
             say(chip.text, hue::text());
             continue;
         }
+        const bool on = lit.chips.count(i) != 0;
+        const bool to_choose = chip.kind == Chip::Kind::Open || chip.kind == Chip::Kind::StepOpen;
+        const auto key = "chip:" + std::to_string(i);
+        if (on) pen.p.lit.insert(key);
         gfx::Paint fill = gfx::no_paint(), rim = hue::faint(), ink = hue::quiet();
         bool dashed = false;
         switch (chip.kind) {
@@ -452,16 +563,23 @@ inline void rule_row(Pen& pen, const Model& model, const Box& row) {
         case Chip::Kind::Open: dashed = true; break;
         case Chip::Kind::Plain: break;
         }
+        Box at;
         if (m.light) {
             const auto w = pen.width(chip.text) - 2 * m.inset + 12;
-            pen.rect({x, ty - 1, w, m.row + 2}, fill, rim, 3, dashed, inside);
+            at = Box{x, ty - 1, w, m.row + 2};
+            if (on) pen.rect({at.x - 2, at.y - 2, at.w + 4, at.h + 4}, gfx::no_paint(), hue::text(), 5, false, inside);
+            pen.rect(at, fill, rim, 3, dashed, inside);
             pen.text(x + 6 - m.inset, ty, chip.text, ink, inside);
             x += w + 6;
         } else {
-            const auto said = "[" + chip.text + "]";
+            const auto said = (on ? "<" : "[") + chip.text + (on ? ">" : "]");
+            at = Box{x, ty, pen.width(said), m.row};
             pen.text(x, ty, said, chip.kind == Chip::Kind::Open ? hue::quiet() : hue::message(), inside);
             x += pen.width(said) + m.ch;
         }
+        at = at.cut(inside);
+        pen.p.rests.push_back({key, at});
+        if (to_choose) pen.press(at, "chip", {std::to_string(i)});
     }
 }
 
@@ -792,7 +910,7 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
 /// keeps -- Then docked at the right -- what it writes and what it says -- and Do, the open canvas
 /// between, where steps are placed. Wires carry values left to right; while the rule runs each
 /// shows the last value it carried.
-inline void lanes(Pen& pen, const Model& model, const Box& g) {
+inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& lit) {
     const auto& m = pen.m;
     const auto& graph = model.workspace.graph;
     const auto& def = graph.project.definition;
@@ -854,9 +972,24 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         pen.p.cards[name] = rows.box;
         pen.press(Box{rows.box.x, rows.box.y, rows.box.w, light ? m.card : m.row}.cut(room), "card", {name});
     };
+    // A CARD'S RIM: bright while lit, the wire's colour while chosen; a card lit glows, and the
+    // pointer rests on it.
     const auto edge_of = [&](const std::string& name) {
+        if (lit.on("card:" + name)) return hue::text();
         return model.dock && *model.dock == name ? hue::wire() : hue::edge();
     };
+    const auto card_at = [&](const CardRows& rows, const std::string& name, const Box& room) {
+        pen.p.rests.push_back({"card:" + name, rows.box.cut(room)});
+        if (!lit.on("card:" + name)) return;
+        pen.p.lit.insert("card:" + name);
+        glow(pen, rows.box, room);
+    };
+    const auto place_at = [&](const std::string& name, const Box& box, const Box& room) {
+        pen.p.rests.push_back({"place:" + name, box.cut(room)});
+        if (lit.on("place:" + name)) pen.p.lit.insert("place:" + name);
+        return lit.on("place:" + name);
+    };
+    pen.p.reach = light ? 5 : std::max<std::int64_t>(1, m.row / 2);
     const auto seen = carried(model.observed);
     const bool live = model.running && seen.known();
     // Where each wire leaves: a field of the message, a field kept, a step's answer.
@@ -866,7 +999,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
     const loom::Schema* message = on ? on->message.get() : def.accepts.empty() ? nullptr : def.accepts.front().get();
     if (!message) {
         const Box box{when.x + inset, y, cw, light ? 150 : m.row * 4};
-        open_place(pen, box, when_room);
+        open_place(pen, box, when_room, place_at("message", box, when_room));
         pen.press(box.cut(when_room), "drop-zone", {"when"});
         // Centred where they fit; from the box's edge where they do not, so a cut takes their end.
         const auto cx = [&](const std::string& words) {
@@ -892,6 +1025,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         const auto stacked = card_rows(m, when.x + inset, y, cw, fields.size() + 1);
         const auto rows = card_rows(m, when.x + inset, stood_at(name, y, stacked.box.h, when_room), cw, fields.size() + 1);
         card(pen, rows.box, edge_of(name), when_room);
+        card_at(rows, name, when_room);
         pen.text(rows.box.x + (light ? 8 - m.inset : m.ch), rows.head, message->name(), hue::message(), when_room);
         pen.text(rows.box.x + (light ? 8 - m.inset : m.ch), rows.rows[0],
                  on ? "wakes the rule" : "waits for a kept field", hue::quiet(), when_room);
@@ -901,6 +1035,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             const std::string type = loom::name_of(fields[i].type.kind);
             pen.text(rows.box.right() - pen.width(type) - (light ? 14 - m.inset : 2 * m.ch), ry, type, hue::quiet(), when_room);
             pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room), "field", {fields[i].name});
+            pen.p.rests.push_back({"field:" + fields[i].name, Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room)});
             from_field[fields[i].name] = {rows.box.right() - (light ? 0 : m.ch), rows.middles[i + 1]};
         }
         handle(rows, name, when_room);
@@ -911,7 +1046,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
     if (def.state->fields().empty()) {
         if (message) {
             const Box box{when.x + inset, y, cw, light ? 56 : m.row * 2};
-            open_place(pen, box, when_room);
+            open_place(pen, box, when_room, place_at("keep", box, when_room));
             const auto bw = pen.button_width("+ keep a field");
             pen.button(box.x + std::max<std::int64_t>(0, (box.w - bw) / 2), box.y + (box.h - (light ? m.tall : m.row)) / 2, "+ keep a field",
                        "ask-keep", {}, Face::Teal, Icon::None, when_room);
@@ -923,6 +1058,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         const auto stacked = card_rows(m, when.x + inset, y, cw, fields.size());
         const auto rows = card_rows(m, when.x + inset, stood_at("kept", y, stacked.box.h, when_room), cw, fields.size());
         card(pen, rows.box, edge_of("kept"), when_room);
+        card_at(rows, "kept", when_room);
         pen.text(rows.box.x + (light ? 8 - m.inset : m.ch), rows.head, "kept between messages", hue::quiet(), when_room);
         for (std::size_t i = 0; i < fields.size(); ++i) {
             const auto ry = rows.rows[i];
@@ -932,6 +1068,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
                                      (cell ? " = " + message_draft::summary(cell) : std::string());
             pen.text(rows.box.right() - pen.width(type) - (light ? 14 - m.inset : 2 * m.ch), ry, type, hue::quiet(), when_room);
             pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room), "field", {fields[i].name});
+            pen.p.rests.push_back({"field:" + fields[i].name, Box{rows.box.x, ry, rows.box.w, m.row}.cut(when_room)});
             from_kept[fields[i].name] = {rows.box.right() - (light ? 0 : m.ch), rows.middles[i]};
         }
         handle(rows, "kept", when_room);
@@ -973,6 +1110,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         }
         if (nodes) {
             card(pen, rows.box, edge_of(write_name), then_room);
+            card_at(rows, write_name, then_room);
         } else {
             open_place(pen, rows.box, then_room);
             if (!light) pen.rect(rows.box, hue::well(), hue::faint(), 0, false, then_room);
@@ -1005,6 +1143,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             const auto& emit = on->emits[e];
             const auto& said = says[e];
             card(pen, said.box, edge_of(say_names[e]), then_room);
+            card_at(said, say_names[e], then_room);
             const auto sx = said.box.x + (light ? 8 - m.inset : m.ch);
             pen.text(sx, said.head, "say", hue::text(), then_room);
             pen.text(sx + pen.width("say") - (light ? 2 * m.inset : 0) + m.ch, said.head, emit.message->name(),
@@ -1055,7 +1194,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         const auto wide = m.chars(32); // the longer line's 28 characters, and room beside them
         const Box box{canvas.x + std::max<std::int64_t>(0, (canvas.w - wide) / 2), canvas.y + (light ? 60 : m.row),
                       std::min(canvas.w, wide), light ? 122 : m.row * 3};
-        open_place(pen, box, canvas);
+        open_place(pen, box, canvas, place_at("do", box, canvas));
         // Centred where they fit; from the box's edge where they do not, so a cut takes their end.
         const auto cx = [&](const std::string& words) {
             return box.x + std::max<std::int64_t>(0, (box.w - pen.width(words)) / 2);
@@ -1087,7 +1226,13 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         // A node wholly off the canvas draws nothing and takes no press.
         if (!rows.box.meets(canvas)) continue;
         const Box inside = rows.box.cut(canvas);
-        card(pen, rows.box, selected ? hue::wire() : hue::edge(), canvas);
+        const auto step_key = "step:" + std::to_string(id);
+        card(pen, rows.box, lit.on(step_key) ? hue::text() : selected ? hue::wire() : hue::edge(), canvas);
+        pen.p.rests.push_back({step_key, inside});
+        if (lit.on(step_key)) {
+            pen.p.lit.insert(step_key);
+            glow(pen, rows.box, canvas);
+        }
         const auto tx = rows.box.x + (light ? 8 - m.inset : m.ch);
         // THE CHOSEN STEP'S x on its corner takes it away; the head's words stop short of it.
         const auto xw = pen.button_width("x");
@@ -1116,9 +1261,9 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
         for (std::size_t a = 0; a < node.arguments.size(); ++a) {
             const auto ry = rows.rows[a + extra];
             const auto& b = node.arguments[a];
-            const bool lit = model.wire_drawn && model.wire_drawn->lit && model.wire_drawn->lit->place == id &&
-                             model.wire_drawn->lit->port == a;
-            const bool marked = lit || (chosen_port && chosen_port->node == n && chosen_port->port == a);
+            const bool held_over = model.wire_drawn && model.wire_drawn->lit && model.wire_drawn->lit->place == id &&
+                                   model.wire_drawn->lit->port == a;
+            const bool marked = held_over || (chosen_port && chosen_port->node == n && chosen_port->port == a);
             const auto port_name = a < names.size() ? names[a] : std::to_string(a);
             if (light) {
                 pen.text(tx + 6, ry, port_name, marked ? hue::message() : hue::text(), inside);
@@ -1139,6 +1284,8 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
                 pen.text(rows.box.x, ry, "o " + port_name + reads, marked ? hue::message() : hue::text(), inside);
             }
             pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(canvas), "port", {std::to_string(n), std::to_string(a)}, id);
+            pen.p.rests.push_back({"port:" + std::to_string(id) + "." + std::to_string(a),
+                                   Box{rows.box.x, ry, rows.box.w, m.row}.cut(canvas)});
             if (chosen_port && chosen_port->node == n && chosen_port->port == a) {
                 pen.p.port_at = std::pair{rows.box.x, rows.middles[a + extra]};
                 pen.p.port_card = rows.box;
@@ -1158,6 +1305,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
                      hue::message(), inside);
         }
         pen.press(Box{rows.box.x, ay, rows.box.w, m.row}.cut(canvas), "source-node", {std::to_string(n)}, id);
+        pen.p.rests.push_back({"answer:" + std::to_string(id), Box{rows.box.x, ay, rows.box.w, m.row}.cut(canvas)});
         from_node[std::to_string(n)] = {rows.box.right() - (light ? 0 : m.ch), rows.middles.back()};
     }
     // THE WIRES, and the value each last carried while the rule runs, then the ports over them.
@@ -1191,13 +1339,27 @@ inline void lanes(Pen& pen, const Model& model, const Box& g) {
             }
             if (!from) continue;
             const auto to_x = rows.box.x + (light ? 0 : 0), to_y = rows.middles[a + placed[n].extra];
-            wire(pen, from->first, from->second, to_x, to_y, ink, g);
+            // A WIRE LIT: its own, its step's, or the card it leaves's.
+            const auto key = "wire:" + std::to_string(placed[n].id) + "." + std::to_string(a);
+            const bool kept_wire = b.from() == op::Binding::From::Input && def.state->find(b.input_name());
+            const bool field_wire = b.from() == op::Binding::From::Input && !kept_wire;
+            const bool shine = lit.on(key) || lit.on("step:" + std::to_string(placed[n].id)) ||
+                               (kept_wire && lit.on("card:kept")) ||
+                               (field_wire && lit.on("card:message:" + on->message->name()));
+            if (shine) pen.p.lit.insert(key);
+            pen.p.lines.push_back({key, wire_points(m, from->first, from->second, to_x, to_y)});
+            wire(pen, from->first, from->second, to_x, to_y, shine ? hue::text() : ink, g, shine);
             if (const auto v = value_of(b)) badge(pen, from->first, from->second, to_x, to_y, *v, g);
         }
     }
     if (write_port && !on->body.nodes.empty() && on->body.result_node < on->body.nodes.size()) {
         if (const auto it = from_node.find(std::to_string(on->body.result_node)); it != from_node.end()) {
-            wire(pen, it->second.first, it->second.second, write_port->first, write_port->second, hue::wire(), g);
+            const bool shine = lit.on("wire:write") || lit.on("card:write:" + on->message->name());
+            if (shine) pen.p.lit.insert("wire:write");
+            pen.p.lines.push_back(
+                {"wire:write", wire_points(m, it->second.first, it->second.second, write_port->first, write_port->second)});
+            wire(pen, it->second.first, it->second.second, write_port->first, write_port->second,
+                 shine ? hue::text() : hue::wire(), g, shine);
             if (live)
                 if (const auto v = seen.after.find(on->output); v != seen.after.end())
                     badge(pen, it->second.first, it->second.second, write_port->first, write_port->second, v->second, g);
@@ -1701,7 +1863,8 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
     const auto& def = graph.project.definition;
     if (model.page == Page::Graph) {
         const auto rule_h = light ? m.row + 16 : m.row;
-        rule_row(pen, model, Box{0, top, W, rule_h});
+        const auto lit = lighting(model, sentence(model));
+        rule_row(pen, model, Box{0, top, W, rule_h}, lit);
         const auto y0 = top + rule_h + (light ? 10 : 0);
         const auto next_h = light ? m.tall + 16 : m.row;
         std::size_t lines = std::min<std::size_t>(
@@ -1721,7 +1884,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
         const Box graph_box{margin + rail_w + margin + (light ? 0 : m.ch), y0,
                             W - 2 * margin - rail_w - margin - (light ? 0 : m.ch), graph_h};
         rail(pen, model, rail_box);
-        lanes(pen, model, graph_box);
+        lanes(pen, model, graph_box, lit);
         if (!model.wire_search && !model.wire_drawn && !model.dialog && out.canvas) port_box(pen, model, *out.canvas);
         if (model.wire_search && out.canvas) wire_list(pen, model, *out.canvas);
         out.pan_x = model.workspace.pan_x;

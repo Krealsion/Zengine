@@ -729,6 +729,82 @@ TEST_CASE("the rail breaks a row's words and a heading to two lines, never cutti
     CHECK(text_has(pane::picture(m, light_room()), "Wire from n : Int"));
 }
 
+TEST_CASE("the sentence and the graph light each other: a part rested on lights its cards, steps "
+          "and wires, a card or a step its parts, and a part still to choose is pressed as Next is") {
+    auto m = tally();
+    // When, the message, arrives, total, becomes, the step, then says, tally.Total, with, total.
+    REQUIRE(pane::sentence(m).size() == 10);
+    const auto add = "step:" + std::to_string(pane::place_of(m, 0));
+    const auto lhs = "wire:" + std::to_string(pane::place_of(m, 0)) + ".0";
+    const auto rhs = "wire:" + std::to_string(pane::place_of(m, 0)) + ".1";
+    const auto lit = [&](const std::string& rested) {
+        m.hover = rested;
+        return pane::picture(m, light_room()).lit;
+    };
+    // ⚔ MUTATION (tests/mutants/flow_view.md#a-part-lights-nothing): a part lights itself alone.
+    // THE MESSAGE'S PART lights its card and the wire leaving its field.
+    auto on = lit("chip:1");
+    CHECK(on.count("chip:1") == 1);
+    CHECK(on.count("card:message:tally.panel.Count") == 1);
+    CHECK(on.count(lhs) == 1);
+    CHECK(on.count(rhs) == 0);
+    CHECK(on.count(add) == 0);
+    // THE STEP'S PART lights the step and every wire into it.
+    on = lit("chip:5");
+    CHECK(on.count(add) == 1);
+    CHECK(on.count(lhs) == 1);
+    CHECK(on.count(rhs) == 1);
+    CHECK(on.count("card:write:tally.panel.Count") == 0);
+    // WHAT IT BECOMES lights what it writes and the wire into it.
+    on = lit("chip:3");
+    CHECK(on.count("card:write:tally.panel.Count") == 1);
+    CHECK(on.count("wire:write") == 1);
+    // ⚔ MUTATION (tests/mutants/flow_view.md#a-card-lights-no-part): a card lights no part.
+    // A CARD OR A STEP RESTED ON lights its parts: what it keeps, every kept field's part.
+    on = lit("card:kept");
+    CHECK(on.count("chip:3") == 1);
+    CHECK(on.count("chip:9") == 1);
+    CHECK(on.count(rhs) == 1);
+    CHECK(lit(add).count("chip:5") == 1);
+    on = lit("card:say:tally.panel.Count:tally.Total");
+    CHECK(on.count("chip:7") == 1);
+    CHECK(on.count("chip:9") == 1);
+    CHECK(on.count("chip:1") == 0);
+    // WHERE THE POINTER RESTS: a part, a step's head, a port and a wire, each found at its place.
+    m.hover.reset();
+    const auto view = pane::picture(m, light_room());
+    CHECK(view.lit.empty());
+    const auto box_of = [&](const std::string& key) {
+        for (const auto& rest : view.rests)
+            if (rest.key == key) return rest.box;
+        FAIL("nothing rests on " << key);
+        return pane::Box{};
+    };
+    const auto middle = [](const pane::Box& b) { return std::pair{b.x + b.w / 2, b.y + b.h / 2}; };
+    auto [cx, cy] = middle(box_of("chip:1"));
+    CHECK(pane::rest_at(view, cx, cy) == std::optional<std::string>("chip:1"));
+    const auto head = box_of(add);
+    CHECK(pane::rest_at(view, head.x + 4, head.y + 4) == std::optional<std::string>(add));
+    const auto port = "port:" + std::to_string(pane::place_of(m, 0)) + ".1";
+    std::tie(cx, cy) = middle(box_of(port));
+    CHECK(pane::rest_at(view, cx, cy) == std::optional<std::string>(port));
+    const auto* line = &view.lines.front();
+    for (const auto& l : view.lines)
+        if (l.key == lhs) line = &l;
+    REQUIRE(line->key == lhs);
+    const auto& [wx, wy] = line->points.at(line->points.size() / 2);
+    CHECK(pane::rest_at(view, wx, wy) == std::optional<std::string>(lhs));
+    // A PART STILL TO CHOOSE is pressed; a chosen one is not.
+    pane::Model blank;
+    blank.command("new", {"tally", "discard"});
+    blank.page = pane::Page::Graph;
+    const auto open = pane::picture(blank, light_room());
+    CHECK(std::any_of(open.hits.begin(), open.hits.end(), [](const auto& hit) {
+        return hit.action == "chip" && hit.args == std::vector<std::string>{"1"};
+    }));
+    CHECK_FALSE(std::any_of(view.hits.begin(), view.hits.end(), [](const auto& hit) { return hit.action == "chip"; }));
+}
+
 TEST_CASE("the rule reads as one sentence, each part still to choose open") {
     using K = pane::Chip::Kind;
     const auto kinds = [](const pane::Model& m) {

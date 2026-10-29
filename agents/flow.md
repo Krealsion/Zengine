@@ -132,6 +132,11 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   share one, a port by its step and a field by its name, and what the draft lacks is said so too
   (`Model::lacks`, over `GraphDraft::problem_list`, whose `problems` lines keep the library's own
   words): no step number, `$`, `%`, revision or operator identity is drawn.
+  It hears the pointer resting with no button held and keeps what it rests on, never saved
+  (`Model::hover`, found by `rest_at` among the picture's rests and wire lines); a part of the
+  sentence lights the cards, steps and places it stands for (`Chip::subjects`), a card or a step
+  lights its parts (`lighting`), and a press ends the rest. A dashed part, pressed, does what the
+  Next line's button does.
   A preview evaluates nothing. Add takes an operator reference (the row's
   identity and two content ids): `add-node` places a step at the end or before a node, and
   `add-node-into` before a port's node and into that port, one renumbering edit; a stale
@@ -150,12 +155,13 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   axes, device-grain hit testing, the rail's grouping and preview, the rule's sentence, the Next
   line's walk, the journal read one line a message, the tally drawn in light and in cells, a card
   chosen and put, what makes two presses one double click, a step named by its operator and no
-  internal word drawn, the rail's words broken to two lines, and the kinds a kept field is chosen
-  from.
+  internal word drawn, the rail's words broken to two lines, the sentence and the graph lighting
+  each other, and the kinds a kept field is chosen from.
   `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
   reload preservation, the right press handed back, the empty press and the pan, the chosen step's
   x and Delete, the When and Then cards moved, the double clicks that add, the box at a port, the
   editors in place, the names offered as a message is named, the rail narrowed by a wire in hand,
+  the pointer resting with no button held,
   finding through the door
   and the pane in a graphics window; host behavior is witnessed under [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

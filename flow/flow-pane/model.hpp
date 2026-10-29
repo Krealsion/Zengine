@@ -139,6 +139,9 @@ public:
     /// A wire being dragged, and the search one let go on empty room opened; neither is saved.
     std::optional<WireDrawn> wire_drawn;
     std::optional<WireSearch> wire_search;
+    /// WHAT THE POINTER RESTS ON with no button held, by the key the picture gives it: a part of the
+    /// rule's sentence, a card, a step, a port, a wire or a place still to fill. Never saved.
+    std::optional<std::string> hover;
     /// What each running view last said its wiring names, by the view's office: replaced whole by
     /// its next word, and asked afresh as an editor that names a message opens. Never saved.
     std::map<std::string, std::vector<Known>> known;

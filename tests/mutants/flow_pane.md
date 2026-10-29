@@ -447,3 +447,35 @@ Red in `zengine-flow-pane-tests`:
 
 - a wire in hand from a step's answer narrows the rail to what takes it, and the preview adds a step
   wired from it at the port chosen
+
+## rest-heard-as-nothing
+
+A move with no button held is heard as resting on nothing.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-      on = pane::rest_at(*pictured, event.x, event.y);
++      on = pane::rest_at(*pictured, event.x, -event.y);
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- the pointer resting with no button held lights the sentence and the graph together, and a press on
+  a part still to choose does what the Next line's button does
+
+## a-part-to-choose-does-nothing
+
+A press on a part of the sentence still to choose does nothing.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-      if (i >= chips.size() || (chips[i].kind != pane::Chip::Kind::Open &&
++      if (i < chips.size() || (chips[i].kind != pane::Chip::Kind::Open &&
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- the pointer resting with no button held lights the sentence and the graph together, and a press on
+  a part still to choose does what the Next line's button does

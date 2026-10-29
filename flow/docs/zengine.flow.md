@@ -681,13 +681,14 @@ release carry the window's number for the press, which a carry it asks continues
 
 ### `AreaPointerMoved`
 
-`AreaPointerMoved` v1, from that window: the pointer moved while a press in Flow's area is held,
-which moves the held node, pans the graph or draws the held wire to the hand, as on Workshop's
-canvas.
+`AreaPointerMoved` v2, from that window: the pointer moved in Flow's area. While a press there is
+held it moves the held node, pans the graph or draws the held wire to the hand, as on Workshop's
+canvas; with none held, what it rests on -- a part of the rule's sentence, a card, a step, a port, a
+wire -- is lit with what goes with it, drawn again only when that changes.
 
 ### `AreaWheelTurned`
 
-`AreaWheelTurned` v1, from that window: the wheel over Flow's area, which scrolls the graph or the
+`AreaWheelTurned` v2, from that window: the wheel over Flow's area, which scrolls the graph or the
 page as on Workshop's canvas.
 
 ### `AreaHoldEnded`

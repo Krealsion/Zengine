@@ -159,6 +159,11 @@ A wire dragged from a port, a step's answer or a field and let go on empty Do ro
 search, listing only what fits; the row chosen is made where the wire was let go, already wired
 ([Find what to compose](#find-what-to-compose)).
 
+The pointer resting there, with no button held, lights what goes together: a part of the rule's
+sentence lights its card, the steps it reads and their wires, and a card or a step lights its parts
+of the sentence -- what the rule keeps, every part naming a kept field. A press ends the rest. A
+dashed part of the sentence, still to choose, pressed, does what the Next line's button does.
+
 ## Carry material into Flow
 
 Drag a value from Inventory, Info or Powers onto Flow, or pick it up with the keyboard and click
