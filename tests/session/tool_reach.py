@@ -3,9 +3,11 @@
 """WHAT A SHIPPED TOOL REACHES, BY ITS IMPORTS: a package's name says how far its tools reach.
 
 An operator approves a tool package whole (Loom's sessions guide, section 2), so a package is the
-unit of reach. A package whose name ends in ``-machine`` may reach the machine; every other
-package is a MESSAGE package, and each of its tools reaches nothing but the bus and a clock: no
-process, no file, no socket of its own. A tool's reach is read from its CLOSURE -- its script and
+unit of reach. A package whose name ends in ``-machine`` may reach the machine; one whose name ends
+in ``accounts-machine`` may reach, through it, the session user's accounts as well: GitHub's client
+and Git's push. Every other package is a MESSAGE package, and each of its tools reaches nothing but
+the bus and a clock: no process, no file, no socket of its own. A tool's reach is read from its
+CLOSURE -- its script and
 every module it imports, followed through its own package and then the packages it ``uses`` --
 because a module's top level runs when it is imported, so the closure is what a run loads.
 
@@ -17,11 +19,13 @@ Red, naming the tool, the file and the line, when a tool of a message package
   - imports a module this check cannot read: anything but its own package's modules, those of the
     packages it uses, the session runtime (``loom_session``) and the pure standard modules listed
     below.
+Red, naming the tool, the file and the line, when a tool of a package not named for the accounts
+holds ``gh`` or ``push`` as text: the name of GitHub's client, or Git's push.
 And red, for every package, when a tool imports a module that neither its package, nor a package
 it uses, nor the standard library holds: the run would not load it.
 
-It reads names. It is a guard that a message tool does not grow a reach, not a sandbox: approving
-a package is still trusting its code.
+It reads names. It is a guard that a tool does not grow a reach, not a sandbox: approving a
+package is still trusting its code.
 
     tool_reach.py --packages <dir holding packages> [--package <package dir>] ...
 
@@ -40,6 +44,9 @@ import sysconfig
 import tempfile
 
 MACHINE_SUFFIX = "-machine"
+ACCOUNTS_SUFFIX = "accounts-machine"
+# The text that names a reach into the session user's accounts: what only an accounts package holds.
+ACCOUNTS = {"gh": "GitHub's client", "push": "Git's push"}
 RUNTIME = ("loom_session",)
 # Standard modules that compute and wait, and touch nothing: what a message tool may import.
 # `os` is here for its pure parts (`os.path.join`, `os.sep`); its calls that reach are judged one
@@ -89,6 +96,9 @@ class Module(object):
             tree = ast.parse(f.read(), filename=path)
         self.imports = []          # (line, top-level module name, or None for a relative import)
         self.reaches = []
+        self.accounts = [(n.lineno, ACCOUNTS[n.value]) for n in ast.walk(tree)
+                         if isinstance(n, ast.Constant) and isinstance(n.value, str)
+                         and n.value in ACCOUNTS]
         oses, paths = set(), set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -154,6 +164,10 @@ class Package(object):
         self.uses = list(self.manifest.get("uses", []))
         self.tools = [(t["name"], t["script"]) for t in self.manifest.get("tools", [])]
         self.machine = self.name.endswith(MACHINE_SUFFIX)
+        self.accounts = self.name.endswith(ACCOUNTS_SUFFIX)
+
+    def reach(self):
+        return "accounts" if self.accounts else "machine" if self.machine else "message"
 
     def module(self, name):
         path = os.path.join(self.dir, name + ".py")
@@ -212,6 +226,11 @@ def judge(packages):
                 if not p.machine:
                     for line, kind, what in m.reaches:
                         faults.append("%s:%d reaches %s: %s" % (rel, line, kind, what))
+                if not p.accounts:
+                    for line, what in m.accounts:
+                        faults.append("%s:%d reaches the session user's accounts: %s, which only "
+                                      "a package named `%s` may run" % (rel, line, what,
+                                                                         ACCOUNTS_SUFFIX))
             out.extend((tid, f) for f in faults)
             if not faults:
                 out.append((tid, None))
@@ -246,11 +265,17 @@ def self_test():
                                                      "def run(ctx):\n    subprocess.run(['x'])\n"},
                       uses=("quiet",))
     lost = package("lost-machine", {"t_lost.py": "import helper\ndef run(ctx):\n    return 1\n"})
-    verdicts = judge([quiet, loud, machine, lost])
+    push = "import subprocess\ndef run(ctx):\n    subprocess.run(['git', 'push'])\n"
+    pr = "import subprocess\ndef run(ctx):\n    subprocess.run(['gh', 'pr', 'create'])\n"
+    pushing = package("pushing-machine", {"t_push.py": push, "t_pr.py": pr})
+    accounts = package("git-accounts-machine", {"t_push.py": push, "t_pr.py": pr})
+    verdicts = judge([quiet, loud, machine, lost, pushing, accounts])
     red = set(t for t, why in verdicts if why)
     green = set(t for t, why in verdicts if why is None)
-    want_red = {"loud/t_write", "loud/t_spawn", "loud/t_path", "loud/t_sock", "lost-machine/t_lost"}
-    want_green = {"quiet/t_ask", "loud-machine/t_spawn"}
+    want_red = {"loud/t_write", "loud/t_spawn", "loud/t_path", "loud/t_sock", "lost-machine/t_lost",
+                "pushing-machine/t_push", "pushing-machine/t_pr"}
+    want_green = {"quiet/t_ask", "loud-machine/t_spawn", "git-accounts-machine/t_push",
+                  "git-accounts-machine/t_pr"}
     if red != want_red or green != want_green:
         print("tool_reach: SELF-TEST FAILED: red %s (wanted %s), green %s (wanted %s)"
               % (sorted(red), sorted(want_red), sorted(green), sorted(want_green)))
@@ -280,8 +305,8 @@ def main(argv=None):
     verdicts = judge(packages)
     faults = [(t, why) for t, why in verdicts if why]
     for p in packages:
-        print("%-24s %-8s %d tool(s)%s" % (p.name, "machine" if p.machine else "message",
-                                           len(p.tools), "; uses " + ", ".join(p.uses) if p.uses else ""))
+        print("%-24s %-8s %d tool(s)%s" % (p.name, p.reach(), len(p.tools),
+                                           "; uses " + ", ".join(p.uses) if p.uses else ""))
     for t, why in faults:
         print("FAIL %s: %s" % (t, why))
     held = sum(1 for t, why in verdicts if why is None)

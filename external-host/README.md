@@ -30,7 +30,8 @@ a dedicated Workshop laid out for one task, with a Reset demo button.
 |---|---|
 | `tools/workshop/` | the `workshop` tools a Loom session runs against a running Workshop, by message alone |
 | `tools/workshop/setups/` | the ready-to-use setups, one folder each |
-| `tools/workshop-machine/` | the `workshop-machine` tools, which also reach this machine: a build tree, a checkout, project files, a setup's files |
+| `tools/workshop-machine/` | the `workshop-machine` tools, which also reach this machine: a build tree, project files, a setup's files |
+| `tools/accounts-machine/` | the `accounts-machine` tools, which reach this machine and the session user's accounts: a checkout's Git, a push, a pull request |
 | `tools/desk/` | the `desk` tools by message: the guide marked, and the controls that may cause a message |
 | `tools/desk-machine/` | the `desk-machine` tools: Workshop's desk written out as text files |
 | `demo.py` | starts, resets and stops a ready-to-use setup |
