@@ -604,6 +604,15 @@ class Hand:
         view, p = self.seek(provider, pane, find, True, toward=(-1, 1), notches=notches)
         return self.pressable(provider, pane, view, p, name)
 
+    def level(self, provider, pane, path):
+        """Open an Info view's level `path` -- a field holding fields of its own, shut until opened
+        -- by a press on its fold mark, the part `fold:<path>` (`part`, wheeling the view until it
+        draws it); a level already open (`-`) is left as it is. Returns the mark as `part` does."""
+        mark = self.part(provider, pane, "fold:" + path, scroll=True)
+        if "+" in mark["text"]:
+            self.click(mark)
+        return mark
+
     def click(self, row):
         self.actions["click"] += 1
         self.inject([moment(self.ctx, "PointerButton", button=1, pressed=p,
