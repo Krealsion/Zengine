@@ -19,9 +19,9 @@ at launch, keeps no settings, so neither pane shows by itself there. Nor does th
 desk where a pane beyond Layouts, Info and Notices is already open: that pane keeps the keys, and
 the quick setup shows at the next start. Clear `answered` in the pane's gear and it shows again.
 
-**Start here** opens when the quick setup is put down, holding the keys, and at each later start
-that keeps settings until the story is done -- beside the pane that holds the keys, never taking
-them.
+**Start here** opens when the quick setup is put down, holding the keys, at your first start
+alone; a later start opens neither pane by itself, and both are a press away in the Pane Manager
+and the palette. A desk you left with Start here on it comes back with it, as any pane does.
 
 Neither pane changes anything itself: each answer goes to the owner of what it changes and is said
 in that owner's words. On a weaver's host with a guest door, only your own hand reaches either
