@@ -50,6 +50,44 @@ struct FileRow {
     bool openable = true;
 };
 
+/// How many bytes the UTF-8 character beyond ASCII that starts at `i` spans, or 0 where none
+/// does: a byte that begins no character, a cut or overlong sequence, a surrogate.
+inline std::size_t utf8_character(const std::string& name, std::size_t i) {
+    const unsigned char b = static_cast<unsigned char>(name[i]);
+    std::size_t width = 0;
+    std::uint32_t cp = 0;
+    std::uint32_t least = 0;
+    if (b >= 0xC2u && b <= 0xDFu) {
+        width = 2;
+        cp = b & 0x1Fu;
+        least = 0x80u;
+    } else if (b >= 0xE0u && b <= 0xEFu) {
+        width = 3;
+        cp = b & 0x0Fu;
+        least = 0x800u;
+    } else if (b >= 0xF0u && b <= 0xF4u) {
+        width = 4;
+        cp = b & 0x07u;
+        least = 0x10000u;
+    } else {
+        return 0;
+    }
+    if (name.size() - i < width) {
+        return 0;
+    }
+    for (std::size_t k = 1; k < width; ++k) {
+        const unsigned char c = static_cast<unsigned char>(name[i + k]);
+        if ((c & 0xC0u) != 0x80u) {
+            return 0;
+        }
+        cp = (cp << 6) | (c & 0x3Fu);
+    }
+    if (cp < least || cp > 0x10FFFFu || (cp >= 0xD800u && cp <= 0xDFFFu)) {
+        return 0;
+    }
+    return width;
+}
+
 /// Is this name text a path in Workshop is spelled in: UTF-8, with no ASCII control character? A
 /// letter of any script is; a control byte, or bytes that spell no character, are not.
 // WL-FILES-10 -- agents/workshop/files.md
@@ -67,35 +105,8 @@ inline bool carried_name(const std::string& name) {
             ++i;
             continue;
         }
-        std::size_t width = 0;
-        std::uint32_t cp = 0;
-        std::uint32_t least = 0;
-        if (b >= 0xC2u && b <= 0xDFu) {
-            width = 2;
-            cp = b & 0x1Fu;
-            least = 0x80u;
-        } else if (b >= 0xE0u && b <= 0xEFu) {
-            width = 3;
-            cp = b & 0x0Fu;
-            least = 0x800u;
-        } else if (b >= 0xF0u && b <= 0xF4u) {
-            width = 4;
-            cp = b & 0x07u;
-            least = 0x10000u;
-        } else {
-            return false;
-        }
-        if (name.size() - i < width) {
-            return false;
-        }
-        for (std::size_t k = 1; k < width; ++k) {
-            const unsigned char c = static_cast<unsigned char>(name[i + k]);
-            if ((c & 0xC0u) != 0x80u) {
-                return false;
-            }
-            cp = (cp << 6) | (c & 0x3Fu);
-        }
-        if (cp < least || cp > 0x10FFFFu || (cp >= 0xD800u && cp <= 0xDFFFu)) {
+        const std::size_t width = utf8_character(name, i);
+        if (width == 0) {
             return false;
         }
         i += width;
@@ -103,14 +114,23 @@ inline bool carried_name(const std::string& name) {
     return true;
 }
 
-/// WHAT A NAME OUTSIDE PRINTABLE ASCII LOOKS LIKE ON SCREEN.
+/// WHAT A NAME OUTSIDE PRINTABLE ASCII LOOKS LIKE ON SCREEN: one `?` a character, as the header
+/// spells its path, and one a byte that spells none.
 // WL-FILES-10 -- agents/workshop/files.md
 inline std::string shown_name(const std::string& name) {
     std::string out;
     out.reserve(name.size());
-    for (const char c : name) {
-        const unsigned char b = static_cast<unsigned char>(c);
-        out.push_back(b < 0x20 || b > 0x7E ? '?' : c);
+    std::size_t i = 0;
+    while (i < name.size()) {
+        const unsigned char b = static_cast<unsigned char>(name[i]);
+        if (b >= 0x20u && b <= 0x7Eu) {
+            out.push_back(name[i]);
+            ++i;
+            continue;
+        }
+        out.push_back('?');
+        const std::size_t width = b < 0x80u ? 0 : utf8_character(name, i);
+        i += width == 0 ? 1 : width;
     }
     return out;
 }
