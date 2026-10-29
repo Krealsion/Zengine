@@ -1989,13 +1989,14 @@ TEST_CASE("IndependentAccordions: each section opens and shuts alone by its key,
     // ⚔ MUTATION (tests/mutants/component.md#group-shut-all-keeps-one,
     // #group-keep-forgets-nothing): shutting every section leaving one open; a section the
     // population no longer holds kept open.
-    IndependentAccordions<std::string> group;
+    std::vector<std::string> kept;
+    IndependentAccordions<std::string> group(kept);
     group.press("files");
     group.press("terminal");
     CHECK(group.is_open("files"));
     CHECK(group.is_open("terminal"));
     CHECK_FALSE(group.is_open("info"));
-    CHECK(group.opened() == std::vector<std::string>{"files", "terminal"});
+    CHECK(kept == std::vector<std::string>{"files", "terminal"});
     // ONE SHUTS ALONE: the other stays open, which an exclusive group would not allow.
     CHECK(group.shut("files"));
     CHECK_FALSE(group.shut("files")); // already shut: nothing moved
@@ -2022,19 +2023,97 @@ TEST_CASE("IndependentAccordions: each section opens and shuts alone by its key,
     // ONE ACT SHUTS THEM ALL.
     group.press("info");
     CHECK(group.shut_all());
-    CHECK(group.opened().empty());
+    CHECK(kept.empty());
     CHECK_FALSE(group.shut_all());
     // KEPT ACROSS A POPULATION THAT MOVES, FORGOTTEN WHEN IT NO LONGER HOLDS THEM.
-    group.restore({"terminal", "files", "files"});
-    CHECK(group.opened() == std::vector<std::string>{"files", "terminal"});
+    kept = {"terminal", "files"};
     std::vector<std::string> population = {"info", "terminal", "files", "hotkeys"};
     const auto key_of = [](const std::string& s) { return s; };
     CHECK_FALSE(group.keep(population, key_of));
-    CHECK(group.opened() == std::vector<std::string>{"files", "terminal"});
+    CHECK(group.is_open("files"));
+    CHECK(group.is_open("terminal"));
     population = {"info", "terminal"};
     CHECK(group.keep(population, key_of));
-    CHECK(group.opened() == std::vector<std::string>{"terminal"});
+    CHECK(kept == std::vector<std::string>{"terminal"});
     CHECK(group.resting() == nullptr); // the rest was over `files`, which left
+}
+
+TEST_CASE("IndependentAccordions: the open sections are the owner's list, read there and written there -- an edit to it is what the group shows, and the next fold writes over nothing it did not change") {
+    // ⚔ MUTATION (tests/mutants/component.md#group-keeps-its-own-copy): the group reading a copy
+    // of the open sections taken when it was made.
+    std::vector<std::string> state = {"terminal"};
+    IndependentAccordions<std::string> group(state);
+    CHECK(group.is_open("terminal"));
+    // THE OWNER'S STATE IS EDITED UNDER THE GROUP -- out of order, a key twice -- and the group
+    // shows the edit at once.
+    state = {"info", "files", "info"};
+    CHECK_FALSE(group.is_open("terminal"));
+    CHECK(group.fold("files") == Fold::kOpen);
+    CHECK(group.fold("info") == Fold::kOpen);
+    // THE NEXT FOLD CHANGES ITS OWN SECTION AND LEAVES THE EDIT: shut takes every copy of a key.
+    CHECK(group.shut("info"));
+    CHECK(state == std::vector<std::string>{"files"});
+    CHECK(group.open("terminal"));
+    CHECK(state == std::vector<std::string>{"files", "terminal"});
+    // A STATE RESET TO ITS DEFAULT SHUTS EVERY SECTION.
+    state = {};
+    CHECK_FALSE(group.is_open("files"));
+    CHECK_FALSE(group.shut_all());
+}
+
+TEST_CASE("IndependentAccordions: an open on a list in any order adds its key once and keeps every key the list held") {
+    // An owner's list out of key order, as an edit may leave it: no search over it may assume an
+    // order (libstdc++'s debug mode refuses `upper_bound` over this list).
+    std::vector<std::string> state = {"terminal", "files", "terminal"};
+    IndependentAccordions<std::string> group(state);
+    CHECK(group.open("info"));
+    CHECK(std::count(state.begin(), state.end(), "info") == 1);
+    CHECK(std::count(state.begin(), state.end(), "terminal") == 2);
+    CHECK(std::count(state.begin(), state.end(), "files") == 1);
+    CHECK(state.size() == 4);
+    CHECK_FALSE(group.open("info"));
+    CHECK(state.size() == 4);
+}
+
+TEST_CASE("shown_tree: a row shows while every branch above it is open, a branch is a row whose next row stands deeper, and tree_parent finds the nearest shallower row before it") {
+    // ⚔ MUTATION (tests/mutants/component.md#tree-shows-under-a-shut-branch,
+    // #tree-hides-a-shut-branchs-sibling): rows under a shut branch shown; a shut branch hiding
+    // the rows after its own.
+    // total, position {x, y}, history {[0] {at}, [1] {at}}, and tags, an empty list: no branch.
+    const std::vector<std::size_t> depths = {0, 0, 1, 1, 0, 1, 2, 1, 2, 0};
+    const auto rows_of = [](const std::vector<TreeRow>& shown) {
+        std::vector<std::size_t> out;
+        for (const TreeRow& r : shown) out.push_back(r.row);
+        return out;
+    };
+    // FIRST SHOWN: EVERY BRANCH SHUT, the top level alone.
+    const auto shut = shown_tree(depths, [](std::size_t) { return false; });
+    CHECK(rows_of(shut) == std::vector<std::size_t>{0, 1, 4, 9});
+    CHECK(shut[0] == TreeRow{0, 0, false});
+    CHECK(shut[1] == TreeRow{1, 0, true});
+    CHECK(shut[2] == TreeRow{4, 0, true});
+    CHECK(shut[3] == TreeRow{9, 0, false});
+    // LEVELS OPEN ALONE: `history` and `history[1]` open, `history[0]` and `position` shut.
+    const auto some = shown_tree(depths, [](std::size_t row) { return row == 4 || row == 7; });
+    CHECK(rows_of(some) == std::vector<std::size_t>{0, 1, 4, 5, 7, 8, 9});
+    CHECK(some[3] == TreeRow{5, 1, true});
+    CHECK(some[5] == TreeRow{8, 2, false});
+    // AN OPEN ROW UNDER A SHUT ONE STAYS HIDDEN: `history[1]` open, `history` shut.
+    CHECK(rows_of(shown_tree(depths, [](std::size_t row) { return row == 7; })) ==
+          std::vector<std::size_t>{0, 1, 4, 9});
+    // EVERY BRANCH OPEN: every row, in order.
+    CHECK(shown_tree(depths, [](std::size_t) { return true; }).size() == depths.size());
+    // A DEPTH THAT JUMPS STILL NESTS UNDER THE ROW BEFORE IT.
+    CHECK(rows_of(shown_tree({0, 3, 0}, [](std::size_t) { return false; })) ==
+          std::vector<std::size_t>{0, 2});
+    CHECK(shown_tree({}, [](std::size_t) { return true; }).empty());
+    // THE PARENT: the nearest shallower row before; a top row, or one past the end, is its own.
+    CHECK(tree_parent(depths, 3) == 1);
+    CHECK(tree_parent(depths, 6) == 5);
+    CHECK(tree_parent(depths, 7) == 4);
+    CHECK(tree_parent(depths, 4) == 4);
+    CHECK(tree_parent(depths, 0) == 0);
+    CHECK(tree_parent(depths, 99) == 99);
 }
 
 TEST_CASE("RowMap: rows something is drawn over mean nothing beneath it, and what is drawn there names its own") {

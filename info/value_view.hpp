@@ -21,6 +21,7 @@
 #include "vocabulary.hpp"
 #include "value_picture.hpp"
 #include "value_watch.hpp"
+#include "component/accordion.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/codec.hpp"
@@ -54,7 +55,9 @@ struct ActResult {
 
 class ValueView {
 public:
-    ValueView(std::string key, std::size_t slot) : key_(std::move(key)), slot_(slot), title_(default_title()) {}
+    /// A VIEW IN SLOT `slot`, its open levels kept in `kept`, its pane's state, which outlives it.
+    ValueView(std::string key, std::size_t slot, InfoPaneState& kept)
+        : key_(std::move(key)), slot_(slot), kept_(&kept), title_(default_title()) {}
 
     const std::string& key() const noexcept { return key_; }
     std::size_t slot() const noexcept { return slot_; }
@@ -111,7 +114,8 @@ public:
     bool retire(ViewContext& c, std::string reason = "view closed") {
         stop_watch(c, std::move(reason));
         const bool renamed = title_ != default_title();
-        ValueView fresh(key_, slot_);
+        forget_levels();
+        ValueView fresh(key_, slot_, *kept_);
         fresh.incarnation_ = incarnation_ + 1;
         fresh.watch_ = watch_.retire();
         fresh.picture_ = std::move(picture_);
@@ -130,6 +134,9 @@ public:
         preset_ = o.preset_; preset_title_ = o.preset_title_; label_ = o.label_;
         dirty_ = o.dirty_; sampled_ = o.sampled_; edited_ = o.edited_; stale_ = o.stale_;
         selected_ = o.selected_; lost_ = o.lost_; hint_ = o.hint_;
+        const std::vector<std::string> theirs = o.open_levels();
+        if (theirs.empty()) forget_levels();
+        else levels() = theirs;
         set_title(o.title_ + " fork");
         notice_ = "Forked from " + o.title_ + ": an independent local draft; watch is off";
     }
@@ -176,6 +183,7 @@ public:
                 s.edited.push_back(static_cast<std::int64_t>(i));
         }
         s.watched = watching();
+        s.open = open_levels();
         return s;
     }
     /// ...PUT BACK IN THE IMAGE THAT FOLLOWS: allocated and offered again, its draft, entry and
@@ -279,6 +287,13 @@ public:
         const Meaning* at = picture_.at(row, column);
         if (!at) return {};
         if (at->kind == Meaning::kControl) return at->control;
+        if (at->kind == Meaning::kFold && !editing()) {
+            // A PRESS ON A LEVEL'S FOLD MARK OPENS IT OR SHUTS IT, the cursor on it.
+            const FieldRef level = at->field;
+            (void)fold(level, !level_open(level));
+            selected_ = level; lost_ = false; close_armed_ = false; discard_armed_ = false;
+            return {};
+        }
         if (at->kind == Meaning::kField && !editing()) {
             selected_ = at->field; lost_ = false; observed_.clear(); close_armed_ = false; discard_armed_ = false;
             press_ = {true, false, row, column, gesture, at->field};
@@ -399,6 +414,9 @@ public:
         if (pickup_ != Pickup::idle) { notice_ = "A field pickup is pending"; return out; }
         const auto fields = field_list();
         if (id == kValueUp || id == kValueDown) { step(fields, id == kValueUp ? -1 : 1); return out; }
+        if (id == kValueOpen) { open_here(fields); return out; }
+        if (id == kValueShut) { shut_here(fields); return out; }
+        if (id == kValueShutAll) { forget_levels(); select_first(); return out; }
         if (id == kValueEdit) { begin_edit(fields); return out; }
         if (id == kActionPreset) {
             preset_ = true; detached_ = true; dirty_ = true; sampled_ = false; ++edits_;
@@ -596,6 +614,9 @@ public:
             {kValueUp, "previous field", scan::kUp, mod::kNone},
             {kValueDown, "next field", scan::kDown, mod::kNone},
             {kValueEdit, "edit field", scan::kReturn, mod::kNone},
+            {kValueOpen, "open a level", scan::kRight, mod::kNone},
+            {kValueShut, "shut a level", scan::kLeft, mod::kNone},
+            {kValueShutAll, "shut every level", scan::kLeft, mod::kShift},
             {kActionSave, "save entry", scan::kS, mod::kCtrl, {},
              {cause_of<inventory::InventoryWrite>(), cause_of<inventory::InventoryAdd>()}},
             {kActionSaveCopy, "save a new copy", scan::kS, mod::kCtrl | mod::kShift, {},
@@ -638,7 +659,8 @@ public:
     std::vector<std::pair<std::string, std::string>> menu_rows() const {
         std::vector<std::pair<std::string, std::string>> out;
         for (const auto& row : actions())
-            if (row.id != kValueUp && row.id != kValueDown && row.id != kActionViewMenu)
+            if (row.id != kValueUp && row.id != kValueDown && row.id != kValueOpen && row.id != kValueShut &&
+                row.id != kValueShutAll && row.id != kActionViewMenu)
                 out.emplace_back(row.id, (row.id == kActionSample && !sample_route().first.empty()
                                               ? "Sample source " + sample_route().first : label_of(row.id)) +
                                              (unavailable(row.id).empty() ? "" : " (unavailable)"));
@@ -655,13 +677,19 @@ public:
     }
 
     /// WHAT A VIEW CALLS ITS PARTS: a field by its path, `field:<path>` (`field:meta[<n>].<path>`
-    /// for a capture's metadata), and a control by its action, `control:<id>`.
+    /// for a capture's metadata), a level's fold mark by the same path, `fold:<path>`, and a
+    /// control by its action, `control:<id>`.
     static std::string part_name(const Meaning& m) {
         if (m.kind == Meaning::kControl) return "control:" + m.control;
+        if (m.kind == Meaning::kFold) return "fold:" + field_name(m.field);
         if (m.kind != Meaning::kField) return std::string();
-        const std::string meta =
-            m.field.metadata >= 0 ? "meta[" + std::to_string(m.field.metadata) + "]." : std::string();
-        return "field:" + meta + message_draft::path_label(m.field.path);
+        return "field:" + field_name(m.field);
+    }
+    /// A FIELD BY ITS PATH, as its parts and its level are named: `meta[<n>].` before a capture's
+    /// metadata.
+    static std::string field_name(const FieldRef& ref) {
+        return (ref.metadata >= 0 ? "meta[" + std::to_string(ref.metadata) + "]." : std::string()) +
+               message_draft::path_label(ref.path);
     }
 
     workshop::ComposedRows compose(bool can_create) { return picture_.compose(shown(can_create), line_, hint_); }
@@ -675,7 +703,8 @@ public:
             {kActionUnset, "Unset field"}, {kActionGrab, "Pick up field"}, {kActionDiscard, "Discard edits"},
             {kActionViewNew, "New view"}, {kActionViewFork, "Fork view"}, {kActionViewRename, "Rename view"},
             {kActionViewClose, "Close view"}, {kActionViewMenu, "Actions"}, {kActionPanes, "Pane properties"},
-            {kValueEdit, "Edit field"}, {kActionViewUse, "Use this view"}, {kActionStop, "Stop waiting"}};
+            {kValueEdit, "Edit field"}, {kActionViewUse, "Use this view"}, {kActionStop, "Stop waiting"},
+            {kValueOpen, "Open level"}, {kValueShut, "Shut level"}, {kValueShutAll, "Shut every level"}};
         for (const auto& [key, name] : names) if (key == id) return name;
         return id;
     }
@@ -743,9 +772,117 @@ private:
         for (const auto& f : fields) if (f.ref == ref) return &f;
         return nullptr;
     }
-    std::size_t selected_index(const std::vector<Field>& fields) const {
-        for (std::size_t i = 0; i < fields.size(); ++i) if (!lost_ && fields[i].ref == selected_) return i;
-        return std::min(hint_, fields.empty() ? std::size_t(0) : fields.size() - 1);
+    // ---- the value's levels ----------------------------------------------------------------
+
+    /// THIS VIEW'S OPEN LEVELS, where its pane's state keeps them: its row of the state's views,
+    /// made when a level first opens. Every fold reads them there and writes them there.
+    std::vector<std::string>& levels() {
+        for (InfoViewState& row : kept_->views)
+            if (row.slot == static_cast<std::int64_t>(slot_)) return row.open;
+        InfoViewState row;
+        row.slot = static_cast<std::int64_t>(slot_);
+        kept_->views.push_back(std::move(row));
+        return kept_->views.back().open;
+    }
+    std::vector<std::string> open_levels() const {
+        for (const InfoViewState& row : kept_->views)
+            if (row.slot == static_cast<std::int64_t>(slot_)) return row.open;
+        return {};
+    }
+    bool level_open(const FieldRef& ref) const {
+        const auto open = open_levels();
+        return std::find(open.begin(), open.end(), field_name(ref)) != open.end();
+    }
+    /// ...EVERY LEVEL SHUT, the view's row gone with them.
+    void forget_levels() {
+        auto& rows = kept_->views;
+        rows.erase(std::remove_if(rows.begin(), rows.end(),
+                                  [this](const InfoViewState& row) { return row.slot == static_cast<std::int64_t>(slot_); }),
+                   rows.end());
+    }
+    /// OPEN OR SHUT LEVEL `ref`; shut, a cursor inside it stands on it. True when it moved.
+    bool fold(const FieldRef& ref, bool open) {
+        if (!open && !level_open(ref)) return false;
+        component::IndependentAccordions<std::string> group(levels());
+        const bool moved = open ? group.open(field_name(ref)) : group.shut(field_name(ref));
+        if (!open && selected_.within(ref)) { selected_ = ref; lost_ = false; }
+        return moved;
+    }
+
+    /// THE VALUE AS A TREE: each field's depth, and the rows it shows under the levels open now.
+    struct Tree {
+        std::vector<std::size_t> depths;
+        std::vector<component::TreeRow> shown;
+    };
+    Tree tree(const std::vector<Field>& fields) const {
+        Tree t;
+        for (const Field& f : fields) t.depths.push_back(f.ref.path.empty() ? 0 : f.ref.path.size() - 1);
+        const auto open = open_levels();
+        t.shown = component::shown_tree(t.depths, [&](std::size_t i) {
+            return std::find(open.begin(), open.end(), field_name(fields[i].ref)) != open.end();
+        });
+        return t;
+    }
+    /// WHERE THE CURSOR STANDS AMONG THE SHOWN ROWS: on the selected field, or on the nearest level
+    /// above it that shows.
+    std::size_t shown_at(const std::vector<Field>& fields, const Tree& t) const {
+        if (t.shown.empty()) return 0;
+        std::size_t at = fields.size();
+        if (!lost_)
+            for (std::size_t i = 0; i < fields.size(); ++i)
+                if (fields[i].ref == selected_) { at = i; break; }
+        if (at == fields.size()) return std::min(hint_, t.shown.size() - 1);
+        for (;;) {
+            for (std::size_t s = 0; s < t.shown.size(); ++s) if (t.shown[s].row == at) return s;
+            const std::size_t up = component::tree_parent(t.depths, at);
+            if (up == at) return 0;
+            at = up;
+        }
+    }
+    /// RIGHT: open the level the cursor stands on, or, open already, step to its first field.
+    void open_here(const std::vector<Field>& fields) {
+        const Tree t = tree(fields);
+        if (t.shown.empty()) return;
+        const std::size_t at = shown_at(fields, t);
+        selected_ = fields[t.shown[at].row].ref; lost_ = false;
+        if (t.shown[at].branch && !fold(selected_, true) && at + 1 < t.shown.size())
+            selected_ = fields[t.shown[at + 1].row].ref;
+    }
+    /// LEFT: shut the open level the cursor stands on, or step out to the level above it.
+    void shut_here(const std::vector<Field>& fields) {
+        const Tree t = tree(fields);
+        if (t.shown.empty()) return;
+        const std::size_t row = t.shown[shown_at(fields, t)].row;
+        selected_ = fields[row].ref; lost_ = false;
+        if (t.shown[shown_at(fields, t)].branch && fold(selected_, false)) return;
+        selected_ = fields[component::tree_parent(t.depths, row)].ref;
+    }
+    /// A ROW'S OWN NAME: its field (`x`) or its item (`[1]`); a capture's metadata says whose at
+    /// its top level (`meta[0].source`).
+    static std::string own_name(const Field& f) {
+        if (f.ref.path.empty()) return f.label;
+        const auto& last = f.ref.path.back();
+        std::string name = std::holds_alternative<std::string>(last)
+            ? std::get<std::string>(last) : "[" + std::to_string(std::get<std::size_t>(last)) + "]";
+        if (f.ref.metadata >= 0 && f.ref.path.size() == 1) name = "meta[" + std::to_string(f.ref.metadata) + "]." + name;
+        return name;
+    }
+    /// WHAT A SHUT LEVEL HOLDS, in a word: a list its count, a message its fields by name and
+    /// value, a message inside it `{...}`; past `kBrief` characters the rest is `...`.
+    static constexpr std::size_t kBrief = 60;
+    static std::string brief(const std::vector<Field>& fields, const std::vector<std::size_t>& depths, std::size_t at) {
+        const Field& f = fields[at];
+        if (f.row.type.kind != loom::Kind::Message) return f.row.summary;
+        std::string out = "{";
+        for (std::size_t i = at + 1; i < fields.size() && depths[i] > depths[at]; ++i) {
+            if (depths[i] != depths[at] + 1) continue;
+            const bool holds = i + 1 < fields.size() && depths[i + 1] > depths[i];
+            const std::string word = own_name(fields[i]) + " " +
+                (holds && fields[i].row.type.kind == loom::Kind::Message ? std::string("{...}") : fields[i].row.summary);
+            if (out.size() + word.size() > kBrief) { out += out.size() > 1 ? ", ..." : "..."; break; }
+            out += (out.size() > 1 ? ", " : "") + word;
+        }
+        return out + "}";
     }
     void select_first() {
         const auto fields = field_list();
@@ -759,14 +896,16 @@ private:
         if (!find(fields, selected_)) lost_ = !fields.empty() && !(selected_ == FieldRef{});
         if (selected_ == FieldRef{} && !fields.empty()) select_first();
     }
+    /// THE CURSOR WALKS THE SHOWN ROWS: a field inside a shut level is passed over.
     void step(const std::vector<Field>& fields, int by) {
-        if (fields.empty()) return;
-        std::size_t at = selected_index(fields);
+        const Tree t = tree(fields);
+        if (t.shown.empty()) return;
+        std::size_t at = shown_at(fields, t);
         if (!lost_) {
             if (by < 0 && at > 0) --at;
-            else if (by > 0 && at + 1 < fields.size()) ++at;
+            else if (by > 0 && at + 1 < t.shown.size()) ++at;
         }
-        selected_ = fields[at].ref; lost_ = false;
+        selected_ = fields[t.shown[at].row].ref; lost_ = false;
     }
     void begin_edit(const std::vector<Field>& fields) {
         const Field* f = find(fields, selected_);
@@ -809,6 +948,10 @@ private:
         preset_title_ = stored ? stored->title : "";
         metadata_ = pair.metadata;
         if (reset_marks) { edited_.clear(); observed_.clear(); }
+        // A LEVEL THE VALUE NO LONGER HOLDS IS FORGOTTEN.
+        if (!open_levels().empty())
+            (void)component::IndependentAccordions<std::string>(levels()).keep(
+                field_list(), [](const Field& field) { return field_name(field.ref); });
     }
 
     /// A NEWER REVISION OF THE LINKED ENTRY ARRIVED. A clean, idle draft adopts it and marks what
@@ -993,6 +1136,7 @@ private:
     void forget_subject() {
         stale_ = false; sampled_ = false; newer_.reset();
         sample_ = Sample{};
+        forget_levels(); // a new subject is first shown with every level shut
     }
     static std::string frozen(const std::string& what) {
         return "wait: this view is " + what + " -- Stop keeps this draft";
@@ -1141,10 +1285,31 @@ private:
         s.holds_value = item_.has_value();
         if (!item_) return s;
         const auto fields = field_list();
-        for (const Field& f : fields)
-            s.fields.push_back({f.ref, f.label, f.row.summary, !f.row.present && f.row.required, f.metadata,
-                                !lost_ && f.ref == selected_, edited(f.ref) ? '*' : observed(f.ref) ? '~' : ' '});
-        s.selected = selected_index(fields);
+        const Tree t = tree(fields);
+        const std::size_t here = shown_at(fields, t);
+        for (std::size_t i = 0; i < t.shown.size(); ++i) {
+            const component::TreeRow& row = t.shown[i];
+            const Field& f = fields[row.row];
+            FieldLine line;
+            line.ref = f.ref;
+            line.label = own_name(f);
+            line.depth = row.depth;
+            line.branch = row.branch;
+            line.open = row.branch && level_open(f.ref);
+            // A SHUT LEVEL SAYS WHAT IT HOLDS, and carries the marks of the fields inside it.
+            const bool shut = row.branch && !line.open;
+            line.summary = shut ? brief(fields, t.depths, row.row) : f.row.summary;
+            line.missing = !f.row.present && f.row.required;
+            line.metadata = f.metadata;
+            line.here = i == here && !lost_;
+            const auto inside = [&](const std::vector<FieldRef>& refs) {
+                return shut && std::any_of(refs.begin(), refs.end(), [&](const FieldRef& r) { return r.within(f.ref); });
+            };
+            line.mark = edited(f.ref) || inside(edited_) ? '*' : observed(f.ref) || inside(observed_) ? '~' : ' ';
+            s.fields.push_back(std::move(line));
+        }
+        for (std::size_t i = 0; i + 1 < t.depths.size() && !s.levels; ++i) s.levels = t.depths[i + 1] > t.depths[i];
+        s.selected = here;
         return s;
     }
     /// THE CONTROLS, each drawn available as its act answers (`unavailable`), so a control and its
@@ -1211,6 +1376,7 @@ private:
 
     std::string key_;
     std::size_t slot_ = 1;
+    InfoPaneState* kept_; ///< the pane's state, where this view's open levels are kept; never null
     std::string title_;
     bool allocated_ = false, on_desk_ = false;
     std::uint64_t incarnation_ = 0;

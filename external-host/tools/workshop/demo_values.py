@@ -15,7 +15,9 @@ def run(ctx):
     hand.drag(hand.row(*inv, "Demo input 1"), hand.first(*info), 400)
     hand.last_view(hand.words(*info), "opened.json")
     # PokeStructure is ordinary typed data; changing a field name here does not alter a weave.
-    field = hand.row(*info, "fields[0].name:")
+    hand.level(*info, "fields")
+    hand.level(*info, "fields[0]")
+    field = hand.field(*info, "fields[0].name")
     hand.click(field); hand.key("enter"); hand.text("demo.edited"); hand.key("enter")
     hand.key("ctrl+s")
     after = hand.ask("zengine.inventory", "InventoryList", {})["entries"]

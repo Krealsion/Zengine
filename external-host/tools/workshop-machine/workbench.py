@@ -150,7 +150,7 @@ def story(ctx, hand, link, pictures, shots):
     edited = hand.field(*PRESET, "state_version")
     hand.click(edited); hand.key("enter"); hand.key("ctrl+a"); hand.text("7"); hand.key("enter")
     hand.control(*PRESET, "Save")
-    expect(hand, WATCH, "~state_version: 7")
+    expect(hand, WATCH, "~  state_version: 7")
     pictures.append(picture(shots, link, "watching")[0])
 
     ctx.step("a dirty watched draft keeps its text; its stale save refuses and Save copy keeps it")
@@ -160,7 +160,7 @@ def story(ctx, hand, link, pictures, shots):
     hand.click(theirs); hand.key("enter"); hand.key("ctrl+a"); hand.text("8"); hand.key("enter")
     hand.control(*PRESET, "Save")
     expect(hand, WATCH, "NEWER rev")
-    expect(hand, WATCH, "*state_version: 99")
+    expect(hand, WATCH, "*  state_version: 99")
     hand.control(*WATCH, "Save")
     expect(hand, WATCH, "Save refused")
     hand.control(*WATCH, "Save copy")

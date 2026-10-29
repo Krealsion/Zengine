@@ -8,6 +8,9 @@ zengine.info - info.cancel escape - - cancel
 zengine.info - info.value.up up - - previous field
 zengine.info - info.value.down down - - next field
 zengine.info - info.value.edit return - - edit field
+zengine.info - info.value.open right - - open a level
+zengine.info - info.value.shut left - - shut a level
+zengine.info - info.value.shut-all shift+left - - shut every level
 zengine.info - info.value.save ctrl+s InventoryWrite/1,InventoryAdd/1 - save entry
 zengine.info - info.value.save-copy ctrl+shift+s~alt+end InventoryAdd/1 - save a new copy
 zengine.info - info.value.fresh ctrl+r InventoryRead/1 - refresh from inventory
@@ -29,6 +32,9 @@ zengine.info - info.view.rename.cancel escape - - cancel rename
 zengine.info - info.value.up up - - previous field
 zengine.info - info.value.down down - - next field
 zengine.info - info.value.edit return - - edit field
+zengine.info - info.value.open right - - open a level
+zengine.info - info.value.shut left - - shut a level
+zengine.info - info.value.shut-all shift+left - - shut every level
 zengine.info - info.value.save ctrl+s InventoryWrite/1,InventoryAdd/1 - save entry
 zengine.info - info.value.save-copy ctrl+shift+s~alt+end InventoryAdd/1 - save a new copy
 zengine.info - info.value.fresh ctrl+r InventoryRead/1 - refresh from inventory
@@ -52,6 +58,9 @@ zengine.info - info.view.new ctrl+n PaneLaunchRequested/1,PaneSettingsRequested/
 zengine.info - info.value.up up - - previous field
 zengine.info - info.value.down down - - next field
 zengine.info - info.value.edit return - - edit field
+zengine.info - info.value.open right - - open a level
+zengine.info - info.value.shut left - - shut a level
+zengine.info - info.value.shut-all shift+left - - shut every level
 zengine.info - info.value.save ctrl+s InventoryWrite/1,InventoryAdd/1 - save entry
 zengine.info - info.value.save-copy ctrl+shift+s~alt+end InventoryAdd/1 - save a new copy
 zengine.info - info.value.fresh ctrl+r InventoryRead/1 - refresh from inventory

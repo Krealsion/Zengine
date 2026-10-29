@@ -152,8 +152,6 @@ public:
     /// THE THREE PANES OFFERED AND DECLARED, the application's rows with them, and what the host
     /// holds now asked for: at each activation and each catalog request of Workshop's.
     void announce(loom::Mail& mail) {
-        // THE HOTKEYS PANE'S OPEN SECTIONS, as this weave's state kept them across a reload.
-        hotkeys_.restore(state_.hotkeys_open);
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kLauncherPane, pane::kLauncherName,
                                                      pane::kLauncherSummary, 8, 60});
@@ -322,7 +320,6 @@ public:
         }
         if (asked.pane == pane::kHotkeysPane) {
             hotkeys_.keys_action(asked.id, keys_rows_, keys_declarer(), mail);
-            keep_keys_open();
             return;
         }
         if (asked.pane == pane::kManualPane) {
@@ -401,7 +398,6 @@ public:
         manual_.inventory_said(said.panes);
         // ...AND THE HOTKEYS PANE'S SECTIONS: the desk's panes first, the rest grey at the foot.
         hotkeys_.inventory_said(said.panes, keys_rows_, mail);
-        keep_keys_open();
     }
 
     /// THE KEYMAP IN FORCE, AS THE HOST RESOLVED IT -- the one binding truth, published when it
@@ -412,7 +408,6 @@ public:
             return;
         }
         hotkeys_.keymap_said(said, keys_rows_, mail);
-        keep_keys_open();
         say_manual(mail); // a key the weaver moved, or a spelling, shows in the manual at once
     }
 
@@ -526,13 +521,8 @@ private:
             launcher_.launcher_press(press, state_, pane_rows_, app_, mail, launches_);
         } else if (press.pane == pane::kHotkeysPane) {
             hotkeys_.keys_press(press, keys_rows_, mail);
-            keep_keys_open();
         }
     }
-
-    /// THE HOTKEYS PANE'S OPEN SECTIONS, KEPT IN THE STATE a reload carries, after each act that
-    /// can open or shut one or forget one the keymap no longer holds.
-    void keep_keys_open() { state_.hotkeys_open = hotkeys_.opened(); }
 
     /// THE WHEEL WALKS THE CURSOR of the pane it turned over, one row per notch (Powers').
     void wheel(const std::string& pane_key, double dy, loom::Mail& mail) {
@@ -684,7 +674,7 @@ private:
 
     /// THE THREE PANES, each holding its own room, picture, cursor and asks.
     pane::LauncherView launcher_;
-    pane::HotkeysView hotkeys_;
+    pane::HotkeysView hotkeys_{state_.hotkeys_open};
     pane::ManualView manual_;
     /// THIS IMAGE'S DECLARATIONS AND THE ATTEMPT COUNTER THEY SHARE. Not in the state shape:
     /// a verdict answers only the incarnation that asked (Loom ANS-03), and a new image declares

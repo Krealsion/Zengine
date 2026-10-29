@@ -10,9 +10,11 @@
 // section, a peeking one too, and shuts an open one; a peek ends when the pointer leaves the
 // header and the body it shows, and a press ends it until then. And a group over accordions: the
 // independent one, each section opened and shut alone by its identity and every one shut by one
-// act. Each owns a value and its arithmetic -- what a section spends of the room it is given, in
-// the owner's own unit -- and knows no medium: where a fold is kept, what a header says and where
-// the pointer is are the owner's.
+// act, over the open sections its owner keeps. And a tree, an accordion at every level: the rows
+// it shows, each with its depth and whether it holds rows of its own. Each owns a value and its
+// arithmetic -- what a section spends of the room it is given, in the owner's own unit -- and
+// knows no medium: where a fold is kept, what a header says and where the pointer is are the
+// owner's.
 // Reference: component/docs/component.md.
 
 #include <algorithm>
@@ -100,12 +102,17 @@ inline SectionSpan section_span(Fold fold, std::size_t header, std::size_t body,
 }
 
 /// THE INDEPENDENT GROUP: sections over one population, each opened and shut alone by its
-/// identity, and every one shut by one act. The pointer rests over one section at most, so one at
-/// most peeks. The open sections are kept by key, as `HeldChoice` keeps a choice, so a population
-/// that moves keeps them open; `keep` forgets the keys a population no longer holds.
+/// identity, and every one shut by one act. The open sections are the owner's, kept in its own
+/// state and lent to the group, which reads them there and writes them there and keeps no copy: an
+/// edit to the state is what the next fold reads. The list holds keys in any order, as an edit may
+/// leave it, and a section is open while its key stands there. The group keeps only the pointer:
+/// it rests over one section at most, so one at most peeks.
 template <class Key>
 class IndependentAccordions {
 public:
+    /// A GROUP OVER THE OPEN SECTIONS `open` HOLDS, which outlives it.
+    explicit IndependentAccordions(std::vector<Key>& open) noexcept : open_(&open) {}
+
     /// SECTION `key` AS AN ACCORDION: whether it is open, and the pointer resting over it.
     Accordion section(const Key& key) const {
         Accordion a;
@@ -116,7 +123,7 @@ public:
     }
     Fold fold(const Key& key) const { return section(key).fold(); }
     bool is_open(const Key& key) const {
-        return std::binary_search(open_.begin(), open_.end(), key);
+        return std::find(open_->begin(), open_->end(), key) != open_->end();
     }
 
     /// A PRESS ON SECTION `key`'s HEADER (`Accordion::press`): that section alone opens or shuts.
@@ -135,8 +142,8 @@ public:
     /// EVERY SECTION SHUT, IN ONE ACT; a peek under the pointer waits until it leaves. True when
     /// any section was open.
     bool shut_all() {
-        const bool any = !open_.empty();
-        open_.clear();
+        const bool any = !open_->empty();
+        open_->clear();
         spent_ = resting_;
         return any;
     }
@@ -165,15 +172,6 @@ public:
     /// The section the pointer rests over, if any: `nullptr` when it rests over none.
     const Key* resting() const noexcept { return resting_ ? &rest_ : nullptr; }
 
-    /// THE SECTIONS OPEN, in key order, once each: what an owner keeps of the group.
-    const std::vector<Key>& opened() const noexcept { return open_; }
-    /// ...AND THE GROUP SET AGAIN FROM WHAT AN OWNER KEPT, every other section shut.
-    void restore(std::vector<Key> keys) {
-        std::sort(keys.begin(), keys.end());
-        keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
-        open_ = std::move(keys);
-    }
-
     /// FORGET EVERY OPEN SECTION `population` NO LONGER HOLDS, by `key_of` each member's key, and
     /// a rest over one. True when one was forgotten.
     template <class Population, class KeyOf>
@@ -184,38 +182,89 @@ public:
             held.push_back(key_of(member));
         }
         std::sort(held.begin(), held.end());
-        const std::size_t was = open_.size();
-        open_.erase(std::remove_if(open_.begin(), open_.end(),
-                                   [&held](const Key& k) {
-                                       return !std::binary_search(held.begin(), held.end(), k);
-                                   }),
-                    open_.end());
+        const std::size_t was = open_->size();
+        open_->erase(std::remove_if(open_->begin(), open_->end(),
+                                    [&held](const Key& k) {
+                                        return !std::binary_search(held.begin(), held.end(), k);
+                                    }),
+                     open_->end());
         if (resting_ && !std::binary_search(held.begin(), held.end(), rest_)) {
             (void)rest_none();
         }
-        return open_.size() != was;
+        return open_->size() != was;
     }
 
 private:
+    /// Open: the key added once, before the first key greater than it -- in key order where the
+    /// list keeps one, and in any list without a search that needs one. Shut: every copy of it
+    /// gone.
     bool set(const Key& key, bool open) {
-        const auto at = std::lower_bound(open_.begin(), open_.end(), key);
-        const bool there = at != open_.end() && *at == key;
-        if (open == there) {
+        if (open == is_open(key)) {
             return false;
         }
         if (open) {
-            open_.insert(at, key);
+            open_->insert(std::find_if(open_->begin(), open_->end(),
+                                       [&key](const Key& k) { return key < k; }),
+                          key);
         } else {
-            open_.erase(at);
+            open_->erase(std::remove(open_->begin(), open_->end(), key), open_->end());
         }
         return true;
     }
 
-    std::vector<Key> open_; ///< sorted, unique
+    std::vector<Key>* open_; ///< the owner's, never null
     Key rest_{};
     bool resting_ = false;
     bool spent_ = false;
 };
+
+/// ONE ROW OF A TREE AS IT SHOWS: which of the owner's rows it is, how deep it stands, and whether
+/// it holds rows of its own -- a branch, which folds.
+struct TreeRow {
+    std::size_t row = 0;
+    std::size_t depth = 0;
+    bool branch = false;
+    bool operator==(const TreeRow&) const = default;
+};
+
+/// THE ROWS A TREE SHOWS, from the depth of each of the owner's rows in depth-first order: a row
+/// is a branch when the row after it stands deeper, and a row shows while every branch above it
+/// is open (`is_open(row)`). The tree is an accordion at each level: one level deep, its branches
+/// are the sections. TOTAL: a depth that jumps by more than one still nests under the row before.
+template <class IsOpen>
+std::vector<TreeRow> shown_tree(const std::vector<std::size_t>& depths, IsOpen is_open) {
+    std::vector<TreeRow> out;
+    bool hiding = false;
+    std::size_t hidden_below = 0; ///< while hiding, every row deeper than this is under a shut one
+    for (std::size_t i = 0; i < depths.size(); ++i) {
+        const std::size_t depth = depths[i];
+        if (hiding && depth > hidden_below) {
+            continue;
+        }
+        hiding = false;
+        const bool branch = i + 1 < depths.size() && depths[i + 1] > depth;
+        out.push_back(TreeRow{i, depth, branch});
+        if (branch && !is_open(i)) {
+            hiding = true;
+            hidden_below = depth;
+        }
+    }
+    return out;
+}
+
+/// ROW `row`'s PARENT: the nearest row before it that stands shallower, or `row` itself at the
+/// top.
+inline std::size_t tree_parent(const std::vector<std::size_t>& depths, std::size_t row) noexcept {
+    if (row >= depths.size()) {
+        return row;
+    }
+    for (std::size_t i = row; i-- > 0;) {
+        if (depths[i] < depths[row]) {
+            return i;
+        }
+    }
+    return row;
+}
 
 } // namespace zengine::component
 
