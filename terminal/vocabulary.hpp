@@ -41,7 +41,10 @@ inline constexpr const char* kTerminalPaneStem = "zengine-terminal-pane";
 
 // ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
 
-inline constexpr const char* kActionSubmit = "terminal.submit";     ///< author the line, or lock a recall
+/// Author the line, take the candidate the weaver moved the list's cursor to, or lock a recall.
+inline constexpr const char* kActionSubmit = "terminal.submit";
+/// Author the line as typed, whatever candidate the list's cursor stands on, or lock a recall.
+inline constexpr const char* kActionSubmitEarly = "terminal.submit-early";
 inline constexpr const char* kActionBack = "terminal.back";         ///< back: recall, list, line, desk
 inline constexpr const char* kActionUp = "terminal.previous";       ///< older command, or list up
 inline constexpr const char* kActionDown = "terminal.next";         ///< newer command, or list down

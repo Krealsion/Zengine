@@ -390,6 +390,11 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
                              : std::to_string(first + 1) + "-" + std::to_string(last)) +
                   " of " + std::to_string(offered_.candidates.size()) + "  " + heading;
     }
+    // WITH THE CURSOR THE WEAVER MOVED, ENTER TAKES WHAT IT IS ON: said where the list is read,
+    // after what the list is, so a narrow pane gives up this before the list's own words.
+    if (cursor_moved_ && !offered_.candidates.empty()) {
+        heading += " -- Enter: take it, Shift+Enter: run the line";
+    }
     push(std::move(heading), zengine::graphics::role::kMuted);
     for (std::size_t i = first; i < last; ++i) {
         const ShownCandidate& c = offered_.candidates[i];

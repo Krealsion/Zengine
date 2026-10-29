@@ -1,5 +1,6 @@
 # The action census's rows for zengine.terminal; the form is tests/actions.txt's. ASCII only.
-zengine.terminal - terminal.submit return TerminalActRequested/1 - run the line / keep a recall
+zengine.terminal - terminal.submit return TerminalActRequested/1 - run, take moved row, keep recall
+zengine.terminal - terminal.submit-early shift+return~ctrl+e TerminalActRequested/1 - run the line as typed
 zengine.terminal - terminal.complete tab TerminalCompletionRequested/1 - what can this terminal say?
 zengine.terminal - terminal.previous up - - older command / list up
 zengine.terminal - terminal.next down - - newer command / list down

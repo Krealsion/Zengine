@@ -22,10 +22,10 @@ WHY — `agents/decisions/history-is-the-participants-record.md`
 
 ## WL-TERM-13 — Enter and Tab lock a recalled line in, and that press does nothing else
 
-LAW — Enter or Tab on a recalled line ends the recall and is spent: no submission, no candidate taken, no list asked; any other key the line takes ends the recall and then does its own work once.
+LAW — Enter, Shift+Enter or Tab on a recalled line ends the recall and is spent: no submission, no candidate taken, no list asked; any other key the line takes ends it and does its own work once.
 
 MEANS
-- the next Enter submits, and the next Tab asks for a list and the one after accepts;
+- the next Enter or Shift+Enter submits, and the next Tab asks for a list and the one after accepts;
 - a key the line does not take ends no recall, and a paste asked for before it lands nowhere;
 - a completion answer is taken only by the intent that asked, even when the bytes match again.
 
@@ -69,6 +69,19 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
+## WL-TERM-21 — Enter takes the candidate the weaver moved to; Shift+Enter runs the line as typed
+
+LAW — With the list's cursor moved by the weaver, Enter takes its candidate as Tab does and authors nothing; unmoved, Enter runs the line; Shift+Enter runs the line as typed.
+
+MEANS
+- Up, Down and a press on a candidate's row move it; a take, a new question, a dismissal, a recall and a submit leave it unmoved, and a recomputation of the same question keeps it;
+- while it is moved the list's heading ends `-- Enter: take it, Shift+Enter: run the line`;
+- Shift+Enter is `terminal.submit-early`, and `ctrl+e` from a POSIX terminal, which cannot tell Shift on Return.
+
+DOES NOT MEAN — that Enter takes the first row: the list put the cursor there, and Tab takes it.
+
+WHY — `agents/decisions/enter-takes-the-candidate-the-weaver-moved-to.md`
+
 ## Do not assume
 
 - That a reload keeps a recall or a scrolled view — it keeps the line before the recall, and
@@ -89,7 +102,8 @@ untouched" "history is the participant's commands only and eviction bounds it"
 `terminal/history_and_completion.hpp` settle_recall moved offer_applies ask_completion
 `tests/test_workshop_panes_terminal.cpp` "on an empty line Up Up Enter leaves the older command
 ready to edit and runs nothing until the next Enter runs it" "Tab on a recalled line locks it in
-with no candidate taken and no list asked and the next two Tabs ask and then accept" "any other key
+with no candidate taken and no list asked and the next two Tabs ask and then accept" "Shift+Enter on
+a recalled line locks it in and runs nothing, and the next Shift+Enter runs it" "any other key
 leaves a recall and does its own work once: typing or a caret key or an erase or a shifted letter"
 "after a lock the recalled line is an ordinary draft whose undo stops at the recalled text and whose
 copy reaches the process" "a paste asked for before a recall does not land in the recalled line" "a
@@ -127,3 +141,16 @@ first picture, and that picture keeps it" "after a restart the Terminal's first 
 layout's legend, and so does a reload's" "a legend value the Terminal cannot use is kept as stored,
 and said in its legend row" "a Terminal closed in a layout that hid its legend shows it again when
 it is shown" "a press aimed at the Terminal's picture from before its legend hid is refused"
+
+### WL-TERM-21
+`terminal/pane.cpp` on_action action_rows declare press cursor_moved_
+`terminal/history_and_completion.hpp` move_selection take_candidate unmove_cursor
+`terminal/view.hpp` say_list
+`terminal/vocabulary.hpp` kActionSubmitEarly
+`tests/test_workshop_panes_terminal.cpp` "Down then Enter takes the candidate the cursor moved to and
+runs nothing, and the next Enter runs the line" "a press on a candidate's row moves the cursor
+there, and Enter then takes it" "Enter with the list's cursor unmoved, or moved and then left by a
+new word or a dismissal, runs the line as typed" "while the cursor is moved the list's heading says
+Enter takes the row and Shift+Enter runs the line" "Shift+Enter runs the line as typed though the
+cursor moved to a candidate" "Shift+Enter is a row of its own, on Return with Shift, and on ctrl+e
+where the keys come from a POSIX terminal"
