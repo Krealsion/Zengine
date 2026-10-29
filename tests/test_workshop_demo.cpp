@@ -231,6 +231,63 @@ TEST_CASE("a press the window landed on the demo controls where it drew no contr
     CHECK(r.worker.hand->work.size() == work + 1);
 }
 
+TEST_CASE("a row's fold mark is its own character in a room of cells, and where the room sets type the icon table's outline in its place -- `right` for a shut `+`, `down` for an open `-` -- with the character left out") {
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#fold-mark-outlined-in-cells): each medium given the
+    // other's mark.
+    const std::vector<TextRow> rows{
+        TextRow{"+ places (4)", gfx::role::kFill, gfx::role::kNone, 0},
+        TextRow{"  - keys", gfx::role::kAccent, gfx::role::kNone, 2},
+        TextRow{"plain + text", gfx::role::kFill}};
+    const std::vector<RowPart> parts{};
+    const auto node = [](const RowsDrawing& d, const std::string& path) -> const gfx::Node* {
+        for (const gfx::Node& n : d.sketch.nodes()) {
+            if (n.path == path) return &n;
+        }
+        return nullptr;
+    };
+    // A ROOM OF CELLS: the characters, and no outline anywhere.
+    const RowsDrawing cells =
+        rows_drawing(rows, parts, RowsRoom{20 * gfx::kCellPx, 3 * gfx::kCellPx, {}, true}, 20);
+    for (const gfx::Node& n : cells.sketch.nodes()) {
+        CHECK(n.op != gfx::op::kPath);
+    }
+    zengine::component::RowMap<DrawnPart> lattice;
+    const std::vector<TextRow> said = drawn_rows(cells.sketch, 3, 20, lattice);
+    REQUIRE(said.size() == 3);
+    CHECK(said[0].text.rfind("+ places (4)", 0) == 0);
+    CHECK(said[1].text.rfind("  - keys", 0) == 0);
+    // A ROOM THAT SETS TYPE: an outline where each mark stands, in its row's ink, and the rest of
+    // the row's words where they were.
+    const gfx::TextMeasure face{8, 18};
+    const RowsRoom room{20 * face.advance, 3 * face.line, face};
+    const RowsDrawing typed = rows_drawing(rows, parts, room, room.columns());
+    const std::int64_t size = (std::min)(face.line, 2 * face.advance) * 2 / 3;
+    const auto outline = [&](const std::string& path, const char* name, std::int64_t role) {
+        const gfx::Node* shape = node(typed, path);
+        REQUIRE_MESSAGE(shape != nullptr, "no outline ", path);
+        CHECK(shape->op == gfx::op::kPath);
+        const auto args = gfx::from_body<gfx::PathArgs>(shape->args);
+        REQUIRE(args.has_value());
+        CHECK(args->d == gfx::Icon::path_data(gfx::Icon::outline(name), size));
+        CHECK(args->fill.role == role);
+    };
+    outline("row0.mark/shape", "right", gfx::role::kFill);
+    outline("row1.mark/shape", "down", gfx::role::kAccent);
+    CHECK(node(typed, "row2.mark/shape") == nullptr); // no mark: a `+` in its words is a word
+    const gfx::Node* group = node(typed, "row1.mark");
+    REQUIRE(group != nullptr);
+    const auto at = gfx::from_body<gfx::GroupArgs>(group->args);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 2 * face.advance);
+    CHECK(at->y == face.line + (face.line - size) / 2);
+    zengine::component::RowMap<DrawnPart> map;
+    const std::vector<TextRow> read = drawn_rows(typed.sketch, room.rows(), room.columns(), map, face);
+    REQUIRE(read.size() >= 3);
+    CHECK(read[0].text.rfind("  places (4)", 0) == 0);
+    CHECK(read[1].text.rfind("    keys", 0) == 0);
+    CHECK(read[2].text.rfind("plain + text", 0) == 0);
+}
+
 TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state beneath it") {
     SUBCASE("rows drawn for a window that sets type stand a line of its face apart and a "
             "character an advance, on the ground of the whole room, read back and pressed in that "

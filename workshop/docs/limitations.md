@@ -186,12 +186,13 @@ takes no room from another: there is no docking, no tiling and no reflow.
 
 ### Pointing without pressing reaches nobody in a POSIX terminal
 
-A text pane never uses an idle pointer — a cut row is [not read past](panes.md#a-value-a-pane-had-to-cut-stays-cut)
-— but a canvas pane may ask where one rests: the [View Builder](../../view/docs/view-builder.md) marks the
-element under it. **In the graphical window, and in a Windows console, a hover is reported.** In a
-POSIX terminal Workshop asks for button-event mouse reporting only — presses, releases and drags —
-so an idle pointer is reported to nobody, and the builder marks only where a value carried with a
-held button would land.
+A pane may be told where an idle pointer rests: the [View Builder](../../view/docs/view-builder.md)
+marks the element under it, Files shows a path it [had to cut](panes.md#a-value-a-pane-had-to-cut-stays-cut)
+whole and peeks its places, and the Hotkeys pane peeks a shut section's keys. **In the graphical
+window, and in a Windows console, a hover is reported.** In a POSIX terminal Workshop asks for
+button-event mouse reporting only — presses, releases and drags — so an idle pointer is reported
+to nobody: the builder marks only where a value carried with a held button would land, a path
+stays cut, and a section opens only when pressed.
 Asking terminals for every idle motion would pay for that gesture on every keystroke of every
 session, which is not a trade this application has chosen to make.
 
@@ -199,7 +200,7 @@ Two smaller edges, in both media:
 
 | | today |
 |---|---|
-| Which surfaces can be read past? | **none, any more.** It worked only where Workshop itself cut a value it still held: the Info pane's object and property rows, and before them the Files pane's location and names. Both are loaded panes now, and a pane sends text it has already cut — so Workshop never receives the longer value and has nothing to reveal |
+| Which surfaces can be read past? | **Files' paths**, in the window and a Windows console: the path in its header and each of its places, cut in the middle, stand whole while the pointer rests on one. Files holds the whole path and draws it itself; Workshop never receives a longer value than a pane sent, so no other pane's cut row is read past |
 | A notice, and the Builder's realize row | **not readable past** — the notices record keeps a notice to its first 1 KiB and the realize row is cut at its width, and a load the Loom refuses can be longer than either. Launch with `--log <path>` and the whole sentence is kept in that journal ([the Builder](../../builder/docs/zengine.builder.md#files)) |
 | Could the pane protocol be widened to ask for the longer text? | **it will not be.** A pane is a participant, not a store the host reaches into; asking one for a value it chose not to send is the shape this project refuses. Widen the pane or the window instead |
 

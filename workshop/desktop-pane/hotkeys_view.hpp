@@ -4,10 +4,12 @@
 #ifndef ZENGINE_DESKTOP_PANE_HOTKEYS_VIEW_HPP
 #define ZENGINE_DESKTOP_PANE_HOTKEYS_VIEW_HPP
 
-// The Hotkeys pane: every key in force as the host resolved it, grouped by where it answers, a
-// cursor over the bindings, and a binding's menu that edits it through the host's keymap edit
-// door -- by a captured key or a spelling typed or pasted into its line. It keeps no gesture of
-// its own to print; the weave routes its messages here and declares its rows when its mode moves.
+// The Hotkeys pane: every key in force as the host resolved it, in sections, a section a pane --
+// the desk's panes first, Workshop's own next, panes off the desk grey at the foot -- each shut at
+// first and counted; a cursor over the sections and their keys, and a binding's menu that edits it
+// through the host's keymap edit door. Which sections are open is the pane's state. It keeps no
+// gesture of its own to print; the weave routes its messages here and declares its rows when its
+// mode moves.
 // Workshop law: agents/workshop/keymap-edit.md
 
 #include "workshop/desktop-pane/desktop_common.hpp"
@@ -20,6 +22,7 @@
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
+#include "component/accordion.hpp"
 #include "component/columns.hpp"
 #include "component/held_choice.hpp"
 #include "component/list_window.hpp"
@@ -34,6 +37,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -44,10 +49,11 @@ namespace zengine::desktop_pane {
 
 namespace keys_row {
 constexpr std::int64_t kHeading = 0;
-constexpr std::int64_t kGroup = 1;
+constexpr std::int64_t kGroup = 1; ///< a section's header; `ref` names the section
 constexpr std::int64_t kBinding = 2;
 constexpr std::int64_t kMarker = 3;
 constexpr std::int64_t kFooter = 4;
+constexpr std::int64_t kPeek = 5; ///< a key a peek shows over what follows; `ref` names the section
 } // namespace keys_row
 
 struct KeysMeaning {
@@ -63,17 +69,37 @@ struct KeysMeaning {
     }
 };
 
-/// ONE LINE OF THE TABLE: a group heading or a binding, and the binding's identity for the
-/// cursor -- group, id and the key it lists, joined -- so two keys of one action are two rows.
+/// ONE LINE OF THE TABLE: a section's header or a binding of an open section, and its identity
+/// for the cursor -- a header's its section's, a binding's its group, id and the key it lists,
+/// joined -- so two keys of one action are two rows.
 struct KeysLine {
     bool binding = false;
-    std::size_t shown = 0; ///< index into the keymap's rows, for a binding
-    std::string key;       ///< the cursor's identity; empty for a heading
+    std::size_t shown = 0;   ///< index into the keymap's rows, for a binding
+    std::string key;         ///< the cursor's identity
+    std::size_t section = 0; ///< index into the sections, for either
 };
 
 inline std::string binding_key(const ws::ShownBinding& b) {
     return join_subject({b.group, b.id, b.gesture});
 }
+
+/// ONE SECTION OF THE TABLE: a pane's keys, or one of the places Workshop answers a key; its
+/// identity, what its header says, whether its pane is off the desk, and its bindings.
+struct KeysSection {
+    std::string key;     ///< `pane:<office>/<pane>`, or `group:<words>` for Workshop's own
+    std::string title;   ///< where its keys answer, made drawable
+    bool absent = false; ///< a pane the desk does not hold now: grey, at the foot
+    std::vector<std::size_t> bindings; ///< indices into the keymap's rows, in its order
+};
+
+/// A SECTION'S IDENTITY, from one of its bindings: a pane's by the pane it belongs to, so it is
+/// the same section whatever the pane is called; Workshop's own by the words of its group.
+inline std::string section_key(const ws::ShownBinding& b) {
+    return b.pane.empty() ? "group:" + b.group : "pane:" + b.office + "/" + b.pane;
+}
+
+/// THE CURSOR'S IDENTITY FOR A SECTION'S HEADER, apart from every binding's.
+inline std::string header_key(const std::string& section) { return "section:" + section; }
 
 /// THE WEAVE'S DECLARATION OF THIS PANE'S ROWS, asked for when its mode moves: the weave numbers
 /// every declaration its image makes, so the pane says when to declare and never how.
@@ -109,6 +135,12 @@ public:
                 PaneActionRow{kActionKeysDown, "row down", input::scan::kDown, input::mod::kNone},
                 PaneActionRow{kActionKeysTop, "top", input::scan::kHome, input::mod::kNone},
                 PaneActionRow{kActionKeysBottom, "bottom", input::scan::kEnd, input::mod::kNone},
+                PaneActionRow{kActionKeysOpen, "open a section", input::scan::kRight,
+                              input::mod::kNone},
+                PaneActionRow{kActionKeysShut, "shut a section", input::scan::kLeft,
+                              input::mod::kNone},
+                PaneActionRow{kActionKeysShutAll, "shut every section", input::scan::kLeft,
+                              input::mod::kShift},
                 PaneActionRow{kActionKeysMenu, "row menu", input::scan::kM, input::mod::kNone}};
     }
 
@@ -270,6 +302,12 @@ public:
             keys_step(-static_cast<std::int64_t>(lines_.size()));
         } else if (id == kActionKeysBottom) {
             keys_step(static_cast<std::int64_t>(lines_.size()));
+        } else if (id == kActionKeysOpen) {
+            keys_open_here();
+        } else if (id == kActionKeysShut) {
+            keys_shut_here();
+        } else if (id == kActionKeysShutAll) {
+            keys_shut_all();
         } else if (id == kActionKeysMenu) {
             if (keys_choice_.actionable() && keys_choice_.at < lines_.size() &&
                 lines_[keys_choice_.at].binding) {
@@ -278,6 +316,8 @@ public:
                                                  keys_line_ref(keys_choice_.at)});
                 keys_notice_.clear();
                 offer_keys_row(keys_choice_.at, row < 0 ? 0 : row, 0, mail, mail.correlation());
+            } else if (keys_choice_.actionable() && keys_choice_.at < lines_.size()) {
+                keys_notice_ = "a section has no menu -- open it and choose one of its keys";
             } else {
                 keys_notice_ = "no row is chosen -- choose one, then open its menu";
             }
@@ -309,7 +349,9 @@ public:
 
     // ---- The mouse ----------------------------------------------------------------------------
 
-    /// A PRESS ON A TABLE ROW CHOOSES IT -- visible selection, for the menu key to act on.
+    /// A PRESS ON A TABLE ROW CHOOSES IT -- visible selection, for the menu key to act on. A press
+    /// on a section's header opens it or shuts it, the cursor on the header; a press on a key a
+    /// peek shows opens its section, the cursor on that key.
     void keys_press(const PanePress& press, const Declared& keys_rows_decl, loom::Mail& mail) {
         if (press.moved) {
             keys_notice_ = kMovedSentence;
@@ -317,13 +359,69 @@ public:
             return;
         }
         const KeysMeaning* m = keys_map_.at(press.row, press.column);
-        if (m == nullptr || m->kind != keys_row::kBinding) {
+        if (m == nullptr) {
             return;
         }
-        keys_hold(m->index);
+        if (m->kind == keys_row::kGroup) {
+            hold_key(header_key(m->ref));
+            groups_.press(m->ref);
+        } else if (m->kind == keys_row::kPeek) {
+            if (m->index < keymap_.rows.size()) {
+                hold_key(binding_key(keymap_.rows[m->index]));
+            }
+            groups_.press(m->ref);
+        } else if (m->kind == keys_row::kBinding) {
+            keys_hold(m->index);
+        } else {
+            return;
+        }
         keys_notice_.clear();
         say_keys(keys_rows_decl, mail);
     }
+
+    /// THE POINTER RESTING ON THE TABLE, where the medium reports one: over a shut section's header,
+    /// or the keys its peek shows, that section peeks, and over anything else none does. What it
+    /// shows is drawn again only when that moved. Presentation alone: nothing is kept.
+    void rest(const ws::RowCell& at, const Declared& keys_rows_decl, loom::Mail& mail) {
+        const KeysMeaning* m = at.shown ? keys_map_.at(at.row, at.column) : nullptr;
+        const bool over =
+            m != nullptr && (m->kind == keys_row::kGroup || m->kind == keys_row::kPeek);
+        if (over ? groups_.rest(m->ref) : groups_.rest_none()) {
+            say_keys(keys_rows_decl, mail);
+        }
+    }
+    /// ...AND ITS LEAVE: a peek ends.
+    void pointer_left(const Declared& keys_rows_decl, loom::Mail& mail) {
+        if (groups_.rest_none()) {
+            say_keys(keys_rows_decl, mail);
+        }
+    }
+
+    /// WHAT PANES THE DESK HOLDS, as the host's inventory says them: a section of a pane off the
+    /// desk is grey and stands at the foot.
+    void inventory_said(const std::vector<ws::InventoryPane>& panes,
+                        const Declared& keys_rows_decl, loom::Mail& mail) {
+        std::set<std::string> desk;
+        std::vector<std::string> known;
+        for (const ws::InventoryPane& p : panes) {
+            known.push_back("pane:" + p.office + "/" + p.pane);
+            if (p.open) {
+                desk.insert(p.office + "/" + p.pane);
+            }
+        }
+        const bool moved = !inventory_heard_ || desk != on_desk_;
+        on_desk_ = std::move(desk);
+        inventory_known_ = std::move(known);
+        inventory_heard_ = true;
+        if (moved) {
+            say_keys(keys_rows_decl, mail);
+        }
+    }
+
+    /// THE SECTIONS OPEN, by identity: what the weave keeps in its state (`DesktopState`)...
+    const std::vector<std::string>& opened() const { return groups_.opened(); }
+    /// ...and set again from it, in a new image.
+    void restore(const std::vector<std::string>& kept) { groups_.restore(kept); }
 
     /// A RIGHT PRESS on a binding a weaver may move OFFERS its menu, beside the press, continuing
     /// it; a right press on anything else (a heading, a marker, a footer, the spelling line) is
@@ -379,11 +477,13 @@ public:
         std::vector<ws::TextRow> out;
         keys_map_.begin();
         const auto push = [&out, room_rows, room_columns, this](std::string text,
-                                                                std::int64_t role, KeysMeaning m) {
+                                                                std::int64_t role, KeysMeaning m,
+                                                                std::int64_t mark = ws::kNoMark) {
             if (static_cast<std::int64_t>(out.size()) < room_rows) {
                 keys_map_.row(static_cast<std::int64_t>(out.size()), m);
-                out.push_back(
-                    ws::TextRow{fit(std::move(text), room_columns), role});
+                out.push_back(ws::TextRow{fit(std::move(text), room_columns), role,
+                                          graphics::role::kNone,
+                                          mark < room_columns ? mark : ws::kNoMark});
             }
         };
         if (!keys_heard_) {
@@ -471,10 +571,25 @@ public:
                                                 [](const ws::ShownBinding& b) { return b.id; }),
                               4},
             component::Column{marks_want, marks_want == 0 ? std::size_t{0} : std::size_t{1}}};
-        const std::size_t table_budget =
-            room_columns > 2 ? static_cast<std::size_t>(room_columns - 2) : 0;
+        const std::size_t table_budget = room_columns > static_cast<std::int64_t>(kKeyIndent)
+                                             ? static_cast<std::size_t>(room_columns) - kKeyIndent
+                                             : 0;
         const std::vector<std::size_t> widths = component::layout_columns(asks, table_budget);
         const std::vector<std::size_t> offsets = component::column_offsets(widths);
+        // ONE KEY'S CELLS, laid out once for every row: the cursor's mark, the section's indent and
+        // the table line.
+        const auto key_text = [&](const ws::ShownBinding& b, bool here) {
+            return fit(std::string(here ? "> " : "  ") + std::string(kKeyIndent - 2, ' ') +
+                           component::table_line(
+                               {key_cell(b), b.label, b.id, marks_of(b)}, widths,
+                               [](const std::string& text, std::int64_t width) {
+                                   return fit(text, width);
+                               },
+                               [](std::string text, std::size_t width) {
+                                   return pad(std::move(text), width);
+                               }),
+                       room_columns);
+        };
         const component::ListWindow w = component::cursor_window(
             lines_.size(), keys_choice_.at, keys_first_,
             budget > 0 ? static_cast<std::size_t>(budget) : 0);
@@ -483,28 +598,43 @@ public:
             push("  ^ " + std::to_string(earlier) + " more above", graphics::role::kMuted,
                  KeysMeaning{keys_row::kMarker, 0, {}});
         }
+        std::int64_t peek_from = -1;
+        std::size_t peeking = 0;
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const KeysLine& line = lines_[i];
+            const bool here = i == keys_choice_.at;
             if (!line.binding) {
-                push(drawable(keymap_.rows[i + 1 < lines_.size() ? lines_[i + 1].shown : 0].group),
-                     graphics::role::kAccent, KeysMeaning{keys_row::kGroup, i, {}});
+                // A SECTION'S HEADER: its mark, where its keys answer, and, shut or peeking, how
+                // many keys it holds. A pane off the desk is grey.
+                const KeysSection& section = sections_[line.section];
+                const component::Fold fold = groups_.fold(section.key);
+                std::string text = std::string(here ? "> " : "  ") + component::fold_mark(fold) +
+                                   " " + section.title;
+                if (fold != component::Fold::kOpen) {
+                    const std::size_t n = section.bindings.size();
+                    text += "  (" + std::to_string(n) + (n == 1 ? " key)" : " keys)");
+                }
+                if (fold == component::Fold::kPeek) {
+                    peek_from = static_cast<std::int64_t>(out.size()) + 1;
+                    peeking = line.section;
+                }
+                push(std::move(text),
+                     section.absent && fold != component::Fold::kPeek ? graphics::role::kMuted
+                                                                      : graphics::role::kAccent,
+                     KeysMeaning{keys_row::kGroup, i, section.key}, 2);
                 continue;
             }
             const ws::ShownBinding& b = keymap_.rows[line.shown];
-            const bool here = i == keys_choice_.at;
-            const std::string cells = component::table_line(
-                {key_cell(b), b.label, b.id, marks_of(b)},
-                widths, [](const std::string& text, std::int64_t width) { return fit(text, width); },
-                [](std::string text, std::size_t width) { return pad(std::move(text), width); });
             const std::int64_t at = static_cast<std::int64_t>(out.size());
-            const std::string text = fit(std::string(here ? "> " : "  ") + cells, room_columns);
+            const std::string text = key_text(b, here);
             const std::string ref = binding_key(b);
             push(text, here ? graphics::role::kAccent : graphics::role::kFill,
                  KeysMeaning{keys_row::kBinding, i, ref});
             // THE KEY CELL IS A CONTROL INSIDE THE ROW -- the same meaning, recorded so a press on
             // the key is a press on the binding wherever the columns put it.
             (void)keys_map_.span(
-                at, 2 + static_cast<std::int64_t>(offsets[0]), static_cast<std::int64_t>(widths[0]),
+                at, static_cast<std::int64_t>(kKeyIndent + offsets[0]),
+                static_cast<std::int64_t>(widths[0]),
                 component::solid_columns(text, static_cast<std::size_t>(room_columns)),
                 KeysMeaning{keys_row::kBinding, i, ref});
         }
@@ -515,6 +645,34 @@ public:
         for (std::int64_t i = 0; i < footer_rows; ++i) {
             push(footer[static_cast<std::size_t>(i)], graphics::role::kMuted,
                  KeysMeaning{keys_row::kFooter, static_cast<std::size_t>(i) + 1, {}});
+        }
+        // A PEEK: the section's keys drawn over what follows its header, to the room's end, taking
+        // none of it; the rows beneath mean nothing while they show, and what the room cannot
+        // hold is counted on its last row.
+        if (peek_from >= 0 && peek_from < room_rows) {
+            const KeysSection& section = sections_[peeking];
+            const component::SectionSpan span =
+                component::section_span(component::Fold::kPeek, 0, section.bindings.size(),
+                                        static_cast<std::size_t>(room_rows - peek_from));
+            const component::ListWindow shown =
+                component::scroll_window(section.bindings.size(), 0, span.body);
+            keys_map_.cover(peek_from, static_cast<std::int64_t>(span.body));
+            if (static_cast<std::int64_t>(out.size()) < peek_from + static_cast<std::int64_t>(span.body)) {
+                out.resize(static_cast<std::size_t>(peek_from) + span.body);
+            }
+            std::int64_t row = peek_from;
+            for (std::size_t k = shown.first; k < shown.end(); ++k, ++row) {
+                const std::size_t i = section.bindings[k];
+                out[static_cast<std::size_t>(row)] =
+                    ws::TextRow{key_text(keymap_.rows[i], false), graphics::role::kAccent};
+                keys_map_.row(row, KeysMeaning{keys_row::kPeek, i, section.key});
+            }
+            if (const std::size_t more = component::more_marker(shown); more > 0) {
+                out[static_cast<std::size_t>(row)] = ws::TextRow{
+                    fit("  ... " + std::to_string(more) + " more", room_columns),
+                    graphics::role::kMuted};
+                keys_map_.row(row, KeysMeaning{keys_row::kPeek, keymap_.rows.size(), section.key});
+            }
         }
         publish_keys(mail, std::move(out), caret);
     }
@@ -582,25 +740,56 @@ private:
 
     // ---- The table's lines and its cursor ---------------------------------------------------
 
-    /// THE TABLE'S LINES: a heading per place a key is answered, then one line per key in force.
-    /// The lines are the population the cursor and the window are over.
+    /// THE TABLE'S SECTIONS AND ITS LINES: a section per pane and per place Workshop answers a key,
+    /// in the keymap's order within each of three runs -- the desk's panes first, Workshop's own
+    /// next, the panes off the desk at the foot -- and a line per section's header, then a line
+    /// per key of each open section. The lines are the population the cursor and the window are
+    /// over. A section the keymap and the inventory no longer hold is forgotten.
     void compose_lines() {
-        lines_.clear();
-        std::string group;
+        sections_.clear();
+        std::map<std::string, std::size_t> at;
         for (std::size_t i = 0; i < keymap_.rows.size(); ++i) {
             const ws::ShownBinding& b = keymap_.rows[i];
-            if (b.group != group) {
-                group = b.group;
-                lines_.push_back(KeysLine{false, 0, std::string()});
+            const std::string key = section_key(b);
+            const auto [found, fresh] = at.emplace(key, sections_.size());
+            if (fresh) {
+                sections_.push_back(KeysSection{key, drawable(b.group),
+                                                !b.pane.empty() && inventory_heard_ &&
+                                                    on_desk_.count(b.office + "/" + b.pane) == 0,
+                                                {}});
             }
-            lines_.push_back(KeysLine{true, i, binding_key(b)});
+            sections_[found->second].bindings.push_back(i);
+        }
+        const auto run = [](const KeysSection& s) {
+            return s.absent ? 2 : (s.key.rfind("pane:", 0) == 0 ? 0 : 1);
+        };
+        std::stable_sort(sections_.begin(), sections_.end(),
+                         [&run](const KeysSection& a, const KeysSection& b) {
+                             return run(a) < run(b);
+                         });
+        if (inventory_heard_) {
+            std::vector<std::string> held = inventory_known_;
+            for (const KeysSection& s : sections_) {
+                held.push_back(s.key);
+            }
+            (void)groups_.keep(held, [](const std::string& key) { return key; });
+        }
+        lines_.clear();
+        for (std::size_t s = 0; s < sections_.size(); ++s) {
+            lines_.push_back(KeysLine{false, 0, header_key(sections_[s].key), s});
+            if (groups_.is_open(sections_[s].key)) {
+                for (const std::size_t i : sections_[s].bindings) {
+                    lines_.push_back(KeysLine{true, i, binding_key(keymap_.rows[i]), s});
+                }
+            }
         }
     }
 
     static std::string key_of_line(const KeysLine& l) { return l.key; }
 
     /// FIND THE CURSOR'S ROW IN THE FRESH TABLE, by identity; after an accepted edit the row's
-    /// key changed, so the action's first row is held instead of losing the cursor.
+    /// key changed, so the action's first row is held instead of losing the cursor. A choice never
+    /// made, or one whose row left, takes the line the marker stands on.
     void keys_find() {
         keys_choice_.find(lines_, key_of_line);
         if (keys_choice_.lost && !refind_id_.empty()) {
@@ -612,57 +801,76 @@ private:
             }
         }
         refind_id_.clear();
-        // THE CURSOR RESTS ON A BINDING, NEVER ON A HEADING: a choice never made, or one whose
-        // row left, takes the first binding at or after where it stands (a heading has no key
-        // to offer and no menu to open); a lost row that has a binding under it keeps its place.
-        if (!keys_choice_.chosen || keys_choice_.lost ||
-            (keys_choice_.at < lines_.size() && !lines_[keys_choice_.at].binding)) {
-            const std::size_t from = keys_choice_.at < lines_.size() ? keys_choice_.at : 0;
-            bool held = false;
-            for (std::size_t i = from; i < lines_.size(); ++i) {
-                if (lines_[i].binding) {
-                    keys_choice_.hold(lines_, i, key_of_line);
-                    held = true;
-                    break;
-                }
-            }
-            for (std::size_t i = 0; !held && i < lines_.size(); ++i) {
-                if (lines_[i].binding) {
-                    keys_choice_.hold(lines_, i, key_of_line);
-                    held = true;
-                }
-            }
+        if ((!keys_choice_.chosen || keys_choice_.lost) && !lines_.empty()) {
+            keys_choice_.hold(lines_, (std::min)(keys_choice_.at, lines_.size() - 1), key_of_line);
         }
     }
 
     void keys_hold(std::size_t line) {
-        if (line < lines_.size() && lines_[line].binding) {
+        if (line < lines_.size()) {
             keys_choice_.hold(lines_, line, key_of_line);
         }
     }
+    /// ...OR THE LINE `key` NAMES, found where it stands when the table is composed again.
+    void hold_key(const std::string& key) {
+        keys_choice_.key = key;
+        keys_choice_.chosen = true;
+        keys_choice_.lost = false;
+    }
 
-    /// STEP THE CURSOR OVER BINDINGS ONLY, `by` rows (negative is up), skipping headings.
+    /// STEP THE CURSOR `by` LINES (negative is up), headers and keys alike, clamped to the table.
     void keys_step(std::int64_t by) {
         if (lines_.empty()) {
             return;
         }
-        std::size_t at = keys_choice_.at < lines_.size() ? keys_choice_.at : lines_.size() - 1;
-        const std::int64_t dir = by < 0 ? -1 : 1;
-        for (std::int64_t n = by < 0 ? -by : by; n > 0; --n) {
-            std::size_t next = at;
-            while (true) {
-                if (dir < 0 ? next == 0 : next + 1 >= lines_.size()) {
-                    break;
-                }
-                next = dir < 0 ? next - 1 : next + 1;
-                if (lines_[next].binding) {
-                    at = next;
-                    break;
-                }
-            }
-        }
-        keys_hold(at);
+        (void)keys_choice_.step(lines_, by, key_of_line);
         keys_notice_.clear();
+    }
+
+    /// The line the cursor stands on, while it holds one.
+    const KeysLine* cursor_line() const {
+        return keys_choice_.actionable() && keys_choice_.at < lines_.size()
+                   ? &lines_[keys_choice_.at]
+                   : nullptr;
+    }
+
+    /// RIGHT: open the section whose header the cursor stands on, or, open already, step to its
+    /// first key.
+    void keys_open_here() {
+        const KeysLine* line = cursor_line();
+        if (line == nullptr || line->binding) {
+            return;
+        }
+        if (groups_.open(sections_[line->section].key)) {
+            keys_notice_.clear();
+        } else if (keys_choice_.at + 1 < lines_.size() && lines_[keys_choice_.at + 1].binding) {
+            keys_step(1);
+        }
+    }
+
+    /// LEFT: shut the section whose header the cursor stands on, or from one of its keys step to
+    /// that header.
+    void keys_shut_here() {
+        const KeysLine* line = cursor_line();
+        if (line == nullptr) {
+            return;
+        }
+        const std::string& section = sections_[line->section].key;
+        if (line->binding) {
+            hold_key(header_key(section));
+        } else if (groups_.shut(section)) {
+            keys_notice_.clear();
+        }
+    }
+
+    /// EVERY SECTION SHUT, in one act; a cursor on a key stands on its section's header.
+    void keys_shut_all() {
+        if (const KeysLine* line = cursor_line(); line != nullptr && line->binding) {
+            hold_key(header_key(sections_[line->section].key));
+        }
+        if (groups_.shut_all()) {
+            keys_notice_.clear();
+        }
     }
 
     /// THE STABLE SUBJECT OF A HOTKEYS TABLE LINE -- the binding's identity, or empty for a line
@@ -803,6 +1011,16 @@ private:
     PaneCanvas keys_canvas_{kHotkeysPane, kDesktopRole};
     ws::KeymapShown keymap_;
     bool keys_heard_ = false;
+    /// THE TABLE'S SECTIONS, which of them are open and the one the pointer peeks
+    /// (`component::IndependentAccordions`), and what the inventory last said: the panes the desk
+    /// holds, and every pane it knows, so a section of a pane off the desk is kept.
+    std::vector<KeysSection> sections_;
+    component::IndependentAccordions<std::string> groups_;
+    std::set<std::string> on_desk_;
+    std::vector<std::string> inventory_known_;
+    bool inventory_heard_ = false;
+    /// HOW FAR A KEY'S CELLS STAND IN: the cursor's mark, then a section's indent.
+    static constexpr std::size_t kKeyIndent = 4;
     std::vector<KeysLine> lines_;
     component::HeldChoice<std::string> keys_choice_;
     std::size_t keys_first_ = 0;

@@ -27,9 +27,10 @@ entered; going up from inside it returns to the folder you walked in from. A lis
 Workshop gives the pane its room, when you walk somewhere, when you press
 [`files.refresh`](#filesrefresh), and when a build ends. Nothing watches the disk.
 
-Each layout keeps two settings for the pane: `wheel-rows`, pinned, the rows a wheel notch moves,
-and `listed-entries`, the entries a listing holds before its header says `stopped counting`. A
-value one cannot use keeps its default and is said to Workshop.
+Each layout keeps three settings for the pane: `wheel-rows`, pinned, the rows a wheel notch moves;
+`listed-entries`, the entries a listing holds before its header says `stopped counting`; and
+`places`, whether [your places](#filesplaces) are open. A value one cannot use keeps its default
+and is said to Workshop.
 
 Files is not a file manager: it renames, deletes, copies and creates nothing, has no search and no
 filter, and judges no file's contents. What a row knows is a name and whether it is a folder.
@@ -196,6 +197,27 @@ Goes to the previous place this Workshop knows, wrapping at the start. Otherwise
 - **Answers:** that place's listing, and `at <path>`, as [`files.next-mark`](#filesnext-mark).
 - **Refuses:** as [`files.next-mark`](#filesnext-mark).
 - **Example:** <!-- key files.previous-mark -->`shift+n`<!-- /key -->.
+
+### `files.places`
+
+Opens your places, or shuts them: the origin, your marks and the filesystem roots, the stops
+[`files.next-mark`](#filesnext-mark) walks, a row each under the header. Shut, the default, they
+are one row, `+ places (4)`; open, `- places` and a row a place, taking rows from the listing,
+which keeps one, or growing a pane sized to fit. Where the pointer can rest (the window, a Windows
+console), resting it on the shut row shows the places over the listing without moving it. The
+roots are read when the folder is listed.
+
+- **Takes:** the places as this layout keeps them. Default key
+  <!-- key files.places -->`p`<!-- /key -->; a press on the `+ places` or `- places` row, or on a
+  place a pointer resting on the shut row shows; the menu's `open the places` or `shut the places`.
+- **Answers:** asked of [`zengine.layouts`](../../workshop/docs/zengine.layouts.md) as this pane's
+  own `places` setting ([`PaneSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#panesettingcommitrequested)),
+  which keeps it for this layout and hands it back; the places show as it was kept. Open, a press
+  on a place goes there, `at <path>` with why it is known.
+- **Refuses:** `the places are still being kept -- press again`, while an earlier fold waits;
+  `the places stay shut -- <the reason>` (or `open`), when the layouts' owner refused, as when the
+  setting is locked, or could not be asked.
+- **Example:** <!-- key files.places -->`p`<!-- /key -->, then press the `origin` row.
 
 ### `files.pick-buildable`
 
@@ -367,6 +389,26 @@ A press on it names nothing.
 began, `Files empty`, `Files --` when nothing is listed, and `+ (stopped counting)` when a listing
 stopped at its bound. In the chooser, `pick something buildable -- 2 candidates`; on the fields, `` author
 `oven.cpp` -- a source file ``.
+
+### `path`
+
+Where Files is looking, at the header's end. A path too long for its room is cut in the middle:
+the drive or `/`, `...`, and as much of the end as fits, `C:/...ects/game/src`. In the window or
+a Windows console, rest the pointer on it and the whole path stands across the row, its start at
+the left edge and its end at the right, so moving along the row reads it all; it is cut again when
+the pointer leaves. A POSIX terminal reports no resting pointer, so the cut stands.
+
+### `places`
+
+The places' row under the header, named `places`: `+ places (4)` shut, in the accent ink while the
+pointer rests on it and its places show over the listing, and `- places` open. A press on it opens
+or shuts them.
+
+### `place`
+
+One place, named `place:<path>`, under the places' row while they are open or over the listing while
+they peek: its path, cut in the middle to the column the places share, and why it is known, `origin`,
+`marked` or `filesystem root`. A press on one goes there; on one a peek shows, opens the places.
 
 ### `entry`
 

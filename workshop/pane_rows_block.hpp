@@ -20,6 +20,7 @@
 #include "pane_rows.hpp"
 #include "pane_text.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -155,6 +156,23 @@ public:
         }
         marker(component::more_marker(win), "more");
         return asked;
+    }
+
+    /// ROWS A BODY IS DRAWN OVER -- `count` from `first`, as many as the room holds: what was
+    /// composed there means nothing now (`RowMap::cover`), and a row not composed yet is a blank
+    /// one, so the body is written over each with `composing()` and `map().row`.
+    void cover(std::int64_t first, std::int64_t count) {
+        if (first < 0 || count <= 0) {
+            return;
+        }
+        const std::int64_t end = (std::min)(first + count, rows_);
+        if (end <= first) {
+            return;
+        }
+        map_.cover(first, end - first);
+        if (static_cast<std::int64_t>(composing_.size()) < end) {
+            composing_.resize(static_cast<std::size_t>(end));
+        }
     }
 
     /// NOTHING IS SAID THIS BEAT, so no row of it names anything.

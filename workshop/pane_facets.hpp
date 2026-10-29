@@ -38,6 +38,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -138,15 +139,21 @@ struct RowPress {
 /// (`rows_drawing`). A press is read against the rows last drawn there; a third-button press that
 /// means nothing to the pane is passed back to Workshop.
 template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
-          class Meaning, class Offer = v2::PaneOffered>
+          class Meaning, class Offer = v2::PaneOffered, bool HearsRest = false>
 class PaneRowsFacet : public PaneFacet<Pane, Office, Page, Offer> {
     using Room = PaneFacet<Pane, Office, Page, Offer>;
 
 public:
-    using Accept = loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
-                                graphics::AreaRoom, graphics::DrawnRefused,
-                                graphics::ActionRequested, graphics::AreaButtonChanged,
-                                graphics::AreaPointerMoved, graphics::AreaWheelTurned, PaneKeys>;
+    using Accept = std::conditional_t<
+        HearsRest,
+        loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaButtonChanged, graphics::AreaPointerMoved,
+                     graphics::AreaPointerLeft, graphics::AreaWheelTurned, PaneKeys>,
+        loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaButtonChanged, graphics::AreaPointerMoved,
+                     graphics::AreaWheelTurned, PaneKeys>>;
     using Emit = loom::Emit<Offer, PaneDocumentShown, PanePassRequested, graphics::Drawn,
                             graphics::RoomAsked>;
     using Room::on;
@@ -246,9 +253,37 @@ public:
         pass_back(mail);
     }
 
-    /// A move and a release in the window mean nothing to rows; the wheel is the weave's `wheel`.
+    /// THE POINTER RESTING ON THE ROWS, where the medium reports one, for a pane that hears it
+    /// (`kHearsRest`): a move the window gave the area with no button held, read onto the rows last
+    /// drawn there, is the weave's `rest(cell, mail)`, once each time the cell under it changes. A
+    /// move a held press carries is a drag and means nothing to rows; so does a release, and every
+    /// move to a pane that does not hear rests. The wheel is the weave's `wheel`.
     template <class Self>
-    void on(Self&, const graphics::AreaPointerMoved&, loom::Mail&) {}
+    void on([[maybe_unused]] Self& self, [[maybe_unused]] const graphics::AreaPointerMoved& m,
+            [[maybe_unused]] loom::Mail& mail) {
+        if constexpr (HearsRest) {
+            const std::optional<WindowPointer> p =
+                window_.pointer(m, mail, window_rows_, this->columns());
+            if (!p || p->press != 0 || (rest_ && *rest_ == p->at)) {
+                return;
+            }
+            rest_ = p->at;
+            self.rest(p->at, mail);
+        }
+    }
+    /// ...AND ITS LEAVE: the pointer, moving with no button held, left the area, which the window
+    /// that shows it says. The weave's `pointer_left(mail)`, once for each rest it was handed.
+    template <class Self>
+    void on([[maybe_unused]] Self& self, [[maybe_unused]] const graphics::AreaPointerLeft& left,
+            [[maybe_unused]] loom::Mail& mail) {
+        if constexpr (HearsRest) {
+            if (!window_.from_window(left.area, mail) || !rest_) {
+                return;
+            }
+            rest_.reset();
+            self.pointer_left(mail);
+        }
+    }
     template <class Self>
     void on([[maybe_unused]] Self& self, const graphics::AreaWheelTurned& w,
             [[maybe_unused]] loom::Mail& mail) {
@@ -258,6 +293,10 @@ public:
             }
         }
     }
+
+    /// The cell the pointer rests on, as the weave was last handed it; none since it left, or
+    /// before it came.
+    const std::optional<RowCell>& resting() const noexcept { return rest_; }
 
     /// Whether the keys reach the pane now, as Workshop last said.
     template <class Self>
@@ -310,6 +349,8 @@ public:
         return block_.push_window(win, std::forward<FitRow>(fit_row),
                                   std::forward<EmitEntry>(emit_entry));
     }
+    /// ROWS A BODY IS DRAWN OVER (`RowsBlock::cover`): what was composed there means nothing now.
+    void cover(std::int64_t first, std::int64_t count) { block_.cover(first, count); }
     void hold() { block_.hold(); }
 
     /// THE ROWS COMPOSED, each part named `name_of(meaning)` and available as
@@ -379,6 +420,7 @@ private:
     std::int64_t window_rows_ = 0;                 ///< how many rows were last sent there
     bool keys_here_ = false;                       ///< the keys reach the pane, as Workshop last said
     bool asked_ = false;                           ///< the room asked in this life
+    std::optional<RowCell> rest_;                  ///< the cell the pointer rests on, as handed
 };
 
 /// A PANE THAT DRAWS ONE PICTURE: `PaneFacet`, and the weave's `picture(graphics::Sketch&)` shown
@@ -386,15 +428,21 @@ private:
 /// element record is a part named by its action, and a press anywhere on the element's face asks
 /// that action of the weave's `on_action(id, mail)`: the owner never reads a place.
 template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
-          class Offer = v2::PaneOffered>
+          class Offer = v2::PaneOffered, bool HearsRest = false>
 class PaneDrawingFacet : public PaneFacet<Pane, Office, Page, Offer> {
     using Room = PaneFacet<Pane, Office, Page, Offer>;
 
 public:
-    using Accept = loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
-                                graphics::AreaRoom, graphics::DrawnRefused,
-                                graphics::ActionRequested, graphics::AreaButtonChanged,
-                                graphics::AreaPointerMoved, graphics::AreaWheelTurned>;
+    using Accept = std::conditional_t<
+        HearsRest,
+        loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaButtonChanged, graphics::AreaPointerMoved,
+                     graphics::AreaPointerLeft, graphics::AreaWheelTurned>,
+        loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaButtonChanged, graphics::AreaPointerMoved,
+                     graphics::AreaWheelTurned>>;
     using Emit = loom::Emit<Offer, PaneDocumentShown, PanePassRequested, graphics::Drawn,
                             graphics::RoomAsked>;
     using Room::on;
@@ -444,8 +492,8 @@ public:
     /// action (`graphics::part_at`); one the window drew on another element than that picture
     /// shows there acts on nothing, and is the weave's `fenced` where it has one, to say so; the
     /// third is passed back under the window's number for the press, so Workshop's own pane menu
-    /// opens where it was made; the wheel is the weave's `wheel`. A move and a release mean
-    /// nothing.
+    /// opens where it was made; the wheel is the weave's `wheel`. A release means nothing, and a
+    /// move means what `on(AreaPointerMoved)` says.
     template <class Self>
     void on(Self& self, const graphics::AreaButtonChanged& b, loom::Mail& mail) {
         const std::optional<WindowPointer> p = window_.pointer(b, mail, 0, 0);
@@ -467,8 +515,41 @@ public:
             act(self, action, mail);
         }
     }
+
+    /// THE POINTER RESTING ON THE PICTURE, where the medium reports one, for a pane that hears it
+    /// (`kHearsRest`): a move the window gave the area with no button held is the weave's
+    /// `rest(part, mail)` -- the part the picture last sent there shows under it, "" for none --
+    /// once each time that part changes. A move a held press carries is a drag, and means nothing
+    /// here; so does every move to a pane that does not hear rests.
     template <class Self>
-    void on(Self&, const graphics::AreaPointerMoved&, loom::Mail&) {}
+    void on([[maybe_unused]] Self& self, [[maybe_unused]] const graphics::AreaPointerMoved& m,
+            [[maybe_unused]] loom::Mail& mail) {
+        if constexpr (HearsRest) {
+            const std::optional<WindowPointer> p = window_.pointer(m, mail, 0, 0);
+            if (!p || p->press != 0) {
+                return;
+            }
+            const std::string part = window_.part_at(p->x, p->y);
+            if (rest_ && *rest_ == part) {
+                return;
+            }
+            rest_ = part;
+            self.rest(part, mail);
+        }
+    }
+    /// ...AND ITS LEAVE, which the window that shows the area says: the weave's
+    /// `pointer_left(mail)`, once for each rest it was handed.
+    template <class Self>
+    void on([[maybe_unused]] Self& self, [[maybe_unused]] const graphics::AreaPointerLeft& left,
+            [[maybe_unused]] loom::Mail& mail) {
+        if constexpr (HearsRest) {
+            if (!window_.from_window(left.area, mail) || !rest_) {
+                return;
+            }
+            rest_.reset();
+            self.pointer_left(mail);
+        }
+    }
     template <class Self>
     void on([[maybe_unused]] Self& self, const graphics::AreaWheelTurned& w,
             [[maybe_unused]] loom::Mail& mail) {
@@ -535,6 +616,7 @@ private:
     std::set<std::string> window_actions_; ///< the actions the picture last sent the window names
     graphics::TextMeasure text_;           ///< how the picture being drawn sets its text
     bool asked_ = false;                   ///< the room asked in this life
+    std::optional<std::string> rest_;      ///< the part the pointer rests on, as handed
 };
 
 /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY ID: Workshop resolved the keystroke against

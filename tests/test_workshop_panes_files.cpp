@@ -520,13 +520,15 @@ struct FilesRig {
         SeamTap tap(r.bus, files_id());
         for (std::int64_t row = 0; row < granted_rows(); ++row) {
             settle(at, refusal_leads);
-            // THE CONTROL STRIP IS NOT A ROW OF THE LISTING and has a case of its own: a
-            // control DOES something, so pressing one here would leave the browser somewhere
-            // else and the next settle would be about another directory. What this sweep is
-            // for is the rows that name entries and the rows that name nothing.
+            // THE CONTROL STRIP AND THE PLACES' HEADER ARE NOT ROWS OF THE LISTING, and have
+            // cases of their own: each DOES something, so pressing one here would leave the
+            // browser elsewhere or its rows moved, and the next settle would be about another
+            // picture. What this sweep is for is the rows that name entries and the rows that
+            // name nothing.
             const std::vector<std::string> picture_now = shown();
             if (row < static_cast<std::int64_t>(picture_now.size()) &&
-                control_strip_row(picture_now[static_cast<std::size_t>(row)])) {
+                (control_strip_row(picture_now[static_cast<std::size_t>(row)]) ||
+                 picture_now[static_cast<std::size_t>(row)].rfind("+ places (", 0) == 0)) {
                 continue;
             }
             press_and_judge(tap, row);
@@ -843,12 +845,13 @@ TEST_CASE("a press selects, and a second press on the same row activates") {
     REQUIRE(keyboard_pane(f.r.session().panes) == kNoPaneKind);
     SeamTap tap(f.r.bus, f.files_id(), f.keys_here());
 
-    // Row 0 is the pane's own header; row 1 is the first entry under it, `src/`, where the cursor
-    // already is.
-    press_pane(f.r, f.kind, 1, 0);
+    // Row 0 is the pane's own header and row 1 its places; row 2 is the first entry under them,
+    // `src/`, where the cursor already is.
+    REQUIRE(row_beginning(f.shown(), "> src/") == 2);
+    press_pane(f.r, f.kind, 2, 0);
     CHECK(f.at_cursor().rfind("src/", 0) == 0);
     CHECK_FALSE(any_row(f.shown(), "inner.cpp"));
-    press_pane(f.r, f.kind, 1, 0);
+    press_pane(f.r, f.kind, 2, 0);
     CHECK(any_row(f.shown(), "inner.cpp"));
     CHECK(tap.keys_went_here == std::vector<int>{0, 1});
 }
@@ -1004,7 +1007,11 @@ TEST_CASE("Files declares its wheel and its listing's bound as settings, and a l
                                     static_cast<std::int64_t>(zengine::workshop::kFewestListedEntries),
                                     most, {"limits"}, false,
                                     "the most entries one directory listing holds"};
-    CHECK(declared_settings(f.r, files_ref()) == std::vector<v2::PaneSettingRow>{wheel, listed});
+    const v2::PaneSettingRow places{files::kSettingPlaces, false, std::nullopt, std::nullopt, {},
+                                    std::nullopt, std::nullopt, {"view"}, false,
+                                    "the places section open: origin, marks, roots"};
+    CHECK(declared_settings(f.r, files_ref()) ==
+          std::vector<v2::PaneSettingRow>{wheel, listed, places});
 
     const CellRect body = external_body_rect(f.r.session(), f.kind);
     // ONE NOTCH FROM THE TOP OF THE LIST, walked there as a weaver walks.
@@ -1098,7 +1105,7 @@ TEST_CASE("a press on Files' painted selected row while a refusal leads opens ex
     put_file(f.root / "alpha.cpp", "the alpha source\n");
     put_file(f.root / "beta.cpp", "the beta source\n");
     f.open(160, 48, /*with_editor=*/true, /*with_manager=*/false);
-    REQUIRE(row_beginning(f.shown(), "> alpha.cpp") == 1);
+    REQUIRE(row_beginning(f.shown(), "> alpha.cpp") == 2); // under the header and its places
     REQUIRE(typing_pane(f.r.session()) == f.kind);
     f.r.key(input::scan::kReturn);
     f.r.mount_opening();
@@ -1107,7 +1114,7 @@ TEST_CASE("a press on Files' painted selected row while a refusal leads opens ex
     INFO("the pane showed\n", seen);
     REQUIRE(before[0].find("could not reach") != std::string::npos);
     const std::int64_t selected = row_beginning(before, "> alpha.cpp");
-    REQUIRE(selected == 2);
+    REQUIRE(selected == 3);
 
     SeamTap tap(f.r.bus, f.files_id(), f.keys_here());
     press_pane(f.r, f.kind, selected, 0);
@@ -1505,7 +1512,7 @@ TEST_CASE("Files takes a press only from the window that shows it and in its own
     const std::string area = pane_area(files::kFilesRole, files::kProjectFilesPane);
     window.room(area, files::kFilesRole, 60, 8);
     REQUIRE(window.rows(area).size() >= 3);
-    REQUIRE(window.rows(area)[1].rfind("> alpha.cpp", 0) == 0);
+    REQUIRE(window.rows(area)[2].rfind("> alpha.cpp", 0) == 0); // under the header and the places
     SeamTap tap(f.r.bus, f.files_id());
     std::size_t said = window.weave().heard.size();
     const auto keys = [&](bool here) {
@@ -1515,7 +1522,7 @@ TEST_CASE("Files takes a press only from the window that shows it and in its own
         });
     };
     const gfx::AreaButtonChanged on_alpha{area, 1, true, gfx::kCellPx / 2,
-                                          gfx::kCellPx + gfx::kCellPx / 2, 0};
+                                          2 * gfx::kCellPx + gfx::kCellPx / 2, 0};
 
     keys(true);
     f.r.drive_watcher(watch, [&](PaneWatcher&, loom::Mail& m) {
@@ -1535,8 +1542,8 @@ TEST_CASE("Files takes a press only from the window that shows it and in its own
     CHECK(window.weave().heard.size() == said);
 
     keys(false);
-    REQUIRE(window.rows(area)[2].rfind("  beta.cpp", 0) == 0);
-    window.click(area, 0, 2);
+    REQUIRE(window.rows(area)[3].rfind("  beta.cpp", 0) == 0);
+    window.click(area, 0, 3);
     REQUIRE(tap.pressed.size() == 3);
     CHECK(tap.attempts == 0);
     CHECK(window.weave().heard.size() > said); // it selected beta, and drew it
@@ -1548,7 +1555,7 @@ TEST_CASE("Files takes a press only from the window that shows it and in its own
     // file for its hand, which is the open's first step; this stand-in approves nothing, so nothing
     // is sent on.
     keys(true);
-    window.click(area, 0, 2);
+    window.click(area, 0, 3);
     REQUIRE(tap.pressed.size() == 4);
     CHECK(tap.asks == 1);
     CHECK(tap.attempts == 0);
@@ -4100,4 +4107,204 @@ TEST_CASE("a right press on a folder in the project's apps/ offers to start that
     // ...as far as the pane's width shows it.
     CHECK(f.first().find(std::string("started the app `tally`, process 4242: ") +
                          std::string(zengine::launcher::kStartedAppGoesOn).substr(0, 60)) != std::string::npos);
+}
+
+// ============================================================================
+// The places, a section of the browser, and the path a header keeps whole under the pointer
+// ============================================================================
+
+namespace {
+
+/// WHAT THE LIVE LAYOUT'S ROW KEEPS FOR THE PLACES' FOLD: absent while it is the default, shut.
+std::optional<bool> places_kept(FilesRig& f) {
+    const SetupPane* row = pane_of(f.r.run().active, files_ref());
+    REQUIRE(row != nullptr);
+    const PaneSetting* kept = find_pane_setting(row->settings, files::kSettingPlaces);
+    return kept == nullptr ? std::nullopt : kept->flag;
+}
+
+/// HOW MANY PLACES A SHUT HEADER SAYS IT HOLDS: `+ places (<n>)`.
+std::size_t places_said(const std::string& header) {
+    const std::size_t open = header.find('(');
+    REQUIRE(open != std::string::npos);
+    return static_cast<std::size_t>(std::stoul(header.substr(open + 1)));
+}
+
+} // namespace
+
+TEST_CASE("Files' places are a section of the pane: shut at first and saying how many they hold, opened and shut by their header and by `p` as the pane's own word in the layout's row, and a place pressed is gone to") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#places-fold-kept-in-the-pane,
+    // #places-offered-once): the fold made on the press and never kept in the row; the pane
+    // offered once, so a pane sized to fit never follows.
+    FilesRig f("files-places");
+    std::filesystem::create_directory(f.root / "alpha");
+    f.open();
+    // SHUT AT FIRST, the header alone right under the pane's, the listing right under it, and the
+    // row keeping nothing: shut is the default, kept as its absence.
+    std::vector<std::string> rows = f.shown();
+    INFO("at first\n", picture(rows));
+    const std::int64_t at = row_beginning(rows, "+ places (");
+    REQUIRE(at == 1);
+    const std::size_t held = places_said(rows[1]);
+    CHECK(held >= 2); // the origin, and every filesystem root
+    CHECK(row_beginning(rows, "> alpha/") == 2);
+    CHECK_FALSE(places_kept(f).has_value());
+    CHECK(f.row()->latest.rows == 9);
+
+    // THE HEADER PRESSED: the pane commits its own word, the owner hands the row back, and the
+    // places show -- the origin first, and why each is known.
+    press_pane(f.r, f.kind, at, 0);
+    rows = f.shown();
+    INFO("opened\n", picture(rows));
+    CHECK(rows[1] == "- places");
+    CHECK(places_kept(f) == std::optional<bool>(true));
+    REQUIRE(rows.size() > 2 + held);
+    CHECK(rows[2].rfind("    ", 0) == 0);
+    CHECK(rows[2].find("origin") != std::string::npos);
+    CHECK(rows[3].find("filesystem root") != std::string::npos);
+    CHECK(row_beginning(rows, "> alpha/") == static_cast<std::int64_t>(2 + held));
+    // ...AND THE PANE OFFERS AGAIN, a row a place more, so a pane sized `fit` follows.
+    CHECK(f.row()->latest.rows == 9 + static_cast<std::int64_t>(held));
+    // ...AND A RELOAD IN PLACE IS HANDED THE ROW AGAIN, the places open in it.
+    f.r.enqueue_reload(files::kFilesStem, WORKSHOP_SO_FILES);
+    f.r.bus.drain_until_idle();
+    REQUIRE(f.r.load_refusals.empty());
+    CHECK(f.shown()[1] == "- places");
+
+    // `p` SHUTS THEM AGAIN, and the default goes back to being kept as nothing.
+    f.letter(input::scan::kP, "p");
+    rows = f.shown();
+    CHECK(row_beginning(rows, "+ places (") == 1);
+    CHECK(row_beginning(rows, "> alpha/") == 2);
+    CHECK_FALSE(places_kept(f).has_value());
+    CHECK(f.row()->latest.rows == 9);
+
+    // A PLACE PRESSED IS GONE TO: from inside `alpha`, the origin's row walks back to it.
+    f.r.key(input::scan::kReturn);
+    REQUIRE(f.first().rfind("in ", 0) == 0);
+    f.letter(input::scan::kP, "p");
+    rows = f.shown();
+    const std::int64_t origin = [&] {
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            if (rows[i].rfind("    ", 0) == 0 && rows[i].find("origin") != std::string::npos) {
+                return static_cast<std::int64_t>(i);
+            }
+        }
+        return std::int64_t{-1};
+    }();
+    REQUIRE_MESSAGE(origin >= 0, picture(rows));
+    press_pane(f.r, f.kind, origin, 6);
+    CHECK(f.first().rfind("at " + f.r.host.project_dir, 0) == 0);
+    CHECK(f.first().find("(origin)") != std::string::npos);
+    CHECK(any_row(f.shown(), "alpha/"));
+}
+
+TEST_CASE("in a window that reports a resting pointer, Files' shut places peek over the rows under their header and take no room, the pointer on what the peek shows keeps it, a press there opens them, a move a held press carries is no rest, and the leave ends the peek") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#places-fold-kept-in-the-pane,
+    // #places-peek-not-drawn): the press on a peek opening nothing the row keeps; the peek drawn
+    // nowhere.
+    FilesRig f("files-peek");
+    for (const char* name : {"a", "b", "c", "d"}) {
+        std::filesystem::create_directory(f.root / name);
+    }
+    f.open();
+    const std::string area = pane_area(files::kFilesRole, files::kProjectFilesPane);
+    zengine::testing::pane_window::Window window(f.r.bus);
+    window.room(area, files::kFilesRole, 100, 16);
+    const std::vector<std::string> shut = window.rows(area);
+    INFO("shut\n", picture(shut));
+    const std::int64_t at = row_beginning(shut, "+ places (");
+    REQUIRE(at >= 0);
+    const auto row = [&](std::int64_t i) {
+        const std::vector<std::string> now = window.rows(area);
+        return i < static_cast<std::int64_t>(now.size()) ? now[static_cast<std::size_t>(i)]
+                                                         : std::string();
+    };
+    REQUIRE(row(at + 1).find("a/") != std::string::npos);
+
+    // THE POINTER COMES TO REST ON THE HEADER: the places stand over the listing's first rows, the
+    // header keeps its words, and the pane asks no more room.
+    window.move(area, 3, at);
+    CHECK(row(at) == shut[static_cast<std::size_t>(at)]);
+    CHECK(row(at + 1).find("origin") != std::string::npos);
+    CHECK(row(at + 1).find("a/") == std::string::npos);
+    CHECK(f.row()->latest.rows == 9);
+    CHECK_FALSE(places_kept(f).has_value());
+    // ...ON WHAT THE PEEK SHOWS, IT STAYS; and a move a held press carries is a drag, no rest.
+    window.move(area, 8, at + 1);
+    CHECK(row(at + 1).find("origin") != std::string::npos);
+    window.move(area, 8, at + 6, window.next_press());
+    CHECK(row(at + 1).find("origin") != std::string::npos);
+    // THE LEAVE ENDS IT: the window shows what it showed before.
+    window.left(area);
+    CHECK(window.rows(area) == shut);
+    // A PRESS ON WHAT A PEEK SHOWS OPENS THE PLACES, kept as the pane's word.
+    window.move(area, 3, at);
+    window.click(area, 8, at + 1);
+    CHECK(row(at).rfind("- places", 0) == 0);
+    CHECK(places_kept(f) == std::optional<bool>(true));
+    // ...AND, OPEN, THE POINTER ON ITS HEADER SHOWS NO PEEK: the places are there already.
+    window.move(area, 3, at);
+    CHECK(row(at).rfind("- places", 0) == 0);
+    CHECK(window.weave().refusals.empty());
+}
+
+TEST_CASE("Files' path keeps its root and as much of its end as fits, cut in the middle, and under a resting pointer stands whole across the row, scrolled to where the pointer's column puts it, until the pointer leaves") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#path-cut-at-its-end, #path-never-whole):
+    // the path cut at its end as a sentence is; the path left cut under the resting pointer.
+    FilesRig f("files-path");
+    std::filesystem::path deep = f.root;
+    for (const char c : {'p', 'q', 'r'}) {
+        deep /= std::string(48, c);
+        std::filesystem::create_directory(deep);
+    }
+    put_file(deep / "leaf.txt", "x\n");
+    f.open();
+    for (int step = 0; step < 3; ++step) {
+        f.r.key(input::scan::kReturn); // into the one folder each level holds
+    }
+    f.r.key(input::scan::kDown); // an act, which spends the `in <path>` the walk left
+    const std::string whole = zengine::workshop::admit_location(deep.generic_string());
+    REQUIRE(f.first().rfind("Files ", 0) == 0);
+    const std::string area = pane_area(files::kFilesRole, files::kProjectFilesPane);
+    zengine::testing::pane_window::Window window(f.r.bus);
+    constexpr std::int64_t kColumns = 100;
+    window.room(area, files::kFilesRole, kColumns, 16);
+    const std::vector<std::string> cut = window.rows(area);
+    INFO("cut\n", picture(cut));
+    const std::string header = cut[0];
+    REQUIRE(header.rfind("Files ", 0) == 0);
+    REQUIRE(whole.size() > static_cast<std::size_t>(kColumns));
+
+    // THE ROOT, THE MARK, AND AS MUCH OF THE END AS THE ROW HOLDS.
+    const std::size_t root = zengine::workshop::pane_text::path_root(whole);
+    const std::size_t from = header.find(whole.substr(0, root) + "...");
+    REQUIRE(from != std::string::npos);
+    CHECK(header.size() == static_cast<std::size_t>(kColumns));
+    const std::string end = header.substr(from + root + 3);
+    CHECK(whole.compare(whole.size() - end.size(), end.size(), end) == 0);
+    CHECK(end.size() + root + 3 + from == static_cast<std::size_t>(kColumns));
+
+    // THE POINTER RESTING ON THE PATH: the whole path across the row, from where its column puts
+    // it -- and the row is the path's now, its first column the start and its last the end.
+    const auto at = static_cast<std::int64_t>(from);
+    window.move(area, at, 0);
+    CHECK(window.rows(area)[0] == zengine::workshop::pane_text::scrub(whole, kColumns, at));
+    window.move(area, 0, 0);
+    CHECK(window.rows(area)[0] == whole.substr(0, static_cast<std::size_t>(kColumns)));
+    window.move(area, kColumns - 1, 0);
+    CHECK(window.rows(area)[0] == whole.substr(whole.size() - static_cast<std::size_t>(kColumns)));
+    // THE REST OF THE PANE NEVER MOVED.
+    const std::vector<std::string> now = window.rows(area);
+    CHECK(std::vector<std::string>(now.begin() + 1, now.end()) ==
+          std::vector<std::string>(cut.begin() + 1, cut.end()));
+    // THE LEAVE CUTS IT AGAIN, and so does resting anywhere off the row.
+    window.left(area);
+    CHECK(window.rows(area)[0] == header);
+    window.move(area, at, 0);
+    window.move(area, 2, 0); // over `Files` -- but while the path shows, the row is the path's
+    CHECK(window.rows(area)[0] == zengine::workshop::pane_text::scrub(whole, kColumns, 2));
+    window.move(area, 2, 2);
+    CHECK(window.rows(area)[0] == header);
+    CHECK(window.weave().refusals.empty());
 }

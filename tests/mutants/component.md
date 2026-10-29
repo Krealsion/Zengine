@@ -113,3 +113,76 @@ In `component/text_box.hpp`:
 Red in `zengine-component-tests`:
 
 - pointer and keyboard agree about which bytes are one word
+
+## accordion-peek-springs-back
+
+A press on a section's header leaves the pointer's peek standing, so a section shut under the
+resting pointer peeks again at once.
+
+In `component/accordion.hpp`:
+
+```diff
+         open = !open;
+-        spent = resting;
++        spent = false;
+```
+
+Red in `zengine-component-tests`:
+
+- Accordion: shut shows the header, a press opens it, a resting pointer peeks a shut one, a press
+  during a peek opens it, and one shut under the pointer peeks again only once the pointer has left
+
+## accordion-peek-takes-room
+
+A peeking section's body is counted as room it takes.
+
+In `component/accordion.hpp`:
+
+```diff
+-    std::size_t taken() const noexcept { return header + (over ? 0 : body); }
++    std::size_t taken() const noexcept { return header + body; }
+```
+
+Red in `zengine-component-tests`:
+
+- section_span: the header first, then as much of the body as the room holds -- in the room while
+  open, over what follows while it peeks -- and what did not fit counted, at every room
+
+## group-shut-all-keeps-one
+
+Shutting every section of the independent group leaves the first open one open.
+
+In `component/accordion.hpp`:
+
+```diff
+         const bool any = !open_.empty();
+-        open_.clear();
++        open_.resize(open_.empty() ? 0 : 1);
+```
+
+Red in `zengine-component-tests`:
+
+- IndependentAccordions: each section opens and shuts alone by its key, one act shuts them all, the
+  pointer peeks one at most, and the open ones are kept across a population that moves until it no
+  longer holds them
+
+## group-keep-forgets-nothing
+
+The independent group keeps a section open after its population no longer holds it.
+
+In `component/accordion.hpp`:
+
+```diff
+-        open_.erase(std::remove_if(open_.begin(), open_.end(),
+-                                   [&held](const Key& k) {
+-                                       return !std::binary_search(held.begin(), held.end(), k);
+-                                   }),
+-                    open_.end());
++        (void)held;
+```
+
+Red in `zengine-component-tests`:
+
+- IndependentAccordions: each section opens and shuts alone by its key, one act shuts them all, the
+  pointer peeks one at most, and the open ones are kept across a population that moves until it no
+  longer holds them

@@ -24,8 +24,9 @@ keymap Workshop resolved, never its own idea of it.
 
 Press <!-- key desktop.panes -->`ctrl+p`<!-- /key --> for the Pane Manager, choose a row, and press
 <!-- key launcher.open -->`return`<!-- /key --> to show or focus that pane. Press
-<!-- key desktop.hotkeys -->`ctrl+k`<!-- /key --> to see every key, and right-click a key there (or
-press <!-- key hotkeys.menu -->`m`<!-- /key -->) to change it. Press the `?` at a pane's top right,
+<!-- key desktop.hotkeys -->`ctrl+k`<!-- /key --> to see every key, open a pane's section with
+<!-- key hotkeys.open -->`right`<!-- /key --> or a press on its header, and right-click a key there
+(or press <!-- key hotkeys.menu -->`m`<!-- /key -->) to change it. Press the `?` at a pane's top right,
 or <!-- key desktop.manual -->`ctrl+f`<!-- /key --> while a pane holds your keys, to read its
 manual.
 
@@ -225,32 +226,39 @@ Shows the View Builder, where you make a pane of your own.
 
 ## Commands in the Hotkeys table
 
-The Hotkeys pane lists every key in force, grouped by where it is answered, with its label and its
-action id; `*` marks a key your keymap file moved. A key is changed through a row's menu, and the
+The Hotkeys pane lists every key in force in sections, a section a pane, with its label and its
+action id; `*` marks a key your keymap file moved. The panes on the desk come first, then the places
+Workshop itself answers a key (the application's keys, each mode, the text box's own), then the
+panes not on the desk, in grey at the foot -- still opened as any other, to change their keys. Every
+section is shut at first, its header saying how many keys it holds, `+ pane Files @zengine.files
+(12 keys)`; an open one is marked `-` and its keys stand under it. Which sections are open stays
+while the desk is reloaded, and goes when Workshop quits. In the window, and in a Windows console,
+resting the pointer on a shut section's header shows its keys over the rows below, taking no room;
+a press on one of them opens the section there. A key is changed through a row's menu, and the
 change is Workshop's to make, live, and to write to your keymap file.
 
 ### `hotkeys.up`
 
-Moves the cursor up one key, over the group headings.
+Moves the cursor up one row, a section's header or a key.
 
 - **Takes:** the table. Default key <!-- key hotkeys.up -->`up`<!-- /key -->; the wheel moves one
-  row a notch; a press on a row chooses it.
-- **Answers:** the cursor moves; it stops at the first key.
+  row a notch; a press on a key's row chooses it.
+- **Answers:** the cursor moves; it stops at the first row.
 - **Refuses:** nothing.
 - **Example:** <!-- key hotkeys.up -->`up`<!-- /key -->.
 
 ### `hotkeys.down`
 
-Moves the cursor down one key.
+Moves the cursor down one row.
 
 - **Takes:** the table. Default key <!-- key hotkeys.down -->`down`<!-- /key -->.
-- **Answers:** the cursor moves; it stops at the last key.
+- **Answers:** the cursor moves; it stops at the last row.
 - **Refuses:** nothing.
 - **Example:** <!-- key hotkeys.down -->`down`<!-- /key -->.
 
 ### `hotkeys.top`
 
-Moves the cursor to the first key.
+Moves the cursor to the first row.
 
 - **Takes:** the table. Default key <!-- key hotkeys.top -->`home`<!-- /key -->.
 - **Answers:** the cursor moves.
@@ -259,12 +267,42 @@ Moves the cursor to the first key.
 
 ### `hotkeys.bottom`
 
-Moves the cursor to the last key.
+Moves the cursor to the last row.
 
 - **Takes:** the table. Default key <!-- key hotkeys.bottom -->`end`<!-- /key -->.
 - **Answers:** the cursor moves.
 - **Refuses:** nothing.
 - **Example:** <!-- key hotkeys.bottom -->`end`<!-- /key -->.
+
+### `hotkeys.open`
+
+Opens the section whose header the cursor stands on; on an open one, steps to its first key.
+
+- **Takes:** the header under the cursor. Default key <!-- key hotkeys.open -->`right`<!-- /key -->;
+  a press on a shut section's header.
+- **Answers:** the section's keys stand under its header, `-` marking it.
+- **Refuses:** nothing; on a key it does nothing.
+- **Example:** on `+ pane Files @zengine.files (12 keys)`, press
+  <!-- key hotkeys.open -->`right`<!-- /key -->.
+
+### `hotkeys.shut`
+
+Shuts the section whose header the cursor stands on; from one of its keys, steps to that header.
+
+- **Takes:** the row under the cursor. Default key <!-- key hotkeys.shut -->`left`<!-- /key -->; a
+  press on an open section's header.
+- **Answers:** the section's keys go, and its header says how many it holds.
+- **Refuses:** nothing.
+- **Example:** on a key, press <!-- key hotkeys.shut -->`left`<!-- /key --> twice.
+
+### `hotkeys.shut-all`
+
+Shuts every section at once; a cursor on a key stands on its section's header.
+
+- **Takes:** the table. Default key <!-- key hotkeys.shut-all -->`shift+left`<!-- /key -->.
+- **Answers:** only the sections' headers show.
+- **Refuses:** nothing.
+- **Example:** <!-- key hotkeys.shut-all -->`shift+left`<!-- /key -->.
 
 ### `hotkeys.menu`
 
@@ -277,9 +315,10 @@ Opens the chosen key's menu: `Modify (press a key)`, `Modify (type a spelling)`,
   its spelling ([commands on a key being changed](#commands-on-a-key-being-changed)); `Remove`,
   `Disable` and `Reset` ask Workshop at once. The notice is `` asked the host to change `<id>` ``,
   then Workshop's sentence, as `` `desktop.terminal` now `ctrl+g` -- written to the keymap file ``.
-- **Refuses:** `no row is chosen -- choose one, then open its menu`; `that row moved -- open its
-  menu again`; `edit not sent -- an earlier edit is still unanswered`; Workshop's refusal, with
-  nothing changed.
+- **Refuses:** `no row is chosen -- choose one, then open its menu`; on a section's header, `a
+  section has no menu -- open it and choose one of its keys`; `that row moved -- open its menu
+  again`; `edit not sent -- an earlier edit is still unanswered`; Workshop's refusal, with nothing
+  changed.
 - **Example:** on `desktop.terminal`, press <!-- key hotkeys.menu -->`m`<!-- /key --> and choose
   `Modify (press a key)`.
 
@@ -401,8 +440,9 @@ then launch again). A press on it shows or hides the pane.
 ### `binding`
 
 A Hotkeys row, named `binding:<group>/<id>/<key>`: the key, its label, its id and its marks, under
-the heading `HOTKEYS -- 41 in force; * moved by your file; right-click or `m` on a row to change it`.
-Below the table: the last notice, `keymap file: <path>` or `(none)` and what reading it came to.
+its section's header, itself under the heading `HOTKEYS -- 41 in force; * moved by your file;
+right-click or `m` on a row to change it`. Below the table: the last notice, `keymap file: <path>`
+or `(none)` and what reading it came to.
 
 ### `line`
 
