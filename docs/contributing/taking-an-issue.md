@@ -28,8 +28,8 @@ A `ready` issue has five parts, and each one binds:
   folders, and a line beginning `!` names a path the change must not touch. The files this
   repository's own rules make a change touch lie inside every issue's folders without being named:
   `tests/test_population.txt`, `tests/code_values.txt`, `tests/shapes.txt` and the shape census's
-  headers, `tests/census_headers.hpp`, and the action census, `tests/actions.txt` and
-  `tests/actions/`.
+  headers, `tests/census_headers.hpp`, the action census, `tests/actions.txt` and
+  `tests/actions/`, and the mutants a case's comment claims, under `tests/mutants/`.
   A change that needs any other path is a change of scope, raised in a comment as a fence is.
 - **Checked against**: the commit the issue was last checked on, how far that check went
   (reproduced, read in the source, or reasoned from it), and what it did not cover.
@@ -224,8 +224,13 @@ gh pr create --base main --title "<what is true now>" --body-file <file outside 
   its path under `tests/mutants/`; the lanes that passed, each with its repository, configuration
   and compiler; what did not run, and why. Then screenshots of a
   visible result, captured from the tested state, or the sentence that screenshots do not apply.
-  A picture is attached on the pull request's web page, or committed under a `docs/` folder and
-  linked at its commit; [witnesses](../../agents/verification/witnesses.md) says how a live one is taken.
+  A picture a page shows is committed under a `docs/` folder and linked at its commit. One that
+  only shows the change is attached on the pull request's web page, or, with push access, kept on
+  a branch of its own, `pictures/<the pull request's branch>`, holding the pictures and nothing
+  else, never merged, and linked at that branch's commit,
+  `https://github.com/Krealsion/Zengine/blob/<commit>/<file>.png?raw=true`, so the link holds
+  whatever later becomes of the branch. [Witnesses](../../agents/verification/witnesses.md) says
+  how a live one is taken.
   Last, on a line of its own, `Fixes #<n>`, which closes the issue when the pull request merges.
 - **Each commit is one coherent step**, its subject a sentence saying what is true after it, as
   the title does. The merge keeps every commit on `main`. A commit that changes a case a law cites
