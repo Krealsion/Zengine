@@ -108,7 +108,7 @@ class InfoPaneWeave
 public:
     InfoPaneWeave() {
         for (std::size_t slot = 1; slot <= pane::kMaxInfoViews; ++slot) {
-            views_.emplace_back(pane::view_key(slot), slot);
+            views_.emplace_back(pane::view_key(slot), slot, state_);
             canvases_[slot - 1] = ws::PaneCanvasSeat(pane::view_key(slot), pane::kInfoPaneRole);
         }
         views_.front().allocate();
@@ -125,14 +125,26 @@ public:
         return loom::to_value(saved);
     }
     /// ...and put back in this image before its first delivery: its activation offers each view
-    /// again, and ends every lease the old image held.
+    /// again, and ends every lease the old image held. What stays in the state is each view's slot
+    /// and open levels, where its folds read and write them.
     void revive(const loom::Value& v) override {
         state_ = loom::from_value<pane::InfoPaneState>(v);
         properties_.revive(state_.cursor);
-        for (const auto& kept : state_.views)
+        const std::vector<pane::InfoViewState> kept_views = state_.views;
+        for (const auto& kept : kept_views)
             if (kept.slot >= 1 && static_cast<std::size_t>(kept.slot) <= views_.size())
                 views_[static_cast<std::size_t>(kept.slot) - 1].carry_in(kept);
-        state_.views.clear();
+        std::vector<pane::InfoViewState> live;
+        for (const auto& kept : state_.views) {
+            if (kept.slot < 1 || static_cast<std::size_t>(kept.slot) > views_.size() ||
+                !views_[static_cast<std::size_t>(kept.slot) - 1].allocated())
+                continue;
+            pane::InfoViewState row;
+            row.slot = kept.slot;
+            row.open = kept.open;
+            live.push_back(std::move(row));
+        }
+        state_.views = std::move(live);
     }
 
     /// THE DEMO AND TEST RESET DOOR: the default view drops its drafts; a slot view is retired.

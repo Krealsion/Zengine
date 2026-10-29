@@ -86,15 +86,28 @@ struct Views : InventoryStory {
         return {-1, -1};
     }
     bool shows(std::int64_t kind, const std::string& needle) { return where(kind, needle).first >= 0; }
-    /// THE ROW A FIELD IS PAINTED ON: selection mark, change mark, then `label:`.
-    std::pair<std::int64_t, std::int64_t> field_at(std::int64_t kind, const std::string& label) {
+    /// THE ROW A FIELD IS PAINTED ON, by its path (`inner.a`, `meta[0].source`), and the column
+    /// its own name starts at: past the selection and change marks, its indent and its fold mark.
+    std::pair<std::int64_t, std::int64_t> field_at(std::int64_t kind, const std::string& path) {
+        const auto parts = held_reading(kind).parts;
+        const auto part = parts.find("field:" + path);
         const auto rows = pane_rows(r, kind);
-        const auto want = label + ":";
-        for (std::size_t i = 0; i < rows.size(); ++i)
-            if (rows[i].size() > 2 + want.size() && rows[i].compare(2, want.size(), want) == 0)
-                return {static_cast<std::int64_t>(i), 3};
-        FAIL("no field " << label << " in:\n" << shown(kind));
-        return {-1, -1};
+        if (part == parts.end() || part->second.row < 0 || part->second.row >= static_cast<std::int64_t>(rows.size())) {
+            FAIL("no field " << path << " in:\n" << shown(kind));
+            return {-1, -1};
+        }
+        const std::string& text = rows[static_cast<std::size_t>(part->second.row)];
+        std::size_t c = 2;
+        while (c < text.size() && text[c] == ' ') ++c;
+        if (c + 1 < text.size() && (text[c] == '+' || text[c] == '-') && text[c + 1] == ' ') c += 2;
+        return {part->second.row, static_cast<std::int64_t>(c)};
+    }
+    /// PRESS A LEVEL'S FOLD MARK, by its path: it opens if shut and shuts if open.
+    void fold(std::int64_t kind, const std::string& path) {
+        const auto parts = held_reading(kind).parts;
+        const auto part = parts.find("fold:" + path);
+        REQUIRE_MESSAGE(part != parts.end(), "no level " << path << " in:\n" << shown(kind));
+        press_at(kind, part->second.row, part->second.column + part->second.columns - 1);
     }
     /// PRESS A VISIBLE CONTROL BY ITS LABEL, on its middle column.
     void button(std::int64_t kind, const std::string& label) {
@@ -636,10 +649,10 @@ TEST_CASE("info views: a watch adopts clean changes, holds newer data while dirt
     CHECK(s.shows(a, "[Pause]"));
     const auto ref = s.entry("Watched").reference;
     s.write(ref, 1, 8);
-    CHECK_MESSAGE(s.shows(a, "~count: 8"), s.shown(a)); // adopted, marked as observed
+    CHECK_MESSAGE(s.shows(a, "~  count: 8"), s.shown(a)); // adopted, marked as observed
     CHECK(s.shows(a, "saved rev 2"));
     s.edit_field(a, "count", "50");
-    CHECK(s.shows(a, "*count: 50"));
+    CHECK(s.shows(a, "*  count: 50"));
     s.write(ref, 2, 9);
     CHECK_MESSAGE(s.shows(a, "count: 50"), s.shown(a));
     CHECK(s.shows(a, "NEWER rev 3 waiting"));
@@ -961,7 +974,7 @@ TEST_CASE("info views: a replaced, absent, silent, unsupported or unauthorized s
         const auto second = mount<OtherSource>(s.r, "story.source");
         s.button(a, "Sample");
         CHECK_MESSAGE(s.shows(a, "Different incarnation: #" + std::to_string(second.value)), s.shown(a));
-        CHECK(s.shows(a, "~state_schema: OtherState"));
+        CHECK(s.shows(a, "~  state_schema: OtherState"));
         REQUIRE(s.r.bus.unregister_weave(second));
         s.button(a, "Sample");
         CHECK_MESSAGE(s.shows(a, "is unavailable"), s.shown(a));
@@ -1036,13 +1049,15 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     const auto aimed_extra = field(b, "extra");
     // A NESTED MESSAGE: its whole branch, typed, into the absent required field.
     s.drag_between(a, field(a, "inner"), b, field(b, "inner"));
-    CHECK_MESSAGE(s.shows(b, "*inner.a: 5"), s.shown(b));
-    CHECK(s.shows(b, "*inner.b: x"));
+    CHECK_MESSAGE(s.shows(b, "*+ inner: {a 5, b x}"), s.shown(b)); // shut, it carries its fields' mark
+    s.fold(b, "inner");
+    CHECK_MESSAGE(s.shows(b, "*    a: 5"), s.shown(b));
+    CHECK(s.shows(b, "*    b: x"));
     CHECK(s.shows(b, "name: dst")); // unrelated values stay
     CHECK(s.shows(b, "extra: absent"));
     // AN EMPTY LIST IS PRESENT AND EMPTY, not absent.
     s.drag_between(a, field(a, "tags"), b, field(b, "tags"));
-    CHECK_MESSAGE(s.shows(b, "*tags: 0 items"), s.shown(b));
+    CHECK_MESSAGE(s.shows(b, "*  tags: 0 items"), s.shown(b));
     const auto before = s.shown(b);
     // MISMATCHES REFUSE WITHOUT MUTATION: an empty Text list is not an Int list; Text is not Int.
     s.drag_between(a, field(a, "tags"), b, field(b, "numbers"));
@@ -1078,8 +1093,8 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     const auto c = s.new_view("info.2", 2, 30);
     s.link_into(c, "Half record");
     s.drag_between(c, field(c, "inner"), b, field(b, "inner"));
-    CHECK_MESSAGE(s.shows(b, "inner.a: absent (required)"), s.shown(b));
-    CHECK(s.shows(b, "*inner.b: y"));
+    CHECK_MESSAGE(s.shows(b, "*    a: absent (required)"), s.shown(b)); // `inner` is still open
+    CHECK(s.shows(b, "*    b: y"));
     // SAVED THROUGH THE ENTRY'S OWNER: the stored preset holds exactly the composed draft.
     s.button(b, "Save");
     const auto saved = zengine::message_draft::read_draft(s.saved_entries()[2].item).draft;
@@ -1109,6 +1124,10 @@ TEST_CASE("WL-HAND-06: an Info view names its controls by action and its fields 
     s.copy_into(a, "Source record");
     parts = held_parts(s.r.session(), a);
     REQUIRE(parts.count("field:name") == 1);
+    REQUIRE(parts.count("fold:inner") == 1);
+    CHECK(parts.count("field:inner.a") == 0); // shut, its fields are not drawn
+    s.fold(a, "inner");
+    parts = held_parts(s.r.session(), a);
     REQUIRE(parts.count("field:inner.a") == 1);
     CHECK(parts.at("field:name").row == s.field_at(a, "name").first);
     CHECK(parts.at("field:inner.a").row == s.field_at(a, "inner.a").first);
@@ -1117,10 +1136,116 @@ TEST_CASE("WL-HAND-06: an Info view names its controls by action and its fields 
     const auto before = held_parts(s.r.session(), b);
     REQUIRE(before.count("field:inner") == 1);
     s.drag_between(a, s.field_at(a, "inner"), b, s.field_at(b, "inner"));
-    REQUIRE_MESSAGE(s.shows(b, "*inner.a: 5"), s.shown(b));
+    s.fold(b, "inner");
+    REQUIRE_MESSAGE(s.shows(b, "*    a: 5"), s.shown(b));
     const auto after = held_parts(s.r.session(), b);
     REQUIRE(after.count("field:inner.a") == 1);
     CHECK(after.at("field:inner.a").row == s.field_at(b, "inner.a").first);
+}
+
+TEST_CASE("WL-INFO-16: Info's nested values are a tree -- first shown, every nested message and every list holding items shut with its summary, each row its own name indented by its depth; Right opens a level and steps in, Left shuts it and steps out, shift+left shuts every level with the cursor on the first field, a press on a level's mark opens or shuts it, levels open side by side, and the cursor walks only the rows shown") {
+    // ⚔ MUTATION (tests/mutants/workshop_info_views.md#levels-open-at-first,
+    // #shut-all-keeps-the-cursor, #cursor-walks-hidden-rows): every level open when first shown;
+    // shutting every level leaving the cursor where it was; the cursor stepping onto a row a shut
+    // level hides.
+    Views s(255);
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    (void)b;
+    s.copy_into(a, "Source record");
+    // FIRST SHOWN: the top level alone, each level shut and saying what it holds.
+    CHECK_MESSAGE(s.shows(a, ">   name: src"), s.shown(a));
+    CHECK(s.shows(a, "  + inner: {a 5, b x}"));
+    CHECK(s.shows(a, "    tags: 0 items")); // an empty list holds nothing to open
+    CHECK(s.shows(a, "  + numbers: 2 items"));
+    CHECK(s.shows(a, "    extra: 9"));
+    CHECK_FALSE(s.shows(a, "a: 5"));
+    CHECK_FALSE(s.shows(a, "[0]"));
+    // THE CURSOR WALKS THE ROWS SHOWN, and Right opens the level it stands on...
+    s.click(a);
+    s.key(input::scan::kDown);
+    REQUIRE_MESSAGE(s.shows(a, "> + inner: {a 5, b x}"), s.shown(a));
+    s.key(input::scan::kRight);
+    CHECK_MESSAGE(s.shows(a, "> - inner"), s.shown(a));
+    CHECK(s.shows(a, "      a: 5")); // its own name, a level deeper
+    CHECK(s.shows(a, "      b: x"));
+    CHECK_FALSE(s.shows(a, "inner.a"));
+    // ...AND AGAIN STEPS INTO IT; LEFT STEPS OUT, AND AGAIN SHUTS IT.
+    s.key(input::scan::kRight);
+    CHECK_MESSAGE(s.shows(a, ">     a: 5"), s.shown(a));
+    s.key(input::scan::kLeft);
+    CHECK_MESSAGE(s.shows(a, "> - inner"), s.shown(a));
+    s.key(input::scan::kLeft);
+    CHECK_MESSAGE(s.shows(a, "> + inner: {a 5, b x}"), s.shown(a));
+    CHECK_FALSE(s.shows(a, "a: 5"));
+    // A SHUT LEVEL'S FIELDS ARE PASSED OVER: down from `inner` is `tags`.
+    s.key(input::scan::kDown);
+    CHECK_MESSAGE(s.shows(a, ">   tags: 0 items"), s.shown(a));
+    // A PRESS ON A LEVEL'S MARK OPENS IT, the cursor on it, and levels open side by side.
+    s.fold(a, "numbers");
+    CHECK_MESSAGE(s.shows(a, "> - numbers"), s.shown(a));
+    CHECK(s.shows(a, "      [0]: 1"));
+    CHECK(s.shows(a, "      [1]: 2"));
+    s.fold(a, "inner");
+    CHECK_MESSAGE(s.shows(a, "> - inner"), s.shown(a));
+    CHECK(s.shows(a, "  - numbers"));
+    CHECK(s.shows(a, "      a: 5"));
+    CHECK(s.shows(a, "      [1]: 2"));
+    // THE CURSOR INSIDE A LEVEL THAT SHUTS STANDS ON IT.
+    s.key(input::scan::kRight);
+    REQUIRE_MESSAGE(s.shows(a, ">     a: 5"), s.shown(a));
+    s.fold(a, "inner");
+    CHECK_MESSAGE(s.shows(a, "> + inner: {a 5, b x}"), s.shown(a));
+    // SHIFT+LEFT SHUTS EVERY LEVEL AND PUTS THE CURSOR ON THE FIRST FIELD.
+    s.key(input::scan::kDown);
+    s.key(input::scan::kDown);
+    s.key(input::scan::kRight);
+    REQUIRE_MESSAGE(s.shows(a, ">     [0]: 1"), s.shown(a));
+    s.key(input::scan::kLeft, input::mod::kShift);
+    CHECK_MESSAGE(s.shows(a, ">   name: src"), s.shown(a));
+    CHECK(s.shows(a, "  + numbers: 2 items"));
+    CHECK_FALSE(s.shows(a, "[0]"));
+}
+
+TEST_CASE("WL-INFO-16: a view's open levels are its pane's state -- read there and written there, kept by a reload in place, carried by a fork, and shut for a new subject") {
+    // ⚔ MUTATION (tests/mutants/workshop_info_views.md#levels-not-in-the-state,
+    // #levels-kept-for-a-new-subject): the open levels kept beside the state, so a reload shuts
+    // them; a new value shown with the old one's levels open.
+    TempDir copy("info-views-levels");
+    const std::string image = copy.file(("zengine-info-views-levels" +
+        std::filesystem::path(WORKSHOP_SO_INFO_PANE).extension().string()).c_str());
+    std::filesystem::copy_file(WORKSHOP_SO_INFO_PANE, image);
+    Views s(255);
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    s.copy_into(a, "Source record");
+    s.fold(a, "inner");
+    s.fold(a, "numbers");
+    REQUIRE_MESSAGE(s.shows(a, "      a: 5"), s.shown(a));
+    // A FORK CARRIES THEM.
+    s.copy_into(b, "Source record");
+    CHECK_MESSAGE(s.shows(b, "  + inner: {a 5, b x}"), s.shown(b)); // another view's are its own
+    s.click(a);
+    s.key(input::scan::kN, input::mod::kCtrl | input::mod::kShift);
+    const auto forked = s.kind_of("info.4");
+    REQUIRE(forked >= 0);
+    s.place(info::kInfoPaneRole, "info.4", 92, 2, 86, 24); // over the default view, which this case leaves
+    CHECK_MESSAGE(s.shows(forked, "- inner"), s.shown(forked));
+    CHECK(s.shows(forked, "      [1]: 2"));
+    // A NEW SUBJECT IS FIRST SHOWN SHUT, and the view it was forked from keeps its own.
+    s.copy_into(forked, "Half record");
+    CHECK_MESSAGE(s.shows(forked, "+ inner: {a absent, b y}"), s.shown(forked));
+    CHECK_FALSE(s.shows(forked, "- inner"));
+    CHECK(s.shows(a, "      a: 5"));
+    // A RELOAD IN PLACE KEEPS THEM.
+    s.r.enqueue_reload(info::kInfoPaneStem, image);
+    s.r.bus.drain_until_idle();
+    REQUIRE(s.r.load_refusals.empty());
+    const auto again = s.kind_of("info.2");
+    REQUIRE(again >= 0);
+    CHECK_MESSAGE(s.shows(again, "- inner"), s.shown(again));
+    CHECK(s.shows(again, "      a: 5"));
+    CHECK(s.shows(again, "- numbers"));
 }
 
 TEST_CASE("info views: a whole value never replaces unsaved work, and metadata is never a drop target") {
@@ -1531,7 +1656,7 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
     s.link_into(again, "Capture preset");
     REQUIRE_MESSAGE(s.shows(again, "target_role: absent (required)"), s.shown(again));
     s.drag_between(a, s.field_at(a, "meta[0].requested_role"), again, s.field_at(again, "target_role"));
-    CHECK_MESSAGE(s.shows(again, "*target_role: story.source"), s.shown(again));
+    CHECK_MESSAGE(s.shows(again, "*  target_role: story.source"), s.shown(again));
     s.button(again, "Save");
     // EXPLICIT USE: Compose submits the finished preset under the actor's own authority.
     auto& r = s.r;
@@ -1568,7 +1693,7 @@ TEST_CASE("info views: a view waiting for its sample keeps its draft frozen and 
     s.copy_into(a, "Sampled");
     s.copy_into(b, "Sampled");
     s.edit_field(b, "state_schema", "from_b"); // a typed value to drag, unlike a's
-    REQUIRE_MESSAGE(s.shows(b, "*state_schema: from_b"), s.shown(b));
+    REQUIRE_MESSAGE(s.shows(b, "*  state_schema: from_b"), s.shown(b));
     // THE SOURCE IS SLOW NOW: the next PokeDescribe is taken and its answer held.
     REQUIRE(s.r.bus.unregister_weave(first));
     DeferredRig source(s.r, "story.source");
@@ -1600,7 +1725,7 @@ TEST_CASE("info views: a view waiting for its sample keeps its draft frozen and 
     CHECK_FALSE(s.shows(a, "typed_not_accepted"));
     // SETTLED: the sample is the draft, and editing it works.
     s.edit_field(a, "state_schema", "my_local_edit");
-    CHECK_MESSAGE(s.shows(a, "*state_schema: my_local_edit"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "*  state_schema: my_local_edit"), s.shown(a));
     CHECK(s.shows(a, "UNSAVED 1 edit(s)"));
 }
 
@@ -1640,7 +1765,7 @@ TEST_CASE("info views: a view opening another entry keeps the value it shows fro
     CHECK(s.shows(a, "saved rev 1"));
     s.inventory->hold.clear();
     s.edit_field(a, "count", "77");
-    CHECK_MESSAGE(s.shows(a, "*count: 77"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "*  count: 77"), s.shown(a));
     s.button(a, "Save");
     CHECK(s.count("beta") == 77);
     CHECK(s.count("alpha") == 1);
@@ -1666,7 +1791,7 @@ TEST_CASE("info views: a view reading its entry again keeps its draft frozen and
     CHECK_FALSE(s.shows(a, "UNSAVED"));
     s.inventory->hold.clear();
     s.edit_field(a, "count", "63");
-    CHECK_MESSAGE(s.shows(a, "*count: 63"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "*  count: 63"), s.shown(a));
 }
 
 TEST_CASE("info views: an edit opened while a save waits stays open when the save answers") {
@@ -1688,7 +1813,7 @@ TEST_CASE("info views: an edit opened while a save waits stays open when the sav
     s.key(input::scan::kA, input::mod::kCtrl);
     s.text("43");
     s.key(input::scan::kReturn);
-    CHECK_MESSAGE(s.shows(a, "*count: 43"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "*  count: 43"), s.shown(a));
     s.inventory->hold.clear();
     s.button(a, "Save");
     CHECK(s.count("alpha") == 43);
@@ -1707,10 +1832,10 @@ TEST_CASE("info views: Stop waiting leaves a silent link or sample with the draf
         CHECK_MESSAGE(s.shows(s.info, "Stopped waiting"), s.shown(s.info));
         CHECK(s.shows(s.info, "LINKED 'Alpha'"));
         s.edit_field(s.info, "count", "3");
-        CHECK_MESSAGE(s.shows(s.info, "*count: 3"), s.shown(s.info));
+        CHECK_MESSAGE(s.shows(s.info, "*  count: 3"), s.shown(s.info));
         s.release(0); // Beta's answer arrives after all, and is not this view's any more
         CHECK_MESSAGE(s.shows(s.info, "LINKED 'Alpha'"), s.shown(s.info));
-        CHECK(s.shows(s.info, "*count: 3"));
+        CHECK(s.shows(s.info, "*  count: 3"));
         s.inventory->hold.clear();
         s.button(s.info, "Save");
         CHECK(s.count("alpha") == 3);
@@ -1732,7 +1857,7 @@ TEST_CASE("info views: Stop waiting leaves a silent link or sample with the draf
         source.release(loom::PokeStructure{"fresh_source", 2, {}});
         CHECK_MESSAGE(!s.shows(a, "fresh_source"), s.shown(a));
         s.edit_field(a, "state_schema", "kept");
-        CHECK_MESSAGE(s.shows(a, "*state_schema: kept"), s.shown(a));
+        CHECK_MESSAGE(s.shows(a, "*  state_schema: kept"), s.shown(a));
     }
 }
 
@@ -1922,7 +2047,7 @@ TEST_CASE("info views: a watch the reset door retires before its approval has th
     s.button(a, "Watch");
     CHECK(s.r.w->observation_leases() == 1);
     s.write(ref, 2, 7);
-    CHECK_MESSAGE(s.shows(a, "~count: 7"), s.shown(a));
+    CHECK_MESSAGE(s.shows(a, "~  count: 7"), s.shown(a));
 }
 
 TEST_CASE("info views: a reloaded Info holds no observation and its predecessor's leases end") {

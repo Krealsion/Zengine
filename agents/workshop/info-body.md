@@ -1,8 +1,8 @@
 # Workshop law — the Info body
 
-Register `WL-INFO`: Info's pane-property view, `info/property_view.hpp` in the weave `info/pane.cpp`.
-Cite laws by ID. Router: [`../workshop.md`](../workshop.md). The separate value views are owned by
-`info/value_view.hpp`; see [inventory](../inventory.md).
+Register `WL-INFO`: Info's pane-property view, `info/property_view.hpp` in the weave `info/pane.cpp`,
+and the levels of a value view's rows. Cite laws by ID. Router: [`../workshop.md`](../workshop.md).
+The separate value views are owned by `info/value_view.hpp`; see [inventory](../inventory.md).
 
 Retired: WL-INFO-07, WL-INFO-09.
 
@@ -153,6 +153,20 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/an-inspector-names-its-subject.md`
 
+## WL-INFO-16 — A value view's nested values are a tree, and which levels are open is Info's state
+
+LAW — A value view shows its value as a tree: a row its own name indented by its depth, each nested message and list holding items a level, shut when first shown, with what it holds.
+
+MEANS
+- `info.value.open` opens a level or steps in, `info.value.shut` shuts it or steps out, `info.value.shut-all` shuts all to the first field; a press on a level's mark folds it;
+- levels open alone, side by side; the cursor walks the rows shown, and one inside a level that shuts stands on it;
+- the open levels are the view's row of `InfoPaneState`, read and written there: kept by a reload in place and a fork, shut for a new subject.
+
+DOES NOT MEAN
+- that a part or a carry names a field by anything but its whole path, or that the levels are kept across runs.
+
+WHY — `agents/decisions/an-accordion-is-a-section-its-owner-folds.md`
+
 ## Proven by
 
 ### WL-INFO-01
@@ -283,3 +297,17 @@ Info commit queued behind another desk put live, or another and back, is refused
 written and the pane says why" "an Info commit whose image was replaced before its answer is not the
 successor's: the successor holds no draft and says nothing of it, the subject stands, and the write
 shows as the owner's rows"
+### WL-INFO-16
+`info/value_view.hpp` ValueView levels fold tree shown_at open_here shut_here own_name brief
+forget_levels
+`info/value_picture.hpp` FieldLine Meaning
+`info/vocabulary.hpp` InfoViewState InfoPaneState kValueOpen kValueShut kValueShutAll
+`info/pane.cpp` snapshot revive
+`component/accordion.hpp` IndependentAccordions shown_tree tree_parent
+`tests/test_workshop_info_views.cpp` "WL-INFO-16: Info's nested values are a tree -- first shown,
+every nested message and every list holding items shut with its summary, each row its own name
+indented by its depth; Right opens a level and steps in, Left shuts it and steps out, shift+left
+shuts every level with the cursor on the first field, a press on a level's mark opens or shuts it,
+levels open side by side, and the cursor walks only the rows shown" "WL-INFO-16: a view's open
+levels are its pane's state -- read there and written there, kept by a reload in place, carried by a
+fork, and shut for a new subject"

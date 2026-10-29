@@ -38,9 +38,10 @@ struct FieldRef {
     }
 };
 
-/// WHAT ONE PLACE OF THE PICTURE MEANS: a control (by action id) or a field.
+/// WHAT ONE PLACE OF THE PICTURE MEANS: a control (by action id), a field, or the fold mark of a
+/// field that holds fields of its own.
 struct Meaning {
-    enum Kind { kNone, kField, kControl } kind = kNone;
+    enum Kind { kNone, kField, kControl, kFold } kind = kNone;
     std::string control;
     FieldRef field;
     bool operator==(const Meaning&) const = default;
@@ -53,10 +54,15 @@ struct Control {
     bool on = true;
 };
 
-/// ONE FIELD ROW: the field it means, its words, and its marks.
+/// ONE FIELD ROW: the field it means, its words, and its marks. A row names its own field (`x`,
+/// `[1]`), indented by its depth; a field holding fields of its own is a level, which folds, and
+/// shut it says what it holds in its summary.
 struct FieldLine {
     FieldRef ref;
     std::string label, summary;
+    std::size_t depth = 0; ///< how many levels it stands inside
+    bool branch = false;   ///< it holds fields of its own
+    bool open = false;     ///< ...and shows them
     bool missing = false;  ///< required and absent
     bool metadata = false; ///< read-only capture metadata, drawn muted
     bool here = false;     ///< the selected field
@@ -159,8 +165,16 @@ public:
             push(workshop::pane_text::omitted_text(earlier, "earlier"), graphics::role::kMuted);
         for (std::size_t i = window.first; i < window.end(); ++i) {
             const FieldLine& f = s.fields[i];
-            map_.row(static_cast<std::int64_t>(out.rows.size()), Meaning{Meaning::kField, {}, f.ref});
-            push(std::string(f.here ? ">" : " ") + f.mark + f.label + ": " + f.summary + (f.missing ? " (required)" : ""),
+            const auto row = static_cast<std::int64_t>(out.rows.size());
+            map_.row(row, Meaning{Meaning::kField, {}, f.ref});
+            // A LEVEL'S FOLD MARK, and the marks and indent before it, fold it on a press.
+            const std::string indent(2 * f.depth, ' ');
+            if (f.branch)
+                (void)map_.span(row, 0, static_cast<std::int64_t>(3 + indent.size()), width,
+                                Meaning{Meaning::kFold, {}, f.ref});
+            const char* fold = !f.branch ? "  " : f.open ? "- " : "+ ";
+            push(std::string(f.here ? ">" : " ") + f.mark + indent + fold + f.label +
+                     (f.branch && f.open ? std::string() : ": " + f.summary) + (f.missing ? " (required)" : ""),
                  f.metadata ? graphics::role::kMuted : graphics::role::kFill);
         }
         if (const std::size_t more = component::more_marker(window); more > 0)
