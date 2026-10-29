@@ -155,9 +155,9 @@ Shutting every section of the independent group leaves the first open one open.
 In `component/accordion.hpp`:
 
 ```diff
-         const bool any = !open_.empty();
--        open_.clear();
-+        open_.resize(open_.empty() ? 0 : 1);
+         const bool any = !open_->empty();
+-        open_->clear();
++        open_->resize(open_->empty() ? 0 : 1);
 ```
 
 Red in `zengine-component-tests`:
@@ -173,11 +173,11 @@ The independent group keeps a section open after its population no longer holds 
 In `component/accordion.hpp`:
 
 ```diff
--        open_.erase(std::remove_if(open_.begin(), open_.end(),
--                                   [&held](const Key& k) {
--                                       return !std::binary_search(held.begin(), held.end(), k);
--                                   }),
--                    open_.end());
+-        open_->erase(std::remove_if(open_->begin(), open_->end(),
+-                                    [&held](const Key& k) {
+-                                        return !std::binary_search(held.begin(), held.end(), k);
+-                                    }),
+-                     open_->end());
 +        (void)held;
 ```
 
@@ -186,3 +186,52 @@ Red in `zengine-component-tests`:
 - IndependentAccordions: each section opens and shuts alone by its key, one act shuts them all, the
   pointer peeks one at most, and the open ones are kept across a population that moves until it no
   longer holds them
+
+## group-keeps-its-own-copy
+
+The independent group reads a copy of the open sections taken when it was made, not the owner's
+list, so an edit to the owner's state shows nothing.
+
+In `component/accordion.hpp`:
+
+```diff
+-    explicit IndependentAccordions(std::vector<Key>& open) noexcept : open_(&open) {}
++    explicit IndependentAccordions(std::vector<Key>& open) noexcept : open_(new std::vector<Key>(open)) {}
+```
+
+Red in `zengine-component-tests`:
+
+- IndependentAccordions: the open sections are the owner's list, read there and written there --
+  an edit to it is what the group shows, and the next fold writes over nothing it did not change
+
+## tree-shows-under-a-shut-branch
+
+A tree shows the rows under a shut branch.
+
+In `component/accordion.hpp`:
+
+```diff
+-        if (hiding && depth > hidden_below) {
++        if (false && hiding && depth > hidden_below) {
+```
+
+Red in `zengine-component-tests`:
+
+- shown_tree: a row shows while every branch above it is open, a branch is a row whose next row
+  stands deeper, and tree_parent finds the nearest shallower row before it
+
+## tree-hides-a-shut-branchs-sibling
+
+A shut branch hides the rows after it that stand as deep as it does, its siblings.
+
+In `component/accordion.hpp`:
+
+```diff
+-        if (hiding && depth > hidden_below) {
++        if (hiding && depth >= hidden_below) {
+```
+
+Red in `zengine-component-tests`:
+
+- shown_tree: a row shows while every branch above it is open, a branch is a row whose next row
+  stands deeper, and tree_parent finds the nearest shallower row before it
