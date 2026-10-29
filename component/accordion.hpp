@@ -195,14 +195,17 @@ public:
     }
 
 private:
-    /// Open: the key added once, in key order where the list keeps one. Shut: every copy of it
+    /// Open: the key added once, before the first key greater than it -- in key order where the
+    /// list keeps one, and in any list without a search that needs one. Shut: every copy of it
     /// gone.
     bool set(const Key& key, bool open) {
         if (open == is_open(key)) {
             return false;
         }
         if (open) {
-            open_->insert(std::upper_bound(open_->begin(), open_->end(), key), key);
+            open_->insert(std::find_if(open_->begin(), open_->end(),
+                                       [&key](const Key& k) { return key < k; }),
+                          key);
         } else {
             open_->erase(std::remove(open_->begin(), open_->end(), key), open_->end());
         }

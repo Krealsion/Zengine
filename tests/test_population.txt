@@ -19,7 +19,7 @@ input                             doctest           always  56
 graphics                          doctest           always  121
 graphics                          doctest           sdl     7
 ui                                doctest           always  30
-component                         doctest           always  58
+component                         doctest           always  59
 editor                            doctest           always  20
 # Tripwires in this suite read workshop/workshop.cpp, workshop/load_execute.hpp,
 # operator/source.hpp, operator/migration.hpp and tests/weavelib/operator_consumer_weave.cpp as
