@@ -112,7 +112,8 @@ def parse_corpus_text(name, text):
                 fail("a hunk with no line it replaces or stands beside")
             entry["hunks"].append(dict(file=current_file, old="\n".join(old) + "\n",
                                        new="\n".join(new) + "\n" if new else "",
-                                       changed=[l for l in body_changes(lines, i)]))
+                                       changed=[l for l in body_changes(lines, i)],
+                                       prose=only_comments(hunk_lines(lines, i))))
         elif entry is not None and red_binary is not None and ENTRY_RE.match(line):
             words = [ENTRY_RE.match(line).group(1).strip()]
             while i + 1 < len(lines) and lines[i + 1].startswith("  ") and lines[i + 1].strip():
@@ -132,6 +133,14 @@ def parse_corpus_text(name, text):
         if not e["runs"]:
             raise FormError(f"{name}:{e['line']}: `{e['id']}` names no case that must go red")
     return entries
+
+
+def hunk_lines(lines, close):
+    """The hunk that closes at `close`, in order: each line's mark and its text."""
+    k = close - 1
+    while k >= 0 and not lines[k].startswith("```"):
+        k -= 1
+    return [((l[:1] or " "), l[1:]) for l in lines[k + 1:close]]
 
 
 def body_changes(lines, close):
@@ -196,9 +205,23 @@ def claimed(root):
     return seen
 
 
-def only_comments(changed):
-    """True when every changed line of a hunk is a comment or blank: an anchor on prose."""
-    return all((not l.strip()) or l.strip().startswith(("//", "/*", "*")) for l in changed)
+def only_comments(hunk):
+    """True when every changed line of a hunk is a comment or blank: an anchor on prose. `hunk` is
+    the hunk's lines in order, each its mark and its text. A line opening with `*` is a comment
+    only inside a block comment the hunk itself opens, since a dereference opens with `*` too; a
+    hunk that starts inside a comment it does not show is read as code, and runs."""
+    inside = False
+    for mark, text in hunk:
+        line = text.strip()
+        prose = (not line) or line.startswith("//") or line.startswith("/*") or inside
+        if inside and "*/" in line:
+            after = line.split("*/", 1)[1].strip()
+            prose = (not after) or after.startswith("//")
+        if mark in "-+" and not prose:
+            return False
+        if mark != "+":
+            inside = line.rfind("/*") > line.rfind("*/") or (inside and "*/" not in line)
+    return True
 
 
 def shard_of(entries, shard):
@@ -401,7 +424,7 @@ def mutate_one(tree, e, claims, logs):
     if e["key"] not in claims:
         return "stale", "no comment under tests/ points at it", []
     for h in e["hunks"]:
-        if only_comments(h["changed"]):
+        if h["prose"]:
             return "stale", f"its hunk in `{h['file']}` changes only comments (VM-MUT-20)", []
     for kind, name in e["runs"]:
         if kind != "ctest" and kind not in tree.programs:
@@ -487,7 +510,7 @@ def self_test():
              "Red in `p-tests`:\n\n- a case, with a comma\n  wrapped\n\nRed in `CTest`:\n\n- `an_entry`\n")
     got = parse_corpus_text("t.md", sound)
     want = [dict(id="one-thing", line=3, hunks=[dict(file="a/b.cpp", old=" x;\n    y();\n"[1:],
-                                                     new="x;\n    z();\n", changed=["    z();", "    y();"])],
+                                                     new="x;\n    z();\n", changed=["    z();", "    y();"], prose=False)],
                  runs=[("p-tests", "a case, with a comma wrapped"), ("ctest", "an_entry")], read=["a/b.cpp"])]
     if got != want:
         raise SystemExit(f"[mutants] self-test: the sound sample read as {got}")
@@ -499,7 +522,10 @@ def self_test():
         except FormError:
             continue
         raise SystemExit(f"[mutants] self-test: a broken sample was read: {broken!r}")
-    if occurrences("ab\nb\n", "b\n") != [3] or not only_comments(["  // x", ""]) or only_comments(["x;"]):
+    if occurrences("ab\nb\n", "b\n") != [3] or not only_comments([("-", "  // x"), ("+", "")]) \
+            or only_comments([("-", "x;")]) or only_comments([("-", "    *p = 1;"), ("+", "    *p = 2;")]) \
+            or not only_comments([(" ", "/* a"), ("-", " * b"), ("+", " * c"), (" ", " */")]) \
+            or only_comments([(" ", "/* a */"), ("-", " * b"), ("+", " * c")]):
         raise SystemExit("[mutants] self-test: the line search or the anchor check misreads")
     if case_filter("a, b\\c") != "-tc=a\\, b\\\\c":
         raise SystemExit("[mutants] self-test: a case's filter is spelled wrong")
