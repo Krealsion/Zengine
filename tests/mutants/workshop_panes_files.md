@@ -415,9 +415,9 @@ The pointer resting on the shut places' header shows nothing over the listing.
 In `files/browser_view.hpp`:
 
 ```diff
-     if (fold == component::Fold::kPeek) {
--        *peek_from = row + 1;
-+        (void)row;
+-    if (fold == component::Fold::kPeek) {
++    if (fold == component::Fold::kPeek && row < 0) {
+         *peek_from = row + 1;
      }
 ```
 
