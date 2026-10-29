@@ -66,7 +66,8 @@ LAW — A pane hears from the window where a pointer holding no button rests in 
 
 MEANS
 - the window's words are `AreaPointerMoved` and `AreaPointerLeft`; resting moves no selection, focus, key or gesture;
-- a hover is put down when the hand leaves the area, the carry ends or a press begins.
+- a hover is put down when the hand leaves the area, the carry ends or a press begins;
+- a pane facet hands a pane that hears rests (`kHearsRest`) the cell or part under one once each change and the leave once; a drag is no rest, and a pane not hearing rests accepts no leave.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
@@ -158,6 +159,14 @@ goes when the hand lets go"
 `view/view-builder/pane.cpp` rest
 `tests/test_view_builder.cpp` "the pointer resting on an element marks it and its row; a carried
 value marks the label it would land on; leaving puts the marks down"
+`workshop/pane_drawing.hpp` kHearsRest
+`workshop/pane_facets.hpp` PaneRowsFacet PaneDrawingFacet
+`workshop/pane_seat.hpp` MultiPaneFacet PaneCanvasSeat
+`tests/test_graphics.cpp` "a pane on the drawing facet is handed the part the pointer rests on, once
+each time that part changes, and its leave once a rest; a move a held press carries is no rest"
+`tests/test_workshop_panes_files.cpp` "in a window that reports a resting pointer, Files' shut places
+peek over the rows under their header and take no room, the pointer on what the peek shows keeps it,
+a press there opens them, a move a held press carries is no rest, and the leave ends the peek"
 
 ### WL-CANVAS-07
 `graphics/role.hpp` kMediumGround

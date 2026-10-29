@@ -84,3 +84,85 @@ In `workshop/desktop-pane/hotkeys_view.hpp`:
 Red in `zengine-workshop-panes-tests`:
 
 - the Hotkeys pane asks the window that shows it for a paste into a spelling
+
+## sections-in-the-keymaps-order
+
+The Hotkeys pane's sections stand in the keymap's order: Workshop's own first, the desk's panes
+among the rest.
+
+In `workshop/desktop-pane/hotkeys_view.hpp`:
+
+```diff
+-        std::stable_sort(sections_.begin(), sections_.end(),
+-                         [&run](const KeysSection& a, const KeysSection& b) {
+-                             return run(a) < run(b);
+-                         });
++        (void)run;
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- WL-DESK-21: the Hotkeys pane is in sections, a section a pane -- the desk's panes first,
+  Workshop's own next, the panes off the desk grey at the foot -- each shut at first and saying how
+  many keys it holds; Right opens one and steps into it, Left steps out of it and shuts it,
+  shift+left shuts every one, a press on a header opens or shuts it, and the open ones are the
+  pane's state, kept across a reload
+
+## absent-sections-not-grey
+
+A section of a pane off the desk is drawn as any other, not grey.
+
+In `workshop/desktop-pane/hotkeys_view.hpp`:
+
+```diff
+-                     section.absent && fold != component::Fold::kPeek ? graphics::role::kMuted
+-                                                                      : graphics::role::kAccent,
++                     graphics::role::kAccent,
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- WL-DESK-21: the Hotkeys pane is in sections, a section a pane -- the desk's panes first,
+  Workshop's own next, the panes off the desk grey at the foot -- each shut at first and saying how
+  many keys it holds; Right opens one and steps into it, Left steps out of it and shuts it,
+  shift+left shuts every one, a press on a header opens or shuts it, and the open ones are the
+  pane's state, kept across a reload
+
+## sections-not-kept-across-a-reload
+
+The desk weave keeps none of the Hotkeys pane's open sections in its state, so a reload shuts them.
+
+In `workshop/desktop-pane/pane.cpp`:
+
+```diff
+-    void keep_keys_open() { state_.hotkeys_open = hotkeys_.opened(); }
++    void keep_keys_open() {}
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- WL-DESK-21: the Hotkeys pane is in sections, a section a pane -- the desk's panes first,
+  Workshop's own next, the panes off the desk grey at the foot -- each shut at first and saying how
+  many keys it holds; Right opens one and steps into it, Left steps out of it and shuts it,
+  shift+left shuts every one, a press on a header opens or shuts it, and the open ones are the
+  pane's state, kept across a reload
+
+## hotkeys-peek-not-drawn
+
+The pointer resting on a shut section's header shows nothing over what follows.
+
+In `workshop/desktop-pane/hotkeys_view.hpp`:
+
+```diff
+                 if (fold == component::Fold::kPeek) {
+-                    peek_from = static_cast<std::int64_t>(out.size()) + 1;
++                    (void)out;
+                     peeking = line.section;
+                 }
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- in a window that reports a resting pointer, a shut section of the Hotkeys pane peeks its keys
+  over what follows its header and takes no room, a press on what the peek shows opens the section
+  on that key, and the leave ends the peek

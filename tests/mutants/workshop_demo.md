@@ -135,3 +135,21 @@ Red in `zengine-workshop-panes-tests`:
 
 - a desk put live keeps every lock: `r` and an agent's desk are refused whole naming each locked
   value they would change, and a lock the desk brings joins
+
+## fold-mark-outlined-in-cells
+
+A row's fold mark is drawn as an outline in a room of cells and as its character where the room
+sets type: each medium gets the other's mark.
+
+In `workshop/pane_drawing.hpp`:
+
+```diff
+-        const bool outlined = !room.cells && mark >= 0 &&
++        const bool outlined = room.cells && mark >= 0 &&
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- a row's fold mark is its own character in a room of cells, and where the room sets type the icon
+  table's outline in its place -- `right` for a shut `+`, `down` for an open `-` -- with the
+  character left out

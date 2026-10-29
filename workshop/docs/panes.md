@@ -355,6 +355,12 @@ Widening the pane protocol so a pane could be asked for a longer text is the one
 would, and it is exactly the route this project refuses — a pane
 is a participant, not a thing the host reaches into.
 
+A pane that holds the longer value may show it itself, and Files does: it cuts a path in its
+middle, keeping the drive and as much of the end as fits, and where the window, or a Windows
+console, reports a pointer resting on the pane, the path the pointer rests on stands whole across
+its row, scrolled to where the pointer is along it, until the pointer leaves. A POSIX terminal
+reports no resting pointer, so there the cut stands.
+
 Where a value is too long, widen the pane or the window.
 
 ### What "front" means

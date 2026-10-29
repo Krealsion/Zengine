@@ -9,11 +9,12 @@ filename — and once the browser could leave the project, a based spelling with
 had become a wrong-looking name for the right file (`0cf8a94`, "Look somewhere without making it
 your project").
 
-**Decision.** `detail::fit_path` is the measurer for the two consumers that meet this, the
-browser's location header and the Builder's catalog row: enough root cue to say which
-filesystem, a mark where the middle was removed, and the tail cut at a component boundary.
-`path_root_cue` is purely lexical (`/`, `C:/`, `//server/`). It changes no stored identity, and
-no pane widens to avoid a cut.
+**Decision.** `detail::fit_path` is the host's measurer for a path it cuts: enough root cue to say
+which filesystem, a mark where the middle was removed, and the tail cut at a component boundary.
+`path_root_cue` is purely lexical (`/`, `C:/`, `//server/`). The browser and the Builder are loaded
+panes now, and a pane fits its own rows: `pane_text::fit_path` is the browser's measurer, the same
+root and mark, and as much of the end as fits, to the character. Neither changes a stored
+identity, and no pane widens to avoid a cut.
 
 **Alternatives considered.**
 - *`detail::fit` on a path* — measured wrong for the reason above; pinned by case `"fitting a
@@ -25,4 +26,4 @@ no pane widens to avoid a cut.
 **Consequences.** The tab run's setup status reuses the measurer against its own budget, fitting
 the path before the verdict words are appended ([the-layouts-pane](the-layouts-pane.md)).
 
-**Laws supported.** [WL-PROJ-10](../workshop/project.md).
+**Laws supported.** [WL-FILES-19](../workshop/files.md), [WL-PROJ-10](../workshop/project.md).

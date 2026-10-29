@@ -3,7 +3,8 @@
 **Reference.** Reusable pieces of a weaver-facing tool that own their own semantic state and
 know nothing about the medium showing them. The stateful pieces are `TextBox`; four list
 mechanics — a window onto a list, a composition read backwards, a choice held by identity, and
-a table's columns; a strip of labelled controls; and a strip of tabs over a settings list. A pure
+a table's columns; a strip of labelled controls; a strip of tabs over a settings list; and an
+accordion, one section shut, open or peeking, with the independent group over accordions. A pure
 `motion::Path` also supplies
 linear/cubic Bezier sampling and elapsed-time progress.
 
@@ -19,6 +20,7 @@ Sources: [`component/text_box.hpp`](../text_box.hpp),
 [`component/control_strip.hpp`](../control_strip.hpp),
 [`component/columns.hpp`](../columns.hpp),
 [`component/tab_strip.hpp`](../tab_strip.hpp),
+[`component/accordion.hpp`](../accordion.hpp),
 [`component/motion.hpp`](../motion.hpp).
 
 ```text
@@ -32,12 +34,13 @@ component/list_window.hpp   ListWindow{first, count, before, after, markers}
                                           where the window reserved that side a row
                             take_wheel_notches
                                           a wheel's whole notches, the fraction carried
-component/row_map.hpp       RowMap<Meaning>: row / span / at / at_row / row_of
+component/row_map.hpp       RowMap<Meaning>: row / span / at / at_row / row_of / cover
                             begin / settle / picture / current / press_order
                                           what each published row and control means, recorded
                                           by the pass that wrote it; the composition's number,
                                           moved only when the map moves; the spans in the order
-                                          a press reads them, the one `at` answers last;
+                                          a press reads them, the one `at` answers last; rows
+                                          something is drawn over meaning nothing beneath it;
                                           solid_columns
 component/held_choice.hpp   HeldChoice<Key>: find / hold / step / actionable
                                           a choice kept by identity across a list that moves,
@@ -63,7 +66,35 @@ component/tab_strip.hpp     setting_tabs, window_tab_strip, tab_face
                                           active tab, `*word*`, counting `<N` and `N>` on
                                           each side; derived each time, so no offset can go
                                           stale when the tags change
+component/accordion.hpp     Fold{kShut, kOpen, kPeek}, fold_mark
+                            Accordion{open, resting, spent}: fold / rest / press / spend
+                                          one section: a header that always shows and a body
+                                          that shows while it is open, or over what follows
+                                          while the pointer rests on a shut one's header; a
+                                          press opens a peek, and a section shut under the
+                                          pointer peeks again only once it has left; `+` on
+                                          a header a press opens, `-` on one it shuts
+                            SectionSpan, section_span
+                                          what a section spends of a room in the owner's unit:
+                                          the header, then as much of the body as fits -- taken
+                                          from the room while open, over what follows while it
+                                          peeks -- and what did not fit, counted
+                            IndependentAccordions<Key>: section / fold / press / open / shut
+                            shut_all / rest / rest_none / opened / restore / keep
+                                          the independent group: sections by identity, each
+                                          opened and shut alone, every one shut by one act,
+                                          one at most peeking; kept across a population that
+                                          moves until it no longer holds them
 ```
+
+**A peek is the open seen early, and nothing keeps it.** While the pointer rests on a shut
+section's header its body shows over what follows, taking none of the room, so nothing moves
+under the hand; a press then opens what was already showing. A press that shuts a section under
+the resting pointer does not bring the peek straight back: it waits for the pointer to leave and
+come again. Where the fold is kept is the owner's -- a word in its layout's row, its own state, or
+nothing -- and where the pointer is is the owner's to tell it: the component holds what follows from
+both and no medium, so the same section serves rows of characters and a drawn picture. The group
+here is the independent one: opening a section shuts none of the others.
 
 Each owns arithmetic and a value, and nothing else: no Loom, no medium, no policy.
 

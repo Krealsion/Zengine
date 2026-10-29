@@ -95,6 +95,16 @@ public:
         return true;
     }
 
+    /// ROWS SOMETHING IS DRAWN OVER: every span recorded on the `count` rows from `first` is
+    /// forgotten, so what is drawn there names its own meaning and nothing beneath it answers.
+    void cover(std::int64_t first, std::int64_t count) {
+        spans_.erase(std::remove_if(spans_.begin(), spans_.end(),
+                                    [first, count](const Span& s) {
+                                        return s.row >= first && s.row < first + count;
+                                    }),
+                     spans_.end());
+    }
+
     /// THE MEANING UNDER A PLACE, or nullptr: the narrowest span that contains it wins, so a
     /// control inside an entry row answers before the row does. Total over every row and column,
     /// including ones no press can produce.

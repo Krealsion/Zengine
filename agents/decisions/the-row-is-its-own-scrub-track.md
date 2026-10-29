@@ -33,12 +33,13 @@ hover.
 draft is excluded — it is windowed against its own caret. Nothing durable holds the reveal, and
 no file, setup, document, provider or value is touched. On a terminal the gesture does not exist.
 
-**Reversed, and the reason is not this record's.** The feature is gone. Its whole consumer set was
-the Info pane's two rows, and the Info pane became a loaded weave: a pane sends rows it has
-already cut, so the unfitted string this decision depended on does not reach the host at all. The
-alternative this record rejected — widening the pane protocol to ask for a longer text — is
-the only route that would have kept it, and it is the host-mapped route the pane protocol refuses.
-Four of the five laws below are retired; the fifth is about a medium and outlives the feature. The
-retired entries are in [pointer](../workshop/pointer.md).
+**Reversed in the host, and returned in a pane.** Workshop's reveal is gone: its whole consumer set
+was the Info pane's two rows, and the Info pane became a loaded weave, which sends rows it has
+already cut, so the unfitted string the reveal depended on never reaches the host. The alternative
+this record rejected — widening the pane protocol to ask for a longer text — is still refused.
+The decision lives where the value does: Files holds its paths, and the pane protocol's facets hand
+it the resting pointer, so its path rows are their own scrub track (WL-FILES-20), by the same rule
+-- the pointer's column the offset, the left edge the start and the right the end. The host's four
+retired laws are in [pointer](../workshop/pointer.md); the one about a medium stands.
 
-**Laws supported.** [WL-PTR-09](../workshop/pointer.md).
+**Laws supported.** [WL-FILES-20](../workshop/files.md), [WL-PTR-09](../workshop/pointer.md).

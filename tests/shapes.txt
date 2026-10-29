@@ -95,7 +95,7 @@ DeskReadRequested v3 0xe8d104e7eaeca3c2
 DeskRect v1 0xf1f559e7658c5f6d
 DeskStamps v3 0x3cc122a12715a647
 DeskView v4 0x3851ae63d36d013b
-DesktopState v2 0x99a86d2ff5d2ed90
+DesktopState v3 0x48a26fafb7bbc34d
 DirectoryArea v7 0xc9c090ed482e9415
 DirectoryState v9 0x973520ffd4878989
 Dismissal v1 0x2ef46c30c9e25ec4

@@ -2658,6 +2658,21 @@ std::string hotkeys_pane_text(PaneRig& r) {
     return text;
 }
 
+/// EVERY SECTION OF THE HOTKEYS PANE OPENED, as a weaver opens them while it holds the keys: from
+/// its top, Right on each shut header, Down to the next line, until the cursor stands on the last.
+void open_every_section(PaneRig& r) {
+    r.key(input::scan::kHome);
+    for (int step = 0; step < 600; ++step) {
+        const std::string before = hotkeys_pane_text(r);
+        r.key(input::scan::kRight);
+        r.key(input::scan::kDown);
+        if (hotkeys_pane_text(r) == before) {
+            break;
+        }
+    }
+    r.key(input::scan::kHome);
+}
+
 /// ...AND ANOTHER PARTY'S WORDS AS THE DESKTOP SPELLS THEM IN A ROW: a control byte a space, and
 /// each character outside ASCII one `?`, whatever its length.
 std::string desktop_spelling(const std::string& text) {
@@ -2743,6 +2758,7 @@ TEST_CASE("WL-KEY-08: shown in a POSIX terminal's terminal window, a row's POSIX
                                               PaneSize{pane_unit::kPixels, cells_px(140)});
         REQUIRE_MESSAGE(tall.accepted, tall.refusal);
         r.extent(200, 150);
+        open_every_section(r);
         const std::string keys = hotkeys_pane_text(r);
         CAPTURE(keys);
         CHECK(keys.find("ctrl+shift+s  posix alt+end") != std::string::npos);
@@ -2786,6 +2802,7 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
                                           PaneSize{pane_unit::kPixels, cells_px(40)});
     REQUIRE_MESSAGE(tall.accepted, tall.refusal);
     r.extent(200, 60);
+    open_every_section(r);
     const std::string keys = hotkeys_pane_text(r);
     CAPTURE(keys);
     CHECK(keys.find("HOTKEYS -- ") != std::string::npos);
@@ -2884,7 +2901,9 @@ TEST_CASE("the Hotkeys pane declares its `help` setting, and a layout keeping it
                                   "show the footer help lines"};
     CHECK(declared_settings(r, hotkeys) == std::vector<v2::PaneSettingRow>{help});
 
-    // ON, AS EVERY LAYOUT HAS IT TODAY: the file this run reads and how a key is written there.
+    // ON, AS EVERY LAYOUT HAS IT TODAY: the file this run reads and how a key is written there --
+    // every section open, so the list is longer than its room.
+    open_every_section(r);
     const std::string shown = hotkeys_pane_text(r);
     CAPTURE(shown);
     REQUIRE(shown.find("\nkeymap file: (none)\n") != std::string::npos);

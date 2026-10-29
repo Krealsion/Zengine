@@ -26,11 +26,14 @@
 namespace zengine::workshop {
 
 /// WHAT ONE HAND-OFF CAME TO FOR A PANE: each declared setting in force, in declaration order, and
-/// each value it was handed that its setting does not take, with why in the setting's own words.
+/// each value it was handed that its setting does not take, with why in the setting's own words;
+/// and the revision of the row it was handed at, which a commit of the pane's own names
+/// (`PaneSettingCommitRequested`).
 struct SettingsTaken {
     std::vector<PaneSetting> in_force;
     std::vector<PaneSettingUnused> unused;
     std::vector<std::string> refused; ///< beside `unused`, one each: "<key> takes ..., not ..."
+    std::int64_t revision = 0;
 
     const PaneSetting* find(std::string_view key) const { return find_pane_setting(in_force, key); }
     bool flag(std::string_view key) const {
@@ -60,6 +63,7 @@ struct SettingsTaken {
 inline SettingsTaken take_pane_settings(const std::vector<v2::PaneSettingRow>& declared,
                                         const v2::PaneSettings& handed) {
     SettingsTaken out;
+    out.revision = handed.revision;
     const auto unused = [&out, &handed](const std::string& key, const std::string& why,
                                         std::string refused) {
         out.unused.push_back(PaneSettingUnused{handed.pane, handed.revision, key,

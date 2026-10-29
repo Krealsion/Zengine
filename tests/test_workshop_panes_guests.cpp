@@ -462,14 +462,16 @@ struct HotkeysDesk {
         return all;
     }
     std::string file() { return slurp(path); }
-    /// THE ROW SHOWING `id`, walked into the window with the weaver's cursor keys.
+    /// THE ROW SHOWING `id`, walked into the window with the weaver's cursor keys, each shut
+    /// section on the way opened with Right.
     std::int64_t row_of(const std::string& id) {
         r.key(input::scan::kHome);
-        for (int step = 0; step < 200; ++step) {
+        for (int step = 0; step < 400; ++step) {
             const std::vector<std::string> shown = rows();
             for (std::size_t i = 0; i < shown.size(); ++i) {
                 if (shown[i].find(id) != std::string::npos) return static_cast<std::int64_t>(i);
             }
+            r.key(input::scan::kRight);
             r.key(input::scan::kDown);
         }
         return -1;

@@ -365,3 +365,98 @@ Red in `zengine-workshop-panes-tests`:
 
 - a right press on a folder in the project's apps/ offers to start that app, and the start is asked
   of Workshop and then of the launcher
+
+## places-fold-kept-in-the-pane
+
+Files opens and shuts its places on the press itself and asks the layouts' owner nothing, so the
+layout's row never keeps the fold.
+
+In `files/files.cpp`:
+
+```diff
+-        if (asks().ask(mail, ws::kLayoutsRole, fold, asking(FilesAsk::Kind::kFold)) !=
+-            Asks::Asked::kHeld) {
+-            notice_ = places_stay() + " -- the layouts' owner could not be asked";
+-        }
++        places_.open = open;
++        (void)fold;
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- Files' places are a section of the pane: shut at first and saying how many they hold, opened and
+  shut by their header and by `p` as the pane's own word in the layout's row, and a place pressed is
+  gone to
+- in a window that reports a resting pointer, Files' shut places peek over the rows under their
+  header and take no room, the pointer on what the peek shows keeps it, a press there opens them, a
+  move a held press carries is no rest, and the leave ends the peek
+
+## places-offered-once
+
+Files offers its pane once, so a pane sized to fit never follows its places opening.
+
+In `files/files.cpp`:
+
+```diff
+-        if (rows == offered_rows_) {
++        if (rows == offered_rows_ || offered_rows_ > 0) {
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- Files' places are a section of the pane: shut at first and saying how many they hold, opened and
+  shut by their header and by `p` as the pane's own word in the layout's row, and a place pressed is
+  gone to
+
+## places-peek-not-drawn
+
+The pointer resting on the shut places' header shows nothing over the listing.
+
+In `files/browser_view.hpp`:
+
+```diff
+-    if (fold == component::Fold::kPeek) {
++    if (fold == component::Fold::kPeek && row < 0) {
+         *peek_from = row + 1;
+     }
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- in a window that reports a resting pointer, Files' shut places peek over the rows under their
+  header and take no room, the pointer on what the peek shows keeps it, a press there opens them, a
+  move a held press carries is no rest, and the leave ends the peek
+
+## path-cut-at-its-end
+
+The header's path is cut at its end, as a sentence is, losing the end that says where.
+
+In `files/browser_view.hpp`:
+
+```diff
+-    const std::string shown = room_for > 0 ? fit_path(here, room_for) : std::string();
++    const std::string shown = room_for > 0 ? fit(here, room_for) : std::string();
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- Files' path keeps its root and as much of its end as fits, cut in the middle, and under a resting
+  pointer stands whole across the row, scrolled to where the pointer's column puts it, until the
+  pointer leaves
+
+## path-never-whole
+
+The pointer resting on the header's path leaves it cut.
+
+In `files/files.cpp`:
+
+```diff
+-        if (m != nullptr && (m->kind == files_row::kPath || m->kind == files_row::kPlace)) {
++        if (m != nullptr && m->kind == files_row::kPlace) {
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- Files' path keeps its root and as much of its end as fits, cut in the middle, and under a resting
+  pointer stands whole across the row, scrolled to where the pointer's column puts it, until the
+  pointer leaves

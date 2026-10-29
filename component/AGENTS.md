@@ -15,6 +15,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `control_strip.hpp` | `ControlStrip`, `pack_controls`: labelled controls packed into a width |
 | `columns.hpp` | `Column`, `layout_columns`: a table's columns, laid out once for every row |
 | `tab_strip.hpp` | `setting_tabs`, `window_tab_strip`: a settings list's tabs, and what a width shows |
+| `accordion.hpp` | `Accordion`, `section_span`, `IndependentAccordions<Key>`: a section shut, open or peeking, and the independent group |
 | `motion.hpp` | `motion::Path`: linear and cubic Bezier sampling, elapsed-time `progress` |
 | `docs/component.md` | the reference page |
 
@@ -30,13 +31,16 @@ routes.
 
 ## Suites
 
-- `component` — `TextBox`, `ListWindow`, `RowMap`, `HeldChoice`, columns, control strips and tab
-  strips as values: `tests/test_component.cpp`, its own executable linking only `zengine-component`
+- `component` — `TextBox`, `ListWindow`, `RowMap`, `HeldChoice`, columns, control strips, tab
+  strips and accordions as values: `tests/test_component.cpp`, its own executable linking only
+  `zengine-component`
 
 Its cases in shared suites: `workshop_panes_terminal`, `workshop_panes_info` and
 `workshop_panes_hand` (`tests/test_workshop_panes_terminal.cpp`, `_info.cpp` and `_input.cpp`) for
 the text box, `workshop_panes_project` (`_builder.cpp`, `_files.cpp`, `_output.cpp`) and
-`workshop_panes_seam` (`_canvas.cpp`) for the controls, `workshop_document`
+`workshop_panes_seam` (`_canvas.cpp`) for the controls, `workshop_panes_project` (`_files.cpp`,
+the places) and `workshop_panes_hand` (`_desktop.cpp`, the Hotkeys pane's sections) for the
+accordion, `workshop_document`
 (`tests/test_workshop_document.cpp`: the name editor and the Composer's fields) and `input`
 (`tests/test_input.cpp` pins `text_box.hpp`'s key spellings to the wire's). Outside CTest,
 `tests/package/run.cmake` builds `tests/package/public_surface.cpp` and

@@ -109,10 +109,11 @@ using pane::kWorkshopRole;
 // The weave
 // =============================================================================
 
-/// THE OFFICE OF THE THREE PANES: its activation, its offers on Workshop's catalog request, and
-/// the manual of any of the three, the whole page the weave's.
+/// THE OFFICE OF THE THREE PANES: its activation, its offers on Workshop's catalog request, the
+/// manual of any of the three, the whole page the weave's, and the pointer resting on them, which
+/// the Hotkeys pane's sections peek under.
 using Office = ws::MultiPaneFacet<pane::kDesktopRole, pane::kLauncherPane,
-                                  zengine::manual::pages::zengine_desktop::kManual>;
+                                  zengine::manual::pages::zengine_desktop::kManual, ws::kHearsRest>;
 /// Hotkeys' row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
 using Settings = ws::PaneSettingsFacet<pane::kHotkeysPane, pane::kDesktopRole>;
 
@@ -151,6 +152,8 @@ public:
     /// THE THREE PANES OFFERED AND DECLARED, the application's rows with them, and what the host
     /// holds now asked for: at each activation and each catalog request of Workshop's.
     void announce(loom::Mail& mail) {
+        // THE HOTKEYS PANE'S OPEN SECTIONS, as this weave's state kept them across a reload.
+        hotkeys_.restore(state_.hotkeys_open);
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kLauncherPane, pane::kLauncherName,
                                                      pane::kLauncherSummary, 8, 60});
@@ -226,6 +229,20 @@ public:
     void on_window_press(const std::string& pane_key, std::int64_t row, std::int64_t column,
                          loom::Mail& mail) {
         primary_press(PanePress{pane_key, row, column, /*keys_went_here=*/true}, mail);
+    }
+
+    /// THE POINTER RESTING ON ONE OF ITS PANES, where the medium reports one: the Hotkeys pane's
+    /// sections peek under it; the other two take nothing from it.
+    void on_window_rest(const std::string& pane_key, const ws::RowCell& at, loom::Mail& mail) {
+        if (pane_key == pane::kHotkeysPane) {
+            hotkeys_.rest(at, keys_rows_, mail);
+        }
+    }
+    /// ...AND ITS LEAVE.
+    void on_window_left(const std::string& pane_key, loom::Mail& mail) {
+        if (pane_key == pane::kHotkeysPane) {
+            hotkeys_.pointer_left(keys_rows_, mail);
+        }
     }
 
     /// A HAND ON ONE OF THIS WEAVE'S PANES IN A WINDOW, read onto the rows drawn there: a primary
@@ -305,6 +322,7 @@ public:
         }
         if (asked.pane == pane::kHotkeysPane) {
             hotkeys_.keys_action(asked.id, keys_rows_, keys_declarer(), mail);
+            keep_keys_open();
             return;
         }
         if (asked.pane == pane::kManualPane) {
@@ -381,6 +399,9 @@ public:
         // ...AND THE MANUAL'S WORDS GO WHEN ITS PANE LEAVES THE DESK: nothing keeps a pane's manual
         // past the `?` that showed it.
         manual_.inventory_said(said.panes);
+        // ...AND THE HOTKEYS PANE'S SECTIONS: the desk's panes first, the rest grey at the foot.
+        hotkeys_.inventory_said(said.panes, keys_rows_, mail);
+        keep_keys_open();
     }
 
     /// THE KEYMAP IN FORCE, AS THE HOST RESOLVED IT -- the one binding truth, published when it
@@ -391,6 +412,7 @@ public:
             return;
         }
         hotkeys_.keymap_said(said, keys_rows_, mail);
+        keep_keys_open();
         say_manual(mail); // a key the weaver moved, or a spelling, shows in the manual at once
     }
 
@@ -504,8 +526,13 @@ private:
             launcher_.launcher_press(press, state_, pane_rows_, app_, mail, launches_);
         } else if (press.pane == pane::kHotkeysPane) {
             hotkeys_.keys_press(press, keys_rows_, mail);
+            keep_keys_open();
         }
     }
+
+    /// THE HOTKEYS PANE'S OPEN SECTIONS, KEPT IN THE STATE a reload carries, after each act that
+    /// can open or shut one or forget one the keymap no longer holds.
+    void keep_keys_open() { state_.hotkeys_open = hotkeys_.opened(); }
 
     /// THE WHEEL WALKS THE CURSOR of the pane it turned over, one row per notch (Powers').
     void wheel(const std::string& pane_key, double dy, loom::Mail& mail) {

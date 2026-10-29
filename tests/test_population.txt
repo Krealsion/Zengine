@@ -16,10 +16,10 @@ input                             doctest           always  56
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 # A tripwire in this suite reads graphics/ as text (VM-WALL-11).
-graphics                          doctest           always  99
+graphics                          doctest           always  121
 graphics                          doctest           sdl     7
 ui                                doctest           always  30
-component                         doctest           always  48
+component                         doctest           always  56
 editor                            doctest           always  20
 # Tripwires in this suite read workshop/workshop.cpp, workshop/load_execute.hpp,
 # operator/source.hpp, operator/migration.hpp and tests/weavelib/operator_consumer_weave.cpp as
@@ -54,9 +54,9 @@ workshop_desk                     doctest           always  79
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  78
 # The panes program, run as eight entries, each its own part's sources (VM-POP-22).
-workshop_panes_seam               doctest           always  173
+workshop_panes_seam               doctest           always  177
 # Tripwires in this part read tests/weavelib/legacy_pane.cpp as text (VM-WALL-11).
-workshop_panes_hand               doctest           always  228
+workshop_panes_hand               doctest           always  230
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp,
 # workshop/arrangement.hpp, workshop/powers_door.hpp, workshop/sample_door.hpp,
 # operator/reference.hpp and the Introspection pane's sources and CMake file as text (VM-WALL-11).
@@ -67,7 +67,7 @@ workshop_panes_settings           doctest           always  57
 # Tripwires in this part read the Terminal pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_terminal           doctest           always  75
 # Tripwires in this part read the Builder pane's source and CMake file as text (VM-WALL-11).
-workshop_panes_project            doctest           always  195
+workshop_panes_project            doctest           always  198
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp and the
 # Editor pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_editor             doctest           always  128
@@ -82,7 +82,7 @@ workshop_neovim                   doctest           always  11
 workshop_neovim                   doctest           neovim  30
 # Tripwires in this suite read workshop/workshop.cpp, workshop/recipes.hpp and every pane entry's
 # bytes (VM-WALL-11).
-workshop_files                    doctest           always  62
+workshop_files                    doctest           always  63
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
