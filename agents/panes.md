@@ -712,6 +712,11 @@ The public weaver route is [Inventory to Compose](../inventory/docs/inventory-co
 - LoadedSelected is accepted only from the introspection office. The target supplies its
   accepted roots and referenced closure through authenticated DescribeAccepted answers.
   The whole snapshot is replaced per selection; dependencies are not sendable roots.
+- The catalog is a row a root: its identity, then what it carries (`fields_text`),
+  `StartTimer v1  {id: Text, delay_ms: Int, repeat: Bool}` -- the fields in declared order, each
+  type in `loom::describe_schema`'s spelling as the form's, `?` after an optional one's -- fitted
+  to the pane with the rest of the row. Its meaning and part name stay the identity,
+  `message:<name> v<version>`, so a cut row is still pressed by what it names.
 - It is a `zengine::With` weave over `PaneRowsFacet` and `ManualFacet`, and hears AcceptedShapes,
   a runtime schema, as a value door (`zengine::RawValueDoor`, `activation/activation.hpp`), so it
   answers the construction layer's Poke/Describe doors as any woven weave does. Its state keeps
