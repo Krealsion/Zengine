@@ -6,7 +6,8 @@ through everything the session has said, and offers, as you type, what can come 
 *weave*: a piece of Workshop that is loaded, replaced and spoken to by messages, built as
 `zengine-terminal-pane`. Other weaves reach it by its *office*, the name it answers to,
 `zengine.terminal`, and it offers one pane, `terminal`. Hiding its legend in one layout, keeping a
-reply in Inventory and finding a power from the line are walked through in [Terminal](terminal.md).
+reply in Inventory, finding a power from the line and taking a completion are walked through in
+[Terminal](terminal.md).
 
 ## About
 
@@ -40,7 +41,8 @@ answer to an ask. `SUBMITTED` means authored: a sender is not told its fate.
 Press <!-- key desktop.terminal -->`ctrl+t`<!-- /key --> from anywhere in Workshop, even inside
 another pane, and the pane opens or comes forward with your keys in it; the Pane Manager's
 `Terminal` row does the same. Its keys act only while it holds your keys. Type a line and run it
-([`terminal.submit`](#terminalsubmit)); ask what can come next
+([`terminal.submit`](#terminalsubmit)), or run it as typed while a candidate is chosen
+([`terminal.submit-early`](#terminalsubmit-early)); ask what can come next
 ([`terminal.complete`](#terminalcomplete)); walk back through what you ran
 ([`terminal.previous`](#terminalprevious)); read back through the record
 ([`terminal.scroll-up`](#terminalscroll-up)); and leave ([`terminal.back`](#terminalback)).
@@ -67,10 +69,17 @@ Workshop, which says it with the row: `it cannot use <key> -- it takes <what it 
 ### `terminal.submit`
 
 Runs the line: the whole line, as typed, goes to the participant, which records it and authors the
-message it says. On a recalled command it keeps that line for editing instead, and runs nothing.
+message it says. With the list's cursor moved to a candidate -- by
+[`terminal.previous`](#terminalprevious), [`terminal.next`](#terminalnext) or a press on its row
+-- it takes that candidate instead, as [`terminal.complete`](#terminalcomplete) does, and runs
+nothing; [`terminal.submit-early`](#terminalsubmit-early) runs the line as typed then. On a
+recalled command it keeps that line for editing instead, and runs nothing.
 
-- **Takes:** the line. Default key <!-- key terminal.submit -->`return`<!-- /key -->.
-- **Answers:** the line empties and the view follows the newest output again. Workshop is asked to
+- **Takes:** the line, or the candidate the cursor moved to. Default key
+  <!-- key terminal.submit -->`return`<!-- /key -->.
+- **Answers:** a candidate taken is written as [`terminal.complete`](#terminalcomplete) writes it,
+  and the next press runs the line unless you move into the list again. A line run empties, and
+  the view follows the newest output again. Workshop is asked to
   author it ([`TerminalActRequested`](../../workshop/terminal_seam_vocabulary.hpp)), and what it
   came to is on the record: `> ` your line, then `^ ... SUBMITTED`, or the participant's notice when
   it authored nothing, such as `` this pane speaks two verbs, and `ask` takes the same form as
@@ -82,6 +91,23 @@ message it says. On a recalled command it keeps that line for editing instead, a
   the record; it is never sent anywhere else.
 - **Example:** type `ask @zengine.powers FindPowers 1 text=larger`, press
   <!-- key terminal.submit -->`return`<!-- /key -->.
+
+### `terminal.submit-early`
+
+Runs the line as typed, whatever the list shows: a candidate the cursor moved to is not taken. On a
+recalled command it keeps that line for editing instead, and runs nothing, as
+[`terminal.submit`](#terminalsubmit) does.
+
+- **Takes:** the line. Default key <!-- key terminal.submit-early -->`shift+return`<!-- /key -->
+  (`ctrl+e` from a POSIX terminal, which cannot tell Shift on Return).
+- **Answers:** as [`terminal.submit`](#terminalsubmit) answers a line it runs: the line empties,
+  the view follows the newest output, Workshop is asked to author it
+  ([`TerminalActRequested`](../../workshop/terminal_seam_vocabulary.hpp)), and the record says what
+  the line came to.
+- **Refuses:** an empty line authors nothing; the rest as [`terminal.submit`](#terminalsubmit).
+- **Example:** type `send @zengine.powers FindPowers 2 text=larger `, press
+  <!-- key terminal.next -->`down`<!-- /key --> to read the fields it could still name, then
+  <!-- key terminal.submit-early -->`shift+return`<!-- /key --> to run the line as you typed it.
 
 ### `terminal.complete`
 
@@ -98,8 +124,8 @@ Typing asks too: the list follows the word you are in.
   whoever holds it when sent`, then each weave by id, `#12   @zengine.powers; accepts
   ShapeDocumentRequested, FindPowers, FindPowers +1`. Then the shapes the participant knows, under
   `shapes this terminal KNOWS -- knowing one is not authority to send it`, their versions, and
-  field names, never values; over the arguments, the verdict on the line, `FindPowers v2 -- ready;
-  Return submits it` or what is missing. Taking a candidate replaces the word you were typing.
+  field names, never values; over the arguments, the verdict on the line, `FindPowers v2 -- ready
+  to submit` or what is missing. Taking a candidate replaces the word you were typing.
 - **Refuses:** with the caret inside the line, `completion follows the END of the line -- this
   caret is inside it`, and no candidate. A heading with no candidates is an answer:
   `no verb begins with 'x'; this pane speaks two`.
@@ -109,17 +135,18 @@ Typing asks too: the list follows the word you are in.
 ### `terminal.previous`
 
 On an empty line, recalls the last command you ran; while recalling, the one before it. With a list
-on screen, moves up the list instead.
+on screen, moves up the list instead, and [`terminal.submit`](#terminalsubmit) then takes the
+candidate it stands on.
 
 - **Takes:** an empty line with no list asked for, or a recalled command; otherwise the list.
   Default key <!-- key terminal.previous -->`up`<!-- /key -->.
 - **Answers:** the command stands on the line, and the row above it says where you are, `history 2
   of 7 -- Enter/Tab: edit, Esc: back`. History is the commands the participant recorded, newest
   first, never its answers, notices or refusals, kept as long as its record keeps them; a command
-  run twice in a row is one step. While recalling, [`terminal.submit`](#terminalsubmit) or
-  [`terminal.complete`](#terminalcomplete) keeps the line for editing and does nothing else; any
-  other key the line takes keeps it too, then does its own work once; [`terminal.back`](#terminalback)
-  puts back the line you had before.
+  run twice in a row is one step. While recalling, [`terminal.submit`](#terminalsubmit),
+  [`terminal.submit-early`](#terminalsubmit-early) or [`terminal.complete`](#terminalcomplete)
+  keeps the line for editing and does nothing else; any other key the line takes keeps it too,
+  then does its own work once; [`terminal.back`](#terminalback) puts back the line you had before.
 - **Refuses:** `no command to recall yet`; at the oldest, `the oldest command`, or `the oldest kept;
   12 older entries dropped for good` when the record let older ones go.
 - **Example:** press <!-- key terminal.previous -->`up`<!-- /key --> twice, then
@@ -128,7 +155,8 @@ on screen, moves up the list instead.
 ### `terminal.next`
 
 While recalling, the newer command; past the newest, the line you had before the first recall,
-whole. With a list on screen, moves down the list instead.
+whole. With a list on screen, moves down the list instead, and
+[`terminal.submit`](#terminalsubmit) then takes the candidate it stands on.
 
 - **Takes:** a recalled command; otherwise the list. Default key
   <!-- key terminal.next -->`down`<!-- /key -->.
@@ -236,7 +264,9 @@ can be scrolled to, entries dropped for good cannot.
 
 One row of the list above the line, `> ` before the one you are on, then what it is and means. The
 heading says what the list is and, when cut, which slice, `1-5 of 12`. A press on a row makes it the
-one you are on.
+one you are on. Once you have moved to a row, by a press or the arrows,
+[`terminal.submit`](#terminalsubmit) takes it, and the heading ends `-- Enter: take it, Shift+Enter:
+run the line` where the pane has room for it after the list's own words.
 
 ## Files
 
@@ -245,7 +275,7 @@ run: a new launch starts with none.
 
 ## See also
 
-- [Terminal](terminal.md): keep a command or a reply in Inventory, find a power, and hide the legend
-  in one layout.
+- [Terminal](terminal.md): keep a command or a reply in Inventory, find a power, hide the legend in
+  one layout, and take a completion or run the line as typed.
 - [The terminal seam](../../workshop/terminal_seam_vocabulary.hpp), the shapes the pane and Workshop
   exchange, and [the pane protocol](../../workshop/pane_vocabulary.hpp).

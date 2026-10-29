@@ -510,7 +510,7 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
         const std::string title = d->name + " v" + std::to_string(d->version) + " -- ";
         switch (c.status) {
         case loom::Composition::Status::Ready:
-            out.heading = title + "ready; Return submits it";
+            out.heading = title + "ready to submit";
             break;
         case loom::Composition::Status::NeedsInput: {
             const std::string missing = detail::missing_summary(c.open_fields);
