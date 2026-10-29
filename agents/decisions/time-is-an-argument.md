@@ -40,6 +40,7 @@ host's Pane Manager retired, its subject rows committed through Info's door. `Se
 `doubles_a_click` and `press_selects_word` left with their last caller. The decision stands
 where it still has a consumer: the tab run's
 record (`Session::tab_click`, `doubles_a_tab_click`) keeps time as an argument, with the same
-interval and arming discipline, and that is WL-PTR-01 now.
+interval and arming discipline, and that is WL-PTR-01 now. Flow's pane reads its own double
+clicks the same way (`flow_pane::doubles`), on an interval a case keeps equal to this one.
 
 **Laws supported.** [WL-PTR-01](../workshop/pointer.md).

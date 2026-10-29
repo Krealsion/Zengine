@@ -11,6 +11,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `flow-host/` | the session host, headers only: `runtime.hpp` (`RuntimeHost`), `vocabulary.hpp` |
 | `flow-pane/` | `zengine-flow-pane`, a loadable weave in office `zengine.flow`: `pane.cpp` |
 | `flow-pane/*.hpp` | `model.hpp` edits, `view.hpp` picture, `find.hpp` door ask, `vocabulary.hpp` |
+| | `look.hpp` colours, marks and the window's sketch; `next.hpp` the sentence and the Next line |
+| | `observed.hpp` the host's journal read as one line a message |
 | `author.hpp` | `Draft`: a definition authored by text commands |
 | `graph_edit.hpp`, `graph.hpp` | `GraphDraft` and node places; a definition as text lines and SVG |
 | `shape.hpp` | the one model of an authored message shape, the View Builder's too |
@@ -38,8 +40,9 @@ Its cases in shared suites: `workshop_panes_terminal` (`tests/test_workshop_pane
 Flow asking the discovery door, its action census driver and its answered manual),
 `workshop_panes_info` (`tests/test_workshop_inventory_info.cpp`: values and shapes dragged onto
 Flow's canvas),
-`workshop_files` (`tests/test_workshop_files.cpp`: the pane's recipe entry)
-and `workshop_shapes` (`tests/census_headers.hpp`: its shapes). Outside CTest,
+`workshop_files` (`tests/test_workshop_files.cpp`: the pane's recipe entry),
+`workshop_shapes` (`tests/census_headers.hpp`: its shapes) and `workshop_screen`
+(`tests/test_workshop_screen.cpp`: its double click on the host's interval). Outside CTest,
 `tests/package/run.cmake` builds `tests/package/flow_author.cpp` and `tests/package/flow_host.cpp`
 against the installed package.
 
@@ -51,7 +54,8 @@ against the installed package.
 - `workshop/default-load-plan.json` loads `zengine-flow-pane` as optional role `zengine.flow`; `workshop/CMakeLists.txt` stages it and
   lists it among the recipe catalog's pane weaves.
 - The pane asks `zengine.powers` (`workshop/powers_door.hpp`, `workshop/powers_vocabulary.hpp`),
-  and asks to write and to carry through `workshop/pane_operation.hpp` and
+  asks the running views what their wiring names (`view/vocabulary.hpp`), and asks to write and to
+  carry through `workshop/pane_operation.hpp` and
   `workshop/pane_carry.hpp`, answered in `workshop/weave_operation.cpp`. It has no seam
   vocabulary of its own; it speaks the pane protocol (`workshop/pane_vocabulary.hpp`).
 - `view/view-builder/` links `zengine-flow` for `shape.hpp`; `cmake/ZengineInstall.cmake`

@@ -76,7 +76,8 @@ struct Observation {
 
 // This ordinary participant is the current sender of injected examples. Its grant
 // names only this subject and this definition's accepted shapes. It also receives
-// outputs without granting itself authority to anybody else's messages.
+// outputs without granting itself authority to anybody else's messages; the host
+// journals each output where the bus names the delivery that caused it.
 class Observer final : public loom::Weave {
 public:
     Observer(loom::WeaveId subject, std::vector<std::shared_ptr<const loom::Schema>> shapes,
@@ -87,10 +88,9 @@ public:
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override { return shapes_; }
     void handle(const loom::Message& message, loom::Bus&) override {
         if (message.sender != subject_) return;
-        const bool refused = loom::same_identity(message.payload.schema(), *loom::schema_of<loom::Refused>());
-        observation_->record(refused ? "refused" : "output", message.correlation,
-            bytes(loom::serialize(message.payload)),
-            refused ? loom::from_value<loom::Refused>(message.payload).reason : message.payload.schema().name());
+        if (!loom::same_identity(message.payload.schema(), *loom::schema_of<loom::Refused>())) return;
+        observation_->record("refused", message.correlation, bytes(loom::serialize(message.payload)),
+                             loom::from_value<loom::Refused>(message.payload).reason);
     }
     loom::Value snapshot() const override {
         return loom::Value(loom::make_schema("zengine.flow.Observer", 1, {}));
@@ -158,7 +158,11 @@ private:
         loom::WeaveId subject{}, sender{};
         std::shared_ptr<detail::Observation> observation;
         std::vector<Pending> fences;
+        /// The journal's number for each recent arrival, by the bus's number for its delivery,
+        /// so an output names the arrival that caused it; the oldest go past `kMaxCauses`.
+        std::deque<std::pair<std::uint64_t, std::int64_t>> causes;
     };
+    static constexpr std::size_t kMaxCauses = 64;
     loom::Switchboard& bus_;
     op::Catalog& catalog_;
     loom::WeaveId manager_{}, clock_{};
@@ -181,7 +185,7 @@ private:
             sender = bus_.register_weave(std::make_unique<detail::Observer>(registered.id,
                 project.definition.emits, observation), std::move(grant));
             sessions_.emplace(registered.id.value, Session{std::move(project.definition),
-                registered.id, sender, std::move(observation), {}});
+                registered.id, sender, std::move(observation), {}, {}});
         } catch (...) {
             if (sender.valid()) bus_.unregister_weave(sender);
             bus_.unregister_weave(registered.id);
@@ -238,20 +242,56 @@ private:
         s.observation->record("queued", correlation, payload, "input queued; delivery and behavior are separate facts");
     }
     void observed(const loom::BusEvent& event) {
+        // WHAT A RULE SAID, as the session's own participant heard it from the rule: journaled
+        // with the arrival whose handling said it, the delivery the bus was dispatching when the
+        // output was queued.
+        for (auto& [subject, s] : sessions_) {
+            if (event.target != s.sender || event.sender != s.subject) continue;
+            if (event.kind != loom::EventKind::Delivered || event.payload == nullptr ||
+                loom::same_identity(event.payload->schema(), *loom::schema_of<loom::Refused>()))
+                return;
+            std::string detail = event.payload->schema().name();
+            for (const auto& [delivery, arrival] : s.causes)
+                if (delivery == event.dispatch_parent) detail += " after #" + std::to_string(arrival);
+            s.observation->record("output", event.correlation, bytes(loom::serialize(*event.payload)), detail);
+            return;
+        }
+        const auto found = sessions_.find(event.target.value);
+        if (found == sessions_.end()) return;
+        auto& s = found->second;
         // Preserve these direct-attempt facts at delivery, before the global outcome
         // journal can roll. Scope is our own inputs, never unrelated host traffic.
-        const auto found = sessions_.find(event.target.value);
-        if (found == sessions_.end() || event.sender != found->second.sender) return;
-        auto& s = found->second;
-        const auto attempt = std::find_if(s.fences.begin(), s.fences.end(),
-            [&event](const Pending& p) { return p.ticket.seq == event.seq; });
-        if (attempt == s.fences.end()) return;
-        if (event.kind == loom::EventKind::Delivered)
-            s.observation->record("dispatched", event.correlation, {}, "input handler returned; inspect outputs and state for its result");
-        else if (event.kind == loom::EventKind::Refused)
-            s.observation->record("dispatch-refused", event.correlation, {}, event.refusal.message());
-        else if (event.kind == loom::EventKind::HandlerFailed)
-            s.observation->record("handler-failed", event.correlation, {}, "input handler did not complete normally");
+        if (event.sender == s.sender) {
+            const auto attempt = std::find_if(s.fences.begin(), s.fences.end(),
+                [&event](const Pending& p) { return p.ticket.seq == event.seq; });
+            if (attempt != s.fences.end()) {
+                if (event.kind == loom::EventKind::Delivered)
+                    s.observation->record("dispatched", event.correlation, {}, "input handler returned; inspect outputs and state for its result");
+                else if (event.kind == loom::EventKind::Refused)
+                    s.observation->record("dispatch-refused", event.correlation, {}, event.refusal.message());
+                else if (event.kind == loom::EventKind::HandlerFailed)
+                    s.observation->record("handler-failed", event.correlation, {}, "input handler did not complete normally");
+            }
+        }
+        // EVERY MESSAGE THAT REACHED THE RULE, whoever sent it: what it carried, then the state
+        // the rule kept once its handler returned.
+        if (event.kind != loom::EventKind::Delivered || event.payload == nullptr) return;
+        const auto& shape = event.payload->schema();
+        if (std::none_of(s.definition.accepts.begin(), s.definition.accepts.end(),
+                         [&shape](const auto& accepted) { return loom::same_identity(*accepted, shape); }))
+            return;
+        s.observation->record("arrived", event.correlation, bytes(loom::serialize(*event.payload)), shape.name());
+        const auto arrival = s.observation->next - 1;
+        s.causes.emplace_back(event.seq, arrival);
+        while (s.causes.size() > kMaxCauses) s.causes.pop_front();
+        std::string kept;
+        std::string why = "after #" + std::to_string(arrival);
+        try {
+            kept = bus_.snapshot_bytes(s.subject);
+        } catch (const std::exception& error) {
+            why += " [state not read: " + std::string(error.what()) + "]";
+        }
+        s.observation->record("kept", event.correlation, bytes(kept), why);
     }
     void fill(FlowAnswer& answer, std::uint64_t id, std::int64_t after = 0) {
         auto& s = session(id);

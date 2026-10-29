@@ -12,15 +12,21 @@
 #include <zen/terminal/composer.hpp> // `describe_schema`: Loom's one spelling of a type
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace zengine::flow_pane {
 
-/// A node's words are the operator package's, so a refusal names a node as this graph shows it.
-using op::node_title;
+/// Is `text` a whole number as `flow::integer` reads one: the whole of it, nothing around it.
+inline bool whole_number(std::string_view text) {
+    std::int64_t value = 0;
+    const auto read = std::from_chars(text.data(), text.data() + text.size(), value);
+    return !text.empty() && read.ec == std::errc{} && read.ptr == text.data() + text.size();
+}
 
 /// A fold's body slot as its node shows it: the choice still to make, or which ports its body
 /// threads the count and the accumulator through.
@@ -38,29 +44,39 @@ struct PortView {
     std::string type;
 };
 
-/// The selected port, resolved through its node's stable place in the active trigger; none when
-/// that node is gone, belongs to another trigger, or its operator's ports are not described.
-inline std::optional<PortView> selected_port(const Model& m) {
-    if (!m.filling) return std::nullopt;
+/// A port as the graph knows it now, resolved through its node's stable place in the active
+/// trigger; none when that node is gone, belongs to another trigger, or its operator's ports are not
+/// described.
+inline std::optional<PortView> port_view(const Model& m, const PortChoice& choice) {
     const auto& on = m.workspace.graph.project.definition.on;
     const auto t = m.workspace.active_trigger;
     if (t < 0 || static_cast<std::size_t>(t) >= on.size()) return std::nullopt;
     const auto& nodes = on[static_cast<std::size_t>(t)].body.nodes;
     for (const auto& place : m.workspace.graph.places) {
-        if (place.id != m.filling->place || place.trigger != t) continue;
+        if (place.id != choice.place || place.trigger != t) continue;
         if (place.node < 0 || static_cast<std::size_t>(place.node) >= nodes.size()) return std::nullopt;
         const auto n = static_cast<std::size_t>(place.node);
         try {
             const auto ports = m.workspace.graph.node_ports(static_cast<std::size_t>(t), n, m.palette);
             const auto described = loom::describe_schema(*ports.inputs).fields;
-            if (m.filling->port >= described.size()) return std::nullopt;
-            return PortView{n, m.filling->port, ports.inputs->fields().at(m.filling->port),
-                            described[m.filling->port].type};
+            if (choice.port >= described.size()) return std::nullopt;
+            return PortView{n, choice.port, ports.inputs->fields().at(choice.port), described[choice.port].type};
         } catch (const std::exception&) {
             return std::nullopt;
         }
     }
     return std::nullopt;
+}
+/// The selected port, as `port_view` reads one.
+inline std::optional<PortView> selected_port(const Model& m) {
+    return m.filling ? port_view(m, *m.filling) : std::nullopt;
+}
+
+/// A PORT AS A WEAVER READS IT: its step by the step's operator, then its own name (`add's rhs`).
+inline std::string port_words(const Model& m, const PortView& port) {
+    const auto& on = m.workspace.graph.project.definition.on.at(m.trigger());
+    return (port.node < on.body.nodes.size() ? step_name(on.body.nodes, port.node) : std::string("a step")) +
+           "'s " + port.field.name;
 }
 
 /// The fold whose body slot is open, as its node index in the active trigger; none when its node
@@ -106,39 +122,81 @@ inline std::optional<std::string> source_type(const Model& m, const op::Binding&
     return std::nullopt;
 }
 
+/// THE WIRE IN HAND from an output, held by a press on a step's answer or a field: what it reads,
+/// in a weaver's words, and its type in Loom's spelling; none while none is held or its type is not
+/// described.
+struct HeldWire {
+    op::Binding source;
+    std::string words, type;
+};
+inline std::optional<HeldWire> held_wire(const Model& m) {
+    const auto& def = m.workspace.graph.project.definition;
+    if (!m.connecting || def.on.empty()) return std::nullopt;
+    const auto type = source_type(m, *m.connecting);
+    if (!type) return std::nullopt;
+    return HeldWire{*m.connecting, source_words(def.on.at(m.trigger()).body.nodes, *m.connecting), *type};
+}
+
 /// The port a wire's search wires into, as `selected_port` reads one.
 inline std::optional<PortView> wire_port(const Model& m) {
     if (!m.wire_search || !m.wire_search->from.port) return std::nullopt;
-    Model probe = m;
-    probe.filling = m.wire_search->from.port;
-    return selected_port(probe);
+    return port_view(m, *m.wire_search->from.port);
+}
+
+/// WHY A WIRE FROM `source` DOES NOT FIT THE PORT `choice` -- a step that is not before the port's,
+/// or another type -- in a weaver's words; empty where it fits.
+inline std::string unfit(const Model& m, const op::Binding& source, const PortChoice& choice) {
+    const auto port = port_view(m, choice);
+    const auto& def = m.workspace.graph.project.definition;
+    if (!port || def.on.empty()) return "that port is gone";
+    const auto& nodes = def.on.at(m.trigger()).body.nodes;
+    const auto words = port_words(m, *port);
+    const auto from = source_words(nodes, source);
+    if (source.from() == op::Binding::From::Node && source.node_index() >= port->node)
+        return words + " can't read " + from + ": a step reads only the steps before it";
+    const auto type = source_type(m, source);
+    if (!type) return words + " can't read " + from + ": its type is not described here";
+    if (*type != port->type) return words + " takes " + port->type + ", and " + from + " is " + *type;
+    return {};
 }
 
 /// THE QUESTION FLOW ASKS THE DOOR: the search line's text and, with a wire's search open, what
 /// takes its output's type or yields its port's; with a port selected, its type as what a power
-/// must yield; or with a fold's body slot open, what a fold could spend. Only powers their
-/// contributors offer: a participant's own reaction, such as a running definition's trigger body,
-/// is never Flow's to offer.
+/// must yield; with a fold's body slot open, what a fold could spend; or with a wire in hand, its
+/// type as what a power must take. Only powers their contributors offer: a participant's own
+/// reaction, such as a running definition's trigger body, is never Flow's to offer.
 inline workshop::FindPowers flow_question(const Model& m) {
     workshop::FindPowers asked;
     if (!m.search.text().empty()) asked.text = m.search.text();
     if (m.wire_search && m.wire_search->from.source) {
         // A type the wire cannot name asks for nothing it could not wire: no power carries it.
         asked.takes = source_type(m, *m.wire_search->from.source).value_or(std::string("?"));
-    } else if (m.wire_search) {
+    } else if (m.wire_search && m.wire_search->from.port) {
         asked.yields = wire_port(m) ? wire_port(m)->type : std::string("?");
+    } else if (m.wire_search) {
+        // A SEARCH WITH NO WIRE, opened on empty room, asks for whatever a step could be there.
     } else if (body_slot_node(m)) asked.fits = workshop::kFitsFold;
     else if (const auto port = selected_port(m)) asked.yields = port->type;
+    else if (const auto held = held_wire(m)) asked.takes = held->type;
     asked.offered = true;
     asked.limit = workshop::kMaxPowerRows;
     return asked;
 }
 
-/// Something already in scope that could fill the selected port, and the `bind` argument that
-/// wires it there.
+/// Something already in scope that could fill the selected port: the `bind` argument that wires it
+/// there, how it is named -- the field's own name or the step's -- and where it comes from.
 struct InScope {
-    std::string label, bind;
+    enum class From { Kept, Message, Step };
+    std::string bind;
+    std::string name;
+    From from = From::Kept;
 };
+/// Where something in scope comes from, in a weaver's words.
+inline const char* whence(const InScope& c) {
+    return c.from == InScope::From::Kept      ? "kept"
+           : c.from == InScope::From::Message ? "from the message"
+                                              : "a step's answer";
+}
 
 /// What is in scope for the selected port, of exactly its type: a required state field, a required
 /// field of the trigger's message that no state field shadows, then each earlier node's output.
@@ -148,16 +206,15 @@ inline std::vector<InScope> in_scope(const Model& m, const PortView& port) {
     const auto& on = def.on.at(m.trigger());
     for (const auto& f : def.state->fields())
         if (f.required && op::detail::same_type(f.type, port.field.type))
-            out.push_back({"state." + f.name, "$" + f.name});
+            out.push_back({"$" + f.name, f.name, InScope::From::Kept});
     for (const auto& f : on.message->fields())
         if (f.required && !def.state->find(f.name) && op::detail::same_type(f.type, port.field.type))
-            out.push_back({"input." + f.name, "$" + f.name});
+            out.push_back({"$" + f.name, f.name, InScope::From::Message});
     for (std::size_t n = 0; n < port.node; ++n) {
         try {
             if (op::detail::same_type(m.workspace.graph.node_answer_type(m.trigger(), n, m.palette),
                                       port.field.type))
-                out.push_back({"%" + std::to_string(n) + " " + node_title(on.body.nodes[n]),
-                               "%" + std::to_string(n)});
+                out.push_back({"%" + std::to_string(n), step_name(on.body.nodes, n), InScope::From::Step});
         } catch (const std::exception&) {
         }
     }
@@ -167,6 +224,52 @@ inline std::vector<InScope> in_scope(const Model& m, const PortView& port) {
 /// Can the port take a typed constant? `bind` writes Int and Bool constants, and nothing else.
 inline bool takes_constant(const PortView& port) {
     return port.field.type.kind == loom::Kind::Int || port.field.type.kind == loom::Kind::Bool;
+}
+
+/// ONE NAME OFFERED for a message being named, and whose it is, in words.
+struct Suggestion {
+    std::string name, whose;
+};
+inline constexpr std::size_t kMaxSuggestions = 6;
+
+/// DOES FIELD `i` OF AN EDITOR NAME A MESSAGE: a new message's name, or the one a rule says.
+inline bool names_message(const Dialog& d, std::size_t i) {
+    return (d.action == "message" || d.action == "say") && i == 0;
+}
+
+/// THE NAMES OFFERED AS ONE IS TYPED in the open editor's field the keys are in, at most
+/// `kMaxSuggestions`: for a message the rule says, the ones it says already, then for either what a
+/// running view's buttons say and its labels show -- each holding what is typed, whatever its case,
+/// and none the rule hears, nor for a new message one the rule says, which would only be refused or
+/// make the rule hear itself.
+inline std::vector<Suggestion> suggestions(const Model& m) {
+    std::vector<Suggestion> out;
+    if (!m.dialog || m.dialog->selected >= m.dialog->entries.size() ||
+        !names_message(*m.dialog, m.dialog->selected))
+        return out;
+    const auto lower = [](std::string s) {
+        for (auto& c : s)
+            if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+        return s;
+    };
+    const auto typed = lower(m.dialog->entries[m.dialog->selected].text.text());
+    const auto& def = m.workspace.graph.project.definition;
+    const auto among = [](const auto& shapes, const std::string& name) {
+        return std::any_of(shapes.begin(), shapes.end(), [&](const auto& s) { return s->name() == name; });
+    };
+    const bool said = m.dialog->action == "say";
+    const auto offer = [&](const std::string& name, const std::string& whose) {
+        if (out.size() >= kMaxSuggestions || among(def.accepts, name) || (!said && among(def.emits, name)))
+            return;
+        if (!typed.empty() && lower(name).find(typed) == std::string::npos) return;
+        if (std::any_of(out.begin(), out.end(), [&](const Suggestion& s) { return s.name == name; })) return;
+        out.push_back({name, whose});
+    };
+    if (said)
+        for (const auto& shape : def.emits) offer(shape->name(), "this rule says it");
+    for (const auto& [office, names] : m.known)
+        for (const auto& k : names) offer(k.name, k.shown ? "a label shows it" : "a button says it");
+    return out;
 }
 
 /// The door's classifications in the order a maker reaches for them, each with its heading.
@@ -209,6 +312,20 @@ inline std::vector<op::Fold> fold_choices(const Model& m, const workshop::PowerR
     return out;
 }
 
+/// THE PORTS OF `row`'S POWER A WIRE OF `type` FITS, by place and name: each input port of exactly
+/// that type, read off the ports the graph holds for that power; none when they are not described.
+inline std::vector<std::pair<std::size_t, std::string>> ports_taking(const Model& m, const workshop::PowerRow& row,
+                                                                     const std::string& type) {
+    std::vector<std::pair<std::size_t, std::string>> out;
+    const auto found = std::find_if(m.palette.begin(), m.palette.end(),
+                                    [&](const auto& p) { return p.identity == row.identity; });
+    if (found == m.palette.end()) return out;
+    const auto described = loom::describe_schema(*found->inputs).fields;
+    for (std::size_t p = 0; p < described.size(); ++p)
+        if (described[p].type == type) out.emplace_back(p, found->inputs->fields()[p].name);
+    return out;
+}
+
 /// ONE ROW OF A WIRE'S SEARCH, and what choosing it does: `scope` binds the port from what is in
 /// scope (`args` the binding), `constant` opens the binding editor, `power` makes a node from the
 /// door's row (`args` its reference, then the port it is wired at from an output), `fold` makes
@@ -223,7 +340,8 @@ struct WireRow {
 /// T: each power in force with a port of exactly T, one row a port, grouped as the rail groups
 /// them, and the fold's counting ports when T is `Int`. From an input port of type T: what is in
 /// scope of T, a typed constant for `Int` and `Bool`, then each power that yields T; the fold,
-/// whose answer is its body's, is chosen from the rail. Nothing while the door has not answered.
+/// whose answer is its body's, is chosen from the rail. With no wire: each power, and the fold.
+/// Nothing while the door has not answered.
 inline std::vector<WireRow> wire_rows(const Model& m) {
     std::vector<WireRow> out;
     if (!m.wire_search) return out;
@@ -234,7 +352,7 @@ inline std::vector<WireRow> wire_rows(const Model& m) {
         const auto scope = in_scope(m, *port);
         if (!scope.empty()) out.push_back({"In scope", "", {}});
         for (const auto& candidate : scope)
-            out.push_back({"  " + candidate.label, "scope", {candidate.bind}});
+            out.push_back({"  " + candidate.name + "  " + whence(candidate), "scope", {candidate.bind}});
         if (takes_constant(*port))
             out.push_back({"  " + std::string(loom::name_of(port->field.type.kind)) + " constant",
                            "constant", {}});
@@ -252,6 +370,12 @@ inline std::vector<WireRow> wire_rows(const Model& m) {
             const std::vector<std::string> reference{row.identity,
                                                      std::to_string(row.inputs.content_id),
                                                      std::to_string(row.outputs.content_id)};
+            const bool free = !from.source && !from.port;
+            if (row.kind == workshop::kFormKind && free) {
+                head();
+                out.push_back({"  " + power_name(row.identity), "fold", {}});
+                continue;
+            }
             if (row.kind == workshop::kFormKind) {
                 if (!from.source || taken != "Int") continue;
                 head();
@@ -262,16 +386,16 @@ inline std::vector<WireRow> wire_rows(const Model& m) {
                 continue;
             }
             head();
-            if (from.port) {
-                out.push_back({"  " + row.identity, "power", reference});
+            if (from.port || free) {
+                out.push_back({"  " + power_name(row.identity), "power", reference});
                 continue;
             }
             const auto found =
                 std::find_if(m.palette.begin(), m.palette.end(),
                              [&](const auto& p) { return p.identity == row.identity; });
             if (found == m.palette.end()) {
-                out.push_back(
-                    {"  " + row.identity + " (its ports not read yet)", "unread", {row.identity}});
+                out.push_back({"  " + power_name(row.identity) + " (its ports not read yet)", "unread",
+                               {row.identity}});
                 continue;
             }
             const auto described = loom::describe_schema(*found->inputs).fields;
@@ -279,7 +403,7 @@ inline std::vector<WireRow> wire_rows(const Model& m) {
                 if (!taken || described[p].type != *taken) continue;
                 auto args = reference;
                 args.push_back(std::to_string(p));
-                out.push_back({"  " + row.identity + " -> " + found->inputs->fields()[p].name,
+                out.push_back({"  " + power_name(row.identity) + " -> " + found->inputs->fields()[p].name,
                                "power", std::move(args)});
             }
         }
@@ -378,9 +502,8 @@ inline std::vector<DropOffer> drop_offers(const Model& m) {
                 for (const auto& f : value.schema().fields()) {
                     const auto* cell = value.get(f.name);
                     if (cell && takes_constant(*port) && cell->kind() == port->field.type.kind)
-                        out.push_back({"Use " + f.name + " = " + message_draft::summary(cell) +
-                                           " on %" + std::to_string(port->node) + " " +
-                                           port->field.name,
+                        out.push_back({"Use " + f.name + " = " + message_draft::summary(cell) + " on " +
+                                           port_words(m, *port),
                                        "drop-constant", {f.name}});
                 }
         }
@@ -400,11 +523,14 @@ inline std::vector<DropOffer> drop_offers(const Model& m) {
     return out;
 }
 
-/// A row's classification and contributor, as the door read them off the contribution in force.
+/// WHAT KIND OF THING A ROW IS, as the door classified it, in a weaver's words: a form, a source, a
+/// conversion or an operator, and whether it is made of other steps.
 inline std::string classification_of(const workshop::PowerRow& row) {
-    if (row.kind == workshop::kFormKind) return "a form the evaluator spends";
-    return row.kind + ", " + row.construction + ", from " +
-           (row.provider.empty() ? std::string("this host") : row.provider);
+    if (row.kind == workshop::kFormKind) return "a form: it repeats a step";
+    const std::string kind = row.kind == workshop::kSourceKind       ? "a source"
+                             : row.kind == workshop::kConversionKind ? "a conversion"
+                                                                     : "an operator";
+    return row.construction == workshop::kCompositeConstruction ? kind + ", made of other steps" : kind;
 }
 
 } // namespace zengine::flow_pane

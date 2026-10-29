@@ -60,7 +60,7 @@ row_parts
 `editor/neovim-editor/pane.cpp` status_part
 `view/view.hpp` named
 `view/view-builder/picture.hpp` part_name named
-`flow/flow-pane/view.hpp` part_name named
+`flow/flow-pane/look.hpp` part_name named
 `tests/test_workshop_desk.cpp` "a canvas pane's rows set on its room's lattice are words on its
 parts' rows, and a part's text is the characters drawn inside it" "a row map's parts are named by what each span means, and a
 name nothing, one the judge would refuse or one taken is left unnamed" "a text pane's named parts

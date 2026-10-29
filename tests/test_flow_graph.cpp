@@ -513,3 +513,202 @@ TEST_CASE("a message shape keeps one model wherever it is authored: the pane and
     CHECK_THROWS_WITH(shape::type_named("Message:none", md::Library{}),
                       "Message:<saved draft name> needs an existing library schema");
 }
+
+TEST_CASE("a delete takes every connection with it, no questions asked: the ports that read the step are "
+          "left open, and deleting the answer leaves the rule with none, which a save keeps") {
+    auto author = model();
+    author.command("trigger", {"0", "total"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("bind", {"1", "0", "%0"});
+    author.command("bind", {"2", "0", "%1"});
+    author.command("result", {"2"});
+    const auto body = [&]() -> const zengine::op::Composite& {
+        return author.workspace.graph.project.definition.on.at(0).body;
+    };
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#delete-refuses-a-read-step): a step another reads is
+    // refused.
+    // A STEP ANOTHER READS: deleted, and the port that read it is open; the rest move down one.
+    author.command("remove", {"1"});
+    REQUIRE(body().nodes.size() == 2);
+    CHECK(body().nodes[1].arguments[0].from() == zengine::op::Binding::From::Input);
+    CHECK(body().nodes[1].arguments[0].input_name().empty());
+    CHECK(body().result_node == 1);
+    CHECK(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#delete-refuses-the-answer): the answer is refused.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#deleted-answer-moves-on): another step becomes the
+    // answer.
+    // THE ANSWER: deleted, and the rule has none -- the lack says so, in words.
+    author.command("remove", {"1"});
+    REQUIRE(body().nodes.size() == 1);
+    CHECK_FALSE(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+    const auto lacks = author.lacks();
+    CHECK(std::find(lacks.begin(), lacks.end(), "nothing gives total its value: wire a step's answer into it") !=
+          lacks.end());
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#unanswered-unsaved): a save forgets the rule had none.
+    // A SAVE KEEPS IT SO, and a step added after does not become the answer unasked.
+    const auto reopened = flow::read_workspace(flow::workspace_bytes(author.workspace));
+    CHECK_FALSE(flow::answered(reopened.graph.project.definition.on.at(0)));
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    CHECK_FALSE(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+    author.command("result", {"0"});
+    CHECK(body().result_node == 0);
+    CHECK(flow::answered(flow::read_workspace(flow::workspace_bytes(author.workspace)).graph.project.definition.on.at(0)));
+    // AN ANSWER WITH A STEP AFTER IT: deleted, and that step does not become the answer.
+    author.command("remove", {"0"});
+    REQUIRE(body().nodes.size() == 1);
+    CHECK_FALSE(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+    // THE LAST STEP: deleted, and the rule has none, as before it had one.
+    author.command("remove", {"0"});
+    CHECK(body().nodes.empty());
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    CHECK(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+}
+
+TEST_CASE("the edits a right press offers each take what they break with them: a message or a field "
+          "renamed, retyped or removed, a trigger taken out, a kept field renamed, retyped, removed or "
+          "started, a step or a port disconnected, another field written, what a say carries") {
+    using B = zengine::op::Binding;
+    auto author = model();
+    author.command("state-field", {"seen", "Int", "required"});
+    author.command("trigger", {"0", "total"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("bind", {"0", "0", "$input"});
+    author.command("bind", {"1", "0", "%0"});
+    author.command("result", {"1"});
+    author.command("say", {"Total", "total seen"});
+    const auto def = [&]() -> const zengine::maker::Definition& { return author.workspace.graph.project.definition; };
+    const auto body = [&]() -> const zengine::op::Composite& { return def().on.at(0).body; };
+    const auto open = [](const B& b) { return b.from() == B::From::Input && b.input_name().empty(); };
+    const auto reopens = [&] { (void)flow::read_workspace(flow::workspace_bytes(author.workspace)); };
+
+    // A MESSAGE DECLARED HERE, RENAMED: its trigger follows it. One from elsewhere keeps its name.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#foreign-message-renamed): a message declared
+    // elsewhere is renamed.
+    author.command("message-rename", {"0", "Reading"});
+    CHECK(def().accepts.at(0)->name() == "my_flow.Reading");
+    CHECK(def().on.at(0).message->name() == "my_flow.Reading");
+    author.workspace.graph.declare(flow::shape::make("panel.Press", {}), false);
+    CHECK_THROWS_WITH(author.command("message-rename", {"2", "Other"}),
+                      "panel.Press came from elsewhere: its sender says it as it is");
+    reopens();
+    // ITS FIELD RENAMED: the port reading it reads the new name. RETYPED: still read, a lack to
+    // repair. REMOVED: the port is open.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#renamed-field-unread): the port reads the old name.
+    author.command("message-field-rename", {"0", "input", "amount"});
+    CHECK(body().nodes[0].arguments[0].input_name() == "amount");
+    author.command("message-field-kind", {"0", "amount", "Bool"});
+    CHECK(def().accepts.at(0)->find("amount")->type.kind == loom::Kind::Bool);
+    CHECK_FALSE(author.lacks().empty());
+    reopens();
+    author.command("message-field-remove", {"0", "amount"});
+    CHECK(open(body().nodes[0].arguments[0]));
+    CHECK(def().accepts.at(0)->fields().empty());
+    reopens();
+
+    // A KEPT FIELD RENAMED: its value, what the trigger writes and what the say carries follow.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#renamed-kept-unwritten): the trigger still writes
+    // the old name.
+    author.command("keep-start", {"total", "7"});
+    author.command("keep-rename", {"total", "sum"});
+    CHECK(def().on.at(0).output == "sum");
+    CHECK(author.workspace.graph.project.state.get("sum")->as_int() == 7);
+    CHECK(def().on.at(0).emits.at(0).fields.at(0).source == std::optional<std::string>("sum"));
+    reopens();
+    // THE FIELD IT WRITES IS NOT REMOVED: it writes another first.
+    CHECK_THROWS_WITH(author.command("keep-remove", {"sum"}),
+                      "my_flow.Reading writes sum: choose another field for it to write first");
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#removed-kept-still-said): a say that carried the
+    // removed field stays.
+    // ANOTHER FIELD REMOVED: the say that carried it goes; a port reading it is open.
+    author.command("bind", {"0", "0", "$seen"});
+    author.command("keep-remove", {"seen"});
+    CHECK(def().on.at(0).emits.empty());
+    CHECK(open(body().nodes[0].arguments[0]));
+    reopens();
+    // RETYPED: it starts again at its kind's default.
+    author.command("keep-kind", {"sum", "Bool"});
+    CHECK(author.workspace.graph.project.state.get("sum")->as_bool() == false);
+    author.command("keep-kind", {"sum", "Int"});
+    reopens();
+
+    // ANOTHER FIELD WRITTEN.
+    author.command("state-field", {"best", "Int", "required"});
+    author.command("write-field", {"best"});
+    CHECK(def().on.at(0).output == "best");
+    // WHAT A SAY CARRIES: these kept fields.
+    author.command("say", {"Both", "sum"});
+    author.command("say-with", {"0", "sum best"});
+    REQUIRE(def().on.at(0).emits.size() == 1);
+    CHECK(def().on.at(0).emits[0].message->fields().size() == 2);
+    CHECK(def().on.at(0).emits[0].fields.size() == 2);
+    reopens();
+
+    // A PORT DISCONNECTED; EVERY WIRE OF A STEP; THE WIRE INTO WHAT IT WRITES.
+    author.command("bind", {"0", "0", "$sum"});
+    author.command("unbind", {"1", "0"});
+    CHECK(open(body().nodes[1].arguments[0]));
+    author.command("bind", {"1", "0", "%0"});
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#disconnect-keeps-readers): a port that read the step
+    // stays wired.
+    author.command("disconnect", {"0"});
+    CHECK(open(body().nodes[0].arguments[0]));
+    CHECK(open(body().nodes[1].arguments[0]));
+    CHECK(flow::answered(def().on.at(0)));
+    author.command("unanswer", {});
+    CHECK_FALSE(flow::answered(def().on.at(0)));
+    reopens();
+
+    // THE TRIGGER TAKEN OUT: its steps go, the message stays declared.
+    author.command("untrigger", {"0"});
+    CHECK(def().on.empty());
+    CHECK(author.workspace.graph.places.empty());
+    CHECK(def().accepts.at(0)->name() == "my_flow.Reading");
+    reopens();
+}
+
+TEST_CASE("a workspace keeps where each When and Then card was put, reads one version 1 wrote with "
+          "none put, and refuses a card put twice") {
+    auto author = model();
+    author.command("trigger", {"0", "total"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    // KEPT WHERE IT WAS PUT, through the bytes a save writes.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#card-places-unwritten): a save writes no place.
+    author.place_dock("kept", 12);
+    author.place_dock("write:flowgraph.Input", 30);
+    const auto text = flow::workspace_bytes(author.workspace);
+    const auto reopened = flow::read_workspace(text);
+    REQUIRE(reopened.docks.size() == 2);
+    CHECK(reopened.docks[0].card == "kept");
+    CHECK(reopened.docks[0].y == 12);
+    CHECK(reopened.docks[1].card == "write:flowgraph.Input");
+    CHECK(reopened.docks[1].y == 30);
+    // A FILE VERSION 1 WROTE reads with each card where its column stacks it, the rest as it was.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#version-one-refused): version 1 is refused.
+    const auto admitted = loom::admit(loom::parse(text), loom::schema_of<flow::WorkspaceFile>());
+    REQUIRE(admitted);
+    const auto file = loom::from_value<flow::WorkspaceFile>(admitted.value());
+    flow::v1::WorkspaceFile old;
+    old.project = file.project;
+    old.library = file.library;
+    old.places = file.places;
+    old.empty_triggers = file.empty_triggers;
+    old.forms = file.forms;
+    old.active_form = file.active_form;
+    old.next_id = file.next_id;
+    old.active_trigger = file.active_trigger;
+    old.pan_x = file.pan_x;
+    old.pan_y = file.pan_y;
+    old.zoom = file.zoom;
+    const auto read = flow::read_workspace(loom::serialize(loom::to_value(old)));
+    CHECK(read.docks.empty());
+    CHECK(read.graph.places.size() == reopened.graph.places.size());
+    CHECK(flow::project_bytes(read.graph.project) == flow::project_bytes(reopened.graph.project));
+    // A CARD PUT TWICE is refused, whole.
+    auto twice = file;
+    twice.docks = {{"kept", 1}, {"kept", 2}};
+    CHECK_THROWS_WITH_AS(flow::read_workspace(loom::serialize(loom::to_value(twice))),
+                         "invalid card place in workspace", std::invalid_argument);
+}
