@@ -1718,6 +1718,75 @@ TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is dr
     CHECK(ears.heard[0].role == "test.pl\xC3\xA9in");
 }
 
+TEST_CASE("Loaded's search: typed text narrows its rows to the weaves whose name or office holds it, ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing is sent but the Manager's question and the selection") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#search-ignores-the-office,
+    // #search-minds-case, #search-unasked): a search blind to offices, one that minds case, and one
+    // that asks the Manager nothing.
+    Ears ears;
+    PaneRig r;
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    const std::int64_t kind = open_intro_pane(r, kIntroPane);
+    make_taller(r, kIntroPane, 16);
+    const loom::WeaveId who = r.bus.role_holder(kIntroOffice);
+    std::vector<std::string> said;
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.sender == who && !e.schema_name.empty()) said.push_back(e.schema_name);
+    });
+    const auto asked = [&] { return std::count(said.begin(), said.end(), std::string("zen.ListLoaded")); };
+    const auto weaves = [&] {
+        std::vector<std::string> named;
+        for (const std::string& row : loaded_rows(r, kind))
+            if (is_entry_row(row)) named.push_back(named_by(row));
+        return named;
+    };
+    const std::vector<std::string> everyone = weaves();
+    REQUIRE(everyone.size() >= 2);
+    REQUIRE(std::find(everyone.begin(), everyone.end(), "zengine-plain-weave") != everyone.end());
+    const std::string population = std::to_string(everyone.size());
+    REQUIRE(loaded_rows(r, kind).at(0) == "loaded weaves -- " + population);
+
+    // A PRESS ON ITS HEADING GIVES IT THE KEYS and selects nothing.
+    const CellRect body = external_body_rect(r.session(), kind);
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
+    REQUIRE(r.session().panes.keyboard == kind);
+    REQUIRE(ears.heard.empty());
+    // TYPED, BY NAME AND IGNORING CASE: one weave, the population stated beside it, the Manager
+    // asked again.
+    auto before = asked();
+    r.text("PLAIN");
+    CHECK(weaves() == std::vector<std::string>{"zengine-plain-weave"});
+    // ...THE CARET DRAWN AFTER THE SEARCH, on the heading.
+    CHECK(loaded_rows(r, kind).at(0) == "loaded weaves -- 1 of " + population + " match PLAIN|");
+    CHECK(asked() > before);
+    // BACKSPACE WIDENS IT AGAIN, and an empty search shows every weave.
+    for (int i = 0; i < 5; ++i) r.key(input::scan::kBackspace);
+    CHECK(weaves() == everyone);
+    CHECK(loaded_rows(r, kind).at(0) == "loaded weaves -- " + population);
+    // BY OFFICE: the plain weave's office is test.plain.
+    r.text("test.p");
+    CHECK(weaves() == std::vector<std::string>{"zengine-plain-weave"});
+    // A PRESS ON THE NARROWED ROW selects the weave it shows.
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard.back().library == "zengine-plain-weave");
+    // A SEARCH THAT HIDES THE SELECTED WEAVE keeps it selected: widened again, it is marked.
+    r.text("x");
+    CHECK(weaves().empty());
+    CHECK(loaded_rows(r, kind).at(0) == "loaded weaves -- 0 of " + population + " match test.px|");
+    r.key(input::scan::kBackspace);
+    bool marked = false;
+    for (const std::string& row : loaded_rows(r, kind))
+        marked = marked || row.rfind(std::string(intro::kSelectedMark) + "zengine-plain-weave", 0) == 0;
+    CHECK(marked);
+    CHECK(ears.heard.size() == 1);
+    r.bus.remove_observer(tap);
+    // ALL IT SAID: the Manager's question, its picture and the one selection.
+    std::vector<std::string> distinct = said;
+    std::sort(distinct.begin(), distinct.end());
+    distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
+    CHECK(distinct == std::vector<std::string>{"Drawn", "LoadedSelected", "zen.ListLoaded"});
+}
+
 TEST_CASE("WL-HAND-06: Loaded names each loaded weave's row, and Powers its controls and each power's row") {
     PaneRig r;
     const std::int64_t powers = open_intro_pane(r, intro::kPowersPane);

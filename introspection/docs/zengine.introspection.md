@@ -21,10 +21,10 @@ The panes report and do not act. None of them loads, unloads, mounts, overlays o
 anything, and browsing `Powers` runs no power: a Source runs once, when you ask for a sample.
 
 A pane asks its owner when Workshop gives it room: when it opens, moves or changes size, and when a
-reloaded weave offers it again. `Loaded` and `Project` ask again when you scroll them, and
-`Powers` when your search or your selection changes. Between readings the rows are a snapshot, and the pane's last
-line says whose. A host that mounts no arrangement or discovery door leaves `Project` and `Powers`
-at `(waiting for the provider)`.
+reloaded weave offers it again. `Loaded` asks again when you scroll it or change its search,
+`Project` when you scroll it, and `Powers` when your search or your selection changes. Between
+readings the rows are a snapshot, and the pane's last line says whose. A host that mounts no
+arrangement or discovery door leaves `Project` and `Powers` at `(waiting for the provider)`.
 
 ## Use
 
@@ -33,8 +33,9 @@ only while a pane holds your keys: press into it first.
 
 - **Loaded**: press a weave's row to select it. The row is marked `> `, and the pane says which
   weave you chose ([Follow](#follow)); the Composer takes it as its target. The wheel scrolls the
-  list without moving your choice. Escape lets the choice go; with nothing chosen, Escape puts the
-  pane down.
+  list without moving your choice. Type to search: the rows narrow to the weaves whose name or
+  office holds it, ignoring case, and Backspace widens them; a choice the search hides stays
+  chosen. Escape lets the choice go; with nothing chosen, Escape puts the pane down.
 - **Project**: read it. The wheel moves its list an artifact a notch, and so do
   [`project.up`](#projectup) and [`project.down`](#projectdown) once it holds your keys; a press
   gives it the keys and does nothing else.
@@ -197,6 +198,8 @@ hearing it grants no reach to the weave it names. Nothing else is said unasked b
 @zengine.timer`, `@(no role)` when it was bound none, `> ` when chosen. A list that does not fit is
 windowed and counted, `  ... 2 earlier, 3 more`. Then `in-process weaves are not in the kernel's
 map`: Workshop's own weaves are not in this list. `snapshot from zen.ListLoaded` when there is room.
+With a search typed, `loaded weaves -- 1 of 4 match timer`, its caret after it, and the rows are
+the weaves it keeps.
 
 ### `arrangement`
 
