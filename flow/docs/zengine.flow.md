@@ -55,7 +55,8 @@ every other command says `Confirm or cancel the open dialog before another edit`
 Outside a dialog, what you type goes to the search line on the Graph page; the Escape key puts down
 one thing per press (a wire's search and its wire, a dropped value, the wire in hand, the selected
 port, an open body slot, the preview, the selected node, the search line) and only then hands the
-pane back to Workshop; the Delete key, or the x on its corner, removes the selected node; Return
+pane back to Workshop; the Delete key, or the x on its corner, removes the selected node and its
+wires; Return
 adds the previewed row. A press, a drag and a double click on the graph do what [the pointer on the
 graph](flow.md#the-pointer-on-the-graph) says.
 While a wire's search is open, the arrow keys move among its rows and Return makes the one marked.

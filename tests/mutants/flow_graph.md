@@ -36,3 +36,69 @@ Red in `zengine-flow-tests`:
 
 - a workspace keeps where each When and Then card was put, reads one version 1 wrote with none
   put, and refuses a card put twice
+
+## delete-refuses-a-read-step
+
+A step another step reads is refused a delete, as before.
+
+In `flow/graph_edit.hpp`:
+
+```diff
+-          b = op::Binding::input("");
++          throw std::invalid_argument("another node uses this output; reconnect it before deleting");
+```
+
+Red in `zengine-flow-tests`:
+
+- a delete takes every connection with it, no questions asked: the ports that read the step are
+  left open, and deleting the answer leaves the rule with none, which a save keeps
+
+## delete-refuses-the-answer
+
+The answer is refused a delete while other steps stand, as before.
+
+In `flow/graph_edit.hpp`:
+
+```diff
+-    const bool answer = body.result_node == n;
++    const bool answer = body.result_node == n;
++    if (answer && body.nodes.size() > 1)
++      throw std::invalid_argument("choose another result before deleting this node");
+```
+
+Red in `zengine-flow-tests`:
+
+- a delete takes every connection with it, no questions asked: the ports that read the step are
+  left open, and deleting the answer leaves the rule with none, which a save keeps
+
+## deleted-answer-moves-on
+
+Deleting the answer makes the step before it the answer.
+
+In `flow/graph_edit.hpp`:
+
+```diff
+-    if (answer || body.result_node > body.nodes.size())
++    if ((answer && false) || body.result_node > body.nodes.size())
+```
+
+Red in `zengine-flow-tests`:
+
+- a delete takes every connection with it, no questions asked: the ports that read the step are
+  left open, and deleting the answer leaves the rule with none, which a save keeps
+
+## unanswered-unsaved
+
+A save forgets that a rule has no answer: it opens with its first step as the answer.
+
+In `flow/workspace.hpp`:
+
+```diff
+-            file.unanswered.push_back(static_cast<std::int64_t>(i));
++            (void)i;
+```
+
+Red in `zengine-flow-tests`:
+
+- a delete takes every connection with it, no questions asked: the ports that read the step are
+  left open, and deleting the answer leaves the rule with none, which a save keeps

@@ -28,6 +28,24 @@ struct DockPlace {
 };
 inline constexpr std::size_t kMaxDockPlaces = 1024;
 inline constexpr std::size_t kMaxDockCardBytes = 512;
+/// THE WORKSPACE FILE: the project, and what the editor holds beside it. `unanswered` names each
+/// trigger, by its place among them all, whose answer was deleted and none chosen since: the
+/// project holds it answered by its first node, as an executable project must.
+struct WorkspaceFile {
+    loom::Bytes project, library;
+    std::vector<NodePlace> places;
+    std::vector<EmptyTrigger> empty_triggers;
+    std::vector<StoredFormFile> forms;
+    std::string active_form;
+    std::int64_t next_id = 1, active_trigger = 0, pan_x = 0, pan_y = 0, zoom = 100;
+    std::vector<DockPlace> docks;
+    std::vector<std::int64_t> unanswered;
+    ZEN_SHAPE(WorkspaceFile, 3, ZEN_FIELD(project), ZEN_FIELD(library), ZEN_FIELD(places),
+              ZEN_FIELD(empty_triggers), ZEN_FIELD(forms), ZEN_FIELD(active_form), ZEN_FIELD(next_id), ZEN_FIELD(active_trigger),
+              ZEN_FIELD(pan_x), ZEN_FIELD(pan_y), ZEN_FIELD(zoom), ZEN_FIELD(docks), ZEN_FIELD(unanswered));
+};
+namespace v2 {
+/// THE WORKSPACE FILE AS VERSION 2 WROTE IT, read still: every trigger in it has its answer.
 struct WorkspaceFile {
     loom::Bytes project, library;
     std::vector<NodePlace> places;
@@ -40,6 +58,15 @@ struct WorkspaceFile {
               ZEN_FIELD(empty_triggers), ZEN_FIELD(forms), ZEN_FIELD(active_form), ZEN_FIELD(next_id), ZEN_FIELD(active_trigger),
               ZEN_FIELD(pan_x), ZEN_FIELD(pan_y), ZEN_FIELD(zoom), ZEN_FIELD(docks));
 };
+inline zengine::flow::WorkspaceFile to_current(const WorkspaceFile& old) {
+    zengine::flow::WorkspaceFile out;
+    out.project = old.project; out.library = old.library; out.places = old.places;
+    out.empty_triggers = old.empty_triggers; out.forms = old.forms; out.active_form = old.active_form;
+    out.next_id = old.next_id; out.active_trigger = old.active_trigger;
+    out.pan_x = old.pan_x; out.pan_y = old.pan_y; out.zoom = old.zoom; out.docks = old.docks;
+    return out;
+}
+} // namespace v2
 namespace v1 {
 /// THE WORKSPACE FILE AS VERSION 1 WROTE IT, read still: no card has a place of its own.
 struct WorkspaceFile {
@@ -87,6 +114,10 @@ inline std::string workspace_bytes(const Workspace& workspace) {
     auto project = workspace.graph.project;
     auto& ons = project.definition.on;
     for (std::size_t i = 0; i < ons.size(); ++i) {
+        if (!ons[i].body.nodes.empty() && !answered(ons[i])) {
+            file.unanswered.push_back(static_cast<std::int64_t>(i));
+            ons[i].body.result_node = 0;
+        }
         if (!ons[i].body.nodes.empty()) continue;
         const auto& accepts = project.definition.accepts;
         const auto found = std::find_if(accepts.begin(), accepts.end(), [&](const auto& s) {
@@ -130,6 +161,10 @@ inline Workspace read_workspace(std::string_view bytes) {
         const auto old = loom::admit(claim, loom::schema_of<v1::WorkspaceFile>());
         if (!old) throw std::invalid_argument(old.first_error().message());
         file = v1::to_current(loom::from_value<v1::WorkspaceFile>(old.value()));
+    } else if (claim.claimed_version() == v2::WorkspaceFile::zen_version) {
+        const auto old = loom::admit(claim, loom::schema_of<v2::WorkspaceFile>());
+        if (!old) throw std::invalid_argument(old.first_error().message());
+        file = v2::to_current(loom::from_value<v2::WorkspaceFile>(old.value()));
     } else {
         const auto gate = loom::admit(claim, loom::schema_of<WorkspaceFile>());
         if (!gate) throw std::invalid_argument(gate.first_error().message());
@@ -145,6 +180,15 @@ inline Workspace read_workspace(std::string_view bytes) {
             throw std::invalid_argument("invalid empty trigger in workspace");
         def.on.insert(def.on.begin() + empty.index, {def.accepts[static_cast<std::size_t>(empty.message)], {}, empty.output, {}});
         previous = empty.index;
+    }
+    previous = -1;
+    for (const auto t : file.unanswered) {
+        if (t <= previous || t < 0 || static_cast<std::size_t>(t) >= def.on.size() ||
+            def.on[static_cast<std::size_t>(t)].body.nodes.empty())
+            throw std::invalid_argument("invalid unanswered trigger in workspace");
+        auto& body = def.on[static_cast<std::size_t>(t)].body;
+        body.result_node = body.nodes.size();
+        previous = t;
     }
     out.library = message_draft::read_library(byte_string(file.library));
     std::set<std::string> form_keys;

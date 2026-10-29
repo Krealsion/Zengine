@@ -234,7 +234,8 @@ public:
                     }
                     break;
                 case Lack::Answer:
-                    if (named && kept)
+                    if (!p.node) said = "nothing gives " + on.output + " its value: wire a step's answer into it";
+                    else if (named && kept)
                         said = step + " answers " + kind(graph.node_answer_type(p.trigger, *p.node, palette)) +
                                ", and " + on.output + " keeps " + kind(kept->type);
                     break;

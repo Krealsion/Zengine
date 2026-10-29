@@ -514,6 +514,58 @@ TEST_CASE("a message shape keeps one model wherever it is authored: the pane and
                       "Message:<saved draft name> needs an existing library schema");
 }
 
+TEST_CASE("a delete takes every connection with it, no questions asked: the ports that read the step are "
+          "left open, and deleting the answer leaves the rule with none, which a save keeps") {
+    auto author = model();
+    author.command("trigger", {"0", "total"});
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    author.command("bind", {"1", "0", "%0"});
+    author.command("bind", {"2", "0", "%1"});
+    author.command("result", {"2"});
+    const auto body = [&]() -> const zengine::op::Composite& {
+        return author.workspace.graph.project.definition.on.at(0).body;
+    };
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#delete-refuses-a-read-step): a step another reads is
+    // refused.
+    // A STEP ANOTHER READS: deleted, and the port that read it is open; the rest move down one.
+    author.command("remove", {"1"});
+    REQUIRE(body().nodes.size() == 2);
+    CHECK(body().nodes[1].arguments[0].from() == zengine::op::Binding::From::Input);
+    CHECK(body().nodes[1].arguments[0].input_name().empty());
+    CHECK(body().result_node == 1);
+    CHECK(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#delete-refuses-the-answer): the answer is refused.
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#deleted-answer-moves-on): another step becomes the
+    // answer.
+    // THE ANSWER: deleted, and the rule has none -- the lack says so, in words.
+    author.command("remove", {"1"});
+    REQUIRE(body().nodes.size() == 1);
+    CHECK_FALSE(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+    const auto lacks = author.lacks();
+    CHECK(std::find(lacks.begin(), lacks.end(), "nothing gives total its value: wire a step's answer into it") !=
+          lacks.end());
+    // ⚔ MUTATION (tests/mutants/flow_graph.md#unanswered-unsaved): a save forgets the rule had none.
+    // A SAVE KEEPS IT SO, and a step added after does not become the answer unasked.
+    const auto reopened = flow::read_workspace(flow::workspace_bytes(author.workspace));
+    CHECK_FALSE(flow::answered(reopened.graph.project.definition.on.at(0)));
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    CHECK_FALSE(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+    author.command("result", {"0"});
+    CHECK(body().result_node == 0);
+    CHECK(flow::answered(flow::read_workspace(flow::workspace_bytes(author.workspace)).graph.project.definition.on.at(0)));
+    // AN ANSWER WITH A STEP AFTER IT: deleted, and that step does not become the answer.
+    author.command("remove", {"0"});
+    REQUIRE(body().nodes.size() == 1);
+    CHECK_FALSE(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+    // THE LAST STEP: deleted, and the rule has none, as before it had one.
+    author.command("remove", {"0"});
+    CHECK(body().nodes.empty());
+    author.command("add-node", ref_of(author, "flowgraph.Rule"));
+    CHECK(flow::answered(author.workspace.graph.project.definition.on.at(0)));
+}
+
 TEST_CASE("a workspace keeps where each When and Then card was put, reads one version 1 wrote with "
           "none put, and refuses a card put twice") {
     auto author = model();

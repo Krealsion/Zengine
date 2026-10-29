@@ -13,6 +13,9 @@
 #include <map>
 
 namespace zengine::flow {
+/// WHETHER A TRIGGER HAS AN ANSWER: one of its nodes is the value its output becomes. A delete of
+/// the answer leaves none (`result_node` past the last node) until one is chosen.
+inline bool answered(const maker::On &on) { return on.body.result_node < on.body.nodes.size(); }
 
 // Descriptions are observations, never callable implementations. Runtime
 // admission and spend resolve the host catalog again after an author finishes a
@@ -310,7 +313,9 @@ public:
       for (auto &b : body.nodes[i].arguments)
         if (b.from() == op::Binding::From::Node && b.node_index() >= at)
           b = op::Binding::node(b.node_index() + 1);
-    if (had_nodes && body.result_node >= at)
+    if (!had_nodes)
+      body.result_node = 0;
+    else if (body.result_node >= at)
       ++body.result_node;
     const auto t = static_cast<std::int64_t>(trigger_index);
     for (auto &p : places)
@@ -387,20 +392,21 @@ public:
     editable();
     auto &body = project.definition.on.at(t).body;
     (void)body.nodes.at(n);
-    if (body.nodes.size() > 1 && body.result_node == n)
-      throw std::invalid_argument(
-          "choose another result before deleting this node");
-    for (const auto &node : body.nodes)
-      for (const auto &b : node.arguments)
+    // A DELETE TAKES EVERY CONNECTION WITH IT: each port that read the node is left open, and
+    // where it was the answer the trigger has none (`answered` is false) until one is chosen.
+    const bool answer = body.result_node == n;
+    for (auto &node : body.nodes)
+      for (auto &b : node.arguments)
         if (b.from() == op::Binding::From::Node && b.node_index() == n)
-          throw std::invalid_argument(
-              "another node uses this output; reconnect it before deleting");
+          b = op::Binding::input("");
     body.nodes.erase(body.nodes.begin() + static_cast<std::ptrdiff_t>(n));
     for (auto &node : body.nodes)
       for (auto &b : node.arguments)
         if (b.from() == op::Binding::From::Node && b.node_index() > n)
           b = op::Binding::node(b.node_index() - 1);
-    if (body.result_node >= n && body.result_node != 0)
+    if (answer || body.result_node > body.nodes.size())
+      body.result_node = body.nodes.size();
+    else if (body.result_node > n)
       --body.result_node;
     places.erase(std::remove_if(places.begin(), places.end(),
                                 [&](const auto &p) {
@@ -463,6 +469,8 @@ public:
         out.push_back({Lack::Steps, t, std::nullopt, std::nullopt, {}, "add a result node"});
         continue;
       }
+      if (!answered(on))
+        out.push_back({Lack::Answer, t, std::nullopt, std::nullopt, {}, "choose a result node"});
       for (std::size_t n = 0; n < on.body.nodes.size(); ++n) {
         const auto &node = on.body.nodes[n];
         try {

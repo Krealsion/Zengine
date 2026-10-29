@@ -144,7 +144,9 @@ edits the search line.
 A press on a step's head selects it; drag the head to move the step. A press on empty graph room
 lets go of the selected step, its port or a card, and a drag from there pans; the middle button
 pans too, and the wheel pans vertically. **Delete**, or the **x** on the selected step's corner,
-removes it. A **When** or **Then** card's head selects it, and dragging the head moves the card up
+removes it and every wire to and from it, with nothing asked: each port that read it is left open,
+and if it was the answer, nothing gives the kept field its value until another step's answer is
+wired into it. A **When** or **Then** card's head selects it, and dragging the head moves the card up
 or down its own lane, where it stays.
 
 Two presses on one place within a double click's time are one gesture there:

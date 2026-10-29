@@ -670,6 +670,7 @@ WorkshopViewport v2 0xb92f878bc30f5f8e
 WorkshopWindow v1 0x7cf53a3e8dbf87c0
 WorkspaceFile v1 0xf9b41ed5ee8a4680
 WorkspaceFile v2 0xafabb3f3196e5944
+WorkspaceFile v3 0xcd5b193624b5c79b
 ZengineAppFile v1 0x0150c4c592624776
 ZengineAppFlow v1 0xebce87f7842a4812
 ZengineAppView v1 0x7adb4751b1e06214

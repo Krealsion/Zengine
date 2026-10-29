@@ -108,7 +108,8 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::flow::EmptyTrigger>(), // EmptyTrigger v1
         shape<::zengine::flow::StoredFormFile>(), // StoredFormFile v1
         shape<::zengine::flow::DockPlace>(), // DockPlace v1
-        shape<::zengine::flow::WorkspaceFile>(), // WorkspaceFile v2
+        shape<::zengine::flow::WorkspaceFile>(), // WorkspaceFile v3
+        shape<::zengine::flow::v2::WorkspaceFile>(), // WorkspaceFile v2
         shape<::zengine::flow::v1::WorkspaceFile>(), // WorkspaceFile v1
         shape<::zengine::inventory_pane::InventoryToolbox>(), // InventoryToolbox v1
         shape<::zengine::inventory_pane::v2::InventoryToolbox>(), // InventoryToolbox v2

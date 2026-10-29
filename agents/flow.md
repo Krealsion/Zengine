@@ -39,8 +39,11 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   presentation metadata. Empty triggers and unwired ports may be saved as unfinished work
   without relaxing maker admission or live operator checks.
 - `Workspace` owns the graph, layout, named examples and retained forms, and where each When
-  and Then card was put (`DockPlace`, in version 2 of its file; version 1 is read with none put
-  and is listed for the census as `flow::v1::WorkspaceFile`). Historical form
+  and Then card was put (`DockPlace`, since version 2 of its file), and each trigger whose answer
+  was deleted with none chosen since (`unanswered`, version 3). Versions 1 and 2 are read still,
+  and listed for the census as `flow::v1::WorkspaceFile` and `flow::v2::WorkspaceFile`. A delete
+  takes every connection with it: ports that read the step are left open, and deleting the answer
+  leaves the trigger unanswered (`answered`). Historical form
   shapes are separate observations, not competing definitions published in a host registry.
   A changed shape never silently overwrites authored values. Initial-state edits stay
   distinct from incomplete form contents and observed running state.

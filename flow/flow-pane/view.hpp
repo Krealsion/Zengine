@@ -1554,6 +1554,7 @@ inline std::vector<std::string> told(const Model& m) {
             return out;
         }
         if (key == "wire:write") {
+            if (!flow::answered(on)) return {};
             const auto b = op::Binding::node(on.body.result_node);
             return {step_name(nodes, on.body.result_node) + "'s answer -> " + on.output, value(b)};
         }

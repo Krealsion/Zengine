@@ -84,7 +84,7 @@ inline std::vector<Chip> sentence(const Model& m) {
     else if (!def.state->fields().empty()) out.push_back({K::Kept, def.state->fields().front().name, {"card:kept"}});
     else out.push_back({K::Open, "something", {"place:keep"}});
     out.push_back({K::Plain, "becomes"});
-    if (!on || on->body.nodes.empty()) {
+    if (!on || !flow::answered(*on)) {
         out.push_back({K::Open, "...", {on ? "place:do" : "place:keep"}});
         return out;
     }
