@@ -116,4 +116,4 @@ flow_pane                         doctest           always  32
 view                              doctest           always  25
 app_host                          doctest           always  14
 launcher                          doctest           always  12
-view_builder                      doctest           always  41
+view_builder                      doctest           always  43

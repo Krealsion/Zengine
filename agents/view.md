@@ -110,7 +110,11 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   an element, is refused in words. The arrow keys and a value typed into its box (`set`) place
   exactly. A middle-button drag pans the design canvas within `view_builder::pan_reach`, to the
   view's far edges and their handles; a press, a hover and a drop are read against the
-  picture they name, panned as it was drawn, and New and Open show a view from its corner. A
+  picture they name, panned as it was drawn, and New, Open and Discard show a view from its corner.
+  Discard throws away what is unsaved at one press, a value being typed with it: the view as the
+  file it was saved to or opened from holds it, read again, or a new view where it has none. Like
+  New and Open it waits for the running view to stop, and a file it cannot read leaves all as it
+  was; it writes nothing and asks the host nothing. A
   terminal pans by cells, and a side's handle there is the cell beside that side's middle,
   outside the element, or the side's own where the canvas ends. A box narrower than its value keeps
   its caret in view, and the picture and a press read that one scroll, so a press lands on the
@@ -168,7 +172,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
   the side handles, the pan, the size, nothing outside it, the grid, the boxes, the marks and the
   terminal floor, the builder in a graphics window, the run again at a launch, the launch
-  record across a reload, a failed write and a missing view file, and Export app: the folder, the
+  record across a reload, a failed write and a missing view file, Discard, and Export app: the folder, the
   probe's plan byte for byte, Workshop's refusal, the second press and each refusal; `tests/test_view.cpp` also the
   size, a version 1 description, a view asking for its size,
   and a resumed view; the panes suite the view and the builder through Workshop's real seat,
