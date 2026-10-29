@@ -1,4 +1,6 @@
 # The action census's rows for zengine.introspection; the form is tests/actions.txt's. ASCII only.
+zengine.introspection - project.up up ArrangementRequested/1 - scroll up
+zengine.introspection - project.down down ArrangementRequested/1 - scroll down
 zengine.introspection - powers.view tab FindPowers/2,DescribePower/1 - switch view
 zengine.introspection - powers.up up DescribePower/1 - row up
 zengine.introspection - powers.down down DescribePower/1 - row down

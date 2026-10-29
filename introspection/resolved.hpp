@@ -5,7 +5,8 @@
 #define ZENGINE_INTROSPECTION_RESOLVED_HPP
 
 // The arrangement view, and the vocabulary the Powers view shares with it: `project_arrangement`
-// turns a `workshop::ResolvedArrangement` and a budget into rows and keeps nothing. `lay_blocks`
+// turns a `workshop::ResolvedArrangement` and a budget into rows and keeps nothing, and
+// `project_arrangement_from` does it from the artifact a scrolled window starts at. `lay_blocks`
 // is the shared budget rule (an entry and its omission marker are one demand), `elision` its
 // spelling, `counted` the grammar of a count, and the sentences bound what rows may claim.
 // Pane law: agents/panes.md
@@ -107,6 +108,16 @@ inline std::string elision(std::size_t hidden, std::int64_t columns) {
     return fit("  " + std::string(kElided) + " " + std::to_string(hidden) + " more", columns);
 }
 
+/// ...and a window that does not start at the first: `k earlier, n more`, as Loaded spells it.
+inline std::string elision(std::size_t earlier, std::size_t hidden, std::int64_t columns) {
+    if (earlier == 0) {
+        return elision(hidden, columns);
+    }
+    return fit("  " + std::string(kElided) + " " + std::to_string(earlier) + " earlier, " +
+                   std::to_string(hidden) + " more",
+               columns);
+}
+
 /// `1 power` / `2 powers`: a noun that disagrees with its number spends the reader on grammar.
 /// A count word beside a number, and nothing more (no locale, no catalogue).
 inline std::string counted(std::int64_t n, const char* one, const char* many) {
@@ -189,16 +200,28 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
     return rows;
 }
 
+/// THE ARRANGEMENT VIEW, AND WHERE ITS WINDOW STANDS: the rows; the artifact the first block shown
+/// is, once the start asked for is held within the reading; and the furthest start a window can
+/// take while it still fills the room. A pane keeps the start; the reading is spent.
+struct ArrangementView {
+    std::vector<workshop::TextRow> rows;
+    std::size_t first = 0;
+    std::size_t furthest = 0;
+};
+
 /// The whole arrangement view against the room its area holds, in `project_loaded`'s priority order:
-/// the heading and counts, `kNotAuthored`, the list (whole blocks, omissions counted), the plan
-/// line from genuine slack only, one blank. The counts are derived from the answer's rows, so
+/// the heading and counts, `kNotAuthored`, the list (whole blocks from the artifact `origin` names,
+/// omissions above and below counted), the plan line from genuine slack only, one blank. A window
+/// past the reading's end is held at the furthest start that still fills the room, and a room
+/// that holds every block starts at the first. The counts are derived from the answer's rows, so
 /// the summary and the rows cannot disagree.
-inline std::vector<workshop::TextRow>
-project_arrangement(const workshop::v2::ResolvedArrangement& said, std::int64_t rows,
-                    std::int64_t columns) {
-    std::vector<workshop::TextRow> out;
+inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArrangement& said,
+                                                std::int64_t rows, std::int64_t columns,
+                                                std::size_t origin) {
+    ArrangementView view;
+    std::vector<workshop::TextRow>& out = view.rows;
     if (rows <= 0 || columns <= 0) {
-        return out;
+        return view;
     }
     std::size_t performed = 0;
     std::size_t unavailable = 0;
@@ -243,16 +266,34 @@ project_arrangement(const workshop::v2::ResolvedArrangement& said, std::int64_t 
         caveat == 1 && !said.plan.empty() && total < left ? 1 : 0;
     std::int64_t budget = left - source;
 
-    const Laid laid = lay_blocks(heights, budget);
+    // THE WINDOW'S START: none to choose where every block fits; else no further than the start
+    // whose blocks, to the last, fill the room beside the row that counts what is above them.
+    if (total > budget && !blocks.empty()) {
+        std::size_t furthest = blocks.size();
+        for (std::int64_t used = 1; furthest > 0 && used + heights[furthest - 1] <= budget;) {
+            used += heights[--furthest];
+        }
+        view.furthest = std::min(furthest, blocks.size() - 1);
+        view.first = std::min(origin, view.furthest);
+    }
+    const std::vector<std::int64_t> from(heights.begin() + static_cast<std::ptrdiff_t>(view.first),
+                                         heights.end());
+    Laid laid = lay_blocks(from, budget);
+    if (view.first > 0 && !laid.marker) {
+        // WHAT IS ABOVE IS COUNTED TOO, on the row the blocks below would otherwise take.
+        laid = lay_blocks(from, budget - 1);
+        laid.marker = true;
+    }
     for (std::size_t i = 0; i < laid.shown; ++i) {
-        for (workshop::TextRow& row : blocks[i]) {
+        for (workshop::TextRow& row : blocks[view.first + i]) {
             out.push_back(std::move(row));
         }
-        budget -= heights[i];
+        budget -= heights[view.first + i];
     }
     if (laid.marker) {
-        out.push_back(workshop::TextRow{elision(said.artifacts.size() - laid.shown, columns),
-                                              graphics::role::kMuted});
+        out.push_back(workshop::TextRow{
+            elision(view.first, said.artifacts.size() - view.first - laid.shown, columns),
+            graphics::role::kMuted});
         --budget;
     }
     // A spare row nothing else wanted separates the list from the small print. It is
@@ -267,7 +308,14 @@ project_arrangement(const workshop::v2::ResolvedArrangement& said, std::int64_t 
         out.push_back(workshop::TextRow{fit("plan: " + spelled(said.plan), columns),
                                               graphics::role::kMuted});
     }
-    return out;
+    return view;
+}
+
+/// The view from the first artifact.
+inline std::vector<workshop::TextRow>
+project_arrangement(const workshop::v2::ResolvedArrangement& said, std::int64_t rows,
+                    std::int64_t columns) {
+    return project_arrangement_from(said, rows, columns, 0).rows;
 }
 
 /// A VERSION 1 ANSWER, read into the one projection above: the fields it has, and none it lacks.
@@ -289,6 +337,12 @@ inline workshop::v2::ResolvedArrangement in_version_two(const workshop::Resolved
         out.artifacts.push_back(std::move(row));
     }
     return out;
+}
+
+inline ArrangementView project_arrangement_from(const workshop::ResolvedArrangement& said,
+                                                std::int64_t rows, std::int64_t columns,
+                                                std::size_t origin) {
+    return project_arrangement_from(in_version_two(said), rows, columns, origin);
 }
 
 inline std::vector<workshop::TextRow>
