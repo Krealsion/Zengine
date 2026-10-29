@@ -624,8 +624,9 @@ expected to have them:
 
 - **No widget set.** The component package holds the pieces working consumers needed in common
   ([its pieces](../../component/README.md#what-is-in-this-folder)), each keeping its own state and
-  knowing no medium. There is no Button, List, Dropdown, ScrollView, focus tree, tab order or
-  theme.
+  knowing no medium. The window draws a few elements of its own (`graphics/elements/`: a button, a
+  checkbox, a text box, a list, a scroll view, a grid, an image and an icon), which no shipped pane
+  is built from; there is no Dropdown, focus tree, tab order or theme.
 - **No notifications.** [Attention](../../attention/docs/zengine.attention.md) shows what is **true right now**, and that
   is the whole of it: nothing accumulates, nothing is unread, nothing pops up, nothing expires
   and nothing animates. There is no history of things that stopped being true. What Workshop
