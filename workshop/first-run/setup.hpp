@@ -95,9 +95,13 @@ struct Line {
     Item item = Item::kNone;
 };
 
-/// THE PAGES IT NAMES: where each ready-to-use setup and the first five minutes are told.
-inline constexpr const char* kSetupsPage = "workshop/docs/demo-setups.md";
-inline constexpr const char* kGettingStartedPage = "workshop/docs/getting-started.md";
+/// THE PAGES IT NAMES: where each ready-to-use setup and the first five minutes are told, by
+/// their address on the web, since the package a stranger downloads carries no pages (its
+/// README.txt names its own the same way).
+inline constexpr const char* kSetupsPage =
+    "https://github.com/Krealsion/Zengine/blob/main/workshop/docs/demo-setups.md";
+inline constexpr const char* kGettingStartedPage =
+    "https://github.com/Krealsion/Zengine/blob/main/workshop/docs/getting-started.md";
 
 /// EACH LINE READ WHOLE IN `columns`: a line wider than the room goes on in the rows beneath it,
 /// at its own indent and two more, each row keeping the line's ink and the item a press on it

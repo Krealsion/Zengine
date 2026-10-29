@@ -348,6 +348,10 @@ TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the setups the lau
                                          fr::Item::kSkip});
     CHECK(setups);
     CHECK(started);
+    // EACH PAGE BY ITS ADDRESS ON THE WEB: the package a stranger downloads carries no pages.
+    for (const std::string page : {fr::kSetupsPage, fr::kGettingStartedPage}) {
+        CHECK_MESSAGE(page.rfind("https://github.com/Krealsion/Zengine/blob/main/", 0) == 0, page);
+    }
     // THE SETUPS THE LAUNCHER LISTED, each a Start of its own between the box and The story.
     m.setups = {{"values", "Value inspection", "Inventory and Info"}, {"commands", "", ""}};
     std::vector<fr::Item> listed;
