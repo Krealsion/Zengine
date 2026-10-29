@@ -2882,7 +2882,8 @@ TEST_CASE("Keep a field, Say a message and New message edit in place beside what
     rig.key(in::scan::kLeft);
     rig.key(in::scan::kRight);
     rig.key(in::scan::kReturn);
-    const auto* kept = rig.workspace().graph.project.definition.state->find("total");
+    const auto chosen = rig.workspace();
+    const auto* kept = chosen.graph.project.definition.state->find("total");
     REQUIRE(kept != nullptr);
     CHECK(kept->type.kind == loom::Kind::Bool);
 
