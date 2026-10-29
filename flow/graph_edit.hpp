@@ -129,20 +129,32 @@ public:
   void prune_emits() {
     const auto &state = *project.definition.state;
     for (auto &on : project.definition.on) {
-      for (auto &e : on.emits)
-        e.fields.erase(std::remove_if(e.fields.begin(), e.fields.end(), [&](const auto &s) {
-          if (!s.source) return false;
-          const auto *kept = state.find(*s.source);
-          const auto *said = e.message->find(s.field);
-          return !kept || !said || !op::detail::same_type(kept->type, said->type);
-        }), e.fields.end());
-      on.emits.erase(std::remove_if(on.emits.begin(), on.emits.end(), [](const auto &e) {
-        for (const auto &f : e.message->fields())
-          if (f.required && std::none_of(e.fields.begin(), e.fields.end(),
-                                         [&](const auto &s) { return s.field == f.name; }))
-            return true;
-        return false;
-      }), on.emits.end());
+      std::vector<maker::Emit> kept;
+      for (auto &e : on.emits) {
+        std::vector<maker::FieldSource> fed;
+        for (const auto &source : e.fields) {
+          bool fits = true;
+          if (source.source) {
+            const auto *field = state.find(*source.source);
+            const auto *said = e.message->find(source.field);
+            fits = field && said && op::detail::same_type(field->type, said->type);
+          }
+          if (fits)
+            fed.push_back(source);
+        }
+        bool whole = true;
+        for (const auto &f : e.message->fields()) {
+          bool named = false;
+          for (const auto &source : fed)
+            named = named || source.field == f.name;
+          whole = whole && (!f.required || named);
+        }
+        if (whole) {
+          e.fields = std::move(fed);
+          kept.push_back(std::move(e));
+        }
+      }
+      on.emits = std::move(kept);
     }
   }
   void editable() const {

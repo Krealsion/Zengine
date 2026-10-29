@@ -26,8 +26,8 @@ struct ClickMemory {
 inline bool doubles(const ClickMemory& prior, const std::string& target, std::int64_t x,
                     std::int64_t y, std::int64_t slack, std::int64_t now_ms) noexcept {
     if (!prior.armed || prior.target.empty() || prior.target != target) return false;
-    const auto near = [slack](std::int64_t a, std::int64_t b) { return a - b <= slack && b - a <= slack; };
-    if (!near(x, prior.x) || !near(y, prior.y)) return false;
+    const auto close_by = [slack](std::int64_t a, std::int64_t b) { return a - b <= slack && b - a <= slack; };
+    if (!close_by(x, prior.x) || !close_by(y, prior.y)) return false;
     return now_ms >= prior.at_ms && now_ms - prior.at_ms <= kDoublePressMs;
 }
 

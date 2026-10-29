@@ -311,9 +311,9 @@ TEST_CASE("Flow clips its marks and hit map to the room, and says a room too sma
     CHECK(view.hit(narrow.width, 0) == nullptr);
     CHECK(view.hit(0, narrow.height) == nullptr);
     auto tiny = narrow; tiny.width = 15 * cell; tiny.height = 10 * cell;
-    const auto small = pane::picture(model, tiny);
-    CHECK(text_has(small, "Flow needs"));
-    CHECK(small.hits.empty());
+    const auto cramped = pane::picture(model, tiny);
+    CHECK(text_has(cramped, "Flow needs"));
+    CHECK(cramped.hits.empty());
 }
 
 TEST_CASE("Flow keeps its rail apart from the graph, and nothing of the graph page over the Next line") {
