@@ -204,8 +204,8 @@ the right of its title: press it to read what the pane is and every command it h
 **At your first start, the quick setup asks first**, at the room's centre and holding the keys,
 ready for you to drag it where you want it: whether to edit text with Neovim, and which
 ready-to-use setup to start. Done or Skip puts it away for good
-and opens **Start here**, the story a step at a time, each box ticked as it happens, shown at each
-start until you finish it; find either again in the Pane Manager as Quick setup and Start here
+and opens **Start here**, the story a step at a time, each box ticked as it happens; find either
+again in the Pane Manager as Quick setup and Start here
 ([their manual](zengine.first-run.md)).
 
 **The palette finds anything by name**: <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, or

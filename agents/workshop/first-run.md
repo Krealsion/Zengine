@@ -63,16 +63,16 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
-## WL-FIRST-05 — "Start here" opens after the quick setup, and at each later start until done
+## WL-FIRST-05 — "Start here" opens once, when the quick setup is put down
 
-LAW — "Start here" is launched holding the keys when the quick setup is put down, and seated at each later start that keeps settings while the story is not done, the keys left where they are.
+LAW — "Start here" is launched holding the keys when the quick setup is put down, at the weaver's first start; no later start opens it by itself.
 
 MEANS
-- a later start seats it with Workshop's launch asking no keys (WL-DESK-03);
-- a story done is not seated by itself again; the Pane Manager still lists it.
+- a later start, the quick setup answered, seats neither pane, whether the story is done or not; the Pane Manager and the palette still list both;
+- a desk restored with Start here on it shows it, as it shows any pane the desk holds.
 
 DOES NOT MEAN
-- that it takes the keys at any start but the first.
+- that the story's ticks are forgotten: `story` keeps them for the next time it is opened.
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
@@ -111,7 +111,6 @@ the weaver's hand says so and is undone by it, its owner's fact makes it the own
 opens the step's pane and says its next move"
 
 ### WL-FIRST-05
-`workshop/first-run/first_run.cpp` on(OfficeSettingsAnswered) launch_story
+`workshop/first-run/first_run.cpp` on(OfficeSettingsAnswered) on(OfficeSettingCommitAnswered) launch_story
 `tests/test_workshop_panes_first_run.cpp` "WL-FIRST-05: Start here opens when the quick setup closes,
-holding the keys, and at each later start until the story is done beside what holds the keys, never
-taking them"
+holding the keys, and no later start opens it again"
