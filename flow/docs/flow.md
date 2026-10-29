@@ -78,9 +78,9 @@ The rail beside the graph finds operators through the host's
 - **The search line** takes what you type while no dialog is open. A power matches when each word
   appears in its name or in what its contributor says it is for. The rows come in the catalog's
   order: operators under their namespace's name, such as **MATH**, then **SOURCES**,
-  **CONVERSIONS** and **FORMS**, each row its name and what its contributor says it is for; a
-  count says how many more matched than one answer carries. **FORMS** holds the fold, found by
-  what it is for: type `count` or `total`.
+  **CONVERSIONS** and **FORMS**, each row its name and what its contributor says it is for,
+  broken to two lines rather than cut; a count says how many more matched than one answer
+  carries. **FORMS** holds the fold, found by what it is for: type `count` or `total`.
 - **A press on a port** opens a small box beside its step: what is in scope of its type, each a
   button by its own name and where it comes from -- a kept field, a field of the message, an
   earlier step's answer -- then one value of the port's own kind: a number for an `Int`, checked
@@ -88,6 +88,10 @@ The rail beside the graph finds operators through the host's
   **Escape** or the port pressed again puts it down. The rail meanwhile narrows the search to what
   yields the port's type, and lists before that what is **In scope** of the type, then a typed
   constant, which readies the box's number, then **SOURCES** before the operators.
+- **A wire in hand** -- held by a press on a step's answer or on a field -- narrows the rail to
+  what takes the wire's type, under **Wire from** what it reads, and the preview offers **Add,
+  wired into** each port of that type: the step is placed after what the wire reads and wired
+  there. **Escape** puts the wire down, and the rail lists everything again.
 - **A row previews; it never runs.** A form and an operator that share a name are two rows, and
   each previews and adds itself. The preview is the door's row, and showing it evaluates
   nothing. **Add to the rule**, or **Enter**, adds the previewed power at the end of the

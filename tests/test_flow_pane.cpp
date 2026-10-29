@@ -2498,6 +2498,32 @@ bool says(const std::vector<std::string>& words, const std::string& text) {
 }
 } // namespace
 
+TEST_CASE("a wire in hand from a step's answer narrows the rail to what takes it, and the preview "
+          "adds a step wired from it at the port chosen") {
+    Rig rig;
+    rig.graph_semantically();
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#held-wire-asks-nothing): the door is asked for every
+    // power, a wire in hand or not.
+    rig.click("[answer -> value]");
+    REQUIRE_FALSE(rig.questions.empty());
+    CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
+    CHECK(rig.shows("Wire from max : Int"));
+    rig.click("  add");
+    (void)rig.label("[Add, wired into lhs]");
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#add-from-wires-the-first-port): it is wired at the first
+    // port, whichever was chosen.
+    rig.click("[Add, wired into rhs]");
+    const auto body = rig.workspace().graph.project.definition.on.front().body;
+    REQUIRE(body.nodes.size() == 2);
+    CHECK(body.nodes.at(1).identity == "math.add");
+    CHECK(body.nodes.at(1).arguments.at(1).from() == op::Binding::From::Node);
+    CHECK(body.nodes.at(1).arguments.at(1).node_index() == 0);
+    CHECK(body.nodes.at(1).arguments.at(0).input_name().empty());
+    CHECK(rig.shows("Added add, wired from max"));
+    // The wire is spent: the door is asked for every power again.
+    CHECK_FALSE(rig.questions.back().takes.has_value());
+}
+
 TEST_CASE("a press on a port opens a box at it: what is in scope of its type and an earlier step's "
           "answer, each by its own name, then one value of the port's kind") {
     {

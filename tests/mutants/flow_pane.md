@@ -415,3 +415,35 @@ Red in `zengine-flow-pane-tests`:
 
 - a wire dragged from an input port and let go on empty graph room asks what fills it: in scope, a
   constant, then what yields its type, each made at the hand
+
+## held-wire-asks-nothing
+
+A wire in hand asks the door for nothing of its own: the rail lists every power.
+
+In `flow/flow-pane/find.hpp`:
+
+```diff
+-    else if (const auto held = held_wire(m)) asked.takes = held->type;
++    else if (const auto held = held_wire(m)) asked.offered = !held->type.empty();
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a wire in hand from a step's answer narrows the rail to what takes it, and the preview adds a step
+  wired from it at the port chosen
+
+## add-from-wires-the-first-port
+
+A step added from the wire in hand is wired at its first port, whichever was chosen.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-                {flow::binding_text(*model_.connecting), args.at(2)}, mail);
++                {flow::binding_text(*model_.connecting), args.at(2).empty() ? "1" : "0"}, mail);
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a wire in hand from a step's answer narrows the rail to what takes it, and the preview adds a step
+  wired from it at the port chosen

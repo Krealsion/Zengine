@@ -512,8 +512,26 @@ inline std::vector<RailRow> rail_rows(const Model& model) {
     kind_group(workshop::kFormKind, "FORMS");
     return out;
 }
+/// WORDS BROKEN TO `columns`, at a space where one stands past half the line, in at most `most`
+/// lines: the last holds whatever is left, for its place to cut.
+inline std::vector<std::string> wrapped(std::string rest, std::size_t columns, std::size_t most) {
+    std::vector<std::string> out;
+    for (std::size_t n = 0; !rest.empty() && n < most; ++n) {
+        if (rest.size() <= columns || n + 1 == most) {
+            out.push_back(rest);
+            break;
+        }
+        auto cut = rest.rfind(' ', columns);
+        if (cut == std::string::npos || cut < columns / 2) cut = columns;
+        out.push_back(rest.substr(0, cut));
+        rest = rest.substr(cut < rest.size() && rest[cut] == ' ' ? cut + 1 : cut);
+    }
+    return out;
+}
+
 /// THE RAIL: find by what it is for, what is in scope -- or, with a port selected, what could fill
-/// it -- the door's rows grouped, and the preview of the one chosen with what Add does.
+/// it, or with a wire in hand, what takes it -- the door's rows grouped, each one's words broken to
+/// two lines, and the preview of the one chosen with what Add does.
 inline void rail(Pen& pen, const Model& model, const Box& rail) {
     const auto& m = pen.m;
     const auto& graph = model.workspace.graph;
@@ -563,11 +581,15 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
             y += m.row;
         }
     }
-    // A heading stands in the list, which keeps it above the preview.
+    // A heading stands in the list, which keeps it above the preview; it breaks to two lines.
+    const auto heading_columns = static_cast<std::size_t>(std::max<std::int64_t>(8, rail.w / m.ch));
     const auto heading = [&](const std::string& words, gfx::Paint ink = hue::message()) {
-        pen.text(x - (m.light ? m.inset : 0), y, words, ink);
-        y += line_h;
+        for (const auto& line : wrapped(words, heading_columns, 2)) {
+            pen.text(x - (m.light ? m.inset : 0), y, line, ink);
+            y += line_h;
+        }
     };
+    const auto held = held_wire(model);
     // WHAT THE PREVIEW TAKES at the rail's foot, so the list above it stops there.
     const auto* shown = previewed(model);
     const auto slot = body_slot_node(model);
@@ -600,6 +622,11 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
                 offers.push_back({"Add into " + port_words(model, *chosen_port),
                                   {"add-into", shown->kind, shown->identity, std::to_string(chosen_port->node),
                                    std::to_string(chosen_port->port)}});
+            else if (held)
+                // A WIRE IN HAND: the step added after what it reads, wired at a port of its type.
+                for (const auto& [port, name] : ports_taking(model, *shown, held->type))
+                    offers.push_back({"Add, wired into " + name,
+                                      {"add-from", shown->kind, shown->identity, std::to_string(port)}});
             else if (model.node && *model.node < def.on.at(model.trigger()).body.nodes.size())
                 offers.push_back({"Add before " + step_name(def.on.at(model.trigger()).body.nodes, *model.node),
                                   {"add-found", shown->kind, shown->identity, std::to_string(*model.node)}});
@@ -610,17 +637,8 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
     std::vector<std::pair<std::string, gfx::Paint>> said;
     if (shown) {
         const auto columns = static_cast<std::size_t>(std::max<std::int64_t>(8, m.fits(rail.w - (m.light ? 16 : 0))));
-        const auto wrap = [&](std::string rest, gfx::Paint ink, std::size_t most) {
-            for (std::size_t n = 0; !rest.empty() && n < most; ++n) {
-                if (rest.size() <= columns || n + 1 == most) {
-                    said.emplace_back(rest, ink);
-                    break;
-                }
-                auto cut = rest.rfind(' ', columns);
-                if (cut == std::string::npos || cut < columns / 2) cut = columns;
-                said.emplace_back(rest.substr(0, cut), ink);
-                rest = rest.substr(cut < rest.size() && rest[cut] == ' ' ? cut + 1 : cut);
-            }
+        const auto wrap = [&](const std::string& words, gfx::Paint ink, std::size_t most) {
+            for (auto& line : wrapped(words, columns, most)) said.emplace_back(std::move(line), ink);
         };
         wrap(classification_of(*shown), hue::quiet(), 2);
         wrap(shown->signature, hue::wire(), 2);
@@ -667,6 +685,10 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
             y += pen.button(x, y, std::string(loom::name_of(chosen_port->field.type.kind)) + " constant", "constant",
                             {n, a}, Face::Plain, Icon::None, list) > 0 ? (m.light ? m.tall + 4 : m.row) : 0;
         }
+    } else if (held) {
+        // A WIRE IN HAND lists what takes it: the door's Sources and operators with a port of its
+        // type, each added wired from it in the preview.
+        heading("Wire from " + held->words + " : " + held->type);
     } else if (!def.on.empty()) {
         heading("In scope");
         const auto& on = def.on.at(model.trigger());
@@ -703,6 +725,8 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
         if (y < list.bottom()) heading(model.discovered.reason, hue::warn());
     } else {
         const auto rows = rail_rows(model);
+        // A row's words stand from 8 pixels in to 4 short of the rail's edge.
+        const auto about_columns = static_cast<std::size_t>(std::max<std::int64_t>(8, (rail.w - 12) / m.ch));
         std::size_t skipped = 0;
         if (rows.empty() && y < list.bottom()) heading("none offered match", hue::quiet());
         for (const auto& r : rows) {
@@ -716,12 +740,16 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
             const bool on = is_previewed(model, *r.row);
             const auto composite = r.row->construction == ws::kCompositeConstruction ? " (composite)" : "";
             if (m.light) {
-                const auto h = 2 * m.row + 4;
+                // Its name, then what it is for broken to two lines, never cut on the first.
+                const auto about = wrapped(r.row->about.empty() ? std::string("says nothing of what it is for")
+                                                                : r.row->about,
+                                           about_columns, 2);
+                const auto h = static_cast<std::int64_t>(1 + about.size()) * m.row + 4;
                 if (on) pen.rect({rail.x, y, rail.w, h}, hue::chosen(), hue::wire(), 3, false, list);
                 pen.text(rail.x + 8 - m.inset, y + 2, power_name(r.row->identity) + composite, hue::text(), list);
-                pen.text(rail.x + 8 - m.inset, y + 2 + m.row,
-                         r.row->about.empty() ? std::string("says nothing of what it is for") : r.row->about,
-                         r.row->about.empty() ? hue::faint() : hue::quiet(), Box{rail.x, y, rail.w - 4, h}.cut(list));
+                for (std::size_t k = 0; k < about.size(); ++k)
+                    pen.text(rail.x + 8 - m.inset, y + 2 + m.row * static_cast<std::int64_t>(k + 1), about[k],
+                             r.row->about.empty() ? hue::faint() : hue::quiet(), Box{rail.x, y, rail.w - 4, h}.cut(list));
                 pen.press(Box{rail.x, y, rail.w, h}.cut(list), "found", {r.row->kind, r.row->identity});
                 y += h + 2;
             } else {

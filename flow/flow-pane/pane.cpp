@@ -2052,6 +2052,17 @@ private:
     } else if (action == "add-into") {
       add_found(args.at(0), args.at(1), "add-node-into", {args.at(2), args.at(3)}, mail);
       reveal();
+    } else if (action == "add-from") {
+      // A FOUND POWER FROM THE WIRE IN HAND: placed after what the wire reads, wired at its port.
+      if (!model_.connecting)
+        throw std::invalid_argument("Hold a wire first: press a step's answer or a field");
+      const auto held = pane::held_wire(model_);
+      const auto from = held ? held->words : flow::binding_text(*model_.connecting);
+      add_found(args.at(0), args.at(1), "add-node-from",
+                {flow::binding_text(*model_.connecting), args.at(2)}, mail);
+      if (!model_.connecting && model_.node)
+        model_.notice = "Added " + step(*model_.node) + ", wired from " + from;
+      reveal();
     } else if (action == "value-row") {
       const auto row = model_.form->rows().at(flow::index_of(args.at(0)));
       if (row.type.kind == loom::Kind::Message ||

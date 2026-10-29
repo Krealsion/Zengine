@@ -668,6 +668,67 @@ TEST_CASE("Flow names a step by its operator, a port by its step and a field by 
           "tally.Set / node 0: result type does not match state.total");
 }
 
+TEST_CASE("the rail breaks a row's words and a heading to two lines, never cutting the first, and a "
+          "wire in hand asks for and lists what takes it, each port of its type a way to add it") {
+    pane::Model m;
+    const flow::Ports longer{"view.longer_name",
+                             loom::SchemaBuilder("view.longer.in", 1).field("a_quite_long_port", loom::Kind::Int)
+                                 .field("b", loom::Kind::Int).build(),
+                             loom::SchemaBuilder("view.longer.out", 1).field("value", loom::Kind::Int).build()};
+    m.palette.push_back(longer);
+    m.command("state-field", {"total", "Int", "required"});
+    m.command("message", {"Input"});
+    m.command("message-field", {"0", "n", "Int", "required"});
+    m.command("trigger", {"0", "total"});
+    m.workspace.graph.add(0, longer);
+    m.page = pane::Page::Graph;
+    auto fits = found_row("view.longer_name", ws::kOperatorKind);
+    fits.about = "the larger of two integers, kept";
+    auto rambles = found_row("view.rambling", ws::kOperatorKind);
+    rambles.about = "a description that runs on past the two lines a row of the rail has room for, and on";
+    answered(m, {fits, rambles});
+    const auto mark = [](const pane::Picture& view, const std::string& words) { return text_mark(view, words); };
+    // ⚔ MUTATION (tests/mutants/flow_view.md#rail-row-says-one-line): a row's words stop at one line.
+    auto view = pane::picture(m, light_room());
+    CHECK(mark(view, "the larger of two integers,") != nullptr);
+    CHECK(mark(view, "kept") != nullptr);
+    bool first = false, cut = false;
+    for (const auto& k : view.marks) {
+        if (k.op != pane::Mark::Op::Text) continue;
+        first = first || k.words == "a description that runs on";
+        cut = cut || (k.words.rfind("past the two lines", 0) == 0 && k.words.size() >= 3 &&
+                      k.words.substr(k.words.size() - 3) == "...");
+    }
+    CHECK(first);
+    CHECK(cut);
+    // A PORT CHOSEN: its heading breaks where a long name would be cut.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#heading-cut-to-one-line): a heading stops at one line.
+    m.filling = pane::PortChoice{m.workspace.graph.place(0, 0).id, 0};
+    view = pane::picture(m, light_room());
+    CHECK(mark(view, "For longer_name's") != nullptr);
+    CHECK(mark(view, "a_quite_long_port : Int") != nullptr);
+
+    // A WIRE IN HAND FROM THE STEP'S ANSWER: the door is asked what takes its type, the rail heads
+    // its list with it, and the preview offers each port of that type.
+    m.filling.reset();
+    m.connecting = zengine::op::Binding::node(0);
+    CHECK(pane::flow_question(m).takes == std::optional<std::string>("Int"));
+    CHECK_FALSE(pane::flow_question(m).yields.has_value());
+    m.preview = "view.longer_name";
+    m.preview_kind = ws::kOperatorKind;
+    view = pane::picture(m, light_room());
+    CHECK(text_has(view, "Wire from longer_name : Int"));
+    std::vector<std::string> ports;
+    for (const auto& hit : view.hits)
+        if (hit.action == "add-from") ports.push_back(hit.args.at(2));
+    CHECK(ports == std::vector<std::string>{"0", "1"});
+    CHECK(text_has(view, "Add, wired into b"));
+    // ...and a field held, by its name.
+    m.connecting = zengine::op::Binding::input("n");
+    CHECK(pane::flow_question(m).takes == std::optional<std::string>("Int"));
+    CHECK(text_has(pane::picture(m, light_room()), "Wire from n : Int"));
+}
+
 TEST_CASE("the rule reads as one sentence, each part still to choose open") {
     using K = pane::Chip::Kind;
     const auto kinds = [](const pane::Model& m) {

@@ -118,7 +118,9 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
 - The pane finds powers through the discovery door (`flow/flow-pane/find.hpp`) and never through
   `FlowCatalog`, which supplies the graph's port signatures alone. It asks only for offered
   powers, so a participant's own trigger body is never Flow's to offer, and with a port selected
-  only for what yields the port's type in Loom's spelling. It shows rows as the door answered
+  only for what yields the port's type in Loom's spelling, and with a wire in hand from an answer
+  or a field (`held_wire`) only for what takes the wire's type, the preview adding a step wired
+  from it at a port of that type (`ports_taking`). It shows rows as the door answered
   them: it matches nothing again and classifies nothing. A row is known by its kind and its
   identity together, since a form and an operator may share a name. A selected port is held by its node's
   place id, so removing another node never moves it; replacing the graph or changing the
@@ -148,11 +150,12 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   axes, device-grain hit testing, the rail's grouping and preview, the rule's sentence, the Next
   line's walk, the journal read one line a message, the tally drawn in light and in cells, a card
   chosen and put, what makes two presses one double click, a step named by its operator and no
-  internal word drawn, and the kinds a kept field is chosen from.
+  internal word drawn, the rail's words broken to two lines, and the kinds a kept field is chosen
+  from.
   `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
   reload preservation, the right press handed back, the empty press and the pan, the chosen step's
   x and Delete, the When and Then cards moved, the double clicks that add, the box at a port, the
-  editors in place, the names offered as a message is named,
+  editors in place, the names offered as a message is named, the rail narrowed by a wire in hand,
   finding through the door
   and the pane in a graphics window; host behavior is witnessed under [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

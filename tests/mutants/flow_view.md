@@ -135,3 +135,35 @@ Red in `zengine-flow-tests`:
   operators by their first word, then Sources, Conversions and Forms
 - Flow names a step by its operator, a port by its step and a field by its name: no step number,
   field spelling, revision or operator identity on screen
+
+## rail-row-says-one-line
+
+A rail row's words stop at one line, cut where the rail ends.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-                                           about_columns, 2);
++                                           about_columns, 1);
+```
+
+Red in `zengine-flow-tests`:
+
+- the rail breaks a row's words and a heading to two lines, never cutting the first, and a wire in
+  hand asks for and lists what takes it, each port of its type a way to add it
+
+## heading-cut-to-one-line
+
+A rail heading stops at one line, cut where the rail ends.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-        for (const auto& line : wrapped(words, heading_columns, 2)) {
++        for (const auto& line : wrapped(words, heading_columns, 1)) {
+```
+
+Red in `zengine-flow-tests`:
+
+- the rail breaks a row's words and a heading to two lines, never cutting the first, and a wire in
+  hand asks for and lists what takes it, each port of its type a way to add it

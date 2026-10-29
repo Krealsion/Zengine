@@ -119,6 +119,21 @@ inline std::optional<std::string> source_type(const Model& m, const op::Binding&
     return std::nullopt;
 }
 
+/// THE WIRE IN HAND from an output, held by a press on a step's answer or a field: what it reads,
+/// in a weaver's words, and its type in Loom's spelling; none while none is held or its type is not
+/// described.
+struct HeldWire {
+    op::Binding source;
+    std::string words, type;
+};
+inline std::optional<HeldWire> held_wire(const Model& m) {
+    const auto& def = m.workspace.graph.project.definition;
+    if (!m.connecting || def.on.empty()) return std::nullopt;
+    const auto type = source_type(m, *m.connecting);
+    if (!type) return std::nullopt;
+    return HeldWire{*m.connecting, source_words(def.on.at(m.trigger()).body.nodes, *m.connecting), *type};
+}
+
 /// The port a wire's search wires into, as `selected_port` reads one.
 inline std::optional<PortView> wire_port(const Model& m) {
     if (!m.wire_search || !m.wire_search->from.port) return std::nullopt;
@@ -129,9 +144,9 @@ inline std::optional<PortView> wire_port(const Model& m) {
 
 /// THE QUESTION FLOW ASKS THE DOOR: the search line's text and, with a wire's search open, what
 /// takes its output's type or yields its port's; with a port selected, its type as what a power
-/// must yield; or with a fold's body slot open, what a fold could spend. Only powers their
-/// contributors offer: a participant's own reaction, such as a running definition's trigger body,
-/// is never Flow's to offer.
+/// must yield; with a fold's body slot open, what a fold could spend; or with a wire in hand, its
+/// type as what a power must take. Only powers their contributors offer: a participant's own
+/// reaction, such as a running definition's trigger body, is never Flow's to offer.
 inline workshop::FindPowers flow_question(const Model& m) {
     workshop::FindPowers asked;
     if (!m.search.text().empty()) asked.text = m.search.text();
@@ -144,6 +159,7 @@ inline workshop::FindPowers flow_question(const Model& m) {
         // A SEARCH WITH NO WIRE, opened on empty room, asks for whatever a step could be there.
     } else if (body_slot_node(m)) asked.fits = workshop::kFitsFold;
     else if (const auto port = selected_port(m)) asked.yields = port->type;
+    else if (const auto held = held_wire(m)) asked.takes = held->type;
     asked.offered = true;
     asked.limit = workshop::kMaxPowerRows;
     return asked;
@@ -275,6 +291,20 @@ inline std::vector<op::Fold> fold_choices(const Model& m, const workshop::PowerR
             if (count.name != acc.name && count.type.kind == loom::Kind::Int &&
                 op::detail::same_type(acc.type, found->outputs->fields().front().type))
                 out.push_back({count.name, acc.name});
+    return out;
+}
+
+/// THE PORTS OF `row`'S POWER A WIRE OF `type` FITS, by place and name: each input port of exactly
+/// that type, read off the ports the graph holds for that power; none when they are not described.
+inline std::vector<std::pair<std::size_t, std::string>> ports_taking(const Model& m, const workshop::PowerRow& row,
+                                                                     const std::string& type) {
+    std::vector<std::pair<std::size_t, std::string>> out;
+    const auto found = std::find_if(m.palette.begin(), m.palette.end(),
+                                    [&](const auto& p) { return p.identity == row.identity; });
+    if (found == m.palette.end()) return out;
+    const auto described = loom::describe_schema(*found->inputs).fields;
+    for (std::size_t p = 0; p < described.size(); ++p)
+        if (described[p].type == type) out.emplace_back(p, found->inputs->fields()[p].name);
     return out;
 }
 
