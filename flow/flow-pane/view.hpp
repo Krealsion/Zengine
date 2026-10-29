@@ -1207,6 +1207,8 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             says.push_back(card_rows(m, then.x + inset, stood_at(say_names.back(), y, stacked.box.h, then_room), cw, 1));
             y = stacked.box.bottom() + (light ? 10 : 0);
         }
+        const auto slot_y = y;
+        const auto thread_x = rows.box.x + (light ? 22 : m.ch);
         if (nodes) {
             card(pen, rows.box, edge_of(write_name), then_room);
             card_at(rows, write_name, then_room);
@@ -1228,12 +1230,12 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
         if (nodes) handle(rows, write_name, then_room);
         pen.p.subjects["say"] = rows.box;
         write_port = std::pair{rows.box.x, light ? rows.box.y + m.card / 2 : rows.box.y + m.row / 2};
-        // THE THREAD from what it writes down to the first thing it says, where that stands below.
+        // THE THREAD from what it writes down to the first thing it says, or to the place for one,
+        // where that stands below.
         if (threaded) {
             const auto top = rows.box.bottom();
-            const auto end = says.empty() ? top + thread_h : says.front().box.y;
+            const auto end = says.empty() ? slot_y : says.front().box.y;
             if (end - top >= (light ? std::int64_t{8} : m.row)) {
-                const auto thread_x = rows.box.x + (light ? 22 : m.ch);
                 if (light) pen.rect({thread_x, top, 2, end - top}, hue::thread(), gfx::no_paint(), 0, false, then_room);
                 pen.text(thread_x + (light ? 10 - m.inset : m.ch), top + (light ? 2 : 0), "then", hue::quiet(), then_room);
             }
@@ -1269,10 +1271,13 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
         if (nodes && on->emits.empty()) {
             const Box box{then.x + inset, y, cw, light ? 56 : m.row * 2};
             open_place(pen, box, then_room);
+            // ITS BUTTON STANDS UNDER THE THREAD, which runs on through the dashes onto it.
             const auto label = "+ say " + def.name + "." + say_name(on->output);
-            const auto bw = pen.button_width(label);
-            pen.button(box.x + std::max<std::int64_t>(0, (box.w - bw) / 2), box.y + (box.h - (light ? m.tall : m.row)) / 2,
-                       label, "ask-say", {}, Face::Gilt, Icon::None, then_room);
+            const auto by = box.y + (box.h - (light ? m.tall : m.row)) / 2;
+            const auto bx = std::max(box.x + (light ? 8 : 0), thread_x - (light ? 12 : 0));
+            if (light && by > box.y)
+                pen.rect({thread_x, box.y, 2, by - box.y}, hue::thread(), gfx::no_paint(), 0, false, then_room);
+            pen.button(bx, by, label, "ask-say", {}, Face::Gilt, Icon::None, then_room);
             pen.p.subjects["say"] = box;
         }
     }

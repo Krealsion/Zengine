@@ -935,6 +935,32 @@ TEST_CASE("what the last message changed stays lit while the rule runs, until th
     CHECK(pane::picture(m, light_room()).happened.empty());
 }
 
+TEST_CASE("the then thread from what the rule writes runs on, through the dashed place for a say, onto "
+          "its + say button") {
+    auto m = tally(false);
+    const auto view = pane::picture(m, light_room());
+    const auto button = std::find_if(view.hits.begin(), view.hits.end(),
+                                     [](const auto& hit) { return hit.action == "ask-say"; });
+    REQUIRE(button != view.hits.end());
+    const auto thread = pane::hue::thread();
+    std::vector<pane::Box> runs;
+    for (const auto& k : view.marks)
+        if (k.op == pane::Mark::Op::Rect && k.w == 2 && k.fill.role == thread.role && k.fill.rgb == thread.rgb)
+            runs.push_back(k.bounds());
+    // ⚔ MUTATION (tests/mutants/flow_view.md#thread-stops-at-the-place): the thread stops at the
+    // dashed place's edge.
+    // ⚔ MUTATION (tests/mutants/flow_view.md#say-button-beside-the-thread): the button stands in
+    // the middle of the place, beside the thread.
+    // ONE RUN OF IT ENDS ON THE BUTTON'S TOP EDGE, within the button's width.
+    CHECK(std::any_of(runs.begin(), runs.end(), [&](const pane::Box& r) {
+        return r.bottom() == button->y && r.x >= button->x && r.right() <= button->x + button->w;
+    }));
+    // AND THE RUNS JOIN: each starts where one before it ends, from the card down.
+    std::sort(runs.begin(), runs.end(), [](const pane::Box& a, const pane::Box& b) { return a.y < b.y; });
+    REQUIRE(runs.size() >= 2);
+    for (std::size_t i = 1; i < runs.size(); ++i) CHECK(runs[i].y == runs[i - 1].bottom());
+}
+
 TEST_CASE("the rule reads as one sentence, each part still to choose open") {
     using K = pane::Chip::Kind;
     const auto kinds = [](const pane::Model& m) {

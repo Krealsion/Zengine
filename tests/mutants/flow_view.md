@@ -313,3 +313,35 @@ Red in `zengine-flow-tests`:
 
 - what the last message changed stays lit while the rule runs, until the next: the wires whose
   values changed, the steps they reach, what it wrote where the kept value changed, what it said
+
+## thread-stops-at-the-place
+
+The then thread stops at the edge of the dashed place for a say, short of its button.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-            if (light && by > box.y)
++            if (false)
+```
+
+Red in `zengine-flow-tests`:
+
+- the then thread from what the rule writes runs on, through the dashed place for a say, onto its
+  + say button
+
+## say-button-beside-the-thread
+
+The + say button stands in the middle of its place, beside the thread.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-            const auto bx = std::max(box.x + (light ? 8 : 0), thread_x - (light ? 12 : 0));
++            const auto bx = box.x + std::max<std::int64_t>(0, (box.w - pen.button_width(label)) / 2);
+```
+
+Red in `zengine-flow-tests`:
+
+- the then thread from what the rule writes runs on, through the dashed place for a say, onto its
+  + say button
