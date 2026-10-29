@@ -77,3 +77,20 @@ Red in `zengine-graphics-tests`:
 
 - an OS window takes its title and its size from an office that arranges an area in it, and from no
   other; a shaped window is not grown back by what it held before
+
+## drawing-rest-from-a-drag
+
+The drawing facet hands a pane a move a held press carries as though the pointer rested there.
+
+In `workshop/pane_facets.hpp`:
+
+```diff
+             const std::optional<WindowPointer> p = window_.pointer(m, mail, 0, 0);
+-            if (!p || p->press != 0) {
++            if (!p) {
+```
+
+Red in `zengine-graphics-tests`:
+
+- a pane on the drawing facet is handed the part the pointer rests on, once each time that part
+  changes, and its leave once a rest; a move a held press carries is no rest

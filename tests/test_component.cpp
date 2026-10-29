@@ -12,6 +12,7 @@
 // selecting zero cases (POP-01).
 #include "doctest.h"
 
+#include "component/accordion.hpp"
 #include "component/columns.hpp"
 #include "component/control_strip.hpp"
 #include "component/held_choice.hpp"
@@ -1908,4 +1909,151 @@ TEST_CASE("window_tab_strip: the window is derived from the active tab, so a str
     const TabStrip after = window_tab_strip(tabs, 2, 20);
     CHECK(after.text == "[pinned] [all] *f*");
     CHECK(after.before == 0);
+}
+
+TEST_CASE("Accordion: shut shows the header, a press opens it, a resting pointer peeks a shut one, a press during a peek opens it, and one shut under the pointer peeks again only once the pointer has left") {
+    // ⚔ MUTATION (tests/mutants/component.md#accordion-peek-springs-back): a press leaving the
+    // peek standing -- a section shut under the pointer peeks again at once.
+    Accordion a;
+    CHECK(a.fold() == Fold::kShut);
+    CHECK(std::string(fold_mark(a.fold())) == "+");
+    // THE POINTER COMES TO REST ON THE HEADER: the body shows over what follows.
+    CHECK(a.rest(true));
+    CHECK(a.fold() == Fold::kPeek);
+    CHECK(std::string(fold_mark(a.fold())) == "+"); // a peek's header is still the one a press opens
+    CHECK_FALSE(a.rest(true));                       // resting on, nothing moves
+    // A PRESS DURING THE PEEK OPENS IT: the peek was the open seen early.
+    a.press();
+    CHECK(a.fold() == Fold::kOpen);
+    CHECK(std::string(fold_mark(a.fold())) == "-");
+    // SHUT UNDER THE RESTING POINTER: no peek springs back while it rests there...
+    a.press();
+    CHECK(a.fold() == Fold::kShut);
+    CHECK_FALSE(a.rest(true));
+    CHECK(a.fold() == Fold::kShut);
+    // ...until it has left and come back.
+    CHECK_FALSE(a.rest(false));
+    CHECK(a.rest(true));
+    CHECK(a.fold() == Fold::kPeek);
+    CHECK(a.rest(false));
+    CHECK(a.fold() == Fold::kShut);
+    // AN OPEN SECTION IS OPEN WHEREVER THE POINTER IS.
+    a.press();
+    CHECK(a.fold() == Fold::kOpen);
+    CHECK_FALSE(a.rest(true));
+    CHECK_FALSE(a.rest(false));
+    CHECK(a.fold() == Fold::kOpen);
+    // AN OWNER KEEPING THE FOLD ELSEWHERE spends the peek and is handed the fold back.
+    Accordion kept;
+    CHECK(kept.rest(true));
+    kept.spend();
+    CHECK(kept.fold() == Fold::kShut);
+    kept.open = true; // what the owner kept, come back
+    CHECK(kept.fold() == Fold::kOpen);
+}
+
+TEST_CASE("section_span: the header first, then as much of the body as the room holds -- in the room while open, over what follows while it peeks -- and what did not fit counted, at every room") {
+    // ⚔ MUTATION (tests/mutants/component.md#accordion-peek-takes-room): a peek's body counted as
+    // room it takes.
+    for (const Fold fold : {Fold::kShut, Fold::kOpen, Fold::kPeek}) {
+        for (std::size_t header = 0; header <= 2; ++header) {
+            for (std::size_t body = 0; body <= 6; ++body) {
+                for (std::size_t room = 0; room <= 9; ++room) {
+                    const SectionSpan s = section_span(fold, header, body, room);
+                    CAPTURE(header);
+                    CAPTURE(body);
+                    CAPTURE(room);
+                    CHECK(s.header + s.body <= room);
+                    CHECK(s.header == (header < room ? header : room));
+                    CHECK(s.over == (fold == Fold::kPeek));
+                    if (fold == Fold::kShut) {
+                        CHECK(s.body == 0);
+                        CHECK(s.cut == 0);
+                        CHECK(s.taken() == s.header);
+                    } else {
+                        CHECK(s.body + s.cut == body);
+                        CHECK(s.taken() == s.header + (fold == Fold::kOpen ? s.body : 0));
+                    }
+                }
+            }
+        }
+    }
+    // THE WHOLE BODY WHEN IT FITS, and a peek takes none of the room it shows in.
+    CHECK(section_span(Fold::kOpen, 1, 4, 9).body == 4);
+    CHECK(section_span(Fold::kOpen, 1, 4, 9).taken() == 5);
+    CHECK(section_span(Fold::kPeek, 1, 4, 9).taken() == 1);
+    CHECK(section_span(Fold::kPeek, 1, 12, 9).cut == 4);
+}
+
+TEST_CASE("IndependentAccordions: each section opens and shuts alone by its key, one act shuts them all, the pointer peeks one at most, and the open ones are kept across a population that moves until it no longer holds them") {
+    // ⚔ MUTATION (tests/mutants/component.md#group-shut-all-keeps-one,
+    // #group-keep-forgets-nothing): shutting every section leaving one open; a section the
+    // population no longer holds kept open.
+    IndependentAccordions<std::string> group;
+    group.press("files");
+    group.press("terminal");
+    CHECK(group.is_open("files"));
+    CHECK(group.is_open("terminal"));
+    CHECK_FALSE(group.is_open("info"));
+    CHECK(group.opened() == std::vector<std::string>{"files", "terminal"});
+    // ONE SHUTS ALONE: the other stays open, which an exclusive group would not allow.
+    CHECK(group.shut("files"));
+    CHECK_FALSE(group.shut("files")); // already shut: nothing moved
+    CHECK(group.is_open("terminal"));
+    // THE POINTER PEEKS A SHUT SECTION, AND ONE AT MOST.
+    CHECK(group.rest("info"));
+    CHECK(group.fold("info") == Fold::kPeek);
+    CHECK(group.rest("files"));
+    CHECK(group.fold("files") == Fold::kPeek);
+    CHECK(group.fold("info") == Fold::kShut);
+    CHECK(group.rest("terminal"));                 // the peek of `files` ends...
+    CHECK(group.fold("files") == Fold::kShut);
+    CHECK(group.fold("terminal") == Fold::kOpen); // ...and an open one is open wherever it rests
+    CHECK(group.rest("files"));                    // from an open one to a shut one: a peek begins
+    // A PRESS DURING THE PEEK OPENS IT; SHUT AGAIN UNDER THE POINTER, IT WAITS FOR THE POINTER TO LEAVE.
+    group.press("files");
+    CHECK(group.fold("files") == Fold::kOpen);
+    group.press("files");
+    CHECK(group.fold("files") == Fold::kShut);
+    CHECK(group.rest_none() == false);
+    CHECK(group.resting() == nullptr);
+    CHECK(group.rest("files"));
+    CHECK(group.fold("files") == Fold::kPeek);
+    // ONE ACT SHUTS THEM ALL.
+    group.press("info");
+    CHECK(group.shut_all());
+    CHECK(group.opened().empty());
+    CHECK_FALSE(group.shut_all());
+    // KEPT ACROSS A POPULATION THAT MOVES, FORGOTTEN WHEN IT NO LONGER HOLDS THEM.
+    group.restore({"terminal", "files", "files"});
+    CHECK(group.opened() == std::vector<std::string>{"files", "terminal"});
+    std::vector<std::string> population = {"info", "terminal", "files", "hotkeys"};
+    const auto key_of = [](const std::string& s) { return s; };
+    CHECK_FALSE(group.keep(population, key_of));
+    CHECK(group.opened() == std::vector<std::string>{"files", "terminal"});
+    population = {"info", "terminal"};
+    CHECK(group.keep(population, key_of));
+    CHECK(group.opened() == std::vector<std::string>{"terminal"});
+    CHECK(group.resting() == nullptr); // the rest was over `files`, which left
+}
+
+TEST_CASE("RowMap: rows something is drawn over mean nothing beneath it, and what is drawn there names its own") {
+    RowMap<int> map;
+    map.begin();
+    map.row(0, 10);
+    map.row(1, 11);
+    (void)map.span(1, 2, 3, 20, 12);
+    map.row(2, 13);
+    map.row(3, 14);
+    map.cover(1, 2);
+    CHECK(map.at(1, 0) == nullptr);
+    CHECK(map.at(1, 3) == nullptr);
+    CHECK(map.at(2, 0) == nullptr);
+    REQUIRE(map.at(0, 0) != nullptr);
+    CHECK(*map.at(0, 0) == 10);
+    REQUIRE(map.at(3, 0) != nullptr);
+    CHECK(*map.at(3, 0) == 14);
+    map.row(1, 21);
+    REQUIRE(map.at(1, 3) != nullptr);
+    CHECK(*map.at(1, 3) == 21);
 }

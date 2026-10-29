@@ -13,6 +13,7 @@
 
 #include "component/row_map.hpp"
 #include "graphics/canvas.hpp"
+#include "graphics/elements/icon.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
 #include "graphics/pixels.hpp"
@@ -198,9 +199,10 @@ bool part_available(const Part& part) {
 }
 
 /// ROWS AND THEIR PARTS DRAWN, `columns` wide in `room`: the ground, then each row a line of text in
-/// its role (a lit row's nodes named apart above it), cut where a part begins or ends; each run a
-/// part holds asks the part's name -- where parts overlap, the one a press on Workshop's rows
-/// reaches -- recorded unavailable (`graphics::PartFace`) where the part says so; `caret` in front.
+/// its role (a lit row's nodes named apart above it), cut where a part begins or ends, and its fold
+/// mark an outline where the room sets type (`TextRow::mark`); each run a part holds asks the
+/// part's name -- where parts overlap, the one a press on Workshop's rows reaches -- recorded
+/// unavailable (`graphics::PartFace`) where the part says so; `caret` in front.
 /// No row past `max_rows` (above 0) or the window's bounds is drawn. `RowPart`s, or any part with
 /// their name, row and columns.
 template <class Part>
@@ -237,7 +239,18 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
     std::size_t r = 0;
     for (; r < shown; ++r) {
         const auto row = static_cast<std::int64_t>(r);
-        const std::string& text = rows[r].text;
+        // A FOLD MARK, in a window that sets type: its cell's character left out of the text and
+        // the icon table's outline drawn there instead, `down` for an open section's `-` and
+        // `right` for a shut one's `+`; a room of cells draws the character.
+        const std::int64_t mark = rows[r].mark;
+        const bool outlined = !room.cells && mark >= 0 &&
+                              mark < static_cast<std::int64_t>(rows[r].text.size());
+        std::string blanked;
+        if (outlined) {
+            blanked = rows[r].text;
+            blanked[static_cast<std::size_t>(mark)] = ' ';
+        }
+        const std::string& text = outlined ? blanked : rows[r].text;
         const auto said = static_cast<std::int64_t>(text.size());
         std::vector<std::size_t> here;
         std::int64_t extent = said;
@@ -282,7 +295,7 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
             }
             a = b;
         }
-        const std::size_t drawn = runs.size() + (lit ? 1 : 0);
+        const std::size_t drawn = runs.size() + (lit ? 1 : 0) + (outlined ? 2 : 0);
         if (nodes + drawn > graphics::kMaxNodesPerArea ||
             records + asks > graphics::kMaxElementsPerArea) {
             break;
@@ -300,6 +313,16 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
             if (!one.action.empty()) {
                 say_part(one.node, one.action);
             }
+        }
+        if (outlined) {
+            const bool open = rows[r].text[static_cast<std::size_t>(mark)] == '-';
+            const std::int64_t size = (std::min)(line, 2 * advance) * 2 / 3;
+            const std::string node = prefix + "mark";
+            out.sketch.group(node, mark * advance, row * line + (line - size) / 2, size, size);
+            out.sketch.path(node + "/shape",
+                            graphics::Icon::path_data(graphics::Icon::outline(open ? "down" : "right"),
+                                                      size),
+                            graphics::by_role(rows[r].role));
         }
         for (const std::size_t k : here) {
             if (parts[k].name.empty() || out.places.count(parts[k].name) != 0) {
@@ -424,6 +447,12 @@ inline bool press_moved(const graphics::Sketch& newest, const std::string& area,
 namespace canvas_pointer {
 inline constexpr std::int64_t kPress = 1, kMove = 2, kRelease = 3, kLost = 4, kWheel = 5;
 }
+
+/// A PANE TOLD WHERE THE POINTER RESTS ON IT SAYS SO TO ITS FACET (`PaneRowsFacet`,
+/// `PaneDrawingFacet`, `MultiPaneFacet`): the facet then accepts the window's `AreaPointerLeft` beside
+/// its moves, and hands the weave each rest and its leave. A pane that does not say so accepts what
+/// it accepted before, and its moves mean nothing.
+inline constexpr bool kHearsRest = true;
 
 /// ONE POINTER MOMENT A GRAPHICS WINDOW GAVE A PANE'S AREA, as the pane reads it: its phase
 /// (`canvas_pointer::kPress` ... `kWheel`, a hold the window ended being `kLost`), the button, the

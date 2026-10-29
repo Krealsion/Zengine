@@ -19,14 +19,19 @@ namespace zengine::workshop {
 /// No caret, and no selection: negative, as `graphics::role::kNone` is, so neither is a row.
 inline constexpr std::int64_t kNoCaret = -1;
 inline constexpr std::int64_t kNoSelection = -1;
+/// No fold mark on a row.
+inline constexpr std::int64_t kNoMark = -1;
 
 /// ONE ROW OF TEXT: plain text, the role its characters are drawn in, and a ground beneath them
 /// (`role::kNone`, the default, shows whatever the area shows there). Plain ASCII: a character is
-/// an advance of the window's text, and a byte past it would split.
+/// an advance of the window's text, and a byte past it would split. `mark` is the column of a
+/// section's fold mark, `+` or `-` (`component::fold_mark`): a medium of characters draws the
+/// character, and a window that sets type the icon table's `right` or `down` in its place.
 struct TextRow {
     std::string text;
     std::int64_t role = graphics::role::kFill;
     std::int64_t background = graphics::role::kNone;
+    std::int64_t mark = kNoMark;
     bool operator==(const TextRow&) const = default;
 };
 
@@ -67,6 +72,7 @@ struct ComposedRows {
 struct RowCell {
     std::int64_t row = 0, column = 0;
     bool shown = false;
+    bool operator==(const RowCell&) const = default;
 };
 
 } // namespace zengine::workshop

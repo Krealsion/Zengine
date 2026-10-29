@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace zengine::desktop_pane {
 
@@ -100,6 +101,11 @@ inline constexpr const char* kActionKeysUp = "hotkeys.up";       ///< scroll the
 inline constexpr const char* kActionKeysDown = "hotkeys.down";   ///< ...and down
 inline constexpr const char* kActionKeysTop = "hotkeys.top";     ///< ...to its first row
 inline constexpr const char* kActionKeysBottom = "hotkeys.bottom"; ///< ...and its last
+/// THE TABLE'S SECTIONS, a section a pane: open the one the cursor is on, or step into it when it
+/// is open; shut it, or from a key step to its header; and shut every section in one act.
+inline constexpr const char* kActionKeysOpen = "hotkeys.open";
+inline constexpr const char* kActionKeysShut = "hotkeys.shut";
+inline constexpr const char* kActionKeysShutAll = "hotkeys.shut-all";
 /// THE MENU KEY, in both panes: the same rows a right press on the marked row offers.
 inline constexpr const char* kActionMenu = "launcher.menu";
 inline constexpr const char* kActionKeysMenu = "hotkeys.menu";
@@ -147,17 +153,18 @@ inline constexpr const char* kMenuReset = "hotkeys.reset";
 /// in the weave a weaver replaces, as the Terminal's office is.
 inline constexpr const char* kInfoRole = "zengine.info";
 
-/// The state a same-shape reload keeps: the weaver's position, and nothing else -- the inventory
-/// is the host's reading, asked for again by every new image. The cursor is an identity (two
-/// durable keys), and `cursor` only where the marker sits; Return and `x` act on the identity. A
-/// chosen pane that left the list keeps its keys, so a reloaded image still knows the choice is
-/// lost; both keys empty means nothing was ever chosen.
+/// The state a same-shape reload keeps: the weaver's position, and which of the Hotkeys pane's
+/// sections are open -- the inventory and the keymap are the host's readings, asked again by every
+/// new image. The cursor is an identity (two durable keys), and `cursor` only where the marker
+/// sits; Return and `x` act on the identity. A chosen pane that left the list keeps its keys, so a
+/// reloaded image still knows the choice is lost; both keys empty means nothing was ever chosen.
 struct DesktopState {
     std::int64_t cursor = 0;   ///< which inventory row the marker is on
     std::string cursor_office; ///< the pane chosen, by its two durable keys -- kept when it leaves
     std::string cursor_pane;   ///< the list; both empty until the first row is held
-    ZEN_SHAPE(DesktopState, 2, ZEN_FIELD(cursor), ZEN_FIELD(cursor_office),
-              ZEN_FIELD(cursor_pane));
+    std::vector<std::string> hotkeys_open = {}; ///< the Hotkeys pane's open sections, by identity
+    ZEN_SHAPE(DesktopState, 3, ZEN_FIELD(cursor), ZEN_FIELD(cursor_office),
+              ZEN_FIELD(cursor_pane), ZEN_FIELD(hotkeys_open));
 };
 
 } // namespace zengine::desktop_pane

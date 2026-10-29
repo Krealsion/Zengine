@@ -4816,6 +4816,7 @@ inline RowCell row_cell_at(const CanvasRows& rows, std::int64_t x, std::int64_t 
 /// selection, where its marks stand.
 struct HeldReading {
     std::vector<std::string> rows;
+    std::vector<std::int64_t> roles; ///< each row's role: that of the first text drawn on it
     std::map<std::string, RowPart> parts;
     RowsCaret caret;
 };
@@ -4845,8 +4846,12 @@ inline HeldReading held_reading(std::int64_t kind) {
     for (const TextRow& row : drawn_rows(sketch, a->h / face.line, columns, map, face)) {
         const std::size_t end = row.text.find_last_not_of(' ');
         out.rows.push_back(end == std::string::npos ? std::string() : row.text.substr(0, end + 1));
+        out.roles.push_back(row.role);
     }
-    while (!out.rows.empty() && out.rows.back().empty()) out.rows.pop_back();
+    while (!out.rows.empty() && out.rows.back().empty()) {
+        out.rows.pop_back();
+        out.roles.pop_back();
+    }
     (void)map.settle();
     const auto available = [&](const DrawnPart& p) {
         for (const gfx::ElementRecord& r : a->records) {

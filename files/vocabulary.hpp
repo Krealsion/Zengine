@@ -41,10 +41,12 @@ inline constexpr const char* kProjectFilesSummary = "browse and open files";
 inline constexpr const char* kFilesStem = "zengine-files";
 
 /// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): how
-/// many rows a wheel notch moves the cursor, and how many entries one listing holds, at most
-/// `kMaxListedEntries`.
+/// many rows a wheel notch moves the cursor, how many entries one listing holds, at most
+/// `kMaxListedEntries`, and whether the places section is open -- the pane's own word, which it
+/// commits itself when the weaver opens or shuts the section.
 inline constexpr const char* kSettingWheelRows = "wheel-rows";
 inline constexpr const char* kSettingListedEntries = "listed-entries";
+inline constexpr const char* kSettingPlaces = "places";
 
 // ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) --------
 //
@@ -63,6 +65,8 @@ inline constexpr const char* kActionMark = "files.mark";
 inline constexpr const char* kActionNextMark = "files.next-mark";
 inline constexpr const char* kActionPreviousMark = "files.previous-mark";
 inline constexpr const char* kActionPickBuildable = "files.pick-buildable";
+/// Open the places section, or shut it: the origin, the weaver's marks and the filesystem roots.
+inline constexpr const char* kActionPlaces = "files.places";
 /// Start what the selected row is, kept by nobody: an app directly in the project's `apps/`, or a
 /// demo the demo service lists; and go to the folder of the demos (`zengine.launcher`).
 inline constexpr const char* kActionStart = "files.start";
@@ -115,6 +119,7 @@ inline constexpr const char* kMenuParent = "files.menu.parent";
 inline constexpr const char* kMenuRefresh = "files.menu.refresh";
 inline constexpr const char* kMenuNextMark = "files.menu.next-mark";
 inline constexpr const char* kMenuPreviousMark = "files.menu.previous-mark";
+inline constexpr const char* kMenuPlaces = "files.menu.places";
 inline constexpr const char* kMenuChoose = "files.menu.choose";
 inline constexpr const char* kMenuEditField = "files.menu.edit-field";
 inline constexpr const char* kMenuNextField = "files.menu.next-field";

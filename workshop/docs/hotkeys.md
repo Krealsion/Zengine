@@ -136,11 +136,16 @@ for the pane you are in; each folder's front page lists its manuals ([the map](.
 ## The Hotkeys pane — `Ctrl`+`k`
 
 `Ctrl`+`k` opens the **Hotkeys** pane, or puts you in it ([its commands](zengine.desktop.md#commands-in-the-hotkeys-table)): the desktop's list of every key as it
-is **in force right now** — a heading for each place a key is answered (command mode, the
-arranging scopes, the contextual menu, the name line, each pane that declared rows, the keys
-above every mode), and under it each row: the key, spelled as your keymap file spells it unless you
+is **in force right now**, in a section for each place a key is answered -- each pane that declared
+rows, the keys above every mode, command mode, the arranging scopes, the contextual menu, the name
+line. The panes on your desk come first, Workshop's own places next, and the panes not on your desk
+last, in grey. Every section is shut at first, its header saying how many keys it holds; open one
+with `→` or a click on its header, shut it with `←`, and shut them all with `Shift`+`←`. Under an
+open section's header stands each row: the key, spelled as your keymap file spells it unless you
 chose the short spelling ([how keys are spelled](#how-keys-are-spelled)), what it does, and the id
-a file names it by. A `*` marks a key your own file moved or switched off.
+a file names it by. A `*` marks a key your own file moved or switched off. In the window, and in a
+Windows console, resting the pointer on a shut section's header shows its keys over the rows below
+until the pointer moves away. Which sections are open lasts while the desktop is reloaded.
 Beneath the list it names the keymap file this run reads and what reading it came to; a character
 the pane cannot draw there -- an `é` in your profile's folder, say -- is shown as `?`.
 `↑` `↓` `Home` `End` scroll it.
@@ -154,7 +159,8 @@ a mode — reading it takes no keyboard away from anything, and every key it lis
 is open. What it shows is what Workshop tells it: the effective keymap, re-told whenever your
 file, a pane's declaration, the desktop's own rows or an edit change it. It is a table — the key
 in the spelling you chose for it, the label, the id, and `*` for a row your file moved — with a row
-cursor: `↑` `↓` walk it, `Home` `End` jump, the wheel walks it too, and a click chooses a row.
+cursor over the sections' headers and the open sections' keys: `↑` `↓` walk it, `Home` `End` jump,
+the wheel walks it too, and a click chooses a row.
 An action with several keys is listed once per key. Inside any text field, the text
 box's own editing keys — copy, cut, paste, select, word movement, undo — are shown for discovery
 but are **not remappable**: they belong to the editing component, in every box at once, and the
@@ -303,11 +309,10 @@ never touches a file that was refused or that changed under it
 The file and its folder may be named in any language. Below, Workshop was launched with its
 per-user folders, and the file its `--keymap` names, in a folder named `Zoë Ж`, then quit and
 launched again: the desk, the hidden titles and the keymap came back from there. The keymap gives
-the Pane Manager `alt+up` beside `ctrl+p`; Workshop's notice names the file whole -- shown at
-the foot of this picture, where Workshop said it before it had a pane for it -- and the Hotkeys
-pane spells what it cannot draw as `?`.
+the Pane Manager `alt+up` beside `ctrl+p`; Workshop's notice in the Notices pane and the Hotkeys
+pane both spell what they cannot draw as `?`.
 
-![Workshop launched again from a folder named Zoë Ж: the desk saved there restored, the legend offering ^p and ^q for panes, the Hotkeys pane naming the keymap file Zo? ?/keymap.json, and the notice line naming it Zoë Ж/keymap.json, applied with 2 overrides](images/hotkeys-keymap-folder-window.png)
+![Workshop launched again from a folder named Zoë Ж: the desk saved there restored with its titles hidden, the legend offering ctrl+p and alt+up for panes, the Hotkeys pane naming the keymap file Zo? ?/keymap.json, and Notices saying it was applied with 2 overrides](images/hotkeys-keymap-folder-window.png)
 
 **What is refused, by name:**
 
