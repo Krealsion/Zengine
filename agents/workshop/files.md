@@ -68,7 +68,7 @@ WHY — `agents/decisions/four-facts-that-coincide.md`
 LAW — `files/os.cpp` is the only place this repository asks an operating system for its roots, and nothing on the drawing path may ask for them: what the pane says about where it is is in memory.
 
 MEANS
-- host-reported roots are never "every reachable path": a UNC share is in no drive list;
+- host-reported roots are never "every reachable path": a UNC share is in no drive list; the places show the roots read with the listing (WL-FILES-12), never on a paint;
 - the residual — no origin and no marks leaves the pane nowhere to jump — is named;
 - the keyboard readiness test this law used to constrain is gone: every runtime pane takes it.
 
@@ -172,6 +172,39 @@ MEANS
 - knowledge is not authority: hearing where the project is permits reading nothing under it.
 
 WHY — `agents/decisions/files-is-a-weave.md`
+
+## WL-FILES-18 — The places are a section of the browser, and their fold is the pane's own word
+
+LAW — The origin, the marks and the roots the listing read are a section under the header, shut at first and counted; its fold is `places` in the layout's row, which the pane commits itself.
+
+MEANS
+- a press on its header, `files.places` or its menu row asks the layouts' owner; one fold in flight, a refusal said;
+- what shows is what the row hands back; open, a row a place takes the listing's rows, leaving it one, and the pane offers again; a press on a place goes there;
+- the pointer resting on the shut header shows the places over the listing, taking no room; a press on one opens them.
+
+DOES NOT MEAN
+- that a peek is kept, or that a fold writes a size: a `fit` row follows the new offer.
+
+WHY — `agents/decisions/an-accordion-is-a-section-its-owner-folds.md`
+
+## WL-FILES-19 — A path is cut in its middle
+
+LAW — The header's path and each place's are fitted by `pane_text::fit_path`: the root that says which filesystem, the mark, and as much of the end as the row holds.
+
+MEANS
+- a path that fits is drawn whole; a row with no room for the root, the mark and a character is cut at its end.
+
+WHY — `agents/decisions/a-path-is-not-a-sentence.md`
+
+## WL-FILES-20 — A path the pointer rests on stands whole across its row
+
+LAW — Where the medium reports a resting pointer, a path its row cut stands whole across the row while the pointer rests on it, scrolled to where the pointer's column puts it, until it leaves.
+
+MEANS
+- the row's first column shows the path's start and its last the end (`pane_text::scrub`); no other row moves;
+- nothing is kept: a POSIX terminal reports no resting pointer (WL-PTR-09), and there the cut stands.
+
+WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## Do not assume
 
@@ -311,3 +344,32 @@ RecipeAuthorRequested RecipeOutcome OpenSourceRequested SourceOpened kEditorRole
 door answers an office, and refuses speech with no author" "the project door spends this host's one
 recipe writer and re-words nothing"
 `tests/test_workshop_panes_editor.cpp` "the door refuses speech with no author, and answers nobody"
+
+### WL-FILES-18
+`files/vocabulary.hpp` kSettingPlaces kActionPlaces kMenuPlaces
+`files/files.cpp` setting_rows on_settings fold_places places offer_again go_to_place rest
+`files/browser_view.hpp` say_places say_peek
+`component/accordion.hpp` Accordion section_span
+`tests/test_workshop_panes_files.cpp` "Files' places are a section of the pane: shut at first and
+saying how many they hold, opened and shut by their header and by `p` as the pane's own word in the
+layout's row, and a place pressed is gone to" "in a window that reports a resting pointer, Files'
+shut places peek over the rows under their header and take no room, the pointer on what the peek
+shows keeps it, a press there opens them, a move a held press carries is no rest, and the leave ends
+the peek"
+
+### WL-FILES-19
+`workshop/pane_text.hpp` path_root fit_path
+`files/browser_view.hpp` say_header place_text
+`tests/test_workshop_files.cpp` "a pane fits a path by its middle -- its root, the mark and as much of
+its end as fits -- and a resting pointer scrubs the whole of it across a row"
+`tests/test_workshop_panes_files.cpp` "Files' path keeps its root and as much of its end as fits, cut
+in the middle, and under a resting pointer stands whole across the row, scrolled to where the
+pointer's column puts it, until the pointer leaves"
+
+### WL-FILES-20
+`workshop/pane_text.hpp` scrub
+`files/files.cpp` rest pointer_left Reveal
+`files/browser_view.hpp` say_header say_places
+`tests/test_workshop_panes_files.cpp` "Files' path keeps its root and as much of its end as fits, cut
+in the middle, and under a resting pointer stands whole across the row, scrolled to where the
+pointer's column puts it, until the pointer leaves"

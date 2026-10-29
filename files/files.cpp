@@ -21,6 +21,7 @@
 #include "workshop/pane_settings.hpp"
 #include "workshop/pane_settings_taken.hpp"
 #include "workshop/pane_text.hpp"
+#include "workshop/settings_seam_vocabulary.hpp" // the places' fold, committed as the pane's word
 #include "files/marks_persist.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/path_admission.hpp"
@@ -33,6 +34,7 @@
 #include "builder/vocabulary.hpp"
 #include "launcher/configured.hpp"
 #include "launcher/vocabulary.hpp"
+#include "component/accordion.hpp"
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
@@ -101,6 +103,8 @@ constexpr std::int64_t kFilesWheelRowsHigh = 24;
 /// be applied at all.
 using zengine::workshop::pane_text::ascii_spelling;
 using zengine::workshop::pane_text::fit;
+using zengine::workshop::pane_text::fit_path;
+using zengine::workshop::pane_text::scrub;
 
 /// A build candidate the chooser holds: a place, and which of the two recipe kinds it may be
 /// tried as. Local: it is the pane's mode state and crosses no wire.
@@ -148,6 +152,10 @@ inline constexpr std::int64_t kCandidate = 2; ///< a chooser candidate; `index` 
 inline constexpr std::int64_t kField = 3;     ///< one authoring field; `index` is its step
 inline constexpr std::int64_t kLine = 4;      ///< the authoring line itself (the caret's row)
 inline constexpr std::int64_t kControl = 5;   ///< a labelled control; `id` is its operation
+inline constexpr std::int64_t kPlaces = 6;    ///< the places section's header
+inline constexpr std::int64_t kPlace = 7;     ///< a place in the open section; `index` into them
+inline constexpr std::int64_t kPeek = 8;      ///< a place a peek shows over the listing
+inline constexpr std::int64_t kPath = 9;      ///< the header's path, the place being looked at
 } // namespace files_row
 
 /// One meaning, and the subject it was painted about. The subject is part of the meaning, which
@@ -172,7 +180,8 @@ struct FilesMeaning {
 struct FilesAsk {
     enum class Kind {
         kOpen, kUseRecipes, kMark, kAuthor, kStart, ///< acts waiting on Workshop's word
-        kRoot, kOpening, kRecipes, kLaunch          ///< the project, opening and launcher's asks
+        kRoot, kOpening, kRecipes, kLaunch,         ///< the project, opening and launcher's asks
+        kFold                                       ///< the places' fold, asked of the layouts' owner
     };
     Kind kind = Kind::kRoot;
     std::string subject;         ///< the entry or candidate a refusal names
@@ -201,8 +210,10 @@ inline auto of_kind(FilesAsk::Kind kind) {
 // The weave
 // =============================================================================
 
+/// Its rows, and the pointer resting on them: the places peek under it, and a path shows whole.
 using Rows = ws::PaneRowsFacet<files::kProjectFilesPane, files::kFilesRole,
-                               zengine::manual::pages::zengine_files::kManual, FilesMeaning>;
+                               zengine::manual::pages::zengine_files::kManual, FilesMeaning,
+                               ws::v2::PaneOffered, ws::kHearsRest>;
 using Asks = ws::AskFacet<files::kProjectFilesPane, files::kFilesRole, FilesAsk>;
 using Actions = ws::PaneActionFacet<files::kProjectFilesPane, files::kFilesRole>;
 using Menu = ws::PaneMenuFacet<files::kProjectFilesPane, files::kFilesRole>;
@@ -214,15 +225,18 @@ class FilesWeave
           FilesWeave, files::FilesState,
           loom::Accept<PaneKey, PaneTextInput, ProjectRoot, RecipeOutcome, SourceOpened,
                        zengine::builder::BuildStatus, zengine::launcher::Launched, gfx::ClipboardCopy,
-                       gfx::ClipboardText>,
+                       gfx::ClipboardText, ws::PaneSettingCommitAnswered>,
           loom::Emit<ProjectRootRequested, RecipeUseRequested, RecipeAuthorRequested,
                      OpenSourceRequested, zengine::builder::StatusRequested, zengine::launcher::Launch,
                      ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
-                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared>> {
+                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
+                     ws::PaneSettingCommitRequested>> {
 public:
+    /// THE PANE AS IT WOULD LIKE TO STAND: its rows, and the places' rows beside them while that
+    /// section is open, so a pane the layout sizes `fit` follows the fold.
     PaneOffered offering() const {
         return PaneOffered{files::kProjectFilesPane, files::kProjectFilesName,
-                           files::kProjectFilesSummary, 9, 56};
+                           files::kProjectFilesSummary, kFilesRows + places_rows_offered(), 56};
     }
 
     /// The rows the pane answers to, and the settings it takes.
@@ -235,9 +249,14 @@ public:
 
     /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, as the layouts' owner handed them and its
     /// facet took them whole. A listing held to fewer or more entries is walked again, keeping the
-    /// row the weaver was on. Held as plain members, never reload state.
+    /// row the weaver was on; the places show as the row keeps them, and the pane offers again when
+    /// that moves what it would like. Held as plain members, never reload state.
     void on_settings(const ws::SettingsTaken& taken, loom::Mail& mail) {
         wheel_rows_ = taken.number(files::kSettingWheelRows);
+        row_revision_ = taken.revision;
+        const bool places = taken.flag(files::kSettingPlaces);
+        const bool folded = places != places_.open;
+        places_.open = places;
         const auto listed = static_cast<std::size_t>(taken.number(files::kSettingListedEntries));
         if (listed != listed_entries_) {
             listed_entries_ = listed;
@@ -246,12 +265,17 @@ public:
                 say(mail);
             }
         }
+        if (folded) {
+            offer_again(mail);
+            say(mail);
+        }
     }
     /// ...THE FIRST THE LIFE HOLDS: the room it drew nothing in, drawn now.
     void on_settings_held(loom::Mail& mail) { say(mail); }
 
     /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
-    /// the wheel's rows a notch, pinned, and the entries one listing holds.
+    /// the wheel's rows a notch, pinned, the entries one listing holds, and the places section,
+    /// shut at first.
     static std::vector<ws::v2::PaneSettingRow> setting_rows() {
         ws::v2::PaneSettingRow wheel;
         wheel.key = files::kSettingWheelRows;
@@ -268,7 +292,12 @@ public:
         listed.high = static_cast<std::int64_t>(ws::kMaxListedEntries);
         listed.tags = {"limits"};
         listed.summary = "the most entries one directory listing holds";
-        return {wheel, listed};
+        ws::v2::PaneSettingRow places;
+        places.key = files::kSettingPlaces;
+        places.flag = false;
+        places.tags = {"view"};
+        places.summary = "the places section open: origin, marks, roots";
+        return {wheel, listed, places};
     }
 
     /// The window gives the pane's area its room, the one beat on which this tool draws. The listing is re-enumerated on it
@@ -324,8 +353,8 @@ public:
         // THE PRESS IS READ AGAINST THE PICTURE IT WAS AIMED AT, before anything below changes the
         // next one: spending the notice moves every row up, and a new cursor moves the window.
         const FilesMeaning* m = room().map().at(row, column);
-        if (m == nullptr || m->kind == files_row::kNone) {
-            return; // the notice, the header, a marker row, or blank space names nothing
+        if (m == nullptr || m->kind == files_row::kNone || m->kind == files_row::kPath) {
+            return; // the notice, the header and its path, a marker row, or blank space
         }
         // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds,
         // too (`on_action` says why an open needs the saying).
@@ -334,6 +363,12 @@ public:
             [&] {
                 if (m->kind == files_row::kControl) {
                     perform(m->id, mail);
+                } else if (m->kind == files_row::kPlaces || m->kind == files_row::kPeek) {
+                    // THE HEADER OPENS THE PLACES OR SHUTS THEM, and a press on what a peek shows
+                    // opens them: the peek was the section open, seen early.
+                    fold_places(m->kind == files_row::kPeek || !places_.open, mail);
+                } else if (m->kind == files_row::kPlace) {
+                    go_to_place(m->subject, mail);
                 } else if (m->kind == files_row::kEntry && !chooser_.open && !authoring_.open) {
                     // A PRESS ON THE ALREADY-SELECTED ROW ACTIVATES IT, AND ONLY WHERE THE KEYS
                     // ALREADY WERE: the press that brings the keys to this pane is a weaver
@@ -468,6 +503,51 @@ public:
         move(-notches);
         if (state_.cursor != was) {
             notice_.clear();
+            say(mail);
+        }
+    }
+
+    /// THE POINTER RESTING ON THE ROWS, where the medium reports one (`PaneRowsFacet`): over the
+    /// places' header, or the places a peek shows, the shut section peeks; over a path the row
+    /// cut, the path shows whole, from where the pointer's column puts it. Presentation alone:
+    /// nothing is kept, no act is spent and the notice stands.
+    void rest(const ws::RowCell& at, loom::Mail& mail) {
+        const FilesMeaning* m = at.shown ? room().map().at(at.row, at.column) : nullptr;
+        bool moved = places_.rest(m != nullptr && (m->kind == files_row::kPlaces ||
+                                                   m->kind == files_row::kPeek));
+        std::optional<Reveal> now;
+        if (m != nullptr && (m->kind == files_row::kPath || m->kind == files_row::kPlace)) {
+            now = Reveal{m->kind, m->index, at.column};
+        }
+        if (now != reveal_) {
+            reveal_ = now;
+            moved = true;
+        }
+        if (moved) {
+            say(mail);
+        }
+    }
+    /// ...AND ITS LEAVE: the peek ends, and every path is cut again.
+    void pointer_left(loom::Mail& mail) {
+        bool moved = places_.rest(false);
+        if (reveal_) {
+            reveal_.reset();
+            moved = true;
+        }
+        if (moved) {
+            say(mail);
+        }
+    }
+
+    /// WHAT THE LAYOUTS' OWNER MADE OF THE PLACES' FOLD this pane asked it to keep. The fold shows
+    /// when the owner hands the row back (`on_settings`), which it does before it answers; a
+    /// refusal leaves the places as the row keeps them, and says why.
+    void on(const ws::PaneSettingCommitAnswered& said, loom::Mail& mail) {
+        if (!asks().answered(mail, of_kind(FilesAsk::Kind::kFold))) {
+            return;
+        }
+        if (!said.accepted) {
+            notice_ = places_stay() + " -- " + said.refusal;
             say(mail);
         }
     }
@@ -607,6 +687,8 @@ public:
             say(mail);
         } else if (id == files::kActionPickBuildable) {
             pick_buildable(mail);
+        } else if (id == files::kActionPlaces) {
+            fold_places(!places_.open, mail);
         } else if (id == files::kActionStart) {
             start(mail);
         } else if (id == files::kActionDemos) {
@@ -742,6 +824,7 @@ public:
         offer.row(files::kMenuRefresh, "look at this directory again");
         offer.row(files::kMenuPreviousMark, "go to the previous mark");
         offer.row(files::kMenuNextMark, "go to the next mark");
+        offer.row(files::kMenuPlaces, places_.open ? "shut the places" : "open the places");
         menu().send_continuing(mail, offer, correlation);
     }
 
@@ -799,6 +882,7 @@ public:
                      {files::kMenuRefresh, files::kActionRefresh},
                      {files::kMenuNextMark, files::kActionNextMark},
                      {files::kMenuPreviousMark, files::kActionPreviousMark},
+                     {files::kMenuPlaces, files::kActionPlaces},
                      {files::kMenuChoose, files::kActionChoose},
                      {files::kMenuWriteRecipe, files::kActionWriteRecipe},
                      {files::kMenuCancel, files::kActionCancel}};
@@ -927,6 +1011,10 @@ public:
         case FilesAsk::Kind::kLaunch:
             notice_ = "nothing was started -- the launcher could not be asked (" + refused.reason + ")";
             break;
+        case FilesAsk::Kind::kFold:
+            notice_ = places_stay() + " -- the layouts' owner could not be asked (" +
+                      refused.reason + ")";
+            break;
         case FilesAsk::Kind::kRoot:
         case FilesAsk::Kind::kRecipes: return;
         default:
@@ -1051,6 +1139,8 @@ private:
         row(files::kActionNextMark, "next mark", input::scan::kN);
         row(files::kActionPreviousMark, "previous mark", input::scan::kN, input::mod::kShift);
         row(files::kActionPickBuildable, "pick buildable", input::scan::kA);
+        row(files::kActionPlaces, "open or shut the places", input::scan::kP, input::mod::kNone,
+            {ws::cause_of<ws::PaneSettingCommitRequested>()});
         row(files::kActionStart, "start this app or demo", input::scan::kUnknown, input::mod::kNone,
             {ws::cause_of<zengine::launcher::Launch>()});
         row(files::kActionDemos, "go to the demos", input::scan::kUnknown);
@@ -1139,7 +1229,10 @@ private:
 
     std::string where() const { return state_.current_dir.empty() ? std::string("nowhere") : state_.current_dir; }
 
+    /// LIST WHERE THE BROWSER IS, and read the filesystem roots the places show with it: asked at
+    /// the listing's moments, never on the paint path (WL-FILES-07).
     void refresh() {
+        roots_ = ws::host_filesystem_roots();
         if (state_.current_dir.empty()) {
             listing_ = Listing{};
             listing_.refusal =
@@ -1324,6 +1417,77 @@ private:
         notice_ = "at " + went.path + (why.empty() ? std::string() : " (" + why + ")");
     }
 
+    // ---- The places: a section of the browser (component::Accordion) --------------------
+
+    /// THE PLACES THE SECTION SHOWS: the origin, the weaver's marks and the filesystem roots, in
+    /// the traversal's order (WL-FILES-06), the roots as the listing last read them.
+    std::vector<MarkedPlace> places() const { return marks_.destinations(roots_); }
+
+    /// OPEN THE PLACES OR SHUT THEM: the pane's own word for its row, asked of the layouts' owner,
+    /// which keeps it for this layout and hands the row back; what shows is what it kept. One fold
+    /// in flight: a press while one is refused out loud and never held.
+    void fold_places(bool open, loom::Mail& mail) {
+        places_.spend();
+        if (asks().holds(of_kind(FilesAsk::Kind::kFold))) {
+            notice_ = "the places are still being kept -- press again";
+            say(mail);
+            return;
+        }
+        ws::PaneSettingCommitRequested fold;
+        fold.provider = files::kFilesRole;
+        fold.pane = files::kProjectFilesPane;
+        fold.revision = row_revision_;
+        fold.key = files::kSettingPlaces;
+        fold.flag = open;
+        if (asks().ask(mail, ws::kLayoutsRole, fold, asking(FilesAsk::Kind::kFold)) !=
+            Asks::Asked::kHeld) {
+            notice_ = places_stay() + " -- the layouts' owner could not be asked";
+        }
+        say(mail);
+    }
+
+    /// The head of the sentence that says a fold did not happen.
+    std::string places_stay() const {
+        return std::string("the places stay ") + (places_.open ? "open" : "shut");
+    }
+
+    /// GO TO A PLACE THE SECTION SHOWS, as a jump to it would: its listing, the cursor on its
+    /// first row, and `at <path>` with why the place is known.
+    void go_to_place(const std::string& path, loom::Mail& mail) {
+        const std::string to = ws::admit_location(path);
+        if (to.empty()) {
+            notice_ = "`" + ws::shown_name(path) + "` cannot be reached from here";
+            say(mail);
+            return;
+        }
+        state_.current_dir = to;
+        refresh();
+        const std::string why = ws::provenance_words(marks_.provenance(to));
+        notice_ = "at " + to + (why.empty() ? std::string() : " (" + why + ")");
+        say(mail);
+    }
+
+    /// THE PLACES' ROWS THE PANE WOULD LIKE: none while the section is shut, a row a place while it
+    /// is open, to `kMostPlacesOffered`.
+    std::int64_t places_rows_offered() const {
+        if (!places_.open) {
+            return 0;
+        }
+        return (std::min)(static_cast<std::int64_t>(places().size()), kMostPlacesOffered);
+    }
+
+    /// THE PANE OFFERED AGAIN when what it would like moved -- the places opened or shut, or their
+    /// count while they are open -- so a pane the layout sizes `fit` follows (WL-PANE-17), and one
+    /// sized any other way is placed as it was.
+    void offer_again(loom::Mail& mail) {
+        const std::int64_t rows = kFilesRows + places_rows_offered();
+        if (rows == offered_rows_) {
+            return;
+        }
+        offered_rows_ = rows;
+        (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, offering());
+    }
+
     // ---- Start an app or a demo (zengine.launcher) ---------------------------------------
 
     /// WHAT THE SELECTED ROW STARTS, if anything: a folder directly in the project's `apps/` is
@@ -1484,6 +1648,13 @@ private:
             room().hold(); // nothing is published, so no row can name anything
             return;
         }
+        // WHAT THE PANE WOULD LIKE MOVES WITH THE PLACES, and a path shown whole is shown only while
+        // the row it is in is still drawn.
+        offer_again(mail);
+        if (reveal_ && reveal_->kind == files_row::kPlace &&
+            (!places_.open || reveal_->index >= places().size())) {
+            reveal_.reset();
+        }
         // THE SENTENCE IS NEVER THE THING THAT DOES NOT FIT: it is the answer to the weaver's
         // last act. A one-row room keeps its header instead, which is the pane's identity and
         // where it is standing; there is nothing useful to say in one row twice.
@@ -1504,8 +1675,9 @@ private:
     }
 
     /// WHAT FILES CALLS ITS PARTS: a listing's entry by its name, `entry:<name>`; a buildable
-    /// candidate, `candidate:<name>`; an authoring field, line or not, `field:<name>`; and a
-    /// control by its operation, `control:<id>`.
+    /// candidate, `candidate:<name>`; an authoring field, line or not, `field:<name>`; a control
+    /// by its operation, `control:<id>`; the places' header `places`, and a place, open or seen
+    /// in a peek, `place:<path>`.
     static std::string part_name(const FilesMeaning& m) {
         switch (m.kind) {
         case files_row::kEntry: return "entry:" + m.subject;
@@ -1513,6 +1685,9 @@ private:
         case files_row::kField:
         case files_row::kLine: return "field:" + m.subject;
         case files_row::kControl: return "control:" + m.id;
+        case files_row::kPlaces: return "places";
+        case files_row::kPlace:
+        case files_row::kPeek: return m.subject.empty() ? std::string() : "place:" + m.subject;
         default: return std::string();
         }
     }
@@ -1532,6 +1707,11 @@ private:
     std::vector<ControlRow> browser_controls() const;
     void say_controls(const std::vector<ControlRow>& controls);
     void say_browser();
+    void say_header(const std::string& head);
+    std::int64_t say_places(std::int64_t body_rows, std::int64_t* peek_from);
+    void say_peek(std::int64_t from);
+    std::string place_text(const MarkedPlace& place, std::size_t path_columns) const;
+    std::size_t place_path_columns(const std::vector<MarkedPlace>& stops) const;
     void say_entries(std::size_t total, std::size_t body_rows);
 
     // ---- Pick buildable, and the recipe form: files/recipe_authoring.hpp ----------------
@@ -1583,6 +1763,27 @@ private:
     Menu& menu() { return this->template facet<Menu>(); }
 
     static constexpr std::int64_t kHeaderRows = 1;
+    /// THE ROWS THE PANE WOULD LIKE with its places shut, and the most rows of places it adds to
+    /// them while they are open.
+    static constexpr std::int64_t kFilesRows = 9;
+    static constexpr std::int64_t kMostPlacesOffered = 16;
+
+    /// THE PLACES' FOLD: open as the layout's row keeps it (`places`), and the pointer resting over
+    /// the section; the row's revision a fold is committed against; the roots the listing read.
+    component::Accordion places_;
+    std::int64_t row_revision_ = 0;
+    std::vector<std::string> roots_;
+    /// The rows last offered, so the pane offers again only when what it would like moved.
+    std::int64_t offered_rows_ = kFilesRows;
+    /// A PATH SHOWN WHOLE under the resting pointer: the header's (`kPath`) or a place's
+    /// (`kPlace`, `index` into them), and the pointer's column, which says how far it scrolls.
+    struct Reveal {
+        std::int64_t kind = files_row::kNone;
+        std::size_t index = 0;
+        std::int64_t column = 0;
+        bool operator==(const Reveal&) const = default;
+    };
+    std::optional<Reveal> reveal_;
 
     bool settled_ = false;
     /// HOW MANY BUILDS THE TOOL HAD BEEN ASKED FOR when this pane last heard from it, and

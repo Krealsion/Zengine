@@ -45,6 +45,64 @@ inline std::string fit(std::string text, std::int64_t width) {
     return text;
 }
 
+/// HOW MUCH OF A PATH NAMES ITS FILESYSTEM: a share's `//server/`, a drive's `C:/`, POSIX's `/`,
+/// and nothing of a relative path. A path spelled with generic slashes.
+inline std::size_t path_root(std::string_view path) {
+    if (path.size() >= 2 && path[0] == '/' && path[1] == '/') {
+        const std::size_t at = path.find('/', 2); // the server's name and the slash after it
+        return at == std::string_view::npos ? path.size() : at + 1;
+    }
+    if (!path.empty() && path[0] == '/') {
+        return 1;
+    }
+    if (path.size() >= 3 && path[1] == ':' && path[2] == '/') {
+        return 3;
+    }
+    return 0;
+}
+
+/// A PATH FITTED TO A COLUMN BUDGET BY ITS MIDDLE: its root (`path_root`), the mark, and as much of
+/// its end as fits -- the drive that says which filesystem, and the end that says which file. A
+/// path that fits is itself; a budget with no room for the root, the mark and one character of the
+/// end is `fit`'s, cut at the end.
+inline std::string fit_path(const std::string& path, std::int64_t width) {
+    if (width <= 0) {
+        return {};
+    }
+    const std::size_t room = static_cast<std::size_t>(width);
+    if (path.size() <= room) {
+        return path;
+    }
+    const std::size_t mark = std::string_view(kElided).size();
+    const std::size_t root = path_root(path);
+    if (root + mark + 1 > room) {
+        return fit(path, width);
+    }
+    return path.substr(0, root) + kElided + path.substr(path.size() - (room - root - mark));
+}
+
+/// A TEXT LONGER THAN ITS ROW, SHOWN WHOLE BY THE POINTER RESTING ON IT: `width` characters of it,
+/// from where the pointer's `column` puts them -- the row's first column shows the text's start,
+/// its last the text's end, and every column between an offset proportional to it, never moving
+/// back as the column moves right. Nothing is cut and no mark is drawn. A text that fits is itself.
+inline std::string scrub(const std::string& text, std::int64_t width, std::int64_t column) {
+    if (width <= 0) {
+        return {};
+    }
+    const std::size_t room = static_cast<std::size_t>(width);
+    if (text.size() <= room) {
+        return text;
+    }
+    const std::uint64_t hidden = text.size() - room;
+    const std::int64_t last = width - 1;
+    const std::int64_t at = column < 0 ? 0 : (column > last ? last : column);
+    const std::uint64_t offset =
+        last == 0 ? 0
+                  : (static_cast<std::uint64_t>(at) * hidden * 2 + static_cast<std::uint64_t>(last)) /
+                        (static_cast<std::uint64_t>(last) * 2);
+    return text.substr(static_cast<std::size_t>(offset), room);
+}
+
 /// ONE ROW, PADDED TO A WIDTH -- and truncated to it, unmarked, because a caller that pads is
 /// composing a column it has already measured rather than cutting a weaver's prose.
 inline std::string pad(std::string text, std::size_t width) {

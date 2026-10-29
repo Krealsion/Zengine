@@ -4173,6 +4173,87 @@ TEST_CASE("a pane on the drawing facet is pressed over a drawn button's whole fa
     CHECK(button->fenced() == 1);
 }
 
+namespace {
+
+constexpr const char* kRestPane = "test.rest";
+
+/// A PANE ON THE DRAWING FACET THAT IS TOLD WHERE THE POINTER RESTS: the button `go` and room
+/// beside it; it keeps each part a rest named, in order, and counts the leaves.
+using RestDrawing = ws::PaneDrawingFacet<kRestPane, kRestPane,
+                                         zengine::manual::pages::zengine_window_terminal::kManual,
+                                         ws::v2::PaneOffered, ws::kHearsRest>;
+class RestPane
+    : public zengine::With<RestDrawing>::Weave<RestPane, GraphicsTestOwner, loom::Accept<>> {
+public:
+    ws::v2::PaneOffered offering() const {
+        return ws::v2::PaneOffered{kRestPane, "rest", "a pane the pointer rests on", 4, 12};
+    }
+    void on_room(loom::Mail& mail) { this->template facet<RestDrawing>().show(*this, mail); }
+    void picture(gfx::Sketch& f) const {
+        constexpr std::int64_t c = gfx::kCellPx;
+        f.group("button", 2 * c, c);
+        f.fill_rect("button/face", 0, 0, 8 * c, 3 * c, gfx::by_role(gfx::role::kAccent));
+        f.text("button/label", 3 * c, c, "go", gfx::by_role(gfx::role::kFill));
+        f.action("button", "go");
+    }
+    void rest(const std::string& part, loom::Mail&) { rests.push_back(part); }
+    void pointer_left(loom::Mail&) { ++leaves; }
+    std::vector<std::string> rests;
+    std::int64_t leaves = 0;
+};
+
+} // namespace
+
+TEST_CASE("a pane on the drawing facet is handed the part the pointer rests on, once each time that "
+          "part changes, and its leave once a rest; a move a held press carries is no rest") {
+    // ⚔ MUTATION (tests/mutants/graphics.md#drawing-rest-from-a-drag): a drag handed as a rest.
+    TypedWindow t;
+    auto made = std::make_unique<RestPane>();
+    RestPane* pane = made.get();
+    loom::Grant g = loom::emit_default_grant(*pane);
+    const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), kRestPane);
+    pane->zen_set_self(id);
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
+    const std::string area = ws::pane_area(kRestPane, kRestPane);
+    gfx::AreaPlaced placed{area, gfx::kTerminalWindow, kRestPane, 0, 0, 20 * gfx::kCellPx,
+                           6 * gfx::kCellPx, 0};
+    placed.pointer = true;
+    t.r.to_role(gfx::kGraphicsRole, placed);
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{area, "classic"});
+    t.r.drain();
+    constexpr std::int64_t c = gfx::kCellPx;
+    const auto tell = [&](const auto& moment, std::uint64_t press, loom::WeaveId from,
+                          const std::string& office) {
+        REQUIRE(t.r.bus
+                    .office_send_to_role_as(from, office, kRestPane,
+                                            loom::Message(loom::to_value(moment), loom::WeaveId{},
+                                                          loom::WeaveId{}, press))
+                    .valid());
+        t.r.drain();
+    };
+    const auto move = [&](std::int64_t x, std::int64_t y, std::uint64_t press = 0) {
+        tell(gfx::AreaPointerMoved{area, x, y, 0, 0, 0, true, 0}, press, t.window,
+             window_office());
+    };
+    move(3 * c + 2, c + 2); // on the button's face
+    CHECK(pane->rests == std::vector<std::string>{"go"});
+    move(6 * c, 3 * c + 1); // elsewhere on the same face: the same part, so no rest is said
+    CHECK(pane->rests == std::vector<std::string>{"go"});
+    move(15 * c, 5 * c); // beside it: no part
+    CHECK(pane->rests == std::vector<std::string>{"go", ""});
+    move(3 * c + 2, c + 2, 41); // a drag a held press carries: no rest
+    CHECK(pane->rests.size() == 2);
+    // THE LEAVE, ONCE A REST; a second leave, and one said by another office, are nothing.
+    tell(gfx::AreaPointerLeft{area}, 0, t.window, window_office());
+    CHECK(pane->leaves == 1);
+    tell(gfx::AreaPointerLeft{area}, 0, t.window, window_office());
+    CHECK(pane->leaves == 1);
+    move(3 * c + 2, c + 2);
+    CHECK(pane->rests == std::vector<std::string>{"go", "", "go"});
+    tell(gfx::AreaPointerLeft{area}, 0, t.window, window_office());
+    CHECK(pane->leaves == 2);
+}
+
 TEST_CASE("a pane's drawing its window refused leaves the window as it was, and the pane's next "
           "drawing goes whole, never as a change from a picture the window does not hold") {
     Rig r;

@@ -25,6 +25,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -92,6 +93,11 @@ public:
         return at == window_places_.end() ? std::nullopt : std::optional<RowCell>(at->second);
     }
 
+    /// Whether `mail` is the word of the window that shows the area, about `about`.
+    bool from_window(const std::string& about, const loom::Mail& mail) const {
+        return window_.from_window(about, mail);
+    }
+
     /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's office, read onto the
     /// rows last drawn there (`WindowDrawing::pointer`). None for another area or speaker.
     template <class Moment>
@@ -114,6 +120,24 @@ public:
     /// Whether the keys reach the pane now, as Workshop last said (`PaneKeys`).
     bool keys_here() const noexcept { return keys_here_; }
     void keys_here(bool here) noexcept { keys_here_ = here; }
+
+    /// THE POINTER COME TO REST ON CELL `at` of the rows drawn there: true when it is another cell
+    /// than the one it rested on, or it rested on none.
+    bool rest(const RowCell& at) {
+        if (rest_ && *rest_ == at) {
+            return false;
+        }
+        rest_ = at;
+        return true;
+    }
+    /// ...AND GONE FROM THE AREA: true when it rested there.
+    bool leave() {
+        const bool rested = rest_.has_value();
+        rest_.reset();
+        return rested;
+    }
+    /// The cell the pointer rests on, as the weave was last handed it, if it rests there.
+    const std::optional<RowCell>& resting() const noexcept { return rest_; }
 
     /// THE ROOM ASKED OF THE GRAPHICS DIRECTORY, as the office, while no window has said it: a
     /// pane reloaded into a window draws there again.
@@ -168,6 +192,7 @@ private:
     std::int64_t said_number_ = 0;
     std::map<std::string, RowCell> window_places_;
     bool keys_here_ = false;
+    std::optional<RowCell> rest_;
 };
 
 /// THE OFFICE OF SEVERAL PANES AS WORKSHOP AND THE WINDOWS HEAR IT: its activation, its offers on
@@ -175,14 +200,21 @@ private:
 /// manual from `Page` about any pane it offers (`known_pane`), answered about `DefaultPane` for a
 /// key it does not, which the answer refuses by name, and each pane's window room, refusals and
 /// presses, found by area among the seats the weave's `each_seat` visits.
-template <const char* const& Office, const char* const& DefaultPane, const manual::Manual& Page>
+template <const char* const& Office, const char* const& DefaultPane, const manual::Manual& Page,
+          bool HearsRest = false>
 class MultiPaneFacet {
 public:
-    using Accept = loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
-                                graphics::AreaRoom, graphics::DrawnRefused,
-                                graphics::ActionRequested, graphics::AreaButtonChanged,
-                                graphics::AreaPointerMoved, graphics::AreaWheelTurned,
-                                graphics::AreaHoldEnded, PaneKeys>;
+    using Accept = std::conditional_t<
+        HearsRest,
+        loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaButtonChanged, graphics::AreaPointerMoved,
+                     graphics::AreaPointerLeft, graphics::AreaWheelTurned, graphics::AreaHoldEnded,
+                     PaneKeys>,
+        loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
+                     graphics::AreaRoom, graphics::DrawnRefused, graphics::ActionRequested,
+                     graphics::AreaButtonChanged, graphics::AreaPointerMoved,
+                     graphics::AreaWheelTurned, graphics::AreaHoldEnded, PaneKeys>>;
     using Emit = loom::Emit<PaneDocumentShown, graphics::Drawn, graphics::RoomAsked>;
 
     /// An accepted activation offers the panes, or is the weave's `on_activated`, which does; then
@@ -242,9 +274,33 @@ public:
     void on(Self& self, const graphics::AreaButtonChanged& b, loom::Mail& mail) {
         window_moment(self, b.area, b, mail);
     }
+    /// ...A MOVE, and where the medium reports one, for an office whose panes hear it
+    /// (`kHearsRest`), the pointer resting on the rows: a move with no button held is also the
+    /// weave's `on_window_rest(pane, cell, mail)`, once each time the cell under it changes.
     template <class Self>
     void on(Self& self, const graphics::AreaPointerMoved& m, loom::Mail& mail) {
         window_moment(self, m.area, m, mail);
+        if constexpr (HearsRest) {
+            PaneCanvasSeat* seat = seat_of_area(self, m.area);
+            const std::optional<WindowPointer> p =
+                seat == nullptr ? std::nullopt : seat->window_pointer(m, mail);
+            if (p && p->press == 0 && seat->rest(p->at)) {
+                self.on_window_rest(seat->pane(), p->at, mail);
+            }
+        }
+    }
+    /// ...AND ITS LEAVE, which the window that shows the area says: the weave's
+    /// `on_window_left(pane, mail)`, once for each rest it was handed.
+    template <class Self>
+    void on([[maybe_unused]] Self& self, [[maybe_unused]] const graphics::AreaPointerLeft& left,
+            [[maybe_unused]] loom::Mail& mail) {
+        if constexpr (HearsRest) {
+            PaneCanvasSeat* seat = seat_of_area(self, left.area);
+            if (seat == nullptr || !seat->from_window(left.area, mail) || !seat->leave()) {
+                return;
+            }
+            self.on_window_left(seat->pane(), mail);
+        }
     }
     template <class Self>
     void on(Self& self, const graphics::AreaWheelTurned& w, loom::Mail& mail) {

@@ -77,6 +77,20 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
 
+## WL-DESK-21 — The Hotkeys pane is in sections, a section a pane, and which are open is its state
+
+LAW — The Hotkeys pane shows its keys in sections, a pane's or a place Workshop answers one: the desk's panes first, Workshop's next, panes off the desk grey last, each shut at first and counted.
+
+MEANS
+- `hotkeys.open` opens the section under the cursor or steps in, `hotkeys.shut` steps out or shuts it, `hotkeys.shut-all` shuts all; a press on a header opens or shuts it;
+- the pointer resting on a shut header shows its keys over what follows, taking no room; a press on one opens the section there;
+- the open ones are the desk weave's reload state (`DesktopState`), forgotten once neither the keymap nor the inventory holds them.
+
+DOES NOT MEAN
+- that opening a section shuts another, that a grey one cannot be opened or edited, or that the open ones are kept across runs.
+
+WHY — `agents/decisions/an-accordion-is-a-section-its-owner-folds.md`
+
 ## Proven by
 
 ### WL-DESK-09
@@ -165,3 +179,18 @@ nothing moved it" "WL-DESK-17: a key the weaver moved in a keymap file shows in 
 default, beside the heading and in the words, for a command in force and one in another mode"
 "WL-DESK-17: the manual key asks for the manual of the pane holding the keys; the Manual keeps no
 words once closed, and a pane reloaded in place shows its new words at the next `?`"
+
+### WL-DESK-21
+`workshop/desktop-pane/hotkeys_view.hpp` HotkeysView KeysSection section_key compose_lines
+keys_open_here keys_shut_here keys_shut_all inventory_said rest pointer_left
+`workshop/desktop-pane/pane.cpp` keep_keys_open on_window_rest on_window_left
+`workshop/desktop-pane/vocabulary.hpp` DesktopState kActionKeysOpen kActionKeysShut
+kActionKeysShutAll
+`component/accordion.hpp` IndependentAccordions
+`tests/test_workshop_panes_desktop.cpp` "WL-DESK-21: the Hotkeys pane is in sections, a section a
+pane -- the desk's panes first, Workshop's own next, the panes off the desk grey at the foot -- each
+shut at first and saying how many keys it holds; Right opens one and steps into it, Left steps out
+of it and shuts it, shift+left shuts every one, a press on a header opens or shuts it, and the open
+ones are the pane's state, kept across a reload" "in a window that reports a resting pointer, a shut
+section of the Hotkeys pane peeks its keys over what follows its header and takes no room, a press
+on what the peek shows opens the section on that key, and the leave ends the peek"

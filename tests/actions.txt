@@ -66,6 +66,9 @@ zengine.desktop table hotkeys.up up - - row up
 zengine.desktop table hotkeys.down down - - row down
 zengine.desktop table hotkeys.top home - - top
 zengine.desktop table hotkeys.bottom end - - bottom
+zengine.desktop table hotkeys.open right - - open a section
+zengine.desktop table hotkeys.shut left - - shut a section
+zengine.desktop table hotkeys.shut-all shift+left - - shut every section
 zengine.desktop table hotkeys.menu m - - row menu
 zengine.desktop capture hotkeys.cancel escape - table cancel
 zengine.desktop spell hotkeys.commit return KeymapEditRequested/1 table use this spelling

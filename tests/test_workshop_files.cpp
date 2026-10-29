@@ -35,6 +35,7 @@
 // directory are the two paths this application takes from the OS, and the boundary they
 // share is asserted here directly rather than only through its consumers.
 #include "workshop/path_admission.hpp"
+#include "workshop/pane_text.hpp"
 
 // THE TWO DOORS THE FILES WEAVE ASKS. One is this host's own weave (`workshop/pane_doors.hpp`);
 // the other is Workshop's, answered where `open_source` lives.
@@ -1364,6 +1365,47 @@ TEST_CASE("fitting a path keeps the end that says which file it is") {
     // AND IT CHANGES NO IDENTITY: this is a projection of a string, and the string is the
     // caller's own.
     CHECK(p == "/home/me/code/very/long/project/src/foo.cpp");
+}
+
+TEST_CASE("a pane fits a path by its middle -- its root, the mark and as much of its end as fits -- and a resting pointer scrubs the whole of it across a row") {
+    namespace text = zengine::workshop::pane_text;
+    const std::string p = "C:/Users/me/code/very/long/project/src/foo.cpp";
+    CHECK(text::path_root(p) == 3);
+    CHECK(text::path_root("/home/me") == 1);
+    CHECK(text::path_root("//server/share/x") == 9);
+    CHECK(text::path_root("relative/x") == 0);
+    CHECK(text::fit_path(p, 200) == p); // it fits: nothing changes, not even a mark
+    // AS MUCH OF THE END AS FITS, to the column: no part of the end given up for a whole name.
+    CHECK(text::fit_path(p, 20) == "C:/...ct/src/foo.cpp");
+    CHECK(text::fit_path("//server/share/deep/deeper/foo.cpp", 24) == "//server/...eper/foo.cpp");
+    CHECK(text::fit_path("/home/me/code/very/long/foo.cpp", 16) == "/...long/foo.cpp");
+    // TOTAL AT EVERY WIDTH: within it always; the root and the mark while they leave a character
+    // of the end, and the end's own cut below that.
+    for (std::int64_t width = -2; width < 60; ++width) {
+        CAPTURE(width);
+        const std::string got = text::fit_path(p, width);
+        CHECK(got.size() <= static_cast<std::size_t>(width < 0 ? 0 : width));
+        if (width >= 7 && static_cast<std::size_t>(width) < p.size()) {
+            CHECK(got.rfind("C:/...", 0) == 0);
+            CHECK(got.size() == static_cast<std::size_t>(width));
+            CHECK(p.compare(p.size() - (got.size() - 6), got.size() - 6, got.substr(6)) == 0);
+        }
+    }
+    // THE SCRUB: the first column shows the start, the last the end, and the offset never moves
+    // back as the column moves right; a text that fits is itself, wherever the pointer is.
+    CHECK(text::scrub(p, 10, 0) == p.substr(0, 10));
+    CHECK(text::scrub(p, 10, 9) == p.substr(p.size() - 10));
+    CHECK(text::scrub(p, 10, 40) == p.substr(p.size() - 10));
+    CHECK(text::scrub(p, 10, -3) == p.substr(0, 10));
+    CHECK(text::scrub("short", 10, 4) == "short");
+    std::size_t last = 0;
+    for (std::int64_t column = 0; column < 10; ++column) {
+        const std::string got = text::scrub(p, 10, column);
+        REQUIRE(got.size() == 10);
+        const std::size_t offset = p.find(got);
+        CHECK(offset >= last);
+        last = offset;
+    }
 }
 
 // ============================================================================

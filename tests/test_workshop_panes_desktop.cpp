@@ -324,6 +324,10 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
             }
         });
         w.room(keys, kDesktopRole, 100, 60);
+        // ITS SECTIONS SHUT AT FIRST: a press on the application's header opens it.
+        const std::int64_t app = row_containing(w.rows(keys), "above every mode -- the application's");
+        REQUIRE(app >= 0);
+        w.click(keys, 4, app);
         REQUIRE(joined(w.rows(keys)).find("desktop.terminal") != std::string::npos);
         std::string terminal, panes;
         for (const std::string& name : w.actions(keys)) {
@@ -866,14 +870,16 @@ struct Keys {
 
     std::vector<std::string> rows() { return shown_rows(r, hotkeys); }
     std::string text() { return joined(rows()); }
-    /// THE ROW SHOWING `id`, walked into the window with the cursor when it is below it.
+    /// THE ROW SHOWING `id`, walked into the window with the cursor when it is below it, each shut
+    /// section on the way opened with Right, so its keys are lines to walk.
     std::int64_t row_of(const std::string& id) {
         r.key(input::scan::kHome);
-        for (int step = 0; step < 200; ++step) {
+        for (int step = 0; step < 400; ++step) {
             const std::int64_t at = row_containing(rows(), id);
             if (at >= 0) {
                 return at;
             }
+            r.key(input::scan::kRight);
             r.key(input::scan::kDown);
         }
         return -1;
@@ -1314,15 +1320,22 @@ TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel
     const std::int64_t b = k.row_of("desktop.panes");
     REQUIRE(b >= 0);
     CHECK(k.rows()[static_cast<std::size_t>(b)].find("panes") == label_at);
-    // THE CURSOR: the first binding is marked; Down moves it; a press chooses; the wheel walks.
+    // THE CURSOR: the first row, a section's header, is marked; Down moves it into the section's
+    // keys; a press chooses a key; Down and the wheel walk on from it.
     k.r.key(input::scan::kHome);
-    CHECK(marked(k.rows()).find("desktop.terminal") != std::string::npos);
+    CHECK(marked(k.rows()).find("pane Hotkeys @zengine.desktop") != std::string::npos);
     k.r.key(input::scan::kDown);
-    CHECK(marked(k.rows()).find("desktop.panes") != std::string::npos);
+    CHECK(marked(k.rows()).find("hotkeys.up") != std::string::npos);
     const std::int64_t terminal = k.row_of("desktop.terminal");
     k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, terminal));
     CHECK(marked(k.rows()).find("desktop.terminal") != std::string::npos);
-    k.r.wheel_cell(-1.0, body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, terminal));
+    k.r.key(input::scan::kDown);
+    CHECK(marked(k.rows()).find("desktop.panes") != std::string::npos);
+    const std::int64_t again = row_containing(k.rows(), "desktop.terminal");
+    REQUIRE(again >= 0);
+    k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, again));
+    CHECK(marked(k.rows()).find("desktop.terminal") != std::string::npos);
+    k.r.wheel_cell(-1.0, body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, again));
     CHECK(marked(k.rows()).find("desktop.panes") != std::string::npos);
     // A HEADING IS HANDED BACK: the host's own menu on the Hotkeys pane.
     k.right(0, 2);
@@ -1330,10 +1343,9 @@ TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel
     CHECK_FALSE(k.r.session().presented.open);
     CHECK(k.r.session().context.pane == PaneRef{kDesktopRole, dp::kHotkeysPane});
     k.r.key(input::scan::kEscape);
-    // A ROW THAT IS NOT REMAPPABLE (the text box's own keys) is handed back too.
-    k.r.key(input::scan::kEnd);
-    const std::vector<std::string> tail = k.rows();
-    const std::int64_t fixed = row_containing(tail, "(not remappable)");
+    // A ROW THAT IS NOT REMAPPABLE (the text box's own keys, their section opened) is handed back
+    // too.
+    const std::int64_t fixed = k.row_of("(not remappable)");
     REQUIRE(fixed >= 0);
     k.right(fixed);
     REQUIRE(k.r.session().context.open);
@@ -1383,6 +1395,7 @@ TEST_CASE("WL-DESK-14: a press the window landed on a Hotkeys row where another 
           "now is refused in words and chooses nothing, and one on the binding drawn there chooses "
           "it") {
     Keys k("hotkeys-moved");
+    REQUIRE(k.row_of("desktop.terminal") >= 0); // its section, and the ones before it, opened
     // TWO BINDINGS: the one a press lands on, and another, whose name the window could have drawn
     // there before.
     std::string target, other;
@@ -1478,12 +1491,14 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawab
         CHECK(shows_canvas(*pane));
     };
     {
-        // THE PANE'S KEYS, UNDER ITS HEADING.
+        // THE PANE'S KEYS, UNDER ITS SECTION'S HEADER, whose fold mark the window draws as its
+        // outline, the character left blank.
         const std::int64_t brew = k.row_of("cafe.brew");
         const std::vector<std::string> rows = k.rows();
         CAPTURE(joined(rows));
         REQUIRE(brew >= 1);
-        CHECK(rows[static_cast<std::size_t>(brew - 1)] == "pane Caf? @zengine.test.tools");
+        CHECK(rows[static_cast<std::size_t>(brew - 1)].substr(2) ==
+              "  pane Caf? @zengine.test.tools");
         admitted();
     }
     // A SPELLING TYPED OUTSIDE PLAIN ASCII: refused whole at the line, and said; the line and its
@@ -1565,6 +1580,7 @@ TEST_CASE("WL-KEY-17: a mouse choice and its own release take the keyboard for a
     }
     SUBCASE("a newer key queued behind the click defeats the late keyboard grab") { newer = true; }
     Keys k("corr-mouse-choice-keyboard");
+    REQUIRE(k.row_of("desktop.terminal") >= 0); // its section opened while the keys are Hotkeys'
     ProviderSeat* other = k.r.mount_provider("review.other");
     k.r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"other", "Other", "the prior keyboard owner"});
@@ -1766,6 +1782,7 @@ TEST_CASE("WL-CTX-10: an ordinary replacement presenter holds the office -- the 
         slide_off = true;
     }
     Keys k("presenter-replaced-hotkeys", std::string(), false, WORKSHOP_SO_NUMBERED_PRESENTER);
+    REQUIRE(k.row_of("desktop.terminal") >= 0); // its section opened while the keys are Hotkeys'
     const std::int64_t others = keys_elsewhere(k.r);
     const auto row = row_containing(k.rows(), "desktop.terminal");
     REQUIRE(row >= 0);
@@ -1941,6 +1958,7 @@ TEST_CASE("WL-DESK-14: an `inspect in Info` that cannot be carried out is said i
 
 TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a menu is open hands the menu over -- shown again the new way with its cursor, answered under the same number, and the Hotkeys edit completes") {
     Keys k("presenter-handoff");
+    REQUIRE(k.row_of("desktop.terminal") >= 0); // its section opened while the keys are Hotkeys'
     const std::int64_t others = keys_elsewhere(k.r);
     const auto row = row_containing(k.rows(), "desktop.terminal");
     REQUIRE(row >= 0);
@@ -1979,7 +1997,7 @@ TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a m
 
 TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the host; with none in the office a menu is refused in words and the host's own menu still opens; one loaded afresh does not carry the old menu, which ends answered") {
     Keys k("presenter-lost");
-    const auto row = row_containing(k.rows(), "desktop.terminal");
+    const auto row = k.row_of("desktop.terminal");
     REQUIRE(row >= 0);
     k.right(row);
     REQUIRE(menu_shown(k.r.session()));
@@ -2018,4 +2036,140 @@ TEST_CASE("WL-CTX-10: a presenter that leaves ends its menu, answered by the hos
     CHECK(k.text().find("press the key for") == std::string::npos);
     CHECK(k.r.session().notice.find("the menu closed -- the presenter was replaced") !=
           std::string::npos);
+}
+
+// =============================================================================
+// The Hotkeys pane in sections, a section a pane
+// =============================================================================
+
+namespace {
+
+/// THE ROW THE CURSOR STANDS ON, as the pane marks it.
+std::string cursor_row(const std::vector<std::string>& rows) {
+    for (const std::string& row : rows) {
+        if (row.rfind("> ", 0) == 0) return row;
+    }
+    return std::string();
+}
+
+/// HOW MANY SECTIONS SHOW OPEN: headers whose mark is `-`, the cursor's or not.
+std::size_t open_sections(const std::vector<std::string>& rows) {
+    return static_cast<std::size_t>(std::count_if(rows.begin(), rows.end(), [](const std::string& r) {
+        return r.rfind("  - ", 0) == 0 || r.rfind("> - ", 0) == 0;
+    }));
+}
+
+} // namespace
+
+TEST_CASE("WL-DESK-21: the Hotkeys pane is in sections, a section a pane -- the desk's panes first, Workshop's own next, the panes off the desk grey at the foot -- each shut at first and saying how many keys it holds; Right opens one and steps into it, Left steps out of it and shuts it, shift+left shuts every one, a press on a header opens or shuts it, and the open ones are the pane's state, kept across a reload") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_desktop.md#sections-in-the-keymaps-order,
+    // #absent-sections-not-grey, #sections-not-kept-across-a-reload): the sections in the
+    // keymap's order; a pane off the desk drawn as any other; the open ones shut by a reload.
+    Keys k("hotkeys-sections");
+    std::vector<std::string> rows = k.rows();
+    INFO("at first\n", joined(rows));
+    const std::int64_t own = row_containing(rows, "+ pane Hotkeys @zengine.desktop");
+    const std::int64_t app = row_containing(rows, "+ above every mode -- the application's");
+    const std::int64_t manager = row_containing(rows, "+ pane Pane Manager @zengine.desktop");
+    REQUIRE(own >= 0);
+    REQUIRE(app >= 0);
+    REQUIRE(manager >= 0);
+    CHECK(own < app);
+    CHECK(app < manager);
+    CHECK(rows[static_cast<std::size_t>(own)].find(" keys)") != std::string::npos);
+    CHECK(row_containing(rows, "desktop.terminal") < 0); // every section shut: no key shows
+    // GREY AT THE FOOT, a pane off the desk; the desk's own and Workshop's in the accent ink.
+    const HeldReading read = held_reading(k.hotkeys);
+    REQUIRE(read.roles.size() > static_cast<std::size_t>(manager));
+    CHECK(read.roles[static_cast<std::size_t>(manager)] == gfx::role::kMuted);
+    CHECK(read.roles[static_cast<std::size_t>(own)] == gfx::role::kAccent);
+    CHECK(read.roles[static_cast<std::size_t>(app)] == gfx::role::kAccent);
+
+    // RIGHT OPENS THE SECTION THE CURSOR STANDS ON, AND AGAIN STEPS INTO IT.
+    k.r.key(input::scan::kHome);
+    CHECK(cursor_row(k.rows()).find("+ pane Hotkeys") != std::string::npos);
+    k.r.key(input::scan::kRight);
+    rows = k.rows();
+    CHECK(cursor_row(rows).find("- pane Hotkeys") != std::string::npos);
+    CHECK(row_containing(rows, "hotkeys.up") >= 0);
+    CHECK(rows[static_cast<std::size_t>(row_containing(rows, "hotkeys.up"))].rfind("    ", 0) == 0);
+    k.r.key(input::scan::kRight);
+    CHECK(cursor_row(k.rows()).find("hotkeys.up") != std::string::npos);
+    // LEFT STEPS OUT TO ITS HEADER, AND AGAIN SHUTS IT.
+    k.r.key(input::scan::kLeft);
+    CHECK(cursor_row(k.rows()).find("- pane Hotkeys") != std::string::npos);
+    k.r.key(input::scan::kLeft);
+    rows = k.rows();
+    CHECK(cursor_row(rows).find("+ pane Hotkeys") != std::string::npos);
+    CHECK(row_containing(rows, "hotkeys.up") < 0);
+
+    // A PRESS ON A HEADER OPENS IT, the cursor on it; pressed again, it shuts.
+    const std::int64_t at = row_containing(k.rows(), "+ above every mode -- the application's");
+    REQUIRE(at >= 0);
+    k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, at));
+    rows = k.rows();
+    CHECK(cursor_row(rows).find("- above every mode -- the application's") != std::string::npos);
+    CHECK(row_containing(rows, "desktop.terminal") >= 0);
+    k.r.key(input::scan::kHome);
+    k.r.key(input::scan::kRight);
+    REQUIRE(row_containing(k.rows(), "hotkeys.up") >= 0);
+
+    // THE OPEN ONES ARE THE PANE'S STATE: a reload in place keeps both open.
+    k.r.enqueue_reload(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE);
+    k.r.bus.drain_until_idle();
+    REQUIRE(k.r.load_refusals.empty());
+    rows = k.rows();
+    INFO("reloaded\n", joined(rows));
+    CHECK(row_containing(rows, "- pane Hotkeys @zengine.desktop") >= 0);
+    CHECK(row_containing(rows, "- above every mode -- the application's") >= 0);
+
+    // SHIFT+LEFT SHUTS EVERY ONE, the cursor on a key standing on its section's header.
+    CHECK(open_sections(rows) == 2);
+    k.r.key(input::scan::kHome);
+    k.r.key(input::scan::kDown);
+    REQUIRE(cursor_row(k.rows()).find("hotkeys.up") != std::string::npos);
+    k.r.key(input::scan::kLeft, input::mod::kShift);
+    rows = k.rows();
+    CHECK(open_sections(rows) == 0);
+    CHECK(row_containing(rows, "hotkeys.down") < 0);
+    CHECK(row_containing(rows, "desktop.terminal") < 0);
+    CHECK(cursor_row(rows).find("+ pane Hotkeys") != std::string::npos);
+}
+
+TEST_CASE("in a window that reports a resting pointer, a shut section of the Hotkeys pane peeks its keys over what follows its header and takes no room, a press on what the peek shows opens the section on that key, and the leave ends the peek") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_desktop.md#hotkeys-peek-not-drawn): the peek drawn
+    // nowhere.
+    Keys k("hotkeys-peek");
+    const std::string area = pane_area(kDesktopRole, dp::kHotkeysPane);
+    zengine::testing::pane_window::Window window(k.r.bus);
+    window.room(area, kDesktopRole, 120, 30);
+    const std::vector<std::string> shut = window.rows(area);
+    INFO("shut\n", joined(shut));
+    const std::int64_t app = row_containing(shut, "+ above every mode -- the application's");
+    REQUIRE(app >= 0);
+    const auto row = [&](std::int64_t i) {
+        const std::vector<std::string> now = window.rows(area);
+        return i < static_cast<std::int64_t>(now.size()) ? now[static_cast<std::size_t>(i)]
+                                                         : std::string();
+    };
+    // RESTING ON THE HEADER: its keys over the rows that follow it, the header's words unchanged.
+    window.move(area, 4, app);
+    CHECK(row(app) == shut[static_cast<std::size_t>(app)]);
+    CHECK(row(app + 1).find("desktop.terminal") != std::string::npos);
+    CHECK(row_containing(window.rows(area), "desktop.panes") > app);
+    // ...ON WHAT THE PEEK SHOWS, IT STAYS; THE LEAVE ENDS IT.
+    window.move(area, 10, app + 1);
+    CHECK(row(app + 1).find("desktop.terminal") != std::string::npos);
+    window.left(area);
+    CHECK(window.rows(area) == shut);
+    // A PRESS ON A KEY THE PEEK SHOWS OPENS THE SECTION, the cursor on that key.
+    window.move(area, 4, app);
+    const std::int64_t terminal = row_containing(window.rows(area), "desktop.terminal");
+    REQUIRE(terminal > app);
+    window.click(area, 10, terminal);
+    const std::vector<std::string> open = window.rows(area);
+    INFO("opened\n", joined(open));
+    CHECK(row_containing(open, "- above every mode -- the application's") >= 0);
+    CHECK(cursor_row(open).find("desktop.terminal") != std::string::npos);
+    CHECK(window.weave().refusals.empty());
 }

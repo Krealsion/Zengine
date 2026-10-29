@@ -496,7 +496,14 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   of the row says it, and so does Attention. A pane takes its row through the settings facet,
   `PaneSettingsFacet` (`workshop/pane_settings_taken.hpp`, installed): it asks, takes a row from
   the layouts' owner alone and whole against the pane's `setting_rows()`, says each value it cannot
-  use, and calls the pane's `on_settings(taken, mail)`; its `held()` says whether the pane may draw.
+  use, and calls the pane's `on_settings(taken, mail)`, `taken.revision` the revision it came at;
+  its `held()` says whether the pane may draw.
+- **A pane may commit its own word** -- a setting a weaver changes by acting in the pane, as Files'
+  places open and shut -- by the commit below, as its office, naming itself and the revision it was
+  last handed. The owner writes the row, hands it back at its new revision and then answers, so
+  the pane shows what the row keeps, never what it asked for; a stale revision, a lock or a value
+  the declaration does not take is refused in words, and the pane says the refusal where the
+  setting shows. A pane holds one such commit at a time and refuses another while it is unanswered.
 - **A row is read and written by message** (`workshop/settings_seam_vocabulary.hpp`):
   `PaneSettingsRequested` answers the live layout's row for one pane -- its revision, the counted
   declaration, what it keeps, its pins and the band's sentence -- and `PaneSettingCommitRequested`
@@ -707,13 +714,21 @@ of the weave; a member the facet calls only when present is optional.
   (`graphics::DrawnRefused`) is followed at once by the rows last sent, whole; a refused whole
   drawing is not sent again, nor are those rows unchanged, and the next rows go whole
   (`WindowDrawing`, which an office of several panes keeps for each pane too, and both Editors,
-  Flow and the View Builder keep for their areas). The pane sends Workshop no rows. The window's
-  pointer in the area
-  (`graphics::AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`, from that window's office)
-  is read on the rows it was last sent: the first button pressed on a shown cell is
-  `press(RowPress, mail)` there, `keys_went_here` as Workshop's last `PaneKeys` said; the third is
-  `right_press` on what the cell means, else passed back under the window's number for the press;
-  the wheel is `wheel(dy, mail)`; a move and a release mean nothing. A press there is a Workshop
+  Flow and the View Builder keep for their areas). A row's fold mark (`TextRow::mark`, the column
+  of a section's `+` or `-`) is drawn as that character in a room of cells and, where the window
+  sets type, as the icon table's `right` or `down` outline in its place. The pane sends Workshop no
+  rows. The window's pointer in the area
+  (`graphics::AreaButtonChanged`, `AreaPointerMoved`, `AreaPointerLeft`, `AreaWheelTurned`, from
+  that window's office) is read on the rows it was last sent: the first button pressed on a shown
+  cell is `press(RowPress, mail)` there, `keys_went_here` as Workshop's last `PaneKeys` said; the
+  third is `right_press` on what the cell means, else passed back under the window's number for the
+  press; the wheel is `wheel(dy, mail)`; a release means nothing. A pane that hears the pointer
+  resting on it says so (`PaneRowsFacet<..., Offer, kHearsRest>`, which then accepts
+  `AreaPointerLeft` too): a move with no button held -- one no press's number carries, which only a
+  medium that reports a resting pointer gives -- is its `rest(RowCell, mail)` once each time the
+  cell under the pointer changes, and the leave its `pointer_left(mail)` once a rest was handed;
+  `resting()` is the cell last handed. A move a held press carries is a drag and means nothing to
+  rows, nor does any move to a pane that does not hear rests. A press there is a Workshop
   gesture -- Workshop heard where it landed -- so an act it must approve may continue it under that
   number. `spend_notice(notice, act, say)` spends a weaver's act: it clears the notice, runs the
   act, and says the rows once without the notice when one stood and the act published none of its
@@ -738,7 +753,10 @@ of the weave; a member the facet calls only when present is optional.
   the picture last shown there (`graphics::AreaButtonChanged`), or, where the window shows the
   area deaf to the pointer, `graphics::ActionRequested` for an action that picture names or one
   `answers(id)` admits. The third button is passed back, and the wheel is `wheel(dy, mail)`, as
-  `PaneRowsFacet`'s. The room is asked once each life while no
+  `PaneRowsFacet`'s. A pane that hears rests (`kHearsRest`, after `Offer`) is handed a move with no
+  button held as `rest(part, mail)`, the part the picture last shown there names under the pointer
+  ("" for none), once each time that part changes, and the leave (`graphics::AreaPointerLeft`) as
+  `pointer_left(mail)` once a rest was handed. The room is asked once each life while no
   window has said it (`graphics::RoomAsked`), so a pane reloaded into a window draws there again.
   Operators other than text are the window's alone.
 - **`PaneActionFacet<Pane, Office>`: the actions a pane declares.** `declare(mail, rows, mode,
@@ -818,7 +836,12 @@ view runs in a 680 by 360 room.
 - **The pointer is the window's.** The window tells the area's owner of a press, its moves and
   its release under its number for the press, the wheel, and that a hold ended
   (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded`);
-  `WindowDrawing::pointer` reads each against the drawing last sent. A secondary press may
+  `WindowDrawing::pointer` reads each against the drawing last sent. Where the medium reports a
+  resting pointer, it tells the owner too of each move with no button held, under no number, and
+  of the pointer leaving the area (`AreaPointerLeft`): an office of several panes whose panes hear
+  it (`MultiPaneFacet<..., kHearsRest>`) hands each pane's first move onto another cell to the
+  weave's `on_window_rest(pane, cell, mail)` and the leave to its `on_window_left(pane, mail)`,
+  beside the moves `on_window_pointer` is handed as before. A secondary press may
   continue into the menu presenter, citing the window's number; a primary press may carry a value
   out, as `PaneValueCarryRequested{drag=true}` under that number, and once Workshop accepts the
   carry its own area stands in front, so later motion and the release are the carry's.
