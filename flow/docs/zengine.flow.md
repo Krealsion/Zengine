@@ -395,7 +395,9 @@ message already declared under that name is said as it is.
   <definition>.<Field>`, the Next line's `[+ say <definition>.<Field>]` once the rule runs, the
   gear's `Say a message...`, and the menu a double click on the Then lane's empty room opens.
 - **Answers:** a box beside what opened it, as [`ask-keep`](#ask-keep)'s, `Say a message after
-  the change`, with `Message name` the kept field's name capitalised, `Total`, and `With` the field the trigger writes,
+  the change`, offering names as [`ask-message`](#ask-message)'s does
+  ([`ViewWiringRequested`](../../view/docs/view.md#the-view-renderer)), and the ones the rule says,
+  with `Message name` the kept field's name capitalised, `Total`, and `With` the field the trigger writes,
   `total`. Confirmed: the Then lane shows the card `say tally.Total`, and the Next line asks for a
   [`restart`](#restart), since a running rule says only the messages it was run with.
 - **Refuses:** `A rule says a message after its change: give it a message and what it keeps
@@ -449,7 +451,12 @@ Declares a message the definition accepts.
   Messages page's `[New message]`, the When lane's while no message is declared, and a double click
   on the When lane's empty room.
 - **Answers:** a box beside what opened it, as [`ask-keep`](#ask-keep)'s, `Declare an input
-  message`, `Message name` `Set`, selected. Confirmed: the message's form opens.
+  message`, `Message name` `Set`, selected. As the name is typed, the names running views say or
+  show and the rule neither hears nor says are offered beneath it, `tally.Set  a button says it`,
+  every view asked as the box opens
+  ([`ViewWiringRequested`](../../view/docs/view.md#the-view-renderer)); a press, or the arrows and
+  Return, takes one, and a name not among them is declared all the same. Confirmed: the message's
+  form opens.
 - **Refuses:** `a message needs a name`; `a message named <name> is already declared`.
 - **Example:** type `Reading`, confirm: `water.Reading`.
 
@@ -584,8 +591,8 @@ Puts the dropped value down; nothing is done with it.
 
 These are declared beside the others only while a dialog is open. Tab moves to the next field, and
 a field takes what you type and its editing keys; a field chosen from words takes the arrow keys
-and nothing typed. A dialog over the page says so on its last line, `Tab changes field; Enter
-confirms; Escape cancels`.
+and nothing typed; a field offering names takes the up and down keys among them. A dialog over
+the page says so on its last line, `Tab changes field; Enter confirms; Escape cancels`.
 
 ### `dialog-confirm`
 
@@ -633,6 +640,13 @@ only that it was queued.
 
 `FlowChanged` v1, from `zengine.flow.host`: the `workshop` session moved. The pane inspects it
 again ([`inspect`](#inspect)) unless an inspection is already asked.
+
+### `ViewWiring`
+
+`ViewWiring` v1, from a running view, as its own office ([the view
+vocabulary](../../view/vocabulary.hpp)): the messages its buttons say and its labels show. The pane
+keeps the names each view said last, and offers them as a message is named; it asks every view
+afresh, `ViewWiringRequested` v1, as [`ask-message`](#ask-message) or [`ask-say`](#ask-say) opens.
 
 ### `AreaRoom`
 
@@ -683,7 +697,8 @@ release, and the drag ends where it stands.
 
 ## Follow
 
-The pane publishes nothing of its own. What the running participant does is the Flow host's: a
+The pane publishes one ask of its own, `ViewWiringRequested` v1, as a message is about to be named
+([`ViewWiring`](#viewwiring)). What the running participant does is the Flow host's: a
 weave follows it as the pane does, by `FlowChanged` and `FlowInspect` to `zengine.flow.host`
 ([its vocabulary](../flow-host/vocabulary.hpp)); the messages the participant emits are published
 on the bus like any weave's, and any subscriber hears them.

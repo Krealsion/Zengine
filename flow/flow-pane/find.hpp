@@ -209,6 +209,52 @@ inline bool takes_constant(const PortView& port) {
     return port.field.type.kind == loom::Kind::Int || port.field.type.kind == loom::Kind::Bool;
 }
 
+/// ONE NAME OFFERED for a message being named, and whose it is, in words.
+struct Suggestion {
+    std::string name, whose;
+};
+inline constexpr std::size_t kMaxSuggestions = 6;
+
+/// DOES FIELD `i` OF AN EDITOR NAME A MESSAGE: a new message's name, or the one a rule says.
+inline bool names_message(const Dialog& d, std::size_t i) {
+    return (d.action == "message" || d.action == "say") && i == 0;
+}
+
+/// THE NAMES OFFERED AS ONE IS TYPED in the open editor's field the keys are in, at most
+/// `kMaxSuggestions`: for a message the rule says, the ones it says already, then for either what a
+/// running view's buttons say and its labels show -- each holding what is typed, whatever its case,
+/// and none the rule hears, nor for a new message one the rule says, which would only be refused or
+/// make the rule hear itself.
+inline std::vector<Suggestion> suggestions(const Model& m) {
+    std::vector<Suggestion> out;
+    if (!m.dialog || m.dialog->selected >= m.dialog->entries.size() ||
+        !names_message(*m.dialog, m.dialog->selected))
+        return out;
+    const auto lower = [](std::string s) {
+        for (auto& c : s)
+            if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+        return s;
+    };
+    const auto typed = lower(m.dialog->entries[m.dialog->selected].text.text());
+    const auto& def = m.workspace.graph.project.definition;
+    const auto among = [](const auto& shapes, const std::string& name) {
+        return std::any_of(shapes.begin(), shapes.end(), [&](const auto& s) { return s->name() == name; });
+    };
+    const bool said = m.dialog->action == "say";
+    const auto offer = [&](const std::string& name, const std::string& whose) {
+        if (out.size() >= kMaxSuggestions || among(def.accepts, name) || (!said && among(def.emits, name)))
+            return;
+        if (!typed.empty() && lower(name).find(typed) == std::string::npos) return;
+        if (std::any_of(out.begin(), out.end(), [&](const Suggestion& s) { return s.name == name; })) return;
+        out.push_back({name, whose});
+    };
+    if (said)
+        for (const auto& shape : def.emits) offer(shape->name(), "this rule says it");
+    for (const auto& [office, names] : m.known)
+        for (const auto& k : names) offer(k.name, k.shown ? "a label shows it" : "a button says it");
+    return out;
+}
+
 /// The door's classifications in the order a maker reaches for them, each with its heading.
 inline constexpr std::array<std::pair<const char*, const char*>, 4> kGroups{{
     {workshop::kFormKind, "Forms"},

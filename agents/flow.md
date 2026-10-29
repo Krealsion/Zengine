@@ -52,7 +52,11 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   a field, saying a message and declaring one open in place (`flow_pane::in_place`): beside the
   press that opened them, or what they edit where none did, the page drawn round them, and a press
   outside one puts it down and is spent on nothing more, so while one is open only its own parts
-  are named. A kept field's kind is chosen from `flow_pane::field_kinds`, never typed.
+  are named. A kept field's kind is chosen from `flow_pane::field_kinds`, never typed. A message's
+  name is offered as it is typed (`flow_pane::suggestions`): what the rule says, for a message it
+  says, and what each running view's buttons say and labels show, asked of every view by
+  `ViewWiringRequested` as the editor opens and kept by the office that answered (`ViewWiring`),
+  bounded; never a name the rule hears, nor for a new message one it says.
   While one is open the pane declares Return as its `dialog-confirm` row, so a confirm arrives
   under a gesture; a writing verb's confirm (save, generate, export, library save) asks Workshop
   for class `write` before any byte, and a refusal keeps the dialog and its text.
@@ -144,7 +148,7 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
   reload preservation, the right press handed back, the empty press and the pan, the chosen step's
   x and Delete, the When and Then cards moved, the double clicks that add, the box at a port, the
-  editors in place,
+  editors in place, the names offered as a message is named,
   finding through the door
   and the pane in a graphics window; host behavior is witnessed under [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

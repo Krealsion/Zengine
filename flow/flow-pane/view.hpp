@@ -1330,8 +1330,10 @@ inline void editor(Pen& pen, const Model& model, const Box& area) {
     const auto line = light ? m.tall + 10 : 2 * m.row;
     const auto control_h = light ? m.tall + 6 : m.row;
     const auto w = std::min(area.w, light ? std::max<std::int64_t>(m.chars(40), 360) : m.chars(48));
+    const auto offered = suggestions(model);
     const auto h = std::min(area.h, 2 * pad + m.row + (light ? 10 : m.row) +
-                                        static_cast<std::int64_t>(d.entries.size()) * line + control_h);
+                                        static_cast<std::int64_t>(d.entries.size()) * line + control_h +
+                                        static_cast<std::int64_t>(offered.size()) * m.row);
     std::optional<Box> at;
     if (d.beside) at = Box{d.beside->x, d.beside->y, d.beside->w, d.beside->h};
     else if (const auto it = pen.p.subjects.find(d.action); it != pen.p.subjects.end()) at = it->second;
@@ -1358,6 +1360,23 @@ inline void editor(Pen& pen, const Model& model, const Box& area) {
         const bool on = i == d.selected;
         if (e.choices.empty()) {
             entry_row(pen, inside, x, y, e, i, on);
+            // THE NAMES OFFERED as it is typed, beneath it: each its name and whose it is, the one
+            // the keys are on marked; a press takes it.
+            if (on && !offered.empty()) {
+                auto oy = y + (light ? m.tall : m.row);
+                for (std::size_t k = 0; k < offered.size(); ++k) {
+                    const bool marked = d.pick && *d.pick == k;
+                    const Box row{inside.x, oy, inside.w, m.row};
+                    if (marked && light) pen.rect(row, hue::chosen(), gfx::no_paint(), 2, false, box);
+                    const auto said = (light ? std::string() : std::string(marked ? "> " : "  ")) + offered[k].name;
+                    pen.text(x + (light ? m.ch : 0), oy, said, marked ? hue::message() : hue::text(), box);
+                    pen.text(x + (light ? m.ch : 0) + pen.width(said) - (light ? 2 * m.inset : 0) + m.ch, oy,
+                             offered[k].whose, hue::quiet(), box);
+                    pen.press(row.cut(box), "dialog-suggest", {std::to_string(i), offered[k].name});
+                    oy += m.row;
+                }
+                y += static_cast<std::int64_t>(offered.size()) * m.row;
+            }
         } else {
             const auto prefix = (light ? std::string() : std::string(on ? "> " : "  ")) + e.label + ": ";
             pen.text(x, y, prefix, on ? hue::text() : hue::quiet(), box);

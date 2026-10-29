@@ -21,6 +21,7 @@
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
+#include "view/vocabulary.hpp" // the running views it asks what their wiring names
 #include "manuals/zengine.flow.hpp" // this pane's manual, compiled in from its page
 #include <algorithm>
 #include <chrono>
@@ -96,12 +97,13 @@ class FlowPane final
                        fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
                        ws::PaneCanvasValueDrop, ws::PaneCarryAnswered, gfx::AreaRoom,
                        gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
-                       gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded>,
+                       gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded,
+                       zengine::view::ViewWiring>,
           loom::Emit<ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop, fh::FlowCatalog,
                      ws::PaneOperationRequested, ws::PaneValueCarryRequested, gfx::Drawn,
-                     gfx::RoomAsked>> {
+                     gfx::RoomAsked, zengine::view::ViewWiringRequested>> {
 public:
   loom::Value snapshot() const override {
     pane::FlowPaneState saved;
@@ -225,9 +227,31 @@ public:
       if (key.scancode == input::scan::kEscape) {
         model_.dialog.reset(); drag_.reset();
         drop_writing();
+      } else if (key.scancode == input::scan::kReturn && model_.dialog->pick) {
+        // THE NAME THE KEYS ARE ON is taken into the field, and Return again confirms.
+        const auto offered = pane::suggestions(model_);
+        if (*model_.dialog->pick < offered.size())
+          perform("dialog-suggest", {std::to_string(model_.dialog->selected),
+                                     offered[*model_.dialog->pick].name},
+                  mail);
+        else
+          model_.dialog->pick.reset();
+        show(mail);
+        return;
       } else if (key.scancode == input::scan::kReturn) {
         perform("dialog-confirm", {}, mail);
         return;
+      } else if ((key.scancode == input::scan::kDown || key.scancode == input::scan::kUp) &&
+                 !pane::suggestions(model_).empty()) {
+        // THE ARROWS MOVE AMONG THE NAMES OFFERED, from none to the first and back to none.
+        const auto n = pane::suggestions(model_).size();
+        auto &pick = model_.dialog->pick;
+        if (key.scancode == input::scan::kDown)
+          pick = !pick ? 0 : std::min(*pick + 1, n - 1);
+        else if (pick && *pick > 0)
+          pick = *pick - 1;
+        else
+          pick.reset();
       } else if (key.scancode == input::scan::kTab) {
         auto &d = *model_.dialog;
         d.selected = (d.selected + 1) % d.entries.size();
@@ -243,8 +267,10 @@ public:
           const auto &chosen = words[static_cast<std::size_t>(i)];
           entry.text.set(chosen, chosen.size());
         }
-      } else
+      } else {
         entry.text.consume(key.scancode, key.modifiers, clipboard_);
+        model_.dialog->pick.reset(); // what is offered follows what is typed
+      }
       show(mail);
       return;
     }
@@ -332,6 +358,8 @@ public:
       return;
     }
     box.type(text.text);
+    if (model_.dialog)
+      model_.dialog->pick.reset(); // what is offered follows what is typed
     show(mail);
   }
   /// THE POINTER IN THE WINDOW, given by the window that shows Flow's area as its office, read
@@ -881,6 +909,32 @@ public:
     }
     show(mail);
   }
+  /// WHAT A RUNNING VIEW SAYS ITS WIRING NAMES, as its own office: the messages its buttons say and
+  /// its labels show, kept by that office and replaced whole by its next word, within bounds; a
+  /// name too long or not plain ASCII is left out. An editor naming a message shows it at once.
+  void on(const zengine::view::ViewWiring &said, loom::Mail &mail) {
+    const std::string office(mail.authored_role());
+    if (office.empty() || office == pane::kRole)
+      return;
+    if (model_.known.count(office) == 0 && model_.known.size() >= pane::Model::kMaxKnownViews)
+      return;
+    std::vector<pane::Known> names;
+    const auto keep = [&](const std::string &name, bool shown) {
+      if (names.size() >= pane::Model::kMaxKnownNames || name.empty() ||
+          name.size() > pane::Model::kMaxKnownNameBytes ||
+          std::any_of(name.begin(), name.end(), [](char c) { return c <= ' ' || c > '~'; }) ||
+          std::any_of(names.begin(), names.end(), [&](const pane::Known &k) { return k.name == name; }))
+        return;
+      names.push_back({name, shown});
+    };
+    for (const auto &intent : said.intents)
+      keep(intent.shape, false);
+    for (const auto &field : said.fields)
+      keep(field.shape, true);
+    model_.known[office] = std::move(names);
+    if (model_.dialog && pane::names_message(*model_.dialog, model_.dialog->selected))
+      show(mail);
+  }
   /// The discovery door's answer to this pane's question -- the latest one asked, by Loom's
   /// answer provenance and the correlation, so an answer the maker has typed past is dropped.
   /// Kept whole until the next, and never read as what the catalog holds now.
@@ -1111,7 +1165,7 @@ private:
   /// THE PARTS OF AN EDITOR IN PLACE: its fields, its choices, its own room, Confirm and Cancel.
   static bool editor_part(const std::string &action) {
     return action == "dialog-field" || action == "dialog-choose" || action == "dialog-box" ||
-           action == "dialog-confirm" || action == "dialog-cancel";
+           action == "dialog-suggest" || action == "dialog-confirm" || action == "dialog-cancel";
   }
   /// PUT AN EDITOR IN PLACE DOWN, nothing done, and say so.
   void put_editor_down() {
@@ -1121,6 +1175,12 @@ private:
     model_.dialog.reset();
     drag_.reset();
     drop_writing();
+  }
+  /// ASK EVERY RUNNING VIEW WHAT ITS WIRING NAMES, afresh: what they said before is let go, and each
+  /// answers as its own office.
+  void ask_views(loom::Mail &mail) {
+    model_.known.clear();
+    (void)mail.as_role(pane::kRole).publish(zengine::view::ViewWiringRequested{});
   }
   /// AN EDITOR JUST OPENED STANDS BESIDE THE PRESS THAT OPENED IT; a name it asks for is ready to be
   /// typed over, all of it selected.
@@ -1680,6 +1740,8 @@ private:
         row.causes = {ws::cause_of<fh::FlowCatalog>(), found};
       else if (row.id == "add-fold" || row.id == "dialog-confirm" || row.id == "find-wire")
         row.causes = {found};
+      else if (row.id == "ask-message" || row.id == "ask-say")
+        row.causes = {ws::cause_of<zengine::view::ViewWiringRequested>()};
     }
     this->template facet<Actions>().declare(mail, std::move(rows));
   }
@@ -1702,7 +1764,7 @@ private:
     // boundary.
     if (model_.dialog && action != "dialog-field" && action != "dialog-confirm" &&
         action != "dialog-cancel" && action != "dialog-choose" && action != "dialog-box" &&
-        action != "discard")
+        action != "dialog-suggest" && action != "discard")
       throw std::invalid_argument("Confirm or cancel the open dialog before another edit");
     drag_.reset();
     model_.wire_drawn.reset();
@@ -1772,6 +1834,7 @@ private:
     else if (action == "ask-message") {
       model_.ask("Declare an input message", "message", {{"Message name", "Set"}});
       beside_opener(true);
+      ask_views(mail);
     }
     else if (action == "ask-message-field")
       model_.ask("Add field to the selected message", "message-field",
@@ -1803,6 +1866,15 @@ private:
                                     " words, and " + args.at(1) + " is none of them");
       entry.text.set(args.at(1), args.at(1).size());
       model_.dialog->selected = at;
+    } else if (action == "dialog-suggest") {
+      // A NAME OFFERED, taken: the field holds it whole, ready to confirm or edit on.
+      if (!model_.dialog)
+        return;
+      const auto at = flow::index_of(args.at(0));
+      auto &entry = model_.dialog->entries.at(at);
+      entry.text.set(args.at(1), args.at(1).size());
+      model_.dialog->selected = at;
+      model_.dialog->pick.reset();
     } else if (action == "dialog-box") {
       // A press inside an editor on none of its parts: nothing.
     } else if (action == "dialog-cancel") {
@@ -1858,6 +1930,7 @@ private:
       model_.ask("Say a message after the change", "say",
                  {{"Message name", pane::say_name(on.output)}, {"With", on.output}});
       beside_opener(true);
+      ask_views(mail);
     } else if (action == "write") {
       // A STEP'S ANSWER, held, given to what the rule writes: it becomes that answer.
       if (!model_.connecting || model_.connecting->from() != zengine::op::Binding::From::Node)

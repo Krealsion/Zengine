@@ -18,6 +18,7 @@
 #include "workshop/pane_picture.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_door.hpp"
+#include "view/vocabulary.hpp"
 #include "lifecycle_door.hpp"
 #include "pane_window.hpp"
 #include "shown_picture.hpp"
@@ -150,6 +151,9 @@ struct Rig {
         // authorize mail.answer(), even when that requester holds Workshop.
         pane_grant.allow(ws::PaneQuitAnswered::zen_name, ws::PaneQuitAnswered::zen_version, workshop);
         pane_grant.allow_to_any(fp::FlowEdited::zen_name, fp::FlowEdited::zen_version);
+        // ...and every running view, asked what its wiring names.
+        pane_grant.allow_to_any(zengine::view::ViewWiringRequested::zen_name,
+                                zengine::view::ViewWiringRequested::zen_version);
         // ...and its drawing, to the window that shows its area, and its room, asked of the directory.
         pane_grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
         pane_grant.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
@@ -2611,4 +2615,105 @@ TEST_CASE("Keep a field, Say a message and New message edit in place beside what
     CHECK(rig.shows("WHEN"));
     rig.key(in::scan::kReturn);
     CHECK(rig.workspace().graph.project.definition.on.front().emits.size() == 1);
+}
+
+namespace {
+/// A RUNNING VIEW standing in for one the View Builder made: asked what its wiring names, it
+/// answers the asker alone, as its own office, that its Count button says tally.Set and its Total
+/// label shows tally.Shown.
+class FakeView final : public loom::Weave {
+public:
+    loom::WeaveId self{};
+    int asked = 0;
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
+        return {loom::schema_of<zengine::view::ViewWiringRequested>()};
+    }
+    void handle(const loom::Message& in, loom::Bus& bus) override {
+        if (!loom::same_identity(in.payload.schema(), *loom::schema_of<zengine::view::ViewWiringRequested>()))
+            return;
+        ++asked;
+        zengine::view::ViewWiring said;
+        said.intents.push_back({"Count", "tally.Set", 1, false, 0, 0, "", false});
+        said.fields.push_back({"Total", "tally.Shown", 1, "total", false});
+        (void)bus.office_send("tally.panel", in.sender,
+                              loom::Message(loom::to_value(said), self, {}, in.correlation));
+    }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("flowtest.FakeView", 1, {})); }
+    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
+    void revive(const loom::Value&) override {}
+};
+FakeView* run_view(Rig& rig) {
+    loom::Grant tell;
+    tell.allow_to_any(zengine::view::ViewWiring::zen_name, zengine::view::ViewWiring::zen_version);
+    auto view = std::make_unique<FakeView>();
+    FakeView* raw = view.get();
+    raw->self = rig.bus.register_weave(std::move(view), std::move(tell), "tally.panel");
+    REQUIRE(raw->self.valid());
+    return raw;
+}
+} // namespace
+
+TEST_CASE("a message's name is offered as it is typed: what the rule says and what running views say "
+          "or show, each view asked by message; a name not among them still works") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("emitted-message", {"Done"});
+    const auto* view = run_view(rig);
+
+    // NEW MESSAGE: each running view is asked as it opens, and what they name is offered as the name
+    // is typed -- never one the rule hears already, nor one it says.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#views-never-asked): the editor asks no view.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#view-answer-dropped): what a view answers is kept nowhere.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#offers-ignore-typing): every name is offered, whatever is
+    // typed.
+    rig.click("[Messages]");
+    rig.click("[New message]");
+    CHECK(view->asked == 1);
+    CHECK(rig.shows("  tally.Set"));
+    CHECK(rig.shows("a button says it"));
+    CHECK_FALSE(rig.shows("  tally.Shown"));
+    CHECK_FALSE(rig.shows("  meter.Set"));
+    rig.replace_text("e");
+    CHECK(rig.shows("  tally.Set"));
+    CHECK_FALSE(rig.shows("  meter.Done"));
+    rig.replace_text("sh");
+    CHECK(rig.shows("  tally.Shown"));
+    CHECK(rig.shows("a label shows it"));
+    CHECK_FALSE(rig.shows("  tally.Set"));
+    // ...TAKEN BY THE ARROWS AND RETURN, then confirmed.
+    rig.key(in::scan::kDown);
+    CHECK(rig.shows("> tally.Shown"));
+    rig.key(in::scan::kReturn);
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.definition.accepts.back()->name() == "tally.Shown");
+
+    // ...OR BY A PRESS.
+    rig.click("[New message]");
+    CHECK(view->asked == 2);
+    rig.click("  tally.Set");
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.definition.accepts.back()->name() == "tally.Set");
+
+    // A NAME NOT AMONG THEM STILL WORKS.
+    rig.click("[New message]");
+    rig.replace_text("Ping");
+    CHECK_FALSE(rig.shows("a button says it"));
+    CHECK_FALSE(rig.shows("a label shows it"));
+    rig.key(in::scan::kReturn);
+    CHECK(rig.workspace().graph.project.definition.accepts.back()->name() == "meter.Ping");
+
+    // SAY A MESSAGE: what the rule says already is offered, never what it hears, which it would hear
+    // again from itself.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#say-offers-what-it-hears): a name the rule hears is offered
+    // to say.
+    rig.click("[Graph]");
+    rig.click("[+ say meter.Value]");
+    CHECK(view->asked == 4);
+    rig.replace_text("d");
+    CHECK(rig.shows("  meter.Done"));
+    CHECK(rig.shows("this rule says it"));
+    rig.replace_text("t");
+    CHECK_FALSE(rig.shows("  tally.Set"));
+    CHECK_FALSE(rig.shows("  tally.Shown"));
+    rig.key(in::scan::kEscape);
 }

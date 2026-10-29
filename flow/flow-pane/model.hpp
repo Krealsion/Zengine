@@ -10,6 +10,7 @@
 #include "operator/reference.hpp"
 #include "component/text_box.hpp"
 #include "workshop/powers_vocabulary.hpp"
+#include <map>
 #include <optional>
 
 namespace zengine::flow_pane {
@@ -30,7 +31,12 @@ struct Dialog {
     std::vector<Entry> entries;
     std::size_t selected = 0;
     std::optional<Spot> beside;
+    /// The name offered that the arrow keys are on, by its place in the offer; none until they move.
+    std::optional<std::size_t> pick;
 };
+/// A MESSAGE A RUNNING VIEW NAMES: its name, and whether a label of the view shows it rather than
+/// a button saying it.
+struct Known { std::string name; bool shown = false; };
 /// AN EDITOR THAT OPENS IN PLACE, beside what opened it with the page still shown round it: keeping
 /// a field, saying a message, declaring one.
 inline bool in_place(const std::string& action) {
@@ -103,6 +109,10 @@ public:
     /// A wire being dragged, and the search one let go on empty room opened; neither is saved.
     std::optional<WireDrawn> wire_drawn;
     std::optional<WireSearch> wire_search;
+    /// What each running view last said its wiring names, by the view's office: replaced whole by
+    /// its next word, and asked afresh as an editor that names a message opens. Never saved.
+    std::map<std::string, std::vector<Known>> known;
+    static constexpr std::size_t kMaxKnownViews = 64, kMaxKnownNames = 64, kMaxKnownNameBytes = 128;
     zengine::workshop::PowersFound discovered;
     bool discovered_read = false;
     std::string preview, preview_kind;
@@ -153,7 +163,7 @@ public:
         ++state_epoch; state_edited = true; touched();
     }
     void ask(std::string title, std::string action, const std::vector<std::pair<std::string,std::string>>& fields) {
-        Dialog next{std::move(title), std::move(action), {}, 0, std::nullopt};
+        Dialog next{std::move(title), std::move(action), {}, 0, std::nullopt, std::nullopt};
         for (const auto& [label, value] : fields) { Entry e; e.label = label; e.text.set(value, value.size()); next.entries.push_back(std::move(e)); }
         dialog = std::move(next);
         dress();

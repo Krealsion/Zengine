@@ -24,11 +24,11 @@ zengine.flow - zoom-out unbound - - Zoom out
 zengine.flow - ask-trigger unbound - - Add a trigger
 zengine.flow - ask-emit unbound - - Add an emit
 zengine.flow - ask-keep unbound - - Keep a field between messages
-zengine.flow - ask-say unbound - - Say a message after the change
+zengine.flow - ask-say unbound ViewWiringRequested/1 - Say a message after the change
 zengine.flow - add-fold unbound FindPowers/2 - Add the form shown
 zengine.flow - ask-state-field unbound - - Add a state field
 zengine.flow - keep-state unbound - - Keep the state
-zengine.flow - ask-message unbound - - New message
+zengine.flow - ask-message unbound ViewWiringRequested/1 - New message
 zengine.flow - ask-message-field unbound - - Add a message field
 zengine.flow - ask-emitted-message unbound - - New emitted message
 zengine.flow - ask-emitted-field unbound - - Add an emitted field

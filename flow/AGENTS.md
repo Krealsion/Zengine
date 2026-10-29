@@ -54,7 +54,8 @@ against the installed package.
 - `workshop/default-load-plan.json` loads `zengine-flow-pane` as optional role `zengine.flow`; `workshop/CMakeLists.txt` stages it and
   lists it among the recipe catalog's pane weaves.
 - The pane asks `zengine.powers` (`workshop/powers_door.hpp`, `workshop/powers_vocabulary.hpp`),
-  and asks to write and to carry through `workshop/pane_operation.hpp` and
+  asks the running views what their wiring names (`view/vocabulary.hpp`), and asks to write and to
+  carry through `workshop/pane_operation.hpp` and
   `workshop/pane_carry.hpp`, answered in `workshop/weave_operation.cpp`. It has no seam
   vocabulary of its own; it speaks the pane protocol (`workshop/pane_vocabulary.hpp`).
 - `view/view-builder/` links `zengine-flow` for `shape.hpp`; `cmake/ZengineInstall.cmake`

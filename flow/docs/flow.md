@@ -61,7 +61,12 @@ Three open in place instead of over the page: **Keep a field**, **Say a message*
 message** open a small box beside what you pressed to open them, with the graph still drawn round
 it, and a name they ask for is selected, so what you type replaces it. A kept field's kind is a
 row of buttons, **Int**, **Bool**, **Float**, **Text** and **Bytes**, chosen by a press or the
-arrow keys rather than typed. A press anywhere outside the box closes it, changing nothing.
+arrow keys rather than typed. A press anywhere outside the box closes it, changing nothing. As you
+type a message's name, the names offered beneath it are the ones this rule already says, for a
+message it says, and the ones running views name -- a button's message or a label's -- each asked
+of its view as the box opens; press one, or move to it with the arrow keys and press **Enter**, to
+take it. A name not among them still works. A name the rule hears is never offered: a rule never
+hears itself.
 
 ## Find what to compose
 

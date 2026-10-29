@@ -316,3 +316,70 @@ Red in `zengine-flow-pane-tests`:
 
 - Keep a field, Say a message and New message edit in place beside what opened them, the graph
   still in view, and a kept field's kind is chosen from the kinds Flow takes
+
+## views-never-asked
+
+An editor that names a message asks no running view what its wiring names.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+     model_.known.clear();
+-    (void)mail.as_role(pane::kRole).publish(zengine::view::ViewWiringRequested{});
++    (void)mail;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a message's name is offered as it is typed: what the rule says and what running views say or
+  show, each view asked by message; a name not among them still works
+
+## view-answer-dropped
+
+What a running view answers is kept nowhere.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+     const std::string office(mail.authored_role());
+-    if (office.empty() || office == pane::kRole)
++    if (!office.empty() || office == pane::kRole)
+       return;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a message's name is offered as it is typed: what the rule says and what running views say or
+  show, each view asked by message; a name not among them still works
+
+## offers-ignore-typing
+
+Every name is offered, whatever is typed.
+
+In `flow/flow-pane/find.hpp`:
+
+```diff
+-        if (!typed.empty() && lower(name).find(typed) == std::string::npos) return;
++        if (typed.empty() && lower(name).find(typed) == std::string::npos) return;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a message's name is offered as it is typed: what the rule says and what running views say or
+  show, each view asked by message; a name not among them still works
+
+## say-offers-what-it-hears
+
+A name the rule hears is offered for a message it says.
+
+In `flow/flow-pane/find.hpp`:
+
+```diff
+-        if (out.size() >= kMaxSuggestions || among(def.accepts, name) || (!said && among(def.emits, name)))
++        if (out.size() >= kMaxSuggestions || (!said && among(def.accepts, name)) || (!said && among(def.emits, name)))
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a message's name is offered as it is typed: what the rule says and what running views say or
+  show, each view asked by message; a name not among them still works
