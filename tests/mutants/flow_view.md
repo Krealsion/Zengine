@@ -200,3 +200,51 @@ Red in `zengine-flow-tests`:
 
 - the sentence and the graph light each other: a part rested on lights its cards, steps and wires, a
   card or a step its parts, and a part still to choose is pressed as Next is
+
+## a-port-tells-nothing
+
+Resting on a port tells nothing.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-        if (head != "port" && head != "answer" && head != "wire") return {};
++        if (head != "answer" && head != "wire") return {};
+```
+
+Red in `zengine-flow-tests`:
+
+- resting tells: a port its kind and what it reads, an answer or a field what reads it, a wire its
+  two ends lit and what it last carried; a wire in the hand says why a port does not fit
+
+## a-wires-ends-unlit
+
+Resting on a wire lights the wire alone, neither of its ends.
+
+In `flow/flow-pane/view.hpp`:
+
+```diff
+-        for (const auto& end : wire_ends(model, key)) out.pointed.insert(end);
++        for (const auto& end : wire_ends(model, key)) out.pointed.insert(end.substr(1));
+```
+
+Red in `zengine-flow-tests`:
+
+- resting tells: a port its kind and what it reads, an answer or a field what reads it, a wire its
+  two ends lit and what it last carried; a wire in the hand says why a port does not fit
+
+## another-type-fits
+
+A wire of another type fits a port.
+
+In `flow/flow-pane/find.hpp`:
+
+```diff
+-    if (*type != port->type) return words + " takes " + port->type + ", and " + from + " is " + *type;
++    if (type->empty()) return words + " takes " + port->type + ", and " + from + " is " + *type;
+```
+
+Red in `zengine-flow-tests`:
+
+- resting tells: a port its kind and what it reads, an answer or a field what reads it, a wire its
+  two ends lit and what it last carried; a wire in the hand says why a port does not fit

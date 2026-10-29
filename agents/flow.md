@@ -136,7 +136,9 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   (`Model::hover`, found by `rest_at` among the picture's rests and wire lines); a part of the
   sentence lights the cards, steps and places it stands for (`Chip::subjects`), a card or a step
   lights its parts (`lighting`), and a press ends the rest. A dashed part, pressed, does what the
-  Next line's button does.
+  Next line's button does. Resting on a port, an answer, a field or a wire tells it in words
+  (`told`), a wire's two ends lit; a wire that does not fit a port (`flow_pane::unfit`) says why
+  before it is let go, and is refused in those words, never handed to the graph to refuse.
   A preview evaluates nothing. Add takes an operator reference (the row's
   identity and two content ids): `add-node` places a step at the end or before a node, and
   `add-node-into` before a port's node and into that port, one renumbering edit; a stale
@@ -156,12 +158,12 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   line's walk, the journal read one line a message, the tally drawn in light and in cells, a card
   chosen and put, what makes two presses one double click, a step named by its operator and no
   internal word drawn, the rail's words broken to two lines, the sentence and the graph lighting
-  each other, and the kinds a kept field is chosen from.
+  each other, what resting tells, and the kinds a kept field is chosen from.
   `tests/test_flow_pane.cpp` covers modal commands, native text dragging,
   reload preservation, the right press handed back, the empty press and the pan, the chosen step's
   x and Delete, the When and Then cards moved, the double clicks that add, the box at a port, the
   editors in place, the names offered as a message is named, the rail narrowed by a wire in hand,
-  the pointer resting with no button held,
+  the pointer resting with no button held, a wire that does not fit,
   finding through the door
   and the pane in a graphics window; host behavior is witnessed under [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

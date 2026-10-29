@@ -44,29 +44,32 @@ struct PortView {
     std::string type;
 };
 
-/// The selected port, resolved through its node's stable place in the active trigger; none when
-/// that node is gone, belongs to another trigger, or its operator's ports are not described.
-inline std::optional<PortView> selected_port(const Model& m) {
-    if (!m.filling) return std::nullopt;
+/// A port as the graph knows it now, resolved through its node's stable place in the active
+/// trigger; none when that node is gone, belongs to another trigger, or its operator's ports are not
+/// described.
+inline std::optional<PortView> port_view(const Model& m, const PortChoice& choice) {
     const auto& on = m.workspace.graph.project.definition.on;
     const auto t = m.workspace.active_trigger;
     if (t < 0 || static_cast<std::size_t>(t) >= on.size()) return std::nullopt;
     const auto& nodes = on[static_cast<std::size_t>(t)].body.nodes;
     for (const auto& place : m.workspace.graph.places) {
-        if (place.id != m.filling->place || place.trigger != t) continue;
+        if (place.id != choice.place || place.trigger != t) continue;
         if (place.node < 0 || static_cast<std::size_t>(place.node) >= nodes.size()) return std::nullopt;
         const auto n = static_cast<std::size_t>(place.node);
         try {
             const auto ports = m.workspace.graph.node_ports(static_cast<std::size_t>(t), n, m.palette);
             const auto described = loom::describe_schema(*ports.inputs).fields;
-            if (m.filling->port >= described.size()) return std::nullopt;
-            return PortView{n, m.filling->port, ports.inputs->fields().at(m.filling->port),
-                            described[m.filling->port].type};
+            if (choice.port >= described.size()) return std::nullopt;
+            return PortView{n, choice.port, ports.inputs->fields().at(choice.port), described[choice.port].type};
         } catch (const std::exception&) {
             return std::nullopt;
         }
     }
     return std::nullopt;
+}
+/// The selected port, as `port_view` reads one.
+inline std::optional<PortView> selected_port(const Model& m) {
+    return m.filling ? port_view(m, *m.filling) : std::nullopt;
 }
 
 /// A PORT AS A WEAVER READS IT: its step by the step's operator, then its own name (`add's rhs`).
@@ -137,9 +140,24 @@ inline std::optional<HeldWire> held_wire(const Model& m) {
 /// The port a wire's search wires into, as `selected_port` reads one.
 inline std::optional<PortView> wire_port(const Model& m) {
     if (!m.wire_search || !m.wire_search->from.port) return std::nullopt;
-    Model probe = m;
-    probe.filling = m.wire_search->from.port;
-    return selected_port(probe);
+    return port_view(m, *m.wire_search->from.port);
+}
+
+/// WHY A WIRE FROM `source` DOES NOT FIT THE PORT `choice` -- a step that is not before the port's,
+/// or another type -- in a weaver's words; empty where it fits.
+inline std::string unfit(const Model& m, const op::Binding& source, const PortChoice& choice) {
+    const auto port = port_view(m, choice);
+    const auto& def = m.workspace.graph.project.definition;
+    if (!port || def.on.empty()) return "that port is gone";
+    const auto& nodes = def.on.at(m.trigger()).body.nodes;
+    const auto words = port_words(m, *port);
+    const auto from = source_words(nodes, source);
+    if (source.from() == op::Binding::From::Node && source.node_index() >= port->node)
+        return words + " can't read " + from + ": a step reads only the steps before it";
+    const auto type = source_type(m, source);
+    if (!type) return words + " can't read " + from + ": its type is not described here";
+    if (*type != port->type) return words + " takes " + port->type + ", and " + from + " is " + *type;
+    return {};
 }
 
 /// THE QUESTION FLOW ASKS THE DOOR: the search line's text and, with a wire's search open, what

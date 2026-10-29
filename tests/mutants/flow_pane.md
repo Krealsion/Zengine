@@ -479,3 +479,35 @@ Red in `zengine-flow-pane-tests`:
 
 - the pointer resting with no button held lights the sentence and the graph together, and a press on
   a part still to choose does what the Next line's button does
+
+## a-dragged-wire-says-nothing
+
+A wire dragged over a port it does not fit says nothing before it is let go.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-          drawn.why = pane::unfit(model_, *drag_->from.source, *drawn.lit);
++          drawn.why = pane::unfit(model_, *drag_->from.source, *drawn.lit).substr(0, 0);
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- resting on a port tells its kind and what it reads; a wire over a port it does not fit says why
+  before it is let go, and wires nothing, and a press there says the same
+
+## a-press-binds-what-does-not-fit
+
+A wire held by a click and pressed on a port it does not fit is handed to the graph to bind.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-        if (const auto why = pane::unfit(model_, binding, into); !why.empty())
++        if (const auto why = pane::unfit(model_, binding, into); why.size() > 4096)
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- resting on a port tells its kind and what it reads; a wire over a port it does not fit says why
+  before it is let go, and wires nothing, and a press there says the same

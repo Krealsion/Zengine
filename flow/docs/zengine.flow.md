@@ -683,8 +683,9 @@ release carry the window's number for the press, which a carry it asks continues
 
 `AreaPointerMoved` v2, from that window: the pointer moved in Flow's area. While a press there is
 held it moves the held node, pans the graph or draws the held wire to the hand, as on Workshop's
-canvas; with none held, what it rests on -- a part of the rule's sentence, a card, a step, a port, a
-wire -- is lit with what goes with it, drawn again only when that changes.
+canvas, a port it does not fit saying why under the hand; with none held, what it rests on -- a
+part of the rule's sentence, a card, a step, a port, a wire -- is lit with what goes with it, and a
+port or a wire says what it is beside it, drawn again only when that changes.
 
 ### `AreaWheelTurned`
 

@@ -666,6 +666,8 @@ public:
     if (on == model_.hover)
       return;
     model_.hover = on;
+    model_.hover_x = event.x;
+    model_.hover_y = event.y;
     show(mail);
   }
   /// THE ROOM, from the graphics window that shows Flow's area, as that window's office: a window,
@@ -1259,15 +1261,29 @@ private:
     if (!drag_->crossed && std::abs(hx - drag_->x) < measure.ch && std::abs(hy - drag_->y) < measure.row)
       return;
     drag_->crossed = true;
-    pane::WireDrawn drawn{drag_->x, drag_->y, hx, hy, {}};
-    if (drag_->from.source)
-      if (const auto *it = latest();
-          it != nullptr && it->revision == model_.workspace.graph.project.definition.revision)
-        if (const auto *over = it->hit(event.x, event.y);
-            over != nullptr && over->action == "port" && over->args.size() == 2)
+    pane::WireDrawn drawn{drag_->x, drag_->y, hx, hy, {}, {}};
+    // OVER THE OTHER END: lit, and, where it does not fit, why, before the wire is let go.
+    if (const auto *it = latest();
+        it != nullptr && it->revision == model_.workspace.graph.project.definition.revision)
+      if (const auto *over = it->hit(event.x, event.y)) {
+        if (drag_->from.source && over->action == "port" && over->args.size() == 2) {
           drawn.lit = pane::PortChoice{over->subject, flow::index_of(over->args[1])};
+          drawn.why = pane::unfit(model_, *drag_->from.source, *drawn.lit);
+        } else if (drag_->from.port) {
+          if (const auto source = source_of(*over))
+            drawn.why = pane::unfit(model_, *source, *drag_->from.port);
+        }
+      }
     model_.wire_drawn = drawn;
     show(mail);
+  }
+  /// What a press on `hit` would wire from: a step's answer or a field; none for anything else.
+  static std::optional<zengine::op::Binding> source_of(const pane::Hit &hit) {
+    if (hit.action == "source-node" && hit.args.size() == 1)
+      return zengine::op::Binding::node(flow::index_of(hit.args[0]));
+    if ((hit.action == "source-field" || hit.action == "field") && hit.args.size() == 1)
+      return zengine::op::Binding::input(hit.args[0]);
+    return std::nullopt;
   }
   /// IS (x, y) EMPTY GRAPH ROOM in `it`: inside the graph's viewport, on the Graph page.
   static bool graph_room(const pane::Picture &it, std::int64_t x, std::int64_t y) {
@@ -1300,6 +1316,13 @@ private:
       return;
     }
     if (held.from.source && hit != nullptr && hit->action == "port" && hit->args.size() == 2) {
+      // LET GO ON A PORT IT DOES NOT FIT: said in words, and nothing is wired.
+      const pane::PortChoice port{hit->subject, flow::index_of(hit->args[1])};
+      if (const auto why = pane::unfit(model_, *held.from.source, port); !why.empty()) {
+        model_.notice = why + "; nothing was wired";
+        show(mail);
+        return;
+      }
       model_.connecting = *held.from.source;
       perform("port", hit->args, mail);
       return;
@@ -1317,6 +1340,10 @@ private:
         (hit->action == "source-node" || hit->action == "source-field" ||
          hit->action == "field" || hit->action == "scope")) {
       try {
+        if (const auto source = source_of(*hit)) {
+          if (const auto why = pane::unfit(model_, *source, *held.from.port); !why.empty())
+            throw std::invalid_argument(why + "; nothing was wired");
+        }
         if (hit->action == "scope") {
           act("scope", hit->args, mail);
         } else {
@@ -2005,6 +2032,10 @@ private:
     } else if (action == "port") {
       if (model_.connecting) {
         const auto binding = *model_.connecting;
+        const pane::PortChoice into{model_.workspace.graph.place(model_.trigger(), flow::index_of(args.at(0))).id,
+                                    flow::index_of(args.at(1))};
+        if (const auto why = pane::unfit(model_, binding, into); !why.empty())
+          throw std::invalid_argument(why + "; nothing was wired");
         const auto text = binding.from() == zengine::op::Binding::From::Input
                               ? "$" + binding.input_name()
                               : "%" + std::to_string(binding.node_index());

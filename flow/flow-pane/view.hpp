@@ -328,13 +328,15 @@ inline void glow(Pen& pen, const Box& b, std::optional<Box> clip) {
     if (pen.m.light) pen.rect({b.x - 2, b.y - 2, b.w + 4, b.h + 4}, gfx::no_paint(), hue::text(), 6, false, clip);
 }
 /// A PORT: a dot at a card's edge -- a ring until wired, where light; an `o` on the edge where a
-/// character is a cell.
+/// character is a cell -- bright, and ringed where light, while lit.
 inline void port(Pen& pen, std::int64_t x, std::int64_t middle, gfx::Paint ink, bool filled,
-                 std::optional<Box> clip) {
+                 std::optional<Box> clip, bool lit = false) {
     if (pen.m.light) {
-        pen.dot({x - 5, middle - 5, 10, 10}, filled ? ink : hue::well(), ink, clip);
+        if (lit) pen.dot({x - 8, middle - 8, 16, 16}, gfx::no_paint(), hue::text(), clip);
+        pen.dot({x - 5, middle - 5, 10, 10}, filled ? (lit ? hue::text() : ink) : hue::well(),
+                lit ? hue::text() : ink, clip);
     } else {
-        pen.text(x, middle - pen.m.row / 2, "o", ink, clip);
+        pen.text(x, middle - pen.m.row / 2, "o", lit ? hue::text() : ink, clip);
     }
 }
 /// THE POINTS OF A WIRE'S LINE as `wire` draws it, for the pointer to rest on: the curve's, where
@@ -402,11 +404,37 @@ struct Lighting {
     std::set<std::size_t> chips;
     bool on(const std::string& key) const { return pointed.count(key) != 0; }
 };
+/// THE TWO ENDS OF A WIRE, by key: the answer or the field it leaves, and the port it reaches.
+inline std::vector<std::string> wire_ends(const Model& m, const std::string& key) {
+    const auto& def = m.workspace.graph.project.definition;
+    if (def.on.empty() || key.rfind("wire:", 0) != 0) return {};
+    const auto& on = def.on.at(m.trigger());
+    const auto leaves = [&](const op::Binding& b) {
+        return b.from() == op::Binding::From::Node ? "answer:" + std::to_string(place_of(m, b.node_index()))
+                                                   : "field:" + b.input_name();
+    };
+    if (key == "wire:write")
+        return {leaves(op::Binding::node(on.body.result_node)), std::string("port:write")};
+    const auto dot = key.find('.');
+    if (dot == std::string::npos) return {};
+    try {
+        const auto step = step_at(m, flow::integer(key.substr(5, dot - 5)));
+        const auto port = flow::index_of(key.substr(dot + 1));
+        if (!step || port >= on.body.nodes.at(*step).arguments.size()) return {};
+        return {leaves(on.body.nodes[*step].arguments[port]), "port:" + key.substr(5)};
+    } catch (const std::exception&) {
+        return {};
+    }
+}
 inline Lighting lighting(const Model& model, const std::vector<Chip>& chips) {
     Lighting out;
     if (!model.hover) return out;
     const auto& key = *model.hover;
     out.pointed.insert(key);
+    if (key.rfind("wire:", 0) == 0) {
+        for (const auto& end : wire_ends(model, key)) out.pointed.insert(end);
+        return out;
+    }
     if (key.rfind("chip:", 0) == 0) {
         std::size_t i = chips.size();
         try {
@@ -1086,8 +1114,15 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             y += m.row;
         }
     }
-    for (const auto& [name, at] : from_field) port(pen, at.first, at.second, hue::wire(), true, when_room);
-    for (const auto& [name, at] : from_kept) port(pen, at.first, at.second, hue::kept(), true, when_room);
+    const auto lit_port = [&](const std::string& key) {
+        if (!lit.on(key)) return false;
+        pen.p.lit.insert(key);
+        return true;
+    };
+    for (const auto& [name, at] : from_field)
+        port(pen, at.first, at.second, hue::wire(), true, when_room, lit_port("field:" + name));
+    for (const auto& [name, at] : from_kept)
+        port(pen, at.first, at.second, hue::kept(), true, when_room, lit_port("field:" + name));
     // WHAT IT WRITES AND WHAT IT SAYS.
     std::optional<std::pair<std::int64_t, std::int64_t>> write_port;
     y = then_room.y + (light ? 12 : 0);
@@ -1264,9 +1299,11 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             const bool held_over = model.wire_drawn && model.wire_drawn->lit && model.wire_drawn->lit->place == id &&
                                    model.wire_drawn->lit->port == a;
             const bool marked = held_over || (chosen_port && chosen_port->node == n && chosen_port->port == a);
+            // A WIRE IN THE HAND THAT DOES NOT FIT the port under it marks it in the warning's colour.
+            const auto mark = held_over && !model.wire_drawn->why.empty() ? hue::warn() : hue::message();
             const auto port_name = a < names.size() ? names[a] : std::to_string(a);
             if (light) {
-                pen.text(tx + 6, ry, port_name, marked ? hue::message() : hue::text(), inside);
+                pen.text(tx + 6, ry, port_name, marked ? mark : hue::text(), inside);
                 std::string from;
                 if (unwired(b)) {
                     try {
@@ -1281,7 +1318,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             } else {
                 // Where a character is a cell, the port is the `o` its row begins with, on the edge.
                 const auto reads = unwired(b) ? std::string(" [unwired]") : " <- " + source_words(on->body.nodes, b);
-                pen.text(rows.box.x, ry, "o " + port_name + reads, marked ? hue::message() : hue::text(), inside);
+                pen.text(rows.box.x, ry, "o " + port_name + reads, marked ? mark : hue::text(), inside);
             }
             pen.press(Box{rows.box.x, ry, rows.box.w, m.row}.cut(canvas), "port", {std::to_string(n), std::to_string(a)}, id);
             pen.p.rests.push_back({"port:" + std::to_string(id) + "." + std::to_string(a),
@@ -1369,15 +1406,151 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
         const auto& node = on->body.nodes[n];
         const auto& rows = placed[n].rows;
         if (!rows.box.meets(canvas)) continue;
+        const auto at = std::to_string(placed[n].id);
         if (light)
             for (std::size_t a = 0; a < node.arguments.size(); ++a)
-                port(pen, rows.box.x, rows.middles[a + placed[n].extra], hue::wire(), !unwired(node.arguments[a]), canvas);
+                port(pen, rows.box.x, rows.middles[a + placed[n].extra], hue::wire(), !unwired(node.arguments[a]), canvas,
+                     lit_port("port:" + at + "." + std::to_string(a)));
         port(pen, rows.box.right() - (light ? 0 : m.ch), rows.middles.back(), hue::wire(),
-             on->body.result_node == n, canvas);
+             on->body.result_node == n, canvas, lit_port("answer:" + at));
     }
-    if (write_port) port(pen, write_port->first, write_port->second, hue::kept(), !on->body.nodes.empty(), then_room);
+    if (write_port)
+        port(pen, write_port->first, write_port->second, hue::kept(), !on->body.nodes.empty(), then_room,
+             lit_port("port:write"));
     // A WIRE IN THE HAND, drawn from where it was pressed to the hand, in the ink of wires.
     if (const auto& w = model.wire_drawn) wire(pen, w->from_x, w->from_y, w->to_x, w->to_y, hue::wire(), g);
+}
+
+/// WHAT RESTING ON A PORT OR A WIRE TELLS, a line or three: a port's name and kind and what it
+/// reads, or for an answer or a field what reads it; a wire's two ends and the value it last carried.
+/// None for anything else.
+inline std::vector<std::string> told(const Model& m) {
+    const auto& def = m.workspace.graph.project.definition;
+    if (!m.hover || def.on.empty()) return {};
+    const auto& key = *m.hover;
+    const auto& graph = m.workspace.graph;
+    const auto& on = def.on.at(m.trigger());
+    const auto& nodes = on.body.nodes;
+    const auto kind = [](const loom::TypeRef& t) { return std::string(loom::name_of(t.kind)); };
+    const auto same = [](const op::Binding& a, const op::Binding& b) {
+        if (a.from() != b.from()) return false;
+        if (a.from() == op::Binding::From::Node) return a.node_index() == b.node_index();
+        return a.from() == op::Binding::From::Input && a.input_name() == b.input_name();
+    };
+    // WHAT READS `source`: each port wired from it, and what the rule keeps where it is the answer.
+    const auto readers = [&](const op::Binding& source) {
+        std::vector<std::string> out;
+        std::string ports;
+        for (std::size_t n = 0; n < nodes.size(); ++n) {
+            std::vector<std::string> names;
+            try {
+                for (const auto& f : graph.node_ports(m.trigger(), n, m.palette).inputs->fields()) names.push_back(f.name);
+            } catch (const std::exception&) {
+            }
+            for (std::size_t a = 0; a < nodes[n].arguments.size(); ++a)
+                if (same(nodes[n].arguments[a], source))
+                    ports += (ports.empty() ? "" : ", ") + step_name(nodes, n) + "'s " +
+                             (a < names.size() ? names[a] : std::to_string(a));
+        }
+        const bool answer = source.from() == op::Binding::From::Node && source.node_index() == on.body.result_node;
+        if (!ports.empty()) out.push_back("read by " + ports);
+        if (answer) out.push_back(on.output + " becomes it");
+        if (out.empty()) out.push_back("nothing reads it yet");
+        return out;
+    };
+    const auto seen = carried(m.observed);
+    const auto value = [&](const op::Binding& b) -> std::string {
+        if (!seen.known()) return "nothing carried yet";
+        std::optional<std::string> v;
+        if (b.from() == op::Binding::From::Input) {
+            const auto& in = def.state->find(b.input_name()) ? seen.before : seen.message;
+            if (const auto it = in.find(b.input_name()); it != in.end()) v = it->second;
+        } else if (b.from() == op::Binding::From::Node && b.node_index() == on.body.result_node) {
+            if (const auto it = seen.after.find(on.output); it != seen.after.end()) v = it->second;
+        }
+        return v ? "last carried " + *v : "not seen: Flow sees what arrives and what is kept";
+    };
+    try {
+        if (key.rfind("field:", 0) == 0) {
+            const auto name = key.substr(6);
+            const auto* kept = def.state->find(name);
+            const auto* field = kept ? kept : on.message->find(name);
+            if (!field) return {};
+            auto out = std::vector<std::string>{name + " : " + kind(field->type) + (kept ? ", kept" : ", from the message")};
+            for (auto& line : readers(op::Binding::input(name))) out.push_back(std::move(line));
+            return out;
+        }
+        if (key == "wire:write") {
+            const auto b = op::Binding::node(on.body.result_node);
+            return {step_name(nodes, on.body.result_node) + "'s answer -> " + on.output, value(b)};
+        }
+        const auto colon = key.find(':');
+        const auto dot = key.find('.');
+        const auto head = key.substr(0, colon);
+        if (head != "port" && head != "answer" && head != "wire") return {};
+        const auto step = step_at(m, flow::integer(key.substr(colon + 1, dot == std::string::npos ? std::string::npos
+                                                                                                   : dot - colon - 1)));
+        if (!step || *step >= nodes.size()) return {};
+        const auto n = *step;
+        if (head == "answer") {
+            auto out = std::vector<std::string>{step_name(nodes, n) + "'s answer : " +
+                                                kind(graph.node_answer_type(m.trigger(), n, m.palette))};
+            for (auto& line : readers(op::Binding::node(n))) out.push_back(std::move(line));
+            return out;
+        }
+        const auto a = flow::index_of(key.substr(dot + 1));
+        const auto& field = graph.node_ports(m.trigger(), n, m.palette).inputs->fields().at(a);
+        const auto& b = nodes.at(n).arguments.at(a);
+        const auto port = step_name(nodes, n) + "'s " + field.name;
+        if (head == "wire") return {source_words(nodes, b) + " -> " + port, value(b)};
+        std::string reads = "is " + flow::binding_text(b);
+        if (unwired(b)) reads = "nothing wired yet";
+        else if (b.from() == op::Binding::From::Input)
+            reads = "reads " + b.input_name() + (def.state->find(b.input_name()) ? ", kept" : ", from the message");
+        else if (b.from() == op::Binding::From::Node)
+            reads = "reads " + source_words(nodes, b) + "'s answer";
+        return {field.name + " : " + kind(field.type), reads};
+    } catch (const std::exception&) {
+        return {};
+    }
+}
+
+/// WHAT RESTING TELLS, in a box below and right of where the pointer came to rest, kept inside
+/// `area`; and a wire in the hand over a port it does not fit, why, beside the hand.
+inline void tell(Pen& pen, const Model& model, const Box& area) {
+    const auto& m = pen.m;
+    std::vector<std::string> lines;
+    std::int64_t x = 0, y = 0;
+    bool refused = false;
+    if (model.wire_drawn && !model.wire_drawn->why.empty()) {
+        lines = wrapped(model.wire_drawn->why, 64, 3);
+        x = model.wire_drawn->to_x;
+        y = model.wire_drawn->to_y;
+        refused = true;
+    } else if (model.hover) {
+        lines = told(model);
+        x = model.hover_x;
+        y = model.hover_y;
+    }
+    if (lines.empty()) return;
+    std::int64_t w = 0;
+    for (const auto& line : lines) w = std::max(w, pen.width(line));
+    w = std::min(area.w, w + (m.light ? 12 : 2 * m.ch));
+    const auto h = std::min(area.h, static_cast<std::int64_t>(lines.size()) * m.row + (m.light ? 10 : 2 * m.row));
+    const auto gap = m.light ? std::int64_t{14} : m.ch;
+    auto bx = x + gap, by = y + (m.light ? gap : m.row);
+    if (by + h > area.bottom()) by = y - h - (m.light ? 6 : 0);
+    const auto snap = [&](std::int64_t v) { return gfx::floor_div_px(v, m.grain) * m.grain; };
+    bx = snap(std::clamp(bx, area.x, std::max(area.x, area.right() - w)));
+    by = snap(std::clamp(by, area.y, std::max(area.y, area.bottom() - h)));
+    const Box box{bx, by, w, h};
+    pen.rect(box, m.light ? hue::field() : hue::well(), refused ? hue::warn() : hue::edge(), m.light ? 4 : 0);
+    auto ty = by + (m.light ? 5 : m.row);
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+        const auto ink = refused ? hue::warn() : i == 0 ? hue::text() : hue::quiet();
+        pen.text(bx + (m.light ? 6 - m.inset : m.ch), ty, lines[i], ink, box);
+        ty += m.row;
+    }
 }
 
 /// THE NEXT LINE: the one thing the rule still needs, the press that does it, and a hint.
@@ -1887,6 +2060,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
         lanes(pen, model, graph_box, lit);
         if (!model.wire_search && !model.wire_drawn && !model.dialog && out.canvas) port_box(pen, model, *out.canvas);
         if (model.wire_search && out.canvas) wire_list(pen, model, *out.canvas);
+        if (!model.dialog && !model.wire_search) tell(pen, model, Box{0, y0, W, graph_h});
         out.pan_x = model.workspace.pan_x;
         out.pan_y = model.workspace.pan_y;
         out.zoom = model.workspace.zoom;

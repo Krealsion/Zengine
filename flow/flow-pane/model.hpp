@@ -91,11 +91,12 @@ struct SlotReference { std::int64_t slot = 0; zengine::op::OperatorRef ref; };
 /// One end of a wire a hand holds: an output -- a node's answer or a field in scope -- or an input
 /// port, by its node's stable place.
 struct WireEnd { std::optional<zengine::op::Binding> source; std::optional<PortChoice> port; };
-/// A wire dragged from where it was pressed to the hand, in the area's pixels, and the port it
-/// would bind to there, lit.
+/// A wire dragged from where it was pressed to the hand, in the area's pixels, the port it would
+/// bind to there, lit, and why it does not fit what lies under the hand; empty where it fits.
 struct WireDrawn {
     std::int64_t from_x = 0, from_y = 0, to_x = 0, to_y = 0;
     std::optional<PortChoice> lit;
+    std::string why{};
 };
 /// THE SEARCH A WIRE LET GO ON EMPTY GRAPH ROOM OPENED: the end it wires, where the list stands in
 /// the area's pixels, where a node made from it is placed in the graph, the draft's revision it was
@@ -140,8 +141,10 @@ public:
     std::optional<WireDrawn> wire_drawn;
     std::optional<WireSearch> wire_search;
     /// WHAT THE POINTER RESTS ON with no button held, by the key the picture gives it: a part of the
-    /// rule's sentence, a card, a step, a port, a wire or a place still to fill. Never saved.
+    /// rule's sentence, a card, a step, a port, a wire or a place still to fill; and where in the
+    /// area's pixels it came to rest there. Never saved.
     std::optional<std::string> hover;
+    std::int64_t hover_x = 0, hover_y = 0;
     /// What each running view last said its wiring names, by the view's office: replaced whole by
     /// its next word, and asked afresh as an editor that names a message opens. Never saved.
     std::map<std::string, std::vector<Known>> known;

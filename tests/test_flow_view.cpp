@@ -805,6 +805,69 @@ TEST_CASE("the sentence and the graph light each other: a part rested on lights 
     CHECK_FALSE(std::any_of(view.hits.begin(), view.hits.end(), [](const auto& hit) { return hit.action == "chip"; }));
 }
 
+TEST_CASE("resting tells: a port its kind and what it reads, an answer or a field what reads it, a "
+          "wire its two ends lit and what it last carried; a wire in the hand says why a port does not fit") {
+    auto m = tally();
+    const auto id = std::to_string(pane::place_of(m, 0));
+    const auto told = [&](const std::string& key) {
+        m.hover = key;
+        return pane::view_detail::told(m);
+    };
+    using Lines = std::vector<std::string>;
+    // ⚔ MUTATION (tests/mutants/flow_view.md#a-port-tells-nothing): a port tells nothing.
+    CHECK(told("port:" + id + ".0") == Lines{"lhs : Int", "reads amount, from the message"});
+    CHECK(told("port:" + id + ".1") == Lines{"rhs : Int", "reads total, kept"});
+    CHECK(told("answer:" + id) == Lines{"add's answer : Int", "total becomes it"});
+    CHECK(told("field:amount") == Lines{"amount : Int, from the message", "read by add's lhs"});
+    CHECK(told("field:total") == Lines{"total : Int, kept", "read by add's rhs"});
+    CHECK(told("card:kept").empty());
+    // A WIRE: its two ends, lit, and what it last carried -- nothing until the rule took a message.
+    CHECK(told("wire:" + id + ".0") == Lines{"amount -> add's lhs", "nothing carried yet"});
+    // ⚔ MUTATION (tests/mutants/flow_view.md#a-wires-ends-unlit): its ends are not lit.
+    m.hover = "wire:" + id + ".0";
+    const auto lit = pane::picture(m, light_room()).lit;
+    CHECK(lit.count("wire:" + id + ".0") == 1);
+    CHECK(lit.count("field:amount") == 1);
+    CHECK(lit.count("port:" + id + ".0") == 1);
+    CHECK(lit.count("port:" + id + ".1") == 0);
+    const auto& def = m.workspace.graph.project.definition;
+    loom::Value start(def.state);
+    start.set("total", loom::Cell::integer(0));
+    fh::FlowAnswer answer;
+    answer.events = {event(1, "arrived", valued(def.accepts.front(), "amount", 3), def.accepts.front()->name()),
+                     event(2, "kept", valued(def.state, "total", 3), "after #1")};
+    m.observed = pane::observe(answer, def, start);
+    CHECK(told("wire:" + id + ".0") == Lines{"amount -> add's lhs", "last carried 3"});
+    CHECK(told("wire:" + id + ".1") == Lines{"total -> add's rhs", "last carried 0"});
+    CHECK(told("wire:write") == Lines{"add's answer -> total", "last carried 3"});
+    // THE BOX stands where the pointer came to rest, in both rooms.
+    m.hover = "port:" + id + ".0";
+    m.hover_x = 600;
+    m.hover_y = 300;
+    CHECK(text_has(pane::picture(m, light_room()), "reads amount, from the message"));
+    m.hover_x = 60 * cell;
+    m.hover_y = 20 * cell;
+    CHECK(text_has(pane::picture(m, room()), "reads amount, from the message"));
+
+    // A WIRE IN THE HAND over a port it does not fit: a later step, or another type, said there.
+    auto two = tally();
+    const flow::Ports less{"compare.less",
+                           loom::SchemaBuilder("compare.less.in", 1).field("lhs", loom::Kind::Int)
+                               .field("rhs", loom::Kind::Int).build(),
+                           loom::SchemaBuilder("compare.less.out", 1).field("result", loom::Kind::Bool).build()};
+    two.palette.push_back(less);
+    two.command("add-node", {"compare.less", std::to_string(static_cast<std::int64_t>(less.inputs->content_id())),
+                             std::to_string(static_cast<std::int64_t>(less.outputs->content_id())), "0"});
+    const pane::PortChoice add_lhs{pane::place_of(two, 1), 0}, less_lhs{pane::place_of(two, 0), 0};
+    // ⚔ MUTATION (tests/mutants/flow_view.md#another-type-fits): a wire of another type fits.
+    CHECK(pane::unfit(two, zengine::op::Binding::input("amount"), add_lhs).empty());
+    CHECK(pane::unfit(two, zengine::op::Binding::node(0), add_lhs) == "add's lhs takes Int, and less is Bool");
+    CHECK(pane::unfit(two, zengine::op::Binding::node(1), less_lhs) ==
+          "less's lhs can't read add: a step reads only the steps before it");
+    two.wire_drawn = pane::WireDrawn{10, 10, 600, 300, add_lhs, pane::unfit(two, zengine::op::Binding::node(0), add_lhs)};
+    CHECK(text_has(pane::picture(two, light_room()), "add's lhs takes Int, and less is Bool"));
+}
+
 TEST_CASE("the rule reads as one sentence, each part still to choose open") {
     using K = pane::Chip::Kind;
     const auto kinds = [](const pane::Model& m) {

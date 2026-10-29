@@ -30,6 +30,13 @@ struct Chip {
     std::vector<std::string> subjects{};
 };
 
+/// The step of the active trigger kept under `place`, by its index; none where none is.
+inline std::optional<std::size_t> step_at(const Model& m, std::int64_t place) {
+    for (const auto& p : m.workspace.graph.places)
+        if (p.id == place && p.trigger == m.workspace.active_trigger && p.node >= 0)
+            return static_cast<std::size_t>(p.node);
+    return std::nullopt;
+}
 /// The stable place step `n` of the active trigger is kept under; 0 where it has none.
 inline std::int64_t place_of(const Model& m, std::size_t n) {
     for (const auto& p : m.workspace.graph.places)

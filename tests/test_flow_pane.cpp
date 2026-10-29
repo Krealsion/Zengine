@@ -2551,6 +2551,47 @@ TEST_CASE("the pointer resting with no button held lights the sentence and the g
     CHECK(rig.shows("Declare an input message"));
 }
 
+TEST_CASE("resting on a port tells its kind and what it reads; a wire over a port it does not fit "
+          "says why before it is let go, and wires nothing, and a press there says the same") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("logic.select_int"));
+    rig.edit_ok("move", {"1", "1056", "1440"});
+    WireWindow w(rig);
+    w.move(w.at(port_part(rig, 0, 1)), 0);
+    CHECK(rig.shows("rhs : Int"));
+    CHECK(rig.shows("is 0"));
+    w.move(w.at(port_part(rig, 0, 0)), 0);
+    CHECK(rig.shows("lhs : Int"));
+    CHECK(rig.shows("reads input, from the message"));
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#a-dragged-wire-says-nothing): nothing is said before it
+    // is let go.
+    // A WIRE DRAGGED from max's answer over select_int's condition, a truth: why, before it is let go.
+    const auto out = w.at("source-node:0");
+    const auto condition = w.at(port_part(rig, 1, 0));
+    {
+        const auto n = w.window.next_press();
+        w.press(out, n);
+        w.move(condition, n);
+        CHECK(rig.shows("select_int's condition takes Bool, and max is Int"));
+        w.release(condition, n);
+    }
+    CHECK(rig.shows("select_int's condition takes Bool, and max is Int; nothing was wired"));
+    CHECK(argument(rig, 1, 0).input_name().empty());
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#a-press-binds-what-does-not-fit): the press asks the
+    // graph, whose refusal names no step.
+    // A WIRE HELD BY A CLICK, pressed on a port it does not fit: said the same, and still held.
+    w.click(out);
+    w.click(condition);
+    CHECK(rig.shows("select_int's condition takes Bool, and max is Int; nothing was wired"));
+    CHECK(argument(rig, 1, 0).input_name().empty());
+    w.click(w.at(port_part(rig, 1, 2)));
+    CHECK(from_node(argument(rig, 1, 2), 0));
+    // ...and dragged over a port it fits, nothing is said, and it wires.
+    w.drag(out, w.at(port_part(rig, 1, 1)));
+    CHECK(from_node(argument(rig, 1, 1), 0));
+}
+
 TEST_CASE("a press on a port opens a box at it: what is in scope of its type and an earlier step's "
           "answer, each by its own name, then one value of the port's kind") {
     {
