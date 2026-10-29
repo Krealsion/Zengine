@@ -36,9 +36,15 @@ Red in `<program>`:
 - **A hunk** names its file by an `In` line before it. Its space and `-` lines stand once in that
   file, as whole lines; several hunks, in one file or in several, make one mutant.
 - **On code, never on a comment** ([VM-MUT-20](../../agents/verification/mutation.md#vm-mut-20--anchor-mutations-on-code-never-on-prose)):
-  a hunk that changes only comments is stale. Where the cases read a file as text, the entry says
+  a hunk that changes only comments is stale. A changed line opening with `*` counts as a comment
+  only inside a block comment the hunk itself opens, since a dereference opens with `*` too. Where
+  the cases read a file as text, the entry says
   ``The cases read `<file>` as text.``, and that file is the artifact the mutant lands in
   ([VM-MUT-32](../../agents/verification/mutation.md#vm-mut-32--a-file-the-case-reads-at-runtime-is-the-artifact)).
+- **Its context names the function.** A hunk's space lines hold a line of the function the
+  entry's sentence names -- its signature, or a line no other function holds -- so the text found
+  once is found there. The runner checks only that the text stands once in the file: a line two
+  functions share can land the mutant in the wrong one, which no case of the right one catches.
 - **Every case named goes red.** ``Red in `CTest`:`` names a CTest entry instead, by its exact
   name in backticks, run as `ctest` runs it.
 
@@ -78,6 +84,17 @@ hold, or the run was stopped (a stopped run still writes back the mutant it was 
 default). It edits the source tree it is run from, so it never runs beside another lane on that tree
 ([VM-MUT-22](../../agents/verification/mutation.md#vm-mut-22--never-run-a-restoring-harness-beside-another-lane)),
 and it refuses a second runner on one build tree.
+
+## Probing a survivor
+
+A survivor says the case does not catch what its comment claims, and why is found with the mutant
+in, before any case is changed: write the hunk's `+` lines over the file by hand, build the program
+its cases run, run the one case alone with doctest's `--success` (or a print it does not keep), and
+read what the case asserted against what the claim needs. Then `git checkout -- <file>`, and build
+again. What the probe found decides the entry: the case made to assert the claim, so the mutant
+goes red; the comment's claim moved to the case that does catch it; or the entry dropped, its reason
+in the pull request -- the mutant changes nothing a case can see, or it removes a second guard the
+case cannot tell from the first. Each kept entry is run again with `--only` before the push.
 
 ## A pull request's mutants
 
