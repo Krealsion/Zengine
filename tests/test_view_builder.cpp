@@ -782,6 +782,104 @@ TEST_CASE("a reload in place asks the view host again whether the view it ran st
     CHECK(rig.state().running);
 }
 
+TEST_CASE("Discard throws away what is unsaved at one press: a view goes back to the file it was saved to or opened from, one never saved becomes a new view; nothing unsaved and a file gone are said, and a running view is waited for") {
+    // ⚔ MUTATION (tests/mutants/view_builder.md#discard-reads-the-file-box,
+    // #discard-forgets-the-typed-value): a discard reading the name typed into File finds no view
+    // there; one taking a typed value for nothing unsaved leaves its box open.
+    TempDir dir;
+    const auto saved = (dir.directory / "notes.view").generic_string();
+    const auto typed = (dir.directory / "other.view").generic_string();
+    Rig rig;
+    namespace scan = zengine::input::scan;
+    // A FRESH BUILDER HOLDS NOTHING UNSAVED: a press says so and changes nothing.
+    rig.press("[Discard]");
+    CHECK(rig.says("Nothing to discard"));
+    CHECK(rig.now().name == "my.view");
+
+    // A VIEW NEVER SAVED becomes a new view, as New makes one, at the first press.
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    REQUIRE(rig.text("[Save*]") != nullptr);
+    rig.press("[Discard]");
+    CHECK(rig.now().name == "my.view");
+    CHECK(rig.now().elements.empty());
+    CHECK(rig.says("Discarded the unsaved view"));
+    CHECK(rig.text("[New]") != nullptr);
+
+    // A VIEW SAVED TO A FILE goes back to what that file holds, read again from it, even with a
+    // name typed into File since and not saved; File names the file again.
+    REQUIRE(rig.edit("new", {"notes", "discard"}).ok);
+    REQUIRE(rig.edit("add", {"label"}).ok);
+    REQUIRE(rig.edit("save", {saved}).ok);
+    REQUIRE(rig.text("[Save]") != nullptr);
+    REQUIRE(rig.edit("add", {"number"}).ok);
+    REQUIRE(rig.edit("rename", {"other"}).ok);
+    REQUIRE(rig.edit("path", {typed}).ok);
+    rig.press("[Discard]");
+    auto back = rig.now();
+    CHECK(back.name == "notes");
+    REQUIRE(back.elements.size() == 1);
+    CHECK(back.elements[0].kind == view::Kind::label);
+    CHECK(rig.state().path == saved);
+    CHECK(rig.text("[Save]") != nullptr);
+    CHECK(rig.says("Discarded the unsaved changes"));
+    CHECK_FALSE(std::filesystem::exists(typed));
+    // NOTHING UNSAVED NOW: a press says so.
+    rig.press("[Discard]");
+    CHECK(rig.says("Nothing to discard"));
+
+    // A VALUE BEING TYPED is unsaved too, even one its box would refuse: put down alone when it is
+    // all there is, and with the rest when there is more.
+    std::int64_t gesture = 30;
+    const auto type_into = [&](const std::string& value) {
+        const auto* box = rig.value(value);
+        REQUIRE_MESSAGE(box != nullptr, value);
+        rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, ++gesture);
+        rig.pointer(ws::canvas_pointer::kRelease, box->x + 8, box->y + 8, gesture);
+        rig.host(ws::PaneKey{vb::kPane, scan::kA, zengine::input::mod::kCtrl});
+        rig.host(ws::PaneTextInput{vb::kPane, "1st"});
+        REQUIRE(rig.value("1st") != nullptr);
+    };
+    REQUIRE(rig.edit("select", {"0"}).ok);
+    type_into("label1");
+    rig.press("[Discard]");
+    CHECK(rig.value("1st") == nullptr);
+    CHECK(rig.says("Discarded the value being typed"));
+    CHECK(rig.now().elements[0].id == "label1");
+    REQUIRE(rig.edit("add", {"button"}).ok);
+    REQUIRE(rig.edit("select", {"1"}).ok);
+    type_into("button1");
+    rig.press("[Discard]");
+    CHECK(rig.value("1st") == nullptr);
+    CHECK(rig.now().elements.size() == 1);
+    CHECK(rig.says("Discarded the unsaved changes"));
+
+    // A FILE GONE is said, and the view stays as it was.
+    REQUIRE(rig.edit("add", {"button"}).ok);
+    std::filesystem::remove(saved);
+    rig.press("[Discard]");
+    CHECK(rig.says("Not discarded"));
+    CHECK(rig.now().elements.size() == 2);
+    CHECK(rig.text("[Save*]") != nullptr);
+
+    // WHILE ITS VIEW RUNS it waits, as New and Open do, and the running view runs on.
+    REQUIRE(rig.edit("save", {saved}).ok);
+    REQUIRE(rig.edit("run").ok);
+    const auto running = rig.bus.role_holder("notes");
+    REQUIRE(running.valid());
+    REQUIRE(rig.edit("add", {"label"}).ok);
+    rig.press("[Discard]");
+    CHECK(rig.says("Stop the running view before discarding"));
+    CHECK(rig.now().elements.size() == 3);
+    CHECK(rig.bus.role_holder("notes") == running);
+
+    // ASKED BY ITS ACTION ID, as a key or the palette asks it: the same discard, back to the file.
+    REQUIRE(rig.edit("stop").ok);
+    rig.host(ws::PaneActionRequested{vb::kPane, "view.discard"});
+    back = rig.now();
+    CHECK(back.elements.size() == 2);
+    CHECK(rig.says("Discarded the unsaved changes"));
+}
+
 TEST_CASE("a right press on what a button says offers to carry its intent, and the choice carries the shape as a description") {
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);

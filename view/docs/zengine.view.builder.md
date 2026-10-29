@@ -15,8 +15,8 @@ is the office it runs under and the namespace of what it says.
 
 The pane draws the view you are making with the view's own picture code, at its own pixels, on the
 design canvas in its middle, so what you see there is what runs. Along the top is the bar, `[New]`
-`[Open]` `[Save]` `[Run]` `[Apply]` `[Stop]` `[Export app]` `[Run app]`; `[Save*]` says the view is unsaved,
-`[Running]` that it runs. Down the left: the view's name in `View`, its file in `File`, `Add` with `[Label]`
+`[Open]` `[Save]` `[Discard]` `[Run]` `[Apply]` `[Stop]` `[Export app]` `[Run app]`; `[Save*]` says the
+view is unsaved, `[Running]` that it runs. Down the left: the view's name in `View`, its file in `File`, `Add` with `[Label]`
 `[Number]` `[Button]`, its `Size` and the `Grid` in boxes, and the list of its elements. The
 selected element's values sit in boxes on the right in a wide pane, below the list in a narrow one.
 Beneath the canvas a row says the view's name, `running` or `stopped`, and its file; the last two
@@ -122,6 +122,23 @@ Starts a new view, `my.view`, empty, with no file, at the layout's `new-width` a
   New again to discard it`, and the bar says `[New: discard?]`; `stop the running view before
   starting another`.
 - **Example:** press `[New]`, then type the view's name under `View`.
+
+### `view.discard`
+
+Throws away what is unsaved, at one press: the view goes back to what the file it was saved to or
+opened from holds, read again, and shown from its top left corner, `File` naming that file; a view
+never saved starts again as a new view, as [`view.new`](#viewnew) makes one. A value being typed
+into a box goes with the rest. Nothing is written, and the view host is not asked.
+
+- **Takes:** the view, and the file it was saved to or opened from -- never a name only typed into
+  `File`. No default key; the control `[Discard]`.
+- **Answers:** `Discarded the unsaved changes and opened tally.view again`; `Discarded the unsaved
+  view and started a new one`; `Discarded the value being typed`, when that was all there was.
+- **Refuses:** `Nothing to discard: the view has no unsaved changes`; `Stop the running view before
+  discarding its unsaved changes`; `Not discarded: ` and the reason the file could not be read or
+  is not a view ([the description](view.md#the-description)), the view kept as it was.
+- **Example:** save the view as `tally.view`, move a label, press `[Discard]`: the label is back
+  where `tally.view` holds it.
 
 ### `view.export`
 

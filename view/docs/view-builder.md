@@ -63,7 +63,9 @@ pane the selected element's values sit in boxes on the right; in a narrow one, b
   its box with the reason on the last row. A drag and a typed value change the same element.
 - **Rest** the pointer on an element and it is marked, and its row with it.
 - `Delete` or **Remove** removes the selected element. **New** or **Open** over an unsaved view
-  asks for a second press before it discards it.
+  asks for a second press before it discards it. **Discard** throws away what you have not saved at
+  its first press: the view goes back to what its file holds, or starts again as a new view when it
+  was never saved. While the view runs, stop it first.
 
 ![A new view, 480 by 240, its right and bottom edges ruled with their handles; button1 selected, with a handle on each side and at each corner, while the pointer resting on field2 marks it and its row](images/view-builder-hand.png)
 
