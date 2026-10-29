@@ -276,13 +276,11 @@ private:
                 drawable("  ... " + std::to_string(earlier) + " earlier", columns),
                 gfx::role::kMuted, std::string()});
         }
-        // THE RULE NAMES THE PANE THE STANDARD ROWS ACT ON, as wide as the widest row's line.
-        std::size_t widest = 0;
-        for (const std::vector<ws::PaneMenuRow>* run : {&state_.rows, &state_.standard}) {
-            for (const ws::PaneMenuRow& r : *run) {
-                widest = r.label.size() > widest ? r.label.size() : widest;
-            }
-        }
+        // A ROW'S KEY STANDS APART, two blanks after the widest words, and a narrow room cuts the
+        // words before a key. THE RULE NAMES THE PANE THE STANDARD ROWS ACT ON, as wide as the
+        // widest row's line.
+        const ws::MenuWidths laid = ws::menu_widths({&state_.rows, &state_.standard}, 2, columns);
+        const std::size_t widest = laid.words + (laid.keys > 0 ? 2 + laid.keys : 0);
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const std::int64_t entry = static_cast<std::int64_t>(i);
             bool standard = false;
@@ -293,8 +291,9 @@ private:
                 continue;
             }
             const bool here = entry == state_.cursor;
-            ws::MenuLine line{drawable(std::string(here ? "> " : "  ") + row->label, columns),
-                              here ? gfx::role::kAccent : gfx::role::kFill, std::string()};
+            ws::MenuLine line{
+                drawable(std::string(here ? "> " : "  ") + ws::menu_row_text(*row, laid), columns),
+                here ? gfx::role::kAccent : gfx::role::kFill, std::string()};
             // THE LINE IS NAMED BY ITS ROW'S ID, as the id the choice comes back as: a requester's
             // row and a standard row alike, the first line to carry an id keeping it.
             if (!line.text.empty() && ws::pane_part_name_problem(row->id) == nullptr &&

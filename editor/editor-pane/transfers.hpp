@@ -5,9 +5,10 @@
 #define ZENGINE_EDITOR_PANE_TRANSFERS_HPP
 
 // The Editor pane's pointer and transfers: a press, a sweep and the wheel on its canvas, the
-// second button, the highlight or this file's location carried out, material dropped in, and a
-// dropped location opened (WL-EDIT-16..21). These are `EditorPaneWeave`'s members, declared in
-// `pane.cpp`, which includes this file after the class; it compiles in no other place.
+// second button and the menu it opens, the highlight or this file's location carried out, material
+// dropped in, and a dropped location opened (WL-EDIT-16..22). These are `EditorPaneWeave`'s
+// members, declared in `pane.cpp`, which includes this file after the class; it compiles in no
+// other place.
 // Workshop law: agents/workshop/editor-transfers.md
 
 // The pane's half of Workshop's value carry (`workshop/pane_carry.hpp`): Workshop carries owned
@@ -33,6 +34,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -222,38 +224,35 @@ inline void EditorPaneWeave::wheel(double dy, loom::Mail& mail) {
 
 // ---- Transfers: the highlight carried out, material dropped in, a location opened ----
 
-/// THE SECOND BUTTON, OFFERED ONLY FOR SELECTED MATERIAL: a right press on the painted
-/// highlight of a picture still `current` offers Extract; on the status row, this file's
-/// location (WL-EDIT-19). Every other one -- beside the rows too -- is handed back, so the
-/// host's pane menu opens there.
+/// THE SECOND BUTTON, ON THE ROWS OF AN OPEN DOCUMENT, OPENS THE EDITOR'S MENU (WL-EDIT-22): on the
+/// painted highlight of a picture still `current` with Extract first, on the status row with this
+/// file's location first (WL-EDIT-19). One beside the rows, in an empty Editor or in one a switch
+/// holds still is handed back, so the host's pane menu opens there.
+// WL-EDIT-22 -- agents/workshop/editor-transfers.md
 inline void EditorPaneWeave::right_press(const ws::RowCell& at, bool current, loom::Mail& mail) {
     // HELD STILL BY A SWITCH, the Editor offers nothing, and a press that changes no document
     // is handed back rather than counted as refused.
-    if (holding_.active || !at.shown) {
+    if (holding_.active || !at.shown || !e_.open_document()) {
         (void)ws::pane_menu::pass_back(mail, pane::kEditorPaneRole, pane::kEditorPane);
         return;
     }
     end_grab();
-    if (e_.open_document()) {
-        if (at.row < chrome_rows_) {
-            if (at.row == 0 && status_row_) {
-                offer(Take::Location, at.row, at.column, mail);
-                return;
-            }
-        } else {
-            const std::size_t row =
-                e_.first_row + static_cast<std::size_t>(at.row - chrome_rows_);
-            if (current && row < e_.buffer.line_count() &&
-                on_highlight(EditorPos{
-                    row, ws::byte_of_visual_col(e_.buffer.line(row),
-                                                e_.first_col + (at.column < 0 ? 0 : at.column),
-                                                e_.buffer.tab_width())})) {
-                offer(Take::Selection, at.row, at.column, mail);
-                return;
-            }
+    std::optional<Take> first;
+    if (at.row < chrome_rows_) {
+        if (at.row == 0 && status_row_) {
+            first = Take::Location;
+        }
+    } else {
+        const std::size_t row = e_.first_row + static_cast<std::size_t>(at.row - chrome_rows_);
+        if (current && row < e_.buffer.line_count() &&
+            on_highlight(EditorPos{
+                row, ws::byte_of_visual_col(e_.buffer.line(row),
+                                            e_.first_col + (at.column < 0 ? 0 : at.column),
+                                            e_.buffer.tab_width())})) {
+            first = Take::Selection;
         }
     }
-    (void)ws::pane_menu::pass_back(mail, pane::kEditorPaneRole, pane::kEditorPane);
+    offer_menu(first, at.row, at.column, mail);
 }
 
 /// MATERIAL DROPPED ON THE DOCUMENT (WL-EDIT-17): text is inserted where it landed, or replaces
@@ -292,11 +291,29 @@ inline void EditorPaneWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail& 
         return;
     }
     const std::string chosen = menu_.take(mail, answer);
+    if (chosen.empty() || held_still()) {
+        return; // nothing chosen, or a switch holds the Editor still: no act
+    }
+    // EACH ROW DOES WHAT ITS KEY DOES, through the same act (WL-EDIT-22): the carries against the
+    // document as it stood when the menu opened, the buffer's own rows through its `consume`, the
+    // declared rows through their act.
+    end_grab();
     if (chosen == pane::kActionExtract || chosen == pane::kActionLocation) {
         acquire(chosen == pane::kActionExtract ? Take::Selection : Take::Location, false,
                 mail.correlation(), menu_mark_, mail);
-        say(mail);
+    } else {
+        bool buffer = false;
+        for (const BufferRow& row : kMenuBufferRows) {
+            if (chosen == row.id) {
+                buffer = true;
+                (void)edit_by_key(row.scancode, row.modifiers, mail);
+            }
+        }
+        if (!buffer) {
+            act(chosen);
+        }
     }
+    say(mail);
 }
 
 /// WORKSHOP'S WORD ON WHETHER THIS GESTURE'S ACTOR MAY DO WHAT THIS PANE ASKED: carry a copy
@@ -343,15 +360,54 @@ inline bool EditorPaneWeave::on_highlight(EditorPos at) const {
 /// A REMEMBERED PRESS ENDS at the next act that is not its own motion: it was only a press.
 inline void EditorPaneWeave::end_grab() { grab_ = Grab{}; }
 
-inline void EditorPaneWeave::offer(Take what, std::int64_t row, std::int64_t column,
-                                   loom::Mail& mail) {
+/// THE EDITOR'S MENU, AS THE DOCUMENT STANDS (WL-EDIT-22): the press's own subject first, then
+/// undo and redo while a step is there, cut and copy with a selection, paste, select all, the
+/// carries, save, discard while there is unsaved work, and close -- each row beside the key that
+/// does it now: a declared row's as the keymap holds it, the buffer's own as they are.
+// WL-EDIT-22 -- agents/workshop/editor-transfers.md
+inline void EditorPaneWeave::offer_menu(std::optional<Take> first, std::int64_t row,
+                                        std::int64_t column, loom::Mail& mail) {
     menu_mark_ = mark_now();
-    const bool selection = what == Take::Selection;
-    menu_ = ws::pane_menu::Offer(pane::kEditorPane, selection ? "selection" : "location")
-                .at(row, column)
-                .row(selection ? pane::kActionExtract : pane::kActionLocation,
-                     selection ? "Extract selection to Inventory" : "Carry this file's location")
-                .send(mail, pane::kEditorPaneRole);
+    const bool selection = e_.buffer.has_selection();
+    ws::pane_menu::Offer menu(pane::kEditorPane, first == Take::Selection  ? "selection"
+                                                 : first == Take::Location ? "location"
+                                                                           : "document");
+    menu.at(row, column);
+    const auto declared = [&](const char* id, const char* label) {
+        menu.row(id, label, declared_key(id));
+    };
+    const auto buffer = [&](const BufferRow& r) { menu.row(r.id, r.label, buffer_key(r)); };
+    constexpr const char* kExtract = "Extract selection to Inventory";
+    constexpr const char* kLocation = "Carry this file's location";
+    if (first == Take::Selection) {
+        declared(pane::kActionExtract, kExtract);
+    } else if (first == Take::Location) {
+        declared(pane::kActionLocation, kLocation);
+    }
+    if (e_.buffer.can_undo()) {
+        buffer(kMenuUndo);
+    }
+    if (e_.buffer.can_redo()) {
+        buffer(kMenuRedo);
+    }
+    if (selection) {
+        buffer(kMenuCut);
+        buffer(kMenuCopy);
+    }
+    buffer(kMenuPaste);
+    buffer(kMenuSelectAll);
+    if (selection && first != Take::Selection) {
+        declared(pane::kActionExtract, kExtract);
+    }
+    if (first != Take::Location) {
+        declared(pane::kActionLocation, kLocation);
+    }
+    declared(pane::kActionSave, "Save source");
+    if (e_.dirty()) {
+        declared(pane::kActionDiscard, "Discard source edits");
+    }
+    declared(pane::kActionClose, "Close file");
+    menu_ = menu.send(mail, pane::kEditorPaneRole);
 }
 
 inline std::string EditorPaneWeave::where_words(EditorPos p) const {

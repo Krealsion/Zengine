@@ -16,16 +16,18 @@
 // when the bus publishes this weave's claim (WL-EDIT-05).
 
 // This file is the weave: its lifecycle and revival, the room, the graphics window, the keys, the
-// clipboard and the exit, save and discard, and the rows, caret and mirror it composes. It declares
-// every member; `transfers.hpp` defines the pointer's and the transfers' (WL-EDIT-16..21) and
-// `opening_switch.hpp` the open doors' and a switch's, both included after the class, over the
-// records and pure helpers of `common.hpp`.
+// clipboard and the exit, save, discard and close, and the rows, caret and mirror it composes. It
+// declares every member; `transfers.hpp` defines the pointer's, the menu's and the transfers'
+// (WL-EDIT-16..22) and `opening_switch.hpp` the open doors' and a switch's, both included after
+// the class, over the records and pure helpers of `common.hpp`.
 
 #include "editor/editor-pane/common.hpp"
 #include "editor/editor-pane/vocabulary.hpp"
 
 #include "editor/editor-pane/editor.hpp"
+#include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
+#include "workshop/keymap.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
@@ -54,6 +56,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <utility>
@@ -85,7 +88,7 @@ class EditorPaneWeave
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
                        graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
-                       graphics::AreaWheelTurned, graphics::AreaHoldEnded>,
+                       graphics::AreaWheelTurned, graphics::AreaHoldEnded, ws::KeymapShown>,
           loom::Emit<PaneOffered, ws::v3::PaneActions,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                      PaneQuitAnswered, SourceOpened, ws::v3::SourcePrepared,
@@ -95,7 +98,7 @@ class EditorPaneWeave
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
                      ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, graphics::Drawn, graphics::RoomAsked,
-                     ws::v2::PaneSettingsDeclared>,
+                     ws::v2::PaneSettingsDeclared, ws::KeymapRequested>,
           loom::WeaveBase, loom::Claims<EditorDocument>> {
 public:
     using Base = Weave;
@@ -129,6 +132,8 @@ public:
         }
         announce(mail);
         ask_project_root(mail);
+        // THE KEYS ITS MENU SHOWS, asked of the keymap as it is in force now, once each life.
+        (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, ws::KeymapRequested{});
         // THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, asked for its room once each life; a
         // room it said before this activation is drawn now.
         window_.ask_room(mail);
@@ -246,6 +251,24 @@ public:
         project_known_ = true;
     }
 
+    /// THE KEYMAP AS IT IS IN FORCE, said by Workshop on this pane's ask and whenever it changes:
+    /// the keys each of this pane's declared rows answers to now, and how the weaver spells keys --
+    /// what the right-press menu shows beside a row's words (WL-EDIT-22).
+    void on(const ws::KeymapShown& said, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole)) {
+            return;
+        }
+        keys_in_force_.clear();
+        for (const ws::ShownBinding& b : said.rows) {
+            if (b.office != pane::kEditorPaneRole || b.pane != pane::kEditorPane || b.shown.empty()) {
+                continue;
+            }
+            std::string& keys = keys_in_force_[b.id];
+            keys += (keys.empty() ? "" : ", ") + b.shown;
+        }
+        key_spelling_ = said.spelling;
+    }
+
     // ---- THE TWO DOORS, defined in `opening_switch.hpp` -------------------------------------
 
     void on(const OpenSourceRequested& asked, loom::Mail& mail);
@@ -309,26 +332,9 @@ public:
         if (held_still()) {
             return;
         }
-        if (!e_.open_document()) {
-            return; // an empty editor has no document for a key to mean anything to
+        if (edit_by_key(key.scancode, key.modifiers, mail)) {
+            say(mail);
         }
-        end_grab();
-        const std::uint64_t copied_before = clip_.writes;
-        const std::uint64_t pastes_before = clip_.paste_requests;
-        if (!e_.buffer.consume(key.scancode, key.modifiers, clip_)) {
-            return;
-        }
-        notice_.clear();
-        e_.follow_caret = true;
-        if (clip_.writes != copied_before) {
-            // A COPY IS SAID TO THE PROCESS ONCE: the OS window offers it to the platform's
-            // clipboard and every other text-holding participant mirrors it.
-            mail.publish(graphics::ClipboardCopy{clip_.text});
-        }
-        if (clip_.paste_requests != pastes_before) {
-            begin_paste(mail);
-        }
-        say(mail);
     }
 
     /// TEXT THE WEAVER TYPED INTO THE SOURCE, gated by the source-byte law at this door
@@ -358,8 +364,8 @@ public:
         say(mail);
     }
 
-    /// The rows this pane declared, acted on by name (WL-KEY-15): save, newline, tab, discard and
-    /// the two carries. A weaver's override moved the key; the id is what arrives.
+    /// The rows this pane declared, acted on by name (WL-KEY-15): save, newline, tab, discard, close
+    /// and the two carries. A weaver's override moved the key; the id is what arrives.
     void on(const PaneActionRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kEditorPane) {
             return;
@@ -376,26 +382,7 @@ public:
             say(mail);
             return;
         }
-        if (asked.id == pane::kActionSave) {
-            save_source();
-        } else if (asked.id == pane::kActionNewline) {
-            if (e_.open_document()) {
-                notice_.clear();
-                e_.buffer.newline();
-                e_.follow_caret = true;
-            }
-        } else if (asked.id == pane::kActionTab) {
-            // A TAB BYTE, PRESERVED AS ONE -- the byte policy's insertion half. It arrives
-            // as a key rather than as text because no backend delivers a control byte as
-            // entered text (input's own law).
-            if (e_.open_document()) {
-                notice_.clear();
-                e_.buffer.type("\t");
-                e_.follow_caret = true;
-            }
-        } else if (asked.id == pane::kActionDiscard) {
-            discard_source_edits();
-        }
+        act(asked.id);
         say(mail);
     }
 
@@ -506,7 +493,8 @@ private:
     Mark mark_now() const;
     bool on_highlight(EditorPos at) const;
     void end_grab();
-    void offer(Take what, std::int64_t row, std::int64_t column, loom::Mail& mail);
+    void offer_menu(std::optional<Take> first, std::int64_t row, std::int64_t column,
+                    loom::Mail& mail);
     std::string where_words(EditorPos p) const;
     std::string project_root() const;
     void acquire(Take what, bool drag, std::uint64_t gesture, const Mark& at, loom::Mail& mail);
@@ -570,6 +558,8 @@ private:
             carried);
         row(pane::kActionLocation, "carry this file's location", input::scan::kL, input::mod::kCtrl,
             "", carried);
+        // No default key: the right-press menu offers it, and a weaver's file may bind it.
+        row(pane::kActionClose, "close the file", input::scan::kUnknown, input::mod::kNone);
         (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, actions);
     }
 
@@ -605,6 +595,113 @@ private:
         e_.saved_lines = e_.buffer.lines();
         ++saved_stamp_;
         notice("saved -- " + shown_path(), false);
+    }
+
+    /// ONE OF THE BUFFER'S OWN GESTURES, whichever hand gave it -- its key, or the menu row showing
+    /// it -- through the one `consume` (WL-EDIT-02): a copy said to the process once, a paste asked
+    /// of the window. Answers whether the buffer took it.
+    bool edit_by_key(std::int64_t scancode, std::int64_t modifiers, loom::Mail& mail) {
+        if (!e_.open_document()) {
+            return false; // an empty editor has no document for a key to mean anything to
+        }
+        end_grab();
+        const std::uint64_t copied_before = clip_.writes;
+        const std::uint64_t pastes_before = clip_.paste_requests;
+        if (!e_.buffer.consume(scancode, modifiers, clip_)) {
+            return false;
+        }
+        notice_.clear();
+        e_.follow_caret = true;
+        if (clip_.writes != copied_before) {
+            // A COPY IS SAID TO THE PROCESS ONCE: the OS window offers it to the platform's
+            // clipboard and every other text-holding participant mirrors it.
+            mail.publish(graphics::ClipboardCopy{clip_.text});
+        }
+        if (clip_.paste_requests != pastes_before) {
+            begin_paste(mail);
+        }
+        return true;
+    }
+
+    /// ONE OF THE DECLARED ROWS' ACTS, whichever hand asked -- its key or its menu row: save,
+    /// newline, tab, discard and close. The two carries are `acquire`'s.
+    void act(const std::string& id) {
+        if (id == pane::kActionSave) {
+            save_source();
+        } else if (id == pane::kActionNewline) {
+            if (e_.open_document()) {
+                notice_.clear();
+                e_.buffer.newline();
+                e_.follow_caret = true;
+            }
+        } else if (id == pane::kActionTab) {
+            // A TAB BYTE, PRESERVED AS ONE -- the byte policy's insertion half. It arrives
+            // as a key rather than as text because no backend delivers a control byte as
+            // entered text (input's own law).
+            if (e_.open_document()) {
+                notice_.clear();
+                e_.buffer.type("\t");
+                e_.follow_caret = true;
+            }
+        } else if (id == pane::kActionDiscard) {
+            discard_source_edits();
+        } else if (id == pane::kActionClose) {
+            close_source();
+        }
+    }
+
+    /// LET THE DOCUMENT GO, by the weaver's choice alone (WL-EDIT-03): a clean one is closed and
+    /// the Editor holds none, its next document a new epoch. Unsaved work refuses, as a replacement
+    /// and a quit refuse it, and so do a paste still arriving and an opening still being arranged,
+    /// either of which could land in the document after; a refused close moves nothing.
+    void close_source() {
+        if (!e_.open_document()) {
+            notice("no source is open -- nothing to close", true);
+            return;
+        }
+        if (candidate_.live) {
+            notice("the Editor is still opening " + candidate_.path +
+                       " -- close again once it has settled; nothing was closed",
+                   true);
+            return;
+        }
+        if (paste_.awaiting) {
+            notice("the Editor is still waiting for a clipboard answer for " + e_.path +
+                       " -- try again once it has arrived; nothing was closed",
+                   true);
+            return;
+        }
+        if (e_.dirty()) {
+            notice("the Editor holds unsaved changes to " + e_.path +
+                       " -- save source or discard source edits in the Editor first; nothing was "
+                       "closed",
+                   true);
+            return;
+        }
+        const std::string closed = shown_path();
+        const std::uint64_t epoch = e_.doc_epoch;
+        e_ = EditorState{};
+        e_.doc_epoch = epoch + 1;
+        ++saved_stamp_;
+        drag_ = Drag{};
+        grab_ = Grab{};
+        opened_by_ = 0;
+        installed_epoch_ = e_.doc_epoch;
+        installed_revision_ = e_.buffer.revision();
+        notice("closed " + closed, false);
+    }
+
+    /// THE KEY A DECLARED ROW ANSWERS TO NOW, as the keymap's projection says it; none while it is
+    /// unbound or the projection has not been heard.
+    std::string declared_key(const char* id) const {
+        const auto found = keys_in_force_.find(id);
+        return found != keys_in_force_.end() ? found->second : std::string();
+    }
+
+    /// A KEY OF THE BUFFER'S OWN, which no keymap moves, spelled as the weaver spells keys.
+    std::string buffer_key(const BufferRow& row) const {
+        return ws::spell_gesture(ws::Gesture{row.scancode, row.modifiers},
+                                 ws::spelling_of(key_spelling_));
     }
 
     /// THE ONE DELIBERATE DISCARD DOOR (WL-EDIT-03): the buffer back to the last saved state,
@@ -1139,6 +1236,10 @@ private:
     Pickup pickup_;
     ws::pane_menu::Asked menu_;
     Mark menu_mark_;
+    /// THE KEYS IN FORCE FOR THIS PANE'S DECLARED ROWS, by id, and how the weaver spells keys, as
+    /// the keymap's projection last said them: image state, asked again on every activation.
+    std::map<std::string, std::string> keys_in_force_;
+    std::string key_spelling_;
     Dropped drop_;
     Locate locate_;
     /// WHAT THE LAST ACTIVATION INSTALLED, so a dropped location's caret lands only on it untouched.

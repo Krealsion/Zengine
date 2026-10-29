@@ -195,8 +195,11 @@ the [source material reference](source-transfer.md).
   Pressing on the highlight is still an ordinary press (the caret moves, as always) until your
   hand reaches another character; then the selection is put back exactly as it was and the copy
   leaves with the pointer. A drag that starts anywhere else sweeps a selection, as it always has;
-- **right-click the highlight** → **Extract selection to Inventory**, then click where it goes
-  (`Esc` puts it down). A right-click anywhere else opens Workshop's own menu for the pane;
+- **right-click the highlight** → **Extract selection to Inventory**, the first row of the
+  Editor's menu there, then click where it goes (`Esc` puts it down). A right-click anywhere else on
+  the document opens the same menu without it first: undo and redo, cut, copy, paste, select all,
+  the carries, save, discard and close as they apply, each beside the key that does it
+  ([the manual](zengine.editor.md#commands));
 - **`Ctrl`+`e`** (`editor.extract`) picks it up from the keyboard; click where it goes, as with
   any carry (`Esc` puts it down).
 

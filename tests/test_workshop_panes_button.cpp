@@ -16,6 +16,7 @@
 
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_rows_block.hpp"
+#include "workshop/presenter_vocabulary.hpp"
 
 #include <map>
 #include <memory>
@@ -1485,6 +1486,52 @@ TEST_CASE("WL-CTX-09: a menu with more rows than the room is windowed by the pre
                    context_entry_cell_y(t.r.session(), static_cast<std::size_t>(above)));
     REQUIRE(t.guard->answers.size() == 3);
     CHECK(t.guard->answers[2].id == "seat.row-" + std::to_string(kMaxPaneMenuRows - 2));
+}
+
+TEST_CASE("WL-CTX-11: the shipped presenter draws the key a row's label carries apart from its words, beside the widest words") {
+    // THE MARK IS A TAB, which no label draws: the presenter lays the key in a column of its own,
+    // two blanks after the widest words, and a row naming no key keeps its words alone.
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.guard->rows = {{"seat.save", std::string("Save source") + kMenuKeyMark + "ctrl+s"},
+                     {"seat.first", "First row"}};
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::vector<std::string> painted = context_rows_on(t.r.shown(), t.r.session());
+    REQUIRE(painted.size() >= 2);
+    CHECK(painted[0] == "> Save source  ctrl+s");
+    CHECK(painted[1] == "  First row");
+    // ...AND THE KEY IS NO PART OF WHAT IS CHOSEN: the row comes back as its id.
+    t.r.key(input::scan::kReturn);
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK(t.guard->answers[0].id == "seat.save");
+}
+
+TEST_CASE("WL-CTX-11: a menu's key column keeps a row's key and cuts its words first in a narrow room, and shows the words alone where no word fits beside the key") {
+    // THE OFFER WRITES THE KEY AFTER THE MARK; a row with none is a plain row.
+    pane_menu::Offer offer("p", "s");
+    offer.row("a", "Save source", "ctrl+s").row("b", "Close file", "");
+    const std::vector<PaneMenuRow>& rows = offer.request().rows;
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].label == std::string("Save source") + kMenuKeyMark + "ctrl+s");
+    CHECK(rows[1].label == "Close file");
+    CHECK(menu_row_words(rows[0].label).words == "Save source");
+    CHECK(menu_row_words(rows[0].label).key == "ctrl+s");
+    // WIDE: the key two blanks after the widest words.
+    const MenuWidths wide = menu_widths({&rows}, 2, 80);
+    CHECK(wide.words == 11);
+    CHECK(wide.keys == 6);
+    CHECK(menu_row_text(rows[0], wide) == "Save source  ctrl+s");
+    CHECK(menu_row_text(rows[1], wide) == "Close file");
+    // NARROW: the words cut to what is left beside the mark, two blanks and the key.
+    const MenuWidths narrow = menu_widths({&rows}, 2, 2 + 6 + 2 + 6);
+    CHECK(narrow.words == 6);
+    CHECK(menu_row_text(rows[0], narrow) == "Save s  ctrl+s");
+    // ...AND WITH NO COLUMN LEFT FOR A WORD, THE WORDS ALONE.
+    const MenuWidths none = menu_widths({&rows}, 2, 2 + 2 + 6);
+    CHECK(none.keys == 0);
+    CHECK(menu_row_text(rows[0], none) == "Save source");
 }
 
 TEST_CASE("WL-CTX-10: a requester's record of its ask settles on the presenter's answer or the host's refusal -- once, and on nothing another office says under its number") {

@@ -73,11 +73,18 @@ struct TransferStory {
     /// `stem` is the image that holds the Editor's office: the standard Editor, or another
     /// implementation of it (the Neovim-backed Editor's suite passes its own). `desktop` loads the
     /// real desktop too, so its application rows meet the Editor's declarations as on a desk.
+    /// `keys` are a weaver's keymap file's rows, `{id, key}`, read as Workshop starts.
     explicit TransferStory(const char* tag, int permissions = kEverything, std::string project = {},
-                           std::string stem = ed::kEditorPaneStem, bool desktop = false)
+                           std::string stem = ed::kEditorPaneStem, bool desktop = false,
+                           const std::vector<std::pair<std::string, std::string>>& keys = {})
         : dir(tag) {
         root = dir.path();
         marks = (root / "workshop-marks.json").generic_string();
+        if (!keys.empty()) {
+            const std::string path = (root / "keymap.json").generic_string();
+            write_keymap_file(path, keymap_file_text("full", keys));
+            r.host.keymap_path = path;
+        }
         r.host.project_dir = project.empty() ? root.generic_string() : project;
         r.host.managed_pane = editor_ref();
         r.mount_workshop();
