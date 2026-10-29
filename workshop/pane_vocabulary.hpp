@@ -372,6 +372,11 @@ struct PaneMenuRow {
 /// pane's rows alike (`pane_menu::Offer::submenu`); a row that asks for more input ends in "...".
 inline constexpr const char* kSubmenuMark = " >";
 
+/// THE MARK BEFORE THE KEY THAT DOES WHAT A ROW DOES, in its label after its words
+/// (`pane_menu::Offer::row` with a key): a presenter shows the key apart, beside the words. A
+/// tab, which no label draws, so a presenter that knows no key shows a blank there.
+inline constexpr char kMenuKeyMark = '\t';
+
 /// Presentation bounds on one menu; the id bound is a declared action's (`kMaxPaneActionIdLen`),
 /// published here so a presenter built from this header alone can judge.
 inline constexpr std::size_t kMaxPaneMenuRows = 32;

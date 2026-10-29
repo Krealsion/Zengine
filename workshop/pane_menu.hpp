@@ -126,6 +126,17 @@ public:
         return *this;
     }
 
+    /// A ROW AND THE KEY THAT DOES WHAT IT DOES, as the weaver spells keys: the label carries the
+    /// key after the shared mark (`kMenuKeyMark`), which a presenter shows apart. No key, a plain
+    /// row.
+    Offer& row(std::string id, std::string label, const std::string& key) {
+        if (!key.empty()) {
+            label += kMenuKeyMark;
+            label += key;
+        }
+        return row(std::move(id), std::move(label));
+    }
+
     /// A ROW WHOSE CHOICE OPENS ANOTHER MENU: its label ends in the shared mark (`kSubmenuMark`).
     Offer& submenu(std::string id, std::string label) {
         return row(std::move(id), std::move(label) + kSubmenuMark);

@@ -39,6 +39,19 @@ one the window read before a scroll showed meets the lines drawn now.
 
 WHY — `agents/decisions/a-menu-is-presented-by-a-participant.md`
 
+## WL-CTX-11 — A row may carry the key that does it, and the shipped presenter shows it apart
+
+LAW — A row's label may end in the key that does what the row does, after `kMenuKeyMark`; the shipped presenter draws it in a column of its own, two blanks after the widest words.
+
+MEANS
+- the requester writes the key it knows does the row's act now (`pane_menu::Offer::row` with a key); the host passes it unread;
+- a room too narrow for both cuts the words, never a key; one with no column left for a word shows the words alone;
+- the chosen row comes back as its id: the key is words, no part of the choice.
+
+DOES NOT MEAN — that a presenter that knows no key loses the row: the mark is a tab, which it draws as a blank.
+
+WHY — `agents/decisions/the-editors-right-press-offers-its-acts.md`
+
 ## Proven by
 
 ### WL-CTX-09
@@ -154,3 +167,14 @@ another image while a menu is open hands the menu over -- shown again the new wa
 answered under the same number, and the Hotkeys edit completes" "WL-CTX-10: a presenter that leaves
 ends its menu, answered by the host; with none in the office a menu is refused in words and the
 host's own menu still opens; one loaded afresh does not carry the old menu, which ends answered"
+
+### WL-CTX-11
+`workshop/pane_vocabulary.hpp` kMenuKeyMark
+`workshop/pane_menu.hpp` Offer::row
+`workshop/presenter_vocabulary.hpp` MenuRowWords menu_row_words MenuWidths menu_widths
+menu_row_text
+`workshop/menu-presenter/presenter.cpp` MenuPresenter::show
+`tests/test_workshop_panes_button.cpp` "WL-CTX-11: the shipped presenter draws the key a row's
+label carries apart from its words, beside the widest words" "WL-CTX-11: a menu's key column keeps a
+row's key and cuts its words first in a narrow room, and shows the words alone where no word fits
+beside the key"

@@ -40,7 +40,7 @@ LAW — The selection's buffer text, unsaved edits included, leaves as an owned 
 
 MEANS
 - a press on the highlight is an ordinary press; its first motion restores the selection;
-- a drag begun elsewhere sweeps; a right press off the highlight is handed back to the host;
+- a drag begun elsewhere sweeps; a right press off the highlight opens the Editor's menu (WL-EDIT-22);
 - the carry is approved for the actor's gesture; a copy over the carrier's bound is refused.
 
 DOES NOT MEAN — that the copy follows later edits, or that its observation is authority.
@@ -72,6 +72,19 @@ MEANS
 DOES NOT MEAN — that a location is text or a name: it is never inserted, and never rebound.
 
 WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
+
+## WL-EDIT-22 — A right press offers the Editor's acts, each beside the key that does it now
+
+LAW — A right press on an open document's rows opens the Editor's menu, the host's rows beneath: the acts the document allows now, each doing what its key does, beside the key that does it now.
+
+MEANS
+- the press's subject first, Extract on the highlight and the location on the status row; then undo, redo, cut, copy, paste, select all, the carries, save, discard and close as they apply;
+- a declared row's key as the keymap's projection holds it, a moved key moved and an unbound one none; the buffer's own keys as they are, in the weaver's spelling;
+- `Close file` is `editor.close`, unbound, which refuses as WL-EDIT-03 says.
+
+DOES NOT MEAN — that an empty Editor, one a switch holds still, or a press beside the rows offers anything: each is handed back.
+
+WHY — `agents/decisions/the-editors-right-press-offers-its-acts.md`
 
 ## Do not assume
 
@@ -112,8 +125,8 @@ places it"
 Inventory folder as an owned copy of the buffer's text, unsaved edits included, and nothing of the
 document moves" "a press on the highlight that never moves is an ordinary press, and a drag begun
 off the highlight sweeps and carries nothing, even across the pane's edge" "right-click on the
-highlight offers Extract above the standard rows, which carries by pick-and-place; right-click off
-it opens the standard pane menu" "the keyboard carries the selection by pick-and-place, and with
+highlight puts Extract first in the Editor's menu and carries by pick-and-place; right-click off it
+opens the Editor's menu there, its rows above the standard rows" "the keyboard carries the selection by pick-and-place, and with
 nothing selected it carries nothing in its place" "an actor without the carry cannot extract, and
 one without the open may carry a location but not open it"
 `tests/test_source_transfer.cpp` "a captured selection is an owned text item with its observation
@@ -153,3 +166,17 @@ extract, and one without the open may carry a location but not open it"
 prefix at it, never half a character, and a whole line must still read exactly"
 `tests/test_workshop_guests.cpp` "open power reaches only the managed opening, and no other power
 opens a source"
+
+### WL-EDIT-22
+`editor/editor-pane/transfers.hpp` right_press offer_menu on(PaneMenuAnswered)
+`editor/editor-pane/pane.cpp` on(KeymapShown) edit_by_key act close_source declared_key buffer_key
+declare
+`editor/editor-pane/common.hpp` BufferRow kMenuBufferRows buffer_does
+`editor/editor-pane/vocabulary.hpp` kActionClose
+`tests/test_workshop_editor_transfers.cpp` "right-click on the highlight puts Extract first in the
+Editor's menu and carries by pick-and-place; right-click off it opens the Editor's menu there, its
+rows above the standard rows" "the Editor's menu offers the acts the document allows now, each beside
+the key that does it now" "each edit row of the Editor's menu does what its key does: select all,
+cut, paste, undo, redo and copy" "a key the weaver's keymap moved shows moved in the Editor's menu,
+whose row still saves" "Close file lets a clean document go, and refuses unsaved work as the
+Editor's other exits do, leaving the document as it was"
