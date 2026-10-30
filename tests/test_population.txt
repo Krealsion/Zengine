@@ -12,7 +12,7 @@ snake                             doctest           always  26
 timer                             doctest           always  85
 # Tripwires in this suite read the SDL queue's reader as text: input/translate_sdl_core.hpp and
 # graphics/window/window_sdl_backend.hpp (VM-WALL-11).
-input                             doctest           always  56
+input                             doctest           always  62
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 # A tripwire in this suite reads graphics/ as text (VM-WALL-11).

@@ -155,12 +155,28 @@ public:
 
     // ---- the session doors (vocabulary.hpp says what a session is and is not) ----------
 
+    /// The most bytes of a holder's purpose a busy refusal quotes; a longer one is cut on a
+    /// character boundary and ends `...`.
+    static constexpr std::size_t kPurposeQuoted = 160;
+
+    /// "opened for "<purpose>"", or that none was given: the holder's own line, bounded.
+    static std::string opened_for(const std::string& purpose) {
+        if (purpose.empty()) return "opened with no purpose given";
+        if (purpose.size() <= kPurposeQuoted) return "opened for \"" + purpose + "\"";
+        std::size_t cut = kPurposeQuoted;
+        while (cut > 0 && (static_cast<unsigned char>(purpose[cut]) & 0xC0) == 0x80) --cut;
+        return "opened for \"" + purpose.substr(0, cut) + "...\"";
+    }
+
     void on(const InputSessionRequested& asked, loom::Mail& mail) {
         if (session_.open) {
+            // THE SENDER THE BUS NAMES is a connection, and every run on one link is that one
+            // sender: the words say the connection, and the purpose its holder gave.
             (void)mail.answer(loom::Refused{
                 "busy: input session " + std::to_string(session_.id) + " is held by " +
-                (session_.holder == mail.sender() ? std::string("you") : "another participant") +
-                "; it must be closed before another opens"});
+                (session_.holder == mail.sender() ? std::string("this connection")
+                                                  : "another participant") +
+                ", " + opened_for(session_.purpose) + "; it must be closed before another opens"});
             return;
         }
         session_ = Session{};
