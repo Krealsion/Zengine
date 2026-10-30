@@ -29,6 +29,9 @@ inline constexpr std::int64_t kMediumGround = 5;
 /// the weaver to see. Every guest-caused mark shares it, so the weaver tells it from the desk's
 /// own emphasis by role, in every medium.
 inline constexpr std::int64_t kGuide = 6;
+/// A box's outline: a quiet line that shows where a box a weaver types in stands, light grey in a
+/// look of light. Drawn only by a medium that sets type; a medium of characters spells the box.
+inline constexpr std::int64_t kEdge = 7;
 /// No role at all: the absence of a background, not an ink role. Negative, so it cannot collide
 /// with a role a later vocabulary adds (which an older medium would silently paint as `kFill`).
 /// Never pass it to a medium's role-to-ink table; test for it first.

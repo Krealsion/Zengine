@@ -4600,7 +4600,8 @@ TEST_CASE("the painter for light paints all seven operators into pixel primitive
     CHECK(ink_of(night, gfx::role::kFill) != ink_of(day, gfx::role::kFill));
 }
 
-TEST_CASE("a group's clip cuts what its children paint for light: quads, lines, text and images") {
+TEST_CASE("a group's clip cuts what its children paint for light: quads, lines, text by its pixels and "
+          "images") {
     gfx::Sketch s;
     s.group("g", 10, 10, 20, 12); // the clip, (10, 10) to (30, 22)
     s.fill_rect("g/r", -5, -5, 100, 100, gfx::by_role(gfx::role::kFill));
@@ -4608,8 +4609,10 @@ TEST_CASE("a group's clip cuts what its children paint for light: quads, lines, 
     s.text("g/t", 0, 0, "abcdef", gfx::by_role(gfx::role::kFill));
     s.text("g/below", 0, 40, "gone", gfx::by_role(gfx::role::kFill));
     s.image("g/i", 10, 0, 20, 10, 2, 1, loom::Bytes{1, 1, 1, 255, 2, 2, 2, 255});
+    s.text("g/above", 0, -4, "up", gfx::by_role(gfx::role::kFill));
+    s.text("g/low", 0, 6, "down", gfx::by_role(gfx::role::kFill));
     const auto nodes = lit(s, light::day_look());
-    REQUIRE(nodes.size() == 5);
+    REQUIRE(nodes.size() == 7);
     REQUIRE(nodes[0].quads.size() == 1);
     CHECK(nodes[0].quads[0].x == 10);
     CHECK(nodes[0].quads[0].y == 10);
@@ -4620,7 +4623,18 @@ TEST_CASE("a group's clip cuts what its children paint for light: quads, lines, 
     CHECK(nodes[1].lines[0].x2 == 29);
     REQUIRE(nodes[2].texts.size() == 1);
     CHECK(nodes[2].texts[0].text == "a"); // one whole character, a cell, in twenty pixels
-    CHECK(nodes[3].empty());               // a line whose top is outside the clip
+    // A line the clip crosses is cut by its pixels: its foot below the clip's twelve rows is said
+    // cut, and a line whose top is above the clip shows its rows inside it.
+    CHECK(nodes[2].texts[0].cut_top == 0);
+    CHECK(nodes[2].texts[0].cut_foot == 0); // a cell is twelve pixels, and the clip holds it
+    CHECK(nodes[3].empty()); // a line wholly outside the clip
+    REQUIRE(nodes[5].texts.size() == 1);
+    CHECK(nodes[5].texts[0].y == 6);
+    CHECK(nodes[5].texts[0].cut_top == 4);
+    CHECK(nodes[5].texts[0].cut_foot == 0);
+    REQUIRE(nodes[6].texts.size() == 1);
+    CHECK(nodes[6].texts[0].cut_top == 0);
+    CHECK(nodes[6].texts[0].cut_foot == 6); // its foot six rows below the clip's
     REQUIRE(nodes[4].images.size() == 1);
     CHECK(nodes[4].images[0].x == 20);
     CHECK(nodes[4].images[0].w == 10); // half the image shows
@@ -4633,7 +4647,7 @@ TEST_CASE("a node painted for light packs and reads back whole, and bytes that a
     light::NodePrimitives n;
     n.quads.push_back(light::Quad{-3, 4, 5, 6, 0x11223344u});
     n.lines.push_back(light::Line{1, 2, 3, 4, 0xaabbccddu});
-    n.texts.push_back(light::TextRun{7, 8, 0x01020304u, "words"});
+    n.texts.push_back(light::TextRun{7, 8, 0x01020304u, "words", 3, 2}); // its cut rows ride too
     n.images.push_back(light::ImageBlit{0, 0, 2, 2, 1, 1, loom::Bytes{9, 9, 9, 9}});
     const loom::Bytes packed = light::pack_node(n);
     CHECK(light::is_light(packed));
@@ -6891,3 +6905,112 @@ TEST_CASE("one quantization law -- a span lands on device units by flooring both
 }
 
 } // namespace pixel_arithmetic
+
+// ---- The text pieces' drawn faces (graphics/elements/text_face.hpp) ------------------------------
+
+namespace {
+const gfx::Node* node_named(const gfx::Sketch& s, const std::string& path) {
+    for (const gfx::Node& n : s.nodes()) {
+        if (n.path == path) return &n;
+    }
+    return nullptr;
+}
+std::string action_of(const gfx::Sketch& s, const std::string& path) {
+    for (const gfx::ElementRecord& r : s.records()) {
+        if (r.path == path) return r.action;
+    }
+    return {};
+}
+} // namespace
+
+TEST_CASE("a text box's face: an outline in the edge role where it is seen as a box, its caret a bar") {
+    zengine::component::TextBox box;
+    box.set("abc", 3);
+    const auto cells = zengine::component::text_box_cells(box, 8, true);
+    const gfx::TextMeasure m{10, 20};
+    gfx::Sketch s;
+    gfx::text_box_face(s, "box", cells, 5, 7, m, gfx::by_role(gfx::role::kFill), true);
+    const gfx::Node* edge = node_named(s, "box.edge");
+    REQUIRE(edge != nullptr);
+    const auto outline = gfx::from_body<gfx::RectArgs>(edge->args);
+    REQUIRE(outline.has_value());
+    CHECK(outline->x == 5);
+    CHECK(outline->w == 80);
+    CHECK(outline->h == 20);
+    CHECK(outline->stroke.role == gfx::role::kEdge);
+    // The slice alone is drawn as text: the border and the blank room are the outline's.
+    const auto words = gfx::from_body<gfx::TextArgs>(node_named(s, "box.text")->args);
+    REQUIRE(words.has_value());
+    CHECK(words->text == "abc");
+    CHECK(words->x == 15);
+    const auto caret = gfx::from_body<gfx::LineArgs>(node_named(s, "box.caret")->args);
+    REQUIRE(caret.has_value());
+    CHECK(caret->x1 == 5 + 4 * 10);
+    // Without the keys, no caret.
+    gfx::Sketch away;
+    gfx::text_box_face(away, "box", cells, 5, 7, m, gfx::by_role(gfx::role::kFill), false);
+    CHECK(node_named(away, "box.caret") == nullptr);
+}
+
+TEST_CASE("a text area's face: wrapped less the bar's room, scrolled by pixels, read back where it "
+          "was drawn") {
+    zengine::component::TextArea area;
+    std::string text;
+    for (int i = 0; i < 20; ++i) text += (i == 0 ? "" : "\n") + std::string("line ") + std::to_string(i);
+    area.set(text);
+    const gfx::TextMeasure m{10, 20};
+    const auto g = gfx::text_area_geometry(area, 116, 100, m);
+    CHECK(g.columns == 10); // the room less the bar's
+    REQUIRE(g.lines.size() == 20);
+    CHECK(g.overflows());
+    CHECK(g.thumb_h == 25); // five lines of twenty in a hundred pixels
+    CHECK(g.thumb_y == 0);
+    // A press names a place: the line under it, the column's byte; none on the bar's room.
+    const auto at = gfx::text_area_place_at(area, g, 35, 45);
+    REQUIRE(at.has_value());
+    CHECK(*at == g.lines[2].begin + 3);
+    CHECK_FALSE(gfx::text_area_place_at(area, g, 105, 45).has_value());
+    CHECK(gfx::text_area_on_bar(g, 101, 99));
+    CHECK_FALSE(gfx::text_area_on_bar(g, 99, 10));
+    // Scrolled half a line: the first line starts ten pixels above the top, and a press at the
+    // top's fifteenth row is on the second line.
+    area.scroll_by(zengine::component::TextArea::kUnitsPerLine / 2, g.columns, g.shown);
+    const auto half = gfx::text_area_geometry(area, 116, 100, m);
+    CHECK(half.first == 0);
+    CHECK(half.past == 10);
+    const auto lower = gfx::text_area_place_at(area, half, 0, 15);
+    REQUIRE(lower.has_value());
+    CHECK(*lower == half.lines[1].begin);
+    gfx::Sketch s;
+    gfx::text_area_face(
+        s, "a", area, half, 0, 0,
+        [](const zengine::component::TextLook&) { return gfx::by_role(gfx::role::kFill); }, "read",
+        "scroll");
+    const auto first = gfx::from_body<gfx::TextArgs>(node_named(s, "a.text/l0")->args);
+    REQUIRE(first.has_value());
+    CHECK(first->y == -10);
+    CHECK(first->text == "line 0");
+    const auto clip = gfx::from_body<gfx::GroupArgs>(node_named(s, "a.text")->args);
+    REQUIRE(clip.has_value());
+    CHECK(clip->clip_w == 100);
+    CHECK(clip->clip_h == 100);
+    const gfx::Node* thumb = node_named(s, "a.bar/thumb");
+    REQUIRE(thumb != nullptr);
+    CHECK(gfx::from_body<gfx::RectArgs>(thumb->args)->w == gfx::kTextAreaBarDrawn);
+    CHECK(action_of(s, "a.text") == "read");
+    CHECK(action_of(s, "a.bar") == "scroll");
+    // The bar: its top is the text's top, its foot the text's end.
+    CHECK(gfx::text_area_bar_scroll(half, 0) == 0);
+    CHECK(gfx::text_area_bar_scroll(half, 100) == half.furthest);
+    // A text that fits draws no thumb, and keeps the bar's room.
+    zengine::component::TextArea short_text;
+    short_text.set("one line");
+    const auto fits = gfx::text_area_geometry(short_text, 116, 100, m);
+    CHECK_FALSE(fits.overflows());
+    gfx::Sketch quiet;
+    gfx::text_area_face(
+        quiet, "a", short_text, fits, 0, 0,
+        [](const zengine::component::TextLook&) { return gfx::by_role(gfx::role::kFill); });
+    CHECK(node_named(quiet, "a.bar/thumb") == nullptr);
+    CHECK(gfx::from_body<gfx::GroupArgs>(node_named(quiet, "a.text")->args)->clip_w == 100);
+}
