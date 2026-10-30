@@ -3319,6 +3319,71 @@ def run_checks(tools, runtime):
             self.assertIn("cannot be told", summary)
             self.assertNotIn("done", summary)
 
+        LISTED = {"owner": "inv", "revision": 12, "folders": [
+            {"folder": {"owner": "inv", "folder": "f1"}, "revision": 1, "name": "Work", "parent": ""},
+            {"folder": {"owner": "inv", "folder": "f2"}, "revision": 1, "name": "Done", "parent": "f1"}],
+            "entries": [
+            {"reference": {"owner": "inv", "entry": "e1"}, "revision": 1, "label": "Demo input 1",
+             "schema": "zengine.input.InputState", "version": 1, "capture_slot": False, "folder": ""},
+            {"reference": {"owner": "inv", "entry": "e2"}, "revision": 4, "label": "Workbench result",
+             "schema": "zengine.input.InputState", "version": 1, "capture_slot": False, "folder": "f2"},
+            {"reference": {"owner": "inv", "entry": "e3"}, "revision": 2, "label": "twice",
+             "schema": "s", "version": 1, "capture_slot": False, "folder": ""},
+            {"reference": {"owner": "inv", "entry": "e4"}, "revision": 2, "label": "twice",
+             "schema": "s", "version": 1, "capture_slot": False, "folder": "f1"}]}
+
+        def listing(self, **inputs):
+            inventory_list = importlib.import_module("inventory_list")
+            ctx = Context(steps, **inputs)
+            produced, asked = {}, []
+            ctx.produce = lambda name, value: produced.update({name: value})
+
+            def ask(office, shape, fields, **kw):
+                asked.append((office, shape, kw.get("version", 1), fields))
+                if shape == "InventoryList":
+                    return self.LISTED
+                if shape == "InventoryRead":
+                    return {"reference": fields["reference"], "revision": 4, "pair": b"the pair"}
+                raise AssertionError(shape)
+            ctx.ask = ask
+            return inventory_list, ctx, produced, asked
+
+        def test_inventory_list_answers_every_entry_by_message_and_changes_nothing(self):
+            tool, ctx, produced, asked = self.listing()
+            summary = tool.run(ctx)
+            written = json.loads(produced["entries.json"].decode("utf-8"))
+            self.assertEqual([(e["label"], e["folder"]) for e in written["entries"]],
+                             [("Demo input 1", ""), ("Workbench result", "Work/Done"),
+                              ("twice", ""), ("twice", "Work")])
+            self.assertEqual(written["entries"][1]["schema"], "zengine.input.InputState")
+            self.assertEqual(written["entries"][1]["revision"], 4)
+            self.assertEqual(written["entries"][1]["reference"], {"owner": "inv", "entry": "e2"})
+            self.assertEqual([(a[0], a[1], a[2]) for a in asked],
+                             [("zengine.inventory", "InventoryList", 2)])
+            self.assertIn("4 entries", summary)
+            self.assertIn("entries.json", summary)
+            self.assertIn("inventory-list", [t["name"] for t in manifest["tools"]])
+            self.assertEqual([o["name"] for o in entry_of("inventory-list")["outputs"]],
+                             ["entries.json", "entry.json", "entry.pair.bin"])
+
+        def test_inventory_list_reads_one_entry_by_its_label_and_refuses_none_or_several(self):
+            tool, ctx, produced, asked = self.listing(read="Workbench result")
+            summary = tool.run(ctx)
+            self.assertEqual(produced["entry.pair.bin"], b"the pair")
+            entry = json.loads(produced["entry.json"].decode("utf-8"))
+            self.assertEqual((entry["label"], entry["folder"], entry["schema"]),
+                             ("Workbench result", "Work/Done", "zengine.input.InputState"))
+            self.assertEqual(asked[-1][1:4], ("InventoryRead", 1,
+                                             {"reference": {"owner": "inv", "entry": "e2"}}))
+            self.assertIn("zengine-inventory-read", summary)
+            for label, words in (("twice", "2 entries are labelled 'twice'"),
+                                 ("nobody", "no entry is labelled 'nobody'")):
+                tool, ctx, produced, asked = self.listing(read=label)
+                with self.assertRaisesRegex(CheckFailed, words):
+                    tool.run(ctx)
+                self.assertNotIn("InventoryRead", [a[1] for a in asked])
+                self.assertIn("entries.json", produced)
+
     loader = unittest.defaultTestLoader
     suite = unittest.TestSuite([loader.loadTestsFromTestCase(ToolChecks),
                                 loader.loadTestsFromTestCase(SaidChecks)])

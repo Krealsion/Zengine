@@ -323,9 +323,11 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   build to its operation's ending on `last` and, when it asked for one, that operation's
   realization ending on `realize` -- two answers kept apart; the ask and operation are kept to
   the end, so another build's ending is SUPERSEDED rather than taken for this one; a wait that
-  runs out first is UNRESOLVED and names the operation), and `workshop/inventory-organize` and
+  runs out first is UNRESOLVED and names the operation), `workshop/inventory-organize` and
   `workshop/inventory-controls` (names, folders and portable controls, through Inventory's owner
-  operations).
+  operations), and `workshop/inventory-list` (every entry Inventory holds -- its label, folder
+  path, schema, revision and reference -- as `entries.json`, and with `read=<label>` that one
+  entry's pair as `entry.pair.bin`, which the installed `zengine-inventory-read` decodes).
 - **The `workshop-machine` tool package**, installed beside it, builds on `workshop` (its manifest
   says `"uses": ["workshop"]`) and reaches this machine as well: `workshop-machine/verify-recipe`
   (reads one recipe back from the project's own `build-recipes.json` on the local filesystem and

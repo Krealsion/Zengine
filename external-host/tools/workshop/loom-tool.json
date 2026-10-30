@@ -1486,6 +1486,63 @@
       "recovery": "A rule that matches no entry or several changes nothing; widen or narrow `contains`. After a partial failure the renames and filings already made remain; run it again with the same plan (a renamed entry is found by its new label) or undo them in Inventory."
     },
     {
+      "name": "inventory-list",
+      "script": "inventory_list.py",
+      "summary": "Every entry Inventory holds, by message alone: its label, folder, schema, version, revision and reference; with read, one entry's pair by its label. Changes nothing.",
+      "description": "Asks zengine.inventory, through the link, InventoryList version 2 and writes every entry as entries.json: its label, its folder as the path of folder names from Root (empty for Root), its schema and version, its revision, its reference and whether it is the capture slot. The summary counts the entries by folder. With read=<label>, the one entry under that label is read back by InventoryRead and its pair kept as entry.pair.bin beside entry.json; the pair is Loom's native binary envelope, kept as the bytes Inventory answered, which the installed zengine-inventory-read program decodes. A label no entry holds, or several share, is refused for read, naming which. Opens no input session and changes nothing in Inventory.",
+      "inputs": [
+        {
+          "name": "link",
+          "type": "text",
+          "default": "workshop",
+          "help": "the external host's link to the Workshop"
+        },
+        {
+          "name": "read",
+          "type": "text",
+          "default": "",
+          "help": "an entry's exact label: that one entry's pair is kept as entry.pair.bin; empty lists only"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "entries.json",
+          "help": "Inventory's owner and revision, and every entry: label, folder path, folder id, schema, version, revision, reference, capture_slot"
+        },
+        {
+          "name": "entry.json",
+          "help": "with read: the entry read, as entries.json lists it, at the revision it was read"
+        },
+        {
+          "name": "entry.pair.bin",
+          "help": "with read: the entry's pair, the bytes Inventory answered; zengine-inventory-read decodes it"
+        }
+      ],
+      "requires": [
+        "a Workshop guest granting inventory",
+        "zengine-guest-vocabulary booted in this Loom session"
+      ],
+      "asks": [
+        "loom.link.Ask v1 -> role loom.link.workshop"
+      ],
+      "vocabulary": [
+        "InventoryList v2",
+        "InventoryListed v2",
+        "InventoryRead v1",
+        "InventoryEntry v1"
+      ],
+      "terms": [
+        "inventory",
+        "entries",
+        "list",
+        "labels",
+        "folders",
+        "read"
+      ],
+      "example": "loom-session run <dir> workshop/inventory-list --name what-is-held --input \"read=Demo input 1\"",
+      "recovery": "A read refused for its label names whether no entry or several hold it: entries.json lists every label with its folder. A refusal from Inventory is its owner's words; a row without inventory is refused by the bus."
+    },
+    {
       "name": "inventory-controls",
       "script": "inventory_controls.py",
       "summary": "Make a portable Inventory view of named commands, each bound to a target office and a key, through the Inventory pane's own configuration door; nothing is executed.",
