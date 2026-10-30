@@ -118,7 +118,8 @@ def journey(ctx):
     except Refused as err:
         # A refusal AFTER work began (the inventory above is kept), in the Input owner's own
         # sentence. One holder at a time -- and every run on one link is the SAME holder to
-        # Workshop, which is why its sentence may say "held by you".
+        # Workshop, which is why its sentence may say "held by this connection", with the purpose
+        # naming the run that holds it.
         ctx.fail("zengine.input refused an input session: %s (every run on link '%s' is one "
                  "participant to Workshop, far session %d)" % (err.reason, link, status["session"]))
     session = opened["session"]

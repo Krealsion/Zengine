@@ -74,6 +74,7 @@ kScreenMinW                     workshop/screen.hpp                       kScree
 kMaxPaneMenuLabelLen            workshop/pane_vocabulary.hpp              kMaxPaneMenuLabelLen
 kMaxMenuLineLen                 workshop/presenter_vocabulary.hpp         kMaxMenuLineLen
 kMaxHeldInput                   workshop/weave.hpp                        kMaxHeldInput
+kPurposeQuoted                  input/input_weave.hpp                     kPurposeQuoted
 kMaxLayouts                     workshop/setup.hpp                        kMaxLayouts
 kMaxSetupBytes                  workshop/setup_persist.hpp                kMaxSetupBytes
 kMaxLinkPathBytes               workshop/layouts/session_persist.hpp      kMaxLinkPathBytes
