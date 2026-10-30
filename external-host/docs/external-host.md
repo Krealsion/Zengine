@@ -1237,8 +1237,10 @@ loom-session run work desk/guide --name guide-1 --input pane=zengine.builder-pan
 - **`desk/guide` names what a press names**: the pane as `<office>/<pane>` and the control by its
   action id, which the pane draws as the part `control:<id>`, or `part:<name>` for a subject part (a
   Pane Manager row is `part:pane:<office>/<pane>`); an empty `control` clears the mark. Its result is
-  Workshop's answer: where the mark stands and whether its label found room, the weaver's key for a
-  control drawn as no part, or why not. A mark ends when the weaver presses inside it, when its part
+  Workshop's answer, written as `guide.json`: where the mark stands and whether its label found room,
+  the weaver's key for a control drawn as no part, or why not. A mark refused or not shown fails the
+  run in Workshop's words, a refusal for want of the row's `guide` power saying so; a clear passes
+  whenever Workshop answers. A mark ends when the weaver presses inside it, when its part
   leaves the pane, when the pane's holder changes, at a newer mark, and when the session ends.
 - **`desk/resolve` answers every control that may cause the message**, from the keymap's
   declarations (what a press of each row may cause, and what each pane's other modes may): its

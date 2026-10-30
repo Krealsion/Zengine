@@ -308,12 +308,80 @@ def make_checks(resolve):
     return ResolveChecks
 
 
+class GuideCtx(FakeCtx):
+    """`desk/guide`'s run: its one ask answered, or refused, as the script says."""
+
+    def __init__(self, inputs, answer=None, refusal=None):
+        FakeCtx.__init__(self, inputs)
+        self.answer, self.refusal, self.asked = answer, refusal, []
+
+    def ask(self, office, shape, fields=None, version=1, via=None, settle=False, timeout=60.0):
+        self.asked.append((office, shape, version, fields, via))
+        if self.refusal is not None:
+            raise self.refusal
+        return self.answer
+
+    def fail(self, message):
+        raise GuideFailed(message)
+
+
+class GuideFailed(Exception):
+    pass
+
+
+def make_guide_checks(guide, loom_client):
+    class GuideChecks(unittest.TestCase):
+        """`desk/guide`: a run passes only on a mark Workshop shows, or a clear it answers."""
+
+        MARK = {"pane": "zengine.builder-pane/builder", "control": "builder.build", "words": "build"}
+
+        def written(self, ctx):
+            return json.loads(ctx.produced["guide.json"].decode("utf-8"))
+
+        def test_a_refusal_for_want_of_the_guide_power_fails_and_says_so(self):
+            ctx = GuideCtx(self.MARK, refusal=loom_client.DispatchRefused("CapabilityDenied"))
+            with self.assertRaises(GuideFailed) as failed:
+                guide.run(ctx)
+            self.assertIn("this row has no guide power", str(failed.exception))
+            self.assertIn("CapabilityDenied", str(failed.exception))
+            self.assertEqual(ctx.asked[0][1:3], ("GuideRequested", 1))
+            self.assertIn("CapabilityDenied", self.written(ctx)["refused"])
+
+        def test_a_mark_workshop_does_not_show_fails_in_its_words(self):
+            ctx = GuideCtx(self.MARK, answer={"shown": False, "said": "not shown: no part, key b"})
+            with self.assertRaises(GuideFailed) as failed:
+                guide.run(ctx)
+            self.assertIn("not shown: no part, key b", str(failed.exception))
+            self.assertIs(self.written(ctx)["answer"]["shown"], False)
+
+        def test_a_mark_workshop_shows_passes_and_is_written(self):
+            ctx = GuideCtx(self.MARK, answer={"shown": True, "said": "marked at 4,2"})
+            summary = guide.run(ctx)
+            self.assertIn("marked at 4,2", summary)
+            self.assertIn("guide.json", summary)
+            self.assertIs(self.written(ctx)["answer"]["shown"], True)
+
+        def test_clearing_passes_whenever_workshop_answers(self):
+            ctx = GuideCtx({"pane": "zengine.builder-pane/builder", "control": ""},
+                           answer={"shown": False, "said": "cleared"})
+            self.assertIn("cleared", guide.run(ctx))
+            manifest = json.loads((TOOLS / "loom-tool.json").read_text(encoding="utf-8"))
+            tool = [t for t in manifest["tools"] if t["name"] == "guide"][0]
+            self.assertIn("guide.json", [o["name"] for o in tool["outputs"]])
+
+    return GuideChecks
+
+
 def run_checks(tools, runtime):
     global TOOLS
     TOOLS = Path(tools).resolve()
     sys.path[:0] = [str(Path(runtime).resolve()), str(Path(tools).resolve())]
     resolve = importlib.import_module("resolve")
-    suite = unittest.TestLoader().loadTestsFromTestCase(make_checks(resolve))
+    guide = importlib.import_module("guide")
+    from loom_session import client as loom_client
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite([loader.loadTestsFromTestCase(make_checks(resolve)),
+                                loader.loadTestsFromTestCase(make_guide_checks(guide, loom_client))])
     result = unittest.TextTestRunner(verbosity=1).run(suite)
     return result.wasSuccessful() and result.testsRun > 0
 

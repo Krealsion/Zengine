@@ -34,7 +34,12 @@
           "help": "the external host's link to the Workshop"
         }
       ],
-      "outputs": [],
+      "outputs": [
+        {
+          "name": "guide.json",
+          "help": "what was asked, and Workshop's answer or the refusal in its words"
+        }
+      ],
       "requires": [
         "the `guide` power, a guests file of version 3: a row that may guide within its `guide` doors",
         "zengine-guest-vocabulary booted in this Loom session, declaring GuideRequested and GuideAnswered"
