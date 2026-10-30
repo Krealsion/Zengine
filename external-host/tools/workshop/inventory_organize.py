@@ -5,8 +5,9 @@ Inventory owner's own operations (list, read, create a folder, rename, file), wi
 session. loom-tool.json describes the plan.
 
 FINDING AN ENTRY. Entries stored from one Compose form share a label and a schema, so a rule finds
-its entry by label (and schema, when given) together with `contains`: text that must occur in the
-entry's stored bytes -- for a command, a field value such as `wave`. Every rule must match exactly
+its entry by its exact label, which every rule names, (and schema, when given) together with
+`contains`: text that must occur in the entry's stored bytes -- for a command, a field value such
+as `wave`. A rule with no label is refused before anything is asked. Every rule must match exactly
 one entry and no two rules the same entry, or the run stops before changing anything. It is a
 byte search over the self-describing pair, not a decoder: choose text no other entry holds.
 
@@ -25,6 +26,14 @@ def run(ctx):
 
     def ask(shape, fields, **kw):
         return ctx.ask("zengine.inventory", shape, fields, via=link, **kw)
+
+    # EVERY RULE IS JUDGED BEFORE THE FIRST ASK: a rule finds its entry by label first.
+    for i, rule in enumerate(plan["entries"]):
+        find = rule.get("find") if isinstance(rule, dict) else None
+        ctx.check(isinstance(find, dict) and isinstance(find.get("label"), str) and find["label"],
+                  "rule %d names no label: a rule names the entry's exact label in `find`, and "
+                  "`contains` is text in its stored value, not in its label (%s)"
+                  % (i, json.dumps(rule)))
 
     ctx.step("list")
     listed = ask("InventoryList", {}, version=2)

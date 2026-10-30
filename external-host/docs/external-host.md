@@ -3,6 +3,23 @@
 For a ready-to-use isolated desk with a reusable host, its material, hotkeys and a Reset button,
 start with [ready-to-use setups](../../workshop/docs/demo-setups.md).
 
+**Quickstart.** Five commands from the checkout, with Zengine built in `build` and Loom installed
+beside it; the session folder is the root's `session`, and `<dir>` any folder outside a checkout:
+
+```sh
+python3 external-host/demo.py start --setup values --root demo-runs/values --build build --loom-prefix ../Loom/build/_install
+loom-session run demo-runs/values/session workshop/connections --name hello --wait 30
+loom-session run demo-runs/values/session desk-machine/read --name desk-1 --input out=<dir> --wait 60
+loom-session run demo-runs/values/session workshop/act --name info-1 --input 'steps=[{"open":"pane:zengine.info/info"}]'
+python3 external-host/demo.py stop --root demo-runs/values
+```
+
+1. `start` answers once the desk is ready, with the setup's first task and its guide.
+2. `workshop/connections` answers the guest door's inventory and this session's own row.
+3. `desk-machine/read` writes the desk into `<dir>`: read its `AGENTS.md` first.
+4. `workshop/act` presses by names and answers each step done, kept in `steps.json`.
+5. `stop` quits Workshop and the session host; the root keeps what they wrote.
+
 **Walkthrough.** Let an agent's own Loom host connect to a running Workshop, be admitted as a
 guest you named, open an input session, press keys, take a picture of what Workshop presents,
 and keep the whole exchange in its own history — with Workshop showing the connection while it
@@ -287,8 +304,14 @@ The probe (§ 4 below) is one compiled weave running one journey. A **Loom sessi
 `loom-host --serve`,
 [Loom's sessions guide](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md) —
 keeps a host running for clients that come and go, and runs editable Python **tools** as named
-runs: edit a tool and the next run uses it, with no compiler and no restart. This repository
-ships what such a session needs to speak to Workshop, and nothing of the session itself:
+runs: edit a tool and the next run uses it, with no compiler and no restart. A run name already
+held in the session answers with that earlier run, so name each run anew
+([the desk read](#the-desk-written-as-text-for-an-agent) says it beside its first command). Two
+coordinate spaces meet a first run: the desk reading gives a pane's place in canvas pixels, and a
+part's press point in the space the medium reads input in, console cells in a terminal
+([the desk, a pane's words](#the-desk-a-panes-words-and-timed-drag-stories) says both whole);
+`workshop/act` presses by names, so it needs neither converted. This repository ships what such a
+session needs to speak to Workshop, and nothing of the session itself:
 
 - **`zengine-guest-vocabulary`**, installed in `lib/zengine/`: a weave the session host boots.
   It declares Workshop's guest shapes there — input sessions and injection, captures and their
@@ -323,9 +346,11 @@ ships what such a session needs to speak to Workshop, and nothing of the session
   build to its operation's ending on `last` and, when it asked for one, that operation's
   realization ending on `realize` -- two answers kept apart; the ask and operation are kept to
   the end, so another build's ending is SUPERSEDED rather than taken for this one; a wait that
-  runs out first is UNRESOLVED and names the operation), and `workshop/inventory-organize` and
+  runs out first is UNRESOLVED and names the operation), `workshop/inventory-organize` and
   `workshop/inventory-controls` (names, folders and portable controls, through Inventory's owner
-  operations).
+  operations), and `workshop/inventory-list` (every entry Inventory holds -- its label, folder
+  path, schema, revision and reference -- as `entries.json`, and with `read=<label>` that one
+  entry's pair as `entry.pair.bin`, which the installed `zengine-inventory-read` decodes).
 - **The `workshop-machine` tool package**, installed beside it, builds on `workshop` (its manifest
   says `"uses": ["workshop"]`) and reaches this machine as well: `workshop-machine/verify-recipe`
   (reads one recipe back from the project's own `build-recipes.json` on the local filesystem and
@@ -558,7 +583,12 @@ run look: worker session 15; 75 remembered deliveries to it -- 8 answered its as
   and 67 other deliveries to it: 1 loom.runs.Directive v1 from #8, 66 zen.Ack v1 from #8 (--json lists each)
 ```
 
-(Trimmed: the directory, the inputs and the worker's notes.) The pictures are in the run's
+(Trimmed: the directory, the inputs and the worker's notes.) A row that may `capture` also reads
+the desk once after the inventory, and asks its pictures first of the window office the desk's
+input space names (`zengine.window.terminal` for cells, `zengine.window.sdl` for pixels); another
+row asks each office in turn. The run names no chord by default: it presses only the `chord` and
+`click` it is given, and one given neither is refused before anything is pressed. A batch after
+which nothing repainted fails naming `arm=true` and `changed=false`. The pictures are in the run's
 `out/` directory, checked whole by the tool and verified on disk by the run manager. `crossings`
 reads the session host's own history: each answer that came through the link names the crossing
 it descends from — which far session, established as whom, which attempt, which far author — as
@@ -578,6 +608,10 @@ What a person meets on this route:
   Press Ctrl+P only when the Pane Manager is not already on the desk (`workshop/act`'s `open` step
   checks first, then presses the row by its name), then press what it answers to
   (`--input chord=down`).
+- **A run can wait for the input session.** `workshop/act`, `workshop/drag` and
+  `workshop/inspect-capture` take `wait_for_input`, seconds: while another run holds the session
+  its `busy` refusal is asked again until it opens or the time runs out, and the failure then says
+  how long it waited. With none, a held session fails the run at once.
 - **A lost link is an unknown outcome.** When Workshop goes away after a tool's request was
   submitted, the run fails saying the outcome is UNKNOWN and nothing was resent; Workshop's guest
   door closes a lost guest's input session, and the run never claims it closed it.
@@ -1034,7 +1068,11 @@ pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
 "view-builder", "kind:label"]}`), and fails rather than press one with no point -- `part`,
 `into`, `click`, `at`, `wheel` and `control` wait out a picture that takes no press, for their
-`seconds`; `open` presses the Pane Manager's row named for a pane
+`seconds`; `carry` drags a part by its name to another part or to a pane's middle and releases it
+there (`{"carry": ["zengine.inventory-pane", "inventory", "entry:<owner>:<entry>"], "to":
+["zengine.info", "info"]}`), the middle reckoned from the pane's reading in the medium's own
+input space, so no coordinate is converted by hand and the steps after it read what the drop did;
+`open` presses the Pane Manager's row named for a pane
 (`{"open": "pane:zengine.files/project-files"}`),
 choosing it first where it is not chosen; `menu` presses the line of the menu on the screen named
 so, or holding some text; `wheel` turns the wheel once, by `dy` and `dx` notches (`dy` 1 away from

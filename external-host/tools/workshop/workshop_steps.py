@@ -5,6 +5,7 @@ picture fetched and checked chunk by chunk, and key chords spelled as Workshop's
 spells them (zengine/input/vocabulary.hpp: scancodes are SDL's, modifiers shift=1 ctrl=2 alt=4)."""
 
 import json
+import time
 
 from loom_session.values import BOOL, BYTES, FLOAT, INT, TEXT
 
@@ -216,6 +217,35 @@ def link_session(ctx, link):
     return s
 
 
+#: The pause between asks for the input session while another run holds it, in seconds.
+BUSY_PAUSE = 0.25
+
+
+def open_input_session(ctx, link, purpose):
+    """Open the one input session (`InputSessionRequested`) for this run, `purpose` its line; the
+    answer. Within the run's `wait_for_input` seconds (0 unless given) a `busy` refusal -- another
+    run holds the session -- is asked again every BUSY_PAUSE until it opens or the time runs out,
+    and the refusal then raised says how long it waited and how many times it asked. Any other
+    refusal is raised at once. No run takes a session another holds: the owner judges every ask."""
+    from loom_session.tool import Refused  # the session runtime's; a step that asks needs it
+    wait = float(ctx.inputs.get("wait_for_input") or 0)
+    started, asks = time.monotonic(), 0
+    while True:
+        asks += 1
+        try:
+            return ctx.ask("zengine.input", "InputSessionRequested", {"purpose": purpose}, via=link)
+        except Refused as err:
+            busy = (err.reason or "").startswith("busy")
+            waited = time.monotonic() - started
+            if busy and waited + BUSY_PAUSE <= wait:
+                time.sleep(BUSY_PAUSE)
+                continue
+            if busy and wait > 0:
+                raise Refused("%s; waited %.1f s of wait_for_input %g, asked %d times"
+                              % (err.reason, waited, wait, asks), err.answer)
+            raise
+
+
 def own_row(ctx, link, status):
     """The guest door's inventory, and the row that IS this link's far session -- matched by the
     far session the link holds, never by being the last admitted row."""
@@ -274,6 +304,28 @@ def check_picture(ctx, captured, data, office=None):
     ctx.check(captured["format"] == "text/cells", "an unknown picture format '%s'"
               % captured["format"])
     return "cells.txt"
+
+
+#: The window office that answers for each input space the desk names (DeskView `space`).
+OFFICE_OF_SPACE = {SPACE_CELLS: "zengine.window.terminal", SPACE_PIXELS: "zengine.window.sdl"}
+
+
+def name_capture_office(ctx, link, row):
+    """The window office this run's pictures are asked of first, as the desk names it by its input
+    space, for a row that may `capture`: one desk read (DeskRead version 3). Neither the guest
+    door's inventory nor the guest row names it. A row that may not read the desk, or a desk read
+    refused or naming no space this knows, names none, and each office is tried in turn."""
+    if "capture" not in (row or {}).get("powers", []):
+        return None
+    from loom_session.tool import DispatchRefused, LinkOutcome, Refused
+    try:
+        read = ctx.ask("zengine.workshop", "DeskReadRequested", {}, via=link, version=3)
+    except (Refused, DispatchRefused, LinkOutcome):
+        return None
+    office = OFFICE_OF_SPACE.get(((read or {}).get("desk") or {}).get("space"))
+    if office is not None:
+        ctx._capture_office = office
+    return office
 
 
 def ask_picture(ctx, link, after_frame):

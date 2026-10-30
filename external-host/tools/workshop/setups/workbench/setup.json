@@ -38,5 +38,18 @@
  "reset": {
   "scope": "the layout, the four workbench entries' values, labels and folders, the hotkey row's contents, binding and ON switches, Inventory's selection, and the Info and Compose drafts",
   "keeps": "every entry you created, including `Workbench result` captures and saved copies; submitted commands are not undone"
+ },
+ "walks": {
+  "first-task": {
+   "about": "the first task replayed on a root as start made it: Alt+1 captures Input's state into a new Workbench result, carried by its row into the first Info view, which shows its fields; Reset keeps every result a press made, so on a root walked before two rows carry the name and the carry is refused, naming them",
+   "steps": [
+    {"press": "alt+1"},
+    {"expect": ["zengine.inventory-pane", "inventory", "Workbench result : zen.PokeStructure"]},
+    {"carry": ["zengine.inventory-pane", "inventory", "Workbench result : zen.PokeStructure"],
+     "to": ["zengine.info", "info"]},
+    {"expect": ["zengine.info", "info", "source zengine.input"]},
+    {"picture": "first-task-done"}
+   ]
+  }
  }
 }

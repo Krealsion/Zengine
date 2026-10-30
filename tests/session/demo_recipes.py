@@ -7,6 +7,7 @@ import base64
 from copy import deepcopy
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -15,6 +16,7 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[2]
 # As a worker of a `workshop-machine` tool finds them: its own package's modules, then `workshop`'s.
@@ -281,6 +283,29 @@ def tool_module(script, name):
             sys.modules.pop("loom_session.tool", None)
         else:
             sys.modules["loom_session.tool"] = saved
+
+
+#: A description past this many bytes opens with the three lines a first reader acts on.
+LONG_DESCRIPTION = 1024
+OPENING = ("Use it for: ", "Smallest run: ", "First refusals: ")
+DRIVE = re.compile(r"(?<![A-Za-z])[A-Za-z]:[/\\]")
+
+
+def unwelcoming(tool):
+    """What a tool's manifest entry gives a first reader to trip on: a long description that does
+    not open with what to use it for, the smallest run and the first refusals, each a line of its
+    own, then a blank line; and an example naming a platform's path."""
+    said, text = [], tool.get("description", "")
+    if len(text.encode("utf-8")) > LONG_DESCRIPTION:
+        lines = text.split("\n")
+        if len(lines) < 5 or lines[3] != "" or not all(
+                lines[i].startswith(OPENING[i]) for i in range(3)):
+            said.append("a description of %d bytes opens with no 'Use it for', 'Smallest run' and "
+                        "'First refusals' lines, a blank line after them"
+                        % len(text.encode("utf-8")))
+    if DRIVE.search(tool.get("example", "")):
+        said.append("an example names a drive letter: name a path <dir> or <checkout>")
+    return said
 
 
 class Recipes(unittest.TestCase):
@@ -649,6 +674,53 @@ class Recipes(unittest.TestCase):
             self.assertIn(words, said)
         with self.assertRaisesRegex(described.SetupError, "walks maps each walk's name"):
             described.Setup(make(self.tmp, "listed", walks=[{"press": "x"}]))
+
+    def test_every_long_description_opens_with_its_first_run_and_no_example_names_a_drive(self):
+        # THE CHECK FIRST, on canaries: a long description without its opening, one with it, and
+        # an example naming a drive.
+        detail = "x" * (LONG_DESCRIPTION + 1)
+        opened = "Use it for: a.\nSmallest run: t a=1\nFirst refusals: none.\n\n" + detail
+        self.assertEqual(len(unwelcoming({"description": detail, "example": "t out=<dir>"})), 1)
+        self.assertEqual(unwelcoming({"description": opened, "example": "t out=<dir>"}), [])
+        self.assertEqual(len(unwelcoming({"description": "short", "example": "t out=C:/agent"})), 1)
+        self.assertEqual(unwelcoming({"description": "short", "example": "t at=x:1,y:2"}), [])
+        found, tools = [], 0
+        for manifest in sorted((REPO / "external-host/tools").glob("*/loom-tool.json")):
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            for tool in data["tools"]:
+                tools += 1
+                found += ["%s/%s: %s" % (data["package"], tool["name"], w) for w in unwelcoming(tool)]
+        self.assertGreater(tools, 30)
+        self.assertEqual(found, [])
+
+    def test_demo_py_writes_no_bytecode_into_the_packages_it_reads(self):
+        # A copy of demo.py and its packages, run as a weaver runs it: no -B, no environment's word.
+        copy = Path(self.tmp) / "copy"
+        shutil.copytree(REPO / "external-host/tools", copy / "tools",
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copy(REPO / "external-host/demo.py", copy / "demo.py")
+        env = dict((k, v) for k, v in os.environ.items() if k != "PYTHONDONTWRITEBYTECODE")
+        done = subprocess.run([sys.executable, str(copy / "demo.py"), "list"], capture_output=True,
+                              text=True, env=env, timeout=120)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual([str(p.relative_to(copy)) for p in copy.rglob("__pycache__")], [])
+
+    def test_walk_with_no_name_lists_the_walks_the_root_carries(self):
+        root = make(self.tmp, "walking", walks={"look": {"about": "a look around", "steps": [
+            {"press": "ctrl+p"}]}, "back": {"about": "and back", "steps": [{"press": "escape"}]}})
+        config = {"directory": str(root)}
+        said = launcher.walks_said(config)
+        self.assertIn("walk needs the walk's name and --pictures", said)
+        self.assertIn("back: and back", said)
+        self.assertIn("look: a look around", said)
+        bare = make(self.tmp, "bare")
+        self.assertIn("carries no walk", launcher.walks_said({"directory": str(bare)}))
+
+    def test_the_hints_name_the_interpreter_running_demo_py(self):
+        setup = described.Setup(make(self.tmp, "hinted"))
+        with patch.object(launcher.sys, "executable", "/opt/py/bin/python3.12"):
+            hint = launcher.guidance(setup, Path(self.tmp) / "root")["reset"]
+        self.assertTrue(hint.startswith("python3.12 "), hint)
 
     def test_every_shipped_walk_names_one_of_acts_verbs_per_step(self):
         verbs, walked = act_module().VERBS, set()

@@ -3104,7 +3104,355 @@ def run_checks(tools, runtime):
                     kept(ctx, "late")
                     self.assertNotIn("InputSessionRequested", ctx.contacts)
 
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
+    organize = importlib.import_module("inventory_organize")
+    manifest = json.loads((tools / "loom-tool.json").read_text(encoding="utf-8"))
+
+    def entry_of(name):
+        return [t for t in manifest["tools"] if t["name"] == name][0]
+
+    class SaidChecks(unittest.TestCase):
+        """What a tool says it did, and what it refuses before it asks anything."""
+
+        def execute(self, ctx):
+            with patch.multiple(capture, link_session=link_status, own_row=inventory,
+                                picture=picture):
+                try:
+                    return capture.run(ctx)
+                finally:
+                    for callback in reversed(ctx.cleanups):
+                        callback()
+
+        def test_organize_refuses_a_rule_with_no_label_before_any_ask(self):
+            ctx = Context(steps, plan=json.dumps({"folder": "Work", "entries": [
+                {"find": {"contains": "Workbench"}, "label": "Workbench 1"}]}))
+            asked = []
+            ctx.ask = lambda office, shape, fields, **kw: asked.append(shape)
+            with self.assertRaises(CheckFailed) as refused:
+                organize.run(ctx)
+            self.assertEqual(asked, [])
+            self.assertIn("names the entry's exact label", str(refused.exception))
+            self.assertIn("text in its stored value", str(refused.exception))
+            plan = [i for i in entry_of("inventory-organize")["inputs"] if i["name"] == "plan"][0]
+            self.assertIn("exact label", plan["help"])
+
+        def test_collect_writes_the_label_inventory_read_back_and_says_it(self):
+            ref = {"owner": "owner", "entry": "e7"}
+            entry = {"reference": ref, "revision": 3, "pair": b"capture"}
+            listed = {"owner": "owner", "revision": 9, "folders": [], "entries": [
+                {"reference": {"owner": "owner", "entry": "e1"}, "revision": 1, "label": "other",
+                 "schema": "s", "version": 1, "capture_slot": False, "folder": ""},
+                {"reference": ref, "revision": 3, "label": "Workbench result 2", "schema": "s",
+                 "version": 1, "capture_slot": False, "folder": ""}]}
+            ctx = Context(steps, target_role="zengine.input", label="Workbench result")
+            produced, asked = {}, []
+            ctx.produce = lambda name, value: produced.update({name: value})
+
+            def ask(office, shape, fields, **kw):
+                asked.append((shape, kw.get("version", 1)))
+                return {"InventoryCaptureAdd": entry, "InventoryRead": entry,
+                        "InventoryList": listed}[shape]
+            ctx.ask = ask
+            with patch.object(collect, "link_session", link_status):
+                summary = collect.run(ctx)
+            self.assertEqual(json.loads(produced["entry.json"])["label"], "Workbench result 2")
+            self.assertIn("'Workbench result 2'", summary)
+            self.assertEqual([a for a in asked if a[0] != "InventoryList"],
+                             [("InventoryCaptureAdd", 1), ("InventoryRead", 1)])
+            self.assertIn(("InventoryList", 2), asked)
+
+        def busy(self, ctx, times):
+            """`ctx`'s input owner, held by another run for its first `times` opens."""
+            plain, said = ctx.ask, {"n": 0}
+
+            def ask(office, shape, fields, **kw):
+                if shape == "InputSessionRequested" and said["n"] < times:
+                    said["n"] += 1
+                    ctx.contacts.append(shape)
+                    raise Refused("busy: input session 4 is held by this connection, opened for "
+                                  "\"loom session run hold-a\"; it must be closed before another opens")
+                return plain(office, shape, fields, **kw)
+            ctx.ask = ask
+            return said
+
+        def test_a_busy_input_session_is_asked_again_within_wait_for_input(self):
+            for tool, name in ((act, "act"), (drag, "drag"), (capture, "inspect-capture")):
+                inputs = [i["name"] for i in entry_of(name)["inputs"]]
+                self.assertIn("wait_for_input", inputs, name)
+            with patch.object(steps, "BUSY_PAUSE", 0.01):
+                ctx = Context(steps, wait_for_input=5)
+                said = self.busy(ctx, 2)
+                hand_ = hand.Hand(ctx, "workshop")
+                hand_.close()
+                self.assertEqual(said["n"], 2)
+                self.assertEqual(ctx.contacts.count("InputSessionRequested"), 3)
+                self.assertEqual(ctx.owner.closes, 1)
+                # inspect-capture's own open waits the same way.
+                ctx = Context(steps, chord="down", wait_for_input=5)
+                said = self.busy(ctx, 2)
+                self.assertIn("frame 1 -> 2", self.execute(ctx))
+                self.assertEqual(ctx.contacts.count("InputSessionRequested"), 3)
+
+        def test_a_wait_for_input_that_runs_out_says_how_long_and_the_busy_words(self):
+            with patch.object(steps, "BUSY_PAUSE", 0.01):
+                ctx = Context(steps, chord="down", wait_for_input=0.05)
+                self.busy(ctx, 1000)
+                with self.assertRaises(CheckFailed) as failed:
+                    self.execute(ctx)
+                words = str(failed.exception)
+                self.assertIn("held by this connection", words)
+                self.assertRegex(words, r"waited [0-9.]+ s of wait_for_input 0.05, asked [0-9]+ times")
+                # With no wait, a busy session fails at the first ask, as before.
+                ctx = Context(steps, chord="down")
+                self.busy(ctx, 1000)
+                with self.assertRaises(CheckFailed):
+                    self.execute(ctx)
+                self.assertEqual(ctx.contacts.count("InputSessionRequested"), 1)
+                # Any other refusal is not waited on.
+                ctx = Context(steps, chord="down", wait_for_input=5)
+                ctx.ask = lambda office, shape, fields, **kw: (_ for _ in ()).throw(
+                    Refused("input is not served here")) if shape == "InputSessionRequested" else None
+                with self.assertRaises(CheckFailed) as failed:
+                    self.execute(ctx)
+                self.assertNotIn("waited", str(failed.exception))
+
+        def test_inspect_capture_presses_nothing_it_was_not_told_to(self):
+            chord_input = [i for i in entry_of("inspect-capture")["inputs"] if i["name"] == "chord"][0]
+            self.assertEqual(chord_input["default"], "")
+            ctx = Context(steps)
+            with self.assertRaisesRegex(CheckFailed, "neither `click` nor `chord` was given"):
+                self.execute(ctx)
+            self.assertEqual(ctx.contacts, [])
+
+        def test_a_frame_that_did_not_move_names_arm_and_changed(self):
+            ctx = Context(steps, chord="down")
+            same = lambda context, link, name: ({"frame": 7, "format": "text/cells", "width": 80,
+                                                 "height": 24}, name.encode())
+            with patch.multiple(capture, link_session=link_status, own_row=inventory, picture=same):
+                try:
+                    with self.assertRaises(CheckFailed) as failed:
+                        capture.run(ctx)
+                finally:
+                    for callback in reversed(ctx.cleanups):
+                        callback()
+            self.assertIn("arm=true", str(failed.exception))
+            self.assertIn("changed=false", str(failed.exception))
+
+        def test_the_window_office_is_the_one_the_desk_names(self):
+            for space, office in ((steps.SPACE_CELLS, "zengine.window.terminal"),
+                                  (steps.SPACE_PIXELS, "zengine.window.sdl")):
+                ctx = Context(steps)
+                asked = []
+
+                def ask(o, shape, fields, **kw):
+                    asked.append((o, shape))
+                    return {"desk": {"space": space}, "stamps": [], "panes": []}
+                ctx.ask = ask
+                steps.name_capture_office(ctx, "workshop", {"powers": ["input", "capture"]})
+                self.assertEqual(steps.capture_office(ctx), office)
+                self.assertEqual(asked, [("zengine.workshop", "DeskReadRequested")])
+            # A row that may not read the desk asks nothing, and each office is tried in turn.
+            ctx = Context(steps)
+            ctx.ask = lambda *a, **kw: self.fail("asked")
+            steps.name_capture_office(ctx, "workshop", {"powers": ["input"]})
+            self.assertFalse(hasattr(ctx, "_capture_office"))
+            # A desk read refused names nothing.
+            ctx = Context(steps)
+            ctx.ask = lambda *a, **kw: (_ for _ in ()).throw(Refused("read again in 250 ms"))
+            steps.name_capture_office(ctx, "workshop", {"powers": ["capture"]})
+            self.assertFalse(hasattr(ctx, "_capture_office"))
+
+        def drag_run(self, said_on_release, hearing=True):
+            """`workshop/drag` against a Workshop that says `said_on_release` -- (text, refusal) --
+            as the release's own words; `hearing` False refuses the subscription."""
+            ctx = Context(steps, start="2,3@console", end="20,10@console")
+            produced, sub, injects = {}, SaidSub({}), {"n": 0}
+            ctx.produce = lambda name, value: produced.update({name: value})
+            plain = ctx.ask
+
+            def observe(producer, shapes, **options):
+                if not hearing:
+                    raise Refused("guest 'agent' may not observe NoticeSaid v1 from zengine.workshop")
+                return sub
+
+            def ask(office, shape, fields, **kw):
+                answer = plain(office, shape, fields, **kw)
+                if shape == "InjectInput":
+                    injects["n"] += 1
+                    answer = Answer(answer)
+                    answer.correlation = 40 + injects["n"]
+                    if injects["n"] == 2:  # the release
+                        sub.items += [Told(kind="observed", shape="NoticeSaid", seq=i, cause=answer.correlation,
+                                           fields={"number": i, "text": t, "refusal": r})
+                                      for i, (t, r) in enumerate(said_on_release, 1)]
+                return answer
+            ctx.observe, ctx.ask = observe, ask
+
+            def kept(context, link, name):
+                produced[name + ".cells.txt"] = name.encode()
+                return picture(context, link, name)
+            with patch.multiple(drag, link_session=link_status, picture=kept):
+                try:
+                    return ctx, produced, drag.run(ctx)
+                finally:
+                    for cleanup in reversed(ctx.cleanups):
+                        cleanup()
+
+        def test_drag_names_the_pictures_it_kept_and_its_inputs_are_required(self):
+            entry = entry_of("drag")
+            names = [o["name"] for o in entry["outputs"]]
+            self.assertEqual(names, ["before.<bmp|cells.txt>", "held.<bmp|cells.txt>",
+                                     "after.<bmp|cells.txt>"])
+            required = dict((i["name"], i.get("required", False)) for i in entry["inputs"])
+            self.assertTrue(required["start"] and required["end"])
+            ctx, produced, summary = self.drag_run([("Info shows Workbench result", False)])
+            self.assertIn("after.cells.txt", summary)
+            self.assertNotIn(".bmp", summary)
+
+        def test_drag_says_what_its_receiver_said_and_fails_a_refusal_or_silence(self):
+            _, _, summary = self.drag_run([("Info shows Workbench result", False)])
+            self.assertIn("Info shows Workbench result", summary)
+            with self.assertRaisesRegex(CheckFailed, "Workshop refused it: Info takes no pair here"):
+                self.drag_run([("Info takes no pair here", True)])
+            with self.assertRaisesRegex(CheckFailed, "nothing answered"):
+                self.drag_run([])
+            _, _, summary = self.drag_run([], hearing=False)
+            self.assertIn("cannot be told", summary)
+            self.assertNotIn("done", summary)
+
+        LISTED = {"owner": "inv", "revision": 12, "folders": [
+            {"folder": {"owner": "inv", "folder": "f1"}, "revision": 1, "name": "Work", "parent": ""},
+            {"folder": {"owner": "inv", "folder": "f2"}, "revision": 1, "name": "Done", "parent": "f1"}],
+            "entries": [
+            {"reference": {"owner": "inv", "entry": "e1"}, "revision": 1, "label": "Demo input 1",
+             "schema": "zengine.input.InputState", "version": 1, "capture_slot": False, "folder": ""},
+            {"reference": {"owner": "inv", "entry": "e2"}, "revision": 4, "label": "Workbench result",
+             "schema": "zengine.input.InputState", "version": 1, "capture_slot": False, "folder": "f2"},
+            {"reference": {"owner": "inv", "entry": "e3"}, "revision": 2, "label": "twice",
+             "schema": "s", "version": 1, "capture_slot": False, "folder": ""},
+            {"reference": {"owner": "inv", "entry": "e4"}, "revision": 2, "label": "twice",
+             "schema": "s", "version": 1, "capture_slot": False, "folder": "f1"}]}
+
+        def listing(self, **inputs):
+            inventory_list = importlib.import_module("inventory_list")
+            ctx = Context(steps, **inputs)
+            produced, asked = {}, []
+            ctx.produce = lambda name, value: produced.update({name: value})
+
+            def ask(office, shape, fields, **kw):
+                asked.append((office, shape, kw.get("version", 1), fields))
+                if shape == "InventoryList":
+                    return self.LISTED
+                if shape == "InventoryRead":
+                    return {"reference": fields["reference"], "revision": 4, "pair": b"the pair"}
+                raise AssertionError(shape)
+            ctx.ask = ask
+            return inventory_list, ctx, produced, asked
+
+        def test_inventory_list_answers_every_entry_by_message_and_changes_nothing(self):
+            tool, ctx, produced, asked = self.listing()
+            summary = tool.run(ctx)
+            written = json.loads(produced["entries.json"].decode("utf-8"))
+            self.assertEqual([(e["label"], e["folder"]) for e in written["entries"]],
+                             [("Demo input 1", ""), ("Workbench result", "Work/Done"),
+                              ("twice", ""), ("twice", "Work")])
+            self.assertEqual(written["entries"][1]["schema"], "zengine.input.InputState")
+            self.assertEqual(written["entries"][1]["revision"], 4)
+            self.assertEqual(written["entries"][1]["reference"], {"owner": "inv", "entry": "e2"})
+            self.assertEqual([(a[0], a[1], a[2]) for a in asked],
+                             [("zengine.inventory", "InventoryList", 2)])
+            self.assertIn("4 entries", summary)
+            self.assertIn("entries.json", summary)
+            self.assertIn("inventory-list", [t["name"] for t in manifest["tools"]])
+            self.assertEqual([o["name"] for o in entry_of("inventory-list")["outputs"]],
+                             ["entries.json", "entry.json", "entry.pair.bin"])
+
+        def test_inventory_list_reads_one_entry_by_its_label_and_refuses_none_or_several(self):
+            tool, ctx, produced, asked = self.listing(read="Workbench result")
+            summary = tool.run(ctx)
+            self.assertEqual(produced["entry.pair.bin"], b"the pair")
+            entry = json.loads(produced["entry.json"].decode("utf-8"))
+            self.assertEqual((entry["label"], entry["folder"], entry["schema"]),
+                             ("Workbench result", "Work/Done", "zengine.input.InputState"))
+            self.assertEqual(asked[-1][1:4], ("InventoryRead", 1,
+                                             {"reference": {"owner": "inv", "entry": "e2"}}))
+            self.assertIn("zengine-inventory-read", summary)
+            for label, words in (("twice", "2 entries are labelled 'twice'"),
+                                 ("nobody", "no entry is labelled 'nobody'")):
+                tool, ctx, produced, asked = self.listing(read=label)
+                with self.assertRaisesRegex(CheckFailed, words):
+                    tool.run(ctx)
+                self.assertNotIn("InventoryRead", [a[1] for a in asked])
+                self.assertIn("entries.json", produced)
+
+        INVENTORY = {"inventory": ["Demo input 1", "Workbench result"]}
+        INVENTORY_NAMES = {"inventory": ["entry:inv:e1", "entry:inv:e2"],
+                           "info": ["property:Width", "property:Height", "property:Placement"]}
+
+        def carried(self, act_steps):
+            ctx = ActWorkshop(steps, act_steps, ToolChecks.INFO_ROWS, panes=self.INVENTORY,
+                              named=self.INVENTORY_NAMES)
+            try:
+                return ctx, act.run(ctx)
+            finally:
+                for callback in reversed(ctx.cleanups):
+                    callback()
+
+        def test_carry_presses_a_part_moves_to_the_target_panes_middle_and_releases(self):
+            ctx, summary = self.carried([
+                {"carry": ["zengine.inventory-pane", "inventory", "entry:inv:e2"],
+                 "to": ["zengine.info", "info"]},
+                {"part": ["zengine.info", "info", "property:Width"]}])
+            moves = [(e["kind"], e.get("pressed"), e["x"], e["y"]) for e in ctx.events]
+            # The part's point; Info's middle cell -- its place 480 x 36 at 12 px a cell, row 1 and
+            # column 20 -- by the timed motion; the release there; then the next step's press.
+            self.assertEqual(moves[:3], [("PointerButton", True, 50, 18), ("PointerMoved", None, 246, 18),
+                                         ("PointerButton", False, 246, 18)])
+            self.assertEqual(moves[3:], [("PointerButton", True, 50, 6), ("PointerButton", False, 50, 6)])
+            self.assertIn("2 step(s) done: carry part", summary)
+            self.assertEqual(ctx.done()[0]["carry"], "entry:inv:e2")
+
+        def test_carry_to_a_part_releases_at_its_point_and_is_spelled_before_any_contact(self):
+            ctx, _ = self.carried([{"carry": ["zengine.inventory-pane", "inventory", "entry:inv:e1"],
+                                    "to": ["zengine.info", "info", "property:Placement"]}])
+            self.assertEqual([(e["x"], e["y"]) for e in ctx.events][-1], (50, 30))
+            for wrong in ({"carry": ["zengine.inventory-pane", "inventory", "entry:inv:e1"]},
+                          {"carry": ["zengine.inventory-pane", "inventory"], "to": ["zengine.info", "info"]},
+                          {"carry": ["a", "b", "c"], "to": ["zengine.info"]}):
+                ctx = ActWorkshop(steps, [wrong], ToolChecks.INFO_ROWS)
+                with self.assertRaisesRegex(ValueError, "carry names"):
+                    act.run(ctx)
+                self.assertEqual(ctx.contacts, [])
+            said = entry_of("act")
+            self.assertIn("carry (press a part", said["description"])
+            self.assertIn('{"carry": [provider, pane, part]', [i["help"] for i in said["inputs"]
+                                                               if i["name"] == "steps"][0])
+
+        def test_carry_names_a_part_by_the_row_that_shows_it_where_its_name_is_an_id(self):
+            # Inventory names an entry's part by its id, which no walk can know ahead: the row's
+            # text names it, after its marker, as `select` reads a row.
+            rows = {"inventory": ["> Demo input 1 : s", "  Workbench result : s"]}
+            ctx = ActWorkshop(steps, [{"carry": ["zengine.inventory-pane", "inventory", "Workbench result : s"],
+                                       "to": ["zengine.info", "info"]}], ToolChecks.INFO_ROWS,
+                              panes=rows, named=self.INVENTORY_NAMES)
+            try:
+                act.run(ctx)
+            finally:
+                for callback in reversed(ctx.cleanups):
+                    callback()
+            self.assertEqual([(e["kind"], e["x"], e["y"]) for e in ctx.events][0], ("PointerButton", 50, 18))
+            self.assertEqual(ctx.done()[0]["carry"], "Workbench result : s")
+            self.assertEqual(ctx.done()[0]["part"], "entry:inv:e2")
+            rows = {"inventory": ["  Workbench result : s", "  Workbench result : s"]}
+            ctx = ActWorkshop(steps, [{"carry": ["zengine.inventory-pane", "inventory", "Workbench result : s"],
+                                       "to": ["zengine.info", "info"]}], ToolChecks.INFO_ROWS,
+                              panes=rows, named=self.INVENTORY_NAMES)
+            with self.assertRaisesRegex(CheckFailed, "2 rows of zengine.inventory-pane/inventory are named"):
+                act.run(ctx)
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+
+    loader = unittest.defaultTestLoader
+    suite = unittest.TestSuite([loader.loadTestsFromTestCase(ToolChecks),
+                                loader.loadTestsFromTestCase(SaidChecks)])
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()
 
 

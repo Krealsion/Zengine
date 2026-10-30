@@ -35,7 +35,7 @@ from collections import Counter
 
 from loom_session.tool import DispatchRefused, LinkOutcome, Refused, SendRefused
 
-from workshop_steps import moment, chord_moments, clear_moments
+from workshop_steps import moment, chord_moments, clear_moments, open_input_session
 
 
 def on_row(word, part):
@@ -210,8 +210,10 @@ class Hand:
     def __init__(self, ctx, link):
         self.ctx, self.link = ctx, link
         self.actions = Counter()  # weaver gestures this hand made, by kind
-        self.session = self.ask("zengine.input", "InputSessionRequested",
-                                {"purpose": "inventory composition demo"})["session"]
+        try:
+            self.session = open_input_session(ctx, link, "inventory composition demo")["session"]
+        except Refused as err:
+            ctx.fail("zengine.input refused an input session: %s" % err.reason)
         self.open = True
         self.unsettled = False
         self.notices = Notices(ctx, link)
