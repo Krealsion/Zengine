@@ -285,6 +285,29 @@ def tool_module(script, name):
             sys.modules["loom_session.tool"] = saved
 
 
+#: A description past this many bytes opens with the three lines a first reader acts on.
+LONG_DESCRIPTION = 1024
+OPENING = ("Use it for: ", "Smallest run: ", "First refusals: ")
+DRIVE = re.compile(r"(?<![A-Za-z])[A-Za-z]:[/\\]")
+
+
+def unwelcoming(tool):
+    """What a tool's manifest entry gives a first reader to trip on: a long description that does
+    not open with what to use it for, the smallest run and the first refusals, each a line of its
+    own, then a blank line; and an example naming a platform's path."""
+    said, text = [], tool.get("description", "")
+    if len(text.encode("utf-8")) > LONG_DESCRIPTION:
+        lines = text.split("\n")
+        if len(lines) < 5 or lines[3] != "" or not all(
+                lines[i].startswith(OPENING[i]) for i in range(3)):
+            said.append("a description of %d bytes opens with no 'Use it for', 'Smallest run' and "
+                        "'First refusals' lines, a blank line after them"
+                        % len(text.encode("utf-8")))
+    if DRIVE.search(tool.get("example", "")):
+        said.append("an example names a drive letter: name a path <dir> or <checkout>")
+    return said
+
+
 class Recipes(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -651,6 +674,24 @@ class Recipes(unittest.TestCase):
             self.assertIn(words, said)
         with self.assertRaisesRegex(described.SetupError, "walks maps each walk's name"):
             described.Setup(make(self.tmp, "listed", walks=[{"press": "x"}]))
+
+    def test_every_long_description_opens_with_its_first_run_and_no_example_names_a_drive(self):
+        # THE CHECK FIRST, on canaries: a long description without its opening, one with it, and
+        # an example naming a drive.
+        detail = "x" * (LONG_DESCRIPTION + 1)
+        opened = "Use it for: a.\nSmallest run: t a=1\nFirst refusals: none.\n\n" + detail
+        self.assertEqual(len(unwelcoming({"description": detail, "example": "t out=<dir>"})), 1)
+        self.assertEqual(unwelcoming({"description": opened, "example": "t out=<dir>"}), [])
+        self.assertEqual(len(unwelcoming({"description": "short", "example": "t out=C:/agent"})), 1)
+        self.assertEqual(unwelcoming({"description": "short", "example": "t at=x:1,y:2"}), [])
+        found, tools = [], 0
+        for manifest in sorted((REPO / "external-host/tools").glob("*/loom-tool.json")):
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            for tool in data["tools"]:
+                tools += 1
+                found += ["%s/%s: %s" % (data["package"], tool["name"], w) for w in unwelcoming(tool)]
+        self.assertGreater(tools, 30)
+        self.assertEqual(found, [])
 
     def test_demo_py_writes_no_bytecode_into_the_packages_it_reads(self):
         # A copy of demo.py and its packages, run as a weaver runs it: no -B, no environment's word.
