@@ -49,6 +49,7 @@ kMaxDeskWaits                   workshop/weave.hpp                        kMaxDe
 kDeskWaitMs                     workshop/weave.hpp                        kDeskWaitMs
 desk_render.SECTION_BYTES       external-host/tools/desk/desk_render.py   SECTION_BYTES
 desk_render.DENSE_CELLS         external-host/tools/desk/desk_render.py   DENSE_CELLS
+desk_asks.MAX_DOCUMENTS         external-host/tools/desk/desk_asks.py     MAX_DOCUMENTS
 # ...and what a watch keeps: the ring of its changes, and the least time between its desk reads.
 desk_changes.RING_CHANGES       external-host/tools/desk/desk_changes.py  RING_CHANGES
 desk_changes.RING_BYTES         external-host/tools/desk/desk_changes.py  RING_BYTES

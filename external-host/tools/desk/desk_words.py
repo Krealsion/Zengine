@@ -205,8 +205,15 @@ SHAPES = """Absent from this reading: a shape's structure is answered under `ins
 PURPOSE = """Absent: no pane declares its purpose (`about`, `use`, `audience`) to this reader
 yet."""
 
-EACH_PANE = """Absent: no pane's own document is answered yet. Its words and parts now are in
-`panes/<office>.<pane>.txt`, under its `==` header."""
+EACH_PANE = """Not asked by this reading: `desk-machine/read` asks each offered pane's manual of its
+office and writes it beside the pane's file, as `panes/<office>.<pane>.manual.md`. A pane's words
+and parts now are in `panes/<office>.<pane>.txt`, under its `==` header."""
+
+MANUALS = """Each offered pane's manual, asked of its own office under your row
+(`PaneDocumentRequested`): an answered one is written beside the pane's file, as
+`panes/<office>.<pane>.manual.md`, its words quoted as its office wrote them; a refusal stands
+below in its office's words. A pane's words and parts now are in `panes/<office>.<pane>.txt`,
+under its `==` header."""
 
 BEST_PRACTICE = """- Read a pane you work in, not the whole desk, once you know where things are.
 - Read again after you act, and before you act on an old reading: a stamp says when it is stale.

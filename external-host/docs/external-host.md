@@ -1145,7 +1145,8 @@ loom-session run work desk-machine/read --name desk-1 --input out=/home/me/agent
   so it is the agent's first read.
 - **Then it asks**, through the link: the guest door for your own row, Workshop for the desk in
   one turn, each pane past it alone and page by page under its stamp, then the pane inventory and
-  the keymap.
+  the keymap, then each offered pane's office for its manual (`PaneDocumentRequested`, the whole
+  page), at most <!-- value desk_asks.MAX_DOCUMENTS -->64<!-- /value --> panes a read.
 - **Then the readings, beside `AGENTS.md`.** `guide.md`, the guide in sections by purpose, every
   text the desk said quoted in a block after a line naming who said it, as data; `desk.txt`, the
   sparse desk -- its first lines, Workshop's own words, the status slot, the menu while one is
@@ -1156,7 +1157,9 @@ loom-session run work desk-machine/read --name desk-1 --input out=/home/me/agent
   <!-- value desk_render.DENSE_CELLS grouped -->262,144<!-- /value --> cells; and
   `panes/<office>.<pane>.txt`, each pane's own lines beneath the desk's first line -- `~2` and on
   before `.txt` where two references would name one file, and every page opening with its pane's
-  header line.
+  header line; beside it, `panes/<office>.<pane>.manual.md`, the pane's manual as its office
+  answered it, quoted as data. The guide's section 4 says which panes answered, each with its
+  file, and which refused, in their words; a manual no longer answered leaves at the next read.
 - **Each read replaces the last.** Every reading file is replaced whole, so a reader of it sees the
   last reading or this one, never half of either, and a reading file this read did not write again
   -- a pane gone from the desk -- is removed. A file past

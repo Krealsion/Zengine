@@ -45,6 +45,10 @@
         {
           "name": "panes/<office>.<pane>.txt",
           "help": "in `out`: one pane's sparse reading beneath the desk's first line"
+        },
+        {
+          "name": "panes/<office>.<pane>.manual.md",
+          "help": "in `out`: an offered pane's manual as its office answered it, quoted as data; guide.md's section 4 says which panes answered and which refused"
         }
       ],
       "requires": [
@@ -66,7 +70,9 @@
         "PaneInventoryRequested v1",
         "PaneInventory v2",
         "KeymapRequested v1",
-        "KeymapShown v4"
+        "KeymapShown v4",
+        "PaneDocumentRequested v1",
+        "PaneDocumentShown v2"
       ],
       "terms": [
         "desk",
