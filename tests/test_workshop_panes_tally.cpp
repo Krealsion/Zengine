@@ -69,11 +69,12 @@ struct TallyRig {
         r.key(input::scan::kSpace);
     }
 
-    /// A COPY OF `image` beside the case, named apart, so a reload opens a file of its own as a
-    /// rebuilt product would be: a module keeps its suffix, which is how the kernel is not asked
-    /// to tell it apart (it reads the first bytes either way).
-    std::string copy_of(const std::string& image, const std::string& name) {
-        const std::filesystem::path to = dir.path() / name;
+    /// A COPY OF `image` beside the case, its name behind `prefix`, so a reload opens a file of its
+    /// own as a rebuilt product would be. The copy keeps the image's suffix: Windows' loader adds
+    /// `.dll` to a name that has none.
+    std::string copy_of(const std::string& image, const std::string& prefix) {
+        const std::filesystem::path to =
+            dir.path() / (prefix + std::filesystem::path(image).filename().string());
         std::filesystem::copy_file(image, to, std::filesystem::copy_options::overwrite_existing);
         return to.generic_string();
     }
@@ -115,7 +116,7 @@ void keeps_its_count_across_a_reload_in_place(const char* image) {
     t.r.key(input::scan::kSpace);
     REQUIRE(t.text().find("Tally: 2") != std::string::npos);
     // THE SAME IMAGE, REBUILT: its state rides the reload, and the reloaded pane draws it.
-    const std::string rebuilt = t.copy_of(PaneRig::artifact_path(t.stem), "rebuilt-" + t.stem);
+    const std::string rebuilt = t.copy_of(PaneRig::artifact_path(t.stem), "rebuilt-");
     t.reload_from(rebuilt);
     REQUIRE(t.r.session().panes.has(t.kind()));
     CHECK_MESSAGE(t.text().find("Tally: 2") != std::string::npos, t.text());
@@ -205,7 +206,7 @@ TEST_CASE("boxed: a native Tally reloads into its boxed build and back, its coun
 
     // INTO THE MODULE: the same office, the same weave, the count carried; the kernel now holds it
     // in a box, and Workshop's words for the row say so.
-    t.reload_from(t.copy_of(WORKSHOP_WASM_TALLY, "boxed.wasm"));
+    t.reload_from(t.copy_of(WORKSHOP_WASM_TALLY, "boxed-"));
     CHECK_MESSAGE(t.text().find("Tally: 1") != std::string::npos, t.text());
     const std::string boxed = t.r.kernel.containment(t.stem);
     CHECK_MESSAGE(boxed.rfind("boxed (WebAssembly", 0) == 0, boxed);
@@ -215,7 +216,7 @@ TEST_CASE("boxed: a native Tally reloads into its boxed build and back, its coun
     CHECK_MESSAGE(t.text().find("Tally: 2") != std::string::npos, t.text());
 
     // ...AND BACK TO A NATIVE BUILD: the count the box kept rides out of it.
-    t.reload_from(t.copy_of(WORKSHOP_SO_TALLY, std::string("back-") + kNativeStem));
+    t.reload_from(t.copy_of(WORKSHOP_SO_TALLY, "back-"));
     CHECK_MESSAGE(t.text().find("Tally: 2") != std::string::npos, t.text());
     CHECK(t.r.kernel.containment(t.stem) == loom::Kernel::containment_note());
 }
