@@ -184,29 +184,43 @@ struct TerminalRig {
         return rows[static_cast<std::size_t>(input_row())];
     }
 
-    /// THE LINE'S TEXT AS ITS BOX SHOWS IT: the row is `<mark> [text___]`, and this is what stands
-    /// inside the box, its blank room (`_`) and its closing bracket left off.
-    std::string typed() {
-        std::string row = input_text();
-        const std::size_t open = row.find('[');
-        if (open == std::string::npos) {
-            // WHERE THE WINDOW SETS TYPE the box is an outline: its text after the inset's blank.
-            row = row.size() > static_cast<std::size_t>(kLineBoxColumn + 1)
-                      ? row.substr(static_cast<std::size_t>(kLineBoxColumn + 1))
-                      : std::string();
-            while (!row.empty() && row.back() == ' ') {
-                row.pop_back();
+    /// WHETHER THE LINE STANDS IN AN OUTLINE, as it does where the window sets type; in a room of
+    /// cells it reads plain.
+    bool line_outlined() {
+        const ExternalPane* held = seat();
+        if (held == nullptr || !shows_canvas(*held) || held_desks().empty()) {
+            return false;
+        }
+        const zengine::graphics::window::WinArea* a =
+            held_desks().back().mirror->area(held_area_of(kind));
+        const std::string box = "row" + std::to_string(input_row()) + ".box";
+        for (std::size_t i = 0; a != nullptr && i < a->nodes.size(); ++i) {
+            if (a->nodes[i].node.path == box) {
+                return true;
             }
-            return row;
         }
-        row = row.substr(open + 1);
-        if (!row.empty() && row.back() == ']') {
-            row.pop_back();
+        return false;
+    }
+
+    /// THE LINE'S TEXT AS THE ROW SHOWS IT: from the column after the prompt's space in a room of
+    /// cells, and a column further, inside its outline, where the window sets type.
+    std::string typed() {
+        const std::string row = input_text();
+        const std::size_t from = static_cast<std::size_t>(kLineBoxColumn + (line_outlined() ? 1 : 0));
+        if (row.size() <= from) {
+            return std::string();
         }
-        while (!row.empty() && row.back() == '_') {
-            row.pop_back();
+        std::string text = row.substr(from);
+        // THE BLANKS PAST IT ARE THE ROW'S, and those before the caret the line's.
+        const RowsCaret at = caret();
+        std::size_t keep = text.find_last_not_of(' ');
+        keep = keep == std::string::npos ? 0 : keep + 1;
+        const std::int64_t before = at.column - static_cast<std::int64_t>(from);
+        if (at.row == input_row() && before > 0) {
+            keep = (std::max)(keep, (std::min)(text.size(), static_cast<std::size_t>(before)));
         }
-        return row;
+        text.resize(keep);
+        return text;
     }
 
     /// Type a whole line into the pane, a character at a time, as a backend reports it.
@@ -560,7 +574,7 @@ TEST_CASE("a weaver presses in, types a line, and the participant runs it") {
     t.open();
     t.focus();
     t.type("hello there");
-    CHECK(t.text().find("> [hello there") != std::string::npos);
+    CHECK(t.text().find("> hello there") != std::string::npos);
     // NOTHING WAS AUTHORED BY TYPING. The record is still empty: composing is not sending.
     CHECK(t.record().empty());
     t.submit();
@@ -572,7 +586,7 @@ TEST_CASE("a weaver presses in, types a line, and the participant runs it") {
     // the grammar notice it recorded is on the pane's rows.
     CHECK(t.text().find("this pane speaks two verbs") != std::string::npos);
     // AND THE LINE IS CLEAR, ready for the next one.
-    CHECK(t.shown().back().rfind("> [__________]  Tab:", 0) == 0);
+    CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
 }
 
 TEST_CASE("a typed send leaves through the PARTICIPANT's door, not the pane's") {
@@ -788,11 +802,11 @@ TEST_CASE("the pane draws its caret in its own picture, in its area of the windo
     t.focus();
     t.type("abc");
     CHECK(t.caret().row == t.input_row());
-    CHECK(t.caret().column == kLineBoxColumn + 1 + 3); // `> ` and three characters
+    CHECK(t.caret().column == kLineBoxColumn + 3); // `> ` and three characters
     CHECK(wears_ground(*t.seat())); // and the rows lie on a ground of their own
     // ...and a cell projection stands it on a cell, moving no character of the row.
     const std::vector<std::string> rows = t.shown();
-    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> [abc", 0) == 0);
+    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> abc", 0) == 0);
 }
 
 TEST_CASE("the caret carries a selection, and both ends or neither") {
@@ -806,8 +820,8 @@ TEST_CASE("the caret carries a selection, and both ends or neither") {
     const RowsCaret said = t.caret();
     CHECK(said.sel_begin_row == t.input_row());
     CHECK(said.sel_end_row == t.input_row());
-    CHECK(said.sel_begin_col == kLineBoxColumn + 1);
-    CHECK(said.sel_end_col == kLineBoxColumn + 1 + 5);
+    CHECK(said.sel_begin_col == kLineBoxColumn);
+    CHECK(said.sel_end_col == kLineBoxColumn + 5);
     // COLLAPSING IT UN-SAYS IT: a caret with no selection draws none.
     t.r.key(input::scan::kRight);
     const RowsCaret after = t.caret();
@@ -823,12 +837,12 @@ TEST_CASE("a press on the input row places the caret where the weaver aimed") {
     t.open();
     t.focus();
     t.type("abcdefgh");
-    t.press_row(t.input_row(), kLineBoxColumn + 1 + 3); // before the `d`
+    t.press_row(t.input_row(), kLineBoxColumn + 3); // before the `d`
     CHECK(t.caret().row == t.input_row());
-    CHECK(t.caret().column == kLineBoxColumn + 1 + 3);
+    CHECK(t.caret().column == kLineBoxColumn + 3);
     // ...and typing lands there rather than at the end.
     t.type("X");
-    CHECK(t.shown()[static_cast<std::size_t>(t.input_row())].rfind("> [abcXdefgh", 0) == 0);
+    CHECK(t.shown()[static_cast<std::size_t>(t.input_row())].rfind("> abcXdefgh", 0) == 0);
 }
 
 // ============================================================================
@@ -863,7 +877,7 @@ TEST_CASE("the list is rows INSIDE the pane, above the line it belongs to") {
     REQUIRE(rows.size() > 2);
     // The heading is on a row of this pane, and the input row is still the last one.
     const std::int64_t input = t.input_row();
-    CHECK(rows[static_cast<std::size_t>(input)].rfind("> [s", 0) == 0);
+    CHECK(rows[static_cast<std::size_t>(input)].rfind("> s", 0) == 0);
     bool listed = false;
     for (std::size_t i = 0; i + 1 < rows.size(); ++i) {
         listed = listed || rows[i].find("send") != std::string::npos;
@@ -950,19 +964,19 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         t.type("hello");
         const RowsCaret typed = t.caret();
         REQUIRE(typed.row == t.input_row());
-        // Inside the line's box: the mark, its space and the box's `[` before the text.
-        CHECK(typed.column == kLineBoxColumn + 1 + 5);
+        // After the mark and its space: in a room of cells the line reads plain.
+        CHECK(typed.column == kLineBoxColumn + 5);
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
-        // In a room of cells the caret after the text sits on the box's first blank, `_`, drawn
-        // again in the accent role, which a bar there would hide.
-        CHECK(caret->op == gfx::op::kText);
-        const std::optional<gfx::TextArgs> mark = gfx::from_body<gfx::TextArgs>(caret->args);
-        REQUIRE(mark.has_value());
-        CHECK(mark->text == "_");
-        CHECK(mark->x == typed.column * gfx::kCellPx);
-        CHECK(mark->y == typed.row * gfx::kCellPx);
-        CHECK(mark->ink.role == gfx::role::kAccent);
+        // After the text the caret stands on a blank, a bar at its left in the accent role.
+        CHECK(caret->op == gfx::op::kLine);
+        const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
+        REQUIRE(bar.has_value());
+        CHECK(bar->x1 == typed.column * gfx::kCellPx);
+        CHECK(bar->x2 == typed.column * gfx::kCellPx);
+        CHECK(bar->y1 == typed.row * gfx::kCellPx);
+        CHECK(bar->y2 == typed.row * gfx::kCellPx + gfx::kCellPx - 1);
+        CHECK(bar->ink.role == gfx::role::kAccent);
         CHECK(window.action_at(area, typed.column, typed.row) == "line");
         // ...AND SO DOES THE SELECTION: the selected columns again in the accent role, asking for
         // the line, the row's words unchanged; collapsed, it is gone and the caret stays.
@@ -1052,6 +1066,58 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
     }
 }
 
+TEST_CASE("the line reads plain in a room of cells and stands in its outline where the window sets "
+          "type, a press and the caret on its text in both") {
+    namespace gfx = zengine::graphics;
+    TerminalRig t;
+    t.open();
+    t.focus();
+    t.type("abcdef");
+    // IN A ROOM OF CELLS the prompt already says where to type: its mark, its space and the line,
+    // no edge spelled round it.
+    const std::string cells = t.shown()[static_cast<std::size_t>(t.input_row())];
+    CHECK(cells.rfind("> abcdef", 0) == 0);
+    CHECK(cells.find_first_of("[]_") == std::string::npos);
+    CHECK(t.caret().column == kLineBoxColumn + 6);
+    t.press_row(t.input_row(), kLineBoxColumn + 2); // on the `c`
+    CHECK(t.caret().column == kLineBoxColumn + 2);
+    t.type("X");
+    CHECK(t.typed() == "abXcdef");
+
+    // WHERE THE WINDOW SETS TYPE the line stands in its outline from the same column, its text a
+    // column in.
+    const std::string area = pane_area(pane::kTerminalPaneRole, pane::kTerminalPane);
+    zengine::testing::pane_window::Window window(t.r.bus);
+    const gfx::TextMeasure face{8, 18};
+    window.set_measure(face);
+    window.room(area, pane::kTerminalPaneRole, 60, 12);
+    const std::vector<std::string> rows = window.rows(area);
+    std::int64_t line = -1;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].rfind(">", 0) == 0) line = static_cast<std::int64_t>(i);
+    }
+    REQUIRE(line >= 0);
+    CHECK(rows[static_cast<std::size_t>(line)].rfind(">  abXcdef", 0) == 0);
+    const gfx::window::WinArea* a = window.weave().find(area);
+    REQUIRE(a != nullptr);
+    bool outlined = false;
+    for (const gfx::window::KeptNode& k : a->nodes) {
+        if (k.node.path == "row" + std::to_string(line) + ".box") {
+            const auto edge = gfx::from_body<gfx::RectArgs>(k.node.args);
+            REQUIRE(edge.has_value());
+            CHECK(edge->x == kLineBoxColumn * face.advance);
+            outlined = true;
+        }
+    }
+    CHECK(outlined);
+    CHECK(t.caret().column == kLineBoxColumn + 1 + 3); // after the `X`, inside the outline
+    window.click(area, kLineBoxColumn + 1 + 1, line); // on the `b`
+    CHECK(t.caret().row == line);
+    CHECK(t.caret().column == kLineBoxColumn + 1 + 1);
+    t.type("Y");
+    CHECK(window.rows(area)[static_cast<std::size_t>(line)].rfind(">  aYbXcdef", 0) == 0);
+}
+
 TEST_CASE("the selection survives a recomputation and not a change of question") {
     // THE SAME-QUESTION RULE: the answer arrives fresh every time, so a naive pane would reset
     // the cursor after every keystroke and the arrow keys would appear to do nothing. The
@@ -1101,7 +1167,7 @@ TEST_CASE("accepting a candidate edits the line, and the grammar's separators ho
     CHECK(t.typed().rfind("send ", 0) == 0);
     // ...and the caret is at the end of what was written, which is where the completer
     // requires it to be.
-    CHECK(t.caret().column == kLineBoxColumn + 1 + static_cast<std::int64_t>(std::string("send ").size()));
+    CHECK(t.caret().column == kLineBoxColumn + static_cast<std::int64_t>(std::string("send ").size()));
 }
 
 TEST_CASE("completion follows the END of the line, and says so when it cannot") {
@@ -1110,7 +1176,7 @@ TEST_CASE("completion follows the END of the line, and says so when it cannot") 
     t.open();
     t.focus();
     t.type("send ");
-    t.press_row(t.input_row(), kLineBoxColumn + 1 + 1); // a caret inside the line
+    t.press_row(t.input_row(), kLineBoxColumn + 1); // a caret inside the line
     CHECK(t.text().find("completion follows the END of the line") != std::string::npos);
     // Back at the end, the list comes back.
     t.r.key(input::scan::kEnd);
@@ -1146,7 +1212,7 @@ TEST_CASE("the state a same-shape reload keeps is the LINE, and only the line") 
     t.focus();
     t.type("send @zengine.test.board RigNote 1 slot=a");
     const std::vector<std::string> rows = t.shown();
-    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> [send @zengine.test.board", 0) == 0);
+    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> send @zengine.test.board", 0) == 0);
 }
 
 // ============================================================================
@@ -1182,12 +1248,12 @@ TEST_CASE("a refusal is said BESIDE the line it is about, never in place of it")
     // AND THE WEAVER TYPES AGAIN, which is the thing the lost row made impossible.
     t.type("send");
     CHECK(t.typed().rfind("send", 0) == 0);
-    CHECK(t.caret().column == kLineBoxColumn + 1 + 4); // the prompt's two columns, then four typed
+    CHECK(t.caret().column == kLineBoxColumn + 4); // the prompt's two columns, then four typed
     // A PRESS STILL MEANS WHAT THE PICTURE SAYS IT MEANS: the row the caret was published on is
     // the row a press places the caret in, so the two never disagree about what is where -- the
     // second thing a truncated input row would break.
-    t.press_row(t.input_row(), kLineBoxColumn + 1 + 2);
-    CHECK(t.caret().column == kLineBoxColumn + 1 + 2);
+    t.press_row(t.input_row(), kLineBoxColumn + 2);
+    CHECK(t.caret().column == kLineBoxColumn + 2);
 }
 
 TEST_CASE("in a room too small for both, the LINE is what survives") {
@@ -1268,14 +1334,14 @@ TEST_CASE("an id the Terminal never declared is no act: the refusal stands throu
     // ...AND AN ID THAT IS NO ACT IS NOT A GESTURE BETWEEN TWO PRESSES. The first press places
     // the caret in `abc`; the second, at the same place, selects the word.
     t.type("abc def");
-    t.press_row(t.input_row(), kLineBoxColumn + 1 + 1);
+    t.press_row(t.input_row(), kLineBoxColumn + 1);
     REQUIRE(t.caret().sel_begin_row == kNoSelection);
     (void)t.r.workshop_action(pane::kTerminalPaneRole, pane::kTerminalPane,
                               "terminal.no-such-action");
-    t.press_row(t.input_row(), kLineBoxColumn + 1 + 1);
+    t.press_row(t.input_row(), kLineBoxColumn + 1);
     CHECK(t.caret().sel_begin_row == t.input_row());
-    CHECK(t.caret().sel_begin_col == kLineBoxColumn + 1);
-    CHECK(t.caret().sel_end_col == kLineBoxColumn + 1 + 3);
+    CHECK(t.caret().sel_begin_col == kLineBoxColumn);
+    CHECK(t.caret().sel_end_col == kLineBoxColumn + 3);
 }
 
 TEST_CASE("a completion answer about a line that is gone is neither shown nor taken") {
@@ -1555,7 +1621,7 @@ TEST_CASE("on an empty line Up Up Enter leaves the older command ready to edit a
     CHECK(t.typed().rfind("first", 0) == 0);
     CHECK(t.text().find("history ") == std::string::npos);
     CHECK(t.text().find("no verb begins with") == std::string::npos);
-    CHECK(t.caret().column == kLineBoxColumn + 1 + 5);
+    CHECK(t.caret().column == kLineBoxColumn + 5);
 
     // AND THE LOCK IS ONE OF THE "DIFFERENT KEYS" OF THE RULE: the arrows belong to completion
     // again, so this Up does not recall `second` and does not re-enter browsing.
@@ -1615,7 +1681,7 @@ TEST_CASE("any other key leaves a recall and does its own work once: typing or a
     SUBCASE("a caret key moves the caret once and ends the recall") {
         t.r.key(input::scan::kUp);
         t.r.key(input::scan::kLeft);
-        CHECK(t.caret().column == kLineBoxColumn + 1 + 3);
+        CHECK(t.caret().column == kLineBoxColumn + 3);
         CHECK(t.typed().rfind("beta", 0) == 0);
         t.r.key(input::scan::kUp);
         CHECK(t.typed().rfind("beta", 0) == 0);
@@ -2151,8 +2217,8 @@ TEST_CASE("a resize re-wraps under the entry being read and the line and its car
     CHECK(entry_of_row(first_read_row(t)) == entry);
     CHECK(t.typed().rfind("abc", 0) == 0);
     CHECK(t.caret().row == t.input_row());
-    t.press_row(t.input_row(), kLineBoxColumn + 1 + 1);
-    CHECK(t.caret().column == kLineBoxColumn + 1 + 1);
+    t.press_row(t.input_row(), kLineBoxColumn + 1);
+    CHECK(t.caret().column == kLineBoxColumn + 1);
 
     t.give_room(8, 70);
     CHECK(entry_of_row(first_read_row(t)) == entry);
@@ -2193,7 +2259,7 @@ TEST_CASE("in every small room the line is the last row and its caret and press 
         t.give_room(rows, 60);
         const std::vector<std::string> shown = t.shown();
         REQUIRE(static_cast<std::int64_t>(shown.size()) == rows);
-        CHECK(shown.back().rfind("> [s", 0) == 0);
+        CHECK(shown.back().rfind("> s", 0) == 0);
         CHECK(t.caret().row == rows - 1);
         // WHAT IS BELOW IS SAID IN EVERY ROOM THAT HAS A ROW ABOVE THE VIEW -- on a row of its own
         // once the view is two rows tall, and on the row above the view before that.
@@ -2207,7 +2273,7 @@ TEST_CASE("in every small room the line is the last row and its caret and press 
                   std::string::npos);
         }
         t.press_row(rows - 1, 2);
-        CHECK(t.caret().column == kLineBoxColumn + 1);
+        CHECK(t.caret().column == kLineBoxColumn);
         t.r.key(input::scan::kEnd);
     }
 }
@@ -2570,7 +2636,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     CHECK(shown.pins == std::vector<std::string>{"legend"});
     CHECK(shown.settings.empty());
     CHECK(shown.said == "stored and handed");
-    CHECK(t.shown().back().rfind("> [__________]  Tab:", 0) == 0);
+    CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
 
     // SIX ROWS A NOTCH, AND THE PROMPT A `$`, each at the revision the last answer gave.
     const PaneSettingCommitAnswered six =
@@ -2586,9 +2652,9 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     CHECK(kept_settings(t) ==
           std::vector<PaneSetting>{PaneSetting{pane::kSettingPrompt, {}, {}, std::string("$")},
                                    PaneSetting{pane::kSettingWheelRows, {}, 6, {}}});
-    CHECK(t.shown().back().rfind("$ [__________]  Tab:", 0) == 0);
+    CHECK(t.shown().back().rfind("$    Tab:", 0) == 0);
     t.type("x");
-    CHECK(t.input_text().rfind("$ [x_", 0) == 0);
+    CHECK(t.input_text().rfind("$ x", 0) == 0);
 
     const std::int64_t above = marker_count(t, " more rows above");
     REQUIRE(above > 6);
@@ -2630,7 +2696,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
         t, "ask @zengine.layouts PaneSettingCommitRequested 1 provider=zengine.terminal "
            "pane=terminal revision=" + std::to_string(dollar.revision) + " key=prompt clear=true");
     REQUIRE_MESSAGE(back.accepted, back.refusal);
-    CHECK(t.shown().back().rfind("> [__________]  Tab:", 0) == 0);
+    CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
 }
 
 TEST_CASE("a Terminal line locks a setting and, as the weaver's hand, unlocks it, and reads every layout") {

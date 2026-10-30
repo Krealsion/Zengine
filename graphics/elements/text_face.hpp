@@ -39,6 +39,23 @@ inline std::int64_t text_box_room(std::int64_t columns) noexcept {
     return columns > 2 * kTextBoxInset ? columns - 2 * kTextBoxInset : 0;
 }
 
+/// HOW A BOX READS IN A ROW OF CELLS: spelled `[text___]` (`text_box_spelling`), or plain -- its text
+/// alone from its first column (`text_box_plain`), for a box a prompt beside it already marks as
+/// the place to type. Where the window sets type every box is outlined, its text inside its inset.
+enum class TextBoxInCells : std::uint8_t { spelled, plain };
+
+/// The columns from a box's first column to its text in a room: its inset, or none for a plain box
+/// in a room of cells.
+inline constexpr std::int64_t text_box_text_column(TextBoxInCells look, bool cells) noexcept {
+    return cells && look == TextBoxInCells::plain ? 0 : kTextBoxInset;
+}
+
+/// The characters a box `columns` wide gives its text in a room: all but its text column each side.
+inline std::int64_t text_box_room(std::int64_t columns, TextBoxInCells look, bool cells) noexcept {
+    const std::int64_t edge = text_box_text_column(look, cells);
+    return columns > 2 * edge ? columns - 2 * edge : 0;
+}
+
 /// A box's slice as characters show it: a byte outside printable ASCII a `?`, one column a byte.
 inline std::string text_box_printable(const std::string& shown) {
     std::string out = shown;
@@ -64,6 +81,17 @@ inline std::string text_box_spelling(const component::TextBoxView& view, std::in
     std::string inside = text_box_printable(view.shown.substr(0, room));
     inside.resize(room, '_');
     return "[" + inside + "]";
+}
+
+/// ...A PLAIN BOX IN A ROW OF CELLS, `columns` wide: its slice, then blanks.
+inline std::string text_box_plain(const component::TextBoxView& view, std::int64_t columns) {
+    if (columns <= 0) {
+        return {};
+    }
+    const auto room = static_cast<std::size_t>(columns);
+    std::string out = text_box_printable(view.shown.substr(0, room));
+    out.resize(room, ' ');
+    return out;
 }
 
 /// ...AND THE CHARACTERS IT SHOWS WHERE THE WINDOW SETS TYPE, `columns` wide: its slice inside the
