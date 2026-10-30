@@ -306,6 +306,28 @@ def check_picture(ctx, captured, data, office=None):
     return "cells.txt"
 
 
+#: The window office that answers for each input space the desk names (DeskView `space`).
+OFFICE_OF_SPACE = {SPACE_CELLS: "zengine.window.terminal", SPACE_PIXELS: "zengine.window.sdl"}
+
+
+def name_capture_office(ctx, link, row):
+    """The window office this run's pictures are asked of first, as the desk names it by its input
+    space, for a row that may `capture`: one desk read (DeskRead version 3). Neither the guest
+    door's inventory nor the guest row names it. A row that may not read the desk, or a desk read
+    refused or naming no space this knows, names none, and each office is tried in turn."""
+    if "capture" not in (row or {}).get("powers", []):
+        return None
+    from loom_session.tool import DispatchRefused, LinkOutcome, Refused
+    try:
+        read = ctx.ask("zengine.workshop", "DeskReadRequested", {}, via=link, version=3)
+    except (Refused, DispatchRefused, LinkOutcome):
+        return None
+    office = OFFICE_OF_SPACE.get(((read or {}).get("desk") or {}).get("space"))
+    if office is not None:
+        ctx._capture_office = office
+    return office
+
+
 def ask_picture(ctx, link, after_frame):
     """``(office, captured)``: the picture asked of the office that answered this run's first one,
     or, before one has, of each of ``CAPTURE_OFFICES`` in turn until one holds its office on the far

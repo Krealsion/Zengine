@@ -75,8 +75,8 @@
         {
           "name": "chord",
           "type": "text",
-          "default": "ctrl+p",
-          "help": "the key chord to press, e.g. ctrl+p, down, escape, ctrl+shift+f -- pass empty (with a non-empty `click`) for a click-only batch, no chord following it: often the right choice for a click that may open a menu, since ANY key afterward -- even one this pane binds to nothing -- is itself a newer gesture that can make Workshop refuse the very menu the click opened as 'late' (workshop/weave_external.cpp); `clear`, `text` and `repeat` all need a chord and are refused with an empty one"
+          "default": "",
+          "help": "the key chord to press, e.g. ctrl+p, down, escape, ctrl+shift+f -- pass empty (with a non-empty `click`) for a click-only batch, no chord following it: often the right choice for a click that may open a menu, since ANY key afterward -- even one this pane binds to nothing -- is itself a newer gesture that can make Workshop refuse the very menu the click opened as 'late' (workshop/weave_external.cpp); `clear`, `text` and `repeat` all need a chord and are refused with an empty one; none by default: a run names a chord, a click, or both, and a run with neither is refused before anything is pressed"
         },
         {
           "name": "text",
@@ -192,7 +192,9 @@
         "InputSessionOpened v1",
         "InjectInput v1",
         "InputInjected v1",
-        "InputSessionClosed v1"
+        "InputSessionClosed v1",
+        "DeskReadRequested v3",
+        "DeskRead v3"
       ],
       "terms": [
         "capture",

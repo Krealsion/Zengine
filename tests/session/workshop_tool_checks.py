@@ -3215,6 +3215,52 @@ def run_checks(tools, runtime):
                     self.execute(ctx)
                 self.assertNotIn("waited", str(failed.exception))
 
+        def test_inspect_capture_presses_nothing_it_was_not_told_to(self):
+            chord_input = [i for i in entry_of("inspect-capture")["inputs"] if i["name"] == "chord"][0]
+            self.assertEqual(chord_input["default"], "")
+            ctx = Context(steps)
+            with self.assertRaisesRegex(CheckFailed, "neither `click` nor `chord` was given"):
+                self.execute(ctx)
+            self.assertEqual(ctx.contacts, [])
+
+        def test_a_frame_that_did_not_move_names_arm_and_changed(self):
+            ctx = Context(steps, chord="down")
+            same = lambda context, link, name: ({"frame": 7, "format": "text/cells", "width": 80,
+                                                 "height": 24}, name.encode())
+            with patch.multiple(capture, link_session=link_status, own_row=inventory, picture=same):
+                try:
+                    with self.assertRaises(CheckFailed) as failed:
+                        capture.run(ctx)
+                finally:
+                    for callback in reversed(ctx.cleanups):
+                        callback()
+            self.assertIn("arm=true", str(failed.exception))
+            self.assertIn("changed=false", str(failed.exception))
+
+        def test_the_window_office_is_the_one_the_desk_names(self):
+            for space, office in ((steps.SPACE_CELLS, "zengine.window.terminal"),
+                                  (steps.SPACE_PIXELS, "zengine.window.sdl")):
+                ctx = Context(steps)
+                asked = []
+
+                def ask(o, shape, fields, **kw):
+                    asked.append((o, shape))
+                    return {"desk": {"space": space}, "stamps": [], "panes": []}
+                ctx.ask = ask
+                steps.name_capture_office(ctx, "workshop", {"powers": ["input", "capture"]})
+                self.assertEqual(steps.capture_office(ctx), office)
+                self.assertEqual(asked, [("zengine.workshop", "DeskReadRequested")])
+            # A row that may not read the desk asks nothing, and each office is tried in turn.
+            ctx = Context(steps)
+            ctx.ask = lambda *a, **kw: self.fail("asked")
+            steps.name_capture_office(ctx, "workshop", {"powers": ["input"]})
+            self.assertFalse(hasattr(ctx, "_capture_office"))
+            # A desk read refused names nothing.
+            ctx = Context(steps)
+            ctx.ask = lambda *a, **kw: (_ for _ in ()).throw(Refused("read again in 250 ms"))
+            steps.name_capture_office(ctx, "workshop", {"powers": ["capture"]})
+            self.assertFalse(hasattr(ctx, "_capture_office"))
+
     loader = unittest.defaultTestLoader
     suite = unittest.TestSuite([loader.loadTestsFromTestCase(ToolChecks),
                                 loader.loadTestsFromTestCase(SaidChecks)])

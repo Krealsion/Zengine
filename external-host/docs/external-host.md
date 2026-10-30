@@ -558,7 +558,12 @@ run look: worker session 15; 75 remembered deliveries to it -- 8 answered its as
   and 67 other deliveries to it: 1 loom.runs.Directive v1 from #8, 66 zen.Ack v1 from #8 (--json lists each)
 ```
 
-(Trimmed: the directory, the inputs and the worker's notes.) The pictures are in the run's
+(Trimmed: the directory, the inputs and the worker's notes.) A row that may `capture` also reads
+the desk once after the inventory, and asks its pictures first of the window office the desk's
+input space names (`zengine.window.terminal` for cells, `zengine.window.sdl` for pixels); another
+row asks each office in turn. The run names no chord by default: it presses only the `chord` and
+`click` it is given, and one given neither is refused before anything is pressed. A batch after
+which nothing repainted fails naming `arm=true` and `changed=false`. The pictures are in the run's
 `out/` directory, checked whole by the tool and verified on disk by the run manager. `crossings`
 reads the session host's own history: each answer that came through the link names the crossing
 it descends from — which far session, established as whom, which attempt, which far author — as

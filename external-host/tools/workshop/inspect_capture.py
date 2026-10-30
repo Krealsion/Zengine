@@ -35,7 +35,8 @@ lost guest's session, never that it closed anything.
 from loom_session.tool import LinkOutcome, Refused
 
 from workshop_steps import (capture_office, chord, chord_moments, clear_moments, click_moments,
-                            link_session, moment, open_input_session, own_row, picture, point)
+                            link_session, moment, name_capture_office, open_input_session,
+                            own_row, picture, point)
 
 
 def run(ctx):
@@ -108,6 +109,7 @@ def journey(ctx):
     status = link_session(ctx, link)
     ctx.step("inspect")
     inv, row = own_row(ctx, link, status)
+    name_capture_office(ctx, link, row)  # the desk names the window office, where the row reads it
     if bug_after == "inspect":
         raise RuntimeError("a deliberate tool bug after 'inspect'")
 
@@ -224,8 +226,9 @@ def journey(ctx):
     ctx.step("picture after")
     after, after_bytes = picture(ctx, link, "after")
     ctx.check(after["frame"] > before["frame"],
-              "the picture after the batch is frame %d, not later than frame %d"
-              % (after["frame"], before["frame"]))
+              "the picture after the batch is frame %d, not later than frame %d: nothing repainted "
+              "after it was asked; arm=true asks a frame before the batch, or changed=false says "
+              "nothing is expected to change" % (after["frame"], before["frame"]))
     if ctx.inputs.get("changed", True):
         ctx.check(after_bytes != before_bytes,
                   "what Workshop presents did not change after %s" % step_words)
