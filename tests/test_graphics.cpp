@@ -6923,8 +6923,9 @@ std::string action_of(const gfx::Sketch& s, const std::string& path) {
 }
 } // namespace
 
-TEST_CASE("a text box's two faces: [text___] in a row of cells, an outline in the edge role where "
-          "the window sets type, its text and caret inside the same inset in both") {
+TEST_CASE("a text box's two faces: [text___] in a row of cells, or its text alone where it reads "
+          "plain, an outline in the edge role where the window sets type, its text and caret "
+          "inside the same inset in both but a plain box's in cells") {
     zengine::component::TextBox box;
     box.set("abc", 3);
     const auto view = zengine::component::text_box_view(box, gfx::text_box_room(8));
@@ -6934,6 +6935,14 @@ TEST_CASE("a text box's two faces: [text___] in a row of cells, an outline in th
     CHECK(gfx::text_box_spelling(zengine::component::text_box_view(empty, 6), 8) == "[______]");
     CHECK(gfx::text_box_spelling(view, 2) == "[]");
     CHECK(gfx::text_box_spelling(view, 0).empty());
+    // ...OR PLAIN: the slice from the box's first column, then blanks, the whole box its room there.
+    CHECK(gfx::text_box_plain(view, 8) == "abc     ");
+    CHECK(gfx::text_box_plain(view, 2) == "ab");
+    CHECK(gfx::text_box_text_column(gfx::TextBoxInCells::plain, true) == 0);
+    CHECK(gfx::text_box_text_column(gfx::TextBoxInCells::plain, false) == gfx::kTextBoxInset);
+    CHECK(gfx::text_box_text_column(gfx::TextBoxInCells::spelled, true) == gfx::kTextBoxInset);
+    CHECK(gfx::text_box_room(8, gfx::TextBoxInCells::plain, true) == 8);
+    CHECK(gfx::text_box_room(8, gfx::TextBoxInCells::plain, false) == gfx::text_box_room(8));
     // ...AND WHERE THE WINDOW SETS TYPE: the slice inside blank margins, an outline round it.
     CHECK(gfx::text_box_lettering(view, 8) == " abc    ");
     const gfx::TextMeasure m{10, 20};

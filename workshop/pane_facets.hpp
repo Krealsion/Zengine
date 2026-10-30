@@ -324,6 +324,9 @@ public:
     /// picture meant is kept aside until `publish` compares the two. The row tools are a
     /// `RowsBlock`'s, the area's whole room its room (workshop/pane_rows_block.hpp).
     void begin() { block_.begin(this->rows(), this->columns()); }
+    /// Whether the window showing the area counts in cells (`RowsRoom::cells`): the room a row's box
+    /// is measured for and a press on it is read in.
+    bool cells() const { return window_.rows_room().cells; }
     bool push(TextRow row, std::optional<Meaning> meaning = std::nullopt) {
         return block_.push(std::move(row), std::move(meaning));
     }
