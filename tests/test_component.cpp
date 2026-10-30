@@ -2377,6 +2377,9 @@ TEST_CASE("text area: a window scrolls freely by units, held so the last line en
     CHECK(area.within() == unit / 4);
     area.scroll_by(100 * unit, 10, shown);
     CHECK(area.offset(lines, shown) == 5 * unit - shown);
+    // Held there in the place itself, not only as read: a rewrap keeps the place.
+    CHECK(area.top() == lines[static_cast<std::size_t>((5 * unit - shown) / unit)].begin);
+    CHECK(area.within() == (5 * unit - shown) % unit);
     area.scroll_by(-100 * unit, 10, shown);
     CHECK(area.offset(lines, shown) == 0);
     // A text shorter than the window does not scroll.
