@@ -338,7 +338,7 @@ def main():
     # ---- the journey that outlives its client: pending at Workshop, finished with nobody here --
     with Session.attach(sdir) as c1:
         c1_session = c1.connection.session
-        c1.start("workshop/inspect-capture", "look", {"arm": True, "hold": "go"})
+        c1.start("workshop/inspect-capture", "look", {"arm": True, "hold": "go", "chord": "ctrl+p"})
         until(lambda: c1.run("look")["step"] == "held: go", 60, "the run to hold")
         held = c1.run("look")
         pending = " | ".join(held["pending"])

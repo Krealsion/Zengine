@@ -54,7 +54,10 @@ python external-host/demo.py reset --root demo-runs/workbench
 python external-host/demo.py stop --root demo-runs/workbench
 ```
 
-Substitute your build tree and installed prefix. A missing prerequisite is named, with the flag or
+Substitute your build tree and installed prefix, and `python` with your interpreter's name: the
+hints `status` prints name the one running `demo.py`. `walk` with no name lists the walks the
+root's setup carries, each with what it is about. `demo.py` writes no bytecode beside the packages
+it reads. A missing prerequisite is named, with the flag or
 build step that supplies it, before anything starts. An extracted package a stranger downloads
 holds both: `--package <its folder>` takes the place of `--build` and `--loom-prefix`, reading
 Workshop from its `bin/` and the guest vocabulary from its `lib/zengine/`, for any setup that builds
@@ -67,8 +70,11 @@ the setup is ready -- every declared entry present, every declared hotkey read b
 desk pane showing its text rows or the picture it draws; a pane that has not shown within a few
 seconds is named in the note and in `not_showing`, since the rest of the desk is usable -- with the
 first task, the hotkeys, the guide's path and the
-preparation's own request counts. The default medium is the OS window; `--tui` uses the
-terminal window. A setup names the media it supports and refuses the others by name
+preparation's own request counts. The default medium is the OS window; `--tui` runs Workshop in
+the terminal window, and under `demo.py` its output goes to the root's `workshop/process.log`, with
+no window of its own (none opens on Windows), so a terminal Workshop is seen through a capture
+(`workshop/inspect-capture`, `workshop/act`'s `picture`) or a desk reading (`desk-machine/read`).
+A setup names the media it supports and refuses the others by name
 ([the shipped plan](load-plans.md#the-window-the-os-window-else-the-terminal-window)).
 
 What each answer means, and what to do:
