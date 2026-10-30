@@ -261,7 +261,7 @@
       "name": "inventory-collect",
       "script": "inventory_collect.py",
       "summary": "Capture a new named inventory entry without replacing existing entries.",
-      "description": "CaptureAdd returns the captured entry identity and its own pair. Save pair.bin and entry.json, then read that exact entry and revision back. Other entries and the legacy capture slot are unchanged.",
+      "description": "CaptureAdd returns the captured entry identity and its own pair. Saves pair.bin, reads that exact entry and revision back, then takes the label Inventory keeps it under from its listing (InventoryList version 2) and writes entry.json with it; the summary names the label. Other entries and the legacy capture slot are unchanged.",
       "inputs": [
         {
           "name": "link",
@@ -289,7 +289,7 @@
         },
         {
           "name": "entry.json",
-          "help": "reference and revision for later operations"
+          "help": "reference, revision and the label Inventory lists it under, for later operations; the label is absent when the read back failed"
         }
       ],
       "requires": [
@@ -307,7 +307,9 @@
         "loom.link.Status v1",
         "InventoryCaptureAdd v1",
         "InventoryRead v1",
-        "InventoryEntry v1"
+        "InventoryEntry v1",
+        "InventoryList v2",
+        "InventoryListed v2"
       ],
       "terms": [
         "inventory",

@@ -3126,6 +3126,31 @@ def run_checks(tools, runtime):
             plan = [i for i in entry_of("inventory-organize")["inputs"] if i["name"] == "plan"][0]
             self.assertIn("exact label", plan["help"])
 
+        def test_collect_writes_the_label_inventory_read_back_and_says_it(self):
+            ref = {"owner": "owner", "entry": "e7"}
+            entry = {"reference": ref, "revision": 3, "pair": b"capture"}
+            listed = {"owner": "owner", "revision": 9, "folders": [], "entries": [
+                {"reference": {"owner": "owner", "entry": "e1"}, "revision": 1, "label": "other",
+                 "schema": "s", "version": 1, "capture_slot": False, "folder": ""},
+                {"reference": ref, "revision": 3, "label": "Workbench result 2", "schema": "s",
+                 "version": 1, "capture_slot": False, "folder": ""}]}
+            ctx = Context(steps, target_role="zengine.input", label="Workbench result")
+            produced, asked = {}, []
+            ctx.produce = lambda name, value: produced.update({name: value})
+
+            def ask(office, shape, fields, **kw):
+                asked.append((shape, kw.get("version", 1)))
+                return {"InventoryCaptureAdd": entry, "InventoryRead": entry,
+                        "InventoryList": listed}[shape]
+            ctx.ask = ask
+            with patch.object(collect, "link_session", link_status):
+                summary = collect.run(ctx)
+            self.assertEqual(json.loads(produced["entry.json"])["label"], "Workbench result 2")
+            self.assertIn("'Workbench result 2'", summary)
+            self.assertEqual([a for a in asked if a[0] != "InventoryList"],
+                             [("InventoryCaptureAdd", 1), ("InventoryRead", 1)])
+            self.assertIn(("InventoryList", 2), asked)
+
     loader = unittest.defaultTestLoader
     suite = unittest.TestSuite([loader.loadTestsFromTestCase(ToolChecks),
                                 loader.loadTestsFromTestCase(SaidChecks)])
