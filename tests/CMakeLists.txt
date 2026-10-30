@@ -249,6 +249,23 @@ target_link_libraries(zengine-example-tally
     PRIVATE zengine-pane-vocabulary zengine-graphics-vocabulary zengine-input-vocabulary
             zengine-activation zengine-warnings zengine-sanitize)
 
+# ...AND THE SAME PANE BUILT AS A WEBASSEMBLY MODULE, where the Loom package builds modules and a
+# wasi-sdk is named (LOOM_WASI_SDK; the `box` gate): its source and libraries unchanged, as
+# `zengine-example-tally.wasm` beside the native image, which the tally cases' twins load through
+# the same plan row. Naming a wasi-sdk against a package that builds no module is an error.
+if(COMMAND loom_wasm_weave AND LOOM_WASI_SDK)
+    zengine_wasm_weave(zengine-example-tally-wasm ${CMAKE_SOURCE_DIR}/examples/tally-pane/tally.cpp
+        STEM zengine-example-tally
+        LINKS zengine-pane-vocabulary zengine-graphics-vocabulary zengine-input-vocabulary
+              zengine-activation)
+    set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "box")
+elseif(LOOM_WASI_SDK)
+    message(FATAL_ERROR
+        "zengine: LOOM_WASI_SDK names a wasi-sdk, and this Loom package builds no WebAssembly "
+        "module (it was built without LOOM_ENABLE_WASM). The `box` gate opens for a package that "
+        "does; clear the variable to run without it.")
+endif()
+
 # ...AND THE SECOND EXAMPLE, THE GUARD: the game-like consumer of the second button, which
 # blocks while the right button is held and never asks for a menu. Compiled here on Tally's
 # terms and loaded by the button suite, so the shipped helper (`workshop/pane_menu.hpp`) is
@@ -1280,6 +1297,7 @@ zengine_workshop_suite(panes
                  test_workshop_panes_files.cpp
                  test_workshop_panes_code.cpp
                  test_workshop_panes_output.cpp
+                 test_workshop_panes_tally.cpp
     # the Editor and its typed carry, and the opening manager.
     PART editor test_workshop_panes_editor.cpp
                 test_workshop_editor_transfers.cpp
@@ -1334,6 +1352,14 @@ zengine_workshop_suite(panes
                 # ...and the golden the C++ generator must write for a saved EnsureTimer, which a
                 # drop on a C++ document inserts (the `source_transfer` suite pins the same bytes).
                 "SOURCE_TRANSFER_GOLDEN_FOR_PANES=\"${CMAKE_CURRENT_SOURCE_DIR}/source_transfer_ensure_timer.generated.hpp\"")
+# ...and, under the `box` gate, the example pane built as a module, which the tally cases' twins
+# load by its stem.
+if(TARGET zengine-example-tally-wasm)
+    get_target_property(zengine_tally_module zengine-example-tally-wasm ZENGINE_WASM_MODULE)
+    zengine_test_definitions(zengine-workshop-panes-tests
+        "WORKSHOP_WASM_TALLY=\"${zengine_tally_module}\"")
+    add_dependencies(zengine-workshop-panes-tests zengine-example-tally-wasm)
+endif()
 # ...and the Builder pane's page as its build embeds it, which the pane's answer is compared to.
 zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/builder/docs/zengine.builder-pane.md)
 # ...and Info's, which it answers for each of its panes.

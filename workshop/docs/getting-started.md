@@ -119,7 +119,10 @@ zengine-workshop - recipe: snake-world-v2 -> .../snake-world-v2.so
 ```
 
 - **what this host isolates** — `Kernel::containment_note()`, verbatim. An in-process Zengine
-  host isolates nothing; read the sentence literally.
+  host isolates no library; read the sentence literally. Each loaded weave's own line, once the
+  plan has loaded, ends with what it is held to: the same sentence for a library, and for a
+  pane built as a WebAssembly module its box's
+  ([load plans](load-plan.md#artifact-names-and-why-they-are-stems)).
 - **which files this run is using**, and how many artifacts the plan declared.
 - **which project this is** — the directory you launched in. It is what the Files pane
   browses and what a relative source path in a build recipe is relative to.

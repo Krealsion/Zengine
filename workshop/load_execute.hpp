@@ -75,6 +75,25 @@ struct ResolvedArtifact {
     std::string switched_to;
 };
 
+/// WHAT WORKSHOP SAYS OF ONE REALIZED ROW when realization comes to rest, after `loaded: `: its
+/// stem, what its provider supplied, the weave it made and as whom, and what Loom's kernel holds
+/// that weave to -- `held`, the kernel's `containment` of the row's stem, read by the caller: a
+/// library's is the kernel's note, a module's its box's line.
+inline std::string loaded_words(const ResolvedArtifact& row, const std::string& held) {
+    std::string loaded = row.stem;
+    if (row.provider_mounted) {
+        loaded += " | provider '" + row.provider + "' supplied " + std::to_string(row.contributed);
+    }
+    if (row.weave_loaded) {
+        loaded += " | weave #" + std::to_string(row.weave.value) + " as " + row.role;
+        loaded += row.offer == op::OfferOutcome::Offered
+                      ? " (this host's operator resolution offered)"
+                      : " (ordinary weave: it declares no operator surface)";
+        loaded += " | held: " + held;
+    }
+    return loaded;
+}
+
 /// AN ARTIFACT A ROW COULD NOT LOAD, AND WHAT IT TRIED NEXT: the row's own artifact or an
 /// alternative before the next, that next artifact, and why the first did not load in a weaver's
 /// words (`passed_over_words`).

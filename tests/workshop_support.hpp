@@ -4004,6 +4004,12 @@ struct PaneRig {
             return WORKSHOP_SO_TALLY;
         }
 #endif
+#ifdef WORKSHOP_WASM_TALLY
+        // ...AND THE SAME PANE AS A MODULE, named by a stem the host spells as it is.
+        if (stem == "zengine-example-tally.wasm") {
+            return WORKSHOP_WASM_TALLY;
+        }
+#endif
 #ifdef WORKSHOP_SO_FAILING_EDITOR
         if (stem == "zengine-failing-editor") {
             return WORKSHOP_SO_FAILING_EDITOR;
