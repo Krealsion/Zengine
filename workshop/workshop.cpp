@@ -443,7 +443,8 @@ int main(int argc, char** argv) {
     const std::string plan_path =
         load_persist::plan_in_force(args.load_plan, host.project_dir, host.dir, present);
 
-    // The honest line: this host isolates nothing. (`--isolated` is about the weaver's files.)
+    // The honest line: this host isolates no library. (`--isolated` is about the weaver's files.)
+    // A module is held in its box, and its own `loaded:` line says so.
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: retired with the object canvas%s%s\n",
                 host.retired_document.empty() ? "" : " -- left as it is: ",
@@ -957,7 +958,7 @@ int main(int argc, char** argv) {
     load::PlanExecutor executor(
         bus, operators, operator_host, voice, manager, answers,
         [&host](const std::string& stem) { return host.so(stem); },
-        [&host, &operators, &project_refused, &last_words](const load::Executed& done) {
+        [&host, &operators, &project_refused, &last_words, &kernel](const load::Executed& done) {
             // Said artifact by artifact, in order: resolved truth, never written back to the plan.
             // Said when realization settles, after the medium has taken the terminal: a medium
             // that holds it would have these lines scrolled into its picture, so they are said
@@ -989,20 +990,10 @@ int main(int argc, char** argv) {
                 }
             }
             if (say) {
+                // Each weave with what the kernel holds it to: a library as the line above says, a
+                // module in its box.
                 for (const load::ResolvedArtifact& row : done.resolved) {
-                    std::string loaded = row.stem;
-                    if (row.provider_mounted) {
-                        loaded += " | provider '" + row.provider + "' supplied " +
-                                  std::to_string(row.contributed);
-                    }
-                    if (row.weave_loaded) {
-                        loaded +=
-                            " | weave #" + std::to_string(row.weave.value) + " as " + row.role;
-                        loaded += row.offer == op::OfferOutcome::Offered
-                                      ? " (this host's operator resolution offered)"
-                                      : " (ordinary weave: it declares no operator surface)";
-                    }
-                    line("loaded: " + loaded);
+                    line("loaded: " + load::loaded_words(row, kernel.containment(row.stem)));
                 }
             }
             // And where this run stopped, named: one row, never a count.

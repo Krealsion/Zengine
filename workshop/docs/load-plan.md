@@ -132,7 +132,9 @@ has not been activated is registered and routable and never breathes. The answer
 implies the whole sequence.
 
 **When realization comes to rest, Workshop says what it made of the plan**: each row as
-`zengine-workshop - loaded: ...`, a waiting row as `waiting to be built: ...`, each unavailable row
+`zengine-workshop - loaded: ...`, a weave's row ending with what Loom's kernel holds it to
+(`| held: ...`, `Kernel::containment` of its stem: a library's is the startup containment line,
+a module's its box's), a waiting row as `waiting to be built: ...`, each unavailable row
 as `unavailable: ...` and the operators it can resolve as `operators: ...`. It prints these lines
 to standard output when no terminal medium holds a measured terminal there — the terminal window,
 or a terminal skin, whose picture the lines would scroll. A refused startup's lines and its refusal
@@ -309,6 +311,14 @@ one rule that turns a stem into a file — a directory, a separator and the plat
 (`HostContext::so`) — which is what makes one plan legal on Linux and on Windows with no platform
 matrix, no per-OS field and no package locator. No shipped plan contains `.so`, `.dll` or a
 path separator, and a test asserts it.
+
+**A stem ending `.wasm` names a WebAssembly module**, and the rule adds no suffix to it: a
+module is the same file on every platform, so `zengine-example-tally.wasm` is legal on both.
+Loom's kernel opens it by its first bytes and holds it in a box
+([Loom's kernel](https://github.com/Krealsion/Loom/blob/main/docs/reference/kernel.md#a-weave-built-as-a-webassembly-module));
+the row, its realization and its reload are a library's. A Zengine build makes one beside a
+weave's native build with `zengine_wasm_weave()` where the Loom package builds modules and a
+wasi-sdk is named (`LOOM_WASI_SDK`), from the same source and header-only libraries.
 
 A stem carries no path separator and no `..`. That is an authority rule rather than tidiness: a
 stem that could climb out of the host's artifact directory would make *which files may run in

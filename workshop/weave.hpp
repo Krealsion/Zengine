@@ -300,10 +300,20 @@ struct HostContext {
     /// is legal on every platform. A view, so a literal and a stem read from a file resolve alike.
     std::string so(std::string_view stem) const { return so_in(dir, stem); }
 
+    /// What a stem ends with when it names a WebAssembly module: the same file on every platform,
+    /// so the stem is the file's name and no suffix is added. Loom's kernel opens it by its first
+    /// bytes and holds it in a box (`Kernel::containment`).
+    static constexpr std::string_view kModuleSuffix = ".wasm";
+
     /// The same rule aimed at another directory (a CMake target lands where its own project puts
     /// it). Static: a fact about the platform. One copy of the suffix rule.
     static std::string so_in(std::string_view directory, std::string_view stem) {
-        return std::string(directory) + "/" + std::string(stem) +
+        std::string path = std::string(directory) + "/" + std::string(stem);
+        if (stem.size() > kModuleSuffix.size() &&
+            stem.substr(stem.size() - kModuleSuffix.size()) == kModuleSuffix) {
+            return path;
+        }
+        return path +
 #if defined(_WIN32)
                ".dll";
 #else
