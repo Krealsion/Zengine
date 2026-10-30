@@ -149,7 +149,9 @@ again only what the window does not hold.
 `graphics/elements/text_face.hpp` holds the text pieces' looks, a face each medium's, drawn from the
 values `component/` keeps measured in characters, and keeps nothing itself. A text box keeps a
 column on each side of its text (`kTextBoxInset`): in a row of cells `[text___]`
-(`text_box_spelling`), where the window sets type its outline in `role::kEdge` round its text,
+(`text_box_spelling`), or plain, its text alone from its first column, where a prompt beside it
+already marks the place (`TextBoxInCells`, `text_box_plain`, `text_box_text_column`); where the
+window sets type its outline in `role::kEdge` round its text,
 selection and caret (`text_box_face`). A text area in a row of cells shows its lines between
 `N more above...` and `... N more below` (`text_area_cells`, read back by
 `text_area_cells_place`). `text_area_face` draws a text area scrolled freely: its lines from the

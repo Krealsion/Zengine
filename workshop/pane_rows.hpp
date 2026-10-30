@@ -26,12 +26,14 @@ inline constexpr std::int64_t kNoMark = -1;
 
 /// A TEXT BOX STANDING ON A ROW: its first column, its whole width, and what it shows there
 /// (`component::text_box_view`, measured for `graphics::text_box_room(columns)`). The row carries the
-/// box, never its look: a room of cells shows it `[text___]` and a window that sets type its outline
-/// (`graphics/elements/text_face.hpp`). None where `column` is negative.
+/// box, never its look: a room of cells shows it `[text___]`, or its text alone where `in_cells` says
+/// plain, and a window that sets type its outline (`graphics/elements/text_face.hpp`). None where
+/// `column` is negative.
 struct RowBox {
     std::int64_t column = kNoMark;
     std::int64_t columns = 0;
     component::TextBoxView view{};
+    graphics::TextBoxInCells in_cells = graphics::TextBoxInCells::spelled;
     bool present() const noexcept { return column >= 0 && columns > 0; }
     bool operator==(const RowBox&) const = default;
 };
@@ -44,6 +46,17 @@ inline RowBox row_box(component::TextBox& box, std::int64_t column, std::int64_t
     box.keep_caret_visible(room > 1 ? room - 1 : room);
     return RowBox{column, columns,
                   component::text_box_view(static_cast<const component::TextBox&>(box), room)};
+}
+/// ...a box that reads plain in a room of cells, measured for the room it is drawn in (`cells`):
+/// there its text has the whole box, where the window sets type its inset each side.
+inline RowBox row_box_plain(component::TextBox& box, std::int64_t column, std::int64_t columns,
+                            bool cells) {
+    const graphics::TextBoxInCells plain = graphics::TextBoxInCells::plain;
+    const std::int64_t room = graphics::text_box_room(columns, plain, cells);
+    box.keep_caret_visible(room > 1 ? room - 1 : room);
+    return RowBox{column, columns,
+                  component::text_box_view(static_cast<const component::TextBox&>(box), room),
+                  plain};
 }
 /// ...and of a box its owner reads only.
 inline RowBox row_box(const component::TextBox& box, std::int64_t column, std::int64_t columns) {
@@ -89,11 +102,18 @@ struct RowsCaret {
     bool operator==(const RowsCaret&) const = default;
 };
 
-/// THE CARET AND SELECTION OF A ROW'S BOX on row `row`, in the rows' lattice: inside the box's
-/// inset, where both faces put its text.
-inline RowsCaret box_caret(const RowBox& box, std::int64_t row) {
+/// THE COLUMN OF A ROW'S BOX ITS TEXT BEGINS AT in a room (`cells` for a room of cells): inside the
+/// box's inset, or at its first column for a plain box in cells. A press there names the slice's
+/// first character.
+inline std::int64_t box_text_column(const RowBox& box, bool cells = false) {
+    return box.column + graphics::text_box_text_column(box.in_cells, cells);
+}
+
+/// THE CARET AND SELECTION OF A ROW'S BOX on row `row`, in the rows' lattice of a room (`cells` for a
+/// room of cells), where that room's face puts its text (`box_text_column`).
+inline RowsCaret box_caret(const RowBox& box, std::int64_t row, bool cells = false) {
     RowsCaret caret;
-    const std::int64_t at = box.column + graphics::kTextBoxInset;
+    const std::int64_t at = box_text_column(box, cells);
     caret.row = row;
     caret.column = at + box.view.caret;
     if (box.view.selected()) {
@@ -106,8 +126,8 @@ inline RowsCaret box_caret(const RowBox& box, std::int64_t row) {
 }
 
 /// A ROW'S TEXT AS A ROOM SHOWS IT: its text, with its box's face written over the box's columns --
-/// `[text___]` in a room of cells, the box's text inside blank margins where the window sets type
-/// (its outline is drawn beside, `text_box_outline`).
+/// `[text___]` in a room of cells, or its text alone for a plain box, and the box's text inside
+/// blank margins where the window sets type (its outline is drawn beside, `text_box_outline`).
 inline std::string row_text_shown(const TextRow& row, bool cells) {
     if (!row.box.present()) {
         return row.text;
@@ -118,8 +138,10 @@ inline std::string row_text_shown(const TextRow& row, bool cells) {
     if (out.size() < at + n) {
         out.resize(at + n, ' ');
     }
-    out.replace(at, n, cells ? graphics::text_box_spelling(row.box.view, row.box.columns)
-                             : graphics::text_box_lettering(row.box.view, row.box.columns));
+    const bool plain = row.box.in_cells == graphics::TextBoxInCells::plain;
+    out.replace(at, n, !cells ? graphics::text_box_lettering(row.box.view, row.box.columns)
+                       : plain ? graphics::text_box_plain(row.box.view, row.box.columns)
+                               : graphics::text_box_spelling(row.box.view, row.box.columns));
     return out;
 }
 
