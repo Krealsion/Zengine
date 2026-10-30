@@ -35,7 +35,7 @@ lost guest's session, never that it closed anything.
 from loom_session.tool import LinkOutcome, Refused
 
 from workshop_steps import (capture_office, chord, chord_moments, clear_moments, click_moments,
-                            link_session, moment, own_row, picture, point)
+                            link_session, moment, open_input_session, own_row, picture, point)
 
 
 def run(ctx):
@@ -113,8 +113,7 @@ def journey(ctx):
 
     ctx.step("open input")
     try:
-        opened = ctx.ask("zengine.input", "InputSessionRequested",
-                         {"purpose": "loom session run %s" % ctx.name}, via=link)
+        opened = open_input_session(ctx, link, "loom session run %s" % ctx.name)
     except Refused as err:
         # A refusal AFTER work began (the inventory above is kept), in the Input owner's own
         # sentence. One holder at a time -- and every run on one link is the SAME holder to

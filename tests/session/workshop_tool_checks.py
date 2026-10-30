@@ -3113,6 +3113,15 @@ def run_checks(tools, runtime):
     class SaidChecks(unittest.TestCase):
         """What a tool says it did, and what it refuses before it asks anything."""
 
+        def execute(self, ctx):
+            with patch.multiple(capture, link_session=link_status, own_row=inventory,
+                                picture=picture):
+                try:
+                    return capture.run(ctx)
+                finally:
+                    for callback in reversed(ctx.cleanups):
+                        callback()
+
         def test_organize_refuses_a_rule_with_no_label_before_any_ask(self):
             ctx = Context(steps, plan=json.dumps({"folder": "Work", "entries": [
                 {"find": {"contains": "Workbench"}, "label": "Workbench 1"}]}))
@@ -3150,6 +3159,61 @@ def run_checks(tools, runtime):
             self.assertEqual([a for a in asked if a[0] != "InventoryList"],
                              [("InventoryCaptureAdd", 1), ("InventoryRead", 1)])
             self.assertIn(("InventoryList", 2), asked)
+
+        def busy(self, ctx, times):
+            """`ctx`'s input owner, held by another run for its first `times` opens."""
+            plain, said = ctx.ask, {"n": 0}
+
+            def ask(office, shape, fields, **kw):
+                if shape == "InputSessionRequested" and said["n"] < times:
+                    said["n"] += 1
+                    ctx.contacts.append(shape)
+                    raise Refused("busy: input session 4 is held by this connection, opened for "
+                                  "\"loom session run hold-a\"; it must be closed before another opens")
+                return plain(office, shape, fields, **kw)
+            ctx.ask = ask
+            return said
+
+        def test_a_busy_input_session_is_asked_again_within_wait_for_input(self):
+            for tool, name in ((act, "act"), (drag, "drag"), (capture, "inspect-capture")):
+                inputs = [i["name"] for i in entry_of(name)["inputs"]]
+                self.assertIn("wait_for_input", inputs, name)
+            with patch.object(steps, "BUSY_PAUSE", 0.01):
+                ctx = Context(steps, wait_for_input=5)
+                said = self.busy(ctx, 2)
+                hand_ = hand.Hand(ctx, "workshop")
+                hand_.close()
+                self.assertEqual(said["n"], 2)
+                self.assertEqual(ctx.contacts.count("InputSessionRequested"), 3)
+                self.assertEqual(ctx.owner.closes, 1)
+                # inspect-capture's own open waits the same way.
+                ctx = Context(steps, chord="down", wait_for_input=5)
+                said = self.busy(ctx, 2)
+                self.assertIn("frame 1 -> 2", self.execute(ctx))
+                self.assertEqual(ctx.contacts.count("InputSessionRequested"), 3)
+
+        def test_a_wait_for_input_that_runs_out_says_how_long_and_the_busy_words(self):
+            with patch.object(steps, "BUSY_PAUSE", 0.01):
+                ctx = Context(steps, chord="down", wait_for_input=0.05)
+                self.busy(ctx, 1000)
+                with self.assertRaises(CheckFailed) as failed:
+                    self.execute(ctx)
+                words = str(failed.exception)
+                self.assertIn("held by this connection", words)
+                self.assertRegex(words, r"waited [0-9.]+ s of wait_for_input 0.05, asked [0-9]+ times")
+                # With no wait, a busy session fails at the first ask, as before.
+                ctx = Context(steps, chord="down")
+                self.busy(ctx, 1000)
+                with self.assertRaises(CheckFailed):
+                    self.execute(ctx)
+                self.assertEqual(ctx.contacts.count("InputSessionRequested"), 1)
+                # Any other refusal is not waited on.
+                ctx = Context(steps, chord="down", wait_for_input=5)
+                ctx.ask = lambda office, shape, fields, **kw: (_ for _ in ()).throw(
+                    Refused("input is not served here")) if shape == "InputSessionRequested" else None
+                with self.assertRaises(CheckFailed) as failed:
+                    self.execute(ctx)
+                self.assertNotIn("waited", str(failed.exception))
 
     loader = unittest.defaultTestLoader
     suite = unittest.TestSuite([loader.loadTestsFromTestCase(ToolChecks),

@@ -577,6 +577,10 @@ What a person meets on this route:
   Press Ctrl+P only when the Pane Manager is not already on the desk (`workshop/act`'s `open` step
   checks first, then presses the row by its name), then press what it answers to
   (`--input chord=down`).
+- **A run can wait for the input session.** `workshop/act`, `workshop/drag` and
+  `workshop/inspect-capture` take `wait_for_input`, seconds: while another run holds the session
+  its `busy` refusal is asked again until it opens or the time runs out, and the failure then says
+  how long it waited. With none, a held session fails the run at once.
 - **A lost link is an unknown outcome.** When Workshop goes away after a tool's request was
   submitted, the run fails saying the outcome is UNKNOWN and nothing was resent; Workshop's guest
   door closes a lost guest's input session, and the run never claims it closed it.

@@ -143,6 +143,12 @@
           "type": "text",
           "default": "",
           "help": "raise an error on purpose after this step (inspect, open, inject) -- a tool bug, for seeing failure and cleanup"
+        },
+        {
+          "name": "wait_for_input",
+          "type": "number",
+          "default": 0,
+          "help": "seconds to ask again, every quarter second, while another run holds the one input session; 0 fails at the first busy refusal"
         }
       ],
       "outputs": [
@@ -367,6 +373,12 @@
           "type": "text",
           "default": "",
           "help": "modifiers held through the drag, such as alt or ctrl+shift; then it moves in straight steps"
+        },
+        {
+          "name": "wait_for_input",
+          "type": "number",
+          "default": 0,
+          "help": "seconds to ask again, every quarter second, while another run holds the one input session; 0 fails at the first busy refusal"
         }
       ],
       "outputs": [
@@ -1079,6 +1091,12 @@
           "type": "int",
           "default": 0,
           "help": "a pause after each gesture, so a person can watch; checks and deadlines are unchanged"
+        },
+        {
+          "name": "wait_for_input",
+          "type": "number",
+          "default": 0,
+          "help": "seconds to ask again, every quarter second, while another run holds the one input session; 0 fails at the first busy refusal"
         }
       ],
       "outputs": [
