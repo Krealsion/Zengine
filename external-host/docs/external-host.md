@@ -3,6 +3,23 @@
 For a ready-to-use isolated desk with a reusable host, its material, hotkeys and a Reset button,
 start with [ready-to-use setups](../../workshop/docs/demo-setups.md).
 
+**Quickstart.** Five commands from the checkout, with Zengine built in `build` and Loom installed
+beside it; the session folder is the root's `session`, and `<dir>` any folder outside a checkout:
+
+```sh
+python3 external-host/demo.py start --setup values --root demo-runs/values --build build --loom-prefix ../Loom/build/_install
+loom-session run demo-runs/values/session workshop/connections --name hello --wait 30
+loom-session run demo-runs/values/session desk-machine/read --name desk-1 --input out=<dir> --wait 60
+loom-session run demo-runs/values/session workshop/act --name info-1 --input 'steps=[{"open":"pane:zengine.info/info"}]'
+python3 external-host/demo.py stop --root demo-runs/values
+```
+
+1. `start` answers once the desk is ready, with the setup's first task and its guide.
+2. `workshop/connections` answers the guest door's inventory and this session's own row.
+3. `desk-machine/read` writes the desk into `<dir>`: read its `AGENTS.md` first.
+4. `workshop/act` presses by names and answers each step done, kept in `steps.json`.
+5. `stop` quits Workshop and the session host; the root keeps what they wrote.
+
 **Walkthrough.** Let an agent's own Loom host connect to a running Workshop, be admitted as a
 guest you named, open an input session, press keys, take a picture of what Workshop presents,
 and keep the whole exchange in its own history — with Workshop showing the connection while it
@@ -287,8 +304,14 @@ The probe (§ 4 below) is one compiled weave running one journey. A **Loom sessi
 `loom-host --serve`,
 [Loom's sessions guide](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md) —
 keeps a host running for clients that come and go, and runs editable Python **tools** as named
-runs: edit a tool and the next run uses it, with no compiler and no restart. This repository
-ships what such a session needs to speak to Workshop, and nothing of the session itself:
+runs: edit a tool and the next run uses it, with no compiler and no restart. A run name already
+held in the session answers with that earlier run, so name each run anew
+([the desk read](#the-desk-written-as-text-for-an-agent) says it beside its first command). Two
+coordinate spaces meet a first run: the desk reading gives a pane's place in canvas pixels, and a
+part's press point in the space the medium reads input in, console cells in a terminal
+([the desk, a pane's words](#the-desk-a-panes-words-and-timed-drag-stories) says both whole);
+`workshop/act` presses by names, so it needs neither converted. This repository ships what such a
+session needs to speak to Workshop, and nothing of the session itself:
 
 - **`zengine-guest-vocabulary`**, installed in `lib/zengine/`: a weave the session host boots.
   It declares Workshop's guest shapes there — input sessions and injection, captures and their

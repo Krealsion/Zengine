@@ -70,8 +70,11 @@ the setup is ready -- every declared entry present, every declared hotkey read b
 desk pane showing its text rows or the picture it draws; a pane that has not shown within a few
 seconds is named in the note and in `not_showing`, since the rest of the desk is usable -- with the
 first task, the hotkeys, the guide's path and the
-preparation's own request counts. The default medium is the OS window; `--tui` uses the
-terminal window. A setup names the media it supports and refuses the others by name
+preparation's own request counts. The default medium is the OS window; `--tui` runs Workshop in
+the terminal window, and under `demo.py` its output goes to the root's `workshop/process.log`, with
+no window of its own (none opens on Windows), so a terminal Workshop is seen through a capture
+(`workshop/inspect-capture`, `workshop/act`'s `picture`) or a desk reading (`desk-machine/read`).
+A setup names the media it supports and refuses the others by name
 ([the shipped plan](load-plans.md#the-window-the-os-window-else-the-terminal-window)).
 
 What each answer means, and what to do:
