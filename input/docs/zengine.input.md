@@ -75,9 +75,13 @@ a name in the message.
 - **Takes:** `purpose`, one line for a person reading what is open.
 - **Answers:** `InputSessionOpened` v1, to you alone: `session`, the number you name it by, counted
   from 1 by this weave.
-- **Refuses:** in `zen.Refused`, while a session is open: `busy: input session 1 is held by you; it
-  must be closed before another opens`, or `busy: input session 1 is held by another participant;
-  it must be closed before another opens`.
+- **Refuses:** in `zen.Refused`, while a session is open: `busy: input session 1 is held by this
+  connection, opened for "workshop probe"; it must be closed before another opens` when the sender
+  holds it -- every run on one link is that one sender -- or `busy: input session 1 is held by
+  another participant, opened for "workshop probe"; it must be closed before another opens`. The
+  purpose is the holder's own, `opened with no purpose given` when it gave none, and cut on a
+  character boundary with `...` past <!-- value kPurposeQuoted -->160<!-- /value -->
+  bytes.
 - **Example:** `mail.send_to_role("zengine.input", zengine::input::InputSessionRequested{"workshop probe"});`,
   as the Workshop probe opens its session.
 

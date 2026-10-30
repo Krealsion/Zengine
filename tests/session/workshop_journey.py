@@ -448,7 +448,8 @@ def main():
         b_asks = dict((a["shape"], a) for a in b["asks"])
         check("O1 a second run on the SAME link is refused the input session after it inspected: "
               "one holder, and every run on one link is that holder to Workshop",
-              b["state"] == "failed" and "busy" in b["failure"] and "held by you" in b["failure"]
+              b["state"] == "failed" and "busy" in b["failure"] and
+              "held by this connection, opened for \"loom session run hold-a\"" in b["failure"]
               and artifacts(b).get("connections.json", {}).get("state") == "verified" and
               b_asks.get("InputSessionRequested", {}).get("outcome") == "refused", b["failure"])
         c2.start("workshop-b/inspect-capture", "busy-c", {"chord": "down"})
@@ -514,7 +515,7 @@ def main():
         again = c2.wait("after-cancel", timeout=120)
         check("C5 the SAME link opens an input session again and the run passes: Workshop is "
               "not holding one for a guest that went away",
-              again["state"] == "passed" and "held by you" not in again["failure"],
+              again["state"] == "passed" and "held by this connection" not in again["failure"],
               again["failure"][:200] or again["summary"])
 
         # ---- remote loss after submission: the outcome stays unknown ------------------------

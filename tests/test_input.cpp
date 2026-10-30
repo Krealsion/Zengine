@@ -2031,9 +2031,9 @@ struct SessionRig {
         bus.drain_until_idle();
         agent->next_ = nullptr;
     }
-    void open() {
-        act([this](loom::Mail& m) {
-            (void)m.send_to_role(kInputRole, InputSessionRequested{"a suite's hand"});
+    void open(std::string purpose = "a suite's hand") {
+        act([purpose](loom::Mail& m) {
+            (void)m.send_to_role(kInputRole, InputSessionRequested{purpose});
         });
     }
     void inject(std::vector<InjectedEvent> events) {
@@ -2128,13 +2128,32 @@ TEST_CASE("session: a batch is judged whole -- one bad moment publishes nothing,
     CHECK(r.heard.empty());
 }
 
+TEST_CASE("session: the busy words say a holder gave no purpose, and cut a long one between characters") {
+    SessionRig r;
+    r.open("");
+    REQUIRE(r.last() == "opened 1");
+    r.open();
+    CHECK(r.last() == "refused: busy: input session 1 is held by this connection, opened with no "
+                      "purpose given; it must be closed before another opens");
+    SessionRig l;
+    // 159 ASCII bytes, then a two-byte character across the bound: cut before it, never inside.
+    l.open(std::string(159, 'p') + "\xc3\xa9" + std::string(40, 'q'));
+    REQUIRE(l.last() == "opened 1");
+    l.open();
+    CHECK(l.last() == "refused: busy: input session 1 is held by this connection, opened for \"" +
+                          std::string(159, 'p') + "...\"; it must be closed before another opens");
+}
+
 TEST_CASE("session: one at a time, held by the sender that opened it, and refused to a stranger") {
     SessionRig r;
     r.open();
     REQUIRE(r.last() == "opened 1");
-    // The SAME agent asking again is refused: the session stands until it is closed.
+    // The SAME agent asking again is refused: the session stands until it is closed. Every run on
+    // one link is that one sender, so the words name the connection and the purpose it opened
+    // with, never "you".
     r.open();
-    CHECK(r.last().rfind("refused: busy: input session 1 is held by you", 0) == 0);
+    CHECK(r.last() == "refused: busy: input session 1 is held by this connection, opened for \"a "
+                      "suite's hand\"; it must be closed before another opens");
     // A stranger: a second agent on the same bus.
     const loom::WeaveId other_id = loom::mount<Agent>(r.bus);
     Agent* other = static_cast<Agent*>(r.bus.weave(other_id));
@@ -2148,7 +2167,9 @@ TEST_CASE("session: one at a time, held by the sender that opened it, and refuse
         (void)m.send_to_role(kInputRole, InputSessionRequested{"a competing hand"});
     });
     REQUIRE_FALSE(other->answers.empty());
-    CHECK(other->answers.back().rfind("refused: busy: input session 1 is held by another", 0) == 0);
+    CHECK(other->answers.back() == "refused: busy: input session 1 is held by another participant, "
+                                   "opened for \"a suite's hand\"; it must be closed before another "
+                                   "opens");
     // The stranger cannot inject into it, nor close it by naming the holder personally.
     other_acts([&](loom::Mail& m) {
         InjectInput batch;

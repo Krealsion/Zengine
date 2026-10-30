@@ -570,8 +570,9 @@ What a person meets on this route:
 
 - **Every run on one link is one participant to Workshop.** Workshop admits one input-session
   holder, and the holder it sees is the link's far session, not the run — so a second run on the
-  same link is refused `busy: ... held by you`. A second participant is a second guests row and a
-  second link.
+  same link is refused `busy: input session 1 is held by this connection, opened for "loom session
+  run hold-a"; ...`, the purpose naming the run that holds it. A second participant is a second
+  guests row and a second link.
 - **Ctrl+P toggles the Pane Manager.** A press opens it with the keys; a second press closes it
   again, wherever the keys are ([panes](../../workshop/docs/panes.md#showing-going-to-and-hiding--the-pane-manager)).
   Press Ctrl+P only when the Pane Manager is not already on the desk (`workshop/act`'s `open` step
@@ -585,7 +586,8 @@ What a person meets on this route:
 
 Workshop holds one input session at a time and it is the LINK's far session that holds it, so a
 run that ends without closing one leaves every later run on that link refused `busy: ... held by
-you` — for as long as the link lives, which is as long as the session host does. What gives it
+this connection, opened for "loom session run <name>"` — for as long as the link lives, which is
+as long as the session host does. What gives it
 back is the tool's cleanup (`ctx.on_cleanup`, registered the moment the session is opened), and
 the three ways a run can end are not the same here:
 
