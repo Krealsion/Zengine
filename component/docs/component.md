@@ -150,13 +150,13 @@ component/text_box.hpp   TextBox          text + caret + anchor + first_visible,
                            erase_word_before/after / drag_to_column(column)
                            copy/cut/paste(Clipboard) / undo/redo/can_undo/can_redo
                            consume(scancode, modifiers, Clipboard) -> bool
-                         TextBoxCells, text_box_cells(box, columns, bordered)
-                                          the box as a row of cells shows it: its slice, the
-                                          caret's column and the selected columns from one
-                                          window, its whole width; bordered, `[text___]`
-                         text_box_press(box, cells, column, extend)
-                                          a press anywhere in the box, its blank room and
-                                          border included, placing or extending the caret
+                         TextBoxView, text_box_view(box, columns)
+                                          what `columns` characters show of the box: its slice,
+                                          the caret's column and the selected columns, from one
+                                          window
+                         text_box_press(box, column, extend)
+                                          a press on any column of the box, its blank room
+                                          included, placing or extending the caret
 
 component/text_area.hpp  TextLook{role, hang}
                                           how a paragraph reads: the owner's number for its
@@ -165,13 +165,14 @@ component/text_area.hpp  TextLook{role, hang}
                            set / clear / text / places / top / within / look
                            lines(columns) -> Line{begin, end, paragraph, indent}
                            line_of / place_in_line
-                           scroll_lines / scroll_home        in rows of cells
+                           last_first / first_line / scroll_lines / scroll_home
+                                                             by whole lines
                            offset / scroll_by / scroll_to / furthest
                                                              in a window, in kUnitsPerLine
                            press / drag_to / select_word_at / select_all / clear_selection
                            copy(Clipboard) / consume(scancode, modifiers, Clipboard) -> bool
-                           cells(rows, columns) -> Cells{rows, wrapped, first, above, below}
-                           place_at(cells, row, column)
+                           shown_line(line, index, columns) -> ShownLine{text, look, line,
+                                                             selection_begin, selection_end}
 ```
 
 **A text area keeps places, never rows or pixels.** Its text is long and read only: a paragraph
@@ -180,17 +181,18 @@ a further line standing in the paragraph's hang. The scroll is the place of the 
 and how far into that line a window has scrolled, and the selection is two places, so a text
 wrapped again at another width -- a pane made narrower, the same text in a terminal and a window
 -- keeps both. A copy is the text between the two places as written: the wrap's breaks and
-indents, and the markers a row of cells shows, were never in the text. In rows of cells
-(`cells`) the lines show from the scroll's with `N more above...` atop where lines are hidden above
-and `... N more below` at the foot where lines are hidden below; a window draws the same value
-scrolled freely with a bar (`graphics/elements/text_face.hpp`). The area answers Ctrl+C and Ctrl+A
+indents, and the markers a row of cells shows, were never in the text. A row of cells shows the
+lines from the scroll's between markers for those hidden above and below, and a window draws the
+same value scrolled freely with a bar: both are faces (`graphics/elements/text_face.hpp`). The area answers Ctrl+C and Ctrl+A
 itself; the scroll's keys are the owner's, which names its own actions.
 
-**Each text piece has two faces, and the value keeps the state.** A medium of characters spells a
-piece here, beside its value (`text_box_cells`, `TextArea::cells`); a window that sets type draws it
-from the same value (`graphics/elements/text_face.hpp`). Neither face keeps anything: the caret,
-the selection and the scroll are the value's, and a press is read back through the face it landed
-on (`text_box_press`, `TextArea::place_at`, and the window's `text_area_place_at`).
+**This package knows no medium, and each look is a face.** A text piece is measured here in
+characters, as both media lay a row out: what a width shows (`text_box_view`, `TextArea::lines`,
+`shown_line`), where its caret and selection stand, which place a press means (`text_box_press`,
+`place_in_line`). How it looks -- a box's `[text___]` in a row of cells or its outline where the
+window sets type, an area's markers or its bar -- is a face beside the others in
+`graphics/elements/text_face.hpp`, each with the geometry its owner reads a press with. No face
+keeps anything: the caret, the selection and the scroll are the value's.
 
 **A word has one definition here, and every gesture composes it from the same scan.** A word
 is a maximal run of non-space bytes -- a shell's word, not an editor's: no identifier class, no

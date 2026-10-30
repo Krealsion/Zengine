@@ -4,12 +4,12 @@
 #ifndef ZENGINE_GRAPHICS_ELEMENTS_TEXT_FACE_HPP
 #define ZENGINE_GRAPHICS_ELEMENTS_TEXT_FACE_HPP
 
-// The text pieces as a window that sets type draws them: a text box's outline, its text, caret and
-// selection, and a text area scrolled freely with its bar. Stateless: every face is drawn from the
-// value its owner keeps (`component/text_box.hpp`, `component/text_area.hpp`) and keeps nothing,
-// and the geometry a face is drawn with is the one its owner reads a press with
-// (`text_area_geometry`), so a press lands where the face showed. A medium of characters spells the
-// same values in cells instead (`component::text_box_cells`, `component::TextArea::cells`).
+// The text pieces' looks, a face each medium's beside the other's: where the window sets type a
+// text box's outline, its text, caret and selection, and a text area scrolled freely with its bar;
+// in a row of cells a box's `[text___]` and an area's lines between its markers. Stateless: every
+// face is drawn from the value its owner keeps (`component/text_box.hpp`,
+// `component/text_area.hpp`), measured in characters, and keeps nothing; each comes with the
+// geometry its owner reads a press with, so a press lands where the face showed.
 // Reference: graphics/docs/graphics.md, "Drawing the text pieces".
 
 #include "component/text_area.hpp"
@@ -27,12 +27,57 @@
 
 namespace zengine::graphics {
 
-/// THE BAR OF A TEXT AREA, in a window's pixels: the room kept on the area's right whether or not
-/// the text overflows, so nothing reflows when the bar appears, and pressed across all of it; the
-/// width it is drawn; and the shortest its thumb is drawn.
-inline constexpr std::int64_t kTextAreaBarRoom = 16;
-inline constexpr std::int64_t kTextAreaBarDrawn = 8;
-inline constexpr std::int64_t kTextAreaThumbLeast = 16;
+// ---- A text box ---------------------------------------------------------------------------------
+
+/// THE COLUMN A TEXT BOX KEEPS ON EACH SIDE OF ITS TEXT: a bracket in a row of cells, a margin inside
+/// its outline where the window sets type. Both faces keep it, so the box's text and its caret stand
+/// in the same columns in either medium.
+inline constexpr std::int64_t kTextBoxInset = 1;
+
+/// The characters a box `columns` wide gives its text: all but its inset on each side.
+inline std::int64_t text_box_room(std::int64_t columns) noexcept {
+    return columns > 2 * kTextBoxInset ? columns - 2 * kTextBoxInset : 0;
+}
+
+/// A box's slice as characters show it: a byte outside printable ASCII a `?`, one column a byte.
+inline std::string text_box_printable(const std::string& shown) {
+    std::string out = shown;
+    for (char& c : out) {
+        const auto b = static_cast<unsigned char>(c);
+        if (b < 0x20u || b > 0x7eu) {
+            c = '?';
+        }
+    }
+    return out;
+}
+
+/// THE BOX IN A ROW OF CELLS, `columns` wide: `[`, its slice, its blank room spelled `_`, `]` -- an
+/// empty box `[______]`. A box too narrow for its brackets is as many of them as fit.
+inline std::string text_box_spelling(const component::TextBoxView& view, std::int64_t columns) {
+    if (columns <= 0) {
+        return {};
+    }
+    if (columns < 2 * kTextBoxInset + 1) {
+        return std::string("[]").substr(0, static_cast<std::size_t>(columns));
+    }
+    const auto room = static_cast<std::size_t>(text_box_room(columns));
+    std::string inside = text_box_printable(view.shown.substr(0, room));
+    inside.resize(room, '_');
+    return "[" + inside + "]";
+}
+
+/// ...AND THE CHARACTERS IT SHOWS WHERE THE WINDOW SETS TYPE, `columns` wide: its slice inside the
+/// blank margins its outline stands round (`text_box_face`).
+inline std::string text_box_lettering(const component::TextBoxView& view, std::int64_t columns) {
+    if (columns <= 0) {
+        return {};
+    }
+    std::string out(static_cast<std::size_t>(columns), ' ');
+    const auto room = static_cast<std::size_t>(text_box_room(columns));
+    out.replace(static_cast<std::size_t>(kTextBoxInset), (std::min)(room, view.shown.size()),
+                text_box_printable(view.shown.substr(0, room)));
+    return out;
+}
 
 /// A BOX'S OUTLINE: one pixel in `role::kEdge` round `w` by `h` at `x`, `y`.
 inline void text_box_outline(Sketch& sketch, const std::string& node, std::int64_t x,
@@ -40,33 +85,38 @@ inline void text_box_outline(Sketch& sketch, const std::string& node, std::int64
     sketch.outline_rect(node, x, y, w, h, by_role(role::kEdge));
 }
 
-/// A TEXT BOX DRAWN FROM ITS CELLS (`component::text_box_cells`) at `x`, `y` in `text`'s measure,
-/// one line tall: its outline where it is seen as a box, its slice in `ink`, the selected columns
-/// again in the accent role and the caret a bar before the column it sits before -- the caret
-/// and the selection only while `keys` are in the box. A node under `node` each.
+/// A TEXT BOX DRAWN WHERE THE WINDOW SETS TYPE, `columns` characters wide at `x`, `y` in `text`'s
+/// measure, one line tall: its outline, its slice in `ink` after its inset, and while `keys` are in
+/// the box its selected columns again in the accent role and its caret a bar. A node under `node`
+/// each.
 inline void text_box_face(Sketch& sketch, const std::string& node,
-                          const component::TextBoxCells& cells, std::int64_t x, std::int64_t y,
-                          const TextMeasure& text, Paint ink, bool keys) {
-    const std::int64_t w = cells.columns * text.advance;
-    if (cells.bordered) {
-        text_box_outline(sketch, node + ".edge", x, y, w, text.line);
-    }
-    const std::int64_t at = x + cells.text_begin * text.advance;
-    const auto take = static_cast<std::size_t>(std::max<std::int64_t>(0, cells.text_columns));
-    const std::string slice = cells.text.substr(static_cast<std::size_t>(cells.text_begin), take);
-    sketch.text(node + ".text", at, y, slice, ink);
+                          const component::TextBoxView& view, std::int64_t columns, std::int64_t x,
+                          std::int64_t y, const TextMeasure& text, Paint ink, bool keys) {
+    text_box_outline(sketch, node + ".edge", x, y, columns * text.advance, text.line);
+    const std::int64_t at = x + kTextBoxInset * text.advance;
+    const auto room = static_cast<std::size_t>(text_box_room(columns));
+    sketch.text(node + ".text", at, y, view.shown.substr(0, room), ink);
     if (!keys) {
         return;
     }
-    if (cells.selected()) {
-        const auto from = static_cast<std::size_t>(cells.selection_begin);
-        const auto n = static_cast<std::size_t>(cells.selection_end - cells.selection_begin);
-        sketch.text(node + ".sel", x + cells.selection_begin * text.advance, y,
-                    cells.text.substr(from, n), by_role(role::kAccent));
+    if (view.selected()) {
+        const auto from = static_cast<std::size_t>(view.selection_begin);
+        const auto n = static_cast<std::size_t>(view.selection_end - view.selection_begin);
+        sketch.text(node + ".sel", at + view.selection_begin * text.advance, y,
+                    view.shown.substr(from, n), by_role(role::kAccent));
     }
-    const std::int64_t cx = x + cells.caret * text.advance;
+    const std::int64_t cx = at + view.caret * text.advance;
     sketch.line(node + ".caret", cx, y, cx, y + text.line - 1, by_role(role::kAccent));
 }
+
+// ---- A text area, where the window sets type ------------------------------------------------------
+
+/// THE BAR OF A TEXT AREA, in a window's pixels: the room kept on the area's right whether or not
+/// the text overflows, so nothing reflows when the bar appears, and pressed across all of it; the
+/// width it is drawn; and the shortest its thumb is drawn.
+inline constexpr std::int64_t kTextAreaBarRoom = 16;
+inline constexpr std::int64_t kTextAreaBarDrawn = 8;
+inline constexpr std::int64_t kTextAreaThumbLeast = 16;
 
 /// WHERE A TEXT AREA STANDS IN A WINDOW `w` BY `h` PIXELS in `text`'s measure: the columns it wraps
 /// at (the room less the bar's), its lines, the window's height and its scroll in
@@ -200,6 +250,103 @@ void text_area_face(Sketch& sketch, const std::string& node, const component::Te
         sketch.fill_rect(bar + "/thumb", (kTextAreaBarRoom - kTextAreaBarDrawn) / 2, g.thumb_y,
                          kTextAreaBarDrawn, g.thumb_h, by_role(role::kMuted));
     }
+}
+
+// ---- A text area, in a row of cells ---------------------------------------------------------------
+
+/// ONE ROW OF A TEXT AREA IN CELLS: its text, the role it reads in (the paragraph's look, a marker's
+/// muted role), whether it is a marker, the wrapped line it shows (-1 for a marker), and its
+/// selected columns (end exclusive, equal for none).
+struct TextAreaCellRow {
+    std::string text;
+    std::int64_t role = role::kFill;
+    bool marker = false;
+    std::int64_t line = -1;
+    std::int64_t selection_begin = 0, selection_end = 0;
+    bool operator==(const TextAreaCellRow&) const = default;
+};
+
+/// THE AREA IN `rows` ROWS OF `columns` CELLS: its lines from the scroll's, `N more above...` atop
+/// where lines are hidden above and `... N more below` at the foot where lines are hidden below, a
+/// line's count of each. A marker takes a row the text would have had.
+struct TextAreaCells {
+    std::vector<TextAreaCellRow> rows;
+    std::vector<component::TextArea::Line> wrapped;
+    std::size_t first = 0, above = 0, below = 0;
+};
+
+/// The lines of text a room of `rows` rows shows once scrolled to its end: all of them while the text
+/// fits, else all but the marker atop.
+inline std::int64_t text_area_cells_text_rows(std::size_t total, std::int64_t rows) noexcept {
+    return rows >= 2 && total > static_cast<std::size_t>(rows) ? rows - 1 : rows;
+}
+
+inline TextAreaCells text_area_cells(const component::TextArea& area, std::int64_t rows,
+                                     std::int64_t columns) {
+    TextAreaCells out;
+    out.wrapped = area.lines(columns);
+    if (rows <= 0 || columns <= 0) {
+        return out;
+    }
+    const std::size_t total = out.wrapped.size();
+    const std::size_t first =
+        total <= static_cast<std::size_t>(rows)
+            ? 0
+            : area.first_line(out.wrapped, text_area_cells_text_rows(total, rows));
+    const bool top_marker = first > 0 && rows >= 2;
+    std::int64_t room = rows - (top_marker ? 1 : 0);
+    const bool foot_marker = first + static_cast<std::size_t>(room) < total && room >= 2;
+    room -= foot_marker ? 1 : 0;
+    const std::size_t end = (std::min)(first + static_cast<std::size_t>(room), total);
+    out.first = first;
+    out.above = first;
+    out.below = total - end;
+    const auto marker = [&](std::string words) {
+        TextAreaCellRow row;
+        row.marker = true;
+        row.role = role::kMuted;
+        row.text = std::move(words);
+        if (static_cast<std::int64_t>(row.text.size()) > columns) {
+            row.text.resize(static_cast<std::size_t>(columns));
+        }
+        out.rows.push_back(std::move(row));
+    };
+    if (top_marker) {
+        marker(std::to_string(first) + " more above...");
+    }
+    for (std::size_t i = first; i < end; ++i) {
+        const component::TextArea::ShownLine shown = area.shown_line(out.wrapped[i], i, columns);
+        out.rows.push_back(TextAreaCellRow{shown.text, shown.look.role, false,
+                                           static_cast<std::int64_t>(i), shown.selection_begin,
+                                           shown.selection_end});
+    }
+    if (foot_marker) {
+        marker("... " + std::to_string(out.below) + " more below");
+    }
+    return out;
+}
+
+/// THE PLACE A PRESS ON ROW `row`, COLUMN `column` OF `cells` NAMES: none on a marker or past the
+/// rows.
+inline std::optional<std::size_t> text_area_cells_place(const component::TextArea& area,
+                                                        const TextAreaCells& cells,
+                                                        std::int64_t row, std::int64_t column) {
+    if (row < 0 || row >= static_cast<std::int64_t>(cells.rows.size())) {
+        return std::nullopt;
+    }
+    const TextAreaCellRow& r = cells.rows[static_cast<std::size_t>(row)];
+    if (r.marker || r.line < 0) {
+        return std::nullopt;
+    }
+    return area.place_in_line(cells.wrapped[static_cast<std::size_t>(r.line)], column);
+}
+
+/// THE AREA SCROLLED `by` LINES IN `rows` ROWS OF `columns` CELLS, held so its last line ends the
+/// rows its markers leave.
+inline void text_area_cells_scroll(component::TextArea& area, std::int64_t by, std::int64_t rows,
+                                   std::int64_t columns) {
+    area.scroll_lines(by, columns,
+                      text_area_cells_text_rows(area.lines(columns).size(), rows));
 }
 
 } // namespace zengine::graphics

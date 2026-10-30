@@ -6,9 +6,9 @@
 
 // Text longer than its place, read only: wrapped by width, scrolled, its text selected and copied,
 // over the text core (`text.hpp`). The scroll and the selection are places in the text, never rows
-// or pixels, so a text wrapped again at another width keeps both. No medium: a window draws it
-// with a bar and scrolls it freely (`graphics/elements/text_face.hpp`), and a row of cells spells
-// it here (`TextArea::cells`), with a marker for the lines above and below.
+// or pixels, so a text wrapped again at another width keeps both. No medium: measured in characters,
+// as both media lay a row out; how it looks -- a window's bar, a row of cells' markers -- is a face's
+// (`graphics/elements/text_face.hpp`).
 // Reference: component/docs/component.md.
 
 #include "component/text.hpp"
@@ -128,19 +128,24 @@ public:
         return character_boundary(text_, at);
     }
 
-    // ---- The scroll, in a row of cells ----------------------------------------------------------
+    // ---- The scroll, by whole lines --------------------------------------------------------------
 
-    /// THE FURTHEST FIRST LINE `rows` ROWS OF CELLS SHOW, `total` lines long: the last lines
-    /// under the marker for those above, none below.
+    /// THE FURTHEST FIRST LINE `rows` LINES OF TEXT SHOW, `total` lines long: the last lines.
     static std::size_t last_first(std::size_t total, std::int64_t rows) noexcept {
-        if (rows <= 0 || total <= static_cast<std::size_t>(rows)) {
-            return 0;
-        }
-        const std::size_t shown = rows >= 2 ? static_cast<std::size_t>(rows - 1) : 1;
-        return total - shown;
+        const std::size_t room = rows > 0 ? static_cast<std::size_t>(rows) : 1;
+        return total > room ? total - room : 0;
     }
 
-    /// THE SCROLL MOVED `by` LINES, `columns` wide in `rows` rows of cells, held inside the text.
+    /// THE FIRST LINE SHOWN, of `all`, where `rows` lines of text show: the line holding the scroll's
+    /// place, held so the last line ends the rows at most.
+    std::size_t first_line(const std::vector<Line>& all, std::int64_t rows) const noexcept {
+        const std::size_t first = line_of(all, top_);
+        const std::size_t last = last_first(all.size(), rows);
+        return first > last ? last : first;
+    }
+
+    /// THE SCROLL MOVED `by` LINES, `columns` wide where `rows` lines of text show, held inside the
+    /// text.
     void scroll_lines(std::int64_t by, std::int64_t columns, std::int64_t rows) {
         const std::vector<Line> all = lines(columns);
         if (all.empty()) {
@@ -262,76 +267,37 @@ public:
         return false;
     }
 
-    // ---- In cells --------------------------------------------------------------------------------
+    // ---- A line as characters show it -----------------------------------------------------------
 
-    /// ONE ROW OF THE AREA SPELLED IN CELLS: its text from the area's first column, the paragraph's
-    /// look, the selected columns (end exclusive, equal for none), and the bytes of the text it
-    /// shows; a marker row shows none (`line` is -1).
-    struct CellRow {
+    /// ONE WRAPPED LINE AS A ROW OF CHARACTERS SHOWS IT: its indent and its bytes, cut to `columns`,
+    /// its paragraph's look, its index among the wrapped lines, and the columns of it selected (end
+    /// exclusive, equal for none).
+    struct ShownLine {
         std::string text;
         TextLook look;
-        bool marker = false;
-        std::int64_t line = -1;
+        std::size_t line = 0;
         std::int64_t selection_begin = 0, selection_end = 0;
-        bool operator==(const CellRow&) const = default;
+        bool operator==(const ShownLine&) const = default;
     };
 
-    /// THE AREA IN `rows` ROWS OF `columns` CELLS: the lines from the scroll's, `N more above...`
-    /// atop where lines are hidden above and `... N more below` at the foot where lines are hidden
-    /// below, a line's count of each. `first` is the first line shown, `lines` the whole count.
-    struct Cells {
-        std::vector<CellRow> rows;
-        std::vector<Line> wrapped;
-        std::size_t first = 0, above = 0, below = 0;
-    };
-
-    Cells cells(std::int64_t rows, std::int64_t columns) const {
-        Cells out;
-        out.wrapped = lines(columns);
-        if (rows <= 0 || columns <= 0) {
-            return out;
+    ShownLine shown_line(const Line& line, std::size_t index, std::int64_t columns) const {
+        ShownLine row;
+        row.look = look(line.paragraph);
+        row.line = index;
+        row.text = std::string(static_cast<std::size_t>(line.indent), ' ') +
+                   text_.substr(line.begin, line.end - line.begin);
+        if (static_cast<std::int64_t>(row.text.size()) > columns) {
+            row.text.resize(static_cast<std::size_t>(columns > 0 ? columns : 0));
         }
-        const std::size_t total = out.wrapped.size();
-        std::size_t first = line_of(out.wrapped, top_);
-        const std::size_t last = last_first(total, rows);
-        first = first > last ? last : first;
-        if (total <= static_cast<std::size_t>(rows)) {
-            first = 0;
+        if (places_.has_selection()) {
+            const std::size_t b = places_.begin() > line.begin ? places_.begin() : line.begin;
+            const std::size_t e = places_.end() < line.end ? places_.end() : line.end;
+            if (e > b) {
+                row.selection_begin = line.indent + static_cast<std::int64_t>(b - line.begin);
+                row.selection_end = line.indent + static_cast<std::int64_t>(e - line.begin);
+            }
         }
-        const bool top_marker = first > 0 && rows >= 2;
-        std::int64_t room = rows - (top_marker ? 1 : 0);
-        const bool foot_marker = first + static_cast<std::size_t>(room) < total && room >= 2;
-        room -= foot_marker ? 1 : 0;
-        const std::size_t end = first + static_cast<std::size_t>(room) < total
-                                    ? first + static_cast<std::size_t>(room)
-                                    : total;
-        out.first = first;
-        out.above = first;
-        out.below = total - end;
-        if (top_marker) {
-            out.rows.push_back(marker(std::to_string(first) + " more above...", columns));
-        }
-        for (std::size_t i = first; i < end; ++i) {
-            out.rows.push_back(cell_row(out.wrapped[i], i, columns));
-        }
-        if (foot_marker) {
-            out.rows.push_back(marker("... " + std::to_string(out.below) + " more below", columns));
-        }
-        return out;
-    }
-
-    /// THE PLACE A PRESS ON ROW `row`, COLUMN `column` OF `cells` NAMES: none on a marker or past
-    /// the rows.
-    std::optional<std::size_t> place_at(const Cells& cells, std::int64_t row,
-                                        std::int64_t column) const {
-        if (row < 0 || row >= static_cast<std::int64_t>(cells.rows.size())) {
-            return std::nullopt;
-        }
-        const CellRow& r = cells.rows[static_cast<std::size_t>(row)];
-        if (r.marker || r.line < 0) {
-            return std::nullopt;
-        }
-        return place_in_line(cells.wrapped[static_cast<std::size_t>(r.line)], column);
+        return row;
     }
 
 private:
@@ -376,36 +342,6 @@ private:
             at = next;
             first = false;
         }
-    }
-
-    CellRow cell_row(const Line& line, std::size_t index, std::int64_t columns) const {
-        CellRow row;
-        row.look = look(line.paragraph);
-        row.line = static_cast<std::int64_t>(index);
-        row.text = std::string(static_cast<std::size_t>(line.indent), ' ') +
-                   text_.substr(line.begin, line.end - line.begin);
-        if (static_cast<std::int64_t>(row.text.size()) > columns) {
-            row.text.resize(static_cast<std::size_t>(columns));
-        }
-        if (places_.has_selection()) {
-            const std::size_t b = places_.begin() > line.begin ? places_.begin() : line.begin;
-            const std::size_t e = places_.end() < line.end ? places_.end() : line.end;
-            if (e > b) {
-                row.selection_begin = line.indent + static_cast<std::int64_t>(b - line.begin);
-                row.selection_end = line.indent + static_cast<std::int64_t>(e - line.begin);
-            }
-        }
-        return row;
-    }
-
-    static CellRow marker(std::string words, std::int64_t columns) {
-        CellRow row;
-        row.marker = true;
-        row.text = std::move(words);
-        if (static_cast<std::int64_t>(row.text.size()) > columns) {
-            row.text.resize(static_cast<std::size_t>(columns));
-        }
-        return row;
     }
 
     std::string text_;

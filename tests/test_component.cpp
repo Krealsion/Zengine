@@ -2168,59 +2168,68 @@ TEST_CASE("text core: a selection is two places, and a copy is the text between 
     CHECK(wild.caret == 1);
 }
 
-TEST_CASE("text box cells: the slice, the caret and the selection come from one window") {
+TEST_CASE("text box view: the slice, the caret and the selection come from one window, in characters") {
     TextBox box;
     box.set("hello world", 11);
-    // A caret after the last character sits at the box's last column, a real one.
-    const TextBoxCells plain = text_box_cells(box, 6);
-    CHECK(plain.text == " world");
-    CHECK(plain.caret == 6);
-    CHECK_FALSE(plain.bordered);
-    CHECK(plain.columns == 6);
+    // A caret after the last character sits at the slice's last column, a real one.
+    const TextBoxView view = text_box_view(box, 6);
+    CHECK(view.shown == " world");
+    CHECK(view.caret == 6);
+    CHECK(view.columns == 6);
+    CHECK_FALSE(view.selected());
     box.select_word_left();
-    const TextBoxCells chosen = text_box_cells(box, 6);
+    const TextBoxView chosen = text_box_view(box, 6);
     CHECK(chosen.selected());
     CHECK(chosen.selection_begin == 1);
     CHECK(chosen.selection_end == 6);
     CHECK(chosen.caret == 1);
-}
-
-TEST_CASE("text box cells: a box seen as a box is spelled [text___] and its slice sits inside") {
-    TextBox box;
-    box.set("abc", 3);
-    const TextBoxCells cells = text_box_cells(box, 8, true);
-    CHECK(cells.bordered);
-    CHECK(cells.text == "[abc___]");
-    CHECK(cells.text_begin == 1);
-    CHECK(cells.text_columns == 3);
-    CHECK(cells.caret == 4);
-    CHECK(cells.columns == 8);
-    // Too narrow for a border: spelled plain.
-    CHECK_FALSE(text_box_cells(box, 2, true).bordered);
-    // A long text scrolls inside the border, the caret kept in view.
+    // An empty box shows nothing, its caret at its first column.
+    TextBox empty;
+    const TextBoxView none = text_box_view(empty, 8);
+    CHECK(none.shown.empty());
+    CHECK(none.caret == 0);
+    // Read through a const box, the window it holds is the one measured: nothing moves it.
     box.set("abcdefghij", 10);
-    const TextBoxCells scrolled = text_box_cells(box, 6, true);
-    CHECK(scrolled.text == "[ghij]");
-    CHECK(scrolled.caret == 5);
+    const TextBox& held = box;
+    CHECK(text_box_view(held, 4).shown == "abcd");
+    CHECK(text_box_view(box, 4).shown == "ghij");
 }
 
-TEST_CASE("text box cells: the whole box is pressable, its blank room and border included") {
+TEST_CASE("text box view: a narrow box follows its caret both ways, and its view says where it stands") {
+    TextBox box;
+    box.set("abcdefghij", 10);
+    TextBoxView view = text_box_view(box, 4);
+    CHECK(view.shown == "ghij");
+    CHECK(view.caret == 4);
+    box.home();
+    view = text_box_view(box, 4);
+    CHECK(view.shown == "abcd");
+    CHECK(view.caret == 0);
+    box.word_right();
+    view = text_box_view(box, 4);
+    CHECK(view.shown == "ghij");
+    CHECK(view.caret == 4);
+    // A selection reaching off the view shows only its visible columns.
+    box.select_all();
+    view = text_box_view(box, 4);
+    CHECK(view.selection_begin == 0);
+    CHECK(view.selection_end == 4);
+}
+
+TEST_CASE("text box view: a press anywhere on the box names a place, its blank room included") {
     TextBox box;
     box.set("abc", 0);
-    const TextBoxCells cells = text_box_cells(box, 10, true);
     // On the text: the column's byte.
-    text_box_press(box, cells, 2);
+    text_box_press(box, 1);
     CHECK(box.caret() == 1);
-    // On the blank room after the text, and on the closing border: the end of the text.
-    text_box_press(box, cells, 7);
+    // On the blank room after the text: the end of the text.
+    text_box_press(box, 6);
     CHECK(box.caret() == 3);
-    text_box_press(box, cells, 9);
-    CHECK(box.caret() == 3);
-    // On the opening border: the first visible byte.
-    text_box_press(box, cells, 0);
+    // Left of the slice: its first visible byte.
+    text_box_press(box, -1);
     CHECK(box.caret() == 0);
     // Extended: the anchor stays where the press put it.
-    text_box_press(box, cells, 3, true);
+    text_box_press(box, 2, true);
     CHECK(box.anchor() == 0);
     CHECK(box.caret() == 2);
     CHECK(box.selected_text() == "ab");
@@ -2256,40 +2265,30 @@ TEST_CASE("text area: a width wraps each paragraph at its last space, a further 
     CHECK(area.lines(10).empty());
 }
 
-TEST_CASE("text area: in cells, a marker says how many lines are above and below") {
+TEST_CASE("text area: scrolled by whole lines, the last line ends the rows at most") {
     TextArea area;
     std::string text;
     for (int i = 0; i < 10; ++i) {
         text += (i == 0 ? "" : "\n") + std::string("line ") + std::to_string(i);
     }
     area.set(text);
-    // At the top: lines, then the foot's marker.
-    auto cells = area.cells(5, 20);
-    REQUIRE(cells.rows.size() == 5);
-    CHECK(cells.rows[0].text == "line 0");
-    CHECK(cells.rows[3].text == "line 3");
-    CHECK(cells.rows[4].marker);
-    CHECK(cells.rows[4].text == "... 6 more below");
-    // Scrolled: a marker atop and at the foot.
-    area.scroll_lines(3, 20, 5);
-    cells = area.cells(5, 20);
-    CHECK(cells.rows[0].text == "3 more above...");
-    CHECK(cells.rows[1].text == "line 3");
-    CHECK(cells.rows[3].text == "line 5");
-    CHECK(cells.rows[4].text == "... 4 more below");
-    // At the end: the marker atop alone, and no scroll past the last line.
-    area.scroll_lines(100, 20, 5);
-    cells = area.cells(5, 20);
-    CHECK(cells.rows[0].text == "6 more above...");
-    CHECK(cells.rows[4].text == "line 9");
-    CHECK_FALSE(cells.rows[4].marker);
-    CHECK(cells.below == 0);
-    // Everything fits: no marker at all.
+    const auto lines = area.lines(20);
+    REQUIRE(lines.size() == 10);
+    CHECK(area.first_line(lines, 4) == 0);
+    area.scroll_lines(3, 20, 4);
+    CHECK(area.top() == lines[3].begin);
+    CHECK(area.first_line(lines, 4) == 3);
+    // Past the end: held where the last line ends the rows.
+    area.scroll_lines(100, 20, 4);
+    CHECK(area.first_line(lines, 4) == 6);
+    CHECK(TextArea::last_first(10, 4) == 6);
+    CHECK(TextArea::last_first(3, 4) == 0);
+    // A line as characters show it: its text, its look, its index.
+    const TextArea::ShownLine shown = area.shown_line(lines[6], 6, 20);
+    CHECK(shown.text == "line 6");
+    CHECK(shown.line == 6);
     area.scroll_home();
-    cells = area.cells(12, 20);
-    CHECK(cells.rows.size() == 10);
-    CHECK(cells.above == 0);
-    CHECK(cells.below == 0);
+    CHECK(area.first_line(lines, 4) == 0);
 }
 
 TEST_CASE("text area: the scroll and the selection are places, so a rewrap keeps both") {
@@ -2304,8 +2303,7 @@ TEST_CASE("text area: the scroll and the selection are places, so a rewrap keeps
     // Wrapped at another width, the line holding the scroll's place is the first shown, and the
     // selection names the same bytes.
     const auto wide = area.lines(30);
-    const TextArea::Cells cells = area.cells(1, 30);
-    CHECK(cells.first == TextArea::line_of(wide, top));
+    CHECK(area.first_line(wide, 1) == TextArea::line_of(wide, top));
     CHECK(area.top() == top);
     CHECK(area.selected_text() == chosen);
     // New text keeps both places, held inside it.
@@ -2325,18 +2323,12 @@ TEST_CASE("text area: a copy is the text as written, without the wrap's breaks o
     Clipboard clip;
     area.copy(clip);
     CHECK(clip.text == "first words of a paragraph\nsecond");
-    // A press on a shown cell names a place in the text, an indent's column its line's first.
-    const TextArea::Cells cells = area.cells(10, 10);
-    REQUIRE(cells.rows.size() == lines.size());
-    const auto in_indent = area.place_at(cells, 1, 1);
-    REQUIRE(in_indent.has_value());
-    CHECK(*in_indent == lines[1].begin);
-    const auto past = area.place_at(cells, 0, 9);
-    REQUIRE(past.has_value());
-    CHECK(*past == lines[0].end);
-    CHECK_FALSE(area.place_at(cells, 99, 0).has_value());
-    // The selected columns of a row stand after its indent.
-    CHECK(cells.rows[1].selection_begin == 4);
+    // A column of a shown line names a place in the text, an indent's column its line's first.
+    CHECK(area.place_in_line(lines[1], 1) == lines[1].begin);
+    CHECK(area.place_in_line(lines[0], 9) == lines[0].end);
+    // The selected columns of a line stand after its indent.
+    CHECK(area.shown_line(lines[1], 1, 10).selection_begin == 4);
+    CHECK(area.shown_line(lines[1], 1, 10).text.rfind("    ", 0) == 0);
 }
 
 TEST_CASE("text area: a word stops at a space or a line's end; Ctrl+C and Ctrl+A are its own") {

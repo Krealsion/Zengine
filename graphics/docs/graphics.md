@@ -146,17 +146,19 @@ again only what the window does not hold.
 
 ## Drawing the text pieces
 
-`graphics/elements/text_face.hpp` draws the text pieces from the values `component/` keeps, and
-keeps nothing itself. `text_box_face` draws a text box from its cells (`component::text_box_cells`):
-its outline in `role::kEdge` where it is seen as a box, its slice, its selection again in the accent
-role and its caret a bar. `text_area_face` draws a text area scrolled freely: its lines from the
+`graphics/elements/text_face.hpp` holds the text pieces' looks, a face each medium's, drawn from the
+values `component/` keeps measured in characters, and keeps nothing itself. A text box keeps a
+column on each side of its text (`kTextBoxInset`): in a row of cells `[text___]`
+(`text_box_spelling`), where the window sets type its outline in `role::kEdge` round its text,
+selection and caret (`text_box_face`). A text area in a row of cells shows its lines between
+`N more above...` and `... N more below` (`text_area_cells`, read back by
+`text_area_cells_place`). `text_area_face` draws a text area scrolled freely: its lines from the
 scroll's place, the first and last cut by their pixels where the scroll stands between two lines,
 the selection on a muted ground behind its text, and the bar's thumb in a room kept on the right
 whether or not the text overflows (`kTextAreaBarRoom`, drawn `kTextAreaBarDrawn` wide), pressed
 across all of that room. The owner reads a press with the geometry the face was drawn with
 (`text_area_geometry`, `text_area_place_at`, `text_area_on_bar`, `text_area_bar_scroll`), so a
-press lands where the face showed. A medium of characters shows the same values spelled in cells
-instead, beside the values in `component/`.
+press lands where the face showed.
 
 ## A drawing weave
 

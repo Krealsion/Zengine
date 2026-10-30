@@ -19,8 +19,8 @@ spells a header from the repository root, for example `#include "component/text_
 | | |
 |---|---|
 | `text.hpp` | what the text pieces share: characters, words, a selection as two places, a copy |
-| `text_box.hpp` | a one-line text box: caret, selection, copy and paste, and undo; and how it reads as a row of characters |
-| `text_area.hpp` | long text read only: wrapped by width, scrolled, its text selected and copied; and how it reads as rows of characters |
+| `text_box.hpp` | a one-line text box: caret, selection, copy and paste, and undo; and what a width of characters shows of it |
+| `text_area.hpp` | long text read only: wrapped by width, scrolled, its text selected and copied; and the lines a width shows |
 | `list_window.hpp` | which part of a list fits the space a pane has, and how much is left out |
 | `row_map.hpp` | what each row and column span a pane drew means, so a press lands on it |
 | `held_choice.hpp` | a chosen row remembered by identity while the list around it changes |

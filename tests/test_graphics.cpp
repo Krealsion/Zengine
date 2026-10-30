@@ -6923,13 +6923,22 @@ std::string action_of(const gfx::Sketch& s, const std::string& path) {
 }
 } // namespace
 
-TEST_CASE("a text box's face: an outline in the edge role where it is seen as a box, its caret a bar") {
+TEST_CASE("a text box's two faces: [text___] in a row of cells, an outline in the edge role where "
+          "the window sets type, its text and caret inside the same inset in both") {
     zengine::component::TextBox box;
     box.set("abc", 3);
-    const auto cells = zengine::component::text_box_cells(box, 8, true);
+    const auto view = zengine::component::text_box_view(box, gfx::text_box_room(8));
+    // IN A ROW OF CELLS: brackets, the slice, the blank room spelled.
+    CHECK(gfx::text_box_spelling(view, 8) == "[abc___]");
+    zengine::component::TextBox empty;
+    CHECK(gfx::text_box_spelling(zengine::component::text_box_view(empty, 6), 8) == "[______]");
+    CHECK(gfx::text_box_spelling(view, 2) == "[]");
+    CHECK(gfx::text_box_spelling(view, 0).empty());
+    // ...AND WHERE THE WINDOW SETS TYPE: the slice inside blank margins, an outline round it.
+    CHECK(gfx::text_box_lettering(view, 8) == " abc    ");
     const gfx::TextMeasure m{10, 20};
     gfx::Sketch s;
-    gfx::text_box_face(s, "box", cells, 5, 7, m, gfx::by_role(gfx::role::kFill), true);
+    gfx::text_box_face(s, "box", view, 8, 5, 7, m, gfx::by_role(gfx::role::kFill), true);
     const gfx::Node* edge = node_named(s, "box.edge");
     REQUIRE(edge != nullptr);
     const auto outline = gfx::from_body<gfx::RectArgs>(edge->args);
@@ -6938,18 +6947,60 @@ TEST_CASE("a text box's face: an outline in the edge role where it is seen as a 
     CHECK(outline->w == 80);
     CHECK(outline->h == 20);
     CHECK(outline->stroke.role == gfx::role::kEdge);
-    // The slice alone is drawn as text: the border and the blank room are the outline's.
     const auto words = gfx::from_body<gfx::TextArgs>(node_named(s, "box.text")->args);
     REQUIRE(words.has_value());
     CHECK(words->text == "abc");
-    CHECK(words->x == 15);
+    CHECK(words->x == 5 + gfx::kTextBoxInset * 10);
+    // The caret stands after the inset and the text, as the cells' caret does.
     const auto caret = gfx::from_body<gfx::LineArgs>(node_named(s, "box.caret")->args);
     REQUIRE(caret.has_value());
-    CHECK(caret->x1 == 5 + 4 * 10);
+    CHECK(caret->x1 == 5 + (gfx::kTextBoxInset + 3) * 10);
     // Without the keys, no caret.
     gfx::Sketch away;
-    gfx::text_box_face(away, "box", cells, 5, 7, m, gfx::by_role(gfx::role::kFill), false);
+    gfx::text_box_face(away, "box", view, 8, 5, 7, m, gfx::by_role(gfx::role::kFill), false);
     CHECK(node_named(away, "box.caret") == nullptr);
+}
+
+TEST_CASE("a text area in a row of cells: a marker says how many lines are above and below, and a "
+          "press names a place") {
+    zengine::component::TextArea area;
+    std::string text;
+    for (int i = 0; i < 10; ++i) text += (i == 0 ? "" : "\n") + std::string("line ") + std::to_string(i);
+    area.set(text);
+    // At the top: lines, then the foot's marker.
+    auto cells = gfx::text_area_cells(area, 5, 20);
+    REQUIRE(cells.rows.size() == 5);
+    CHECK(cells.rows[0].text == "line 0");
+    CHECK(cells.rows[3].text == "line 3");
+    CHECK(cells.rows[4].marker);
+    CHECK(cells.rows[4].role == gfx::role::kMuted);
+    CHECK(cells.rows[4].text == "... 6 more below");
+    // Scrolled: a marker atop and at the foot.
+    gfx::text_area_cells_scroll(area, 3, 5, 20);
+    cells = gfx::text_area_cells(area, 5, 20);
+    CHECK(cells.rows[0].text == "3 more above...");
+    CHECK(cells.rows[1].text == "line 3");
+    CHECK(cells.rows[3].text == "line 5");
+    CHECK(cells.rows[4].text == "... 4 more below");
+    // At the end: the marker atop alone, and no scroll past the last line.
+    gfx::text_area_cells_scroll(area, 100, 5, 20);
+    cells = gfx::text_area_cells(area, 5, 20);
+    CHECK(cells.rows[0].text == "6 more above...");
+    CHECK(cells.rows[4].text == "line 9");
+    CHECK_FALSE(cells.rows[4].marker);
+    CHECK(cells.below == 0);
+    // A press: a line's column names its place; a marker names none.
+    const auto at = gfx::text_area_cells_place(area, cells, 1, 2);
+    REQUIRE(at.has_value());
+    CHECK(*at == cells.wrapped[6].begin + 2);
+    CHECK_FALSE(gfx::text_area_cells_place(area, cells, 0, 2).has_value());
+    CHECK_FALSE(gfx::text_area_cells_place(area, cells, 99, 0).has_value());
+    // Everything fits: no marker at all.
+    area.scroll_home();
+    cells = gfx::text_area_cells(area, 12, 20);
+    CHECK(cells.rows.size() == 10);
+    CHECK(cells.above == 0);
+    CHECK(cells.below == 0);
 }
 
 TEST_CASE("a text area's face: wrapped less the bar's room, scrolled by pixels, read back where it "

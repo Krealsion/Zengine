@@ -9,8 +9,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `CMakeLists.txt` | `zengine-component` (`zengine::component`): header-only, links nothing |
 | `text.hpp` | the text core: the character and word rules, `Clipboard`, `TextPlaces`, `copy_selection` |
-| `text_box.hpp` | `TextBox`, `kEditingVocabulary`, `text_box_cells`, `text_box_press` |
-| `text_area.hpp` | `TextArea`, `TextLook`: long text read only, its wrap, scroll, selection and cells |
+| `text_box.hpp` | `TextBox`, `kEditingVocabulary`, `TextBoxView`, `text_box_view`, `text_box_press` |
+| `text_area.hpp` | `TextArea`, `TextLook`: long text read only, its wrap, scroll, selection and the lines a width shows |
 | `list_window.hpp` | `ListWindow`: what a bounded place shows of a list, and what it omitted |
 | `row_map.hpp` | `RowMap<Meaning>`: what each published row and column span means |
 | `held_choice.hpp` | `HeldChoice<Key>`: a choice kept by identity across a list that moves |

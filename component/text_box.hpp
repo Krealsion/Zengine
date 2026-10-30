@@ -5,7 +5,7 @@
 #define ZENGINE_COMPONENT_TEXT_BOX_HPP
 
 // Editable text with a caret, a selection and a window onto it: the component a single-line
-// draft is edited with, over the text core (`text.hpp`) and its spelling in cells. It owns no policy
+// draft is edited with, over the text core (`text.hpp`), and what a width shows of it. It owns no policy
 // and no medium -- no SDL, terminal, cell, pixel or font metric; no commit, validation, focus,
 // blink or drawing -- and is not an entity: a member of whatever owns it, dying with it. The
 // capacity is always an argument, and the `Clipboard` it operates on is the owner's.
@@ -703,78 +703,53 @@ private:
 };
 
 
-// ---- The text box spelled in cells ------------------------------------------------------
+// ---- The text box measured in characters ------------------------------------------------
 
-/// A TEXT BOX AS A ROW OF CELLS SHOWS IT, from the box's first column: the visible slice, where the
-/// caret sits and which columns are selected, and how many columns the whole box takes, which is
-/// where a press on it reaches. `bordered` is the box seen as a box: `[`, the slice, its blank
-/// room spelled `_`, `]`; a window that sets type draws a border there instead
-/// (`graphics/elements/text_face.hpp`). Plain, it is the slice alone: a caret after the text sits
-/// before no character, and a painter draws it there as a bar.
-struct TextBoxCells {
-    std::string text;
-    std::int64_t caret = 0;           ///< the column the caret sits before
-    std::int64_t selection_begin = 0; ///< selected columns, end exclusive; equal when none shows
+/// WHAT A TEXT BOX SHOWS IN `columns` CHARACTERS, measured as both media lay a row out: the visible
+/// slice, the column the caret sits before, and the selected columns (end exclusive, equal when
+/// none shows), all counted from the slice's first character. How the box looks around them -- an
+/// outline, brackets -- is a face's (`graphics/elements/text_face.hpp`).
+struct TextBoxView {
+    std::string shown;
+    std::int64_t columns = 0;
+    std::int64_t caret = 0;
+    std::int64_t selection_begin = 0;
     std::int64_t selection_end = 0;
-    std::int64_t columns = 0;         ///< the box's whole width: a press anywhere in it is on it
-    std::int64_t text_begin = 0;      ///< the first column of the slice: 1 when bordered
-    std::int64_t text_columns = 0;    ///< ...and how many columns the slice fills
-    bool bordered = false;
     bool selected() const noexcept { return selection_end > selection_begin; }
+    bool operator==(const TextBoxView&) const = default;
 };
 
-/// The columns a box `columns` wide gives its text: all of them, or all but its border where it is
-/// seen as a box and has room for one.
-inline std::int64_t text_box_room(std::int64_t columns, bool bordered) noexcept {
-    const std::int64_t whole = columns > 0 ? columns : 0;
-    return bordered && whole >= 3 ? whole - 2 : whole;
-}
-
-/// THE CELLS A BOX `columns` WIDE SHOWS through the window it holds now. One measurer: the slice,
-/// the caret's column and the selection come from one window, the one a press is answered with
+/// THE BOX AS `columns` CHARACTERS SHOW IT through the window it holds now. One measurer: the slice,
+/// the caret's column and the selection come from one window, the one a press is read with
 /// (`text_box_press`), so a caret cannot land where the text is not.
-inline TextBoxCells text_box_cells(const TextBox& box, std::int64_t columns,
-                                   bool bordered = false) {
-    TextBoxCells out;
-    out.bordered = bordered && columns >= 3;
+inline TextBoxView text_box_view(const TextBox& box, std::int64_t columns) {
+    TextBoxView out;
     out.columns = columns > 0 ? columns : 0;
-    out.text_begin = out.bordered ? 1 : 0;
-    const std::int64_t room = text_box_room(columns, bordered);
-    const std::string slice = box.visible(room);
-    out.text_columns = static_cast<std::int64_t>(slice.size());
-    out.caret = out.text_begin + static_cast<std::int64_t>(box.caret_column());
-    const TextBox::VisibleSpan span = box.visible_selection(room);
+    out.shown = box.visible(out.columns);
+    out.caret = static_cast<std::int64_t>(box.caret_column());
+    const TextBox::VisibleSpan span = box.visible_selection(out.columns);
     if (span.present()) {
-        out.selection_begin = out.text_begin + span.begin;
-        out.selection_end = out.text_begin + span.end;
-    }
-    if (out.bordered) {
-        out.text = "[" + slice + std::string(static_cast<std::size_t>(room) - slice.size(), '_') +
-                   "]";
-    } else {
-        out.text = slice;
+        out.selection_begin = span.begin;
+        out.selection_end = span.end;
     }
     return out;
 }
 
-/// ...AND OF A BOX ITS OWNER MAY MOVE: its window kept round the caret first, for the room the
-/// cells give its text (`TextBox::keep_caret_visible`), then spelled.
-inline TextBoxCells text_box_cells(TextBox& box, std::int64_t columns, bool bordered = false) {
-    box.keep_caret_visible(text_box_room(columns, bordered));
-    return text_box_cells(static_cast<const TextBox&>(box), columns, bordered);
+/// ...AND OF A BOX ITS OWNER MAY MOVE: its window kept round the caret first
+/// (`TextBox::keep_caret_visible`), then measured.
+inline TextBoxView text_box_view(TextBox& box, std::int64_t columns) {
+    box.keep_caret_visible(columns);
+    return text_box_view(static_cast<const TextBox&>(box), columns);
 }
 
-/// WHERE A PRESS ON A BOX'S CELLS PUTS THE CARET: the whole box is pressable, its blank room and
-/// its border included. `column` counts from the box's first column, as `TextBoxCells` does; a
-/// press left of the slice means its first visible byte, one past the text the end of the text.
-/// `extend` is a held Shift or a drag: the caret moves and the anchor stays.
-inline void text_box_press(TextBox& box, const TextBoxCells& cells, std::int64_t column,
-                           bool extend = false) {
-    const std::int64_t at = column - cells.text_begin;
+/// WHERE A PRESS ON A BOX PUTS THE CARET: `column` counted from the slice's first character, any
+/// column of the box meaning something -- left of the slice its first visible byte, past the text
+/// the text's end. `extend` is a held Shift or a drag: the caret moves and the anchor stays.
+inline void text_box_press(TextBox& box, std::int64_t column, bool extend = false) {
     if (extend) {
-        box.drag_to_column(at);
+        box.drag_to_column(column);
     } else {
-        box.place(box.position_at_column(at));
+        box.place(box.position_at_column(column));
     }
 }
 
