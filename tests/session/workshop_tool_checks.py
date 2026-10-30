@@ -3384,6 +3384,49 @@ def run_checks(tools, runtime):
                 self.assertNotIn("InventoryRead", [a[1] for a in asked])
                 self.assertIn("entries.json", produced)
 
+        INVENTORY = {"inventory": ["Demo input 1", "Workbench result"]}
+        INVENTORY_NAMES = {"inventory": ["entry:inv:e1", "entry:inv:e2"],
+                           "info": ["property:Width", "property:Height", "property:Placement"]}
+
+        def carried(self, act_steps):
+            ctx = ActWorkshop(steps, act_steps, ToolChecks.INFO_ROWS, panes=self.INVENTORY,
+                              named=self.INVENTORY_NAMES)
+            try:
+                return ctx, act.run(ctx)
+            finally:
+                for callback in reversed(ctx.cleanups):
+                    callback()
+
+        def test_carry_presses_a_part_moves_to_the_target_panes_middle_and_releases(self):
+            ctx, summary = self.carried([
+                {"carry": ["zengine.inventory-pane", "inventory", "entry:inv:e2"],
+                 "to": ["zengine.info", "info"]},
+                {"part": ["zengine.info", "info", "property:Width"]}])
+            moves = [(e["kind"], e.get("pressed"), e["x"], e["y"]) for e in ctx.events]
+            # The part's point; Info's middle cell -- its place 480 x 36 at 12 px a cell, row 1 and
+            # column 20 -- by the timed motion; the release there; then the next step's press.
+            self.assertEqual(moves[:3], [("PointerButton", True, 50, 18), ("PointerMoved", None, 246, 18),
+                                         ("PointerButton", False, 246, 18)])
+            self.assertEqual(moves[3:], [("PointerButton", True, 50, 6), ("PointerButton", False, 50, 6)])
+            self.assertIn("2 step(s) done: carry part", summary)
+            self.assertEqual(ctx.done()[0]["carry"], "entry:inv:e2")
+
+        def test_carry_to_a_part_releases_at_its_point_and_is_spelled_before_any_contact(self):
+            ctx, _ = self.carried([{"carry": ["zengine.inventory-pane", "inventory", "entry:inv:e1"],
+                                    "to": ["zengine.info", "info", "property:Placement"]}])
+            self.assertEqual([(e["x"], e["y"]) for e in ctx.events][-1], (50, 30))
+            for wrong in ({"carry": ["zengine.inventory-pane", "inventory", "entry:inv:e1"]},
+                          {"carry": ["zengine.inventory-pane", "inventory"], "to": ["zengine.info", "info"]},
+                          {"carry": ["a", "b", "c"], "to": ["zengine.info"]}):
+                ctx = ActWorkshop(steps, [wrong], ToolChecks.INFO_ROWS)
+                with self.assertRaisesRegex(ValueError, "carry names"):
+                    act.run(ctx)
+                self.assertEqual(ctx.contacts, [])
+            said = entry_of("act")
+            self.assertIn("carry (press a part", said["description"])
+            self.assertIn('{"carry": [provider, pane, part]', [i["help"] for i in said["inputs"]
+                                                               if i["name"] == "steps"][0])
+
     loader = unittest.defaultTestLoader
     suite = unittest.TestSuite([loader.loadTestsFromTestCase(ToolChecks),
                                 loader.loadTestsFromTestCase(SaidChecks)])

@@ -4,8 +4,8 @@
 Workshop says it holds instead of by comparing pictures. loom-tool.json lists the verbs and their
 arguments.
 
-A step is one weaver gesture (press, type, open, select, into, click, part, at, rest, wheel,
-control, menu), one observation (desk, expect, absent, rows, picture, wait), or one pane's settings
+A step is one weaver gesture (press, type, open, select, into, click, part, carry, at, rest,
+wheel, control, menu), one observation (desk, expect, absent, rows, picture, wait), or one pane's settings
 read and written by message (settings). Steps run in order through ONE input session; the first that cannot be done ends the run naming its index and verb,
 and nothing after it is sent. Every step is spelled before any Workshop contact, so a misspelled
 list costs nothing.
@@ -26,7 +26,9 @@ number, never by a picture.
 WHAT A NAME IS. Beside its words a pane names the parts a weaver acts on -- a row, a control, an
 element -- with names of its own that it keeps across its redraws, and a menu names its lines by
 the rows' ids. `part` presses a part by its pane and its name, wherever the pane last drew it;
-`open` presses the Pane Manager's row named for a pane (`pane:<office>/<pane>`); `wheel` turns the
+`carry` presses a part by its name, moves to another part's point or a pane's middle and releases
+there, a drag by names; `open` presses the Pane Manager's row named for a pane
+(`pane:<office>/<pane>`); `wheel` turns the
 wheel over a part by its name; `select` and `menu` take a name before the text a row or line shows.
 A name is the pane's: Workshop carries it as said.
 
@@ -62,10 +64,13 @@ from hand import (FALLBACK_PACE, NO_PRESS, POINT_TRIES, SETTLE_SECONDS, Hand, no
                   on_row, rows_of, takes_no_press)
 from workshop_steps import cells_point, chord_moments, moment, picture, png_of, point
 
-VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
-         "control", "menu", "desk", "expect", "absent", "rows", "picture", "wait", "settings")
-GESTURES = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
-            "control", "menu")
+VERBS = ("press", "type", "open", "select", "into", "click", "part", "carry", "at", "rest",
+         "wheel", "control", "menu", "desk", "expect", "absent", "rows", "picture", "wait",
+         "settings")
+GESTURES = ("press", "type", "open", "select", "into", "click", "part", "carry", "at", "rest",
+            "wheel", "control", "menu")
+#: How long a carry's move takes by default, in milliseconds: the Input owner's timed motion.
+CARRY_MS = 600
 MANAGER = ("zengine.desktop", "launcher")
 SAVE_REFUSED = ("names `save`: a picture is this run's artifact, <name>.png with `png`, and a run "
                 "writes no file anywhere else")
@@ -179,6 +184,8 @@ def run(ctx):
             pane_ref(step["open"])  # ...and a pane named by anything but its row's name
         if named == ["wheel"]:
             wheel_of(step)  # ...and a wheel that names no pane or turns no notch
+        if named == ["carry"]:
+            carry_of(step)  # ...and a carry that names no part or nowhere to carry it
         if named == ["settings"]:
             settings_of(step["settings"])  # ...and a setting named by anything but key=value
         if named == ["picture"]:
@@ -476,6 +483,8 @@ def act(ctx, hand, verb, step):
                   "over it take every place of it" % (name, provider, pane))
         press_at(ctx, hand, part, step.get("button", "left"))
         return {"part": name, "text": part["text"], "x": part["x"], "y": part["y"]}
+    if verb == "carry":
+        return carry(ctx, hand, step)
     if verb == "rest":
         # THE POINTER RESTS where it is put, with no button held -- a window pixel "x,y" or a
         # terminal cell that names its cells. A canvas pane that asks for its hover is told where.
@@ -538,6 +547,61 @@ def act(ctx, hand, verb, step):
         return kept
     time.sleep(float(arg))
     return {}
+
+
+def carry_of(step):
+    """`(part, to)` of a carry step, spelled before any contact: the part `[provider, pane, name]`
+    and where it goes, a pane `[provider, pane]` or a part `[provider, pane, name]`."""
+    part, to = step.get("carry"), step.get("to")
+    if not (isinstance(part, list) and len(part) == 3 and all(isinstance(v, str) for v in part) and
+            isinstance(to, list) and len(to) in (2, 3) and all(isinstance(v, str) for v in to)):
+        raise ValueError('carry names {"carry": [provider, pane, part], "to": [provider, pane]} or '
+                         '"to": [provider, pane, part]')
+    return part, to
+
+
+def reached_part(ctx, hand, verb, provider, pane, name, seconds):
+    """A part a press reaches now, by its pane and name, or the step fails saying why."""
+    view, part = wait_part(hand, provider, pane, name, seconds)
+    if part is None:
+        ctx.produce("failed-step-parts.json", json.dumps(
+            names(view) if view else "not described", indent=1).encode())
+        ctx.fail("%s: %s/%s draws no part named %r within %gs" % (verb, provider, pane, name, seconds))
+    no_press_yet(ctx, view, verb, provider, pane, seconds)
+    ctx.check(not unreached(part), "%s: no press reaches %r in %s/%s on its own: the parts over it "
+              "take every place of it" % (verb, name, provider, pane))
+    return part
+
+
+def middle(ctx, hand, provider, pane, seconds):
+    """The middle cell of a pane's place, in the medium's input space, from its reading's place and
+    text measure (`hand.point`)."""
+    view = words_now(hand, provider, pane, time.monotonic() + seconds)
+    ctx.check(view is not None, "carry: Workshop describes no pane %s/%s to carry to" % (provider, pane))
+    area, advance, line = view.get("area") or {}, view.get("advance", 0), view.get("line", 0)
+    ctx.check(advance > 0 and line > 0 and area.get("w", 0) > 0 and area.get("h", 0) > 0,
+              "carry: %s/%s shows no place with a text measure to find its middle" % (provider, pane))
+    return hand.point(view, (area["h"] // line) // 2, (area["w"] // advance) // 2)
+
+
+def carry(ctx, hand, step):
+    """Press a part, move to where it goes and release there: the Input owner's timed motion
+    between the part's point and the target part's point or the target pane's middle, both in the
+    medium's own input space. Its presses are heard as every press is."""
+    (provider, pane, name), to = carry_of(step)
+    seconds = float(step.get("seconds", 10))
+    part = reached_part(ctx, hand, "carry", provider, pane, name, seconds)
+    if len(to) == 3:
+        end = reached_part(ctx, hand, "carry", to[0], to[1], to[2], seconds)
+    else:
+        end = middle(ctx, hand, to[0], to[1], seconds)
+    start = {"x": part["x"], "y": part["y"], "space": part["space"]}
+    end = {"x": end["x"], "y": end["y"], "space": end["space"]}
+    ctx.check(start["space"] == end["space"], "carry: %s and %s stand in different input spaces"
+              % (name, "/".join(to)))
+    hand.drag(start, end, int(step.get("duration_ms", CARRY_MS)),
+              button=BUTTONS[step.get("button", "left")])
+    return {"carry": name, "to": to, "from": [start["x"], start["y"]], "at": [end["x"], end["y"]]}
 
 
 def wheel_of(step):

@@ -1042,7 +1042,11 @@ pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {
 480}}}`); `part` presses a part by its pane and its name (`{"part": ["zengine.view.builder",
 "view-builder", "kind:label"]}`), and fails rather than press one with no point -- `part`,
 `into`, `click`, `at`, `wheel` and `control` wait out a picture that takes no press, for their
-`seconds`; `open` presses the Pane Manager's row named for a pane
+`seconds`; `carry` drags a part by its name to another part or to a pane's middle and releases it
+there (`{"carry": ["zengine.inventory-pane", "inventory", "entry:<owner>:<entry>"], "to":
+["zengine.info", "info"]}`), the middle reckoned from the pane's reading in the medium's own
+input space, so no coordinate is converted by hand and the steps after it read what the drop did;
+`open` presses the Pane Manager's row named for a pane
 (`{"open": "pane:zengine.files/project-files"}`),
 choosing it first where it is not chosen; `menu` presses the line of the menu on the screen named
 so, or holding some text; `wheel` turns the wheel once, by `dy` and `dx` notches (`dy` 1 away from
