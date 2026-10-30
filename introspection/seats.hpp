@@ -173,7 +173,7 @@ public:
             selected_.clear();
         }
         view_ = project_loaded(read, rows(), columns(), static_cast<std::size_t>(origin_),
-                               search_.text());
+                               &search_);
         total_ = static_cast<std::int64_t>(view_.listed);
         origin_ = std::min(origin_, total_ - static_cast<std::int64_t>(view_.shown.size()));
         mark_selected(view_, selected_, columns());
@@ -187,7 +187,17 @@ public:
     /// publishes twice (a selection is an occurrence) and re-sends no picture. Published, not
     /// addressed: who ought to care is not this pane's decision; as this office, because a fact
     /// about a weaver's gesture is worth what its office is. True when it published.
-    bool press(std::int64_t pressed_row, loom::Mail& mail) {
+    bool press(std::int64_t pressed_row, loom::Mail& mail, std::int64_t pressed_column = -1) {
+        // THE SEARCH'S BOX, pressed anywhere in it, its blank room and border included: the caret
+        // goes where the press names, and nothing is selected.
+        const workshop::RowBox& box = view_.search;
+        if (pressed_row == 0 && box.present() && pressed_column >= box.column &&
+            pressed_column < box.column + box.columns) {
+            component::text_box_press(search_,
+                                      pressed_column - box.column - graphics::kTextBoxInset);
+            say(mail);
+            return false;
+        }
         const LoadedWeave* entry = entry_at_row(view_, pressed_row);
         if (entry == nullptr) {
             return false; // a heading, a note, an omission marker, a blank, or no projection at all
@@ -287,13 +297,10 @@ private:
     /// the heading.
     void say(loom::Mail& mail) {
         workshop::RowsCaret caret;
-        if (view_.search_column >= 0) {
-            const std::int64_t at =
-                view_.search_column + static_cast<std::int64_t>(search_.caret_column());
-            if (at < columns()) {
-                caret.row = 0;
-                caret.column = at;
-            }
+        if (view_.search.present() && !view_.rows.empty()) {
+            view_.search = workshop::row_box(search_, view_.search.column, view_.search.columns);
+            view_.rows[0].box = view_.search;
+            caret = workshop::box_caret(view_.search, 0);
         }
         say_rows(mail, view_.rows, loaded_parts(), caret, press_meaning(view_));
     }

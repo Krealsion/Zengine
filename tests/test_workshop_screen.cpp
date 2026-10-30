@@ -1510,7 +1510,7 @@ TEST_CASE("the opened pane names what this Loom actually loaded, itself included
     // through the same observation path used for everyone else -- there is no registration
     // mirror for the tool to see itself in.
     REQUIRE_FALSE(shown.empty());
-    CHECK(shown[0] == "loaded weaves -- 2");
+    CHECK(shown[0] == loaded_heading("2"));
     CHECK(any_row(shown, std::string("zengine-graphics @") + gfx::kGraphicsRole));
     CHECK(any_row(shown, std::string(intro::kIntrospectionStem) + " @" + kIntroOffice));
     // AND THE FACT IS BOUNDED WHERE A WEAVER READS IT.
@@ -1527,15 +1527,13 @@ TEST_CASE("the count is the kernel's and moves when the kernel's map does") {
     r.pick(intro_ref());
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
     const std::int64_t kind = intro_row(r, kIntroPane)->kind;
-    REQUIRE(loaded_rows(r, kind)[0] ==
-            "loaded weaves -- 2");
+    REQUIRE(loaded_rows(r, kind)[0] == loaded_heading("2"));
 
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     // The Hello provider's own offer arrives too; that is the catalog's business and
     // not this pane's, and the pane's rows are unmoved until it is re-granted room.
     REQUIRE(r.session().panes.runtime.entries.size() == kIntroPaneCount + 1);
-    CHECK(loaded_rows(r, kind)[0] ==
-          "loaded weaves -- 2");
+    CHECK(loaded_rows(r, kind)[0] == loaded_heading("2"));
 
     // A WIDER SURFACE MOVES THE AREA'S ROOM, WHICH IS THIS TOOL'S ONE BEAT. Nothing polled and
     // nothing timed out.
@@ -1545,7 +1543,7 @@ TEST_CASE("the count is the kernel's and moves when the kernel's map does") {
     const std::vector<std::string> after =
         loaded_rows(r, kind);
     REQUIRE_FALSE(after.empty());
-    CHECK(after[0] == "loaded weaves -- 3");
+    CHECK(after[0] == loaded_heading("3"));
     CHECK(any_row(after, "zengine-workshop-hello @" + std::string(kHelloOffice)));
 }
 
@@ -1586,7 +1584,9 @@ TEST_CASE("the graphical medium grants a different budget and the view spends it
     CHECK(any_row(in_pixels, intro::kIntrospectionStem));
     CHECK(static_cast<std::int64_t>(in_pixels.size()) <= held_canvas_rows(*graphical).rows);
     // THE SAME TRUTH IN BOTH, which is the honesty claim: two projections of one fact.
-    CHECK(in_cells[0] == in_pixels[0]);
+    // A room of cells spells the empty search box; where the window sets type it adds no character.
+    CHECK(in_cells[0] == loaded_heading("2"));
+    CHECK(in_pixels[0] == "loaded weaves -- 2");
 }
 
 TEST_CASE("an in-process weave is absent from the list and the pane says why") {
@@ -1660,7 +1660,7 @@ TEST_CASE("a forged room produces no content at all") {
     r.bus.drain_until_idle();
     const std::vector<std::string> rows = window.rows(area);
     REQUIRE_FALSE(rows.empty());
-    CHECK(rows[0] == "loaded weaves -- 1");
+    CHECK(rows[0] == loaded_heading("1"));
 }
 
 TEST_CASE("adding this tool widens nothing -- it says three shapes and no more") {
@@ -1742,7 +1742,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
     const std::vector<std::string> back =
         loaded_rows(r, kind);
     REQUIRE_FALSE(back.empty());
-    CHECK(back[0] == "loaded weaves -- 2");
+    CHECK(back[0] == loaded_heading("2"));
     CHECK(any_row(back, intro::kIntrospectionStem));
 }
 

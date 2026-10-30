@@ -1290,9 +1290,9 @@ TEST_CASE("Powers declares its actions, acts on the resolved id, and its typing 
     CHECK(pane_rows(r, kind).at(0).find("1/") != std::string::npos);
     // AND TYPING STILL CROSSES RAW: the query is the component's, not a command.
     r.text("anchor");
-    CHECK(pane_rows(r, kind).at(0).find("find:anchor") != std::string::npos);
+    CHECK(pane_rows(r, kind).at(0).find("find:[anchor") != std::string::npos);
     r.key(input::scan::kBackspace); // the field's own editing vocabulary, raw
-    CHECK(pane_rows(r, kind).at(0).find("find:ancho") != std::string::npos);
+    CHECK(pane_rows(r, kind).at(0).find("find:[ancho") != std::string::npos);
     // THE BAND TEACHES THE PANE'S ROWS.
     CHECK(band_lines(r).at(1).find("tab switch view") != std::string::npos);
 }

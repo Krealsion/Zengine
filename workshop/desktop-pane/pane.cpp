@@ -245,13 +245,17 @@ public:
 
     /// A HAND ON ONE OF THIS WEAVE'S PANES IN A WINDOW, read onto the rows drawn there: a primary
     /// press is the row's press, read against whether the keys were already the pane's, a right
-    /// press its menu under the window's number for the press, the wheel walks the cursor; a
-    /// middle press, motion and every release mean nothing.
+    /// press its menu under the window's number for the press, the wheel walks the cursor; on the
+    /// Manual's text a primary press, its moves and its release select. A middle press, and motion
+    /// and releases elsewhere, mean nothing.
     void on_window_pointer(const std::string& pane_key, const ws::WindowPointer& p,
                            bool keys_went_here, loom::Mail& mail) {
         const PanePress pressed{pane_key, p.at.row, p.at.column, keys_went_here, p.moved};
         if (p.phase == ws::canvas_pointer::kWheel) {
             wheel(pane_key, p.dy, mail);
+        } else if (pane_key == pane::kManualPane && p.button != 3 &&
+                   manual_.pointer(p, hotkeys_.keys_heard(), hotkeys_.keymap(), mail)) {
+            return;
         } else if (p.phase != ws::canvas_pointer::kPress) {
             return;
         } else if (p.button == 1 && (p.at.shown || p.moved)) {

@@ -325,23 +325,19 @@ void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
     const bool naming = s.setup.naming.open;
     std::string identity;
     std::int64_t caret_col = kNoCaret;
+    RowBox naming_box;
     std::int64_t sel_begin = 0;
     std::int64_t sel_end = 0;
     if (naming) {
-        const std::int64_t cols = setup_name_columns(s, sc);
-        const std::string shown = s.setup.naming.line.visible(cols);
-        const component::TextBox::VisibleSpan vis =
-            s.setup.naming.line.visible_selection(cols);
         const std::int64_t prompt =
             static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt));
-        const std::int64_t at =
-            static_cast<std::int64_t>(s.setup.naming.line.caret_column());
-        caret_col = prompt + (at < static_cast<std::int64_t>(shown.size())
-                                  ? at
-                                  : static_cast<std::int64_t>(shown.size()));
-        if (vis.present()) {
-            sel_begin = prompt + vis.begin;
-            sel_end = prompt + vis.end;
+        naming_box = row_box(s.setup.naming.line, prompt, setup_name_columns(s, sc));
+        const std::string shown(static_cast<std::size_t>(naming_box.columns), ' ');
+        const RowsCaret at = box_caret(naming_box, 0);
+        caret_col = at.column;
+        if (naming_box.view.selected()) {
+            sel_begin = at.sel_begin_col;
+            sel_end = at.sel_end_col;
         }
         identity = detail::fit(std::string(kSetupNamePrompt) + shown +
                                    setup_name_hint(s.keymap, s.band_keys),
@@ -356,6 +352,7 @@ void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
     }
 
     band.rows.push_back(TextRow{std::move(identity), graphics::role::kMuted});
+    band.rows.back().box = naming_box;
     if (caret_col != kNoCaret) {
         band.caret_row = 0;
         band.caret_col = caret_col;

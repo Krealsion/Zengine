@@ -7,13 +7,15 @@
 # package (cmake/ZengineInstall.cmake): consumers spell
 # `#include "graphics/vocabulary.hpp"`. The seams' C headers are among them. Its link line is what
 # the headers include: the Loom's values and shapes, and the activation cursor a drawing weave
-# keeps (`drawing.hpp`); the roles and the terminal's claim are its own headers.
+# keeps (`drawing.hpp`); the roles and the terminal's claim are its own headers. The text pieces'
+# drawn faces draw from the component values (`elements/text_face.hpp`).
 add_library(zengine-graphics-vocabulary INTERFACE)
 target_include_directories(zengine-graphics-vocabulary INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 add_library(zengine::graphics ALIAS zengine-graphics-vocabulary)
-target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-activation)
+target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-activation
+    zengine-component)
 
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: graphics weaves skipped — this Loom cannot host loadable weaves (no loom::kernel)")

@@ -633,7 +633,7 @@ private:
                 flush();
                 const std::string key = a.area + '\x1f' + n.path;
                 seen.insert(key);
-                draw_rest(p, key, n.version, a.x, a.y);
+                draw_rest(p, key, n.version, a.x, a.y, clip);
             }
             flush();
         }
@@ -679,17 +679,34 @@ private:
         indices_.clear();
     }
 
-    /// A node's lines, text and images; an image's texture made when its node was painted anew.
+    /// A node's lines, text and images; an image's texture made when its node was painted anew. A
+    /// run of text a clip cut is drawn inside the area's clip and its own kept rows.
     void draw_rest(const light::NodePrimitives& p, const std::string& key, std::uint64_t version,
-                   std::int64_t ox, std::int64_t oy) {
+                   std::int64_t ox, std::int64_t oy, const SDL_Rect& area) {
         for (const light::Line& l : p.lines) {
             ink(l.rgba);
             SDL_RenderLine(renderer_, static_cast<float>(ox + l.x1), static_cast<float>(oy + l.y1),
                            static_cast<float>(ox + l.x2), static_cast<float>(oy + l.y2));
         }
         for (const light::TextRun& t : p.texts) {
+            const bool cut = t.cut_top > 0 || t.cut_foot > 0;
+            if (cut) {
+                const std::int64_t top = oy + t.y + t.cut_top;
+                const std::int64_t foot = oy + t.y + face_.measure().line - t.cut_foot;
+                const std::int64_t y0 = (std::max)(top, static_cast<std::int64_t>(area.y));
+                const std::int64_t y1 =
+                    (std::min)(foot, static_cast<std::int64_t>(area.y) + area.h);
+                if (y1 <= y0) {
+                    continue;
+                }
+                const SDL_Rect kept{area.x, static_cast<int>(y0), area.w, static_cast<int>(y1 - y0)};
+                SDL_SetRenderClipRect(renderer_, &kept);
+            }
             face_.draw(renderer_, static_cast<float>(ox + t.x), static_cast<float>(oy + t.y),
                        t.rgba, t.text);
+            if (cut) {
+                SDL_SetRenderClipRect(renderer_, &area);
+            }
         }
         if (p.images.empty()) {
             return;

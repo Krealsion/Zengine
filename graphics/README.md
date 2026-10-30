@@ -46,6 +46,7 @@ an element the window presents from the owner's data (`element_export.hpp`).
 | `elements/list.hpp`, `elements/grid.hpp` | a `List` of the owner's rows, one chosen, a window of them shown; a `Grid` of the owner's cells, only the filled ones drawn; an action a row or a cell |
 | `elements/icon.hpp`, `elements/image.hpp` | an `Icon` drawn by name from its table of outlines; an `Image`, a rectangle of a sheet of pixels, tinted |
 | `elements/scroll_view.hpp`, `elements/text_box.hpp` | a `ScrollView`, a clipped box the owner draws in, and its bar; a one-line `TextBox` with its cursor |
+| `elements/text_face.hpp` | the text pieces' drawn faces: a text box's outline, text, caret and selection, and a text area scrolled freely with its bar, drawn from the values in `component/` and keeping nothing |
 | `drawing.hpp` | a drawing weave: the room's handshake and the showing, so a drawer writes its picture |
 | `painting.hpp` | what crosses the two seams: a paint task and its result, an element's event and its outcome |
 | `painter_abi.h`, `painter_export.hpp`, `term_paint.hpp`, `light_paint.hpp` | the skin seam, its export, and the painters for a medium of characters and of light |

@@ -369,7 +369,18 @@ inline bool heard_before(const AnswerTap& tap, const char* first, const char* th
 
 /// The value column of a painted property row (the mark, then the nine-cell label column).
 inline std::string value_of(const std::string& property_row) {
-    return property_row.size() > 10 ? property_row.substr(10) : std::string();
+    std::string value = property_row.size() > 10 ? property_row.substr(10) : std::string();
+    // A DRAFT IS A BOX: `[text___]` in a room of cells, its text inside; where the window sets
+    // type its text after the inset's blank. Either way, what it holds.
+    if (!value.empty() && value.front() == '[') {
+        value.erase(0, 1);
+        if (!value.empty() && value.back() == ']') value.pop_back();
+        while (!value.empty() && value.back() == '_') value.pop_back();
+    } else if (!value.empty() && value.front() == ' ') {
+        value.erase(0, 1);
+        while (!value.empty() && value.back() == ' ') value.pop_back();
+    }
+    return value;
 }
 
 /// The Info pane's weave, for a tap on what reaches it.
@@ -2728,17 +2739,17 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
     };
     CHECK(value_of(f.property_row("Width")) == "77"); // nothing written into the value
     CHECK(held_caret(held()).row == row);
-    CHECK(held_caret(held()).column == 12); // the mark, the label column, then after `77`
-    bar_at(12);
+    CHECK(held_caret(held()).column == 13); // the mark, the label column, the box's `[`, then after `77`
+    bar_at(13);
     f.r.key(input::scan::kLeft);
-    CHECK(held_caret(held()).column == 11);
-    bar_at(11);
+    CHECK(held_caret(held()).column == 12);
+    bar_at(12);
     CHECK(value_of(f.property_row("Width")) == "77");
     f.r.key(input::scan::kLeft, input::mod::kShift);
-    CHECK(held_caret(held()).column == 10);
+    CHECK(held_caret(held()).column == 11);
     CHECK(held_caret(held()).sel_begin_row == row);
-    CHECK(held_caret(held()).sel_begin_col == 10);
-    CHECK(held_caret(held()).sel_end_col == 11);
+    CHECK(held_caret(held()).sel_begin_col == 11);
+    CHECK(held_caret(held()).sel_end_col == 12);
     // ...THE SELECTION its columns again in the accent role, asking for the property, the row's
     // words unchanged. A window started again, holding nothing, is drawn both with the rows, whole.
     const auto selected = [&] {
@@ -2748,14 +2759,14 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
         const std::optional<gfx::TextArgs> words = gfx::from_body<gfx::TextArgs>(node->args);
         REQUIRE(words.has_value());
         CHECK(words->text == "7");
-        CHECK(words->x == 10 * gfx::kCellPx);
+        CHECK(words->x == 11 * gfx::kCellPx);
         CHECK(words->y == row * gfx::kCellPx);
         CHECK(words->ink.role == gfx::role::kAccent);
         CHECK(asks(sel) == "property:Width");
         CHECK(marks() == 2);
     };
     selected();
-    bar_at(10);
+    bar_at(11);
     f.r.key(input::scan::kEscape); // the draft ends, and its caret with it
     CHECK(held_caret(held()).row == kNoCaret);
     CHECK(held_caret(held()).sel_begin_row == kNoSelection);

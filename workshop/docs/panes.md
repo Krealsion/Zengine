@@ -651,7 +651,9 @@ keys, even while you are typing: the Manual shows that pane's manual. In the
 Manual, <!-- key manual.up -->`up`<!-- /key --> and <!-- key manual.down -->`down`<!-- /key -->
 move a line, <!-- key manual.top -->`home`<!-- /key --> and
 <!-- key manual.bottom -->`end`<!-- /key --> go to the first and the last, the wheel scrolls, and
-<!-- key manual.close -->`escape`<!-- /key --> closes it. On a terminal, a click on a mark reaches
+<!-- key manual.close -->`escape`<!-- /key --> closes it. In a window the text scrolls smoothly and
+a bar on its right shows where you are; drag the bar to move. Drag across the text to select it,
+and <!-- key manual.copy -->`ctrl+c`<!-- /key --> copies it as the page wrote it. On a terminal, a click on a mark reaches
 Workshop where the terminal passes clicks through; the key works everywhere.
 
 **Press the gear** and Workshop's own menu of **Settings** opens beside it, the things about how

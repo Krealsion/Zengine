@@ -518,7 +518,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     r.text("reci");
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
-        CHECK(shown[0].find("find:reci") != std::string::npos);
+        CHECK(shown[0].find("find: reci") != std::string::npos);
         CHECK(any_row(shown, kRecipeCatalogSource));
         CHECK_FALSE(any_row(shown, kProjectAnchorSource));
         CHECK(shown[0].find("/1") != std::string::npos); // the searched population
@@ -528,7 +528,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     // ships, not a fifth copy of an editing switch -- and the door is asked again: `rec` is in
     // the anchor's words too ("directory"), so it returns to the list.
     r.key(input::scan::kBackspace);
-    CHECK(pane_rows(r, kind)[0].find("find:rec") != std::string::npos);
+    CHECK(pane_rows(r, kind)[0].find("find: rec") != std::string::npos);
     CHECK(any_row(pane_rows(r, kind), kProjectAnchorSource));
 
     // THE QUERY'S CARET IS THE MEDIUM'S: the chrome row's run says the column it stands on, where
@@ -539,7 +539,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
         REQUIRE(held_caret(*pane).row == 0);
         return held_caret(*pane).column;
     };
-    const auto query_at = static_cast<std::int64_t>(pane_rows(r, kind)[0].find("find:") + 5);
+    const auto query_at = static_cast<std::int64_t>(pane_rows(r, kind)[0].find("find:") + 6);
     CHECK(pane_rows(r, kind)[0].find('_') == std::string::npos);
     CHECK(caret_at() == query_at + 3);
     r.key(input::scan::kLeft);
@@ -551,7 +551,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     // who typed `naive` with a diaeresis gets NONE of it rather than a mangled half, and the pane
     // keeps speaking rather than losing a whole update.
     r.text("na\xC3\xAFve");
-    CHECK(pane_rows(r, kind)[0].find("find:rec") != std::string::npos);
+    CHECK(pane_rows(r, kind)[0].find("find: rec") != std::string::npos);
     CHECK(pane_rows(r, kind)[0].find("na") == std::string::npos);
 
     // THE CLIPBOARD CONVERSATION, both directions.
@@ -567,7 +567,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     r.key(input::scan::kEnd);
     r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(r.windows.clipboard_reads() == reads_before + 1);
-    CHECK(pane_rows(r, kind)[0].find("find:recrec") != std::string::npos);
+    CHECK(pane_rows(r, kind)[0].find("find: recrec") != std::string::npos);
 
     // A QUERY PAST THE DOOR'S BOUND IS ASKED ALL THE SAME, and the door's refusal is what the list
     // says -- never `none here match`, which would claim the catalog had nothing.
@@ -597,7 +597,7 @@ TEST_CASE("keys routed to another pane cannot move the Powers pane") {
     REQUIRE(keyboard_pane(r.session().panes) == powers);
     r.text("rec");
     const std::vector<std::string> mine = pane_rows(r, powers);
-    REQUIRE(mine[0].find("find:rec") != std::string::npos);
+    REQUIRE(mine[0].find("find:[rec") != std::string::npos);
 
     press_pane(r, project, 1, 1);
     REQUIRE(keyboard_pane(r.session().panes) == project); // the keyboard really moved
@@ -608,7 +608,7 @@ TEST_CASE("keys routed to another pane cannot move the Powers pane") {
     r.key(input::scan::kReturn);
 
     const std::vector<std::string> after = pane_rows(r, powers);
-    CHECK(after[0].find("find:rec") != std::string::npos);
+    CHECK(after[0].find("find:[rec") != std::string::npos);
     CHECK(after[0].find("ZZZ") == std::string::npos);
     CHECK(after[0].find("[Sources]") != std::string::npos);
     CHECK_FALSE(any_row(after, intro::kSampledWhenAsked));
@@ -690,7 +690,7 @@ TEST_CASE("THE LIVE WEAVER WITNESS, end to end through the real pane") {
     r.text("anchor");
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
-        CHECK(shown[0].find("find:anchor") != std::string::npos);
+        CHECK(shown[0].find("find:[anchor") != std::string::npos);
         CHECK(any_row(shown, kProjectAnchorSource));
         CHECK_FALSE(any_row(shown, "prov.source.spends"));
     }

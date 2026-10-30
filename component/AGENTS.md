@@ -8,7 +8,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | | |
 |---|---|
 | `CMakeLists.txt` | `zengine-component` (`zengine::component`): header-only, links nothing |
-| `text_box.hpp` | `TextBox`, `Clipboard`, the character and word rules, `kEditingVocabulary` |
+| `text.hpp` | the text core: the character and word rules, `Clipboard`, `TextPlaces`, `copy_selection` |
+| `text_box.hpp` | `TextBox`, `kEditingVocabulary`, `TextBoxView`, `text_box_view`, `text_box_press` |
+| `text_area.hpp` | `TextArea`, `TextLook`: long text read only, its wrap, scroll, selection and the lines a width shows |
 | `list_window.hpp` | `ListWindow`: what a bounded place shows of a list, and what it omitted |
 | `row_map.hpp` | `RowMap<Meaning>`: what each published row and column span means |
 | `held_choice.hpp` | `HeldChoice<Key>`: a choice kept by identity across a list that moves |
@@ -31,8 +33,8 @@ routes.
 
 ## Suites
 
-- `component` — `TextBox`, `ListWindow`, `RowMap`, `HeldChoice`, columns, control strips, tab
-  strips and accordions as values: `tests/test_component.cpp`, its own executable linking only
+- `component` — `TextBox`, `TextArea`, the text core, `ListWindow`, `RowMap`, `HeldChoice`,
+  columns, control strips, tab strips and accordions as values: `tests/test_component.cpp`, its own executable linking only
   `zengine-component`
 
 Its cases in shared suites: `workshop_panes_terminal`, `workshop_panes_info` and

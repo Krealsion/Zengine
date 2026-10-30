@@ -1429,19 +1429,19 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     const auto line = [&] { return s.where(a, "> "); };
     const auto caret = [&] { return held_caret(*s.r.session().panes.external_pane(a)); };
     REQUIRE(line().first >= 0);
-    CHECK(pane_rows(s.r, a)[static_cast<std::size_t>(line().first)] == "> src");
+    CHECK(pane_rows(s.r, a)[static_cast<std::size_t>(line().first)].rfind("> [src_", 0) == 0);
     CHECK(caret().row == line().first);
-    CHECK(caret().column == 5); // the prompt, then after `src`
+    CHECK(caret().column == 6); // the prompt, the box's `[`, then after `src`
     s.key(input::scan::kLeft);
-    CHECK(caret().column == 4);
-    CHECK(pane_rows(s.r, a)[static_cast<std::size_t>(line().first)] == "> src");
+    CHECK(caret().column == 5);
+    CHECK(pane_rows(s.r, a)[static_cast<std::size_t>(line().first)].rfind("> [src_", 0) == 0);
     // A selection over `r`, counted as the caret is, past the prompt.
     s.key(input::scan::kLeft, input::mod::kShift);
-    CHECK(caret().column == 3);
+    CHECK(caret().column == 4);
     CHECK(caret().sel_begin_row == line().first);
     CHECK(caret().sel_end_row == line().first);
-    CHECK(caret().sel_begin_col == 3);
-    CHECK(caret().sel_end_col == 4);
+    CHECK(caret().sel_begin_col == 4);
+    CHECK(caret().sel_end_col == 5);
     s.key(input::scan::kEscape); // the edit ends, and its caret with it
     CHECK(caret().row == zengine::workshop::kNoCaret);
     CHECK(caret().sel_begin_row == zengine::workshop::kNoSelection);
@@ -1449,9 +1449,10 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     s.key(input::scan::kM, input::mod::kCtrl);
     REQUIRE_MESSAGE(s.shows(a, "View title"), s.shown(a));
     const std::string title = pane_rows(s.r, a)[static_cast<std::size_t>(line().first)];
-    REQUIRE(title.rfind("> ", 0) == 0);
+    REQUIRE(title.rfind("> [", 0) == 0);
     CHECK(caret().row == line().first);
-    CHECK(caret().column == static_cast<std::int64_t>(title.size()));
+    // After the title inside its box: past what is typed, before the box's blank room.
+    CHECK(caret().column == static_cast<std::int64_t>(title.find_last_not_of("_]") + 1));
     s.key(input::scan::kEscape);
     CHECK(caret().row == zengine::workshop::kNoCaret);
 }

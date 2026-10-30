@@ -430,7 +430,7 @@ class CanvasTerminal(CanvasPane):
             ("v EditorSwitchAnswered v1 from #2", "entry:6"),
             ("> send @zengine.powers FindPowers 2 text=two", None),
             ("^ FindPowers v2 -> @zengine.powers  SUBMITTED", "entry:8"),
-            (">    Tab: what can this terminal say?  Up: recall a command", "line")]
+            (">" + " " * 14 + "Tab: what can this terminal say?  Up: recall a command", "line")]
 
     def __init__(self, **kw):
         CanvasPane.__init__(self, body=(20, 100, 560, 168), **kw)

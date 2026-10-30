@@ -103,7 +103,9 @@ set(zengine_public_headers_ui         ui/vocabulary.hpp
                                       ui/layout.hpp)
 set(zengine_public_headers_manual     manual/manual.hpp)
 set(zengine_public_headers_component  component/motion.hpp
+                                      component/text.hpp
                                       component/text_box.hpp
+                                      component/text_area.hpp
                                       component/list_window.hpp
                                       component/row_map.hpp
                                       component/held_choice.hpp
@@ -167,7 +169,7 @@ set(zengine_public_headers_graphics/window graphics/window/terminal_io.hpp)
 set(zengine_public_headers_graphics/elements graphics/elements/button.hpp
     graphics/elements/checkbox.hpp graphics/elements/grid.hpp graphics/elements/icon.hpp
     graphics/elements/image.hpp graphics/elements/list.hpp graphics/elements/scroll_view.hpp
-    graphics/elements/text_box.hpp)
+    graphics/elements/text_box.hpp graphics/elements/text_face.hpp)
 
 set(zengine_public_headers_maker maker/definition.hpp maker/files.hpp maker/write.hpp
     maker/runtime.hpp maker/weave.hpp maker/vocabulary.hpp maker/succession.hpp)

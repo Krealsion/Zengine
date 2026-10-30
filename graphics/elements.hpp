@@ -16,5 +16,6 @@
 #include "graphics/elements/list.hpp"
 #include "graphics/elements/scroll_view.hpp"
 #include "graphics/elements/text_box.hpp"
+#include "graphics/elements/text_face.hpp"
 
 #endif // ZENGINE_GRAPHICS_ELEMENTS_HPP

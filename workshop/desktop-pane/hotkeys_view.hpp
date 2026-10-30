@@ -504,16 +504,16 @@ public:
         if (typing_.active) {
             const std::string prompt = "key for " + typing_.id + ": ";
             const std::int64_t room =
-                room_columns - static_cast<std::int64_t>(prompt.size()) - 1;
-            if (room > 0) {
-                typing_.line.keep_caret_visible(room);
+                room_columns - static_cast<std::int64_t>(prompt.size());
+            if (room > 2) {
+                const ws::RowBox box = ws::row_box(
+                    typing_.line, static_cast<std::int64_t>(prompt.size()), room);
                 const auto at = static_cast<std::int64_t>(out.size());
-                push(prompt + typing_.line.visible(room), graphics::role::kAccent,
-                     KeysMeaning{keys_row::kFooter, 0, {}});
+                push(prompt + std::string(static_cast<std::size_t>(room), ' '),
+                     graphics::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});
                 if (static_cast<std::int64_t>(out.size()) > at) {
-                    caret.row = at;
-                    caret.column = static_cast<std::int64_t>(prompt.size() +
-                                                             typing_.line.caret_column());
+                    out.back().box = box;
+                    caret = ws::box_caret(box, at);
                 }
             } else {
                 push(prompt, graphics::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});

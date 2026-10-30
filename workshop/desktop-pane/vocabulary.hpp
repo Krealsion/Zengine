@@ -115,12 +115,18 @@ inline constexpr const char* kActionKeysMenu = "hotkeys.menu";
 inline constexpr const char* kActionKeysCancel = "hotkeys.cancel";
 inline constexpr const char* kActionKeysCommit = "hotkeys.commit";
 
-/// ...AND THE MANUAL PANE'S: the lines up and down, its two ends, and close.
+/// ...AND THE MANUAL PANE'S: the lines up and down, its two ends, the copy of what is selected,
+/// everything selected, and close.
 inline constexpr const char* kActionManualUp = "manual.up";
 inline constexpr const char* kActionManualDown = "manual.down";
 inline constexpr const char* kActionManualTop = "manual.top";
 inline constexpr const char* kActionManualBottom = "manual.bottom";
+inline constexpr const char* kActionManualCopy = "manual.copy";
+inline constexpr const char* kActionManualAll = "manual.all";
 inline constexpr const char* kActionManualClose = "manual.close";
+/// THE MANUAL'S TWO PARTS IN A WINDOW: its text, and the bar beside it.
+inline constexpr const char* kManualTextPart = "manual.text";
+inline constexpr const char* kManualBarPart = "manual.bar";
 
 /// THE MODES EACH PANE DECLARES ITS ROWS IN, by the names the action census and a manual use: the
 /// Pane Manager's one list; the Hotkeys pane's table, a key being captured, and a spelling being

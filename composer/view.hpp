@@ -237,6 +237,7 @@ inline std::int64_t value_capacity(const MessageDraft& draft, std::size_t which,
 struct FieldRow {
     std::string text;
     std::int64_t caret = zengine::workshop::kNoCaret;
+    zengine::workshop::RowBox box{}; ///< the value being edited, a box on the row
 };
 
 /// One field row: its name, its declared type (the schema's own spelling, the only thing the
@@ -269,18 +270,25 @@ inline FieldRow field_row(const MessageDraft& draft, std::size_t which, bool cho
     if (!editing) {
         return {fit(row + "  [" + fit(d.value.text(), room) + "]", columns)};
     }
-    const std::string shown = d.value.visible(room);
-    const std::size_t at = d.value.caret_column();
-    row += "  [";
-    const auto caret = static_cast<std::int64_t>(row.size() + (at <= shown.size() ? at : shown.size()));
-    const std::string whole = row + shown + " ]";
+    row += "  ";
+    // A column past the value's room, where a caret after its last character stands.
+    const zengine::workshop::RowBox box = zengine::workshop::row_box(
+        d.value, static_cast<std::int64_t>(row.size()),
+        room + 1 + 2 * zengine::graphics::kTextBoxInset);
+    const std::string whole = row + std::string(static_cast<std::size_t>(box.columns), ' ');
     const std::string drawn = fit(whole, columns);
-    return {drawn, drawn.size() == whole.size() ? caret : zengine::workshop::kNoCaret};
+    if (drawn.size() != whole.size()) {
+        return {drawn, zengine::workshop::kNoCaret};
+    }
+    return {drawn, zengine::workshop::box_caret(box, 0).column, box};
 }
 
 inline std::string field_row_text(const MessageDraft& draft, std::size_t which, bool chosen,
                                   bool editing, std::int64_t columns) {
-    return field_row(draft, which, chosen, editing, columns).text;
+    const FieldRow row = field_row(draft, which, chosen, editing, columns);
+    zengine::workshop::TextRow shown{row.text};
+    shown.box = row.box;
+    return zengine::workshop::row_text_shown(shown, true);
 }
 
 /// What this pane is looking at and what the weaver has done to it: the provider's whole
@@ -503,6 +511,9 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             }
             say(field.text, role, RowMeaning{meaning::kField, i},
                 chosen ? graphics::role::kMuted : graphics::role::kNone);
+            if (field.box.present() && !view.rows.empty()) {
+                view.rows.back().row.box = field.box;
+            }
         }
         left -= w.count;
         if (left > 0 && (w.before > 0 || w.after > 0)) {

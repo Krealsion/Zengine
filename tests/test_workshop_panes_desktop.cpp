@@ -1165,7 +1165,7 @@ TEST_CASE("WL-KEY-17: a collision refuses the edit in the collision law's own wo
         // THE SPELLING LINE'S CARET IS THE MEDIUM'S, after what is typed so far.
         const ExternalPane* pane = k.r.session().panes.external_pane(k.hotkeys);
         REQUIRE(pane != nullptr);
-        const std::string typed = "key for workshop.quit: w";
+        const std::string typed = "key for workshop.quit: [w";
         const std::vector<std::string> rows = held_row_texts(*pane);
         const auto line = std::find_if(rows.begin(), rows.end(), [&typed](const std::string& t) {
             return t.rfind(typed, 0) == 0;
@@ -1503,14 +1503,14 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawab
     }
     // A SPELLING TYPED OUTSIDE PLAIN ASCII: refused whole at the line, and said; the line and its
     // caret stand as they were.
-    const std::string typed = "key for workshop.quit: ctrl+";
+    const std::string typed = "key for workshop.quit:  ctrl+"; // its box, a window's
     const std::string not_typed = "not typed -- a key's spelling is plain ASCII on one line";
     const auto spelling_shown = [&k, &typed]() {
         const std::vector<std::string> shown = k.rows();
         CAPTURE(joined(shown));
         const std::int64_t at = row_containing(shown, "key for workshop.quit: ");
         REQUIRE(at >= 0);
-        CHECK(shown[static_cast<std::size_t>(at)] == typed);
+        CHECK(shown[static_cast<std::size_t>(at)].rfind(typed, 0) == 0);
         const ExternalPane* pane = k.r.session().panes.external_pane(k.hotkeys);
         REQUIRE(pane != nullptr);
         const std::vector<std::string> rows = held_row_texts(*pane);
@@ -1564,7 +1564,7 @@ TEST_CASE("the Hotkeys pane asks the window that shows it for a paste into a spe
     const int reads = k.r.windows.clipboard_reads();
     k.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(k.r.windows.clipboard_reads() == reads + 1);
-    CHECK_MESSAGE(row_containing(k.rows(), "key for workshop.quit: ctrl+q") >= 0, k.text());
+    CHECK_MESSAGE(row_containing(k.rows(), "key for workshop.quit:  ctrl+q") >= 0, k.text());
 }
 
 TEST_CASE("WL-KEY-17: a mouse choice and its own release take the keyboard for an UNFOCUSED Hotkeys edit -- batched or separated, capture or typed spelling; a newer act still defeats it") {

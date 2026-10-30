@@ -2100,17 +2100,18 @@ TEST_CASE("the authoring line's caret is the medium's, where the line's is, and 
     f.r.text("oven");
     const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
     REQUIRE(pane != nullptr);
-    const std::int64_t line = row_beginning(f.shown(), "recipe name> oven");
+    const std::int64_t line = row_beginning(f.shown(), "recipe name> [oven");
     REQUIRE(line >= 0);
     // AT THE LINE'S END, after the last character typed: the caret stands in the line's own run.
-    const std::int64_t prompt = static_cast<std::int64_t>(std::string("recipe name> ").size());
+    // The prompt, then the box's `[`: where the box's text begins.
+    const std::int64_t prompt = static_cast<std::int64_t>(std::string("recipe name> [").size());
     CHECK(held_caret(*pane).row == line);
     CHECK(held_caret(*pane).column == prompt + 4);
     CHECK(wears_ground(*pane)); // the rows lie on a ground of their own
     // ...BETWEEN TWO CHARACTERS AFTER A LEFT ARROW, and no character moved for it.
     f.r.key(input::scan::kLeft);
     CHECK(held_caret(*pane).column == prompt + 3);
-    CHECK(any_row(f.shown(), "recipe name> oven"));
+    CHECK(any_row(f.shown(), "recipe name> [oven"));
     // ...AND WHERE A PRESS ON THE LINE PUTS IT.
     press_pane(f.r, f.kind, line, prompt + 1);
     CHECK(held_caret(*pane).row == line);
@@ -2146,7 +2147,7 @@ TEST_CASE("the authoring line asks the window that shows Files for a paste, the 
         if (os) {
             CHECK(f.r.windows.clipboard_reads() == 1);
             bool shows = false;
-            for (const std::string& row : f.shown()) shows = shows || row.find("recipe name> oven") != std::string::npos;
+            for (const std::string& row : f.shown()) shows = shows || row.find("recipe name>  oven") != std::string::npos;
             CHECK(shows);
         }
     }
@@ -2172,10 +2173,10 @@ TEST_CASE("the authoring line takes raw keys, and Escape abandons it whole") {
     // THE LINE'S OWN ROW, not the whole picture: the mode's heading names the candidate
     // (`author `oven.cpp` ...`) and the other three field rows stand under it, so a search of
     // every row would find `ove` whatever the line holds.
-    CHECK(any_row(f.shown(), "recipe name> ove"));
+    CHECK(any_row(f.shown(), "recipe name> [ove"));
     f.r.key(input::scan::kBackspace);
-    CHECK_FALSE(any_row(f.shown(), "recipe name> ove"));
-    CHECK(any_row(f.shown(), "recipe name> ov"));
+    CHECK_FALSE(any_row(f.shown(), "recipe name> [ove"));
+    CHECK(any_row(f.shown(), "recipe name> [ov"));
 
     // ESCAPE ABANDONS THE WHOLE PROMPT, not one field: nothing was written and the pane is
     // a browser again.
@@ -2225,7 +2226,7 @@ TEST_CASE("an id Files does not declare in the mode it is in is no act: an unkno
     CHECK(f.declared() == line_ids);
     const auto line_stands = [&f, &line_ids] {
         CHECK(any_row(f.shown(), "Return commits a field"));
-        CHECK(any_row(f.shown(), "recipe name> "));
+        CHECK(any_row(f.shown(), "recipe name> ["));
         CHECK(f.declared() == line_ids);
         CHECK(f.recipes.all().empty());
     };
@@ -2313,7 +2314,7 @@ TEST_CASE("an id Files resolved in one mode is no act in the next") {
         REQUIRE(f.at_cursor().rfind("oven.cpp", 0) == 0); // what a browsing open would open
         f.letter(input::scan::kA, "a");
         f.r.key(input::scan::kReturn); // the one candidate: the line opens
-        REQUIRE(any_row(f.shown(), "recipe name> oven"));
+        REQUIRE(any_row(f.shown(), "recipe name> [oven"));
         SeamTap tap(f.r.bus, f.files_id(), f.keys_here());
         burst(f, input::scan::kEscape, input::scan::kReturn);
         CHECK(tap.ids == std::vector<std::string>{files::kActionCancel, files::kActionCommitField});
@@ -2349,12 +2350,12 @@ TEST_CASE("an id Files resolved in one mode is no act in the next") {
         burst(f, input::scan::kReturn, input::scan::kReturn);
         CHECK(tap.ids == std::vector<std::string>{files::kActionChoose, files::kActionChoose});
         CHECK(f.declared() == line_ids);
-        CHECK(any_row(f.shown(), "recipe name> oven"));
+        CHECK(any_row(f.shown(), "recipe name> [oven"));
         CHECK_FALSE(any_row(f.shown(), "artifact stem>"));
         opened_nothing(f, tap);
         CHECK(tap.authored.empty());
         leads(f, "a source file: oven.cpp -- Return commits a field");
-        CHECK(any_row(f.shown(), "recipe name> oven"));
+        CHECK(any_row(f.shown(), "recipe name> [oven"));
     }
     SUBCASE("two Returns on the line's last field: one recipe, and nothing opens") {
         FilesRig f("files-race-last");
@@ -2376,7 +2377,7 @@ TEST_CASE("an id Files resolved in one mode is no act in the next") {
                 f.r.key(input::scan::kReturn);
             }
         }
-        REQUIRE(any_row(f.shown(), "link targets (comma-separated)> loom::kernel"));
+        REQUIRE(any_row(f.shown(), "link targets (comma-separated)> [loom::kernel"));
         SeamTap tap(f.r.bus, f.files_id(), f.keys_here());
         burst(f, input::scan::kReturn, input::scan::kReturn);
         CHECK(tap.ids ==
@@ -2497,16 +2498,16 @@ TEST_CASE("each Files mode's Return is its own id, and a keymap moves each alone
         CHECK(any_row(f.shown(), "pick something buildable"));
         f.letter(input::scan::kC, "c");
         admitted(f, line_ids);
-        CHECK(any_row(f.shown(), "recipe name> oven"));
+        CHECK(any_row(f.shown(), "recipe name> [oven"));
 
         // THE LINE: `ctrl+j` commits the field, and Return is a key the line does not take.
         CHECK(requests(f, input::scan::kJ, input::mod::kCtrl) == files::kActionCommitField);
         CHECK(requests(f, input::scan::kReturn, input::mod::kNone).empty());
         CHECK(legend_says(f, "ctrl+j commit this field"));
         f.r.key(input::scan::kReturn);
-        CHECK(any_row(f.shown(), "recipe name> oven"));
+        CHECK(any_row(f.shown(), "recipe name> [oven"));
         f.r.key(input::scan::kJ, input::mod::kCtrl);
-        CHECK(any_row(f.shown(), "artifact stem> oven"));
+        CHECK(any_row(f.shown(), "artifact stem> [oven"));
 
         // OUT, AND THE BROWSER'S OWN OVERRIDE OPENS THE FILE UNDER THE CURSOR, IN THE EDITOR.
         f.r.key(input::scan::kEscape);
@@ -2549,7 +2550,7 @@ TEST_CASE("deliberate keys in Files still choose, refuse a blank field, write on
     f.letter(input::scan::kA, "a");
     f.r.key(input::scan::kReturn);
     CHECK(tap.ids == std::vector<std::string>{files::kActionPickBuildable, files::kActionChoose});
-    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+    REQUIRE(any_row(f.shown(), "recipe name> [oven"));
 
     // VALIDATE: a required field left blank is refused where it stands, and nothing is sent.
     clear_line();
@@ -2561,7 +2562,7 @@ TEST_CASE("deliberate keys in Files still choose, refuse a blank field, write on
     // EDIT AND PROGRESS: the next field suggests the name, and each Return commits one field.
     f.r.text("oven");
     f.r.key(input::scan::kReturn);
-    CHECK(any_row(f.shown(), "artifact stem> oven"));
+    CHECK(any_row(f.shown(), "artifact stem> [oven"));
     for (const char* typed : {"zengine-oven", "loom", "loom::kernel"}) {
         clear_line();
         f.r.text(typed);
@@ -2579,7 +2580,7 @@ TEST_CASE("deliberate keys in Files still choose, refuse a blank field, write on
     // CANCEL: a second pick, a candidate chosen, and Escape abandons the line whole.
     f.letter(input::scan::kA, "a");
     f.r.key(input::scan::kReturn);
-    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+    REQUIRE(any_row(f.shown(), "recipe name> [oven"));
     f.r.key(input::scan::kEscape);
     CHECK(f.first().rfind("no recipe was written", 0) == 0);
     CHECK(tap.authored.size() == 1);
@@ -3086,22 +3087,22 @@ TEST_CASE("a weaver authors a recipe with the mouse alone: the chooser, every fi
 
     // ...AND THE PRESS AFTER THAT, THE KEYS BEING THIS PANE'S, AUTHORS THE CANDIDATE.
     press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
-    REQUIRE_MESSAGE(any_row(f.shown(), "recipe name> oven"), picture(f.shown()));
+    REQUIRE_MESSAGE(any_row(f.shown(), "recipe name> [oven"), picture(f.shown()));
     CHECK(any_row(f.shown(), "author `oven.cpp`"));
 
     // THE FOUR FIELDS ARE ALL SHOWN, and the three not in hand say what they hold.
     CHECK(any_row(f.shown(), "artifact stem: (required)"));
     press_face(f, "[next field]");
-    REQUIRE(any_row(f.shown(), "artifact stem> oven"));
+    REQUIRE(any_row(f.shown(), "artifact stem> [oven"));
     CHECK(any_row(f.shown(), "recipe name: oven"));
 
     // ...AND A FIELD ALREADY ANSWERED IS STOOD ON AGAIN BY PRESSING ITS ROW.
     const std::int64_t first_field = row_beginning(f.shown(), "  recipe name: oven");
     REQUIRE(first_field >= 0);
     press_pane(f.r, f.kind, first_field, 0);
-    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+    REQUIRE(any_row(f.shown(), "recipe name> [oven"));
     f.r.text("-two");
-    REQUIRE(any_row(f.shown(), "recipe name> oven-two"));
+    REQUIRE(any_row(f.shown(), "recipe name> [oven-two"));
 
     // THE WRITE IS REFUSED WHILE A REQUIRED FIELD IS EMPTY, and the face says so before it.
     REQUIRE(face_at(f.shown(), "(write the recipe)").row >= 0);
@@ -3302,7 +3303,7 @@ void open_authoring(FilesRig& f) {
     f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
     press_face(f, "[pick buildable]");
     press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
-    REQUIRE_MESSAGE(any_row(f.shown(), "recipe name> oven"), picture(f.shown()));
+    REQUIRE_MESSAGE(any_row(f.shown(), "recipe name> [oven"), picture(f.shown()));
 }
 
 /// THE ROWS OF THE MENU THE PANE HAS OPEN.
@@ -3368,7 +3369,7 @@ TEST_CASE("`[next field]` keeps what is typed and steps, and Return still commit
     open_authoring(f);
     f.r.text("-two");
     press_face(f, "[next field]");
-    CHECK(any_row(f.shown(), "artifact stem> oven"));
+    CHECK(any_row(f.shown(), "artifact stem> [oven"));
     CHECK(any_row(f.shown(), "recipe name: oven-two")); // kept, not discarded by the step
     // RETURN FROM THE LAST FIELD WRITES: the control changed nothing about Return.
     for (const char* typed : {"stem", "zen::", "zen::core"}) {
@@ -3395,9 +3396,9 @@ TEST_CASE("a short Files pane keeps the authoring field being typed into on the 
     press_face(f, "[next field]");
     f.r.text("zen::");
     INFO("active field after typing\n", picture(f.shown()));
-    CHECK(any_row(f.shown(), "> "));    // a prompt, and the line behind it
+    CHECK(any_row(f.shown(), "> ["));    // a prompt, and the line behind it
     CHECK(any_row(f.shown(), "zen::")); // ...carrying what was typed
-    CHECK(any_row(f.shown(), "package prefix (comma-separated)> zen::"));
+    CHECK(any_row(f.shown(), "package prefix (comma-separated)> [zen::"));
     // AND THE ROOM SAYS WHERE THE OTHERS ARE rather than dropping them silently.
     CHECK(any_row(f.shown(), "more fields"));
 
@@ -3410,9 +3411,9 @@ TEST_CASE("a short Files pane keeps the authoring field being typed into on the 
     CHECK_FALSE(any_row(offered, "type the package prefix")); // the line already stands on it
     // ...AND CHOOSING ONE STANDS THE LINE ON IT, with what the field left behind held kept.
     choose_row(f, "type the recipe name");
-    CHECK(any_row(f.shown(), "recipe name> oven"));
+    CHECK(any_row(f.shown(), "recipe name> [oven"));
     f.r.text("-two");
-    CHECK(any_row(f.shown(), "recipe name> oven-two"));
+    CHECK(any_row(f.shown(), "recipe name> [oven-two"));
     press_face(f, "[menu]");
     CHECK(any_row(menu_rows(f), "type the package prefix (comma-separated)"));
 }
@@ -3450,7 +3451,7 @@ TEST_CASE("Files keeps typed package-prefix text visible in a thirty-column auth
                                           PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(wide.accepted, wide.refusal);
     f.r.extent(160, 48);
-    CHECK_MESSAGE(any_row(f.shown(), "package prefix (comma-separated)> narrowvalue"),
+    CHECK_MESSAGE(any_row(f.shown(), "package prefix (comma-separated)> [narrowvalue"),
                   picture(f.shown()));
 }
 
@@ -3467,7 +3468,7 @@ TEST_CASE("the authoring menu offers next-field on the last field too, and its r
     f.r.text("zen::");
     press_face(f, "[next field]");
     f.r.text("zen::core");
-    REQUIRE(any_row(f.shown(), "link targets (comma-separated)> zen::core")); // the last field
+    REQUIRE(any_row(f.shown(), "link targets (comma-separated)> [zen::core")); // the last field
     const std::vector<std::string> offered = open_menu(f);
     INFO("the menu offered\n", picture(offered));
     CHECK(any_row(offered, "is the last field"));
@@ -3492,12 +3493,12 @@ TEST_CASE("a capital letter typed into the Files authoring line is text, not thi
     open_authoring(f);
     f.r.key(input::scan::kM);
     f.r.text("m");
-    REQUIRE(any_row(f.shown(), "recipe name> ovenm")); // the lowercase control
+    REQUIRE(any_row(f.shown(), "recipe name> [ovenm")); // the lowercase control
     f.r.key(input::scan::kM, input::mod::kShift);
     f.r.text("M");
     INFO("pane\n", picture(f.shown()));
     CHECK_FALSE(menu_shown(f.r.session()));
-    CHECK(any_row(f.shown(), "recipe name> ovenmM"));
+    CHECK(any_row(f.shown(), "recipe name> [ovenmM"));
     // AND THE MENU IS STILL ONE PRESS AWAY, which is what makes the missing key affordable.
     CHECK(any_row(open_menu(f), "write the recipe for `oven.cpp`"));
 }
@@ -3524,10 +3525,10 @@ TEST_CASE("a Files menu choice that begins authoring takes the keyboard the menu
     const std::vector<std::string> offered = context_rows_on(f.r.shown(), f.r.session());
     INFO("offered\n", picture(offered));
     f.r.key(input::scan::kReturn);
-    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+    REQUIRE(any_row(f.shown(), "recipe name> [oven"));
     CHECK(typing_pane(f.r.session()) == f.kind);
     f.r.text("typed");
-    CHECK(any_row(f.shown(), "recipe name> oventyped"));
+    CHECK(any_row(f.shown(), "recipe name> [oventyped"));
 }
 
 TEST_CASE("a Files menu choice that opens no edit leaves the keyboard where the weaver put it") {
@@ -3584,7 +3585,7 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
     SUBCASE("the authoring line") {
         press_face(f, "[pick buildable]");
         press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
-        REQUIRE(any_row(f.shown(), "recipe name> oven"));
+        REQUIRE(any_row(f.shown(), "recipe name> [oven"));
         const std::vector<std::string> offered = open_menu(f);
         INFO("offered\n", picture(offered));
         for (const char* row :
@@ -3598,12 +3599,12 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
     SUBCASE("the authoring line, on its last field") {
         press_face(f, "[pick buildable]");
         press_pane(f.r, f.kind, row_beginning(f.shown(), "> oven.cpp"), 0);
-        REQUIRE(any_row(f.shown(), "recipe name> oven"));
+        REQUIRE(any_row(f.shown(), "recipe name> [oven"));
         for (int i = 0; i < 3; ++i) {
             press_face(f, "[next field]");
             f.r.text("x");
         }
-        REQUIRE(any_row(f.shown(), "link targets (comma-separated)> x"));
+        REQUIRE(any_row(f.shown(), "link targets (comma-separated)> [x"));
         const std::vector<std::string> offered = open_menu(f);
         INFO("offered\n", picture(offered));
         for (const char* row : {"type the recipe name", "type the artifact stem",
@@ -3633,7 +3634,7 @@ TEST_CASE("a multi-config tree's fifth field has a menu row short enough to offe
     f.letter(input::scan::kA, "a");
     REQUIRE(any_row(f.shown(), "tree/"));
     f.r.key(input::scan::kReturn); // the one candidate
-    REQUIRE(any_row(f.shown(), "recipe name> tree"));
+    REQUIRE(any_row(f.shown(), "recipe name> [tree"));
 
     // FIELD 0's MENU: the earliest field, which a label past the bound already empties -- the
     // whole offer, not merely its longest row.
@@ -3744,9 +3745,9 @@ void weaver_drafts_oven(FilesRig& f) {
     f.letter(input::scan::kA, "a");
     REQUIRE_MESSAGE(row_beginning(f.shown(), "> oven.cpp") >= 0, picture(f.shown()));
     f.r.key(input::scan::kReturn);
-    REQUIRE(any_row(f.shown(), "recipe name> oven"));
+    REQUIRE(any_row(f.shown(), "recipe name> [oven"));
     f.r.key(input::scan::kReturn); // the name it suggests
-    REQUIRE(any_row(f.shown(), "artifact stem> oven"));
+    REQUIRE(any_row(f.shown(), "artifact stem> [oven"));
     for (int i = 0; i < 64; ++i) {
         f.r.key(input::scan::kBackspace);
     }
@@ -3755,7 +3756,7 @@ void weaver_drafts_oven(FilesRig& f) {
     f.r.text("loom");
     f.r.key(input::scan::kReturn);
     f.r.text("loom::kernel");
-    REQUIRE_MESSAGE(any_row(f.shown(), "link targets (comma-separated)> loom::kernel"),
+    REQUIRE_MESSAGE(any_row(f.shown(), "link targets (comma-separated)> [loom::kernel"),
                     picture(f.shown()));
 }
 
@@ -3893,7 +3894,7 @@ TEST_CASE("on a weaver's host a guest is refused u, a mark and a written recipe 
         CHECK(f.recipes.source() == catalog);
         CHECK(f.recipes.all().size() == 1);
         CHECK(slurp(catalog) == catalog_bytes);
-        CHECK(any_row(f.shown(), "link targets (comma-separated)> loom::kernel"));
+        CHECK(any_row(f.shown(), "link targets (comma-separated)> [loom::kernel"));
     };
     const auto written_by_the_weaver = [&] {
         CHECK(tap.authored == std::vector<std::string>{"oven"});

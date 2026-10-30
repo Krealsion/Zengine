@@ -113,7 +113,7 @@ and the `action` a press anywhere in it asks of the area's owner.
 | `ellipse` | a box, a fill and an outline | the cells whose centre falls inside | a span a pixel row; its outline in lines |
 | `line` | two points and an ink | a walk of cells in `- | / \` | a line |
 | `path` | SVG path data (`M L H V C Q Z`), a fill and an outline | curves flattened; cells by centre | curves flattened; spans a pixel row, even-odd |
-| `text` | a point, words and an ink | one cell a character; outside ASCII, `?` | a run of text, a character every advance of the window's face (`PaintTask::text_advance`); outside ASCII, `?` |
+| `text` | a point, words and an ink | one cell a character; outside ASCII, `?` | a run of text, a character every advance of the window's face (`PaintTask::text_advance`); outside ASCII, `?`; a line a clip crosses cut by its pixels |
 | `image` | a box and pixels, four bytes each | a luminance ramp, one glyph a cell | its pixels, scaled into its box |
 
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
@@ -143,6 +143,22 @@ and a character an advance, and paints its area's ground: what it leaves unpaint
 stands behind it. `room` answers whether the window, its incarnation, its size or its measure
 changed or the area is empty, and `holds` whether the window presents an element, so an owner says
 again only what the window does not hold.
+
+## Drawing the text pieces
+
+`graphics/elements/text_face.hpp` holds the text pieces' looks, a face each medium's, drawn from the
+values `component/` keeps measured in characters, and keeps nothing itself. A text box keeps a
+column on each side of its text (`kTextBoxInset`): in a row of cells `[text___]`
+(`text_box_spelling`), where the window sets type its outline in `role::kEdge` round its text,
+selection and caret (`text_box_face`). A text area in a row of cells shows its lines between
+`N more above...` and `... N more below` (`text_area_cells`, read back by
+`text_area_cells_place`). `text_area_face` draws a text area scrolled freely: its lines from the
+scroll's place, the first and last cut by their pixels where the scroll stands between two lines,
+the selection on a muted ground behind its text, and the bar's thumb in a room kept on the right
+whether or not the text overflows (`kTextAreaBarRoom`, drawn `kTextAreaBarDrawn` wide), pressed
+across all of that room. The owner reads a press with the geometry the face was drawn with
+(`text_area_geometry`, `text_area_place_at`, `text_area_on_bar`, `text_area_bar_scroll`), so a
+press lands where the face showed.
 
 ## A drawing weave
 

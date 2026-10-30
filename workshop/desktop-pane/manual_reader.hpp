@@ -10,6 +10,7 @@
 // reading the words. Pure, so the Manual pane composes from it and a case reads it alone.
 // Workshop law: agents/workshop/desktop-presenting.md
 
+#include "component/text_area.hpp"
 #include "graphics/role.hpp"
 #include "manual/manual.hpp"
 #include "graphics/vocabulary.hpp"
@@ -156,31 +157,6 @@ inline std::string plain(const std::string& text) {
     return out;
 }
 
-/// A PARAGRAPH ACROSS AS MANY ROWS AS IT NEEDS: a list item's further rows under its words, a
-/// paragraph's flush with its first.
-inline std::vector<std::string> wrap_paragraph(const std::string& text, std::int64_t columns) {
-    const bool item = text.rfind("- ", 0) == 0 || text.rfind("* ", 0) == 0;
-    if (item || columns <= 1) {
-        return ws::pane_text::wrap(text, columns);
-    }
-    std::vector<std::string> rows;
-    const std::size_t room = static_cast<std::size_t>(columns);
-    std::size_t at = 0;
-    while (text.size() - at > room) {
-        std::size_t cut = text.rfind(' ', at + room);
-        if (cut == std::string::npos || cut <= at) {
-            cut = at + room;
-            rows.push_back(text.substr(at, room));
-            at = cut;
-            continue;
-        }
-        rows.push_back(text.substr(at, cut - at));
-        at = cut + 1;
-    }
-    rows.push_back(text.substr(at));
-    return rows;
-}
-
 /// A SECTION'S WORDS AS PARAGRAPHS: the lines of one paragraph joined, a list item or a table row
 /// starting its own, a code block's lines kept as they are.
 inline std::vector<std::string> paragraphs(const std::string& text) {
@@ -244,23 +220,27 @@ inline std::string group_key(const std::string& heading) {
     return out;
 }
 
-/// THE MANUAL AS ROWS `columns` WIDE: `About` and `Use`, then each group of commands under its
-/// heading, each command's own heading carrying the keys it answers to now. The rest of a page
-/// (what it hears, follows, shows and files) is the page's, not the `?`'s.
+/// THE MANUAL AS A TEXT AREA HOLDS IT: one paragraph a line of the text as written -- `About` and
+/// `Use`, then each group of commands under its heading, each command's own heading carrying the
+/// keys it answers to now -- each with its look: a heading in the accent role, a list item's further
+/// lines under its words. The area wraps it to whatever width shows it.
+struct ManualText {
+    std::string text;
+    std::vector<component::TextLook> looks;
+};
+
 // WL-DESK-17 -- agents/workshop/desktop-presenting.md
-inline std::vector<ws::TextRow> manual_lines(const ws::PaneDocumentShown& shown,
-                                                         const ws::KeymapShown& keymap,
-                                                         std::int64_t columns) {
-    std::vector<ws::TextRow> rows;
-    if (columns <= 0) {
-        return rows;
-    }
-    const auto line = [&rows, columns](const std::string& text, std::int64_t role) {
-        rows.push_back(ws::TextRow{
-            ws::pane_text::drawable(ws::pane_text::fit(text, columns)), role});
+inline ManualText manual_text(const ws::PaneDocumentShown& shown, const ws::KeymapShown& keymap) {
+    ManualText out;
+    const auto line = [&out](const std::string& text, std::int64_t role, std::int64_t hang = 0) {
+        if (!out.looks.empty()) {
+            out.text += '\n';
+        }
+        out.text += ws::pane_text::drawable(text);
+        out.looks.push_back(component::TextLook{role, hang});
     };
     const auto words = [&](const std::string& text, std::int64_t role) {
-        // A blank row parts two paragraphs, and never two items of one list.
+        // A blank line parts two paragraphs, and never two items of one list.
         bool first = true, last_item = false;
         for (const std::string& paragraph : paragraphs(text)) {
             const bool item = paragraph.rfind("- ", 0) == 0 || paragraph.rfind("* ", 0) == 0;
@@ -269,9 +249,7 @@ inline std::vector<ws::TextRow> manual_lines(const ws::PaneDocumentShown& shown,
             }
             first = false;
             last_item = item;
-            for (const std::string& row : wrap_paragraph(plain(paragraph), columns)) {
-                line(row, role);
-            }
+            line(plain(paragraph), role, item ? ws::pane_text::kWrapIndent : 0);
         }
     };
     std::string group;
@@ -281,7 +259,7 @@ inline std::vector<ws::TextRow> manual_lines(const ws::PaneDocumentShown& shown,
         if (!opening && !command) {
             continue;
         }
-        if (!rows.empty()) {
+        if (!out.looks.empty()) {
             line(std::string(), graphics::role::kFill);
         }
         if (s.group != group) {
@@ -302,7 +280,7 @@ inline std::vector<ws::TextRow> manual_lines(const ws::PaneDocumentShown& shown,
         }
         words(with_keys(s, keymap), graphics::role::kFill);
     }
-    return rows;
+    return out;
 }
 
 } // namespace zengine::desktop_pane::manual_reader
