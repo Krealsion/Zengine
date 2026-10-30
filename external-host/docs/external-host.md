@@ -709,7 +709,8 @@ reading says, and an `out` inside a checkout refused with nothing written; and `
 against a scripted desk that moves between notices (`tests/session/desk_watch_checks.py`): only what
 moved read again, the ring bounded, two watches of different panes each writing their own; and
 `desk/resolve`'s against a scripted desk (`tests/session/desk_resolve_checks.py`): the route through
-the Pane Manager, another mode, the case for a tool only for a row reading every pane.
+the Pane Manager, another mode, the case for a tool only for a row reading every pane and a known
+shape, an unknown shape said so, and a mark that marks nothing saying why.
 `tests/session/tutor_walk.py`, behind `session-pty` (the session tooling and a POSIX
 pseudo-terminal), walks a Tutor through a terminal Workshop on a weaver's host whose weaver is the
 pseudo-terminal it holds. Beside it, `tests/session/story_journey.py` holds
@@ -1244,9 +1245,12 @@ loom-session run work desk/guide --name guide-1 --input pane=zengine.builder-pan
   address, the part that draws it, whether it shows and is usable now, the weaver's key and where
   its pane is. When none is shown and usable it names the steps that would bring one, nearest
   first: the row in force that enters the pane's other mode, and showing the pane, which is itself
-  a message resolved the same way, never through Connections or the Hotkeys pane. With `mark` on it
-  marks the one control shown and usable, else the one of the nearest step. When no control the row
-  may read causes the message, it names the panes outside the row's read; for a row that reads
-  every pane, it drafts the case for a tool -- four claims with their evidence -- and files nothing:
-  a case is the agent's own to propose, unlabelled, and on a weaver's desk only after the weaver
-  says yes.
+  a message resolved the same way, never through Connections or the Hotkeys pane. A cause declared
+  with no subject is no way to show a given pane. With `mark` on it marks the one control shown and
+  usable, else the one of the nearest step, and when it marks nothing it says why: several shown,
+  a step whose controls are keys with no part, nothing that may cause it, or the refusal. A shape
+  no row or mode on the desk declares and the session's vocabulary does not resolve is said
+  unknown. When no control the row may read causes a known message, it names the panes outside the
+  row's read; for a row that reads every pane, it drafts the case for a tool -- four claims with
+  their evidence -- and files nothing: a case is the agent's own to propose, unlabelled, and on a
+  weaver's desk only after the weaver says yes. The whole resolution is written as `resolve.json`.

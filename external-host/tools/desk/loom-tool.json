@@ -70,8 +70,8 @@
         },
         {
           "name": "version",
-          "type": "text",
-          "default": "0",
+          "type": "int",
+          "default": 0,
           "help": "its version, or 0 for any"
         },
         {
@@ -82,9 +82,9 @@
         },
         {
           "name": "mark",
-          "type": "text",
-          "default": "",
-          "help": "yes: mark the control when exactly one is shown and usable, else the nearest step's"
+          "type": "bool",
+          "default": false,
+          "help": "true: mark the control when exactly one is shown and usable, else the nearest step's; the summary says why when nothing is marked"
         },
         {
           "name": "words",
@@ -117,7 +117,12 @@
           "help": "the external host's link to the Workshop"
         }
       ],
-      "outputs": [],
+      "outputs": [
+        {
+          "name": "resolve.json",
+          "help": "the whole resolution: what was asked, whether the shape is unknown, every control, every step, the mark and the summary's lines"
+        }
+      ],
       "requires": [
         "the `capture` power: the keymap, the desk and the parts are answered under the row's `capture` doors",
         "the `guide` power for `mark`",

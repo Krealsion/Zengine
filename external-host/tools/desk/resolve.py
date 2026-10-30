@@ -16,10 +16,14 @@ bring one: a row in force that enters the pane's other mode where one is declare
 pane, which is itself a message (`PaneLaunchRequested`, `PaneToggleRequested`) resolved the same way,
 at most DEPTH steps deep. A route never runs through a pane only the weaver's hand reaches.
 
-When no control the row may read causes it, in any mode: if the row reads every pane, that is the
-case for a tool, said as its four claims with their evidence and filed nowhere; if it does not, the
-panes outside its read are named, since one of them may.
+When no control the row may read causes it, in any mode: a shape no row or mode on the desk
+declares and the session's vocabulary does not resolve is said unknown; otherwise, if the row reads
+every pane, that is the case for a tool, said as its four claims with their evidence and filed
+nowhere; if it does not, the panes outside its read are named, since one of them may. A mark that
+marks nothing says why. The whole resolution is written as `resolve.json`.
 """
+
+import json
 
 import desk_asks
 
@@ -111,6 +115,8 @@ class Desk(object):
 
 
 def matches(c, shape, version, subject):
+    """Whether a declared cause may cause the message: a cause that names no subject answers only
+    an ask about none, since nothing says which pane or part it would reach."""
     if c.get("shape") != shape or (version and c.get("version") != version):
         return False
     s = c.get("subject") or ""
@@ -118,7 +124,14 @@ def matches(c, shape, version, subject):
         return not subject or s[3:] == subject
     if s.startswith("on "):
         return bool(subject)
-    return True
+    return not subject
+
+
+def declared(desk, shape, version):
+    """Whether any row in force, or any other mode a pane declares, names the shape."""
+    causes = [c for b in desk.bindings() for c in b.get("causes") or []]
+    causes += [c for m in desk.modes() for e in m.get("elsewhere") or [] for c in e.get("causes") or []]
+    return any(c.get("shape") == shape and (not version or c.get("version") == version) for c in causes)
 
 
 def candidate(desk, b, c, subject):
@@ -237,12 +250,34 @@ def case_for_a_tool(desk, shape, version, office, why, pane):
     ]
 
 
-def resolve(desk, shape, version, subject):
+def resolve(desk, shape, version, subject, known=None):
+    """The resolution. `known(shape, version)` says whether this session's vocabulary resolves the
+    shape (None: it cannot tell); a shape neither it nor any declaration on the desk names is
+    `unknown`, never the case for a tool."""
     found, steps = route(desk, shape, version, subject, 0, set())
     whole = not desk.row.get("by_door") or desk.row.get("capture") == ["*"]
-    return {"found": found, "steps": steps, "ready": ready(found),
-            "outside": [] if (found or steps or whole) else desk.outside(),
-            "nowhere": not found and not steps and whole}
+    unknown = (not found and not steps and not declared(desk, shape, version) and known is not None
+               and known(shape, version) is False)
+    return {"found": found, "steps": steps, "ready": ready(found), "unknown": unknown,
+            "outside": [] if (found or steps or whole or unknown) else desk.outside(),
+            "nowhere": not found and not steps and whole and not unknown}
+
+
+def unmarked(r):
+    """Why nothing was marked, when no ready control or step's control was chosen."""
+    if not r["found"] and not r["steps"]:
+        return "not marked: no control or step on this desk may cause it"
+    for st in flatten(r["steps"]):
+        near = [c for c in st["by"] if c["shown"] and c["usable"] and c["part"]]
+        if len(near) > 1:
+            return ("not marked: the step to show %s has %d controls shown and usable; the asker "
+                    "names one by address" % (st["to show"], len(near)))
+    keys = [c for st in flatten(r["steps"]) for c in st["by"] if not c["part"]]
+    if keys:
+        return ("not marked: no step's control is shown and usable with a part; %s has no part to "
+                "mark: a key the weaver presses" % ", ".join("%s (%s)" % (c["key"], c["address"])
+                                                             for c in keys))
+    return "not marked: no control or step is shown and usable"
 
 
 def mark(asker, desk_resolution, words):
@@ -261,7 +296,7 @@ def mark(asker, desk_resolution, words):
                 choice, why = near[0], " (the nearest step, to show %s)" % st["to show"]
                 break
     if choice is None:
-        return "not marked: no control or step is shown and usable", None
+        return unmarked(r), None
     answer, refused = asker.ask(WORKSHOP, "GuideRequested", 1, {
         "pane": "%s/%s" % (choice["office"], choice["pane"]), "control": choice["control"],
         "words": words})
@@ -292,38 +327,89 @@ def read(ctx, asker):
     return Desk(row, keymap, (desk or {}).get("desk"), inventory, read_view), refused
 
 
-def run(ctx):
-    link = ctx.inputs.get("link") or "workshop"
+def flag(value):
+    """A `bool` input as the manager types it, or text in the spellings the client types."""
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().lower() in ("1", "yes", "true", "on")
+
+
+#: The most versions of a shape asked of the session's vocabulary when no version is named.
+VERSIONS = 16
+
+
+def vocabulary_knows(ctx):
+    """`known(shape, version)` from the session's own vocabulary, or None where it cannot tell."""
+    conn = getattr(ctx, "conn", None)
+    if conn is None or not hasattr(conn, "schema"):
+        return None
+    from loom_session.client import UnknownShape
+
+    def known(shape, version):
+        for v in ([version] if version else range(1, VERSIONS + 1)):
+            try:
+                conn.schema(shape, v)
+                return True
+            except UnknownShape:
+                continue
+            except Exception:  # the host could not say: no claim either way
+                return None
+        return False
+    return known
+
+
+def lines(desk, r, shape, version, subject, inputs):
+    """The resolution in words, as the summary says it."""
+    asked = "%s%s%s" % (shape, " v%d" % version if version else "", " about " + subject if subject else "")
+    if r.get("unknown"):
+        return ["desk/resolve: %s -- unknown: no row or mode on this desk declares it, and this "
+                "session's vocabulary resolves no such shape; check its spelling and version" % asked]
+    out = ["desk/resolve: %s -- %d control(s) may cause it, %d shown and usable" % (
+        asked, len(r["found"]), len(r["ready"]))]
+    out += ["  " + said(c) for c in r["found"]]
+    for st in r["steps"]:
+        out.append("  to show %s (for %s):" % (st["to show"], st["for"]))
+        out += ["    " + said(c) for c in st["by"]]
+        for t in flatten(st["then"]):
+            out.append("    then to show %s:" % t["to show"])
+            out += ["      " + said(c) for c in t["by"]]
+    if r["outside"]:
+        out.append("  no control this row reads may cause it; outside its read: " + ", ".join(r["outside"]))
+    if r["nowhere"]:
+        out.append("  no control on this desk may cause it, in any mode: a case for a tool, the weaver's "
+                   "to take --")
+        out += ["    " + c for c in case_for_a_tool(desk, shape, version,
+                                                     (inputs.get("office") or "").strip(),
+                                                     (inputs.get("why") or "").strip(),
+                                                     (inputs.get("pane") or "").strip())]
+    return out
+
+
+def answer(ctx, desk, asker, known=None):
+    """Resolve, mark when asked, write `resolve.json` whole and return the summary."""
     shape = (ctx.inputs.get("shape") or "").strip()
     version = int(ctx.inputs.get("version") or 0)
     subject = (ctx.inputs.get("subject") or "").strip()
-    want_mark = (ctx.inputs.get("mark") or "").strip().lower() in ("1", "yes", "true", "on")
-    words = ctx.inputs.get("words") or ""
+    ctx.step("resolve")
+    r = resolve(desk, shape, version, subject, known)
+    said_lines = lines(desk, r, shape, version, subject, ctx.inputs)
+    marked = None
+    if flag(ctx.inputs.get("mark")) and not r["unknown"]:
+        line, address = mark(asker, r, ctx.inputs.get("words") or "")
+        marked = {"line": line, "address": address}
+        said_lines.append("  " + line)
+    whole = dict(r, shape=shape, version=version, subject=subject, mark=marked, lines=said_lines)
+    ctx.produce("resolve.json", (json.dumps(whole, indent=2, sort_keys=True, default=str) + "\n").encode("utf-8"))
+    said_lines.append("  the whole resolution: resolve.json")
+    text = "\n".join(said_lines)
+    return text if len(text) <= 1900 else text[:1860] + "\n  ... cut here; resolve.json holds it whole"
+
+
+def run(ctx):
+    link = ctx.inputs.get("link") or "workshop"
     asker = desk_asks.Asker(ctx, link)
     desk, refused = read(ctx, asker)
     if refused is not None:
         return "desk/resolve: not resolved -- %s" % refused
-    ctx.step("resolve")
-    r = resolve(desk, shape, version, subject)
-    lines = ["desk/resolve: %s%s%s -- %d control(s) may cause it, %d shown and usable" % (
-        shape, " v%d" % version if version else "", " about " + subject if subject else "",
-        len(r["found"]), len(r["ready"]))]
-    lines += ["  " + said(c) for c in r["found"]]
-    for st in r["steps"]:
-        lines.append("  to show %s (for %s):" % (st["to show"], st["for"]))
-        lines += ["    " + said(c) for c in st["by"]]
-        for t in flatten(st["then"]):
-            lines.append("    then to show %s:" % t["to show"])
-            lines += ["      " + said(c) for c in t["by"]]
-    if r["outside"]:
-        lines.append("  no control this row reads may cause it; outside its read: " + ", ".join(r["outside"]))
-    if r["nowhere"]:
-        lines.append("  no control on this desk may cause it, in any mode: a case for a tool, the weaver's "
-                     "to take --")
-        lines += ["    " + c for c in case_for_a_tool(desk, shape, version,
-                                                       (ctx.inputs.get("office") or "").strip(),
-                                                       (ctx.inputs.get("why") or "").strip(),
-                                                       (ctx.inputs.get("pane") or "").strip())]
-    if want_mark:
-        lines.append("  " + mark(asker, r, words)[0])
-    return "\n".join(lines)[:1900]
+    return answer(ctx, desk, asker, vocabulary_knows(ctx))
+

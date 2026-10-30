@@ -6,8 +6,10 @@ pane's parts, as Workshop answers them. The checks read what the resolution says
 and usable; a pane offered and hidden, reached through the Pane Manager and the desktop's own key;
 a control in the pane's other mode, reached through the row that enters it; a message no control
 causes, the case for a tool for a row that reads every pane and the panes outside its read for one
-that does not; a route that never runs through the Hotkeys pane; and the mark asked by the address a
-press names. They claim nothing about a real Workshop.
+that does not; a shape nothing names, said unknown; a cause with no subject, no route to show a
+pane; a route that never runs through the Hotkeys pane; the mark asked by the address a press
+names, and why nothing was marked; the typed inputs and `resolve.json`. They claim nothing about a
+real Workshop.
 
 Standalone: python desk_resolve_checks.py --tools <external-host/tools/desk> --runtime <loom runtime>
 Pure Python; no Workshop and no Loom host run.
@@ -15,10 +17,13 @@ Pure Python; no Workshop and no Loom host run.
 
 import argparse
 import importlib
+import json
 from pathlib import Path
 import sys
 import unittest
 
+#: The package the checks read its manifest from, set by `run_checks`.
+TOOLS = None
 CELLS = 1
 BUILDER = ("zengine.builder-pane", "builder")
 LAUNCHER = ("zengine.desktop", "launcher")
@@ -88,6 +93,23 @@ class FakeAsker(object):
     def ask(self, office, shape, version, fields):
         self.asked.append((office, shape, version, fields))
         return self.answer, None
+
+
+class FakeCtx(object):
+    """A run's inputs as the manager types them, and the outputs it produces."""
+
+    def __init__(self, inputs):
+        self.inputs, self.produced, self.steps = dict(inputs), {}, []
+
+    def step(self, name, note=""):
+        self.steps.append(name)
+
+    def produce(self, name, data):
+        self.produced[name] = data
+        return name
+
+    def fail(self, message):
+        raise AssertionError("the run failed: " + message)
 
 
 def make_checks(resolve):
@@ -183,6 +205,96 @@ def make_checks(resolve):
             self.assertFalse(r["nowhere"])
             self.assertTrue(any("zengine.desktop/launcher" in o for o in r["outside"]))
 
+        def test_a_shape_nothing_names_is_unknown_apart_from_a_known_shape_no_control_causes(self):
+            s = Scripted()
+            s.on_desk = [BUILDER]
+            s.rows = APP_ROWS + BROWSE
+            vocabulary = {("InventoryCaptureAdd", 1)}
+            known = lambda shape, version: (shape, version or 1) in vocabulary
+            nowhere = resolve.resolve(s.desk(resolve), "NoSuchShapeXyz", 0, "", known)
+            self.assertTrue(nowhere["unknown"])
+            self.assertFalse(nowhere["nowhere"])
+            words = resolve.lines(s.desk(resolve), nowhere, "NoSuchShapeXyz", 0, "", {})
+            self.assertIn("unknown", words[0])
+            self.assertFalse(any("case for a tool" in w for w in words))
+            real = resolve.resolve(s.desk(resolve), "InventoryCaptureAdd", 1, "", known)
+            self.assertFalse(real["unknown"])
+            self.assertTrue(real["nowhere"])
+            self.assertNotIn("unknown", resolve.lines(s.desk(resolve), real, "InventoryCaptureAdd", 1,
+                                                      "", {})[0])
+            # A shape a row in force declares is known, whatever the vocabulary says.
+            declared = resolve.resolve(s.desk(resolve), "BuildOutputRequested", 1, "",
+                                       lambda shape, version: False)
+            self.assertFalse(declared["unknown"])
+
+        def test_a_mark_that_marks_nothing_says_why(self):
+            s = Scripted()
+            s.rows = APP_ROWS + BROWSE + LAUNCHER_ROWS
+            r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
+            line, address = resolve.mark(FakeAsker({"shown": True}), r, "")
+            self.assertIsNone(address)
+            # The steps the lines list are a key with no part: say so, and name the key.
+            self.assertIn("no part to mark", line)
+            self.assertIn("ctrl+p", line)
+            s = Scripted()
+            s.on_desk = [LAUNCHER]
+            s.rows = APP_ROWS + BROWSE + LAUNCHER_ROWS + [
+                binding(*LAUNCHER, ident="launcher.show", key="space",
+                        causes=[cause("PaneLaunchRequested", 1, "on pane:")])]
+            s.parts[LAUNCHER] = [part("pane:zengine.builder-pane/builder")]
+            r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
+            line, address = resolve.mark(FakeAsker({"shown": True}), r, "")
+            self.assertIsNone(address)
+            self.assertIn("2 controls shown and usable", line)
+            s = Scripted()
+            s.on_desk = [BUILDER]
+            s.rows = APP_ROWS + BROWSE
+            s.parts[BUILDER] = [part("control:builder.build")]
+            r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
+
+            class Refusing(FakeAsker):
+                def ask(self, office, shape, version, fields):
+                    return None, "dispatch-refused: CapabilityDenied"
+            line, address = resolve.mark(Refusing(None), r, "")
+            self.assertIsNone(address)
+            self.assertIn("CapabilityDenied", line)
+
+        def test_a_cause_with_no_subject_is_no_route_to_show_another_pane(self):
+            info = ("zengine.info", "view")
+            s = Scripted()
+            s.on_desk = [info]
+            s.offered = [BUILDER, LAUNCHER, HOTKEYS, info]
+            s.rows = APP_ROWS + BROWSE + [
+                binding(*info, ident="info.view.new", key="n", causes=[cause("PaneLaunchRequested", 1)]),
+                binding(*info, ident="info.view.fork", key="f", causes=[cause("PaneLaunchRequested", 1)])]
+            s.parts[info] = [part("control:info.view.new"), part("control:info.view.fork")]
+            r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
+            routes = [c["address"] for st in resolve.flatten(r["steps"]) for c in st["by"]]
+            self.assertNotIn("zengine.info/view:info.view.new", routes)
+            self.assertNotIn("zengine.info/view:info.view.fork", routes)
+            # Asked with no subject, the same causes still answer.
+            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 1, "")
+            self.assertIn("zengine.info/view:info.view.new", [c["address"] for c in r["found"]])
+
+        def test_version_and_mark_are_typed_and_the_whole_resolution_is_written(self):
+            manifest = json.loads((TOOLS / "loom-tool.json").read_text(encoding="utf-8"))
+            tool = [t for t in manifest["tools"] if t["name"] == "resolve"][0]
+            types = dict((i["name"], i["type"]) for i in tool["inputs"])
+            self.assertEqual(types["version"], "int")
+            self.assertEqual(types["mark"], "bool")
+            self.assertIn("resolve.json", [o["name"] for o in tool["outputs"]])
+            s = Scripted()
+            s.on_desk = [BUILDER]
+            s.rows = APP_ROWS + BROWSE
+            s.parts[BUILDER] = [part("control:builder.build")]
+            ctx = FakeCtx({"shape": "BuildRequested", "version": 2, "mark": True})
+            summary = resolve.answer(ctx, s.desk(resolve), FakeAsker({"shown": True, "said": "ok"}))
+            written = json.loads(ctx.produced["resolve.json"].decode("utf-8"))
+            self.assertEqual([c["address"] for c in written["ready"]],
+                             ["zengine.builder-pane/builder:builder.build"])
+            self.assertEqual(written["mark"]["address"], "zengine.builder-pane/builder:builder.build")
+            self.assertIn("resolve.json", summary)
+
         def test_no_route_runs_through_the_hotkeys_pane(self):
             s = Scripted()
             s.on_desk = [HOTKEYS]
@@ -197,6 +309,8 @@ def make_checks(resolve):
 
 
 def run_checks(tools, runtime):
+    global TOOLS
+    TOOLS = Path(tools).resolve()
     sys.path[:0] = [str(Path(runtime).resolve()), str(Path(tools).resolve())]
     resolve = importlib.import_module("resolve")
     suite = unittest.TestLoader().loadTestsFromTestCase(make_checks(resolve))
