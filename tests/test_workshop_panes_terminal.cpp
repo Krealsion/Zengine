@@ -24,6 +24,9 @@
 
 namespace {
 
+/// WHERE THE LINE'S BOX STANDS ON ITS ROW: after the prompt's mark and its space.
+constexpr std::int64_t kLineBoxColumn = 2;
+
 namespace pane = zengine::terminal_pane;
 
 /// The office and pane, spelled through the package's own header -- the durable names, not
@@ -179,6 +182,31 @@ struct TerminalRig {
             return text;
         }
         return rows[static_cast<std::size_t>(input_row())];
+    }
+
+    /// THE LINE'S TEXT AS ITS BOX SHOWS IT: the row is `<mark> [text___]`, and this is what stands
+    /// inside the box, its blank room (`_`) and its closing bracket left off.
+    std::string typed() {
+        std::string row = input_text();
+        const std::size_t open = row.find('[');
+        if (open == std::string::npos) {
+            // WHERE THE WINDOW SETS TYPE the box is an outline: its text after the inset's blank.
+            row = row.size() > static_cast<std::size_t>(kLineBoxColumn + 1)
+                      ? row.substr(static_cast<std::size_t>(kLineBoxColumn + 1))
+                      : std::string();
+            while (!row.empty() && row.back() == ' ') {
+                row.pop_back();
+            }
+            return row;
+        }
+        row = row.substr(open + 1);
+        if (!row.empty() && row.back() == ']') {
+            row.pop_back();
+        }
+        while (!row.empty() && row.back() == '_') {
+            row.pop_back();
+        }
+        return row;
     }
 
     /// Type a whole line into the pane, a character at a time, as a backend reports it.
@@ -532,7 +560,7 @@ TEST_CASE("a weaver presses in, types a line, and the participant runs it") {
     t.open();
     t.focus();
     t.type("hello there");
-    CHECK(t.text().find("> hello there") != std::string::npos);
+    CHECK(t.text().find("> [hello there") != std::string::npos);
     // NOTHING WAS AUTHORED BY TYPING. The record is still empty: composing is not sending.
     CHECK(t.record().empty());
     t.submit();
@@ -544,7 +572,7 @@ TEST_CASE("a weaver presses in, types a line, and the participant runs it") {
     // the grammar notice it recorded is on the pane's rows.
     CHECK(t.text().find("this pane speaks two verbs") != std::string::npos);
     // AND THE LINE IS CLEAR, ready for the next one.
-    CHECK(t.row_of(">    ") >= 0);
+    CHECK(t.shown().back().rfind("> [__________]  Tab:", 0) == 0);
 }
 
 TEST_CASE("a typed send leaves through the PARTICIPANT's door, not the pane's") {
@@ -760,11 +788,11 @@ TEST_CASE("the pane draws its caret in its own picture, in its area of the windo
     t.focus();
     t.type("abc");
     CHECK(t.caret().row == t.input_row());
-    CHECK(t.caret().column == 2 + 3); // `> ` and three characters
+    CHECK(t.caret().column == kLineBoxColumn + 1 + 3); // `> ` and three characters
     CHECK(wears_ground(*t.seat())); // and the rows lie on a ground of their own
     // ...and a cell projection stands it on a cell, moving no character of the row.
     const std::vector<std::string> rows = t.shown();
-    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> abc", 0) == 0);
+    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> [abc", 0) == 0);
 }
 
 TEST_CASE("the caret carries a selection, and both ends or neither") {
@@ -778,8 +806,8 @@ TEST_CASE("the caret carries a selection, and both ends or neither") {
     const RowsCaret said = t.caret();
     CHECK(said.sel_begin_row == t.input_row());
     CHECK(said.sel_end_row == t.input_row());
-    CHECK(said.sel_begin_col == 2);
-    CHECK(said.sel_end_col == 2 + 5);
+    CHECK(said.sel_begin_col == kLineBoxColumn + 1);
+    CHECK(said.sel_end_col == kLineBoxColumn + 1 + 5);
     // COLLAPSING IT UN-SAYS IT: a caret with no selection draws none.
     t.r.key(input::scan::kRight);
     const RowsCaret after = t.caret();
@@ -795,12 +823,12 @@ TEST_CASE("a press on the input row places the caret where the weaver aimed") {
     t.open();
     t.focus();
     t.type("abcdefgh");
-    t.press_row(t.input_row(), 2 + 3); // before the `d`
+    t.press_row(t.input_row(), kLineBoxColumn + 1 + 3); // before the `d`
     CHECK(t.caret().row == t.input_row());
-    CHECK(t.caret().column == 2 + 3);
+    CHECK(t.caret().column == kLineBoxColumn + 1 + 3);
     // ...and typing lands there rather than at the end.
     t.type("X");
-    CHECK(t.shown()[static_cast<std::size_t>(t.input_row())].rfind("> abcXdefgh", 0) == 0);
+    CHECK(t.shown()[static_cast<std::size_t>(t.input_row())].rfind("> [abcXdefgh", 0) == 0);
 }
 
 // ============================================================================
@@ -835,7 +863,7 @@ TEST_CASE("the list is rows INSIDE the pane, above the line it belongs to") {
     REQUIRE(rows.size() > 2);
     // The heading is on a row of this pane, and the input row is still the last one.
     const std::int64_t input = t.input_row();
-    CHECK(rows[static_cast<std::size_t>(input)].rfind("> s", 0) == 0);
+    CHECK(rows[static_cast<std::size_t>(input)].rfind("> [s", 0) == 0);
     bool listed = false;
     for (std::size_t i = 0; i + 1 < rows.size(); ++i) {
         listed = listed || rows[i].find("send") != std::string::npos;
@@ -922,16 +950,19 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         t.type("hello");
         const RowsCaret typed = t.caret();
         REQUIRE(typed.row == t.input_row());
-        CHECK(typed.column == 2 + 5);
+        // Inside the line's box: the mark, its space and the box's `[` before the text.
+        CHECK(typed.column == kLineBoxColumn + 1 + 5);
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
-        CHECK(caret->op == gfx::op::kLine);
-        const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
-        REQUIRE(bar.has_value());
-        CHECK(bar->x1 == typed.column * gfx::kCellPx);
-        CHECK(bar->x2 == typed.column * gfx::kCellPx);
-        CHECK(bar->y1 == typed.row * gfx::kCellPx);
-        CHECK(bar->y2 == typed.row * gfx::kCellPx + gfx::kCellPx - 1);
+        // In a room of cells the caret after the text sits on the box's first blank, `_`, drawn
+        // again in the accent role, which a bar there would hide.
+        CHECK(caret->op == gfx::op::kText);
+        const std::optional<gfx::TextArgs> mark = gfx::from_body<gfx::TextArgs>(caret->args);
+        REQUIRE(mark.has_value());
+        CHECK(mark->text == "_");
+        CHECK(mark->x == typed.column * gfx::kCellPx);
+        CHECK(mark->y == typed.row * gfx::kCellPx);
+        CHECK(mark->ink.role == gfx::role::kAccent);
         CHECK(window.action_at(area, typed.column, typed.row) == "line");
         // ...AND SO DOES THE SELECTION: the selected columns again in the accent role, asking for
         // the line, the row's words unchanged; collapsed, it is gone and the caret stays.
@@ -1067,10 +1098,10 @@ TEST_CASE("accepting a candidate edits the line, and the grammar's separators ho
     t.focus();
     t.type("se");
     t.r.key(input::scan::kTab); // accepts the selected candidate
-    CHECK(t.input_text().rfind("> send ", 0) == 0);
+    CHECK(t.typed().rfind("send ", 0) == 0);
     // ...and the caret is at the end of what was written, which is where the completer
     // requires it to be.
-    CHECK(t.caret().column == 2 + static_cast<std::int64_t>(std::string("send ").size()));
+    CHECK(t.caret().column == kLineBoxColumn + 1 + static_cast<std::int64_t>(std::string("send ").size()));
 }
 
 TEST_CASE("completion follows the END of the line, and says so when it cannot") {
@@ -1079,7 +1110,7 @@ TEST_CASE("completion follows the END of the line, and says so when it cannot") 
     t.open();
     t.focus();
     t.type("send ");
-    t.press_row(t.input_row(), 2 + 1); // a caret inside the line
+    t.press_row(t.input_row(), kLineBoxColumn + 1 + 1); // a caret inside the line
     CHECK(t.text().find("completion follows the END of the line") != std::string::npos);
     // Back at the end, the list comes back.
     t.r.key(input::scan::kEnd);
@@ -1115,7 +1146,7 @@ TEST_CASE("the state a same-shape reload keeps is the LINE, and only the line") 
     t.focus();
     t.type("send @zengine.test.board RigNote 1 slot=a");
     const std::vector<std::string> rows = t.shown();
-    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> send @zengine.test.board", 0) == 0);
+    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> [send @zengine.test.board", 0) == 0);
 }
 
 // ============================================================================
@@ -1150,13 +1181,13 @@ TEST_CASE("a refusal is said BESIDE the line it is about, never in place of it")
 
     // AND THE WEAVER TYPES AGAIN, which is the thing the lost row made impossible.
     t.type("send");
-    CHECK(t.input_text().rfind("> send", 0) == 0);
-    CHECK(t.caret().column == 2 + 4); // the prompt's two columns, then four typed
+    CHECK(t.typed().rfind("send", 0) == 0);
+    CHECK(t.caret().column == kLineBoxColumn + 1 + 4); // the prompt's two columns, then four typed
     // A PRESS STILL MEANS WHAT THE PICTURE SAYS IT MEANS: the row the caret was published on is
     // the row a press places the caret in, so the two never disagree about what is where -- the
     // second thing a truncated input row would break.
-    t.press_row(t.input_row(), 2 + 2);
-    CHECK(t.caret().column == 2 + 2);
+    t.press_row(t.input_row(), kLineBoxColumn + 1 + 2);
+    CHECK(t.caret().column == kLineBoxColumn + 1 + 2);
 }
 
 TEST_CASE("in a room too small for both, the LINE is what survives") {
@@ -1237,14 +1268,14 @@ TEST_CASE("an id the Terminal never declared is no act: the refusal stands throu
     // ...AND AN ID THAT IS NO ACT IS NOT A GESTURE BETWEEN TWO PRESSES. The first press places
     // the caret in `abc`; the second, at the same place, selects the word.
     t.type("abc def");
-    t.press_row(t.input_row(), 2 + 1);
+    t.press_row(t.input_row(), kLineBoxColumn + 1 + 1);
     REQUIRE(t.caret().sel_begin_row == kNoSelection);
     (void)t.r.workshop_action(pane::kTerminalPaneRole, pane::kTerminalPane,
                               "terminal.no-such-action");
-    t.press_row(t.input_row(), 2 + 1);
+    t.press_row(t.input_row(), kLineBoxColumn + 1 + 1);
     CHECK(t.caret().sel_begin_row == t.input_row());
-    CHECK(t.caret().sel_begin_col == 2);
-    CHECK(t.caret().sel_end_col == 2 + 3);
+    CHECK(t.caret().sel_begin_col == kLineBoxColumn + 1);
+    CHECK(t.caret().sel_end_col == kLineBoxColumn + 1 + 3);
 }
 
 TEST_CASE("a completion answer about a line that is gone is neither shown nor taken") {
@@ -1302,11 +1333,11 @@ TEST_CASE("an answer for a caret that has since moved does not reopen the list")
     t.settle();
 
     CHECK(t.text().find("completion follows the END of the line") != std::string::npos);
-    CHECK(t.input_text().rfind("> send x", 0) == 0);
+    CHECK(t.typed().rfind("send x", 0) == 0);
     // AND THE COMPLETION KEY IS STILL THE SILENCE IT SAYS IT IS: nothing is accepted into
     // the line from a list that is not open.
     t.r.key(input::scan::kTab);
-    CHECK(t.input_text().rfind("> send x", 0) == 0);
+    CHECK(t.typed().rfind("send x", 0) == 0);
 }
 
 TEST_CASE("clipboard text lands in the draft that asked for it, or nowhere") {
@@ -1333,7 +1364,7 @@ TEST_CASE("clipboard text lands in the draft that asked for it, or nowhere") {
     // THE READ REALLY HAPPENED, so the absence below is a measurement and not a vacancy:
     // the staging reached the state where the payload was in the pane's hands.
     CHECK(t.r.windows.clipboard_reads() == 1);
-    CHECK(t.input_text().rfind("> new", 0) == 0);
+    CHECK(t.typed().rfind("new", 0) == 0);
     CHECK(t.text().find("OLD") == std::string::npos);
 
     // AND A PASTE INTO THE DRAFT THAT ASKED STILL LANDS, which is the half a check that
@@ -1341,7 +1372,7 @@ TEST_CASE("clipboard text lands in the draft that asked for it, or nowhere") {
     t.r.windows.set_clipboard("OK");
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.r.windows.clipboard_reads() == 2);
-    CHECK(t.input_text().rfind("> newOK", 0) == 0);
+    CHECK(t.typed().rfind("newOK", 0) == 0);
 }
 
 TEST_CASE("an edit is not a new draft, and a submit is") {
@@ -1361,7 +1392,7 @@ TEST_CASE("an edit is not a new draft, and a submit is") {
     t.enqueue_key(input::scan::kV, input::mod::kCtrl);
     t.enqueue_text("c");
     t.settle();
-    CHECK(t.input_text().rfind("> abcOLD", 0) == 0);
+    CHECK(t.typed().rfind("abcOLD", 0) == 0);
 
     // SUBMITTED WHILE THE ANSWER WAS IN FLIGHT: the line was cleared to author it, so the
     // draft that asked is over and the payload lands nowhere -- on the fresh line least of
@@ -1391,10 +1422,10 @@ TEST_CASE("a paste is one gesture, and undo gives back the line it landed in") {
     t.focus();
     t.type("keep");
     t.r.key(input::scan::kV, input::mod::kCtrl);
-    REQUIRE(t.input_text().rfind("> keepOLD", 0) == 0);
+    REQUIRE(t.typed().rfind("keepOLD", 0) == 0);
 
     t.r.key(input::scan::kZ, input::mod::kCtrl);
-    CHECK(t.input_text().rfind("> keep", 0) == 0);
+    CHECK(t.typed().rfind("keep", 0) == 0);
     CHECK(t.input_text().find("OLD") == std::string::npos);
     // ...and the typing that preceded it is still one entry of its own, so a second undo
     // takes the word and not half of it.
@@ -1402,9 +1433,9 @@ TEST_CASE("a paste is one gesture, and undo gives back the line it landed in") {
     CHECK(t.input_text().find("keep") == std::string::npos);
     // ...and redo replays the two in order, which is the other half of "one entry".
     t.r.key(input::scan::kZ, input::mod::kCtrl | input::mod::kShift);
-    CHECK(t.input_text().rfind("> keep", 0) == 0);
+    CHECK(t.typed().rfind("keep", 0) == 0);
     t.r.key(input::scan::kZ, input::mod::kCtrl | input::mod::kShift);
-    CHECK(t.input_text().rfind("> keepOLD", 0) == 0);
+    CHECK(t.typed().rfind("keepOLD", 0) == 0);
 }
 
 TEST_CASE("what the clipboard holds is normalized to fit a line, or refused aloud") {
@@ -1420,14 +1451,14 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
 
     t.r.windows.set_clipboard("two\r\nlines");
     t.r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.input_text().rfind("> two lines", 0) == 0); // the CRLF pair is ONE space
+    CHECK(t.typed().rfind("two lines", 0) == 0); // the CRLF pair is ONE space
 
     // AS MANY AS THE LAYERS THERE ARE, and not one more: the first Escape dismisses a LIST if
     // one is open and only then clears, and an Escape with nothing left puts the pane down.
     t.clear_line();
     t.r.windows.set_clipboard("a\tb\nc");
     t.r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.input_text().rfind("> a b c", 0) == 0);
+    CHECK(t.typed().rfind("a b c", 0) == 0);
 
     // ⚠ AND WHAT NORMALIZATION CANNOT REPAIR IS REFUSED WHOLE AND SAID OUT LOUD. A byte
     // outside printable ASCII survives `pasteable_line` and would sit in a line whose own row
@@ -1438,7 +1469,7 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     t.r.windows.set_clipboard("na\xC3\xAFve");
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.text().find("outside plain ASCII") != std::string::npos);
-    CHECK(t.input_text().rfind("> hold", 0) == 0); // ...and the line is untouched
+    CHECK(t.typed().rfind("hold", 0) == 0); // ...and the line is untouched
     CHECK(t.input_text().find("na") == std::string::npos);
 
     // A READABLE BUT EMPTY CLIPBOARD PASTES NOTHING -- and in particular not the mirror's
@@ -1447,13 +1478,13 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     t.r.windows.set_clipboard("");
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.r.windows.clipboard_reads() == reads + 1); // the read really happened
-    CHECK(t.input_text().rfind("> hold", 0) == 0);
+    CHECK(t.typed().rfind("hold", 0) == 0);
 
     // A PASTE OVER A SELECTION REPLACES IT, which `paste` does and a bare `type` would not.
     t.r.windows.set_clipboard("gone");
     t.r.key(input::scan::kA, input::mod::kCtrl);
     t.r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.input_text().rfind("> gone", 0) == 0);
+    CHECK(t.typed().rfind("gone", 0) == 0);
     CHECK(t.input_text().find("hold") == std::string::npos);
     t.clear_line();
     t.type("hold");
@@ -1465,7 +1496,7 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     t.r.windows.set_clipboard(std::nullopt);
     t.r.key(input::scan::kEnd);
     t.r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.input_text().rfind("> holdhold", 0) == 0);
+    CHECK(t.typed().rfind("holdhold", 0) == 0);
 }
 
 // ============================================================================
@@ -1513,23 +1544,23 @@ TEST_CASE("on an empty line Up Up Enter leaves the older command ready to edit a
     REQUIRE(before == 2);
 
     t.r.key(input::scan::kUp);
-    CHECK(t.input_text().rfind("> second", 0) == 0);
+    CHECK(t.typed().rfind("second", 0) == 0);
     CHECK(t.text().find("history 1 of 2") != std::string::npos);
     t.r.key(input::scan::kUp);
-    CHECK(t.input_text().rfind("> first", 0) == 0);
+    CHECK(t.typed().rfind("first", 0) == 0);
     CHECK(t.text().find("history 2 of 2") != std::string::npos);
 
     t.r.key(input::scan::kReturn);
     CHECK(commands_run(t) == before);
-    CHECK(t.input_text().rfind("> first", 0) == 0);
+    CHECK(t.typed().rfind("first", 0) == 0);
     CHECK(t.text().find("history ") == std::string::npos);
     CHECK(t.text().find("no verb begins with") == std::string::npos);
-    CHECK(t.caret().column == 2 + 5);
+    CHECK(t.caret().column == kLineBoxColumn + 1 + 5);
 
     // AND THE LOCK IS ONE OF THE "DIFFERENT KEYS" OF THE RULE: the arrows belong to completion
     // again, so this Up does not recall `second` and does not re-enter browsing.
     t.r.key(input::scan::kUp);
-    CHECK(t.input_text().rfind("> first", 0) == 0);
+    CHECK(t.typed().rfind("first", 0) == 0);
     CHECK(t.text().find("history ") == std::string::npos);
 
     t.r.key(input::scan::kReturn);
@@ -1545,23 +1576,23 @@ TEST_CASE("Tab on a recalled line locks it in with no candidate taken and no lis
     const std::size_t before = commands_run(t);
 
     t.r.key(input::scan::kUp);
-    REQUIRE(t.input_text().rfind("> send #1 ", 0) == 0);
+    REQUIRE(t.typed().rfind("send #1 ", 0) == 0);
     t.r.key(input::scan::kTab); // the lock
     CHECK(commands_run(t) == before);
-    CHECK(t.input_text() == "> send #1 ");
+    CHECK(t.typed() == "send #1 ");
     CHECK(t.text().find("RigNote v1") == std::string::npos);
 
     t.r.key(input::scan::kUp); // the same rule after a Tab lock: no recall, no browsing
-    CHECK(t.input_text() == "> send #1 ");
+    CHECK(t.typed() == "send #1 ");
     CHECK(t.text().find("history ") == std::string::npos);
 
     t.r.key(input::scan::kTab); // nothing on screen: ask
-    CHECK(t.input_text() == "> send #1 ");
+    CHECK(t.typed() == "send #1 ");
     CHECK(t.row_of("> RigNote v1") >= 0);
     t.r.key(input::scan::kUp); // a list on screen: the arrows are its cursor
-    CHECK(t.input_text() == "> send #1 ");
+    CHECK(t.typed() == "send #1 ");
     t.r.key(input::scan::kTab); // a list on screen: accept
-    CHECK(t.input_text().rfind("> send #1 RigNote 1 ", 0) == 0);
+    CHECK(t.typed().rfind("send #1 RigNote 1 ", 0) == 0);
     CHECK(commands_run(t) == before);
 }
 
@@ -1575,25 +1606,25 @@ TEST_CASE("any other key leaves a recall and does its own work once: typing or a
     SUBCASE("typing appends once, and Up then belongs to the command being composed") {
         t.r.key(input::scan::kUp);
         t.type("x");
-        CHECK(t.input_text().rfind("> betax", 0) == 0);
+        CHECK(t.typed().rfind("betax", 0) == 0);
         CHECK(t.input_text().find("betaxx") == std::string::npos);
         t.r.key(input::scan::kUp);
-        CHECK(t.input_text().rfind("> betax", 0) == 0);
+        CHECK(t.typed().rfind("betax", 0) == 0);
         CHECK(t.text().find("history ") == std::string::npos);
     }
     SUBCASE("a caret key moves the caret once and ends the recall") {
         t.r.key(input::scan::kUp);
         t.r.key(input::scan::kLeft);
-        CHECK(t.caret().column == 2 + 3);
-        CHECK(t.input_text().rfind("> beta", 0) == 0);
+        CHECK(t.caret().column == kLineBoxColumn + 1 + 3);
+        CHECK(t.typed().rfind("beta", 0) == 0);
         t.r.key(input::scan::kUp);
-        CHECK(t.input_text().rfind("> beta", 0) == 0);
+        CHECK(t.typed().rfind("beta", 0) == 0);
         CHECK(t.input_text().find("alpha") == std::string::npos);
     }
     SUBCASE("an erase erases one character") {
         t.r.key(input::scan::kUp);
         t.r.key(input::scan::kBackspace);
-        CHECK(t.input_text().rfind("> bet", 0) == 0);
+        CHECK(t.typed().rfind("bet", 0) == 0);
         CHECK(t.input_text().find("beta") == std::string::npos);
     }
     SUBCASE("a shifted letter, delivered as the key and its text in one poll, lands once") {
@@ -1601,7 +1632,7 @@ TEST_CASE("any other key leaves a recall and does its own work once: typing or a
         t.enqueue_key(input::scan::kB, input::mod::kShift);
         t.enqueue_text("B");
         t.settle();
-        CHECK(t.input_text().rfind("> betaB", 0) == 0);
+        CHECK(t.typed().rfind("betaB", 0) == 0);
         CHECK(t.input_text().find("BB") == std::string::npos);
     }
 }
@@ -1626,21 +1657,21 @@ TEST_CASE("history says where its ends are and past the newest is the line befor
     CHECK(t.input_text() == prompt);
 
     t.r.key(input::scan::kUp);
-    CHECK(t.input_text() == "> a");
+    CHECK(t.typed() == "a");
     CHECK(t.text().find("history 1 of 3") != std::string::npos);
     t.r.key(input::scan::kUp);
-    CHECK(t.input_text() == "> b");
+    CHECK(t.typed() == "b");
     t.r.key(input::scan::kUp);
-    CHECK(t.input_text() == "> a");
+    CHECK(t.typed() == "a");
     CHECK(t.text().find("history 3 of 3") != std::string::npos);
     t.r.key(input::scan::kUp);
-    CHECK(t.input_text() == "> a");
+    CHECK(t.typed() == "a");
     CHECK(t.text().find("the oldest command") != std::string::npos);
 
     t.r.key(input::scan::kDown);
-    CHECK(t.input_text() == "> b");
+    CHECK(t.typed() == "b");
     t.r.key(input::scan::kDown);
-    CHECK(t.input_text() == "> a");
+    CHECK(t.typed() == "a");
     t.r.key(input::scan::kDown);
     CHECK(t.input_text() == prompt);
     CHECK(t.text().find("history ") == std::string::npos);
@@ -1657,7 +1688,7 @@ TEST_CASE("Escape on a recalled line goes back to the line before the recall and
     const std::string prompt = t.input_text();
     const std::size_t before = commands_run(t);
     t.r.key(input::scan::kUp);
-    REQUIRE(t.input_text() == "> only");
+    REQUIRE(t.typed() == "only");
     t.r.key(input::scan::kEscape);
     CHECK(t.input_text() == prompt);
     CHECK(t.text().find("history ") == std::string::npos);
@@ -1677,7 +1708,7 @@ TEST_CASE("a command being composed keeps Up and Down for its completion list an
     REQUIRE(t.row_of("> send") >= 0);
     t.r.key(input::scan::kUp);
     t.r.key(input::scan::kDown);
-    CHECK(t.input_text() == "> s");
+    CHECK(t.typed() == "s");
     CHECK(t.text().find("history ") == std::string::npos);
 
     // ...AND A LIST ASKED FOR ON AN EMPTY LINE IS A COMMAND BEING COMPOSED TOO: its Down moves the
@@ -1703,14 +1734,14 @@ TEST_CASE("history is the participant's commands only and eviction bounds it") {
     }
     REQUIRE(commands_run(t) == 128);
     t.r.key(input::scan::kUp);
-    CHECK(t.input_text() == "> c139");
+    CHECK(t.typed() == "c139");
     CHECK(t.text().find("history 1 of 128") != std::string::npos);
     for (int i = 0; i < 127; ++i) {
         t.r.key(input::scan::kUp);
     }
-    CHECK(t.input_text() == "> c12");
+    CHECK(t.typed() == "c12");
     t.r.key(input::scan::kUp);
-    CHECK(t.input_text() == "> c12");
+    CHECK(t.typed() == "c12");
     CHECK(t.text().find("the oldest kept; 24 older entries dropped for good") !=
           std::string::npos);
 }
@@ -1724,11 +1755,11 @@ TEST_CASE("after a lock the recalled line is an ordinary draft whose undo stops 
     t.r.key(input::scan::kUp);
     t.r.key(input::scan::kTab);
     t.type("xy");
-    REQUIRE(t.input_text() == "> betaxy");
+    REQUIRE(t.typed() == "betaxy");
     t.r.key(input::scan::kZ, input::mod::kCtrl);
-    CHECK(t.input_text() == "> beta");
+    CHECK(t.typed() == "beta");
     t.r.key(input::scan::kZ, input::mod::kCtrl);
-    CHECK(t.input_text() == "> beta");
+    CHECK(t.typed() == "beta");
 
     t.r.key(input::scan::kA, input::mod::kCtrl);
     t.r.key(input::scan::kC, input::mod::kCtrl);
@@ -1746,7 +1777,7 @@ TEST_CASE("a paste asked for before a recall does not land in the recalled line"
     t.enqueue_key(input::scan::kUp);
     t.settle();
     CHECK(t.r.windows.clipboard_reads() == 1);
-    CHECK(t.input_text() == "> beta");
+    CHECK(t.typed() == "beta");
 }
 
 TEST_CASE("a completion answer asked before a recall is neither shown on the recalled line nor taken by its lock though the bytes match") {
@@ -1762,7 +1793,7 @@ TEST_CASE("a completion answer asked before a recall is neither shown on the rec
     t.enqueue_key(input::scan::kEscape);
     t.enqueue_key(input::scan::kUp);
     t.settle();
-    CHECK(t.input_text() == "> send ");
+    CHECK(t.typed() == "send ");
     CHECK(t.text().find("history 1 of 1") != std::string::npos);
     CHECK(t.text().find("where it goes") == std::string::npos);
 
@@ -1775,10 +1806,10 @@ TEST_CASE("a completion answer asked before a recall is neither shown on the rec
     t.enqueue_key(input::scan::kUp);
     t.enqueue_key(input::scan::kTab);
     t.settle();
-    CHECK(t.input_text() == "> send ");
+    CHECK(t.typed() == "send ");
     CHECK(t.text().find("where it goes") == std::string::npos);
     t.r.key(input::scan::kTab);
-    CHECK(t.input_text() == "> send ");
+    CHECK(t.typed() == "send ");
     CHECK(t.text().find("where it goes") != std::string::npos);
 }
 
@@ -1812,7 +1843,7 @@ TEST_CASE("Down then Enter takes the candidate the cursor moved to and runs noth
     REQUIRE(t.row_of("> Extra1 v1") >= 0);
     t.r.key(input::scan::kReturn);
     CHECK(commands_run(t) == before);
-    CHECK(t.input_text() == "> send #1 Extra1 1 ");
+    CHECK(t.typed() == "send #1 Extra1 1 ");
     t.r.key(input::scan::kReturn);
     CHECK(commands_run(t) == before + 1);
     CHECK(last_command(t).rfind("send #1 Extra1 1", 0) == 0);
@@ -1827,7 +1858,7 @@ TEST_CASE("a press on a candidate's row moves the cursor there, and Enter then t
     REQUIRE(t.row_of("> Extra2 v1") == third);
     t.r.key(input::scan::kReturn);
     CHECK(commands_run(t) == before);
-    CHECK(t.input_text() == "> send #1 Extra2 1 ");
+    CHECK(t.typed() == "send #1 Extra2 1 ");
 }
 
 TEST_CASE("Enter with the list's cursor unmoved, or moved and then left by a new word or a dismissal, runs the line as typed") {
@@ -1898,7 +1929,7 @@ TEST_CASE("Shift+Enter on a recalled line locks it in and runs nothing, and the 
     REQUIRE(t.text().find("history 1 of 1") != std::string::npos);
     t.r.key(input::scan::kReturn, input::mod::kShift);
     CHECK(commands_run(t) == before);
-    CHECK(t.input_text().rfind("> first", 0) == 0);
+    CHECK(t.typed().rfind("first", 0) == 0);
     CHECK(t.text().find("history ") == std::string::npos);
     t.r.key(input::scan::kReturn, input::mod::kShift);
     CHECK(commands_run(t) == before + 1);
@@ -2118,10 +2149,10 @@ TEST_CASE("a resize re-wraps under the entry being read and the line and its car
 
     t.give_room(12, 40);
     CHECK(entry_of_row(first_read_row(t)) == entry);
-    CHECK(t.input_text().rfind("> abc", 0) == 0);
+    CHECK(t.typed().rfind("abc", 0) == 0);
     CHECK(t.caret().row == t.input_row());
-    t.press_row(t.input_row(), 2 + 1);
-    CHECK(t.caret().column == 2 + 1);
+    t.press_row(t.input_row(), kLineBoxColumn + 1 + 1);
+    CHECK(t.caret().column == kLineBoxColumn + 1 + 1);
 
     t.give_room(8, 70);
     CHECK(entry_of_row(first_read_row(t)) == entry);
@@ -2162,7 +2193,7 @@ TEST_CASE("in every small room the line is the last row and its caret and press 
         t.give_room(rows, 60);
         const std::vector<std::string> shown = t.shown();
         REQUIRE(static_cast<std::int64_t>(shown.size()) == rows);
-        CHECK(shown.back().rfind("> s", 0) == 0);
+        CHECK(shown.back().rfind("> [s", 0) == 0);
         CHECK(t.caret().row == rows - 1);
         // WHAT IS BELOW IS SAID IN EVERY ROOM THAT HAS A ROW ABOVE THE VIEW -- on a row of its own
         // once the view is two rows tall, and on the row above the view before that.
@@ -2176,7 +2207,7 @@ TEST_CASE("in every small room the line is the last row and its caret and press 
                   std::string::npos);
         }
         t.press_row(rows - 1, 2);
-        CHECK(t.caret().column == 2);
+        CHECK(t.caret().column == kLineBoxColumn + 1);
         t.r.key(input::scan::kEnd);
     }
 }
@@ -2229,7 +2260,7 @@ TEST_CASE("a right press on the Terminal anywhere but a value is handed back, an
     t.r.right_press_cell(body.x + pane_cell_of(t.r.session(), t.kind, t.input_row(), 3),
                          body.y + kExternalHeaderRows + t.input_row());
     CHECK(t.r.session().context.open);
-    CHECK(t.input_text() == "> abc"); // the line is as it was
+    CHECK(t.typed() == "abc"); // the line is as it was
 }
 
 TEST_CASE("reading keys leave a recall and the line as they were") {
@@ -2245,7 +2276,7 @@ TEST_CASE("reading keys leave a recall and the line as they were") {
     t.r.key(input::scan::kHome, input::mod::kCtrl);
     t.r.key(input::scan::kEnd, input::mod::kCtrl);
     CHECK(t.text().find("history 1 of 1") != std::string::npos);
-    CHECK(t.input_text() == "> first");
+    CHECK(t.typed() == "first");
     t.r.key(input::scan::kReturn); // still a lock, not a run
     CHECK(commands_run(t) == before);
 }
@@ -2348,7 +2379,7 @@ TEST_CASE("an id chosen from the list and gone before the line is sent leaves th
     t.type("send #" + id);
     REQUIRE(t.row_of("> #" + id) >= 0);
     t.r.key(input::scan::kTab);
-    REQUIRE(t.input_text() == "> send #" + id + " ");
+    REQUIRE(t.typed() == "send #" + id + " ");
 
     (void)t.r.bus.unregister_weave(gone.id);
     t.type("RigNote 1 slot=gone text=x");
@@ -2376,7 +2407,7 @@ TEST_CASE("an office chosen from the list reaches whoever holds it at delivery a
     t.type("send @zengine.probe");
     REQUIRE(t.row_of("> @zengine.probe") >= 0);
     t.r.key(input::scan::kTab);
-    REQUIRE(t.input_text() == "> send @zengine.probe ");
+    REQUIRE(t.typed() == "send @zengine.probe ");
 
     // TURNOVER: the office changes hands before the send. The line names the office, the list said
     // it reaches whoever holds it when sent, and it does: the new holder, never the old weave.
@@ -2418,7 +2449,7 @@ TEST_CASE("Escape sheds the list then the line then the pane itself and moves no
 
     t.r.key(input::scan::kEscape); // the list
     CHECK(t.row_of("> send") < 0);
-    CHECK(t.input_text().rfind("> s", 0) == 0);
+    CHECK(t.typed().rfind("s", 0) == 0);
     CHECK(t.r.session().panes.keyboard == t.kind);
 
     t.r.key(input::scan::kEscape); // the line
@@ -2469,7 +2500,7 @@ TEST_CASE("an unspent Escape the weaver has already typed past moves nothing") {
     t.settle();
     CHECK(t.r.session().panes.selected == t.kind);
     CHECK(t.r.session().panes.keyboard == t.kind);
-    CHECK(t.input_text().rfind("> x", 0) == 0);
+    CHECK(t.typed().rfind("x", 0) == 0);
 }
 
 // ---- The Terminal's settings, read and written by message ------------------------------------
@@ -2539,7 +2570,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     CHECK(shown.pins == std::vector<std::string>{"legend"});
     CHECK(shown.settings.empty());
     CHECK(shown.said == "stored and handed");
-    CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
+    CHECK(t.shown().back().rfind("> [__________]  Tab:", 0) == 0);
 
     // SIX ROWS A NOTCH, AND THE PROMPT A `$`, each at the revision the last answer gave.
     const PaneSettingCommitAnswered six =
@@ -2555,9 +2586,9 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     CHECK(kept_settings(t) ==
           std::vector<PaneSetting>{PaneSetting{pane::kSettingPrompt, {}, {}, std::string("$")},
                                    PaneSetting{pane::kSettingWheelRows, {}, 6, {}}});
-    CHECK(t.shown().back().rfind("$    Tab:", 0) == 0);
+    CHECK(t.shown().back().rfind("$ [__________]  Tab:", 0) == 0);
     t.type("x");
-    CHECK(t.input_text() == "$ x");
+    CHECK(t.input_text().rfind("$ [x_", 0) == 0);
 
     const std::int64_t above = marker_count(t, " more rows above");
     REQUIRE(above > 6);
@@ -2599,7 +2630,7 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
         t, "ask @zengine.layouts PaneSettingCommitRequested 1 provider=zengine.terminal "
            "pane=terminal revision=" + std::to_string(dollar.revision) + " key=prompt clear=true");
     REQUIRE_MESSAGE(back.accepted, back.refusal);
-    CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
+    CHECK(t.shown().back().rfind("> [__________]  Tab:", 0) == 0);
 }
 
 TEST_CASE("a Terminal line locks a setting and, as the weaver's hand, unlocks it, and reads every layout") {
@@ -2660,7 +2691,7 @@ TEST_CASE("`workshop.completion-order` puts a shape's required fields first in t
         t.type("ask @zengine.layouts PaneSettingCommitRequested 1 provider=a pane=b revision=1 "
                "key=k ");
         t.r.key(input::scan::kTab); // accepts the selected candidate: the list's first
-        const std::string line = t.input_text();
+        const std::string line = t.typed();
         const std::string accepted = line.substr(line.rfind(' ') + 1);
         t.clear_line();
         return accepted;

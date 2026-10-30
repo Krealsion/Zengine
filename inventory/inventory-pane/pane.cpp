@@ -930,18 +930,19 @@ private:
             const auto entries=ordered(id);
             if(v.selected.empty()) if(const auto keys=row_keys(id); !keys.empty()) v.selected=keys.front();
             std::string edit_text;
-            const auto room=std::max<std::int64_t>(0,v.columns-1); // the last column is a caret's blank
-            component::TextBoxCells cells;
+            const auto room=std::max<std::int64_t>(0,v.columns); // the line is a box the row wide
+            ws::RowBox box;
             if(*label) {
-                cells=component::text_box_cells(line_,room);
-                edit_text=cells.text;
+                box=ws::row_box(line_,0,room);
+                edit_text=std::string(static_cast<std::size_t>(room),' ');
             }
             auto rows=slots::render(state_.layout,id,v,entries,notice_,label,edit_text,id==pane?browse():slots::Browse{});
             // THE CARET STANDS IN THE LINE, on its character or the blank after the last, and
             // writes nothing into it; a selection is drawn over its characters.
             ws::RowsCaret caret;
             if(*label && v.line_row>=0) {
-                caret=ws::box_caret(cells,v.line_row,0);
+                caret=ws::box_caret(box,v.line_row);
+                if(v.line_row<static_cast<std::int64_t>(rows.size())) rows[static_cast<std::size_t>(v.line_row)].box=box;
             }
             const std::int64_t picture=v.map.settle();
             // A PICTURE IS DRAWN WHEN IT DIFFERS from the last one drawn since the room was given,

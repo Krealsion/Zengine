@@ -1627,7 +1627,7 @@ TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
     REQUIRE_FALSE(loaded.empty());
     CHECK_FALSE(any_row(loaded, "zengine-operators-basic"));
     // ...and the Loaded pane is still exactly what it always was: the KERNEL's map.
-    CHECK(loaded[0] == "loaded weaves -- 3");
+    CHECK(loaded[0] == loaded_heading("3"));
     CHECK(any_row(loaded, std::string(intro::kIntrospectionStem) + " @" + kIntroOffice));
     CHECK(any_row(loaded, intro::kNotInProcess));
     CHECK_FALSE(r.kernel.is_loaded("zengine-operators-basic"));
@@ -1700,7 +1700,7 @@ TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is dr
     }
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
-    CHECK(shown[0] == "loaded weaves -- 3");
+    CHECK(shown[0] == loaded_heading("3"));
     const std::int64_t at = row_with_text(shown, "plain-caf?");
     REQUIRE(at >= 0);
     CHECK(shown[static_cast<std::size_t>(at)] == "  plain-caf? @test.pl?in");
@@ -1743,7 +1743,7 @@ TEST_CASE("Loaded's search: typed text narrows its rows to the weaves whose name
     REQUIRE(everyone.size() >= 2);
     REQUIRE(std::find(everyone.begin(), everyone.end(), "zengine-plain-weave") != everyone.end());
     const std::string population = std::to_string(everyone.size());
-    REQUIRE(loaded_rows(r, kind).at(0) == "loaded weaves -- " + population);
+    REQUIRE(loaded_rows(r, kind).at(0) == loaded_heading(population));
 
     // A PRESS ON ITS HEADING GIVES IT THE KEYS and selects nothing.
     const CellRect body = external_body_rect(r.session(), kind);
@@ -1767,7 +1767,7 @@ TEST_CASE("Loaded's search: typed text narrows its rows to the weaves whose name
     // BACKSPACE WIDENS IT AGAIN, and an empty search shows every weave.
     for (int i = 0; i < 5; ++i) r.key(input::scan::kBackspace);
     CHECK(weaves() == everyone);
-    CHECK(loaded_rows(r, kind).at(0) == "loaded weaves -- " + population);
+    CHECK(loaded_rows(r, kind).at(0) == loaded_heading(population));
     // BY OFFICE: the plain weave's office is test.plain.
     r.text("test.p");
     CHECK(weaves() == std::vector<std::string>{"zengine-plain-weave"});
@@ -2289,7 +2289,7 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
     const std::vector<std::string> loaded = pane_rows(r, intro_row(r, kIntroPane)->kind);
     REQUIRE_FALSE(loaded.empty());
-    CHECK(loaded[0] == "loaded weaves -- 2"); // itself, and the graphics directory the window brought
+    CHECK(loaded[0] == loaded_heading("2")); // itself, and the graphics directory the window brought
 }
 
 // ---- The manual the panes answer, and the census of what they declare ---------------
@@ -2508,7 +2508,7 @@ TEST_CASE("Powers asks the window that shows it for a paste into its query, the 
         if (os) {
             CHECK(r.windows.clipboard_reads() == 1);
             bool shows = false;
-            for (const std::string& row : pane_rows(r, kind)) shows = shows || row.find("find:recipe") != std::string::npos;
+            for (const std::string& row : pane_rows(r, kind)) shows = shows || row.find("find: recipe") != std::string::npos;
             CHECK(shows);
         }
     }

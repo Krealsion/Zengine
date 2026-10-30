@@ -5018,6 +5018,12 @@ inline std::vector<std::string> canvas_rows_shown(const Session& s, const DeskSh
 /// The prose rows the Loaded pane is currently showing, with Workshop's header dropped
 /// -- said once here so a case below reads as a gesture and an assertion. Off its picture when
 /// it draws one.
+/// LOADED'S HEADING with no search typed: the count, then the search's empty box.
+inline std::string loaded_heading(const std::string& count) {
+    return "loaded weaves -- " + count + "  [" +
+           std::string(static_cast<std::size_t>(intro::kSearchBoxLeast - 2), '_') + "]";
+}
+
 inline std::vector<std::string> loaded_rows(PaneRig& r, std::int64_t kind) {
     if (const ExternalPane* pane = r.session().panes.external_pane(kind); pane && shows_canvas(*pane)) {
         return canvas_rows_shown(r.session(), r.shown(), kind);

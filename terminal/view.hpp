@@ -37,10 +37,8 @@ using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::wrap;
 
-/// ONE COLUMN OF THE INPUT ROW THE TEXT MAY NOT USE -- the caret's own. A caret at the end
-/// of a full row would otherwise sit one past the room, and in a cell projection it stands on
-/// the blank cell after the last character.
-constexpr std::int64_t kCaretCols = 1;
+/// How wide the line's box stands while it is empty, the gesture that answers it said after it.
+constexpr std::int64_t kEmptyLineBox = 12;
 
 /// The chrome a pane spends on being this pane, whatever is in it: the header, the legend (where
 /// its layout shows it), the omission marker and the input row.
@@ -350,13 +348,17 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     // answers "what can I say here". It is on this row rather than in the legend because
     // it is about what to do NEXT rather than about what a word means, and because it
     // erases itself: the moment a weaver types anything the line has their text on it.
-    const std::int64_t visible = columns() - kPromptCols - kCaretCols;
-    line_cells_ = component::text_box_cells(line_, visible > 0 ? visible : 0);
-    input_row_ = static_cast<std::int64_t>(out.size());
+    // THE LINE IS A BOX, from the column after the prompt's space to the row's end -- or, while it is
+    // empty and nothing is listed, a box as wide as `kEmptyLineBox` with the gesture after it.
     const bool prompting = line_.empty() && !list_open;
-    push(prompting ? prompt_ + "    Tab: what can this terminal say?  Up: recall a command"
-                   : prompt_ + " " + line_cells_.text,
+    const std::int64_t whole = columns() - kPromptCols;
+    const std::int64_t wide = prompting ? (std::min)(whole, kEmptyLineBox) : whole;
+    line_box_ = ws::row_box(line_, kPromptCols, wide > 0 ? wide : 0);
+    input_row_ = static_cast<std::int64_t>(out.size());
+    push(prompt_ + " " + std::string(static_cast<std::size_t>(line_box_.columns), ' ') +
+             (prompting ? "  Tab: what can this terminal say?  Up: recall a command" : ""),
          known_.attached ? zengine::graphics::role::kAccent : zengine::graphics::role::kAlert);
+    out.back().box = line_box_;
 
     if (static_cast<std::int64_t>(out.size()) > rows()) {
         out.resize(static_cast<std::size_t>(rows()));
@@ -424,18 +426,10 @@ inline ws::RowsCaret TerminalPaneWeave::caret() const {
     if (input_row_ < 0) {
         return caret;
     }
-    caret.row = input_row_;
-    caret.column = kPromptCols + line_cells_.caret;
     // AND THE SELECTION, THE SAME WAY: the visible part of the component's own range, from the
-    // cells the row was written with, prompt-shifted by the same arithmetic the caret goes
-    // through. A selection scrolled wholly off the slice says nothing, which is the truthful
-    // picture of a row that shows none of it.
-    if (line_cells_.selected()) {
-        caret.sel_begin_row = input_row_;
-        caret.sel_begin_col = kPromptCols + line_cells_.selection_begin;
-        caret.sel_end_row = input_row_;
-        caret.sel_end_col = kPromptCols + line_cells_.selection_end;
-    }
+    // box the row was written with, inside its inset. A selection scrolled wholly off the slice
+    // says nothing, which is the truthful picture of a row that shows none of it.
+    caret = ws::box_caret(line_box_, input_row_);
     return caret;
 }
 

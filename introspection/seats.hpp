@@ -190,9 +190,11 @@ public:
     bool press(std::int64_t pressed_row, loom::Mail& mail, std::int64_t pressed_column = -1) {
         // THE SEARCH'S BOX, pressed anywhere in it, its blank room and border included: the caret
         // goes where the press names, and nothing is selected.
-        if (pressed_row == 0 && view_.search_column >= 0 && pressed_column >= view_.search_column &&
-            pressed_column < view_.search_column + view_.search.columns) {
-            component::text_box_press(search_, view_.search, pressed_column - view_.search_column);
+        const workshop::RowBox& box = view_.search;
+        if (pressed_row == 0 && box.present() && pressed_column >= box.column &&
+            pressed_column < box.column + box.columns) {
+            component::text_box_press(search_,
+                                      pressed_column - box.column - graphics::kTextBoxInset);
             say(mail);
             return false;
         }
@@ -295,16 +297,10 @@ private:
     /// the heading.
     void say(loom::Mail& mail) {
         workshop::RowsCaret caret;
-        if (view_.search_column >= 0) {
-            view_.search = component::text_box_cells(search_, view_.search.columns, true);
-            view_.rows[0].text.replace(static_cast<std::size_t>(view_.search_column),
-                                       view_.search.text.size(), view_.search.text);
-            view_.rows[0].box = workshop::row_box(view_.search, view_.search_column);
-            const std::int64_t at = view_.search_column + view_.search.caret;
-            if (at < columns()) {
-                caret.row = 0;
-                caret.column = at;
-            }
+        if (view_.search.present() && !view_.rows.empty()) {
+            view_.search = workshop::row_box(search_, view_.search.column, view_.search.columns);
+            view_.rows[0].box = view_.search;
+            caret = workshop::box_caret(view_.search, 0);
         }
         say_rows(mail, view_.rows, loaded_parts(), caret, press_meaning(view_));
     }

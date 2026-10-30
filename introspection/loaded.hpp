@@ -152,16 +152,14 @@ inline bool names(const std::vector<LoadedWeave>& weaves, std::string_view name)
 /// The pane's content and the map back from it: `rows` go to Workshop, `shown` are the entries
 /// that reached a row, and `entry_of_row` indexes `shown` or is `kNoEntry`. The omission marker
 /// is `kNoEntry`: a count, not a hidden entry. Bounded by the room, never by the population.
-/// `listed` is how many weaves the search keeps, `search_column` where the search's box stands on
-/// the heading, none when no search is typed or the heading has no room for the box, and `search`
-/// the box's cells there.
+/// `listed` is how many weaves the search keeps, and `search` the search's box on the heading,
+/// typed in or empty, none where the heading has no room for one.
 struct LoadedView {
     std::vector<workshop::TextRow> rows;
     std::vector<LoadedWeave> shown;
     std::vector<std::int64_t> entry_of_row;
     std::size_t listed = 0;
-    std::int64_t search_column = -1;
-    component::TextBoxCells search;
+    workshop::RowBox search;
 };
 
 /// The fewest columns the search's box takes on the heading, room allowing: a search a few
@@ -270,27 +268,24 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
     if (rows <= 0 || columns <= 0) {
         return view;
     }
-    // THE HEADING STATES THE POPULATION, and a search's narrowing beside it, the search last, in a
-    // box seen as a box where the heading has room for one.
-    std::string heading = "loaded weaves -- " + std::to_string(population.size());
-    workshop::RowBox boxed;
-    if (!search.empty()) {
-        const std::string narrowed = "loaded weaves -- " + std::to_string(weaves.size()) + " of " +
-                                     std::to_string(population.size()) + " match ";
-        heading = narrowed + spelled(search);
-        const std::int64_t room = columns - static_cast<std::int64_t>(narrowed.size());
-        if (room >= 3) {
-            const std::int64_t width = std::min<std::int64_t>(
-                room, std::max<std::int64_t>(kSearchBoxLeast,
-                                             static_cast<std::int64_t>(search.size()) + 3));
-            view.search = component::text_box_cells(*box, width, true);
-            view.search_column = static_cast<std::int64_t>(narrowed.size());
-            heading = narrowed + view.search.text;
-            boxed = workshop::row_box(view.search, view.search_column);
-        }
+    // THE HEADING STATES THE POPULATION, and a search's narrowing beside it once one is typed; the
+    // search last, a box from the start wherever the heading has room for one.
+    const std::string lead =
+        search.empty() ? "loaded weaves -- " + std::to_string(population.size()) + "  "
+                       : "loaded weaves -- " + std::to_string(weaves.size()) + " of " +
+                             std::to_string(population.size()) + " match ";
+    std::string heading = search.empty() ? "loaded weaves -- " + std::to_string(population.size())
+                                         : lead + spelled(search);
+    const std::int64_t box_room = columns - static_cast<std::int64_t>(lead.size());
+    if (box != nullptr && box_room >= 3) {
+        const std::int64_t width = std::min<std::int64_t>(
+            box_room, std::max<std::int64_t>(kSearchBoxLeast,
+                                         static_cast<std::int64_t>(search.size()) + 3));
+        view.search = workshop::row_box(*box, static_cast<std::int64_t>(lead.size()), width);
+        heading = lead + std::string(static_cast<std::size_t>(width), ' ');
     }
     workshop::TextRow top{fit(heading, columns), graphics::role::kAccent};
-    top.box = boxed;
+    top.box = view.search;
     say(std::move(top), kNoEntry);
 
     std::int64_t left = rows - 1;

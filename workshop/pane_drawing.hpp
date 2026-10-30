@@ -184,9 +184,9 @@ struct RowsRoom {
 };
 
 /// A TEXT AREA STANDING ON A PANE'S ROWS: from row `row`, `rows` tall, the value it draws from, and
-/// the names a press on its text and on its bar asks. A medium of characters shows the rows the
-/// pane spelled there (`component::TextArea::cells`); a window that sets type draws the area's
-/// face over those rows instead (`graphics::text_area_face`), scrolled freely and with its bar.
+/// the names a press on its text and on its bar asks. The painter draws it over those rows in the
+/// room's face: its lines between their markers in a room of cells (`graphics::text_area_cells`),
+/// scrolled freely with its bar where the window sets type (`graphics::text_area_face`).
 struct RowsTextArea {
     std::int64_t row = 0, rows = 0;
     component::TextArea area;
@@ -226,15 +226,16 @@ bool part_available(const Part& part) {
 
 /// ROWS AND THEIR PARTS DRAWN, `columns` wide in `room`: the ground, then each row a line of text in
 /// its role (a lit row's nodes named apart above it), cut where a part begins or ends, and its fold
-/// mark an outline where the room sets type (`TextRow::mark`), and its box an outline there too
-/// (`TextRow::box`); each run a part holds asks the part's name -- where parts overlap, the one a
-/// press on Workshop's rows reaches -- recorded unavailable (`graphics::PartFace`) where the part
-/// says so; `caret` in front. Where the room sets type each of `areas` is drawn as its face over
-/// its rows, which are not drawn; a room of cells draws those rows as the pane spelled them.
-/// No row past `max_rows` (above 0) or the window's bounds is drawn. `RowPart`s, or any part with
-/// their name, row and columns.
+/// mark an outline where the room sets type (`TextRow::mark`); its box in the room's face
+/// (`TextRow::box`, `row_text_shown`), an outline round it where the room sets type; each run a part
+/// holds asks the part's name -- where parts overlap, the one a press on Workshop's rows reaches --
+/// recorded unavailable (`graphics::PartFace`) where the part says so; `caret` in front. Each of
+/// `areas` is drawn over its rows in the room's face: where the room sets type its face scrolled
+/// freely, and in a room of cells its lines between their markers (`graphics::text_area_cells`),
+/// its selection in front. No row past `max_rows` (above 0) or the window's bounds is drawn.
+/// `RowPart`s, or any part with their name, row and columns.
 template <class Part>
-RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
+RowsDrawing rows_drawing(const std::vector<TextRow>& given,
                          const std::vector<Part>& parts, const RowsRoom& room,
                          std::int64_t columns, const RowsCaret& caret = {},
                          std::int64_t max_rows = 0,
@@ -244,6 +245,32 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
         std::int64_t x = 0;
     };
     RowsDrawing out;
+    // THE ROWS AS THIS ROOM SHOWS THEM: each box's face written over its columns, and in a room of
+    // cells each area's lines and markers on its rows, with their selected columns.
+    std::vector<TextRow> rows = given;
+    std::map<std::int64_t, RowSpan> area_selection;
+    if (room.cells) {
+        for (const RowsTextArea& a : areas) {
+            if (a.rows <= 0 || a.row < 0) {
+                continue;
+            }
+            const graphics::TextAreaCells cells = graphics::text_area_cells(a.area, a.rows, columns);
+            for (std::size_t i = 0; i < cells.rows.size(); ++i) {
+                const auto at = static_cast<std::size_t>(a.row) + i;
+                if (rows.size() <= at) {
+                    rows.resize(at + 1);
+                }
+                rows[at] = TextRow{cells.rows[i].text, cells.rows[i].role};
+                if (cells.rows[i].selection_end > cells.rows[i].selection_begin) {
+                    area_selection[static_cast<std::int64_t>(at)] =
+                        RowSpan{cells.rows[i].selection_begin, cells.rows[i].selection_end};
+                }
+            }
+        }
+    }
+    for (TextRow& row : rows) {
+        row.text = row_text_shown(row, room.cells);
+    }
     // A RUN'S RECORD: the part it asks, said unavailable where the part says it is.
     const auto say_part = [&](const std::string& node, const std::string& name) {
         bool available = true;
@@ -290,26 +317,15 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
         const std::int64_t mark = rows[r].mark;
         const bool outlined = !room.cells && mark >= 0 &&
                               mark < static_cast<std::int64_t>(rows[r].text.size());
-        // A TEXT BOX SEEN AS A BOX, in a window that sets type: its `[`, `]` and blank room left
-        // out of the text and an outline drawn round it; a room of cells draws the spelling.
+        // A TEXT BOX, where the window sets type: an outline round its columns.
         const RowBox& box = rows[r].box;
-        const bool boxed = !room.cells && box.present() &&
-                           box.column + box.columns <= static_cast<std::int64_t>(rows[r].text.size());
+        const bool boxed = !room.cells && box.present();
         std::string blanked;
-        if (outlined || boxed) {
-            blanked = rows[r].text;
-        }
         if (outlined) {
+            blanked = rows[r].text;
             blanked[static_cast<std::size_t>(mark)] = ' ';
         }
-        if (boxed) {
-            const std::int64_t last = box.column + box.columns - 1;
-            blanked[static_cast<std::size_t>(box.column)] = ' ';
-            for (std::int64_t c = box.column + 1 + box.text; c <= last; ++c) {
-                blanked[static_cast<std::size_t>(c)] = ' ';
-            }
-        }
-        const std::string& text = outlined || boxed ? blanked : rows[r].text;
+        const std::string& text = outlined ? blanked : rows[r].text;
         const auto said = static_cast<std::int64_t>(text.size());
         std::vector<std::size_t> here;
         std::int64_t extent = said;
@@ -468,7 +484,10 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
         }
         const std::string& text = rows[static_cast<std::size_t>(m)].text;
         const auto length = (std::min)(static_cast<std::int64_t>(text.size()), columns);
-        const RowSpan span = selection_span_of_row(caret, m, length);
+        const auto area_span = area_selection.find(m);
+        const RowSpan span = area_span != area_selection.end()
+                                 ? area_span->second
+                                 : selection_span_of_row(caret, m, length);
         std::size_t run = 0;
         for (std::int64_t a = span.begin; a < span.end;) {
             const std::string asks = asked_at(m, a);

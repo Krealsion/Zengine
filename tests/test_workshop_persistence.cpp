@@ -1412,7 +1412,7 @@ TEST_CASE("the setup line becomes the name editor while a weaver is typing") {
     const Screen sc = screen_of(t.session());
     const std::string row = setup_row(t.shown(), sc);
     INFO(row);
-    CHECK(row.find("layout name> Default") == 0);
+    CHECK(row.find("layout name> [Default") == 0);
     // THE CARET STANDS AFTER THE NAME, where `s` left it, on the blank past its last letter. A
     // one-cell-tall bounded region would hold zero rows of a real face, so this editor shows its
     // caret the way the cell projection shows a region's, moving no character.
@@ -1743,9 +1743,9 @@ TEST_CASE("the name editor edits the authored bytes, never the escaped spelling"
     INFO(row);
     // The editing row is not a quoted sentence, so it is not an escaped one either: the
     // prompt, the raw name, the caret where the weaver's hand left it, and the hint.
-    CHECK(row.find(std::string("layout name> ") + authored) == 0);
+    CHECK(row.find(std::string("layout name> [") + authored) == 0);
     CHECK(caret_at(paint(t.session()), 0, 0) ==
-          static_cast<std::int64_t>(std::string("layout name> ").size() + authored.size()));
+          static_cast<std::int64_t>(std::string("layout name> [").size() + authored.size()));
     CHECK(row.find(quoted_setup_name(authored)) == std::string::npos);
 
     // ESCAPE CHANGES NOTHING, and the name is still the authored one.

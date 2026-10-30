@@ -245,9 +245,10 @@ public:
             }
             return false;
         }
-        const component::TextArea::Cells cells =
-            manual_.text.cells(body_rows(), manual_canvas_.columns());
-        if (const auto at = manual_.text.place_at(cells, p.at.row - 1, p.at.column)) {
+        const graphics::TextAreaCells cells =
+            graphics::text_area_cells(manual_.text, body_rows(), manual_canvas_.columns());
+        if (const auto at =
+                graphics::text_area_cells_place(manual_.text, cells, p.at.row - 1, p.at.column)) {
             select_to(*at, fresh);
             say_manual(keys_heard, keymap, mail);
             return true;
@@ -257,9 +258,9 @@ public:
 
     // ---- What it shows ------------------------------------------------------------------------
 
-    /// THE MANUAL AS ITS PANE SHOWS IT: which pane it is about, then its text: in a room of cells
-    /// its lines from the scroll's, a marker for the lines above and below, and its selection; in
-    /// a window that sets type the area's face over those rows (`RowsTextArea`).
+    /// THE MANUAL AS ITS PANE SHOWS IT: which pane it is about, then its text, a text area on the
+    /// rows below, which the painter draws in the room's face (`RowsTextArea`): in a room of cells
+    /// its lines between their markers, where the window sets type scrolled freely with its bar.
     void say_manual(bool keys_heard, const ws::KeymapShown& keymap, loom::Mail& mail) {
         const std::int64_t room_rows = manual_canvas_.rows();
         const std::int64_t room_columns = manual_canvas_.columns();
@@ -291,26 +292,11 @@ public:
         manual_reader::ManualText text = manual_reader::manual_text(*manual_.words, keymap);
         manual_.text.set(std::move(text.text), std::move(text.looks));
         const std::int64_t body = body_rows();
-        const component::TextArea::Cells cells = manual_.text.cells(body, room_columns);
         const auto first = static_cast<std::int64_t>(out.size());
-        ws::RowsCaret caret;
-        for (std::size_t i = 0; i < cells.rows.size(); ++i) {
-            const component::TextArea::CellRow& row = cells.rows[i];
-            const std::int64_t at = first + static_cast<std::int64_t>(i);
-            if (row.selection_end > row.selection_begin) {
-                if (caret.sel_begin_row == ws::kNoSelection) {
-                    caret.sel_begin_row = at;
-                    caret.sel_begin_col = row.selection_begin;
-                }
-                caret.sel_end_row = at;
-                caret.sel_end_col = row.selection_end;
-            }
-            push(row.text, row.marker ? graphics::role::kMuted : row.look.role);
-        }
         std::vector<ws::RowsTextArea> areas;
         areas.push_back(
             ws::RowsTextArea{first, body, manual_.text, kManualTextPart, kManualBarPart});
-        publish_manual(mail, std::move(out), caret, std::move(areas));
+        publish_manual(mail, std::move(out), {}, std::move(areas));
     }
 
 private:
@@ -331,7 +317,7 @@ private:
     /// window.
     void manual_scroll(std::int64_t by) {
         if (manual_canvas_.room().cells) {
-            manual_.text.scroll_lines(by, manual_canvas_.columns(), body_rows());
+            graphics::text_area_cells_scroll(manual_.text, by, body_rows(), manual_canvas_.columns());
             return;
         }
         const graphics::TextAreaGeometry g = geometry();

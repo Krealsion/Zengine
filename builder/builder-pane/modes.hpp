@@ -272,14 +272,16 @@ inline std::string BuilderPaneWeave::role_prompt() const { return "role for " + 
 /// disagree about where the value begins (`files/recipe_authoring.hpp`'s `active_prompt`, the
 /// same repair for the same construction).
 inline std::string BuilderPaneWeave::active_role_prompt() const {
-    return fitted_label(role_prompt(), columns(), kMinRoleValueColumns);
+    return fitted_label(role_prompt(), columns(),
+                        kMinRoleValueColumns + 2 * zengine::graphics::kTextBoxInset);
 }
 
-/// The columns the role line's value is drawn in beside `prompt`: one is kept for the caret.
+/// The columns the role line's box takes beside `prompt`: the rest of the row, its value inside,
+/// a caret after it standing on the box's blank room.
 inline std::int64_t BuilderPaneWeave::role_value_columns(const std::string& prompt) const {
-    return columns() > static_cast<std::int64_t>(prompt.size()) + 1
-               ? columns() - static_cast<std::int64_t>(prompt.size()) - 1
-               : 1;
+    return columns() > static_cast<std::int64_t>(prompt.size()) + 2 * zengine::graphics::kTextBoxInset
+               ? columns() - static_cast<std::int64_t>(prompt.size())
+               : 2 * zengine::graphics::kTextBoxInset + 1;
 }
 
 /// The byte of `shown` a press at spelled `column` names: the last character boundary whose
@@ -301,19 +303,25 @@ inline std::int64_t BuilderPaneWeave::spelled_column_byte(const std::string& sho
 
 inline void BuilderPaneWeave::say_role() {
     const std::string prompt = active_role_prompt();
-    const component::TextBoxCells cells =
-        component::text_box_cells(role_.line, role_value_columns(prompt));
-    const std::string& shown = cells.text;
-    if (static_cast<std::int64_t>(room().composing().size()) < rows()) {
-        // THE CARET STANDS AFTER WHAT IS DRAWN BEFORE IT: the row is spelled in what a canvas
-        // draws, so its column is counted in the spelled characters, not the typed bytes.
+    const std::int64_t at = static_cast<std::int64_t>(ascii_spelling(prompt).size());
+    const zengine::workshop::RowBox box = zengine::workshop::row_box(role_.line, at, role_value_columns(prompt));
+    const bool room_left = static_cast<std::int64_t>(room().composing().size()) < rows();
+    if (room_left) {
+        // THE CARET STANDS AFTER WHAT IS DRAWN BEFORE IT, inside the box: the row is spelled in
+        // what a canvas draws, so its column is counted in the spelled characters.
         room().caret().row = static_cast<std::int64_t>(room().composing().size());
-        room().caret().column = static_cast<std::int64_t>(
-            ascii_spelling(prompt + shown.substr(0, static_cast<std::size_t>(cells.caret)))
-                .size());
+        room().caret().column =
+            at + zengine::graphics::kTextBoxInset +
+            static_cast<std::int64_t>(
+                ascii_spelling(box.view.shown.substr(0, static_cast<std::size_t>(box.view.caret)))
+                    .size());
     }
-    push_row(prompt + shown, zengine::graphics::role::kAccent,
+    push_row(prompt + std::string(static_cast<std::size_t>(box.columns), ' '),
+             zengine::graphics::role::kAccent,
              BuilderMeaning{builder_row::kLine, 0, {}, role_.stem});
+    if (room_left) {
+        room().composing().back().box = box;
+    }
     push_row(labelled_row("loads", role_.stem + " (built by `" + role_.recipe + "`)"),
              zengine::graphics::role::kMuted);
     say_controls(role_controls());

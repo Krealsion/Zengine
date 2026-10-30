@@ -369,14 +369,13 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
             column_of(text, composite_at, ui.widths.composite);
         }
         std::int64_t caret_at = -1;
+        workshop::RowBox query_box;
         if (shape.find) {
-            const std::int64_t room = shape.query_room - 1;
-            const component::TextBoxCells cells =
-                component::text_box_cells(ui.query, room > 0 ? room : 0);
             text += gap + kFindLabel;
-            caret_at = static_cast<std::int64_t>(text.size()) +
-                       (std::min)(cells.caret, cells.text_columns);
-            text += cells.text;
+            query_box = workshop::row_box(ui.query, static_cast<std::int64_t>(text.size()),
+                                          shape.query_room > 0 ? shape.query_room : 0);
+            caret_at = workshop::box_caret(query_box, 0).column;
+            text += std::string(static_cast<std::size_t>(query_box.columns), ' ');
         }
         const std::string drawn = fit(text, columns);
         const std::int64_t solid = detail::solid_columns(drawn, text.size());
@@ -384,6 +383,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         if (caret_at >= 0 && drawn.size() == text.size()) {
             view.caret_row = row;
             view.caret_col = caret_at;
+            view.rows[static_cast<std::size_t>(row)].box = query_box;
         }
         say.span(row, 0, static_cast<std::int64_t>(a.size()), powers_control::kSources, solid);
         say.span(row, operators_at, static_cast<std::int64_t>(b.size()),

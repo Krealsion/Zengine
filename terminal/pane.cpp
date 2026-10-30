@@ -359,7 +359,7 @@ public:
             // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
             // `first_visible + offset` of the WHOLE authored line, never the offset alone --
             // that is the one subtraction a horizontal viewport adds to a hit test.
-            const std::int64_t offset = column - kPromptCols;
+            const std::int64_t offset = column - kPromptCols - gfx::kTextBoxInset;
             const std::size_t target =
                 line_.position_at_column(offset < 0 ? 0 : offset);
             // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT; the first press still places
@@ -783,8 +783,9 @@ private:
     /// WHICH COMPOSED ROW IS THE INPUT LINE, and where the list is -- written by `say` and
     /// read by a press, so a press and a picture cannot disagree about what is where.
     std::int64_t input_row_ = -1;
-    /// The line as the input row last showed it: its slice, caret and selection from one window.
-    component::TextBoxCells line_cells_;
+    /// The line as the input row last showed it: the box, its slice, caret and selection from one
+    /// window.
+    ws::RowBox line_box_;
     std::int64_t list_first_row_ = -1;
     std::int64_t list_row_count_ = 0;
     std::size_t list_shown_first_ = 0;

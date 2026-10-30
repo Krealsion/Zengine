@@ -802,10 +802,13 @@ public:
                 } else if (m->kind == builder_row::kLine && role_.open) {
                     // A PRESS IS READ IN WHAT THE ROW DRAWS, as the caret is: the pressed column
                     // counts the spelled characters before it, never the typed bytes.
+                    // The box's text stands after its inset.
                     const std::string prompt = active_role_prompt();
-                    const std::string shown = role_.line.visible(role_value_columns(prompt));
+                    const std::string shown = role_.line.visible(
+                        zengine::graphics::text_box_room(role_value_columns(prompt)));
                     role_.line.place(role_.line.position_at_column(spelled_column_byte(
-                        shown, column - static_cast<std::int64_t>(prompt.size()))));
+                        shown, column - static_cast<std::int64_t>(prompt.size()) -
+                                   zengine::graphics::kTextBoxInset)));
                     say(mail);
                 }
             },

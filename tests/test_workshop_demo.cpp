@@ -288,17 +288,22 @@ TEST_CASE("a row's fold mark is its own character in a room of cells, and where 
     CHECK(read[2].text.rfind("plain + text", 0) == 0);
 }
 
-TEST_CASE("a row's text box seen as a box is its spelling in a room of cells, and where the room sets "
-          "type an outline in the edge role with its brackets and blank room left out; a text area "
-          "on rows is drawn as its face over them") {
+TEST_CASE("a row carries its text box, and each room draws its face: `[ab__]` in cells, an outline "
+          "in the edge role where the room sets type; a text area on rows is drawn in the room's "
+          "face over them") {
     zengine::component::TextBox box;
     box.set("ab", 2);
-    const auto cells = zengine::component::text_box_cells(box, 6, true);
-    REQUIRE(cells.text == "[ab__]");
-    TextRow boxed{"find " + cells.text, gfx::role::kFill};
-    boxed.box = row_box(cells, 5);
-    const std::vector<TextRow> rows{boxed, TextRow{"area row one", gfx::role::kFill},
-                                    TextRow{"area row two", gfx::role::kFill}};
+    TextRow boxed{"find", gfx::role::kFill};
+    boxed.box = row_box(box, 5, 6);
+    // A BOX KEEPS A BLANK FOR ITS CARET: a text longer than the box shows its tail with the caret
+    // after it on the box's blank room, never on its closing edge.
+    zengine::component::TextBox longer;
+    longer.set("abcdefghij", 10);
+    const RowBox narrow = row_box(longer, 0, 6);
+    CHECK(narrow.view.shown == "hij");
+    CHECK(narrow.view.caret == 3);
+    CHECK(gfx::text_box_spelling(narrow.view, 6) == "[hij_]");
+    const std::vector<TextRow> rows{boxed, TextRow{}, TextRow{}};
     const std::vector<RowPart> parts{};
     const auto node = [](const RowsDrawing& d, const std::string& path) -> const gfx::Node* {
         for (const gfx::Node& n : d.sketch.nodes()) {
@@ -309,18 +314,19 @@ TEST_CASE("a row's text box seen as a box is its spelling in a room of cells, an
     zengine::component::TextArea area;
     area.set("one\ntwo\nthree\nfour");
     const std::vector<RowsTextArea> areas{RowsTextArea{1, 2, area, "read", "scroll"}};
-    // A ROOM OF CELLS: the spelling as written, no outline, and the rows the pane spelled under
-    // the area drawn as rows.
+    // A ROOM OF CELLS: the box spelled over its columns, no outline, and the area's lines between
+    // their markers on its rows.
     const RowsDrawing in_cells = rows_drawing(
         rows, parts, RowsRoom{20 * gfx::kCellPx, 3 * gfx::kCellPx, {}, true}, 20, {}, 0, areas);
-    CHECK(node(in_cells, "row0box") == nullptr);
+    CHECK(node(in_cells, "row0.box") == nullptr);
     CHECK(node(in_cells, "area0.text") == nullptr);
     zengine::component::RowMap<DrawnPart> lattice;
     const std::vector<TextRow> said = drawn_rows(in_cells.sketch, 3, 20, lattice);
     REQUIRE(said.size() == 3);
     CHECK(said[0].text.rfind("find [ab__]", 0) == 0);
-    CHECK(said[1].text.rfind("area row one", 0) == 0);
-    // A ROOM THAT SETS TYPE: the brackets and blank room blanked, an outline round the box, and
+    CHECK(said[1].text.rfind("one", 0) == 0);
+    CHECK(said[2].text.rfind("... 3 more below", 0) == 0);
+    // A ROOM THAT SETS TYPE: the box's text inside its margins, an outline round its columns, and
     // the area's face in place of its rows.
     const gfx::TextMeasure face{8, 18};
     const RowsRoom room{20 * face.advance, 3 * face.line, face};
@@ -340,7 +346,7 @@ TEST_CASE("a row's text box seen as a box is its spelling in a room of cells, an
     }
     CHECK(words.find('[') == std::string::npos);
     CHECK(words.find('_') == std::string::npos);
-    CHECK(words.find("ab") != std::string::npos);
+    CHECK(words.find("find  ab") != std::string::npos);
     REQUIRE(node(typed, "area0.text") != nullptr);
     CHECK(node(typed, "row1.0") == nullptr);
     const auto first = gfx::from_body<gfx::TextArgs>(node(typed, "area0.text/l0")->args);

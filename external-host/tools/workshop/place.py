@@ -19,6 +19,7 @@ one place, measured from the room's top-left -- writing either sets both -- so X
 before Y. The placement lands in the layout you are on and returns with the next launch's desk;
 `s` in Layouts writes a Setup file."""
 import json
+import re
 import time
 
 from act import (MANAGER, act as step, choose as choose_line, manager_row, pane_ref, part_of,
@@ -68,11 +69,15 @@ def choose(ctx, hand, name):
     step(ctx, hand, "into", {"into": list(INFO) + [subject]})
 
 
+# A text box as a terminal spells it, `[text___]`: what it holds is the text before its blank room.
+BOX = re.compile(r"\[([^\]]*?)_*\]")
+
+
 def field(hand, label):
     """The property row named for `label`, without its cursor mark, or None while it is not drawn:
-    the row's own characters."""
+    the row's own characters, a draft's box read as the text it holds."""
     part = part_of(words_now(hand, *INFO), "property:" + label)
-    return part["text"][1:] if part is not None else None
+    return BOX.sub(lambda m: m.group(1), part["text"][1:]) if part is not None else None
 
 
 def settle(ctx, hand, label, wanted, what):
