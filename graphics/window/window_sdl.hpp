@@ -874,7 +874,7 @@ private:
     static std::int64_t weight(const light::NodePrimitives& p) {
         std::int64_t n = static_cast<std::int64_t>(p.quads.size() + p.lines.size()) * 20;
         for (const light::TextRun& t : p.texts) {
-            n += 16 + static_cast<std::int64_t>(t.text.size());
+            n += 24 + static_cast<std::int64_t>(t.text.size());
         }
         for (const light::ImageBlit& im : p.images) {
             n += 28 + static_cast<std::int64_t>(im.rgba.size());

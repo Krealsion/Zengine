@@ -360,10 +360,12 @@ public:
         composed_.clear();
         caret_ = {};
         const auto push = [&out, this](std::string text, std::int64_t role,
-                                       std::int64_t ground = graphics::role::kNone) {
+                                       std::int64_t ground = graphics::role::kNone,
+                                       const workshop::RowBox& box = {}) {
             out.push_back(workshop::TextRow{
                 workshop::pane_text::drawable(workshop::pane_text::fit(std::move(text), columns_)),
                 role, ground});
+            out.back().box = box;
         };
         // THE BODY IS COMPOSED WITHOUT THE NOTICE, and `finish` puts it in front, so a row's
         // published place is where it lands in `out` plus `lead()`.
@@ -897,26 +899,22 @@ private:
             std::string text =
                 std::string(here || editing ? ">" : " ") +
                 workshop::pane_text::pad(p.label, static_cast<std::size_t>(kPropertyLabelCols));
+            workshop::RowBox box;
             if (editing) {
-                // THE WINDOW FOLLOWS THE CARET, so a long value scrolls to where the weaver is
-                // typing.
-                draft_.line.keep_caret_visible(value_columns);
-                text += draft_.line.visible(value_columns);
+                // THE DRAFT IS A BOX over the value's columns, and its window follows the caret,
+                // so a long value scrolls to where the weaver is typing.
+                box = workshop::row_box(draft_.line, static_cast<std::int64_t>(text.size()),
+                                        value_columns);
+                text += std::string(static_cast<std::size_t>(value_columns > 0 ? value_columns : 0),
+                                    ' ');
             } else {
                 text += workshop::pane_text::fit(p.value, value_columns);
             }
             mark(Placed::kProperty, i);
             if (editing && value_columns > 0) {
-                const std::int64_t at = kPropertyMarkCols + kPropertyLabelCols;
-                caret_.row = composed_.back().row;
-                caret_.column = at + static_cast<std::int64_t>(draft_.line.caret_column());
-                if (const auto span = draft_.line.visible_selection(value_columns); span.present()) {
-                    caret_.sel_begin_row = caret_.sel_end_row = caret_.row;
-                    caret_.sel_begin_col = at + span.begin;
-                    caret_.sel_end_col = at + span.end;
-                }
+                caret_ = workshop::box_caret(box, composed_.back().row);
             }
-            push(std::move(text), role);
+            push(std::move(text), role, graphics::role::kNone, box);
         }
         if (win.after > 0) {
             push(workshop::pane_text::omitted_text(win.after, "more"), graphics::role::kMuted);

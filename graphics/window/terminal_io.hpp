@@ -91,6 +91,7 @@ inline const char* sgr_for_role(int r) noexcept {
     case role::kAlert: return "\x1b[31;1m";  // bold red: must be seen
     case role::kGround: return "\x1b[30m";   // black: opaque empty material
     case role::kGuide: return "\x1b[95m";    // bright magenta: a guest's mark
+    case role::kEdge: return "\x1b[90m";     // bright black: a box's quiet outline
     default: return "\x1b[39m"; // kFill, kMediumGround (no ink) and anything unknown: plain ink
     }
 }

@@ -77,4 +77,6 @@ zengine.desktop read manual.up up - - line up
 zengine.desktop read manual.down down - - line down
 zengine.desktop read manual.top home - - top
 zengine.desktop read manual.bottom end - - bottom
+zengine.desktop read manual.copy ctrl+c - - copy
+zengine.desktop read manual.all ctrl+a - - select all
 zengine.desktop read manual.close escape PaneCloseRequested/1>zengine.desktop/manual - close

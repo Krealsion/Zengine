@@ -716,8 +716,14 @@ of the weave; a member the facet calls only when present is optional.
   (`WindowDrawing`, which an office of several panes keeps for each pane too, and both Editors,
   Flow and the View Builder keep for their areas). A row's fold mark (`TextRow::mark`, the column
   of a section's `+` or `-`) is drawn as that character in a room of cells and, where the window
-  sets type, as the icon table's `right` or `down` outline in its place. The pane sends Workshop no
-  rows. The window's pointer in the area
+  sets type, as the icon table's `right` or `down` outline in its place. A row carries a text box
+  (`TextRow::box`, `row_box`), never its look: a room of cells writes `[text___]` over the box's
+  columns and, where the window sets type, its text inside an outline in `role::kEdge`
+  (`row_text_shown`); its caret stands inside the box's inset (`box_caret`). A text area standing on
+  a pane's rows (`RowsTextArea`, the seat's `publish_rows`) is drawn over those rows in the room's
+  face: its lines between their markers in a room of cells, scrolled freely with its bar where the
+  window sets type; the pane reads a press there with `graphics::text_area_cells_place` or
+  `rows_text_area_place`. The pane sends Workshop no rows. The window's pointer in the area
   (`graphics::AreaButtonChanged`, `AreaPointerMoved`, `AreaPointerLeft`, `AreaWheelTurned`, from
   that window's office) is read on the rows it was last sent: the first button pressed on a shown
   cell is `press(RowPress, mail)` there, `keys_went_here` as Workshop's last `PaneKeys` said; the

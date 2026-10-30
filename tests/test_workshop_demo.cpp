@@ -288,6 +288,74 @@ TEST_CASE("a row's fold mark is its own character in a room of cells, and where 
     CHECK(read[2].text.rfind("plain + text", 0) == 0);
 }
 
+TEST_CASE("a row carries its text box, and each room draws its face: `[ab__]` in cells, an outline "
+          "in the edge role where the room sets type; a text area on rows is drawn in the room's "
+          "face over them") {
+    zengine::component::TextBox box;
+    box.set("ab", 2);
+    TextRow boxed{"find", gfx::role::kFill};
+    boxed.box = row_box(box, 5, 6);
+    // A BOX KEEPS A BLANK FOR ITS CARET: a text longer than the box shows its tail with the caret
+    // after it on the box's blank room, never on its closing edge.
+    zengine::component::TextBox longer;
+    longer.set("abcdefghij", 10);
+    const RowBox narrow = row_box(longer, 0, 6);
+    CHECK(narrow.view.shown == "hij");
+    CHECK(narrow.view.caret == 3);
+    CHECK(gfx::text_box_spelling(narrow.view, 6) == "[hij_]");
+    const std::vector<TextRow> rows{boxed, TextRow{}, TextRow{}};
+    const std::vector<RowPart> parts{};
+    const auto node = [](const RowsDrawing& d, const std::string& path) -> const gfx::Node* {
+        for (const gfx::Node& n : d.sketch.nodes()) {
+            if (n.path == path) return &n;
+        }
+        return nullptr;
+    };
+    zengine::component::TextArea area;
+    area.set("one\ntwo\nthree\nfour");
+    const std::vector<RowsTextArea> areas{RowsTextArea{1, 2, area, "read", "scroll"}};
+    // A ROOM OF CELLS: the box spelled over its columns, no outline, and the area's lines between
+    // their markers on its rows.
+    const RowsDrawing in_cells = rows_drawing(
+        rows, parts, RowsRoom{20 * gfx::kCellPx, 3 * gfx::kCellPx, {}, true}, 20, {}, 0, areas);
+    CHECK(node(in_cells, "row0.box") == nullptr);
+    CHECK(node(in_cells, "area0.text") == nullptr);
+    zengine::component::RowMap<DrawnPart> lattice;
+    const std::vector<TextRow> said = drawn_rows(in_cells.sketch, 3, 20, lattice);
+    REQUIRE(said.size() == 3);
+    CHECK(said[0].text.rfind("find [ab__]", 0) == 0);
+    CHECK(said[1].text.rfind("one", 0) == 0);
+    CHECK(said[2].text.rfind("... 3 more below", 0) == 0);
+    // A ROOM THAT SETS TYPE: the box's text inside its margins, an outline round its columns, and
+    // the area's face in place of its rows.
+    const gfx::TextMeasure face{8, 18};
+    const RowsRoom room{20 * face.advance, 3 * face.line, face};
+    const RowsDrawing typed = rows_drawing(rows, parts, room, room.columns(), {}, 0, areas);
+    const gfx::Node* outline = node(typed, "row0.box");
+    REQUIRE(outline != nullptr);
+    const auto rect = gfx::from_body<gfx::RectArgs>(outline->args);
+    REQUIRE(rect.has_value());
+    CHECK(rect->x == 5 * face.advance);
+    CHECK(rect->w == 6 * face.advance);
+    CHECK(rect->stroke.role == gfx::role::kEdge);
+    std::string words;
+    for (const gfx::Node& n : typed.sketch.nodes()) {
+        if (n.path.rfind("row0.", 0) == 0 && n.op == gfx::op::kText) {
+            words += gfx::from_body<gfx::TextArgs>(n.args)->text;
+        }
+    }
+    CHECK(words.find('[') == std::string::npos);
+    CHECK(words.find('_') == std::string::npos);
+    CHECK(words.find("find  ab") != std::string::npos);
+    REQUIRE(node(typed, "area0.text") != nullptr);
+    CHECK(node(typed, "row1.0") == nullptr);
+    const auto first = gfx::from_body<gfx::TextArgs>(node(typed, "area0.text/l0")->args);
+    REQUIRE(first.has_value());
+    CHECK(first->text == "one");
+    CHECK(typed.places.count("read") == 1);
+    CHECK(typed.places.at("read").row == 1);
+}
+
 TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state beneath it") {
     SUBCASE("rows drawn for a window that sets type stand a line of its face apart and a "
             "character an advance, on the ground of the whole room, read back and pressed in that "

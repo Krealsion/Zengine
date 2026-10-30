@@ -160,14 +160,15 @@ aimed"
 `tests/test_component.cpp` "the window is state, and every operation leaves the caret inside it"
 
 ### WL-TEXT-05
-`component/text_box.hpp` character_boundary_at_or_after
+`component/text.hpp` character_boundary_at_or_after
 `workshop/screen_bindings.cpp` detail::fit
 `workshop/screen_layouts.cpp` setup_name_columns
 `tests/test_component.cpp` "component: the window never begins inside a character, at any capacity"
 "the window never begins inside a character"
 
 ### WL-TEXT-06
-`component/text_box.hpp` TextBox::consume kEditingVocabulary key mod
+`component/text_box.hpp` TextBox::consume kEditingVocabulary
+`component/text.hpp` key mod
 `workshop/weave_session.cpp` naming_key
 `tests/test_component.cpp` "component: consume owns exactly the editing vocabulary and declines the
 rest" "component: a consumed gesture that changes nothing is still consumed" "the editing
@@ -181,14 +182,16 @@ forgets its far past first" "component: undo restores text, caret and selection;
 
 ### WL-TEXT-08
 `workshop/screen.hpp` Session::clipboard
-`component/text_box.hpp` Clipboard Clipboard::writes
+`component/text.hpp` Clipboard Clipboard::writes copy_selection
+`component/text_box.hpp` TextBox::copy
 `graphics/vocabulary.hpp` ClipboardCopy
 `workshop/weave_pointer.cpp` on(ClipboardCopy)
 `tests/test_component.cpp` "component: copy, cut and paste move text through the owner's clipboard"
 "component: copy with nothing selected leaves the clipboard alone"
 
 ### WL-TEXT-09
-`component/text_box.hpp` Clipboard::paste_requests TextBox::paste TextBox::draft_epoch
+`component/text.hpp` Clipboard::paste_requests
+`component/text_box.hpp` TextBox::paste TextBox::draft_epoch
 `workshop/weave_seam.cpp` paste_owner_now naming_line begin_clipboard_paste
 `workshop/weave.hpp` WorkshopWeave::paste_asks_ AskBook PasteOwner PendingPaste
 `workshop/weave_pointer.cpp` answers_ask on(ClipboardText)
@@ -219,18 +222,19 @@ say or take, and reads back the cells it last showed, at the size it showed them
 
 ### WL-TEXT-11
 `component/CMakeLists.txt` zengine-component
-`component/text_box.hpp` key mod
+`component/text.hpp` key mod
 `tests/test_input.cpp` "the component's key spellings ARE the wire's"
 
 ### WL-TEXT-12
-`component/text_box.hpp` word_run_begin word_run_end word_before word_after TextBox::word_at
-WordSpan TextBox::select_word_at
+`component/text.hpp` word_run_begin word_run_end word_before word_after WordSpan
+`component/text_box.hpp` TextBox::word_at TextBox::select_word_at
 `tests/test_component.cpp` "one run definition, and the keyboard's two answers are composed from it"
 "the word at a position, including at both of its edges" "select_word_at opens the selection across
 the word a press landed in" "pointer and keyboard agree about which bytes are one word"
 
 ### WL-TEXT-13
 `workshop/screen_layouts.cpp` paint_layouts
-`component/text_box.hpp` TextBox TextBox::visible_selection pasteable_line
+`component/text_box.hpp` TextBox TextBox::visible_selection
+`component/text.hpp` pasteable_line
 `tests/test_component.cpp` "component: the visible selection is the span both media may spend"
 "component: paste flattens foreign bytes into one line"

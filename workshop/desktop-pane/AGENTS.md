@@ -12,8 +12,8 @@ the host's router, [`workshop/AGENTS.md`](../AGENTS.md).
 | `desktop_common.hpp` | what the weave and its panes share: the offices and the tools they name, `launch` and `close`, a menu's subject, `from_workshop`, `refused_ask`, `PanePress`, `Declared`, `PaneCanvas` |
 | `launcher_view.hpp` | `LauncherView`, the Pane Manager: the inventory list, its marker held by identity, the mark that shows or hides, a row's menu, and `n` for the View Builder |
 | `hotkeys_view.hpp` | `HotkeysView`, the Hotkeys pane: the keymap in force as a table, its cursor, a binding's menu, key capture and the spelling line |
-| `manual_view.hpp` | `ManualView`, the Manual: the ask for a pane's manual and the window over its lines |
-| `manual_reader.hpp` | a manual's words set beside the keys in force (`manual_lines`) |
+| `manual_view.hpp` | `ManualView`, the Manual: the ask for a pane's manual and the text area it is read in |
+| `manual_reader.hpp` | a manual's words set beside the keys in force, as the area's text (`manual_text`) |
 | `shortcuts.hpp` | the application rows other providers propose (`Shortcuts`) |
 | `vocabulary.hpp` | the durable names: the office, the panes, the action ids, and `DesktopState` |
 

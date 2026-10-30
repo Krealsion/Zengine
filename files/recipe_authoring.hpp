@@ -566,7 +566,8 @@ inline void FilesWeave::say_authoring() {
 /// value is what a weaver is reading. Read here and nowhere else, so painting (`say_field`)
 /// and the press that turns a column back into a caret measure from the same text.
 inline std::string FilesWeave::active_prompt() const {
-    return fitted_label(authoring_.prompt, columns(), kMinFieldValueColumns);
+    return fitted_label(authoring_.prompt, columns(),
+                        kMinFieldValueColumns + 2 * zengine::graphics::kTextBoxInset);
 }
 
 /// ONE AUTHORING FIELD'S ROW: the line itself where the weaver is standing, and what the
@@ -577,15 +578,18 @@ inline void FilesWeave::say_field(std::size_t i) {
     if (i == authoring_.step) {
         const std::string prompt = active_prompt();
         const std::int64_t prompt_cols = static_cast<std::int64_t>(prompt.size());
-        const std::int64_t cols = columns() > prompt_cols + 1 ? columns() - prompt_cols - 1 : 1;
-        authoring_.line.keep_caret_visible(cols);
-        if (room().next_row() < rows()) {
-            room().caret().row = room().next_row();
-            room().caret().column =
-                prompt_cols + static_cast<std::int64_t>(authoring_.line.caret_column());
+        const std::int64_t cols = columns() > prompt_cols + 3 ? columns() - prompt_cols : 3;
+        const zengine::workshop::RowBox box = zengine::workshop::row_box(authoring_.line, prompt_cols, cols);
+        const bool room_left = room().next_row() < rows();
+        if (room_left) {
+            room().caret() = zengine::workshop::box_caret(box, room().next_row());
         }
-        push_row(prompt + authoring_.line.visible(cols), zengine::graphics::role::kAccent,
+        push_row(prompt + std::string(static_cast<std::size_t>(cols), ' '),
+                 zengine::graphics::role::kAccent,
                  FilesMeaning{files_row::kLine, i, {}, field.name});
+        if (room_left) {
+            room().composing().back().box = box;
+        }
         return;
     }
     const std::string held = authoring_.filled[i] && !authoring_.values[i].empty()

@@ -12,8 +12,10 @@
 // Reference: workshop/docs/workshop-panes.md, "The pane facets".
 
 #include "component/row_map.hpp"
+#include "component/text_area.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/elements/icon.hpp"
+#include "graphics/elements/text_face.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
 #include "graphics/pixels.hpp"
@@ -181,6 +183,30 @@ struct RowsRoom {
     }
 };
 
+/// A TEXT AREA STANDING ON A PANE'S ROWS: from row `row`, `rows` tall, the value it draws from, and
+/// the names a press on its text and on its bar asks. The painter draws it over those rows in the
+/// room's face: its lines between their markers in a room of cells (`graphics::text_area_cells`),
+/// scrolled freely with its bar where the window sets type (`graphics::text_area_face`).
+struct RowsTextArea {
+    std::int64_t row = 0, rows = 0;
+    component::TextArea area;
+    std::string part, bar;
+};
+
+/// WHERE A TEXT AREA ON ROWS STANDS IN A WINDOW SETTING TYPE IN `room`: its pixels, and the
+/// geometry its face is drawn with and a press on it is read with.
+struct RowsTextAreaPlace {
+    std::int64_t x = 0, y = 0;
+    graphics::TextAreaGeometry geometry;
+};
+inline RowsTextAreaPlace rows_text_area_place(const RowsTextArea& a, std::int64_t width,
+                                              const graphics::TextMeasure& text) {
+    RowsTextAreaPlace out;
+    out.y = a.row * text.line;
+    out.geometry = graphics::text_area_geometry(a.area, width, a.rows * text.line, text);
+    return out;
+}
+
 /// A PANE'S ROWS AS A GRAPHICS WINDOW DRAWS THEM, and where a press reaches each part they name.
 struct RowsDrawing {
     graphics::Sketch sketch;
@@ -200,21 +226,51 @@ bool part_available(const Part& part) {
 
 /// ROWS AND THEIR PARTS DRAWN, `columns` wide in `room`: the ground, then each row a line of text in
 /// its role (a lit row's nodes named apart above it), cut where a part begins or ends, and its fold
-/// mark an outline where the room sets type (`TextRow::mark`); each run a part holds asks the
-/// part's name -- where parts overlap, the one a press on Workshop's rows reaches -- recorded
-/// unavailable (`graphics::PartFace`) where the part says so; `caret` in front.
-/// No row past `max_rows` (above 0) or the window's bounds is drawn. `RowPart`s, or any part with
-/// their name, row and columns.
+/// mark an outline where the room sets type (`TextRow::mark`); its box in the room's face
+/// (`TextRow::box`, `row_text_shown`), an outline round it where the room sets type; each run a part
+/// holds asks the part's name -- where parts overlap, the one a press on Workshop's rows reaches --
+/// recorded unavailable (`graphics::PartFace`) where the part says so; `caret` in front. Each of
+/// `areas` is drawn over its rows in the room's face: where the room sets type its face scrolled
+/// freely, and in a room of cells its lines between their markers (`graphics::text_area_cells`),
+/// its selection in front. No row past `max_rows` (above 0) or the window's bounds is drawn.
+/// `RowPart`s, or any part with their name, row and columns.
 template <class Part>
-RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
+RowsDrawing rows_drawing(const std::vector<TextRow>& given,
                          const std::vector<Part>& parts, const RowsRoom& room,
                          std::int64_t columns, const RowsCaret& caret = {},
-                         std::int64_t max_rows = 0) {
+                         std::int64_t max_rows = 0,
+                         const std::vector<RowsTextArea>& areas = {}) {
     struct Run {
         std::string node, words, action;
         std::int64_t x = 0;
     };
     RowsDrawing out;
+    // THE ROWS AS THIS ROOM SHOWS THEM: each box's face written over its columns, and in a room of
+    // cells each area's lines and markers on its rows, with their selected columns.
+    std::vector<TextRow> rows = given;
+    std::map<std::int64_t, RowSpan> area_selection;
+    if (room.cells) {
+        for (const RowsTextArea& a : areas) {
+            if (a.rows <= 0 || a.row < 0) {
+                continue;
+            }
+            const graphics::TextAreaCells cells = graphics::text_area_cells(a.area, a.rows, columns);
+            for (std::size_t i = 0; i < cells.rows.size(); ++i) {
+                const auto at = static_cast<std::size_t>(a.row) + i;
+                if (rows.size() <= at) {
+                    rows.resize(at + 1);
+                }
+                rows[at] = TextRow{cells.rows[i].text, cells.rows[i].role};
+                if (cells.rows[i].selection_end > cells.rows[i].selection_begin) {
+                    area_selection[static_cast<std::int64_t>(at)] =
+                        RowSpan{cells.rows[i].selection_begin, cells.rows[i].selection_end};
+                }
+            }
+        }
+    }
+    for (TextRow& row : rows) {
+        row.text = row_text_shown(row, room.cells);
+    }
     // A RUN'S RECORD: the part it asks, said unavailable where the part says it is.
     const auto say_part = [&](const std::string& node, const std::string& name) {
         bool available = true;
@@ -236,15 +292,34 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
     std::size_t nodes = 1, records = 0;
     const std::size_t shown =
         max_rows > 0 ? (std::min)(rows.size(), static_cast<std::size_t>(max_rows)) : rows.size();
+    // THE ROWS A TEXT AREA'S FACE STANDS ON, in a room that sets type: drawn by the face, not as
+    // rows.
+    const auto under_area = [&](std::int64_t row) {
+        if (room.cells) {
+            return false;
+        }
+        for (const RowsTextArea& a : areas) {
+            if (row >= a.row && row < a.row + a.rows) {
+                return true;
+            }
+        }
+        return false;
+    };
     std::size_t r = 0;
     for (; r < shown; ++r) {
         const auto row = static_cast<std::int64_t>(r);
+        if (under_area(row)) {
+            continue;
+        }
         // A FOLD MARK, in a window that sets type: its cell's character left out of the text and
         // the icon table's outline drawn there instead, `down` for an open section's `-` and
         // `right` for a shut one's `+`; a room of cells draws the character.
         const std::int64_t mark = rows[r].mark;
         const bool outlined = !room.cells && mark >= 0 &&
                               mark < static_cast<std::int64_t>(rows[r].text.size());
+        // A TEXT BOX, where the window sets type: an outline round its columns.
+        const RowBox& box = rows[r].box;
+        const bool boxed = !room.cells && box.present();
         std::string blanked;
         if (outlined) {
             blanked = rows[r].text;
@@ -295,7 +370,7 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
             }
             a = b;
         }
-        const std::size_t drawn = runs.size() + (lit ? 1 : 0) + (outlined ? 2 : 0);
+        const std::size_t drawn = runs.size() + (lit ? 1 : 0) + (outlined ? 2 : 0) + (boxed ? 1 : 0);
         if (nodes + drawn > graphics::kMaxNodesPerArea ||
             records + asks > graphics::kMaxElementsPerArea) {
             break;
@@ -313,6 +388,10 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
             if (!one.action.empty()) {
                 say_part(one.node, one.action);
             }
+        }
+        if (boxed) {
+            graphics::text_box_outline(out.sketch, prefix + "box", box.column * advance, row * line,
+                                       box.columns * advance, line);
         }
         if (outlined) {
             const bool open = rows[r].text[static_cast<std::size_t>(mark)] == '-';
@@ -337,6 +416,36 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
             }
             if (alone || reached) {
                 out.places[parts[k].name] = RowCell{row, alone ? *alone : *reached, true};
+            }
+        }
+    }
+
+    // EACH TEXT AREA'S FACE over its rows, in a room that sets type: its text clipped to its rows
+    // and scrolled freely, its bar on its right, each asking the area's names.
+    if (!room.cells) {
+        for (std::size_t k = 0; k < areas.size(); ++k) {
+            const RowsTextArea& a = areas[k];
+            if (a.rows <= 0 || a.row < 0) {
+                continue;
+            }
+            const RowsTextAreaPlace at = rows_text_area_place(a, room.width, room.text);
+            const auto lines_shown = static_cast<std::size_t>(a.rows + 1);
+            const std::size_t needed = 5 + 2 * lines_shown;
+            if (nodes + needed > graphics::kMaxNodesPerArea ||
+                records + 2 > graphics::kMaxElementsPerArea) {
+                break;
+            }
+            nodes += needed;
+            records += 2;
+            graphics::text_area_face(
+                out.sketch, "area" + std::to_string(k), a.area, at.geometry, at.x, at.y,
+                [](const component::TextLook& look) { return graphics::by_role(look.role); },
+                a.part, a.bar);
+            if (!a.part.empty()) {
+                out.places[a.part] = RowCell{a.row, 0, true};
+            }
+            if (!a.bar.empty()) {
+                out.places[a.bar] = RowCell{a.row, (std::max)(columns - 1, std::int64_t{0}), true};
             }
         }
     }
@@ -370,9 +479,15 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
     };
     const auto marked = static_cast<std::int64_t>(r); // the rows drawn
     for (std::int64_t m = 0; m < marked; ++m) {
+        if (under_area(m)) {
+            continue;
+        }
         const std::string& text = rows[static_cast<std::size_t>(m)].text;
         const auto length = (std::min)(static_cast<std::int64_t>(text.size()), columns);
-        const RowSpan span = selection_span_of_row(caret, m, length);
+        const auto area_span = area_selection.find(m);
+        const RowSpan span = area_span != area_selection.end()
+                                 ? area_span->second
+                                 : selection_span_of_row(caret, m, length);
         std::size_t run = 0;
         for (std::int64_t a = span.begin; a < span.end;) {
             const std::string asks = asked_at(m, a);
@@ -392,7 +507,8 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
             a = b;
         }
     }
-    if (caret.row < 0 || caret.row >= marked || caret.column < 0 || columns <= 0) {
+    if (caret.row < 0 || caret.row >= marked || caret.column < 0 || columns <= 0 ||
+        under_area(caret.row)) {
         return out;
     }
     const std::int64_t column = (std::min)(caret.column, columns - 1);

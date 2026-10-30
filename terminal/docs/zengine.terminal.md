@@ -237,8 +237,8 @@ from the line, and to the layouts' owner `PaneSettingsAsked`, for its row when i
 ### `line`
 
 The line you type on, always the bottom row: the `prompt` mark, `>` unless the layout keeps
-another, a space and your text, or, empty, `>    Tab: what can this terminal say?  Up:
-recall a command`. While you recall, the row above it is the history row.
+another, then your text in a box, `> [ls -l____]` in a terminal and outlined in a window; empty,
+`> [__________]  Tab: what can this terminal say?  Up: recall a command`. While you recall, the row above it is the history row.
 A refusal stands over the top row until your next act.
 
 ### `legend`

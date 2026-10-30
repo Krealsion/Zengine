@@ -60,6 +60,9 @@ public:
     /// The rows and columns the pane composes for: the window room's.
     std::int64_t rows() const noexcept { return rows_; }
     std::int64_t columns() const noexcept { return columns_; }
+    /// The room the window gives the area, in pixels, and how it sets text: where a text area on
+    /// the rows stands (`rows_text_area_place`).
+    RowsRoom room() const { return window_.rows_room(); }
 
     /// THE ROOM A GRAPHICS WINDOW GIVES THE PANE, said by the window that shows its area as that
     /// window's office: true when the window, its incarnation, its size or its measure changed or
@@ -154,22 +157,24 @@ public:
         if (!in_window() || rows_ <= 0 || columns_ <= 0) {
             return;
         }
-        RowsDrawing drawn =
-            rows_drawing(said_rows_, said_parts_, window_.rows_room(), columns_, said_caret_);
+        RowsDrawing drawn = rows_drawing(said_rows_, said_parts_, window_.rows_room(), columns_,
+                                         said_caret_, 0, said_areas_);
         drawn.sketch.number(said_number_);
         window_places_ = std::move(drawn.places);
         window_.draw(drawn.sketch, mail);
     }
 
-    /// THE PANE'S ROWS SAID, with their parts, the caret standing in them, and the pane's number
-    /// for what they mean (`component::RowMap::picture`, 0 for none), and drawn in the window that
-    /// shows the area (`redraw`).
+    /// THE PANE'S ROWS SAID, with their parts, the caret standing in them, the pane's number for
+    /// what they mean (`component::RowMap::picture`, 0 for none) and the text areas standing on
+    /// them, and drawn in the window that shows the area (`redraw`).
     void publish_rows(loom::Mail& mail, std::vector<TextRow> rows, std::vector<RowPart> parts = {},
-                      const RowsCaret& caret = {}, std::int64_t number = 0) {
+                      const RowsCaret& caret = {}, std::int64_t number = 0,
+                      std::vector<RowsTextArea> areas = {}) {
         said_rows_ = std::move(rows);
         said_parts_ = std::move(parts);
         said_caret_ = caret;
         said_number_ = number;
+        said_areas_ = std::move(areas);
         redraw(mail);
     }
 
@@ -190,6 +195,7 @@ private:
     std::vector<RowPart> said_parts_;
     RowsCaret said_caret_;
     std::int64_t said_number_ = 0;
+    std::vector<RowsTextArea> said_areas_;
     std::map<std::string, RowCell> window_places_;
     bool keys_here_ = false;
     std::optional<RowCell> rest_;

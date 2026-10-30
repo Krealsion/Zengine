@@ -1036,9 +1036,9 @@ TEST_CASE("Inventory draws its rows on its canvas on the medium's own ground, an
     REQUIRE(line > 0);
     const auto rows = pane_rows(s.r, s.source);
     REQUIRE(static_cast<std::size_t>(line) < rows.size());
-    CHECK(rows[static_cast<std::size_t>(line)] == "Zulu"); // no character written for the caret
+    CHECK(rows[static_cast<std::size_t>(line)].rfind("[Zulu_", 0) == 0); // the line a box, no character written for the caret
     CHECK(held_caret(held()).row == line);
-    CHECK(held_caret(held()).column == 4); // on the blank after the last character
+    CHECK(held_caret(held()).column == 5); // on the blank after the last character
     std::size_t drawn = 0;
     {
         RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&drawn](const loom::BusEvent& e) {
@@ -1050,13 +1050,13 @@ TEST_CASE("Inventory draws its rows on its canvas on the medium's own ground, an
         s.key(input::scan::kLeft); // the caret alone moves: a drawing of its own
     }
     CHECK(drawn >= 1);
-    CHECK(held_caret(held()).column == 3);
+    CHECK(held_caret(held()).column == 4);
     CHECK(pane_rows(s.r, s.source) == rows);
     s.key(input::scan::kLeft, input::mod::kShift);
-    CHECK(held_caret(held()).column == 2);
+    CHECK(held_caret(held()).column == 3);
     CHECK(held_caret(held()).sel_begin_row == line);
-    CHECK(held_caret(held()).sel_begin_col == 2);
-    CHECK(held_caret(held()).sel_end_col == 3);
+    CHECK(held_caret(held()).sel_begin_col == 3);
+    CHECK(held_caret(held()).sel_end_col == 4);
     s.key(input::scan::kEscape); // the edit ends, and its caret with it
     CHECK(held_caret(held()).row == kNoCaret);
     CHECK(s.row_of(s.source, "Name:") < 0);

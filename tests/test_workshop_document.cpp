@@ -379,19 +379,19 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     REQUIRE(at_bands.size() == 1);
     const ScreenRegion& editor = at_bands.front();
     REQUIRE_FALSE(editor.rows.empty());
-    CHECK(editor.rows[0].text.find("layout name> Default") == 0);
+    CHECK(row_text_shown(editor.rows[0], true).find("layout name> [Default") == 0);
     const std::int64_t prompt =
         static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt));
     const std::int64_t at_caret =
-        prompt + static_cast<std::int64_t>(t.session().setup.naming.line.caret_column());
+        prompt + 1 + static_cast<std::int64_t>(t.session().setup.naming.line.caret_column());
     CHECK(editor.caret_row == 0);
     CHECK(editor.caret_col == at_caret);
     CHECK(editor.sel_begin_row == 0);
-    CHECK(editor.sel_begin_col == prompt);
+    CHECK(editor.sel_begin_col == prompt + 1); // inside the name's box
     CHECK(editor.sel_end_row == 0);
-    CHECK(editor.sel_end_col == prompt + 7);
+    CHECK(editor.sel_end_col == prompt + 1 + 7);
     // ...and the cell projection stands the caret on a cell, moving no character of the row.
-    CHECK(label_at(t.shown(), 0, 0).find("layout name> Default") == 0);
+    CHECK(label_at(t.shown(), 0, 0).find("layout name> [Default") == 0);
 
     // ON THE OS WINDOW, whose platform clipboard a paste can read, A PANE COPIES -- publishing
     // `ClipboardCopy`, as every pane does with its own selection -- and this host's name editor
@@ -562,7 +562,10 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
          pane_rows(r, compose_kind)) {
         CAPTURE(row);
         CHECK(row.find("SECRET") == std::string::npos);
-        typed_visible = typed_visible || row.find("[z") != std::string::npos;
+        // The field's box: `[z` in a room of cells; where the window sets type, its text after the
+        // row's gap and the box's inset.
+        typed_visible = typed_visible || row.find("[z") != std::string::npos ||
+                        row.find("   z") != std::string::npos;
     }
     // The staging reached the vulnerable state -- the new form's field is present and
     // holds the typed byte -- so the absence above is a measurement, not a vacancy.

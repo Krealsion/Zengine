@@ -31,10 +31,11 @@
 namespace zengine::graphics::light {
 
 /// The tag that opens a node painted for light: 'L', 'G', 'T' and this layout's version.
-inline constexpr std::array<std::uint8_t, 4> kTag = {'L', 'G', 'T', 1};
+inline constexpr std::array<std::uint8_t, 4> kTag = {'L', 'G', 'T', 2};
 
-/// A filled rectangle; a line; a run of text from the top left of its line; an image of `pw` x
-/// `ph` pixels (red, green, blue, alpha) shown in (x, y, w, h). Every colour is 0xRRGGBBAA.
+/// A filled rectangle; a line; a run of text from the top left of its line, less the pixel rows a
+/// clip cut from its top and its foot; an image of `pw` x `ph` pixels (red, green, blue, alpha)
+/// shown in (x, y, w, h). Every colour is 0xRRGGBBAA.
 struct Quad {
     std::int32_t x = 0, y = 0, w = 0, h = 0;
     std::uint32_t rgba = 0;
@@ -49,6 +50,7 @@ struct TextRun {
     std::int32_t x = 0, y = 0;
     std::uint32_t rgba = 0;
     std::string text;
+    std::int32_t cut_top = 0, cut_foot = 0;
     bool operator==(const TextRun&) const = default;
 };
 struct ImageBlit {
@@ -125,8 +127,8 @@ inline bool is_light(const loom::Bytes& b) {
 
 /// A node's primitives packed, little end first: the tag; the counts of quads, lines, texts and
 /// images (four uint32); each quad as x, y, w, h (four int32) and its RGBA (uint32), 20 bytes; each
-/// line as x1, y1, x2, y2 and its RGBA, 20 bytes; each text as x, y, its RGBA, its length and its
-/// bytes; each image as x, y, w, h, pw, ph, the length of its pixels and `pw * ph * 4` bytes.
+/// line as x1, y1, x2, y2 and its RGBA, 20 bytes; each text as x, y, its RGBA, its cut top and
+/// foot, its length and its bytes; each image as x, y, w, h, pw, ph, the length of its pixels and `pw * ph * 4` bytes.
 inline loom::Bytes pack_node(const NodePrimitives& n) {
     loom::Bytes b(kTag.begin(), kTag.end());
     detail::put32(b, static_cast<std::uint32_t>(n.quads.size()));
@@ -149,6 +151,8 @@ inline loom::Bytes pack_node(const NodePrimitives& n) {
         detail::put32(b, static_cast<std::uint32_t>(t.x));
         detail::put32(b, static_cast<std::uint32_t>(t.y));
         detail::put32(b, t.rgba);
+        detail::put32(b, static_cast<std::uint32_t>(t.cut_top));
+        detail::put32(b, static_cast<std::uint32_t>(t.cut_foot));
         detail::put32(b, static_cast<std::uint32_t>(t.text.size()));
         b.insert(b.end(), t.text.begin(), t.text.end());
     }
@@ -200,7 +204,8 @@ inline std::optional<NodePrimitives> unpack_node(const loom::Bytes& b) {
         TextRun t;
         std::uint32_t len = 0;
         const std::uint8_t* at = nullptr;
-        if (!r.i32(t.x) || !r.i32(t.y) || !r.u32(t.rgba) || !r.u32(len) || !r.bytes(len, at)) {
+        if (!r.i32(t.x) || !r.i32(t.y) || !r.u32(t.rgba) || !r.i32(t.cut_top) ||
+            !r.i32(t.cut_foot) || !r.u32(len) || !r.bytes(len, at)) {
             return std::nullopt;
         }
         t.text.assign(reinterpret_cast<const char*>(at), len);
@@ -237,7 +242,7 @@ inline Look day_look() {
     l.colour = {{role::kFill, 0x2b2b2b},   {role::kAccent, 0xd08700},
                 {role::kMuted, 0x9aa0a6},  {role::kAlert, 0xc5221f},
                 {role::kGround, 0xf5f5f0}, {role::kMediumGround, 0xf5f5f0},
-                {role::kGuide, 0x1a73e8}};
+                {role::kGuide, 0x1a73e8},  {role::kEdge, 0xc4c7cc}};
     l.ground = 0xf5f5f0;
     return l;
 }
@@ -248,7 +253,7 @@ inline Look night_look() {
     l.colour = {{role::kFill, 0xd8dee9},   {role::kAccent, 0xebcb8b},
                 {role::kMuted, 0x4c566a},  {role::kAlert, 0xbf616a},
                 {role::kGround, 0x2e3440}, {role::kMediumGround, 0x101418},
-                {role::kGuide, 0x88c0d0}};
+                {role::kGuide, 0x88c0d0},  {role::kEdge, 0x7d869a}};
     l.ground = 0x101418;
     return l;
 }
@@ -470,15 +475,22 @@ private:
 
     /// Printable ASCII as itself, any other character (all of its UTF-8 bytes) as one '?', a
     /// character every advance of the window's face; a character outside the clip is left out, and
-    /// a line whose top is outside it is not drawn. Text in the medium's ground paints as `kFill`.
+    /// a line the clip crosses is cut by its pixels: the rows above or below the clip are said cut,
+    /// and a line wholly outside it is not drawn. Text in the medium's ground paints as `kFill`.
     void text(std::int64_t x, std::int64_t y, const std::string& s, const Paint& ink) const {
         if (ink.none()) {
             return;
         }
         x += space_.dx;
         y += space_.dy;
-        if (space_.clipped && (y < space_.cy0 || y >= space_.cy1)) {
-            return;
+        const std::int64_t tall = text_.line > 0 ? text_.line : 1;
+        std::int64_t cut_top = 0, cut_foot = 0;
+        if (space_.clipped) {
+            if (y + tall <= space_.cy0 || y >= space_.cy1) {
+                return;
+            }
+            cut_top = std::max<std::int64_t>(0, space_.cy0 - y);
+            cut_foot = std::max<std::int64_t>(0, y + tall - space_.cy1);
         }
         std::string shown;
         std::int64_t at = x, first = x;
@@ -506,7 +518,9 @@ private:
         const bool ground = ink.rgb < 0 && ink.role == role::kMediumGround;
         out_->texts.push_back(TextRun{static_cast<std::int32_t>(first),
                                       static_cast<std::int32_t>(y),
-                                      colour(ground ? by_role(role::kFill) : ink), shown});
+                                      colour(ground ? by_role(role::kFill) : ink), shown,
+                                      static_cast<std::int32_t>(cut_top),
+                                      static_cast<std::int32_t>(cut_foot)});
     }
 
     /// An image in its box, cut to the clip: the pixels of the part shown kept, scaled into it.

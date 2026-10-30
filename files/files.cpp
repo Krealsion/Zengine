@@ -401,7 +401,8 @@ public:
                     // occupies -- the prompt AS DRAWN (`active_prompt`), which a narrow room may
                     // have shortened from `authoring_.prompt`'s full label.
                     const std::int64_t prompt = static_cast<std::int64_t>(active_prompt().size());
-                    authoring_.line.place(authoring_.line.position_at_column(column - prompt));
+                    zengine::component::text_box_press(authoring_.line,
+                                              column - prompt - zengine::graphics::kTextBoxInset);
                     say(mail);
                 }
             },

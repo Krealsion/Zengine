@@ -2214,12 +2214,12 @@ TEST_CASE("a capital letter typed into the Builder's role line is text, not this
     b.r.key(input::scan::kO);
     REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
     b.r.text("x");
-    REQUIRE_MESSAGE(b.text().find("role for a> x") != std::string::npos, b.text());
+    REQUIRE_MESSAGE(b.text().find("role for a> [x") != std::string::npos, b.text());
     b.r.key(input::scan::kM, input::mod::kShift);
     b.r.text("M");
     INFO("pane\n", b.text());
     CHECK_FALSE(menu_shown(b.r.session()));
-    CHECK(b.text().find("role for a> xM") != std::string::npos);
+    CHECK(b.text().find("role for a> [xM") != std::string::npos);
     // AND THE MENU IS STILL ONE PRESS AWAY, which is what makes the missing key affordable.
     CHECK(any_row(bp_open_menu(b), "load `a` with the role typed"));
 }
@@ -2252,7 +2252,7 @@ TEST_CASE("the role line keeps typed text visible in a narrow room") {
                                           PaneSize{pane_unit::kPixels, cells_px(9)});
     REQUIRE_MESSAGE(wide.accepted, wide.refusal);
     b.r.extent(160, 48);
-    CHECK_MESSAGE(b.text().find("role for zengine-really-long-example> narrowvalue") !=
+    CHECK_MESSAGE(b.text().find("role for zengine-really-long-example> [narrowvalue") !=
                       std::string::npos,
                   b.text());
 }
@@ -2280,7 +2280,7 @@ TEST_CASE("a Builder menu choice that opens the role line takes the keyboard acr
     REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
     CHECK(b.r.session().panes.keyboard == b.kind);
     b.r.text("example.tally");
-    CHECK_MESSAGE(b.text().find("role for a> example.tally") != std::string::npos, b.text());
+    CHECK_MESSAGE(b.text().find("role for a> [example.tally") != std::string::npos, b.text());
 
     // ...AND A CHOICE WHOSE LINE NEVER OPENS TAKES NOTHING: a stem the plan already names is
     // refused before the line, and the keys stay where the menu left them.
@@ -2457,7 +2457,7 @@ TEST_CASE("the Builder's role line asks the window that shows the pane for a pas
         CHECK(asks == 1);
         if (os) {
             CHECK(b.r.windows.clipboard_reads() == 1);
-            CHECK(b.text().find("role for a> oven") != std::string::npos);
+            CHECK(b.text().find("role for a>  oven") != std::string::npos);
         }
     }
 }
@@ -2474,15 +2474,15 @@ TEST_CASE("the Builder's role line shows the medium's caret where the line's is,
     b.r.key(input::scan::kO);
     REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
     b.r.text("main");
-    const std::int64_t line = bp_row(b.shown(), "role for a> main");
+    const std::int64_t line = bp_row(b.shown(), "role for a> [main");
     REQUIRE_MESSAGE(line >= 0, b.text());
-    const std::int64_t prompt = static_cast<std::int64_t>(std::string("role for a> ").size());
+    const std::int64_t prompt = static_cast<std::int64_t>(std::string("role for a> [").size());
     CHECK(held_caret(*pane).row == line);
     CHECK(held_caret(*pane).column == prompt + 4);
     // A CHARACTER THE ROW SPELLS IN ONE CELL counts one column, whatever its bytes: typed after
     // a two-byte character, the caret stands one cell past it.
     b.r.text("\xC3\xA9");
-    CHECK(any_row(b.shown(), "role for a> main?"));
+    CHECK(any_row(b.shown(), "role for a> [main?"));
     CHECK(held_caret(*pane).column == prompt + 5);
     b.r.key(input::scan::kLeft);
     CHECK(held_caret(*pane).column == prompt + 4);
@@ -2663,7 +2663,7 @@ TEST_CASE("a guest with build builds the catalog in force, and on a weaver's hos
     g.weaver_key(input::scan::kO);
     REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
     g.weaver_text("zengine.oven");
-    REQUIRE_MESSAGE(b.text().find("role for zengine-snake> zengine.oven") != std::string::npos,
+    REQUIRE_MESSAGE(b.text().find("role for zengine-snake> [zengine.oven") != std::string::npos,
                     b.text());
     g.key(input::scan::kReturn);
     CHECK(rows_asked == 0);
@@ -2675,7 +2675,7 @@ TEST_CASE("a guest with build builds the catalog in force, and on a weaver's hos
                       std::string::npos,
                   b.text());
     // ...AND THE LINE STILL HOLDS THE WEAVER'S TEXT, with its own rows declared.
-    CHECK_MESSAGE(b.text().find("role for zengine-snake> zengine.oven") != std::string::npos,
+    CHECK_MESSAGE(b.text().find("role for zengine-snake> [zengine.oven") != std::string::npos,
                   b.text());
     CHECK(b.declared() == kRoleLineIds);
 
@@ -2728,7 +2728,7 @@ TEST_CASE("the weaver's f, and the role line's commit then build, stand with a k
         b.open();
         b.letter(input::scan::kO, "o");
         b.r.text("zengine.oven");
-        REQUIRE_MESSAGE(b.text().find("role for zengine-snake> zengine.oven") != std::string::npos,
+        REQUIRE_MESSAGE(b.text().find("role for zengine-snake> [zengine.oven") != std::string::npos,
                         b.text());
         REQUIRE(b.r.kernel.weave_id(pane::kBuilderPaneStem).value != 0);
         BetweenBeats beats(b, PlanRowRequested::zen_name, PlanRowWritten::zen_name);
@@ -2901,7 +2901,7 @@ TEST_CASE("on a development host a guest with build commits the role line, and i
     g.key(input::scan::kO);
     REQUIRE_MESSAGE(b.text().find("type the role it holds") != std::string::npos, b.text());
     g.text("zengine.oven");
-    REQUIRE_MESSAGE(b.text().find("role for zengine-snake> zengine.oven") != std::string::npos,
+    REQUIRE_MESSAGE(b.text().find("role for zengine-snake> [zengine.oven") != std::string::npos,
                     b.text());
     g.key(input::scan::kReturn);
     REQUIRE(b.authored.size() == 1);
@@ -3580,7 +3580,14 @@ std::vector<std::string> manual_shown(BuilderRig& b) {
 }
 
 bool more_below(const std::vector<std::string>& rows) {
-    return !rows.empty() && rows.back().find("more lines below") != std::string::npos;
+    return !rows.empty() && rows.back().rfind("... ", 0) == 0 &&
+           rows.back().find(" more below") != std::string::npos;
+}
+
+/// How many lines the Manual's marker atop says are above, 0 where it shows none.
+std::size_t more_above(const std::vector<std::string>& rows) {
+    if (rows.size() < 2 || rows[1].find(" more above...") == std::string::npos) return 0;
+    return static_cast<std::size_t>(std::stoul(rows[1]));
 }
 
 /// PRESS INTO THE MANUAL, so its keys are the ones a key reaches.
@@ -3594,19 +3601,27 @@ void focus_manual(BuilderRig& b) {
     }
 }
 
-/// THE MANUAL'S WHOLE TEXT, AS ITS PANE SHOWS IT: the pane pressed into, its window taken to the
-/// top, then walked a line at a time with its own key, each new last line kept.
+/// THE MANUAL'S WHOLE TEXT, AS ITS PANE SHOWS IT: the pane pressed into, its text taken to the
+/// top, then walked a line at a time with its own key, each shown line kept at its place -- the
+/// count the marker atop says is above, and its row under that marker.
 std::vector<std::string> read_manual(BuilderRig& b) {
     focus_manual(b);
     b.r.key(input::scan::kHome);
-    std::vector<std::string> rows = manual_shown(b);
-    REQUIRE(rows.size() >= 2);
-    std::vector<std::string> lines(rows.begin() + 1, rows.end() - (more_below(rows) ? 1 : 0));
-    for (int guard = 0; more_below(rows) && guard < 4000; ++guard) {
-        b.r.key(input::scan::kDown);
+    std::vector<std::string> lines;
+    std::vector<std::string> rows;
+    for (int guard = 0; guard < 4000; ++guard) {
         rows = manual_shown(b);
         REQUIRE(rows.size() >= 2);
-        lines.push_back(rows[rows.size() - (more_below(rows) ? 2 : 1)]);
+        const std::size_t above = more_above(rows);
+        const std::size_t from = above > 0 ? 2 : 1;
+        const std::size_t to = rows.size() - (more_below(rows) ? 1 : 0);
+        for (std::size_t i = from; i < to; ++i) {
+            const std::size_t at = above + (i - from);
+            if (lines.size() <= at) lines.resize(at + 1);
+            lines[at] = rows[i];
+        }
+        if (!more_below(rows)) break;
+        b.r.key(input::scan::kDown);
     }
     CHECK_FALSE(more_below(rows));
     return lines;

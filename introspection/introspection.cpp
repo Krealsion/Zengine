@@ -317,7 +317,7 @@ private:
     void primary_press(std::string_view pane, std::int64_t row, std::int64_t column,
                        loom::Mail& mail) {
         if (pane == kPowersPane && powers_.press(speaking(mail), row, column)) ++state_.samples;
-        if (pane == kLoadedPane && loaded_.press(row, mail)) ++state_.selections;
+        if (pane == kLoadedPane && loaded_.press(row, mail, column)) ++state_.selections;
     }
 
     /// WORKSHOP GRANTING ONE PANE ITS BUDGET, from either room. Each pane keeps its own room and

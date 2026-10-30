@@ -15,6 +15,7 @@
 // every grant, replaced whole by the next reading. No mirror of what is loaded, no diff, no
 // arrival or departure, no timestamp.
 
+#include "component/text_box.hpp"
 #include "graphics/role.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_text.hpp"
@@ -151,15 +152,19 @@ inline bool names(const std::vector<LoadedWeave>& weaves, std::string_view name)
 /// The pane's content and the map back from it: `rows` go to Workshop, `shown` are the entries
 /// that reached a row, and `entry_of_row` indexes `shown` or is `kNoEntry`. The omission marker
 /// is `kNoEntry`: a count, not a hidden entry. Bounded by the room, never by the population.
-/// `listed` is how many weaves the search keeps, and `search_column` where the search stands on
-/// the heading, none when no search is typed or the heading was cut.
+/// `listed` is how many weaves the search keeps, and `search` the search's box on the heading,
+/// typed in or empty, none where the heading has no room for one.
 struct LoadedView {
     std::vector<workshop::TextRow> rows;
     std::vector<LoadedWeave> shown;
     std::vector<std::int64_t> entry_of_row;
     std::size_t listed = 0;
-    std::int64_t search_column = -1;
+    workshop::RowBox search;
 };
+
+/// The fewest columns the search's box takes on the heading, room allowing: a search a few
+/// characters long still reads as a box to type in.
+inline constexpr std::int64_t kSearchBoxLeast = 16;
 
 /// Does this weave's name or office hold the search, ignoring case? An empty search holds every
 /// weave.
@@ -245,8 +250,9 @@ inline void mark_selected(LoadedView& view, std::string_view selected, std::int6
 /// (`mark_selected` applies a selection), and inside the room, since a row past it is not drawn.
 inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std::int64_t rows,
                                  std::int64_t columns, std::size_t origin = 0,
-                                 std::string_view search = {}) {
+                                 component::TextBox* box = nullptr) {
     LoadedView view;
+    const std::string search = box != nullptr ? box->text() : std::string();
     std::vector<LoadedWeave> weaves;
     for (const LoadedWeave& w : population) {
         if (matches(w, search)) {
@@ -262,17 +268,25 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
     if (rows <= 0 || columns <= 0) {
         return view;
     }
-    // THE HEADING STATES THE POPULATION, and a search's narrowing beside it, the search last.
-    std::string heading = "loaded weaves -- " + std::to_string(population.size());
-    if (!search.empty()) {
-        const std::string narrowed = "loaded weaves -- " + std::to_string(weaves.size()) + " of " +
-                                     std::to_string(population.size()) + " match ";
-        heading = narrowed + spelled(std::string(search));
-        if (static_cast<std::int64_t>(heading.size()) <= columns) {
-            view.search_column = static_cast<std::int64_t>(narrowed.size());
-        }
+    // THE HEADING STATES THE POPULATION, and a search's narrowing beside it once one is typed; the
+    // search last, a box from the start wherever the heading has room for one.
+    const std::string lead =
+        search.empty() ? "loaded weaves -- " + std::to_string(population.size()) + "  "
+                       : "loaded weaves -- " + std::to_string(weaves.size()) + " of " +
+                             std::to_string(population.size()) + " match ";
+    std::string heading = search.empty() ? "loaded weaves -- " + std::to_string(population.size())
+                                         : lead + spelled(search);
+    const std::int64_t box_room = columns - static_cast<std::int64_t>(lead.size());
+    if (box != nullptr && box_room >= 3) {
+        const std::int64_t width = std::min<std::int64_t>(
+            box_room, std::max<std::int64_t>(kSearchBoxLeast,
+                                         static_cast<std::int64_t>(search.size()) + 3));
+        view.search = workshop::row_box(*box, static_cast<std::int64_t>(lead.size()), width);
+        heading = lead + std::string(static_cast<std::size_t>(width), ' ');
     }
-    say(workshop::TextRow{fit(heading, columns), graphics::role::kAccent}, kNoEntry);
+    workshop::TextRow top{fit(heading, columns), graphics::role::kAccent};
+    top.box = view.search;
+    say(std::move(top), kNoEntry);
 
     std::int64_t left = rows - 1;
     // The caveat, unless taking it would leave the list with no row at all.

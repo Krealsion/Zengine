@@ -270,13 +270,21 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
             sk.fill_rect(name + "/bg" + std::to_string(r), 0, at.y, g.w, at.h,
                          graphics::by_role(row.background));
         }
-        sk.text(name + "/row" + std::to_string(r), at.x, at.y, row.text,
-                graphics::by_role(row.role));
+        sk.text(name + "/row" + std::to_string(r), at.x, at.y,
+                row_text_shown(row, !fit.graphical()), graphics::by_role(row.role));
+        // A TEXT BOX on the row: spelled in its text in a room of cells, an outline round its
+        // columns where the medium sets type.
+        if (row.box.present() && fit.graphical()) {
+            const PixelRect box = local(static_cast<std::int64_t>(r), row.box.column, row.box.columns);
+            graphics::text_box_outline(sk, name + "/box" + std::to_string(r), box.x, box.y, box.w,
+                                       box.h);
+        }
     }
     if (g.sel_begin_row != kNoSelection && g.sel_end_row != kNoSelection) {
         for (std::int64_t r = (std::max)(std::int64_t{0}, g.sel_begin_row);
              r <= g.sel_end_row && r < static_cast<std::int64_t>(g.rows.size()); ++r) {
-            const std::string& text = g.rows[static_cast<std::size_t>(r)].text;
+            const std::string text =
+                row_text_shown(g.rows[static_cast<std::size_t>(r)], !fit.graphical());
             const std::int64_t first = r == g.sel_begin_row ? g.sel_begin_col : 0;
             const std::int64_t last = (std::min)(static_cast<std::int64_t>(text.size()),
                                                  r == g.sel_end_row ? g.sel_end_col

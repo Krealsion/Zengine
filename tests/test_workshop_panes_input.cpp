@@ -669,7 +669,7 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
     const CellRect body = external_body_rect(r.session(), kind);
     std::vector<std::string> shown = loaded_rows(r, kind);
     REQUIRE(shown.size() >= 3);
-    REQUIRE(shown[0] == "loaded weaves -- 3");
+    REQUIRE(shown[0] == loaded_heading("3"));
 
     // THE ROW A WEAVER WOULD AIM AT, found by reading the canvas rather than by
     // arithmetic: whatever the pane is showing at prose row 1 is what a press there
@@ -800,7 +800,7 @@ TEST_CASE("a press is read against the snapshot the weaver saw, not a fresh one"
     r.extent(140, 40);
     const CellRect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
-    REQUIRE(shown[0] == "loaded weaves -- 3");
+    REQUIRE(shown[0] == loaded_heading("3"));
 
     // WHICH ROW SHOWS THE LIBRARY THAT IS ABOUT TO GO AWAY -- read off the canvas,
     // because the order is the kernel's and this case does not get to assume it.
@@ -1061,7 +1061,7 @@ TEST_CASE("a selected library that goes away clears its mark when the absence is
                           held_canvas_rows(*r.session().panes.external_pane(kind)).columns + 1);
     r.extent(150, 40);
     const std::vector<std::string> after = loaded_rows(r, kind);
-    CHECK(after[0] == "loaded weaves -- 2");
+    CHECK(after[0] == loaded_heading("2"));
     CHECK_FALSE(any_row(after, intro::kSelectedMark));
     CHECK(ears.heard.size() == 1);
 
@@ -2590,7 +2590,7 @@ TEST_CASE("Compose draws the edited value's caret in its own picture, on the cel
     const std::int64_t row = r.row_of("id:");
     REQUIRE(row >= 0);
     const std::string text = r.rows()[static_cast<std::size_t>(row)];
-    const std::size_t value = text.find("[abc ]");
+    const std::size_t value = text.find("[abc_");
     REQUIRE_MESSAGE(value != std::string::npos, text);
     CHECK(caret().row == row);
     CHECK(caret().column == static_cast<std::int64_t>(value) + 4); // the blank after `c`
