@@ -366,3 +366,29 @@ def read_all(ctx, link):
                     "inventory_refused": inventory_refused, "keymap": keymap,
                     "keymap_refused": keymap_refused, "asks": asker.asks})
     return reading
+
+
+#: The most offered panes whose manual one read asks; the rest are said not asked.
+MAX_DOCUMENTS = 64
+
+
+def read_documents(ctx, link, reading):
+    """Each offered pane's manual, asked of its own office -- `PaneDocumentRequested` v1, the whole
+    page -- under the asker's row, in the inventory's order: `reading["documents"]`, one entry a
+    pane, its sections or its refusal in words. A pane past MAX_DOCUMENTS is not asked, and said."""
+    asker = Asker(ctx, link)
+    ctx.step("manuals")
+    offered = (reading.get("inventory") or {}).get("panes") or []
+    documents = []
+    for p in offered[:MAX_DOCUMENTS]:
+        office, pane = p.get("office", ""), p.get("pane", "")
+        answer, words = asker.ask(office, "PaneDocumentRequested", 1, {"pane": pane, "section": ""})
+        if words is None and answer.get("refusal"):
+            words = "refused: %s" % answer["refusal"]
+        documents.append({"office": office, "pane": pane, "refused": words,
+                          "content_id": "" if words else answer.get("content_id", ""),
+                          "sections": [] if words else list(answer.get("sections") or [])})
+    reading["documents"] = documents
+    reading["documents_not_asked"] = max(0, len(offered) - MAX_DOCUMENTS)
+    reading["asks"] = reading.get("asks", 0) + asker.asks
+    return reading

@@ -119,8 +119,9 @@ def readings(reading, only=None):
     glance_pages = render.pages(glance_text, "glance.txt", max_lines=render.glance_band(reading))
     sizes = {"desk.txt": (len(desk_text), len(desk_pages)),
              "glance.txt": (len(glance_text), len(glance_pages))}
+    manuals = render.document_files(reading)  # first: it names each manual's file for the guide
     files = render.pages(render.guide(reading, sizes), "guide.md") + desk_pages + glance_pages
-    return files + [(rel, text) for _, rel, text in panes]
+    return files + [(rel, text) for _, rel, text in panes] + manuals
 
 
 def pane_files(reading):
@@ -147,9 +148,9 @@ def pane_files(reading):
     return files
 
 
-def tidy(out, written, desk_files=False):
+def tidy(out, written, desk_files=False, manuals=False):
     """Remove the reading files a last read wrote and this one did not; `desk_files`, the whole
-    desk's too."""
+    desk's too; `manuals`, the panes' manuals, which only a read that asked them writes."""
     kept = set(os.path.normcase(os.path.join(out, *rel.split("/"))) for rel, _ in written)
     for name in os.listdir(out):
         path = os.path.join(out, name)
@@ -160,7 +161,8 @@ def tidy(out, written, desk_files=False):
     panes = os.path.join(out, "panes")
     for name in os.listdir(panes):
         path = os.path.join(panes, name)
-        if name.endswith(".txt") and os.path.isfile(path) and not os.path.islink(path) and \
+        if (name.endswith(".txt") or (manuals and name.endswith(".manual.md"))) and \
+                os.path.isfile(path) and not os.path.islink(path) and \
                 os.path.normcase(path) not in kept:
             os.remove(path)
 
@@ -195,10 +197,10 @@ def run(ctx):
     ctx.step("AGENTS.md")
     agents = os.path.join(out, "AGENTS.md")
     write(agents, words.AGENTS_MD)  # first, and before any ask: the reader's own words only
-    reading = desk_asks.read_all(ctx, link)
+    reading = desk_asks.read_documents(ctx, link, desk_asks.read_all(ctx, link))
     ctx.step("readings")
     written = readings(reading)
     for rel, text in written:
         write(os.path.join(out, *rel.split("/")), text)
-    tidy(out, written)
+    tidy(out, written, manuals=True)
     return result(out, agents, reading, written)

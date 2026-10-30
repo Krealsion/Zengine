@@ -152,6 +152,13 @@ KEYMAP = {"rows": [{"group": "above every mode", "id": "desk.next",
 #: only inside an attributed block.
 DISTINCT = "zq-"
 
+#: Each office's answer to `PaneDocumentRequested` v1 for its pane: the Editor's page, and Files'
+#: refusal in its own words.
+EDITOR_MANUAL = {"pane": "editor", "section": "", "content_id": "c0ffee", "refusal": "", "sections": [
+    {"key": "", "group": "Editor", "text": "Edits one file zq-manual-words", "keys": []},
+    {"key": "save", "group": "Keys", "text": "save the file", "keys": []}]}
+FILES_REFUSAL = "no manual for project-files zq-manual-refusal"
+
 
 class PagedPane(object):
     """A pane answering `PaneViewRequested` v7 a few items a page, under its own stamp. `moves`
@@ -261,6 +268,8 @@ class Workshop(object):
         self.builder = PagedPane(BUILDER, BUILDER_WORDS, BUILDER_PARTS, picture=7, page_items=3,
                                  moves=1)
         self.terminal_asks = 0
+        self.documents = {("zengine.editor", "editor"): EDITOR_MANUAL,
+                          ("zengine.files", "project-files"): FILES_REFUSAL}
 
     # the context's own doors
     def check(self, condition, message):
@@ -288,6 +297,15 @@ class Workshop(object):
         if shape == "GuestRowDescribedRequested":
             assert office == "zengine.guests" and version == 1
             return copy.deepcopy(ROW)
+        if shape == "PaneDocumentRequested":
+            assert version == 1 and fields == {"pane": fields["pane"], "section": ""}, fields
+            answer = self.documents.get((office, fields["pane"]))
+            if answer is None:
+                raise self.tool.Refused("%s offers no pane %s" % (office, fields["pane"]))
+            if isinstance(answer, str):
+                return {"pane": fields["pane"], "section": "", "content_id": "", "sections": [],
+                        "refusal": answer}
+            return copy.deepcopy(answer)
         assert office == "zengine.workshop", (office, shape)
         if shape == "DeskReadRequested":
             assert version == 3
@@ -387,6 +405,30 @@ def run_checks(tools, runtime):
         def file(self, *rel):
             return text(os.path.join(self.out, *rel))
 
+        def test_each_offered_panes_manual_is_asked_of_its_office_and_written_beside_its_file(self):
+            ctx, summary = self.read()
+            asked = [(o, f["pane"]) for o, s, _, f, _ in ctx.asked if s == "PaneDocumentRequested"]
+            self.assertEqual(asked, [("zengine.editor", "editor"), ("zengine.files", "project-files")])
+            manual = self.file("panes", "zengine.editor.editor.manual.md")
+            self.assertIn("Data from zengine.editor", manual)
+            self.assertIn("Edits one file zq-manual-words", manual)
+            self.assertIn("save the file", manual)
+            guide = self.file("guide.md")
+            each = guide[guide.index("## 4."):guide.index("## 5.")]
+            self.assertIn("panes/zengine.editor.editor.manual.md", each)
+            self.assertIn(FILES_REFUSAL, each)
+            self.assertNotIn("no pane's own document is answered", guide)
+            self.assertFalse(os.path.exists(os.path.join(self.out, "panes",
+                                                         "zengine.files.project-files.manual.md")))
+            # A manual its office no longer answers leaves at the next read.
+            again = Workshop(tool, self.out)
+            again.documents = {}
+            read.run(again)
+            self.assertFalse(os.path.exists(os.path.join(self.out, "panes",
+                                                         "zengine.editor.editor.manual.md")))
+            each = self.file("guide.md")
+            self.assertIn("offers no pane editor", each[each.index("## 4."):each.index("## 5.")])
+
         def test_agents_md_is_written_first_and_holds_no_word_the_desk_said(self):
             ctx, summary = self.read()
             self.assertEqual(ctx.at_first_ask, ["AGENTS.md"])
@@ -467,7 +509,8 @@ def run_checks(tools, runtime):
             self.assertEqual(pane[1], lines[1])
             self.assertIn("  status@940,85", pane)
             self.assertEqual(sorted(os.listdir(os.path.join(self.out, "panes"))), sorted(
-                "%s.%s.txt" % (p["provider"], p["pane"]) for p in PANES))
+                ["%s.%s.txt" % (p["provider"], p["pane"]) for p in PANES] +
+                ["zengine.editor.editor.manual.md"]))
             glance = self.file("glance.txt")
             self.assertIn("[ Editor ]", glance)
             self.assertIn("saved L1:C1", glance)
@@ -682,10 +725,13 @@ def run_checks(tools, runtime):
             self.assertIn("(desk not read: refused: %s)" % why, self.file("glance.txt"))
             self.assertIn("Absent: Workshop (zengine.workshop) did not answer DeskReadRequested.",
                           self.file("guide.md"))
-            self.assertEqual(os.listdir(os.path.join(self.out, "panes")), [])
+            # No pane's reading; the manual its office answered stands beside where it would be.
+            self.assertEqual(os.listdir(os.path.join(self.out, "panes")),
+                             ["zengine.editor.editor.manual.md"])
             self.assertEqual([s for _, s, _, _, _ in ctx.asked],
                              ["GuestRowDescribedRequested", "DeskReadRequested",
-                              "PaneInventoryRequested", "KeymapRequested"])
+                              "PaneInventoryRequested", "KeymapRequested",
+                              "PaneDocumentRequested", "PaneDocumentRequested"])
             self.assertIn("the desk was not read", summary)
 
         def test_a_reading_past_64_KiB_continues_in_pages_and_a_shorter_one_removes_them(self):

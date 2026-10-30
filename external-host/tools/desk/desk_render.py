@@ -518,13 +518,66 @@ def experiment(reading):
             "weaver whose host this is before you write or build."]
 
 
+def document_file_name(provider, pane):
+    """`<office>.<pane>.manual.md`, beside the pane's own file and named as it is."""
+    return pane_file_name(provider, pane)[:-len(".txt")] + ".manual.md"
+
+
+def document_files(reading):
+    """Each answered manual's file, `[(path relative to out, text)]`, in the inventory's order: the
+    page's sections quoted whole as data said by the pane's office. Two panes whose names would be
+    one file are told apart. Each entry of `reading["documents"]` is given its file's path."""
+    files, taken = [], set()
+    for d in reading.get("documents") or []:
+        if d.get("refused"):
+            continue
+        name = document_file_name(d["office"], d["pane"])
+        stem, n = name[:-len(".manual.md")], 2
+        while name.lower() in taken:
+            name, n = "%s~%d.manual.md" % (stem, n), n + 1
+        taken.add(name.lower())
+        d["file"] = "panes/" + name
+        rows = []
+        for sec in d.get("sections") or []:
+            key = " (%s)" % sec["key"] if sec.get("key") else ""
+            rows.append("## %s%s" % (sec.get("group", ""), key))
+            rows += (sec.get("text") or "").splitlines() or [""]
+        head = "== %s/%s: its manual, as %s answered it (content %s)" % (
+            d["office"], d["pane"], d["office"], d.get("content_id") or "-")
+        quoted = data(d["office"], "PaneDocumentShown; the pane's manual as its office wrote it", rows)
+        text = "\n".join([head, ""] + quoted)
+        files += [("panes/" + page, page_text) for page, page_text in pages(text, name, again=head)]
+    return files
+
+
+def each_pane(reading):
+    """Section 4: which panes' manuals were answered, each with its file, and which refused."""
+    documents = reading.get("documents")
+    if documents is None:
+        return [words.EACH_PANE]
+    answered = ["%s/%s -- %s" % (d["office"], d["pane"], d.get("file", "")) for d in documents
+                if not d.get("refused")]
+    lines = [words.MANUALS, ""]
+    lines += data("each pane's office (PaneDocumentShown)", "the panes whose manual was answered, "
+                  "each with its file", answered)
+    for d in documents:
+        if d.get("refused"):
+            lines += ["A pane's manual was not answered; its office said:", ""]
+            lines += data(d["office"], "its refusal for %s/%s, in its words" % (d["office"], d["pane"]),
+                          [d["refused"]])
+    if reading.get("documents_not_asked"):
+        lines += ["%d offered pane(s) past the first %d were not asked for their manual." % (
+            reading["documents_not_asked"], len(documents)), ""]
+    return lines
+
+
 def guide(reading, sizes):
     """`guide.md`: the guide's ten sections, as this reader fills them."""
     lines = [words.GUIDE_HEAD]
     lines += section(1, "Who you are here", own_row(reading))
     lines += section(2, "What this desk is for", [words.PURPOSE])
     lines += section(3, "What is on the desk", on_the_desk(reading))
-    lines += section(4, "Each pane", [words.EACH_PANE])
+    lines += section(4, "Each pane", each_pane(reading))
     lines += section(5, "How to read, and what it costs", costs(reading, sizes))
     lines += section(6, "How to act", keymap(reading))
     lines += section(7, "How to follow", [words.FOLLOW])
