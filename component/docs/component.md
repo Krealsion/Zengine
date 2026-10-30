@@ -1,7 +1,9 @@
 # The Component package
 
 **Reference.** Reusable pieces of a weaver-facing tool that own their own semantic state and
-know nothing about the medium showing them. The stateful pieces are `TextBox`; four list
+know nothing about the medium showing them. The stateful pieces are the text pieces -- a core
+of characters, words, places and the copy, a `TextBox` that edits one line over it and a
+`TextArea` that shows long text, read only, over it; four list
 mechanics — a window onto a list, a composition read backwards, a choice held by identity, and
 a table's columns; a strip of labelled controls; a strip of tabs over a settings list; and an
 accordion, one section shut, open or peeking, with the independent group over accordions and the
@@ -13,7 +15,9 @@ of widgets.** A piece belongs here when working tools already carry the same beh
 extracting it is the smaller repair — it deletes their copies. A piece that would only rename
 one tool's code is not extracted, however familiar its name.
 
-Sources: [`component/text_box.hpp`](../text_box.hpp),
+Sources: [`component/text.hpp`](../text.hpp),
+[`component/text_box.hpp`](../text_box.hpp),
+[`component/text_area.hpp`](../text_area.hpp),
 [`component/list_window.hpp`](../list_window.hpp),
 [`component/row_map.hpp`](../row_map.hpp),
 [`component/held_choice.hpp`](../held_choice.hpp),
@@ -116,7 +120,7 @@ again when the press arrives: a weaver who aims at a control is owed the reason 
 and the pane that owns the operation is the only party that can give one.
 
 ```text
-component/text_box.hpp   is_continuation_byte / character_before / character_after
+component/text.hpp       is_continuation_byte / character_before / character_after
                          character_boundary / character_boundary_at_or_after
                                           what a CHARACTER is, in this application
                          word_before / word_after
@@ -129,8 +133,12 @@ component/text_box.hpp   is_continuation_byte / character_before / character_aft
                                           numbers input::scan::/mod:: name, spelled locally
                                           because this package includes nothing (pinned
                                           against the wire in the input suite)
+                         TextPlaces{anchor, caret}: begin / end / has_selection / settle
+                                          a selection as two places in a text
+                         selected_text / copy_selection
+                                          the text between them as written, and its copy
 
-                         TextBox          text + caret + anchor + first_visible, as one state
+component/text_box.hpp   TextBox          text + caret + anchor + first_visible, as one state
                            text/caret/anchor/first_visible/size/empty/at_end/caret_column
                            draft_epoch      which draft this box holds (set/clear bump it)
                            has_selection/selection_begin/selection_end/selected_text
@@ -142,7 +150,47 @@ component/text_box.hpp   is_continuation_byte / character_before / character_aft
                            erase_word_before/after / drag_to_column(column)
                            copy/cut/paste(Clipboard) / undo/redo/can_undo/can_redo
                            consume(scancode, modifiers, Clipboard) -> bool
+                         TextBoxCells, text_box_cells(box, columns, bordered)
+                                          the box as a row of cells shows it: its slice, the
+                                          caret's column and the selected columns from one
+                                          window, its whole width; bordered, `[text___]`
+                         text_box_press(box, cells, column, extend)
+                                          a press anywhere in the box, its blank room and
+                                          border included, placing or extending the caret
+
+component/text_area.hpp  TextLook{role, hang}
+                                          how a paragraph reads: the owner's number for its
+                                          look, the columns its further lines stand in
+                         TextArea         text + looks + TextPlaces + the scroll's place
+                           set / clear / text / places / top / within / look
+                           lines(columns) -> Line{begin, end, paragraph, indent}
+                           line_of / place_in_line
+                           scroll_lines / scroll_home        in rows of cells
+                           offset / scroll_by / scroll_to / furthest
+                                                             in a window, in kUnitsPerLine
+                           press / drag_to / select_word_at / select_all / clear_selection
+                           copy(Clipboard) / consume(scancode, modifiers, Clipboard) -> bool
+                           cells(rows, columns) -> Cells{rows, wrapped, first, above, below}
+                           place_at(cells, row, column)
 ```
+
+**A text area keeps places, never rows or pixels.** Its text is long and read only: a paragraph
+is a line of the text as written, up to its `\n`, and a width wraps it at its last space that fits,
+a further line standing in the paragraph's hang. The scroll is the place of the first line shown
+and how far into that line a window has scrolled, and the selection is two places, so a text
+wrapped again at another width -- a pane made narrower, the same text in a terminal and a window
+-- keeps both. A copy is the text between the two places as written: the wrap's breaks and
+indents, and the markers a row of cells shows, were never in the text. In rows of cells
+(`cells`) the lines show from the scroll's with `N more above...` atop where lines are hidden above
+and `... N more below` at the foot where lines are hidden below; a window draws the same value
+scrolled freely with a bar (`graphics/elements/text_face.hpp`). The area answers Ctrl+C and Ctrl+A
+itself; the scroll's keys are the owner's, which names its own actions.
+
+**Each text piece has two faces, and the value keeps the state.** A medium of characters spells a
+piece here, beside its value (`text_box_cells`, `TextArea::cells`); a window that sets type draws it
+from the same value (`graphics/elements/text_face.hpp`). Neither face keeps anything: the caret,
+the selection and the scroll are the value's, and a press is read back through the face it landed
+on (`text_box_press`, `TextArea::place_at`, and the window's `text_area_place_at`).
 
 **A word has one definition here, and every gesture composes it from the same scan.** A word
 is a maximal run of non-space bytes -- a shell's word, not an editor's: no identifier class, no
@@ -205,7 +253,7 @@ needs for `zen/weave/shape.hpp`. A TextBox has no wire form, nothing serializes 
 hosts it, and the absence of that link is the enforcement of "a component is not content".
 
 What it is **not**: a widget set. There is no Button, List, Dropdown, ScrollView, focus tree,
-tab order, multiline mode or theme, and none of them will arrive because a toolkit is expected
+tab order, multiline editing or theme, and none of them will arrive because a toolkit is expected
 to have one. Selection, the clipboard operations and a local undo are here under the same rule:
 an editing surface several tools share is one its weavers expect to select, copy and undo, and a
 text box that could not would be a surprising component, not a smaller one.

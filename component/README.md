@@ -1,7 +1,7 @@
 # Component
 
-**The pieces a pane (one panel of a tool's window) is built from: an editable line of text, a
-window onto a long list, a record of what each drawn row means, a choice that stays put while
+**The pieces a pane (one panel of a tool's window) is built from: an editable line of text, a long
+text read and scrolled, a window onto a long list, a record of what each drawn row means, a choice that stays put while
 its list changes, a strip of labelled controls, table columns, sections that open and shut, and
 paths for things that move. Each piece keeps its own state and knows nothing about the screen that
 shows it.**
@@ -18,7 +18,9 @@ spells a header from the repository root, for example `#include "component/text_
 
 | | |
 |---|---|
-| `text_box.hpp` | a one-line text box: caret, selection, copy and paste, and undo |
+| `text.hpp` | what the text pieces share: characters, words, a selection as two places, a copy |
+| `text_box.hpp` | a one-line text box: caret, selection, copy and paste, and undo; and how it reads as a row of characters |
+| `text_area.hpp` | long text read only: wrapped by width, scrolled, its text selected and copied; and how it reads as rows of characters |
 | `list_window.hpp` | which part of a list fits the space a pane has, and how much is left out |
 | `row_map.hpp` | what each row and column span a pane drew means, so a press lands on it |
 | `held_choice.hpp` | a chosen row remembered by identity while the list around it changes |

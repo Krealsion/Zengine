@@ -5,7 +5,7 @@
 #define ZENGINE_COMPONENT_TEXT_BOX_HPP
 
 // Editable text with a caret, a selection and a window onto it: the component a single-line
-// draft is edited with, and the character and word rules it is built from. It owns no policy
+// draft is edited with, over the text core (`text.hpp`) and its spelling in cells. It owns no policy
 // and no medium -- no SDL, terminal, cell, pixel or font metric; no commit, validation, focus,
 // blink or drawing -- and is not an entity: a member of whatever owns it, dying with it. The
 // capacity is always an argument, and the `Clipboard` it operates on is the owner's.
@@ -15,209 +15,14 @@
 // byte, so a caret is a byte index, and the operations never stop inside a UTF-8 character.
 // Not Unicode width, grapheme clusters, combining marks or double-width glyphs.
 
+#include "component/text.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
 
 namespace zengine::component {
-
-// ---- What a character is, in this application -------------------------------------------
-//
-// Free functions over the string, beside their main consumer, so anything that needs to know
-// where a character starts asks here rather than walking UTF-8 for itself.
-
-/// IS THIS BYTE THE MIDDLE OF A CHARACTER? UTF-8 continuation bytes are 10xxxxxx, and this
-/// one predicate is the whole of what "not a character boundary" means in this application.
-inline bool is_continuation_byte(char b) noexcept {
-    return (static_cast<unsigned char>(b) & 0xC0u) == 0x80u;
-}
-
-/// THE BYTE INDEX ONE CHARACTER BEFORE `at`, and 0 when there is none.
-///
-/// A line a weaver types is a byte string, so stepping back one BYTE over `é` would land
-/// between its two bytes -- a position that is not anywhere in the text, and from which an
-/// erase leaves half a character behind. Continuation bytes go with their lead byte.
-inline std::size_t character_before(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i > 0 && is_continuation_byte(line[i - 1])) {
-        --i;
-    }
-    return i > 0 ? i - 1 : 0;
-}
-
-/// THE BYTE INDEX ONE CHARACTER AFTER `at`, and `line.size()` when there is none. The other
-/// direction of `character_before`, same rule, same reason.
-inline std::size_t character_after(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at;
-    if (i >= line.size()) {
-        return line.size();
-    }
-    ++i;
-    while (i < line.size() && is_continuation_byte(line[i])) {
-        ++i;
-    }
-    return i;
-}
-
-/// THE NEAREST CHARACTER BOUNDARY AT OR BEFORE `at`, clamped into the line.
-///
-/// The one place a position that came from OUTSIDE the text -- a pointer press resolved to a
-/// column -- is made into a position the text actually has. Snapping backwards rather than
-/// forwards is what makes a press on the second byte of a two-byte character mean the
-/// character it landed on rather than the one after it.
-inline std::size_t character_boundary(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i > 0 && is_continuation_byte(line[i])) {
-        --i;
-    }
-    return i;
-}
-
-/// The nearest character boundary at or after `at`, clamped into the line: the direction a
-/// viewport needs. A horizontally scrolled line must not begin mid-character, and snapping the
-/// first visible byte backwards would move the window's right edge back with it and could push
-/// the caret off its row; snapping forwards only shortens the window at the left. It cannot
-/// overshoot a caret, which is always on a boundary, so the two rules compose in either order.
-inline std::size_t character_boundary_at_or_after(const std::string& line,
-                                                  std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i < line.size() && is_continuation_byte(line[i])) {
-        ++i;
-    }
-    return i;
-}
-
-// ---- What a word is, in this application ------------------------------------------------
-//
-// A word is a maximal run of non-space bytes, and the one separator is the space: a shell's
-// word -- no identifier or punctuation class, no locale, no Unicode categories. Every answer
-// lands on a character boundary by construction. The run is the primitive: `word_before` and
-// `word_after` add the separator walk a keyboard gesture means, and `word_at` is the two scans
-// meeting at one position, which is what a pointer means -- one definition of a word.
-
-/// THE START OF THE RUN OF WORD BYTES REACHING BACK FROM `at`, or `at` itself when the byte
-/// behind it is a separator. A position is BETWEEN bytes, so a leftward scan reads what is
-/// behind it and never `at` itself.
-inline std::size_t word_run_begin(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i > 0 && line[i - 1] != ' ') {
-        --i;
-    }
-    return i;
-}
-
-/// THE END OF THE RUN OF WORD BYTES REACHING FORWARD FROM `at`, or `at` itself when the byte
-/// at it is a separator — the same between-the-bytes rule read the other way.
-inline std::size_t word_run_end(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i < line.size() && line[i] != ' ') {
-        ++i;
-    }
-    return i;
-}
-
-/// THE START OF THE WORD BEFORE `at`: back over spaces, then back over the word.
-inline std::size_t word_before(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i > 0 && line[i - 1] == ' ') {
-        --i;
-    }
-    return word_run_begin(line, i);
-}
-
-/// THE START OF THE WORD AFTER `at`: forward over the word, then over the spaces — so
-/// repeated presses walk word starts, which is the gesture's conventional meaning, and the
-/// last press lands at the end of the line.
-inline std::size_t word_after(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = word_run_end(line, at);
-    while (i < line.size() && line[i] == ' ') {
-        ++i;
-    }
-    return i;
-}
-
-/// Which bytes a position's word occupies, begin inclusive, end exclusive. Empty is an answer:
-/// a position with a separator on both sides is in no word, and nothing invents a nearest one.
-/// A position on either edge of a run belongs to that run, including the end of the text.
-struct WordSpan {
-    std::size_t begin = 0;
-    std::size_t end = 0; ///< exclusive
-    bool present() const noexcept { return end > begin; }
-};
-
-inline WordSpan word_at(const std::string& line, std::size_t at) noexcept {
-    return WordSpan{word_run_begin(line, at), word_run_end(line, at)};
-}
-
-// ---- What foreign text becomes in a one-line box ----------------------------------------
-
-/// A clipboard's bytes as one line. Typed text never carries a control byte, but a clipboard is
-/// foreign bytes, so the one door they enter a single-line box through flattens them: a CRLF
-/// pair becomes one space, and every other byte below 0x20 (a lone CR or LF, a tab) and 0x7F
-/// one space each -- a space rather than deletion, which would join two lines into one word, and
-/// rather than a marker the weaver did not paste. Tabs too, since each column is one byte.
-inline std::string pasteable_line(const std::string& text) {
-    std::string out;
-    out.reserve(text.size());
-    for (std::size_t i = 0; i < text.size(); ++i) {
-        const unsigned char b = static_cast<unsigned char>(text[i]);
-        if (b == '\r' && i + 1 < text.size() && text[i + 1] == '\n') {
-            out.push_back(' ');
-            ++i;
-            continue;
-        }
-        if (b < 0x20u || b == 0x7Fu) {
-            out.push_back(' ');
-            continue;
-        }
-        out.push_back(text[i]);
-    }
-    return out;
-}
-
-// ---- The clipboard, as a value the owner holds ------------------------------------------
-
-/// Text a weaver copied, and counts of what this process did with the clipboard: a plain value,
-/// since this component links nothing, and where its text is bridged (a platform clipboard, a
-/// bus message, nowhere) is the owner's custody. `writes` bumps exactly when `copy` or `cut`
-/// took text, so an owner notices a copy with one comparison; mirroring a copy heard elsewhere
-/// updates `text` only. `paste_requests` bumps on Ctrl+V instead of pasting: the value a paste
-/// means is the clipboard's current one, which only the owner can obtain and apply (`paste`).
-struct Clipboard {
-    std::string text;
-    std::uint64_t writes = 0;
-    std::uint64_t paste_requests = 0;
-};
-
-// ---- The editing-key vocabulary's identities --------------------------------------------
-//
-// The numbers `input::scan::` and `input::mod::` name, spelled locally because this component
-// includes nothing; the component suite static_asserts every value against them. Only the keys
-// `consume` binds are named: declining a key is `default:`, not knowledge.
-
-namespace key {
-inline constexpr std::int64_t kA = 4;
-inline constexpr std::int64_t kC = 6;
-inline constexpr std::int64_t kV = 25;
-inline constexpr std::int64_t kX = 27;
-inline constexpr std::int64_t kY = 28;
-inline constexpr std::int64_t kZ = 29;
-inline constexpr std::int64_t kBackspace = 42;
-inline constexpr std::int64_t kHome = 74;
-inline constexpr std::int64_t kDelete = 76;
-inline constexpr std::int64_t kEnd = 77;
-inline constexpr std::int64_t kRight = 79;
-inline constexpr std::int64_t kLeft = 80;
-} // namespace key
-
-namespace mod {
-inline constexpr std::int64_t kNone = 0;
-inline constexpr std::int64_t kShift = 1;
-inline constexpr std::int64_t kCtrl = 2;
-inline constexpr std::int64_t kAlt = 4;
-inline constexpr std::int64_t kSuper = 8;
-} // namespace mod
 
 // ---- The editing vocabulary, as declaration rows ----------------------------------------
 //
@@ -295,7 +100,7 @@ inline constexpr std::size_t kEditingVocabularyCount =
 class TextBox {
 public:
     const std::string& text() const noexcept { return text_; }
-    std::size_t caret() const noexcept { return caret_; }
+    std::size_t caret() const noexcept { return places_.caret; }
     bool empty() const noexcept { return text_.empty(); }
     std::size_t size() const noexcept { return text_.size(); }
 
@@ -307,30 +112,26 @@ public:
     /// legitimately turn on -- the Terminal's completer answers about the end of a line, so
     /// this is what decides whether it may be asked. The component itself draws no
     /// conclusion from it.
-    bool at_end() const noexcept { return caret_ == text_.size(); }
+    bool at_end() const noexcept { return places_.caret == text_.size(); }
 
     // ---- The selection, read ------------------------------------------------------------
 
     /// THE SELECTION'S OTHER END. Equal to the caret exactly when there is no selection.
-    std::size_t anchor() const noexcept { return anchor_; }
-    bool has_selection() const noexcept { return anchor_ != caret_; }
+    std::size_t anchor() const noexcept { return places_.anchor; }
+    bool has_selection() const noexcept { return places_.has_selection(); }
 
     /// The selected range in reading order — begin inclusive, end exclusive, byte indices of
     /// the whole text. Which end the CARET is at is a separate fact (`caret()`), and it is
     /// the anchor/caret split that keeps a leftward and a rightward selection two different
     /// states that show one range.
-    std::size_t selection_begin() const noexcept {
-        return caret_ < anchor_ ? caret_ : anchor_;
-    }
-    std::size_t selection_end() const noexcept {
-        return caret_ > anchor_ ? caret_ : anchor_;
-    }
+    std::size_t selection_begin() const noexcept { return places_.begin(); }
+    std::size_t selection_end() const noexcept { return places_.end(); }
+    /// The caret and the anchor together, as the text core keeps a selection.
+    const TextPlaces& places() const noexcept { return places_; }
 
     /// The selected bytes, empty when nothing is selected. Character-whole by construction:
     /// both ends of a selection are on character boundaries, always.
-    std::string selected_text() const {
-        return text_.substr(selection_begin(), selection_end() - selection_begin());
-    }
+    std::string selected_text() const { return component::selected_text(text_, places_); }
 
     /// THE PART OF THE SELECTION A ROW OF `columns` COLUMNS IS SHOWING, in columns of the
     /// visible slice — the one answer both a painter and a hit test may spend, computed here
@@ -362,7 +163,7 @@ public:
     /// How many columns from the start of the visible slice the caret sits at: computed here so
     /// no consumer subtracts for itself. It may equal the capacity, since a caret is between
     /// characters and the position after the last visible one is a real column.
-    std::size_t caret_column() const noexcept { return caret_ - first_; }
+    std::size_t caret_column() const noexcept { return places_.caret - first_; }
 
     /// The byte a column of the visible slice names, clamped into the text: `first_visible +
     /// column`, the pointer's arithmetic. A column at or before the start gives `first_visible`
@@ -405,11 +206,11 @@ public:
         if (first_ > furthest) {
             first_ = furthest;
         }
-        if (first_ > caret_) {
-            first_ = caret_;
+        if (first_ > places_.caret) {
+            first_ = places_.caret;
         }
-        if (caret_ - first_ > room) {
-            first_ = caret_ - room;
+        if (places_.caret - first_ > room) {
+            first_ = places_.caret - room;
         }
         first_ = character_boundary_at_or_after(text_, first_);
     }
@@ -429,9 +230,9 @@ public:
         } else {
             remember(EditKind::kTyping);
         }
-        text_.insert(caret_, utf8);
-        caret_ += utf8.size();
-        anchor_ = caret_;
+        text_.insert(places_.caret, utf8);
+        places_.caret += utf8.size();
+        places_.anchor = places_.caret;
         settle();
     }
 
@@ -445,14 +246,14 @@ public:
             settle();
             return;
         }
-        if (caret_ == 0) {
+        if (places_.caret == 0) {
             return;
         }
         remember(EditKind::kEraseBack);
-        const std::size_t from = character_before(text_, caret_);
-        text_.erase(from, caret_ - from);
-        caret_ = from;
-        anchor_ = caret_;
+        const std::size_t from = character_before(text_, places_.caret);
+        text_.erase(from, places_.caret - from);
+        places_.caret = from;
+        places_.anchor = places_.caret;
         settle();
     }
 
@@ -466,12 +267,12 @@ public:
             settle();
             return;
         }
-        if (caret_ >= text_.size()) {
+        if (places_.caret >= text_.size()) {
             return;
         }
         remember(EditKind::kEraseForward);
-        text_.erase(caret_, character_after(text_, caret_) - caret_);
-        anchor_ = caret_;
+        text_.erase(places_.caret, character_after(text_, places_.caret) - places_.caret);
+        places_.anchor = places_.caret;
         settle();
     }
 
@@ -484,14 +285,14 @@ public:
             settle();
             return;
         }
-        if (caret_ == 0) {
+        if (places_.caret == 0) {
             return;
         }
         remember(EditKind::kStructural);
-        const std::size_t from = word_before(text_, caret_);
-        text_.erase(from, caret_ - from);
-        caret_ = from;
-        anchor_ = caret_;
+        const std::size_t from = word_before(text_, places_.caret);
+        text_.erase(from, places_.caret - from);
+        places_.caret = from;
+        places_.anchor = places_.caret;
         settle();
     }
 
@@ -503,12 +304,12 @@ public:
             settle();
             return;
         }
-        if (caret_ >= text_.size()) {
+        if (places_.caret >= text_.size()) {
             return;
         }
         remember(EditKind::kStructural);
-        text_.erase(caret_, word_after(text_, caret_) - caret_);
-        anchor_ = caret_;
+        text_.erase(places_.caret, word_after(text_, places_.caret) - places_.caret);
+        places_.anchor = places_.caret;
         settle();
     }
 
@@ -521,69 +322,69 @@ public:
     // type is two edits a weaver made in two places, not one.
 
     void left() noexcept {
-        caret_ = has_selection() ? selection_begin() : character_before(text_, caret_);
-        anchor_ = caret_;
+        places_.caret = has_selection() ? selection_begin() : character_before(text_, places_.caret);
+        places_.anchor = places_.caret;
         last_edit_ = EditKind::kNone;
         settle();
     }
     void right() noexcept {
-        caret_ = has_selection() ? selection_end() : character_after(text_, caret_);
-        anchor_ = caret_;
+        places_.caret = has_selection() ? selection_end() : character_after(text_, places_.caret);
+        places_.anchor = places_.caret;
         last_edit_ = EditKind::kNone;
         settle();
     }
     void home() noexcept {
-        caret_ = 0;
-        anchor_ = caret_;
+        places_.caret = 0;
+        places_.anchor = places_.caret;
         last_edit_ = EditKind::kNone;
         settle();
     }
     void end() noexcept {
-        caret_ = text_.size();
-        anchor_ = caret_;
+        places_.caret = text_.size();
+        places_.anchor = places_.caret;
         last_edit_ = EditKind::kNone;
         settle();
     }
     void word_left() noexcept {
-        caret_ = word_before(text_, caret_);
-        anchor_ = caret_;
+        places_.caret = word_before(text_, places_.caret);
+        places_.anchor = places_.caret;
         last_edit_ = EditKind::kNone;
         settle();
     }
     void word_right() noexcept {
-        caret_ = word_after(text_, caret_);
-        anchor_ = caret_;
+        places_.caret = word_after(text_, places_.caret);
+        places_.anchor = places_.caret;
         last_edit_ = EditKind::kNone;
         settle();
     }
 
     void select_left() noexcept {
-        caret_ = character_before(text_, caret_);
+        places_.caret = character_before(text_, places_.caret);
         last_edit_ = EditKind::kNone;
         settle();
     }
     void select_right() noexcept {
-        caret_ = character_after(text_, caret_);
+        places_.caret = character_after(text_, places_.caret);
         last_edit_ = EditKind::kNone;
         settle();
     }
     void select_home() noexcept {
-        caret_ = 0;
+        places_.caret = 0;
         last_edit_ = EditKind::kNone;
         settle();
     }
     void select_end() noexcept {
-        caret_ = text_.size();
+        places_.caret = text_.size();
         last_edit_ = EditKind::kNone;
         settle();
     }
     void select_word_left() noexcept {
-        caret_ = word_before(text_, caret_);
+        places_.caret = word_before(text_, places_.caret);
         last_edit_ = EditKind::kNone;
         settle();
     }
     void select_word_right() noexcept {
-        caret_ = word_after(text_, caret_);
+        places_.caret = word_after(text_, places_.caret);
         last_edit_ = EditKind::kNone;
         settle();
     }
@@ -591,8 +392,8 @@ public:
     /// SELECT EVERYTHING, with the caret at the end — where the next ordinary keystroke
     /// belongs, and where both media already know how to show an active end.
     void select_all() noexcept {
-        anchor_ = 0;
-        caret_ = text_.size();
+        places_.anchor = 0;
+        places_.caret = text_.size();
         last_edit_ = EditKind::kNone;
         settle();
     }
@@ -604,8 +405,8 @@ public:
     /// the gesture that STARTS one (the drag extends from here), so it cannot also be
     /// inside one.
     void place(std::size_t at) noexcept {
-        caret_ = character_boundary(text_, at);
-        anchor_ = caret_;
+        places_.caret = character_boundary(text_, at);
+        places_.anchor = places_.caret;
         last_edit_ = EditKind::kNone;
         settle();
     }
@@ -626,8 +427,8 @@ public:
             place(at);
             return false;
         }
-        anchor_ = word.begin;
-        caret_ = word.end;
+        places_.anchor = word.begin;
+        places_.caret = word.end;
         last_edit_ = EditKind::kNone;
         settle();
         return true;
@@ -642,7 +443,7 @@ public:
         if (column < 0 && first_ > 0) {
             at = character_before(text_, first_);
         }
-        caret_ = character_boundary(text_, at);
+        places_.caret = character_boundary(text_, at);
         last_edit_ = EditKind::kNone;
         settle();
     }
@@ -652,13 +453,7 @@ public:
     /// COPY THE SELECTION INTO THE OWNER'S CLIPBOARD. With nothing selected, nothing
     /// happens — the clipboard a weaver filled a minute ago is not overwritten with an empty
     /// string by a stray chord.
-    void copy(Clipboard& clip) const {
-        if (!has_selection()) {
-            return;
-        }
-        clip.text = selected_text();
-        ++clip.writes;
-    }
+    void copy(Clipboard& clip) const { copy_selection(text_, places_, clip); }
 
     /// CUT: copy the selection, then erase it. One undo entry, because it is one gesture.
     void cut(Clipboard& clip) {
@@ -686,9 +481,9 @@ public:
         if (has_selection()) {
             erase_selection_bytes();
         }
-        text_.insert(caret_, line);
-        caret_ += line.size();
-        anchor_ = caret_;
+        text_.insert(places_.caret, line);
+        places_.caret += line.size();
+        places_.anchor = places_.caret;
         settle();
     }
 
@@ -702,10 +497,10 @@ public:
         if (undo_.empty()) {
             return false;
         }
-        redo_.push_back(Memory{std::move(text_), caret_, anchor_});
+        redo_.push_back(Memory{std::move(text_), places_.caret, places_.anchor});
         text_ = std::move(undo_.back().text);
-        caret_ = undo_.back().caret;
-        anchor_ = undo_.back().anchor;
+        places_.caret = undo_.back().caret;
+        places_.anchor = undo_.back().anchor;
         undo_.pop_back();
         last_edit_ = EditKind::kNone;
         settle();
@@ -718,10 +513,10 @@ public:
         if (redo_.empty()) {
             return false;
         }
-        undo_.push_back(Memory{std::move(text_), caret_, anchor_});
+        undo_.push_back(Memory{std::move(text_), places_.caret, places_.anchor});
         text_ = std::move(redo_.back().text);
-        caret_ = redo_.back().caret;
-        anchor_ = redo_.back().anchor;
+        places_.caret = redo_.back().caret;
+        places_.anchor = redo_.back().anchor;
         redo_.pop_back();
         last_edit_ = EditKind::kNone;
         settle();
@@ -798,8 +593,8 @@ public:
     /// this one's label.
     void clear() noexcept {
         text_.clear();
-        caret_ = 0;
-        anchor_ = 0;
+        places_.caret = 0;
+        places_.anchor = 0;
         first_ = 0;
         undo_.clear();
         redo_.clear();
@@ -813,8 +608,8 @@ public:
     /// selection collapses, since this is a new draft (see `clear`).
     void set(std::string line, std::size_t at) {
         text_ = std::move(line);
-        caret_ = character_boundary(text_, at);
-        anchor_ = caret_;
+        places_.caret = character_boundary(text_, at);
+        places_.anchor = places_.caret;
         first_ = 0;
         undo_.clear();
         redo_.clear();
@@ -864,7 +659,7 @@ private:
             if (undo_.size() >= kUndoDepth) {
                 undo_.erase(undo_.begin());
             }
-            undo_.push_back(Memory{text_, caret_, anchor_});
+            undo_.push_back(Memory{text_, places_.caret, places_.anchor});
         }
         redo_.clear();
         last_edit_ = kind;
@@ -875,8 +670,8 @@ private:
     void erase_selection_bytes() {
         const std::size_t from = selection_begin();
         text_.erase(from, selection_end() - from);
-        caret_ = from;
-        anchor_ = from;
+        places_.caret = from;
+        places_.anchor = from;
     }
 
     /// The half of the invariant that needs no capacity, re-established after every edit: the
@@ -888,25 +683,100 @@ private:
         if (first_ > text_.size()) {
             first_ = text_.size();
         }
-        if (first_ > caret_) {
-            first_ = caret_;
+        if (first_ > places_.caret) {
+            first_ = places_.caret;
         }
         first_ = character_boundary_at_or_after(text_, first_);
-        if (anchor_ > text_.size()) {
-            anchor_ = text_.size();
+        if (places_.anchor > text_.size()) {
+            places_.anchor = text_.size();
         }
-        anchor_ = character_boundary(text_, anchor_);
+        places_.anchor = character_boundary(text_, places_.anchor);
     }
 
     std::string text_;
-    std::size_t caret_ = 0;
-    std::size_t anchor_ = 0;
+    TextPlaces places_;
     std::size_t first_ = 0;
     std::vector<Memory> undo_;
     std::vector<Memory> redo_;
     EditKind last_edit_ = EditKind::kNone;
     std::uint64_t draft_epoch_ = 0; ///< bumped by set/clear -- see draft_epoch()
 };
+
+
+// ---- The text box spelled in cells ------------------------------------------------------
+
+/// A TEXT BOX AS A ROW OF CELLS SHOWS IT, from the box's first column: the visible slice, where the
+/// caret sits and which columns are selected, and how many columns the whole box takes, which is
+/// where a press on it reaches. `bordered` is the box seen as a box: `[`, the slice, its blank
+/// room spelled `_`, `]`; a window that sets type draws a border there instead
+/// (`graphics/elements/text_face.hpp`). Plain, it is the slice alone: a caret after the text sits
+/// before no character, and a painter draws it there as a bar.
+struct TextBoxCells {
+    std::string text;
+    std::int64_t caret = 0;           ///< the column the caret sits before
+    std::int64_t selection_begin = 0; ///< selected columns, end exclusive; equal when none shows
+    std::int64_t selection_end = 0;
+    std::int64_t columns = 0;         ///< the box's whole width: a press anywhere in it is on it
+    std::int64_t text_begin = 0;      ///< the first column of the slice: 1 when bordered
+    std::int64_t text_columns = 0;    ///< ...and how many columns the slice fills
+    bool bordered = false;
+    bool selected() const noexcept { return selection_end > selection_begin; }
+};
+
+/// The columns a box `columns` wide gives its text: all of them, or all but its border where it is
+/// seen as a box and has room for one.
+inline std::int64_t text_box_room(std::int64_t columns, bool bordered) noexcept {
+    const std::int64_t whole = columns > 0 ? columns : 0;
+    return bordered && whole >= 3 ? whole - 2 : whole;
+}
+
+/// THE CELLS A BOX `columns` WIDE SHOWS through the window it holds now. One measurer: the slice,
+/// the caret's column and the selection come from one window, the one a press is answered with
+/// (`text_box_press`), so a caret cannot land where the text is not.
+inline TextBoxCells text_box_cells(const TextBox& box, std::int64_t columns,
+                                   bool bordered = false) {
+    TextBoxCells out;
+    out.bordered = bordered && columns >= 3;
+    out.columns = columns > 0 ? columns : 0;
+    out.text_begin = out.bordered ? 1 : 0;
+    const std::int64_t room = text_box_room(columns, bordered);
+    const std::string slice = box.visible(room);
+    out.text_columns = static_cast<std::int64_t>(slice.size());
+    out.caret = out.text_begin + static_cast<std::int64_t>(box.caret_column());
+    const TextBox::VisibleSpan span = box.visible_selection(room);
+    if (span.present()) {
+        out.selection_begin = out.text_begin + span.begin;
+        out.selection_end = out.text_begin + span.end;
+    }
+    if (out.bordered) {
+        out.text = "[" + slice + std::string(static_cast<std::size_t>(room) - slice.size(), '_') +
+                   "]";
+    } else {
+        out.text = slice;
+    }
+    return out;
+}
+
+/// ...AND OF A BOX ITS OWNER MAY MOVE: its window kept round the caret first, for the room the
+/// cells give its text (`TextBox::keep_caret_visible`), then spelled.
+inline TextBoxCells text_box_cells(TextBox& box, std::int64_t columns, bool bordered = false) {
+    box.keep_caret_visible(text_box_room(columns, bordered));
+    return text_box_cells(static_cast<const TextBox&>(box), columns, bordered);
+}
+
+/// WHERE A PRESS ON A BOX'S CELLS PUTS THE CARET: the whole box is pressable, its blank room and
+/// its border included. `column` counts from the box's first column, as `TextBoxCells` does; a
+/// press left of the slice means its first visible byte, one past the text the end of the text.
+/// `extend` is a held Shift or a drag: the caret moves and the anchor stays.
+inline void text_box_press(TextBox& box, const TextBoxCells& cells, std::int64_t column,
+                           bool extend = false) {
+    const std::int64_t at = column - cells.text_begin;
+    if (extend) {
+        box.drag_to_column(at);
+    } else {
+        box.place(box.position_at_column(at));
+    }
+}
 
 } // namespace zengine::component
 

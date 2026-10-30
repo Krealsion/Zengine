@@ -19,6 +19,8 @@
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "component/tab_strip.hpp"
+#include "component/text.hpp"
+#include "component/text_area.hpp"
 #include "component/text_box.hpp"
 
 #include <algorithm>
@@ -2135,4 +2137,248 @@ TEST_CASE("RowMap: rows something is drawn over mean nothing beneath it, and wha
     map.row(1, 21);
     REQUIRE(map.at(1, 3) != nullptr);
     CHECK(*map.at(1, 3) == 21);
+}
+
+// ---- The text core, the text box's cells and the text area --------------------------------------
+
+TEST_CASE("text core: a selection is two places, and a copy is the text between them as written") {
+    TextPlaces places;
+    CHECK_FALSE(places.has_selection());
+    places.anchor = 7;
+    places.caret = 2;
+    CHECK(places.has_selection());
+    CHECK(places.begin() == 2);
+    CHECK(places.end() == 7);
+    const std::string text = "ab\ncdefgh";
+    CHECK(selected_text(text, places) == "\ncdef");
+    Clipboard clip;
+    copy_selection(text, places, clip);
+    CHECK(clip.text == "\ncdef");
+    CHECK(clip.writes == 1);
+    // Nothing selected: the clipboard is left as it was.
+    places.anchor = places.caret;
+    copy_selection(text, places, clip);
+    CHECK(clip.text == "\ncdef");
+    CHECK(clip.writes == 1);
+    // Places past the text or inside a character settle back onto a boundary.
+    const std::string accented = "a\xC3\xA9";
+    TextPlaces wild{99, 2};
+    wild.settle(accented);
+    CHECK(wild.anchor == 3);
+    CHECK(wild.caret == 1);
+}
+
+TEST_CASE("text box cells: the slice, the caret and the selection come from one window") {
+    TextBox box;
+    box.set("hello world", 11);
+    // A caret after the last character sits at the box's last column, a real one.
+    const TextBoxCells plain = text_box_cells(box, 6);
+    CHECK(plain.text == " world");
+    CHECK(plain.caret == 6);
+    CHECK_FALSE(plain.bordered);
+    CHECK(plain.columns == 6);
+    box.select_word_left();
+    const TextBoxCells chosen = text_box_cells(box, 6);
+    CHECK(chosen.selected());
+    CHECK(chosen.selection_begin == 1);
+    CHECK(chosen.selection_end == 6);
+    CHECK(chosen.caret == 1);
+}
+
+TEST_CASE("text box cells: a box seen as a box is spelled [text___] and its slice sits inside") {
+    TextBox box;
+    box.set("abc", 3);
+    const TextBoxCells cells = text_box_cells(box, 8, true);
+    CHECK(cells.bordered);
+    CHECK(cells.text == "[abc___]");
+    CHECK(cells.text_begin == 1);
+    CHECK(cells.text_columns == 3);
+    CHECK(cells.caret == 4);
+    CHECK(cells.columns == 8);
+    // Too narrow for a border: spelled plain.
+    CHECK_FALSE(text_box_cells(box, 2, true).bordered);
+    // A long text scrolls inside the border, the caret kept in view.
+    box.set("abcdefghij", 10);
+    const TextBoxCells scrolled = text_box_cells(box, 6, true);
+    CHECK(scrolled.text == "[ghij]");
+    CHECK(scrolled.caret == 5);
+}
+
+TEST_CASE("text box cells: the whole box is pressable, its blank room and border included") {
+    TextBox box;
+    box.set("abc", 0);
+    const TextBoxCells cells = text_box_cells(box, 10, true);
+    // On the text: the column's byte.
+    text_box_press(box, cells, 2);
+    CHECK(box.caret() == 1);
+    // On the blank room after the text, and on the closing border: the end of the text.
+    text_box_press(box, cells, 7);
+    CHECK(box.caret() == 3);
+    text_box_press(box, cells, 9);
+    CHECK(box.caret() == 3);
+    // On the opening border: the first visible byte.
+    text_box_press(box, cells, 0);
+    CHECK(box.caret() == 0);
+    // Extended: the anchor stays where the press put it.
+    text_box_press(box, cells, 3, true);
+    CHECK(box.anchor() == 0);
+    CHECK(box.caret() == 2);
+    CHECK(box.selected_text() == "ab");
+}
+
+TEST_CASE("text area: a width wraps each paragraph at its last space, a further line in its hang") {
+    TextArea area;
+    area.set("one two three four\n\nlong", {TextLook{1, 2}, TextLook{}, TextLook{3, 0}});
+    const auto lines = area.lines(9);
+    REQUIRE(lines.size() == 5);
+    const auto words = [&](const TextArea::Line& l) {
+        return area.text().substr(l.begin, l.end - l.begin);
+    };
+    CHECK(words(lines[0]) == "one two");
+    CHECK(lines[0].indent == 0);
+    CHECK(words(lines[1]) == "three");
+    CHECK(lines[1].indent == 2);
+    CHECK(words(lines[2]) == "four");
+    CHECK(lines[2].paragraph == 0);
+    // An empty paragraph is one empty line.
+    CHECK(lines[3].begin == lines[3].end);
+    CHECK(lines[3].paragraph == 1);
+    CHECK(words(lines[4]) == "long");
+    CHECK(area.look(lines[4].paragraph).role == 3);
+    // A word longer than the line is cut where the line ends.
+    area.set("abcdefghij");
+    const auto cut = area.lines(4);
+    REQUIRE(cut.size() == 3);
+    CHECK(words(cut[0]) == "abcd");
+    CHECK(words(cut[2]) == "ij");
+    CHECK(area.lines(0).empty());
+    area.set("");
+    CHECK(area.lines(10).empty());
+}
+
+TEST_CASE("text area: in cells, a marker says how many lines are above and below") {
+    TextArea area;
+    std::string text;
+    for (int i = 0; i < 10; ++i) {
+        text += (i == 0 ? "" : "\n") + std::string("line ") + std::to_string(i);
+    }
+    area.set(text);
+    // At the top: lines, then the foot's marker.
+    auto cells = area.cells(5, 20);
+    REQUIRE(cells.rows.size() == 5);
+    CHECK(cells.rows[0].text == "line 0");
+    CHECK(cells.rows[3].text == "line 3");
+    CHECK(cells.rows[4].marker);
+    CHECK(cells.rows[4].text == "... 6 more below");
+    // Scrolled: a marker atop and at the foot.
+    area.scroll_lines(3, 20, 5);
+    cells = area.cells(5, 20);
+    CHECK(cells.rows[0].text == "3 more above...");
+    CHECK(cells.rows[1].text == "line 3");
+    CHECK(cells.rows[3].text == "line 5");
+    CHECK(cells.rows[4].text == "... 4 more below");
+    // At the end: the marker atop alone, and no scroll past the last line.
+    area.scroll_lines(100, 20, 5);
+    cells = area.cells(5, 20);
+    CHECK(cells.rows[0].text == "6 more above...");
+    CHECK(cells.rows[4].text == "line 9");
+    CHECK_FALSE(cells.rows[4].marker);
+    CHECK(cells.below == 0);
+    // Everything fits: no marker at all.
+    area.scroll_home();
+    cells = area.cells(12, 20);
+    CHECK(cells.rows.size() == 10);
+    CHECK(cells.above == 0);
+    CHECK(cells.below == 0);
+}
+
+TEST_CASE("text area: the scroll and the selection are places, so a rewrap keeps both") {
+    TextArea area;
+    area.set("alpha beta gamma delta epsilon zeta eta theta");
+    area.scroll_lines(2, 11, 2);
+    const std::size_t top = area.top();
+    CHECK(top == area.lines(11)[2].begin);
+    area.press(top);
+    area.drag_to(top + 5);
+    const std::string chosen = area.selected_text();
+    // Wrapped at another width, the line holding the scroll's place is the first shown, and the
+    // selection names the same bytes.
+    const auto wide = area.lines(30);
+    const TextArea::Cells cells = area.cells(1, 30);
+    CHECK(cells.first == TextArea::line_of(wide, top));
+    CHECK(area.top() == top);
+    CHECK(area.selected_text() == chosen);
+    // New text keeps both places, held inside it.
+    area.set("short");
+    CHECK(area.top() <= 5);
+    CHECK(area.places().caret <= 5);
+}
+
+TEST_CASE("text area: a copy is the text as written, without the wrap's breaks or indents") {
+    TextArea area;
+    area.set("first words of a paragraph\nsecond", {TextLook{0, 4}});
+    const auto lines = area.lines(10);
+    REQUIRE(lines.size() >= 3);
+    CHECK(lines[1].indent == 4);
+    area.press(0);
+    area.drag_to(area.text().size());
+    Clipboard clip;
+    area.copy(clip);
+    CHECK(clip.text == "first words of a paragraph\nsecond");
+    // A press on a shown cell names a place in the text, an indent's column its line's first.
+    const TextArea::Cells cells = area.cells(10, 10);
+    REQUIRE(cells.rows.size() == lines.size());
+    const auto in_indent = area.place_at(cells, 1, 1);
+    REQUIRE(in_indent.has_value());
+    CHECK(*in_indent == lines[1].begin);
+    const auto past = area.place_at(cells, 0, 9);
+    REQUIRE(past.has_value());
+    CHECK(*past == lines[0].end);
+    CHECK_FALSE(area.place_at(cells, 99, 0).has_value());
+    // The selected columns of a row stand after its indent.
+    CHECK(cells.rows[1].selection_begin == 4);
+}
+
+TEST_CASE("text area: a word stops at a space or a line's end; Ctrl+C and Ctrl+A are its own") {
+    TextArea area;
+    area.set("one two\nthree");
+    CHECK(area.select_word_at(5));
+    CHECK(area.selected_text() == "two");
+    CHECK(area.select_word_at(9));
+    CHECK(area.selected_text() == "three");
+    // A place on a word's edge belongs to that word; one between two spaces is in none.
+    area.set("one  two");
+    CHECK_FALSE(area.select_word_at(4));
+    CHECK_FALSE(area.has_selection());
+    area.set("one two\nthree");
+    Clipboard clip;
+    CHECK(area.consume(key::kA, mod::kCtrl, clip));
+    CHECK(area.selected_text() == "one two\nthree");
+    CHECK(area.consume(key::kC, mod::kCtrl, clip));
+    CHECK(clip.text == "one two\nthree");
+    CHECK_FALSE(area.consume(key::kC, mod::kNone, clip));
+    CHECK_FALSE(area.consume(key::kV, mod::kCtrl, clip));
+    CHECK_FALSE(area.consume(key::kA, mod::kCtrl | mod::kShift, clip));
+}
+
+TEST_CASE("text area: a window scrolls freely by units, held so the last line ends at the foot") {
+    TextArea area;
+    area.set("a\nb\nc\nd\ne");
+    constexpr std::int64_t unit = TextArea::kUnitsPerLine;
+    const auto lines = area.lines(10);
+    const std::int64_t shown = 2 * unit + unit / 2; // two lines and a half
+    CHECK(TextArea::furthest(lines, shown) == 5 * unit - shown);
+    area.scroll_by(unit / 4, 10, shown);
+    CHECK(area.top() == 0);
+    CHECK(area.within() == unit / 4);
+    CHECK(area.offset(lines, shown) == unit / 4);
+    area.scroll_by(unit, 10, shown);
+    CHECK(area.top() == lines[1].begin);
+    CHECK(area.within() == unit / 4);
+    area.scroll_by(100 * unit, 10, shown);
+    CHECK(area.offset(lines, shown) == 5 * unit - shown);
+    area.scroll_by(-100 * unit, 10, shown);
+    CHECK(area.offset(lines, shown) == 0);
+    // A text shorter than the window does not scroll.
+    CHECK(TextArea::furthest(lines, 10 * unit) == 0);
 }
