@@ -279,7 +279,7 @@ def main():
               "this is a weaver's host: only the weaver's hand writes a file here" in said, said)
 
         # ---- a step whose control is not on the desk ---------------------------------------
-        state, said = run("desk/resolve", {"shape": "BuildRequested", "mark": "yes", "words": "build"})
+        state, said = run("desk/resolve", {"shape": "BuildRequested", "mark": True, "words": "build"})
         check("R1 the Builder hidden: BuildRequested resolves to the route through the Pane Manager and "
               "the desktop's own key, and nothing is marked",
               state == "passed" and "zengine.builder-pane/builder:builder.build [hidden" in said and
@@ -288,7 +288,7 @@ def main():
         # THE ROW MAY STAND BELOW THE LIST'S FOOT: the resolution says its part is not shown, and the
         # weaver scrolls down, a row at a time, until it shows and is marked.
         for _ in range(24):
-            state, said = run("desk/resolve", {"shape": "BuildRequested", "mark": "yes",
+            state, said = run("desk/resolve", {"shape": "BuildRequested", "mark": True,
                                                "words": "open the Builder here"})
             marked = re.search(r"marked zengine\.desktop/launcher:launcher\.open \(the nearest step", said)
             row = re.search(r"part pane:zengine\.builder-pane/builder@(\d+),(\d+) shown", said)
@@ -345,7 +345,7 @@ def main():
 
         # ---- another mode ---------------------------------------------------------------------
         term.key(b"l")  # the weaver opens the Builder's output reader
-        state, said = run("desk/resolve", {"shape": "BuildRequested", "mark": "yes", "words": "back"})
+        state, said = run("desk/resolve", {"shape": "BuildRequested", "mark": True, "words": "back"})
         check("R4 in the Builder's other mode, BuildRequested is reached through the row that enters it, "
               "and is never a case for a tool",
               state == "passed" and "in its mode browse" in said and "builder.output-close" in said and

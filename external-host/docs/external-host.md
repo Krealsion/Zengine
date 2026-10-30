@@ -711,7 +711,8 @@ reading says, and an `out` inside a checkout refused with nothing written; and `
 against a scripted desk that moves between notices (`tests/session/desk_watch_checks.py`): only what
 moved read again, the ring bounded, two watches of different panes each writing their own; and
 `desk/resolve`'s against a scripted desk (`tests/session/desk_resolve_checks.py`): the route through
-the Pane Manager, another mode, the case for a tool only for a row reading every pane.
+the Pane Manager, another mode, the case for a tool only for a row reading every pane and a known
+shape, an unknown shape said so, and a mark that marks nothing saying why.
 `tests/session/tutor_walk.py`, behind `session-pty` (the session tooling and a POSIX
 pseudo-terminal), walks a Tutor through a terminal Workshop on a weaver's host whose weaver is the
 pseudo-terminal it holds. Beside it, `tests/session/story_journey.py` holds
@@ -1146,7 +1147,8 @@ loom-session run work desk-machine/read --name desk-1 --input out=/home/me/agent
   so it is the agent's first read.
 - **Then it asks**, through the link: the guest door for your own row, Workshop for the desk in
   one turn, each pane past it alone and page by page under its stamp, then the pane inventory and
-  the keymap.
+  the keymap, then each offered pane's office for its manual (`PaneDocumentRequested`, the whole
+  page), at most <!-- value desk_asks.MAX_DOCUMENTS -->64<!-- /value --> panes a read.
 - **Then the readings, beside `AGENTS.md`.** `guide.md`, the guide in sections by purpose, every
   text the desk said quoted in a block after a line naming who said it, as data; `desk.txt`, the
   sparse desk -- its first lines, Workshop's own words, the status slot, the menu while one is
@@ -1157,7 +1159,9 @@ loom-session run work desk-machine/read --name desk-1 --input out=/home/me/agent
   <!-- value desk_render.DENSE_CELLS grouped -->262,144<!-- /value --> cells; and
   `panes/<office>.<pane>.txt`, each pane's own lines beneath the desk's first line -- `~2` and on
   before `.txt` where two references would name one file, and every page opening with its pane's
-  header line.
+  header line; beside it, `panes/<office>.<pane>.manual.md`, the pane's manual as its office
+  answered it, quoted as data. The guide's section 4 says which panes answered, each with its
+  file, and which refused, in their words; a manual no longer answered leaves at the next read.
 - **Each read replaces the last.** Every reading file is replaced whole, so a reader of it sees the
   last reading or this one, never half of either, and a reading file this read did not write again
   -- a pane gone from the desk -- is removed. A file past
@@ -1238,17 +1242,22 @@ loom-session run work desk/guide --name guide-1 --input pane=zengine.builder-pan
 - **`desk/guide` names what a press names**: the pane as `<office>/<pane>` and the control by its
   action id, which the pane draws as the part `control:<id>`, or `part:<name>` for a subject part (a
   Pane Manager row is `part:pane:<office>/<pane>`); an empty `control` clears the mark. Its result is
-  Workshop's answer: where the mark stands and whether its label found room, the weaver's key for a
-  control drawn as no part, or why not. A mark ends when the weaver presses inside it, when its part
+  Workshop's answer, written as `guide.json`: where the mark stands and whether its label found room,
+  the weaver's key for a control drawn as no part, or why not. A mark refused or not shown fails the
+  run in Workshop's words, a refusal for want of the row's `guide` power saying so; a clear passes
+  whenever Workshop answers. A mark ends when the weaver presses inside it, when its part
   leaves the pane, when the pane's holder changes, at a newer mark, and when the session ends.
 - **`desk/resolve` answers every control that may cause the message**, from the keymap's
   declarations (what a press of each row may cause, and what each pane's other modes may): its
   address, the part that draws it, whether it shows and is usable now, the weaver's key and where
   its pane is. When none is shown and usable it names the steps that would bring one, nearest
   first: the row in force that enters the pane's other mode, and showing the pane, which is itself
-  a message resolved the same way, never through Connections or the Hotkeys pane. With `mark` on it
-  marks the one control shown and usable, else the one of the nearest step. When no control the row
-  may read causes the message, it names the panes outside the row's read; for a row that reads
-  every pane, it drafts the case for a tool -- four claims with their evidence -- and files nothing:
-  a case is the agent's own to propose, unlabelled, and on a weaver's desk only after the weaver
-  says yes.
+  a message resolved the same way, never through Connections or the Hotkeys pane. A cause declared
+  with no subject is no way to show a given pane. With `mark` on it marks the one control shown and
+  usable, else the one of the nearest step, and when it marks nothing it says why: several shown,
+  a step whose controls are keys with no part, nothing that may cause it, or the refusal. A shape
+  no row or mode on the desk declares and the session's vocabulary does not resolve is said
+  unknown. When no control the row may read causes a known message, it names the panes outside the
+  row's read; for a row that reads every pane, it drafts the case for a tool -- four claims with
+  their evidence -- and files nothing: a case is the agent's own to propose, unlabelled, and on a
+  weaver's desk only after the weaver says yes. The whole resolution is written as `resolve.json`.
