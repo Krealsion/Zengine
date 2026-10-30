@@ -321,6 +321,123 @@ jobs:
           path: ${{ runner.temp }}/ccache
           key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
 
+  # THE `box` GATE OPENS HERE: Loom built with its WebAssembly backend (Wasmtime, pinned) and a
+  # wasi-sdk (pinned) named at configure, so the example pane is built as a module beside its
+  # native build and the tally cases' twins load it through the same plan row. The official lane
+  # runs whole, so the gate's rows are counted with the rest. It restores the Linux job's compiler
+  # cache and saves none.
+  zengine-linux-boxed:
+    name: Zengine / Linux / boxed pane
+    needs: [zengine-change-kind, resolve-loom]
+    if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out Zengine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Record toolchain
+        run: |
+          g++ --version
+          cmake --version
+
+      - name: Fetch pinned canonical Loom
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          loom_source="$RUNNER_TEMP/loom-src"
+          git init "$loom_source"
+          git -C "$loom_source" remote add origin https://github.com/Krealsion/Loom.git
+          git -C "$loom_source" fetch --depth=1 origin "$LOOM_SHA"
+          git -C "$loom_source" checkout --detach FETCH_HEAD
+          test "$(git -C "$loom_source" rev-parse HEAD)" = "$LOOM_SHA"
+
+      - name: Fetch the pinned Wasmtime C API and wasi-sdk
+        run: |
+          archive="$RUNNER_TEMP/wasmtime-v50.0.0-x86_64-linux-c-api.tar.xz"
+          curl -fsSL -o "$archive" \
+            https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux-c-api.tar.xz
+          echo "631643d8be5dac2a1abe026528f0ca18a515bce275bcfa7eb9731c9468a592f1  $archive" | sha256sum --check --strict -
+          tar -xJf "$archive" -C "$RUNNER_TEMP"
+          archive="$RUNNER_TEMP/wasi-sdk-34.0-x86_64-linux.tar.gz"
+          curl -fsSL -o "$archive" \
+            https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz
+          echo "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4  $archive" | sha256sum --check --strict -
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+
+      - name: Build and install Loom with the backend to a fresh prefix
+        run: |
+          loom_prefix="$RUNNER_TEMP/loom-prefix"
+          test ! -e "$loom_prefix"
+          cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS_DEBUG=-g0 \
+            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF -DLOOM_ENABLE_WASM=ON \
+            -DLOOM_WASMTIME_DIR="$RUNNER_TEMP/wasmtime-v50.0.0-x86_64-linux-c-api"
+          cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
+          cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
+
+      - name: Fetch pinned ccache 4.13.6
+        id: ccache
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/ccache.tar.xz" \
+            https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-musl-static.tar.xz
+          echo "156ec57c5198cc849d92834023d09910b83dc5504c6cf405d09e6ae7b208a3e5  $RUNNER_TEMP/ccache.tar.xz" \
+            | sha256sum --check --strict -
+          mkdir "$RUNNER_TEMP/ccache-bin"
+          tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP/ccache-bin" --strip-components=1
+          compilers="$(readlink -f "$(command -v cc)") $(readlink -f "$(command -v c++)")"
+          compiler="$(sha256sum $compilers | cut -d ' ' -f 1 | sha256sum | cut -c 1-16)"
+          {
+            echo "ZEN_CCACHE=$RUNNER_TEMP/ccache-bin/ccache"
+            echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
+            echo "CCACHE_MAXSIZE=3G"
+            echo "CCACHE_COMPILERCHECK=content"
+          } >> "$GITHUB_ENV"
+          echo "compiler=$compiler" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Linux job's compiler cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-
+
+      - name: Configure Zengine as a stranger, the box gate open
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS_DEBUG=-g0 \
+            -DCMAKE_CXX_FLAGS_DEBUG=-g0 \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
+            -DCMAKE_C_COMPILER_LAUNCHER="$ZEN_CCACHE" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER="$ZEN_CCACHE" \
+            -DZEN_LOOM_DEV=OFF \
+            -DBUILD_TESTING=ON \
+            -DLOOM_WASI_SDK="$RUNNER_TEMP/wasi-sdk-34.0-x86_64-linux"
+
+      - name: Build Zengine and the boxed pane
+        run: |
+          cmake --build build --parallel "$(nproc)"
+          ls -l build/tests/zengine-example-tally.wasm
+
+      - name: Verify the repository-owned population, the box gate's rows among it
+        run: |
+          set +e
+          cmake -DZEN_BUILD_DIR=build -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake 2>&1 | tee verify.log
+          verify_rc="${PIPESTATUS[0]}"
+          verify_outcome=failed
+          if (( verify_rc == 0 )); then verify_outcome=passed; fi
+          {
+            printf '## Zengine / Linux / boxed pane\n\n'
+            printf '**Verification:** %s (exit %s)\n\n' "$verify_outcome" "$verify_rc"
+            printf '```text\n'
+            grep -E 'verify:|population:|cases \(floor|judged on|[0-9]+% tests passed|DECLARED ABSENT|Total Test time' verify.log || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$verify_rc"
+
   # THE STANDING SANITIZER WITNESS, a separate job so the ordinary lane's result stays
   # readable on its own: `verify.cmake` asks whether the intended population ran and passed,
   # not whether it read freed memory or overflowed a signed int, where NO answer changes --
