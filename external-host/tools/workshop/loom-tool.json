@@ -1422,7 +1422,7 @@
           "name": "plan",
           "type": "text",
           "default": "{}",
-          "help": "{\"folder\": name (empty keeps Root), \"entries\": [{\"find\": {\"label\": .., \"schema\": .., \"contains\": ..}, \"label\": new label}]}"
+          "help": "{\"folder\": name (empty keeps Root), \"entries\": [{\"find\": {\"label\": .., \"schema\": .., \"contains\": ..}, \"label\": new label}]}; every find names the entry's exact label, and contains is text in its stored value, not in its label"
         }
       ],
       "outputs": [

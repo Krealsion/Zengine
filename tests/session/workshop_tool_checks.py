@@ -3104,7 +3104,31 @@ def run_checks(tools, runtime):
                     kept(ctx, "late")
                     self.assertNotIn("InputSessionRequested", ctx.contacts)
 
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
+    organize = importlib.import_module("inventory_organize")
+    manifest = json.loads((tools / "loom-tool.json").read_text(encoding="utf-8"))
+
+    def entry_of(name):
+        return [t for t in manifest["tools"] if t["name"] == name][0]
+
+    class SaidChecks(unittest.TestCase):
+        """What a tool says it did, and what it refuses before it asks anything."""
+
+        def test_organize_refuses_a_rule_with_no_label_before_any_ask(self):
+            ctx = Context(steps, plan=json.dumps({"folder": "Work", "entries": [
+                {"find": {"contains": "Workbench"}, "label": "Workbench 1"}]}))
+            asked = []
+            ctx.ask = lambda office, shape, fields, **kw: asked.append(shape)
+            with self.assertRaises(CheckFailed) as refused:
+                organize.run(ctx)
+            self.assertEqual(asked, [])
+            self.assertIn("names the entry's exact label", str(refused.exception))
+            self.assertIn("text in its stored value", str(refused.exception))
+            plan = [i for i in entry_of("inventory-organize")["inputs"] if i["name"] == "plan"][0]
+            self.assertIn("exact label", plan["help"])
+
+    loader = unittest.defaultTestLoader
+    suite = unittest.TestSuite([loader.loadTestsFromTestCase(ToolChecks),
+                                loader.loadTestsFromTestCase(SaidChecks)])
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()
 
 
