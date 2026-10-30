@@ -26,9 +26,9 @@ number, never by a picture.
 WHAT A NAME IS. Beside its words a pane names the parts a weaver acts on -- a row, a control, an
 element -- with names of its own that it keeps across its redraws, and a menu names its lines by
 the rows' ids. `part` presses a part by its pane and its name, wherever the pane last drew it;
-`carry` presses a part by its name, moves to another part's point or a pane's middle and releases
-there, a drag by names; `open` presses the Pane Manager's row named for a pane
-(`pane:<office>/<pane>`); `wheel` turns the
+`carry` presses a part by its name, or by the row that shows it where its name is an id no step
+knows ahead, moves to another part's point or a pane's middle and releases there, a drag by names;
+`open` presses the Pane Manager's row named for a pane (`pane:<office>/<pane>`); `wheel` turns the
 wheel over a part by its name; `select` and `menu` take a name before the text a row or line shows.
 A name is the pane's: Workshop carries it as said.
 
@@ -560,9 +560,37 @@ def carry_of(step):
     return part, to
 
 
+def named_part(view, name):
+    """`(part, why)`: the part a pane names `name`, or, in a pane naming no part so, the part on the
+    one row whose text names it (`row_names`, as `select` reads a row) -- an entry Inventory names
+    by an id no walk knows ahead is named by the row that shows it. `why` says when several rows
+    are named so."""
+    part = part_of(view, name)
+    if part is not None:
+        return part, None
+    named = [i for i, l in enumerate(lines(view)) if l["text"][:1] in (">", " ") and
+             row_names(l["text"], name)]
+    if len(named) > 1:
+        return None, "%d rows of %s/%s are named %r" % (len(named), view.get("provider", ""),
+                                                        view.get("pane", ""), name)
+    on = [p for p in view.get("parts") or [] if named and line_of(view, p) == named[0]]
+    return (on[0] if on else None), None
+
+
 def reached_part(ctx, hand, verb, provider, pane, name, seconds):
-    """A part a press reaches now, by its pane and name, or the step fails saying why."""
-    view, part = wait_part(hand, provider, pane, name, seconds)
+    """A part a press reaches now, by its pane and its name or the row that shows it (`named_part`),
+    read until the pane draws it in a picture that takes a press, or the step fails saying why."""
+    end = time.monotonic() + seconds
+    while True:
+        view = words_now(hand, provider, pane, end)
+        part, why = named_part(view, name) if view else (None, None)
+        if why is not None:
+            ctx.produce("failed-step-rows.json", json.dumps([l["text"] for l in lines(view)],
+                                                             indent=1).encode())
+            ctx.fail("%s: %s" % (verb, why))
+        if (part is not None and not takes_no_press(view)) or time.monotonic() >= end:
+            break
+        pause(hand, end, (provider, pane))
     if part is None:
         ctx.produce("failed-step-parts.json", json.dumps(
             names(view) if view else "not described", indent=1).encode())
@@ -601,7 +629,8 @@ def carry(ctx, hand, step):
               % (name, "/".join(to)))
     hand.drag(start, end, int(step.get("duration_ms", CARRY_MS)),
               button=BUTTONS[step.get("button", "left")])
-    return {"carry": name, "to": to, "from": [start["x"], start["y"]], "at": [end["x"], end["y"]]}
+    return {"carry": name, "part": part["name"], "to": to, "from": [start["x"], start["y"]],
+            "at": [end["x"], end["y"]]}
 
 
 def wheel_of(step):

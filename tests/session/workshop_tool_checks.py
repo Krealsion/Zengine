@@ -3427,6 +3427,29 @@ def run_checks(tools, runtime):
             self.assertIn('{"carry": [provider, pane, part]', [i["help"] for i in said["inputs"]
                                                                if i["name"] == "steps"][0])
 
+        def test_carry_names_a_part_by_the_row_that_shows_it_where_its_name_is_an_id(self):
+            # Inventory names an entry's part by its id, which no walk can know ahead: the row's
+            # text names it, after its marker, as `select` reads a row.
+            rows = {"inventory": ["> Demo input 1 : s", "  Workbench result : s"]}
+            ctx = ActWorkshop(steps, [{"carry": ["zengine.inventory-pane", "inventory", "Workbench result : s"],
+                                       "to": ["zengine.info", "info"]}], ToolChecks.INFO_ROWS,
+                              panes=rows, named=self.INVENTORY_NAMES)
+            try:
+                act.run(ctx)
+            finally:
+                for callback in reversed(ctx.cleanups):
+                    callback()
+            self.assertEqual([(e["kind"], e["x"], e["y"]) for e in ctx.events][0], ("PointerButton", 50, 18))
+            self.assertEqual(ctx.done()[0]["carry"], "Workbench result : s")
+            self.assertEqual(ctx.done()[0]["part"], "entry:inv:e2")
+            rows = {"inventory": ["  Workbench result : s", "  Workbench result : s"]}
+            ctx = ActWorkshop(steps, [{"carry": ["zengine.inventory-pane", "inventory", "Workbench result : s"],
+                                       "to": ["zengine.info", "info"]}], ToolChecks.INFO_ROWS,
+                              panes=rows, named=self.INVENTORY_NAMES)
+            with self.assertRaisesRegex(CheckFailed, "2 rows of zengine.inventory-pane/inventory are named"):
+                act.run(ctx)
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+
     loader = unittest.defaultTestLoader
     suite = unittest.TestSuite([loader.loadTestsFromTestCase(ToolChecks),
                                 loader.loadTestsFromTestCase(SaidChecks)])
