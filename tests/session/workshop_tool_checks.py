@@ -3261,6 +3261,64 @@ def run_checks(tools, runtime):
             steps.name_capture_office(ctx, "workshop", {"powers": ["capture"]})
             self.assertFalse(hasattr(ctx, "_capture_office"))
 
+        def drag_run(self, said_on_release, hearing=True):
+            """`workshop/drag` against a Workshop that says `said_on_release` -- (text, refusal) --
+            as the release's own words; `hearing` False refuses the subscription."""
+            ctx = Context(steps, start="2,3@console", end="20,10@console")
+            produced, sub, injects = {}, SaidSub({}), {"n": 0}
+            ctx.produce = lambda name, value: produced.update({name: value})
+            plain = ctx.ask
+
+            def observe(producer, shapes, **options):
+                if not hearing:
+                    raise Refused("guest 'agent' may not observe NoticeSaid v1 from zengine.workshop")
+                return sub
+
+            def ask(office, shape, fields, **kw):
+                answer = plain(office, shape, fields, **kw)
+                if shape == "InjectInput":
+                    injects["n"] += 1
+                    answer = Answer(answer)
+                    answer.correlation = 40 + injects["n"]
+                    if injects["n"] == 2:  # the release
+                        sub.items += [Told(kind="observed", shape="NoticeSaid", seq=i, cause=answer.correlation,
+                                           fields={"number": i, "text": t, "refusal": r})
+                                      for i, (t, r) in enumerate(said_on_release, 1)]
+                return answer
+            ctx.observe, ctx.ask = observe, ask
+
+            def kept(context, link, name):
+                produced[name + ".cells.txt"] = name.encode()
+                return picture(context, link, name)
+            with patch.multiple(drag, link_session=link_status, picture=kept):
+                try:
+                    return ctx, produced, drag.run(ctx)
+                finally:
+                    for cleanup in reversed(ctx.cleanups):
+                        cleanup()
+
+        def test_drag_names_the_pictures_it_kept_and_its_inputs_are_required(self):
+            entry = entry_of("drag")
+            names = [o["name"] for o in entry["outputs"]]
+            self.assertEqual(names, ["before.<bmp|cells.txt>", "held.<bmp|cells.txt>",
+                                     "after.<bmp|cells.txt>"])
+            required = dict((i["name"], i.get("required", False)) for i in entry["inputs"])
+            self.assertTrue(required["start"] and required["end"])
+            ctx, produced, summary = self.drag_run([("Info shows Workbench result", False)])
+            self.assertIn("after.cells.txt", summary)
+            self.assertNotIn(".bmp", summary)
+
+        def test_drag_says_what_its_receiver_said_and_fails_a_refusal_or_silence(self):
+            _, _, summary = self.drag_run([("Info shows Workbench result", False)])
+            self.assertIn("Info shows Workbench result", summary)
+            with self.assertRaisesRegex(CheckFailed, "Workshop refused it: Info takes no pair here"):
+                self.drag_run([("Info takes no pair here", True)])
+            with self.assertRaisesRegex(CheckFailed, "nothing answered"):
+                self.drag_run([])
+            _, _, summary = self.drag_run([], hearing=False)
+            self.assertIn("cannot be told", summary)
+            self.assertNotIn("done", summary)
+
     loader = unittest.defaultTestLoader
     suite = unittest.TestSuite([loader.loadTestsFromTestCase(ToolChecks),
                                 loader.loadTestsFromTestCase(SaidChecks)])

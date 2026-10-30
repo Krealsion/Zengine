@@ -334,7 +334,7 @@
       "name": "drag",
       "script": "drag.py",
       "summary": "Press, move, and release once; capture Workshop before, while held, and after.",
-      "description": "Press, ask Zengine Input to follow a timed path, then release. Input owns sampling against elapsed time; the script owns only the sequence. Linear by default; a bend selects a cubic Bezier. Settlement reports delivery, not application success.",
+      "description": "Press, ask Zengine Input to follow a timed path, then release. Input owns sampling against elapsed time; the script owns only the sequence. Linear by default; a bend selects a cubic Bezier. Settlement reports delivery, not application success, so the run hears what Workshop says the press and the release caused (NoticeSaid version 1, as workshop/act does): the summary quotes it, a refusal fails the run in Workshop's words, and a drag nothing answered fails; where the row may not hear it, the summary says whether anything answered cannot be told.",
       "inputs": [
         {
           "name": "link",
@@ -345,12 +345,14 @@
         {
           "name": "start",
           "type": "text",
-          "help": "start as x,y pixels, or x,y@console / x,y@canvas terminal cells"
+          "help": "start as x,y pixels, or x,y@console / x,y@canvas terminal cells",
+          "required": true
         },
         {
           "name": "end",
           "type": "text",
-          "help": "release as x,y pixels, or x,y@console / x,y@canvas terminal cells"
+          "help": "release as x,y pixels, or x,y@console / x,y@canvas terminal cells",
+          "required": true
         },
         {
           "name": "duration_ms",
@@ -385,16 +387,16 @@
       ],
       "outputs": [
         {
-          "name": "before.bmp",
-          "help": "Workshop pixels before input"
+          "name": "before.<bmp|cells.txt>",
+          "help": "what Workshop presented before the press, as its medium gives it: a BMP in a window, cells in a terminal"
         },
         {
-          "name": "held.bmp",
-          "help": "Workshop pixels at the end of the motion, the button still held"
+          "name": "held.<bmp|cells.txt>",
+          "help": "at the end of the motion, the button still held"
         },
         {
-          "name": "after.bmp",
-          "help": "Workshop pixels after settled input"
+          "name": "after.<bmp|cells.txt>",
+          "help": "after the settled release"
         }
       ],
       "requires": [
@@ -402,7 +404,8 @@
         "a link named 'workshop' in the session's boot plan, admitted by that Workshop",
         "zengine-guest-vocabulary booted in the session host",
         "the input session free: Workshop admits one holder at a time, and every run on one link is the same holder to it",
-        "on a weaver's host, a start on neither the editor, the Terminal nor the Hotkeys pane: a guest's press there is refused, which a development host takes"
+        "on a weaver's host, a start on neither the editor, the Terminal nor the Hotkeys pane: a guest's press there is refused, which a development host takes",
+        "to hear what the drag's receiver says, a guest row whose observe names zengine.workshop NoticeSaid version 1 beside capture, as demo.py writes it"
       ],
       "asks": [
         "loom.link.StatusRequested v1 -> role loom.link.workshop",
@@ -419,7 +422,8 @@
         "InjectInput v1",
         "InputInjected v1",
         "InputSessionClosed v1",
-        "PointerMotionRequested v1"
+        "PointerMotionRequested v1",
+        "NoticeSaid v1"
       ],
       "terms": [
         "drag",
