@@ -506,14 +506,12 @@ public:
             const std::int64_t room =
                 room_columns - static_cast<std::int64_t>(prompt.size()) - 1;
             if (room > 0) {
-                typing_.line.keep_caret_visible(room);
+                const component::TextBoxCells cells = component::text_box_cells(typing_.line, room);
                 const auto at = static_cast<std::int64_t>(out.size());
-                push(prompt + typing_.line.visible(room), graphics::role::kAccent,
+                push(prompt + cells.text, graphics::role::kAccent,
                      KeysMeaning{keys_row::kFooter, 0, {}});
                 if (static_cast<std::int64_t>(out.size()) > at) {
-                    caret.row = at;
-                    caret.column = static_cast<std::int64_t>(prompt.size() +
-                                                             typing_.line.caret_column());
+                    caret = ws::box_caret(cells, at, static_cast<std::int64_t>(prompt.size()));
                 }
             } else {
                 push(prompt, graphics::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});

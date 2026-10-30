@@ -198,8 +198,7 @@ hearing it grants no reach to the weave it names. Nothing else is said unasked b
 @zengine.timer`, `@(no role)` when it was bound none, `> ` when chosen. A list that does not fit is
 windowed and counted, `  ... 2 earlier, 3 more`. Then `in-process weaves are not in the kernel's
 map`: Workshop's own weaves are not in this list. `snapshot from zen.ListLoaded` when there is room.
-With a search typed, `loaded weaves -- 1 of 4 match timer`, its caret after it, and the rows are
-the weaves it keeps.
+Searched: `loaded weaves -- 1 of 4 match [timer__________]`, a press on the box placing its caret.
 
 ### `arrangement`
 

@@ -269,11 +269,11 @@ inline FieldRow field_row(const MessageDraft& draft, std::size_t which, bool cho
     if (!editing) {
         return {fit(row + "  [" + fit(d.value.text(), room) + "]", columns)};
     }
-    const std::string shown = d.value.visible(room);
-    const std::size_t at = d.value.caret_column();
+    const zengine::component::TextBoxCells cells = zengine::component::text_box_cells(d.value, room);
     row += "  [";
-    const auto caret = static_cast<std::int64_t>(row.size() + (at <= shown.size() ? at : shown.size()));
-    const std::string whole = row + shown + " ]";
+    const auto caret =
+        static_cast<std::int64_t>(row.size()) + (std::min)(cells.caret, cells.text_columns);
+    const std::string whole = row + cells.text + " ]";
     const std::string drawn = fit(whole, columns);
     return {drawn, drawn.size() == whole.size() ? caret : zengine::workshop::kNoCaret};
 }

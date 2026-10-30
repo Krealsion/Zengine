@@ -165,7 +165,7 @@ their keymap file: the key says the button's intent, the keymap says what it cau
 the action's"
 
 ### WL-DESK-17
-`workshop/desktop-pane/manual_reader.hpp` keys_of with_keys manual_lines
+`workshop/desktop-pane/manual_reader.hpp` keys_of with_keys manual_text
 `workshop/desktop-pane/vocabulary.hpp` kManualPane kActionManual
 `workshop/desktop-pane/pane.cpp` DesktopWeave
 `workshop/desktop-pane/manual_view.hpp` ManualView show_manual document_shown inventory_said

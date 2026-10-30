@@ -370,7 +370,8 @@ One line up.
 One line down.
 
 - **Takes:** the manual shown. Default key <!-- key manual.down -->`down`<!-- /key -->.
-- **Answers:** the lines move; the last line says how many more are below.
+- **Answers:** the lines move. In a terminal a line at the foot says how many more are below, and
+  one atop how many are above; in a window the bar on the right shows where the text stands.
 - **Refuses:** nothing.
 - **Example:** <!-- key manual.down -->`down`<!-- /key -->.
 
@@ -391,6 +392,26 @@ The last lines.
 - **Answers:** the manual's last lines.
 - **Refuses:** nothing.
 - **Example:** <!-- key manual.bottom -->`end`<!-- /key -->.
+
+### `manual.copy`
+
+Copies the selected text, as the page wrote it: the lines it was wrapped into join again.
+
+- **Takes:** the manual shown, with text selected by dragging across it (Shift and a press extends
+  a selection). Default key <!-- key manual.copy -->`ctrl+c`<!-- /key -->.
+- **Answers:** the selection on the clipboard (`ClipboardCopy`); with nothing selected, nothing.
+- **Refuses:** nothing.
+- **Example:** drag across a command's words, then <!-- key manual.copy -->`ctrl+c`<!-- /key -->.
+
+### `manual.all`
+
+Selects the whole manual.
+
+- **Takes:** the manual shown. Default key <!-- key manual.all -->`ctrl+a`<!-- /key -->.
+- **Answers:** every line selected.
+- **Refuses:** nothing.
+- **Example:** <!-- key manual.all -->`ctrl+a`<!-- /key -->, then
+  <!-- key manual.copy -->`ctrl+c`<!-- /key -->.
 
 ### `manual.close`
 
@@ -447,6 +468,18 @@ or `(none)` and what reading it came to.
 ### `line`
 
 The spelling line, `key for <id>: `, while [`hotkeys.commit`](#hotkeyscommit) waits for a spelling.
+
+### `manual.text`
+
+The Manual's text in a window, under the heading `MANUAL -- <office>/<pane>`: wrapped to the pane's
+width, scrolled smoothly, the selection on a quiet ground. A press puts the start of a selection
+there and a drag extends it. In a terminal the same text stands on rows, `3 more above...` atop and
+`... 3 more below` at the foot where lines are hidden.
+
+### `manual.bar`
+
+The bar on the right of the Manual's text in a window, its thumb where the text stands while the
+text is longer than the pane; a press or a drag on it moves the text there.
 
 ## Files
 

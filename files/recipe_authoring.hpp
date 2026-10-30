@@ -578,13 +578,12 @@ inline void FilesWeave::say_field(std::size_t i) {
         const std::string prompt = active_prompt();
         const std::int64_t prompt_cols = static_cast<std::int64_t>(prompt.size());
         const std::int64_t cols = columns() > prompt_cols + 1 ? columns() - prompt_cols - 1 : 1;
-        authoring_.line.keep_caret_visible(cols);
+        const component::TextBoxCells cells = component::text_box_cells(authoring_.line, cols);
         if (room().next_row() < rows()) {
             room().caret().row = room().next_row();
-            room().caret().column =
-                prompt_cols + static_cast<std::int64_t>(authoring_.line.caret_column());
+            room().caret().column = prompt_cols + cells.caret;
         }
-        push_row(prompt + authoring_.line.visible(cols), zengine::graphics::role::kAccent,
+        push_row(prompt + cells.text, zengine::graphics::role::kAccent,
                  FilesMeaning{files_row::kLine, i, {}, field.name});
         return;
     }

@@ -5,7 +5,8 @@
 #define ZENGINE_DESKTOP_PANE_MANUAL_VIEW_HPP
 
 // The Manual: the manual of the pane whose `?` a weaver pressed, asked of that pane's office under
-// a number of this image's own and shown beside the keys in force, through a window of its lines.
+// a number of this image's own and shown beside the keys in force, in a text area: wrapped to the
+// pane's width, scrolled, its text selected and copied.
 // It keeps the words only while its pane is on the desk; the weave routes its messages here.
 // Workshop law: agents/workshop/desktop-presenting.md
 
@@ -14,12 +15,15 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
+#include "workshop/pane_drawing.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "component/row_map.hpp"
+#include "component/text_area.hpp"
+#include "graphics/elements/text_face.hpp"
 #include "graphics/role.hpp"
 #include "input/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
@@ -27,6 +31,7 @@
 #include <zen/weave.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -38,7 +43,8 @@ namespace zengine::desktop_pane {
 
 class ManualView {
 public:
-    /// THE MANUAL'S ROWS: the lines up and down, its two ends, and Escape, which closes it.
+    /// THE MANUAL'S ROWS: the lines up and down, its two ends, the copy, everything selected, and
+    /// Escape, which closes it.
     static std::vector<ws::v3::PaneActionRow> manual_rows() {
         using ws::v3::PaneActionRow;
         return {PaneActionRow{kActionManualUp, "line up", input::scan::kUp, input::mod::kNone},
@@ -46,6 +52,8 @@ public:
                               input::mod::kNone},
                 PaneActionRow{kActionManualTop, "top", input::scan::kHome, input::mod::kNone},
                 PaneActionRow{kActionManualBottom, "bottom", input::scan::kEnd, input::mod::kNone},
+                PaneActionRow{kActionManualCopy, "copy", input::scan::kC, input::mod::kCtrl},
+                PaneActionRow{kActionManualAll, "select all", input::scan::kA, input::mod::kCtrl},
                 PaneActionRow{kActionManualClose, "close", input::scan::kEscape, input::mod::kNone,
                               {},
                               {ws::cause_of<ws::PaneCloseRequested>(
@@ -108,7 +116,7 @@ public:
             return;
         }
         manual_.asked = 0;
-        manual_.first = 0;
+        manual_.text.clear();
         if (!shown.refusal.empty()) {
             manual_.word = shown.refusal;
             manual_.words.reset();
@@ -159,9 +167,16 @@ public:
         } else if (id == kActionManualDown) {
             manual_scroll(+1);
         } else if (id == kActionManualTop) {
-            manual_.first = 0;
+            manual_.text.scroll_home();
         } else if (id == kActionManualBottom) {
-            manual_scroll(static_cast<std::int64_t>(manual_.lines));
+            manual_scroll(kFurthest);
+        } else if (id == kActionManualCopy) {
+            if (manual_.text.has_selection()) {
+                mail.publish(graphics::ClipboardCopy{manual_.text.selected_text()});
+            }
+            return;
+        } else if (id == kActionManualAll) {
+            manual_.text.select_all();
         } else if (id == kActionManualClose) {
             close(mail, kDesktopRole, kManualPane, launches);
             return;
@@ -171,8 +186,19 @@ public:
         say_manual(keys_heard, keymap, mail);
     }
 
-    /// THE WHEEL MOVES THE WINDOW, one line per notch, fractions carried (Powers' convention).
+    /// THE WHEEL SCROLLS THE TEXT a line a notch: freely in a window that sets type, a notch's
+    /// part a line's part; in a room of cells a whole line, fractions carried (Powers' convention).
     void wheel(double dy, bool keys_heard, const ws::KeymapShown& keymap, loom::Mail& mail) {
+        if (!manual_canvas_.room().cells) {
+            const auto units = static_cast<std::int64_t>(
+                std::llround(-dy * static_cast<double>(component::TextArea::kUnitsPerLine)));
+            if (units != 0) {
+                const graphics::TextAreaGeometry g = geometry();
+                manual_.text.scroll_by(units, g.columns, g.shown);
+                say_manual(keys_heard, keymap, mail);
+            }
+            return;
+        }
         const std::int64_t notches = take_notches(manual_.wheel, dy);
         if (notches != 0) {
             manual_scroll(-notches);
@@ -180,10 +206,60 @@ public:
         }
     }
 
+    /// A HAND ON THE MANUAL: a primary press on its text puts the caret there and starts a
+    /// selection, Shift extending one; a move while held extends it; a press or a drag on the bar
+    /// moves the text there; the release ends either. True when the moment was the text's or the
+    /// bar's.
+    bool pointer(const ws::WindowPointer& p, bool keys_heard, const ws::KeymapShown& keymap,
+                 loom::Mail& mail) {
+        if (p.phase == ws::canvas_pointer::kRelease || p.phase == ws::canvas_pointer::kLost) {
+            const bool was = manual_.held || manual_.barred;
+            manual_.held = false;
+            manual_.barred = false;
+            return was;
+        }
+        const bool press = p.phase == ws::canvas_pointer::kPress && p.button == 1;
+        const bool drag = p.phase == ws::canvas_pointer::kMove && p.press != 0 &&
+                          (manual_.held || manual_.barred);
+        if (!press && !drag) {
+            return false;
+        }
+        const bool fresh = press && (p.modifiers & input::mod::kShift) == 0;
+        const ws::RowsRoom room = manual_canvas_.room();
+        if (!room.cells) {
+            const graphics::TextAreaGeometry g = geometry();
+            const std::int64_t y = p.y - room.text.line; // the heading stands above the text
+            if ((press && graphics::text_area_on_bar(g, p.x, y)) || (drag && manual_.barred)) {
+                manual_.barred = true;
+                manual_.text.scroll_to(graphics::text_area_bar_scroll(g, y), g.lines, g.shown);
+                say_manual(keys_heard, keymap, mail);
+                return true;
+            }
+            if (press && y < 0) {
+                return false;
+            }
+            if (const auto at = graphics::text_area_place_at(manual_.text, g, p.x, y)) {
+                select_to(*at, fresh);
+                say_manual(keys_heard, keymap, mail);
+                return true;
+            }
+            return false;
+        }
+        const component::TextArea::Cells cells =
+            manual_.text.cells(body_rows(), manual_canvas_.columns());
+        if (const auto at = manual_.text.place_at(cells, p.at.row - 1, p.at.column)) {
+            select_to(*at, fresh);
+            say_manual(keys_heard, keymap, mail);
+            return true;
+        }
+        return false;
+    }
+
     // ---- What it shows ------------------------------------------------------------------------
 
-    /// THE MANUAL AS ITS PANE SHOWS IT: which pane it is about, then its lines from the window's
-    /// first, and a line that says how many more there are below.
+    /// THE MANUAL AS ITS PANE SHOWS IT: which pane it is about, then its text: in a room of cells
+    /// its lines from the scroll's, a marker for the lines above and below, and its selection; in
+    /// a window that sets type the area's face over those rows (`RowsTextArea`).
     void say_manual(bool keys_heard, const ws::KeymapShown& keymap, loom::Mail& mail) {
         const std::int64_t room_rows = manual_canvas_.rows();
         const std::int64_t room_columns = manual_canvas_.columns();
@@ -212,41 +288,75 @@ public:
             publish_manual(mail, std::move(out));
             return;
         }
-        const std::vector<ws::TextRow> lines =
-            manual_reader::manual_lines(*manual_.words, keymap, room_columns);
-        manual_.lines = lines.size();
-        manual_scroll(0);
-        const std::size_t end = std::min(lines.size(), manual_.first + manual_window());
-        for (std::size_t i = manual_.first; i < end; ++i) {
-            push(lines[i].text, lines[i].role);
+        manual_reader::ManualText text = manual_reader::manual_text(*manual_.words, keymap);
+        manual_.text.set(std::move(text.text), std::move(text.looks));
+        const std::int64_t body = body_rows();
+        const component::TextArea::Cells cells = manual_.text.cells(body, room_columns);
+        const auto first = static_cast<std::int64_t>(out.size());
+        ws::RowsCaret caret;
+        for (std::size_t i = 0; i < cells.rows.size(); ++i) {
+            const component::TextArea::CellRow& row = cells.rows[i];
+            const std::int64_t at = first + static_cast<std::int64_t>(i);
+            if (row.selection_end > row.selection_begin) {
+                if (caret.sel_begin_row == ws::kNoSelection) {
+                    caret.sel_begin_row = at;
+                    caret.sel_begin_col = row.selection_begin;
+                }
+                caret.sel_end_row = at;
+                caret.sel_end_col = row.selection_end;
+            }
+            push(row.text, row.marker ? graphics::role::kMuted : row.look.role);
         }
-        if (end < lines.size()) {
-            push("  v " + std::to_string(lines.size() - end) + " more lines below",
-                 graphics::role::kMuted);
-        }
-        publish_manual(mail, std::move(out));
+        std::vector<ws::RowsTextArea> areas;
+        areas.push_back(
+            ws::RowsTextArea{first, body, manual_.text, kManualTextPart, kManualBarPart});
+        publish_manual(mail, std::move(out), caret, std::move(areas));
     }
 
 private:
-    /// THE WINDOW'S LINES: the room less the heading and the line that says what is below.
-    std::size_t manual_window() const {
-        return static_cast<std::size_t>(std::max<std::int64_t>(manual_canvas_.rows() - 2, 1));
+    /// As far as the text goes: the bottom's scroll, held inside the text by the area.
+    static constexpr std::int64_t kFurthest = std::int64_t{1} << 30;
+
+    /// THE ROWS THE TEXT STANDS ON: the room less the heading.
+    std::int64_t body_rows() const { return std::max<std::int64_t>(manual_canvas_.rows() - 1, 1); }
+
+    /// Where the text stands in a window that sets type: under the heading, the room's width.
+    graphics::TextAreaGeometry geometry() const {
+        const ws::RowsRoom room = manual_canvas_.room();
+        return graphics::text_area_geometry(manual_.text, room.width, body_rows() * room.text.line,
+                                            room.text);
     }
 
-    /// THE WINDOW MOVES BY `by` LINES, held inside the manual's lines.
+    /// THE TEXT MOVES BY `by` LINES, held inside it: a line of the cells, or a line's height in a
+    /// window.
     void manual_scroll(std::int64_t by) {
-        const std::int64_t last = std::max<std::int64_t>(
-            static_cast<std::int64_t>(manual_.lines) - static_cast<std::int64_t>(manual_window()),
-            0);
-        manual_.first = static_cast<std::size_t>(
-            std::clamp<std::int64_t>(static_cast<std::int64_t>(manual_.first) + by, 0, last));
+        if (manual_canvas_.room().cells) {
+            manual_.text.scroll_lines(by, manual_canvas_.columns(), body_rows());
+            return;
+        }
+        const graphics::TextAreaGeometry g = geometry();
+        const std::int64_t units =
+            std::clamp<std::int64_t>(by, -kFurthest, kFurthest) * component::TextArea::kUnitsPerLine;
+        manual_.text.scroll_by(units, g.columns, g.shown);
     }
 
-    /// The Manual's rows, drawn in its area. A press there means nothing.
-    void publish_manual(loom::Mail& mail, std::vector<ws::TextRow> rows) {
+    /// A press or a drag reaching `at`: a fresh press puts the caret there, anything else extends.
+    void select_to(std::size_t at, bool fresh) {
+        if (fresh) {
+            manual_.text.press(at);
+            manual_.held = true;
+        } else {
+            manual_.text.drag_to(at);
+        }
+    }
+
+    /// The Manual's rows, drawn in its area with its selection and its text area. A press on a row
+    /// means nothing; the text and the bar hear the hand (`pointer`).
+    void publish_manual(loom::Mail& mail, std::vector<ws::TextRow> rows,
+                        const ws::RowsCaret& caret = {}, std::vector<ws::RowsTextArea> areas = {}) {
         manual_map_.begin();
         (void)manual_map_.settle();
-        manual_canvas_.publish_rows(mail, std::move(rows));
+        manual_canvas_.publish_rows(mail, std::move(rows), {}, caret, 0, std::move(areas));
     }
 
     // ---- State not in the shape ----------------------------------------------------------
@@ -260,8 +370,9 @@ private:
         loom::Ticket sent{};      ///< ...and its queued attempt, which a refusal names
         std::optional<ws::PaneDocumentShown> words;
         std::string word;         ///< what it says where it has no words: asking, or a refusal
-        std::size_t first = 0;    ///< the window's first line
-        std::size_t lines = 0;    ///< ...and how many lines it last composed
+        component::TextArea text; ///< the words as the area holds them: scroll and selection
+        bool held = false;        ///< a press on the text is held: a move extends the selection
+        bool barred = false;      ///< ...or one on the bar: a move scrolls
         double wheel = 0.0;
     };
     ManualShown manual_;

@@ -783,6 +783,8 @@ private:
     /// WHICH COMPOSED ROW IS THE INPUT LINE, and where the list is -- written by `say` and
     /// read by a press, so a press and a picture cannot disagree about what is where.
     std::int64_t input_row_ = -1;
+    /// The line as the input row last showed it: its slice, caret and selection from one window.
+    component::TextBoxCells line_cells_;
     std::int64_t list_first_row_ = -1;
     std::int64_t list_row_count_ = 0;
     std::size_t list_shown_first_ = 0;

@@ -897,24 +897,19 @@ private:
             std::string text =
                 std::string(here || editing ? ">" : " ") +
                 workshop::pane_text::pad(p.label, static_cast<std::size_t>(kPropertyLabelCols));
+            component::TextBoxCells cells;
             if (editing) {
                 // THE WINDOW FOLLOWS THE CARET, so a long value scrolls to where the weaver is
                 // typing.
-                draft_.line.keep_caret_visible(value_columns);
-                text += draft_.line.visible(value_columns);
+                cells = component::text_box_cells(draft_.line, value_columns);
+                text += cells.text;
             } else {
                 text += workshop::pane_text::fit(p.value, value_columns);
             }
             mark(Placed::kProperty, i);
             if (editing && value_columns > 0) {
-                const std::int64_t at = kPropertyMarkCols + kPropertyLabelCols;
-                caret_.row = composed_.back().row;
-                caret_.column = at + static_cast<std::int64_t>(draft_.line.caret_column());
-                if (const auto span = draft_.line.visible_selection(value_columns); span.present()) {
-                    caret_.sel_begin_row = caret_.sel_end_row = caret_.row;
-                    caret_.sel_begin_col = at + span.begin;
-                    caret_.sel_end_col = at + span.end;
-                }
+                caret_ = workshop::box_caret(cells, composed_.back().row,
+                                             kPropertyMarkCols + kPropertyLabelCols);
             }
             push(std::move(text), role);
         }

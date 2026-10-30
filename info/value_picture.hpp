@@ -134,18 +134,11 @@ public:
             if (!s.notice.empty()) push(s.notice, graphics::role::kAlert);
             push(s.typing, graphics::role::kFill);
             const std::int64_t room = std::max<std::int64_t>(0, width - 2);
-            line.keep_caret_visible(room);
+            const component::TextBoxCells cells = component::text_box_cells(line, room);
             if (room > 0 && static_cast<std::int64_t>(out.rows.size()) < s.rows) {
-                const auto row = static_cast<std::int64_t>(out.rows.size());
-                caret_.row = row;
-                caret_.column = 2 + static_cast<std::int64_t>(line.caret_column());
-                if (const auto span = line.visible_selection(room); span.present()) {
-                    caret_.sel_begin_row = caret_.sel_end_row = row;
-                    caret_.sel_begin_col = 2 + span.begin;
-                    caret_.sel_end_col = 2 + span.end;
-                }
+                caret_ = workshop::box_caret(cells, static_cast<std::int64_t>(out.rows.size()), 2);
             }
-            push("> " + line.visible(room), graphics::role::kAccent);
+            push("> " + cells.text, graphics::role::kAccent);
             push("Enter keeps it; Escape cancels", graphics::role::kMuted);
             (void)map_.settle();
             return out;

@@ -301,15 +301,16 @@ inline std::int64_t BuilderPaneWeave::spelled_column_byte(const std::string& sho
 
 inline void BuilderPaneWeave::say_role() {
     const std::string prompt = active_role_prompt();
-    const std::int64_t cols = role_value_columns(prompt);
-    role_.line.keep_caret_visible(cols);
-    const std::string shown = role_.line.visible(cols);
+    const component::TextBoxCells cells =
+        component::text_box_cells(role_.line, role_value_columns(prompt));
+    const std::string& shown = cells.text;
     if (static_cast<std::int64_t>(room().composing().size()) < rows()) {
         // THE CARET STANDS AFTER WHAT IS DRAWN BEFORE IT: the row is spelled in what a canvas
         // draws, so its column is counted in the spelled characters, not the typed bytes.
         room().caret().row = static_cast<std::int64_t>(room().composing().size());
         room().caret().column = static_cast<std::int64_t>(
-            ascii_spelling(prompt + shown.substr(0, role_.line.caret_column())).size());
+            ascii_spelling(prompt + shown.substr(0, static_cast<std::size_t>(cells.caret)))
+                .size());
     }
     push_row(prompt + shown, zengine::graphics::role::kAccent,
              BuilderMeaning{builder_row::kLine, 0, {}, role_.stem});

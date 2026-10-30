@@ -3580,7 +3580,14 @@ std::vector<std::string> manual_shown(BuilderRig& b) {
 }
 
 bool more_below(const std::vector<std::string>& rows) {
-    return !rows.empty() && rows.back().find("more lines below") != std::string::npos;
+    return !rows.empty() && rows.back().rfind("... ", 0) == 0 &&
+           rows.back().find(" more below") != std::string::npos;
+}
+
+/// How many lines the Manual's marker atop says are above, 0 where it shows none.
+std::size_t more_above(const std::vector<std::string>& rows) {
+    if (rows.size() < 2 || rows[1].find(" more above...") == std::string::npos) return 0;
+    return static_cast<std::size_t>(std::stoul(rows[1]));
 }
 
 /// PRESS INTO THE MANUAL, so its keys are the ones a key reaches.
@@ -3594,19 +3601,27 @@ void focus_manual(BuilderRig& b) {
     }
 }
 
-/// THE MANUAL'S WHOLE TEXT, AS ITS PANE SHOWS IT: the pane pressed into, its window taken to the
-/// top, then walked a line at a time with its own key, each new last line kept.
+/// THE MANUAL'S WHOLE TEXT, AS ITS PANE SHOWS IT: the pane pressed into, its text taken to the
+/// top, then walked a line at a time with its own key, each shown line kept at its place -- the
+/// count the marker atop says is above, and its row under that marker.
 std::vector<std::string> read_manual(BuilderRig& b) {
     focus_manual(b);
     b.r.key(input::scan::kHome);
-    std::vector<std::string> rows = manual_shown(b);
-    REQUIRE(rows.size() >= 2);
-    std::vector<std::string> lines(rows.begin() + 1, rows.end() - (more_below(rows) ? 1 : 0));
-    for (int guard = 0; more_below(rows) && guard < 4000; ++guard) {
-        b.r.key(input::scan::kDown);
+    std::vector<std::string> lines;
+    std::vector<std::string> rows;
+    for (int guard = 0; guard < 4000; ++guard) {
         rows = manual_shown(b);
         REQUIRE(rows.size() >= 2);
-        lines.push_back(rows[rows.size() - (more_below(rows) ? 2 : 1)]);
+        const std::size_t above = more_above(rows);
+        const std::size_t from = above > 0 ? 2 : 1;
+        const std::size_t to = rows.size() - (more_below(rows) ? 1 : 0);
+        for (std::size_t i = from; i < to; ++i) {
+            const std::size_t at = above + (i - from);
+            if (lines.size() <= at) lines.resize(at + 1);
+            lines[at] = rows[i];
+        }
+        if (!more_below(rows)) break;
+        b.r.key(input::scan::kDown);
     }
     CHECK_FALSE(more_below(rows));
     return lines;

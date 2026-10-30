@@ -328,20 +328,15 @@ void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
     std::int64_t sel_begin = 0;
     std::int64_t sel_end = 0;
     if (naming) {
-        const std::int64_t cols = setup_name_columns(s, sc);
-        const std::string shown = s.setup.naming.line.visible(cols);
-        const component::TextBox::VisibleSpan vis =
-            s.setup.naming.line.visible_selection(cols);
+        const component::TextBoxCells cells =
+            component::text_box_cells(s.setup.naming.line, setup_name_columns(s, sc));
+        const std::string& shown = cells.text;
         const std::int64_t prompt =
             static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt));
-        const std::int64_t at =
-            static_cast<std::int64_t>(s.setup.naming.line.caret_column());
-        caret_col = prompt + (at < static_cast<std::int64_t>(shown.size())
-                                  ? at
-                                  : static_cast<std::int64_t>(shown.size()));
-        if (vis.present()) {
-            sel_begin = prompt + vis.begin;
-            sel_end = prompt + vis.end;
+        caret_col = prompt + (std::min)(cells.caret, cells.text_columns);
+        if (cells.selected()) {
+            sel_begin = prompt + cells.selection_begin;
+            sel_end = prompt + cells.selection_end;
         }
         identity = detail::fit(std::string(kSetupNamePrompt) + shown +
                                    setup_name_hint(s.keymap, s.band_keys),

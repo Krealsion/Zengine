@@ -351,11 +351,11 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     // it is about what to do NEXT rather than about what a word means, and because it
     // erases itself: the moment a weaver types anything the line has their text on it.
     const std::int64_t visible = columns() - kPromptCols - kCaretCols;
-    line_.keep_caret_visible(visible > 0 ? visible : 0);
+    line_cells_ = component::text_box_cells(line_, visible > 0 ? visible : 0);
     input_row_ = static_cast<std::int64_t>(out.size());
     const bool prompting = line_.empty() && !list_open;
     push(prompting ? prompt_ + "    Tab: what can this terminal say?  Up: recall a command"
-                   : prompt_ + " " + line_.visible(visible > 0 ? visible : 0),
+                   : prompt_ + " " + line_cells_.text,
          known_.attached ? zengine::graphics::role::kAccent : zengine::graphics::role::kAlert);
 
     if (static_cast<std::int64_t>(out.size()) > rows()) {
@@ -424,20 +424,17 @@ inline ws::RowsCaret TerminalPaneWeave::caret() const {
     if (input_row_ < 0) {
         return caret;
     }
-    const std::int64_t visible = columns() - kPromptCols - kCaretCols;
     caret.row = input_row_;
-    caret.column = kPromptCols + static_cast<std::int64_t>(line_.caret_column());
-    // AND THE SELECTION, THE SAME WAY: the visible part of the component's own range,
-    // prompt-shifted by the same arithmetic the caret goes through. A selection scrolled
-    // wholly off the slice says nothing, which is the truthful picture of a row that
-    // shows none of it.
-    const component::TextBox::VisibleSpan span =
-        line_.visible_selection(visible > 0 ? visible : 0);
-    if (span.present()) {
+    caret.column = kPromptCols + line_cells_.caret;
+    // AND THE SELECTION, THE SAME WAY: the visible part of the component's own range, from the
+    // cells the row was written with, prompt-shifted by the same arithmetic the caret goes
+    // through. A selection scrolled wholly off the slice says nothing, which is the truthful
+    // picture of a row that shows none of it.
+    if (line_cells_.selected()) {
         caret.sel_begin_row = input_row_;
-        caret.sel_begin_col = kPromptCols + span.begin;
+        caret.sel_begin_col = kPromptCols + line_cells_.selection_begin;
         caret.sel_end_row = input_row_;
-        caret.sel_end_col = kPromptCols + span.end;
+        caret.sel_end_col = kPromptCols + line_cells_.selection_end;
     }
     return caret;
 }

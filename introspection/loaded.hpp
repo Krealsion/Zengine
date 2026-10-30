@@ -15,6 +15,7 @@
 // every grant, replaced whole by the next reading. No mirror of what is loaded, no diff, no
 // arrival or departure, no timestamp.
 
+#include "component/text_box.hpp"
 #include "graphics/role.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_text.hpp"
@@ -151,15 +152,21 @@ inline bool names(const std::vector<LoadedWeave>& weaves, std::string_view name)
 /// The pane's content and the map back from it: `rows` go to Workshop, `shown` are the entries
 /// that reached a row, and `entry_of_row` indexes `shown` or is `kNoEntry`. The omission marker
 /// is `kNoEntry`: a count, not a hidden entry. Bounded by the room, never by the population.
-/// `listed` is how many weaves the search keeps, and `search_column` where the search stands on
-/// the heading, none when no search is typed or the heading was cut.
+/// `listed` is how many weaves the search keeps, `search_column` where the search's box stands on
+/// the heading, none when no search is typed or the heading has no room for the box, and `search`
+/// the box's cells there.
 struct LoadedView {
     std::vector<workshop::TextRow> rows;
     std::vector<LoadedWeave> shown;
     std::vector<std::int64_t> entry_of_row;
     std::size_t listed = 0;
     std::int64_t search_column = -1;
+    component::TextBoxCells search;
 };
+
+/// The fewest columns the search's box takes on the heading, room allowing: a search a few
+/// characters long still reads as a box to type in.
+inline constexpr std::int64_t kSearchBoxLeast = 16;
 
 /// Does this weave's name or office hold the search, ignoring case? An empty search holds every
 /// weave.
@@ -245,8 +252,9 @@ inline void mark_selected(LoadedView& view, std::string_view selected, std::int6
 /// (`mark_selected` applies a selection), and inside the room, since a row past it is not drawn.
 inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std::int64_t rows,
                                  std::int64_t columns, std::size_t origin = 0,
-                                 std::string_view search = {}) {
+                                 component::TextBox* box = nullptr) {
     LoadedView view;
+    const std::string search = box != nullptr ? box->text() : std::string();
     std::vector<LoadedWeave> weaves;
     for (const LoadedWeave& w : population) {
         if (matches(w, search)) {
@@ -262,17 +270,28 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
     if (rows <= 0 || columns <= 0) {
         return view;
     }
-    // THE HEADING STATES THE POPULATION, and a search's narrowing beside it, the search last.
+    // THE HEADING STATES THE POPULATION, and a search's narrowing beside it, the search last, in a
+    // box seen as a box where the heading has room for one.
     std::string heading = "loaded weaves -- " + std::to_string(population.size());
+    workshop::RowBox boxed;
     if (!search.empty()) {
         const std::string narrowed = "loaded weaves -- " + std::to_string(weaves.size()) + " of " +
                                      std::to_string(population.size()) + " match ";
-        heading = narrowed + spelled(std::string(search));
-        if (static_cast<std::int64_t>(heading.size()) <= columns) {
+        heading = narrowed + spelled(search);
+        const std::int64_t room = columns - static_cast<std::int64_t>(narrowed.size());
+        if (room >= 3) {
+            const std::int64_t width = std::min<std::int64_t>(
+                room, std::max<std::int64_t>(kSearchBoxLeast,
+                                             static_cast<std::int64_t>(search.size()) + 3));
+            view.search = component::text_box_cells(*box, width, true);
             view.search_column = static_cast<std::int64_t>(narrowed.size());
+            heading = narrowed + view.search.text;
+            boxed = workshop::row_box(view.search, view.search_column);
         }
     }
-    say(workshop::TextRow{fit(heading, columns), graphics::role::kAccent}, kNoEntry);
+    workshop::TextRow top{fit(heading, columns), graphics::role::kAccent};
+    top.box = boxed;
+    say(std::move(top), kNoEntry);
 
     std::int64_t left = rows - 1;
     // The caveat, unless taking it would leave the list with no row at all.

@@ -173,7 +173,7 @@ public:
             selected_.clear();
         }
         view_ = project_loaded(read, rows(), columns(), static_cast<std::size_t>(origin_),
-                               search_.text());
+                               &search_);
         total_ = static_cast<std::int64_t>(view_.listed);
         origin_ = std::min(origin_, total_ - static_cast<std::int64_t>(view_.shown.size()));
         mark_selected(view_, selected_, columns());
@@ -187,7 +187,15 @@ public:
     /// publishes twice (a selection is an occurrence) and re-sends no picture. Published, not
     /// addressed: who ought to care is not this pane's decision; as this office, because a fact
     /// about a weaver's gesture is worth what its office is. True when it published.
-    bool press(std::int64_t pressed_row, loom::Mail& mail) {
+    bool press(std::int64_t pressed_row, loom::Mail& mail, std::int64_t pressed_column = -1) {
+        // THE SEARCH'S BOX, pressed anywhere in it, its blank room and border included: the caret
+        // goes where the press names, and nothing is selected.
+        if (pressed_row == 0 && view_.search_column >= 0 && pressed_column >= view_.search_column &&
+            pressed_column < view_.search_column + view_.search.columns) {
+            component::text_box_press(search_, view_.search, pressed_column - view_.search_column);
+            say(mail);
+            return false;
+        }
         const LoadedWeave* entry = entry_at_row(view_, pressed_row);
         if (entry == nullptr) {
             return false; // a heading, a note, an omission marker, a blank, or no projection at all
@@ -288,8 +296,11 @@ private:
     void say(loom::Mail& mail) {
         workshop::RowsCaret caret;
         if (view_.search_column >= 0) {
-            const std::int64_t at =
-                view_.search_column + static_cast<std::int64_t>(search_.caret_column());
+            view_.search = component::text_box_cells(search_, view_.search.columns, true);
+            view_.rows[0].text.replace(static_cast<std::size_t>(view_.search_column),
+                                       view_.search.text.size(), view_.search.text);
+            view_.rows[0].box = workshop::row_box(view_.search, view_.search_column);
+            const std::int64_t at = view_.search_column + view_.search.caret;
             if (at < columns()) {
                 caret.row = 0;
                 caret.column = at;

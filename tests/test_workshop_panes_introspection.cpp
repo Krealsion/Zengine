@@ -1755,8 +1755,14 @@ TEST_CASE("Loaded's search: typed text narrows its rows to the weaves whose name
     auto before = asked();
     r.text("PLAIN");
     CHECK(weaves() == std::vector<std::string>{"zengine-plain-weave"});
-    // ...THE CARET DRAWN AFTER THE SEARCH, on the heading.
-    CHECK(loaded_rows(r, kind).at(0) == "loaded weaves -- 1 of " + population + " match PLAIN|");
+    // ...THE SEARCH IN A BOX SEEN AS A BOX on the heading, its blank room spelled `_` in cells, and
+    // the caret after the search drawn on the first of them.
+    const auto boxed = [](const std::string& search) {
+        return "[" + search +
+               std::string(static_cast<std::size_t>(intro::kSearchBoxLeast) - 2 - search.size(), '_') +
+               "]";
+    };
+    CHECK(loaded_rows(r, kind).at(0) == "loaded weaves -- 1 of " + population + " match " + boxed("PLAIN"));
     CHECK(asked() > before);
     // BACKSPACE WIDENS IT AGAIN, and an empty search shows every weave.
     for (int i = 0; i < 5; ++i) r.key(input::scan::kBackspace);
@@ -1769,10 +1775,16 @@ TEST_CASE("Loaded's search: typed text narrows its rows to the weaves whose name
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
     REQUIRE(ears.heard.size() == 1);
     CHECK(ears.heard.back().library == "zengine-plain-weave");
+    // THE WHOLE BOX IS PRESSABLE: the caret sent home, a press on the box's blank room puts it
+    // back at the end of the search, where the next character goes.
+    r.key(input::scan::kHome);
+    const auto box_at = static_cast<std::int64_t>(
+        std::string("loaded weaves -- 1 of " + population + " match ").size());
+    r.press_cell(body.x + box_at + intro::kSearchBoxLeast - 3, body.y + kExternalHeaderRows);
     // A SEARCH THAT HIDES THE SELECTED WEAVE keeps it selected: widened again, it is marked.
     r.text("x");
     CHECK(weaves().empty());
-    CHECK(loaded_rows(r, kind).at(0) == "loaded weaves -- 0 of " + population + " match test.px|");
+    CHECK(loaded_rows(r, kind).at(0) == "loaded weaves -- 0 of " + population + " match " + boxed("test.px"));
     r.key(input::scan::kBackspace);
     bool marked = false;
     for (const std::string& row : loaded_rows(r, kind))

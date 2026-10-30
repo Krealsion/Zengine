@@ -371,11 +371,12 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         std::int64_t caret_at = -1;
         if (shape.find) {
             const std::int64_t room = shape.query_room - 1;
-            const std::string shown = ui.query.visible(room > 0 ? room : 0);
-            const std::size_t at = ui.query.caret_column();
+            const component::TextBoxCells cells =
+                component::text_box_cells(ui.query, room > 0 ? room : 0);
             text += gap + kFindLabel;
-            caret_at = static_cast<std::int64_t>(text.size() + (at <= shown.size() ? at : shown.size()));
-            text += shown;
+            caret_at = static_cast<std::int64_t>(text.size()) +
+                       (std::min)(cells.caret, cells.text_columns);
+            text += cells.text;
         }
         const std::string drawn = fit(text, columns);
         const std::int64_t solid = detail::solid_columns(drawn, text.size());
