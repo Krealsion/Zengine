@@ -54,7 +54,10 @@ python external-host/demo.py reset --root demo-runs/workbench
 python external-host/demo.py stop --root demo-runs/workbench
 ```
 
-Substitute your build tree and installed prefix. A missing prerequisite is named, with the flag or
+Substitute your build tree and installed prefix, and `python` with your interpreter's name: the
+hints `status` prints name the one running `demo.py`. `walk` with no name lists the walks the
+root's setup carries, each with what it is about. `demo.py` writes no bytecode beside the packages
+it reads. A missing prerequisite is named, with the flag or
 build step that supplies it, before anything starts. An extracted package a stranger downloads
 holds both: `--package <its folder>` takes the place of `--build` and `--loom-prefix`, reading
 Workshop from its `bin/` and the guest vocabulary from its `lib/zengine/`, for any setup that builds

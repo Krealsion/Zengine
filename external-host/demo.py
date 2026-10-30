@@ -34,6 +34,9 @@ EXAMPLES = HERE.parent / "examples"
 # Where a checkout's setups are found beside the tool package's own: each example's, and each
 # feature's tutorials (`<feature>/docs/tutorials/<name>/`), which an install gathers into the package.
 ROOTS = [EXAMPLES] + sorted(HERE.parent.glob("*/docs/tutorials"))
+# THE PACKAGES ARE READ, NEVER WRITTEN: their modules are imported where they stand, so no
+# bytecode is written beside them, in a checkout or an installed package.
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(PACKAGE))
 import setups as described  # noqa: E402
 from demo_setup import save_json, save_text  # noqa: E402
@@ -112,11 +115,27 @@ def preparation(session, config):
         return None
 
 
+def interpreter():
+    """The interpreter running this file, by the name a hint gives it: `python3`, `python.exe`."""
+    return Path(sys.executable).name or "python3"
+
+
+def walks_said(config):
+    """Why `walk` needs a name, and the walks the root's setup carries, each with what it is about."""
+    setup = described.Setup(Path(config["directory"]))
+    walks = setup.walks()
+    if not walks:
+        return "walk needs the walk's name and --pictures; setup %s carries no walk" % setup.name
+    return "walk needs the walk's name and --pictures; setup %s carries: %s" % (
+        setup.name, "; ".join("%s: %s" % (name, walks[name].get("about", "")) for name in sorted(walks)))
+
+
 def guidance(setup, root):
     d = setup.data
     out = {"setup": setup.name, "title": d["title"], "first_task": d["first_task"],
            "guide": setup.summary()["guide_path"] + ("#" + d["guide"].split("#", 1)[1] if "#" in d.get("guide", "") else ""),
-           "reset": "python external-host/demo.py reset --root %s  (or press Reset demo)" % root,
+           "reset": "%s external-host/demo.py reset --root %s  (or press Reset demo)" % (
+               interpreter(), root),
            "reset_scope": (d.get("reset") or {}).get("scope", "")}
     if setup.hotkeys():
         out["hotkeys"] = ["%s: %s -> %s (%s)" % (h["key"], h["entry"], h["target"], h["means"]) for h in setup.hotkeys()]
@@ -487,6 +506,8 @@ def main():
         result = launch(args, setup, root)
     else:
         config = existing(args, root)
+        if args.action == "walk" and not args.name:
+            parser.error(walks_said(config))
         module, session = attach(config)
         with session:
             if args.action == "walk":

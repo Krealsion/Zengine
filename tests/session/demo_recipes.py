@@ -7,6 +7,7 @@ import base64
 from copy import deepcopy
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -15,6 +16,7 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[2]
 # As a worker of a `workshop-machine` tool finds them: its own package's modules, then `workshop`'s.
@@ -649,6 +651,35 @@ class Recipes(unittest.TestCase):
             self.assertIn(words, said)
         with self.assertRaisesRegex(described.SetupError, "walks maps each walk's name"):
             described.Setup(make(self.tmp, "listed", walks=[{"press": "x"}]))
+
+    def test_demo_py_writes_no_bytecode_into_the_packages_it_reads(self):
+        # A copy of demo.py and its packages, run as a weaver runs it: no -B, no environment's word.
+        copy = Path(self.tmp) / "copy"
+        shutil.copytree(REPO / "external-host/tools", copy / "tools",
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copy(REPO / "external-host/demo.py", copy / "demo.py")
+        env = dict((k, v) for k, v in os.environ.items() if k != "PYTHONDONTWRITEBYTECODE")
+        done = subprocess.run([sys.executable, str(copy / "demo.py"), "list"], capture_output=True,
+                              text=True, env=env, timeout=120)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual([str(p.relative_to(copy)) for p in copy.rglob("__pycache__")], [])
+
+    def test_walk_with_no_name_lists_the_walks_the_root_carries(self):
+        root = make(self.tmp, "walking", walks={"look": {"about": "a look around", "steps": [
+            {"press": "ctrl+p"}]}, "back": {"about": "and back", "steps": [{"press": "escape"}]}})
+        config = {"directory": str(root)}
+        said = launcher.walks_said(config)
+        self.assertIn("walk needs the walk's name and --pictures", said)
+        self.assertIn("back: and back", said)
+        self.assertIn("look: a look around", said)
+        bare = make(self.tmp, "bare")
+        self.assertIn("carries no walk", launcher.walks_said({"directory": str(bare)}))
+
+    def test_the_hints_name_the_interpreter_running_demo_py(self):
+        setup = described.Setup(make(self.tmp, "hinted"))
+        with patch.object(launcher.sys, "executable", "/opt/py/bin/python3.12"):
+            hint = launcher.guidance(setup, Path(self.tmp) / "root")["reset"]
+        self.assertTrue(hint.startswith("python3.12 "), hint)
 
     def test_every_shipped_walk_names_one_of_acts_verbs_per_step(self):
         verbs, walked = act_module().VERBS, set()
