@@ -146,7 +146,7 @@ TEST_CASE("component: typing goes in AT the caret, not at the end") {
     CHECK(in.text() == ">> hello world");
     CHECK(in.caret() == 3);
 
-    // A middle insert: the whole reason the second consumer earned this component. Repairing
+    // A middle insert, which every editable line owes its weaver. Repairing
     // `hellp` costs one move and one keystroke rather than seven deletions and seven retypes.
     TextBox typo;
     typo.type("hellp world");

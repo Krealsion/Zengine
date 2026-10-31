@@ -27,7 +27,7 @@ The project DECLARES participation.  The host PERFORMS it.
 
 LIST, not SCAN.
 
-Order may be authored explicitly before Zen earns dependency solving.
+Order is authored explicitly: Zen solves no dependencies.
 
 The plan records INTENT; the runtime still discovers what the artifact actually provides.
 ```

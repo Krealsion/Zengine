@@ -430,7 +430,7 @@ standing, and nothing is substituted for it.
 | Does browsing somewhere change what my project means? | **no** — a relative source in a build recipe is always resolved against the directory Workshop was launched in, wherever you happen to be looking |
 | Are the Windows drives listed every path I can reach? | **no** — they are the *logical drives this system reports*. A network share you can spell the path of is reachable and is not in that list |
 | Can I mark a file? | **no** — directories only |
-| Can I name a mark? | **no** — a mark is its path. Names can be earned when something needs a stable human name for one |
+| Can I name a mark? | **no** — a mark is its path, and has no name of its own |
 | Does the browsing location come back next launch? | **no**, deliberately — marks come back, half-finished browsing does not |
 
 One narrow case is worth knowing: if a run has **no origin** (the system could not report a

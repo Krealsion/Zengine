@@ -141,8 +141,7 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   with the place it would have had. When each painter carried its own column instead, the
   two places existed only as agreement between them; what a third kind costs now is a catalog
   row and a painter, neither of which is geometry. Docking and tabs are still absent (a pane is
-  dragged and sized by arranging, below), and what using two unalike panes felt like is the
-  evidence for whichever of them gets built.
+  dragged and sized by arranging, below).
 - **A visible pane occupies pointer space, not only pixels**. Bounds resolved in one
   path made the question sayable and the measured answer was that nobody asked it: a press on a
   cell the Builder was visibly covering took hold of the object underneath, selected it and
