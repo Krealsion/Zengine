@@ -639,6 +639,8 @@ if(wasi_sdk)
     file(REMOVE "${canary_box}/lib/cmake/zengine/ZengineWasm.cmake")
     zen_write_tally_recipes("${canary_box}" "${work}/tally-space-no-box"
                             "${work}/tally-recipes-no-box.json")
+    # The module the run above staged beside the host goes, so the row waits on this build.
+    file(REMOVE "${house}/tally.wasm")
     zen_tally("tally.wasm" "${work}/tally-plan-boxed.json" "Tally, boxed, a package with no box"
               tally_no_box "${work}/tally-recipes-no-box.json")
     if(tally_no_box_code EQUAL 0)
@@ -648,6 +650,9 @@ if(wasi_sdk)
                "a package built without the backend did not refuse in its words")
     zen_expect("${tally_no_box}" "CMake configure FAILED"
                "a package with no box failed somewhere other than its configure")
+    zen_expect("${tally_no_box}" "RESULT build=FAILED realization=REFUSED"
+               "a package with no box was not reported as a failed build that loaded nothing")
+    zen_expect_not("${tally_no_box}" "held=" "a package with no box left a module loaded")
     message(STATUS "build witness: a package with no box refuses the boxed product in words ok")
 else()
     # NO WASI-SDK: the boxed build is refused in words, before anything runs.
