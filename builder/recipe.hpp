@@ -4,15 +4,18 @@
 #ifndef ZENGINE_BUILDER_RECIPE_HPP
 #define ZENGINE_BUILDER_RECIPE_HPP
 
-// What a build recipe is: authored knowledge of how one artifact can be produced -- an
+// What a build recipe is: authored knowledge of how an artifact can be produced -- an
 // identity, the artifact stem it makes, and one build mechanism with its inputs. It is build
 // procedure, never runtime participation (that is the load plan's), and the two meet only at
 // the artifact stem. The program is always the host's CMake; there is no `command` kind and
-// must not be, or every recipe file would be an arbitrary-execution document.
+// must not be, or every recipe file would be an arbitrary-execution document. A recipe makes one
+// product or, from one source, a native and a boxed one, each by a stem of its own.
 // Builder law: agents/realization.md
 
 // A refusal is a `std::string`, empty meaning accepted: builder/ sits below workshop/, so it
 // does not borrow `workshop::Written` (workshop/recipe_persist.hpp wraps these at the file).
+
+#include "builder/vocabulary.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -20,6 +23,14 @@
 #include <vector>
 
 namespace zengine::builder {
+
+/// WHICH PRODUCTS A SINGLE-SOURCE RECIPE MAKES OF ITS ONE SOURCE: the pane as a shared library
+/// (`<stem>`), as a WebAssembly module (`<stem>.wasm`, compiled by the host's wasi-sdk), or both.
+namespace makes {
+inline constexpr const char* kNative = "native";
+inline constexpr const char* kBoxed = "boxed";
+inline constexpr const char* kBoth = "both";
+} // namespace makes
 
 // ---- What a recipe may hold -----------------------------------------------------
 
@@ -88,13 +99,14 @@ struct CMakeTargetRecipe {
 /// place the project finds Zengine, so it is a true external consumer. `links` are exported
 /// target names, never a link line. `toolchain_from` is a configured tree whose toolchain is
 /// borrowed (empty: CMake chooses). `workspace` is where the project is generated, durable so its
-/// diagnostics survive (empty: the host's choice).
+/// diagnostics survive (empty: the host's choice). `makes` is one of `makes::`.
 struct SingleSourceRecipe {
     std::string source;                    ///< the one .cpp a weaver wrote
     std::vector<std::string> packages;     ///< CMAKE_PREFIX_PATH entries
     std::vector<std::string> links;        ///< exported CMake target names to link
     std::string toolchain_from;            ///< a configured build tree to borrow a toolchain from
     std::string workspace;                 ///< where to generate the project ("" = host's choice)
+    std::string makes = makes::kNative;    ///< native, boxed or both
 
     friend bool operator==(const SingleSourceRecipe&, const SingleSourceRecipe&) = default;
 };
@@ -114,14 +126,23 @@ struct Recipe {
     friend bool operator==(const Recipe&, const Recipe&) = default;
 };
 
-/// What the Builder tool is told about a recipe, deliberately less: an identity, its artifact
-/// and the one file that artifact means -- no build tree, source, prefix, link list or command,
-/// since the tool is only asked which recipe and whether the artifact appeared. `path` is
-/// resolved by the host from `artifact_dir` and its own rule for spelling a stem.
+/// ONE PRODUCT A RECIPE MAKES: the stem a plan row loads it by, and whether it is boxed.
+struct Product {
+    std::string artifact;
+    bool boxed = false;
+
+    friend bool operator==(const Product&, const Product&) = default;
+};
+
+/// What the Builder tool is told about one product of a recipe, deliberately less: an identity,
+/// the product's stem and the one file that stem means -- no build tree, source, prefix, link
+/// list or command, since the tool is only asked which recipe and whether the artifact appeared.
+/// `path` is resolved by the host from `artifact_dir` and its own rule for spelling a stem. A
+/// recipe making two products has two views, its first product's first.
 struct RecipeView {
     std::string id;
     std::string artifact;
-    std::string path; ///< the exact file this recipe is expected to produce
+    std::string path; ///< the exact file this product is expected to be
 
     friend bool operator==(const RecipeView&, const RecipeView&) = default;
 };
@@ -295,6 +316,15 @@ inline std::string check_recipe(const Recipe& r) {
             return "recipe `" + r.id + "`: " + bad;
         }
     }
+    if (one.makes != makes::kNative && one.makes != makes::kBoxed && one.makes != makes::kBoth) {
+        return "recipe `" + r.id + "` makes `" + one.makes + "`: a one-file recipe makes its pane `" +
+               makes::kNative + "`, `" + makes::kBoxed + "` or `" + makes::kBoth + "`";
+    }
+    if (names_module(r.artifact)) {
+        return "recipe `" + r.id + "`: artifact stem `" + r.artifact + "` ends `" +
+               std::string(kModuleSuffix) + "`: a one-file recipe names its pane, and its boxed " +
+               "product is that stem with `" + std::string(kModuleSuffix) + "` added";
+    }
     if (one.links.empty()) {
         return "recipe `" + r.id +
                "` links nothing: a loadable Zengine artifact needs at least the Loom targets "
@@ -348,6 +378,36 @@ inline std::string check_recipes(const std::vector<Recipe>& recipes) {
     return std::string();
 }
 
+// ---- What a recipe makes ------------------------------------------------------------
+
+/// EVERY PRODUCT A RECIPE MAKES, the native first: a single source's by its `makes` (the boxed
+/// stem is the recipe's with `kModuleSuffix` added), a CMake target's one, boxed when its stem
+/// names a module.
+inline std::vector<Product> products_of(const Recipe& r) {
+    if (!r.single_source.has_value()) {
+        return {Product{r.artifact, names_module(r.artifact)}};
+    }
+    const std::string& kind = r.single_source->makes;
+    std::vector<Product> out;
+    if (kind != makes::kBoxed) {
+        out.push_back(Product{r.artifact, false});
+    }
+    if (kind != makes::kNative) {
+        out.push_back(Product{r.artifact + std::string(kModuleSuffix), true});
+    }
+    return out;
+}
+
+/// Does this recipe make a product of this stem? What a plan row's stem is matched by.
+inline bool makes_product(const Recipe& r, const std::string& stem) {
+    for (const Product& p : products_of(r)) {
+        if (p.artifact == stem) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // ---- Finding one ------------------------------------------------------------------
 
 /// The recipe with this name, or null. Written once because three readers need it.
@@ -360,10 +420,24 @@ inline const Recipe* recipe_named(const std::vector<Recipe>& recipes, const std:
     return nullptr;
 }
 
-/// The tool's view of the recipe with this name, or null.
+/// The tool's view of the recipe with this name, its first product, or null.
 inline const RecipeView* view_named(const std::vector<RecipeView>& views, const std::string& id) {
     for (const RecipeView& v : views) {
         if (v.id == id) {
+            return &v;
+        }
+    }
+    return nullptr;
+}
+
+/// The view of one product of the recipe with this name, by its stem (empty: the first), or null.
+inline const RecipeView* view_of(const std::vector<RecipeView>& views, const std::string& id,
+                                 const std::string& artifact) {
+    if (artifact.empty()) {
+        return view_named(views, id);
+    }
+    for (const RecipeView& v : views) {
+        if (v.id == id && v.artifact == artifact) {
             return &v;
         }
     }

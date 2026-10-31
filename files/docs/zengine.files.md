@@ -315,8 +315,9 @@ These replace the chooser's commands while a recipe is being written. [`files.up
 stays with no default key, and [`files.cancel`](#filescancel) abandons the draft. Every other key
 goes into the line, so Backspace deletes a character.
 
-A source asks four fields, all required: `recipe name`, `artifact stem`, `package prefix
-(comma-separated)` and `link targets (comma-separated)`. A tree asks `recipe name`, `cmake target`,
+A source asks five fields, all required: `recipe name`, `artifact stem`, `package prefix
+(comma-separated)`, `link targets (comma-separated)` and `makes: native, boxed or both`, answered
+`native` until you change it. A tree asks `recipe name`, `cmake target`,
 `artifact stem` and `artifact directory (optional)`, and a fifth, `configuration`, only when it
 builds several. The recipe name is seeded from the candidate, and the artifact stem from the recipe
 name, or for a tree from its cmake target. A press on a field

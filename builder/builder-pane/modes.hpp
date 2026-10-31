@@ -41,6 +41,7 @@ inline void BuilderPaneWeave::open_recipes(loom::Mail& mail) {
     choosing_ = Choosing{};
     choosing_.open = true;
     choosing_.name = known_.recipes[cursor_row()].recipe;
+    choosing_.artifact = artifact_key(cursor_row());
     declare(mail);
     notice_ = "choose a recipe -- Return takes it, Escape leaves the choice as it was";
     say(mail);
@@ -57,7 +58,7 @@ inline void BuilderPaneWeave::close_recipes(loom::Mail& mail, std::string said) 
 /// while the list was open moves the cursor with the recipe it named, and one that dropped
 /// the recipe leaves the cursor on the row the pane is showing.
 inline std::size_t BuilderPaneWeave::list_row() const {
-    const std::size_t at = named_row(choosing_.name);
+    const std::size_t at = product_row(choosing_.name, choosing_.artifact);
     return at < known_.recipes.size() ? at : cursor_row();
 }
 
@@ -72,6 +73,7 @@ inline void BuilderPaneWeave::choose_in_list(const std::string& id, loom::Mail& 
                           (id == pane::kActionRecipesUp ? -1 : 1);
         to = to < 0 ? 0 : (to >= held ? held - 1 : to);
         choosing_.name = known_.recipes[static_cast<std::size_t>(to)].recipe;
+        choosing_.artifact = artifact_key(static_cast<std::size_t>(to));
         say(mail);
     } else if (id == pane::kActionRecipeChoose) {
         take_choice(mail);
@@ -98,9 +100,9 @@ inline void BuilderPaneWeave::take_choice(loom::Mail& mail) {
         return;
     }
     state_.chosen = known_.recipes[at].recipe;
+    state_.artifact = artifact_key(at);
     picked_ = state_.chosen;
-    close_recipes(mail, "build recipe: " + known_.recipes[at].recipe + " -> " +
-                            known_.recipes[at].artifact);
+    close_recipes(mail, "build recipe: " + product_words(known_.recipes[at]));
 }
 
 inline std::vector<BuilderPaneWeave::ControlRow> BuilderPaneWeave::list_controls() const {
@@ -128,6 +130,7 @@ inline std::vector<BuilderPaneWeave::ControlRow> BuilderPaneWeave::list_controls
 inline void BuilderPaneWeave::say_recipes() {
     const std::size_t held = known_.recipes.size();
     const std::size_t at = list_row();
+    const std::size_t chosen_row = cursor_row();
     std::string head = "choose a recipe -- " + std::to_string(held) +
                        (held == 1 ? " recipe" : " recipes");
     if (!known_.source.empty()) {
@@ -146,11 +149,13 @@ inline void BuilderPaneWeave::say_recipes() {
         (void)room().push_window(win, fit_row(), [&](std::size_t i) {
             const builder::RecipeSummary& row = known_.recipes[i];
             const bool here = i == at;
-            const bool chosen = row.recipe == state_.chosen;
-            push_row(std::string(here ? "> " : "  ") + row.recipe + " -> " + row.artifact +
+            const bool chosen = row.recipe == state_.chosen && i == chosen_row;
+            BuilderMeaning meaning{builder_row::kRecipe, i, {}, row.recipe};
+            meaning.artifact = artifact_key(i);
+            push_row(std::string(here ? "> " : "  ") + product_words(row) +
                          (chosen ? "   (chosen)" : ""),
                      here ? zengine::graphics::role::kAccent : zengine::graphics::role::kFill,
-                     BuilderMeaning{builder_row::kRecipe, i, {}, row.recipe});
+                     std::move(meaning));
         });
     }
     say_controls(controls);

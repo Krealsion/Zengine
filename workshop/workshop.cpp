@@ -698,7 +698,7 @@ int main(int argc, char** argv) {
                             manual::ShapeDocumentShown::zen_version);
     const loom::WeaveId runner = mount_in_office<builder::BuildRunnerWeave>(
         bus, std::move(run_builds), builder::kBuildRunnerRole, current_recipes.all(),
-        std::string(ZENGINE_BUILDER_CMAKE));
+        std::string(ZENGINE_BUILDER_CMAKE), std::string(ZENGINE_BUILDER_WASI_SDK));
 
     loom::Grant order_builds;
     order_builds.allow_to_role(builder::RunBuild::zen_name, builder::RunBuild::zen_version,
@@ -728,7 +728,7 @@ int main(int argc, char** argv) {
     // produces. The Builder's pane opens from the Pane Manager, whose key is the desktop's.
     std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (open its pane from "
                 "the Pane Manager)\n",
-                std::to_string(builder_tool.value).c_str(), current_recipes.views().size());
+                std::to_string(builder_tool.value).c_str(), current_recipes.all().size());
     if (std::string_view(ZENGINE_BUILDER_CMAKE).empty()) {
         std::printf("zengine-workshop - build runner: weave #%s -- no CMake: this Workshop builds "
                     "nothing\n",
@@ -736,6 +736,13 @@ int main(int argc, char** argv) {
     } else {
         std::printf("zengine-workshop - build runner: weave #%s builds with `%s`\n",
                     std::to_string(runner.value).c_str(), ZENGINE_BUILDER_CMAKE);
+    }
+    if (std::string_view(ZENGINE_BUILDER_WASI_SDK).empty()) {
+        std::printf("zengine-workshop - build runner: no wasi-sdk: this Workshop builds no boxed "
+                    "pane\n");
+    } else {
+        std::printf("zengine-workshop - build runner: a boxed pane compiles with `%s`\n",
+                    ZENGINE_BUILDER_WASI_SDK);
     }
     for (const builder::RecipeView& r : current_recipes.views()) {
         std::printf("zengine-workshop - recipe: %s -> %s\n", r.id.c_str(), r.path.c_str());
@@ -1050,7 +1057,7 @@ int main(int argc, char** argv) {
         // starts a build.
         [&host, &current_recipes](const std::string& stem) {
             for (const builder::Recipe& r : current_recipes.all()) {
-                if (r.artifact != stem) {
+                if (!builder::makes_product(r, stem)) {
                     continue;
                 }
                 return !std::filesystem::exists(std::filesystem::path(host.so(stem)));

@@ -53,6 +53,7 @@ inline builder::Recipe compose(const HostContext::RecipeDraft& draft) {
         one.source = draft.source;
         one.packages = draft.packages;
         one.links = draft.links;
+        one.makes = draft.makes;
         r.single_source = one;
     }
     return r;

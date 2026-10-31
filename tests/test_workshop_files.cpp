@@ -503,6 +503,28 @@ TEST_CASE("the owner derives the tool's view from the recipes it is holding") {
     CHECK(owner.views()[0].path.find("one.cpp") == std::string::npos);
 }
 
+TEST_CASE("a recipe making its pane native and boxed is a view for each product, by the stem a "
+          "plan row loads it by") {
+    CurrentRecipes owner;
+    std::vector<zengine::builder::Recipe> completed =
+        completed_catalog("one", "/abs/one.cpp", "/install", "/project");
+    completed[0].single_source->makes = zengine::builder::makes::kBoth;
+    owner.hold("/project/recipes.json", completed, &HostContext::so_in);
+
+    REQUIRE(owner.all().size() == 1);
+    REQUIRE(owner.views().size() == 2);
+    CHECK(owner.views()[0].id == "one");
+    CHECK(owner.views()[0].artifact == "one");
+    CHECK(owner.views()[0].path == HostContext::so_in("/install/build-workspace/one/out", "one"));
+    CHECK(owner.views()[1].id == "one");
+    CHECK(owner.views()[1].artifact == "one.wasm");
+    // A MODULE'S STEM IS ITS FILE'S NAME, the same on every platform.
+    CHECK(owner.views()[1].path == "/install/build-workspace/one/out/one.wasm");
+    CHECK(zengine::builder::view_of(owner.views(), "one", "one.wasm") == &owner.views()[1]);
+    CHECK(zengine::builder::view_of(owner.views(), "one", "") == &owner.views()[0]);
+    CHECK(zengine::builder::view_of(owner.views(), "one", "one.so") == nullptr);
+}
+
 TEST_CASE("holding a new catalog replaces the contents, never the object") {
     // THE PROPERTY THAT MAKES ONE OWNER WORTH HAVING. Every consumer binds to these
     // two vectors once, at construction, and keeps that binding for the life of the
@@ -1585,6 +1607,7 @@ TEST_CASE("a row authored while the shipped catalog is in force goes into a proj
     row.artifact = "zengine-oven";
     row.source = (d.r.root / "oven.cpp").generic_string();
     row.links = {"loom::kernel"};
+    row.makes = zengine::builder::makes::kNative;
     asker_do(d.r.t, files, [row](DoorAsker& a, loom::Mail& mail) {
         a.ask(mail, kProjectRole, row);
     });
@@ -2131,11 +2154,14 @@ TEST_CASE("a version-1 catalog a weaver already has reads whole: every row, and 
     CHECK(read.recipes[1].single_source->source == "/zen/journey/project/tally.cpp");
     CHECK(read.recipes[1].single_source->links.size() == 4);
 
-    // WHAT A NEWER WRITER DOES WITH IT: the same rows, as version 2, each entry spelled empty.
+    // WHAT A NEWER WRITER DOES WITH IT: the same rows, as the current version, each entry spelled
+    // empty and each one-file row native.
+    CHECK(read.recipes[1].single_source->makes == std::string(zengine::builder::makes::kNative));
     const std::string rewritten = recipe_persist::to_text(read.recipes);
-    CHECK(rewritten.find("\"version\":2") != std::string::npos);
-    CHECK(rewritten.find("\"format_version\":\"2\"") != std::string::npos);
+    CHECK(rewritten.find("\"version\":3") != std::string::npos);
+    CHECK(rewritten.find("\"format_version\":\"3\"") != std::string::npos);
     CHECK(rewritten.find("\"entry\":\"\"") != std::string::npos);
+    CHECK(rewritten.find("\"makes\":\"native\"") != std::string::npos);
     const recipe_persist::LoadedRecipes again = recipe_persist::from_text(rewritten);
     REQUIRE_MESSAGE(again.outcome.accepted, again.outcome.refusal);
     CHECK(again.recipes == read.recipes);
@@ -2152,10 +2178,11 @@ TEST_CASE("a catalog is refused by a version this Workshop does not read, and a 
     // A LATER NUMBER, BY ITS NUMBER.
     const std::string one = "\"version\":1";
     std::string later = kVersionOneCatalog;
-    later.replace(later.find(one), one.size(), "\"version\":3");
-    const recipe_persist::LoadedRecipes three = recipe_persist::from_text(later);
-    CHECK_FALSE(three.outcome.accepted);
-    CHECK(three.outcome.refusal == "build recipes version 3 -- this Workshop reads versions 1 and 2");
+    later.replace(later.find(one), one.size(), "\"version\":4");
+    const recipe_persist::LoadedRecipes four = recipe_persist::from_text(later);
+    CHECK_FALSE(four.outcome.accepted);
+    CHECK(four.outcome.refusal ==
+          "build recipes version 4 -- this Workshop reads versions 1, 2 and 3");
 
     // A VERSION 1 ROW UNDER A VERSION 2 ENVELOPE IS NOT QUIETLY TAKEN AS "NO ENTRY": the row's
     // `entry` is required, and a row missing it is refused by the gate describing those bytes.
@@ -2175,6 +2202,62 @@ TEST_CASE("a catalog is refused by a version this Workshop does not read, and a 
     CHECK_FALSE(torn.outcome.accepted);
     CHECK(torn.outcome.refusal ==
           "build recipes say version 2 inside a version-1 envelope -- a catalog is one version");
+}
+
+TEST_CASE("a version-2 catalog reads whole, each one-file row making its pane native, and a "
+          "version-3 one-file row without what it makes is refused by admission") {
+    // VERSION 2 AS ITS WRITER WROTE IT: the retained shapes, whose content ids the census pins to
+    // what that version published (tests/shapes.txt).
+    namespace v2 = recipe_persist::v2;
+    v2::WorkshopRecipeFile old;
+    old.format = recipe_persist::kFormat;
+    old.format_version = 2;
+    v2::WorkshopRecipe row;
+    row.recipe = "tally";
+    row.artifact = "tally";
+    row.single_source.push_back(v2::WorkshopSingleSource{
+        "/zen/project/tally.cpp", {"/zen/prefix"}, {"zengine::pane", "loom::switchboard"}, "", ""});
+    old.recipes.push_back(row);
+    const std::string written = loom::compat::serialize(loom::to_value(old));
+    REQUIRE(written.find("\"version\":2") != std::string::npos);
+    const recipe_persist::LoadedRecipes read = recipe_persist::from_text(written);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    REQUIRE(read.recipes.size() == 1);
+    REQUIRE(read.recipes[0].single_source.has_value());
+    CHECK(read.recipes[0].single_source->makes == std::string(zengine::builder::makes::kNative));
+    CHECK(zengine::builder::products_of(read.recipes[0]) ==
+          std::vector<zengine::builder::Product>{zengine::builder::Product{"tally", false}});
+
+    // WHAT IT MAKES RIDES THE CURRENT VERSION, and comes back as written.
+    zengine::builder::Recipe both = read.recipes[0];
+    both.single_source->makes = zengine::builder::makes::kBoth;
+    const std::string current = recipe_persist::to_text({both});
+    CHECK(current.find("\"makes\":\"both\"") != std::string::npos);
+    const recipe_persist::LoadedRecipes back = recipe_persist::from_text(current);
+    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
+    CHECK(back.recipes == std::vector<zengine::builder::Recipe>{both});
+
+    // A ROW OF VERSION 2 UNDER THE CURRENT ENVELOPE IS NOT QUIETLY TAKEN AS NATIVE: `makes` is
+    // required, and the gate describing those bytes refuses the row without it.
+    std::string mixed = written;
+    const std::string envelope = "\"version\":2,";
+    const std::size_t at = mixed.find(envelope);
+    REQUIRE(at != std::string::npos);
+    const std::size_t id_end = mixed.find(',', mixed.find("\"content_id\"", at));
+    mixed.replace(at, id_end + 1 - at, "\"version\":3,");
+    const std::string field = "\"format_version\":\"2\"";
+    mixed.replace(mixed.find(field), field.size(), "\"format_version\":\"3\"");
+    const recipe_persist::LoadedRecipes missing = recipe_persist::from_text(mixed);
+    CHECK_FALSE(missing.outcome.accepted);
+    CHECK(missing.outcome.refusal.find("makes") != std::string::npos);
+
+    // ...AND A WORD IT DOES NOT KNOW, BY THE RECIPE LAW.
+    std::string unknown = current;
+    const std::string said = "\"makes\":\"both\"";
+    unknown.replace(unknown.find(said), said.size(), "\"makes\":\"wasm\"");
+    const recipe_persist::LoadedRecipes refused = recipe_persist::from_text(unknown);
+    CHECK_FALSE(refused.outcome.accepted);
+    CHECK(refused.outcome.refusal.find("makes `wasm`") != std::string::npos);
 }
 
 TEST_CASE("an editing entry is written, read back, checked as a recipe path, and completed against the project like a source") {

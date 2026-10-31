@@ -179,6 +179,7 @@ public:
         draft.artifact_dir = asked.artifact_dir;
         draft.config = asked.config;
         draft.tree = asked.tree;
+        draft.makes = asked.makes;
         answer(mail, author_(draft));
     }
 

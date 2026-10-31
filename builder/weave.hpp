@@ -292,10 +292,11 @@ public:
     /// (vocabulary.hpp, `BuildStatusRequested`). Read-only: it moves no build and no counter.
     void on(const BuildStatusRequested&, loom::Mail& mail) { (void)mail.answer(status()); }
 
-    /// Build the recipe you know by this name. A name this tool does not hold is refused, which
-    /// is why a `BuildRequested` from anywhere cannot widen what this program builds.
+    /// Build the recipe you know by this name, the product its stem names (empty: the recipe's
+    /// first). A name or a product this tool does not hold is refused, which is why a
+    /// `BuildRequested` from anywhere cannot widen what this program builds.
     void on(const BuildRequested& ask, loom::Mail& mail) {
-        const RecipeView* chosen = view_named(recipes_, ask.recipe);
+        const RecipeView* chosen = view_of(recipes_, ask.recipe, ask.artifact);
         if (chosen == nullptr) {
             // A build that is running keeps its outcome: the refusal is this ask's, said in its
             // `BuildAsked` and in `detail`, as the one-at-a-time refusal below says itself.
@@ -304,8 +305,11 @@ public:
             }
             state_.detail = recipes_.empty()
                                 ? std::string("this Builder holds no recipes at all")
+                            : view_named(recipes_, ask.recipe) != nullptr
+                                ? "recipe `" + ask.recipe + "` makes " + made_by(ask.recipe) +
+                                      ", not `" + ask.artifact + "`"
                                 : "this Builder holds no recipe called `" + ask.recipe +
-                                      "` (it holds " + std::to_string(recipes_.size()) + ")";
+                                      "` (it holds " + std::to_string(recipe_count()) + ")";
             heard(ask, false, mail);
             say(mail);
             return;
@@ -341,15 +345,15 @@ public:
         path_ = chosen->path;
         // What was there before: tells `built` from `unchanged`, and is never the success test.
         before_ = stamp_of(path_);
-        // The previous command stays for the same recipe (it is about to be said again) and is
-        // cleared for another, which it would misdescribe.
-        if (built_ != chosen->id) {
+        // The previous command stays for the same product of the same recipe (it is about to be
+        // said again) and is cleared for another, which it would misdescribe.
+        if (built_ != chosen->id || built_artifact_ != chosen->artifact) {
             state_.command.clear();
         }
         // Said before the order, so the record reads in the order the facts became true.
         heard(ask, true, mail);
         say(mail);
-        (void)mail.send_to_role(kBuildRunnerRole, RunBuild{state_.recipe});
+        (void)mail.send_to_role(kBuildRunnerRole, RunBuild{state_.recipe, state_.artifact});
     }
 
     /// A process began.
@@ -453,6 +457,7 @@ public:
         }
         state_.outcome = outcome::kSucceeded;
         built_ = done.recipe;
+        built_artifact_ = state_.artifact;
         end_record(done.op);
         const bool moved = !(after == before_);
         state_.detail = std::string(moved ? "built " : "already up to date: ") +
@@ -547,6 +552,28 @@ public:
     const std::string& artifact_path() const { return path_; }
 
 private:
+    /// The products one recipe makes, as a sentence's list: "`a`" or "`a` and `b`".
+    std::string made_by(const std::string& recipe) const {
+        std::string made;
+        for (const RecipeView& v : recipes_) {
+            if (v.id == recipe) {
+                made += (made.empty() ? "`" : " and `") + v.artifact + "`";
+            }
+        }
+        return made;
+    }
+
+    /// How many recipes the views describe: a recipe making two products has two views.
+    std::size_t recipe_count() const {
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < recipes_.size(); ++i) {
+            if (i == 0 || recipes_[i].id != recipes_[i - 1].id) {
+                ++count;
+            }
+        }
+        return count;
+    }
+
     /// Is this about the recipe this tool is following? Another recipe's fact is counted
     /// (`stray`), so "this never happens" is checkable, and is never folded in.
     bool mine(const std::string& recipe) {
@@ -632,9 +659,10 @@ private:
     /// What the expected artifact looked like when the current build was ordered.
     ArtifactStamp before_;
 
-    /// The last recipe this tool saw succeed -- which is how it knows whether the
-    /// command it is still showing is about the recipe now being asked for.
+    /// The last recipe this tool saw succeed, and its product -- which is how it knows whether
+    /// the command it is still showing is about the product now being asked for.
     std::string built_;
+    std::string built_artifact_;
 
     /// WHAT EACH OF THE LAST `kKeptOperations` OPERATIONS SAID, oldest first. A plain member
     /// and not state, for `remembered_`'s reason: it is answered by asking, one bounded page

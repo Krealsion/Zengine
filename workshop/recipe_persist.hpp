@@ -31,10 +31,11 @@ namespace builder = zengine::builder;
 /// file is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-build-recipes";
 
-/// The build-recipe format version this build WRITES. It reads this one and version 1
-/// (`v1` below), whose `cmake_target` rows carry no editing entry.
+/// The build-recipe format version this build WRITES. It reads this one, version 2 (`v2` below),
+/// whose one-file rows make their pane native, and version 1 (`v1`), whose `cmake_target` rows
+/// carry no editing entry either.
 // WL-CODE-05 -- agents/workshop/code.md
-inline constexpr std::int64_t kFormatVersion = 2;
+inline constexpr std::int64_t kFormatVersion = 3;
 
 /// THE CATALOG WORKSHOP SHIPS, by the name it is staged under BESIDE THE EXECUTABLE.
 // WL-PROJ-15 -- agents/workshop/project.md
@@ -85,16 +86,19 @@ struct WorkshopCMakeTarget {
               ZEN_FIELD(config), ZEN_FIELD(entry));
 };
 
-/// ONE SOURCE FILE, AS WRITTEN.
+/// ONE SOURCE FILE, AS WRITTEN -- and, since version 3, which products it makes of it: `native`,
+/// `boxed` or `both` (`builder::makes`), a required string as `entry` is.
 struct WorkshopSingleSource {
     std::string source;
     std::vector<std::string> packages;
     std::vector<std::string> links;
     std::string toolchain_from;
     std::string workspace;
+    std::string makes;
 
-    ZEN_SHAPE(WorkshopSingleSource, 1, ZEN_FIELD(source), ZEN_FIELD(packages),
-              ZEN_FIELD(links), ZEN_FIELD(toolchain_from), ZEN_FIELD(workspace));
+    ZEN_SHAPE(WorkshopSingleSource, 2, ZEN_FIELD(source), ZEN_FIELD(packages),
+              ZEN_FIELD(links), ZEN_FIELD(toolchain_from), ZEN_FIELD(workspace),
+              ZEN_FIELD(makes));
 };
 
 /// ONE RECIPE ROW AS WRITTEN: what it is called, what it makes, where that lands, and
@@ -106,7 +110,7 @@ struct WorkshopRecipe {
     std::vector<WorkshopCMakeTarget> cmake_target;
     std::vector<WorkshopSingleSource> single_source;
 
-    ZEN_SHAPE(WorkshopRecipe, 2, ZEN_FIELD(recipe), ZEN_FIELD(artifact),
+    ZEN_SHAPE(WorkshopRecipe, 3, ZEN_FIELD(recipe), ZEN_FIELD(artifact),
               ZEN_FIELD(artifact_dir), ZEN_FIELD(cmake_target), ZEN_FIELD(single_source));
 };
 
@@ -116,13 +120,78 @@ struct WorkshopRecipeFile {
     std::int64_t format_version = 0;
     std::vector<WorkshopRecipe> recipes;
 
+    ZEN_SHAPE(WorkshopRecipeFile, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(recipes));
+};
+
+// ---- Versions 2 and 1, retained for reading ------------------------------------------------
+// A catalog is a file a weaver named, with no session to ride, so the old shapes stay beside the
+// reader (agents/decisions/setup-format-v3.md): a version-2 file reads as every one-file row
+// making its pane native, a version-1 file as that and no entry on any row.
+namespace v2 {
+
+struct WorkshopSingleSource {
+    std::string source;
+    std::vector<std::string> packages;
+    std::vector<std::string> links;
+    std::string toolchain_from;
+    std::string workspace;
+
+    ZEN_SHAPE(WorkshopSingleSource, 1, ZEN_FIELD(source), ZEN_FIELD(packages),
+              ZEN_FIELD(links), ZEN_FIELD(toolchain_from), ZEN_FIELD(workspace));
+};
+
+struct WorkshopRecipe {
+    std::string recipe;
+    std::string artifact;
+    std::string artifact_dir;
+    std::vector<recipe_persist::WorkshopCMakeTarget> cmake_target;
+    std::vector<WorkshopSingleSource> single_source;
+
+    ZEN_SHAPE(WorkshopRecipe, 2, ZEN_FIELD(recipe), ZEN_FIELD(artifact),
+              ZEN_FIELD(artifact_dir), ZEN_FIELD(cmake_target), ZEN_FIELD(single_source));
+};
+
+struct WorkshopRecipeFile {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::vector<WorkshopRecipe> recipes;
+
     ZEN_SHAPE(WorkshopRecipeFile, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(recipes));
 };
 
-// ---- Version 1, retained for reading -----------------------------------------------------
-// A catalog is a file a weaver named, with no session to ride, so the old shapes stay beside the
-// reader (agents/decisions/setup-format-v3.md); a version-1 file reads as every row, no entry.
+/// A version-2 one-file row as the current shape says it: the same fields, making its pane native.
+inline recipe_persist::WorkshopSingleSource current(const WorkshopSingleSource& old) {
+    return recipe_persist::WorkshopSingleSource{old.source,         old.packages,
+                                                old.links,          old.toolchain_from,
+                                                old.workspace,      builder::makes::kNative};
+}
+
+/// A version-2 catalog as the current shapes say it: the same rows, each one-file row native. The
+/// format claim is carried as it was written, so the checks after admission judge the file's own
+/// words and not a translation's.
+inline recipe_persist::WorkshopRecipeFile current(const WorkshopRecipeFile& old) {
+    recipe_persist::WorkshopRecipeFile now;
+    now.format = old.format;
+    now.format_version = old.format_version;
+    now.recipes.reserve(old.recipes.size());
+    for (const WorkshopRecipe& row : old.recipes) {
+        recipe_persist::WorkshopRecipe converted;
+        converted.recipe = row.recipe;
+        converted.artifact = row.artifact;
+        converted.artifact_dir = row.artifact_dir;
+        converted.cmake_target = row.cmake_target;
+        for (const WorkshopSingleSource& one : row.single_source) {
+            converted.single_source.push_back(current(one));
+        }
+        now.recipes.push_back(std::move(converted));
+    }
+    return now;
+}
+
+} // namespace v2
+
 // WL-CODE-05 -- agents/workshop/code.md
 namespace v1 {
 
@@ -140,7 +209,7 @@ struct WorkshopRecipe {
     std::string artifact;
     std::string artifact_dir;
     std::vector<WorkshopCMakeTarget> cmake_target;
-    std::vector<WorkshopSingleSource> single_source;
+    std::vector<v2::WorkshopSingleSource> single_source;
 
     ZEN_SHAPE(WorkshopRecipe, 1, ZEN_FIELD(recipe), ZEN_FIELD(artifact),
               ZEN_FIELD(artifact_dir), ZEN_FIELD(cmake_target), ZEN_FIELD(single_source));
@@ -155,7 +224,8 @@ struct WorkshopRecipeFile {
               ZEN_FIELD(recipes));
 };
 
-/// A version-1 catalog as the current shapes say it: the same rows, and no entry anywhere.
+/// A version-1 catalog as the current shapes say it: the same rows, no entry anywhere, and each
+/// one-file row native.
 /// The format claim is carried as it was written, so the checks after admission judge the
 /// file's own words and not a translation's.
 inline recipe_persist::WorkshopRecipeFile current(const WorkshopRecipeFile& old) {
@@ -172,7 +242,9 @@ inline recipe_persist::WorkshopRecipeFile current(const WorkshopRecipeFile& old)
             converted.cmake_target.push_back(
                 recipe_persist::WorkshopCMakeTarget{t.build_dir, t.target, t.config, std::string()});
         }
-        converted.single_source = row.single_source;
+        for (const v2::WorkshopSingleSource& one : row.single_source) {
+            converted.single_source.push_back(v2::current(one));
+        }
         now.recipes.push_back(std::move(converted));
     }
     return now;
@@ -213,7 +285,8 @@ inline WorkshopRecipeFile to_file(const std::vector<builder::Recipe>& recipes) {
         if (r.single_source.has_value()) {
             row.single_source.push_back(WorkshopSingleSource{
                 r.single_source->source, r.single_source->packages, r.single_source->links,
-                r.single_source->toolchain_from, r.single_source->workspace});
+                r.single_source->toolchain_from, r.single_source->workspace,
+                r.single_source->makes});
         }
         out.recipes.push_back(std::move(row));
     }
@@ -240,7 +313,8 @@ struct LoadedRecipes {
 /// place, so the two doors that can meet a wrong version cannot word it differently.
 inline std::string wrong_version(std::int64_t found) {
     return "build recipes version " + std::to_string(found) + " -- this Workshop reads versions " +
-           std::to_string(v1::WorkshopRecipeFile::zen_version) + " and " +
+           std::to_string(v1::WorkshopRecipeFile::zen_version) + ", " +
+           std::to_string(v2::WorkshopRecipeFile::zen_version) + " and " +
            std::to_string(kFormatVersion);
 }
 
@@ -256,8 +330,8 @@ inline Written check_mechanism_counts(const WorkshopRecipe& row) {
 }
 
 /// Text to a catalog; total. The version is answered from the claim before any row is judged:
-/// version 1 against its own retained shapes, read as the current rows with no entry; any other
-/// version refused by its number.
+/// versions 1 and 2 against their own retained shapes, read as the current rows (no entry for
+/// version 1; native one-file rows for both); any other version refused by its number.
 // WL-PROJ-04 -- agents/workshop/project.md; WL-CODE-05 -- agents/workshop/code.md
 inline LoadedRecipes from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
@@ -278,6 +352,14 @@ inline LoadedRecipes from_text(std::string_view bytes) {
         }
         file = v1::current(loom::from_value<v1::WorkshopRecipeFile>(old.value()));
         claimed = static_cast<std::int64_t>(v1::WorkshopRecipeFile::zen_version);
+    } else if (named && claim.claimed_version() == v2::WorkshopRecipeFile::zen_version) {
+        const loom::Admission old =
+            loom::admit(claim, loom::schema_of<v2::WorkshopRecipeFile>(), loom::Report::FirstError);
+        if (!old.ok()) {
+            return LoadedRecipes::no(old.first_error().message());
+        }
+        file = v2::current(loom::from_value<v2::WorkshopRecipeFile>(old.value()));
+        claimed = static_cast<std::int64_t>(v2::WorkshopRecipeFile::zen_version);
     } else {
         if (named && claim.claimed_version() != WorkshopRecipeFile::zen_version) {
             return LoadedRecipes::no(
@@ -325,7 +407,7 @@ inline LoadedRecipes from_text(std::string_view bytes) {
             r.single_source = builder::SingleSourceRecipe{
                 row.single_source.front().source, row.single_source.front().packages,
                 row.single_source.front().links, row.single_source.front().toolchain_from,
-                row.single_source.front().workspace};
+                row.single_source.front().workspace, row.single_source.front().makes};
         }
         candidate.push_back(std::move(r));
     }

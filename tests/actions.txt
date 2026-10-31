@@ -16,20 +16,20 @@
 # drives, and holds each press's sends to the row's causes. tests/check_manual.cmake holds every
 # manual's commands, their Answers links and key markers to it. A pane is listed once a
 # manual or a tutorial names its keys. ASCII only.
-zengine.builder-pane browse builder.build b BuildRequested/2 - build
-zengine.builder-pane browse builder.build-realize shift+b BuildRequested/2 - load after build
+zengine.builder-pane browse builder.build b BuildRequested/3 - build
+zengine.builder-pane browse builder.build-realize shift+b BuildRequested/3 - load after build
 zengine.builder-pane browse builder.promote shift+p PromoteArtifact/1 - promote image
 zengine.builder-pane browse builder.revert shift+r RevertArtifact/1 - revert image
 zengine.builder-pane browse builder.load o PlanNamesRequested/1 role load it
 zengine.builder-pane browse builder.recipe c - - recipe
 zengine.builder-pane browse builder.recipe-back shift+c - - recipe back
-zengine.builder-pane browse builder.frontier f ProjectFrontierRequested/1,BuildRequested/2 - frontier
+zengine.builder-pane browse builder.frontier f ProjectFrontierRequested/1,BuildRequested/3 - frontier
 zengine.builder-pane browse builder.edit-source e RecipeSourceRequested/1,OpenSourceRequested/1 - edit source
 zengine.builder-pane browse builder.output l BuildOutputRequested/1 output read output
 zengine.builder-pane browse builder.recipes return - recipes choose a recipe...
 zengine.builder-pane browse builder.menu shift+m - - this pane's menu
 zengine.builder-pane browse builder.arm unbound - - turn load-after-build on or off
-zengine.builder-pane browse builder.load-built unbound BuildRequested/2 - load what was built
+zengine.builder-pane browse builder.load-built unbound BuildRequested/3 - load what was built
 zengine.builder-pane recipes builder.recipes-up up - - row up
 zengine.builder-pane recipes builder.recipes-down down - - row down
 zengine.builder-pane recipes builder.recipe-choose return - browse choose this recipe
@@ -46,7 +46,7 @@ zengine.builder-pane output builder.output-older [ BuildOutputRequested/1 - olde
 zengine.builder-pane output builder.output-newer ] BuildOutputRequested/1 - newer build
 zengine.builder-pane output builder.menu shift+m - - this pane's menu
 zengine.builder-pane output builder.output-close escape - browse close output
-zengine.builder-pane role authoring.commit return PlanRowRequested/1,BuildRequested/2,ProjectFrontierRequested/1 browse load it
+zengine.builder-pane role authoring.commit return PlanRowRequested/1,BuildRequested/3,ProjectFrontierRequested/1 browse load it
 zengine.builder-pane role builder.menu unbound - - this pane's menu
 zengine.builder-pane role authoring.cancel escape - browse cancel
 zengine.desktop desk desktop.terminal ctrl+t PaneLaunchRequested/1>zengine.terminal/terminal - terminal

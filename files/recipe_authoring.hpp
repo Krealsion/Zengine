@@ -12,6 +12,7 @@
 
 #include "files/files.hpp"
 #include "files/vocabulary.hpp"
+#include "builder/recipe.hpp" // what a drafted one-file recipe makes, said when it is written
 #include "workshop/actor_scope.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
@@ -112,17 +113,19 @@ constexpr std::int64_t kMinFieldValueColumns = 12;
 
 // ---- The chooser's typed fields -----------------------------------------------------------
 
-// The fifth field is offered only when the tree says several configurations coexist there
-// (`cache_is_multi_config`): ask for the few things nothing can detect. `name` carries the
-// why and is pane-local text, clipped to the pane's width; `menu_label` carries the what and
-// crosses as a `PaneMenuRow`, where one row over 64 bytes makes the presenter refuse the
-// whole offer (`workshop/menu-presenter/presenter.cpp`'s `refusal_of`) -- every menu this form offers.
+// A tree's fifth field is offered only when the tree says several configurations coexist there
+// (`cache_is_multi_config`): ask for the few things nothing can detect. A source's fifth is which
+// products it makes, answered `native` until the weaver says otherwise. `name` carries the why and is pane-local text, clipped
+// to the pane's width; `menu_label` carries the what and crosses as a `PaneMenuRow`, where one row
+// over 64 bytes makes the presenter refuse the whole offer (`workshop/menu-presenter/presenter.cpp`'s
+// `refusal_of`) -- every menu this form offers.
 inline const FilesWeave::Field& FilesWeave::field_at(bool tree, bool multi_config,
                                                      std::size_t step) {
     static constexpr Field kSource[] = {{"recipe name", true},
                                         {"artifact stem", true},
                                         {"package prefix (comma-separated)", true},
-                                        {"link targets (comma-separated)", true}};
+                                        {"link targets (comma-separated)", true},
+                                        {"makes: native, boxed or both", true, "products"}};
     static constexpr Field kTree[] = {{"recipe name", true},
                                       {"cmake target", true},
                                       {"artifact stem", true},
@@ -150,13 +153,30 @@ inline const char* FilesWeave::field_menu_label(bool tree, bool multi_config,
 }
 
 inline std::size_t FilesWeave::field_count(bool tree, bool multi_config) {
-    return (tree && multi_config) ? 5 : 4;
+    return (!tree || multi_config) ? 5 : 4;
 }
 
 /// THE CANDIDATE THE AUTHORING FORM IS OPEN ON OWNS ITS OWN FIELD COUNT -- every call site
 /// below reads `authoring_.chosen`, so this is the one place that says so.
 inline std::size_t FilesWeave::field_count() const {
     return field_count(authoring_.chosen.tree, authoring_.chosen.multi_config);
+}
+
+/// WHAT A DRAFT MAKES, as the notice says it once it is written: its stem, or for a one-file
+/// draft every product its `makes` names (`tally and tally.wasm`), by the Builder's own rule.
+inline std::string made_words(const zengine::workshop::RecipeAuthorRequested& draft) {
+    if (draft.tree) {
+        return draft.artifact;
+    }
+    zengine::builder::Recipe r;
+    r.artifact = draft.artifact;
+    r.single_source = zengine::builder::SingleSourceRecipe{};
+    r.single_source->makes = draft.makes;
+    std::string said;
+    for (const zengine::builder::Product& p : zengine::builder::products_of(r)) {
+        said += (said.empty() ? "" : " and ") + p.artifact;
+    }
+    return said;
 }
 
 // ---- Pick buildable, and the recipe form --------------------------------------------------
@@ -214,6 +234,12 @@ inline void FilesWeave::chooser_choose(loom::Mail& mail) {
     a.dir = chooser_.dir;
     a.values.assign(field_count(a.chosen.tree, a.chosen.multi_config), std::string());
     a.filled.assign(field_count(a.chosen.tree, a.chosen.multi_config), false);
+    if (!a.chosen.tree) {
+        // WHAT A SOURCE MAKES STARTS ANSWERED, native: a recipe written without looking at the
+        // line builds what one always did, and the line says so before it is stood on.
+        a.values[4] = zengine::builder::makes::kNative;
+        a.filled[4] = true;
+    }
     authoring_ = std::move(a);
     chooser_ = Chooser{};
     field_hint_ = 0;
@@ -387,6 +413,7 @@ inline void FilesWeave::compose_recipe(loom::Mail& mail) {
         draft.source = place;
         draft.packages = split_list(a.values[2]);
         draft.links = split_list(a.values[3]);
+        draft.makes = a.values[4];
     } else {
         draft.target = a.values[1];
         draft.artifact = a.values[2];
@@ -414,7 +441,7 @@ inline void FilesWeave::send_recipe(const FilesAsk& approved, loom::Mail& mail) 
     FilesAsk recipes = asking(FilesAsk::Kind::kRecipes);
     recipes.was_author = true;
     recipes.id = approved.draft.id;
-    recipes.artifact = approved.draft.artifact;
+    recipes.artifact = made_words(approved.draft);
     (void)asks().ask(mail, ws::kProjectRole, approved.draft, std::move(recipes));
 }
 

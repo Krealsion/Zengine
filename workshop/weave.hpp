@@ -20,6 +20,7 @@
 #include "notice_seam_vocabulary.hpp" // what Workshop said, said across the bus
 #include "desktop_seam_vocabulary.hpp"   // the application-defaults owner: rows, launches, the floor
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
+#include "builder/vocabulary.hpp" // a module's suffix, which the stem rule reads
 #include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
 #include "open_seam_vocabulary.hpp"  // the managed opening's conversation
 #include "settings_seam_vocabulary.hpp" // one pane's settings, read and written by message
@@ -211,6 +212,7 @@ struct HostContext {
         std::string config;              ///< cmake-target: a multi-config generator's
                                           ///< configuration, or empty
         bool tree = false;               ///< which of the two kinds this draft is
+        std::string makes = {};          ///< single-source: native, boxed or both
     };
     std::function<RecipeSwap(const RecipeDraft&)> author_recipe;
 
@@ -302,15 +304,15 @@ struct HostContext {
 
     /// What a stem ends with when it names a WebAssembly module: the same file on every platform,
     /// so the stem is the file's name and no suffix is added. Loom's kernel opens it by its first
-    /// bytes and holds it in a box (`Kernel::containment`).
-    static constexpr std::string_view kModuleSuffix = ".wasm";
+    /// bytes and holds it in a box (`Kernel::containment`). The Builder's, whose boxed products
+    /// are stems spelled so.
+    static constexpr std::string_view kModuleSuffix = builder::kModuleSuffix;
 
     /// The same rule aimed at another directory (a CMake target lands where its own project puts
     /// it). Static: a fact about the platform. One copy of the suffix rule.
     static std::string so_in(std::string_view directory, std::string_view stem) {
         std::string path = std::string(directory) + "/" + std::string(stem);
-        if (stem.size() > kModuleSuffix.size() &&
-            stem.substr(stem.size() - kModuleSuffix.size()) == kModuleSuffix) {
+        if (builder::names_module(stem)) {
             return path;
         }
         return path +

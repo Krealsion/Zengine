@@ -166,9 +166,10 @@ inline constexpr const char* kMenuOutputNewer = "builder.menu.output-newer";
 /// is a name, not an index, because a re-asked catalog may come back reordered. No mode rides,
 /// and no `awaiting`: a reloaded image asked nothing, so it must not announce an answer as news.
 struct BuilderPaneState {
-    std::string chosen; ///< the recipe the weaver picked out, by name; empty means none
-    bool arm = false;   ///< the next build is offered to the running project when it works
-    ZEN_SHAPE(BuilderPaneState, 1, ZEN_FIELD(chosen), ZEN_FIELD(arm));
+    std::string chosen;   ///< the recipe the weaver picked out, by name; empty means none
+    bool arm = false;     ///< the next build is offered to the running project when it works
+    std::string artifact = {}; ///< which of its products, by stem; empty means the recipe's first
+    ZEN_SHAPE(BuilderPaneState, 2, ZEN_FIELD(chosen), ZEN_FIELD(arm), ZEN_FIELD(artifact));
 };
 
 } // namespace zengine::builder_pane

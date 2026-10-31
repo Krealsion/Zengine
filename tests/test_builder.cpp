@@ -124,7 +124,8 @@ Recipe cmake_recipe_in(const char* tree, const std::string& id, const std::strin
 /// one. The suite owns this rule here for the same reason the host owns it there:
 /// there is exactly one place either of them writes a platform suffix down.
 std::string fixture_path(const std::string& artifact) {
-    return std::string(kFixtureArtifacts) + "/" + artifact + kArtifactSuffix;
+    return std::string(kFixtureArtifacts) + "/" + artifact +
+           (names_module(artifact) ? "" : kArtifactSuffix);
 }
 
 /// The tool's view of a recipe -- identity, artifact, and the one file it means.
@@ -639,7 +640,10 @@ struct Live {
     explicit Live(std::vector<Recipe> recipes) : catalog(std::move(recipes)) {
         views.reserve(catalog.size());
         for (const Recipe& r : catalog) {
-            views.push_back(view_of(r));
+            // A VIEW A PRODUCT, as the host derives them (`CurrentRecipes::hold`).
+            for (const Product& p : products_of(r)) {
+                views.push_back(RecipeView{r.id, p.artifact, fixture_path(p.artifact)});
+            }
         }
         runner_id = mount_office<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
                                                    catalog, std::string(kCMake));
@@ -700,16 +704,21 @@ TEST_CASE("contract: nothing a build conversation carries is a command") {
     using loom::SchemaBuilder;
 
     // THE HARD BOUNDARY, asserted as a SHAPE rather than a check: both shapes that can cause
-    // work carry exactly one field, a target NAME -- no program, argument list, working directory
-    // or shell line anywhere on this wire -- so "the pane sent a command" is not a sentence this
-    // vocabulary can express, and making it one would change these declarations and this case.
-    const auto requested = SchemaBuilder("BuildRequested", 2)
+    // work carry NAMES -- a recipe and the stem of one of its products -- and no program, argument
+    // list, working directory or shell line anywhere on this wire, so "the pane sent a command" is
+    // not a sentence this vocabulary can express, and making it one would change these
+    // declarations and this case.
+    const auto requested = SchemaBuilder("BuildRequested", 3)
                                .field("recipe", Kind::Text)
                                .field("realize", Kind::Bool)
+                               .field("artifact", Kind::Text)
                                .build();
     CHECK(schema_of<BuildRequested>()->content_id() == requested->content_id());
 
-    const auto order = SchemaBuilder("RunBuild", 2).field("recipe", Kind::Text).build();
+    const auto order = SchemaBuilder("RunBuild", 3)
+                           .field("recipe", Kind::Text)
+                           .field("artifact", Kind::Text)
+                           .build();
     CHECK(schema_of<RunBuild>()->content_id() == order->content_id());
 
     // The ask that opens a pane carries nothing at all: there is one tool at
@@ -1772,7 +1781,8 @@ TEST_CASE("the office answers a shape's section from its own page, said against 
     const std::string held = manual::content_id_text(schema_of<BuildRequested>()->content_id());
 
     // BY THE CONTENT ID THE ASKER HOLDS: the section, from the page this build embedded.
-    const manual::ShapeDocumentShown named = ask({BuildRequested::zen_name, 2, held});
+    const manual::ShapeDocumentShown named =
+        ask({BuildRequested::zen_name, BuildRequested::zen_version, held});
     CHECK(named.refusal.empty());
     CHECK(named.current);
     CHECK(named.said.empty());
@@ -1782,11 +1792,11 @@ TEST_CASE("the office answers a shape's section from its own page, said against 
     CHECK(named.text == std::string(section->text));
     CHECK(named.text.find("**Refuses:**") != std::string::npos);
     // ...and asked with none, against the office's own.
-    CHECK(ask({BuildRequested::zen_name, 2, ""}).current);
+    CHECK(ask({BuildRequested::zen_name, BuildRequested::zen_version, ""}).current);
 
     // ANOTHER ID IS ANOTHER DEFINITION: the words are said, and said to be out of date for it.
     const manual::ShapeDocumentShown other =
-        ask({BuildRequested::zen_name, 2, "0x0000000000000001"});
+        ask({BuildRequested::zen_name, BuildRequested::zen_version, "0x0000000000000001"});
     CHECK_FALSE(other.current);
     CHECK(other.content_id == held);
     CHECK(other.said.find("out of date") != std::string::npos);
@@ -2811,6 +2821,182 @@ TEST_CASE("a single-source recipe writes its project, and is one `cmake -P`") {
     moved.single_source->links.push_back("zengine::surface");
     CHECK(materialize(moved).empty());
     CHECK(stamp_of(workspace + "/" + kGeneratedProjectFile).size != first.size);
+}
+
+// ============================================================================
+// Tier 8b -- what a recipe makes: its pane native, boxed or both, each product a stem
+// ============================================================================
+
+TEST_CASE("a one-file recipe makes its pane native, boxed or both, each product a stem of its own") {
+    Recipe r = one_source("/tmp/ws", "/tmp/oven.cpp");
+    CHECK(r.single_source->makes == std::string(makes::kNative));
+    CHECK(products_of(r) == std::vector<Product>{Product{"zengine-oven", false}});
+
+    r.single_source->makes = makes::kBoxed;
+    CHECK(check_recipe(r).empty());
+    CHECK(products_of(r) == std::vector<Product>{Product{"zengine-oven.wasm", true}});
+    CHECK(makes_product(r, "zengine-oven.wasm"));
+    CHECK_FALSE(makes_product(r, "zengine-oven"));
+
+    // BOTH: the native first, so an ask that names no product builds what it built before.
+    r.single_source->makes = makes::kBoth;
+    CHECK(check_recipe(r).empty());
+    CHECK(products_of(r) ==
+          std::vector<Product>{Product{"zengine-oven", false}, Product{"zengine-oven.wasm", true}});
+    CHECK(makes_product(r, "zengine-oven"));
+    CHECK(makes_product(r, "zengine-oven.wasm"));
+    CHECK_FALSE(makes_product(r, "zengine-oven.so"));
+
+    // A WORD THE RECIPE DOES NOT KNOW IS REFUSED BY NAME, and so is a stem that already says
+    // `.wasm`: the boxed product's stem is the recipe's with the suffix added, never twice.
+    r.single_source->makes = "wasm";
+    CHECK(check_recipe(r).find("makes `wasm`") != std::string::npos);
+    r.single_source->makes = makes::kBoxed;
+    r.artifact = "zengine-oven.wasm";
+    CHECK(check_recipe(r).find("ends `.wasm`") != std::string::npos);
+
+    // A CMAKE TARGET MAKES ONE PRODUCT, AND ITS STEM SAYS WHICH.
+    CHECK(products_of(cmake_recipe("quick", "fixture-quick")) ==
+          std::vector<Product>{Product{"fixture-quick", false}});
+    CHECK(products_of(cmake_recipe("module", "fixture-module", "fixture-module.wasm")) ==
+          std::vector<Product>{Product{"fixture-module.wasm", true}});
+}
+
+TEST_CASE("a CMake-target recipe reaches a boxed target by its stem, through a real build") {
+    // THE STEM RULE, END TO END: a target whose file is `<stem>.wasm` is named by that stem, the
+    // view spells it with no platform suffix, the real build is judged against that file, and an
+    // offer names it -- the stem a plan row loads a module by.
+    const std::string made = std::string(kFixtureArtifacts) + "/fixture-module.wasm";
+    std::remove(made.c_str());
+    Live live({cmake_recipe("module", "fixture-module", "fixture-module.wasm")});
+    REQUIRE(live.views.size() == 1);
+    CHECK(live.views[0].path == made);
+
+    live.tell_tool(BuildRequested{"module", true});
+    live.carry_until_over();
+    const BuildStatus& done = live.ears->last();
+    CHECK(done.outcome == outcome::kSucceeded);
+    CHECK(done.artifact == "fixture-module.wasm");
+    CHECK(done.detail.find("built fixture-module.wasm") != std::string::npos);
+    CHECK(stamp_of(made).present);
+    REQUIRE(live.ears->built.size() == 1);
+    CHECK(live.ears->built[0].artifact == "fixture-module.wasm");
+    CHECK(live.ears->built[0].path == made);
+}
+
+TEST_CASE("a boxed product's project consumes the package, and only its driver names the host's "
+          "wasi-sdk") {
+    Recipe both = one_source("/tmp/ws", "/tmp/oven.cpp");
+    both.single_source->makes = makes::kBoth;
+    const Product boxed{"zengine-oven.wasm", true};
+    const std::string text = generated_boxed_project(both);
+
+    // THE PACKAGE COMPILES THE MODULE: one source, the authored links, and where it lands.
+    CHECK(text.find("find_package(zengine 0.1 CONFIG REQUIRED)") != std::string::npos);
+    CHECK(text.find("if(NOT COMMAND zengine_wasm_weave)") != std::string::npos);
+    CHECK(text.find("no WebAssembly backend") != std::string::npos);
+    CHECK(text.find("zengine_wasm_weave(zengine-oven-boxed \"/tmp/oven.cpp\"") != std::string::npos);
+    CHECK(text.find("STEM zengine-oven\n") != std::string::npos);
+    CHECK(text.find("zengine::timer") != std::string::npos);
+    CHECK(text.find("OUTPUT_DIRECTORY \"" + cmake_quoted(both.artifact_dir) + "\"") !=
+          std::string::npos);
+    const std::string code = commands_of(text, both);
+    for (const char* forbidden : kNotInAProject) {
+        CHECK_MESSAGE(code.find(forbidden) == std::string::npos, std::string(forbidden));
+    }
+
+    // ITS DRIVER BUILDS ITS OWN PROJECT, beside the native one, and hands configure the host's
+    // wasi-sdk; the native product's driver names none.
+    const std::string driver = generated_driver(both, boxed, "/opt/wasi sdk");
+    CHECK(project_dir_of(both, boxed) == "/tmp/ws/" + std::string(kGeneratedBoxedDirName));
+    CHECK(driver.find("set(zengine_src \"/tmp/ws/boxed\")") != std::string::npos);
+    CHECK(driver.find("-DLOOM_WASI_SDK=/opt/wasi sdk") != std::string::npos);
+    CHECK(driver.find("compiling and linking zengine-oven.wasm") != std::string::npos);
+    const std::string native = generated_driver(both);
+    CHECK(native.find("LOOM_WASI_SDK") == std::string::npos);
+    CHECK(native.find("set(zengine_src \"/tmp/ws\")") != std::string::npos);
+    // ...and a recipe making its pane native generates what it generated before this word.
+    CHECK(generated_driver(one_source("/tmp/ws", "/tmp/oven.cpp")) == native);
+}
+
+TEST_CASE("a boxed product with no wasi-sdk is refused in words, and its native one is prepared "
+          "as before") {
+    const std::string workspace = std::string(kFixtureArtifacts) + "/ws-both";
+    const std::string source = std::string(kFixtureArtifacts) + "/oven-both.cpp";
+    std::filesystem::remove_all(std::filesystem::path(workspace)); // what an earlier run wrote
+    std::filesystem::create_directories(std::filesystem::path(kFixtureArtifacts));
+    {
+        std::ofstream write(source, std::ios::binary);
+        write << "// not compiled by this case\n";
+    }
+    Recipe both = one_source(workspace, source);
+    both.single_source->makes = makes::kBoth;
+
+    const PreparedBuild refused = prepare(both, "zengine-oven.wasm", kCMake, std::string());
+    CHECK_FALSE(refused.ok);
+    CHECK(refused.trouble.find("names no wasi-sdk") != std::string::npos);
+    CHECK(refused.trouble.find("its native product, `zengine-oven`, builds as before") !=
+          std::string::npos);
+    CHECK_FALSE(stamp_of(workspace + "/boxed/" + kGeneratedProjectFile).present);
+
+    const PreparedBuild native = prepare(both, std::string(), kCMake, std::string());
+    REQUIRE(native.ok);
+    CHECK(native.command.args[1] == workspace + "/" + kGeneratedDriverFile);
+
+    const PreparedBuild boxed = prepare(both, "zengine-oven.wasm", kCMake, "/opt/wasi-sdk");
+    REQUIRE(boxed.ok);
+    CHECK(boxed.command.args[1] == workspace + "/boxed/" + kGeneratedDriverFile);
+    CHECK(boxed.command.dir == workspace + "/boxed");
+    // ...AND WHAT IS WRITTEN THERE IS THE BOXED PROJECT, the package's function its one target.
+    {
+        std::ifstream read(workspace + "/boxed/" + kGeneratedProjectFile, std::ios::binary);
+        std::ostringstream text;
+        text << read.rdbuf();
+        CHECK(text.str() == generated_boxed_project(both));
+    }
+
+    const PreparedBuild stray = prepare(both, "zengine-oven.so", kCMake, "/opt/wasi-sdk");
+    CHECK_FALSE(stray.ok);
+    CHECK(stray.trouble.find("makes `zengine-oven` and `zengine-oven.wasm`, not `zengine-oven.so`") !=
+          std::string::npos);
+}
+
+TEST_CASE("the tool builds the product an ask names, and refuses one its recipe does not make") {
+    Recipe both = one_source(std::string(kFixtureArtifacts) + "/ws-tool", "/tmp/oven.cpp");
+    both.single_source->makes = makes::kBoth;
+    Live live({both});
+    // ONE CATALOG ROW A PRODUCT, the native first.
+    live.tell_tool(StatusRequested{});
+    live.carry_until_over();
+    REQUIRE_FALSE(live.ears->catalogs.empty());
+    const std::vector<RecipeSummary>& rows = live.ears->catalogs.back().recipes;
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].recipe == "oven");
+    CHECK(rows[0].artifact == "zengine-oven");
+    CHECK(rows[1].recipe == "oven");
+    CHECK(rows[1].artifact == "zengine-oven.wasm");
+
+    // A PRODUCT THE RECIPE DOES NOT MAKE IS THE TOOL'S REFUSAL, and nothing is ordered.
+    live.tell_tool(BuildRequested{"oven", false, "zengine-oven.so"});
+    live.carry_until_over();
+    REQUIRE_FALSE(live.ears->asked.empty());
+    CHECK_FALSE(live.ears->asked.back().taken);
+    CHECK(live.ears->asked.back().refusal ==
+          "recipe `oven` makes `zengine-oven` and `zengine-oven.wasm`, not `zengine-oven.so`");
+    CHECK(live.runner->ran() == 0);
+    CHECK(live.runner->refused() == 0);
+
+    // THE BOXED ONE IS ORDERED BY ITS STEM, and this runner, which names no wasi-sdk, refuses it
+    // in its words: nothing ran, and the status is about the product asked for.
+    live.tell_tool(BuildRequested{"oven", false, "zengine-oven.wasm"});
+    live.carry_until_over();
+    CHECK(live.ears->asked.back().taken);
+    const BuildStatus& done = live.ears->last();
+    CHECK(done.artifact == "zengine-oven.wasm");
+    CHECK(done.outcome == outcome::kNotStarted);
+    CHECK(done.detail.find("names no wasi-sdk") != std::string::npos);
+    CHECK(live.runner->ran() == 0);
+    CHECK(live.runner->refused() == 1);
 }
 
 // ============================================================================

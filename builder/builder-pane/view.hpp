@@ -33,8 +33,9 @@ namespace {
 inline void BuilderPaneWeave::offer_here(loom::Mail& mail, std::uint64_t correlation) {
     std::int64_t row = 0;
     if (choosing_.open) {
-        const std::int64_t at =
-            room().map().row_of(BuilderMeaning{builder_row::kRecipe, 0, {}, choosing_.name});
+        BuilderMeaning listed{builder_row::kRecipe, 0, {}, choosing_.name};
+        listed.artifact = choosing_.artifact;
+        const std::int64_t at = room().map().row_of(listed);
         row = at < 0 ? 0 : at;
     }
     offer_menu(row, 0, correlation, mail);
@@ -395,13 +396,12 @@ inline void BuilderPaneWeave::say_builder() {
         // the catalog. The subject is the recipe it names, so the picture moves when the
         // choice does -- and the row itself reads exactly as it always did, because the
         // control that ADVERTISES the list is `[choose a recipe...]` beside it.
-        facts.push_back(Fact{labelled_row("recipe", known_.recipes[at].recipe + " -> " +
-                                                       known_.recipes[at].artifact + "  (" +
+        BuilderMeaning named{builder_row::kRecipe, at, {}, known_.recipes[at].recipe};
+        named.artifact = artifact_key(at);
+        facts.push_back(Fact{labelled_row("recipe", product_words(known_.recipes[at]) + "  (" +
                                                        std::to_string(at + 1) + "/" +
                                                        std::to_string(held) + ")"),
-                             zengine::graphics::role::kFill, 3,
-                             BuilderMeaning{builder_row::kRecipe, at, {},
-                                            known_.recipes[at].recipe}});
+                             zengine::graphics::role::kFill, 3, std::move(named)});
     }
     // What the project is waiting on, while it is: the row exists exactly while the frontier
     // does and costs the third `said` row, which a waiting project has no output for. The

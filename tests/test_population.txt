@@ -33,7 +33,7 @@ files_weave                       doctest           always  20
 maker                             doctest           always  29
 # Tripwires in this suite read builder/weave.hpp, builder/runner.hpp and workshop/workshop.cpp as
 # text (VM-WALL-11).
-builder                           doctest           always  66
+builder                           doctest           always  71
 workshop_guests                   doctest           always  40
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
@@ -67,7 +67,7 @@ workshop_panes_settings           doctest           always  57
 # Tripwires in this part read the Terminal pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_terminal           doctest           always  75
 # Tripwires in this part read the Builder pane's source and CMake file as text (VM-WALL-11).
-workshop_panes_project            doctest           always  202
+workshop_panes_project            doctest           always  203
 # The example pane's twins on its module, built where the Loom package builds them (the `box` gate).
 workshop_panes_project            doctest           box     4
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp and the
@@ -84,7 +84,7 @@ workshop_neovim                   doctest           always  11
 workshop_neovim                   doctest           neovim  30
 # Tripwires in this suite read workshop/workshop.cpp, workshop/recipes.hpp and every pane entry's
 # bytes (VM-WALL-11).
-workshop_files                    doctest           always  63
+workshop_files                    doctest           always  65
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
