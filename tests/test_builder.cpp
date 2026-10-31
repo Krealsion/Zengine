@@ -2947,7 +2947,13 @@ TEST_CASE("a boxed product with no wasi-sdk is refused in words, and its native 
     REQUIRE(boxed.ok);
     CHECK(boxed.command.args[1] == workspace + "/boxed/" + kGeneratedDriverFile);
     CHECK(boxed.command.dir == workspace + "/boxed");
-    CHECK(stamp_of(workspace + "/boxed/" + kGeneratedProjectFile).present);
+    // ...AND WHAT IS WRITTEN THERE IS THE BOXED PROJECT, the package's function its one target.
+    {
+        std::ifstream read(workspace + "/boxed/" + kGeneratedProjectFile, std::ios::binary);
+        std::ostringstream text;
+        text << read.rdbuf();
+        CHECK(text.str() == generated_boxed_project(both));
+    }
 
     const PreparedBuild stray = prepare(both, "zengine-oven.so", kCMake, "/opt/wasi-sdk");
     CHECK_FALSE(stray.ok);
