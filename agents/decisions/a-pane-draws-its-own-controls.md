@@ -31,8 +31,9 @@ which is the first control every strip declares.
 - *Hiding unavailable controls* — rejected: a control that vanishes teaches nothing, and a
   weaver who aims at one is owed the operation's own reason. They are drawn in round brackets
   and they answer.
-- *A widget framework* — declined. Two consumers earned one packer; nothing here knows what a
-  pane means, and no other pane was migrated for symmetry.
+- *A widget framework* — declined: a framework would have to know what a pane means, and only
+  the pane does. The packer and the map know faces and places, nothing more. (This alternative
+  once argued that two consumers earned one packer; the founder retired that rule, 2026-10-31.)
 
 **Consequences.** Files' centred listing window was replaced by `component::cursor_window`,
 which moves by the least it can: that is what makes a double-click land on the row it was

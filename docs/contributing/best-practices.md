@@ -147,8 +147,9 @@ Its law, pages and suites: [`workshop/AGENTS.md`](../../workshop/AGENTS.md).
 
 - **A header declares**; the bodies are in the subject files, each `// WL-` pointer beside its
   body. [Where the law is](../../agents/workshop.md#where-the-law-is)
-- **Read the ownership note before moving anything in `screen.hpp`; `weave.hpp`'s split by mode is
-  not earned yet.** [Large source units](../architecture/README.md#large-source-units)
+- **Read the ownership note before moving anything in `screen.hpp`; `weave.hpp`'s split by mode
+  needs its shared state and refusal channel given owners first.**
+  [Large source units](../architecture/README.md#large-source-units)
 - **One geometry draws a thing and hits it.**
   [WL-GEO-01](../../agents/workshop/geometry.md#wl-geo-01--one-geometry-draws-a-thing-and-hits-it)
 - **A layout test uses the ordinary setup operation**; a fixture that edits the setup directly
