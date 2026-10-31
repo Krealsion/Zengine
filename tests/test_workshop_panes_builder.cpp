@@ -364,6 +364,47 @@ bool notice_says(BuilderRig& b, const std::string& words) {
     return !rows.empty() && rows[0].rfind(words, 0) == 0;
 }
 
+TEST_CASE("a recipe making its pane native and boxed is a row for each, and `b` and `f` build the "
+          "product the row names") {
+    // ONE ROW A PRODUCT, as the tool publishes them, each saying what it makes: the weaver chooses
+    // which with `c`, as between recipes, and the build asks for that product by its stem.
+    BuilderRig b("bld-products");
+    b.tool->catalog = catalog_of({{"tally", "tally"}, {"tally", "tally.wasm"}, {"two", "b"}});
+    b.open();
+    CHECK(b.text().find("tally -> tally  (1/3)") != std::string::npos);
+    b.letter(input::scan::kC, "c");
+    CHECK(b.text().find("tally -> tally.wasm (boxed)  (2/3)") != std::string::npos);
+    CHECK(notice_says(b, "build recipe: tally -> tally.wasm (boxed)"));
+
+    b.letter(input::scan::kB, "b");
+    REQUIRE(b.tool->asked.size() == 1);
+    CHECK(b.tool->asked[0] == "tally");
+    CHECK(b.tool->asked_artifact[0] == "tally.wasm");
+    CHECK(notice_says(b, "asked the Builder for `tally`'s `tally.wasm`"));
+
+    // THE CHOICE FOLLOWS ITS PRODUCT into a reordered catalog, and a catalog in which the recipe
+    // makes it no more leaves the choice on the recipe's first product.
+    b.tool->catalog = catalog_of({{"two", "b"}, {"tally", "tally"}, {"tally", "tally.wasm"}});
+    b.seat_do([](Tool& t, loom::Mail& mail) { (void)mail.publish(t.catalog); });
+    CHECK(b.text().find("tally -> tally.wasm (boxed)  (3/3)") != std::string::npos);
+    b.tool->catalog = catalog_of({{"two", "b"}, {"tally", "tally"}});
+    b.seat_do([](Tool& t, loom::Mail& mail) { (void)mail.publish(t.catalog); });
+    CHECK(b.text().find("tally -> tally  (2/2)") != std::string::npos);
+
+    // THE FRONTIER ACTION BUILDS THE PRODUCT THE PROJECT WAITS ON: a plan row naming the module
+    // is that row, whichever of the recipe's rows the weaver stands on.
+    b.tool->catalog = catalog_of({{"tally", "tally"}, {"tally", "tally.wasm"}});
+    b.seat_do([](Tool& t, loom::Mail& mail) { (void)mail.publish(t.catalog); });
+    b.frontier.waiting = true;
+    b.frontier.artifact = "tally.wasm";
+    b.letter(input::scan::kF, "f");
+    REQUIRE(b.tool->asked.size() == 2);
+    CHECK(b.tool->asked[1] == "tally");
+    CHECK(b.tool->asked_artifact[1] == "tally.wasm");
+    CHECK(b.tool->realize_asked[1]);
+    CHECK(b.text().find("tally -> tally.wasm (boxed)  (2/2)") != std::string::npos);
+}
+
 TEST_CASE("a build-and-load is said twice: the build's ending, then the load's answer") {
     BuilderRig b("bld-two-notices");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});

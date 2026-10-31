@@ -195,8 +195,16 @@ if(ZENGINE_PACKAGE)
 else()
     set(zengine_builder_cmake "${CMAKE_COMMAND}")
 endif()
+# ...and the compiler of a boxed pane, by the same rule: the wasi-sdk this tree builds its own
+# modules with (LOOM_WASI_SDK, where the Loom package builds them), and none in the package. A
+# Workshop with none refuses a boxed product in its own words and builds a native one.
+set(zengine_builder_wasi_sdk "")
+if(NOT ZENGINE_PACKAGE AND COMMAND loom_wasm_weave AND LOOM_WASI_SDK)
+    set(zengine_builder_wasi_sdk "${LOOM_WASI_SDK}")
+endif()
 target_compile_definitions(zengine-workshop PRIVATE
-    "ZENGINE_BUILDER_CMAKE=\"${zengine_builder_cmake}\"")
+    "ZENGINE_BUILDER_CMAKE=\"${zengine_builder_cmake}\""
+    "ZENGINE_BUILDER_WASI_SDK=\"${zengine_builder_wasi_sdk}\"")
 
 # ---- What `--version` says ---------------------------------------------------------------
 # The package's facts, as its BUILD-INFO.txt says them (cmake/ZengineInstall.cmake); a build that

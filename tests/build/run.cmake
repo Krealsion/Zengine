@@ -476,6 +476,192 @@ zen_expect("${absent}" "RESULT build=NO ARTIFACT"
 zen_expect_not("${absent}" "realization=realized" "an absent artifact was realized")
 message(STATUS "build witness: exit zero without the expected artifact is not success ok")
 
+# ---- the tutorial's Tally, one recipe making its pane native and boxed --------------------
+# builder/docs/edit-a-running-pane.md's recipe, as a weaver writes it with `makes` both: its native
+# product and its module each built through the real Builder, loaded by a plan row naming its
+# stem, pressed as Workshop presses it, and read back. Where the build tree names a wasi-sdk the
+# module is built and answers as the library does; where it names none, the boxed build is
+# refused in words and the native one builds as before.
+string(REGEX MATCH "LOOM_WASI_SDK:PATH=([^\n]*)" _m "${cache}")
+set(wasi_sdk "${CMAKE_MATCH_1}")
+set(package_boxes OFF)
+if(EXISTS "${prefix}/lib/cmake/zengine/ZengineWasm.cmake")
+    set(package_boxes ON)
+endif()
+if(wasi_sdk AND NOT package_boxes)
+    message(FATAL_ERROR
+        "build witness: the build tree names a wasi-sdk (${wasi_sdk}) and the installed package "
+        "carries no zengine_wasm_weave(): a Zengine built where its Loom builds modules must "
+        "install the function that builds one")
+endif()
+
+set(tally_space "${work}/tally-space")
+file(REMOVE_RECURSE "${tally_space}")
+file(COPY "${repo}/examples/tally-pane/tally.cpp" DESTINATION "${sources}")
+function(zen_write_tally_recipes package space file)
+    file(WRITE "${file}"
+"{
+  \"zen\": 1,
+  \"schema\": \"WorkshopRecipeFile\",
+  \"version\": 3,
+  \"fields\": {
+    \"format\": \"zengine-build-recipes\",
+    \"format_version\": \"3\",
+    \"recipes\": [
+      {
+        \"recipe\": \"tally\",
+        \"artifact\": \"tally\",
+        \"artifact_dir\": \"\",
+        \"cmake_target\": [],
+        \"single_source\": [
+          {
+            \"source\": \"${sources}/tally.cpp\",
+            \"packages\": [ \"${package}\", \"${loom_prefix}\" ],
+            \"links\": [ \"zengine::pane\", \"zengine::activation\", \"zengine::input\",
+                         \"loom::switchboard\" ],
+            \"toolchain_from\": \"${build_dir}\",
+            \"workspace\": \"${space}\",
+            \"makes\": \"both\"
+          }
+        ]
+      }
+    ]
+  }
+}
+")
+endfunction()
+zen_write_tally_recipes("${prefix}" "${tally_space}" "${work}/tally-recipes.json")
+
+# One plan a product: the host's two and a row naming that product's stem.
+function(zen_write_tally_plan stem file)
+    file(WRITE "${file}"
+"{
+  \"zen\": 1,
+  \"schema\": \"WorkshopLoadFile\",
+  \"version\": 1,
+  \"fields\": {
+    \"format\": \"zengine-workshop-load-plan\",
+    \"format_version\": \"1\",
+    \"artifacts\": [
+      { \"artifact\": \"zengine-operators-basic\", \"provider\": [ { \"mode\": \"normal\" } ],
+        \"weave\": [] },
+      { \"artifact\": \"zengine-timer\", \"provider\": [ { \"mode\": \"normal\" } ],
+        \"weave\": [ { \"role\": \"zengine.timer\" } ] },
+      { \"artifact\": \"${stem}\", \"provider\": [],
+        \"weave\": [ { \"role\": \"example.tally\" } ] }
+    ]
+  }
+}
+")
+endfunction()
+zen_write_tally_plan("tally" "${work}/tally-plan-native.json")
+zen_write_tally_plan("tally.wasm" "${work}/tally-plan-boxed.json")
+
+function(zen_tally product plan label out_var)
+    set(recipes "${work}/tally-recipes.json")
+    if(ARGN)
+        list(GET ARGN 0 recipes)
+    endif()
+    execute_process(
+        COMMAND "${ZEN_WITNESS}" --dir "${house}" --load-plan "${plan}"
+                --recipes "${recipes}" --build tally --product "${product}"
+                --realize --press example.tally/tally/tally.add/3 --read count
+        TIMEOUT 900
+        OUTPUT_VARIABLE said ERROR_VARIABLE said_err RESULT_VARIABLE code)
+    set(${out_var} "${said}${said_err}" PARENT_SCOPE)
+    set(${out_var}_code "${code}" PARENT_SCOPE)
+    message(STATUS "build witness: ---- ${label} (exit ${code}) ----")
+    message(STATUS "${said}${said_err}")
+endfunction()
+
+# THE NATIVE PRODUCT, as the tutorial builds it.
+zen_tally("tally" "${work}/tally-plan-native.json" "Tally, native" tally_native)
+if(NOT tally_native_code EQUAL 0)
+    message(FATAL_ERROR "build witness: Tally's native product did not build (exit ${tally_native_code})")
+endif()
+zen_expect("${tally_native}" "recipes: tally->tally tally->tally.wasm"
+           "the Builder does not say the recipe makes both products, native first")
+zen_expect("${tally_native}" "waiting to be built: tally\n"
+           "the plan row naming the native stem did not wait on its build")
+zen_expect("${tally_native}" "RESULT build=succeeded realization=realized"
+           "Tally's native product was not built and realized")
+zen_expect("${tally_native}" "pressed=3 count=3"
+           "the native Tally did not count three presses")
+zen_expect_not("${tally_native}" "held=boxed" "the native Tally was held in a box")
+message(STATUS "build witness: Tally's native product built, loaded and answered ok")
+
+if(wasi_sdk)
+    # THE BOXED PRODUCT OF THE SAME RECIPE: its own generated project, the package's function,
+    # the host's wasi-sdk, a module loaded by the stem a plan row names, answering alike.
+    zen_tally("tally.wasm" "${work}/tally-plan-boxed.json" "Tally, boxed" tally_boxed)
+    if(NOT tally_boxed_code EQUAL 0)
+        message(FATAL_ERROR "build witness: Tally's boxed product did not build (exit ${tally_boxed_code})")
+    endif()
+    zen_expect("${tally_boxed}" "waiting to be built: tally.wasm"
+               "the plan row naming the module did not wait on its build")
+    zen_expect("${tally_boxed}" "RESULT build=succeeded realization=realized"
+               "Tally's boxed product was not built and realized")
+    zen_expect("${tally_boxed}" "held=boxed (WebAssembly"
+               "the boxed Tally is not held in a box")
+    zen_expect("${tally_boxed}" "pressed=3 count=3"
+               "the boxed Tally did not answer as the native one does")
+    foreach(made "${tally_space}/out/tally.wasm" "${house}/tally.wasm"
+                 "${tally_space}/boxed/CMakeLists.txt")
+        if(NOT EXISTS "${made}")
+            message(FATAL_ERROR "build witness: ${made} is not there")
+        endif()
+    endforeach()
+    file(READ "${tally_space}/boxed/CMakeLists.txt" boxed_project)
+    zen_expect("${boxed_project}" "zengine_wasm_weave(tally-boxed"
+               "the boxed product's project does not build through the package's function")
+    message(STATUS "build witness: Tally's boxed product built, loaded in its box and answered ok")
+
+    # ...AND A PACKAGE BUILT WITHOUT THE BACKEND refuses the boxed product at configure, in words:
+    # its config has no paragraph naming zengine_wasm_weave() and carries no ZengineWasm.cmake.
+    set(canary_box "${work}/prefix-no-box")
+    file(TO_CMAKE_PATH "${canary_box}" canary_box)
+    file(REMOVE_RECURSE "${canary_box}" "${work}/tally-space-no-box")
+    file(COPY "${prefix}/" DESTINATION "${canary_box}")
+    set(box_config "${canary_box}/lib/cmake/zengine/zengineConfig.cmake")
+    file(READ "${box_config}" config_text)
+    set(paragraph_start "# The Loom underneath builds WebAssembly modules")
+    string(FIND "${config_text}" "${paragraph_start}" from)
+    string(FIND "${config_text}" "ZengineWasm.cmake\")
+
+" to)
+    if(from EQUAL -1 OR to EQUAL -1)
+        message(FATAL_ERROR "build witness: the installed config names no boxed paragraph to remove")
+    endif()
+    math(EXPR to "${to} + 21")
+    string(SUBSTRING "${config_text}" 0 ${from} before)
+    string(SUBSTRING "${config_text}" ${to} -1 after)
+    file(WRITE "${box_config}" "${before}${after}")
+    file(REMOVE "${canary_box}/lib/cmake/zengine/ZengineWasm.cmake")
+    zen_write_tally_recipes("${canary_box}" "${work}/tally-space-no-box"
+                            "${work}/tally-recipes-no-box.json")
+    zen_tally("tally.wasm" "${work}/tally-plan-boxed.json" "Tally, boxed, a package with no box"
+              tally_no_box "${work}/tally-recipes-no-box.json")
+    if(tally_no_box_code EQUAL 0)
+        message(FATAL_ERROR "build witness: a package with no box built a boxed product")
+    endif()
+    zen_expect("${tally_no_box}" "builds no boxed pane"
+               "a package built without the backend did not refuse in its words")
+    zen_expect("${tally_no_box}" "CMake configure FAILED"
+               "a package with no box failed somewhere other than its configure")
+    message(STATUS "build witness: a package with no box refuses the boxed product in words ok")
+else()
+    # NO WASI-SDK: the boxed build is refused in words, before anything runs.
+    zen_tally("tally.wasm" "${work}/tally-plan-boxed.json" "Tally, boxed, refused" tally_refused)
+    if(tally_refused_code EQUAL 0)
+        message(FATAL_ERROR "build witness: a boxed build with no wasi-sdk reported success")
+    endif()
+    zen_expect("${tally_refused}" "RESULT build=did not start"
+               "a boxed build with no wasi-sdk was not refused before it ran")
+    zen_expect("${tally_refused}" "names no wasi-sdk"
+               "the refusal does not say why")
+    message(STATUS "build witness: with no wasi-sdk, Tally's boxed build is refused in words ok")
+endif()
+
 # ---- the canary: break the package and the build must go red -----------------------------
 # A consumer that looks like it uses the package while reading Zengine's source tree, which stays
 # present and readable: if the generated project builds with the package gone, it found it

@@ -49,7 +49,7 @@ inline HostContext::CodeSource code_source_of(const std::string& office, loom::W
     out.artifact = realized->stem;
     out.reload = load::reload_refusal(*realized);
     for (const builder::Recipe& recipe : recipes) {
-        if (recipe.artifact != out.artifact) {
+        if (!builder::makes_product(recipe, out.artifact)) {
             continue;
         }
         HostContext::CodeSource::Recipe named;

@@ -20,8 +20,8 @@ zengine.files - files.menu shift+m - - this pane's menu
 zengine.files - files.cancel escape - - cancel
 zengine.files - files.up up - - previous field
 zengine.files - files.down down - - next field
-zengine.files - files.commit-field return RecipeAuthorRequested/2,StatusRequested/1 - commit this field
+zengine.files - files.commit-field return RecipeAuthorRequested/3,StatusRequested/1 - commit this field
 zengine.files - files.next-field unbound - - keep this field and step
-zengine.files - files.write-recipe unbound RecipeAuthorRequested/2,StatusRequested/1 - write the recipe
+zengine.files - files.write-recipe unbound RecipeAuthorRequested/3,StatusRequested/1 - write the recipe
 zengine.files - files.menu unbound - - this pane's menu
 zengine.files - files.cancel escape - - abandon

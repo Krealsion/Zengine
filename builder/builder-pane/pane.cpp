@@ -131,12 +131,22 @@ struct BuilderMeaning {
     std::string subject; ///< the recipe a list row names; empty where a row names none
     std::int64_t op = 0; ///< the build operation `subject` was true of; 0 where none applies
     bool available = true; ///< a control drawn `[label]`; false drawn `(label)`
+    /// The product a recipe row names, by stem, where it is not the recipe's first (a recipe
+    /// making its pane native and boxed has a row for each); empty for the first and elsewhere.
+    std::string artifact = {};
 
     bool operator==(const BuilderMeaning& o) const {
         return kind == o.kind && index == o.index && id == o.id && subject == o.subject &&
-               op == o.op && available == o.available;
+               op == o.op && available == o.available && artifact == o.artifact;
     }
 };
+
+/// A RECIPE ROW AS WORDS: the recipe, the product it builds, and `(boxed)` where that product is
+/// a module.
+inline std::string product_words(const zengine::builder::RecipeSummary& row) {
+    return row.recipe + " -> " + row.artifact +
+           (zengine::builder::names_module(row.artifact) ? " (boxed)" : "");
+}
 
 // ---- What the pane asked and still waits on (`AskFacet`) -----------------------------------
 
@@ -514,6 +524,10 @@ public:
             // recipe their pick named is gone. The frontier action must not read what is
             // left as an explicit choice.
             state_.chosen.clear();
+            state_.artifact.clear();
+        } else if (product_row(state_.chosen, state_.artifact) == known_.recipes.size()) {
+            // ...and a product the recipe no longer makes leaves the choice on its first.
+            state_.artifact.clear();
         }
         if (!picked_.empty() && named_row(picked_) == known_.recipes.size()) {
             // ...AND A PICK GOES WITH ITS RECIPE, so the name coming back in a later catalog is
@@ -591,7 +605,7 @@ public:
             // No new route: the tool confirms the build, offers, and the owner decides.
             // Workshop approved the commit as a build and a write before the row was asked
             // for, and the row's ask carries that approval here: this send asks nothing more.
-            if (send_build(mail, row.subject, /*realize=*/true)) {
+            if (send_build(mail, row.subject, /*realize=*/true, row.stem)) {
                 notice_ = "loading `" + row.stem + "` now -- loaded as " + row.role + ", " +
                           said.detail + "; Workshop stays live while the incremental build "
                           "confirms it" + written;
@@ -739,6 +753,10 @@ public:
             return;
         }
         state_.chosen = said.recipe;
+        // The product the pane runs from, where the recipe makes several: a boxed pane's source
+        // chooses the boxed row.
+        const std::size_t ran = product_row(said.recipe, said.artifact);
+        state_.artifact = ran < known_.recipes.size() ? artifact_key(ran) : std::string();
         // THE ROLE LINE KEEPS ITS OWN ROW: a weaver mid-way through typing a role still sees the
         // line; the choice has moved underneath it and the recipe row says so when it closes.
         if (!role_.open) {
@@ -787,10 +805,12 @@ public:
                     // the weaver's pick and closes the list -- Files' rule, so no press means two
                     // things. And only where the keys already were (WL-FOCUS-04): the press that
                     // brings them here points at the pane, and pointing is not choosing.
-                    if (keys_went_here && m->subject == choosing_.name) {
+                    if (keys_went_here && m->subject == choosing_.name &&
+                        m->artifact == choosing_.artifact) {
                         take_choice(mail);
                     } else {
                         choosing_.name = m->subject;
+                        choosing_.artifact = m->artifact;
                         say(mail);
                     }
                 } else if (m->kind == builder_row::kRecipe && keys_went_here) {
@@ -826,6 +846,7 @@ public:
         notice_.clear();
         if (m.kind == builder_row::kRecipe && choosing_.open) {
             choosing_.name = m.subject;
+            choosing_.artifact = m.artifact;
         }
         offer_menu(at.row, at.column, mail.correlation(), mail);
         say(mail);
@@ -1148,14 +1169,14 @@ private:
                 say_undone(a, "it is not in the recipes this pane last heard", mail);
                 return;
             }
-            build_sent(mail, a.subject, a.realize);
+            build_sent(mail, a.subject, a.realize, a.artifact);
             return;
         case Act::kLoadBuilt:
             if (!ready_to_load() || shown_.recipe != a.subject || shown_.op != a.op) {
                 say_undone(a, "it is not what is built and waiting now", mail);
                 return;
             }
-            if (send_build(mail, a.subject, /*realize=*/true)) {
+            if (send_build(mail, a.subject, /*realize=*/true, a.artifact)) {
                 notice_ = "loading the built `" + a.artifact +
                           "` now -- Workshop stays live while the incremental build confirms it";
             }
@@ -1196,15 +1217,18 @@ private:
     /// action's and the role line's carried from their first beat. Its ticket is kept for Loom's
     /// word that exactly this send was refused (WL-OPEN-07); a send that queued nothing arms
     /// nothing, says so in the notice, and answers false.
-    bool send_build(loom::Mail& mail, const std::string& recipe, bool realize) {
+    bool send_build(loom::Mail& mail, const std::string& recipe, bool realize,
+                    const std::string& artifact) {
         (void)asks().forget(of_kind(Act::kBuildSent));
         BuilderAsk sent = asking(Act::kBuildSent);
         sent.subject = recipe;
+        sent.artifact = artifact;
         const Asks::Asked held = asks().ask_with(
             builder::kBuilderRole, builder::BuildRequested::zen_name,
             builder::BuildRequested::zen_version, std::move(sent), [&](std::uint64_t) {
                 return mail.as_role(pane::kBuilderPaneRole)
-                    .send_to_role(builder::kBuilderRole, builder::BuildRequested{recipe, realize});
+                    .send_to_role(builder::kBuilderRole,
+                                  builder::BuildRequested{recipe, realize, artifact});
             });
         if (held != Asks::Asked::kHeld) {
             notice_ = not_built(recipe, realize) + " -- nothing was queued to " +
@@ -1224,9 +1248,9 @@ private:
 
     // ---- The catalog and the weaver's choice -----------------------------------------
 
-    /// WHERE THE NAMED RECIPE SITS, or `recipes.size()` for "it is not here". The pane holds
-    /// a NAME, so this is the one place a name becomes a row and it is re-derived at every
-    /// use rather than cached.
+    /// WHERE THE NAMED RECIPE SITS, its first product's row, or `recipes.size()` for "it is not
+    /// here". The pane holds a NAME, so this is the one place a name becomes a row and it is
+    /// re-derived at every use rather than cached.
     std::size_t named_row(const std::string& recipe) const {
         for (std::size_t i = 0; i < known_.recipes.size(); ++i) {
             if (known_.recipes[i].recipe == recipe) {
@@ -1236,13 +1260,38 @@ private:
         return known_.recipes.size();
     }
 
+    /// WHERE ONE PRODUCT OF THE NAMED RECIPE SITS, by its stem (empty: the recipe's first), or
+    /// `recipes.size()`.
+    std::size_t product_row(const std::string& recipe, const std::string& artifact) const {
+        if (artifact.empty()) {
+            return named_row(recipe);
+        }
+        for (std::size_t i = 0; i < known_.recipes.size(); ++i) {
+            if (known_.recipes[i].recipe == recipe && known_.recipes[i].artifact == artifact) {
+                return i;
+            }
+        }
+        return known_.recipes.size();
+    }
+
+    /// HOW A CHOICE NAMES ROW `i`'S PRODUCT: empty for its recipe's first, the stem otherwise --
+    /// so a recipe making one product is chosen by its name alone.
+    std::string artifact_key(std::size_t i) const {
+        return i < known_.recipes.size() && named_row(known_.recipes[i].recipe) != i
+                   ? known_.recipes[i].artifact
+                   : std::string();
+    }
+
     /// The row the weaver is on: their explicit pick where it still names something, and the
     /// catalog's first row otherwise. `chosen` is bounded at use and never at write.
     std::size_t cursor_row() const {
         if (known_.recipes.empty()) {
             return 0;
         }
-        const std::size_t at = named_row(state_.chosen);
+        std::size_t at = product_row(state_.chosen, state_.artifact);
+        if (at >= known_.recipes.size()) {
+            at = named_row(state_.chosen);
+        }
         return at < known_.recipes.size() ? at : std::size_t{0};
     }
 
@@ -1271,6 +1320,7 @@ private:
         BuilderAsk a;
         a.act = Act::kBuild;
         a.subject = known_.recipes[cursor_row()].recipe;
+        a.artifact = known_.recipes[cursor_row()].artifact;
         a.realize = realize;
         a.undone = "`" + a.subject + "` was not built";
         ask_approval(mail, std::move(a), mail.correlation());
@@ -1278,12 +1328,20 @@ private:
 
     /// THE BUILD SENT, AND SAID: where `b` ends on Workshop's word, and where the frontier action
     /// ends with the approval its first beat carried. It asks nothing itself.
-    void build_sent(loom::Mail& mail, const std::string& recipe, bool realize) {
-        if (!send_build(mail, recipe, realize)) {
+    void build_sent(loom::Mail& mail, const std::string& recipe, bool realize,
+                    const std::string& artifact) {
+        if (!send_build(mail, recipe, realize, artifact)) {
             say(mail);
             return;
         }
+        // The product is named where the recipe makes more than one.
+        std::size_t made = 0;
+        for (const builder::RecipeSummary& row : known_.recipes) {
+            made += row.recipe == recipe ? 1u : 0u;
+        }
+        const bool several = made > 1;
         notice_ = "asked the Builder for `" + recipe + "`" +
+                  (artifact.empty() || !several ? std::string() : "'s `" + artifact + "`") +
                   (realize ? " and to realize it" : std::string()) +
                   " -- Workshop stays live while it builds";
         say(mail);
@@ -1391,13 +1449,13 @@ private:
         const std::size_t at = cursor_row();
         const std::size_t to = by < 0 ? (at == 0 ? held - 1 : at - 1) : (at + 1 >= held ? 0 : at + 1);
         state_.chosen = known_.recipes[to].recipe;
+        state_.artifact = artifact_key(to);
         // THE ONE WRITER OF `picked`: this gesture is what makes a selection the WEAVER's
         // rather than the catalog's order wearing a name. The frontier action reads it when
         // several recipes produce one artifact -- and it records WHICH recipe was picked, so a
         // choice another gesture later moves elsewhere carries no pick with it.
         picked_ = state_.chosen;
-        notice_ = "build recipe: " + known_.recipes[to].recipe + " -> " +
-                  known_.recipes[to].artifact;
+        notice_ = "build recipe: " + product_words(known_.recipes[to]);
         say(mail);
     }
 
@@ -1468,7 +1526,8 @@ private:
         // about, and `build_sent`'s notice says it again, so the pane never shows one recipe
         // while the gesture sends another. The approval came at the first beat: no second ask.
         state_.chosen = known_.recipes[match].recipe;
-        build_sent(mail, state_.chosen, /*realize=*/true);
+        state_.artifact = artifact_key(match);
+        build_sent(mail, state_.chosen, /*realize=*/true, known_.recipes[match].artifact);
     }
 
     // Load it and the role line it opens, defined in `modes.hpp`.
@@ -1668,7 +1727,8 @@ private:
     /// by its operation, `control:<id>`; and the role line, `line`.
     static std::string part_name(const BuilderMeaning& m) {
         switch (m.kind) {
-        case builder_row::kRecipe: return "recipe:" + m.subject;
+        case builder_row::kRecipe:
+            return "recipe:" + m.subject + (m.artifact.empty() ? "" : "/" + m.artifact);
         case builder_row::kControl: return "control:" + m.id;
         case builder_row::kLine: return "line";
         default: return std::string();
@@ -1772,6 +1832,7 @@ private:
     struct Choosing {
         bool open = false;
         std::string name;
+        std::string artifact; ///< which of its products, `BuilderPaneState::artifact`'s way
         std::size_t hint = 0; ///< where the window began last time, for least motion
     } choosing_;
 

@@ -218,54 +218,9 @@ function(zengine_provider target source)
 endfunction()
 
 # ---- ...and a weave built as a WebAssembly module, beside its native build ---------------
-# `zengine_wasm_weave(<target> <source> STEM <stem> LINKS <library>...)` compiles the weave's one
-# source for wasm32 with the installed Loom's loom_wasm_weave() into `<stem>.wasm` beside this
-# directory's native weaves: the stem a plan row names it by (`HostContext::kModuleSuffix`). LINKS
-# are the Zengine libraries its native build links, each header-only, since a module carries only
-# what it compiles; a compiled library is refused by name.
-function(zengine_wasm_weave target source)
-    cmake_parse_arguments(PARSE_ARGV 2 zw "" "STEM" "LINKS")
-    if(NOT COMMAND loom_wasm_weave)
-        message(FATAL_ERROR "zengine_wasm_weave(${target}): this Loom package builds no "
-                            "WebAssembly module (it was built without LOOM_ENABLE_WASM)")
-    endif()
-    if(NOT zw_STEM OR NOT zw_LINKS)
-        message(FATAL_ERROR "zengine_wasm_weave(${target}): STEM and LINKS are required")
-    endif()
-    set(pending ${zw_LINKS})
-    set(seen "")
-    while(pending)
-        list(POP_FRONT pending lib)
-        if(lib IN_LIST seen OR lib MATCHES "^\\$<" OR lib MATCHES "^loom::(core|switchboard)$")
-            continue() # a generator expression is a native build's; Loom's core rides every module
-        endif()
-        list(APPEND seen ${lib})
-        if(NOT TARGET ${lib})
-            message(FATAL_ERROR "zengine_wasm_weave(${target}): '${lib}' is not a target")
-        endif()
-        get_target_property(aliased ${lib} ALIASED_TARGET)
-        if(aliased)
-            set(lib ${aliased})
-        endif()
-        get_target_property(kind ${lib} TYPE)
-        if(NOT kind STREQUAL "INTERFACE_LIBRARY")
-            message(FATAL_ERROR
-                "zengine_wasm_weave(${target}): '${lib}' is a compiled library (${kind}), and a "
-                "module carries only what it compiles; a weave built boxed links header-only "
-                "libraries")
-        endif()
-        get_target_property(next ${lib} INTERFACE_LINK_LIBRARIES)
-        if(next)
-            list(APPEND pending ${next})
-        endif()
-    endwhile()
-    get_filename_component(entry "${source}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-    set(module "${CMAKE_CURRENT_BINARY_DIR}/${zw_STEM}.wasm")
-    loom_wasm_weave(${target} OUTPUT "${module}" SOURCES "${entry}"
-                    INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}")
-    set_target_properties(${target} PROPERTIES ZENGINE_WEAVE_SOURCE "${entry}"
-                                               ZENGINE_WASM_MODULE "${module}")
-endfunction()
+# zengine_wasm_weave(), refusing where the Loom package builds no module: the function the installed
+# package carries where it does (cmake/ZengineInstall.cmake), reading this source tree's headers.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineWasm.cmake)
 
 # ---- a weave's manual, carried compiled in ---------------------------------------------
 # zengine_manual() and the one page grammar the documentation lane's manual check reads with.

@@ -8,7 +8,8 @@
 // processes it started, saying what it sees of them. A weave rather than a helper, so its
 // authority is a grant a reader can see: report to `zengine.builder`, ask the Timer for a beat.
 // A `RunBuild` for a name outside the host's catalog is refused and nothing runs; the one
-// program it starts is the host's CMake, which no recipe, message or poke can reach.
+// program it starts is the host's CMake, which no recipe, message or poke can reach, and a boxed
+// product's compiler is the host's wasi-sdk, held the same way.
 // Builder law: agents/realization.md
 
 // The participant that possesses the process capability owns the unfinished work: it starts a
@@ -102,15 +103,18 @@ public:
     /// this runner then builds) and never state, since `ZEN_SHAPE` state is poke-writable and a
     /// poke that could write a program path would be arbitrary execution. It is `const`: a
     /// runner writing somebody else's catalog would be a procedure with no author. The owner
-    /// must outlive this weave. The live handles and `cmake_` stay out of state for that reason.
-    BuildRunnerWeave(const std::vector<Recipe>& catalog, std::string cmake)
-        : catalog_(catalog), cmake_(std::move(cmake)) {
+    /// must outlive this weave. The live handles, `cmake_` and `wasi_sdk_` stay out of state for
+    /// that reason; `wasi_sdk` empty means this host compiles no boxed product.
+    BuildRunnerWeave(const std::vector<Recipe>& catalog, std::string cmake,
+                     std::string wasi_sdk = std::string())
+        : catalog_(catalog), cmake_(std::move(cmake)), wasi_sdk_(std::move(wasi_sdk)) {
         look_ = timers().repeat(std::string(kLookTimerId), std::chrono::milliseconds(kLookBeatMs),
                                 &BuildRunnerWeave::on_look_beat);
     }
 
     /// A temporary catalog would dangle; only the compiler can catch that before a weaver does.
     BuildRunnerWeave(std::vector<Recipe>&&, std::string) = delete;
+    BuildRunnerWeave(std::vector<Recipe>&&, std::string, std::string) = delete;
 
     /// The one line of ceremony the binding layer cannot remove: this weave has
     /// its own `on` handlers, which would otherwise HIDE the binding layer's.
@@ -130,9 +134,9 @@ public:
                                                         "`"});
             return;
         }
-        // The recipe becomes a command here (and a single-source recipe's project is written);
-        // an ordinary failure a weaver can fix is "nothing ran", with the reason.
-        const PreparedBuild prepared = prepare(*recipe, cmake_);
+        // The recipe's product becomes a command here (and a single-source recipe's project is
+        // written); an ordinary failure a weaver can fix is "nothing ran", with the reason.
+        const PreparedBuild prepared = prepare(*recipe, order.artifact, cmake_, wasi_sdk_);
         if (!prepared.ok) {
             ++state_.refused;
             (void)mail.send_to_role(
@@ -240,6 +244,8 @@ private:
     const std::vector<Recipe>& catalog_;
     /// The one program this weave starts, out of state for the catalog's reason.
     std::string cmake_;
+    /// The compiler a boxed product's build is handed, out of state for the same reason.
+    std::string wasi_sdk_;
     std::vector<Held> held_;
     /// Never state: a poke that rewound it would re-issue a number a published fact has used.
     std::int64_t next_op_ = 0;

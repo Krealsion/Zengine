@@ -23,9 +23,22 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace zengine::builder {
+
+/// What a stem ends with when its product is a WebAssembly module, a pane built boxed: the same
+/// file on every platform, so the stem is the file's name (the host's rule, `HostContext::so_in`,
+/// adds no suffix to it), and Loom's kernel holds it in a box.
+inline constexpr std::string_view kModuleSuffix = ".wasm";
+
+/// Does this stem name a module? The one reading of `kModuleSuffix`, for the host's spelling of a
+/// file and for every word that says a product is boxed.
+inline bool names_module(std::string_view stem) {
+    return stem.size() > kModuleSuffix.size() &&
+           stem.substr(stem.size() - kModuleSuffix.size()) == kModuleSuffix;
+}
 
 /// The office the TOOL holds. Workshop's grant names this role rather than a
 /// WeaveId, so who answers for it can change without Workshop's authority being
@@ -175,11 +188,14 @@ inline std::string tail_lines(const std::string& text, std::size_t how_many) {
 
 /// Ask the tool to build the recipe it knows by this name, and optionally to offer the result
 /// to the running project. `realize` is a field, not a second shape: one authority with two
-/// intentions, which the tool must remember for the whole build.
+/// intentions, which the tool must remember for the whole build. `artifact` names which of the
+/// recipe's products, by the stem a plan row loads it by (a recipe may make its pane native,
+/// boxed or both); empty asks for the recipe's first, its native one where it makes both.
 struct BuildRequested {
     std::string recipe;
     bool realize = false; ///< BUILD & REALIZE rather than BUILD
-    ZEN_SHAPE(BuildRequested, 2, ZEN_FIELD(recipe), ZEN_FIELD(realize));
+    std::string artifact = {}; ///< the product's stem; empty: the recipe's first
+    ZEN_SHAPE(BuildRequested, 3, ZEN_FIELD(recipe), ZEN_FIELD(realize), ZEN_FIELD(artifact));
 };
 
 /// Ask the tool to say what it is: a presentation just opened learns everything it shows from
@@ -197,12 +213,14 @@ struct BuildStatusRequested {
     ZEN_SHAPE(BuildStatusRequested, 1);
 };
 
-/// Order the runner to carry out the recipe it holds for this name. A second shape for the same
-/// sentence on purpose, so "may ask for a build" and "may order the machine that runs one" are
-/// two grant rules nobody can mistake. It carries no `op`: an order is not yet an operation.
+/// Order the runner to carry out the recipe it holds for this name, for the product `artifact`
+/// names (empty: the recipe's first). A second shape for the same sentence on purpose, so "may
+/// ask for a build" and "may order the machine that runs one" are two grant rules nobody can
+/// mistake. It carries no `op`: an order is not yet an operation.
 struct RunBuild {
     std::string recipe;
-    ZEN_SHAPE(RunBuild, 2, ZEN_FIELD(recipe));
+    std::string artifact = {}; ///< the product's stem; empty: the recipe's first
+    ZEN_SHAPE(RunBuild, 3, ZEN_FIELD(recipe), ZEN_FIELD(artifact));
 };
 
 // ---- observations -----------------------------------------------------------
@@ -350,8 +368,9 @@ struct BuildOutputSaid {
               ZEN_FIELD(omitted_from), ZEN_FIELD(cut), ZEN_FIELD(ops));
 };
 
-/// One row of what can be built here: a recipe's name and what it makes, never its procedure
-/// (`RecipeView`, builder/recipe.hpp, on the wire).
+/// One row of what can be built here: a recipe's name and one product it makes, by its stem,
+/// never its procedure (`RecipeView`, builder/recipe.hpp, on the wire). A recipe making its pane
+/// both native and boxed is two rows, its native one first.
 struct RecipeSummary {
     std::string recipe;
     std::string artifact;
