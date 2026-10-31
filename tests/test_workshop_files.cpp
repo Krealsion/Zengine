@@ -503,6 +503,28 @@ TEST_CASE("the owner derives the tool's view from the recipes it is holding") {
     CHECK(owner.views()[0].path.find("one.cpp") == std::string::npos);
 }
 
+TEST_CASE("a recipe making its pane native and boxed is a view for each product, by the stem a "
+          "plan row loads it by") {
+    CurrentRecipes owner;
+    std::vector<zengine::builder::Recipe> completed =
+        completed_catalog("one", "/abs/one.cpp", "/install", "/project");
+    completed[0].single_source->makes = zengine::builder::makes::kBoth;
+    owner.hold("/project/recipes.json", completed, &HostContext::so_in);
+
+    REQUIRE(owner.all().size() == 1);
+    REQUIRE(owner.views().size() == 2);
+    CHECK(owner.views()[0].id == "one");
+    CHECK(owner.views()[0].artifact == "one");
+    CHECK(owner.views()[0].path == HostContext::so_in("/install/build-workspace/one/out", "one"));
+    CHECK(owner.views()[1].id == "one");
+    CHECK(owner.views()[1].artifact == "one.wasm");
+    // A MODULE'S STEM IS ITS FILE'S NAME, the same on every platform.
+    CHECK(owner.views()[1].path == "/install/build-workspace/one/out/one.wasm");
+    CHECK(zengine::builder::view_of(owner.views(), "one", "one.wasm") == &owner.views()[1]);
+    CHECK(zengine::builder::view_of(owner.views(), "one", "") == &owner.views()[0]);
+    CHECK(zengine::builder::view_of(owner.views(), "one", "one.so") == nullptr);
+}
+
 TEST_CASE("holding a new catalog replaces the contents, never the object") {
     // THE PROPERTY THAT MAKES ONE OWNER WORTH HAVING. Every consumer binds to these
     // two vectors once, at construction, and keeps that binding for the life of the
