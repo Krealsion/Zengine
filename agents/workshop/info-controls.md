@@ -33,7 +33,7 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 LAW — Info owns no act still: naming a subject and writing a property are the host's doors (`InspectPaneRequested`, `PaneCommitRequested`), answered by the party that owns the rows.
 
-WHY — `agents/decisions/a-component-is-earned.md`
+WHY — `agents/decisions/an-inspector-names-its-subject.md`
 
 ## WL-CTRL-06 — The subject's heading sits on a ground
 

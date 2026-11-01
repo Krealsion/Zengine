@@ -40,8 +40,8 @@ inline bool is_composite_power(const workshop::PowerRow& row) noexcept {
 /// Which run of the filtered list a budget shows with the cursor visible, and how much each side
 /// hides: Workshop's `list_window` rules restated, since a provider is a stranger to Workshop's
 /// composition -- a fitting population whole, the cursor inside, every omission counted in the
-/// budget. The second provider-side copy, after `composer::window_of`; a third would earn an
-/// extraction. Total over every budget and cursor.
+/// budget. The second provider-side copy, after `composer::window_of`: one provider-side window
+/// rule is the seam they share. Total over every budget and cursor.
 struct PowersWindow {
     std::int64_t first = 0;
     std::int64_t count = 0;

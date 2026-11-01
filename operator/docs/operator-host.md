@@ -209,10 +209,9 @@ arrive as the same silence.
 
 No operator enumeration (a consumer names the rule it was authored against), no
 authoring door (nothing loaded may publish into the host's catalog), no callable
-accessor, no subscription, no second injected capability. If a future capability
-needs this exact invariant it may earn a shared component; today it has not, and
-a `PluginServices` grown ahead of its second customer is a framework nobody
-asked for.
+accessor, no subscription, no second injected capability. A capability Zengine
+sets out to serve that needs this exact invariant is built as a shared component,
+whole; a `PluginServices` grown for uses nobody has named is a guess, not a design.
 
 ## Who consumes this today
 

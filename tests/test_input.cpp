@@ -1343,8 +1343,8 @@ TEST_CASE("sdl: a button event states where it happened, and an unknown button i
 
     // X1/X2 are outside the vocabulary's stated set. Silence, NOT a Left click:
     // reporting a press that did not happen is worse than reporting nothing, and
-    // widening the wire for a thumb button no consumer asks about would be
-    // building for a mouse nobody here owns.
+    // a thumb button joins the wire only when the vocabulary's set names it,
+    // never by a translator guessing a meaning for it.
     CHECK(sdl_mouse_button_to_events(4, true, 10, 10).empty());
     CHECK(sdl_mouse_button_to_events(5, true, 10, 10).empty());
     CHECK(sdl_mouse_button_to_events(0, true, 10, 10).empty());

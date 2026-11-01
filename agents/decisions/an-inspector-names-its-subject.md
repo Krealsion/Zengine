@@ -38,6 +38,8 @@ abandons a live draft and says so; a commit queued behind one is refused with no
 A write the setter refuses (a unit the face does not read, a pane with no room) is the owner's
 sentence, and the draft stands. A replaced Info loses its draft and is told nothing about a
 commit its predecessor sent (Loom ANS-03); the write, if taken, is in the rows.
+Info owns no act of its own: naming a subject and writing a property are the host's doors,
+because the host holds the rows they address.
 
 **Laws supported.** [WL-INFO-14](../workshop/info-body.md),
-[WL-INFO-15](../workshop/info-body.md).
+[WL-INFO-15](../workshop/info-body.md), [WL-CTRL-05](../workshop/info-controls.md).

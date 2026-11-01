@@ -4,7 +4,7 @@
 #ifndef ZENGINE_OPERATOR_PRIMITIVES_HPP
 #define ZENGINE_OPERATOR_PRIMITIVES_HPP
 
-// Shared scalar powers earned by composed rules: Timer normalization uses max
+// Shared scalar powers that composed rules spend: Timer normalization uses max
 // and select_int; Flow's thermostat additionally needs integer comparison and Bool
 // selection to retain its hysteresis state; a fold that totals a count spends add as
 // its body. Every consumer resolves through the host catalog, so a provider overlay

@@ -10,10 +10,11 @@ accordion, one section shut, open or peeking, with the independent group over ac
 rows a tree shows, an accordion at every level. A pure `motion::Path` also supplies
 linear/cubic Bezier sampling and elapsed-time progress.
 
-The rule this package is built on: **extract from repeated working behaviour, never from a list
-of widgets.** A piece belongs here when working tools already carry the same behaviour and
-extracting it is the smaller repair — it deletes their copies. A piece that would only rename
-one tool's code is not extracted, however familiar its name.
+The rule this package is built on: **a piece owns an invariant and knows no medium, and it is
+built whole, with care, for the uses Zengine sets out to serve.** A piece belongs here when it
+holds state that every tool showing it would otherwise keep true for itself. It does not wait for
+tools to repeat it first, and it is never made from a list of familiar widget names: a use nobody
+has named is still a guess, so a piece says what it is for before it is built.
 
 Sources: [`component/text.hpp`](../text.hpp),
 [`component/text_box.hpp`](../text_box.hpp),

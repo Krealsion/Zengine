@@ -4,7 +4,7 @@ Register `WL-HAND`, the controls half: the labelled controls a pane draws for a 
 makes a press on one mean what the weaver aimed it at. The names a pane gives its parts are in
 [`pane-parts.md`](pane-parts.md), and the ids are one series. One law per heading; cite by ID.
 Router: [`../workshop.md`](../workshop.md). The menu those controls open is
-[`pane-menu.md`](pane-menu.md); the panes that earned them are [`files.md`](files.md) and
+[`pane-menu.md`](pane-menu.md); the panes that draw them are [`files.md`](files.md) and
 [`project.md`](project.md).
 
 ## WL-HAND-01 — A control is a face, a place and an operation, and availability is drawn

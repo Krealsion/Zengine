@@ -586,11 +586,11 @@ and clips by calling `game_graphics.set_clipping(background_destination)` around
 `scroll_to_percent(double)`. Wheel and arrow keys both scroll.
 
 **Current Zengine.** There is no widget set and that is a written standing decision. The
-`component` package holds only pieces that working tools already repeated, under the rule *extract
-from repeated working behaviour, never from a list of widgets*; `component/docs/component.md`
-lists them. `component::Button` was specifically considered and **declined**: "what they share is
+`component` package holds pieces that own an invariant and know no medium, each built whole for
+the uses Zengine sets out to serve, never from a list of widgets; `component/docs/component.md` lists
+them. `component::Button` was specifically considered and **declined**: "what they share is
 a label, a bit, a bracket convention and a row, presentation with no invariant to keep"
-(`agents/decisions/a-component-is-earned.md`). Pressable things in Workshop are drawn in
+(`agents/decisions/editing-text-is-a-component.md`). Pressable things in Workshop are drawn in
 characters — `[label]` when the pane believes the operation applies, `(label)` when it does not,
 both placed (`component/control_strip.hpp`).
 

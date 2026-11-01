@@ -11,16 +11,15 @@ Retired: WL-TEXT-14.
 LAW — `component::TextBox` owns text, caret, anchor and window as one state, the operations its only door; the name editor, a Composer field and a pane's line are instances.
 
 DOES NOT MEAN
-- that it has a focus flag, a filter, a max length, a multiline mode or a blink — it has none;
-- that a fifth absence a competent user trips on is a reflex extraction — it gets the same test.
+- that it has a focus flag, a filter, a max length, a multiline mode or a blink — it has none.
 
-WHY — `agents/decisions/a-component-is-earned.md`
+WHY — `agents/decisions/editing-text-is-a-component.md`
 
 ## WL-TEXT-02 — A consumer owns the capacity, the clipboard's custody and what the text means
 
 LAW — The capacity is an argument; where the prose begins, the `Clipboard` and its custody beyond the process, and what the text means are the consumer's; Return, Escape and Tab are never the component's.
 
-WHY — `agents/decisions/a-component-is-earned.md`
+WHY — `agents/decisions/editing-text-is-a-component.md`
 
 ## WL-TEXT-03 — The editable line is a window onto its text
 
@@ -64,13 +63,13 @@ MEANS
 - a consumed gesture need not change anything — a copy with nothing selected is consumed;
 - a chord carrying Alt or Super is never the box's.
 
-WHY — `agents/decisions/a-component-is-earned.md`
+WHY — `agents/decisions/editing-text-is-a-component.md`
 
 ## WL-TEXT-07 — The history is the draft's and dies with it
 
 LAW — A fresh draft wipes the history and bumps the draft epoch; same-kind keystrokes coalesce, paste, cut and a replacement are one entry each, the depth is bounded, and no app-wide undo grows from this.
 
-WHY — `agents/decisions/a-component-is-earned.md`
+WHY — `agents/decisions/editing-text-is-a-component.md`
 
 ## WL-TEXT-08 — `Session::clipboard` is one in-process mirror
 
@@ -107,7 +106,7 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 LAW — A text box has no wire form and nothing hosts it: the component library links nothing, and its key identities are spelled locally and pinned against the input wire's spellings in the input suite.
 
-WHY — `agents/decisions/a-component-is-earned.md`
+WHY — `agents/decisions/editing-text-is-a-component.md`
 
 ## WL-TEXT-12 — A word has one definition and three compositions
 
@@ -117,7 +116,7 @@ MEANS
 - a position with separators on both sides is in no word, and nothing invents the nearest one;
 - `select_word_at` is `place`'s other answer to one press: anchor at the start, caret at the end.
 
-WHY — `agents/decisions/a-component-is-earned.md`
+WHY — `agents/decisions/editing-text-is-a-component.md`
 
 ## WL-TEXT-13 — The one-measurer family takes the box
 
