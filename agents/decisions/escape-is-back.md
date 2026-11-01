@@ -6,7 +6,7 @@ supports is in [arrangement](../workshop/arrangement.md).
 **Context.** Every immediate-commit gesture in this application is reversible only by
 performing the inverse, and there is no undo, so the help says `esc back`. A desk whose panes
 cover every usable cell had no way to reach `selection = none`, because the only clearing
-gesture was a press on nothing (`8c2fc05`, "Let hidden rows be reachable, and let Escape put
+gesture was a press on nothing (`28c52c5`, "Let hidden rows be reachable, and let Escape put
 the selected pane down").
 
 **Decision.** Escape's last meaning is to put the selected pane down. Every mode, overlay and

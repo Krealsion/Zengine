@@ -5,12 +5,12 @@ supports is in [chrome](../workshop/chrome.md).
 
 **Context.** Panes were rectangles with no boundary: their backdrop was `kMuted`, the workspace's
 own role, so a pane was a hole in the dot field, and on the shipped face near-black on near-black
-(`65cf9f1`, "Give the desk edges, and let the pane you are using come forward"). The first
+(`785bb49`, "Give the desk edges, and let the pane you are using come forward"). The first
 boundary paid the smallest thing a terminal can draw — one whole cell — on both faces, because
 one number was the only way to put it in the same place in each; on the shipped window that was
-twelve pixels a side (`fd7b78a`, "Let the graphical desk frame its panes with a pixel, not a
+twelve pixels a side (`ec47a9f`, "Let the graphical desk frame its panes with a pixel, not a
 cell"). Then the Layouts pane became two cells tall, and one cell a side left zero rows of the two
-the band always had (`3bfc2fd`).
+the band always had (`aa2d50c`).
 
 **Decision.** Every ordinary pane and framed transient surface draws a boundary of one unit of
 the active face on every side, subtracted from the rectangle `bounds_of` answered; the pane
@@ -23,7 +23,7 @@ and not one number. Three chrome roles, from the closed vocabulary.
 
 **Alternatives considered.**
 - *A frame grown outward around the authored rectangle* — rejected: the rectangle a weaver
-  authors is the rectangle the pane occupies; nothing grew outward (`65cf9f1`).
+  authors is the rectangle the pane occupies; nothing grew outward (`785bb49`).
 - *A border painter with a thickness argument* — rejected: the ring is the backdrop minus the
   interior, so there is no border arithmetic to drift; pinned by case `"the ring IS the backdrop
   the interior did not cover, on both faces"`.

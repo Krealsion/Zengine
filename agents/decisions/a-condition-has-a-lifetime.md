@@ -8,7 +8,7 @@ recomputed from a live owner at every paint, correct by construction, and one un
 with no identity, no lifetime and no way to be retracted — and standing truths were going out
 through the second. The measured cost was that resolving a condition could not un-say it: a
 refused external pane cleared its refusal on the next valid content and the notice row kept the
-refusal sentence for the rest of the process (`5416c21`, the commit that gave attention a
+refusal sentence for the rest of the process (`f656b74`, the commit that gave attention a
 place).
 
 **Decision.** An utterance is a sentence about a moment that passed: the last one is
@@ -30,9 +30,9 @@ condition names an action and holds no power, and the condition path has no wire
 - *Opening the view on severity or count* — refused: a modal is earned by weaver intent; pinned
   by case `"an alert condition opens nothing"`.
 - *A band row, a timer, an expiry, a toast, a history, a callback, a registry, new Surface
-  vocabulary* — none (`5416c21`).
+  vocabulary* — none (`f656b74`).
 - *Anchoring `attention_bounds` to the selected pane* as the hotkey view did — rejected: a
-  condition is about the application (`d1bf7f4`). The view has since left the host (WL-DESK-11).
+  condition is about the application (`d91bbe4`). The view has since left the host (WL-DESK-11).
 - *A keys-modal view* — rejected: its four gestures are catalog rows a keymap file must see.
 
 **Consequences.** `closed`, `unresolved`, `covered` and `open` earn nothing — the model may know

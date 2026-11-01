@@ -7,10 +7,10 @@ supports is in [press-chain](../workshop/press-chain.md).
 press". The two agree for exactly as long as every press landing on a live draft also moves it —
 so a weaver pressing where the caret already was fell through the property editor, the controls
 and the object list, and the pane wrote "Info is here -- nothing under it can be taken hold of"
-over a notice they were still reading (`d797a4c`, "Make a press say whether it was consumed, not
+over a notice they were still reading (`07db27e`, "Make a press say whether it was consumed, not
 whether it changed"). Later, five geometry questions ran above the occupancy walk — two top-band
 arms and Info's three internal arms — so a pane authored over the side column and ranked in
-front of Info still lost presses to Info (`3bfc2fd`).
+front of Info still lost presses to Info (`aa2d50c`).
 
 **Decision.** The handlers under `if (b.pressed)` answer one routing question: true is
 consumed, stop; false is not mine, carry on. A consumed press need not change anything. A
@@ -32,7 +32,7 @@ secondary press is state-local first refusal.
   handler changes nothing on the paths where it declines.
 - *Pane-internal arms above the walk* — removed; pinned by case `"a pane in front of the Layouts
   pane takes the press"`.
-- *A global Back action or a `right_click_back` keymap row* — refused (`bf35754`): each state's
+- *A global Back action or a `right_click_back` keymap row* — refused (`30a145d`): each state's
   own local reading, and a future state may claim the secondary press for something else.
 
 **Consequences.** Consumed and not-consumed are told apart by where, never by what changed. A

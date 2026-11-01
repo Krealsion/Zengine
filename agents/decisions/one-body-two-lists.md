@@ -6,10 +6,10 @@ supports is in [info-body](../workshop/info-body.md).
 **Context.** A `SurfaceTextRegion` one cell tall holds (12 − 2·inset)/18 = zero rows of this
 repository's face, so the property editor was drawn in cells and got a cell medium's mark rather
 than the caret bar it was built for; a row could not simply be given two cells, because a
-two-cell region covers the property beneath it (`8b023ca`, "Give the Inspector's property body
+two-cell region covers the property beneath it (`2b08a73`, "Give the Inspector's property body
 real rows, real bounds and a real window"). The OBJECTS list's capacity was a constant, and
 three silences stood: a committed value ran off the canvas unmarked, `paint_info` had no bottom
-bound, and a larger population said nothing (`0507a40`, "Give the Info panel's two lists one
+bound, and a larger population said nothing (`f7afdd4`, "Give the Info panel's two lists one
 bounded body and one row budget").
 
 **Decision.** `info_body_place` is the whole Info body, resolved once — place, rows of the
@@ -25,11 +25,11 @@ row is fitted whole and a press on it selects in command mode only.
 - *Two regions, one per list* — rejected: splitting the pane's cells needs `fit_region` read
   backwards, a second arithmetic beside the one function that turns a metric into a capacity.
 - *A constant list capacity* — retired; measured at 78x25, 120x40, 240x80, 78x22, 80x38 and
-  80x70 with twenty objects, character for character (`0507a40`).
+  80x70 with twenty objects, character for character (`f7afdd4`).
 - *A fixed 50/50 split* — a consequence, not a decision; pinned as properties over every budget
   from 0 to 200.
 - *A scroll offset, a session field or a scroll gesture for the list* — none; the selection
-  already decides what is visible (`e887452`, "Say what the screen is not showing").
+  already decides what is visible (`2e8f8e0`, "Say what the screen is not showing").
 - *Rounding a press to a Workshop cell* — rejected: an 18-pixel row against a 12-pixel cell
   names the wrong property for most of the body; pinned by subcase `"a graphical medium, whose
   line height is not its cell height"`.

@@ -5,13 +5,13 @@ supports is in [terminal](../workshop/terminal.md).
 
 **Context.** Workshop needed a terminal, and the risks were named before the pane existed: a
 second Loom, a privileged Workshop protocol, a second command grammar, a weave mounted merely to
-separate a pane, a focus framework (`5494e17`, "Present an ordinary TerminalSession through
+separate a pane, a focus framework (`397c17c`, "Present an ordinary TerminalSession through
 Workshop"). What followed was measured in live pictures: a transcript row with no entry was not
-written, so the backdrop's `.` showed through the pane (`982f9b9`, "Draw the overlay as a pane
+written, so the backdrop's `.` showed through the pane (`d9e8a67`, "Draw the overlay as a pane
 rather than as a set of lines"); the vocabulary the host handed the participant was real, exact
-and invisible (`16e6abc`, "Let the Terminal show what it knows"); a 5x5 letterform scaled into a
-12-pixel cell read `weave` as `woave` (`b92079f`, "Let one region of the picture be finer than a
-cell"); and the command line had no caret a press could place (`b30ab5d`).
+and invisible (`1d48ec5`, "Let the Terminal show what it knows"); a 5x5 letterform scaled into a
+12-pixel cell read `weave` as `woave` (`a7c650a`, "Let one region of the picture be finer than a
+cell"); and the command line had no caret a press could place (`fe635ce`).
 
 **Decision.** The host mounts one `loom::TerminalSession` on the Switchboard it already has and
 hands Workshop the non-owning pointer through the HostContext. `workshop.terminal` toggles a
@@ -26,18 +26,18 @@ nothing. A press in the pane is the pane's.
 **Alternatives considered.**
 - *A second Loom, a privileged protocol, a second grammar, a separating weave, a focus
   framework* — refused: "while the terminal is open, the terminal has the input" is one sentence
-  and one branch (`5494e17`); the two identities stay two, measured rather than asserted.
+  and one branch (`397c17c`); the two identities stay two, measured rather than asserted.
 - *Painting from a live transcript* — rejected: snapshots taken inside a handler, so a canvas
   cannot read a participant the host has ended.
 - *Skipping empty transcript rows* — measured wrong in the first live rasterization; every row
-  is written and the case rasterizes through the terminal medium's own pure function (`982f9b9`).
+  is written and the case rasterizes through the terminal medium's own pure function (`d9e8a67`).
 - *Offering address values, or verbs the submitter does not run* — refused then; verbs stay
   refused, and address values are now read off the bus by the host at each ask
   ([destinations are read off the bus](destinations-are-read-off-the-bus.md)). A host that lists
   nothing still offers the forms; pinned by case `"an address offers the three forms and never
   pretends to know the values"`.
 - *Shift+Space as the toggle* — retired: a POSIX terminal reports no modifier for Space at all
-  (`7b64b73`).
+  (`8f9a33e`).
 - *Fitting lines rather than entries* — rejected then, and superseded: the pane now reads the
   record through a view of wrapped rows ([the record is read through a
   view](the-record-is-read-through-a-view.md)).

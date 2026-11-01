@@ -4,7 +4,7 @@
 supports is in [planes](../workshop/planes.md).
 
 **Context.** The pane a weaver was using could sit behind another, with no way to bring it
-forward for the duration of the work that did not also rewrite the authored order (`65cf9f1`,
+forward for the duration of the work that did not also rewrite the authored order (`785bb49`,
 "Give the desk edges, and let the pane you are using come forward"). `manage.front` already
 meant "and I mean this permanently".
 

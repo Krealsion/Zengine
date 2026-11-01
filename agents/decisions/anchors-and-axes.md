@@ -5,10 +5,10 @@ supports is in [arrangement](../workshop/arrangement.md).
 
 **Context.** Three measured defects, one per rule. A default pane resolving to 89 cells with
 four on screen answered one rightward step by authoring five cells' worth, because the first
-edit captured the visible rectangle (`2d0689a`). The first resize law said an edge names an axis
+edit captured the visible rectangle (`ed7c86e`). The first resize law said an edge names an axis
 and a direction so a resize writes size and never place — and pulling the top edge moved the
-bottom edge instead (`07eb620`). The repair judged a pane-window proposal as one indivisible
-transaction, so a diagonal drag along the left wall froze (`0c6481d`, "Let independent axes
+bottom edge instead (`3645f16`). The repair judged a pane-window proposal as one indivisible
+transaction, so a diagonal drag along the left wall froze (`55c8690`, "Let independent axes
 settle independently in pane arrangement").
 
 **Decision.** A resize begins from the resolved window: `managed_bounds().resolved`, the
@@ -22,7 +22,7 @@ gesture did not change is no proposal and writes nothing.
 **Alternatives considered.**
 - *Resize writes size and never place* — reversed after measurement; pinned by case `"the
   reported top-edge defect is dead -- the bottom edge holds still"`.
-- *Capturing the visible rectangle at the press* — rejected (`2d0689a`); the affordance stays on
+- *Capturing the visible rectangle at the press* — rejected (`ed7c86e`); the affordance stays on
   the visible boundary, and its delta applies to the resolved window.
 - *One whole-window transaction* — rejected: a move blocked on one axis lost the other axis's
   legal motion; pinned by case `"a move blocked at the left wall still follows the hand down"`.

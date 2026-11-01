@@ -5,9 +5,9 @@ supports is in [contextual](../workshop/contextual.md) and [keyboard](../worksho
 
 **Context.** A four-action context menu cost six rows and thirty-eight columns because two of
 them announced that a menu of actions contains actions, and contextual help opened at the
-window's corner however far the hands were from it (`65cf9f1`). The full hotkey view took the
+window's corner however far the hands were from it (`785bb49`). The full hotkey view took the
 overlay column — floor to ceiling with nothing selected — for a list 36 characters wide
-(`d1bf7f4`, "Let the hotkey view fit what it says").
+(`d91bbe4`, "Let the hotkey view fit what it says").
 
 **Decision.** `ContextMenu` captures the opening press's canvas cell — the gesture's place, not
 the subject's — and `context_bounds` re-derives the rectangle at every paint and press from the
@@ -24,10 +24,10 @@ surface keeps this decision.
 **Alternatives considered.**
 - *A title row and a hint row on the context menu* — removed: they were the width floor, and
   the hint was a second cheat sheet for rows the band's legend already says (`git log
-  -S'kContextHeadingRows'` → `65cf9f1`).
+  -S'kContextHeadingRows'` → `785bb49`).
 - *A fixed width, a floor-to-ceiling column, a `kPickerRows` floor for the hotkey view* —
   retired; measured on the shipped face at 123x83 cells, 837x885 px before and 322x897 after for
-  the same 48 rows; on a 100x60 terminal 57x49 before and 36x48 after (`d1bf7f4`).
+  the same 48 rows; on a 100x60 terminal 57x49 before and 36x48 after (`d91bbe4`).
 - *The room-under-the-anchor law* — replaced by content owning the extent; the old anchoring
   case had let a 48-row list on a 44-row screen "prove" the anchor by filling the band.
 - *Anchoring at the subject rather than the gesture* — rejected; the keyboard entrance is

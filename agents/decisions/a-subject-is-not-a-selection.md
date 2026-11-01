@@ -6,8 +6,8 @@ supports is in [pane-manager](../workshop/pane-manager.md).
 **Context.** Info inspects document objects, and a weaver needed the same grammar for an
 ordinary Workshop pane. Since the tabs conversion a press into any pane selects that pane, so a
 subject derived from the selection would retarget whenever the weaver pressed into the editor
-itself (`e08d868`, "Let a maker edit a pane by describing it, because the editor's subject is a
-pane"). The name `Pane Editor` overclaimed a tool that edits a pane's inside (`df06ac5`).
+itself (`6222d9b`, "Let a maker edit a pane by describing it, because the editor's subject is a
+pane"). The name `Pane Editor` overclaimed a tool that edits a pane's inside (`351aac2`).
 
 **Decision.** The Pane Manager is the keyboard-taking built-in whose subject is a pane; its
 durable key `pane-editor`, its symbols and its action ids are the older name's, unchanged. The

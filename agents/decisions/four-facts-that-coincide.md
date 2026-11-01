@@ -5,9 +5,9 @@ supports is in [files](../workshop/files.md).
 
 **Context.** The Files browser spelled where a weaver was standing as a stack of names below the
 project root, and that spelling was the containment promise: nothing could say a place above
-it. Looking at something was never the same act as choosing it (`0cf8a94`, "Look somewhere
+it. Looking at something was never the same act as choosing it (`9711ed4`, "Look somewhere
 without making it your project"). Before that, the browser was designed so it could not become a
-second owner of source truth (`5a302ae`).
+second owner of source truth (`ed737fd`).
 
 **Decision.** A row is a name, a kind, a linked flag and an openable flag and nothing else; what
 it denotes is derived at activation. Four facts stay apart: the project is what a
@@ -21,7 +21,7 @@ and order are fixed.
 
 **Alternatives considered.**
 - *The entered-name stack as the representation* — retired: one absolute string where there
-  was a vector and two derived functions (`0cf8a94`).
+  was a vector and two derived functions (`9711ed4`).
 - *Renaming the origin "the project"* — refused: the two coincide today, and no expression in
   the application derives one from the other.
 - *A standing selected mark* — rejected: the cycle is found from where the browser is, so

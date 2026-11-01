@@ -8,7 +8,7 @@ only spell it one way: `40+1/4` cells, an exact mixed number that is unreadable 
 says nothing about the pixels a hand there actually moved. It could not do better, and the
 reason was custody rather than arithmetic: turning a cell into a device pixel needs a number
 only a Skin knows, and an application holding one Skin's layout number is correct only for as
-long as it has one medium (`35653ad`, "Let each face say a pane's geometry in the unit it can
+long as it has one medium (`9e6bffb`, "Let each face say a pane's geometry in the unit it can
 actually see").
 
 **Decision.** The medium says it. `SurfaceExtent` carries `cell_px` beside the text metric;
@@ -22,7 +22,7 @@ authoring. The notice says where a pane the weaver did not place actually is.
 
 **Alternatives considered.**
 - *The exact mixed number* (`subcell_text`) — retired: exact and unreadable on a window, where
-  `126` is exact (`git log -S'subcell_text'` → `35653ad`).
+  `126` is exact (`git log -S'subcell_text'` → `9e6bffb`).
 - *Deriving the unit from one Skin's constant inside Workshop* — rejected, as the pointing rule
   forbids it; pinned by case `"the canvas's device unit is the medium's
   answer, never Workshop's"`.

@@ -5,12 +5,12 @@ supports is in [layouts](../workshop/layouts.md) and
 [session restore](../workshop/session-restore.md).
 
 **Context.** A weaver could arrange one desk and name it; keeping a second meant a second file
-and a second launch (`102017a`, "Keep several desks in one Workshop, and let a tab run say which
-one you are on"). Then only the live layout came back after a restart (`a39795e`, "Bring every
+and a second launch (`c84c395`, "Keep several desks in one Workshop, and let a tab run say which
+one you are on"). Then only the live layout came back after a restart (`78f9dd4`, "Bring every
 layout back, and let the reader forget the shape that held one"). And one comparison copy —
 `on_file` and `saved()` — spoke for every layout at once against a file only one of them had
 anything to do with; naming meant accepting a write to a named artifact; `=` copied the desk you
-were on; order could not be changed (`2dc7626`, "Let a maker treat layouts as tabs, and a Setup
+were on; order could not be changed (`4f6eb2e`, "Let a maker treat layouts as tabs, and a Setup
 file as one desk they chose to keep").
 
 **Decision.** A layout is a desk plus its optional association with one Setup file.
@@ -28,7 +28,7 @@ associations, admitted by four questions plus the link.
 - *A swap when switching* — the shorter spelling, measured wrong: it reorders the run on its
   second hop; pinned by case `"switching never reorders the run, and the live
   value never doubles"`.
-- *`on_file` + `saved()`* — retired (`git log -S'on_file'` → `2dc7626`), and `UNSAVED` with
+- *`on_file` + `saved()`* — retired (`git log -S'on_file'` → `4f6eb2e`), and `UNSAVED` with
   them.
 - *Two parallel vectors of desks and links* — rejected: the first `erase` that forgets one is a
   layout wearing another layout's association.

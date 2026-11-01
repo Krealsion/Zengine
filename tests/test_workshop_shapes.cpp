@@ -33,7 +33,7 @@ namespace {
 namespace ws = zengine::workshop;
 namespace vb = zengine::view_builder;
 
-// THE SHAPES AS ZENGINE 5901b39 PUBLISHED THEM, copied field for field. Their content ids are
+// THE SHAPES AS ZENGINE 87458bc PUBLISHED THEM, copied field for field. Their content ids are
 // pinned in the case below, read off that tree itself (VM-FIX-20), so a copy that drifted from
 // what was published fails there first.
 namespace published {
@@ -139,7 +139,7 @@ TEST_CASE("a shape that encloses a changed shape is a new version, so the shapes
     // kept at version 1 while the `InventoryPane` it carries moved to version 2 -- two shapes under
     // one name and version, and the registry refuses the second.
     //
-    // THE PUBLISHED IDS, compiled from Zengine 5901b39 in a worktree of it (the shapes' own
+    // THE PUBLISHED IDS, compiled from Zengine 87458bc in a worktree of it (the shapes' own
     // headers, not these copies), so the copies above are the shapes that were published.
     CHECK(loom::schema_of<published::InventoryPane>()->content_id() == 0x2d2acc35864aed07ull);
     CHECK(loom::schema_of<published::PaneInventory>()->content_id() == 0x322ddeacaa13391eull);

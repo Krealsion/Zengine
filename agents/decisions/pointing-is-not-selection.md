@@ -4,7 +4,7 @@
 supports is in [contextual](../workshop/contextual.md).
 
 **Context.** Every backend delivered button 3 and Workshop dropped it; a weaver pointing at a
-thing had no way to ask what could be done with it (`8981b60`, "A maker can ask a pointed thing
+thing had no way to ask what could be done with it (`7dd643b`, "A maker can ask a pointed thing
 what can be done with it"). Opening such a surface must not change what the weaver had chosen.
 
 **Decision.** Pointing names a subject for one request; selection is a state a weaver entered.
@@ -25,7 +25,7 @@ the host's standard rows beneath its rows, and each row is spent by its owner.
 - *Owner predicates on the paint path* — rejected: the menu renders an identity, not an
   existence claim.
 - *Annotating every row with its binding* — rejected: the live TUI witness read `^w` beside a
-  Close acting on a tab the weaver was not standing on (`2dc7626`); pinned by case `"shortcut
+  Close acting on a tab the weaver was not standing on (`4f6eb2e`); pinned by case `"shortcut
   annotations teach only truthful surrounding bindings"`.
 - *Provider-contributed rows* — not done; pinned by case
   `"a right press over a provider's pane crosses the seam not at all"`.

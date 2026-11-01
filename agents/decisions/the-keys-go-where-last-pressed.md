@@ -3,11 +3,11 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [focus](../workshop/focus.md).
 
-**Context.** External panes could be typed into (`a153f67`, the commit that let a weave offer
+**Context.** External panes could be typed into (`3fe17db`, the commit that let a weave offer
 Workshop a pane), which made the question of where a keystroke goes a weaver-visible one, and the
 measured lie was keystrokes landing somewhere the screen did not name. While the Editor was the
 only built-in that took keys, the routing layer simply named it; at the second such built-in
-that spelling became a disjunction somebody must remember to extend (`5a302ae`).
+that spelling became a disjunction somebody must remember to extend (`ed737fd`).
 
 **Decision.** `Panes::keyboard` is a pointing's memory, and `keyboard_pane` resolves fresh at
 every spend. Candidacy is declared on the catalog row (`takes_keyboard`); readiness is resolved
@@ -20,7 +20,7 @@ return to; the band's first row says where a key goes now. Pane titles are a pre
 keyboard's pane wears its title, a held canvas press's once it ends.
 
 **Alternatives tried.**
-- *A pane-local memory of having had the keys* (`had_keyboard_`, `d4815cc`) — retired: Files
+- *A pane-local memory of having had the keys* (`had_keyboard_`, `39cee8c`) — retired: Files
   hears nothing when the keys leave it by a press into the Editor, and an arrow arrives as an id,
   so it opened on a press from the Editor and only selected after a title press; pinned by case
   `"the keys leave Files by a press into the Editor and Files is told nothing, so only Workshop
@@ -29,7 +29,7 @@ keyboard's pane wears its title, a held canvas press's once it ends.
   mutation: a press back into Files read as already there, and a hidden-titles press named the
   row under a title that was not painted.
 - *A hand-kept mirror predicate for the `^c` gate* — replaced by
-  `context_takes_text(keyboard_context(...))` (`7b64b73`).
+  `context_takes_text(keyboard_context(...))` (`8f9a33e`).
 - *Hiding the keyboard's pane's title with the preference* — refused: it would recreate the
   measured lie; pinned by case `"hiding titles returns the row; the keyboard's pane
   keeps its own"`.

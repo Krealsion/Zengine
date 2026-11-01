@@ -4,7 +4,7 @@
 [neovim-transfers](../workshop/neovim-transfers.md).
 
 **Context.** The Neovim-backed Editor asks Neovim for a drop's insertion and a location's cursor
-within a bound, beside Neovim's fast mode. Measured at `3e96a7c` with the loaded pane and menu: a
+within a bound, beside Neovim's fast mode. Measured at `6f664a3` with the loaded pane and menu: a
 command's Terminal line chosen while Neovim sat in an unfinished `g` was said "nothing was
 inserted", and the Escape that ended the wait inserted it, modified. msgpack-RPC has no cancel,
 and Neovim runs a request it held once its wait ends, in the order sent, after keys already typed.

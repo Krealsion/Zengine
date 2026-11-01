@@ -6,7 +6,7 @@ supports is in [panes-and-windows](../workshop/panes-and-windows.md).
 **Context.** The stack seated reactive panes down one column and rationed it by the room's
 height: a pane the column had no height for waited, unseen, and a launch, a reveal or a managed
 open was refused (`no room for ... make the window taller`) even with the room beside the column
-empty. A view run from the View Builder beside the Pane Manager was refused so (`5901b39`).
+empty. A view run from the View Builder beside the Pane Manager was refused so (`87458bc`).
 
 **Decision.** No room rations the stack. `bounds_of` walks the column as it always did, and a
 pane that would pass the floor begins the column again at its top; one taller than the room
@@ -16,7 +16,7 @@ in front, in sight. No free space is searched for and nothing is packed.
 
 **Alternatives considered.**
 - *Rationing by the column's height* — tried: a launch beside an empty part of the room was
-  refused, in a window and in a terminal (`5901b39`).
+  refused, in a window and in a terminal (`87458bc`).
 - *A second column beside the first* — argued: the stack is wider than half the narrowest room,
   so the room's right edge would cut a second column there, and a second column runs out too.
 - *A launch authoring a place* — argued: a launch would write a fact the weaver never authored,

@@ -5,12 +5,12 @@ supports is in [session](../workshop/session.md).
 
 **Context.** Everything a desk is made of persisted, and nothing read it without being asked:
 every session began by pressing `r`, and a 1440x820 Workshop reopened at 952x303 with the saved
-desk unread on disk (`fba0dc2`, "Give a maker their desk back when they reopen Workshop"). The
+desk unread on disk (`4831165`, "Give a maker their desk back when they reopen Workshop"). The
 per-user files then followed the launch directory, so a scratch-directory launch was isolated by
 accident, and moving the defaults inverted that into accidental danger (`6790547`, the commit
 that made Workshop an installed application). The session is a file Workshop writes on its way
 out, and an orderly close replaced bytes this run could not read with this run's default desk
-(`0cffe92`).
+(`6c29060`).
 
 **Decision.** Three domains with three default homes: project files (`--document`, `--setup`,
 `--pane`) follow the launch directory; configuration (`--keymap`, `--prefs`) follows the weaver;

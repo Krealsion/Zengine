@@ -5,11 +5,11 @@ supports is in [panes-and-windows](../workshop/panes-and-windows.md).
 
 **Context.** Workshop had two places and no way to say so: the Builder's painter wrote its rows
 at the stack's column, Info's wrote its labels at `Screen::side_x`, and a counter in the
-painting loop named a kind to decide which panes earned a slot (`977f269`, "Give a panel a
+painting loop named a kind to decide which panes earned a slot (`0113c13`, "Give a panel a
 place instead of a painter that knows a column"). A movable Info was already refused: `room_w`
 is what every share resolves against. When the top band became a pane there was a third place,
 and three consumers each said `== kOverlayStack` — the same set written as a list somebody has
-to extend (`3bfc2fd`, "Let a maker move the layout tabs, because they are a pane like the
+to extend (`aa2d50c`, "Let a maker move the layout tabs, because they are a pane like the
 rest").
 
 **Decision.** A kind declares one of three places in the catalog, and `placement_bounds` turns
@@ -23,9 +23,9 @@ keeps presence and arrangement never touches it.
 
 **Alternatives considered.**
 - *Each painter reading the screen* — retired: `paint_info` has no `Screen` in it any more
-  (`977f269`).
+  (`0113c13`).
 - *Spelling the exclusion at each consumer* — replaced by one predicate when the top band became
-  authorable (`git log -S'place_is_authorable'` → `3bfc2fd`).
+  authorable (`git log -S'place_is_authorable'` → `aa2d50c`).
 - *Containment by one pane as "covered"* — rejected: two panes that each cover half of a third
   leave nothing showing; pinned by case `"coverage is the UNION of what is in front, not
   containment by one pane"`.

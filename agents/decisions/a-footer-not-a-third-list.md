@@ -4,10 +4,10 @@
 supports is in [info-controls](../workshop/info-controls.md).
 
 **Context.** `n` and `d` had no pointer path, and the body's row budget was already shared by
-two lists (`5f8fab8`, "Give the Info panel two rows a maker can press"). The heading and the
+two lists (`2756aef`, "Give the Info panel two rows a maker can press"). The heading and the
 controls then said things in ink alone that ink alone could not carry: `PROPERTIES` wore the
 same accent as the selected object above it, and `[ Create ]` read as pressable by a bracket
-convention and nothing else (`886e3aa`, "Give the panel's structural rows something to sit on").
+convention and nothing else (`1fee62d`, "Give the panel's structural rows something to sit on").
 
 **Decision.** The third run is a footer of two pressable rows, reserved by one subtraction
 before either list is offered anything and anchored to the foot. The body publishes exactly
@@ -29,7 +29,7 @@ ground is presentation that moved no geometry.
 - *A quieter ground for an unavailable control* — rejected: it loses the ground entirely, so
   the ground means actionable rather than "a control is here".
 - *A `kSectionGround` constant shared by the heading and the controls* — refused: two decisions
-  that land on one value are not one decision (`886e3aa`).
+  that land on one value are not one decision (`1fee62d`).
 - *Keyboard activation for a control* — none: pointer-only, no focus framework.
 
 **Consequences.** `[ Create ]` and `( Delete )` are the same width. The ground reaches the whole

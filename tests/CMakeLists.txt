@@ -287,7 +287,7 @@ target_link_libraries(zengine-example-numbered-presenter
             zengine-activation zengine-component zengine-warnings zengine-sanitize)
 
 # A PANE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE: its own image, compiled from
-# weavelib/legacy_pane_protocol.hpp (the pane-action protocol exactly as `84b6bc0` published
+# weavelib/legacy_pane_protocol.hpp (the pane-action protocol exactly as `5e96e05` published
 # it) and deliberately NOT from zengine-workshop-vocabulary -- the whole claim is that a party
 # nobody rebuilt still registers, declares and dispatches with the current host, and a case
 # reads its source to check the include is absent. Loaded by the actions suite (through the
@@ -1811,8 +1811,8 @@ zengine_script_test(configure_switches ${CMAKE_CURRENT_SOURCE_DIR}/check_configu
 # ---- longest first under a parallel CTest -----------------------------------------------
 # At -j<n> CTest starts entries in descending COST, and a declared COST outranks the one it
 # measures into Testing/Temporary/CTestCostData.txt, so this table orders every parallel run, a
-# fresh tree's too. A value is the seconds an entry took in its slowest CI build job at 289f50c,
-# for every entry of 5 s or more (a panes part's: at efdc170, in the sanitizer job, its slowest);
+# fresh tree's too. A value is the seconds an entry took in its slowest CI build job at bba71c3,
+# for every entry of 5 s or more (a panes part's: at f571d5e, in the sanitizer job, its slowest);
 # an entry left out runs by the cost CTest measured for it, or after these while it has none.
 file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/test_population.txt zengine_cost_population
      REGEX "^[A-Za-z0-9_]+[ \t]")

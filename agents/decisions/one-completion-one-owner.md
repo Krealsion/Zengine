@@ -5,12 +5,12 @@ supports is in [project](../workshop/project.md).
 
 **Context.** A relative authored `single_source` meant two files: the editor and the runner's
 exists-preflight resolved it against the process working directory while the generated project
-embedded it verbatim for CMake to resolve against the workspace (`5a302ae`). The completed
+embedded it verbatim for CMake to resolve against the workspace (`ed737fd`). The completed
 catalog then had no owner — the runner kept a vector of recipes, the Builder a vector of views,
 the host's edit-source answer a closure per recipe — so replacing it would have meant
 re-synchronising every consumer by hand, and the first one forgotten would answer from the old
-project in a way no test could see (`fc9cb62`, "One Workshop, one set of recipes it currently
-means"). `--recipes` chose the catalog a session was stuck with (`dc0501f`, "Choose the recipes
+project in a way no test could see (`6a44659`, "One Workshop, one set of recipes it currently
+means"). `--recipes` chose the catalog a session was stuck with (`1f00cc6`, "Choose the recipes
 this Workshop means, while it is running").
 
 **Decision.** `complete_recipes(recipes, host_dir, project_dir)` is the one place any host fact
@@ -41,7 +41,7 @@ the owner's own absolute path.
   replaced* — rejected: a replacement may invalidate a choice and may not reinterpret one;
   pinned by case `"a choice whose recipe is gone is released, not inherited"`.
 - *A project-relative spelling for `recipes_moved_to`* — replaced: unambiguous only while the
-  browser could not leave the project (`0cf8a94`).
+  browser could not leave the project (`9711ed4`).
 
 **Consequences.** The recipe file is never rewritten and the owner is not authorship. A valid
 empty catalog installs; completion is total and adds no third refusal kind. A foreign catalog's

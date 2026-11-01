@@ -677,7 +677,7 @@ and a visible window — the capacity being an argument and never a member, beca
 row and an Inspector row are different widths in the same running process. It owns **no** policy
 and no medium: no commit, no validation, no refusal, no focus, no blink.
 
-⚠ **This surface was extended in the same hours this catalog was written** (`235141b`), and
+⚠ **This surface was extended in the same hours this catalog was written** (`25b304c`), and
 the extension lands exactly in the region the legacy `TextBox` could not reach — selection, the
 clipboard operations, a local undo, word moves, and one owner for the editing-key vocabulary. Do
 not read an operation list out of this entry: `component/docs/component.md` is the owner and states
@@ -1430,7 +1430,7 @@ Read against the repository at the time of writing; **the owning documents named
 are authoritative if they disagree with this table**.*
 
 *⚠ One caveat, with a date attached. This table was compiled while the change that gave `TextBox`
-selection, the clipboard, a history and one key vocabulary (`235141b`, 2026-08-26) was in flight
+selection, the clipboard, a history and one key vocabulary (`25b304c`, 2026-08-26) was in flight
 against `component/`, `input/`, `surface/` and `workshop/`, and it landed before this
 was filed — `component/docs/component.md`, `input/docs/input.md` and `surface/docs/surface.md`
 were all rewritten in the
@@ -1470,7 +1470,7 @@ touching this file, and the owner is always the better answer.*
 | hit testing | `find_component`, plus two copies elsewhere | one geometry draws a thing and hits it — a standing rule against a second copy | covered (stronger) | `agents/workshop/geometry.md` (WL-GEO-01) |
 | widget set | Button, DropDown, ScrollView, Text, TextBox | no widget set: pieces extracted from repeated working behaviour; Button explicitly declined | intentionally different | `component/docs/component.md` |
 | text editing state | append + backspace-at-end, caret as a literal pipe glyph in the string | `component::TextBox` — one state carrying text, caret and a visible window, on character boundaries | superseded | `component/docs/component.md` |
-| text selection / clipboard / undo | none — the legacy box could reach none of the three | present since `235141b`, 2026-08-26, the commit that gave `TextBox` selection, the clipboard, a history and one key vocabulary, which also routed the clipboard through the Surface vocabulary | covered | `component/docs/component.md`, `surface/docs/surface.md` |
+| text selection / clipboard / undo | none — the legacy box could reach none of the three | present since `25b304c`, 2026-08-26, the commit that gave `TextBox` selection, the clipboard, a history and one key vocabulary, which also routed the clipboard through the Surface vocabulary | covered | `component/docs/component.md`, `surface/docs/surface.md` |
 | word moves, editing-key vocabulary | none | one owner for the editing keys, under the press chain's own bool | covered | `component/docs/component.md` |
 | multiline editing | none | not present | absent (both) | `component/docs/component.md` |
 | per-field input filters | `TextBoxFilterType` (two of five implemented) | a property row parses, writes, and may be refused **with a reason**; the Composer refuses via the type ladder | intentionally different | `agents/panes.md` |

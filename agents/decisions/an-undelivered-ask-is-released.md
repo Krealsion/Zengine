@@ -4,7 +4,7 @@
 supports is in [info-body](../workshop/info-body.md).
 
 **Context.** Info discarded the `loom::Ticket` its document asks returned and did not accept
-Loom's `zen.DispatchRefused`, while it sends one commit at a time. Measured at `b42fe35` with
+Loom's `zen.DispatchRefused`, while it sends one commit at a time. Measured at `b1cb091` with
 the loaded pane: Workshop's weave killed between a commit's send and its delivery refused the
 commit `TargetUnavailable`, the pane was told nothing, and with Workshop revived the next Return
 said `commit not sent -- an earlier commit is still unanswered`. The draft could not be

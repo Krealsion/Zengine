@@ -6,12 +6,12 @@ supports is in [regions](../workshop/regions.md).
 **Context.** The graphical Workshop drew Info and the Terminal in a real face and everything
 else in a 5x5-in-12px bitmap letterform. A canvas cell is twelve device pixels and the face's
 line is eighteen, so a one-cell region holds zero rows; what can migrate is a run of rows
-(`eb309a0`, "Set Workshop's ordinary prose in the medium's own type"). The workspace object's
+(`e25e5cc`, "Set Workshop's ordinary prose in the medium's own type"). The workspace object's
 name was the hard case: a region takes its rectangle, and the object's rectangle is authored
-material (`1a3c775`, "Let semantic type sit on material somebody else owns"). Given the room to
+material (`3805414`, "Let semantic type sit on material somebody else owns"). Given the room to
 the workspace's right edge, a six-cell object with a 32-byte name planned 564 px over 72 px of
 material — nine characters legible on the body, twenty-three drawn on a `kMuted` backdrop in the
-name's own `kMuted` ink (`50d748f`, the commit that bound a name to its material).
+name's own `kMuted` ink (`510d639`, the commit that bound a name to its material).
 
 **Decision.** `prose_place` + `prose_region` is the one call for the popup and a pane's body, each
 in its own rectangle. The Builder is a region composed by explicit priority, facts dropped whole.
@@ -26,12 +26,12 @@ floored at one cell, so a name that does not fit is marked rather than fading.
   integer solutions, so a 4/16/10-pixel band cycles that the strips cannot reach, and on a
   monochrome terminal the material becomes a blank rectangle.
 - *A region ground that reconstitutes material* — built and refused: it would cut the name at
-  the body's width or paint material across a workspace that has none (`1a3c775`).
+  the body's width or paint material across a workspace that has none (`3805414`).
 - *A colour or role for the overrun* — rejected: nothing reads on both a `kFill` body and a
   `kMuted` backdrop, and `kAccent` means the pointed thing; another shade would not repair
-  incorrect bounds (`50d748f`).
+  incorrect bounds (`510d639`).
 - *`paint_panel_row`, the cell-lattice row spelling* — gone with its last consumer (`git log
-  -S'paint_panel_row'` → `5b79afa`).
+  -S'paint_panel_row'` → `a99858f`).
 
 **Consequences.** Fifty plan quads became seven; the cell projection is byte-for-byte what
 `paint_panel_row` wrote (15847 bytes against 15847, zero hunks). A one-cell object shows its

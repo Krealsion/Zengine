@@ -15,7 +15,7 @@ supports is in [geometry](../../../agents/workshop/geometry.md).
 28 columns `screen_of` had already subtracted for the side region, and the Info pane published
 its properties and its footer into cells a later region then cleared to the canvas colour. The
 pane read as stopped rather than covered, and a weaver could not tell rows omitted from rows
-hidden from rows destroyed (`58c88cf`, "Stop the terminal pane spending the column reserved
+hidden from rows destroyed (`7c092dc`, "Stop the terminal pane spending the column reserved
 beside it"). The answer was already in the file: `screen_of` subtracts the side column for the
 workspace three lines above where it placed the pane, and the overlay stack had been asserted
 inside that number since the places were declared; the pane was the one placement older than the
@@ -43,7 +43,7 @@ is consulted; a metric only changes how much prose fits inside a placement it di
   with the overlay stack — rejected: it would be a reservation `screen_of` does not make; the
   overlap is bounded (504 shared cells at the measured worst) and pinned as a known fact.
 - *Giving Info's vacated columns to the workspace* — refused when Info became removable
-  (`bdcc710`, "Let a maker put the properties away and get them back"): every %-wide object
+  (`5057182`, "Let a maker put the properties away and get them back"): every %-wide object
   would change size because a weaver hid a list of names.
 
 **Consequences.** At 78–80 columns the pane gets the room; want and room agree from 94 columns

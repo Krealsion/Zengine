@@ -7,10 +7,10 @@ supports is in [the window file](../workshop/window-file.md).
 from, and the SDL medium makes that size the window's minimum, once, at creation
 (`SDL_SetWindowMinimumSize`). Seeding the remembered extent before the first canvas came up at
 the right size and left a weaver unable ever to shrink their own window — measured on Windows
-against a real window that refused every drag below its restored size (`fba0dc2`). Position and
+against a real window that refused every drag below its restored size (`4831165`). Position and
 maximized state were not in the vocabulary until the placement pair closed that omission
 (`6790547`); then the medium re-maximized before the restored room arrived, and a weaver
-unmaximized onto 78x22 (`209c7da`, "Maximize a restored window over the room it is meant to come
+unmaximized onto 78x22 (`6ccf700`, "Maximize a restored window over the room it is meant to come
 back to").
 
 **Decision.** `on(SurfaceReady)` repaints at the minimum extent and then takes the session back;
@@ -21,9 +21,9 @@ is the normal window's. A maximized restore repositions, re-grows through the ca
 conversation, then re-maximizes, one beat after the picture that supplies the room.
 
 **Alternatives considered.**
-- *Seeding the remembered extent first* — measured against a real window (`fba0dc2`).
+- *Seeding the remembered extent first* — measured against a real window (`4831165`).
 - *Applying the desk before the viewport* — measured red while the room's height rationed the
-  stack (`fba0dc2`); since no room rations it
+  stack (`4831165`); since no room rations it
   ([the stack begins again](the-stack-begins-again.md)), the order changes no seating.
 - *Clamping an out-of-band viewport* — rejected: clamping 100000 to 640 still opens a window
   nobody chose on a display Workshop cannot see.
@@ -32,7 +32,7 @@ conversation, then re-maximizes, one beat after the picture that supplies the ro
 - *Workshop interpreting desktop coordinates* — refused: the medium validates against the
   displays that exist now, and a terminal retains the remembered value rather than erasing it.
 - *Maximizing the moment the offer arrives* — measured wrong by handle on a real desktop: 9 of
-  14 checks, 11 of 14 with the one-beat delay alone, 14 of 14 as shipped (`209c7da`).
+  14 checks, 11 of 14 with the one-beat delay alone, 14 of 14 as shipped (`6ccf700`).
 
 **Consequences.** A restored window is the weaver's size floored to whole cells, at most
 `kCellPx − 1` pixels short on each axis. The remembered room is an ordinary later picture,

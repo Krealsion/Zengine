@@ -5,7 +5,7 @@ supports is in [document](../../../agents/workshop/document.md).
 
 **Context.** Info's commit crossed as a row index and its text (`DocumentActRequested` v1), and
 the host wrote that row of whatever `Session::rows` held when the ask arrived. Measured through
-the loaded pane with ordinary input at `b42fe35`: Return and a press on #2 in one poll wrote
+the loaded pane with ordinary input at `b1cb091`: Return and a press on #2 in one poll wrote
 `panel77` into #2 while the draft was on #1's `Name`. A load is a second boundary, because it
 restores the file's mint: Return and `^o` over the document's own saved bytes wrote `panel77`
 into the replacement's #1, and no row a picture showed had changed, so the pane had nothing to
@@ -23,7 +23,7 @@ in words; select, create and delete stay v1. A value moved under the same name i
 property, and no merge policy is made.
 
 **Alternatives considered.**
-- *Tried: a row index judged against the current rows* — at `b42fe35` the one-poll press and the
+- *Tried: a row index judged against the current rows* — at `b1cb091` the one-poll press and the
   identical-bytes load each wrote into an object the draft was never typed for; the replacement is
   pinned by case `"an Info commit queued behind another desk put live, or another and back, is
   refused: neither desk is written and the pane says why"`.

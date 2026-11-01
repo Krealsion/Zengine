@@ -5,11 +5,11 @@ supports is in [setup-file](../workshop/setup-file.md).
 
 **Context.** The code authors a default, the weaver authors an override, the host resolves the
 room: version 2 was a clean break carrying each pane's durable reference plus the smallest
-authored difference (`3ecaedd`, the commit that authored the window). Loom's admission refuses
+authored difference (`3024712`, the commit that authored the window). Loom's admission refuses
 an unknown field, and the row's fields are required, so absence is not spelled by omission. When
 the lattice
 moved to sub-cells, version 3 followed and a version-2 whole-cell file had to keep loading
-(`07eb620`).
+(`3645f16`).
 
 **Decision.** Each row carries a `PaneRef` plus `place {mode, x, y}`, `width` and `height
 {mode, amount}` per axis, and `front`, and nothing else. `default` is a value whose unused

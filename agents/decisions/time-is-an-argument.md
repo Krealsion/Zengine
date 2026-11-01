@@ -5,7 +5,7 @@ supports is in [pointer](../workshop/pointer.md).
 
 **Context.** `input::PointerButton` carries no click count and no timestamp on either backend,
 so a double-click is Workshop's own interpretation and not a platform's — which is what keeps a
-TUI and an SDL Workshop agreeing about a component's grammar (`1bc34e6`, "Let arranging choose
+TUI and an SDL Workshop agreeing about a component's grammar (`27b435b`, "Let arranging choose
 the pane, a double-click choose the word, and a pointer read what a row cut").
 
 **Decision.** `HostContext::interaction_now` is a reading the host may wire, defaulting to a

@@ -5,7 +5,7 @@ supports is in [arrangement](../workshop/arrangement.md).
 
 **Context.** Pane management was a selector with submodes — select a pane, then a Move step, a
 Size step and an edge-picking step — and a roster pane painted the state. When the contextual
-surface arrived, moving and resizing a pane were plainly one weaver intent (`bf35754`, "Context
+surface arrived, moving and resizing a pane were plainly one weaver intent (`30a145d`, "Context
 opens beside the hand, and arranging is the scope a maker chose").
 
 **Decision.** `PaneArrange{open, desk, pane, resetting}` replaces the selector. The one-pane
@@ -20,7 +20,7 @@ visible statement is the rings, the legend and `arrange_status()` carrying the p
 **Alternatives considered.**
 - *The selector with submodes* — retired; `manage.move`, `manage.size` and `manage.edge` are
   retired ids whose authored rows are kept verbatim as unknown (`git log -S'manage.move'` →
-  `bf35754`).
+  `30a145d`).
 - *A roster pane as the state's statement* — retired in the same commit; the rings are the
   statement and an invisible pane is recoverable by ear.
 - *A selection prerequisite for the desk scope* — retired: a press is its own targeting.

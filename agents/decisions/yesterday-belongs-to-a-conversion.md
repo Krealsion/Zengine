@@ -5,7 +5,7 @@ supports is in [migration](../workshop/migration.md).
 
 **Context.** The session reader carried three shapes and three roads — the version it writes and
 two older ones kept beside it — every one compiled into every Workshop, and the next format
-change was going to add a fourth (`0cffe92`, "Let the session reader forget every shape but the
+change was going to add a fourth (`6c29060`, "Let the session reader forget every shape but the
 one it admits"). The format then moved three times in a week: 3 → 4, 4 → 5, 5 → 6.
 
 **Decision.** The reader knows one shape and carries `kFormatVersion` and no second number. The
@@ -27,7 +27,7 @@ moving a field.
 - *Chained edges or a searched route* — rejected: a searched route is a result no participant
   authored; pinned by case `"three DIRECT edges, and no chain to walk even if one wanted to"`.
 - *A reordered field in a retired struct* — measured to strand every file: content ids are
-  pinned for every vintage, v4's `0xb621c9f3616c7bb1` measured off `a39795e` and v5's
+  pinned for every vintage, v4's `0xb621c9f3616c7bb1` measured off `78f9dd4` and v5's
   `0x6f5b0dfc72bfa501` read off a file the live witness left behind.
 - *Inferring plurality or an association for an old file* — refused: defaulted, not inferred;
   inventing an association from `--setup` would be the reader deciding what the weaver never

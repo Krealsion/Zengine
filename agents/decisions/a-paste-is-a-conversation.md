@@ -4,10 +4,10 @@
 supports is in [text-box](../workshop/text-box.md).
 
 **Context.** The clipboard crosses the Skin seam as a pair of shapes and every text-holding
-participant mirrors a copy (`235141b`). A paste then read the mirror, which is stale against
+participant mirrors a copy (`25b304c`). A paste then read the mirror, which is stale against
 the platform's current value, and a focus or mode change between a request and its answer
-could have redirected clipboard text into another box (`cc50da1`, "Stage the paste races a
-mutation must redden"; `5463b64`, "Read the clipboard only when a maker asks to paste it").
+could have redirected clipboard text into another box (`b7c4306`, "Stage the paste races a
+mutation must redden"; `124fb4f`, "Read the clipboard only when a maker asks to paste it").
 
 **Decision.** `Session::clipboard` is one in-process mirror — written on copy and cut, said to
 the process once around the chain, filled by copies heard from elsewhere without counting them
@@ -24,7 +24,7 @@ back to the mirror. The editor pins `doc_epoch` and `buffer.revision()` as well.
 - *Relocating a late answer to the moved caret in the editor* — rejected: a document that
   merely moved gets `paste again`; pinned by case `"a late paste answer may not land at a caret
   that has since moved"`.
-- *A second ask book* — rejected (`52a6c51`, "Spend Loom's asker book instead of keeping a
+- *A second ask book* — rejected (`7c76b76`, "Spend Loom's asker book instead of keeping a
   second one").
 - *Persisting the clipboard* — rejected: the session keeps the desk, never the work in
   progress.
@@ -57,12 +57,12 @@ or delete keeps its own record and cannot hide a commit.
 **And a number is allocated; a record is kept.** The desktop's name line drew its pastes and the
 Pane Creator's acts from one counter and read an answer against the latest number, so Return and
 Ctrl+V in one poll dropped the host's word that the pane was made (the review's probe at
-`cce15b9`). A newer ask of another kind is no verdict on the one awaited: the act keeps its own
+`5fbc3f7`). A newer ask of another kind is no verdict on the one awaited: the act keeps its own
 record — the act, the draft and the name it sent — and the rest is Info's rule at the
 Creator's size: one act at a time, a line closed only while it holds what it sent with no paste on
 its way, and a closed line saying what it made. The record keeps its ticket as well, because one
 act at a time turned a refused send into a block on every later act (the next review, at
-`e4d6a9f`): nothing queued, or Loom's own notice naming that attempt, releases it aloud, as an
+`dbb6063`): nothing queued, or Loom's own notice naming that attempt, releases it aloud, as an
 undelivered ask of Info's is released; an act the host received and has not answered still waits.
 
 **Since.** The Pane Creator's name line and acts retired into described views

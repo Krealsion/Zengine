@@ -6,8 +6,8 @@ supports is in [arrangement](../workshop/arrangement.md).
 **Context.** The pane boundary cost every stack pane two rows: an interior of 46x7 where the slot
 is 48x9. Every other consequence was absorbed by a mechanism that already says what it hid, and
 one was not — the Compose pane's form no longer fit the default slot — reported rather than
-repaired, because which of its rows should yield is that pane's own decision (`65cf9f1`). The
-pressure was closed at the desk instead (`35653ad`).
+repaired, because which of its rows should yield is that pane's own decision (`785bb49`). The
+pressure was closed at the desk instead (`9e6bffb`).
 
 **Decision.** `=` grows the addressed pane and `-` shrinks it, by `kCoarseStepCells`
 (<!-- value kCoarseStepCells -->4<!-- /value -->) on both axes, in both scopes, through

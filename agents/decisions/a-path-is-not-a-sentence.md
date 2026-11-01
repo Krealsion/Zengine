@@ -6,7 +6,7 @@ supports is in [project](../workshop/project.md).
 **Context.** `detail::fit` cuts a line's tail and marks the cut, which keeps a sentence's useful
 half because a sentence front-loads its meaning. A path back-loads it, so the same cut removes the
 filename — and once the browser could leave the project, a based spelling with no stated base
-had become a wrong-looking name for the right file (`0cf8a94`, "Look somewhere without making it
+had become a wrong-looking name for the right file (`9711ed4`, "Look somewhere without making it
 your project").
 
 **Decision.** `detail::fit_path` is the host's measurer for a path it cuts: enough root cue to say
@@ -20,7 +20,7 @@ identity, and no pane widens to avoid a cut.
 - *`detail::fit` on a path* — measured wrong for the reason above; pinned by case `"fitting a
   path keeps the end that says which file it is"`.
 - *Asking the filesystem for the root* — rejected: this runs at every repaint, and the proper
-  accessors were measured to throw (`3920bdb`).
+  accessors were measured to throw (`9154c4d`).
 - *Widening a pane to avoid the cut* — refused.
 
 **Consequences.** The tab run's setup status reuses the measurer against its own budget, fitting

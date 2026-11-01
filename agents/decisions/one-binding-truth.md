@@ -6,9 +6,9 @@ supports is in [keyboard](../workshop/keyboard.md) and [key-spelling](../worksho
 **Context.** Gesture claims were string literals — measured drifting in six places — beside
 two hand-kept mirror predicates and two hand-copied routing chains; the subset aliases let Ctrl+N
 create and Alt+Q quit by accident; and the Terminal's toggle was Shift+Space, which a POSIX
-terminal cannot report at all (`7b64b73`, "Make hotkeys executable truth: one keymap for dispatch,
+terminal cannot report at all (`8f9a33e`, "Make hotkeys executable truth: one keymap for dispatch,
 help, and remapping"). The editor then needed `^s` to mean two things without a mode check
-(`7ac1d53`).
+(`f31b715`).
 
 **Decision.** An ACTION is a stable dotted id, label, context and default gesture in
 `kActionCatalog`; a BINDING is the gesture that requests it; EXECUTION stays with each dispatch
@@ -26,9 +26,9 @@ swallow is derived from the binding. A row may answer to no key.
 - *Aliasing `shift+space` to the new toggle* — rejected: gone, not aliased.
 - *Callbacks, a command bus, a registry object, provider-contributed declarations, TextBox
   remapping, sequences, leaders, macros, new wire vocabulary* — none; the keymap holds names and
-  gestures only (`7b64b73`).
+  gestures only (`8f9a33e`).
 - *Hard-coding the expected character at the three swallow sites* — replaced by
-  `expected_text_of` (`568ed5f`, "Pin the swallow's correspondence: only the trigger's own
+  `expected_text_of` (`de35c39`, "Pin the swallow's correspondence: only the trigger's own
   character is eaten").
 - *Resolving the `^s` collision by a mode check* — replaced by declared classes so admission,
   the help surfaces and dispatch read one fact; pinned by case `"^s is the Editor's save while it
@@ -36,7 +36,7 @@ swallow is derived from the binding. A row may answer to no key.
 - *Spending free printables on the four tab operations* — rejected: the POSIX wire carries an
   unshifted printable and a shifted letter and nothing else in that family, and those go to
   whatever asks next; and two unbound actions must not read as a collision that refuses a whole
-  keymap file (`2dc7626`).
+  keymap file (`4f6eb2e`).
 
 **Consequences.** An override survives restart and deleting the file restores defaults; a
 retired id's row is preserved byte-for-byte as unknown; a known POSIX-gap gesture is accepted

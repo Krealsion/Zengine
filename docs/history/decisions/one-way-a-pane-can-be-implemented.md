@@ -8,7 +8,7 @@ supported is in [weaver-pane](../../../agents/workshop/maker-pane.md).
 What follows is the decision as it was made.
 
 **Context.** Every pane's interior was code, or a provider's behind its seam; a weaver could not
-make one (`df06ac5`, "Let a maker create a pane, because a pane can be data").
+make one (`351aac2`, "Let a maker create a pane, because a pane can be data").
 
 **Decision.** `PaneDefinition{name, regions[], next_id}` with `TextRegion{id, kind, x, y, w, h,
 text}` — one admitted kind, ids minted and never reused, geometry in pixels relative to the

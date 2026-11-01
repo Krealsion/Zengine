@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // A pane provider built against the published protocol alone: a real dynamic weave compiled from
-// the pane-action protocol as `84b6bc0` published it (legacy_pane_protocol.hpp), an artifact
+// the pane-action protocol as `5e96e05` published it (legacy_pane_protocol.hpp), an artifact
 // nobody rebuilt. The current host admits its offer, joins its version-one declaration and routes
 // a weaver's key to it, and a reload keeps its id and state (test_workshop_panes_actions.cpp,
 // test_workshop_load.cpp). It must not include the current pane vocabulary, and a case reads this

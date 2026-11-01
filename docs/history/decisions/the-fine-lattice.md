@@ -10,7 +10,7 @@ follows is the decision as it was made.
 can honestly report on the shipped face — one pixel — could not be authored, while the other
 constraint stood unchanged: no monitor pixel may become authored truth, because the setup is
 medium-independent and a whole-cell publisher's bytes must keep meaning what they always meant
-(`07eb620`, "Give pane arrangement a sub-cell lattice, and every resize edge its anchor").
+(`3645f16`, "Give pane arrangement a sub-cell lattice, and every resize edge its anchor").
 
 **Decision.** The canvas geometry carries a sub-cell remainder of 1/48 cell (`kCellSubs`).
 Workshop resolves panes in sub-units end to end as `FineRect`, a compiler-distinct lattice from

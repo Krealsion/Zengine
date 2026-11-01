@@ -74,7 +74,7 @@ pane presents the effective keymap (WL-DESK-11).
 **And the absence of a choice is state.** The launcher's cursor held a pane's identity, but a
 choice whose row left the list was kept only by the image that saw it leave: the keys were
 cleared, a successor read them as never chosen, and gave the marker — Return and `x` with it —
-to the pane in that place (the review's probe at `cce15b9`). The keys now stay, in `DesktopState`
+to the pane in that place (the review's probe at `5fbc3f7`). The keys now stay, in `DesktopState`
 version 2 with its shape unchanged, so a same-shape reload is still accepted; both keys empty
 means only a cursor never given a pane (WL-DESK-10).
 

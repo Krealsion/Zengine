@@ -4,7 +4,7 @@
 supports is in [editor](../workshop/editor.md).
 
 **Context.** The editor's only door was the Builder's chosen recipe: a weaver could not open a
-file they could see (`5a302ae`, "Workshop: choose what to edit -- the Files pane, one editor
+file they could see (`ed737fd`, "Workshop: choose what to edit -- the Files pane, one editor
 door, one meaning for a relative source"). `EditorState::recipe` was write-only provenance.
 
 **Decision.** `open_source(path, mail)` is the one door and it takes a path: normalize against

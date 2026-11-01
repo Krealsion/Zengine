@@ -4,11 +4,11 @@
 supports is in [setup-file](../workshop/setup-file.md) and [planes](../workshop/planes.md).
 
 **Context.** The setup needed a durable front order once a weaver could author the window
-(`3ecaedd`, the commit that authored the window). The order then had nowhere honest to go on
+(`3024712`, the commit that authored the window). The order then had nowhere honest to go on
 the canvas: it held three root lists, so painter's order was global across kinds — every rect,
 then every label, then every text region. Place the Builder over the Info column and send it to
 front, and `occupied_at` answered Builder while the terminal drew Info's prose in the same cell
-(`2d0689a`, the commit that made pane front order visible).
+(`ed7c86e`, the commit that made pane front order visible).
 
 **Decision.** `front` is a canonical rank: a permutation of 0..n-1 over all authored rows,
 unresolved ones included, so reset writes bytes identical to a setup that was never reordered.
@@ -29,7 +29,7 @@ Terminal.
   what was seated, and a restriction of a total order is a total order, so an absent pane keeps
   its exact place for free.
 - *Three root lists per primitive kind* — measured wrong in both directions with only one of
-  them wrong, which is why a case that reversed a vector had passed (`2d0689a`); replaced by
+  them wrong, which is why a case that reversed a vector had passed (`ed7c86e`); replaced by
   `SurfaceLayer`, a position in a vector with no identity, z, opacity or clipping tree.
 
 **Consequences.** Ordering changes paint order and nothing else; hit order is the exact reverse

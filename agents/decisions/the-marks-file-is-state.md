@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [files](../workshop/files.md).
 
-**Context.** The weaver's marks needed a durable home (`0cf8a94`, "Look somewhere without making
+**Context.** The weaver's marks needed a durable home (`9711ed4`, "Look somewhere without making
 it your project"). The prefs header says in its own words that non-presentation facts belong
 somewhere with their own name; the prefs format has one version and no migration; and a mark is
 an absolute path.

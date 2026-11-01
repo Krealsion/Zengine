@@ -21,14 +21,14 @@ refused, because it is the weaver's.
 
 **Context.** The first slice: a person opens Workshop, sees an ordinary authored rectangle,
 selects it, inspects a real property through a typed connection, changes it, and sees an invalid
-change refuse — with no shadow scene graph and no editor framework (`a83fd86`, the first
+change refuse — with no shadow scene graph and no editor framework (`7a5e891`, the first
 Workshop slice). Zengine had no visual primitive, and Loom's semantic tree was claimed to be the
 right vocabulary one packaging decision away; source-tracing measured that false in both halves
 — four in-tree Loom consumers cannot follow it here, and its model fences out the authored
 placement and absolute extent Workshop authors — so the vocabulary moved up out of Workshop
-rather than across out of Loom (`0ec265c`, the commit that gave Zengine the authored/resolved
-vocabulary). Creation, move and delete (`ee54706`), size (`84e00e9`), persistence (`fddec6e`)
-and frames (`7949ac1`) each forced one of the rules below.
+rather than across out of Loom (`b550f44`, the commit that gave Zengine the authored/resolved
+vocabulary). Creation, move and delete (`4120494`), size (`4198dbd`), persistence (`03c3a5d`)
+and frames (`69c17b5`) each forced one of the rules below.
 
 **Decision.** Identity is the id: `next_id` never rewinds and is in the file because it cannot
 be reconstructed. A property is read through its semantic surface and written by commit, with
@@ -42,31 +42,31 @@ geometry; loading is a transaction and saving observes. The file doors refuse be
 the canvas, the list and the inspector.
 
 **Alternatives considered.**
-- *Loom's `loom::Widget` + `px_layout` as the vocabulary* — measured false (`0ec265c`).
+- *Loom's `loom::Widget` + `px_layout` as the vocabulary* — measured false (`b550f44`).
 - *Three call sites doing their own extent arithmetic* (`doc::resolve`, `doc::pick`) — retired:
   one `ui::Scene` from `workspace_scene()`, agreeing because there is one.
 - *Two setters for a move* — rejected: a diagonal drag into the corner would slide down the edge
   while reporting a refusal.
 - *Share-authored positions* — rejected: the resolver clamps and floors and is not invertible
-  for extents, while placement is a sum that inverts exactly (`ee54706`, `7949ac1`).
+  for extents, while placement is a sum that inverts exactly (`4120494`, `69c17b5`).
 - *`max(surviving) + 1` as the mint* — rejected: a weaver who made #3, deleted it and came back
   would find the next object wearing a dead one's number.
 - *Nearest rounding for a share resize* — rejected: it sends 28 cells to 58% and resolves back
   to 27, so grabbing an edge would shrink the object; the smallest share that fits, chosen by
-  asking the resolver over its candidates (`84e00e9`).
+  asking the resolver over its candidates (`4198dbd`).
 - *Clamping inside `doc::`* — refused: the hand's clamp lives in the gesture layer in the
   document's own limits.
 - *A parser written here, or persisting the weave's state* — rejected: Loom's own codec, so a
   document and a message are refused by one gate; three small shapes, so renaming a member
-  cannot change a weaver's file (`fddec6e`).
+  cannot change a weaver's file (`03c3a5d`).
 - *Keeping the selection id across a load* — rejected: it would alias whatever new object
   carried that number.
 - *Accepting `70p` for `70%`* — kept only while `%` could not be typed from scancodes; retired
-  when text arrived as text (`15f173a`), and case `"terminal: `%` arrives as TEXT and nobody
+  when text arrived as text (`9749e0e`), and case `"terminal: `%` arrives as TEXT and nobody
   computes Shift+5"` says so.
 - *Parent/child containment* — refused: a frame said what values are measured against and
   nothing about containment, ownership, clipping or lifetime; the retired document's one policy
-  over it was that a source with dependents was not deletable (`7949ac1`).
+  over it was that a source with dependents was not deletable (`69c17b5`).
 - *Guessing the root for a chain that cannot reach it* — refused: an absence, never a guess.
 
 **Consequences.** Save under a 48-cell workspace and load under a 36-cell one: the authored 61%

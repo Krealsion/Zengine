@@ -4882,7 +4882,7 @@ TEST_CASE("a retired shape's wire identity is the identity it was written at") {
     // old bytes claim -- name, version AND content id. Reorder, rename or nest a field and
     // `loom::admit` stops recognising them, with no compile error. So the ids are written
     // down, each with its provenance: v3's compiled from `session_persist::WorkshopSession` at
-    // Zengine `0cffe92`, the build that wrote version 3; v1's and v2's are read back above.
+    // Zengine `6c29060`, the build that wrote version 3; v1's and v2's are read back above.
     struct Vintage {
         const char* what;
         std::shared_ptr<const loom::Schema> shape;
@@ -4896,11 +4896,11 @@ TEST_CASE("a retired shape's wire identity is the identity it was written at") {
          0x862c718a0abf08c5ull},
         {"v3", loom::schema_of<session_history::v3::WorkshopSession>(), 3u,
          0x849fe51c31dc0cfbull},
-        // v4's was measured against Zengine a39795e, the build that WROTE version 4.
+        // v4's was measured against Zengine 78f9dd4, the build that WROTE version 4.
         {"v4", loom::schema_of<session_history::v4::WorkshopSession>(), 4u,
          0xb621c9f3616c7bb1ull},
         // AND v5'S IS READ OFF A FILE A VERSION 5 BUILD WROTE: a live SDL witness left a
-        // session file (produced by Zengine 2dc7626, kept outside this repository) whose
+        // session file (produced by Zengine 4f6eb2e, kept outside this repository) whose
         // envelope says `"content_id":"0x6f5b0dfc72bfa501"` -- so this number is the door those
         // bytes claim, corroborated by bytes, not a compiler's reading of a retyped struct.
         {"v5", loom::schema_of<session_history::v5::WorkshopSession>(), 5u,
@@ -4910,15 +4910,15 @@ TEST_CASE("a retired shape's wire identity is the identity it was written at") {
         {"v6", loom::schema_of<session_history::v6::WorkshopSession>(), 6u,
          0x65ddb2477e598d18ull},
         // v7's is the content id the census pinned for it while version 7 was the one Zengine
-        // wrote (`tests/shapes.txt` at Zengine 6205dc9), and every version 7 file names.
+        // wrote (`tests/shapes.txt` at Zengine 75ce10d), and every version 7 file names.
         {"v7", loom::schema_of<session_history::v7::WorkshopSession>(), 7u,
          0xcac415773fb5880aull},
         // v8's is the content id the census pinned for it while version 8 was the one Zengine
-        // wrote (`tests/shapes.txt` at Zengine 7d42479), and every version 8 file names.
+        // wrote (`tests/shapes.txt` at Zengine 35a3407), and every version 8 file names.
         {"v8", loom::schema_of<session_history::v8::WorkshopSession>(), 8u,
          0x520a73e48f9d3ed1ull},
         // v9's is the content id the census pinned for it while version 9 was the one Zengine
-        // wrote (`tests/shapes.txt` at Zengine 2b48d263), and every version 9 file names.
+        // wrote (`tests/shapes.txt` at Zengine 2f85118d), and every version 9 file names.
         {"v9", loom::schema_of<session_history::v9::WorkshopSession>(), 9u,
          0xc0d49edb80731ff2ull},
     };

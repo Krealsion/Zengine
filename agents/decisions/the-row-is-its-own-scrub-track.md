@@ -5,7 +5,7 @@ supports is in [pointer](../workshop/pointer.md).
 
 **Context.** `fit` and `fit_path` bound a line and mark the cut, and a weaver had no way to read
 what was cut short of widening a pane. A timed marquee needs a repaint with no event behind it,
-and this application publishes a canvas only when it has been told something (`1bc34e6`, "Let
+and this application publishes a canvas only when it has been told something (`27b435b`, "Let
 arranging choose the pane, a double-click choose the word, and a pointer read what a row cut").
 
 **Decision.** `Session::reveal` is presentation only, and `detail::reveal_shown` returns the

@@ -5,7 +5,7 @@ supports is in [editor](../workshop/editor.md).
 
 **Context.** A built-in source editor closes the weaver loop — choose source, edit, save, build,
 realize, inspect, edit again — without leaving the application and without a framework arriving
-to pay for it (`7ac1d53`, "Workshop becomes a place a maker can stay while changing source").
+to pay for it (`f31b715`, "Workshop becomes a place a maker can stay while changing source").
 `component::TextBox` is one-line and exactly its four consumers' width.
 
 **Decision.** `workshop/editor.hpp` owns the machinery; `Session::editor` owns the one open
@@ -30,7 +30,7 @@ one region.
   nothing"`.
 - *A scroll framework, a scrollbar, a global offset map, a persisted position* — none; each
   consumer spends its own cursor, and the router later reached every surface Workshop windows
-  (`8c2fc05`).
+  (`28c52c5`).
 - *A second body arithmetic* — rejected: `external_body_place` with `kEditorHeaderRows`.
 
 **Consequences.** Hiding, moving, covering, reordering or removing the pane touches nothing; an

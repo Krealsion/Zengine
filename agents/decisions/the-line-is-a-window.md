@@ -7,7 +7,7 @@ supports is in [text-box](../workshop/text-box.md).
 with it: the published column ran past the row, where the graphical plan refuses to draw a bar
 and the cell projection refuses to insert its mark. Reproduced at the default window — 109 bytes
 into 83 columns, `plan_caret.present == false` at End — and in a cell medium, where no `_`
-appeared anywhere (`18cb118`, "Keep the Terminal caret in sight on a long line").
+appeared anywhere (`ce95038`, "Keep the Terminal caret in sight on a long line").
 
 **Decision.** The editable line is a window onto its text: `first_visible` beside text and caret,
 with `0 ≤ first_visible ≤ caret ≤ size()` on a character boundary after every operation, and

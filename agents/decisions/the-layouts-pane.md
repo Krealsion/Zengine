@@ -3,12 +3,12 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [tab-run](../workshop/tab-run.md).
 
-**Context.** The tab run first rode the band's status row (`102017a`), moved to the top of the
-screen (`4868c6b`), and marked the live desk with two cells on its left while quoting every
+**Context.** The tab run first rode the band's status row (`c84c395`), moved to the top of the
+screen (`757310f`), and marked the live desk with two cells on its left while quoting every
 name — `> "Home"  "Code"  "Art"`, a marker attached to nothing and three names dressed as tokens
-(`dff7c6b`, "Let the selection hug the name it is about"). The first two rows were still painted
+(`baf8ff0`, "Let the selection hug the name it is about"). The first two rows were still painted
 by the screen out of a rectangle nothing could name: no weaver could move, cover, resize or take
-the surface off a desk (`3bfc2fd`, "Let a maker move the layout tabs, because they are a pane
+the surface off a desk (`aa2d50c`, "Let a maker move the layout tabs, because they are a pane
 like the rest").
 
 **Decision.** The run, the association and the workspace fact are the built-in `Layouts` pane in
@@ -21,14 +21,14 @@ nowhere. A press on a painted tab is a press on the pane; a second press renames
 hold; a right press names the tab as a subject.
 
 **Alternatives considered.**
-- *Two marker cells on the left* — retired (`dff7c6b`).
+- *Two marker cells on the left* — retired (`baf8ff0`).
 - *Brackets on the live tab alone* — rejected: the row's right side would slide two cells on
   every switch, the footer's moving-target defect; the equality is the type's (`char`); pinned by
   case `"switching the live layout moves nothing to the right of it"`.
 - *Quoting names in the run* — retired: the quotes paid for a delimiter the marker cells pay for
   now; the cost is stated where the law lives — a name spelled `Ops" UNSAVED | decoy` reads as
   status text to the eye, while the machine's boundary (the recorded span) is untouched.
-- *`UNSAVED` as a status word* — retired: `none` does not mean unsaved (`2dc7626`).
+- *`UNSAVED` as a status word* — retired: `none` does not mean unsaved (`4f6eb2e`).
 - *Fitting the sentence after appending the path* — rejected: it cuts `modified` off the end;
   and taking the whole remainder for the path starved the unresolved count at the 78-column
   minimum, measured by the suite; pinned by case `"the association's verdict survives the row's
@@ -46,7 +46,7 @@ the keys still step the run and the Pane Manager brings it back (the picker did,
 retired). A version-5 session materializes the
 row on the way in ([yesterday-belongs-to-a-conversion](yesterday-belongs-to-a-conversion.md)).
 The live TUI witness found the saved marker eaten by the row's own cut mark at the 78-column
-minimum with a full run, which the suite had missed by three tabs (`102017a`).
+minimum with a full run, which the suite had missed by three tabs (`c84c395`).
 
 **Laws supported.** [WL-TAB-01](../workshop/tab-run.md), [WL-TAB-02](../workshop/tab-run.md),
 [WL-TAB-03](../workshop/tab-run.md), [WL-TAB-04](../workshop/tab-run.md),

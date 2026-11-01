@@ -1,4 +1,4 @@
-> **Historical architecture record — Status: FROZEN.** Source commit: Zengine `f6a4c69`.
+> **Historical architecture record — Status: FROZEN.** Source commit: Zengine `5ee3314`.
 > Package documentation as it stood before the documentation split, kept because it is a
 > fuller account of the Timer package's design than the current reference pages carry.
 >

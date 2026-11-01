@@ -20,10 +20,10 @@ word has one definition and three compositions.
 
 **Alternatives considered.**
 - *Each tool keeping its own line* — tried, and replaced: four consumers each spelled one six-case
-  key mapping (`235141b`), and `erase_one_character`, which erased from the end, went with the
+  key mapping (`25b304c`), and `erase_one_character`, which erased from the end, went with the
   extraction (`2931651`).
 - *A `Button` component for Create and Delete* — not made: what they share is a label, a bit, a
-  bracket convention and a row, presentation with no invariant to keep (`5f8fab8`). Labelled
+  bracket convention and a row, presentation with no invariant to keep (`2756aef`). Labelled
   controls are a strip a pane packs (`component/control_strip.hpp`).
 - *A focus flag, a filter, a max length, a multiline mode, a blink* — refused: the pre-Zen
   `Zen::TextBox` in `quarry/` had most of those and could not move its caret.
@@ -34,7 +34,7 @@ word has one definition and three compositions.
 - *Linking `loom::core`* — rejected: the absence of the link is the enforcement that a component
   is not content; the key identities are spelled locally and pinned against the input wire.
 - *Three word implementations kept in agreement* — replaced by one scan composed three ways
-  (`1bc34e6`).
+  (`27b435b`).
 
 **Consequences.** A consumed gesture need not change anything — copy with nothing selected is
 consumed. `kEditingVocabulary` is swept against `consume` both ways, so a help surface can show
