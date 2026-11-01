@@ -18,7 +18,7 @@ if(DEFINED ZENGINE_SDL_SKIN)
 endif()
 
 project(zengine
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "Zen's default set of weaves — the Loom's first external consumer"
     LANGUAGES CXX)
 
@@ -120,15 +120,16 @@ endif()
 # ---- the package a stranger downloads -------------------------------------------------
 # ZENGINE_PACKAGE installs Workshop ready to run beside the developer package
 # (cmake/ZengineInstall.cmake). Declared before any package, so workshop/ and launcher/ read it.
-# Its version is the tag's, `v0.1.N` giving `0.1.N`; the CMake package's own line stays
-# `project(VERSION)`. Loom is named by the commit the package was built against.
+# Its version is the tag's, `vX.Y.N` giving `X.Y.N`, X.Y being `project(VERSION)`'s major and
+# minor; the CMake package's own line stays `project(VERSION)`. Loom is named by the commit the
+# package was built against.
 option(ZENGINE_PACKAGE "Install Workshop ready to run: the package a stranger downloads" OFF)
-set(ZENGINE_PACKAGE_VERSION "" CACHE STRING "The package's version, read from its tag (v0.1.N gives 0.1.N)")
+set(ZENGINE_PACKAGE_VERSION "" CACHE STRING "The package's version, read from its tag (vX.Y.N gives X.Y.N)")
 set(ZENGINE_PACKAGE_LOOM_COMMIT "" CACHE STRING "The Loom commit the package is built against")
 if(ZENGINE_PACKAGE)
     if(NOT ZENGINE_PACKAGE_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
         message(FATAL_ERROR "zengine: ZENGINE_PACKAGE_VERSION names the package's version, read "
-                            "from its tag (v0.1.N gives 0.1.N); it is '${ZENGINE_PACKAGE_VERSION}'")
+                            "from its tag (vX.Y.N gives X.Y.N); it is '${ZENGINE_PACKAGE_VERSION}'")
     endif()
     if(NOT ZENGINE_PACKAGE_LOOM_COMMIT MATCHES "^[0-9a-f]+$")
         message(FATAL_ERROR "zengine: ZENGINE_PACKAGE_LOOM_COMMIT names the Loom commit the package "

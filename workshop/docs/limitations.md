@@ -3,7 +3,7 @@
 **Reference.** What does not work yet, in one place, so you can plan around it instead of
 discovering it. Everything here was read out of source, not inferred from architecture.
 
-This page describes version **0.1.0**. It is a pre-release; interfaces change without
+This page describes version **0.2.0**. It is a pre-release; interfaces change without
 deprecation cycles.
 
 ## The library itself

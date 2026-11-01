@@ -43,7 +43,7 @@ Keep [**cheat_sheet.md**](cheat_sheet.md) open beside your editor.
 
 ## Maturity — read this before you depend on it
 
-**Version 0.1.0. Pre-release. Interfaces change without deprecation cycles.**
+**Version 0.2.0. Pre-release. Interfaces change without deprecation cycles.**
 
 What is solid: the message/schema contract, the Timer protocol, the drawing vocabulary,
 and the verification discipline (see [Test discipline](docs/contributing/build-and-test.md)).
@@ -73,8 +73,8 @@ archive per platform, with `SHA256SUMS` and the notes on checking them.
 
 | platform | file | start |
 |---|---|---|
-| Windows 10 or 11, x64 | `zengine-0.1.N-windows-x64.zip` | extract it anywhere, then `Workshop.cmd` (a window) or `Workshop-terminal.cmd` (this console) |
-| Linux x86-64, glibc 2.35 or newer | `zengine-0.1.N-linux-x86_64.tar.gz` | extract it anywhere, then `./workshop.sh` (a window) or `./workshop-terminal.sh` (this terminal) |
+| Windows 10 or 11, x64 | `zengine-0.2.N-windows-x64.zip` | extract it anywhere, then `Workshop.cmd` (a window) or `Workshop-terminal.cmd` (this console) |
+| Linux x86-64, glibc 2.35 or newer | `zengine-0.2.N-linux-x86_64.tar.gz` | extract it anywhere, then `./workshop.sh` (a window) or `./workshop-terminal.sh` (this terminal) |
 
 What it needs that it does not carry -- Python 3.8 or newer for the ready-to-use setups, and on
 Linux its C++ runtime and a desktop for the window -- is on [how to install these
