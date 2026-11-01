@@ -303,6 +303,21 @@ TEST_CASE("a row carries its text box, and each room draws its face: `[ab__]` in
     CHECK(narrow.view.shown == "hij");
     CHECK(narrow.view.caret == 3);
     CHECK(gfx::text_box_spelling(narrow.view, 6) == "[hij_]");
+    // A BOX THAT READS PLAIN IN CELLS has its text from its first column there, the whole box its
+    // room, and inside its inset where the room sets type; its caret and a press follow its text.
+    zengine::component::TextBox typed_line;
+    typed_line.set("ls -l", 5);
+    const RowBox plain = row_box_plain(typed_line, 2, 10, true);
+    CHECK(row_text_shown(TextRow{">", gfx::role::kFill, gfx::role::kNone, kNoMark, plain}, true) ==
+          "> ls -l     ");
+    CHECK(box_text_column(plain, true) == 2);
+    CHECK(box_caret(plain, 0, true).column == 2 + 5);
+    const RowBox outlined = row_box_plain(typed_line, 2, 10, false);
+    CHECK(row_text_shown(TextRow{">", gfx::role::kFill, gfx::role::kNone, kNoMark, outlined},
+                         false) == ">  ls -l    ");
+    CHECK(box_text_column(outlined, false) == 3);
+    CHECK(box_caret(outlined, 0, false).column == 3 + 5);
+    CHECK(box_text_column(boxed.box, true) == 6); // a spelled box keeps its inset in cells
     const std::vector<TextRow> rows{boxed, TextRow{}, TextRow{}};
     const std::vector<RowPart> parts{};
     const auto node = [](const RowsDrawing& d, const std::string& path) -> const gfx::Node* {

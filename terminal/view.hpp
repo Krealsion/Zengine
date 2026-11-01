@@ -37,8 +37,10 @@ using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::wrap;
 
-/// How wide the line's box stands while it is empty, the gesture that answers it said after it.
+/// How wide the line's box stands while it is empty, the gesture that answers it said after it...
 constexpr std::int64_t kEmptyLineBox = 12;
+/// ...and in a room of cells, where the box reads plain: the caret's own column.
+constexpr std::int64_t kEmptyLinePlain = 1;
 
 /// The chrome a pane spends on being this pane, whatever is in it: the header, the legend (where
 /// its layout shows it), the omission marker and the input row.
@@ -348,12 +350,16 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     // answers "what can I say here". It is on this row rather than in the legend because
     // it is about what to do NEXT rather than about what a word means, and because it
     // erases itself: the moment a weaver types anything the line has their text on it.
-    // THE LINE IS A BOX, from the column after the prompt's space to the row's end -- or, while it is
-    // empty and nothing is listed, a box as wide as `kEmptyLineBox` with the gesture after it.
+
+    // THE LINE IS A BOX from the column after the prompt's space to the row's end; while empty and
+    // nothing is listed, `kEmptyLineBox` wide with the gesture after it. In a room of cells the
+    // prompt already says where to type: there it reads plain, and while empty is the caret's column.
     const bool prompting = line_.empty() && !list_open;
+    line_cells_ = room().cells();
     const std::int64_t whole = columns() - kPromptCols;
-    const std::int64_t wide = prompting ? (std::min)(whole, kEmptyLineBox) : whole;
-    line_box_ = ws::row_box(line_, kPromptCols, wide > 0 ? wide : 0);
+    const std::int64_t empty = line_cells_ ? kEmptyLinePlain : kEmptyLineBox;
+    const std::int64_t wide = prompting ? (std::min)(whole, empty) : whole;
+    line_box_ = ws::row_box_plain(line_, kPromptCols, wide > 0 ? wide : 0, line_cells_);
     input_row_ = static_cast<std::int64_t>(out.size());
     push(prompt_ + " " + std::string(static_cast<std::size_t>(line_box_.columns), ' ') +
              (prompting ? "  Tab: what can this terminal say?  Up: recall a command" : ""),
@@ -427,9 +433,9 @@ inline ws::RowsCaret TerminalPaneWeave::caret() const {
         return caret;
     }
     // AND THE SELECTION, THE SAME WAY: the visible part of the component's own range, from the
-    // box the row was written with, inside its inset. A selection scrolled wholly off the slice
-    // says nothing, which is the truthful picture of a row that shows none of it.
-    caret = ws::box_caret(line_box_, input_row_);
+    // box the row was written with, where its room puts its text. A selection scrolled wholly off
+    // the slice says nothing, which is the truthful picture of a row that shows none of it.
+    caret = ws::box_caret(line_box_, input_row_, line_cells_);
     return caret;
 }
 
