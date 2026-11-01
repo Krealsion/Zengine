@@ -257,8 +257,17 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
 - **TWO KINDS, AND EXACTLY ONE PER RECIPE.** `CMakeTargetRecipe` names a CONFIGURED build tree
   and a target (never a source tree: re-configuring somebody else's project is deciding a
   policy that is not Builder's). `SingleSourceRecipe` names one `.cpp`, its package prefixes,
-  its link targets, optionally a build tree to borrow a toolchain from, and a workspace.
-  Neither, or both, is refused rather than resolved by precedence.
+  its link targets, optionally a build tree to borrow a toolchain from, a workspace, and what it
+  `makes`: native, boxed or both. Neither kind, or both, is refused rather than resolved by
+  precedence.
+- **A PRODUCT IS A STEM, AND A RECIPE MAKES ONE OR TWO** (`products_of`). A single source's
+  native product is its stem, its boxed one the stem with `kModuleSuffix`; a CMake target's one
+  product is its stem, boxed when that names a module. The tool's views, the catalog's rows,
+  `BuildRequested`, `RunBuild` and staging each name a product by its stem, so a plan row loads
+  either by the name it already joins on. A boxed product's project is its own (`boxed/` in the
+  workspace) and calls the package's `zengine_wasm_weave()`; its compiler is the host's
+  `ZENGINE_BUILDER_WASI_SDK`, kept as `ZENGINE_BUILDER_CMAKE` is and empty in the package, so no
+  recipe names one. Its absence, or a package with no backend, is a refusal in words.
 - **A SINGLE-SOURCE BUILD IS ONE PROCESS, AND THE DRIVER IS A GENERATED `cmake -P` SCRIPT.**
   Configure and build are two invocations; a two-step sequence in the runner would make the
   process custodian a workflow engine and a two-step state machine in the tool would give a

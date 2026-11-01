@@ -13,6 +13,7 @@
 
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
+#include "workshop/pane_vocabulary.hpp"
 #include "workshop/recipe_persist.hpp"
 #include "workshop/recipes.hpp"
 #include "workshop/staging.hpp"
@@ -27,6 +28,8 @@
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
+#include <zen/weave/poke.hpp>
+#include <zen/weave/standard_shapes.hpp>
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -76,8 +79,11 @@ loom::WeaveId mount_in_office(loom::Switchboard& bus, loom::Grant grant, const c
 
 /// THE ONE RULE THAT SPELLS A STEM AS A FILE, and it is the host's -- `HostContext::so`
 /// said again here rather than reached for, because this program deliberately does not
-/// link Workshop's UI vocabulary.
+/// link Workshop's UI vocabulary. A module's stem is its file's name.
 std::string so_in(std::string_view dir, std::string_view stem) {
+    if (builder::names_module(stem)) {
+        return std::string(dir) + "/" + std::string(stem);
+    }
     return std::string(dir) + "/" + std::string(stem) +
 #if defined(_WIN32)
            ".dll";
@@ -107,10 +113,10 @@ public:
     /// `stop` IS THE HOST'S OWN DOOR, handed over exactly as `HostContext::request_stop`
     /// is: this weave decides that the conversation it was following is over, and the
     /// HOST decides what that means for the process.
-    Reporter(std::string recipe, bool realize, bool then_promote, bool then_revert,
-             std::function<void()> stop)
-        : recipe_(std::move(recipe)), realize_(realize), then_promote_(then_promote),
-          then_revert_(then_revert), stop_(std::move(stop)) {}
+    Reporter(std::string recipe, std::string product, bool realize, bool then_promote,
+             bool then_revert, std::function<void()> stop)
+        : recipe_(std::move(recipe)), product_(std::move(product)), realize_(realize),
+          then_promote_(then_promote), then_revert_(then_revert), stop_(std::move(stop)) {}
 
     /// THE CATALOG ARRIVES FIRST, and this is where the ask is made -- from inside a
     /// delivery, the way a pane's key press makes one, rather than from `main` before
@@ -125,11 +131,12 @@ public:
         }
         std::printf("\n");
         asked_ = true;
-        std::printf("witness: asking for `%s`%s\n", recipe_.c_str(),
+        std::printf("witness: asking for `%s`%s%s\n", recipe_.c_str(),
+                    product_.empty() ? "" : (", product `" + product_ + "`").c_str(),
                     realize_ ? " AND to realize it" : "");
         std::fflush(stdout);
         (void)mail.send_to_role(builder::kBuilderRole,
-                                builder::BuildRequested{recipe_, realize_});
+                                builder::BuildRequested{recipe_, realize_, product_});
     }
 
     void on(const builder::BuildStatus& said, loom::Mail& mail) {
@@ -139,7 +146,8 @@ public:
         // answer would end the loop before the build began: the confusion the Builder pane's
         // `awaiting` latch exists to prevent. A refused name is the exception: the tool never
         // took the ask, so nothing is coming.
-        if (said.outcome != builder::outcome::kUnknownRecipe && said.recipe != recipe_) {
+        if (said.outcome != builder::outcome::kUnknownRecipe &&
+            (said.recipe != recipe_ || (!product_.empty() && said.artifact != product_))) {
             return;
         }
         // ONE LINE PER STATUS, and both outcomes on it. A script reading this needs to
@@ -224,6 +232,7 @@ public:
 
 private:
     std::string recipe_;
+    std::string product_;
     bool realize_ = false;
     bool then_promote_ = false;
     bool then_revert_ = false;
@@ -249,12 +258,94 @@ private:
     }
 };
 
+/// THE WEAVER'S HAND, AFTER THE BUILD: Workshop's office, as the one a pane answers, pressing one
+/// declared action of a pane the build loaded a number of times and then reading one field of its
+/// weave's state through Loom's poke door -- so the lane can ask a loaded product to answer, the
+/// native image and the module alike. A host's stand-in for Workshop, holding nothing else.
+struct PressNow {
+    ZEN_SHAPE(PressNow, 1);
+};
+
+/// The office the hand holds, and speaks as.
+constexpr const char* kWorkshopOffice = "zengine.workshop";
+
+struct HandState {
+    std::int64_t pressed = 0;
+    ZEN_SHAPE(HandState, 1, ZEN_FIELD(pressed));
+};
+
+class Hand : public loom::WeaveBase<Hand, HandState,
+                                    loom::Accept<PressNow, loom::Result, loom::Refused>,
+                                    loom::Emit<workshop::PaneActionRequested, loom::PokeRead>> {
+public:
+    Hand(std::string office, std::string pane, std::string action, std::int64_t times,
+         std::string field, std::function<void()> stop)
+        : office_(std::move(office)), pane_(std::move(pane)), action_(std::move(action)),
+          times_(times), field_(std::move(field)), stop_(std::move(stop)) {}
+
+    void on(const PressNow&, loom::Mail& mail) {
+        for (std::int64_t i = 0; i < times_; ++i) {
+            // AS WORKSHOP'S OFFICE: a pane answers what that office authored, and nothing else.
+            if (mail.as_role(kWorkshopOffice)
+                    .send_to_role(office_, workshop::PaneActionRequested{pane_, action_})
+                    .valid()) {
+                ++state_.pressed;
+            }
+        }
+        if (field_.empty()) {
+            finish();
+            return;
+        }
+        if (!mail.send_to_role(office_, loom::PokeRead{field_}, kRead).valid()) {
+            said = "the read of `" + field_ + "` was not sent";
+            finish();
+        }
+    }
+
+    void on(const loom::Result& r, loom::Mail& mail) {
+        if (mail.answers_ask() && mail.correlation() == kRead) {
+            said = field_ + "=" + r.value;
+            finish();
+        }
+    }
+
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        if (mail.answers_ask() && mail.correlation() == kRead) {
+            said = "the read of `" + field_ + "` was refused: " + r.reason;
+            finish();
+        }
+    }
+
+    std::int64_t pressed() const { return state_.pressed; }
+    bool done = false;
+    std::string said;
+
+private:
+    void finish() {
+        done = true;
+        stop_();
+    }
+
+    static constexpr std::uint64_t kRead = 1;
+    std::string office_;
+    std::string pane_;
+    std::string action_;
+    std::int64_t times_ = 0;
+    std::string field_;
+    std::function<void()> stop_;
+};
+
 struct Arguments {
     std::string dir;       ///< where artifacts live and where a stem is resolved
     std::string plan;      ///< the authored load plan
     std::string recipes;   ///< the authored build recipes
     std::string recipe;    ///< which recipe to build
+    std::string product;   ///< which of its products, by stem ("" = the recipe's first)
     bool realize = false;  ///< BUILD, or BUILD & REALIZE
+    /// After a realization: `<office>/<pane>/<action>/<times>`, pressed as Workshop presses it,
+    /// then `read`, one field of that office's weave state, read back.
+    std::string press;
+    std::string read;
     bool then_promote = false; ///< after a realization: promote the running image
     bool then_revert = false;  ///< after a realization (and a promotion): revert it
 };
@@ -287,6 +378,12 @@ bool parse(int argc, char** argv, Arguments& args) {
             args.recipes = value;
         } else if (arg == "--build") {
             args.recipe = value;
+        } else if (arg == "--product") {
+            args.product = value;
+        } else if (arg == "--press") {
+            args.press = value;
+        } else if (arg == "--read") {
+            args.read = value;
         } else {
             std::printf("witness: unknown argument `%s`\n", arg.c_str());
             return false;
@@ -367,7 +464,8 @@ int main(int argc, char** argv) {
     (void)mount_in_office<builder::BuildRunnerWeave>(bus, std::move(run_builds),
                                                      builder::kBuildRunnerRole, &runner,
                                                      current_recipes.all(),
-                                                     std::string(ZENGINE_BUILDER_CMAKE));
+                                                     std::string(ZENGINE_BUILDER_CMAKE),
+                                                     std::string(ZENGINE_BUILDER_WASI_SDK));
 
     loom::Grant order_builds;
     order_builds.allow_to_role(builder::RunBuild::zen_name, builder::RunBuild::zen_version,
@@ -425,7 +523,7 @@ int main(int argc, char** argv) {
         // the artifact is not on this disk AND some authored recipe can produce it.
         [&args, &current_recipes](const std::string& stem) {
             for (const builder::Recipe& r : current_recipes.all()) {
-                if (r.artifact != stem) {
+                if (!builder::makes_product(r, stem)) {
                     continue;
                 }
                 return !std::filesystem::exists(std::filesystem::path(so_in(args.dir, stem)));
@@ -451,8 +549,37 @@ int main(int argc, char** argv) {
     speak.allow_to_any(builder::RevertArtifact::zen_name, builder::RevertArtifact::zen_version);
     Reporter* reporter = nullptr;
     (void)mount_in_office<Reporter>(bus, std::move(speak), "zengine.witness", &reporter,
-                                    args.recipe, args.realize, args.then_promote,
+                                    args.recipe, args.product, args.realize, args.then_promote,
                                     args.then_revert, [&bus] { bus.stop(); });
+
+    // ---- The weaver's hand, where the lane asks for one: Workshop's office ------------
+    Hand* hand = nullptr;
+    loom::WeaveId hand_id{};
+    std::string press_office;
+    if (!args.press.empty()) {
+        std::vector<std::string> parts;
+        std::string part;
+        for (const char c : args.press + "/") {
+            if (c == '/') {
+                parts.push_back(part);
+                part.clear();
+            } else {
+                part += c;
+            }
+        }
+        if (parts.size() != 4) {
+            std::printf("witness: --press is <office>/<pane>/<action>/<times>\n");
+            return 2;
+        }
+        press_office = parts[0];
+        loom::Grant press;
+        press.allow_to_role(workshop::PaneActionRequested::zen_name,
+                            workshop::PaneActionRequested::zen_version, press_office);
+        press.allow_to_role(loom::PokeRead::zen_name, loom::PokeRead::zen_version, press_office);
+        hand_id = mount_in_office<Hand>(bus, std::move(press), kWorkshopOffice, &hand,
+                                        parts[0], parts[1], parts[2],
+                                        std::stoll(parts[3]), args.read, [&bus] { bus.stop(); });
+    }
 
     executor.begin(read_plan.plan);
 
@@ -488,6 +615,23 @@ int main(int argc, char** argv) {
     std::printf("witness: RESULT build=%s realization=%s\n",
                 builder::name_of_outcome(last.outcome),
                 builder::name_of_realization(last.realization));
+    // WHAT HOLDS THE PRODUCT, in the kernel's own words: its box for a module, the note for a
+    // library.
+    if (kernel.is_loaded(last.artifact)) {
+        std::printf("witness: held=%s\n", kernel.containment(last.artifact).c_str());
+    }
+    // ...AND THE LOADED PRODUCT ANSWERS: pressed as Workshop presses it, and read back.
+    if (hand != nullptr && last.realization == builder::realization::kRealized) {
+        (void)bus.send(hand_id, loom::Message(loom::to_value(PressNow{})));
+        while (!hand->done) {
+            bus.drain_until_idle();
+            if (!hand->done && bus.pending() == 0) {
+                break;
+            }
+        }
+        std::printf("witness: pressed=%lld %s\n", static_cast<long long>(hand->pressed()),
+                    hand->said.empty() ? "(nothing read)" : hand->said.c_str());
+    }
     // Two files: the one the build produced (the recipe's completed artifact directory) and the
     // one the plan resolves the stem to, beside the host. A plain build changes only the first;
     // a realization copies it to the second.

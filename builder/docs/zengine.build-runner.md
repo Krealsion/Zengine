@@ -43,16 +43,19 @@ it accepts does, and is answered from this page.
 
 ### `RunBuild`
 
-`RunBuild` v2 orders the runner to carry out the recipe the catalog holds under a name.
+`RunBuild` v3 orders the runner to carry out the recipe the catalog holds under a name, for one of
+its products.
 
-- **Takes:** `recipe`, the name of a recipe in the host's catalog.
+- **Takes:** `recipe`, the name of a recipe in the host's catalog; `artifact`, the stem of the
+  product to build, empty for the recipe's first.
 - **Answers:** starts the recipe's process, counts it in `ran` and `live`, sends `BuildStarted`
   `{op, recipe, command}` to `zengine.builder`, and asks for its beat if it is not already beating.
 - **Refuses:** with `BuildNotStarted` to `zengine.builder`, `op` 0, and nothing run: for a name the
   catalog does not hold, `` no recipe here is called `oven` ``, counted in `refused`; for a recipe
-  that cannot become a command, such as a one-file recipe whose project cannot be written, the
-  reason it gives, counted in `refused`; for a process that could not be started, the command it
-  tried and the reason, counted in `ran`.
+  that cannot become a command, such as a one-file recipe whose project cannot be written, a
+  product it does not make, or a boxed product on a host that names no wasi-sdk, the reason it
+  gives, counted in `refused`; for a process that could not be started, the command it tried and
+  the reason, counted in `ran`.
 - **Example:** from the Builder, `mail.send_to_role(zengine::builder::kBuildRunnerRole, zengine::builder::RunBuild{"tally"});`
 
 ### `LookAtBuilds`

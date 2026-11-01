@@ -67,7 +67,7 @@ WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
 
 ## WL-CODE-05 — A CMake target may name where editing starts, and an old catalog names nowhere
 
-LAW — `CMakeTargetRecipe::entry` names the source a reader of its artifact begins at; format 2 writes it, empty is none, a relative one is the project's, and a version-1 catalog reads whole with none.
+LAW — `CMakeTargetRecipe::entry` names the source reading its artifact begins at; every format since 2 writes it, empty is none, a relative one is the project's, and a version-1 catalog reads whole with none.
 
 MEANS
 - one rule reads a recipe's file for both doors: its single source, else its entry;

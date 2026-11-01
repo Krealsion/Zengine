@@ -36,8 +36,10 @@ public:
         views_.clear();
         views_.reserve(all_.size());
         for (const builder::Recipe& r : all_) {
-            views_.push_back(
-                builder::RecipeView{r.id, r.artifact, artifact_file(r.artifact_dir, r.artifact)});
+            for (const builder::Product& p : builder::products_of(r)) {
+                views_.push_back(builder::RecipeView{r.id, p.artifact,
+                                                     artifact_file(r.artifact_dir, p.artifact)});
+            }
         }
     }
 
@@ -50,8 +52,9 @@ public:
     /// a recipe's own inputs -- the runner, and the host's edit-source answer.
     const std::vector<builder::Recipe>& all() const noexcept { return all_; }
 
-    /// THE SAME CATALOG WITH THE BUILD PROCEDURE SUBTRACTED, for the presentation side.
-    /// One row per recipe, in the catalog's own order, so an index into one is an index
+    /// THE SAME CATALOG WITH THE BUILD PROCEDURE SUBTRACTED, for the presentation side: one row
+    /// per product, in the catalog's own order, a recipe's native product first. A recipe making
+    /// one product is one row, so where every recipe makes one, an index into one is an index
     /// into the other.
     const std::vector<builder::RecipeView>& views() const noexcept { return views_; }
 

@@ -466,8 +466,9 @@ frontier. An observer follows the same owners instead of reading the pane: `Buil
 
 ### `recipe`
 
-The chosen recipe, the artifact it makes and its place in the file: `tally -> tally  (1/2)`; `(this
-project has no build recipes)` when there are none.
+The chosen recipe, the artifact it makes and its place in the file: `tally -> tally  (1/2)`, or
+`tally -> tally.wasm (boxed)` on the row of a recipe's boxed product; `(this project has no build
+recipes)` when there are none.
 
 ### `project`
 

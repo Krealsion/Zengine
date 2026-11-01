@@ -79,11 +79,12 @@ struct RecipeAuthorRequested {
                                         ///< configuration, asked when the tree has several; empty
                                         ///< everywhere else
     bool tree = false;                 ///< which of the two kinds this draft is
-    // Version 2 since `config` joined (WL-AUTH-01). For a pane built apart from its host, see
+    std::string makes = {};            ///< single-source: native, boxed or both
+    // Version 3 since `makes` joined (WL-AUTH-01). For a pane built apart from its host, see
     // workshop/docs/develop-workshop.md's "a pane's messages change".
-    ZEN_SHAPE(RecipeAuthorRequested, 2, ZEN_FIELD(id), ZEN_FIELD(artifact), ZEN_FIELD(source),
+    ZEN_SHAPE(RecipeAuthorRequested, 3, ZEN_FIELD(id), ZEN_FIELD(artifact), ZEN_FIELD(source),
               ZEN_FIELD(packages), ZEN_FIELD(links), ZEN_FIELD(build_dir), ZEN_FIELD(target),
-              ZEN_FIELD(artifact_dir), ZEN_FIELD(config), ZEN_FIELD(tree));
+              ZEN_FIELD(artifact_dir), ZEN_FIELD(config), ZEN_FIELD(tree), ZEN_FIELD(makes));
 };
 
 /// What either recipe act came to: `accepted`, or the owner's words for why not. `path` is the

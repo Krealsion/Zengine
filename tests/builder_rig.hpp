@@ -53,6 +53,7 @@ public:
     std::int64_t described = 0;
     std::int64_t builds = 0;
     std::vector<std::string> asked;
+    std::vector<std::string> asked_artifact; ///< the product each ask named, by stem
     std::vector<bool> realize_asked;
     std::vector<std::string> promotes;
     std::vector<std::string> reverts;
@@ -71,6 +72,7 @@ public:
     void on(const bld::BuildRequested& ask, loom::Mail& mail) {
         ++state_.answered;
         asked.push_back(ask.recipe);
+        asked_artifact.push_back(ask.artifact);
         realize_asked.push_back(ask.realize);
         if (busy) {
             // ONE AT A TIME: refused in the tool's own voice, its picture the running build's.

@@ -306,6 +306,14 @@ jobs:
         run: |
           cmake -DZEN_BUILD_DIR=build -DZEN_WORK="$RUNNER_TEMP/zengine-package" -P tests/package/run.cmake
 
+      # A one-file weave built through the real Builder against that installed package
+      # (tests/build/run.cmake): built, realized, reloaded, promoted and broken; and the tutorial's
+      # Tally, a recipe making its pane native and boxed, whose boxed build this job, naming no
+      # wasi-sdk, must refuse in words while the native one builds.
+      - name: Witness a one-file recipe built through the Builder
+        run: |
+          cmake -DZEN_BUILD_DIR=build -DZEN_WORK="$RUNNER_TEMP/zengine-build" -P tests/build/run.cmake
+
       # Only `main` saves, and only what this run used: entries no compile read since the job began
       # are dropped first, so the store follows `main`.
       - name: Keep only what this run used
@@ -437,6 +445,14 @@ jobs:
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
+
+      # The tutorial's Tally through the real Builder, one recipe making its pane native and
+      # boxed: each product built against the installed package, the module by its
+      # zengine_wasm_weave() with this job's wasi-sdk, loaded by its stem and pressed, answering
+      # alike; and a package built without the backend refusing the boxed one in words.
+      - name: Witness one recipe built native and boxed through the Builder
+        run: |
+          cmake -DZEN_BUILD_DIR=build -DZEN_WORK="$RUNNER_TEMP/zengine-build" -P tests/build/run.cmake
 
   # THE STANDING SANITIZER WITNESS, a separate job so the ordinary lane's result stays
   # readable on its own: `verify.cmake` asks whether the intended population ran and passed,

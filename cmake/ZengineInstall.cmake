@@ -424,6 +424,22 @@ install(EXPORT zengineTargets
     NAMESPACE zengine::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zengine)
 
+# Where the Loom package builds WebAssembly modules, this one builds a weave boxed too: its
+# zengine_wasm_weave(), reading the installed headers, in a paragraph of the config of its own; a
+# package built against a Loom without the backend is configured and installed without either.
+set(ZENGINE_WASM_WEAVE_CONFIG "")
+if(COMMAND loom_wasm_weave)
+    string(CONCAT ZENGINE_WASM_WEAVE_CONFIG
+        "# The Loom underneath builds WebAssembly modules, and so does this package:\n"
+        "# zengine_wasm_weave(<target> <source> STEM <stem> LINKS <library>...) compiles a weave\n"
+        "# boxed, with the wasi-sdk LOOM_WASI_SDK names. `if(COMMAND zengine_wasm_weave)` is the\n"
+        "# question: a package built against a Loom without the backend has no such function.\n"
+        "set(_ZENGINE_WASM_INCLUDE \"\${ZENGINE_PACKAGE_PREFIX_DIR}/${CMAKE_INSTALL_INCLUDEDIR}/zengine\")\n"
+        "include(\"\${CMAKE_CURRENT_LIST_DIR}/ZengineWasm.cmake\")\n\n")
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineWasm.cmake
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zengine)
+endif()
+
 configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/zengineConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfig.cmake

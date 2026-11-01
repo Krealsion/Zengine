@@ -22,10 +22,11 @@ directory it was launched in, when there is one; otherwise the shipped `default-
 beside Workshop. A recipe file that is there and refused stops Workshop with its reason. With no
 `--recipes` and no file found, Workshop says it can build nothing and starts.
 
-The file is a `zengine-build-recipes` document, version 2. A version-1 file is read whole, with no
-editing entry on any CMake target; the first recipe added to it from Files writes the whole file as
-version 2. A later version is refused by its number, and a version-2 row with no `entry` is refused
-rather than read as "no entry".
+The file is a `zengine-build-recipes` document, version 3. A version-2 file is read whole, each
+one-file recipe making its pane native, and a version-1 file as that with no editing entry on any
+CMake target; the first recipe added to either from Files writes the whole file as version 3. A later
+version is refused by its number, and a row missing a field its version has, an `entry` or a
+`makes`, is refused rather than read as its absence.
 
 ## Two kinds of recipe
 
@@ -75,7 +76,8 @@ compiles and links it.
                        "packages": [ "/opt/zengine", "/opt/loom" ],
                        "links": [ "zengine::timer", "loom::switchboard" ],
                        "toolchain_from": "/home/me/project/build",
-                       "workspace": "" } ] }
+                       "workspace": "",
+                       "makes": "native" } ] }
 ```
 
 - `source` is absolute, or relative to the project: the directory Workshop was launched in, named
@@ -92,6 +94,13 @@ compiles and links it.
   Workshop. It is kept: a failed build leaves its project there, and its last line names it,
   `zengine build: CMake configure FAILED (exit 1)` or `zengine build: compile or link FAILED (exit
   1)`.
+- `makes` is `native`, `boxed` or `both`: the pane as a library, `zengine-oven`; as a WebAssembly
+  module the kernel holds in a box, `zengine-oven.wasm`; or both, each a product the Builder builds
+  and loads on its own. A boxed product is written as a project of its own in the workspace's
+  `boxed/`, compiled by the package's `zengine_wasm_weave()` with the wasi-sdk Workshop was
+  configured with (`LOOM_WASI_SDK`). Where Workshop has none, or the package was built against a
+  Loom with no WebAssembly backend, its build is refused in words that say which, and a native
+  product builds as before.
 
 Zengine names no compiler, no flag, no output suffix and no library: every one of those is CMake's.
 
@@ -99,6 +108,8 @@ Zengine names no compiler, no flag, no output suffix and no library: every one o
 
 `artifact` is a **stem**, `zengine-oven`, never `zengine-oven.so`, spelled to a file by one rule:
 `<stem>.so` on Linux and macOS, `<stem>.dll` on Windows, in the artifact directory and nowhere else.
+A stem ending `.wasm` names a module, the same file on every platform: a one-file recipe's boxed
+product, or a CMake target that builds one.
 
 **Your own CMake project has to produce exactly that name.** CMake's default for `add_library(oven
 SHARED ...)` on Linux is `liboven.so`, so the build exits zero and the Builder says `NO ARTIFACT`. In
@@ -143,7 +154,8 @@ made the recipe file in force:
 In Files, put the cursor in a folder and press `a` (*pick buildable*). A chooser lists what that
 folder can try to build: every `.cpp` file, and every folder holding a `CMakeCache.txt`, a configured
 CMake tree. Choose one, then answer the few things nothing can detect, one line at a time: for a
-source, the recipe's name, the artifact's stem, the package prefixes and the link targets; for a
+source, the recipe's name, the artifact's stem, the package prefixes, the link targets and what it
+makes (answered `native`); for a
 tree, the name, the CMake target, the stem, an optional artifact folder and, only when the tree holds
 several configurations, which one. `Return` takes a line and `Escape` cancels the whole, writing
 nothing.

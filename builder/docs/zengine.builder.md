@@ -38,11 +38,12 @@ Workshop's Terminal is granted none of these shapes.
 
 ### `BuildRequested`
 
-`BuildRequested` v2 asks the Builder to build a recipe, and if you ask, to offer the result to the
+`BuildRequested` v3 asks the Builder to build a recipe, and if you ask, to offer the result to the
 running project.
 
 - **Takes:** `recipe`, the name the recipe file gives it; `realize`, true to offer a build that worked
-  to the running project.
+  to the running project; `artifact`, which of the recipe's products, by its stem (`tally`, or
+  `tally.wasm` for its boxed one), empty for the recipe's first.
 - **Answers:** publishes `BuildAsked`, `taken` with the number the ask became, or a `refusal`; then
   `BuildStatus` as the build moves: `asked`, `running`, then `succeeded`, `FAILED`, `NO ARTIFACT` or
   `did not start`. A success's detail is `built tally`, or `already up to date: tally`. With
@@ -53,9 +54,10 @@ running project.
   A build that did not work offers nothing, and says so: `the build failed, so nothing was offered
   to the project`.
 - **Refuses:** in `BuildAsked.refusal`: `this Builder holds no recipes at all`; `` this Builder holds
-  no recipe called `oven` (it holds 3) ``, published with the outcome `unknown recipe` when no build
-  runs; `a build was already asked for and has not started yet`; `a build is already running:
-  operation #4`. A build that cannot start ends `did not start`, its reason in `BuildStatus.detail`.
+  no recipe called `oven` (it holds 3) `` or `` recipe `tally` makes `tally`, not `tally.wasm` ``,
+  published with the outcome `unknown recipe` when no build runs; `a build was already asked for
+  and has not started yet`; `a build is already running: operation #4`. A build that cannot start
+  ends `did not start`, its reason in `BuildStatus.detail`.
 - **Example:** from a weave the project loads, holding its office,
   `mail.as_role("example.tally").send_to_role("zengine.builder", zengine::builder::BuildRequested{"tally", true});`,
   as the pane's [`builder.build`](zengine.builder-pane.md#builderbuild) does.
@@ -66,8 +68,8 @@ running project.
 just opened learns its rows this way.
 
 - **Takes:** nothing.
-- **Answers:** publishes `RecipeCatalog` (every recipe and its artifact, and the recipe file in
-  force), then `BuildStatus`.
+- **Answers:** publishes `RecipeCatalog` (a row for every product of every recipe, the native one
+  first, and the recipe file in force), then `BuildStatus`.
 - **Refuses:** nothing.
 - **Example:** the Builder pane sends it each time Workshop gives it room.
 

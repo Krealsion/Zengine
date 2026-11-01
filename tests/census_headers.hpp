@@ -97,7 +97,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::builder::LookAtBuilds>(), // LookAtBuilds v1
         shape<::zengine::builder::OfferArtifact>(), // OfferArtifact v1
         shape<::zengine::builder::RealizationAsked>(), // RealizationAsked v1
-        shape<::zengine::builder::RunBuild>(), // RunBuild v2
+        shape<::zengine::builder::RunBuild>(), // RunBuild v3
         shape<::zengine::builder::BuilderState>(), // BuilderState v4
         shape<::zengine::workshop::marks_persist::WorkshopMark>(), // WorkshopMark v1
         shape<::zengine::workshop::marks_persist::WorkshopMarks>(), // WorkshopMarks v1
@@ -194,10 +194,13 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::recipe_persist::v1::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v1
         shape<::zengine::workshop::recipe_persist::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v2
         shape<::zengine::workshop::recipe_persist::v1::WorkshopRecipe>(), // WorkshopRecipe v1
-        shape<::zengine::workshop::recipe_persist::WorkshopRecipe>(), // WorkshopRecipe v2
+        shape<::zengine::workshop::recipe_persist::v2::WorkshopRecipe>(), // WorkshopRecipe v2
+        shape<::zengine::workshop::recipe_persist::WorkshopRecipe>(), // WorkshopRecipe v3
         shape<::zengine::workshop::recipe_persist::v1::WorkshopRecipeFile>(), // WorkshopRecipeFile v1
-        shape<::zengine::workshop::recipe_persist::WorkshopRecipeFile>(), // WorkshopRecipeFile v2
-        shape<::zengine::workshop::recipe_persist::WorkshopSingleSource>(), // WorkshopSingleSource v1
+        shape<::zengine::workshop::recipe_persist::v2::WorkshopRecipeFile>(), // WorkshopRecipeFile v2
+        shape<::zengine::workshop::recipe_persist::WorkshopRecipeFile>(), // WorkshopRecipeFile v3
+        shape<::zengine::workshop::recipe_persist::v2::WorkshopSingleSource>(), // WorkshopSingleSource v1
+        shape<::zengine::workshop::recipe_persist::WorkshopSingleSource>(), // WorkshopSingleSource v2
         shape<::zengine::workshop::SampleDoorState>(), // SampleDoorState v1
         shape<::zengine::workshop::session_history::v6::WorkshopLayout>(), // WorkshopLayout v1
         shape<::zengine::workshop::session_history::v1::WorkshopSession>(), // WorkshopSession v1

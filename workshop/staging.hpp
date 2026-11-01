@@ -97,9 +97,9 @@ inline load::PlanExecutor::Staged stage(Host& host, const std::string& stem,
                       "nothing was staged";
         return out;
     }
-    if (view->artifact != stem) {
-        out.refusal = "recipe `" + recipe + "` produces `" + view->artifact + "`, not `" +
-                      stem + "`; nothing was staged";
+    view = builder::view_of(host.recipes->views(), recipe, stem);
+    if (view == nullptr) {
+        out.refusal = "recipe `" + recipe + "` produces no `" + stem + "`; nothing was staged";
         return out;
     }
     const std::filesystem::path source(view->path);
@@ -151,8 +151,10 @@ inline std::string product_of(const Host& host, const std::string& stem,
     if (host.recipes == nullptr) {
         return std::string();
     }
-    const builder::RecipeView* view = builder::view_named(host.recipes->views(), recipe);
-    if (view == nullptr || view->artifact != stem) {
+    const builder::RecipeView* view = stem.empty()
+                                          ? nullptr
+                                          : builder::view_of(host.recipes->views(), recipe, stem);
+    if (view == nullptr) {
         return std::string();
     }
     std::error_code ec;

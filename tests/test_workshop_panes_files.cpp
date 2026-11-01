@@ -1985,6 +1985,9 @@ TEST_CASE("a weaver authors a recipe row in-pane, and the host writes it") {
     answer("zengine-oven");   // the stem it produces
     answer("loom");           // the package prefix its build needs
     answer("loom::kernel");   // and the target it links
+    // ...AND WHAT IT MAKES, answered `native` before the line is stood on, taken as it stands.
+    REQUIRE_MESSAGE(any_row(f.shown(), "or both> [native"), picture(f.shown()));
+    f.r.key(input::scan::kReturn);
 
     // THE HOST WROTE IT, AND THE CATALOG IN FORCE HOLDS BOTH ROWS.
     REQUIRE(f.recipes.all().size() == 2);
@@ -2568,6 +2571,8 @@ TEST_CASE("deliberate keys in Files still choose, refuse a blank field, write on
         f.r.text(typed);
         f.r.key(input::scan::kReturn);
     }
+    REQUIRE(any_row(f.shown(), "or both> [native")); // what it makes, as answered
+    f.r.key(input::scan::kReturn);
 
     // SUBMIT, EXACTLY ONCE, AND THE HOST WROTE IT.
     CHECK(tap.authored == std::vector<std::string>{"oven"});
@@ -3347,6 +3352,8 @@ TEST_CASE("the unavailable `(next field)` control refuses in its own words and w
     f.r.text("zen::");
     press_face(f, "[next field]");
     f.r.text("zen::core");
+    press_face(f, "[next field]"); // the last: what it makes, answered `native`
+    REQUIRE(any_row(f.shown(), "or both> [native"));
     REQUIRE(face_at(f.shown(), "[write the recipe]").row >= 0); // every required field answered
     REQUIRE(face_at(f.shown(), "(next field)").row >= 0);
     const std::string before = picture(f.shown());
@@ -3372,10 +3379,12 @@ TEST_CASE("`[next field]` keeps what is typed and steps, and Return still commit
     CHECK(any_row(f.shown(), "artifact stem> [oven"));
     CHECK(any_row(f.shown(), "recipe name: oven-two")); // kept, not discarded by the step
     // RETURN FROM THE LAST FIELD WRITES: the control changed nothing about Return.
-    for (const char* typed : {"stem", "zen::", "zen::core"}) {
+    for (const char* typed : {"zen::", "zen::core"}) {
         f.r.key(input::scan::kReturn);
         f.r.text(typed);
     }
+    f.r.key(input::scan::kReturn);
+    REQUIRE(any_row(f.shown(), "or both> [native")); // the last field, answered
     f.r.key(input::scan::kReturn);
     REQUIRE(f.recipes.all().size() == 1);
     CHECK(f.recipes.all()[0].id == "oven-two");
@@ -3468,7 +3477,8 @@ TEST_CASE("the authoring menu offers next-field on the last field too, and its r
     f.r.text("zen::");
     press_face(f, "[next field]");
     f.r.text("zen::core");
-    REQUIRE(any_row(f.shown(), "link targets (comma-separated)> [zen::core")); // the last field
+    press_face(f, "[next field]");
+    REQUIRE(any_row(f.shown(), "or both> [native")); // the last field
     const std::vector<std::string> offered = open_menu(f);
     INFO("the menu offered\n", picture(offered));
     CHECK(any_row(offered, "is the last field"));
@@ -3604,11 +3614,13 @@ TEST_CASE("every control each Files mode draws has a row in that mode's own menu
             press_face(f, "[next field]");
             f.r.text("x");
         }
-        REQUIRE(any_row(f.shown(), "link targets (comma-separated)> [x"));
+        press_face(f, "[next field]");
+        REQUIRE(any_row(f.shown(), "or both> [native"));
         const std::vector<std::string> offered = open_menu(f);
         INFO("offered\n", picture(offered));
         for (const char* row : {"type the recipe name", "type the artifact stem",
-                                "type the package prefix (comma-separated)", "this is the last field",
+                                "type the package prefix (comma-separated)",
+                                "type the link targets (comma-separated)", "this is the last field",
                                 "write the recipe for `oven.cpp`", "abandon this recipe",
                                 "hide pane"}) {
             CHECK_MESSAGE(any_row(offered, row), "the authoring menu has no row `", row, "`");
@@ -3758,6 +3770,8 @@ void weaver_drafts_oven(FilesRig& f) {
     f.r.text("loom::kernel");
     REQUIRE_MESSAGE(any_row(f.shown(), "link targets (comma-separated)> [loom::kernel"),
                     picture(f.shown()));
+    f.r.key(input::scan::kReturn); // to the last field: what it makes, answered `native`
+    REQUIRE_MESSAGE(any_row(f.shown(), "or both> [native"), picture(f.shown()));
 }
 
 /// WHAT THE BROWSER SAID TO WORKSHOP AND TO THE OPENING OFFICE, AND WHAT IT WAS ANSWERED, in the
@@ -3894,7 +3908,7 @@ TEST_CASE("on a weaver's host a guest is refused u, a mark and a written recipe 
         CHECK(f.recipes.source() == catalog);
         CHECK(f.recipes.all().size() == 1);
         CHECK(slurp(catalog) == catalog_bytes);
-        CHECK(any_row(f.shown(), "link targets (comma-separated)> [loom::kernel"));
+        CHECK(any_row(f.shown(), "or both> [native"));
     };
     const auto written_by_the_weaver = [&] {
         CHECK(tap.authored == std::vector<std::string>{"oven"});

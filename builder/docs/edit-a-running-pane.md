@@ -55,6 +55,7 @@ line at a time, `Return` after each:
 | artifact stem | `tally` (suggested) |
 | package prefix | the prefix you installed into — both, comma-separated, if Zengine and the Loom are in two |
 | link targets | `zengine::pane,zengine::activation,zengine::input,loom::switchboard` |
+| makes | `native` (answered); `both` builds it boxed too |
 
 The link targets are written at the top of `tally.cpp`. Files answers `authored recipe `tally` ->
 tally in …/build-recipes.json`.
@@ -83,6 +84,11 @@ it; each `Space` adds one.
 
 Your project now holds `build-recipes.json` and `workshop-plan.json`, and launching Workshop from
 this directory again loads Tally with the rest — show it from the Pane Manager.
+
+**Boxed.** A recipe that makes `both` has a second row, `tally -> tally.wasm (boxed)`: `c` steps to
+it, and `o` and `f` load and build Tally as a WebAssembly module, held in a box, counting as the
+native one does. It needs a Workshop configured with a wasi-sdk; one without refuses that build in
+words, and the native row builds as before.
 
 ## Every time: point, change, build, reload
 

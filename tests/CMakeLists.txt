@@ -1712,12 +1712,19 @@ add_executable(zengine-build-witness build/witness.cpp)
 target_link_libraries(zengine-build-witness
     PRIVATE loom::kernel loom::switchboard loom::core
             zengine-builder-vocabulary zengine-workshop-load zengine-operator
-            zengine-timer-vocabulary
+            zengine-timer-vocabulary zengine-pane-vocabulary
             zengine-warnings zengine-sanitize)
+# THE ONE PROGRAM IT MAY START, by absolute path, chosen by the party that composed the process --
+# `workshop.cpp`'s rule, unchanged, in the host that stands in for it -- and a boxed product's
+# compiler by the same rule, where the `box` gate is open.
+if(COMMAND loom_wasm_weave AND LOOM_WASI_SDK)
+    set(zengine_witness_wasi_sdk "${LOOM_WASI_SDK}")
+else()
+    set(zengine_witness_wasi_sdk "")
+endif()
 zengine_test_definitions(zengine-build-witness
-    # THE ONE PROGRAM IT MAY START, by absolute path, chosen by the party that composed
-    # the process -- `workshop.cpp`'s rule, unchanged, in the host that stands in for it.
-    "ZENGINE_BUILDER_CMAKE=\"${CMAKE_COMMAND}\"")
+    "ZENGINE_BUILDER_CMAKE=\"${CMAKE_COMMAND}\""
+    "ZENGINE_BUILDER_WASI_SDK=\"${zengine_witness_wasi_sdk}\"")
 
 # The liveness probes: what the substrate does when the Timer service itself is swapped,
 # reloaded, double-wound or joined late. The suite's header says why a file that pins unwanted
