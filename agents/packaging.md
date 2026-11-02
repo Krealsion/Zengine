@@ -137,9 +137,12 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
 
 **How the package is made** (`.github/workflows/package.yml`):
 - **When.** Each night, from the newest `main` commit whose CI push run passed and is newer than the
-  last `v0.1.*` tag. `decide` reads that run's `loom-commit` artifact, which `ci.yml`'s
-  `resolve-loom` keeps, and builds at that Loom commit. When nothing moved, the night ends green
-  and says so. A pull request touching how the package is made runs the same jobs on its own head,
+  last tag of its series, `vX.Y.*`, X.Y being that commit's own `project(VERSION)` major and minor,
+  so a package's version is always the commit's it is built from. A commit of another series than
+  `main`'s tip -- a version moved and not yet passed -- is packaged by no night, which ends green
+  and says why. `decide` reads that run's `loom-commit` artifact, which `ci.yml`'s `resolve-loom`
+  keeps, and builds at that Loom commit. When nothing moved, the night ends green and says
+  so. A pull request touching how the package is made runs the same jobs on its own head,
   at Loom `main`, as a dry run.
 - **Built** cold and Release, with the version the next tag's:
   - Linux in Ubuntu 22.04 pinned by digest, its packages from Ubuntu's archive on one named day,
@@ -162,7 +165,7 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
   dispatch that is not asked publish nothing. The workflow's own token alone does it:
   - `attest`, holding `id-token` and `attestations: write` alone, attests each archive and
     `SHA256SUMS`;
-  - `publish`, holding `contents: write` alone, refuses a tag `v0.1.N` that already exists and
+  - `publish`, holding `contents: write` alone, refuses a tag `vX.Y.N` that already exists and
     takes down a draft of that name a failed night left. It opens a draft with the notes
     (`workshop/package/release-notes.md`, each `@NAME@` the night's), aimed at the packaged
     commit, downloads its assets back and matches their sums, then publishes it. Publishing
