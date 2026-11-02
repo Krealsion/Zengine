@@ -4,8 +4,9 @@ name: Package
 # downloads"): Workshop ready to run, one archive per platform, judged before anything leaves.
 # A night packages the newest `main` commit whose CI push run passed and that is newer than the
 # last tag of its series, at the Loom commit that run built against, and publishes it as the next
-# `vX.Y.N`, X.Y being `project(VERSION)`'s major and minor (CMakeLists.txt). A dispatch publishes
-# only when asked; a pull request touching it runs it on its own head, a dry run.
+# `vX.Y.N`, X.Y being that commit's own `project(VERSION)` major and minor (CMakeLists.txt); a
+# commit of another series than main's tip is packaged by no night. A dispatch publishes only when
+# asked; a pull request touching it runs it on its own head, a dry run.
 on:
   schedule:
     - cron: '41 3 * * *'
@@ -70,13 +71,11 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # THE VERSION: the series X.Y is project(VERSION)'s major and minor; the package is one
-          # more than the highest vX.Y.N tag's N, vX.Y.0 first.
-          series="$(tr -d '\r' < CMakeLists.txt | sed -n '/^project(zengine$/,/^ *LANGUAGES/s/^ *VERSION \([0-9][0-9]*\.[0-9][0-9]*\)\.[0-9][0-9]*$/\1/p')"
-          [[ "$series" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "CMakeLists.txt's project(VERSION) names no series: '$series'" >&2; exit 1; }
-          last="$(git tag --list "v$series.*" | while read -r t; do n="${t#"v$series."}"; if [[ "$n" =~ ^[0-9]+$ ]]; then echo "$n"; fi; done | sort -n | tail -n 1)"
-          if [ -z "$last" ]; then next=0; tagged=""; else next=$((last + 1)); tagged="$(git rev-list -n 1 "v$series.$last")"; fi
-          echo "series $series; last tag: ${last:+v$series.$last at $tagged}${last:-none}; this package: $series.$next"
+          # A commit's series, X.Y: its own project(VERSION)'s major and minor (CMakeLists.txt).
+          series_of() {
+            git show "$1:CMakeLists.txt" | tr -d '\r' \
+              | sed -n '/^project(zengine$/,/^ *LANGUAGES/s/^ *VERSION \([0-9][0-9]*\.[0-9][0-9]*\)\.[0-9][0-9]*$/\1/p'
+          }
           if [ "$EVENT" = pull_request ]; then
             # A DRY RUN of the change itself, at Loom main as CI resolves it now.
             commit="$HEAD_SHA"
@@ -98,13 +97,29 @@ jobs:
               echo "no CI push run on main passed and recorded its Loom: nothing to package" >&2
               exit 1
             fi
-            if [ -n "$tagged" ] && git merge-base --is-ancestor "$commit" "$tagged"; then
-              echo "main has not moved since v$series.$last: nothing is packaged tonight"
-              echo "moved=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
           fi
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]] && [[ "$loom" =~ ^[0-9a-f]{40}$ ]] || { echo "unreadable commits: '$commit' '$loom'" >&2; exit 1; }
+          # THE VERSION is the packaged commit's: its series, and one more than the highest vX.Y.N
+          # tag's N, vX.Y.0 first. A commit of another series than main's tip -- a version moved and
+          # not yet passed -- is packaged by no night: the package waits for main's series.
+          series="$(series_of "$commit")"
+          tip_series="$(series_of HEAD)"
+          for s in "$series" "$tip_series"; do
+            [[ "$s" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "a CMakeLists.txt's project(VERSION) names no series: '$s'" >&2; exit 1; }
+          done
+          if [ "$series" != "$tip_series" ]; then
+            echo "the commit to package, $commit, is of series $series; main's tip is of $tip_series: nothing is packaged until a commit of $tip_series passes"
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last="$(git tag --list "v$series.*" | while read -r t; do n="${t#"v$series."}"; if [[ "$n" =~ ^[0-9]+$ ]]; then echo "$n"; fi; done | sort -n | tail -n 1)"
+          if [ -z "$last" ]; then next=0; tagged=""; else next=$((last + 1)); tagged="$(git rev-list -n 1 "v$series.$last")"; fi
+          echo "series $series; last tag: ${last:+v$series.$last at $tagged}${last:-none}; this package: $series.$next"
+          if [ "$EVENT" != pull_request ] && [ -n "$tagged" ] && git merge-base --is-ancestor "$commit" "$tagged"; then
+            echo "main has not moved since v$series.$last: nothing is packaged tonight"
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           {
             echo "moved=true"
             echo "commit=$commit"
