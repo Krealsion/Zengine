@@ -870,7 +870,7 @@ struct Session {
     /// than in the accent's two: `workshop.focus.ring`.
     // WL-FOCUS-12 -- agents/workshop/focus.md
     bool selection_ring_plain = false;
-    /// THE PAINTER SKIN WORKSHOP'S OWN AREA WEARS, and every pane's whose row names none:
+    /// THE PALETTE WORKSHOP'S OWN AREA WEARS, and every pane's whose row names none:
     /// `workshop.skin`.
     std::string skin = kSkinClassic;
     /// WHETHER THE TERMINAL'S COMPLETION OFFERS A SHAPE'S REQUIRED FIELDS FIRST:

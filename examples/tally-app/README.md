@@ -9,7 +9,7 @@ by hand.
 | file | what it is |
 |---|---|
 | `app-plan.json` | the plan: the basic operators, the app's weave, the graphics directory, the OS window and the Timer |
-| `app.json` | the app: its name, the `day` skin, the panel at (8, 8) and the flow |
+| `app.json` | the app: its name, the `day` palette, the panel at (8, 8) and the flow |
 | `tally.view` | the panel, as the View Builder saves it |
 | `tally.flow` | the flow `tally`, folding `math.add`, its total starting at 0, as Flow's Export writes it |
 | `tally.hpp` | the panel and the flow as values: the view suite's tally panel and the maker suites' tally |

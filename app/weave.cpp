@@ -4,7 +4,7 @@
 // zengine-app-weave, the office `zengine.app`: an app's own weave, its runner and its arranger
 // (app/docs/app.md). It asks the host where the app is, reads `app.json`, runs each flow through
 // the Flow host and each view through the view host as its office, and arranges the window that
-// offers itself: the skin offered by the host's path and chosen, each view's area placed to hear
+// offers itself: the palette its file names offered and chosen, each view's area placed to hear
 // the window's keys, and a line of its own at the window's foot where it says what went wrong.
 
 #include "app/files.hpp"
@@ -13,6 +13,7 @@
 #include "activation/activation.hpp"
 #include "flow/flow-host/vocabulary.hpp"
 #include "graphics/drawing.hpp"
+#include "graphics/themes.hpp" // generated: the shipped themes, as palettes
 #include "graphics/vocabulary.hpp"
 #include "view/description.hpp"
 #include "view/vocabulary.hpp"
@@ -23,6 +24,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -34,19 +36,15 @@ namespace gfx = zengine::graphics;
 namespace view = zengine::view;
 namespace flow_host = zengine::flow_host;
 
-/// The platform's loadable-library suffix, which a skin's painter code is spelled with in the
-/// host's artifact directory.
-constexpr const char* kLibrarySuffix =
-#if defined(_WIN32)
-    ".dll";
-#elif defined(__APPLE__)
-    ".dylib";
-#else
-    ".so";
-#endif
-
-/// The painters a window opens by path, by the word `app.json` names one with.
-constexpr const char* kSkins[] = {"day", "night", "classic", "block"};
+/// The palette of the shipped theme `app.json` names, if it names one.
+std::optional<gfx::PaletteOffered> shipped_palette(const std::string& name) {
+    for (gfx::PaletteOffered& p : gfx::themes::shipped()) {
+        if (p.palette == name) {
+            return std::move(p);
+        }
+    }
+    return std::nullopt;
+}
 
 /// The app's own line, at the window's foot: its area, which is its office.
 constexpr const char* kStatusArea = app::kAppRole;
@@ -71,7 +69,7 @@ class AppWeave
           loom::Accept<loom::Activated, app::AppPlaceSaid, gfx::GraphicsReady, gfx::WindowOffered,
                        flow_host::FlowAnswer, view::ViewAnswer>,
           loom::Emit<app::AppPlaceAsked, flow_host::FlowRun, view::ViewRun, gfx::AreaPlaced,
-                     gfx::SkinOffered, gfx::SkinChosen, gfx::WindowShaped>> {
+                     gfx::PaletteOffered, gfx::PaletteChosen, gfx::WindowShaped>> {
 public:
     using Weave::on;
 
@@ -196,9 +194,9 @@ private:
     }
 
     /// The window as the app arranges it, once the directory, a window and the app's own file are
-    /// all known: its skin offered by the host's path, each view's area at its place, its size and
-    /// its notice rows in the window's text, hearing the window's keys and pointer; the app's line
-    /// across the window's foot; and the skin chosen for each.
+    /// all known: the palette its file names offered and chosen for every area, then each view's
+    /// area at its place, its size and its notice rows in the window's text, hearing the window's
+    /// keys and pointer, and the app's line across the window's foot.
     void arrange(loom::Mail& mail) {
         if (!directory_ || window_.window.empty() || !told_) {
             return;
@@ -206,34 +204,33 @@ private:
         const auto to_directory = [&mail](const auto& said) {
             (void)mail.as_role(app::kAppRole).send_to_role(gfx::kGraphicsRole, said);
         };
-        // The skin app.json names, or, where it names none a window paints with or could not be
-        // read, the window's own kind of painter, so the app's line can still say why.
+        // The palette app.json names, or, where it names none of the shipped themes or could not be
+        // read, the one its window's medium reads best in, so the app's line can still say why.
         const std::string& named = file_.window.skin;
-        const bool known = std::find(std::begin(kSkins), std::end(kSkins), named) != std::end(kSkins);
-        const std::string skin =
-            known ? named : (window_.window == gfx::kTerminalWindow ? "classic" : "day");
-        if (read_ && !known) {
-            say("app.json names the skin '" + named + "'; a window paints with day, night, " +
-                "classic or block");
+        std::optional<gfx::PaletteOffered> palette = shipped_palette(named);
+        if (!palette) {
+            palette = shipped_palette(window_.window == gfx::kTerminalWindow ? "classic" : "day");
+            if (read_) {
+                say("app.json names the palette '" + named + "'; a window wears day, night, " +
+                    "classic or block");
+            }
         }
-        to_directory(
-            gfx::SkinOffered{skin, place_.artifacts + "/zengine-paint-" + skin + kLibrarySuffix});
+        to_directory(*palette);
+        // Each area's palette before its place, so each is introduced once, wearing it.
+        for (const Placed& v : views_) {
+            to_directory(gfx::PaletteChosen{v.area, palette->palette});
+        }
+        to_directory(gfx::PaletteChosen{kStatusArea, palette->palette});
         const std::int64_t line = window_.text_line_px > 0 ? window_.text_line_px : gfx::kCellPx;
-        std::vector<std::string> areas;
         for (const Placed& v : views_) {
             gfx::AreaPlaced view{v.area, window_.window, v.view, v.x, v.y, v.w,
                                  v.h + v.notice_rows * line, 1, true, true};
             view.text = true; // a view takes a key and its text, and no release
             to_directory(view);
-            areas.push_back(v.area);
         }
         to_directory(gfx::AreaPlaced{kStatusArea, window_.window, app::kAppRole, 0,
                                      std::max<std::int64_t>(0, window_.height - line),
                                      window_.width, line, 2, false, false});
-        areas.push_back(kStatusArea);
-        for (const std::string& area : areas) {
-            to_directory(gfx::SkinChosen{area, skin});
-        }
     }
 
     zengine::ActivationCursor activation_;

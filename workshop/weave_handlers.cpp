@@ -202,7 +202,7 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if (window_name_ != w.window) {
         window_name_ = w.window;
         areas_placed_.clear();
-        skins_chosen_.clear();
+        palettes_chosen_.clear();
         graphics_asked_ = false;
         frames_.clear();
         frames_asked_.clear();

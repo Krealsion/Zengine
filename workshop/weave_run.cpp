@@ -8,6 +8,8 @@
 #include "weave.hpp"
 #include "screen_canvas.hpp"
 
+#include "graphics/themes.hpp" // generated: the shipped themes, as palettes
+
 #include <algorithm>
 #include <vector>
 
@@ -113,7 +115,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         return host_->holder_accepts && host_->holder_accepts(office, shape);
     };
     // A DIRECTORY NOT PLACED WITH YET -- another holder, a reload, or one that said it started
-    // afresh -- holds none of this desk's areas: the skins are offered and everything placed again.
+    // afresh -- holds none of this desk's areas: the palettes are offered and everything placed
+    // again.
     const loom::WeaveId holder =
         host_->role_holder ? host_->role_holder(graphics::kGraphicsRole) : loom::WeaveId{};
     const std::int64_t incarnation =
@@ -124,15 +127,12 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         graphics_holder_ = holder.value;
         graphics_incarnation_ = incarnation;
         areas_placed_.clear();
-        skins_chosen_.clear();
+        palettes_chosen_.clear();
         graphics_asked_ = false;
         frames_.clear();
         frames_asked_.clear();
-        if (!host_->dir.empty()) {
-            to_directory(graphics::SkinOffered{kSkinClassic, host_->so("zengine-paint-classic")});
-            to_directory(graphics::SkinOffered{kSkinBlock, host_->so("zengine-paint-block")});
-            to_directory(graphics::SkinOffered{kSkinDay, host_->so("zengine-paint-day")});
-            to_directory(graphics::SkinOffered{kSkinNight, host_->so("zengine-paint-night")});
+        for (const graphics::PaletteOffered& palette : graphics::themes::shipped()) {
+            to_directory(palette);
         }
     }
     // EACH OPEN PANE AT ITS DEPTH in the desk's order, above Workshop's own area: its frame in an
@@ -144,7 +144,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     const std::vector<std::int64_t> order =
         effective_pane_order(session_.setup.active, session_.panes);
     std::map<std::string, graphics::AreaPlaced> next;
-    // EACH AREA'S SKIN: its pane's row's `workshop.skin`, else Workshop's own.
+    // EACH AREA'S PALETTE: the one its pane's row's `workshop.skin` names, else Workshop's own.
     std::map<std::string, std::string> skins;
     std::set<std::int64_t> kinds;
     std::map<std::string, std::int64_t> frames;
@@ -207,7 +207,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
                           ? *own->text
                           : session_.skin;
         if (frames.count(pane_frame_area(session_.panes, order[i])) != 0) {
-            // its frame wears its skin
+            // its frame wears its palette
             skins[pane_frame_area(session_.panes, order[i])] = skins[area];
         }
         kinds.insert(order[i]);
@@ -246,7 +246,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     for (const auto& [area, was] : areas_placed_) {
         if (next.count(area) == 0) {
             to_directory(graphics::AreaPlaced{area, "", was.owner, 0, 0, 0, 0, 0, false, false});
-            skins_chosen_.erase(area);
+            palettes_chosen_.erase(area);
         }
     }
     // EACH PLACE THAT MOVED, SAID SO THAT NO AREA EVER STANDS IN FRONT OF ONE IT ENDS BEHIND: the
@@ -261,16 +261,17 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     }
     std::sort(back.begin(), back.end(), [](const auto* a, const auto* b) { return a->order < b->order; });
     std::sort(front.begin(), front.end(), [](const auto* a, const auto* b) { return a->order > b->order; });
-    for (const graphics::AreaPlaced* placed : back) to_directory(*placed);
-    for (const graphics::AreaPlaced* placed : front) to_directory(*placed);
+    // A PALETTE IS SAID WHEN THE AREA'S CHOICE MOVED -- placed afresh, or its setting changed --
+    // and before its place, so an area placed afresh is introduced once, wearing it.
     for (const auto& [area, placed] : next) {
-        // A SKIN IS SAID WHEN THE AREA'S CHOICE MOVED: placed afresh, or its setting changed.
-        const std::string& skin = skins[area];
-        if (!host_->dir.empty() && skins_chosen_[area] != skin) {
-            skins_chosen_[area] = skin;
-            to_directory(graphics::SkinChosen{area, skin});
+        const std::string& palette = skins[area];
+        if (palettes_chosen_[area] != palette) {
+            palettes_chosen_[area] = palette;
+            to_directory(graphics::PaletteChosen{area, palette});
         }
     }
+    for (const graphics::AreaPlaced* placed : back) to_directory(*placed);
+    for (const graphics::AreaPlaced* placed : front) to_directory(*placed);
     areas_placed_ = std::move(next);
     placed_kinds_ = std::move(kinds);
     // A FRAME WITHDRAWN TAKES WHAT WAS DRAWN THERE WITH IT; one placed afresh draws whole.

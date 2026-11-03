@@ -1,4 +1,4 @@
-# Agent law — Graphics: the window, its seams and the directory
+# Agent law — Graphics: the window, its colours, its seam and the directory
 
 Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks touching
 `graphics/` or a participant that draws into a window. Public reference:
@@ -32,8 +32,8 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   picture is retained and fetched by chunk, one capture waits for its showing at a time, and a
   picture over `kMaxCaptureBytes` is refused whole.
 - **Nothing on the path a picture takes but the drawer and its window.** The directory introduces;
-  it never holds a node, a record or a painted cell, and a skin chosen or an area moved sends the
-  window a word, never a drawing.
+  it never holds a node, a record or a painted cell, and a palette chosen or offered or an area
+  moved sends the window a word, never a drawing.
 - **One showing a beat, on the drawer's word.** A drawing or a change saying `more` is held back;
   the next message from that drawer without it shows everything since, once. Any other handler of
   the window shows what it changed. `Canvas::show` sends a beat's nodes before its elements and
@@ -125,34 +125,51 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 
 ## Colour, pixels and operands
 
-- **A colour is a role or an exact value beside one** (`Paint`): a medium without colour shows the
-  role. The roles are the graphics vocabulary's (`graphics/role.hpp`), the one set every drawer
-  names; no medium invents one.
-- **A skin paints for one medium, and says which in its bytes**: a node painted for light opens
-  with its tag (`light::kTag`). A terminal window refuses a skin that paints light, in words; an OS
-  window paints an area whose skin paints characters itself, in the look the skin's name chooses.
+- **A colour is an exact value, a pool name or a slot, and the window alone turns a name into a
+  colour** (`Color`, `graphics/color.hpp`; `graphics/window/palette.hpp`), when it paints, from the
+  palette the area wears: a pool name as the palette says, else the pool's default, else `text`; a
+  slot as the palette says for the area's owner, else the default the drawing carries. An area
+  wearing no palette the window holds wears the window's own, the pool's defaults. The painter is
+  handed exact colours (`PaintNode::inks`) and keeps none; no drawer, painter or medium resolves a
+  name.
+- **Names are generated, never spelled by hand**: the pool's and each pane's slots are C++ names
+  generated from JSON (`cmake/ZengineNames.cmake`), so a name nobody declared does not compile.
+  Nothing judges a name's spelling but what C++ cannot spell.
+- **A palette is offered whole, at a revision**, through the directory, and kept by every window: a
+  higher revision paints every area wearing it again from what the window keeps, and no owner is
+  told. A palette chosen before its area is placed is kept for it, so the area is introduced once.
+- **A terminal shows a colour's word, else its nearest**: its `cells` word, else the nearest of the
+  sixteen inks, never the terminal's own unless a word asks for it; a shape fills with its colour's
+  fill character, and an exact colour or a slot's own shows as the pool colour it is `like`.
+- **A role is read as the pool colour it means** for a drawer that names one (`by_role`, `exact`,
+  `graphics/ops.hpp`); no medium knows a role.
 - **Pixels are bytes**: an `image` carries its own red, green, blue and alpha, four bytes a pixel.
 - **An operand's shape is implied by its operator** and an element change's by the element's type:
   each travels as its shape's body, and the receiver restores the envelope before the gate reads
-  it (`graphics/implied.hpp`), so a body of another shape, version or content is refused there.
+  it (`graphics/implied.hpp`), so a body of another shape, version or content is refused there: the
+  window's judge refuses a drawing whose colour-bearing operands do not read, whole, in words naming
+  the shape and its versions (`operands_refused`).
 - **An element's changes are a list whose order is the wire**: a change travels as its index, so
   the list only grows at its end, and a change outside it does not compile where its owner sends
   it.
-- Every skin draws every operator, natively or by its medium's fallback; an operator it does not
-  know is painted as its name, muted.
+- The window's painter draws every operator, natively or by its medium's fallback; an operator it
+  does not know is painted as its name, in `quiet`.
 
-## The two seams
+## The element seam, and the window's own painter
 
-- A skin and an element's code are libraries the window opens by path and calls in its own
-  handler: one exported C symbol, the seam's version read first and another refused, bytes
-  through sinks the window owns, every answer read through the gate. No exception crosses.
+- An element's code is a library the window opens by path and calls in its own handler: one
+  exported C symbol, the seam's version read first and another refused, bytes through sinks the
+  window owns, every answer read through the gate. No exception crosses.
+- **The window paints with its own painter**, one of each medium behind one interface (`PaintTask`
+  in, `PaintResult` out, every colour resolved): no library replaces it, and another way of
+  painting is another window weave.
 - **Which library is the load plan's word**, through the arranger and the directory; a drawer
   names a type, never a library.
 - **Element code draws what it is told.** It holds no game's or pane's rules; behaviour stays with
   the owner, who says and changes. At the element seam's version the window keeps each element's
   state and hands it in with every event, naming the element by a handle of its own: a later
   version may keep the state in the code by that handle.
-- A skin's or an element code's crash or stall is its window's: both run in its handler.
+- An element code's crash or stall is its window's: it runs in its handler.
 
 ## The terminal's claim and the input edge
 
@@ -164,6 +181,6 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   SDL's one queue itself and claims the process's input for its life: the Input reader beside it
   leaves the console the run started from as it found it, read by nobody, its echo and its Ctrl+C
   the person's.
-- The roles, the platform's shapes (the clipboard, the place, the close, the pump and the capture)
+- The colours, the roles, the platform's shapes (the clipboard, the place, the close, the pump and the capture)
   and the pixel arithmetic (`graphics/pixels.hpp`) are Graphics' own, and every drawer spells them
   by their graphics names.

@@ -17,6 +17,7 @@
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/compose.hpp"
+#include "graphics/window/palette.hpp"
 #include "graphics/window/store.hpp"
 #include "workshop/pane_drawing.hpp"
 
@@ -628,17 +629,22 @@ private:
         return why;
     }
 
-    /// `area`'s nodes painted by the character painter and kept as the window keeps them.
+    /// `area`'s nodes painted by the character painter in the window's own palette and kept as the
+    /// window keeps them.
     static gw::Cache painted(const gw::WinArea& a) {
         const auto at = gw::index_of(a);
+        const gfx::PaletteOffered& palette = gw::built_in_palette();
         gfx::PaintTask task;
+        gw::dress(task, palette, a.owner);
         for (const gw::KeptNode& k : a.nodes) {
-            task.nodes.push_back(
-                gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path), k.node.op, k.node.args});
+            task.nodes.push_back(gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path),
+                                                k.node.op, k.node.args,
+                                                gw::inks_of(k.node.op, k.node.args, palette,
+                                                            a.owner)});
         }
         const gw::Place pl = gw::place_of(a);
         gw::Cache cache;
-        for (const gfx::NodePaint& np : gfx::term::paint_task(task, gfx::term::Look{}).nodes) {
+        for (const gfx::NodePaint& np : gfx::term::paint_task(task).nodes) {
             gw::PaintedNode n;
             n.key = gw::key_of(at, np.path);
             for (const gfx::term::Cell& c : gfx::term::unpack(np.cells)) {

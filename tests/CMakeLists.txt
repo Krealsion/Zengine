@@ -367,8 +367,6 @@ zengine_test_definitions(zengine-tests
     "STDOUT_PAINTER_SO=\"$<TARGET_FILE:zengine-test-stdout-painter>\""
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
     "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
-    "PAINT_CLASSIC_SO=\"$<TARGET_FILE:zengine-paint-classic>\""
-    "PAINT_BLOCK_SO=\"$<TARGET_FILE:zengine-paint-block>\""
     # The world's beat, over virtual time: a pace is a claim about durations.
     "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
     # The host's source, for the tripwire that no privileged wind returns: a root Drive is
@@ -398,8 +396,6 @@ zengine_test_definitions(zengine-timer-tests
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
     "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
-    "PAINT_CLASSIC_SO=\"$<TARGET_FILE:zengine-paint-classic>\""
-    "PAINT_BLOCK_SO=\"$<TARGET_FILE:zengine-paint-block>\""
     # The continuity cases: virtual time, real everything else.
     "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
     "PROBE_ONESHOT_SO=\"$<TARGET_FILE:zengine-probe-oneshot>\""
@@ -760,7 +756,8 @@ foreach(stem IN ITEMS thermostat boundaries high_water empty)
     target_link_libraries(zengine-flow-${stem} PRIVATE zengine-flow)
 endforeach()
 add_executable(zengine-flow-tests test_flow.cpp test_flow_runtime.cpp test_flow_graph.cpp test_flow_view.cpp doctest_main.cpp)
-target_link_libraries(zengine-flow-tests PRIVATE zengine-flow loom::kernel zengine-warnings zengine-sanitize)
+target_link_libraries(zengine-flow-tests PRIVATE zengine-flow zengine-graphics-vocabulary loom::kernel
+                                                 zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-flow-tests
     "FLOW_THERMOSTAT=\"$<TARGET_FILE:zengine-flow-thermostat>\""
@@ -910,6 +907,11 @@ zengine_compile_test(graphics_own_after_delivery_refused zengine-cn-graphics-aft
                      "defines its own after_delivery")
 
 zengine_compile_test(graphics_drawer_compiles zengine-cn-graphics-drawer-ok)
+
+# A colour by a name nobody declared does not build: the pool's names are C++ names, generated from
+# its JSON (cmake/ZengineNames.cmake), and the drawer that builds names one that is declared.
+zengine_compile_test(graphics_undeclared_color_refused zengine-cn-graphics-undeclared-color
+                     "no member named .acent.|acent.*is not a member")
 
 # ---- the Workshop suites --------------------------------------------------------------
 # The windows the rigs show their desk in (rig_windows.hpp): the terminal window and the OS window
@@ -1745,9 +1747,9 @@ zengine_manual(zengine-audit-probes PRIVATE ${PROJECT_SOURCE_DIR}/timer/docs/zen
 
 zengine_doctest_test(audit_probes zengine-audit-probes)
 
-# The Graphics suite: the vocabulary, the canvas, the terminal painter and the seams as pure
-# arithmetic, and the window, the directory, the skins and the snake's board through the real
-# kernel -- what is drawn once, what crosses a tick, what a replacement costs, and every bound
+# The Graphics suite: the vocabulary, the canvas, colours by name, both painters and the element
+# seam as pure arithmetic, and the window, the directory, the palettes and the snake's board
+# through the real kernel -- what is drawn once, what crosses a tick, what a replacement costs, and every bound
 # refused in words.
 add_executable(zengine-graphics-tests test_graphics.cpp doctest_main.cpp)
 target_link_libraries(zengine-graphics-tests
@@ -1757,13 +1759,12 @@ target_link_libraries(zengine-graphics-tests
 target_include_directories(zengine-graphics-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/examples/snake)
+# The suite's own slots, generated as a stranger's pane generates its own (cmake/ZengineNames.cmake).
+zengine_names(zengine-graphics-tests JSON ${CMAKE_CURRENT_SOURCE_DIR}/graphics_slots.json
+              NAMESPACE graphics_suite::colors HEADER graphics_suite/colors.hpp)
 zengine_test_definitions(zengine-graphics-tests
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
     "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
-    "PAINT_CLASSIC_SO=\"$<TARGET_FILE:zengine-paint-classic>\""
-    "PAINT_BLOCK_SO=\"$<TARGET_FILE:zengine-paint-block>\""
-    "PAINT_DAY_SO=\"$<TARGET_FILE:zengine-paint-day>\""
-    "PAINT_NIGHT_SO=\"$<TARGET_FILE:zengine-paint-night>\""
     # The package's own folder, for the tripwire that no graphics source includes Surface: a claim
     # about what code does not contain holds on every lane, and only reading the files can show
     # it (VM-WALL-11).

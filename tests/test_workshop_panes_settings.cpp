@@ -1921,7 +1921,7 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
     REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
     CHECK(info_value(t.r, dial_ref(), "workshop.skin") == "block");
 
-    // `classic` IS KEPT AS WRITTEN: its absence is Workshop's own skin, which may be `block`.
+    // `classic` IS KEPT AS WRITTEN: its absence is Workshop's own palette, which may be `block`.
     const PaneSettingCommitAnswered classic = t.commit(text_at(block.revision, "workshop.skin", "classic"));
     REQUIRE_MESSAGE(classic.accepted, classic.refusal);
     CHECK(t.stored() ==

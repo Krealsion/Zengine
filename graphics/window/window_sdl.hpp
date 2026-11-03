@@ -281,27 +281,20 @@ public:
         cache_.erase(area);
         dirty_ = true;
     }
-    void forget(const std::string& library) { cell_libraries_.erase(library); }
+    /// The ground an area's palette shows where nothing is drawn, kept while the area is shown:
+    /// the window is cleared to the ground of the area furthest back.
+    void wear(const WinArea& a, std::int64_t ground) {
+        auto& kept = grounds_[a.area];
+        if (kept != ground) {
+            kept = ground;
+            dirty_ = true;
+        }
+    }
 
-    /// The nodes at `paths` painted for light and kept. The area's skin paints them when it paints
-    /// light; with no library, or one whose skin paints characters, they are painted here, in the
-    /// day look for the skin named `day` and the night look for any other. A library that will
-    /// not paint is said in `why`, and its nodes are painted here.
-    void paint(Painters& painters, const WinArea& a, const PaintTask& task,
-               const std::set<std::string>& paths, std::string& why) {
-        std::optional<PaintResult> result;
-        if (!a.library.empty() && cell_libraries_.count(a.library) == 0) {
-            if (const ZenginePainterV1* skin = painters.get(a.library, why)) {
-                result = painters.paint(skin, task, why);
-            }
-            if (result && !all_light(*result)) {
-                cell_libraries_.insert(a.library);
-                result.reset();
-            }
-        }
-        if (!result) {
-            result = light::paint_task(task, look_of(a));
-        }
+    /// The nodes at `paths` painted for light, in the colours the window resolved, and kept.
+    void paint(const WinArea& a, const PaintTask& task, const std::set<std::string>& paths,
+               std::string& why) {
+        const std::optional<PaintResult> result = light::paint_task(task);
         std::map<std::string, const PaintNode*> asked;
         for (const PaintNode& n : task.nodes) {
             asked[n.path] = &n;
@@ -317,8 +310,7 @@ public:
             }
             auto prims = light::unpack_node(np.cells);
             if (!prims) {
-                why = "the skin in '" + a.library + "' painted '" + np.path +
-                      "' in light that does not read";
+                why = "the painter painted '" + np.path + "' in light that does not read";
                 continue;
             }
             kept[np.path] =
@@ -341,8 +333,11 @@ public:
         frame.width = size_.width;
         frame.height = size_.height;
         const auto order = back_to_front(areas);
-        frame.ground = light::rgba_of(order.empty() ? light::night_look().ground
-                                                    : look_of(*order.front()).ground);
+        std::erase_if(grounds_, [&](const auto& g) {
+            return std::none_of(areas.begin(), areas.end(),
+                                [&](const WinArea& a) { return a.area == g.first; });
+        });
+        frame.ground = static_cast<std::uint32_t>(ground_behind(order));
         std::vector<std::shared_ptr<const light::NodePrimitives>> held;
         std::int64_t bytes = 0;
         for (const WinArea* a : order) {
@@ -861,13 +856,15 @@ private:
         return v >= 0 ? v / d : -((-v + d - 1) / d);
     }
 
-    static bool all_light(const PaintResult& r) {
-        return std::all_of(r.nodes.begin(), r.nodes.end(),
-                           [](const NodePaint& n) { return light::is_light(n.cells); });
-    }
-
-    static light::Look look_of(const WinArea& a) {
-        return a.skin == "day" ? light::day_look() : light::night_look();
+    /// The ground the window is cleared to: the area furthest back's, else the window's own.
+    std::int64_t ground_behind(const std::vector<const WinArea*>& order) const {
+        if (!order.empty()) {
+            const auto it = grounds_.find(order.front()->area);
+            if (it != grounds_.end()) {
+                return it->second;
+            }
+        }
+        return ground_of(built_in_palette());
     }
 
     /// The bytes a node's primitives hand the backend.
@@ -916,7 +913,7 @@ private:
 
     Backend backend_;
     std::map<std::string, std::map<std::string, Kept>> cache_;
-    std::set<std::string> cell_libraries_; ///< libraries whose skin paints characters
+    std::map<std::string, std::int64_t> grounds_; ///< each area's ground, as its palette says
     PixelSize size_{kDefaultWidth, kDefaultHeight};
     TextMeasure text_;
     PixelSize asked_; ///< the areas' extent the backend was last asked about

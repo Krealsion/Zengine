@@ -39,12 +39,12 @@ foreach(case_name case_id IN ZIP_LISTS ZENGINE_UI_CN_NAMES ZENGINE_UI_CN_IDS)
     target_compile_definitions(zengine-cn-ui-${case_name} PRIVATE ZENGINE_CN_CASE=${case_id})
 endforeach()
 
-# ---- The drawing weave's and the canvas's walls (owned by the Graphics suite) -------------
+# ---- The drawing weave's, the canvas's and the colours' walls (owned by the Graphics suite) ------
 #
-# The Timer pattern again: two refusals and their control, from one source
+# The Timer pattern again: three refusals and their control, from one source
 # (`compile_negative/drawing_walls.cpp`).
-set(ZENGINE_GRAPHICS_CN_NAMES change-outside after-delivery drawer-ok)
-set(ZENGINE_GRAPHICS_CN_IDS 1 2 3)
+set(ZENGINE_GRAPHICS_CN_NAMES change-outside after-delivery drawer-ok undeclared-color)
+set(ZENGINE_GRAPHICS_CN_IDS 1 2 3 4)
 foreach(case_name case_id IN ZIP_LISTS ZENGINE_GRAPHICS_CN_NAMES ZENGINE_GRAPHICS_CN_IDS)
     add_executable(zengine-cn-graphics-${case_name} EXCLUDE_FROM_ALL
         drawing_walls.cpp)

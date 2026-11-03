@@ -83,7 +83,7 @@ WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 ## Do not assume
 
 - That a mark is a cover: a reading of its pane is the same with and without it.
-- That a skin that does not know the guide role refuses a mark: it paints it as plain fill.
+- That a palette with no `guide` of its own refuses a mark: the window paints it in the pool's `guide`.
 - That a Files entry naming the guests file is refused a mark: Workshop sees the entry's name, not its path.
 
 ## Proven by

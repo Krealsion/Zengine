@@ -41,7 +41,7 @@ inline constexpr const char* kLauncherSh = "run.sh";
 inline constexpr const char* kAppHostLine = "zengine-app.path";
 /// Where an exported app's view stands in its window, and the margin around it, in pixels.
 inline constexpr std::int64_t kViewInset = 8;
-/// The skin an exported app's window paints its areas with.
+/// The palette an exported app's areas wear.
 inline constexpr const char* kExportSkin = "day";
 /// The longest name an exported app may have, in bytes.
 inline constexpr std::size_t kMaxAppName = 64;

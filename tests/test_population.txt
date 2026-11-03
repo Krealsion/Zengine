@@ -16,7 +16,7 @@ input                             doctest           always  59
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 # A tripwire in this suite reads graphics/ as text (VM-WALL-11).
-graphics                          doctest           always  124
+graphics                          doctest           always  128
 graphics                          doctest           sdl     7
 ui                                doctest           always  30
 component                         doctest           always  69
@@ -97,6 +97,7 @@ ui_authored_element_compiles      compile-positive  always
 graphics_change_outside_list_refused compile-negative always is not one of the element's changes
 graphics_own_after_delivery_refused compile-negative always defines its own after_delivery
 graphics_drawer_compiles          compile-positive  always
+graphics_undeclared_color_refused compile-negative always no member named .acent.|acent.*is not a member
 # The scripts read the source tree, not a build: every configuration runs them, and a deleted
 # registration is a red because its row is here.
 doc_links                         script            always

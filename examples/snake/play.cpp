@@ -4,21 +4,21 @@
 // zengine-snake, the playable host: it owns the boot list and nothing else -- it draws nothing of
 // the game, knows no snake rules, reads no keys, keeps no clock and pumps nobody. The world keeps
 // its own rules, keys and beat; the terminal window reads the terminal and shows what owners draw;
-// the directory introduces the two; and the operator weave arranges the window, chooses its skins,
-// speaks the status line and sends every lifecycle command (examples/snake/README.md).
+// the directory introduces the two; and the operator weave arranges the window, chooses its
+// palette, speaks the status line and sends every lifecycle command (examples/snake/README.md).
 
 // The moments are keys, which the window gives the world and the operator alike, and the
 // operator's buttons beneath its status line, each making its key's gesture: 1 chooses the other
-// skin (painter code the window opens mid-game; nothing is drawn again on the bus), 2 loads the
-// score weave into the running game, 3 grows the world (a graceful swap: the v1 world writes its
-// letter and the v2 heir migrates it), 4 says no window weave draws an OS window; r reloads the
-// world in place, n starts a new game through the poke-reset door, l lists, q quits.
+// palette (painted again mid-game; nothing drawn again on the bus), 2 loads the score weave, 3
+// grows the world (a graceful swap: the v1 world writes its letter and the v2 heir migrates it), 4
+// says no window weave draws an OS window; r reloads the world, n starts afresh, l lists, q quits.
 
 #include "play_state.hpp"
 #include "vocabulary.hpp"
 
 #include "graphics/drawing.hpp"
 #include "graphics/elements/button.hpp"
+#include "graphics/themes.hpp" // generated: the shipped themes, as palettes
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
@@ -69,19 +69,16 @@ constexpr const char* kOperatorRole = "snake.operator";
 constexpr const char* kStatusArea = "snake.operator";
 constexpr const char* kWindowRole = "zengine.window.terminal";
 
-/// The skins the operator can choose: painter code the window opens.
-struct SkinChoice {
-    const char* stem;
-    const char* label;
-};
-constexpr SkinChoice kSkins[] = {
-    {"zengine-paint-classic", "classic"},
-    {"zengine-paint-block", "block"},
-};
+/// The palettes the operator offers and chooses between: two of the shipped themes, made unlike
+/// each other so a choice mid-game is unmistakable.
+inline std::vector<gfx::PaletteOffered> palettes() {
+    return {gfx::themes::classic(), gfx::themes::block()};
+}
 
 /// The operator's buttons, in the row beneath its status line: the action each asks of the
-/// operator, and its words, which name the key that makes the same gesture.
-constexpr const char* kSkinAction = "skin";
+/// operator, and its words, which name the key that makes the same gesture. `skin` is the game's
+/// word for the look a palette gives it.
+constexpr const char* kPaletteAction = "skin";
 constexpr const char* kScoreAction = "score";
 constexpr const char* kGrowAction = "grow";
 constexpr const char* kReloadAction = "reload";
@@ -93,7 +90,7 @@ struct Control {
     const char* label;
 };
 constexpr Control kControls[] = {
-    {kSkinAction, "1 skin"},     {kScoreAction, "2 score"}, {kGrowAction, "3 grow"},
+    {kPaletteAction, "1 skin"},  {kScoreAction, "2 score"}, {kGrowAction, "3 grow"},
     {kReloadAction, "r reload"}, {kNewAction, "n new"},     {kListAction, "l list"},
     {kQuitAction, "q quit"},
 };
@@ -114,7 +111,7 @@ struct OperatorContext {
     loom::AskBook asks{kAsksInFlight};        ///< the commands in flight, each settled once
     std::map<std::uint64_t, Pending> pending; ///< what each open ask was, by its local id
     bool quit = false;         ///< the q key; the loop reads it after the pump returns
-    int skin = 0;              ///< which skin paints the window's areas
+    int palette = 0;           ///< which of the two palettes the window's areas wear
     bool world_is_v2 = false;  ///< which world generation holds the role
     bool score_loaded = false; ///< whether the score weave has an area
     std::string status;        ///< the status line, drawn again in a window started afresh
@@ -150,8 +147,8 @@ struct OperatorContext {
     }
 };
 
-/// The host's hand on the bus and the window's arranger: it places the areas, offers the skins
-/// and the board's code, chooses the skins, draws the status line and its buttons, holds the
+/// The host's hand on the bus and the window's arranger: it places the areas, offers the palettes
+/// and the board's code, chooses the palette, draws the status line and its buttons, holds the
 /// reach (the manager, target-scoped, and the world's poke-reset door by role), and hears every
 /// answer.
 class OperatorWeave
@@ -160,7 +157,8 @@ class OperatorWeave
           loom::Accept<loom::Result, loom::Ack, loom::Refused, gfx::AreaKeyPressed,
                        gfx::GraphicsReady>,
           loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
-                     loom::PokeResetState, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
+                     loom::PokeResetState, gfx::AreaPlaced, gfx::PaletteOffered,
+                     gfx::PaletteChosen,
                      gfx::ElementCodeOffered>> {
 public:
     using Weave::on;
@@ -191,7 +189,7 @@ public:
             return;
         }
         switch (k.scancode) {
-        case scan::k1: flip_skin(mail); break;
+        case scan::k1: flip_palette(mail); break;
         case scan::k4:
             status("no window weave draws an OS window: this one is the terminal");
             break;
@@ -214,8 +212,8 @@ public:
 
     /// A button pressed in the window: the gesture of the key it names.
     void on_action(const std::string& action, loom::Mail& mail) {
-        if (action == kSkinAction) {
-            flip_skin(mail);
+        if (action == kPaletteAction) {
+            flip_palette(mail);
         } else if (action == kScoreAction) {
             load_score(mail);
         } else if (action == kGrowAction) {
@@ -231,7 +229,7 @@ public:
         }
     }
 
-    /// The status line, plain ASCII: how it looks is the skin's business. Beneath it, a button
+    /// The status line, plain ASCII: how it looks is the palette's business. Beneath it, a button
     /// for each gesture, each set by the measure of the window that shows the area.
     void picture(gfx::Sketch& f) const {
         const gfx::TextMeasure m = canvas().text();
@@ -250,10 +248,10 @@ public:
 private:
     // ---- the gestures, made alike by a key and by its button ----
 
-    void flip_skin(loom::Mail& mail) {
-        ctx_->skin = 1 - ctx_->skin;
-        choose_skins(mail);
-        status(std::string("skin -> ") + kSkins[ctx_->skin].label);
+    void flip_palette(loom::Mail& mail) {
+        ctx_->palette = 1 - ctx_->palette;
+        choose_palette(mail);
+        status("skin -> " + palettes()[static_cast<std::size_t>(ctx_->palette)].palette);
     }
 
     void load_score(loom::Mail& mail) {
@@ -293,17 +291,18 @@ private:
         }
     }
 
-    /// The window as the operator arranges it: the skins and the board's code offered, the status
-    /// line and its buttons across the top, the world beneath them, the score beside it once
-    /// loaded; every area hears the keys, and each wears the chosen skin.
+    /// The window as the operator arranges it: the palettes and the board's code offered, the
+    /// status line and its buttons across the top, the world beneath them, the score beside it
+    /// once loaded; every area hears the keys, and each wears the chosen palette.
     void arrange(loom::Mail& mail) {
         const auto to_directory = [&](const auto& m) {
             (void)mail.as_role(kOperatorRole).send_to_role(gfx::kGraphicsRole, m);
         };
-        for (const SkinChoice& s : kSkins) {
-            to_directory(gfx::SkinOffered{s.label, ctx_->so(s.stem)});
+        for (const gfx::PaletteOffered& p : palettes()) {
+            to_directory(p);
         }
         to_directory(gfx::ElementCodeOffered{"SnakeBoardData", ctx_->so("snake-board")});
+        choose_palette(mail); // before the places, so each area is introduced once, wearing it
         const std::int64_t c = gfx::kCellPx;
         to_directory(gfx::AreaPlaced{kStatusArea, gfx::kTerminalWindow, kOperatorRole, 0,
                                      0, 200 * c, 2 * c, 1, true});
@@ -312,7 +311,6 @@ private:
         if (ctx_->score_loaded) {
             place_score(mail);
         }
-        choose_skins(mail);
     }
 
     void place_score(loom::Mail& mail) {
@@ -323,10 +321,11 @@ private:
                                           52 * c, 2 * c, 50 * c, c, 0, false});
     }
 
-    void choose_skins(loom::Mail& mail) {
+    void choose_palette(loom::Mail& mail) {
+        const std::string chosen = palettes()[static_cast<std::size_t>(ctx_->palette)].palette;
         for (const char* area : {kStatusArea, kWorldArea, kScoreRole}) {
             (void)mail.as_role(kOperatorRole)
-                .send_to_role(gfx::kGraphicsRole, gfx::SkinChosen{area, kSkins[ctx_->skin].label});
+                .send_to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, chosen});
         }
     }
 
@@ -376,7 +375,7 @@ private:
             } else if (it->second.action == kScoreLoaded) {
                 ctx_->score_loaded = true;
                 place_score(mail);
-                choose_skins(mail);
+                choose_palette(mail);
             }
         }
         status(it->second.label + " " + outcome);
@@ -463,9 +462,9 @@ int main() {
     // for the status line.
     reach.allow_to_role(gfx::AreaPlaced::zen_name, gfx::AreaPlaced::zen_version,
                         gfx::kGraphicsRole);
-    reach.allow_to_role(gfx::SkinOffered::zen_name, gfx::SkinOffered::zen_version,
+    reach.allow_to_role(gfx::PaletteOffered::zen_name, gfx::PaletteOffered::zen_version,
                         gfx::kGraphicsRole);
-    reach.allow_to_role(gfx::SkinChosen::zen_name, gfx::SkinChosen::zen_version,
+    reach.allow_to_role(gfx::PaletteChosen::zen_name, gfx::PaletteChosen::zen_version,
                         gfx::kGraphicsRole);
     reach.allow_to_role(gfx::ElementCodeOffered::zen_name, gfx::ElementCodeOffered::zen_version,
                         gfx::kGraphicsRole);

@@ -309,7 +309,7 @@ privilege the [snake example](../../examples/snake/README.md) does not.
 |---|---|---|
 | how much room | the whole terminal; a redirected or captured run, whose terminal cannot be measured, lays the desk out in the room the restored session names, else the 78x22 minimum, and its picture holds that room | the window's own size, and the person may resize it |
 | text in a bounded region | one row per cell row, cut at the region's width | one row per line of the window's face, a character every advance of it, cut at the region's width |
-| colour | each area painted by its skin's painter, the role's ink on the terminal | each area painted by its skin's painter, RGB per role |
+| colour | each area in its palette: a colour's terminal word, else its nearest ink; a shape filled with its colour's character | each area in its palette: every colour as the palette gives it |
 | what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 
 ![The Pane Manager, Info and Notices in the terminal window, 120 by 30 cells: the Layouts row on the first row, the Pane Manager at the room's centre being placed, its panes listed by name with Attention first and marked, Arranging Mode Active above it, the frames drawn in characters, Notices saying showed Pane Manager and how to place it, the band's keys beneath](images/desk-terminal-window.png)

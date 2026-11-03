@@ -27,7 +27,7 @@ struct ImageFace {
     std::string source;
     double u0 = 0.0, v0 = 0.0, u1 = 1.0, v1 = 1.0;
     Paint tint;
-    ZEN_SHAPE(ImageFace, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+    ZEN_SHAPE(ImageFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(source), ZEN_FIELD(u0), ZEN_FIELD(v0), ZEN_FIELD(u1), ZEN_FIELD(v1),
               ZEN_FIELD(tint));
 };
@@ -102,9 +102,9 @@ public:
             const auto from = rgba_.begin() + static_cast<std::ptrdiff_t>((y * pw_ + x0) * 4);
             out.rgba.insert(out.rgba.end(), from, from + static_cast<std::ptrdiff_t>(out.pw * 4));
         }
-        if (tint_.rgb >= 0) {
-            const std::int64_t by[3] = {(tint_.rgb >> 16) & 0xff, (tint_.rgb >> 8) & 0xff,
-                                        tint_.rgb & 0xff};
+        if (tint_.from == color_from::kExact) {
+            const std::int64_t rgb = tint_.rgba >> 8;
+            const std::int64_t by[3] = {(rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff};
             for (std::size_t i = 0; i < out.rgba.size(); ++i) {
                 if (i % 4 != 3) {
                     out.rgba[i] = static_cast<std::uint8_t>(

@@ -2,25 +2,26 @@
 
 A participant that shows something draws it into the window that shows its area. It draws **nodes**
 -- the one primitive -- or says an **element** once and then sends only that element's changes.
-The window keeps what was drawn, paints it with the skin chosen for the area, and shows only what
-changed: the cells that changed on a terminal, the picture once a beat in an OS window. A **directory** introduces each area to its window and tells each owner its
-room; nothing a picture is made of passes through it.
+The window keeps what was drawn, paints it in the colours of the palette its area wears, and shows
+only what changed: the cells that changed on a terminal, the picture once a beat in an OS window. A
+**directory** introduces each area to its window and tells each owner its room; nothing a picture
+is made of passes through it.
 
 A program spells the vocabulary with `#include "graphics/vocabulary.hpp"` and links
-`zengine::graphics`. This page is for whoever draws: the vocabulary, the canvas, a drawing weave,
-an element of your own, and the two seams a skin or an element's code is written against; and
-what a window answers for its platform, on the bus and to C++ in its own process. The
+`zengine::graphics`. This page is for whoever draws: the vocabulary, colours by name, the canvas, a
+drawing weave, an element of your own, and the seam an element's code is written against; and what
+a window answers for its platform, on the bus and to C++ in its own process. The
 package ships three weaves, each with its manual: the terminal window,
 [`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`; the OS
 window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
 has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
-Four skins come with them: `zengine-paint-classic` and `zengine-paint-block` paint characters, and
-`zengine-paint-day` and `zengine-paint-night` paint light. The snake (`examples/snake/`) is the
-worked example: it draws its frame as nodes and its board as an element of its own.
+Four themes come with them as palettes, `classic`, `block`, `day` and `night`, generated from the
+JSON they are written in (`graphics/themes/`). The snake (`examples/snake/`) is the worked example:
+it draws its frame as nodes and its board as an element of its own.
 
-![The snake in a terminal window under the classic skin: the operator's status line, the world's score and board, and the score weave's own area beside it](images/snake-classic.png)
+![The snake in a terminal window wearing the classic palette: the operator's status line, the world's score and board, and the score weave's own area beside it](images/snake-classic.png)
 
-![The same window after 1 chose the block skin mid-game: the window opened the other painter code and painted what it keeps, and nothing was drawn again on the bus](images/snake-block.png)
+![The same window after 1 chose the block palette mid-game: the window painted what it keeps in the other palette, and nothing was drawn again on the bus](images/snake-block.png)
 
 ## Who says what
 
@@ -40,10 +41,10 @@ input office -> a window     AttributedInput (a participant's moment, landed as 
 window -> owner, follower    AreaHoldEnded, AreaPointerLeft (to the follower when another office)
 window -> the keys' owners   AreaKeyPressed, AreaKeyReleased, AreaTextEntered (naming the area
                              and the hand)
-arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
+arranger -> directory        PaletteOffered, PaletteChosen, AreaPlaced, ElementCodeOffered
 arranger -> its window       WindowShaped (its title and size, from an office arranging there)
 window -> everyone           WindowOffered (as its own office: its pixels, incarnation and text)
-directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered
+directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered, PaletteOffered
 owner -> directory           RoomAsked (an owner that started again)
 directory -> everyone        GraphicsReady (a directory that started afresh)
 anyone -> a window           ClipboardCopy, PumpSurface, SurfacePlacementRemembered
@@ -56,7 +57,7 @@ OS window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own
 The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator;
 in Workshop, its own weave, which places each pane's area and its own
 ([`zengine.workshop`](../../workshop/docs/zengine.workshop.md#graphicsready)), and lays its desk
-out in the window's room, in its unit and its text, while no skin has said its own
+out in the window's room, in its unit and its text
 ([`WindowOffered`](../../workshop/docs/zengine.workshop.md#windowoffered)).
 What each message does is the manual of the office that takes it: the window's for what an owner
 sends it, the directory's for what the arranger and a window send it.
@@ -99,7 +100,8 @@ until it is removed; a new node goes after its siblings, and a group is a layer.
 An operand's shape is implied by its operator, so `args` is that shape's body alone: Loom's
 canonical bytes without the envelope that names the shape (`graphics/implied.hpp`). The window puts
 the operator's own envelope back before the one gate reads the operands, so operands of another
-shape are refused there.
+shape or version are refused there: a drawing whose rectangle, ellipse, line, path or text does not
+read as its operands' version now is refused whole, in words naming the shape and its versions.
 
 An `ElementRecord` says what a subtree means: its `type` and `data` (a record shape's value, whole),
 and the `action` a press anywhere in it asks of the area's owner.
@@ -119,9 +121,62 @@ and the `action` a press anywhere in it asks of the area's owner.
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
 <!-- value kCellPx -->12<!-- /value --> pixels. `graphics/pixels.hpp` is the arithmetic on both:
 sums and floors that cannot overflow, a pixel in a medium's device unit, and the grain a hit test
-floors by. A colour is a `Paint`: a theme role (`graphics/role.hpp`), or an exact `0xRRGGBB` beside
-the role a medium without colour shows it as. An operator a skin does not know is painted as its
-name, muted, never silently dropped.
+floors by. Every colour an operand carries is a `Color` (below). An operator the window does not
+know is painted as its name, in `quiet`, never silently dropped.
+
+## Colours by name
+
+A colour a draw carries (`Color`, `graphics/color.hpp`) is one of three: an exact value,
+`graphics::rgb(0xRRGGBB)` or `rgba(0xRRGGBBAA)`; a name from the **pool**, the colours every pane
+may name by use; or a **slot** its pane exposes for themes to set. The window turns a name into a
+colour when it paints, from the **palette** the area wears; nothing before it -- not the drawer,
+not the painter -- knows what a name looks like, so a palette changed is every area wearing it
+painted again, with nothing drawn again on the bus.
+
+The names are C++ names, generated from JSON, so a name nobody declared does not build. The pool's
+are `zengine::graphics::colors` (`graphics/colors.hpp`, from `graphics/pool.json`): `ground`, the
+medium's own, what shows where nothing is drawn; `background`, opaque material beneath content;
+`text`; `quiet`; `accent`, the one thing pointed at; `alert`, what the weaver must see; `guide`, a
+guest's mark for the weaver; and `edge`, a box's quiet outline.
+
+```cpp
+#include "graphics/colors.hpp" // generated from graphics/pool.json
+
+sketch.fill_rect("card", x, y, w, h, graphics::colors::background);
+sketch.text("card/title", x, y, "Counter", graphics::colors::accent);
+// sketch.text("x", 0, 0, "no", graphics::colors::acent);   // does not compile
+```
+
+A pane's own slots are a JSON file of its own, generated by the package's `zengine_names()`
+(installed with it; CMake 3.22 or newer):
+
+```json
+{ "format": "zengine-slots", "format_version": 1, "office": "example.counter",
+  "colors": [ { "name": "badge", "color": "#f2a541", "like": "accent",
+                "about": "the count's badge" } ] }
+```
+
+```cmake
+zengine_names(my-pane JSON slots.json NAMESPACE counter::colors HEADER counter/colors.hpp)
+```
+
+`counter::colors::badge` then paints the palette's `badge` for the office `example.counter` where a
+palette sets one, else its own `#f2a541`. `like` names the pool colour a medium that cannot show a
+colour shows in its place: a terminal writes that colour's word and fills a shape with its
+character. Without it, a terminal shows the nearest of its sixteen inks.
+
+A **palette** (`PaletteOffered`) is a theme resolved for the window: each pool colour's
+`0xRRGGBBAA`, what a terminal shows where it cannot show it (`cells`: `own`, the terminal's own
+ink, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its nearest) and the
+character it fills a shape with (`fill`); each office's slots; and a terminal's outline, a corner,
+across and down. Whoever arranges the window offers palettes and chooses the one each area wears
+(`PaletteChosen`) through the directory; an area wearing none, or one nobody offered, wears the
+window's own, the pool's defaults. The four shipped themes are `graphics::themes::classic()`,
+`block()`, `day()` and `night()` (`graphics/themes.hpp`), each generated with `zengine_palettes()`
+from its JSON in `graphics/themes/`.
+
+A drawer written before colours were named names a role (`graphics/role.hpp`) with `by_role`, or
+an exact colour beside one with `exact`: each is read as the pool colour the role means.
 
 ## Drawing: a canvas, and one showing a beat
 
@@ -233,7 +288,8 @@ claims nothing.
 
 ## An element of your own
 
-An element is presented by code the window opens, as it opens a skin. Its owner says it once
+An element is presented by code the window opens, as it opens an operator provider. Its owner says
+it once
 (`ElementPut`: the area, the path, the type, the owner's reference for it, and its data, whole)
 and then sends each change by that reference and the change's index among the changes the code
 takes (`ElementChange`); the type implies each change's shape, so a change is its body alone. The
@@ -265,28 +321,26 @@ A change travels as its index in `Changes`, so the list's order is a wire contra
 at its end. A change of a type outside the list, or listed twice, does not compile where its owner
 sends it (`Canvas::change`).
 
-## The two seams
+## The element seam
 
-A skin and an element's code are libraries a window opens by path, as operator providers are
-opened (`operator/image.hpp`), and calls in its own handler: no message, no participant. Each
-library exports one C symbol answering a table whose version the window reads first and refuses
-when it is another; bytes cross as Loom canonical values through sinks the window owns, and every
-answer is read through the one gate. Ours and a stranger's are opened and judged alike.
+An element's code is a library a window opens by path, as operator providers are opened
+(`operator/image.hpp`), and calls in its own handler: no message, no participant. The library
+exports one C symbol answering a table whose version the window reads first and refuses when it is
+another; bytes cross as Loom canonical values through sinks the window owns, and every answer is
+read through the one gate. Ours and a stranger's are opened and judged alike.
 
 | seam | symbol | in | out |
 |---|---|---|---|
-| a skin (`painter_abi.h`) | `zengine_painter` | `PaintTask` | `PaintResult` |
 | element code (`element_abi.h`) | `zengine_element` | `ElementEvent` | `ElementOutcome` |
 
-A skin for a terminal is the shared painter (`graphics/term_paint.hpp`) and a look -- a glyph for
-each role, the glyphs an outline wears -- exported by `ZENGINE_EXPORT_PAINTER`. A skin for light is
-the painter for light (`graphics/light_paint.hpp`) and a look -- a colour for each role and a
-ground -- exported by `ZENGINE_EXPORT_LIGHT_PAINTER`; each node's pixel primitives cross the seam
-packed in its `NodePaint`'s cells behind a tag, so a window tells a skin for light from one for
-characters by what it answers. Which library holds
-a skin or an element's code is the load plan's word, through the arranger and the directory, never
-a pane's. What a window says of a library it cannot open or read is
+Which library holds an element's code is the load plan's word, through the arranger and the
+directory, never a pane's. What a window says of a library it cannot open or read is
 [the window's manual](zengine.window.terminal.md#files).
+
+The window paints with its own painter, one of each medium -- the character painter
+(`graphics/term_paint.hpp`) and the painter for light (`graphics/light_paint.hpp`) -- handing it each
+node with every colour already resolved (`PaintTask`, `PaintNode::inks`): the painter knows no
+colour and keeps nothing between calls. Another way of painting is another window.
 
 ## A window in its own process
 

@@ -252,9 +252,7 @@ set(zengine_workshop_artifacts zengine-input zengine-timer zengine-inventory zen
                                zengine-editor-pane zengine-neovim-editor
                                zengine-operators-basic
                                zengine-workshop-session-history
-                               zengine-graphics zengine-window-terminal
-                               zengine-paint-classic zengine-paint-block
-                               zengine-paint-day zengine-paint-night)
+                               zengine-graphics zengine-window-terminal)
 if(TARGET zengine-window-sdl)
     list(APPEND zengine_workshop_artifacts zengine-window-sdl)
 endif()

@@ -4,13 +4,12 @@
 #ifndef ZENGINE_GRAPHICS_WINDOW_SEAMS_HPP
 #define ZENGINE_GRAPHICS_WINDOW_SEAMS_HPP
 
-// The code a window opens and calls in its own handler: skins (painter code) and element code,
-// each opened by library path as operator providers are (operator/image.hpp), its version read
-// first, and every answer read through the one gate. Ours and a stranger's are opened alike.
-// Reference: graphics/docs/graphics.md, "The two seams".
+// The code a window opens and calls in its own handler: element code, opened by library path as
+// operator providers are (operator/image.hpp), its version read first, and every answer read
+// through the one gate. Ours and a stranger's are opened alike.
+// Reference: graphics/docs/graphics.md, "The element seam".
 
 #include "graphics/element_abi.h"
-#include "graphics/painter_abi.h"
 #include "graphics/painting.hpp"
 
 #include "operator/image.hpp"
@@ -61,62 +60,6 @@ const T* open_table(zengine::op::ImageShare& share, const std::string& library, 
 }
 
 } // namespace detail
-
-/// A window's skins, opened on first use and closed when no area paints with them.
-class Painters {
-public:
-    const ZenginePainterV1* get(const std::string& library, std::string& why) {
-        const auto it = loaded_.find(library);
-        if (it != loaded_.end()) {
-            return it->second->table;
-        }
-        auto image = std::make_unique<Loaded>(library);
-        const ZenginePainterV1* t = detail::open_table<ZenginePainterV1>(
-            image->share, library, ZENGINE_PAINTER_SYMBOL, "skin", why);
-        if (t == nullptr) {
-            return nullptr;
-        }
-        if (t->abi_version != ZENGINE_PAINTER_ABI_VERSION || t->paint == nullptr) {
-            why = "'" + library + "' offers painter seam version " +
-                  std::to_string(t->abi_version) + ", not " +
-                  std::to_string(ZENGINE_PAINTER_ABI_VERSION);
-            return nullptr;
-        }
-        image->table = t;
-        loaded_[library] = std::move(image);
-        return t;
-    }
-
-    void close(const std::string& library) { loaded_.erase(library); }
-
-    /// One call across the seam: the task's bytes in, the answer's bytes out and read.
-    std::optional<PaintResult> paint(const ZenginePainterV1* skin, const PaintTask& task,
-                                     std::string& why) {
-        const loom::Bytes in = loom::bequeath_item(task);
-        loom::Bytes out;
-        std::string reason;
-        ++calls;
-        if (skin->paint(in.data(), in.size(), detail::sink(out), detail::sink(reason)) != 0) {
-            why = "the skin refused to paint: " + reason;
-            return std::nullopt;
-        }
-        auto result = loom::claim_item<PaintResult>(out);
-        if (!result) {
-            why = "the skin answered something that does not read as a PaintResult";
-        }
-        return result;
-    }
-
-    std::int64_t calls = 0;
-
-private:
-    struct Loaded {
-        explicit Loaded(const std::string& path) : share(path) {}
-        zengine::op::ImageShare share;
-        const ZenginePainterV1* table = nullptr;
-    };
-    std::map<std::string, std::unique_ptr<Loaded>> loaded_;
-};
 
 /// A window's element code, opened and described on first use.
 class ElementCodes {

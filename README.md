@@ -30,10 +30,10 @@ Keep [**cheat_sheet.md**](cheat_sheet.md) open beside your editor.
   A weave asks for one-shots and repeats and gets them back as messages.
 - **Read input** — one Input weave is the sole producer of key, text and pointer moments,
   on a POSIX terminal, a Windows console, or an SDL window.
-- **Draw** — draw in your own area of a window, and the window paints it with the area's
-  *skin*, painter code it opens by path; the window is a replaceable weave over a terminal or an
-  OS window ([graphics](graphics/docs/graphics.md)). Your code names no colours and touches no
-  terminal.
+- **Draw** — draw in your own area of a window, naming your colours: the window turns each name
+  into a colour as it paints, from the *palette* your area wears, so a theme repaints you without a
+  word to you; the window is a replaceable weave over a terminal or an OS window
+  ([graphics](graphics/docs/graphics.md)). Your code touches no terminal.
 - **Load and replace weaves at run time** — through the Loom's Kernel, from an authored
   plan file.
 - **Run a build** — start a real OS process from a named recipe and follow it without
@@ -210,7 +210,7 @@ the Pane Manager, Hotkeys and the menus; its pane protocol is exported as `zengi
 |---|---|---|
 | [`timer/`](timer/README.md) | the clock, the only sleep, one beat chain per activation | `zengine::timer` |
 | [`input/`](input/README.md) | the sole producer of key, text and pointer moments | `zengine::input` |
-| [`graphics/`](graphics/README.md) | drawing into a window: nodes, elements, the two windows and their skins | `zengine::graphics` |
+| [`graphics/`](graphics/README.md) | drawing into a window: nodes, elements, colours by name, the two windows and their palettes | `zengine::graphics` |
 | [`ui/`](ui/README.md) | authored places and sizes in words, solved in a room in whole pixels | `zengine::ui` |
 | [`component/`](component/README.md) | reusable pieces of a tool that own their state and know no medium: text editing, list and table arithmetic, a control strip, motion sampling | `zengine::component` |
 | [`activation/`](activation/README.md) | reading your own activation, once, without replay | `zengine::activation` |

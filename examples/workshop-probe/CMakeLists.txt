@@ -7,7 +7,7 @@
 # `loom-boot.json` row; its journey is in probe.hpp, its console words in the external-host guide.
 #   cmake -S examples/workshop-probe -B build/probe -DCMAKE_PREFIX_PATH="<loom>;<zengine>"
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 project(workshop-probe LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)

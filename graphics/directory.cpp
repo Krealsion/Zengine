@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The loadable weave `zengine-graphics`, the directory: which windows exist, where each area
-// stands and who draws in it, which skin paints it, and which code presents each element type. It
-// introduces an area to its window once the window and the area's skin are known, and the window
-// tells the owner its room; it is told again of every change, and it stays off the path a picture
-// takes.
+// stands and who draws in it, which palette it wears, the palettes offered, and which code presents
+// each element type. It introduces an area to its window once the window is known, and the window
+// tells the owner its room; it is told again of every change, passes every palette to every window,
+// and stays off the path a picture takes.
 // Reference: graphics/docs/zengine.graphics.md, its manual, compiled in and answered.
 
 #include "graphics/vocabulary.hpp"
@@ -26,21 +26,21 @@ namespace {
 
 namespace gfx = zengine::graphics;
 
-/// An area as the directory keeps it: where it was placed and by which office, and the skin chosen
-/// for it.
+/// An area as the directory keeps it: where it was placed and by which office, and the palette
+/// chosen for it.
 struct DirectoryArea {
     gfx::AreaPlaced placed;
     std::string arranger;
-    std::string skin;
-    ZEN_SHAPE(DirectoryArea, 7, ZEN_FIELD(placed), ZEN_FIELD(arranger), ZEN_FIELD(skin));
+    std::string palette;
+    ZEN_SHAPE(DirectoryArea, 8, ZEN_FIELD(placed), ZEN_FIELD(arranger), ZEN_FIELD(palette));
 };
 
 struct DirectoryState {
     std::vector<gfx::WindowOffered> windows;
     std::vector<DirectoryArea> areas;
-    std::vector<gfx::SkinOffered> skins;
+    std::vector<gfx::PaletteOffered> palettes;
     std::vector<gfx::ElementCodeOffered> codes;
-    ZEN_SHAPE(DirectoryState, 9, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(skins),
+    ZEN_SHAPE(DirectoryState, 10, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(palettes),
               ZEN_FIELD(codes));
 };
 
@@ -48,14 +48,15 @@ class Directory
     : public zengine::With<
           zengine::manual::ManualFacet<zengine::manual::pages::zengine_graphics::kManual>>::
           Weave<Directory, DirectoryState,
-                loom::Accept<gfx::WindowOffered, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
-                             gfx::ElementCodeOffered, gfx::RoomAsked, loom::Activated>,
+                loom::Accept<gfx::WindowOffered, gfx::AreaPlaced, gfx::PaletteOffered,
+                             gfx::PaletteChosen, gfx::ElementCodeOffered, gfx::RoomAsked,
+                             loom::Activated>,
                 loom::Emit<gfx::AreaIntroduced, gfx::AreaWithdrawn, gfx::ElementCodeOffered,
-                           gfx::GraphicsReady>> {
+                           gfx::PaletteOffered, gfx::GraphicsReady>> {
 public:
-    /// A window, as its own office: every code offered, then each of its areas introduced, which
-    /// the window answers with each owner's room -- in that order, so an element a fresh window is
-    /// asked to present finds its code there.
+    /// A window, as its own office: every code and palette offered, then each of its areas
+    /// introduced, which the window answers with each owner's room -- in that order, so an element
+    /// a fresh window is asked to present finds its code there, and an area its palette.
     void on(const gfx::WindowOffered& w, loom::Mail& mail) {
         if (!mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + w.window)) {
             return;
@@ -69,6 +70,9 @@ public:
         }
         for (const gfx::ElementCodeOffered& c : state_.codes) {
             (void)mail.as_role(gfx::kGraphicsRole).send_to_role(office_of(w.window), c);
+        }
+        for (const gfx::PaletteOffered& p : state_.palettes) {
+            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(office_of(w.window), p);
         }
         for (const DirectoryArea& a : state_.areas) {
             if (a.placed.window == w.window) {
@@ -95,30 +99,43 @@ public:
         introduce(mail, *a);
     }
 
-    void on(const gfx::SkinOffered& s, loom::Mail& mail) {
-        auto it = std::find_if(state_.skins.begin(), state_.skins.end(),
-                               [&](const gfx::SkinOffered& k) { return k.skin == s.skin; });
-        if (it != state_.skins.end() && it->library == s.library) {
+    /// A palette, kept at its latest revision and passed to every window, which paints every area
+    /// wearing it again. One offered past the directory's bound is not kept, and no window hears it.
+    void on(const gfx::PaletteOffered& p, loom::Mail& mail) {
+        auto it = std::find_if(state_.palettes.begin(), state_.palettes.end(),
+                               [&](const gfx::PaletteOffered& k) { return k.palette == p.palette; });
+        if (it != state_.palettes.end() && it->revision >= p.revision) {
             return;
         }
-        if (it == state_.skins.end()) {
-            state_.skins.push_back(s);
-        } else {
-            *it = s;
-        }
-        for (const DirectoryArea& a : state_.areas) {
-            if (a.skin == s.skin) {
-                introduce(mail, a);
+        if (it == state_.palettes.end()) {
+            if (state_.palettes.size() >= gfx::kMaxPalettes) {
+                return;
             }
+            state_.palettes.push_back(p);
+        } else {
+            *it = p;
+        }
+        for (const gfx::WindowOffered& w : state_.windows) {
+            (void)mail.as_role(gfx::kGraphicsRole).send_to_role(office_of(w.window), p);
         }
     }
 
-    void on(const gfx::SkinChosen& c, loom::Mail& mail) {
+    /// Which palette an area wears: kept for an area not placed yet, so an arranger that chooses
+    /// before it places has its area introduced once, wearing it.
+    void on(const gfx::PaletteChosen& c, loom::Mail& mail) {
         DirectoryArea* a = find(c.area);
-        if (a == nullptr || a->skin == c.skin) {
+        if (a == nullptr) {
+            if (state_.areas.size() < gfx::kMaxAreas) {
+                gfx::AreaPlaced unplaced;
+                unplaced.area = c.area;
+                state_.areas.push_back(DirectoryArea{unplaced, {}, c.palette});
+            }
             return;
         }
-        a->skin = c.skin;
+        if (a->palette == c.palette) {
+            return;
+        }
+        a->palette = c.palette;
         introduce(mail, *a);
     }
 
@@ -177,29 +194,19 @@ private:
         return nullptr;
     }
 
-    const gfx::SkinOffered* skin_of(const std::string& skin) const {
-        for (const gfx::SkinOffered& s : state_.skins) {
-            if (s.skin == skin) {
-                return &s;
-            }
-        }
-        return nullptr;
-    }
-
-    /// The area to its window, once the window and the area's skin are known: never an
-    /// introduction a look would have to be changed after.
+    /// The area to its window, once the window is known, wearing the palette chosen for it: one
+    /// the window holds none of yet paints in the window's own until it is offered.
     void introduce(loom::Mail& mail, const DirectoryArea& a) {
-        const gfx::SkinOffered* skin = skin_of(a.skin);
-        if (window_of(a.placed.window) == nullptr || skin == nullptr) {
+        if (window_of(a.placed.window) == nullptr) {
             return;
         }
         const gfx::AreaPlaced& p = a.placed;
         (void)mail.as_role(gfx::kGraphicsRole)
             .send_to_role(office_of(p.window),
                           gfx::AreaIntroduced{p.area, p.owner, a.arranger, p.x, p.y, p.w, p.h,
-                                              p.order, p.keys, p.pointer, skin->skin,
-                                              skin->library, p.weaver_only, p.wheel, p.right,
-                                              p.followed, p.releases, p.text});
+                                              p.order, p.keys, p.pointer, a.palette,
+                                              p.weaver_only, p.wheel, p.right, p.followed,
+                                              p.releases, p.text});
     }
 
     zengine::ActivationCursor activation_;

@@ -9,6 +9,7 @@
 // the judge that admits a drawing into it, every bound checked before anything changes.
 // Reference: graphics/docs/zengine.window.terminal.md.
 
+#include "graphics/ops.hpp"
 #include "graphics/vocabulary.hpp"
 
 #include <zen/weave/lifecycle.hpp>
@@ -48,7 +49,7 @@ struct Presented {
 
 /// One area as its window keeps it: where the directory placed it, who draws in it and who placed
 /// it, which of its key moments and whose hands reach it, whether the wheel stops there and its
-/// arranger follows it, which skin paints it, and what was drawn there.
+/// arranger follows it, which palette it wears, and what was drawn there.
 struct WinArea {
     std::string area;
     std::string owner;
@@ -62,19 +63,17 @@ struct WinArea {
     bool followed = false;
     bool releases = false;
     bool text = false;
-    std::string skin;
-    std::string library;
+    std::string palette;
     std::int64_t next_rank = 1;
     std::vector<KeptNode> nodes;
     std::vector<ElementRecord> records;
     std::vector<Presented> presented;
     /// The owner's number for the drawing it last sent (`Drawn::number`).
     std::int64_t drawing = 0;
-    ZEN_SHAPE(WinArea, 9, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
+    ZEN_SHAPE(WinArea, 10, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
               ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right),
-              ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text), ZEN_FIELD(skin),
-              ZEN_FIELD(library),
+              ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text), ZEN_FIELD(palette),
               ZEN_FIELD(next_rank), ZEN_FIELD(nodes), ZEN_FIELD(records), ZEN_FIELD(presented),
               ZEN_FIELD(drawing));
 };
@@ -244,6 +243,9 @@ inline std::string judge(const WinArea& a, const Drawer& who, const Drawn& d) {
         }
         if (!mine(a, who, n.path)) {
             return "'" + n.path + "' is not the sender's to draw";
+        }
+        if (const std::string why = operands_refused(n.op, n.args); !why.empty()) {
+            return "'" + n.path + "': " + why;
         }
         const std::string parent = parent_of(n.path);
         if (!parent.empty() && present.count(parent) == 0) {

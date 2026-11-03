@@ -66,7 +66,7 @@ like.
   [its office](timer/docs/zengine.timer.md), [its laws](timer/docs/timer-laws.md).
 - Key, text and pointer moments: [input](input/docs/input.md),
   [pointer spaces](workshop/docs/pointer-spaces.md).
-- Drawing in a window's area, the windows and their skins: [graphics](graphics/docs/graphics.md).
+- Drawing in a window's area, colours by name, the windows and their palettes: [graphics](graphics/docs/graphics.md).
 - Places and sizes in words, solved in whole pixels: [ui](ui/docs/ui.md).
 - Text editing, list and table arithmetic, a control strip, motion: [component](component/docs/component.md).
 - Reading your own activation: [activation](activation/docs/activation.md).
@@ -126,7 +126,7 @@ like.
   [run it](docs/getting-started.md#run-it).
 - Operator and power: [operator providers](operator/docs/operator-providers.md).
 - Load plan: [load plans](workshop/docs/load-plans.md).
-- Window, directory and skin: [graphics](graphics/docs/graphics.md).
+- Window, directory and palette: [graphics](graphics/docs/graphics.md).
 - Pane, and closing one against unloading its tool: [panes](workshop/docs/panes.md).
 - Setup against session: [setups](workshop/docs/setups.md#last-session-versus-named-setup).
 - Desktop: [the desktop's manual](workshop/docs/zengine.desktop.md).

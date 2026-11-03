@@ -57,7 +57,7 @@ not"
 ### WL-PTR-09
 `graphics/window/terminal_io.hpp` kTuiPointerOn
 `workshop/docs/limitations.md` hover
-`tests/test_graphics.cpp` "the terminal's ink and its pointer modes are the graphics package's"
+`tests/test_graphics.cpp` "the terminal's ink and its pointer modes are the graphics package's: a colour's word, else the nearest of its sixteen inks, never its own"
 `input/terminal_reader.hpp` ENABLE_MOUSE_INPUT win32_mouse_to_events
 
 ### WL-PTR-10

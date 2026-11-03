@@ -6,14 +6,15 @@
 
 // A window, over the medium it shows on: the whole job of showing what its areas' owners drew. It
 // keeps each area's nodes, records and presented elements in its state, presents an element from
-// code it loads, has what changed painted with the area's skin, routes the pointer, gives keys and
-// their text to the areas that hear them, and tells each owner its room. What it keeps painted,
-// how it shows it and what it reads are its Medium's: characters on a terminal
+// code it loads, has what changed painted in the palette the area wears, routes the pointer, gives
+// keys and their text to the areas that hear them, and tells each owner its room. What it keeps
+// painted, how it shows it and what it reads are its Medium's: characters on a terminal
 // (graphics/window/window_terminal.hpp), light in an OS window (graphics/window/window_sdl.hpp).
 
 #include "graphics/painting.hpp"
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/compose.hpp"
+#include "graphics/window/palette.hpp"
 #include "graphics/window/seams.hpp"
 #include "graphics/window/store.hpp"
 
@@ -48,16 +49,18 @@ inline constexpr const char* kPumpTimerId = "zengine.window.pump";
 inline constexpr std::int64_t kPumpBeatMs = 10;
 
 /// What a window keeps across a reload: its incarnation, its areas with everything drawn in them,
-/// the element code offered for each type, and the next handle it names an element by. A press it
-/// holds is not kept: a reload ends every hold, untold, and a release goes where it lands.
+/// the element code offered for each type, the palettes offered it, and the next handle it names an
+/// element by. A press it holds is not kept: a reload ends every hold, untold, and a release goes
+/// where it lands.
 struct WindowState {
     std::int64_t epoch = 0;
     std::vector<WinArea> areas;
     std::vector<ElementCodeOffered> codes;
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
-    ZEN_SHAPE(WindowState, 8, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
-              ZEN_FIELD(next_handle), ZEN_FIELD(refusals));
+    std::vector<PaletteOffered> palettes;
+    ZEN_SHAPE(WindowState, 9, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+              ZEN_FIELD(next_handle), ZEN_FIELD(refusals), ZEN_FIELD(palettes));
 };
 
 /// A window's size in cells.
@@ -105,7 +108,7 @@ template <class Medium>
 using WindowBase = typename zengine::With<
     zengine::manual::ManualFacet<Medium::kManual>>::template Weave<Window<Medium>, WindowState,
     loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
-                 ElementCodeOffered, GraphicsReady, WindowShowAsked, AreaShowAsked,
+                 ElementCodeOffered, PaletteOffered, GraphicsReady, WindowShowAsked, AreaShowAsked,
                  zengine::input::AttributedInput, ClipboardCopy, ClipboardTextRequested,
                  SurfacePlacementRemembered, PumpSurface, SurfaceCaptureRequested,
                  SurfaceCaptureChunkRequested, WindowShaped>,
@@ -160,8 +163,8 @@ public:
 
     // ---- what the directory says --------------------------------------------------------------
 
-    /// An area introduced, or introduced again: kept, painted again where it moved or another skin
-    /// paints it, emptied when another owner draws in it, and its owner told its room. A press held
+    /// An area introduced, or introduced again: kept, painted again where it moved or wears another
+    /// palette, emptied when another owner draws in it, and its owner told its room. A press held
     /// for it ends when it changes hands, and the pointer resting in it leaves it, each told to the
     /// owner it had; so does a press held for an area it now stands in front of (`end_covered`).
     void on(const AreaIntroduced& i, loom::Mail& mail) {
@@ -183,9 +186,8 @@ public:
         const bool moved = a->x != i.x || a->y != i.y || a->w != i.w || a->h != i.h ||
                            a->order != i.order;
         const bool resized = a->w != i.w || a->h != i.h;
-        const bool repaint = a->library != i.library || a->skin != i.skin;
+        const bool repaint = a->palette != i.palette;
         const bool handed = a->owner != i.owner;
-        const std::string old_library = a->library;
         if (moved || repaint || handed) {
             medium_.cover_area(*a);
             touch(*a);
@@ -214,8 +216,8 @@ public:
         a->followed = i.followed;
         a->releases = i.releases;
         a->text = i.text;
-        a->skin = i.skin;
-        a->library = i.library;
+        a->palette = i.palette;
+        medium_.wear(*a, ground_of(palette_of(*a)));
         if (moved || repaint || handed) {
             touch(*a);
         }
@@ -225,7 +227,6 @@ public:
         }
         if (repaint) {
             remake(*a);
-            close_unused(old_library);
             touch(*a);
         } else if (moved) {
             medium_.cover_area(*a);
@@ -245,7 +246,6 @@ public:
         }
         medium_.cover_area(*a);
         touch(*a);
-        const std::string library = a->library;
         medium_.drop_area(w.area);
         end_holds(mail, w.area, /*withdrawn=*/true);
         std::erase_if(hovered_, [&](const auto& h) { return h.second == w.area; });
@@ -253,7 +253,6 @@ public:
         versions_.erase(w.area);
         told_.erase(w.area);
         std::erase_if(this->state_.areas, [&](const WinArea& k) { return k.area == w.area; });
-        close_unused(library);
         settle(mail, false);
     }
 
@@ -289,6 +288,39 @@ public:
         settle(mail, false);
     }
 
+    /// A palette, through the directory: kept at its latest revision, and every area wearing it
+    /// painted again from what the window keeps. Its owners are told nothing and draw nothing.
+    void on(const PaletteOffered& p, loom::Mail& mail) {
+        if (!mail.authored_from_role(kGraphicsRole)) {
+            return;
+        }
+        auto& held = this->state_.palettes;
+        const auto it = std::find_if(held.begin(), held.end(), [&](const PaletteOffered& k) {
+            return k.palette == p.palette;
+        });
+        if (it != held.end() && it->revision >= p.revision) {
+            return;
+        }
+        if (it == held.end()) {
+            if (held.size() >= kMaxPalettes) {
+                note("the window holds " + std::to_string(kMaxPalettes) + " palettes: '" +
+                     p.palette + "' is not held");
+                return;
+            }
+            held.push_back(p);
+        } else {
+            *it = p;
+        }
+        for (WinArea& a : this->state_.areas) {
+            if (a.palette == p.palette) {
+                medium_.wear(a, ground_of(palette_of(a)));
+                remake(a);
+                touch(a);
+            }
+        }
+        settle(mail, false);
+    }
+
     /// A new directory: this window says itself again; its areas stay until it says otherwise.
     void on(const GraphicsReady&, loom::Mail& mail) {
         if (mail.authored_from_role(kGraphicsRole)) {
@@ -308,7 +340,7 @@ public:
         }
         s.showings = medium_.showings();
         s.device_bytes = medium_.device_bytes();
-        s.painter_calls = painters_.calls;
+        s.painter_calls = painter_calls_;
         s.element_calls = codes_.calls;
         s.refusals = this->state_.refusals;
         s.last_refusal = last_refusal_;
@@ -1058,8 +1090,14 @@ private:
         return false;
     }
 
+    /// The palette an area wears: the one offered under its name, else the window's own.
+    const PaletteOffered& palette_of(const WinArea& a) const {
+        const PaletteOffered* p = palette_named(this->state_.palettes, a.palette);
+        return p != nullptr ? *p : built_in_palette();
+    }
+
     /// Some of an area's nodes painted by its medium, each sent with every ancestor present (a
-    /// node is drawn in their space); a skin that will not paint is the last refusal.
+    /// node is drawn in their space) and every colour it names resolved in the area's palette.
     void paint(const WinArea& a, const std::set<std::string>& paths) {
         if (paths.empty()) {
             return;
@@ -1084,14 +1122,18 @@ private:
         const TextMeasure text = medium_.text();
         task.text_advance = text.advance;
         task.text_line = text.line;
+        const PaletteOffered& palette = palette_of(a);
+        dress(task, palette, a.owner);
         for (const KeptNode& k : a.nodes) {
             if (send.count(k.node.path) != 0) {
-                task.nodes.push_back(
-                    PaintNode{k.node.path, key_of(at, k.node.path), k.node.op, k.node.args});
+                task.nodes.push_back(PaintNode{k.node.path, key_of(at, k.node.path), k.node.op,
+                                               k.node.args,
+                                               inks_of(k.node.op, k.node.args, palette, a.owner)});
             }
         }
         std::string why;
-        medium_.paint(painters_, a, task, paths, why);
+        ++painter_calls_;
+        medium_.paint(a, task, paths, why);
         if (!why.empty()) {
             note("area '" + a.area + "': " + why);
         }
@@ -1242,19 +1284,6 @@ private:
         return nullptr;
     }
 
-    void close_unused(const std::string& library) {
-        if (library.empty()) {
-            return;
-        }
-        for (const WinArea& a : this->state_.areas) {
-            if (a.library == library) {
-                return;
-            }
-        }
-        painters_.close(library);
-        medium_.forget(library);
-    }
-
     /// This window, as its own office, to whoever follows it: the directory, and an arranger that
     /// lays out in its room.
     void offer(loom::Mail& mail) {
@@ -1359,7 +1388,7 @@ private:
     std::map<std::string, std::int64_t> told_;
     /// The areas whose owner was told a room asking a whole drawing, and has drawn none since.
     std::set<std::string> waiting_;
-    Painters painters_;
+    std::int64_t painter_calls_ = 0;
     ElementCodes codes_;
     std::string last_refusal_;
     std::optional<WindowPlacementValue> last_placement_; ///< the last place said, this incarnation

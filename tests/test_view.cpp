@@ -236,10 +236,10 @@ public:
         for (const auto& k : area.nodes)
             if (auto r = k.node.op == gfx::op::kRect ? gfx::from_body<gfx::RectArgs>(k.node.args) : std::nullopt)
                 out.push_back(std::to_string(r->x) + "," + std::to_string(r->y) + " " + std::to_string(r->w) +
-                              " " + std::to_string(r->h) + " " + std::to_string(r->fill.role));
+                              " " + std::to_string(r->h) + " " + std::to_string(zengine::graphics::role_of(r->fill)));
         for (const auto& k : area.nodes)
             if (auto t = k.node.op == gfx::op::kText ? gfx::from_body<gfx::TextArgs>(k.node.args) : std::nullopt)
-                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " + std::to_string(t->ink.role) +
+                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " + std::to_string(zengine::graphics::role_of(t->ink)) +
                               " " + t->text);
         return out;
     }
@@ -350,10 +350,10 @@ struct Rig {
         for (const auto* k : order) {
             if (k->node.op == gfx::op::kRect) {
                 if (const auto r = gfx::from_body<gfx::RectArgs>(k->node.args))
-                    kept.rects.push_back(ws::CanvasRect{r->x, r->y, r->w, r->h, r->fill.role});
+                    kept.rects.push_back(ws::CanvasRect{r->x, r->y, r->w, r->h, zengine::graphics::role_of(r->fill)});
             } else if (k->node.op == gfx::op::kText) {
                 if (const auto t = gfx::from_body<gfx::TextArgs>(k->node.args))
-                    kept.texts.push_back(ws::CanvasText{t->x - inset, t->y - inset, t->text, t->ink.role});
+                    kept.texts.push_back(ws::CanvasText{t->x - inset, t->y - inset, t->text, zengine::graphics::role_of(t->ink)});
             }
         }
         return &kept;
@@ -1023,7 +1023,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
             CHECK(bar->x2 == bar->x1);
             CHECK(bar->y1 == words->y);
             CHECK(bar->y2 == words->y + gfx::kCellPx - 1);
-            CHECK(bar->ink.role == zengine::graphics::role::kAccent);
+            CHECK(zengine::graphics::role_of(bar->ink) == zengine::graphics::role::kAccent);
             CHECK(w.window->action("caret").empty());
             CHECK(w.window->refused.empty());
         };

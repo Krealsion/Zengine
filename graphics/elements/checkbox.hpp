@@ -27,7 +27,7 @@ struct CheckboxFace {
     Paint box_fill;
     Paint check_ink;
     Paint label_ink;
-    ZEN_SHAPE(CheckboxFace, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+    ZEN_SHAPE(CheckboxFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(label), ZEN_FIELD(checked), ZEN_FIELD(enabled), ZEN_FIELD(hovered),
               ZEN_FIELD(box_fill), ZEN_FIELD(check_ink), ZEN_FIELD(label_ink));
 };

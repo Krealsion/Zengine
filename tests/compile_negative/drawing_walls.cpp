@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The compile-negative fixture for the drawing weave and the canvas: one source, three targets
-// (ZENGINE_CN_CASE), so each refusal and its control are the same drawer but for the thing under
-// test (VM-WALL-04). 1 changes an element by a type outside its code's list of changes; 2 defines
-// its own end-of-delivery hook, which would leave its drawing unshown; 3, the control, does
-// neither.
+// The compile-negative fixture for the drawing weave, the canvas and colours by name: one source,
+// four targets (ZENGINE_CN_CASE), so each refusal and its control are the same drawer but for the
+// thing under test (VM-WALL-04). 1 changes an element by a type outside its code's list of changes;
+// 2 defines its own end-of-delivery hook; 4 names a pool colour nobody declared; 3, the control,
+// does none of these.
 
 #include "graphics/drawing.hpp"
 
@@ -70,12 +70,23 @@ struct CnDrawer : CnBase {
         canvas().change<CnChanges>(1, CnStep{});
     }
     void picture(zengine::graphics::Sketch& f) const {
-        f.text("beats", 0, 0, "beats", zengine::graphics::by_role(zengine::graphics::role::kFill));
+        f.text("beats", 0, 0, "beats", zengine::graphics::colors::accent);
+    }
+};
+
+#elif ZENGINE_CN_CASE == 4 // ---- a pool colour nobody declared: MUST FAIL --------
+
+struct CnDrawer : CnBase {
+    using DrawingWeave::on;
+    CnDrawer() : DrawingWeave("cn.drawer") {}
+    void on(const CnBeat&, loom::Mail&) { ++state_.beats; }
+    void picture(zengine::graphics::Sketch& f) const {
+        f.text("beats", 0, 0, "beats", zengine::graphics::colors::acent);
     }
 };
 
 #else
-#error "ZENGINE_CN_CASE must be 1 (change_outside), 2 (after_delivery) or 3 (drawer_ok)"
+#error "ZENGINE_CN_CASE must be 1 (change_outside), 2 (after_delivery), 3 (drawer_ok) or 4"
 #endif
 
 } // namespace

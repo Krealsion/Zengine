@@ -50,9 +50,7 @@ target_compile_definitions(zengine-app PRIVATE
 # The host resolves a stem in its own directory, as Workshop does, so each is copied here by a rule
 # of its own, on the artifact's clock. The OS window joins only where this configuration built it.
 set(zengine_app_artifacts zengine-app-weave zengine-operators-basic zengine-graphics
-                          zengine-window-terminal zengine-timer
-                          zengine-paint-day zengine-paint-night
-                          zengine-paint-classic zengine-paint-block)
+                          zengine-window-terminal zengine-timer)
 if(TARGET zengine-window-sdl)
     list(APPEND zengine_app_artifacts zengine-window-sdl)
 endif()

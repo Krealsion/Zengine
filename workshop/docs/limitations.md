@@ -243,7 +243,7 @@ them, so its quotes read as `?`.
 **Workshop's own panes are changed from inside Workshop only through a development setup** — a
 development catalog and a runtime copied from one configured Zengine build tree
 ([develop Workshop](develop-workshop.md)). That covers the pane weaves its catalog lists
-([which](develop-workshop.md#which-panes)). The host executable, the windows and their skins, the
+([which](develop-workshop.md#which-panes)). The host executable, the windows, the
 input weave, the Timer and the operator providers are not rebuilt or reloaded from inside
 Workshop, and a development runtime is not an installed Workshop that updates itself.
 

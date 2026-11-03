@@ -6,10 +6,10 @@
 
 // Painting nodes for a medium of light: every operator, in the area's own pixels, into the
 // primitives a renderer draws -- filled rectangles (quads), lines, runs of text and images -- each
-// in an exact colour: a paint's own, else the look's for its role. A node paints in its parent
-// groups' space and clip. A node's primitives cross the painter seam packed in its `NodePaint`'s
-// `cells` (`pack_node`), behind a tag that tells them from a character painter's runs. A skin for
-// light is this painter and a Look (graphics/painter_export.hpp); it keeps nothing between calls.
+// in the exact colour the window resolved for its node (`PaintNode::inks`). A node paints in its
+// parent groups' space and clip. A node's primitives come back packed in its `NodePaint`'s `cells`
+// (`pack_node`), behind a tag that tells them from a character painter's runs. It knows no colour
+// and keeps nothing between calls.
 // Reference: graphics/docs/graphics.md, "The operators".
 
 #include "graphics/implied.hpp"
@@ -230,34 +230,6 @@ inline std::optional<NodePrimitives> unpack_node(const loom::Bytes& b) {
     return n;
 }
 
-/// A look for light: each role's colour (0xRRGGBB), and the ground the window is cleared to.
-struct Look {
-    std::map<std::int64_t, std::int64_t> colour;
-    std::int64_t ground = 0x101418;
-};
-
-/// The day look: dark ink on a light ground.
-inline Look day_look() {
-    Look l;
-    l.colour = {{role::kFill, 0x2b2b2b},   {role::kAccent, 0xd08700},
-                {role::kMuted, 0x9aa0a6},  {role::kAlert, 0xc5221f},
-                {role::kGround, 0xf5f5f0}, {role::kMediumGround, 0xf5f5f0},
-                {role::kGuide, 0x1a73e8},  {role::kEdge, 0xc4c7cc}};
-    l.ground = 0xf5f5f0;
-    return l;
-}
-
-/// The night look: light ink on a dark ground.
-inline Look night_look() {
-    Look l;
-    l.colour = {{role::kFill, 0xd8dee9},   {role::kAccent, 0xebcb8b},
-                {role::kMuted, 0x4c566a},  {role::kAlert, 0xbf616a},
-                {role::kGround, 0x2e3440}, {role::kMediumGround, 0x101418},
-                {role::kGuide, 0x88c0d0},  {role::kEdge, 0x7d869a}};
-    l.ground = 0x101418;
-    return l;
-}
-
 /// An exact 0xRRGGBB, opaque.
 inline std::uint32_t rgba_of(std::int64_t rgb) {
     return (static_cast<std::uint32_t>(rgb & 0xffffff) << 8) | 0xffu;
@@ -265,18 +237,21 @@ inline std::uint32_t rgba_of(std::int64_t rgb) {
 
 class Painter {
 public:
-    /// A painter in `look`, setting text as `text` says: the window's face, measured.
-    explicit Painter(const Look& look, const TextMeasure& text = {}) : look_(look), text_(text) {}
+    /// A painter for `task`, setting text as `text` says: the window's face, measured.
+    explicit Painter(const PaintTask& task, const TextMeasure& text = {})
+        : task_(task), text_(text) {}
 
-    /// One node's primitives, drawn in `space`. Operands that do not read as their operator's
-    /// paint nothing; an operator this medium does not know paints its name, muted.
-    void paint(const std::string& op, const loom::Bytes& args, const term::Space& space,
-               NodePrimitives& out) const {
+    /// One node's primitives, drawn in `space`, in its colours. Operands that do not read as their
+    /// operator's paint nothing; an operator this medium does not know paints its name, quiet.
+    void paint(const PaintNode& node, const term::Space& space, NodePrimitives& out) const {
+        const std::string& op = node.op;
+        const loom::Bytes& args = node.args;
         space_ = space;
         out_ = &out;
+        inks_ = &node.inks;
         if (op == op::kRect) {
             if (auto a = from_body<RectArgs>(args)) {
-                rect(a->x, a->y, a->w, a->h, a->fill, a->stroke);
+                rect(a->x, a->y, a->w, a->h);
             }
         } else if (op == op::kEllipse) {
             if (auto a = from_body<EllipseArgs>(args)) {
@@ -285,7 +260,7 @@ public:
         } else if (op == op::kLine) {
             if (auto a = from_body<LineArgs>(args)) {
                 line(a->x1 + space_.dx, a->y1 + space_.dy, a->x2 + space_.dx, a->y2 + space_.dy,
-                     a->ink);
+                     ink_of(0));
             }
         } else if (op == op::kPath) {
             if (auto a = from_body<PathArgs>(args)) {
@@ -293,29 +268,25 @@ public:
             }
         } else if (op == op::kText) {
             if (auto a = from_body<TextArgs>(args)) {
-                text(a->x, a->y, a->text, a->ink);
+                text(a->x, a->y, a->text, ink_of(0));
             }
         } else if (op == op::kImage) {
             if (auto a = from_body<ImageArgs>(args)) {
                 image(*a);
             }
         } else if (op != op::kGroup) {
-            text(0, 0, "?" + op, by_role(role::kMuted));
+            text(0, 0, "?" + op, task_.quiet);
         }
     }
 
 private:
-    /// A paint's colour: its own, else its role's in the look, else the look's fill.
-    std::uint32_t colour(const Paint& p) const {
-        if (p.rgb >= 0) {
-            return rgba_of(p.rgb);
-        }
-        auto it = look_.colour.find(p.role);
-        if (it == look_.colour.end()) {
-            it = look_.colour.find(role::kFill);
-        }
-        return rgba_of(it != look_.colour.end() ? it->second : 0xc8c8c8);
+    /// The node's colour `i`: its fill, its stroke, or its ink; no paint where it names none.
+    const PaintInk& ink_of(std::size_t i) const {
+        static const PaintInk kNoPaint{};
+        return i < inks_->size() ? (*inks_)[i] : kNoPaint;
     }
+
+    static std::uint32_t colour(const PaintInk& ink) { return static_cast<std::uint32_t>(ink.rgba); }
 
     /// A quad, cut to the node's clip.
     void quad(std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h,
@@ -336,8 +307,10 @@ private:
                                    c});
     }
 
-    void rect(std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h, const Paint& fill,
-              const Paint& stroke) const {
+    /// A rectangle in colours 0 (its fill) and 1 (its stroke).
+    void rect(std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) const {
+        const PaintInk& fill = ink_of(0);
+        const PaintInk& stroke = ink_of(1);
         x += space_.dx;
         y += space_.dy;
         if (!fill.none()) {
@@ -352,7 +325,10 @@ private:
         }
     }
 
+    /// An ellipse in colours 0 (its fill) and 1 (its rim).
     void ellipse(const EllipseArgs& a) const {
+        const PaintInk& fill = ink_of(0);
+        const PaintInk& stroke = ink_of(1);
         const double x = static_cast<double>(a.x + space_.dx);
         const double y = static_cast<double>(a.y + space_.dy);
         const double rx = static_cast<double>(a.w) / 2.0, ry = static_cast<double>(a.h) / 2.0;
@@ -360,8 +336,8 @@ private:
         if (rx <= 0 || ry <= 0) {
             return;
         }
-        if (!a.fill.none()) {
-            const std::uint32_t c = colour(a.fill);
+        if (!fill.none()) {
+            const std::uint32_t c = colour(fill);
             for (std::int64_t r = 0; r < a.h; ++r) {
                 const double py = static_cast<double>(r) + 0.5 - ry;
                 const double half = rx * std::sqrt(std::max(0.0, 1.0 - (py * py) / (ry * ry)));
@@ -369,21 +345,21 @@ private:
                      std::llround(2 * half), 1, c);
             }
         }
-        if (!a.stroke.none()) {
+        if (!stroke.none()) {
             constexpr int kSteps = 48;
             constexpr double kTurn = 6.283185307179586;
             for (int i = 0; i < kSteps; ++i) {
                 const double t0 = kTurn * i / kSteps, t1 = kTurn * (i + 1) / kSteps;
                 line(std::llround(cx + rx * std::cos(t0)), std::llround(cy + ry * std::sin(t0)),
                      std::llround(cx + rx * std::cos(t1)), std::llround(cy + ry * std::sin(t1)),
-                     a.stroke);
+                     stroke);
             }
         }
     }
 
     /// A line, cut to the node's clip (Liang and Barsky's way); wholly outside it, nothing.
     void line(std::int64_t x1, std::int64_t y1, std::int64_t x2, std::int64_t y2,
-              const Paint& ink) const {
+              const PaintInk& ink) const {
         if (ink.none()) {
             return;
         }
@@ -425,7 +401,10 @@ private:
     }
 
     /// A fill by spans a pixel row (even-odd over every subpath), a stroke by lines.
+    /// A path in colours 0 (its fill) and 1 (its stroke).
     void path(const PathArgs& a) const {
+        const PaintInk& fill = ink_of(0);
+        const PaintInk& stroke = ink_of(1);
         auto polys = term::flatten_path(a.d);
         for (term::Polygon& poly : polys) {
             for (auto& [px, py] : poly) {
@@ -433,7 +412,7 @@ private:
                 py += static_cast<double>(space_.dy);
             }
         }
-        if (!a.fill.none() && !polys.empty()) {
+        if (!fill.none() && !polys.empty()) {
             double miny = 1e18, maxy = -1e18;
             for (const term::Polygon& poly : polys) {
                 for (const auto& [px, py] : poly) {
@@ -441,7 +420,7 @@ private:
                     maxy = std::max(maxy, py);
                 }
             }
-            const std::uint32_t c = colour(a.fill);
+            const std::uint32_t c = colour(fill);
             for (auto y = static_cast<std::int64_t>(std::floor(miny));
                  y <= static_cast<std::int64_t>(std::floor(maxy)); ++y) {
                 const double py = static_cast<double>(y) + 0.5;
@@ -463,11 +442,11 @@ private:
                 }
             }
         }
-        if (!a.stroke.none()) {
+        if (!stroke.none()) {
             for (const term::Polygon& poly : polys) {
                 for (std::size_t k = 1; k < poly.size(); ++k) {
                     line(std::llround(poly[k - 1].first), std::llround(poly[k - 1].second),
-                         std::llround(poly[k].first), std::llround(poly[k].second), a.stroke);
+                         std::llround(poly[k].first), std::llround(poly[k].second), stroke);
                 }
             }
         }
@@ -476,8 +455,8 @@ private:
     /// Printable ASCII as itself, any other character (all of its UTF-8 bytes) as one '?', a
     /// character every advance of the window's face; a character outside the clip is left out, and
     /// a line the clip crosses is cut by its pixels: the rows above or below the clip are said cut,
-    /// and a line wholly outside it is not drawn. Text in the medium's ground paints as `kFill`.
-    void text(std::int64_t x, std::int64_t y, const std::string& s, const Paint& ink) const {
+    /// and a line wholly outside it is not drawn.
+    void text(std::int64_t x, std::int64_t y, const std::string& s, const PaintInk& ink) const {
         if (ink.none()) {
             return;
         }
@@ -515,10 +494,8 @@ private:
         if (shown.empty()) {
             return;
         }
-        const bool ground = ink.rgb < 0 && ink.role == role::kMediumGround;
         out_->texts.push_back(TextRun{static_cast<std::int32_t>(first),
-                                      static_cast<std::int32_t>(y),
-                                      colour(ground ? by_role(role::kFill) : ink), shown,
+                                      static_cast<std::int32_t>(y), colour(ink), shown,
                                       static_cast<std::int32_t>(cut_top),
                                       static_cast<std::int32_t>(cut_foot)});
     }
@@ -557,10 +534,11 @@ private:
         out_->images.push_back(std::move(im));
     }
 
-    Look look_;
+    const PaintTask& task_;
     TextMeasure text_;
     mutable term::Space space_;
     mutable NodePrimitives* out_ = nullptr;
+    mutable const std::vector<PaintInk>* inks_ = nullptr;
 };
 
 /// The measure a task asks text set by: its own, or the cell's where it says none.
@@ -571,8 +549,8 @@ inline TextMeasure measure_of(const PaintTask& task) {
 
 /// A whole task painted for light: each node but a group, its primitives packed in its cells, its
 /// text set by the task's measure.
-inline PaintResult paint_task(const PaintTask& task, const Look& look) {
-    const Painter painter(look, measure_of(task));
+inline PaintResult paint_task(const PaintTask& task) {
+    const Painter painter(task, measure_of(task));
     const auto at = term::spaces(task.nodes);
     PaintResult out;
     for (const PaintNode& n : task.nodes) {
@@ -580,7 +558,7 @@ inline PaintResult paint_task(const PaintTask& task, const Look& look) {
             continue;
         }
         NodePrimitives prims;
-        painter.paint(n.op, n.args, at.at(n.path), prims);
+        painter.paint(n, at.at(n.path), prims);
         out.nodes.push_back(NodePaint{n.path, pack_node(prims)});
     }
     return out;

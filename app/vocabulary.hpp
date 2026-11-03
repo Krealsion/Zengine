@@ -47,7 +47,7 @@ struct AppPlaceAsked {
 };
 
 /// `zengine.app.host` -> the asker: the app's folder, and the directory the host opens artifacts
-/// from, a skin's painter code among them. Facts the host holds; a loaded weave cannot know where
+/// from. Facts the host holds; a loaded weave cannot know where
 /// it was loaded from.
 struct AppPlaceSaid {
     std::string folder;
@@ -58,8 +58,8 @@ struct AppPlaceSaid {
 // ---- app.json ------------------------------------------------------------------------------
 
 /// The app's window as `app.json` writes it: its title and its size in pixels, which the app's
-/// weave says to the window it arranges in (`WindowShaped`), and `skin`, the painter it asks the
-/// window to paint its areas with (`day`, `night`, `classic` or `block`).
+/// weave says to the window it arranges in (`WindowShaped`), and `skin`, the shipped palette its
+/// areas wear (`day`, `night`, `classic` or `block`).
 struct ZengineAppWindow {
     std::string title;
     std::int64_t width = 0;

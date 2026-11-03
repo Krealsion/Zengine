@@ -38,10 +38,11 @@ owned separately by the pane), `source-transfer` (the one header
 `editor/source-transfer/vocabulary.hpp`: the text, selection, location and location-context shapes the
 Editors carry, so a stranger's pane can make or recognize them; the byte laws, the Terminal line
 and the C++ generator stay internal), `graphics` (the vocabulary an owner draws with -- a node,
-an element record, the seven operators, the roles and a canvas -- with the eight elements, a
-drawing weave's helper, the painter code a skin runs for characters and for light, the two seams a
-skin or an element's code is written against, `element_abi.h` and `painter_abi.h` with their
-export helpers, and the terminal's claim and size, `window/terminal_io.hpp`: every header
+an element record, the seven operators, a colour by name with the pool's generated names and the
+shipped themes' palettes (`colors.hpp`, `themes.hpp`), the roles and a canvas -- with the eight
+elements, a drawing weave's helper, the painters for characters and for light, the seam an
+element's code is written against, `element_abi.h` with its export helper, and the terminal's
+claim and size, `window/terminal_io.hpp`: every header
 `zengine_public_headers_graphics`, `zengine_public_headers_graphics/elements` and
 `zengine_public_headers_graphics/window` list, installed under `include/zengine/graphics/` and
 its `elements/` and `window/`; the directory and the windows are artifacts, below), and `flow` (standalone
@@ -57,9 +58,8 @@ own weave, which `zengine-app` runs), `zengine-timer`, `zengine-input`, `zengine
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
 starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by another
 Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and terminal
-window (`zengine-graphics`, `zengine-window-terminal`) with the four painters a window opens by
-path (`zengine-paint-classic` and `zengine-paint-block` for characters, `zengine-paint-day` and
-`zengine-paint-night` for light). They install as FILES, not as
+window (`zengine-graphics`, `zengine-window-terminal`), which paints with its own painter. They
+install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would
 offer a link line that must never be written. Beside them, as data, the Workshop tool packages
 for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journeys and their
@@ -75,18 +75,20 @@ does `zengine-app`, the host an app runs in with no Workshop (`app/docs/app.md`)
 artifacts from `lib/zengine/` by a path relative to its own, so it names no machine's layout, and
 with the OS window out it runs an app whose window is the terminal window.
 
-**One CMake function rides along**, `zengine_code_page(<target>...)`: `cmake/ZengineCodePage.cmake`
-and the manifest it gives install beside the package config, which includes the module. A stranger's
-program calls it to run in the UTF-8 code page on Windows, as every program this repository
-builds does (VM-PLAT-16); elsewhere it does nothing. The installed-package witness calls it for
+**Two CMake modules ride along**, installed beside the package config, which includes both.
+`zengine_code_page(<target>...)`, `cmake/ZengineCodePage.cmake` with the manifest it gives: a
+stranger's program calls it to run in the UTF-8 code page on Windows, as every program this
+repository builds does (VM-PLAT-16); elsewhere it does nothing. `zengine_names()` and
+`zengine_palettes()`, `cmake/ZengineNames.cmake`: a stranger's pane generates its slots' names from
+its JSON as Zengine's own panes do, with CMake 3.22 or newer, the package's floor; the pool's and
+the shipped themes' JSON install under `share/zengine/graphics/`. The installed-package witness calls it for
 every program of its own and, on Windows, refuses one whose manifest names no UTF-8 code page;
 `public_surface.cpp` checks the code page it runs in.
 
 **ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
-Ten of the fifteen above are weaves; `zengine-operators-basic` is a provider and the four
-painters are painter code, none of the five a weave (enforced by `zengine_provider()` in the top-level
-`CMakeLists.txt`). The public
+Every one of them is a weave but `zengine-operators-basic`, a provider (enforced by
+`zengine_provider()` in the top-level `CMakeLists.txt`). The public
 package variables must therefore name the physical thing: a variable named after one surface
 is false of its own contents the moment the list holds another. The `package_vocabulary`
 CTest entry keeps the retired spellings from coming back — it owns the list of them, so this

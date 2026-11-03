@@ -23,7 +23,7 @@ struct IconFace {
     std::int64_t x = 0, y = 0, size = 0;
     std::string name;
     Paint ink;
-    ZEN_SHAPE(IconFace, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(size), ZEN_FIELD(name),
+    ZEN_SHAPE(IconFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(size), ZEN_FIELD(name),
               ZEN_FIELD(ink));
 };
 

@@ -12,7 +12,7 @@ An app is a folder of data, and nothing built:
 | file | what it is |
 |---|---|
 | `app-plan.json` | the load plan: which artifacts run, in order, in Workshop's [load-plan format](../../workshop/docs/load-plan.md) |
-| `app.json` | the app: its name, its window's skin, the views it runs and where each stands, and the flows |
+| `app.json` | the app: its name, its window's palette, the views it runs and where each stands, and the flows |
 | `<name>.view` | a view, as the View Builder saves it |
 | `<name>.flow` | a flow, its definition and its state, as Flow's Export writes it |
 | `run.cmd`, `run.sh` | the launchers: each starts `zengine-app` on the folder it stands in ([which one](#which-zengine-app-the-launchers-start)) |
@@ -48,7 +48,7 @@ asks Workshop to allow the write, as Save does, then writes `apps/tally/` in the
   graphics directory, the OS window and the Timer, the plan
   [`examples/tally-app/`](../../examples/tally-app/README.md) holds, byte for byte;
 - `app.json`, naming the app and its window after the view's file, its window sized to hold the
-  view at (8, 8) and its notice rows, the `day` skin, the view in a session named after it and the
+  view at (8, 8) and its notice rows, the `day` palette, the view in a session named after it and the
   flow in its definition's;
 - `tally.view` and `tally.flow`, copied from the files it was made from, each read back first;
 - `run.cmd` and `run.sh`, each starting the `zengine-app` beside Workshop on that folder, or the one
@@ -81,8 +81,9 @@ Read as the load plan is, a Loom value in JSON, its integers written as quoted s
 
 - `window.title`, `width` and `height` name the app's window and size it, in pixels: the OS window
   takes them, keeping a size within its display, and a side of 0 keeps its own; the terminal window
-  keeps the terminal's. `window.skin` is the painter the window paints the app's areas with: `day`
-  or `night` in an OS window, `classic` or `block` in the terminal window.
+  keeps the terminal's. `window.skin` names the palette the app's areas wear, one of the shipped
+  themes, `day`, `night`, `classic` or `block`, in either window; one it does not name is the
+  window's medium's, `classic` in a terminal and `day` in an OS window, and the app's line says so.
 
   ![The tally app's OS window, titled tally and 320 by 260 as its app.json asks, Count giving 45](images/tally-app-window.png)
 - Each view runs in its own session, its area at `x`, `y` in the window's pixels, its size the
@@ -182,9 +183,9 @@ touches the file.
 
 - it asks the host where the app's folder is (`zengine.app.host`), reads `app.json`, and runs each
   flow, then each view, in its own session, as its office;
-- on the graphics directory's start and the window's offer, it offers the skin `app.json` names
-  from the host's artifact directory, places each view's area where `app.json` says, hearing the
-  window's keys and pointer, and chooses the skin; once its own line has its room in a window it
+- on the graphics directory's start and the window's offer, it offers the palette `app.json`
+  names and chooses it for each area, then places each view's area where `app.json` says, hearing
+  the window's keys and pointer; once its own line has its room in a window it
   says that window's title and size from `app.json`, once each time the window starts, and places
   its line at the foot of each size the window offers;
 - when something went wrong -- `app.json`, a file, a refused run -- it says so on a line of its own

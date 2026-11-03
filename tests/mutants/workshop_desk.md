@@ -54,8 +54,8 @@ In `workshop/weave_run.cpp`:
 
 Red in `zengine-workshop-desk-tests`:
 
-- each graphics area wears its pane row's `workshop.skin`, else Workshop's own, and a skin is said
-  only when an area's moved
+- each graphics area wears the palette its row's `workshop.skin` names, else Workshop's own, and a
+  palette is said only when an area's moved
 
 ## area-named-by-its-office
 

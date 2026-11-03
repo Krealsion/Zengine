@@ -94,10 +94,11 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
     nodes.reserve(sketch.nodes().size());
     for (const graphics::Node& n : sketch.nodes()) {
         nodes.push_back(
-            graphics::PaintNode{n.path, {}, n.op, lattice ? n.args : on_cells(n, measure)});
+            graphics::PaintNode{n.path, {}, n.op, lattice ? n.args : on_cells(n, measure), {}});
     }
     const std::map<std::string, graphics::term::Space> at = graphics::term::spaces(nodes);
-    const graphics::term::Painter painter{graphics::term::Look{}};
+    const graphics::PaintTask task{};
+    const graphics::term::Painter painter{task};
 
     // The cells each text node shows on the first row it shows any, by its path.
     struct Run {
@@ -109,8 +110,13 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
         if (n.op != graphics::op::kText) {
             continue;
         }
+        // Its words wherever they show, in any ink: a row takes its role from the colour the text
+        // names.
+        const auto words = graphics::from_body<graphics::TextArgs>(n.args);
+        graphics::PaintNode shown_node = n;
+        shown_node.inks = {graphics::PaintInk{0, {}, {}}};
         std::vector<graphics::term::Cell> cells;
-        painter.paint(n.op, n.args, at.at(n.path), cells);
+        painter.paint(shown_node, at.at(n.path), cells);
         std::optional<Run> run;
         for (const graphics::term::Cell& c : cells) {
             if (c.row < 0 || c.col < 0 || c.row >= rows || c.col >= columns) {
@@ -128,7 +134,7 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
             }
             text[col] = c.glyph;
             if (!roled[r]) {
-                out[r].role = c.role;
+                out[r].role = words ? graphics::role_of(words->ink) : graphics::role::kFill;
                 roled[r] = true;
             }
             if (!run) {
