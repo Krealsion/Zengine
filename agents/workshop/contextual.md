@@ -48,7 +48,7 @@ WHY — `agents/decisions/content-sized-popups.md`
 LAW — The catalog declares rows — an action id, its subjects, a group — over the action catalog's ids, so a stale reference is a compile error; one population is what every consumer of the menu spends.
 
 MEANS
-- a pane's: `arrange`, `Order >`, `Reset >`, `edit code`, `hide pane`;
+- a pane's: `arrange`, `Order >`, `Reset >`, `Dock >`, `edit code`, `shut or open`, `hide pane`, `remove from the setup`;
 - a tab's: `layout.rename`, `layout.duplicate`, `Order >`, `layout.remove`; the room's: no target;
 - groups are their names, and an empty group cannot exist.
 

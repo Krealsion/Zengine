@@ -288,7 +288,7 @@ waiting on it is answered then.
 
 ## Follow
 
-This office sends `LiveLayout` v2 to Workshop on every change of the run or of the live layout,
+This office sends `LiveLayout` v3 to Workshop on every change of the run or of the live layout,
 and before each answer to an edit: the live desk with each row's `workshop.` keys alone, a tab for
 every layout, the revision it stands at, what each live row's pane said it cannot use, and the
 sentence about what moved -- a written setting's says how far its hand-off got. It sends each

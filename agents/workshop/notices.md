@@ -125,9 +125,8 @@ and a page of the record it observes"
 `workshop/weave_desktop.cpp` judge_toggle
 `tests/test_workshop_panes_first_run.cpp` "WL-NOTE-06: what the quick setup keeps for itself is kept
 without a notice, and a keep that was not written is said"
-`tests/test_workshop_panes_actions.cpp` "WL-DESK-12: a close is the layouts' owner's: the row leaves
-the live layout whole, its settings and this layout's locks named in the answer and on the band, and
-the presenter takes no close"
+`tests/test_workshop_panes_actions.cpp` "WL-DESK-12: a close is the layouts' owner's: the row stays in
+the live layout, hidden, its settings and this layout's locks kept, and the presenter takes no close"
 `tests/test_workshop_inventory_info.cpp` "a press on a canvas pane drags a value out as a prose press
 does: the hold ends as lost when the carry begins, the value lands where the hand lets go, and a
 click carries nothing" "while an entry is carried the wheel reaches the pane under the hand, past

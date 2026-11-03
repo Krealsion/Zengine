@@ -110,14 +110,14 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
-## WL-DESK-12 — A close takes a pane off the desk and unloads nothing
+## WL-DESK-12 — A close hides a pane and unloads nothing
 
-LAW — A close names a pane by its durable keys; the layouts' owner takes its row off the live layout whole, naming its settings and locks, and refuses a row not there; its provider and all it holds stay.
+LAW — A close names a pane by its durable keys; the layouts' owner hides its row in the live layout, keeping it whole, and refuses a row the desk does not show; its provider and all it holds stay.
 
 MEANS
 - a launch finds it as it was: an Editor's unsaved source, a Terminal's history;
 - a close never opens anything, the launcher's Return never closes anything (`x` does), and the live layout is what is asked, not the catalog: an unavailable pane's row closes;
-- the row goes whole, its place and size kept for its layout (WL-DESK-19); what the weaver sees after is the presenter's: the owner's sentence on its band, the palette's keys given back.
+- the row stays whole, its place, sizes, settings and locks with it (WL-SETUP-13); what the weaver sees after is the presenter's: the owner's sentence on its band, the palette's keys given back.
 
 DOES NOT MEAN
 - that the presenter has a close door, or forwards one: its own closes ask the owner for an unseat.
@@ -153,18 +153,18 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
-## WL-DESK-19 — The weaver places a pane: a first open is centred, a pane left comes back where it was
+## WL-DESK-19 — The weaver places a pane: a first open is centred, a hidden pane comes back where it was
 
-LAW — A pane new to a layout opens at the room's centre, or the hand where `workshop.open-at` says `mouse`, and is placed when its open brings the keys; one taken off comes back where it was left.
+LAW — A pane new to a layout opens at the room's centre, or the hand where `workshop.open-at` says `mouse`, and is placed when its open brings the keys; a hidden one comes back where it was.
 
 MEANS
 - placing takes the hand at the pane's title and top edge, which move it, and its other edges, which size it; a key or a press in its body is the pane's, and the first ends the placing, said;
-- where it was left is its row's place and size, kept by the layouts' owner by layout for the run, and a seat that gives it back is answered `returned`;
+- where it was is its hidden row's place and size, kept in its layout across runs, and a seat that shows it is answered `returned`;
 - the palette opens centred every time and is never arranged; a seat without the keys arranges nothing.
 
 DOES NOT MEAN
 - that Workshop seats a pane in a guess at free room: the weaver places it;
-- that the place outlives the run: after a relaunch a pane the last run closed opens as a first open.
+- that a removed pane's place is kept: `manage.remove` takes the row, and the next open is a first open.
 
 WHY — `agents/decisions/the-weaver-places-a-pane.md`
 
@@ -287,9 +287,9 @@ collide unless the pane declares it stands in, in both arrival orders"
 `workshop/weave_session.cpp` install_live palette_closed
 `workshop/desktop-pane/vocabulary.hpp` kActionClose
 `tests/test_workshop_panes_actions.cpp` "WL-DESK-12: a close takes a pane off the desk and leaves
-its provider holding; a close of a pane that is not there is refused and opens nothing" "WL-DESK-12: a close is the
-layouts' owner's: the row leaves the live layout whole, its settings and this layout's locks named in the answer and on
-the band, and the presenter takes no close"
+its provider holding; a close of a pane that is not there is refused and opens nothing" "WL-DESK-12: a
+close is the layouts' owner's: the row stays in the live layout, hidden, its settings and this
+layout's locks kept, and the presenter takes no close"
 `tests/test_workshop_screen.cpp` "the close door can reach and remove an unresolved row" "the shipped
 desktop's x closes the row its marker holds, and Return opens it again: the mark says which, and the
 provider never left"
@@ -312,7 +312,7 @@ focused, whatever the desktop last heard" "WL-DESK-13: Ctrl+P puts away a covere
 weaver comes straight from, and brings it forward once they have moved on from it"
 
 ### WL-DESK-19
-`workshop/layouts/run.hpp` LeftPlace SetupState::left leave_place take_left_place forget_gone_places
+`workshop/setup.hpp` open_row holds_pane
 `workshop/layouts/store.cpp` LayoutStore::edit_one
 `workshop/layouts/vocabulary.hpp` LayoutEditAnswered
 `workshop/weave_session.cpp` seat_then
@@ -324,6 +324,8 @@ placed by its title and edges while its keys and body stay its own; shown again 
 back where it was left" "WL-DESK-19: a press in the body of a pane being placed is the pane's, and
 ends the placing" "WL-DESK-19: where workshop.open-at says mouse, a pane the layout never had opens at
 the hand"
+`tests/test_workshop_persistence.cpp` "a hidden pane keeps its row and comes back where it was after a
+save and a load"
 
 ### WL-DESK-20
 `workshop/weave_desktop.cpp` WorkshopWeave::manual_window launch_asked launch_pane request_app_action

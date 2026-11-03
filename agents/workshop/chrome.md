@@ -101,6 +101,28 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
 
+## WL-CHROME-11 — A shut pane shows its title alone, and its arrow opens it
+
+LAW — Every pane's title begins with an arrow, down while it is open and right while it is shut, and a press on it shuts or opens the pane; a shut pane is its edge and its title, with titles hidden too.
+
+MEANS
+- shut where it stands, its anchored edge stays and the stack rises under it; its row keeps every size;
+- a shut pane holds no keys, and its area is withdrawn;
+- the arrow is a character in every medium, its column the title row's first.
+
+WHY — `agents/decisions/docks-cover-the-room.md`
+
+## WL-CHROME-12 — A strip shows its edge's arrow and its panes' tags
+
+LAW — A strip's arrow stands at its centre, into the room while its panes are shut and out while one is open; each pane docked there is a tag, its name, and a press on either opens or shuts.
+
+MEANS
+- down a left or right strip a tag is a character a row, along a top or bottom one a run of columns;
+- a press on the arrow shuts the open pane, or opens the edge's first; a tag opens its pane, or shuts it;
+- the open pane's tag and an open edge's arrow wear the accent ink; a strip no pane covers.
+
+WHY — `agents/decisions/docks-cover-the-room.md`
+
 ## Do not assume
 
 - That the interior is always the outer rectangle less one cell — it is less one unit of the
@@ -175,3 +197,23 @@ transient surface stays over the pane it covers, selected or not"
 a `?` and a gear at its top right; one that does not, or a desk with no row to show one, wears
 neither" "WL-KEY-16: the band's spelling and the Hotkeys view's are set apart from a pane's gear,
 each changing only its own surface, the `?` spelling as the Hotkeys view does"
+
+### WL-CHROME-11
+`workshop/screen.hpp` kFoldOpenArrow kFoldShutArrow kFoldArrowColumns chrome_mark::kFold fold_prefix
+`workshop/panes.hpp` pane_is_shut keyboard_pane OpenPane::shut
+`workshop/screen_external.cpp` external_title_rows fold_prefix chrome_mark_at paint_external
+`workshop/screen_chrome.cpp` shut_height pane_part
+`workshop/screen_compose.cpp` draw_pane
+`workshop/weave_external.cpp` press_fold
+`workshop/weave_pointer.cpp` pointer_button
+`tests/test_workshop_screen.cpp` "a shut pane shows its title alone, titles shown or hidden, and its
+arrow opens it"
+
+### WL-CHROME-12
+`workshop/screen.hpp` strip_arrow StripMark strip_marks strip_mark_at
+`workshop/screen_chrome.cpp` strip_marks strip_mark_at strip_span
+`workshop/screen_compose.cpp` paint_strips paint workshop_window_drawing
+`workshop/weave_external.cpp` press_strip
+`tests/test_workshop_screen.cpp` "a dock's strip narrows the room by its width, open or shut, and an
+open dock covers what is under it and moves no pane" "in a terminal, a dock's strip is a column or a
+row of cells, its arrow a character, its open pane over cells"
