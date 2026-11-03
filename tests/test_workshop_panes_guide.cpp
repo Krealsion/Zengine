@@ -348,7 +348,8 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
     const std::vector<rw::Cell> inked = guide_cells(d);
     // ITS INK IS A COLOUR AND NO ATTRIBUTE, as every role's is, so the cells after it are drawn in
     // their own ink, neither reversed nor bold.
-    const gfx::PaletteColor* guide = gfx::window::pool_color(gfx::themes::block(), gfx::colors::guide.name);
+    const gfx::PaletteOffered block = gfx::themes::block();
+    const gfx::PaletteColor* guide = gfx::window::pool_color(block, gfx::colors::guide.name);
     REQUIRE(guide != nullptr);
     const std::string ink = gfx::window::sgr_for(guide->cells, guide->rgba);
     REQUIRE(ink.rfind("\x1b[", 0) == 0);

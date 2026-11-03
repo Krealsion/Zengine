@@ -5,8 +5,7 @@
 # compiles a weave's one source for wasm32 with the Loom package's loom_wasm_weave() into
 # `<stem>.wasm` (`HostContext::kModuleSuffix`) in OUTPUT_DIRECTORY, by default the caller's binary
 # directory. LINKS are header-only Zengine libraries: a module carries only what it compiles.
-# Zengine's headers are read from `_ZENGINE_WASM_INCLUDE`, this source tree or the installed one,
-# and in this tree from the folders its generated headers stand in (`ZENGINE_GENERATED_INCLUDES`).
+# Zengine's headers come from `_ZENGINE_WASM_INCLUDE` and `ZENGINE_GENERATED_INCLUDES` (in-tree).
 
 if(COMMAND zengine_wasm_weave)
     return()
