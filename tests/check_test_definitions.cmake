@@ -69,7 +69,13 @@ function(zen_defs_verdict json source build out_problems out_compiles out_defs)
     set(defs 0)
     foreach(entry IN LISTS entries)
         if(NOT entry MATCHES "(output: |[ \t]-o |[ \t]/Fo)([^ ,}]*tests/CMakeFiles/[^ ,}]*)")
-            continue()
+            # A Makefile generator writes no `output`, and the object from the `tests` directory
+            # the compile runs in.
+            if(NOT entry MATCHES "directory: [^,]*/tests," OR
+               NOT entry MATCHES "(output: |[ \t]-o |[ \t]/Fo)(CMakeFiles/[^ ,}]*)")
+                continue()
+            endif()
+            set(CMAKE_MATCH_2 "tests/${CMAKE_MATCH_2}")
         endif()
         set(object "${CMAKE_MATCH_2}")
         math(EXPR compiles "${compiles} + 1")
@@ -85,7 +91,8 @@ function(zen_defs_verdict json source build out_problems out_compiles out_defs)
 endfunction()
 
 # ---- the self-test (VM-CHECK-01): make it say NO, and make it say YES -------------------------
-# Two test compiles, as GCC's and MSVC's commands are written into the database, and a product's.
+# Three test compiles, as GCC's and MSVC's commands are written into the database and as a Makefile
+# generator writes one, with no `output`; and a product's.
 string(CONCAT st_json
     "[\n{\n  \"directory\": \"/b/tests\",\n"
     "  \"command\": \"/usr/bin/c++ -DGOOD=::zengine::testing::tree_path(\\\\\\\"GOOD\\\\\\\") -DFLAG=1 "
@@ -96,6 +103,10 @@ string(CONCAT st_json
     "  \"command\": \"cl.exe /nologo -DWIN=\\\\\\\"C:/B/tests/w.dll\\\\\\\" /DOK=\\\\\\\"elsewhere\\\\\\\" "
     "/Fotests\\\\CMakeFiles\\\\t.dir\\\\b.cpp.obj /c C:\\\\S\\\\b.cpp\",\n"
     "  \"file\": \"C:/S/b.cpp\",\n  \"output\": \"tests\\\\CMakeFiles\\\\t.dir\\\\b.cpp.obj\"\n},\n"
+    "{\n  \"directory\": \"/b/tests\",\n"
+    "  \"command\": \"/usr/bin/c++ -DOLD=\\\\\\\"/s/rc/z.cpp\\\\\\\" -o CMakeFiles/t.dir/c.cpp.o "
+    "-c /s/rc/tests/c.cpp\",\n"
+    "  \"file\": \"/s/rc/tests/c.cpp\"\n},\n"
     "{\n  \"directory\": \"/b/workshop\",\n"
     "  \"command\": \"/usr/bin/c++ -DPRODUCT=\\\\\\\"/b/my dir/w\\\\\\\" -c /s/rc/workshop/w.cpp\",\n"
     "  \"file\": \"/s/rc/workshop/w.cpp\",\n  \"output\": \"workshop/CMakeFiles/w.dir/w.cpp.o\"\n}\n]")
@@ -103,15 +114,16 @@ zen_defs_verdict("${st_json}" "/s/rc" "C:/B" st_win_problems st_win_compiles st_
 zen_defs_verdict("${st_json}" "/s/rc" "/b/my dir" st_problems st_compiles st_defs)
 list(LENGTH st_problems st_n)
 list(LENGTH st_win_problems st_win_n)
-if(NOT st_n EQUAL 2 OR NOT st_win_n EQUAL 2 OR NOT st_compiles EQUAL 2 OR NOT st_defs EQUAL 6
+if(NOT st_n EQUAL 3 OR NOT st_win_n EQUAL 3 OR NOT st_compiles EQUAL 3 OR NOT st_defs EQUAL 7
    OR NOT st_problems MATCHES "BAD=/s/rc/x.cpp" OR NOT st_problems MATCHES "SPACED=/b/my dir/y"
+   OR NOT st_problems MATCHES "tests/CMakeFiles/t.dir/c.cpp.o: OLD=/s/rc/z.cpp"
    OR NOT st_win_problems MATCHES "WIN=C:/B/tests/w.dll"
    OR st_problems MATCHES "GOOD|FLAG|OK|PRODUCT" OR st_win_problems MATCHES "GOOD|FLAG|OK|PRODUCT")
     message(FATAL_ERROR
-        "test-definitions: SELF-TEST FAILED -- over two test compiles and a product's it read "
+        "test-definitions: SELF-TEST FAILED -- over three test compiles and a product's it read "
         "${st_compiles} test compiles and ${st_defs} definitions, and refused '${st_problems}' "
-        "under a build tree with a space and '${st_win_problems}' under a drive (want BAD and "
-        "SPACED, then BAD and WIN). A check that misreads a command passes every tree, or "
+        "under a build tree with a space and '${st_win_problems}' under a drive (want BAD, SPACED "
+        "and OLD, then BAD, WIN and OLD). A check that misreads a command passes every tree, or "
         "refuses every one.")
 endif()
 message(STATUS "test-definitions: self-test OK -- a checkout path and a build path refused, on "
