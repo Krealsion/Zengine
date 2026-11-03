@@ -2586,7 +2586,7 @@ TEST_CASE("a press begins a sweep only where it named a row of the body") {
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
     const CellRect body = external_body_rect(e.r.session(), e.kind);
-    e.r.press_cell(body.x, body.y); // the host's own header row
+    e.r.press_cell(body.x + kFoldArrowColumns, body.y); // the host's own header row
     CHECK(e.r.session().panes.keyboard == e.kind);
     e.motion_doc(1, 2); // held over the document's rows: a header press swept nothing
     e.release_doc(1, 2);

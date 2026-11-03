@@ -326,6 +326,8 @@ struct ExternalPane {
 // WL-PANE-13 -- agents/workshop/panes-and-windows.md
 struct OpenPane {
     std::int64_t kind = kNoPaneKind;
+    /// Its row is shut: the desk shows its title alone (WL-SETUP-13).
+    bool shut = false;
 };
 
 /// Open in a fresh session before any weave speaks; every other pane arrives when offered.
@@ -399,11 +401,23 @@ inline std::int64_t selected_pane(const Panes& panes) noexcept {
     return kind != kNoPaneKind && panes.has(kind) ? kind : kNoPaneKind;
 }
 
-/// The external pane the keyboard points at right now, or `kNoPaneKind`, resolved at each spend.
+/// WHETHER THE OPEN PANE OF THIS KIND IS SHUT, its title alone on the desk.
+// WL-CHROME-11 -- agents/workshop/chrome.md
+inline bool pane_is_shut(const Panes& panes, std::int64_t kind) noexcept {
+    for (const OpenPane& p : panes.open) {
+        if (p.kind == kind) {
+            return p.shut;
+        }
+    }
+    return false;
+}
+
+/// The external pane the keyboard points at right now, or `kNoPaneKind`, resolved at each spend:
+/// never a shut one, whose body shows nothing to type into.
 // WL-FOCUS-01, WL-FOCUS-05, WL-FOCUS-10 -- agents/workshop/focus.md
 inline std::int64_t keyboard_pane(const Panes& panes) noexcept {
     const std::int64_t kind = panes.keyboard;
-    if (!is_runtime_kind(kind) || !panes.has(kind)) {
+    if (!is_runtime_kind(kind) || !panes.has(kind) || pane_is_shut(panes, kind)) {
         return kNoPaneKind;
     }
     const RuntimePane* row = panes.runtime.of_kind(kind);

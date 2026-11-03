@@ -76,7 +76,7 @@ struct TerminalRig {
     /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard.
     void focus() {
         const CellRect body = external_body_rect(r.session(), kind);
-        r.press_cell(body.x, body.y); // the header: a row that means nothing
+        r.press_cell(body.x + kFoldArrowColumns, body.y); // the header: a row that means nothing
         REQUIRE(r.session().panes.keyboard == kind);
     }
 

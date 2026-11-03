@@ -90,7 +90,7 @@ void WorkshopWeave::install_live(const LiveLayout& live, loom::Mail& mail) {
     }
     // A SEAT STILL OWED TO THE STORE STAYS PAINTED over the desk it sent.
     if (seat_owed_) {
-        (void)add_pane(d.active, *seat_owed_);
+        seat_row(d.active, *seat_owed_);
     }
     // THE PANES FOLLOW THE DESK: whatever it seats is opened, whatever it no longer seats closes.
     // Each seated pane's settings are the owner's to hand it.

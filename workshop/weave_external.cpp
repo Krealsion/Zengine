@@ -51,6 +51,43 @@ void WorkshopWeave::press_manual(std::int64_t kind, loom::Mail& mail) {
     request_app_action(kManualAction, mail, hand(), row);
 }
 
+// WL-CHROME-11 -- agents/workshop/chrome.md
+void WorkshopWeave::press_fold(std::int64_t kind, loom::Mail& mail) {
+    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+    if (row == nullptr) {
+        return;
+    }
+    const PaneRef ref{row->provider, row->pane};
+    fold_or_dock(Act::kManageFold, ref, mail);
+}
+
+// WL-CHROME-12 -- agents/workshop/chrome.md
+void WorkshopWeave::press_strip(const StripMark& mark, loom::Mail& mail) {
+    const Setup& desk = session_.setup.active;
+    if (!mark.arrow) {
+        // A TAG: its pane opens, the edge's open one shutting, or shuts when it is the open one.
+        fold_pane(mark.ref, mark.open ? layout_op::kShut : layout_op::kOpen, mail);
+        return;
+    }
+    // THE ARROW: out of the room shuts the edge's open pane; into it opens the edge's first.
+    const SetupPane* first = nullptr;
+    for (const SetupPane& row : desk.panes) {
+        if (row.dock != mark.edge || row.fold == pane_fold::kHidden) {
+            continue;
+        }
+        if (row.fold == pane_fold::kOpen) {
+            fold_pane(row.ref, layout_op::kShut, mail);
+            return;
+        }
+        if (first == nullptr) {
+            first = &row;
+        }
+    }
+    if (first != nullptr) {
+        fold_pane(first->ref, layout_op::kOpen, mail);
+    }
+}
+
 // WL-FOCUS-04 -- agents/workshop/focus.md
 bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
                        const loom::Schema& shape) {

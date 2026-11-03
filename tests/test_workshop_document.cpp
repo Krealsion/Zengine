@@ -1670,13 +1670,13 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
     REQUIRE(first->rooms.size() == 4);
     CHECK(first->rooms[2].rows == titled_rows + kExternalHeaderRows);
     CHECK(first->rooms.back().rows == titled_rows);
-    CHECK(shown_rows(a).at(0).rfind(std::string(kTypingHere) + "Seat @", 0) == 0);
+    CHECK(shown_rows(a).at(0).rfind(std::string(kFoldOpenArrow) + " " + kTypingHere + "Seat @", 0) == 0);
     CHECK(shown_rows(b).at(0).find("@zengine.other") == std::string::npos);
 
     // FOCUS MOVED BETWEEN PANES WHILE HIDDEN: the title follows the keyboard.
     click_body(r, b);
     REQUIRE(keyboard_pane(r.session().panes) == b);
-    CHECK(shown_rows(b).at(0).rfind(std::string(kTypingHere) + "Seat @", 0) == 0);
+    CHECK(shown_rows(b).at(0).rfind(std::string(kFoldOpenArrow) + " " + kTypingHere + "Seat @", 0) == 0);
     CHECK(shown_rows(a).at(0).find("Seat @" + std::string(kHelloOffice)) ==
           std::string::npos);
 

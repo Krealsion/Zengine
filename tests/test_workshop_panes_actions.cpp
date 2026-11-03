@@ -1594,7 +1594,7 @@ TEST_CASE("an application row is joined, is requested above the modes, and reach
     const CellRect body = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, kind, screen_of(t.session()))
             .rect);
-    t.press_canvas(body.x + 1, body.y + 1);
+    t.press_canvas(body.x + 2, body.y + 1); // its title, past the arrow
     REQUIRE(keyboard_context(t.session()) == KeyContext::kPane);
     t.key(input::scan::kT, input::mod::kCtrl);
     REQUIRE(desk->asked().size() == 2);
@@ -1699,7 +1699,7 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
     const CellRect body = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, kind, screen_of(t.session()))
             .rect);
-    t.press_canvas(body.x + 1, body.y + 1);
+    t.press_canvas(body.x + 2, body.y + 1); // its title, past the arrow
     release_keys(t);
     REQUIRE(t.session().panes.selected == kind);
 
@@ -1729,7 +1729,7 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
     CHECK(t.notice().find("unselected") != std::string::npos);
 
     // ...AND THE ANSWER IS SPENT: the same number again is about a keystroke that is over.
-    t.press_canvas(body.x + 1, body.y + 1);
+    t.press_canvas(body.x + 2, body.y + 1); // its title, past the arrow
     release_keys(t);
     REQUIRE(t.session().panes.selected == kind);
     desktop_does(t, desk,
@@ -2366,9 +2366,8 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     CHECK(r.session().panes.has(kind));
 }
 
-TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row leaves the live layout whole, its "
-          "settings and this layout's locks named in the answer and on the band, and the "
-          "presenter takes no close") {
+TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row stays in the live layout, hidden, "
+          "its settings and this layout's locks kept, and the presenter takes no close") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#close-names-no-lock): the owner's close
     // answering without the locks the row took -- the answer names none. ⚔ MUTATION
     // (tests/mutants/workshop_panes_actions.md#personal-speech-closes): the owner answering
@@ -2405,23 +2404,24 @@ TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row leaves the live 
     const PaneCloseAnswered said = hand_close(r, hello);
     CHECK(said.closed);
     CHECK_MESSAGE(said.refusal.empty(), said.refusal);
-    REQUIRE(said.settings.size() == 1);
-    CHECK(said.settings[0].key == "mode");
-    CHECK(said.locks == std::vector<std::string>{"mode"});
-    // THE OWNER'S LIVE LAYOUT LOST THE ROW, its lock with it, and the picture the presenter holds is
-    // that layout.
+    CHECK(said.settings.empty());
+    CHECK(said.locks.empty());
+    // THE OWNER'S LIVE LAYOUT KEEPS THE ROW, hidden, its setting and its lock with it, and the
+    // picture the presenter holds is that layout.
+    const SetupPane* kept = pane_of(r.owner->layouts().run().active, hello);
+    REQUIRE(kept != nullptr);
+    CHECK(kept->fold == pane_fold::kHidden);
+    REQUIRE(kept->settings.size() == 1);
+    CHECK(kept->settings[0].key == "mode");
+    CHECK(r.owner->layouts().run().active.locks == std::vector<SetupLock>{SetupLock{hello, "mode"}});
     CHECK_FALSE(has_pane(r.owner->layouts().run().active, hello));
-    CHECK(r.owner->layouts().run().active.locks.empty());
     CHECK_FALSE(has_pane(r.session().setup.active, hello));
     CHECK(r.session().setup.revision > before);
     CHECK(r.session().setup.revision == r.owner->layouts().revision());
     CHECK_FALSE(r.session().panes.has(kind));
-    // WHAT WAS HIDDEN, AND WHAT WENT WITH IT, and no more (WL-NOTE-06).
-    const std::string tail = " and its settings here (mode wide) and its locks here (mode)";
-    CHECK_MESSAGE((r.last_notice().rfind("hid ", 0) == 0 && r.last_notice().size() > tail.size() &&
-                   r.last_notice().compare(r.last_notice().size() - tail.size(), tail.size(),
-                                           tail) == 0),
-                  r.last_notice());
+    // WHAT WAS HIDDEN, and no more: nothing went with it (WL-NOTE-06).
+    CHECK_MESSAGE(r.last_notice().rfind("hid ", 0) == 0, r.last_notice());
+    CHECK_MESSAGE(r.last_notice().find(" and its ") == std::string::npos, r.last_notice());
     CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<gfx::AreaRoom>()));
 }
 

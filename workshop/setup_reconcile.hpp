@@ -331,11 +331,15 @@ inline std::vector<PaneRef> unresolved_panes(const Setup& s, const Panes& panes)
 }
 
 /// EVERY PANE A WEAVER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one inventory,
-/// said out loud to whatever presents it (the desktop's Pane Manager) and spent by both doors.
+/// said out loud to whatever presents it (the desktop's Pane Manager) and spent by both doors. A
+/// hidden row nothing offers is asked for by nobody, and is not listed until it is offered again.
 // WL-PANE-12 -- agents/workshop/panes-and-windows.md
 inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panes& panes) {
     std::vector<CatalogRow> rows = combined_catalog(panes);
     for (const SetupPane& row : setup.panes) {
+        if (row.fold == pane_fold::kHidden) {
+            continue;
+        }
         bool known = false;
         for (const CatalogRow& have : rows) {
             if (have.ref == row.ref) {
@@ -431,6 +435,7 @@ inline PreferredExtent fit_extent(const RuntimePane* pane, const StackCapacity& 
 // WL-PANE-03, WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Seating {
     std::vector<std::int64_t> wanted; ///< resolved, in setup order
+    std::vector<bool> shut;           ///< ...and whether each one's row is shut
     std::size_t unresolved = 0;
 };
 
@@ -443,17 +448,24 @@ inline Seating seat_panes(const Setup& setup, const Panes& panes) {
             ++out.unresolved;
             continue;
         }
+        // A HIDDEN ROW IS KEPT AND SEATS NOTHING (WL-SETUP-13).
+        if (row.fold == pane_fold::kHidden) {
+            continue;
+        }
         out.wanted.push_back(*kind);
+        out.shut.push_back(row.fold == pane_fold::kShut);
     }
     return out;
 }
 
-/// THE AUTHORED PANE ORDER, BACK TO FRONT -- the one place `front` is read.
-// WL-FRONT-05, WL-FRONT-06 -- agents/workshop/planes.md
+/// THE AUTHORED PANE ORDER, BACK TO FRONT -- the one place `front` is read. An open docked pane
+/// stands over the room, so it is in front of every pane the room holds.
+// WL-FRONT-05, WL-FRONT-06 -- agents/workshop/planes.md; WL-GEO-14 -- agents/workshop/geometry.md
 inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Panes& panes) {
     struct Ranked {
         std::int64_t front;
         std::int64_t kind;
+        bool docked = false;
     };
     std::vector<Ranked> ranked;
     ranked.reserve(panes.open.size());
@@ -463,7 +475,7 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
         for (const SetupPane& row : setup.panes) {
             const std::optional<std::int64_t> kind = resolve_pane(row.ref, panes);
             if (kind.has_value() && *kind == p.kind) {
-                ranked.push_back(Ranked{row.front, p.kind});
+                ranked.push_back(Ranked{row.front, p.kind, row.dock != pane_dock::kNone});
                 found = true;
                 break;
             }
@@ -474,6 +486,7 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
     }
     // A selection sort over at most `kMaxSetupPanes` rows; the ranks are distinct, so no tie-break.
     std::vector<std::int64_t> out;
+    std::vector<std::int64_t> docked;
     out.reserve(ranked.size() + unranked.size());
     while (!ranked.empty()) {
         std::size_t least = 0;
@@ -482,12 +495,13 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
                 least = i;
             }
         }
-        out.push_back(ranked[least].kind);
+        (ranked[least].docked ? docked : out).push_back(ranked[least].kind);
         ranked.erase(ranked.begin() + static_cast<std::ptrdiff_t>(least));
     }
     for (const std::int64_t kind : unranked) {
         out.push_back(kind);
     }
+    out.insert(out.end(), docked.begin(), docked.end());
     return out;
 }
 
@@ -510,6 +524,16 @@ inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
         order.push_back(lifted);
         break;
     }
+    // ...AND AN OPEN DOCK STAYS OVER THE ROOM, whatever the room's selection lifted.
+    std::stable_partition(order.begin(), order.end(), [&](std::int64_t kind) {
+        for (const SetupPane& row : setup.panes) {
+            const std::optional<std::int64_t> named = resolve_pane(row.ref, panes);
+            if (named.has_value() && *named == kind) {
+                return row.dock == pane_dock::kNone;
+            }
+        }
+        return true;
+    });
     return order;
 }
 
@@ -547,7 +571,8 @@ inline Reconciled reconcile(Panes& panes, const Setup& setup) {
     // would keep its old position.
     std::vector<OpenPane> now;
     now.reserve(wanted.size());
-    for (const std::int64_t kind : wanted) {
+    for (std::size_t at = 0; at < wanted.size(); ++at) {
+        const std::int64_t kind = wanted[at];
         bool was_open = false;
         for (const OpenPane& p : before) {
             if (p.kind == kind) {
@@ -564,7 +589,7 @@ inline Reconciled reconcile(Panes& panes, const Setup& setup) {
                 panes.external.push_back(std::move(fresh));
             }
         }
-        now.push_back(OpenPane{kind});
+        now.push_back(OpenPane{kind, seating.shut[at]});
     }
     panes.open = std::move(now);
     return done;

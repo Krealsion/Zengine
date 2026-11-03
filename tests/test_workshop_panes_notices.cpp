@@ -237,7 +237,7 @@ struct NoticesRig {
     /// PRESS INTO THE PANE: its keys reach it only while it holds the keyboard.
     void focus() {
         const CellRect body = external_body_rect(r.session(), kind());
-        r.press_cell(body.x, body.y);
+        r.press_cell(body.x + kFoldArrowColumns, body.y);
         REQUIRE(r.session().panes.keyboard == kind());
     }
     /// Hand the keys back the way a weaver does -- a press on the bare workspace.

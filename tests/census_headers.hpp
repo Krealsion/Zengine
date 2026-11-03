@@ -139,7 +139,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::LayoutsOwnerState>(), // LayoutsOwnerState v1
         shape<::zengine::workshop::LiveTab>(), // LiveTab v1
         shape<::zengine::workshop::RowSettingUnused>(), // RowSettingUnused v1
-        shape<::zengine::workshop::LiveLayout>(), // LiveLayout v2
+        shape<::zengine::workshop::LiveLayout>(), // LiveLayout v3
         shape<::zengine::workshop::LayoutEdit>(), // LayoutEdit v1
         shape<::zengine::workshop::LayoutEditRequested>(), // LayoutEditRequested v1
         shape<::zengine::workshop::LayoutEditAnswered>(), // LayoutEditAnswered v2
@@ -221,11 +221,15 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::session_history::v11::WorkshopSession>(), // WorkshopSession v11
         shape<::zengine::workshop::session_history::v11::WorkshopSessionHeader>(), // WorkshopSessionHeader v11
         shape<::zengine::workshop::session_history::v11::WorkshopSetupLink>(), // WorkshopSetupLink v3
+        shape<::zengine::workshop::session_history::v12::WorkshopLayout>(), // WorkshopLayout v4
+        shape<::zengine::workshop::session_history::v12::WorkshopSession>(), // WorkshopSession v12
+        shape<::zengine::workshop::session_history::v12::WorkshopSessionHeader>(), // WorkshopSessionHeader v12
+        shape<::zengine::workshop::session_history::v12::WorkshopSetupLink>(), // WorkshopSetupLink v4
         shape<::zengine::workshop::session_persist::WorkshopChoice>(), // WorkshopChoice v1
-        shape<::zengine::workshop::session_persist::WorkshopLayout>(), // WorkshopLayout v4
-        shape<::zengine::workshop::session_persist::WorkshopSession>(), // WorkshopSession v12
-        shape<::zengine::workshop::session_persist::WorkshopSessionHeader>(), // WorkshopSessionHeader v12
-        shape<::zengine::workshop::session_persist::WorkshopSetupLink>(), // WorkshopSetupLink v4
+        shape<::zengine::workshop::session_persist::WorkshopLayout>(), // WorkshopLayout v5
+        shape<::zengine::workshop::session_persist::WorkshopSession>(), // WorkshopSession v13
+        shape<::zengine::workshop::session_persist::WorkshopSessionHeader>(), // WorkshopSessionHeader v13
+        shape<::zengine::workshop::session_persist::WorkshopSetupLink>(), // WorkshopSetupLink v5
         shape<::zengine::workshop::window_persist::WorkshopPlacement>(), // WorkshopPlacement v1
         shape<::zengine::workshop::window_persist::WorkshopViewport>(), // WorkshopViewport v2
         shape<::zengine::workshop::window_persist::WorkshopWindow>(), // WorkshopWindow v1
@@ -241,13 +245,15 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::setup_persist::v3::WorkshopSetup>(), // WorkshopSetup v3
         shape<::zengine::workshop::setup_persist::v4::WorkshopSetup>(), // WorkshopSetup v4
         shape<::zengine::workshop::setup_persist::v5::WorkshopSetup>(), // WorkshopSetup v5
-        shape<::zengine::workshop::setup_persist::WorkshopSetup>(), // WorkshopSetup v6
+        shape<::zengine::workshop::setup_persist::v6::WorkshopSetup>(), // WorkshopSetup v6
+        shape<::zengine::workshop::setup_persist::WorkshopSetup>(), // WorkshopSetup v7
         shape<::zengine::workshop::setup_persist::WorkshopSetupLock>(), // WorkshopSetupLock v1
         shape<::zengine::workshop::setup_persist::v2::WorkshopSetupPane>(), // WorkshopSetupPane v2
         shape<::zengine::workshop::setup_persist::v3::WorkshopSetupPane>(), // WorkshopSetupPane v3
         shape<::zengine::workshop::setup_persist::v4::WorkshopSetupPane>(), // WorkshopSetupPane v4
         shape<::zengine::workshop::setup_persist::v5::WorkshopSetupPane>(), // WorkshopSetupPane v5
-        shape<::zengine::workshop::setup_persist::WorkshopSetupPane>(), // WorkshopSetupPane v6
+        shape<::zengine::workshop::setup_persist::v6::WorkshopSetupPane>(), // WorkshopSetupPane v6
+        shape<::zengine::workshop::setup_persist::WorkshopSetupPane>(), // WorkshopSetupPane v7
         shape<::zengine::workshop::setup_persist::WorkshopSetupPinList>(), // WorkshopSetupPinList v1
         shape<::zengine::workshop::PaneSettingsDeclared>(), // PaneSettingsDeclared v1
         shape<::zengine::workshop::PaneDocumentRequested>(), // PaneDocumentRequested v1

@@ -10,10 +10,12 @@ namespace zengine::workshop {
 
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
 
-// WL-FOCUS-11 -- agents/workshop/focus.md
+// WL-FOCUS-11 -- agents/workshop/focus.md; WL-CHROME-11 -- agents/workshop/chrome.md
 std::int64_t external_title_rows(const Panes& panes, std::int64_t kind,
                                  bool titles_shown) noexcept {
-    return (titles_shown || keyboard_pane(panes) == kind) ? kExternalHeaderRows : 0;
+    return (titles_shown || keyboard_pane(panes) == kind || pane_is_shut(panes, kind))
+               ? kExternalHeaderRows
+               : 0;
 }
 
 // WL-CHROME-05 -- agents/workshop/chrome.md
@@ -92,7 +94,12 @@ std::string external_header_row(const RuntimePane& row, bool typing, bool marks,
            kChromeMarks;
 }
 
-// WL-CHROME-09 -- agents/workshop/chrome.md
+// WL-CHROME-11 -- agents/workshop/chrome.md
+std::string fold_prefix(const Panes& panes, std::int64_t kind) {
+    return std::string(pane_is_shut(panes, kind) ? kFoldShutArrow : kFoldOpenArrow) + " ";
+}
+
+// WL-CHROME-09, WL-CHROME-11 -- agents/workshop/chrome.md
 std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen& sc,
                             std::int64_t kind, bool titles, std::int64_t space, std::int64_t x,
                             std::int64_t y) {
@@ -103,11 +110,18 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
     }
     const ExternalBodyPlace body =
         external_body_place(where.rect, sc, external_title_rows(panes, kind, titles));
-    if (body.header_rows <= 0 || !marks_fit(pane->manual, body.columns)) {
+    if (body.header_rows <= 0) {
         return chrome_mark::kNone;
     }
     const ProseAt at = prose_at(space, x, y, body.fit);
     if (!at.understood || at.row != 0) {
+        return chrome_mark::kNone;
+    }
+    // THE ARROW at the title's start, which every title wears.
+    if (at.column == 0) {
+        return chrome_mark::kFold;
+    }
+    if (!marks_fit(pane->manual, body.columns)) {
         return chrome_mark::kNone;
     }
     // The cells `external_header_row` put them in: the `?` last, the gear two before it.
@@ -152,7 +166,8 @@ void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
     const bool marks = pane != nullptr && pane->manual;
     if (body.header_rows > 0 && (pane == nullptr || !pane->title_waits)) {
         region.rows.push_back(TextRow{
-            external_header_row(*row, typing, marks, body.columns), graphics::role::kAccent});
+            external_header_row(*row, typing, marks, body.columns, fold_prefix(panes, kind)),
+            graphics::role::kAccent});
     }
     // ...AND IN THE BODY, WHAT STANDS THERE BEHIND THE PANE'S OWN AREA: that Workshop waits for the
     // pane to draw, covered once its area's ground is drawn, or that its office draws in no window.

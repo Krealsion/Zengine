@@ -161,7 +161,7 @@ TEST_CASE("right-click on the highlight puts Extract first in the Editor's menu 
     std::vector<std::string> rows = editor_rows(s);
     REQUIRE_FALSE(rows.empty());
     CHECK(rows.front() == "Cut ctrl+x");
-    CHECK(presented_texts(s.r).back().find("hide pane") != std::string::npos);
+    CHECK(presented_texts(s.r).back().find("remove from the setup") != std::string::npos);
     CHECK(s.doc().caret_byte == 4);
     s.key(input::scan::kEscape);
     REQUIRE_FALSE(s.r.session().presented.open);
@@ -171,7 +171,7 @@ TEST_CASE("right-click on the highlight puts Extract first in the Editor's menu 
     rows = editor_rows(s);
     REQUIRE_FALSE(rows.empty());
     CHECK(rows.front() == "Extract selection to Inventory ctrl+e");
-    CHECK(presented_texts(s.r).back().find("hide pane") != std::string::npos);
+    CHECK(presented_texts(s.r).back().find("remove from the setup") != std::string::npos);
     s.key(input::scan::kReturn);
     INFO(s.notice() << " / " << s.r.last_notice());
     CHECK(s.r.last_notice().find("Carrying") != std::string::npos);

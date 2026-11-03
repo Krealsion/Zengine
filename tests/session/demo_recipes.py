@@ -543,7 +543,7 @@ class Recipes(unittest.TestCase):
         desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
         desk["fields"].update(theme={"name": "", "fingerprint": "0"}, locks=[], pins=[])
         for row in desk["fields"]["panes"]:
-            row["settings"] = []
+            row.update(settings=[], fold="open", dock="none")
         desk["fields"]["panes"][0]["settings"] = [{"key": "title", "text": "a b"},
                                                   {"key": "zoom", "number": "3"}]
         (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
@@ -609,7 +609,7 @@ class Recipes(unittest.TestCase):
         desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
         desk["fields"].update(theme={"name": "", "fingerprint": "0"}, locks=[], pins=[])
         for row in desk["fields"]["panes"]:
-            row["settings"] = []
+            row.update(settings=[], fold="open", dock="none")
         (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
         seated = described.Setup(root).desk(["my-view"])
         self.assertEqual(seated["fields"]["panes"][-1]["pane"], "my-view")

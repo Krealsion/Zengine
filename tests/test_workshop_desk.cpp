@@ -730,7 +730,8 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         // ...under no title: the title waits for the press, over the row the picture still holds.
         const RuntimePane* row = d.r.session().panes.runtime.of_kind(d.sketch_kind);
         REQUIRE(row != nullptr);
-        const std::string title = external_header(*row, true);
+        const std::string title =
+            fold_prefix(d.r.session().panes, d.sketch_kind) + external_header(*row, true);
         const auto titled = [&] {
             for (const ScreenPlane& layer : paint(d.r.session()).layers)
                 for (const ScreenRegion& region : layer.texts)
@@ -943,7 +944,8 @@ TEST_CASE("a held press on the canvas pane that has the keys keeps its room whil
     const ExternalPane titled_room = *d.r.session().panes.external_pane(d.sketch_kind);
     const RuntimePane* row = d.r.session().panes.runtime.of_kind(d.sketch_kind);
     REQUIRE(row != nullptr);
-    const std::string title = external_header(*row, true);
+    const std::string title =
+        fold_prefix(d.r.session().panes, d.sketch_kind) + external_header(*row, true);
     const auto titled = [&] {
         for (const ScreenPlane& layer : paint(d.r.session()).layers)
             for (const ScreenRegion& region : layer.texts)
@@ -2508,7 +2510,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
                         .accepted);
         });
     };
-    put(kAlphaOffice, "alpha", 4, 5, 40, 12);
+    put(kAlphaOffice, "alpha", 4, 5, 40, 20);
     put(kFrontOffice, "front", 30, 0, 40, 10);
     put(kBetaOffice, "beta", 80, 20, 30, 8);
     d.r.extent(149, 60); // a same-size extent reseats nothing: the desk re-seats every pane
@@ -2517,8 +2519,9 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     REQUIRE(body.columns >= 36);
     REQUIRE(body.rows >= 7);
     std::vector<TextRow> rows;
+    // ...its last row below where Workshop's menu on its title reaches.
     for (const char* text : {"first row", "a row that runs under the front pane", "short", "", "", "",
-                             "a row below the front pane, said all"}) {
+                             "", "", "", "", "", "", "a row below the front pane, said all"}) {
         rows.push_back(TextRow{text, gfx::role::kFill});
     }
     d.r.drive(d.alpha, [&rows](ProviderSeat& s, loom::Mail& m) {
@@ -3631,7 +3634,8 @@ TEST_CASE("Workshop draws its desk in the window that shows its areas -- the ban
     const std::string title = row_of(frame, bounds, header.region_y)
                                   .substr(static_cast<std::size_t>(
                                       (header.region_x - bounds.x) / gfx::kCellPx));
-    CHECK(title == trimmed(external_header_row(*row, false, true, header.columns)));
+    CHECK(title == trimmed(external_header_row(*row, false, true, header.columns,
+                                               fold_prefix(s.panes, d.kind))));
     REQUIRE(title.size() >= 3);
     CHECK(title.substr(title.size() - 3) == kChromeMarks);
     bool ring = false;

@@ -95,9 +95,17 @@ static_assert(kMinStackRows <= kStackRows && kStackRows <= kMaxStackRows,
 struct Screen {
     std::int64_t w = kScreenMinW;  ///< the canvas extent this screen paints
     std::int64_t h = kScreenMinH;
-    std::int64_t room_y = 0;      ///< the workspace's top: the top band's floor
+    std::int64_t room_x = 0;       ///< the workspace's left: the canvas's, or the left strip's edge
+    std::int64_t room_y = 0;      ///< the workspace's top: the top band's floor, or the top strip's
     std::int64_t room_w = 0;       ///< the widest the workspace may be on this screen...
     std::int64_t room_h = 0;       ///< ...and the tallest
+    /// THE STRIP EACH EDGE OF THE ROOM KEEPS FOR ITS DOCK, its thickness across the edge, or 0
+    /// where no pane is docked: the room is narrower by each (`with_strips`).
+    // WL-GEO-14 -- agents/workshop/geometry.md
+    std::int64_t strip_left = 0;
+    std::int64_t strip_right = 0;
+    std::int64_t strip_top = 0;
+    std::int64_t strip_bottom = 0;
     std::int64_t band_y = 0;       ///< the bottom band's top, where the keys' legend stands
     /// THE METRIC THIS SCREEN WAS RESOLVED WITH, carried rather than looked up.
     // WL-GEO-08 -- agents/workshop/geometry.md
@@ -267,9 +275,11 @@ inline constexpr ScreenRect wire_rect_of(const PixelRect& f,
 }
 
 /// AN AUTHORED PLACE ON THE CANVAS: a place is measured from the room's top-left, which stands
-/// at (0, `room_y`) -- directly under the top band, whatever height that band was fitted to.
+/// at (`room_x`, `room_y`) -- directly under the top band, whatever height that band was fitted
+/// to, and inside the strips a dock keeps.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md
 inline constexpr PixelRect canvas_of_room(PixelRect r, const Screen& sc) noexcept {
+    r.x = graphics::add_cells(r.x, sc.room_x);
     r.y = graphics::add_cells(r.y, sc.room_y);
     return r;
 }
@@ -277,6 +287,7 @@ inline constexpr PixelRect canvas_of_room(PixelRect r, const Screen& sc) noexcep
 /// ...AND A RECTANGLE ON THE CANVAS AS A PLACE IN THE ROOM, for what a hand or a readout measures.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md
 inline constexpr PixelRect room_of_canvas(PixelRect r, const Screen& sc) noexcept {
+    r.x = graphics::add_cells(r.x, -sc.room_x);
     r.y = graphics::add_cells(r.y, -sc.room_y);
     return r;
 }
@@ -314,7 +325,7 @@ inline constexpr PixelRect placement_bounds(std::int64_t where, std::size_t slot
     // The width is the minimum plus half the room's surplus over it, floored so the odd pixel
     // stays the weaver's; `x + w < room_w` at every extent.
     const std::int64_t stack_w = graphics::px_of_cells(kStackW);
-    return PixelRect{0, sc.room_y + n * graphics::px_of_cells(sc.stack_rows + kStackGap),
+    return PixelRect{sc.room_x, sc.room_y + n * graphics::px_of_cells(sc.stack_rows + kStackGap),
                      stack_w + (sc.room_w - stack_w) / 2, graphics::px_of_cells(sc.stack_rows)};
 }
 
@@ -893,11 +904,77 @@ struct Session {
     std::optional<CanvasPoint> hand_px;
 };
 
-/// This session's screen furniture. The one call; see `Screen`.
-// WL-GEO-02, WL-GEO-03, WL-GEO-04, WL-GEO-05 -- agents/workshop/geometry.md
-inline constexpr Screen screen_of(const Session& s) noexcept {
-    return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px,
-                     s.stack_rows);
+/// HOW THICK A DOCK'S STRIP IS ACROSS ITS EDGE: one column of the medium's text on a left or
+/// right edge and one line on a top or bottom one, in whole cells -- one cell where text is a cell.
+// WL-GEO-14 -- agents/workshop/geometry.md
+inline constexpr std::int64_t strip_px(const Screen& sc, bool vertical) noexcept {
+    const bool type = sc.text_advance_px > 0 && sc.text_line_px > 0;
+    const std::int64_t text = vertical ? sc.text_advance_px : sc.text_line_px;
+    if (!type || text <= graphics::kCellPx) {
+        return graphics::kCellPx;
+    }
+    return graphics::px_of_cells((text + graphics::kCellPx - 1) / graphics::kCellPx);
+}
+
+/// THE SCREEN WITH THE STRIPS `desk` KEEPS: each edge a pane is docked on, a pane the desk shows,
+/// keeps a strip its whole length, open or shut, and the room is narrower by it -- a left or
+/// right strip the room's whole height, a top or bottom one between them. Nothing else moves.
+// WL-GEO-14 -- agents/workshop/geometry.md
+inline Screen with_strips(Screen sc, const Setup& desk) noexcept {
+    bool edge[5] = {false, false, false, false, false};
+    for (const SetupPane& row : desk.panes) {
+        if (row.fold != pane_fold::kHidden && row.dock > pane_dock::kNone &&
+            row.dock <= pane_dock::kBottom) {
+            edge[row.dock] = true;
+        }
+    }
+    sc.strip_left = edge[pane_dock::kLeft] ? strip_px(sc, true) : 0;
+    sc.strip_right = edge[pane_dock::kRight] ? strip_px(sc, true) : 0;
+    sc.strip_top = edge[pane_dock::kTop] ? strip_px(sc, false) : 0;
+    sc.strip_bottom = edge[pane_dock::kBottom] ? strip_px(sc, false) : 0;
+    // A ROOM TOO SMALL FOR ITS STRIPS AND A CELL KEEPS NONE: the strips are the room's, never the
+    // bands'.
+    if (sc.strip_left + sc.strip_right + graphics::kCellPx > sc.room_w ||
+        sc.strip_top + sc.strip_bottom + graphics::kCellPx > sc.room_h) {
+        sc.strip_left = sc.strip_right = sc.strip_top = sc.strip_bottom = 0;
+        return sc;
+    }
+    sc.room_x += sc.strip_left;
+    sc.room_w -= sc.strip_left + sc.strip_right;
+    sc.room_y += sc.strip_top;
+    sc.room_h -= sc.strip_top + sc.strip_bottom;
+    return sc;
+}
+
+/// ONE EDGE'S STRIP ON THE CANVAS, or an empty rectangle where the edge keeps none.
+// WL-GEO-14 -- agents/workshop/geometry.md
+inline constexpr PixelRect strip_rect(const Screen& sc, std::int64_t edge) noexcept {
+    const std::int64_t top = sc.room_y - sc.strip_top;
+    const std::int64_t tall = sc.room_h + sc.strip_top + sc.strip_bottom;
+    switch (edge) {
+    case pane_dock::kLeft:
+        return sc.strip_left ? PixelRect{sc.room_x - sc.strip_left, top, sc.strip_left, tall}
+                             : PixelRect{};
+    case pane_dock::kRight:
+        return sc.strip_right ? PixelRect{sc.room_x + sc.room_w, top, sc.strip_right, tall}
+                              : PixelRect{};
+    case pane_dock::kTop:
+        return sc.strip_top ? PixelRect{sc.room_x, top, sc.room_w, sc.strip_top} : PixelRect{};
+    case pane_dock::kBottom:
+        return sc.strip_bottom
+                   ? PixelRect{sc.room_x, sc.room_y + sc.room_h, sc.room_w, sc.strip_bottom}
+                   : PixelRect{};
+    default: return PixelRect{};
+    }
+}
+
+/// This session's screen furniture, the strips its live desk keeps included. The one call; see
+/// `Screen`.
+// WL-GEO-02, WL-GEO-03, WL-GEO-04, WL-GEO-05, WL-GEO-14 -- agents/workshop/geometry.md
+inline Screen screen_of(const Session& s) noexcept {
+    return with_strips(screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px,
+                                 s.cell_px, s.stack_rows),
+                       s.setup.active);
 }
 
 /// THE CHAIN BELOW THE CONTEXTUAL SURFACE -- the branches a key falls to once no mode above
@@ -1481,7 +1558,56 @@ namespace chrome_mark {
 inline constexpr std::int64_t kNone = 0;
 inline constexpr std::int64_t kManual = 1;   ///< the `?`
 inline constexpr std::int64_t kSettings = 2; ///< the gear
+inline constexpr std::int64_t kFold = 3;     ///< the arrow at the title's start
 } // namespace chrome_mark
+
+/// THE ARROW AT A TITLE'S START, which shuts the pane or opens it: down while it is open, right
+/// while it is shut. A character, where every medium draws one.
+// WL-CHROME-11 -- agents/workshop/chrome.md
+inline constexpr const char* kFoldOpenArrow = "v";
+inline constexpr const char* kFoldShutArrow = ">";
+inline constexpr std::int64_t kFoldArrowColumns = 2; ///< the arrow and the space after it
+
+/// THE ARROW CENTRED ON A DOCK'S STRIP: pointing into the room while every pane docked on the edge
+/// is shut, and out of it while one is open.
+// WL-CHROME-12 -- agents/workshop/chrome.md
+inline constexpr const char* strip_arrow(std::int64_t edge, bool open) noexcept {
+    switch (edge) {
+    case pane_dock::kLeft: return open ? "<" : ">";
+    case pane_dock::kRight: return open ? ">" : "<";
+    case pane_dock::kTop: return open ? "^" : "v";
+    case pane_dock::kBottom: return open ? "v" : "^";
+    default: return "";
+    }
+}
+
+/// ONE THING A STRIP SHOWS: its arrow, or a docked pane's tag -- its name, down a left or right
+/// strip a character a row, along a top or bottom one -- with the rectangle a press on it meets.
+// WL-CHROME-12 -- agents/workshop/chrome.md
+struct StripMark {
+    std::int64_t edge = pane_dock::kNone;
+    bool arrow = false;
+    PaneRef ref;                ///< the tag's pane; none for the arrow
+    bool open = false;          ///< the tag's pane is open, or, for the arrow, the edge has one
+    std::string text;           ///< what it says, a character a row on a left or right strip
+    PixelRect rect;             ///< where it stands on the canvas
+    std::int64_t row = 0;       ///< ...its first row in the strip's text
+    std::int64_t column = 0;    ///< ...and its first column
+};
+
+/// EVERY STRIP'S MARKS ON THIS SCREEN: each edge's arrow at its centre, and the tag of each pane
+/// the desk shows docked there, in the setup's order, from the strip's start, stepping past the
+/// arrow. What a strip cannot fit it does not show.
+std::vector<StripMark> strip_marks(const Session& s, const Screen& sc);
+
+/// The mark a press at this point lands on, or none.
+// WL-CHROME-12 -- agents/workshop/chrome.md
+std::optional<StripMark> strip_mark_at(const Session& s, const Screen& sc, const PointedAt& at);
+
+/// THE FOLD'S ARROW AND ITS SPACE, as a title's prefix: `kFoldShutArrow` on a shut pane, else
+/// `kFoldOpenArrow`.
+// WL-CHROME-11 -- agents/workshop/chrome.md
+std::string fold_prefix(const Panes& panes, std::int64_t kind);
 
 /// THE HEADER ROW AS PAINTED, `prefix` before the title: the title fitted to `columns`, and the
 /// pane's `?` and gear at its right end when it wears them and the row has room.

@@ -1497,6 +1497,13 @@ private:
     /// operation is spent, whatever asked for it.
     void spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mail);
 
+    /// A FOLD OR A DOCK OF ONE PANE, asked of the layouts' owner: `manage.fold` shuts an open pane
+    /// and opens a shut one, `manage.hide` hides it, and the docks name an edge or none.
+    void fold_or_dock(Act a, const PaneRef& ref, loom::Mail& mail);
+
+    /// THE FOLD OF ONE PANE, by the layouts' word (`open`, `shut` or `hide`), and its sentence.
+    void fold_pane(const PaneRef& ref, const char* op, loom::Mail& mail);
+
     /// RESET THE WHOLE SETUP'S FRONT ORDER -- zero-target, one owner call and its
     /// sentence, spent by the keyboard's reset prompt and by the room's contextual row.
     void reset_front_order(loom::Mail& mail);
@@ -2031,6 +2038,13 @@ private:
     void note_manuals();
     /// A PANE'S `?` PRESSED: ask the desktop's manual row about that pane, as the press's act.
     void press_manual(std::int64_t kind, loom::Mail& mail);
+
+    /// A PRESS ON A TITLE'S ARROW: the pane shuts, or opens.
+    void press_fold(std::int64_t kind, loom::Mail& mail);
+
+    /// A PRESS ON A DOCK'S STRIP: a tag opens its pane or shuts it; the arrow shuts the edge's
+    /// open pane or opens its first.
+    void press_strip(const StripMark& mark, loom::Mail& mail);
     /// ...AND ITS GEAR: Workshop's own menu, open at Settings on that pane, beside the press.
     void press_settings(std::int64_t kind, const PointedAt& at);
     /// Monotonic from one: zero is never a gesture's number, and no record matches another kind's.

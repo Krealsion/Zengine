@@ -64,20 +64,27 @@ struct LiveLayout {
     std::string session_refused; ///< the session file the owner would not read, why; held all run
     std::string settings_refused; ///< ...and the settings file
     std::vector<RowSettingUnused> unused; ///< what each live row's pane said it cannot use
-    /// Version 2: no row's settings revision, which is the owner's to hand; a row's own settings
-    /// stay with the owner; what a pane cannot use is said.
-    ZEN_SHAPE(LiveLayout, 2, ZEN_FIELD(revision), ZEN_FIELD(put_live), ZEN_FIELD(id),
+    /// Version 3: no row's settings revision, which is the owner's to hand; a row's own settings
+    /// stay with the owner; what a pane cannot use is said; the desk at setup version 7.
+    ZEN_SHAPE(LiveLayout, 3, ZEN_FIELD(revision), ZEN_FIELD(put_live), ZEN_FIELD(id),
               ZEN_FIELD(position), ZEN_FIELD(desk), ZEN_FIELD(link_path), ZEN_FIELD(tabs),
               ZEN_FIELD(said), ZEN_FIELD(bad), ZEN_FIELD(restored), ZEN_FIELD(restore_tail),
               ZEN_FIELD(session_refused), ZEN_FIELD(settings_refused), ZEN_FIELD(unused));
 };
 
 /// The words a `LayoutEdit` is said in: a row of the live layout seated or taken off, its window
-/// written, its place in the front order moved; another layout put live, made, copied, removed,
-/// moved or renamed; the live layout written to its setup file or read back from it.
+/// written, its place in the front order moved, opened, shut, hidden, docked or undocked; another
+/// layout put live, made, copied, removed, moved or renamed; the live layout written to its setup
+/// file or read back from it.
 namespace layout_op {
 inline constexpr const char* kSeat = "seat";
 inline constexpr const char* kUnseat = "unseat";
+// WL-LAYOUT-14 -- agents/workshop/layouts.md
+inline constexpr const char* kOpen = "open";
+inline constexpr const char* kShut = "shut";
+inline constexpr const char* kHide = "hide";
+inline constexpr const char* kDock = "dock";
+inline constexpr const char* kUndock = "undock";
 inline constexpr const char* kWindow = "window";
 inline constexpr const char* kFront = "front";
 inline constexpr const char* kBack = "back";
@@ -97,8 +104,10 @@ inline constexpr const char* kRestore = "restore";
 
 /// ONE CHANGE A PRESENTER'S GESTURE MAKES. `op` is one word of `layout_op`; the fields it reads
 /// are its own: a row's ops read `provider` and `pane`, `window` its `place`, `width` and `height`
-/// whole, and `seat` them too where the pane was not left in this layout and `place` names a word; a layout's ops read `layout`, an id (0 the live one); `step` and `move` read
-/// `by`, a direction and a place in the weaver's order; `rename` reads `name`.
+/// whole, and `seat` them too where the desk holds no row for the pane and `place` names a word;
+/// `dock` reads `name`, the edge's word; a layout's ops read `layout`, an id (0 the live one);
+/// `step` and `move` read `by`, a direction and a place in the weaver's order; `rename` reads
+/// `name`.
 struct LayoutEdit {
     std::string op;
     std::int64_t layout = 0;

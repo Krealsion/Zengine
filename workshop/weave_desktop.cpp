@@ -801,20 +801,22 @@ void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
         return;
     }
     if (has_pane(session_.setup.active, ref)) {
-        unseat_then(ref,
-                    [this, answer, ref, finish](const LayoutEditAnswered& closed,
-                                                loom::Mail& m) mutable {
-                        answer.closed = closed.accepted;
-                        answer.refusal = closed.refusal;
-                        if (closed.accepted) {
-                            say("hid " + inventory_name(ref) +
-                                    discarded_settings(closed.discarded) +
-                                    discarded_locks(closed.unlocked),
-                                false);
-                        }
-                        finish(answer, m);
-                    },
-                    mail);
+        // A HIDE, which keeps the row whole: shown again, the pane comes back where it was.
+        LayoutEdit hide;
+        hide.op = layout_op::kHide;
+        hide.provider = ref.provider;
+        hide.pane = ref.pane;
+        ask_layout({hide},
+                   [this, answer, ref, finish](const LayoutEditAnswered& closed,
+                                               loom::Mail& m) mutable {
+                       answer.closed = closed.accepted;
+                       answer.refusal = closed.refusal;
+                       if (closed.accepted) {
+                           say("hid " + inventory_name(ref), false);
+                       }
+                       finish(answer, m);
+                   },
+                   mail, false);
         return;
     }
     launch_pane(ref,

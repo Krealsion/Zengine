@@ -117,9 +117,75 @@ struct PaneSize {
     friend bool operator==(const PaneSize&, const PaneSize&) = default;
 };
 
-/// ONE ROW OF A SETUP: which pane, the smallest thing a weaver said about its window, and the
-/// settings this layout keeps for it.
-// WL-SETUP-01, WL-SETUP-07 -- agents/workshop/setup-file.md
+/// HOW MUCH OF A PANE THE DESK SHOWS: all of it, its title alone, or none of it. A hidden pane
+/// keeps its row -- its place, its sizes, its settings and its dock -- and comes back where it was.
+// WL-SETUP-13 -- agents/workshop/setup-file.md
+namespace pane_fold {
+inline constexpr std::int64_t kOpen = 0;
+inline constexpr std::int64_t kShut = 1;
+inline constexpr std::int64_t kHidden = 2;
+} // namespace pane_fold
+
+/// WHICH EDGE OF THE ROOM A PANE IS DOCKED ON, or none: a docked pane stands against the strip
+/// its edge keeps, over the room while it is open.
+// WL-SETUP-13 -- agents/workshop/setup-file.md
+namespace pane_dock {
+inline constexpr std::int64_t kNone = 0;
+inline constexpr std::int64_t kLeft = 1;
+inline constexpr std::int64_t kRight = 2;
+inline constexpr std::int64_t kTop = 3;
+inline constexpr std::int64_t kBottom = 4;
+} // namespace pane_dock
+
+/// THE WORDS A FOLD AND A DOCK ARE WRITTEN IN, one table each, its index the number.
+// WL-SETUP-13 -- agents/workshop/setup-file.md
+inline constexpr std::array<std::string_view, 3> kFoldWords{"open", "shut", "hidden"};
+inline constexpr std::array<std::string_view, 5> kDockWords{"none", "left", "right", "top",
+                                                            "bottom"};
+
+/// The word for a fold or a dock, empty for a number no word is.
+inline constexpr std::string_view fold_word(std::int64_t fold) noexcept {
+    return fold >= 0 && static_cast<std::size_t>(fold) < kFoldWords.size()
+               ? kFoldWords[static_cast<std::size_t>(fold)]
+               : std::string_view();
+}
+
+inline constexpr std::string_view dock_word(std::int64_t dock) noexcept {
+    return dock >= 0 && static_cast<std::size_t>(dock) < kDockWords.size()
+               ? kDockWords[static_cast<std::size_t>(dock)]
+               : std::string_view();
+}
+
+/// The number a fold's or a dock's word names, or nothing.
+inline constexpr std::optional<std::int64_t> fold_named(std::string_view word) noexcept {
+    for (std::size_t i = 0; i < kFoldWords.size(); ++i) {
+        if (kFoldWords[i] == word) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return std::nullopt;
+}
+
+inline constexpr std::optional<std::int64_t> dock_named(std::string_view word) noexcept {
+    for (std::size_t i = 0; i < kDockWords.size(); ++i) {
+        if (kDockWords[i] == word) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return std::nullopt;
+}
+
+static_assert(fold_word(pane_fold::kOpen) == "open" && fold_word(pane_fold::kShut) == "shut" &&
+                  fold_word(pane_fold::kHidden) == "hidden",
+              "a fold's number indexes its word");
+static_assert(dock_word(pane_dock::kNone) == "none" && dock_word(pane_dock::kLeft) == "left" &&
+                  dock_word(pane_dock::kRight) == "right" && dock_word(pane_dock::kTop) == "top" &&
+                  dock_word(pane_dock::kBottom) == "bottom",
+              "a dock's number indexes its word");
+
+/// ONE ROW OF A SETUP: which pane, the smallest thing a weaver said about its window, the
+/// settings this layout keeps for it, and how much of it the desk shows and on which edge.
+// WL-SETUP-01, WL-SETUP-07, WL-SETUP-13 -- agents/workshop/setup-file.md
 struct SetupPane {
     PaneRef ref;
     PanePlace place;
@@ -128,6 +194,8 @@ struct SetupPane {
     std::int64_t front = 0;
     /// In key order, one each; none is every setting at the pane's default.
     std::vector<PaneSetting> settings;
+    std::int64_t fold = pane_fold::kOpen;
+    std::int64_t dock = pane_dock::kNone;
 
     friend bool operator==(const SetupPane&, const SetupPane&) = default;
 };
@@ -453,6 +521,12 @@ inline Written check_setup_pane(const SetupPane& row) {
     if (!tall.accepted) {
         return tall;
     }
+    if (fold_word(row.fold).empty()) {
+        return Written::no("`" + ref_text(row.ref) + "` has a fold no word names");
+    }
+    if (dock_word(row.dock).empty()) {
+        return Written::no("`" + ref_text(row.ref) + "` has a dock no word names");
+    }
     return check_pane_settings(row.ref, row.settings);
 }
 
@@ -630,6 +704,14 @@ inline Written check_setup(const Setup& s) {
                                    ref_text(s.panes[j].ref) + "` and `" +
                                    ref_text(s.panes[i].ref) + "`");
             }
+            const SetupPane& a = s.panes[j];
+            const SetupPane& b = s.panes[i];
+            if (a.dock != pane_dock::kNone && a.dock == b.dock && a.fold == pane_fold::kOpen &&
+                b.fold == pane_fold::kOpen) {
+                return Written::no("`" + ref_text(a.ref) + "` and `" + ref_text(b.ref) +
+                                   "` are both open on the " + std::string(dock_word(a.dock)) +
+                                   " edge -- an edge shows one open pane");
+            }
         }
     }
     if (const Written own = check_layout_own(s); !own.accepted) {
@@ -666,8 +748,17 @@ inline std::size_t pane_row(const Setup& s, const PaneRef& ref) {
     return kNoPaneRow;
 }
 
-inline bool has_pane(const Setup& s, const PaneRef& ref) {
+/// WHETHER THE DESK HOLDS A ROW FOR THIS PANE, whatever its fold: hidden, its row is kept.
+// WL-SETUP-13 -- agents/workshop/setup-file.md
+inline bool holds_pane(const Setup& s, const PaneRef& ref) {
     return pane_row(s, ref) != kNoPaneRow;
+}
+
+/// WHETHER THE DESK SHOWS THIS PANE: a row that is not hidden. Shut, it shows its title.
+// WL-SETUP-13 -- agents/workshop/setup-file.md
+inline bool has_pane(const Setup& s, const PaneRef& ref) {
+    const std::size_t at = pane_row(s, ref);
+    return at != kNoPaneRow && s.panes[at].fold != pane_fold::kHidden;
 }
 
 /// The authored row for this reference, or nothing. By handle, and nothing may
@@ -685,7 +776,7 @@ inline SetupPane* pane_of(Setup& s, const PaneRef& ref) {
 /// Add a reference to the end of the setup's order, or say it was already there.
 // WL-PANE-07 -- agents/workshop/panes-and-windows.md; WL-SETUP-07 -- agents/workshop/setup-file.md
 inline bool add_pane(Setup& s, const PaneRef& ref) {
-    if (has_pane(s, ref)) {
+    if (holds_pane(s, ref)) {
         return false;
     }
     SetupPane row;
@@ -709,6 +800,26 @@ inline bool remove_pane(Setup& s, const PaneRef& ref) {
     for (SetupPane& row : s.panes) {
         if (row.front > gone) {
             --row.front;
+        }
+    }
+    return true;
+}
+
+/// OPEN A ROW: its fold open, and, docked, every other pane open on its edge shut -- an edge shows
+/// one open pane, and the rest are its tags. False when the setup names no such row.
+// WL-SETUP-13 -- agents/workshop/setup-file.md
+inline bool open_row(Setup& s, const PaneRef& ref) {
+    SetupPane* row = pane_of(s, ref);
+    if (row == nullptr) {
+        return false;
+    }
+    row->fold = pane_fold::kOpen;
+    if (row->dock == pane_dock::kNone) {
+        return true;
+    }
+    for (SetupPane& other : s.panes) {
+        if (!(other.ref == ref) && other.dock == row->dock && other.fold == pane_fold::kOpen) {
+            other.fold = pane_fold::kShut;
         }
     }
     return true;
@@ -804,6 +915,17 @@ inline bool send_to_front(Setup& s, const PaneRef& ref) {
     }
     s.panes[at].front = static_cast<std::int64_t>(s.panes.size()) - 1;
     return true;
+}
+
+/// SEAT A PANE: a row the desk holds is opened where it is and put in front, else a row is added in
+/// front; what a seat by the desk's own hand does to its copy before the layouts' owner answers.
+// WL-SETUP-13 -- agents/workshop/setup-file.md
+inline void seat_row(Setup& s, const PaneRef& ref) {
+    if (open_row(s, ref)) {
+        (void)send_to_front(s, ref);
+    } else {
+        (void)add_pane(s, ref);
+    }
 }
 
 /// Send to back, or say it is already there -- `send_to_front`'s mirror, no-op included.

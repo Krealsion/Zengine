@@ -569,12 +569,12 @@ TEST_CASE("on a weaver's host a guest's keys and presses toward the Terminal are
     REQUIRE(t.r.session().panes.keyboard != t.kind);
 
     // ITS PRESS DOES NOT TAKE THE KEYS FOR THE TERMINAL.
-    const std::string pressed = said_for(t.r, [&] { g.press_cell(body.x, body.y); });
+    const std::string pressed = said_for(t.r, [&] { g.press_cell(body.x + kFoldArrowColumns, body.y); });
     CHECK_MESSAGE(holds_words(pressed, kTerminalRefused), pressed);
     CHECK(t.r.session().panes.keyboard != t.kind);
 
     // THE WEAVER PRESSES IN; the guest's line, typed whole, rests nowhere.
-    g.weaver_press_cell(body.x, body.y);
+    g.weaver_press_cell(body.x + kFoldArrowColumns, body.y);
     REQUIRE(t.r.session().panes.keyboard == t.kind);
     const std::string typed = said_for(t.r, [&] { g.text(switch_line("guest")); });
     CHECK_MESSAGE(holds_words(typed, kTextRefused), typed);
@@ -1167,7 +1167,7 @@ TEST_CASE("on a development host the same guest types into the Editor and saves,
         TerminalDesk t;
         guest_hand::GuestHand g(t.r, {"input"}, /*development=*/true);
         const CellRect body = external_body_rect(t.r.session(), t.kind);
-        g.press_cell(body.x, body.y);
+        g.press_cell(body.x + kFoldArrowColumns, body.y);
         REQUIRE(t.r.session().panes.keyboard == t.kind);
         g.text(switch_line("guest"));
         g.key(input::scan::kReturn);

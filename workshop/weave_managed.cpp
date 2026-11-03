@@ -219,7 +219,7 @@ void WorkshopWeave::on(const PresentationTrialRequested& asked, loom::Mail& mail
     t.kind = row->kind;
     t.name = row->name;
     t.candidate = session_.setup.active;
-    (void)add_pane(t.candidate, t.ref);
+    seat_row(t.candidate, t.ref);
     const TrialRoom room = trial_room(t.candidate, t.kind, t.name);
     if (!room.ok) {
         trial_ = Trial{};
@@ -335,7 +335,7 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     // the selection, the keys and the generation. The row is the layouts' store's to add, so it is
     // painted now over the store's desk and asked of the store when this desk next speaks.
     seat_owed_ = trial_.ref;
-    (void)add_pane(session_.setup.active, trial_.ref);
+    seat_row(session_.setup.active, trial_.ref);
     apply_setup_now();
     const std::int64_t kind = trial_.kind;
     if (!session_.panes.has(kind)) {
