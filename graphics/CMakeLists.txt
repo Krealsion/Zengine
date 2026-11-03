@@ -33,6 +33,8 @@ set(ZENGINE_GRAPHICS_GENERATED
     ${CMAKE_CURRENT_BINARY_DIR}/zengine-names/zengine-graphics-vocabulary/graphics/colors.hpp
     ${CMAKE_CURRENT_BINARY_DIR}/zengine-names/zengine-graphics-vocabulary/graphics/themes.hpp
     PARENT_SCOPE)
+set_property(GLOBAL APPEND PROPERTY ZENGINE_GENERATED_INCLUDES
+             ${CMAKE_CURRENT_BINARY_DIR}/zengine-names/zengine-graphics-vocabulary)
 set(ZENGINE_GRAPHICS_POOL ${ZENGINE_GRAPHICS_POOL} PARENT_SCOPE)
 set(ZENGINE_GRAPHICS_THEMES ${ZENGINE_GRAPHICS_THEMES} PARENT_SCOPE)
 
