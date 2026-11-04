@@ -24,10 +24,10 @@ Made, it opens a resizable OS window of `window::kDefaultWidth` by `window::kDef
 pixels (`graphics/window/window_sdl.hpp`), centred on its display's usable area, and closes it
 when it goes; reloaded, it leaves it to the instance after it. An area placed past its edge grows
 it, as far as its display holds it. With `ZENGINE_SDL_NOT_FOCUSABLE=1` it never takes the
-keyboard. Where it cannot open -- no display, no driver SDL can use -- it says why on standard
-error and its load fails. Its text is its face, the embedded JetBrains Mono (SDL's debug face
-where that will not open), measured as it takes its window: a character's advance and a line's
-height.
+keyboard and opens behind every window on Windows. Where it cannot open (no display, no usable
+driver) it says why on standard error and its load fails. Its text is its face, the embedded
+JetBrains Mono (else SDL's debug face), measured as it takes its window: a character's advance
+and a line's height.
 
 **Painting.** A node is painted once, when it changes, into pixel primitives -- rectangles, lines,
 runs of text in the face, images -- each in its paint's exact colour, else the look's for its role:

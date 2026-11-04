@@ -32,6 +32,16 @@
 #include <string_view>
 #include <vector>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 // The local constants in input/translate_sdl_core.hpp are SDL's, checked by the compiler against
 // the real headers here, where both spellings meet: the pure translator includes no SDL. SDL's
 // scancode space is the wire's, so a key is translated not at all, and a renumbered key stops
@@ -506,21 +516,44 @@ private:
         SDL_DestroyWindow(window);
     }
 
+    /// A window not yet shown put last in the desktop's order of windows, where it covers none:
+    /// SDL orders no window, so Windows is asked, and SDL's later moves and sizes keep the order.
+    /// Elsewhere the platform's window manager places it.
+    static void put_behind(SDL_Window* window) {
+#if defined(_WIN32)
+        auto* hwnd = static_cast<HWND>(SDL_GetPointerProperty(
+            SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+        if (hwnd != nullptr && !::SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0,
+                                               SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)) {
+            std::fprintf(stderr, "zengine-window-sdl: the window could not be put behind the others "
+                                 "(error %lu); it opens where Windows puts it.\n",
+                         static_cast<unsigned long>(::GetLastError()));
+        }
+#else
+        (void)window;
+#endif
+    }
+
     /// The window and its renderer. Hidden until it is centred on the display the platform opened
-    /// it on, so it is never seen anywhere else. Never focusable when ZENGINE_SDL_NOT_FOCUSABLE=1,
-    /// so a suite or a probe leaves the desktop's keyboard with whoever is using it. Where either
-    /// cannot be made, neither is kept, and what SDL said is returned, `then` said after it on
-    /// standard error; giving back SDL and the claim is the caller's.
+    /// it on, so it is never seen anywhere else. In the background when ZENGINE_SDL_NOT_FOCUSABLE=1:
+    /// never focusable, and on Windows shown behind every other window, so a suite, a probe or an
+    /// agent's run leaves the desktop's keyboard and its windows with whoever is using them. Where
+    /// either cannot be made, neither is kept, and what SDL said is returned, `then` said after it
+    /// on standard error; giving back SDL and the claim is the caller's.
     std::string open(const char* then) {
         const char* unfocused = std::getenv("ZENGINE_SDL_NOT_FOCUSABLE");
+        const bool background = unfocused != nullptr && unfocused[0] == '1';
         SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
-        if (unfocused != nullptr && unfocused[0] == '1') {
+        if (background) {
             flags |= SDL_WINDOW_NOT_FOCUSABLE;
         }
         window_ = SDL_CreateWindow("Zengine", static_cast<int>(kDefaultWidth),
                                    static_cast<int>(kDefaultHeight), flags);
         if (window_ == nullptr) {
             return complain("SDL_CreateWindow", then);
+        }
+        if (background) {
+            put_behind(window_);
         }
         centring_ = true;
         keep_whole();
