@@ -794,7 +794,10 @@ jobs:
     if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
     runs-on: windows-2025
     continue-on-error: true
-    timeout-minutes: 60
+    # NINETY MINUTES, the sanitizer job's: a run from a cold compile cache -- a pull request's, which
+    # saves none, or the nothing-added night -- reaches the package witness's end past the hour,
+    # and a job stopped at its limit saves no cache and leaves its run cancelled, not passed.
+    timeout-minutes: 90
     env:
       ZEN_MSVC_BARE: ${{ github.event_name == 'schedule' }}
     steps:

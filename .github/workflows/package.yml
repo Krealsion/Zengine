@@ -5,8 +5,9 @@ name: Package
 # A night packages the newest `main` commit whose CI push run passed and that is newer than the
 # last tag of its series, at the Loom commit that run built against, and publishes it as the next
 # `vX.Y.N`, X.Y being that commit's own `project(VERSION)` major and minor (CMakeLists.txt); a
-# commit of another series than main's tip is packaged by no night. A dispatch publishes only when
-# asked; a pull request touching it runs it on its own head, a dry run.
+# commit of another series than main's tip is packaged by no night, and a tip whose CI push run
+# finished without passing turns the run red, named. A dispatch publishes only when asked; a pull
+# request touching it runs it on its own head, a dry run.
 on:
   schedule:
     - cron: '41 3 * * *'
@@ -127,6 +128,59 @@ jobs:
             echo "version=$series.$next"
             echo "epoch=$(git log -1 --format=%ct "$commit")"
           } >> "$GITHUB_OUTPUT"
+
+  # ---- whether main's tip passed CI ------------------------------------------------------------
+  # A night packages only a commit whose CI push run passed, so main's tip whose run finished and
+  # did not pass -- failed, or cancelled, as a job stopped at its time limit leaves it -- is packaged
+  # by no night until a later commit passes. This job says so and is red, naming the commit and
+  # the run, whatever `decide` packaged beside it; a tip still in CI, or the last tag's own, it says
+  # and passes. A pull request's dry run reads main as it stands too. `TIP` and `RUNS_OF` name
+  # another commit and its runs, for a check by hand.
+  tip:
+    name: Package / main's tip
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Check out main with its tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Judge main's tip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUNS_OF: branch=main&event=push
+        run: |
+          set -euo pipefail
+          tip="${TIP:-$(git rev-parse HEAD)}"
+          say() { echo "$1"; echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+          last="$(git tag --list 'v*' --sort=-version:refname | head -n 1)"
+          if [ -n "$last" ] && [ "$(git rev-list -n 1 "$last")" = "$tip" ]; then
+            say "main's tip $tip is $last's: packaged already"
+            exit 0
+          fi
+          run="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?$RUNS_OF&head_sha=$tip&per_page=1" \
+                   --jq '.workflow_runs[0] // empty | "\(.status) \(.conclusion // "none") \(.html_url)"')"
+          if [ -z "$run" ]; then
+            say "main's tip $tip has no CI push run yet: a later night judges it"
+            exit 0
+          fi
+          read -r status conclusion url <<< "$run"
+          if [ "$status" != completed ]; then
+            say "main's tip $tip is still in CI ($status, $url): a later night judges it"
+          elif [ "$conclusion" = success ]; then
+            say "main's tip $tip passed CI ($url)"
+          else
+            say "main's tip $tip did not pass CI: its push run $url concluded $conclusion, so no night packages it until a later commit passes"
+            echo "::error::main's tip $tip did not pass CI: $url concluded $conclusion"
+            exit 1
+          fi
 
   # ---- the Linux package, built in Ubuntu 22.04 --------------------------------------------------
   build-linux:
