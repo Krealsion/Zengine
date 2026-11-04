@@ -1,0 +1,17 @@
+{
+  "format": "zengine-theme",
+  "format_version": 2,
+  "name": "block",
+  "summary": "classic's light; in a terminal, solid fill characters, a rule of '=' for every edge, and each colour in its own ink",
+  "outline": "===",
+  "colors": [
+    { "name": "ground", "cells": "own", "fill": "#" },
+    { "name": "background", "cells": "black", "fill": " " },
+    { "name": "text", "cells": "own", "fill": "#" },
+    { "name": "quiet", "cells": "bright black", "fill": ":" },
+    { "name": "accent", "cells": "cyan", "fill": "@" },
+    { "name": "alert", "cells": "red bold", "fill": "%" },
+    { "name": "guide", "cells": "bright magenta", "fill": "#" },
+    { "name": "edge", "cells": "bright black", "fill": "#" }
+  ]
+}

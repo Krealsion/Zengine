@@ -10,7 +10,7 @@ Everything here was compiled and run before it was written down.
 
 - A C++20 compiler. GCC 11 or newer on Linux/WSL is the fully-supported configuration; see
   [supported toolchains](contributing/supported-toolchains.md) for Windows.
-- CMake 3.16 or newer.
+- CMake 3.22 or newer.
 - An **installed** Loom and an **installed** Zengine. Nothing below needs either project's
   source tree or build tree once they are installed.
 
@@ -34,7 +34,7 @@ cmake --install Zengine/build --prefix "$PWD/deps"
 Your own project's `CMakeLists.txt` then says:
 
 ```cmake
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 project(kitchen LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -491,8 +491,7 @@ all. The package names the physical things, because one list holds both kinds:
 |---|---|
 | `zengine-timer` | weave — the Timer service you loaded above |
 | `zengine-input` | weave — the sole producer of key, text and pointer moments |
-| `zengine-graphics`, `zengine-window-terminal` | weave — the graphics directory, and the window over the process's own terminal that shows what each area's owner draws |
-| `zengine-paint-classic`, `zengine-paint-block`, `zengine-paint-day`, `zengine-paint-night` | **provider** — painter code a window opens by path, the skin an area is painted with |
+| `zengine-graphics`, `zengine-window-terminal` | weave — the graphics directory, and the window over the process's own terminal that shows what each area's owner draws, in the palette the area wears |
 | `zengine-operators-basic` | **provider** — typed operator definitions, mounted by a host, never loaded onto the bus |
 | `zengine-inventory` | weave — stored typed values ([inventory](../inventory/README.md)) |
 | `zengine-neovim-editor` | weave — the Editor's office held with a Neovim, found at run time ([Neovim](../editor/docs/neovim.md)) |

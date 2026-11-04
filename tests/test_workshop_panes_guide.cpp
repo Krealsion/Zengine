@@ -14,7 +14,8 @@
 #include "builder_rig.hpp"
 
 #include "builder/builder-pane/vocabulary.hpp"
-#include "graphics/light_paint.hpp"
+#include "graphics/themes.hpp"
+#include "graphics/window/palette.hpp"
 #include "graphics/window/terminal_io.hpp"
 #include "input/vocabulary.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
@@ -347,7 +348,10 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
     const std::vector<rw::Cell> inked = guide_cells(d);
     // ITS INK IS A COLOUR AND NO ATTRIBUTE, as every role's is, so the cells after it are drawn in
     // their own ink, neither reversed nor bold.
-    const std::string ink = gfx::window::sgr_for_role(static_cast<int>(gfx::role::kGuide));
+    const gfx::PaletteOffered block = gfx::themes::block();
+    const gfx::PaletteColor* guide = gfx::window::pool_color(block, gfx::colors::guide.name);
+    REQUIRE(guide != nullptr);
+    const std::string ink = gfx::window::sgr_for(guide->cells, guide->rgba);
     REQUIRE(ink.rfind("\x1b[", 0) == 0);
     const std::string params = ink.substr(2, ink.size() - 3);
     for (std::size_t at = 0; at <= params.size();) {
@@ -430,11 +434,12 @@ TEST_CASE("a mark in a window is an outline one pixel wide around its part insid
         const bool over = e.x < r.x + r.w && r.x < e.x + e.w && e.y < r.y + r.h && r.y < e.y + e.h;
         CHECK_FALSE(over);
     }
-    // THE WINDOW DRAWS THEM IN THE GUIDE ROLE'S INK, which is no other role's in its look.
-    const gfx::light::Look look = gfx::light::night_look();
-    for (const std::int64_t other : {gfx::role::kFill, gfx::role::kAccent, gfx::role::kMuted,
-                                     gfx::role::kAlert}) {
-        CHECK(look.colour.at(gfx::role::kGuide) != look.colour.at(other));
+    // THE WINDOW DRAWS THEM IN THE GUIDE'S COLOUR, which is no other pool colour's in its palette.
+    const gfx::PaletteOffered night = gfx::themes::night();
+    for (const gfx::PoolColor other : {gfx::colors::text, gfx::colors::accent, gfx::colors::quiet,
+                                       gfx::colors::alert}) {
+        CHECK(gfx::window::pool_color(night, gfx::colors::guide.name)->rgba !=
+              gfx::window::pool_color(night, other.name)->rgba);
     }
     const bool named = says(d.b.r.shown().text(), "tutor: \"build this one\"");
     CHECK(named == says(marked.said, "its label stands beside it"));

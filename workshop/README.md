@@ -11,7 +11,7 @@ and menus are tools too, and you can change or replace them while Workshop runs.
 ## Manuals
 
 - [Workshop](docs/zengine.workshop.md), `zengine.workshop`: the pane protocol, shape by shape --
-  what a pane, a presenter, a skin or an input producer sends Workshop, and what it answers
+  what a pane, a presenter or an input producer sends Workshop, and what it answers
 - [The desk](docs/zengine.desktop.md), `zengine.desktop`: the keys that act everywhere, the Pane
   Manager, the Hotkeys pane and the Manual, every command by its key
 - [The project office](docs/zengine.project.md), `zengine.project`: where the project is, what it

@@ -4,7 +4,8 @@
 job of showing what its areas' owners draw, as the terminal window does on a terminal. It answers
 to the office `zengine.window.sdl` (a window's office is `zengine.window.` and its name, `sdl`)
 and is built as `zengine-window-sdl`, a file a host loads, where the build has SDL. It keeps what
-each owner drew, paints it in pixels with the area's skin, draws the whole picture again when
+each owner drew, paints it in pixels in the colours of the palette its area wears, draws the whole
+picture again when
 anything changed, and sends the window's keys, their text and its pointer to the owners. The
 directory, [`zengine.graphics`](zengine.graphics.md), introduces its areas to it. It answers for
 its desktop too: it copies to and reads the platform's clipboard, says and takes its place on the
@@ -16,7 +17,7 @@ picture and chunk; C++ in its own process may ask the clipboard, the place and t
 
 The window keeps, in its state, its incarnation and every area it was introduced, with everything
 drawn there: its nodes in their paint order, its records, and the elements it presents with their
-state. A reload keeps all of it and draws nothing again; started again, it paints what it keeps
+state -- and every palette offered it. A reload keeps all of it and draws nothing again; started again, it paints what it keeps
 once. A window replaced starts empty, with a new incarnation: each owner draws whole once when it
 hears its room, and says each element once.
 
@@ -30,12 +31,11 @@ JetBrains Mono (else SDL's debug face), measured as it takes its window: a chara
 and a line's height.
 
 **Painting.** A node is painted once, when it changes, into pixel primitives -- rectangles, lines,
-runs of text in the face, images -- each in its paint's exact colour, else the look's for its role:
-by the area's skin when it paints light, else by the window, in the day look for the skin `day` and
-the night look for any other.
+runs of text in the face, images -- in its area's palette, each name it carries turned into a
+colour then ([colours by name](graphics.md#colours-by-name)).
 
 **Showing.** When anything changed, the window draws its whole picture again -- the back-most
-area's ground, then the areas back to front, each clipped to its bounds -- and presents it; `more`
+area's palette's `ground`, then the areas back to front, each clipped to its bounds -- and presents it; `more`
 holds it back. Uncovered or resized, it draws again.
 
 **Keys and the pointer.** It empties SDL's queue on its own beat, the Timer's
@@ -91,7 +91,9 @@ back.
   '<parent>', which is not drawn`; `a path is empty, longer than <bytes> bytes or deeper than
   <depth>`; `'<path>' has operands over <bytes> bytes`; `area '<area>' would hold more than <bound>
   nodes` (or `elements`); `record '<path>' has no node at its path`; `record '<path>' is not the
-  sender's to say`.
+  sender's to say`; `'<path>': its <operator> operands do not read as <shape> version <n>, the one
+  this window reads (version 1 named its colours by role, and is not read)`, for a rectangle, an
+  ellipse, a line, a path or text whose operands are not this vocabulary's.
 - **Example:** a drawing weave sends the nodes its picture changed in a beat with `more`, then its
   element's change without it, so the beat is shown once.
 
@@ -134,7 +136,7 @@ back.
   rows as text, the window read as a grid of cells of `kCellPx` pixels, each run of text one cell a
   character from the cell it starts in, front areas over those behind, trailing spaces left off; how
   many areas, nodes and presented elements it keeps; and since it started, its showings (pictures
-  presented) and the bytes of the primitives they drew, the calls of its skins and of its element
+  presented) and the bytes of the primitives they drew, the calls of its painter and of its element
   code, its refusals, and the last one's words.
 - **Refuses:** nothing.
 - **Example:** a suite asks it after a drawing, and finds the drawing's words in `rows`.
@@ -246,9 +248,9 @@ judged against the displays there are now.
 
 ### `AreaIntroduced`
 
-`AreaIntroduced` v8, from the directory: an area, its owner, its arranger, place, order, the key
-moments and pointer it hears, skin, `weaver_only` and `followed`. The window keeps it, repaints it
-under another skin or library, redraws it where it moved, empties it when another owner draws in
+`AreaIntroduced` v9, from the directory: an area, its owner, its arranger, place, order, the key
+moments and pointer it hears, the palette it wears, `weaver_only` and `followed`. The window keeps
+it, repaints it in another palette, redraws it where it moved, empties it when another owner draws in
 it, ends a press held for it or now covered by it, and tells the owner its room (`AreaRoom`). Past
 `kMaxAreas` it is not shown, and `WindowShown` reports `the window shows <bound> areas: '<area>'
 is not shown`.
@@ -262,6 +264,14 @@ press held for it ends, and the picture is drawn again without it.
 
 `ElementCodeOffered` v1, from the directory: the library whose code presents an element type. New
 code for a type the window presents draws each such element again, from the state it kept.
+
+### `PaletteOffered`
+
+`PaletteOffered` v1, from the directory: a palette, whole, at a revision. The window keeps the
+latest revision of each palette in its state, and paints every area wearing it again from what it
+keeps: its owners are told nothing and draw nothing. A revision no higher than the one kept changes
+nothing; past `kMaxPalettes` palettes one is not held, and `WindowShown` reports `the window holds
+<bound> palettes: '<palette>' is not held`.
 
 ### `GraphicsReady`
 
@@ -315,21 +325,19 @@ placed to hear each. To an arranger following an area not its own: `AreaPressed`
 
 ## Files
 
-- **A skin and an element's code** are libraries the window opens by the path the directory gives,
-  on first use, and closes when no area paints with a skin. A skin that will not paint is not sent
-  to anyone: it is the last refusal `WindowShown` reports, `area '<area>': <why>`, and the window
-  paints the area itself. The words: `could not open '<library>' to look for skin` (or `element
-  code`); `'<library>' exports no skin` (or `no element code`); `'<library>' offers painter seam
-  version <n>, not <m>` (or `element seam`); `'<library>' could not say what it is: <reason>`;
-  `'<library>' described itself in a shape that does not read`; `the skin refused to paint:
-  <reason>`; `the skin answered something that does not read as a PaintResult`; `the skin in
-  '<library>' painted '<path>' in light that does not read`; `its code answered something that does
-  not read as an ElementOutcome`. What a library exports is
-  [the two seams](graphics.md#the-two-seams).
+- **An element's code** is a library the window opens by the path the directory gives, on first
+  use. Code that will not answer is not sent to anyone: it is the last refusal `WindowShown`
+  reports, `area '<area>': <why>`. The words: `could not open '<library>' to look for element
+  code`; `'<library>' exports no element code`; `'<library>' offers element seam version <n>, not
+  <m>`; `'<library>' could not say what it is: <reason>`; `'<library>' described itself in a shape
+  that does not read`; `its code answered something that does not read as an ElementOutcome`. What
+  a library exports is [the element seam](graphics.md#the-element-seam). The window paints with its
+  own painter, which no library replaces; one node its painter could not read back is said as
+  `the painter painted '<path>' in light that does not read`.
 
 ## See also
 
 - [`zengine.window.terminal`](zengine.window.terminal.md), the same window on a terminal.
 - [`zengine.graphics`](zengine.graphics.md), the directory that introduces areas to it.
-- [The Graphics package](graphics.md): the node and the operators, drawing with a canvas, a drawing
-  weave, an element of your own, and the two seams.
+- [The Graphics package](graphics.md): the node and the operators, colours by name, drawing with a
+  canvas, a drawing weave, an element of your own, and the element seam.

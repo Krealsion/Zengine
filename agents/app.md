@@ -34,8 +34,8 @@ plan's executor), [view](view.md) and [flow host](flow-host.md) (the two hosts i
   ends nothing. `quit` at the console ends it too.
 - `zengine-app-weave` reads `app.json` from the folder the place door says, runs each flow then
   each view as its office, and on the directory's `GraphicsReady` and the window's `WindowOffered`
-  offers the skin by the host's artifact directory, places each view's area hearing the window's
-  keys and pointer, and chooses the skin. Once its own line has its room in the app's window, the
+  offers the palette of the shipped theme `app.json` names, chooses it for each area, and places
+  each view's area hearing the window's keys and pointer. Once its own line has its room in the app's window, the
   window holds it as an arranger, and it says `app.json`'s title and size there (`WindowShaped`),
   once each incarnation of the window. A file `app.json` names is a plain name in the app's folder.
 - An app's folder is written by `app/folder.hpp` alone (the View Builder's Export app calls it):

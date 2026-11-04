@@ -4,9 +4,10 @@
 #ifndef ZENGINE_GRAPHICS_PAINTING_HPP
 #define ZENGINE_GRAPHICS_PAINTING_HPP
 
-// What crosses the two seams a window calls in its own handler -- the painter's and the element's
-// -- as Loom canonical bytes, never as messages: a node to paint and the cells it painted; an event
-// for an element's code and what came of it. Reference: graphics/docs/graphics.md.
+// What a window hands its painter and what comes back -- a node to paint, its colours resolved, and
+// what it painted -- and what crosses the element seam a window calls in its own handler, as Loom
+// canonical bytes, never as messages: an event for an element's code and what came of it.
+// Reference: graphics/docs/graphics.md.
 
 #include "graphics/vocabulary.hpp"
 
@@ -19,30 +20,53 @@
 
 namespace zengine::graphics {
 
+/// A colour as the window resolved it for its painter: exact (0xRRGGBBAA, or negative for no paint
+/// at all), what a terminal shows where it cannot show it ("" its nearest) and the character a
+/// terminal fills a shape with in it.
+struct PaintInk {
+    std::int64_t rgba = -1;
+    std::string cells;
+    std::string fill;
+    ZEN_SHAPE(PaintInk, 1, ZEN_FIELD(rgba), ZEN_FIELD(cells), ZEN_FIELD(fill));
+
+    bool none() const { return rgba < 0; }
+    friend bool operator==(const PaintInk&, const PaintInk&) = default;
+};
+
 /// A node as a painter needs it: its place in the area's paint order (its ancestors' ranks, then
-/// its own), its operator and operands' body.
+/// its own), its operator and operands' body, and the colours its operands name as the window
+/// resolved them, in the order `colors_of` gives (graphics/ops.hpp). A painter reads its colours
+/// from `inks` alone.
 struct PaintNode {
     std::string path;
     std::vector<std::int64_t> key;
     std::string op;
     loom::Bytes args;
-    ZEN_SHAPE(PaintNode, 1, ZEN_FIELD(path), ZEN_FIELD(key), ZEN_FIELD(op), ZEN_FIELD(args));
+    std::vector<PaintInk> inks;
+    ZEN_SHAPE(PaintNode, 2, ZEN_FIELD(path), ZEN_FIELD(key), ZEN_FIELD(op), ZEN_FIELD(args),
+              ZEN_FIELD(inks));
 };
 
 /// Window -> painter: paint these nodes, each with every ancestor present, at this many pixels a
 /// cell, setting text as the window does: a character every `text_advance` pixels, a line
-/// `text_line` tall.
+/// `text_line` tall. `plain` and `quiet` are the area's text and quiet colours, for what carries
+/// no colour of its own (an image set in characters; an operator the painter does not know,
+/// painted as its name), and `outline` a terminal's corner, across and down.
 struct PaintTask {
     std::vector<PaintNode> nodes;
     std::int64_t grain = kCellPx;
     std::int64_t text_advance = kCellPx;
     std::int64_t text_line = kCellPx;
-    ZEN_SHAPE(PaintTask, 2, ZEN_FIELD(nodes), ZEN_FIELD(grain), ZEN_FIELD(text_advance),
-              ZEN_FIELD(text_line));
+    PaintInk plain;
+    PaintInk quiet;
+    std::string outline = "+-|";
+    ZEN_SHAPE(PaintTask, 3, ZEN_FIELD(nodes), ZEN_FIELD(grain), ZEN_FIELD(text_advance),
+              ZEN_FIELD(text_line), ZEN_FIELD(plain), ZEN_FIELD(quiet), ZEN_FIELD(outline));
 };
 
-/// One node as painted for a medium of characters: its cells in the area's cells, packed as runs
-/// (graphics/term_paint.hpp: `pack`). A group paints nothing of its own.
+/// One node as painted: for a medium of characters its cells in the area's cells, packed as runs
+/// (graphics/term_paint.hpp: `pack`); for light, its primitives behind their tag
+/// (graphics/light_paint.hpp: `pack_node`). A group paints nothing of its own.
 struct NodePaint {
     std::string path;
     loom::Bytes cells;

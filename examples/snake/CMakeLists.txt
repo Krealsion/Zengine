@@ -27,16 +27,15 @@ zengine_provider(snake-board board.cpp)
 target_link_libraries(snake-board PRIVATE zengine-graphics-vocabulary)
 
 # The playable host. It resolves every library beside its own binary, so every weave and every
-# piece of code it names -- the package's own, the window, the directory, the skins and the Timer
-# -- is pinned to the host's runtime directory (deployment is the host's concern: those packages
+# piece of code it names -- the package's own, the window, the directory, the board's code and the
+# Timer -- is pinned to the host's runtime directory (deployment is the host's concern: those packages
 # do not know who plays them).
 add_executable(zengine-snake play.cpp)
 target_link_libraries(zengine-snake
     PRIVATE loom::kernel loom::switchboard loom::core zengine-graphics-vocabulary
             zengine-input-vocabulary zengine-timer-vocabulary zengine-warnings zengine-sanitize)
 set(zengine_snake_runtime zengine-snake snake-world-v1 snake-world-v2 snake-score snake-board
-    zengine-graphics zengine-window-terminal zengine-paint-classic zengine-paint-block
-    zengine-timer)
+    zengine-graphics zengine-window-terminal zengine-timer)
 set_target_properties(${zengine_snake_runtime}
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

@@ -70,7 +70,7 @@ inline constexpr const char* kWorkshopOffice = "zengine.workshop";
 
 /// Workshop's own keys: whether the arrangeable panes wear their titles, how the band and the
 /// Hotkeys view spell a key, which pin list an editor edits, how the keyboard's selection is
-/// ringed, the skin graphics areas wear, the order the Terminal offers a shape's fields in, the
+/// ringed, the palette graphics areas wear, the order the Terminal offers a shape's fields in, the
 /// arrangement's measures, and where a pane first opens.
 inline constexpr const char* kPaneTitlesKey = "workshop.pane-titles";
 inline constexpr const char* kBandKeysKey = "workshop.band-keys";
@@ -176,7 +176,7 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_office_rows() {
 
 /// WORKSHOP'S SETTINGS AS THE SESSION SPENDS THEM: whether the arrangeable panes wear their
 /// titles, how the band and the Hotkeys view each spell a key, whether pins are kept per layout,
-/// whether the selection's ring is plain, the skin graphics areas wear, whether the completion
+/// whether the selection's ring is plain, the palette graphics areas wear, whether the completion
 /// offers required fields first, the arrangement's measures, and where a pane first opens.
 struct Presentation {
     bool titles_shown = kTitlesDefaultValue;

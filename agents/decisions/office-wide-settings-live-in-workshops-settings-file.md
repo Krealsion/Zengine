@@ -4,7 +4,7 @@
 supports is in [settings](../workshop/settings.md).
 
 **Context.** Some settings belong to no layout's row: how Workshop draws its own chrome, which pin
-list an editor edits, a skin's face. They need one value for the whole Workshop, a door to read and
+list an editor edits, the palette Workshop's own area wears. They need one value for the whole Workshop, a door to read and
 write them like a pane's row, and a file that keeps them across runs without becoming a second,
 silent writer.
 
@@ -28,4 +28,4 @@ refuses every edit and is never written.
 write door refuses a locked key.
 
 **Laws supported.** [WL-SETTING-10](../workshop/settings.md),
-[WL-SETTING-11](../workshop/settings.md), [WL-SETTING-13](../workshop/settings.md).
+[WL-SETTING-11](../workshop/settings.md).

@@ -156,15 +156,16 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
                                       workshop/guest_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
-# The graphics vocabulary an owner draws with, its roles, the elements, the two painters' code (for
-# characters and for light), the two seams a skin or an element's code is written against and the
-# pixel arithmetic; the windows and the directory are artifacts. Beside them, the terminal's claim
-# and size.
-set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/role.hpp graphics/ops.hpp
-    graphics/implied.hpp graphics/painting.hpp graphics/term_paint.hpp graphics/light_paint.hpp
-    graphics/canvas.hpp graphics/drawing.hpp graphics/elements.hpp graphics/element_abi.h
-    graphics/element_export.hpp graphics/painter_abi.h graphics/painter_export.hpp
-    graphics/pixels.hpp)
+# The graphics vocabulary an owner draws with, its colours by name -- the pool's generated names
+# and the shipped themes' palettes among them -- its roles, the elements, the two painters' code
+# (for characters and for light), the seam an element's code is written against and the pixel
+# arithmetic; the windows and the directory are artifacts. Beside them, the terminal's claim and
+# size.
+set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/color.hpp graphics/role.hpp
+    graphics/ops.hpp graphics/implied.hpp graphics/painting.hpp graphics/term_paint.hpp
+    graphics/light_paint.hpp graphics/canvas.hpp graphics/drawing.hpp graphics/elements.hpp
+    graphics/element_abi.h graphics/element_export.hpp graphics/pixels.hpp
+    ${ZENGINE_GRAPHICS_GENERATED})
 set(zengine_public_headers_graphics/window graphics/window/terminal_io.hpp)
 set(zengine_public_headers_graphics/elements graphics/elements/button.hpp
     graphics/elements/checkbox.hpp graphics/elements/grid.hpp graphics/elements/icon.hpp
@@ -225,11 +226,7 @@ set(zengine_installable_artifacts
     zengine-guest-vocabulary     # weave for an EXTERNAL Loom host: Workshop's guest vocabulary
                                  # declared there, so a session's Python tools can speak it
     zengine-graphics             # weave: the graphics directory
-    zengine-window-terminal      # weave: the window over the process's own terminal
-    zengine-paint-classic        # provider, not a weave: painter code a window opens by path
-    zengine-paint-block          # provider, not a weave: the same, in block glyphs
-    zengine-paint-day            # provider, not a weave: painter code for light, a light ground
-    zengine-paint-night)         # provider, not a weave: the same, a dark ground
+    zengine-window-terminal)     # weave: the window over the process's own terminal
 
 set(ZENGINE_INSTALLED_ARTIFACTS "")
 foreach(artifact IN LISTS zengine_installable_artifacts)
@@ -456,13 +453,20 @@ write_basic_package_version_file(
     COMPATIBILITY SameMajorVersion)
 
 # Beside them, the function a program built against the package calls to run in the UTF-8 code
-# page on Windows, as every program this repository builds does, and the manifest it gives.
+# page on Windows, as every program this repository builds does, and the manifest it gives; and
+# the generator of colours by name, which a pane's slots are generated with.
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfigVersion.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineCodePage.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/utf8-code-page.manifest
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineNames.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zengine)
+
+# The pool and the shipped themes, as the JSON the names and palettes above were generated from.
+install(FILES ${ZENGINE_GRAPHICS_POOL} DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/graphics)
+install(FILES ${ZENGINE_GRAPHICS_THEMES}
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/graphics/themes)
 
 # ---- what is deliberately not in the package -----------------------------------------------
 # Workshop's own vocabularies and load plan, the Builder's, and the pane weaves' header halves:

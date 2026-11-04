@@ -2724,7 +2724,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
             CHECK(mark->x == column * gfx::kCellPx);
             CHECK(mark->y == row * gfx::kCellPx);
             CHECK(mark->text.size() == 1);
-            CHECK(mark->ink.role == gfx::role::kAccent);
+            CHECK(zengine::graphics::role_of(mark->ink) == gfx::role::kAccent);
         } else {
             CHECK(caret->op == gfx::op::kLine);
             const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
@@ -2733,7 +2733,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
             CHECK(bar->x2 == column * gfx::kCellPx);
             CHECK(bar->y1 == row * gfx::kCellPx);
             CHECK(bar->y2 == row * gfx::kCellPx + gfx::kCellPx - 1);
-            CHECK(bar->ink.role == gfx::role::kAccent);
+            CHECK(zengine::graphics::role_of(bar->ink) == gfx::role::kAccent);
         }
         CHECK(asks("caret") == "property:Width");
     };
@@ -2761,7 +2761,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
         CHECK(words->text == "7");
         CHECK(words->x == 11 * gfx::kCellPx);
         CHECK(words->y == row * gfx::kCellPx);
-        CHECK(words->ink.role == gfx::role::kAccent);
+        CHECK(zengine::graphics::role_of(words->ink) == gfx::role::kAccent);
         CHECK(asks(sel) == "property:Width");
         CHECK(marks() == 2);
     };

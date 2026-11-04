@@ -546,8 +546,8 @@ class WorkshopWeave
                                         zengine::workshop::MenuWithdrawn,
                                         zengine::workshop::WithdrawalFence,
                                         zengine::graphics::AreaPlaced,
-                                        zengine::graphics::SkinOffered,
-                                        zengine::graphics::SkinChosen,
+                                        zengine::graphics::PaletteOffered,
+                                        zengine::graphics::PaletteChosen,
                                         zengine::graphics::RoomAsked,
                                         zengine::graphics::Drawn,
                                         zengine::workshop::PaneKeys>,
@@ -1176,7 +1176,7 @@ public:
 
     // ---- The desk in a graphics window: Workshop the arranger, and its own area's drawer ----
 
-    /// A GRAPHICS DIRECTORY STARTED AFRESH: the skins offered, every area placed and its skin
+    /// A GRAPHICS DIRECTORY STARTED AFRESH: the palettes offered, every area placed and its palette
     /// chosen again, and Workshop's own room asked.
     void on(const graphics::GraphicsReady&, loom::Mail& mail);
     /// THE TERMINAL WINDOW OFFERED ITSELF, as its own office: Workshop comes up in it while no
@@ -1754,8 +1754,8 @@ private:
     /// The pane whose manual was last asked, which the Manual opens over (WL-DESK-20).
     std::int64_t manual_over_ = kNoPaneKind;
     std::set<std::int64_t> placed_kinds_;
-    /// The skin each area was last given under this directory.
-    std::map<std::string, std::string> skins_chosen_;
+    /// The palette each area was last given under this directory.
+    std::map<std::string, std::string> palettes_chosen_;
     /// The directory placed with -- its holder and incarnation -- and whether one is known.
     bool graphics_known_ = false;
     std::uint64_t graphics_holder_ = 0;

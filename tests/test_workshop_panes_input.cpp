@@ -398,10 +398,10 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
     const std::vector<std::string> allowed{"AreaPlaced",           "AreaShowAsked",
                                            "Drawn",                "LayoutEditRequested",
                                            "OfficeSettingsDeclared",
+                                           "PaletteChosen",        "PaletteOffered",
                                            "PaneCatalogRequested", "PaneInventory",
                                            "PaneKeys",             "PaneLaunchAnswered",
-                                           "RoomAsked",            "SkinChosen",
-                                           "SkinOffered",          "StandingConditions",
+                                           "RoomAsked",            "StandingConditions",
                                            "TranscriptShown"};
     std::string heard;
     for (const std::string& one : distinct) {

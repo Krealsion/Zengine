@@ -7,35 +7,38 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | path | what it is |
 |---|---|
-| `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the pointer in an area (`AreaButtonChanged` ... `AreaPointerLeft`), the directory's, `WindowShown`; `kGraphicsRole` |
-| `role.hpp` | the theme's roles, `role::kFill` ... `role::kEdge`, and `role::kNone` |
+| `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the pointer in an area (`AreaButtonChanged` ... `AreaPointerLeft`), the directory's and the palettes (`PaletteOffered`, `PaletteChosen`), `WindowShown`; `kGraphicsRole` |
+| `color.hpp` | a colour a draw carries, `Color`: an exact value (`rgb`, `rgba`), a pool name (`PoolColor`) or a slot (`SlotColor`) |
+| `pool.json`, `themes/*.json` | the pool's colours and their defaults, and the four shipped themes, generated at configure time into `graphics/colors.hpp` (`colors::accent` ...) and `graphics/themes.hpp` (`themes::classic()` ...) by `cmake/ZengineNames.cmake` |
+| `role.hpp` | the roles a drawer may still name, `role::kFill` ... `role::kEdge`, and `role::kNone`, each read as a pool colour (`ops.hpp`: `by_role`, `exact`) |
 | `pixels.hpp` | saturating pixel arithmetic: `add_cells`, `sub_px`, `mul_px`, `floor_div_px`, `px_of_cells`, `cell_of_pixel`, `device_of_px`, `px_span_contains` and the grains |
-| `ops.hpp`, `implied.hpp` | the seven operators' operands, a `Paint`; a body without its envelope |
+| `ops.hpp`, `implied.hpp` | the seven operators' operands and the colours each carries (`colors_of`), refused in words when they do not read (`operands_refused`); a body without its envelope |
 | `canvas.hpp` | `Sketch`, `Canvas`, `difference`: an owner's drawing, sent as what changed |
 | `elements.hpp`, `elements/*.hpp` | the parts an owner draws into a `Sketch`: `Button`, `Checkbox`, `List`, `Grid`, `Icon`, `Image`, `ScrollView`, `TextBox`; each its nodes and its `*Face` record, the action the owner names riding the record; and the text pieces' stateless faces over `component/`'s values (`text_face.hpp`) |
 | `drawing.hpp` | `DrawingWeave`: a drawer's authoring base, the room's handshake and the showing |
-| `painting.hpp` | `PaintTask`/`PaintResult`, `ElementEvent`/`ElementOutcome`/`ElementDescribed` |
-| `painter_abi.h`, `painter_export.hpp`, `term_paint.hpp`, `light_paint.hpp` | the skin seam (`zengine_painter`), `ZENGINE_EXPORT_PAINTER` and `ZENGINE_EXPORT_LIGHT_PAINTER`, the character painter and the painter for light |
+| `painting.hpp` | `PaintTask`/`PaintResult`, a node handed its colours resolved (`PaintInk`), `ElementEvent`/`ElementOutcome`/`ElementDescribed` |
+| `term_paint.hpp`, `light_paint.hpp` | the window's own painters: for characters, and for light |
 | `element_abi.h`, `element_export.hpp` | the element seam (`zengine_element`), `ZENGINE_EXPORT_ELEMENT` |
-| `window/store.hpp`, `window/seams.hpp`, `window/window.hpp` | the window's areas and judge; the libraries it opens; `Window<Medium>`, the window over its medium |
-| `window/compose.hpp`, `window/terminal_io.hpp`, `window/window_terminal.hpp` | the terminal's painted cells, composition and landing; the terminal's claim, size, ink and copy sequence; `TerminalMedium`, `WindowT<Terminal>` |
+| `window/store.hpp`, `window/seams.hpp`, `window/palette.hpp`, `window/window.hpp` | the window's areas and judge; the element code it opens; the palettes it holds and a name turned into a colour (`resolve`); `Window<Medium>`, the window over its medium |
+| `window/compose.hpp`, `window/terminal_io.hpp`, `window/window_terminal.hpp` | the terminal's painted cells, composition and landing; the terminal's claim, size, ink (`sgr_for`: a colour's word, else its nearest) and copy sequence; `TerminalMedium`, `WindowT<Terminal>` |
 | `window/window_sdl.hpp` | the medium of light over a pixel backend: `LightMedium`, `SdlWindowT<Backend>`; the desktop's arithmetic, and the BMP a picture is read back as |
 | `window/window_sdl_backend.hpp` | the OS window's backend through SDL3, `ProcessSdlBackend` |
 | `window/window.cpp`, `window/window_sdl.cpp` | loadable weaves `zengine-window-terminal` and, where the build has SDL, `zengine-window-sdl` |
 | `directory.cpp` | loadable weave `zengine-graphics` |
-| `paint_classic.cpp`, `paint_block.cpp`, `paint_day.cpp`, `paint_night.cpp` | painter libraries `zengine-paint-classic`, `zengine-paint-block` (characters), `zengine-paint-day`, `zengine-paint-night` (light) |
-| `CMakeLists.txt` | `zengine-graphics-vocabulary` (header-only, `zengine::graphics`), the weaves, the skins |
+| `CMakeLists.txt` | `zengine-graphics-vocabulary` (header-only, `zengine::graphics`) with its generated names and palettes, the weaves |
 
 ## Law
 
-- [graphics](../agents/graphics.md) — the window, its seams and the directory
+- [graphics](../agents/graphics.md) — the window, its colours, its seam and the directory
 
 ## Suites
 
-- `graphics` — the vocabulary, the canvas, both painters and every operator, the light painter's
-  packing and landing, and a tripwire that no source here includes Surface; the window, the
-  directory, the skins and the snake's board through the real kernel: said once, one change a
-  tick shown once, a skin chosen, each participant replaced or reloaded, the room naming what the
+- `graphics` — the vocabulary, the canvas, colours by name, both painters and every operator, the
+  light painter's packing and landing, and a tripwire that no source here includes Surface; the
+  window, the directory, the palettes and the snake's board through the real kernel: said once, one
+  change a tick shown once, a palette chosen or offered anew painting again with nothing drawn on
+  the bus, a slot, the window's own palette, a terminal's nearest ink, operands of the first
+  versions refused, each participant replaced or reloaded, the room naming what the
   window holds, a drawing weave shown once a beat, keys and their releases, every pointer moment
   given to the area hearing the pointer it lands in, a press held for its area until its release
   or a hold's end, the arranger told where presses land, an area deaf to the pointer letting it
@@ -55,26 +58,28 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   compile (`tests/compile_negative/drawing_walls.cpp`, case 1)
 - `graphics_own_after_delivery_refused` — a drawing weave whose drawer replaces the
   end-of-delivery hook does not compile (case 2)
-- `graphics_drawer_compiles` — the two walls' positive control, a drawer that builds (case 3)
+- `graphics_undeclared_color_refused` — a pool colour nobody declared does not compile (case 4)
+- `graphics_drawer_compiles` — the walls' positive control, a drawer naming a declared colour that
+  builds (case 3)
 
-The snake suite (`snake`, `tests/test_snake.cpp`) chooses a skin mid-game and reads the window's
+The snake suite (`snake`, `tests/test_snake.cpp`) chooses a palette mid-game and reads the window's
 rows; it shares the rig.
 
 ## Host side
 
-- Staging and loading: `examples/snake/CMakeLists.txt` builds the window, the directory, the skins
-  and the board's code beside the snake's host; `examples/snake/play.cpp` loads the directory and
-  the window, and its operator weave is the arranger. `workshop/CMakeLists.txt` stages the window,
-  the directory and the skins beside `zengine-workshop` (and the OS window where the build has
-  SDL), whose weave arranges when they are loaded, and `cmake/ZengineInstall.cmake` installs them
-  as artifacts, all but the OS window, whose SDL the install does not own.
-- Grants: the snake host grants its operator `AreaPlaced`, `SkinOffered`, `SkinChosen`,
+- Staging and loading: `examples/snake/CMakeLists.txt` builds the window, the directory and the
+  board's code beside the snake's host; `examples/snake/play.cpp` loads the directory and the
+  window, and its operator weave is the arranger, offering two of the shipped palettes.
+  `workshop/CMakeLists.txt` stages the window and the directory beside `zengine-workshop` (and the
+  OS window where the build has SDL), whose weave arranges when they are loaded and offers the four
+  shipped palettes, and `cmake/ZengineInstall.cmake` installs them as artifacts, all but the OS
+  window, whose SDL the install does not own, with the generator and the pool's and themes' JSON.
+- Grants: the snake host grants its operator `AreaPlaced`, `PaletteOffered`, `PaletteChosen`,
   `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's office.
 - Beyond the snake: the terminal window reads its terminal with `input/terminal_reader.hpp` and
   claims its output with `window/terminal_io.hpp`; the OS window reads SDL's queue with
   `input/translate_sdl_core.hpp` over the SDL `cmake/ZengineSdl.cmake` acquires; each claims its
-  input edge with `input/window_claim.hpp`; both open libraries with
-  `operator/image.hpp`. `cmake/ZengineInstall.cmake` installs the headers `zengine::graphics`
+  input edge with `input/window_claim.hpp`; both open element code with `operator/image.hpp`. `cmake/ZengineInstall.cmake` installs the headers `zengine::graphics`
   carries.
 
 ## Pages

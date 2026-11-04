@@ -274,7 +274,7 @@ inline void keep_in_room(Drawing& d, const ws::CanvasRoom& room) {
     for (auto& m : d.marks) {
         const Box clip = m.clip ? m.clip->cut(whole) : whole;
         if (m.op == Mark::Op::Text) {
-            ws::CanvasText run{m.x, m.y, m.words, m.fill.role, m.caret_col, m.sel_begin_col,
+            ws::CanvasText run{m.x, m.y, m.words, gfx::role_of(m.fill), m.caret_col, m.sel_begin_col,
                                m.sel_end_col};
             const auto original = m.words.size();
             // A clip keeps a run's glyphs, whose padding may stand the inset left of it.

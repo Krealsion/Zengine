@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 
 # A RETIRED SWITCH IS REFUSED BY NAME, before a compiler or anything else is sought, so its fix is
 # the first thing a configure says: SDL is built unless ZENGINE_TUI_ONLY says not
@@ -222,6 +222,12 @@ endfunction()
 # zengine_wasm_weave(), refusing where the Loom package builds no module: the function the installed
 # package carries where it does (cmake/ZengineInstall.cmake), reading this source tree's headers.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineWasm.cmake)
+
+# ---- colours by name -----------------------------------------------------------------
+# zengine_names() and zengine_palettes(): a C++ name for each colour a pool or a pane's slots
+# declare, and a palette for each theme, generated from JSON at configure time; installed with the
+# package, so a stranger's pane generates its slots as these do.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineNames.cmake)
 
 # ---- a weave's manual, carried compiled in ---------------------------------------------
 # zengine_manual() and the one page grammar the documentation lane's manual check reads with.

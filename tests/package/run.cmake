@@ -147,7 +147,7 @@ endif()
 set(stranger_src "${work}/kitchen")
 file(REMOVE_RECURSE "${stranger_src}")
 file(MAKE_DIRECTORY "${stranger_src}")
-file(GLOB fixture "${here}/CMakeLists.txt" "${here}/*.cpp" "${here}/*.hpp")
+file(GLOB fixture "${here}/CMakeLists.txt" "${here}/*.cpp" "${here}/*.hpp" "${here}/*.json")
 file(COPY ${fixture} DESTINATION "${stranger_src}")
 
 # A build of the copy, against the prefix and the Loom and nothing else. ZEN_CMAKE_ARGS

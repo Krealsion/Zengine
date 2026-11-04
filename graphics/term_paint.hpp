@@ -5,8 +5,9 @@
 #define ZENGINE_GRAPHICS_TERM_PAINT_HPP
 
 // Painting nodes for a medium of characters: every operator, natively or by its fallback, into the
-// area's cells (`kCellPx` pixels a cell, each edge floored to its cell). A skin for a terminal is
-// this painter and a Look, its glyphs (graphics/painter_export.hpp); it keeps nothing between calls.
+// area's cells (`kCellPx` pixels a cell, each edge floored to its cell), each cell in one of the
+// colours the window resolved for its node (`PaintNode::inks`) and a shape filled with that
+// colour's character. It knows no colour and keeps nothing between calls.
 // Reference: graphics/docs/graphics.md, "The operators".
 
 #include "graphics/implied.hpp"
@@ -25,14 +26,24 @@
 
 namespace zengine::graphics::term {
 
+/// Which of its node's colours a painted cell wears: its operands' (`PaintNode::inks`, from 0), or
+/// the task's own.
+namespace ink {
+inline constexpr std::int64_t kPlain = -2; ///< `PaintTask::plain`
+inline constexpr std::int64_t kQuiet = -3; ///< `PaintTask::quiet`
+} // namespace ink
+
+/// One cell: where, its character, and its colour -- as painted, which of its node's colours
+/// (`ink::`); as a terminal window keeps it, the colour that window numbered.
 struct Cell {
     std::int64_t col = 0, row = 0;
     char glyph = ' ';
-    std::int64_t role = role::kFill;
+    std::int64_t ink = ink::kPlain;
 };
 
-/// Cells packed as runs: each run a row's neighbouring cells of one role -- its column and row as
-/// two bytes each, low byte first, the role, the count (1 to 255), then that many glyphs.
+/// Cells packed as runs: each run a row's neighbouring cells of one colour -- its column and row as
+/// two bytes each, low byte first, the colour (a signed byte), the count (1 to 255), then that many
+/// glyphs.
 inline loom::Bytes pack(const std::vector<Cell>& cells) {
     loom::Bytes out;
     std::size_t i = 0;
@@ -40,7 +51,7 @@ inline loom::Bytes pack(const std::vector<Cell>& cells) {
         std::size_t n = 1;
         while (i + n < cells.size() && n < 255 && cells[i + n].row == cells[i].row &&
                cells[i + n].col == cells[i].col + static_cast<std::int64_t>(n) &&
-               cells[i + n].role == cells[i].role) {
+               cells[i + n].ink == cells[i].ink) {
             ++n;
         }
         const Cell& c = cells[i];
@@ -48,7 +59,7 @@ inline loom::Bytes pack(const std::vector<Cell>& cells) {
         out.push_back(static_cast<std::uint8_t>((c.col >> 8) & 0xff));
         out.push_back(static_cast<std::uint8_t>(c.row & 0xff));
         out.push_back(static_cast<std::uint8_t>((c.row >> 8) & 0xff));
-        out.push_back(static_cast<std::uint8_t>(c.role & 0xff));
+        out.push_back(static_cast<std::uint8_t>(c.ink & 0xff));
         out.push_back(static_cast<std::uint8_t>(n));
         for (std::size_t k = 0; k < n; ++k) {
             out.push_back(static_cast<std::uint8_t>(cells[i + k].glyph));
@@ -64,24 +75,16 @@ inline std::vector<Cell> unpack(const loom::Bytes& bytes) {
     while (i + 6 <= bytes.size()) {
         const std::int64_t col = static_cast<std::int64_t>(bytes[i] | (bytes[i + 1] << 8));
         const std::int64_t row = static_cast<std::int64_t>(bytes[i + 2] | (bytes[i + 3] << 8));
-        const std::int64_t role = static_cast<std::int64_t>(static_cast<std::int8_t>(bytes[i + 4]));
+        const std::int64_t ink = static_cast<std::int64_t>(static_cast<std::int8_t>(bytes[i + 4]));
         const std::size_t n = bytes[i + 5];
         i += 6;
         for (std::size_t k = 0; k < n && i < bytes.size(); ++k, ++i) {
             out.push_back(Cell{col + static_cast<std::int64_t>(k), row,
-                               static_cast<char>(bytes[i]), role});
+                               static_cast<char>(bytes[i]), ink});
         }
     }
     return out;
 }
-
-/// A look: a glyph for each role's fill, the glyphs an outline wears, and whether it shows roles
-/// in colour or every cell in the terminal's own ink.
-struct Look {
-    std::map<std::int64_t, char> fill;
-    char corner = '+', across = '-', down = '|';
-    bool mono = false;
-};
 
 /// A path flattened: each subpath a polygon of points.
 using Polygon = std::vector<std::pair<double, double>>;
@@ -202,17 +205,26 @@ struct Space {
 
 class Painter {
 public:
-    explicit Painter(const Look& look) : look_(look) {}
+    /// A painter for `task`: its outline characters and its own two colours.
+    explicit Painter(const PaintTask& task) : task_(task) {
+        if (task_.outline.size() == 3) {
+            corner_ = task_.outline[0];
+            across_ = task_.outline[1];
+            down_ = task_.outline[2];
+        }
+    }
 
-    /// One node's cells, drawn in `space`. Operands that do not read as their operator's paint
-    /// nothing; an operator this medium does not know paints its name, muted.
-    void paint(const std::string& op, const loom::Bytes& args, const Space& space,
-               std::vector<Cell>& cells) const {
+    /// One node's cells, drawn in `space`, in its colours. Operands that do not read as their
+    /// operator's paint nothing; an operator this medium does not know paints its name, quiet.
+    void paint(const PaintNode& node, const Space& space, std::vector<Cell>& cells) const {
+        const std::string& op = node.op;
+        const loom::Bytes& args = node.args;
         space_ = space;
         out_ = &cells;
+        inks_ = &node.inks;
         if (op == op::kRect) {
             if (auto a = from_body<RectArgs>(args)) {
-                rect(a->x, a->y, a->w, a->h, a->fill, a->stroke);
+                rect(a->x, a->y, a->w, a->h);
             }
         } else if (op == op::kEllipse) {
             if (auto a = from_body<EllipseArgs>(args)) {
@@ -220,7 +232,7 @@ public:
             }
         } else if (op == op::kLine) {
             if (auto a = from_body<LineArgs>(args)) {
-                line(a->x1, a->y1, a->x2, a->y2, a->ink);
+                line(a->x1, a->y1, a->x2, a->y2, 0);
             }
         } else if (op == op::kPath) {
             if (auto a = from_body<PathArgs>(args)) {
@@ -228,24 +240,41 @@ public:
             }
         } else if (op == op::kText) {
             if (auto a = from_body<TextArgs>(args)) {
-                text(a->x, a->y, a->text, a->ink);
+                text(a->x, a->y, a->text, 0);
             }
         } else if (op == op::kImage) {
             if (auto a = from_body<ImageArgs>(args)) {
                 image(*a);
             }
         } else if (op != op::kGroup) {
-            text(0, 0, "?" + op, by_role(role::kMuted));
+            text(0, 0, "?" + op, ink::kQuiet);
         }
     }
 
 private:
-    char glyph_of(const Paint& p) const {
-        const auto it = look_.fill.find(p.role);
-        return it != look_.fill.end() ? it->second : '#';
+    /// The colour `i` names: an operand's, or the task's own.
+    const PaintInk& ink_of(std::int64_t i) const {
+        static const PaintInk kNoPaint{};
+        if (i == ink::kPlain) {
+            return task_.plain;
+        }
+        if (i == ink::kQuiet) {
+            return task_.quiet;
+        }
+        if (i < 0 || static_cast<std::size_t>(i) >= inks_->size()) {
+            return kNoPaint;
+        }
+        return (*inks_)[static_cast<std::size_t>(i)];
+    }
+    bool none(std::int64_t i) const { return ink_of(i).none(); }
+
+    /// The character a shape is filled with in colour `i`.
+    char glyph_of(std::int64_t i) const {
+        const std::string& f = ink_of(i).fill;
+        return f.empty() ? '#' : f.front();
     }
 
-    void put(std::int64_t col, std::int64_t row, char glyph, std::int64_t r) const {
+    void put(std::int64_t col, std::int64_t row, char glyph, std::int64_t i) const {
         if (space_.clipped && (col < floor_cell(space_.cx0) || col >= floor_cell(space_.cx1) ||
                                row < floor_cell(space_.cy0) || row >= floor_cell(space_.cy1))) {
             return;
@@ -253,11 +282,11 @@ private:
         if (col < 0 || row < 0) {
             return;
         }
-        out_->push_back(Cell{col, row, glyph, look_.mono || r < 0 ? role::kFill : r});
+        out_->push_back(Cell{col, row, glyph, i});
     }
 
-    void rect(std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h, const Paint& fill,
-              const Paint& stroke) const {
+    /// A rectangle in colours 0 (its fill) and 1 (its stroke).
+    void rect(std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) const {
         x += space_.dx;
         y += space_.dy;
         const std::int64_t c0 = floor_cell(x), c1 = floor_cell(x + w);
@@ -265,18 +294,18 @@ private:
         for (std::int64_t r = r0; r < r1; ++r) {
             for (std::int64_t c = c0; c < c1; ++c) {
                 const bool edge = r == r0 || r == r1 - 1 || c == c0 || c == c1 - 1;
-                if (edge && !stroke.none()) {
+                if (edge && !none(1)) {
                     const bool across = r == r0 || r == r1 - 1;
                     const bool down = c == c0 || c == c1 - 1;
-                    put(c, r, across && down ? look_.corner : across ? look_.across : look_.down,
-                        stroke.role);
-                } else if (!fill.none()) {
-                    put(c, r, glyph_of(fill), fill.role);
+                    put(c, r, across && down ? corner_ : across ? across_ : down_, 1);
+                } else if (!none(0)) {
+                    put(c, r, glyph_of(0), 0);
                 }
             }
         }
     }
 
+    /// An ellipse in colours 0 (its fill) and 1 (its rim).
     void ellipse(const EllipseArgs& a) const {
         const double x = static_cast<double>(a.x + space_.dx);
         const double y = static_cast<double>(a.y + space_.dy);
@@ -300,18 +329,19 @@ private:
                 }
                 const bool rim = !inside(c - 1, r) || !inside(c + 1, r) || !inside(c, r - 1) ||
                                  !inside(c, r + 1);
-                if (rim && !a.stroke.none()) {
-                    put(c, r, 'o', a.stroke.role);
-                } else if (!a.fill.none()) {
-                    put(c, r, glyph_of(a.fill), a.fill.role);
+                if (rim && !none(1)) {
+                    put(c, r, 'o', 1);
+                } else if (!none(0)) {
+                    put(c, r, glyph_of(0), 0);
                 }
             }
         }
     }
 
+    /// A line in colour `i`.
     void line(std::int64_t x1, std::int64_t y1, std::int64_t x2, std::int64_t y2,
-              const Paint& ink) const {
-        if (ink.none()) {
+              std::int64_t i) const {
+        if (none(i)) {
             return;
         }
         std::int64_t c0 = floor_cell(x1 + space_.dx), r0 = floor_cell(y1 + space_.dy);
@@ -327,7 +357,7 @@ private:
         }
         std::int64_t err = dx + dy;
         for (int guard = 0; guard < 100000; ++guard) {
-            put(c0, r0, g, ink.role);
+            put(c0, r0, g, i);
             if (c0 == c1 && r0 == r1) {
                 break;
             }
@@ -345,6 +375,7 @@ private:
 
     using Polygon = term::Polygon;
 
+    /// A path in colours 0 (its fill) and 1 (its stroke).
     void path(const PathArgs& a) const {
         auto polys = flatten_path(a.d);
         for (Polygon& poly : polys) {
@@ -353,7 +384,7 @@ private:
                 py += static_cast<double>(space_.dy);
             }
         }
-        if (!a.fill.none()) {
+        if (!none(0)) {
             double minx = 1e18, miny = 1e18, maxx = -1e18, maxy = -1e18;
             for (const Polygon& poly : polys) {
                 for (const auto& [px, py] : poly) {
@@ -381,12 +412,12 @@ private:
                         }
                     }
                     if (in) {
-                        put(c, r, glyph_of(a.fill), a.fill.role);
+                        put(c, r, glyph_of(0), 0);
                     }
                 }
             }
         }
-        if (!a.stroke.none()) {
+        if (!none(1)) {
             const Space keep = space_;
             space_.dx = 0;
             space_.dy = 0;
@@ -395,16 +426,19 @@ private:
                     line(static_cast<std::int64_t>(poly[k - 1].first),
                          static_cast<std::int64_t>(poly[k - 1].second),
                          static_cast<std::int64_t>(poly[k].first),
-                         static_cast<std::int64_t>(poly[k].second), a.stroke);
+                         static_cast<std::int64_t>(poly[k].second), 1);
                 }
             }
             space_ = keep;
         }
     }
 
-    /// One cell a character: printable ASCII as itself, any other character (all of its UTF-8
-    /// bytes) as one '?'.
-    void text(std::int64_t x, std::int64_t y, const std::string& s, const Paint& ink) const {
+    /// One cell a character, in colour `i`: printable ASCII as itself, any other character (all of
+    /// its UTF-8 bytes) as one '?'.
+    void text(std::int64_t x, std::int64_t y, const std::string& s, std::int64_t i) const {
+        if (none(i)) {
+            return;
+        }
         const std::int64_t r = floor_cell(y + space_.dy);
         std::int64_t col = floor_cell(x + space_.dx);
         for (const char raw : s) {
@@ -412,12 +446,13 @@ private:
             if (ch >= 0x80 && ch < 0xc0) {
                 continue;
             }
-            put(col, r, (ch >= 0x20 && ch < 0x7f) ? static_cast<char>(ch) : '?', ink.role);
+            put(col, r, (ch >= 0x20 && ch < 0x7f) ? static_cast<char>(ch) : '?', i);
             ++col;
         }
     }
 
-    /// A luminance ramp, one glyph a cell; a cell whose pixels are mostly transparent is left out.
+    /// A luminance ramp, one glyph a cell, in the plain colour; a cell whose pixels are mostly
+    /// transparent is left out.
     void image(const ImageArgs& a) const {
         if (a.pw <= 0 || a.ph <= 0 || a.w <= 0 || a.h <= 0 ||
             a.rgba.size() < static_cast<std::size_t>(a.pw * a.ph * 4)) {
@@ -447,14 +482,16 @@ private:
                     continue;
                 }
                 const int level = static_cast<int>((lum / static_cast<double>(n)) * 9.0 / 255.0 + 0.5);
-                put(c, r, ramp[std::clamp(level, 0, 9)], role::kFill);
+                put(c, r, ramp[std::clamp(level, 0, 9)], ink::kPlain);
             }
         }
     }
 
-    Look look_;
+    const PaintTask& task_;
+    char corner_ = '+', across_ = '-', down_ = '|';
     mutable Space space_;
     mutable std::vector<Cell>* out_ = nullptr;
+    mutable const std::vector<PaintInk>* inks_ = nullptr;
 };
 
 /// Each node's space, from the groups along its path (a task carries every ancestor).
@@ -500,8 +537,8 @@ inline std::map<std::string, Space> spaces(const std::vector<PaintNode>& nodes) 
 }
 
 /// A whole task painted: each node but a group, with its cells.
-inline PaintResult paint_task(const PaintTask& task, const Look& look) {
-    const Painter painter(look);
+inline PaintResult paint_task(const PaintTask& task) {
+    const Painter painter(task);
     const auto at = spaces(task.nodes);
     PaintResult out;
     for (const PaintNode& n : task.nodes) {
@@ -509,7 +546,7 @@ inline PaintResult paint_task(const PaintTask& task, const Look& look) {
             continue;
         }
         std::vector<Cell> cells;
-        painter.paint(n.op, n.args, at.at(n.path), cells);
+        painter.paint(n, at.at(n.path), cells);
         out.nodes.push_back(NodePaint{n.path, pack(cells)});
     }
     return out;

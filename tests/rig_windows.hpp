@@ -43,14 +43,16 @@ struct Shown {
 };
 
 /// ONE QUAD THE OS WINDOW HANDED ITS DEVICE in the last picture it presented: its area, its place
-/// in the window's pixels, and the role whose ink it is in the look the window draws in (-1: none).
+/// in the window's pixels, and the role whose pool colour it is in the night or the day palette
+/// (-1: none).
 struct Quad {
     std::string area;
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     std::int64_t role = -1;
 };
 
-/// ONE CELL THE TERMINAL WINDOW SHOWS: its glyph, and the role whose ink it wrote it in (-1: none).
+/// ONE CELL THE TERMINAL WINDOW SHOWS: its glyph, and the role whose pool colour's ink in the block
+/// palette it wrote it in (-1: none, or the terminal's own).
 struct Cell {
     std::int64_t col = 0, row = 0;
     char glyph = ' ';

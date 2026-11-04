@@ -31,7 +31,7 @@ root routes; the presenter's half of a pane's menu is `agents/workshop/pane-menu
 ## Suites
 
 - `snake` — the game headless: the content-id contract, simulation and migration as math, live
-  swaps through the real kernel, a skin chosen mid-game, the world's doors beside its own keys
+  swaps through the real kernel, a palette chosen mid-game, the world's doors beside its own keys
   and beat, zero stdout bytes with no terminal (`tests/test_snake.cpp`; it reads `play.cpp` and
   `world.cpp` as text)
 - `story_journey` — `tower-defense/story.py`'s custody of the Workshop and Loom-host

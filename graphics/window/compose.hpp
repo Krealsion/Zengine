@@ -4,7 +4,7 @@
 #ifndef ZENGINE_GRAPHICS_WINDOW_COMPOSE_HPP
 #define ZENGINE_GRAPHICS_WINDOW_COMPOSE_HPP
 
-// A window's picture: each node painted once, when it changes, by its area's skin, and kept
+// A window's picture: each node painted once, when it changes, in its area's palette, and kept
 // painted, so a change paints only what changed, and the composition and a press read what was
 // painted. What it keeps painted is the window's memory, never its state: a reload paints it
 // again from the nodes its state keeps. Reference: graphics/docs/zengine.window.terminal.md.
@@ -24,6 +24,9 @@
 namespace zengine::graphics::window {
 
 using CellAt = std::pair<std::int64_t, std::int64_t>; ///< a column and a row of the window
+
+/// The colour a terminal window numbers 0: the terminal's own ink, where no area painted.
+inline constexpr std::int64_t kOwnInk = 0;
 
 /// Where an area's cells stand among its window's.
 struct Place {
@@ -187,7 +190,7 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
         std::size_t area = 0;
         const std::vector<std::int64_t>* key = nullptr;
         char glyph = ' ';
-        std::int64_t role = role::kFill;
+        std::int64_t ink = kOwnInk;
     };
     std::vector<Top> tops(n);
     const auto front = front_to_back(areas);
@@ -206,7 +209,7 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
                 }
                 Top& t = tops[at(col, row)];
                 if (t.key == nullptr || (t.area == i && *t.key < node.key)) {
-                    t = Top{i, &node.key, c.glyph, c.role};
+                    t = Top{i, &node.key, c.glyph, c.ink};
                 }
             }
         }
@@ -217,7 +220,7 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
         for (std::int64_t c = c0; c <= c1; ++c) {
             if (wanted(c, r)) {
                 const Top& t = tops[at(c, r)];
-                out.push_back(term::Cell{c, r, t.glyph, t.role});
+                out.push_back(term::Cell{c, r, t.glyph, t.ink});
             }
         }
     }

@@ -529,7 +529,7 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
         CHECK(a->nodes.front().node.op == gfx::op::kRect);
         CHECK(ground->w == a->w);
         CHECK(ground->h == a->h);
-        CHECK(ground->fill.role == gfx::role::kGround);
+        CHECK(zengine::graphics::role_of(ground->fill) == gfx::role::kGround);
         // EACH ROW A LINE OF THE FACE DOWN, each character an advance across.
         bool line_row = false;
         for (const gw::KeptNode& k : a->nodes) {
@@ -976,7 +976,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         CHECK(bar->x2 == typed.column * gfx::kCellPx);
         CHECK(bar->y1 == typed.row * gfx::kCellPx);
         CHECK(bar->y2 == typed.row * gfx::kCellPx + gfx::kCellPx - 1);
-        CHECK(bar->ink.role == gfx::role::kAccent);
+        CHECK(zengine::graphics::role_of(bar->ink) == gfx::role::kAccent);
         CHECK(window.action_at(area, typed.column, typed.row) == "line");
         // ...AND SO DOES THE SELECTION: the selected columns again in the accent role, asking for
         // the line, the row's words unchanged; collapsed, it is gone and the caret stays.
@@ -991,7 +991,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         CHECK(words->text == "hello");
         CHECK(words->x == all.sel_begin_col * gfx::kCellPx);
         CHECK(words->y == t.input_row() * gfx::kCellPx);
-        CHECK(words->ink.role == gfx::role::kAccent);
+        CHECK(zengine::graphics::role_of(words->ink) == gfx::role::kAccent);
         CHECK(kept("sel" + std::to_string(t.input_row()) + ".1") == nullptr);
         for (std::int64_t c = all.sel_begin_col; c < all.sel_end_col; ++c) {
             CAPTURE(c);

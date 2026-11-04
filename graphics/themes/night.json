@@ -1,0 +1,16 @@
+{
+  "format": "zengine-theme",
+  "format_version": 2,
+  "name": "night",
+  "summary": "light ink on a cool dark ground",
+  "colors": [
+    { "name": "ground", "color": "#101418" },
+    { "name": "background", "color": "#2e3440" },
+    { "name": "text", "color": "#d8dee9" },
+    { "name": "quiet", "color": "#4c566a" },
+    { "name": "accent", "color": "#ebcb8b" },
+    { "name": "alert", "color": "#bf616a" },
+    { "name": "guide", "color": "#88c0d0" },
+    { "name": "edge", "color": "#7d869a" }
+  ]
+}

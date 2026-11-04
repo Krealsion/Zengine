@@ -3,7 +3,7 @@
 
 // `snake-board`: the board's code, opened by a window that presents a `SnakeBoardData`. It draws
 // an outline one cell outside the board and a node a filled cell (`c.<cell>`): the head in the
-// accent, the body in the fill, the food in the alert, so any skin paints it as it paints any
+// accent, the body in the fill, the food in the alert, so any palette colours it as it colours any
 // rectangle. It takes no press: a press on the board reaches the world that drew it.
 // Reference: examples/snake/README.md.
 

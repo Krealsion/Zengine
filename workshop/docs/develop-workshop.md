@@ -359,7 +359,7 @@ presenter:
 | `zengine-inventory-pane` | Inventory | `inventory/inventory-pane/pane.cpp` |
 | `zengine-menu-presenter` | no pane of its own: every pane's menu, the way it shows them ([its manual](zengine.presenter.md), [replacing it](panes.md#replacing-the-menu-presenter)) | `workshop/menu-presenter/presenter.cpp` |
 
-**Everything else is deliberately not in it.** The host, the windows and their skins, the input
+**Everything else is deliberately not in it.** The host, the windows, the input
 reader, the Timer and the two operator providers are what every pane stands on, and Workshop's own
 pane (Layouts) is part of the host — `edit code` on it says so. Changing any of those is an ordinary
 rebuild, a new runtime and a relaunch.

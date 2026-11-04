@@ -10,7 +10,6 @@
 // presses with Zengine's parser. Reference: graphics/docs/zengine.window.terminal.md, its manual,
 // compiled in and answered.
 
-#include "graphics/light_paint.hpp"
 #include "graphics/window/compose.hpp"
 #include "graphics/window/terminal_io.hpp"
 #include "graphics/window/window.hpp"
@@ -38,17 +37,19 @@ inline constexpr std::int64_t kUnmeasuredRows = 24;
 inline constexpr std::int64_t kUnmeasuredReach = 1000;
 
 /// The bytes that show cells on a terminal: for each run, a cursor move (left out where the cursor
-/// already stands), the role's ink where it changes, and the glyphs.
-inline std::string ansi(const std::vector<term::Cell>& cells) {
+/// already stands), its ink where it changes (`inks`, by the number each cell holds; one it does
+/// not hold is the terminal's own), and the glyphs.
+inline std::string ansi(const std::vector<term::Cell>& cells, const std::vector<std::string>& inks) {
     std::string out;
-    std::int64_t at_col = -1, at_row = -1, ink = -2;
+    std::int64_t at_col = -1, at_row = -1, ink = -1;
     for (const term::Cell& c : cells) {
         if (c.col != at_col || c.row != at_row) {
             out += "\x1b[" + std::to_string(c.row + 1) + ";" + std::to_string(c.col + 1) + "H";
         }
-        if (c.role != ink) {
-            ink = c.role;
-            out += sgr_for_role(static_cast<int>(c.role));
+        if (c.ink != ink) {
+            ink = c.ink;
+            const bool held = c.ink >= 0 && static_cast<std::size_t>(c.ink) < inks.size();
+            out += held ? inks[static_cast<std::size_t>(c.ink)] : sgr_for("own", 0);
         }
         out.push_back(c.glyph);
         at_col = c.col + 1;
@@ -120,31 +121,15 @@ public:
     }
     void drop(const WinArea& a, const std::string& path) { cache_.drop(a.area, path); }
     void drop_area(const std::string& area) { cache_.drop_area(area); }
-    void forget(const std::string&) {}
+    /// The ground an area's palette shows where nothing is drawn: a terminal's is its own.
+    void wear(const WinArea&, std::int64_t) {}
 
-    /// The nodes at `paths` painted with the area's skin into cells, cut to the area, kept, and
-    /// their cells marked to show. An area with no skin's library paints nothing; a skin that
-    /// paints light, which a terminal does not show, is refused in words.
-    void paint(Painters& painters, const WinArea& a, const PaintTask& task,
-               const std::set<std::string>& paths, std::string& why) {
-        if (a.library.empty()) {
-            return;
-        }
-        const ZenginePainterV1* skin = painters.get(a.library, why);
-        if (skin == nullptr) {
-            return;
-        }
-        auto result = painters.paint(skin, task, why);
-        if (!result) {
-            return;
-        }
-        for (const NodePaint& np : result->nodes) {
-            if (light::is_light(np.cells)) {
-                why = "the skin in '" + a.library +
-                      "' paints light, which a terminal does not show";
-                return;
-            }
-        }
+    /// The nodes at `paths` painted into cells in the colours the window resolved, cut to the area,
+    /// kept, and their cells marked to show, each cell's colour numbered by the ink it is written
+    /// in.
+    void paint(const WinArea& a, const PaintTask& task, const std::set<std::string>& paths,
+               std::string&) {
+        const PaintResult painted = term::paint_task(task);
         std::map<std::string, const PaintNode*> asked;
         for (const PaintNode& n : task.nodes) {
             asked[n.path] = &n;
@@ -153,19 +138,25 @@ public:
         for (const std::string& p : paths) {
             cache_.drop(a.area, p);
         }
-        for (const NodePaint& np : result->nodes) {
+        for (const NodePaint& np : painted.nodes) {
             const auto n = asked.find(np.path);
             if (paths.count(np.path) == 0 || n == asked.end()) {
                 continue;
             }
-            PaintedNode painted;
-            painted.key = n->second->key;
-            for (const term::Cell& c : term::unpack(np.cells)) {
+            PaintedNode kept;
+            kept.key = n->second->key;
+            std::map<std::int64_t, std::int64_t> numbered; // each of the node's colours, once
+            for (term::Cell c : term::unpack(np.cells)) {
                 if (c.col >= 0 && c.row >= 0 && c.col < pl.cols && c.row < pl.rows) {
-                    painted.cells.push_back(c);
+                    const auto [at, fresh] = numbered.try_emplace(c.ink, 0);
+                    if (fresh) {
+                        at->second = number(ink_of(c.ink, *n->second, task));
+                    }
+                    c.ink = at->second;
+                    kept.cells.push_back(c);
                 }
             }
-            cache_.set(a.area, np.path, std::move(painted));
+            cache_.set(a.area, np.path, std::move(kept));
             cache_.cover(a.area, np.path, pl, dirty_);
         }
     }
@@ -179,7 +170,7 @@ public:
         }
         const std::vector<term::Cell> cells = compose(areas, cache_, dirty_);
         dirty_.clear();
-        const std::string bytes = ansi(cells);
+        const std::string bytes = ansi(cells, inks_);
         terminal_.write(bytes);
         keep_shown(cells);
         ++showings_;
@@ -292,6 +283,32 @@ private:
         }
     }
 
+    /// The colour a painted cell names: one of its node's, or the task's own.
+    static const PaintInk& ink_of(std::int64_t i, const PaintNode& node, const PaintTask& task) {
+        static const PaintInk kNoPaint{};
+        if (i == term::ink::kPlain) {
+            return task.plain;
+        }
+        if (i == term::ink::kQuiet) {
+            return task.quiet;
+        }
+        return i >= 0 && static_cast<std::size_t>(i) < node.inks.size()
+                   ? node.inks[static_cast<std::size_t>(i)]
+                   : kNoPaint;
+    }
+
+    /// The number of the ink the terminal is written to show a colour in: each ink numbered once,
+    /// so a window holds no more numbers than the inks a terminal has words for.
+    std::int64_t number(const PaintInk& ink) {
+        const std::string sgr = sgr_for(ink.cells, ink.rgba);
+        const auto it = std::find(inks_.begin(), inks_.end(), sgr);
+        if (it != inks_.end()) {
+            return static_cast<std::int64_t>(it - inks_.begin());
+        }
+        inks_.push_back(sgr);
+        return static_cast<std::int64_t>(inks_.size()) - 1;
+    }
+
     /// The window's size in cells: its terminal's, or as far as its areas reach where it has none.
     TerminalSize measure() const {
         const TerminalSize size = terminal_.size();
@@ -302,6 +319,8 @@ private:
     Cache cache_;
     DirtyCells dirty_; ///< the cells to show again, over the terminal's size
     std::vector<std::string> shown_rows_; ///< the glyphs on the terminal, as its showings left them
+    /// The inks the window writes its terminal in, by number: the terminal's own first (kOwnInk).
+    std::vector<std::string> inks_{sgr_for("own", 0)};
     std::int64_t cols_ = kUnmeasuredCols;
     std::int64_t rows_ = kUnmeasuredRows;
     std::int64_t reach_cols_ = kUnmeasuredCols; ///< how far its areas reach, with no terminal

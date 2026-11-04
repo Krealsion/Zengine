@@ -11,7 +11,11 @@
 #include "lifecycle_door.hpp"
 #include "window_backends.hpp"
 
+#include "graphics/ops.hpp"
+#include "graphics/themes.hpp"
 #include "graphics/vocabulary.hpp"
+#include "graphics/window/palette.hpp"
+#include "graphics/window/terminal_io.hpp"
 
 #include <zen/kernel/manager.hpp>
 #include <zen/serialize.hpp>
@@ -61,24 +65,37 @@ std::string office_of(const std::string& window) {
     return std::string(gfx::kWindowOfficePrefix) + window;
 }
 
-/// The role whose ink a terminal window writes as this sequence, or -1.
+/// The colour a role's pool colour has in `palette`.
+const gfx::PaletteColor* color_of_role(const gfx::PaletteOffered& palette, std::int64_t role) {
+    return gfx::window::pool_color(palette, gfx::pool_color_of_role(role).name);
+}
+
+/// The role whose ink a terminal window writes as this sequence in the block palette, the one a
+/// terminal draws every colour in its own ink, or -1: the terminal's own ink is no role's.
 std::int64_t role_of_ink(const std::string& sgr) {
-    for (std::int64_t r = -1; r <= 64; ++r) {
-        if (sgr == gfx::window::sgr_for_role(static_cast<int>(r))) {
+    if (sgr == gfx::window::sgr_for("own", 0)) {
+        return -1;
+    }
+    const gfx::PaletteOffered block = gfx::themes::block();
+    for (std::int64_t r = 0; r <= gfx::role::kEdge; ++r) {
+        const gfx::PaletteColor* c = color_of_role(block, r);
+        if (c != nullptr && sgr == gfx::window::sgr_for(c->cells, c->rgba)) {
             return r;
         }
     }
     return -1;
 }
 
-/// The role a light colour is in either look, where exactly one role is drawn in it.
+/// The role a light colour is in the night or the day palette, where exactly one role is drawn in
+/// it.
 std::int64_t role_of_rgba(std::uint32_t rgba) {
-    for (const auto& look : {gfx::light::night_look(), gfx::light::day_look()}) {
+    for (const gfx::PaletteOffered& palette : {gfx::themes::night(), gfx::themes::day()}) {
         std::int64_t found = -1;
         int n = 0;
-        for (const auto& [role, rgb] : look.colour) {
-            if (gfx::light::rgba_of(rgb) == rgba) {
-                found = role;
+        for (std::int64_t r = 0; r <= gfx::role::kEdge; ++r) {
+            const gfx::PaletteColor* c = color_of_role(palette, r);
+            if (c != nullptr && static_cast<std::uint32_t>(c->rgba) == rgba) {
+                found = r;
                 ++n;
             }
         }

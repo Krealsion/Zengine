@@ -160,7 +160,7 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
         CHECK(window.sketch.nodes().front().op == gfx::op::kRect);
         CHECK((ground->x == 0 && ground->y == 0 && ground->w == 100 * cell &&
                ground->h == 45 * cell));
-        CHECK(ground->fill.role == gfx::role::kGround);
+        CHECK(zengine::graphics::role_of(ground->fill) == gfx::role::kGround);
         CHECK(window.parts.count("control:ask-save") == 1);
         CHECK(window.parts.count("control:zoom-in") == 1);
         CHECK(std::none_of(window.parts.begin(), window.parts.end(),
@@ -396,10 +396,10 @@ TEST_CASE("Flow projects node places and hit regions through the room's independ
     const auto ground = gfx::from_body<gfx::RectArgs>(drawn.sketch.nodes().front().args);
     REQUIRE(ground.has_value());
     CHECK((ground->w == native_room.width && ground->h == native_room.height));
-    CHECK(ground->fill.role == gfx::role::kGround);
+    CHECK(zengine::graphics::role_of(ground->fill) == gfx::role::kGround);
     for (const auto& k : view.marks) {
         if (k.op != pane::Mark::Op::Text || k.words.empty()) continue;
-        ws::CanvasText run{k.x, k.y, k.words, k.fill.role};
+        ws::CanvasText run{k.x, k.y, k.words, zengine::graphics::role_of(k.fill)};
         const auto layout = ws::clip_canvas_text(run, {0, 0, native_room.width, native_room.height}, native_room);
         REQUIRE(layout.visible());
         CHECK(layout.text.text == k.words);
@@ -945,7 +945,7 @@ TEST_CASE("the then thread from what the rule writes runs on, through the dashed
     const auto thread = pane::hue::thread();
     std::vector<pane::Box> runs;
     for (const auto& k : view.marks)
-        if (k.op == pane::Mark::Op::Rect && k.w == 2 && k.fill.role == thread.role && k.fill.rgb == thread.rgb)
+        if (k.op == pane::Mark::Op::Rect && k.w == 2 && k.fill == thread)
             runs.push_back(k.bounds());
     // ⚔ MUTATION (tests/mutants/flow_view.md#thread-stops-at-the-place): the thread stops at the
     // dashed place's edge.
@@ -968,7 +968,7 @@ TEST_CASE("a port's dot takes a press and a rest where it is drawn, the half out
     const auto id = std::to_string(pane::place_of(m, 0));
     // Each port's dot middle, as the marks draw it: a dot 10 wide ringed in the ink of wires or of
     // what is kept.
-    const auto ringed = [](const gfx::Paint& p, const gfx::Paint& q) { return p.role == q.role && p.rgb == q.rgb; };
+    const auto ringed = [](const gfx::Paint& p, const gfx::Paint& q) { return p == q; };
     std::vector<std::pair<std::int64_t, std::int64_t>> dots;
     for (const auto& k : view.marks)
         if (k.op == pane::Mark::Op::Ellipse && k.w == 10 && k.h == 10 &&
@@ -1201,13 +1201,13 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
         if (node.op == gfx::op::kPath) {
             if (const auto p = gfx::from_body<gfx::PathArgs>(node.args)) {
                 curves += p->d.find(" C") != std::string::npos ? std::size_t{1} : std::size_t{0};
-                colours.insert(p->stroke.rgb);
-                colours.insert(p->fill.rgb);
+                colours.insert((p->stroke.rgba >> 8));
+                colours.insert((p->fill.rgba >> 8));
             }
         } else if (node.op == gfx::op::kEllipse) {
             ++ports;
         } else if (node.op == gfx::op::kRect) {
-            if (const auto r = gfx::from_body<gfx::RectArgs>(node.args)) colours.insert(r->fill.rgb);
+            if (const auto r = gfx::from_body<gfx::RectArgs>(node.args)) colours.insert((r->fill.rgba >> 8));
         }
     }
     CHECK(curves >= 3); // amount and total into add, add's answer into total
@@ -1245,7 +1245,7 @@ TEST_CASE("a chosen When or Then card is edged as a chosen step is, and a card p
         const auto box = p.cards.at(name);
         for (const auto& k : p.marks)
             if (k.op == pane::Mark::Op::Rect && k.x == box.x && k.y == box.y && k.w == box.w && k.h == box.h)
-                return k.stroke.rgb;
+                return (k.stroke.rgba >> 8);
         return -1;
     };
     auto pic = pane::picture(m, room);

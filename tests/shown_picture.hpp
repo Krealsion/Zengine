@@ -49,14 +49,14 @@ inline workshop::CanvasPicture shown_picture(const graphics::window::WinArea& ar
         if (path.rfind("picture/", 0) == 0) {
             if (k->node.op == gfx::op::kRect) {
                 if (const auto r = gfx::from_body<gfx::RectArgs>(k->node.args)) {
-                    out.rects.push_back(workshop::CanvasRect{r->x, r->y, r->w, r->h, r->fill.role});
+                    out.rects.push_back(workshop::CanvasRect{r->x, r->y, r->w, r->h, zengine::graphics::role_of(r->fill)});
                 }
             } else if (k->node.op == gfx::op::kText) {
                 if (const auto t = gfx::from_body<gfx::TextArgs>(k->node.args)) {
                     runs[path.substr(8)] = out.texts.size();
                     glyphs_x[out.texts.size()] = t->x;
                     out.texts.push_back(
-                        workshop::CanvasText{t->x - inset, t->y - inset, t->text, t->ink.role});
+                        workshop::CanvasText{t->x - inset, t->y - inset, t->text, zengine::graphics::role_of(t->ink)});
                 }
             }
         } else if (path.rfind("parts/", 0) == 0 && path.find('/', 6) == std::string::npos &&

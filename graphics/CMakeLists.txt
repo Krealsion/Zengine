@@ -1,7 +1,7 @@
 # The Graphics package: the vocabulary an owner draws with (a node, an element record, seven
-# operators, a canvas), the windows that show what owners draw -- the terminal window and the OS
-# window -- the directory that introduces an area to its window, and four skins as painter code a
-# window opens: two for characters, two for light.
+# operators, a canvas, a colour by name), the windows that show what owners draw -- the terminal
+# window and the OS window -- and the directory that introduces an area to its window and passes it
+# the palettes offered. The pool's names and the shipped themes are JSON, generated into C++ here.
 
 # The vocabulary and its helpers travel as a header-only interface target, and install with the
 # package (cmake/ZengineInstall.cmake): consumers spell
@@ -17,6 +17,27 @@ add_library(zengine::graphics ALIAS zengine-graphics-vocabulary)
 target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-activation
     zengine-component)
 
+# The pool's names (`zengine::graphics::colors`, graphics/colors.hpp) and the shipped themes as
+# palettes (`zengine::graphics::themes`, graphics/themes.hpp): generated, and installed beside the
+# vocabulary with the JSON they come from.
+set(ZENGINE_GRAPHICS_POOL ${CMAKE_CURRENT_SOURCE_DIR}/pool.json)
+set(ZENGINE_GRAPHICS_THEMES ${CMAKE_CURRENT_SOURCE_DIR}/themes/classic.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/themes/block.json ${CMAKE_CURRENT_SOURCE_DIR}/themes/day.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/themes/night.json)
+zengine_names(zengine-graphics-vocabulary JSON ${ZENGINE_GRAPHICS_POOL}
+              NAMESPACE zengine::graphics::colors HEADER graphics/colors.hpp)
+zengine_palettes(zengine-graphics-vocabulary POOL ${ZENGINE_GRAPHICS_POOL}
+                 THEMES ${ZENGINE_GRAPHICS_THEMES}
+                 NAMESPACE zengine::graphics::themes HEADER graphics/themes.hpp)
+set(ZENGINE_GRAPHICS_GENERATED
+    ${CMAKE_CURRENT_BINARY_DIR}/zengine-names/zengine-graphics-vocabulary/graphics/colors.hpp
+    ${CMAKE_CURRENT_BINARY_DIR}/zengine-names/zengine-graphics-vocabulary/graphics/themes.hpp
+    PARENT_SCOPE)
+set_property(GLOBAL APPEND PROPERTY ZENGINE_GENERATED_INCLUDES
+             ${CMAKE_CURRENT_BINARY_DIR}/zengine-names/zengine-graphics-vocabulary)
+set(ZENGINE_GRAPHICS_POOL ${ZENGINE_GRAPHICS_POOL} PARENT_SCOPE)
+set(ZENGINE_GRAPHICS_THEMES ${ZENGINE_GRAPHICS_THEMES} PARENT_SCOPE)
+
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: graphics weaves skipped — this Loom cannot host loadable weaves (no loom::kernel)")
     return()
@@ -27,26 +48,14 @@ endif()
 zengine_weave(zengine-graphics directory.cpp MANUAL docs/zengine.graphics.md)
 target_link_libraries(zengine-graphics PRIVATE zengine-graphics-vocabulary zengine-activation)
 
-# The terminal window: it reads its own terminal on its own beat and opens skins and element code
-# as operator providers are opened (operator/image.hpp), so it needs the dynamic loader too. Its
-# manual is compiled in, and answered as the directory's is.
+# The terminal window: it reads its own terminal on its own beat, paints with its own painter, and
+# opens element code as operator providers are opened (operator/image.hpp), so it needs the dynamic
+# loader too. Its manual is compiled in, and answered as the directory's is.
 zengine_weave(zengine-window-terminal window/window.cpp MANUAL docs/zengine.window.terminal.md)
 target_link_libraries(zengine-window-terminal PRIVATE zengine-graphics-vocabulary
                                                       zengine-input-vocabulary
                                                       zengine-timer-vocabulary
                                                       zengine-activation zengine-operator)
-
-# The skins: painter code, not weaves -- no participant lives in any of their images, and a window
-# opens the file itself and resolves one symbol. Classic and block paint characters; day and night
-# paint light.
-zengine_provider(zengine-paint-classic paint_classic.cpp)
-target_link_libraries(zengine-paint-classic PRIVATE zengine-graphics-vocabulary)
-zengine_provider(zengine-paint-block paint_block.cpp)
-target_link_libraries(zengine-paint-block PRIVATE zengine-graphics-vocabulary)
-zengine_provider(zengine-paint-day paint_day.cpp)
-target_link_libraries(zengine-paint-day PRIVATE zengine-graphics-vocabulary)
-zengine_provider(zengine-paint-night paint_night.cpp)
-target_link_libraries(zengine-paint-night PRIVATE zengine-graphics-vocabulary)
 
 # The OS window, through SDL3: built where this configuration has SDL (cmake/ZengineSdl.cmake), as
 # it is by default. Its manual is compiled in, as the terminal window's is, and so is its face: the

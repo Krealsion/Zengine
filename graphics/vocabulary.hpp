@@ -24,7 +24,7 @@
 namespace zengine::graphics {
 
 /// The directory's role: which windows exist, which areas each shows, who draws in each, which
-/// skin paints it and which code presents each element type.
+/// palette it wears and which code presents each element type.
 inline constexpr const char* kGraphicsRole = "zengine.graphics";
 /// A window's office is this prefix and its name: `zengine.window.terminal`.
 inline constexpr const char* kWindowOfficePrefix = "zengine.window.";
@@ -41,6 +41,8 @@ inline constexpr std::size_t kMaxPathBytes = 256;
 inline constexpr std::size_t kMaxPathDepth = 16;
 inline constexpr std::size_t kMaxArgsBytes = 64 * 1024;
 inline constexpr std::size_t kMaxAreas = 256;
+/// The palettes one window and the directory hold: one offered past them is not held, said in words.
+inline constexpr std::size_t kMaxPalettes = 64;
 /// The most runs of text one reading of an area says (`AreaShown`): an area showing more is refused
 /// its reading, in words, rather than said in part.
 inline constexpr std::size_t kMaxAreaWords = 4096;
@@ -390,18 +392,48 @@ struct AreaPlaced {
               ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text));
 };
 
-/// The arranger -> the directory: a skin is painter code in this library, from the load plan.
-struct SkinOffered {
-    std::string skin;
-    std::string library;
-    ZEN_SHAPE(SkinOffered, 1, ZEN_FIELD(skin), ZEN_FIELD(library));
+/// One named colour of a palette: its 0xRRGGBBAA; what a terminal shows where it cannot show that
+/// colour (`own`, the terminal's own ink, or one of its sixteen, perhaps `bright`, perhaps `bold`;
+/// "" its nearest); and the character a terminal fills a shape with in it ("" the palette's `text`
+/// fill).
+struct PaletteColor {
+    std::string name;
+    std::int64_t rgba = 0;
+    std::string cells;
+    std::string fill;
+    ZEN_SHAPE(PaletteColor, 1, ZEN_FIELD(name), ZEN_FIELD(rgba), ZEN_FIELD(cells),
+              ZEN_FIELD(fill));
+    friend bool operator==(const PaletteColor&, const PaletteColor&) = default;
 };
 
-/// The arranger -> the directory: which skin paints an area.
-struct SkinChosen {
+/// One office's slots in a palette: the colours it sets for the slots that office exposes.
+struct PaletteSlots {
+    std::string office;
+    std::vector<PaletteColor> colors;
+    ZEN_SHAPE(PaletteSlots, 1, ZEN_FIELD(office), ZEN_FIELD(colors));
+    friend bool operator==(const PaletteSlots&, const PaletteSlots&) = default;
+};
+
+/// Whoever offers palettes -> the directory, and the directory -> each window: a palette, whole,
+/// at a revision -- its pool colours, each office's slots, and a terminal's outline characters
+/// (a corner, across and down). Offered again whole at a higher revision when anything in it
+/// changes: a window repaints every area wearing it from what it keeps, and no owner is told.
+struct PaletteOffered {
+    std::string palette;
+    std::int64_t revision = 0;
+    std::vector<PaletteColor> colors;
+    std::vector<PaletteSlots> slots;
+    std::string outline = "+-|";
+    ZEN_SHAPE(PaletteOffered, 1, ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(colors),
+              ZEN_FIELD(slots), ZEN_FIELD(outline));
+    friend bool operator==(const PaletteOffered&, const PaletteOffered&) = default;
+};
+
+/// The arranger -> the directory: which palette an area wears.
+struct PaletteChosen {
     std::string area;
-    std::string skin;
-    ZEN_SHAPE(SkinChosen, 1, ZEN_FIELD(area), ZEN_FIELD(skin));
+    std::string palette;
+    ZEN_SHAPE(PaletteChosen, 1, ZEN_FIELD(area), ZEN_FIELD(palette));
 };
 
 /// The arranger -> the directory, and the directory -> each window: the code that presents an
@@ -412,8 +444,9 @@ struct ElementCodeOffered {
     ZEN_SHAPE(ElementCodeOffered, 1, ZEN_FIELD(type), ZEN_FIELD(library));
 };
 
-/// The directory -> a window: this area is yours, drawn by `owner`, here, painted by the skin in
-/// `library`; `arranger` is the office that placed it, as its placing was authored, empty for
+/// The directory -> a window: this area is yours, drawn by `owner`, here, wearing `palette` ("" or
+/// one the window holds none of: the window's own); `arranger` is the office that placed it, as
+/// its placing was authored, empty for
 /// personal speech; `weaver_only`, `wheel`, `right`, `followed`, `releases` and `text` as it was
 /// placed. Said again whenever any of it changes, to a window that offers itself again, and when
 /// the owner asks its room; the window answers each with the owner's room.
@@ -425,17 +458,16 @@ struct AreaIntroduced {
     std::int64_t order = 0;
     bool keys = false;
     bool pointer = false;
-    std::string skin;
-    std::string library;
+    std::string palette;
     bool weaver_only = false;
     bool wheel = true;
     bool right = true;
     bool followed = false;
     bool releases = false;
     bool text = false;
-    ZEN_SHAPE(AreaIntroduced, 8, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
+    ZEN_SHAPE(AreaIntroduced, 9, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
               ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order),
-              ZEN_FIELD(keys), ZEN_FIELD(pointer), ZEN_FIELD(skin), ZEN_FIELD(library),
+              ZEN_FIELD(keys), ZEN_FIELD(pointer), ZEN_FIELD(palette),
               ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right), ZEN_FIELD(followed),
               ZEN_FIELD(releases), ZEN_FIELD(text));
 };
@@ -495,7 +527,7 @@ struct WindowShowAsked {
 };
 
 /// What a window shows, row by row as text, and its spending since it started: showings (writes
-/// to its terminal) and their bytes, calls of its skins and element code, and its refusals.
+/// to its terminal) and their bytes, calls of its painter and of element code, and its refusals.
 struct WindowShown {
     std::string window;
     std::int64_t epoch = 0;

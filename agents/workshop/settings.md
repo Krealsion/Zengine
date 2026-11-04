@@ -71,7 +71,7 @@ MEANS
 
 DOES NOT MEAN
 - that the desk acts on a value: it judges and keeps it, and what it means is the pane's;
-- that a row's `workshop.skin` is stored as absence at `classic`: its absence is Workshop's own skin (WL-SETTING-13).
+- that a row's `workshop.skin` is stored as absence at `classic`: its absence is Workshop's own palette (WL-SETTING-13).
 
 WHY — `agents/decisions/settings-are-rows-of-a-panes-subject.md`
 
@@ -165,19 +165,19 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-setting-is-found-by-its-tags-and-pins.md`
 
-## WL-SETTING-13 — Each graphics area wears its row's skin, else Workshop's own
+## WL-SETTING-13 — Each graphics area wears its row's palette, else Workshop's own
 
-LAW — Each graphics area wears a painter skin Workshop chooses: a pane's, the `workshop.skin` its row keeps, else Workshop's own `workshop.skin`; Workshop's area, its own. A choice is said when it moved.
+LAW — Each graphics area wears a palette Workshop chooses: the one its row's `workshop.skin` names, else Workshop's own; Workshop's area, its own. A choice is said when it moved, before the place.
 
 MEANS
-- `classic`, `block`, `day` or `night`: the settings file keeps `classic` as absence; a row keeps any, and its clear gives the area back to Workshop's own;
-- a commit of any of them, and a directory placed with afresh, say the skins the areas wear now.
+- `classic`, `block`, `day` or `night`, each offered every directory: the file keeps `classic` as absence; a row any, its clear giving the area back to Workshop's own;
+- a commit, and a directory placed with afresh, say the palettes areas wear now.
 
 DOES NOT MEAN
-- that the pane hears its skin: the row's `workshop.skin` is Workshop's, and is never handed to the pane;
+- that the pane hears its palette: the row's `workshop.skin` is Workshop's, and is never handed to the pane;
 - that Workshop holds a pane's own settings: its copy of the live layout keeps a row's `workshop.` keys alone.
 
-WHY — `agents/decisions/office-wide-settings-live-in-workshops-settings-file.md`
+WHY — `agents/decisions/a-colour-is-a-name-the-window-paints.md`
 
 ## Proven by
 
@@ -363,11 +363,11 @@ one"
 
 ### WL-SETTING-13
 `workshop/weave_run.cpp` arrange_graphics
-`workshop/weave.hpp` WorkshopWeave::skins_chosen_
+`workshop/weave.hpp` WorkshopWeave::palettes_chosen_
 `workshop/screen.hpp` Session::skin
 `workshop/pane_settings.hpp` workshop_skin_setting_row kWorkshopSkinKey kSkinClassic kSkinBlock
 kSkinDay kSkinNight is_workshop_skin_choice row_setting_absence
-`tests/test_workshop_desk.cpp` "each graphics area wears its pane row's `workshop.skin`, else
-Workshop's own, and a skin is said only when an area's moved"
+`tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.skin` names,
+else Workshop's own, and a palette is said only when an area's moved"
 `tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
 area: taken on every row, kept as written, shown in Info, and never handed to the pane"

@@ -4611,7 +4611,7 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         if (!run) continue;
         const std::int64_t row = gfx::floor_div_px(run->y, face.line);
         const auto at = first.find(row);
-        if (at == first.end() || run->x < at->second.first) first[row] = {run->x, run->ink.role};
+        if (at == first.end() || run->x < at->second.first) first[row] = {run->x, zengine::graphics::role_of(run->ink)};
     }
     for (const auto& [row, said] : first) {
         std::string text = held_row_raw(kind, row);
@@ -4630,9 +4630,9 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         const auto col = static_cast<std::size_t>((std::max)(std::int64_t{0}, run->x / face.advance));
         auto& [text, first_run] = rows[row];
         if (text.empty() && first_run.first == 0 && first_run.second == 0) {
-            first_run = {run->x, run->ink.role};
+            first_run = {run->x, zengine::graphics::role_of(run->ink)};
         } else if (run->x < first_run.first) {
-            first_run = {run->x, run->ink.role};
+            first_run = {run->x, zengine::graphics::role_of(run->ink)};
         }
         if (text.size() < col + run->text.size()) text.resize(col + run->text.size(), ' ');
         text.replace(col, run->text.size(), run->text);
@@ -4664,7 +4664,7 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         if (!t) continue;
         const std::int64_t row = gfx::floor_div_px(oy + t->y, face.line);
         const auto at = role_at.find(row);
-        if (at == role_at.end() || ox + t->x < at->second.first) role_at[row] = {ox + t->x, t->ink.role};
+        if (at == role_at.end() || ox + t->x < at->second.first) role_at[row] = {ox + t->x, zengine::graphics::role_of(t->ink)};
     }
     const std::vector<std::string> said = held_read_rows(kind);
     for (const auto& [row, leftmost] : role_at) {
@@ -4703,7 +4703,7 @@ inline std::vector<HeldText> held_texts(std::int64_t kind) {
         for (const zengine::graphics::window::KeptNode& k : a->nodes) {
             if (!held_shown_node(k.node.path)) continue;
             if (const auto t = gfx::from_body<gfx::TextArgs>(k.node.args)) {
-                out.push_back(HeldText{t->x, t->y, t->text, t->ink.role});
+                out.push_back(HeldText{t->x, t->y, t->text, zengine::graphics::role_of(t->ink)});
             }
         }
     }
@@ -4716,7 +4716,7 @@ inline std::vector<HeldRect> held_rects(std::int64_t kind) {
         for (const zengine::graphics::window::KeptNode& k : a->nodes) {
             if (!held_shown_node(k.node.path) || k.node.op != gfx::op::kRect) continue;
             if (const auto r = gfx::from_body<gfx::RectArgs>(k.node.args)) {
-                out.push_back(HeldRect{r->x, r->y, r->w, r->h, r->fill.role});
+                out.push_back(HeldRect{r->x, r->y, r->w, r->h, zengine::graphics::role_of(r->fill)});
             }
         }
     }
@@ -4758,11 +4758,11 @@ inline std::vector<HeldLitRow> held_lit_rows(std::int64_t kind) {
         if (k.node.path.rfind("ground", 0) != 0 || k.node.path == "ground") continue;
         const auto rect = gfx::from_body<gfx::RectArgs>(k.node.args);
         if (!rect) continue;
-        HeldLitRow lit{gfx::floor_div_px(rect->y, face.line), rect->fill.role, gfx::role::kNone};
+        HeldLitRow lit{gfx::floor_div_px(rect->y, face.line), zengine::graphics::role_of(rect->fill), gfx::role::kNone};
         const std::string words = "lit" + k.node.path.substr(6) + ".0";
         for (const zengine::graphics::window::KeptNode& t : a->nodes) {
             if (t.node.path != words) continue;
-            if (const auto run = gfx::from_body<gfx::TextArgs>(t.node.args)) lit.ink = run->ink.role;
+            if (const auto run = gfx::from_body<gfx::TextArgs>(t.node.args)) lit.ink = zengine::graphics::role_of(run->ink);
         }
         out.push_back(lit);
     }

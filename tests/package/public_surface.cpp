@@ -27,7 +27,7 @@
 #include "graphics/element_export.hpp"
 #include "graphics/elements.hpp"
 #include "graphics/light_paint.hpp"
-#include "graphics/painter_export.hpp"
+#include "graphics/ops.hpp"
 #include "graphics/role.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
@@ -401,13 +401,19 @@ void graphics_surface() {
           "a canvas keeps the room its window told, and names that window's office");
     check(!canvas.room(room), "and the same room told again changes nothing");
 
+    // A painter is handed exact colours, one for each a node's operands carry, as a window hands
+    // them once it has turned their names into colours.
     gfx::PaintTask task;
     std::int64_t rank = 1;
     for (const gfx::Node& n : picture.nodes()) {
-        task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args});
+        std::vector<gfx::PaintInk> inks;
+        for (const gfx::Color& c : gfx::colors_of(n.op, n.args)) {
+            inks.push_back(c.none() ? gfx::PaintInk{} : gfx::PaintInk{0xd8dee9ff, "own", "o"});
+        }
+        task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args, inks});
     }
     std::string top;
-    for (const gfx::NodePaint& painted : gfx::term::paint_task(task, gfx::term::Look{}).nodes) {
+    for (const gfx::NodePaint& painted : gfx::term::paint_task(task).nodes) {
         for (const gfx::term::Cell& c : gfx::term::unpack(painted.cells)) {
             if (c.row == 0 && c.col >= 0) {
                 if (top.size() <= static_cast<std::size_t>(c.col)) {
@@ -421,7 +427,7 @@ void graphics_surface() {
           "and the terminal painter's code paints the button's label in its cells");
 
     std::string label;
-    const gfx::PaintResult lit = gfx::light::paint_task(task, gfx::light::night_look());
+    const gfx::PaintResult lit = gfx::light::paint_task(task);
     for (const gfx::NodePaint& painted : lit.nodes) {
         if (const auto prims = gfx::light::unpack_node(painted.cells)) {
             for (const gfx::light::TextRun& t : prims->texts) {

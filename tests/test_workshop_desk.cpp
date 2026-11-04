@@ -9,6 +9,7 @@
 #include "pane_window.hpp"
 #include "timeline.hpp"
 #include "attention/vocabulary.hpp"
+#include "graphics/themes.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/screen_planes.hpp"
 #include "workshop/desk_read.hpp"
@@ -2949,11 +2950,11 @@ struct ArrangedDirectoryState {
 };
 
 /// THE GRAPHICS DIRECTORY AS ITS ARRANGER MEETS IT: the `zengine.graphics` office keeping every
-/// placement, skin and room said to it, with the office that said each, introducing nothing, and
+/// placement, palette and room said to it, with the office that said each, introducing nothing, and
 /// saying it started afresh when a case asks.
 class ArrangedDirectory
     : public loom::WeaveBase<ArrangedDirectory, ArrangedDirectoryState,
-                             loom::Accept<gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
+                             loom::Accept<gfx::AreaPlaced, gfx::PaletteOffered, gfx::PaletteChosen,
                                           gfx::RoomAsked, SeatDo>,
                              loom::Emit<gfx::GraphicsReady, gfx::ActionRequested>> {
 public:
@@ -2962,11 +2963,11 @@ public:
         placed.push_back(p);
         areas[p.area] = p;
     }
-    void on(const gfx::SkinOffered& s, loom::Mail& mail) {
+    void on(const gfx::PaletteOffered& s, loom::Mail& mail) {
         note(mail);
         offered.push_back(s);
     }
-    void on(const gfx::SkinChosen& c, loom::Mail& mail) {
+    void on(const gfx::PaletteChosen& c, loom::Mail& mail) {
         note(mail);
         chosen.push_back(c);
     }
@@ -2988,8 +2989,8 @@ public:
     std::function<void(loom::Mail&)> next;
     std::map<std::string, gfx::AreaPlaced> areas;
     std::vector<gfx::AreaPlaced> placed;
-    std::vector<gfx::SkinOffered> offered;
-    std::vector<gfx::SkinChosen> chosen;
+    std::vector<gfx::PaletteOffered> offered;
+    std::vector<gfx::PaletteChosen> chosen;
     std::vector<std::string> asked;
     std::set<std::string> arrangers; ///< every office that placed, offered or chose
 
@@ -3022,18 +3023,18 @@ struct WindowDesk {
     std::vector<std::string> refused;
     loom::ObserverId tap{};
 
-    explicit WindowDesk(bool with_directory, bool skins = true) {
+    explicit WindowDesk(bool with_directory, bool folder = true) {
         // THE DIRECTORY IS THIS CASE'S STAND-IN, or none, and so is the window: the rig's own
         // never comes up.
         r.in_window = false;
         window = std::make_unique<pw::Window>(r.bus, gfx::kTerminalWindow);
-        r.host.dir = skins ? "/zen/window-desk" : "";
+        r.host.dir = folder ? "/zen/window-desk" : "";
         if (with_directory) {
             mount_directory();
         }
         r.mount_workshop();
-        const std::set<std::string> graphics{gfx::AreaPlaced::zen_name, gfx::SkinOffered::zen_name,
-                                             gfx::SkinChosen::zen_name, gfx::RoomAsked::zen_name,
+        const std::set<std::string> graphics{gfx::AreaPlaced::zen_name, gfx::PaletteOffered::zen_name,
+                                             gfx::PaletteChosen::zen_name, gfx::RoomAsked::zen_name,
                                              gfx::Drawn::zen_name};
         tap = r.bus.add_observer([this, graphics](const loom::BusEvent& e) {
             if (e.sender != r.workshop_id || e.target == window->id() ||
@@ -3118,13 +3119,16 @@ struct WindowDesk {
 /// The cells an area's nodes paint, as a window of characters paints them.
 std::set<std::pair<std::int64_t, std::int64_t>> painted_cells(const gw::WinArea& a) {
     gfx::PaintTask task;
+    const gfx::PaletteOffered& palette = gw::built_in_palette();
+    gw::dress(task, palette, a.owner);
     const auto at = gw::index_of(a);
     for (const gw::KeptNode& k : a.nodes) {
-        task.nodes.push_back(
-            gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path), k.node.op, k.node.args});
+        task.nodes.push_back(gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path), k.node.op,
+                                            k.node.args,
+                                            gw::inks_of(k.node.op, k.node.args, palette, a.owner)});
     }
     std::set<std::pair<std::int64_t, std::int64_t>> out;
-    for (const gfx::NodePaint& np : gfx::term::paint_task(task, gfx::term::Look{}).nodes) {
+    for (const gfx::NodePaint& np : gfx::term::paint_task(task).nodes) {
         for (const gfx::term::Cell& c : gfx::term::unpack(np.cells)) {
             out.insert({c.col, c.row});
         }
@@ -3208,21 +3212,17 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     CHECK(overlay().order == d.panes_on_desk() + 2);
     CHECK_FALSE(overlay().keys);
     CHECK_FALSE(overlay().pointer);
-    // ALL OF IT SAID AS WORKSHOP'S OFFICE: the four skins offered once, each area's chosen once,
+    // ALL OF IT SAID AS WORKSHOP'S OFFICE: the four palettes offered once, each area's chosen once,
     // and Workshop's room asked once.
     CHECK(d.directory->arrangers == std::set<std::string>{kWorkshopProvider});
     REQUIRE(d.directory->offered.size() == 4);
-    CHECK(d.directory->offered[0].skin == "classic");
-    CHECK(d.directory->offered[0].library == d.r.host.so("zengine-paint-classic"));
-    CHECK(d.directory->offered[1].skin == "block");
-    CHECK(d.directory->offered[1].library == d.r.host.so("zengine-paint-block"));
-    CHECK(d.directory->offered[2].skin == "day");
-    CHECK(d.directory->offered[2].library == d.r.host.so("zengine-paint-day"));
-    CHECK(d.directory->offered[3].skin == "night");
-    CHECK(d.directory->offered[3].library == d.r.host.so("zengine-paint-night"));
+    CHECK(d.directory->offered[0] == gfx::themes::classic());
+    CHECK(d.directory->offered[1] == gfx::themes::block());
+    CHECK(d.directory->offered[2] == gfx::themes::day());
+    CHECK(d.directory->offered[3] == gfx::themes::night());
     std::map<std::string, int> chosen;
-    for (const gfx::SkinChosen& c : d.directory->chosen) {
-        CHECK(c.skin == "classic");
+    for (const gfx::PaletteChosen& c : d.directory->chosen) {
+        CHECK(c.palette == "classic");
         ++chosen[c.area];
     }
     std::map<std::string, int> every;
@@ -3290,11 +3290,11 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     CHECK(d.refused.empty());
 }
 
-TEST_CASE("a host with no skin libraries offers and chooses no skin, and places its areas all the "
-          "same") {
+TEST_CASE("a host with no folder of artifacts offers the shipped palettes, chooses each area's and "
+          "places its areas all the same") {
     WindowDesk bare(true, false);
-    CHECK(bare.directory->offered.empty());
-    CHECK(bare.directory->chosen.empty());
+    CHECK(bare.directory->offered.size() == gfx::themes::shipped().size());
+    CHECK(bare.directory->chosen.size() == bare.directory->areas.size());
     CHECK(bare.directory->areas.count(kWorkshopProvider) == 1);
     CHECK(bare.directory->areas.count(kAttentionArea) == 1);
 }
@@ -3369,7 +3369,7 @@ struct SkinDesk : WindowDesk {
         REQUIRE_FALSE(editor->acted.empty());
         return editor->acted.back();
     }
-    /// Workshop's own skin, written at the revision read now.
+    /// Workshop's own palette word, written at the revision read now.
     OfficeSettingCommitAnswered workshop_skin(const char* skin) {
         ask(OfficeSettingsRequested{kWorkshopProvider});
         REQUIRE_FALSE(editor->office.empty());
@@ -3403,7 +3403,7 @@ struct SkinDesk : WindowDesk {
     std::map<std::string, std::string> chosen_since(std::size_t from, std::size_t* count = nullptr) {
         std::map<std::string, std::string> out;
         for (std::size_t i = from; i < directory->chosen.size(); ++i) {
-            out[directory->chosen[i].area] = directory->chosen[i].skin;
+            out[directory->chosen[i].area] = directory->chosen[i].palette;
         }
         if (count != nullptr) {
             *count = directory->chosen.size() - from;
@@ -3416,8 +3416,8 @@ using Skins = std::map<std::string, std::string>;
 
 } // namespace
 
-TEST_CASE("each graphics area wears its pane row's `workshop.skin`, else Workshop's own, and a "
-          "skin is said only when an area's moved") {
+TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names, else Workshop's "
+          "own, and a palette is said only when an area's moved") {
     // ⚔ MUTATION (tests/mutants/workshop_desk.md#every-area-classic): every area given `classic`
     // whatever is kept -- Workshop's `block` never reaches the directory, and neither does the
     // row's.
@@ -4205,7 +4205,7 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         CHECK(n.session().screen_w == cells_px(150));
         CHECK(n.session().screen_h == cells_px(60));
     }
-    SUBCASE("the OS window offered the same way brings Workshop up in it: the skins offered, the "
+    SUBCASE("the OS window offered the same way brings Workshop up in it: the palettes offered, the "
             "areas placed on it, the place remembered and a paste asked of it") {
         // ⚔ MUTATION (tests/mutants/workshop_desk.md#only-the-terminal-window): the offer of any
         // window but the terminal's ignored -- nothing comes up.
@@ -4256,10 +4256,10 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         CHECK(os->offered[0].x == 40);
         CHECK(os->offered[0].y == 60);
         CHECK_FALSE(os->offered[0].maximized);
-        // ...EVERY PAINTER SKIN OFFERED THE DIRECTORY, and Workshop's area placed on the OS window.
+        // ...EVERY PALETTE OFFERED THE DIRECTORY, and Workshop's area placed on the OS window.
         std::vector<std::string> offered;
-        for (const gfx::SkinOffered& s : directory->offered) {
-            offered.push_back(s.skin);
+        for (const gfx::PaletteOffered& s : directory->offered) {
+            offered.push_back(s.palette);
         }
         CHECK(offered == std::vector<std::string>{"classic", "block", "day", "night"});
         REQUIRE(directory->areas.count(kWorkshopProvider) == 1);
@@ -4517,7 +4517,7 @@ TEST_CASE("a guest's guide mark stands over the panes in Workshop's overlay in t
                 if (const auto t = gfx::from_body<gfx::TextArgs>(n.node.args)) labels.push_back(*t);
             } else if (n.node.op == gfx::op::kRect) {
                 const auto r = gfx::from_body<gfx::RectArgs>(n.node.args);
-                if (r && r->fill.role == gfx::role::kGround) grounds.push_back(*r);
+                if (r && zengine::graphics::role_of(r->fill) == gfx::role::kGround) grounds.push_back(*r);
             }
         }
         REQUIRE_FALSE(labels.empty());
