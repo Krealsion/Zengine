@@ -6,8 +6,9 @@ name: Package
 # last tag of its series, at the Loom commit that run built against, and publishes it as the next
 # `vX.Y.N`, X.Y being that commit's own `project(VERSION)` major and minor (CMakeLists.txt); a
 # commit of another series than main's tip is packaged by no night, and a tip whose CI push run
-# finished without passing turns the run red, named. A dispatch publishes only when asked; a pull
-# request touching it runs it on its own head, a dry run.
+# finished without passing turns a night's or a dispatch's run red, named. A dispatch publishes
+# only when asked; a pull request touching it runs it on its own head, a dry run that judges no
+# main.
 on:
   schedule:
     - cron: '41 3 * * *'
@@ -134,10 +135,12 @@ jobs:
   # did not pass -- failed, or cancelled, as a job stopped at its time limit leaves it -- is packaged
   # by no night until a later commit passes. This job says so and is red, naming the commit and
   # the run, whatever `decide` packaged beside it; a tip still in CI, or the last tag's own, it says
-  # and passes. A pull request's dry run reads main as it stands too. `TIP` and `RUNS_OF` name
-  # another commit and its runs, for a check by hand.
+  # and passes. It runs at night and on a dispatch, never in a pull request's dry run, whose check
+  # is its own head's and not main's. `TIP` and `RUNS_OF` name another commit and its runs, for a
+  # check by hand.
   tip:
     name: Package / main's tip
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
