@@ -25,6 +25,8 @@ time.
 
 **Consequences.** Workshop, the snake and an app offer palettes where they offered skins; a row's
 `workshop.skin` names one. Drawings in the operands' first versions are refused in words. A GPU
-painter is packaging behind the same interface, not a redesign.
+painter is packaging behind the same interface, not a redesign. Three places still say `skin` for
+a theme -- the `workshop.skin` setting, `app.json`'s `window.skin` and the snake's `1 skin` -- a
+known debt, kept until they are renamed.
 
 **Laws supported.** [WL-SETTING-13](../workshop/settings.md).
