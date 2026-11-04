@@ -145,7 +145,8 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
   and says why. `decide` reads that run's `loom-commit` artifact, which `ci.yml`'s `resolve-loom`
   keeps, and builds at that Loom commit. When nothing moved, the night ends green and says
   so. A pull request touching how the package is made runs the same jobs on its own head,
-  at Loom `main`, as a dry run.
+  at Loom `main`, as a dry run, all but the judging of `main`'s tip, which is a night's and a
+  dispatch's.
 - **Built** cold and Release, with the version the next tag's:
   - Linux in Ubuntu 22.04 pinned by digest, its packages from Ubuntu's archive on one named day,
     and SDL with its X11 and Wayland drivers (`cmake/ZengineSdl.cmake` keeps SDL's guard under the
