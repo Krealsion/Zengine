@@ -163,8 +163,8 @@ jobs:
   # ---- the judge of main's tip, on its cases ---------------------------------------------------
   # In a pull request's dry run, the judge the `tip` job runs gives its verdict on fixed cases --
   # a run that passed, failed, was cancelled or is still going, a commit with no run yet, the last
-  # tag's own commit and an older tag's -- each answer kept in tests/package/tip/cases.py, none read
-  # from GitHub; a wrong verdict is red. It judges no main.
+  # tag's own commit, an older tag's and an answer that cannot be read -- each answer kept in
+  # tests/package/tip/cases.py, none read from GitHub; a wrong verdict is red. It judges no main.
   tip-cases:
     name: Package / main's tip judge, on its cases
     if: ${{ github.event_name == 'pull_request' }}

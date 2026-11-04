@@ -17,8 +17,11 @@ runs, newest first, and refuses any other:
   no run         C, no run                                           green, says no run yet
   last tag's     B, the last tag by version; its run failed          green, packaged already
   older tag's    A, a tag but not the last; its run failed           red, names the run
+  unreadable     C, an answer that is not JSON                       not green: cannot judge, exit 2
 
-Exit 0 when every case gives the verdict expected, 1 otherwise, each wrong verdict named.
+A verdict is the exit, the words and the commit said, the run named, the step summary and the
+`::error::` line. Exit 0 when every case gives the verdict expected, 1 otherwise, each wrong
+verdict named.
 """
 import json
 import os
@@ -100,6 +103,7 @@ def main():
             ("no run", "C", [], 0, "has no CI push run yet", None),
             ("last tag's", "B", [failed], 0, "is v0.10.0's: packaged already", None),
             ("older tag's", "A", [failed], 1, "did not pass CI", failed),
+            ("unreadable", "C", "<html>busy</html>", 2, "could not be read", None),
         ]
         wrong = []
         for name, commit, runs, want_exit, words, named in cases:
@@ -107,7 +111,10 @@ def main():
             git(repo, "checkout", "-q", "--detach", sha)
             answer = os.path.join(work, "runs.json")
             with open(answer, "w", encoding="utf-8") as f:
-                json.dump({"total_count": len(runs), "workflow_runs": runs}, f)
+                if isinstance(runs, str):
+                    f.write(runs)
+                else:
+                    json.dump({"total_count": len(runs), "workflow_runs": runs}, f)
             summary = os.path.join(work, "summary.md")
             open(summary, "w").close()
             unset = ("TIP", "RUNS_OF", "GH_TOKEN", "GITHUB_TOKEN", "GITHUB_STEP_SUMMARY")
@@ -123,9 +130,12 @@ def main():
             faults = []
             if done.returncode != want_exit:
                 faults.append("exit %d, expected %d" % (done.returncode, want_exit))
-            if words not in done.stdout or sha not in done.stdout:
+            if want_exit == 2:
+                if words not in done.stderr:
+                    faults.append("did not say %r" % words)
+            elif words not in done.stdout or sha not in done.stdout:
                 faults.append("did not say %r of %s" % (words, sha))
-            if words not in summarized:
+            if want_exit != 2 and words not in summarized:
                 faults.append("the step summary does not say %r" % words)
             if named is not None and named["html_url"] not in done.stdout:
                 faults.append("did not name the run %s" % named["html_url"])
