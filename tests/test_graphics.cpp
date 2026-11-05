@@ -5319,18 +5319,18 @@ TEST_CASE("a terminal leaves out a fill that is mostly transparent, as it leaves
     }
 }
 
-TEST_CASE("in a terminal night and day show their text, grounds and frames in the terminal's own "
-          "colours and every other colour as the nearest of its sixteen inks; block keeps an ink of "
-          "its own for each") {
-    // THE POOL'S WORDS: `terminal default` for text, grounds and frames alone. A frame is drawn in text's colour,
-    // and day's is dark: as an ink it would be black, and vanish on a dark terminal.
+TEST_CASE("in a terminal night and day show their text and grounds in the terminal's default "
+          "colours, a pane's frame grey and every other colour as the nearest of its sixteen inks; "
+          "block keeps an ink of its own for each, its frame grey too") {
+    // THE POOL'S WORDS: `terminal default` for text and grounds alone, and grey for a pane's frame:
+    // day's frame is dark, and as its nearest ink it would be black and vanish on a dark terminal.
     for (const gfx::PaletteColor& c : gfx::themes::night().colors) {
         const bool own = c.name == gfx::colors::text.name || c.name == gfx::colors::ground.name ||
-                         c.name == gfx::colors::frame.name ||
                          c.name == gfx::colors::background.name ||
                          c.name == gfx::colors::surface.name || c.name == gfx::colors::field.name ||
                          c.name == gfx::colors::chosen.name || c.name == gfx::colors::veil.name;
-        CHECK_MESSAGE(c.cells == (own ? gw::kTerminalDefault : ""), c.name);
+        const bool grey = c.name == gfx::colors::frame.name;
+        CHECK_MESSAGE(c.cells == (own ? gw::kTerminalDefault : grey ? "bright black" : ""), c.name);
     }
     // ...AND WHAT A TERMINAL WRITES FOR THEM.
     TypedWindow t;
@@ -5354,7 +5354,7 @@ TEST_CASE("in a terminal night and day show their text, grounds and frames in th
     CHECK(ink_of_glyph(t.term, from, 'A') != gw::sgr_for(gw::kTerminalDefault, 0));
     CHECK(ink_of_glyph(t.term, from, 'T') == gw::sgr_for(gw::kTerminalDefault, 0)); // the terminal's default
     CHECK(t.r.shown().rows[0].substr(0, 2) == "AT");                      // on its own ground
-    // DAY'S FRAME, dark, is the terminal's default colour too, not the black ink nearest it.
+    // DAY'S FRAME, dark, is grey, not the black ink nearest it; its selected frame its accent's ink.
     t.r.to_role(gfx::kGraphicsRole, gfx::themes::day());
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "day"});
     t.r.drain();
@@ -5362,14 +5362,19 @@ TEST_CASE("in a terminal night and day show their text, grounds and frames in th
     gfx::Sketch d;
     d.fill_rect("ground", 0, 0, 20 * gfx::kCellPx, 2 * gfx::kCellPx, gfx::colors::background);
     d.text("f", 0, 0, "F", gfx::colors::frame);
+    d.text("s", gfx::kCellPx, 0, "S", gfx::colors::frame_selected);
     t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
                                    loom::Message(loom::to_value(whole(kOwner, d))));
     t.r.drain();
     CHECK(heard.refused.empty());
-    CHECK(ink_of_glyph(t.term, day_from, 'F') == gw::sgr_for(gw::kTerminalDefault, 0));
+    CHECK(ink_of_glyph(t.term, day_from, 'F') == gw::sgr_for("bright black", 0));
+    CHECK(ink_of_glyph(t.term, day_from, 'S') == gw::sgr_for("", 0xd08700ff));
     // BLOCK, the terminal look: every colour its own ink, as its theme writes it.
     for (const gfx::PaletteColor& c : gfx::themes::block().colors) {
         CHECK_MESSAGE(!c.cells.empty(), c.name);
+        if (c.name == gfx::colors::frame.name) {
+            CHECK(c.cells == "bright black");
+        }
     }
 }
 

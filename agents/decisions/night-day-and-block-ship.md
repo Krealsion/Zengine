@@ -11,7 +11,8 @@ terminal classic, day and night did, every colour in the terminal's one ink.
 **Decision.** Three looks ship and are offered: `night`, the pool's own, light on a cool dark ground;
 `day`, dark on light; and `block`, the terminal look, the one theme that changes how a terminal draws.
 `classic` is another name for `night`: a row, a setting or an `app.json` naming it wears night, and
-nothing offers it. A terminal shows text and every ground in its default colours, and each other colour of
+nothing offers it. A terminal shows text and every ground in its default colours, a pane's frame in grey (`bright
+black`) in every look so it reads on a dark terminal and a light one, and each other colour of
 night and day as the nearest of its sixteen inks; block keeps an ink of its own for each.
 
 **Alternatives considered.**

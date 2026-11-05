@@ -1,7 +1,7 @@
 {
   "format": "zengine-pool",
   "format_version": 1,
-  "about": "The shared pool: the colours every pane may name, by use, each with the colour it paints where a theme sets none, what a terminal shows for it -- its default colours for text, grounds and frames, else the nearest of its sixteen inks -- and the character a terminal fills a shape with in it. These defaults are the window's own palette, night's.",
+  "about": "The shared pool: the colours every pane may name, by use, each with the colour it paints where a theme sets none, what a terminal shows for it -- its default colours for text and grounds, a pane's frame in grey (`bright black`), else the nearest of its sixteen inks -- and the character a terminal fills a shape with in it. These defaults are the window's own palette, night's.",
   "outline": "+-|",
   "colors": [
     { "name": "ground", "color": "#101418", "cells": "terminal default", "fill": "#",
@@ -36,7 +36,7 @@
       "about": "what must come first, short of an alert" },
     { "name": "done", "color": "#a3be8c", "fill": "o",
       "about": "ready, running or done" },
-    { "name": "frame", "color": "#d8dee9", "cells": "terminal default", "fill": "o",
+    { "name": "frame", "color": "#d8dee9", "cells": "bright black", "fill": "o",
       "about": "a pane's chrome: its edge and its header" },
     { "name": "frame_selected", "color": "#ebcb8b", "fill": "O",
       "about": "the selected pane's chrome" },

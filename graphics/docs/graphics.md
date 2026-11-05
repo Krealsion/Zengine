@@ -175,7 +175,8 @@ across and down. Whoever arranges the window offers palettes and chooses the one
 window's own, the pool's defaults, which are night's. The three shipped themes are
 `graphics::themes::night()`, `day()` and `block()` (`graphics/themes.hpp`), each generated with
 `zengine_palettes()` from its JSON in `graphics/themes/`. In a terminal the pool shows text and
-every ground in the terminal's default colours and each other colour as the nearest of its sixteen
+every ground in the terminal's default colours, a pane's frame in grey (`bright black`), and each
+other colour as the nearest of its sixteen
 inks; `block` gives every colour an ink and a fill character of its own.
 
 An exact colour can name the pool colour a medium that cannot show it shows in its place

@@ -21,7 +21,7 @@
     { "name": "faint", "cells": "bright black", "fill": ":" },
     { "name": "warn", "cells": "yellow", "fill": "%" },
     { "name": "done", "cells": "green", "fill": "#" },
-    { "name": "frame", "cells": "terminal default", "fill": "#" },
+    { "name": "frame", "cells": "bright black", "fill": "#" },
     { "name": "frame_selected", "cells": "cyan", "fill": "@" },
     { "name": "frame_transient", "cells": "bright black", "fill": ":" },
     { "name": "primary", "cells": "cyan", "fill": "@" },
