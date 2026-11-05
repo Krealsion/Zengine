@@ -61,7 +61,7 @@ inline gfx::Color edge() { return ink::edge; }       ///< an outline
 inline gfx::Color thread() { return ink::faint; }    ///< the thread from a write to a say
 inline gfx::Color text() { return ink::text; }
 inline gfx::Color soft() { return ink::text; }
-inline gfx::Color quiet() { return ink::quiet; }
+inline gfx::Color quiet() { return ink::soft; }
 inline gfx::Color faint() { return ink::faint; }
 inline gfx::Color message() { return own::message; } ///< a message: gold
 inline gfx::Color wire() { return own::wire; }       ///< wires, ports and steps

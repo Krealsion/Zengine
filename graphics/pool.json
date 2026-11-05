@@ -28,6 +28,8 @@
       "about": "the ground of a chosen row" },
     { "name": "veil", "color": "#0000007f", "cells": "own", "fill": " ",
       "about": "a translucent cover over what is not the subject; a terminal draws none" },
+    { "name": "soft", "color": "#9aa3b2", "fill": ".",
+      "about": "words beside the text: readable, and quieter than text" },
     { "name": "faint", "color": "#7d869a", "fill": ".",
       "about": "fainter than quiet: what is there but empty, and outlines of what cannot be pressed" },
     { "name": "warn", "color": "#d08770", "fill": "*",

@@ -17,6 +17,7 @@
     { "name": "field", "cells": "black", "fill": " " },
     { "name": "chosen", "cells": "black", "fill": " " },
     { "name": "veil", "cells": "own", "fill": " " },
+    { "name": "soft", "cells": "white", "fill": "." },
     { "name": "faint", "cells": "bright black", "fill": ":" },
     { "name": "warn", "cells": "yellow", "fill": "%" },
     { "name": "done", "cells": "green", "fill": "#" },

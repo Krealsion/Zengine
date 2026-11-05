@@ -16,6 +16,7 @@
     { "name": "field", "color": "#1b1f26" },
     { "name": "chosen", "color": "#434c5e" },
     { "name": "veil", "color": "#0000007f" },
+    { "name": "soft", "color": "#9aa3b2" },
     { "name": "faint", "color": "#7d869a" },
     { "name": "warn", "color": "#d08770" },
     { "name": "done", "color": "#a3be8c" },
