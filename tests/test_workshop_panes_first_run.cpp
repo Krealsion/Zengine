@@ -455,7 +455,7 @@ TEST_CASE("WL-GUEST-06: on a weaver's host a guest's key and press toward the qu
         // ...A GUEST'S PRESS ON ITS AREA takes them back only on a development host.
         const CellRect body = external_body_rect(r.session(), kind);
         r.session().notice.clear();
-        g.press_cell(body.x, body.y);
+        g.press_cell(body.x + kFoldArrowColumns, body.y);
         const std::string pressed = r.last_notice();
         if (development) {
             CHECK(r.session().panes.keyboard == kind);
@@ -465,7 +465,7 @@ TEST_CASE("WL-GUEST-06: on a weaver's host a guest's key and press toward the qu
         }
 
         // THE WEAVER'S OWN HAND REACHES IT ON EITHER HOST.
-        g.weaver_press_cell(body.x, body.y);
+        g.weaver_press_cell(body.x + kFoldArrowColumns, body.y);
         CHECK(r.session().panes.keyboard == kind);
         const std::size_t asked = sw->asked.size();
         g.weaver_key(input::scan::kReturn);

@@ -219,7 +219,7 @@ struct LegendRig {
     /// A DRAFT ON A SETTINGS ROW, its text replaced by `typed`.
     void draft(const std::string& key, const std::string& typed) {
         const CellRect body = external_body_rect(r.session(), info());
-        r.press_cell(body.x, body.y);
+        r.press_cell(body.x + kFoldArrowColumns, body.y);
         press_info(info_row([&key](const std::string& row) { return row.compare(1, key.size() + 1, key + " ") == 0; },
                             true));
         r.key(input::scan::kReturn);
@@ -519,17 +519,17 @@ TEST_CASE("the Terminal's settings rows appear the moment its image declares, an
     CHECK_FALSE(t.legend_shown());
 }
 
-TEST_CASE("a Terminal closed in a layout that hid its legend shows it again when it is shown") {
+TEST_CASE("a Terminal hidden in a layout that hid its legend keeps it hidden when it is shown") {
     LegendRig t;
     t.open();
     t.inspect_terminal();
     t.write(tp::kSettingLegend, "off");
     REQUIRE_FALSE(t.legend_shown());
-    // THE CLOSE TAKES THE ROW AND ITS SETTING; THE ROW SHOWN AGAIN KEEPS NONE, AND THE TERMINAL --
-    // which never left, and still holds what it was last handed -- is handed that too.
+    // THE HIDE KEEPS THE ROW AND ITS SETTING; THE ROW SHOWN AGAIN KEEPS IT, AND THE TERMINAL --
+    // which never left, and still holds what it was last handed -- shows no legend.
     REQUIRE(hand_close(t.r, terminal_ref()).closed);
-    CHECK(t.r.last_notice() == "hid Terminal and its settings here (legend off)");
+    CHECK(t.r.last_notice() == "hid Terminal");
     REQUIRE(seat_pane(t.r, terminal_ref()).opened);
-    CHECK(terminal_settings(t.r.run().active).empty());
-    CHECK(t.legend_shown());
+    CHECK(terminal_settings(t.r.run().active) == std::vector<PaneSetting>{legend_off()});
+    CHECK_FALSE(t.legend_shown());
 }

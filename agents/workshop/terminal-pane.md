@@ -139,7 +139,7 @@ wheel_rows_ prompt_ wheel named_rows kWheelRows kWheelRowsLow kWheelRowsHigh kPr
 shows it, written through Info's rows" "a Terminal seated again holds its layout's legend before its
 first picture, and that picture keeps it" "after a restart the Terminal's first picture keeps its
 layout's legend, and so does a reload's" "a legend value the Terminal cannot use is kept as stored,
-and said in its legend row" "a Terminal closed in a layout that hid its legend shows it again when
+and said in its legend row" "a Terminal hidden in a layout that hid its legend keeps it hidden when
 it is shown" "a press aimed at the Terminal's picture from before its legend hid is refused"
 
 ### WL-TERM-21

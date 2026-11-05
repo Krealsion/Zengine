@@ -197,7 +197,7 @@ struct BuilderRig {
     /// pane's own first row.
     void focus() {
         const CellRect body = external_body_rect(r.session(), kind);
-        r.press_cell(body.x, body.y);
+        r.press_cell(body.x + kFoldArrowColumns, body.y);
         REQUIRE(r.session().panes.keyboard == kind);
     }
 

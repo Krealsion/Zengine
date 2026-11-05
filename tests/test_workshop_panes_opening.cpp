@@ -1149,7 +1149,9 @@ TEST_CASE("a pane a managed opening seats is handed its row by the layouts' owne
     // THE EDITOR TAKES ITS SETTINGS, and is off the desk when the open is asked: the opening seats
     // it, the seat is asked of the layouts' owner, and the owner hands it its row.
     PictureOpen o("open-settings-first");
-    REQUIRE(hand_close(o.r, PaneRef{kEditorRole, "editor"}).closed);
+    // OFF THE SETUP, its row gone: a hidden row the Editor still holds would be handed nothing new.
+    stage_desk(o.r, [](Setup& desk) { REQUIRE(remove_pane(desk, PaneRef{kEditorRole, "editor"})); });
+    o.serve(); // Workshop takes the desk the owner now holds
     o.editor->heard.clear();
     o.editor->handed_by.clear();
     o.ask_b();
@@ -1163,7 +1165,9 @@ TEST_CASE("a managed opening's owed rooms go out when the next delivery repaints
     // A MESSAGE WORKSHOP TAKES AND ANSWERS WITH NOTHING, queued right behind its admission answer:
     // the delivery after the showing is that one, so the rooms it owes go out before any repaint.
     PictureOpen o("open-owed-rooms");
-    REQUIRE(hand_close(o.r, PaneRef{kEditorRole, "editor"}).closed);
+    // OFF THE SETUP, its row gone: a hidden row the Editor still holds would be handed nothing new.
+    stage_desk(o.r, [](Setup& desk) { REQUIRE(remove_pane(desk, PaneRef{kEditorRole, "editor"})); });
+    o.serve(); // Workshop takes the desk the owner now holds
     o.editor->heard.clear();
     bool queued = false;
     const loom::ObserverId tap = o.r.bus.add_observer([&o, &queued](const loom::BusEvent& ev) {

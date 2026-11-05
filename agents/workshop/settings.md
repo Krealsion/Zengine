@@ -75,12 +75,12 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/settings-are-rows-of-a-panes-subject.md`
 
-## WL-SETTING-06 — A close takes a row's settings and says so; an opening's publication keeps them
+## WL-SETTING-06 — A hide keeps a row's settings; a removal names them
 
-LAW — A close takes the row's settings and locks with its place and size, and each close door names them; a managed opening's publication keeps the live desk's name and settings, which its digest leaves out.
+LAW — A hide keeps the row's settings and locks with its place and size; a removal takes and names them; a managed opening's publication keeps the live desk's name and settings.
 
 MEANS
-- a reopened row keeps none, and is handed that;
+- a row shown keeps what it kept, handed nothing new; one removed, then seated, keeps none;
 - a setting written or a layout renamed while an opening prepares neither aborts it nor is lost to it.
 
 WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
@@ -262,8 +262,8 @@ goes" "the row Info reads moves with what it is built from: a declaration, and a
 `workshop/layouts/store.cpp` close
 `workshop/weave_managed.cpp` show_presentation digest_of
 `workshop/setup.hpp` remove_pane
-`tests/test_workshop_panes_settings.cpp` "a close discards a pane's settings with its row, and every
-close door says which" "arrangement's remove says the settings and locks it
+`tests/test_workshop_panes_settings.cpp` "a close keeps a pane's settings with its row, and every
+close door says only what it hid" "arrangement's remove says the settings and locks it
 discarded too"
 `tests/test_workshop_panes_opening.cpp` "a setting written while an opening prepares survives its
 publication" "a layout renamed while an opening prepares keeps its name through the publication"

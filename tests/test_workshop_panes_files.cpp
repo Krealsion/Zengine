@@ -269,7 +269,7 @@ struct FilesRig {
         // title sits above every row the pane was granted, so the pane is sent no press at all,
         // and this is the one gesture that focuses without also selecting or activating. A
         // provider row -- the pane's own header is its row 0 -- is reached through `press_pane`.
-        r.press_cell(external_body_rect(r.session(), kind).x,
+        r.press_cell(external_body_rect(r.session(), kind).x + kFoldArrowColumns,
                      external_body_rect(r.session(), kind).y);
     }
 
@@ -976,7 +976,7 @@ TEST_CASE("the wheel moves the cursor, and a header press names no entry") {
     // selection. The pane's own header is its row 0, located in the picture, and names no entry.
     const std::string now = f.at_cursor();
     SeamTap tap(f.r.bus, f.files_id(), f.keys_here());
-    f.r.press_cell(body.x, body.y);
+    f.r.press_cell(body.x + kFoldArrowColumns, body.y);
     CHECK(tap.pressed.empty());
     CHECK(f.at_cursor() == now);
     const std::int64_t header = row_beginning(f.shown(), "Files ");
@@ -1312,7 +1312,7 @@ TEST_CASE("a press on Files' selected row opens it when the keys were already Fi
         REQUIRE(keyboard_pane(f.r.session().panes) == f.editor_kind());
         SeamTap tap(f.r.bus, f.files_id(), f.keys_here());
         const CellRect body = external_body_rect(f.r.session(), f.kind);
-        f.r.press_cell(body.x, body.y);
+        f.r.press_cell(body.x + kFoldArrowColumns, body.y);
         CHECK(tap.pressed.empty());
         REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
         press_pane(f.r, f.kind, row_beginning(f.shown(), "> beta.cpp"), 0);

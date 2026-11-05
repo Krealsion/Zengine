@@ -161,8 +161,9 @@ The **room** is the whole screen. Panes are drawn **over** it — none of them s
 and nothing is drawn where no pane is: the window's own dark ground, or a terminal's. Where
 things are is the legend's to say — `Ctrl`+`p` shows the Pane Manager, which lists every pane,
 marks a tool that is not in this Workshop `[gone]` and says how to bring it back. Panes cover
-the room you are working in. That is uncomfortable on purpose: inventing a docking system before
-anybody had felt the discomfort would be answering a demand nobody had made. A wider terminal
+the room you are working in; one in your way shuts to its title, hides, or docks on an edge, where
+it keeps a thin strip and opens over the room only while you need it
+([shut, hide, dock](panes.md#shut-hide-dock)). A wider terminal
 splits the surplus evenly between a pane and the room underneath it, so the room always keeps
 half.
 

@@ -193,6 +193,65 @@ ScreenRegion band_region(const Session& s, const Screen& sc) {
     return band;
 }
 
+namespace {
+
+/// EVERY DOCK'S STRIP, its own ground the whole length of its edge, its arrow and its tags in it:
+/// an open pane's tag and an open edge's arrow in the accent ink, the rest muted.
+// WL-CHROME-12 -- agents/workshop/chrome.md
+void paint_strips(ScreenPlane& layer, const Session& s, const Screen& sc) {
+    const std::vector<StripMark> marks = strip_marks(s, sc);
+    for (const std::int64_t edge :
+         {pane_dock::kLeft, pane_dock::kRight, pane_dock::kTop, pane_dock::kBottom}) {
+        const PixelRect r = strip_rect(sc, edge);
+        if (r.w <= 0 || r.h <= 0) {
+            continue;
+        }
+        const bool vertical = edge == pane_dock::kLeft || edge == pane_dock::kRight;
+        const RegionFit fit = fit_region(r.x, r.y, r.w, r.h, sc.text_advance_px, sc.text_line_px);
+        ScreenRegion region;
+        region.x = r.x;
+        region.y = r.y;
+        region.w = r.w;
+        region.h = r.h;
+        if (vertical) {
+            region.rows.assign(static_cast<std::size_t>(std::max<std::int64_t>(fit.rows, 0)),
+                               TextRow{" ", graphics::role::kMuted});
+        } else if (fit.rows > 0) {
+            region.rows.push_back(TextRow{
+                std::string(static_cast<std::size_t>(std::max<std::int64_t>(fit.columns, 0)), ' '),
+                graphics::role::kMuted});
+        }
+        for (const StripMark& m : marks) {
+            if (m.edge != edge) {
+                continue;
+            }
+            const std::int64_t role = m.open ? graphics::role::kAccent : graphics::role::kMuted;
+            if (vertical) {
+                for (std::size_t i = 0; i < m.text.size(); ++i) {
+                    const std::size_t at = static_cast<std::size_t>(m.row) + i;
+                    if (at < region.rows.size()) {
+                        region.rows[at] = TextRow{std::string(1, m.text[i]), role};
+                    }
+                }
+            } else if (!region.rows.empty()) {
+                std::string& line = region.rows.front().text;
+                for (std::size_t i = 0; i < m.text.size(); ++i) {
+                    const std::size_t at = static_cast<std::size_t>(m.column) + i;
+                    if (at < line.size()) {
+                        line[at] = m.text[i];
+                    }
+                }
+                if (m.open) {
+                    region.rows.front().role = graphics::role::kAccent;
+                }
+            }
+        }
+        layer.texts.push_back(std::move(region));
+    }
+}
+
+} // namespace
+
 // WL-FRONT-01, WL-FRONT-07 -- agents/workshop/planes.md
 // WL-ATTN-04 -- agents/workshop/attention.md
 ScreenCanvas paint(const Session& s) {
@@ -206,6 +265,9 @@ ScreenCanvas paint(const Session& s) {
     // screen's own chrome is a later plane: a pane painted over the band would hide the keys the
     // weaver is about to press.
     paint_panes(c, s, sc);
+
+    // THE DOCKS' STRIPS, over the panes as the bands are: a pane is never drawn over a strip.
+    detail::on_own_layer(c, [&](ScreenPlane& layer) { paint_strips(layer, s, sc); });
 
     // The screen's own chrome over them, on its own plane: the bottom band, the keys' legend.
     // A region clears its whole rectangle, so a pane authored over the band is covered by it; the
@@ -513,8 +575,10 @@ void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
     const bool marks = pane != nullptr && pane->manual && body.columns >= kChromeMarksMinColumns;
     const std::int64_t marks_cols =
         static_cast<std::int64_t>(std::char_traits<char>::length(kChromeMarks));
-    draw_part(out, group, "focus:" + std::to_string(kind), body.fit, 0, 0,
-              marks ? body.columns - marks_cols - 1 : body.columns, header);
+    // ...and the arrow at its start shuts the pane or opens it.
+    draw_part(out, group, "fold:" + std::to_string(kind), body.fit, 0, 0, 1, header);
+    draw_part(out, group, "focus:" + std::to_string(kind), body.fit, 0, kFoldArrowColumns,
+              (marks ? body.columns - marks_cols - 1 : body.columns) - kFoldArrowColumns, header);
     if (marks) {
         draw_part(out, group, "settings:" + std::to_string(kind), body.fit, 0,
                   body.columns - marks_cols, 1, header);
@@ -583,6 +647,13 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
         ScreenPlane layer;
         paint_presented(layer, s, sc);
         draw_plane(out.sketch, desk + "/presented", layer, sc, presented_bounds(s, sc));
+    }
+    {
+        ScreenPlane layer;
+        paint_strips(layer, s, sc);
+        if (!layer.texts.empty()) {
+            draw_plane(out.sketch, desk + "/strips", layer, sc);
+        }
     }
     {
         ScreenPlane layer;

@@ -7,9 +7,10 @@ SETUP_VERSION and SESSION_VERSION are the setup file's and the session file's `k
 (workshop/setup_persist.hpp, workshop/layouts/session_persist.hpp). tests/code_values.txt reads
 both owners and workshop/docs/demo-setups.md marks one value for each pair, so a Workshop that
 moves either file's version is a red until this module moves with it. A desk a launcher is handed
-is lifted to SETUP_VERSION before anything is written around it: a version-4 or version-5 desk
-keeps every field, each coordinate and amount written only where its word reads one, and gains no
-settings, locks, pins or baseline it did not have; another version is refused, naming what to do.
+is lifted to SETUP_VERSION before anything is written around it: a version-4, version-5 or
+version-6 desk keeps every field, each coordinate and amount written only where its word reads one,
+each row open and undocked, and gains no settings, locks, pins or baseline it did not have; another
+version is refused, naming what to do.
 The room a session opens in is the window file's, written beside it (`window_path`).
 
 GUESTS_VERSION is the guests file's `kGuestsFileVersion` (workshop/guests.hpp), tied to it the same
@@ -19,14 +20,14 @@ launcher's row that may capture or guide names every pane, `*`, written and neve
 import copy
 import json
 
-SETUP_VERSION = 6
-SESSION_VERSION = 12
+SETUP_VERSION = 7
+SESSION_VERSION = 13
 GUESTS_VERSION = 3
 WINDOW_VERSION = 1
 
-# The shape of each layout line in a session file, `WorkshopLayout` v4: a shape's identity, frozen
+# The shape of each layout line in a session file, `WorkshopLayout` v5: a shape's identity, frozen
 # once published, which the session's lines carry as they are.
-LAYOUT_VERSION = 4
+LAYOUT_VERSION = 5
 
 # The guests file's `host`: a weaver's, where a guest writes no file, types into no pane and
 # reaches none of the editor, the Terminal and the Hotkeys pane; or a development host, an
@@ -42,9 +43,15 @@ DESK_NOTICE = {"producer": "zengine.workshop", "shape": "DeskStamps", "version":
 WORKSHOP_SAID = {"producer": "zengine.workshop", "shape": "NoticeSaid", "version": "1"}
 
 # The setup versions a desk is lifted from: version 4, whose rows hold every field of version 5's
-# but the settings, and version 5, which writes every coordinate and amount, zero where its word
-# reads none (`setup_persist::v4` and `v5` in workshop/setup_persist.hpp).
-LIFTED_SETUP_VERSIONS = (4, 5)
+# but the settings; version 5, which writes every coordinate and amount, zero where its word reads
+# none; and version 6, whose rows hold every field of version 7's but the fold and the dock
+# (`setup_persist::v4`, `v5` and `v6` in workshop/setup_persist.hpp).
+LIFTED_SETUP_VERSIONS = (4, 5, 6)
+
+# A row's fold and dock where it names none: open, and docked on no edge (`kFoldWords` and
+# `kDockWords` in workshop/setup.hpp).
+OPEN = "open"
+UNDOCKED = "none"
 
 SETUP_FORMAT = "zengine-workshop-setup"
 SESSION_FORMAT = "zengine-workshop-session"
@@ -52,10 +59,12 @@ WINDOW_FORMAT = "zengine-workshop-window"
 
 
 def _by_words(row):
-    """`row` at version 6: a place's `x` and `y` present only where its word is `pixels`, a size's
+    """`row` at version 7: a place's `x` and `y` present only where its word is `pixels`, a size's
     `amount` only where its word is `pixels` -- an older row's zero where the word reads none is
-    the absence it meant."""
+    the absence it meant -- and its fold and dock, open and undocked where it names none."""
     row = copy.deepcopy(row)
+    row.setdefault("fold", OPEN)
+    row.setdefault("dock", UNDOCKED)
     place = dict(row.get("place") or {"mode": "default"})
     if place.get("mode") != "pixels":
         place.pop("x", None)
@@ -96,10 +105,12 @@ def current(desk):
         return copy.deepcopy(desk)
     if version in LIFTED_SETUP_VERSIONS and claimed == str(version):
         fields = copy.deepcopy(desk["fields"])
-        return setup(fields["name"], fields["panes"])
+        return setup(fields["name"], fields["panes"], fields.get("theme"), fields.get("locks", ()),
+                     fields.get("pins", ()))
+    lifted = [str(v) for v in LIFTED_SETUP_VERSIONS]
     raise ValueError("the desk is setup version %s; a launcher lifts versions %s and writes %d -- "
                      "open it in Workshop and save it (`s`) to write version %d"
-                     % (claimed, " and ".join(str(v) for v in LIFTED_SETUP_VERSIONS), SETUP_VERSION,
+                     % (claimed, ", ".join(lifted[:-1]) + " and " + lifted[-1], SETUP_VERSION,
                         SETUP_VERSION))
 
 

@@ -164,7 +164,14 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     // ...AND THE POINTED PANE'S CODE, through the same seam: the captured reference, never the
     // selection or the keyboard's pane, and nothing is selected, focused or seated on the way.
     case Act::kEditCode:
-    case Act::kManageRemove: spend_pane_action(a, spent.pane, mail); break;
+    case Act::kManageRemove:
+    case Act::kManageFold:
+    case Act::kManageHide:
+    case Act::kManageDockLeft:
+    case Act::kManageDockRight:
+    case Act::kManageDockTop:
+    case Act::kManageDockBottom:
+    case Act::kManageUndock: spend_pane_action(a, spent.pane, mail); break;
     // -- the pointed layout tab ---------------------------------------------------
     // Each takes the captured position and none switches first: the owner re-asks the run at
     // spend, so a run that changed while the menu was open refuses.
@@ -475,6 +482,14 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
             repaint(mail);
             return;
         }
+        // A DOCK'S STRIP is Workshop's chrome, which no pane covers: a press on its arrow or on a
+        // tag opens or shuts the edge's pane, and moves neither the selection nor the keys.
+        if (const std::optional<StripMark> mark =
+                strip_mark_at(session_, screen_of(session_), at)) {
+            press_strip(*mark, mail);
+            repaint(mail);
+            return;
+        }
         // A PANE'S `?` AND ITS GEAR are the host's marks on its chrome: a press on one is spent on
         // it, and moves neither the selection nor the keys (WL-CHROME-09).
         if (here.occupied && is_runtime_kind(here.kind)) {
@@ -488,6 +503,11 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
             }
             if (mark == chrome_mark::kSettings) {
                 press_settings(here.kind, at);
+                repaint(mail);
+                return;
+            }
+            if (mark == chrome_mark::kFold) {
+                press_fold(here.kind, mail);
                 repaint(mail);
                 return;
             }

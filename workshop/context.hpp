@@ -147,10 +147,18 @@ inline constexpr ContextRow kContextCatalog[] = {
     {"manage.reset-place", kOnPane, "Reset"},
     {"manage.reset-width", kOnPane, "Reset"},
     {"manage.reset-height", kOnPane, "Reset"},
+    // The edges the pane docks on, one intent with five answers.
+    {"manage.dock-left", kOnPane, "Dock"},
+    {"manage.dock-right", kOnPane, "Dock"},
+    {"manage.dock-top", kOnPane, "Dock"},
+    {"manage.dock-bottom", kOnPane, "Dock"},
+    {"manage.undock", kOnPane, "Dock"},
     // Edit Code: the pointed pane's running code, followed to its source. After the arrangement
-    // rows, a different intent, and before `remove`, which stays last. A row, not a group: what it
-    // reaches is the host's to say at spend (WL-CTX-07).
+    // rows, a different intent, and before the folds and `remove`, which stays last. A row, not a
+    // group: what it reaches is the host's to say at spend (WL-CTX-07).
     {"pane.edit-code", kOnPane, ""},
+    {"manage.fold", kOnPane, ""},
+    {"manage.hide", kOnPane, ""},
     {"manage.remove", kOnPane, ""},
     // -- a layout tab ------------------------------------------------------------------
     // Rename first, a double-click's slower twin; the two reorder steps are a group, one intent

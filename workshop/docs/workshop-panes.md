@@ -140,8 +140,9 @@ migration moved is where they are painted from; what a weaver sees at boot is by
   one path to an open pane's bounds — a closed one answers with an empty rectangle rather than
   with the place it would have had. When each painter carried its own column instead, the
   two places existed only as agreement between them; what a third kind costs now is a catalog
-  row and a painter, neither of which is geometry. Docking and tabs are still absent (a pane is
-  dragged and sized by arranging, below).
+  row and a painter, neither of which is geometry. Tabs are still absent (a pane is dragged and
+  sized by arranging, below); a docked pane stands against its edge's strip, which the room is
+  narrower by (WL-GEO-14).
 - **A visible pane occupies pointer space, not only pixels**. Bounds resolved in one
   path made the question sayable and the measured answer was that nobody asked it: a press on a
   cell the Builder was visibly covering took hold of the object underneath, selected it and
@@ -334,7 +335,7 @@ Setup
 
 Deliberately absent, so the absences are decisions: no opaque provider configuration (a pane's
 [settings](#a-panes-settings) are typed values the layouts' owner judges by form); no multiple
-pane instances; no setup catalog, recent list, autosave or import/export; no tabs, docking or
+pane instances; no setup catalog, recent list, autosave or import/export; no tabs or
 layout weave. Workshop manages **one** active setup path. (The external provider, office and
 discovery protocol this list once excluded now exists, bounded — the section below says exactly
 how far. So do pane drag/resize, authored pane geometry and an arrange mode, equally bounded
@@ -348,11 +349,11 @@ pointer, reaching the same doors. Panes may overlap, and **every pane the setup 
 whether or not it can currently be seen.** Workshop's unit is the **whole canvas pixel**,
 twelve to a cell: a pane a weaver dragged by a single window pixel differs from its neighbour
 by exactly one, while a pane on a cell boundary is an exact multiple and the character medium's
-picture of it has not moved by a byte. Setup format is **version <!-- value setup_persist::kFormatVersion -->6<!-- /value -->**, its amounts in pixels
+picture of it has not moved by a byte. Setup format is **version <!-- value setup_persist::kFormatVersion -->7<!-- /value -->**, its amounts in pixels
 under the word `pixels` and each row's [settings](#a-panes-settings) beside them. A **version-4**
 file reads with no settings, a **version-3** file (`subcells`, four to a pixel) is read back to the
 pixel each edge was painted at, and a **version-2** whole-cell file still loads, its cells
-mapped exactly (x 12); the next explicit save writes version <!-- value setup_persist::kFormatVersion -->6<!-- /value -->. A version-1 file is refused by
+mapped exactly (x 12); the next explicit save writes version <!-- value setup_persist::kFormatVersion -->7<!-- /value -->. A version-1 file is refused by
 its number.
 
 ```text
@@ -657,7 +658,7 @@ key. There is no reply,
 disposition or acknowledgement to any of them except the one above, which answers nothing and is
 about `Esc` alone; no
 multiple instances of one `PaneRef`; no provider-owned screen placement, docking, tabs or
-resize handles; no compositor or second canvas publisher; no unload notification, timeout,
+resize handles (a dock is the weaver's, in the pane's row); no compositor or second canvas publisher; no unload notification, timeout,
 heartbeat, liveness query, `unavailable` state or catalog retraction; **no observation surface of
 any kind inside the protocol** — a provider that wants to know something asks its owner with its
 own grant, exactly as any weave would, and the shapes carry no `QueryRole`, no `ListLoaded`,
@@ -1015,7 +1016,7 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (office,
   reads the weaver's keys and presses, ends the menu and ANSWERS it, as its office, under the
   request's number, subject-bound — `answer.subject` is the pane's own word, echoed unread.
   Beneath the pane's rows, in the same menu, the grant carries the host's own pane menu for that
-  pane — the standard rows (`arrange`, `Order >`, `Reset >`, `edit code`, `hide pane`); one chosen
+  pane — the standard rows (`arrange`, `Order >`, `Reset >`, `Dock >`, `edit code`, `shut or open`, `hide pane`, `remove from the setup`); one chosen
   is the host's to spend on that pane, and the pane is answered unchosen
   (`a standard row was chosen`). No pane performs a standard row, and the host performs none of
   a pane's. The menu takes no keys and no selection, and restores nothing after: a press
@@ -1174,7 +1175,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
-  The session format is **version <!-- value session_persist::kFormatVersion -->12<!-- /value -->**: the weaver's whole ordered run of layouts — each an
+  The session format is **version <!-- value session_persist::kFormatVersion -->13<!-- /value -->**: the weaver's whole ordered run of layouts — each an
   ordinary saved setup, its panes' settings, locks, pins and baseline included, with the id the
   layouts' owner minted for it and the Setup file it is related to, if any — which position was
   live, the id the next layout takes, and which authored choice held each office the plan lets you
@@ -1194,7 +1195,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   them at; a desk before version 8 holds no settings; a session before version 9 remembers no choice;
   and one before version 10 keeps no OS window's room; a session before version 11 was one value,
   and comes back whole; and one before version 12 numbers its layouts in order. Without the provider such a file is refused
-  by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->12<!-- /value -->.
+  by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->13<!-- /value -->.
 - **The viewport is the window file's, not the session's**, and that is the whole reason it is
   not kept with the desks: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is

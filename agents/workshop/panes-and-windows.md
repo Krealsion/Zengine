@@ -149,7 +149,8 @@ WHY — `agents/decisions/a-presentation-owns-no-facts.md`
 
 ## Do not assume
 
-- That docking exists — it is absent and refused.
+- That a docked pane stands at its place — it stands against its edge's strip, over the room
+  (WL-GEO-14).
 - That `kinds_placed_in` has a runtime witness — its pins are compile-time only (WL-PANE-01).
 - That two panes cannot stand in one place — a desk may say so, and one covers the other
   (WL-PANE-01).

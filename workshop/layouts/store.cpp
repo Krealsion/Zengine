@@ -1757,20 +1757,22 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
         if (has_pane(live, ref)) {
             return std::string(); // seated already: the desk is as asked
         }
+        // A HIDDEN ROW COMES BACK WHERE IT WAS, open, with everything it kept, and in front, as a
+        // pane a seat adds is.
+        if (SetupPane* hidden = pane_of(live, ref); hidden != nullptr) {
+            open_row(live, ref);
+            (void)send_to_front(live, ref);
+            out.returned = true;
+            return std::string();
+        }
         if (live.panes.size() >= kMaxSetupPanes) {
             return "a setup holds at most " + std::to_string(kMaxSetupPanes) + " panes";
         }
-        // WHERE IT WAS LEFT IN THIS LAYOUT, else the window the seat names, else the code's.
+        // THE WINDOW THE SEAT NAMES, else the code's.
         PanePlace place;
         PaneSize width;
         PaneSize height;
-        const std::optional<LeftPlace> back = take_left_place(next, ref);
-        if (back.has_value()) {
-            place = back->place;
-            width = back->width;
-            height = back->height;
-            out.returned = true;
-        } else if (!e.place.mode.empty()) {
+        if (!e.place.mode.empty()) {
             if (std::string wrong = window_of(place, width, height); !wrong.empty()) {
                 return wrong;
             }
@@ -1790,14 +1792,44 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
         if (row == nullptr) {
             return ref_text(ref) + " is not on this desk";
         }
+        // THE ROW GOES WHOLE, its place with it: a hide is what keeps one.
         out.discarded = row->settings;
-        leave_place(next, *row);
         for (const SetupLock& lock : live.locks) {
             if (lock.ref == ref) {
                 out.unlocked.push_back(lock.key);
             }
         }
         (void)remove_pane(live, ref);
+        return std::string();
+    }
+    // ---- A row's fold and its dock: words a row keeps, which no size follows ----
+    if (e.op == kOpen || e.op == kShut || e.op == kHide || e.op == kDock || e.op == kUndock) {
+        if (std::string wrong = row_op(); !wrong.empty()) {
+            return wrong;
+        }
+        SetupPane* row = pane_of(live, ref);
+        if (row == nullptr) {
+            return "`" + ref_text(ref) + "` is not in this setup";
+        }
+        if (e.op == kOpen) {
+            open_row(live, ref);
+        } else if (e.op == kShut) {
+            row->fold = pane_fold::kShut;
+        } else if (e.op == kHide) {
+            row->fold = pane_fold::kHidden;
+        } else if (e.op == kUndock) {
+            row->dock = pane_dock::kNone;
+        } else {
+            const std::optional<std::int64_t> edge = dock_named(e.name);
+            if (!edge || *edge == pane_dock::kNone) {
+                return "`" + e.name + "` is not an edge a pane docks on (left, right, top or bottom)";
+            }
+            row->dock = *edge;
+            // ONE OPEN PANE AN EDGE: the one docked open shuts the one that was.
+            if (row->fold == pane_fold::kOpen) {
+                open_row(live, ref);
+            }
+        }
         return std::string();
     }
     if (e.op == kWindow) {
@@ -2046,7 +2078,6 @@ LayoutEditAnswered LayoutStore::edit(const LayoutEditRequested& asked) {
         }
     }
     const bool desk_moved = !same_run(next, run_);
-    forget_gone_places(next);
     run_ = std::move(next);
     if (desk_moved || run_moved) {
         settle_live();
@@ -2081,24 +2112,23 @@ PaneCloseAnswered LayoutStore::close(const PaneRef& ref) {
         say(out.refusal, true);
         return out;
     }
-    LayoutEdit unseat;
-    unseat.op = layout_op::kUnseat;
-    unseat.provider = ref.provider;
-    unseat.pane = ref.pane;
+    LayoutEdit hide;
+    hide.op = layout_op::kHide;
+    hide.provider = ref.provider;
+    hide.pane = ref.pane;
     LayoutEditRequested asked;
-    asked.edits.push_back(std::move(unseat));
+    asked.edits.push_back(std::move(hide));
     const LayoutEditAnswered taken = edit(asked);
     if (!taken.accepted) {
         out.refusal = taken.refusal;
         say(out.refusal, true);
         return out;
     }
-    // THE ROW WENT WHOLE: its place, its size, its settings and this layout's locks and pins on
-    // it. Nothing behind it is touched -- a provider's lifetime is realization's, not the desk's.
+    // THE ROW STAYS: its place, its size, its settings and this layout's locks and pins on it, so
+    // a show puts the pane back where it was. Nothing behind it is touched -- a provider's
+    // lifetime is realization's, not the desk's.
     out.closed = true;
-    out.settings = taken.discarded;
-    out.locks = taken.unlocked;
-    say("hid " + name + discarded_settings(out.settings) + discarded_locks(out.locks), false);
+    say("hid " + name, false);
     return out;
 }
 

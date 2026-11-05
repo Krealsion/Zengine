@@ -647,12 +647,12 @@ TEST_CASE("WL-DESK-13: Ctrl+P is a visibility toggle judged by the host -- open 
                     .accepted);
         REQUIRE(send_to_front(desk, PaneRef{"zengine.test.tools", "alpha"}));
     });
-    // The Manager the toggle focused is put down, so nothing lifts it over Alpha.
+    d.r.bus.drain_until_idle(); // Workshop takes the desk the owner now holds
+    // The Manager the toggle focused is put down and Alpha given the keys, so nothing lifts the
+    // Manager over Alpha.
     Session& held = const_cast<Session&>(d.r.session());
-    held.panes.selected = kNoPaneKind;
-    held.panes.keyboard = kNoPaneKind;
-    d.r.press_cell(body_x(d.r, alpha_kind, 1), body_y(d.r, alpha_kind, 0));
-    REQUIRE(d.r.session().panes.keyboard == alpha_kind);
+    held.panes.selected = alpha_kind;
+    held.panes.keyboard = alpha_kind; // Alpha, in front, holds the keys
     d.r.key(input::scan::kP, input::mod::kCtrl);
     CHECK(has_pane(d.r.session().setup.active, manager));
     CHECK(d.r.session().panes.keyboard == kind_of(d.r, kDesktopRole, dp::kLauncherPane));
@@ -1832,7 +1832,7 @@ TEST_CASE("WL-CTX-10: the replacement presenter presents the Pane Manager's menu
     CHECK(lines[3] == "  4 arrange");
     // WRAPPING IS THIS PRESENTER'S: up from the first row lands on the last, the host's own.
     d.r.key(input::scan::kUp);
-    CHECK(presented_texts(d.r)[2 + kStandardRows] == "> 8 hide pane");
+    CHECK(presented_texts(d.r)[2 + kStandardRows] == ">   remove from the setup");
     queue_digit(d.r, input::scan::k1, "1");
     d.r.bus.drain_until_idle();
     CHECK(d.open("alpha"));

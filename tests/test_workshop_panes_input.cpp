@@ -47,7 +47,7 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
         // THE HEADER IS WORKSHOP'S ROW AND IT NAMES NOTHING. The provider was never
         // granted it, so there is no row of its room for this press to be.
         seat->presses.clear();
-        r.press_cell(pane_rect.x, pane_rect.y);
+        r.press_cell(pane_rect.x + kFoldArrowColumns, pane_rect.y);
         CHECK(seat->presses.empty());
 
         // ROW 0 OF THE ROOM IS THE ROW UNDER THE HEADER.
@@ -262,6 +262,14 @@ TEST_CASE("every press a pane reads on its rows is inside the room its area was 
         seat->presses.clear();
         for (std::int64_t y = pane_rect.y - 2; y < pane_rect.y + pane_rect.h + 2; ++y) {
             for (std::int64_t x = pane_rect.x - 2; x < pane_rect.x + pane_rect.w + 2; ++x) {
+                // THE TITLE'S ARROW is Workshop's own mark, as the `?` is: it would shut the pane.
+                if (graphical ? chrome_mark_at(r.session().panes, r.session().setup.active,
+                                               screen_of(r.session()), kind, r.session().pane_titles,
+                                               input::space::kPixels, cell_mid_px(x),
+                                               cell_mid_px(y)) == chrome_mark::kFold
+                              : (x == pane_rect.x && y == pane_rect.y)) {
+                    continue;
+                }
                 if (graphical) {
                     r.press_pixel(cell_mid_px(x), cell_mid_px(y));
                 } else {
@@ -1643,7 +1651,8 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
     };
 
     // BEFORE: the header is unmarked and the band advertises Workshop's own keys.
-    CHECK(header() == std::string(kTypingElsewhere) + "Seat @" + std::string(kHelloOffice));
+    CHECK(header() == std::string(kFoldOpenArrow) + " " + kTypingElsewhere + "Seat @" +
+                          std::string(kHelloOffice));
     {
         const std::vector<std::string> lines = band();
         REQUIRE(lines.size() == 2);
@@ -1658,7 +1667,8 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
     // global once anything on the screen can take text. `^c` is not among them -- a focused pane
     // takes text, so the chord is the pane's, and a band advertising a quit that would not
     // happen is the lie this band exists to refuse.
-    CHECK(header() == std::string(kTypingHere) + "Seat @" + std::string(kHelloOffice));
+    CHECK(header() == std::string(kFoldOpenArrow) + " " + kTypingHere + "Seat @" +
+                          std::string(kHelloOffice));
     {
         const std::vector<std::string> lines = band();
         REQUIRE(lines.size() == 2);

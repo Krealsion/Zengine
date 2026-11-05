@@ -576,7 +576,7 @@ office ([`vocabulary.hpp`](../layouts/vocabulary.hpp)).
 
 ### `LiveLayout`
 
-`LiveLayout` v2, from `zengine.layouts`: the live desk, each row with Workshop's own `workshop.`
+`LiveLayout` v3, from `zengine.layouts`: the live desk, each row with Workshop's own `workshop.`
 keys alone, a tab for every layout, the revision it stands at, what each live row's pane cannot use
 (said on Attention) and the sentence about what moved. Workshop presents from the latest one and
 never writes it; the next replaces it whole. A pane's own settings are the owner's to hand it.

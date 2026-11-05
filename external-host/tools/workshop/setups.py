@@ -234,7 +234,8 @@ class Setup:
                          "place": {"mode": "pixels", "x": str(slot["x"] * 12), "y": str(slot["y"] * 12)},
                          "width": {"mode": "pixels", "amount": str(slot["width"] * 12)},
                          "height": {"mode": "pixels", "amount": str(slot["height"] * 12)},
-                         "front": str(len(rows)), "settings": []})
+                         "front": str(len(rows)), "settings": [], "fold": formats.OPEN,
+                         "dock": formats.UNDOCKED})
         return desk
 
     def without(self, desk, providers):

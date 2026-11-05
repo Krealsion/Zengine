@@ -7,7 +7,7 @@ Retired: WL-SETUP-06.
 
 ## WL-SETUP-01 — A setup row is a reference plus the smallest authored difference
 
-LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->6<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}`, `front`, its `settings`, and nothing else.
+LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->7<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}`, `front`, `settings`, `fold` and `dock`, and nothing else.
 
 MEANS
 - a fresh setup is sparse: the developer's defaults are absent, not written;
@@ -110,10 +110,22 @@ MEANS
 
 WHY — `agents/decisions/setup-format-v3.md`
 
+## WL-SETUP-13 — A row keeps its fold and its dock
+
+LAW — A row's `fold` is `open`, `shut` or `hidden` and its `dock` `none`, `left`, `right`, `top` or `bottom`; a hidden row is kept whole and seats no pane, and an edge holds one open pane.
+
+MEANS
+- version 6 reads with every row open and undocked, and the next save writes both words;
+- a show of a hidden row opens it where it was, in front, with its sizes, settings and locks;
+- a word no list names refuses the whole file, and a desk with two open panes on one edge is refused.
+
+WHY — `agents/decisions/docks-cover-the-room.md`
+
 ## Do not assume
 
-- That the setup keeps no old reader — it keeps the v2, v3 and v4 ones, because a setup is a
-  named artifact with no session to ride (WL-SETUP-02); the session reader keeps none (WL-MIG-01).
+- That the setup keeps no old reader — it keeps the v2 to v6 ones, because a setup is a named
+  artifact with no session to ride (WL-SETUP-02); the session reader keeps none (WL-MIG-01).
+- That a hidden pane has left the desk — its row stays, and only removal takes it (WL-SETUP-13).
 
 ## Proven by
 
@@ -132,17 +144,18 @@ kind's field" "every place and size word survives the setup file and the session
 ### WL-SETUP-02
 `workshop/setup_persist.hpp` v2 v3 v4 setup_in from_text setup_in_v2 v3::to_v4 v4::to_current
 v3::kSubsPerPixel at_least_a_cell kCanvasRoomTopPx room_place_of_canvas px_of_saved_cells v5
-to_current to_v5 lifted
+to_current to_v5 lifted v6 v6::to_current to_v6
 `workshop/setup.hpp` kSavedCellPx
 `workshop/layouts/session_history.hpp` place_v2_to_v3 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5
-desk_v5_to_v6
+desk_v5_to_v6 desk_v6_to_v7
 `tests/test_workshop_screen.cpp` "a version-2 whole-cell setup loads at exactly its old picture" "a
 fine setup opens where the window painted it, its place in the room" "a place in an older file keeps
 its place in the room"
 `tests/test_workshop_panes_window.cpp` "a version-1 file is refused BY NUMBER, before its rows are
 judged"
 `tests/test_workshop_persistence.cpp` "a version-4 setup file reads with no settings, and the next
-save writes the current version"
+save writes the current version" "a version-6 setup file reads with every row open and undocked, and
+saves as version 7"
 
 ### WL-SETUP-03
 `workshop/setup.hpp` check_pane_place check_pane_size check_pane_place_coord pane_unit::kDefault
@@ -203,3 +216,14 @@ law" "an office longer than the key bound is delivered whole and admitted by nob
 `tests/test_workshop_persistence.cpp` "a detected setup write failure leaves the last good setup
 file untouched" "a setup file on disk is the setup read back from it" "a setup past its byte ceiling
 is refused at the save, and nothing is written"
+
+### WL-SETUP-13
+`workshop/setup.hpp` pane_fold pane_dock kFoldWords kDockWords fold_word dock_word fold_named
+dock_named SetupPane SetupPane::fold SetupPane::dock check_setup_pane check_setup holds_pane has_pane
+open_row seat_row
+`workshop/setup_persist.hpp` WorkshopSetupPane fold_in dock_in setup_in v6::to_current to_current
+`workshop/setup_reconcile.hpp` seat_panes
+`tests/test_workshop_persistence.cpp` "a version-6 setup file reads with every row open and undocked,
+and saves as version 7" "a fold and a dock survive the setup file and the session, a hidden row kept
+whole" "a fold or a dock no word names is refused by its word, and nothing is read" "a hidden pane
+keeps its row and comes back where it was after a save and a load"

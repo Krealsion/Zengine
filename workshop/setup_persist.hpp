@@ -36,11 +36,11 @@ namespace zengine::workshop::setup_persist {
 inline constexpr const char* kFormat = "zengine-workshop-setup";
 
 /// The setup format version this build WRITES, and the newest it reads.
-inline constexpr std::int64_t kFormatVersion = 6;
+inline constexpr std::int64_t kFormatVersion = 7;
 
 /// The oldest version this build still reads. Version 2 (whole cells), version 3 (sub-units),
-/// version 4 (no settings) and version 5 (a coordinate written where its word reads none) are each
-/// translated on load -- never rewritten in place.
+/// version 4 (no settings), version 5 (a coordinate written where its word reads none) and version
+/// 6 (no fold and no dock) are each translated on load -- never rewritten in place.
 inline constexpr std::int64_t kOldestFormatVersion = 2;
 
 /// THE MOST BYTES ONE STORED SETTING SPELLS TO in the file: its key, its text with every byte
@@ -137,8 +137,9 @@ struct WorkshopPanePlace {
 };
 
 /// ONE PANE ROW AS WRITTEN: the durable reference, the authored window, how far forward it
-/// sits, and the settings this layout keeps for the pane -- `[]`, the one spelling of none.
-// WL-SETUP-01 -- agents/workshop/setup-file.md
+/// sits, the settings this layout keeps for the pane -- `[]`, the one spelling of none -- and its
+/// fold and its dock, each a word (`kFoldWords`, `kDockWords`).
+// WL-SETUP-01, WL-SETUP-13 -- agents/workshop/setup-file.md
 struct WorkshopSetupPane {
     std::string provider;
     std::string pane;
@@ -147,9 +148,13 @@ struct WorkshopSetupPane {
     WorkshopPaneSize height;
     std::int64_t front = 0;
     std::vector<PaneSetting> settings;
+    std::string fold = "open";
+    std::string dock = "none";
 
-    ZEN_SHAPE(WorkshopSetupPane, 6, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
-              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front), ZEN_FIELD(settings));
+    /// Version 7: version 6's fields, its fold and its dock.
+    ZEN_SHAPE(WorkshopSetupPane, 7, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front), ZEN_FIELD(settings),
+              ZEN_FIELD(fold), ZEN_FIELD(dock));
 };
 
 /// ONE LOCK THIS LAYOUT KEEPS: a key of one row frozen; it holds no value.
@@ -183,9 +188,8 @@ struct WorkshopSetup {
     std::vector<WorkshopSetupLock> locks;
     std::vector<WorkshopSetupPinList> pins;
 
-    /// Version 6: a coordinate or an amount present exactly where its word reads it, and the
-    /// layout's baseline, locks and pins beside its rows.
-    ZEN_SHAPE(WorkshopSetup, 6, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
+    /// Version 7: version 6's fields, each row with its fold and its dock.
+    ZEN_SHAPE(WorkshopSetup, 7, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
               ZEN_FIELD(panes), ZEN_FIELD(theme), ZEN_FIELD(locks), ZEN_FIELD(pins));
 };
 
@@ -242,9 +246,10 @@ inline WorkshopSetup to_setup(const Setup& s) {
     out.name = s.name;
     out.panes.reserve(s.panes.size());
     for (const SetupPane& row : s.panes) {
-        out.panes.push_back(WorkshopSetupPane{row.ref.provider, row.ref.pane,
-                                              place_out(row.place), size_out(row.width),
-                                              size_out(row.height), row.front, row.settings});
+        out.panes.push_back(WorkshopSetupPane{
+            row.ref.provider, row.ref.pane, place_out(row.place), size_out(row.width),
+            size_out(row.height), row.front, row.settings, std::string(fold_word(row.fold)),
+            std::string(dock_word(row.dock))});
     }
     out.theme = s.theme;
     for (const SetupLock& lock : s.locks) {
@@ -349,6 +354,94 @@ inline Written size_in(const WorkshopPaneSize& w, PaneSize& out, const char* whi
     return Written::ok();
 }
 
+/// THE FOLD A WRITTEN WORD MEANS, or why not: one of `kFoldWords`.
+// WL-SETUP-13 -- agents/workshop/setup-file.md
+inline Written fold_in(const std::string& word, std::int64_t& out) {
+    const std::optional<std::int64_t> fold = fold_named(word);
+    if (!fold) {
+        return Written::no("`" + word + "` is not a pane fold (open, shut or hidden)");
+    }
+    out = *fold;
+    return Written::ok();
+}
+
+/// ...AND THE DOCK: one of `kDockWords`.
+// WL-SETUP-13 -- agents/workshop/setup-file.md
+inline Written dock_in(const std::string& word, std::int64_t& out) {
+    const std::optional<std::int64_t> dock = dock_named(word);
+    if (!dock) {
+        return Written::no("`" + word + "` is not a pane dock (none, left, right, top or bottom)");
+    }
+    out = *dock;
+    return Written::ok();
+}
+
+// ---- VERSION 6, RETAINED FOR READING -----------------------------------------------------
+// WL-SETUP-02 -- agents/workshop/setup-file.md
+namespace v6 {
+
+inline constexpr std::int64_t kRetainedVersion = 6;
+
+/// Version 6's row: version 7's fields but the fold and the dock, over the same place and size.
+struct WorkshopSetupPane {
+    std::string provider;
+    std::string pane;
+    setup_persist::WorkshopPanePlace place;
+    setup_persist::WorkshopPaneSize width;
+    setup_persist::WorkshopPaneSize height;
+    std::int64_t front = 0;
+    std::vector<PaneSetting> settings;
+
+    ZEN_SHAPE(WorkshopSetupPane, 6, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front), ZEN_FIELD(settings));
+};
+
+struct WorkshopSetup {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::string name;
+    std::vector<WorkshopSetupPane> panes;
+    LayoutTheme theme;
+    std::vector<setup_persist::WorkshopSetupLock> locks;
+    std::vector<setup_persist::WorkshopSetupPinList> pins;
+
+    ZEN_SHAPE(WorkshopSetup, 6, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
+              ZEN_FIELD(panes), ZEN_FIELD(theme), ZEN_FIELD(locks), ZEN_FIELD(pins));
+};
+
+static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kRetainedVersion),
+              "a retained setup shape's envelope version and its format version are one "
+              "number, as the current one's are");
+
+/// ONE DESK OF VERSION 6 IN THE CURRENT SHAPE: every field as it was, and every row open and
+/// undocked. Refused, in version 6's own words, for a claim that version never made.
+// WL-SETUP-02, WL-SETUP-13 -- agents/workshop/setup-file.md
+inline Written to_current(const WorkshopSetup& old, setup_persist::WorkshopSetup& out) {
+    if (old.format != kFormat) {
+        return Written::no("not a Workshop setup: it says it is `" + old.format + "`");
+    }
+    if (old.format_version != kRetainedVersion) {
+        return Written::no(wrong_version(old.format_version));
+    }
+    setup_persist::WorkshopSetup made;
+    made.format = old.format;
+    made.format_version = setup_persist::kFormatVersion;
+    made.name = old.name;
+    made.panes.reserve(old.panes.size());
+    for (const WorkshopSetupPane& p : old.panes) {
+        made.panes.push_back(setup_persist::WorkshopSetupPane{
+            p.provider, p.pane, p.place, p.width, p.height, p.front, p.settings,
+            std::string(fold_word(pane_fold::kOpen)), std::string(dock_word(pane_dock::kNone))});
+    }
+    made.theme = old.theme;
+    made.locks = old.locks;
+    made.pins = old.pins;
+    out = std::move(made);
+    return Written::ok();
+}
+
+} // namespace v6
+
 // ---- VERSION 5, RETAINED FOR READING -----------------------------------------------------
 // WL-SETUP-02 -- agents/workshop/setup-file.md
 namespace v5 {
@@ -440,23 +533,23 @@ inline Written size_to_current(const WorkshopPaneSize& w, setup_persist::Worksho
     return Written::no(unknown_unit(w.mode, which, kSizeWords));
 }
 
-/// ONE DESK OF VERSION 5 IN THE CURRENT SHAPE: every row by its words, and no baseline, locks or
-/// pins. Refused, in version 5's own words, for a claim that version never made.
+/// ONE DESK OF VERSION 5 AS VERSION 6: every row by its words, and no baseline, locks or pins.
+/// Refused, in version 5's own words, for a claim that version never made.
 // WL-SETUP-02 -- agents/workshop/setup-file.md
-inline Written to_current(const WorkshopSetup& old, setup_persist::WorkshopSetup& out) {
+inline Written to_v6(const WorkshopSetup& old, v6::WorkshopSetup& out) {
     if (old.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + old.format + "`");
     }
     if (old.format_version != kRetainedVersion) {
         return Written::no(wrong_version(old.format_version));
     }
-    setup_persist::WorkshopSetup made;
+    v6::WorkshopSetup made;
     made.format = old.format;
-    made.format_version = setup_persist::kFormatVersion;
+    made.format_version = v6::kRetainedVersion;
     made.name = old.name;
     made.panes.reserve(old.panes.size());
     for (const WorkshopSetupPane& p : old.panes) {
-        setup_persist::WorkshopSetupPane row;
+        v6::WorkshopSetupPane row;
         row.provider = p.provider;
         row.pane = p.pane;
         row.front = p.front;
@@ -474,6 +567,15 @@ inline Written to_current(const WorkshopSetup& old, setup_persist::WorkshopSetup
     }
     out = std::move(made);
     return Written::ok();
+}
+
+/// ...AND IN THE CURRENT SHAPE, through version 6.
+inline Written to_current(const WorkshopSetup& old, setup_persist::WorkshopSetup& out) {
+    v6::WorkshopSetup six;
+    if (const Written w = to_v6(old, six); !w.accepted) {
+        return w;
+    }
+    return v6::to_current(six, out);
 }
 
 } // namespace v5
@@ -835,6 +937,12 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
         if (const Written w = size_in(p.height, row.height, "height"); !w.accepted) {
             return w;
         }
+        if (const Written w = fold_in(p.fold, row.fold); !w.accepted) {
+            return w;
+        }
+        if (const Written w = dock_in(p.dock, row.dock); !w.accepted) {
+            return w;
+        }
         candidate.panes.push_back(std::move(row));
     }
     candidate.theme = file.theme;
@@ -856,12 +964,20 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
     return Written::ok();
 }
 
-/// A SETUP OF AN OLDER VERSION AS THE CURRENT VALUE OF ITS FILE, or why not: version 5 by its
-/// words, version 4 through version 5, version 3 through version 4. Version 2 is read as a live
-/// setup directly (`setup_in_v2`).
+/// A SETUP OF AN OLDER VERSION AS THE CURRENT VALUE OF ITS FILE, or why not: version 6 with every
+/// row open and undocked, version 5 by its words through version 6, version 4 through version 5,
+/// version 3 through version 4. Version 2 is read as a live setup directly (`setup_in_v2`).
 // WL-SETUP-02 -- agents/workshop/setup-file.md
 inline Written lifted(const loom::Unverified& claim, WorkshopSetup& out) {
     const std::uint32_t version = claim.claimed_version();
+    if (version == v6::WorkshopSetup::zen_version) {
+        const loom::Admission old =
+            loom::admit(claim, loom::schema_of<v6::WorkshopSetup>(), loom::Report::FirstError);
+        if (!old.ok()) {
+            return Written::no(old.first_error().message());
+        }
+        return v6::to_current(loom::from_value<v6::WorkshopSetup>(old.value()), out);
+    }
     if (version == v5::WorkshopSetup::zen_version) {
         const loom::Admission old =
             loom::admit(claim, loom::schema_of<v5::WorkshopSetup>(), loom::Report::FirstError);
@@ -927,7 +1043,8 @@ inline LoadedSetup from_text(std::string_view bytes) {
     WorkshopSetup current;
     if (ours && (claim.claimed_version() == v3::WorkshopSetup::zen_version ||
                  claim.claimed_version() == v4::WorkshopSetup::zen_version ||
-                 claim.claimed_version() == v5::WorkshopSetup::zen_version)) {
+                 claim.claimed_version() == v5::WorkshopSetup::zen_version ||
+                 claim.claimed_version() == v6::WorkshopSetup::zen_version)) {
         if (const Written landed = lifted(claim, current); !landed.accepted) {
             return LoadedSetup::no(landed.refusal);
         }

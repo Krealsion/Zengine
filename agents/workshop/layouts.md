@@ -120,6 +120,17 @@ MEANS
 
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
+## WL-LAYOUT-14 — A fold and a dock are edits of a row, which move no size
+
+LAW — The words `open`, `shut`, `hide`, `dock` and `undock` edit one row of the live layout and keep it; an open or a dock on an edge shuts the pane open there in the same write; none writes a size.
+
+MEANS
+- `dock` reads `name`, the edge's word, and refuses `none` and any word that is no edge;
+- a pane's `manage.fold`, `manage.hide` and the docks are actions: keyed, bound, in its menu, typed;
+- `manage.remove` is the one edit that takes a row off the layout, its place with it.
+
+WHY — `agents/decisions/docks-cover-the-room.md`
+
 ## Do not assume
 
 - That a layout is a new kind of thing, or that `setup.active` is an index: a layout is a
@@ -231,3 +242,15 @@ session can be saved at"
 `input/translate.hpp` terminal_byte_scancode
 `tests/test_workshop_host.cpp` "four ordinary command-mode actions reach the layout shelf" "the
 layout gestures stay in command mode"
+
+### WL-LAYOUT-14
+`workshop/layouts/vocabulary.hpp` kOpen kShut kHide kDock kUndock LayoutEdit
+`workshop/layouts/store.cpp` LayoutStore::edit_one close
+`workshop/setup.hpp` open_row
+`workshop/weave_arrange.cpp` fold_or_dock fold_pane spend_pane_action
+`workshop/keymap.hpp` kManageFold kManageHide kManageDockLeft kManageUndock
+`workshop/context.hpp` kContextCatalog
+`tests/test_workshop_screen.cpp` "a shut pane shows its title alone, titles shown or hidden, and its
+arrow opens it" "a dock's strip narrows the room by its width, open or shut, and an open dock covers
+what is under it and moves no pane"
+`tests/test_workshop_host.cpp` "the declared populations are the researched ones, keyed by id"

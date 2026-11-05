@@ -1023,15 +1023,16 @@ Red in `zengine-workshop-screen-tests`:
 
 ## seat-forgets-where-left
 
-A seat forgets where the layout left a pane.
+A seat of a hidden row forgets where the row was.
 
-In `workshop/layouts/run.hpp`:
+In `workshop/layouts/store.cpp`:
 
 ```diff
--    const auto found = s.left.find(s.active_id);
--    if (found == s.left.end()) {
-+    const auto found = s.left.end();
-+    if (found == s.left.end()) {
+-        if (SetupPane* hidden = pane_of(live, ref); hidden != nullptr) {
+-            open_row(live, ref);
++        if (SetupPane* hidden = pane_of(live, ref); hidden != nullptr) {
++            *hidden = SetupPane{ref, {}, {}, {}, hidden->front, {}, pane_fold::kOpen,
++                                pane_dock::kNone};
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -1083,3 +1084,34 @@ In `flow/flow-pane/gesture.hpp`:
 Red in `zengine-workshop-screen-tests`:
 
 - Flow reads a double click on the interval this host reads one on
+
+## shut-keeps-its-height
+
+A shut pane is solved at its row's own height.
+
+In `workshop/screen_chrome.cpp`:
+
+```diff
+-        if (authored->fold == pane_fold::kShut && authored->dock == pane_dock::kNone) {
++        if (authored->fold == pane_fold::kShut && authored->dock == pane_dock::kTop + 9) {
+```
+
+Red in `zengine-workshop-screen-tests`:
+
+- a shut pane shows its title alone, titles shown or hidden, and its arrow opens it
+
+## strip-only-while-open
+
+A dock's strip is kept only while its pane is open.
+
+In `workshop/screen.hpp`:
+
+```diff
+-        if (row.fold != pane_fold::kHidden && row.dock > pane_dock::kNone &&
++        if (row.fold == pane_fold::kOpen && row.dock > pane_dock::kNone &&
+```
+
+Red in `zengine-workshop-screen-tests`:
+
+- a dock's strip narrows the room by its width, open or shut, and an open dock covers what is under
+  it and moves no pane

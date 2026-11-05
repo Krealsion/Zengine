@@ -96,8 +96,9 @@ ui::Element frame_part(std::int64_t id, std::string label, std::int64_t context,
 void add_desk_frames(std::vector<ui::Element>& parts, std::vector<ui::Measure>& measures,
                      const Screen& sc) {
     const PixelRect slot = placement_bounds(placement::kOverlayStack, 0, sc);
-    parts.push_back(frame_part(kRoomPart, "room", ui::kRootContext, pixels_place(0, sc.room_y),
-                               pixels_size(sc.room_w), pixels_size(sc.room_h)));
+    parts.push_back(frame_part(kRoomPart, "room", ui::kRootContext,
+                               pixels_place(sc.room_x, sc.room_y), pixels_size(sc.room_w),
+                               pixels_size(sc.room_h)));
     parts.push_back(frame_part(kTopBandPart, "top band", ui::kRootContext, pixels_place(0, 0),
                                pixels_size(sc.w), pixels_size(sc.room_y)));
     ui::Element stack = frame_part(kStackPart, "stack", kRoomPart, ui::Place{}, pixels_size(slot.w),
@@ -132,16 +133,29 @@ ui::Measure pane_measure(std::int64_t where, const Screen& sc, const RuntimePane
                        axis(now.height, first.height, own.h, fit_h)};
 }
 
+/// HOW TALL A SHUT PANE STANDS: its edge on each side and its title's one row, in this medium.
+// WL-CHROME-11 -- agents/workshop/chrome.md
+std::int64_t shut_height(const Screen& sc) {
+    const StackCapacity room = stack_capacity(sc);
+    return room.line + 2 * room.border;
+}
+
 /// One pane as a part: its sizes are the weaver's words, `default` -- its measure -- where they
-/// said none; it stands in the room at its place word, or, for a `default` place, in its
-/// catalog place's frame: down the stack, or in the top band.
+/// said none, and a shut pane's height its title's, which writes no size; it stands in the room
+/// at its place word, or, for a `default` place, in its catalog place's frame: down the stack, or
+/// in the top band.
 // WL-PANE-01, WL-PANE-11 -- agents/workshop/panes-and-windows.md
-ui::Element pane_part(std::int64_t id, std::int64_t where, const SetupPane* authored) {
+// WL-CHROME-11 -- agents/workshop/chrome.md
+ui::Element pane_part(std::int64_t id, std::int64_t where, const SetupPane* authored,
+                      const Screen& sc) {
     ui::Element e;
     e.id = id;
     if (authored != nullptr) {
         e.width = ui_size_of(authored->width);
         e.height = ui_size_of(authored->height);
+        if (authored->fold == pane_fold::kShut && authored->dock == pane_dock::kNone) {
+            e.height = pixels_size(shut_height(sc));
+        }
     }
     const std::int64_t place = authored != nullptr ? authored->place.mode : pane_unit::kDefault;
     if (place != pane_unit::kDefault) {
@@ -159,11 +173,33 @@ PixelRect pixel_rect_of(const ui::Rect& r) { return PixelRect{r.x, r.y, r.w, r.h
 
 ui::Room room_of(const Screen& sc) { return ui::Room{sc.w, sc.h, chrome_grain(sc)}; }
 
-/// The desk solved: open pane `i` is the scene's item `first + i`.
+/// The desk solved: open pane `i` is the scene's item `first + i`, unless it is docked and shut,
+/// when it stands as a tag on its strip and has no rectangle of its own.
 struct SolvedDesk {
     ui::Scene scene;
     std::size_t first = 0;
+    std::vector<bool> tag;
 };
+
+/// WHERE AN OPEN DOCKED PANE STANDS: against its edge's strip, over the room, as long as the room
+/// is along that edge, and as wide across it as its own words solved it, floored to the medium's
+/// grain so its free edge stands on a cell where text is one -- so docking it and opening it
+/// change neither its length nor its width.
+// WL-GEO-14 -- agents/workshop/geometry.md
+ui::Rect docked_rect(const ui::Rect& solved, std::int64_t edge, const Screen& sc) {
+    const std::int64_t grain = std::max<std::int64_t>(chrome_grain(sc), 1);
+    const std::int64_t across_w = std::min(solved.w, sc.room_w) / grain * grain;
+    const std::int64_t across_h = std::min(solved.h, sc.room_h) / grain * grain;
+    switch (edge) {
+    case pane_dock::kLeft: return ui::Rect{sc.room_x, sc.room_y, across_w, sc.room_h};
+    case pane_dock::kRight:
+        return ui::Rect{sc.room_x + sc.room_w - across_w, sc.room_y, across_w, sc.room_h};
+    case pane_dock::kTop: return ui::Rect{sc.room_x, sc.room_y, sc.room_w, across_h};
+    case pane_dock::kBottom:
+        return ui::Rect{sc.room_x, sc.room_y + sc.room_h - across_h, sc.room_w, across_h};
+    default: return solved;
+    }
+}
 
 /// THE DESK AS ONE SOLVE: its frames, then every open pane a part, in the order the panes are open.
 SolvedDesk solve_desk(const Panes& panes, const Setup& setup, const Screen& sc) {
@@ -177,8 +213,10 @@ SolvedDesk solve_desk(const Panes& panes, const Setup& setup, const Screen& sc) 
     }
     std::vector<ui::Element> parts;
     std::vector<ui::Measure> measures;
+    std::vector<const SetupPane*> docked;
     parts.reserve(3 + panes.open.size());
     measures.reserve(3 + panes.open.size());
+    docked.reserve(panes.open.size());
     add_desk_frames(parts, measures, sc);
     const std::size_t first = parts.size();
     for (std::size_t i = 0; i < panes.open.size(); ++i) {
@@ -192,10 +230,27 @@ SolvedDesk solve_desk(const Panes& panes, const Setup& setup, const Screen& sc) 
         }
         const std::int64_t where = placement_of(p.kind);
         measures.push_back(pane_measure(where, sc, panes.runtime.of_kind(p.kind), authored));
-        parts.push_back(pane_part(kFirstPanePart + static_cast<std::int64_t>(i), where, authored));
+        parts.push_back(
+            pane_part(kFirstPanePart + static_cast<std::int64_t>(i), where, authored, sc));
+        docked.push_back(authored);
     }
     // Every part stands in a frame that reaches the root, so the scene holds each, in order.
-    return SolvedDesk{ui::arrange(parts, room_of(sc), measures), first};
+    SolvedDesk out{ui::arrange(parts, room_of(sc), measures), first, {}};
+    // A DOCKED PANE STANDS AGAINST ITS STRIP while it is open, and is its tag while it is shut.
+    out.tag.assign(panes.open.size(), false);
+    for (std::size_t i = 0; i < panes.open.size(); ++i) {
+        const SetupPane* row = docked[i];
+        if (row == nullptr || row->dock == pane_dock::kNone) {
+            continue;
+        }
+        if (row->fold != pane_fold::kOpen) {
+            out.tag[i] = true;
+            continue;
+        }
+        ui::Rect& r = out.scene.items[first + i].rect;
+        r = docked_rect(r, row->dock, sc);
+    }
+    return out;
 }
 
 PaneBounds open_bounds(std::int64_t kind, const ui::Rect& solved, const Screen& sc) {
@@ -218,7 +273,7 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
     std::vector<ui::Measure> measures;
     add_desk_frames(parts, measures, sc);
     const ui::Measure measure = pane_measure(where, sc, preference, authored);
-    ui::Element pane = pane_part(kFirstPanePart, where, authored);
+    ui::Element pane = pane_part(kFirstPanePart, where, authored, sc);
     // Projected alone, a pane in the stack stands at the slot it is given: its top `stack_y`, or
     // the slot's own where none is given.
     if (pane.context == kStackPart) {
@@ -242,6 +297,9 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
     for (std::size_t i = 0; i < panes.open.size(); ++i) {
         if (panes.open[i].kind == kind) { // the first open pane of this kind
             const SolvedDesk desk = solve_desk(panes, setup, sc);
+            if (desk.tag[i]) {
+                return closed_bounds(kind);
+            }
             return open_bounds(kind, desk.scene.items[desk.first + i].rect, sc);
         }
     }
@@ -257,7 +315,8 @@ DeskBounds desk_bounds(const Panes& panes, const Setup& setup, const Screen& sc)
         const auto seen = std::find_if(out.laid.begin(), out.laid.end(),
                                        [&](const auto& laid) { return laid.first == kind; });
         if (seen != out.laid.end()) continue; // the first open pane of a kind answers for it
-        out.laid.emplace_back(kind, open_bounds(kind, desk.scene.items[desk.first + i].rect, sc));
+        out.laid.emplace_back(kind, desk.tag[i] ? closed_bounds(kind)
+                                                : open_bounds(kind, desk.scene.items[desk.first + i].rect, sc));
     }
     return out;
 }
@@ -266,6 +325,102 @@ PaneBounds DeskBounds::of(std::int64_t kind) const {
     const auto found = std::find_if(laid.begin(), laid.end(),
                                     [&](const auto& one) { return one.first == kind; });
     return found != laid.end() ? found->second : closed_bounds(kind);
+}
+
+// ---- A DOCK'S STRIP: its arrow and its panes' tags -----------------------------------------
+
+namespace {
+
+/// The pixels `count` characters stand on from character `at` of a strip's text: down a vertical
+/// strip a row each, along a horizontal one a column each.
+PixelRect strip_span(const RegionFit& f, bool vertical, std::int64_t at, std::int64_t count) {
+    const std::int64_t advance = f.graphical() ? f.advance_px : graphics::kCellPx;
+    const std::int64_t line = f.graphical() ? f.line_px : graphics::kCellPx;
+    const std::int64_t x = f.view.x + f.origin_x;
+    const std::int64_t y = f.view.y + f.origin_y;
+    return vertical ? PixelRect{x, y + at * line, advance, count * line}
+                    : PixelRect{x + at * advance, y, count * advance, line};
+}
+
+} // namespace
+
+// WL-CHROME-12 -- agents/workshop/chrome.md
+std::vector<StripMark> strip_marks(const Session& s, const Screen& sc) {
+    std::vector<StripMark> out;
+    for (const std::int64_t edge :
+         {pane_dock::kLeft, pane_dock::kRight, pane_dock::kTop, pane_dock::kBottom}) {
+        const PixelRect r = strip_rect(sc, edge);
+        if (r.w <= 0 || r.h <= 0) {
+            continue;
+        }
+        const bool vertical = edge == pane_dock::kLeft || edge == pane_dock::kRight;
+        const RegionFit fit = fit_region(r.x, r.y, r.w, r.h, sc.text_advance_px, sc.text_line_px);
+        const std::int64_t length = vertical ? fit.rows : fit.columns;
+        if (length <= 0 || (vertical ? fit.columns : fit.rows) <= 0) {
+            continue;
+        }
+        std::vector<StripMark> tags;
+        bool any_open = false;
+        for (const SetupPane& row : s.setup.active.panes) {
+            if (row.dock != edge || row.fold == pane_fold::kHidden) {
+                continue;
+            }
+            const std::optional<std::int64_t> kind = resolve_pane(row.ref, s.panes);
+            StripMark tag;
+            tag.edge = edge;
+            tag.ref = row.ref;
+            tag.open = row.fold == pane_fold::kOpen;
+            tag.text = kind.has_value() ? kind_name(s.panes, *kind) : row.ref.pane;
+            any_open = any_open || tag.open;
+            tags.push_back(std::move(tag));
+        }
+        const std::int64_t centre = length / 2;
+        StripMark arrow;
+        arrow.edge = edge;
+        arrow.arrow = true;
+        arrow.open = any_open;
+        arrow.text = strip_arrow(edge, any_open);
+        arrow.rect = strip_span(fit, vertical, centre, 1);
+        (vertical ? arrow.row : arrow.column) = centre;
+        out.push_back(arrow);
+        // EACH TAG FROM THE STRIP'S START, a character's gap after it, and none across the arrow:
+        // one that would reach it starts past it.
+        std::int64_t at = 0;
+        for (StripMark& tag : tags) {
+            const std::int64_t len = static_cast<std::int64_t>(tag.text.size());
+            if (len <= 0) {
+                continue;
+            }
+            if (at <= centre && at + len > centre) {
+                at = centre + 1;
+            }
+            if (at >= length) {
+                break;
+            }
+            if (at + len > length) {
+                tag.text.resize(static_cast<std::size_t>(length - at));
+            }
+            const std::int64_t shown = static_cast<std::int64_t>(tag.text.size());
+            tag.rect = strip_span(fit, vertical, at, shown);
+            (vertical ? tag.row : tag.column) = at;
+            out.push_back(tag);
+            at += shown + 1;
+        }
+    }
+    return out;
+}
+
+// WL-CHROME-12 -- agents/workshop/chrome.md
+std::optional<StripMark> strip_mark_at(const Session& s, const Screen& sc, const PointedAt& at) {
+    if (!at.understood) {
+        return std::nullopt;
+    }
+    for (const StripMark& m : strip_marks(s, sc)) {
+        if (m.rect.contains_at(at.px.x, at.px.y, at.grain)) {
+            return m;
+        }
+    }
+    return std::nullopt;
 }
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------

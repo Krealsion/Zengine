@@ -182,7 +182,8 @@ whole form comes back; the default itself is unchanged.
 
 Panes are also drawn **over** the material you are building. A pane may stand at a point of the
 room -- a corner, an edge's middle, the centre -- and keep it as the window changes size, but it
-takes no room from another: there is no docking, no tiling and no reflow.
+takes no room from another: a docked pane opens over the room too and keeps only a strip of its
+edge. There is no tiling and no reflow.
 
 ### Pointing without pressing reaches nobody in a POSIX terminal
 
@@ -504,8 +505,8 @@ room (`33.33%`), a width and a
 height as pixels, a share (`50%`), `fit` or `fill`, and the settings the pane declares — and
 shows the rest beside it: the pane's rank in the front order and whether it is on the layout,
 which are arranging's and the Pane Manager's to change, and the resolved rectangle and state.
-It does not author docking, locks, sibling-relative or parent-relative placement, because no pane
-can hold those yet; it does not edit what a pane *does*, wire panes together,
+It does not author a pane's fold or dock, which its menu does, nor locks or sibling-relative or
+parent-relative placement, because no pane can hold those yet; it does not edit what a pane *does*, wire panes together,
 or reach a loaded weave's own state; the "inspect" route from outside it is the Pane Manager's row menu
 (`inspect in Info`), which asks Info, and Info asks as its own inspect does — the right-click menu on a pane itself has no
 such row. Its default height is the stack's <!-- value kStackRows -->9<!-- /value --> rows, which shows only a

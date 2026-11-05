@@ -52,10 +52,10 @@ TEST_CASE("a fresh setup is the current version, sparse, and carries the identit
         CHECK(fresh.panes[i].front == static_cast<std::int64_t>(i));
     }
     CHECK(is_permutation(fresh));
-    CHECK(setup_persist::kFormatVersion == 6);
+    CHECK(setup_persist::kFormatVersion == 7);
     const std::string text = setup_persist::to_text(fresh);
     INFO(text);
-    CHECK(text.find("\"format_version\":\"6\"") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"7\"") != std::string::npos);
     CHECK(text.find("\"mode\":\"default\"") != std::string::npos);
     CHECK(text.find("\"front\":\"0\"") != std::string::npos);
 }
@@ -318,7 +318,7 @@ TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
     INFO(refused.outcome.refusal);
     // BY ITS NUMBER, and in Workshop's own words.
     CHECK(refused.outcome.refusal.find("setup version 1") != std::string::npos);
-    CHECK(refused.outcome.refusal.find("reads versions 2, 3, 4, 5 and 6") != std::string::npos);
+    CHECK(refused.outcome.refusal.find("reads versions 2, 3, 4, 5, 6 and 7") != std::string::npos);
     // AND NOT BY A ROW FIELD. That sentence would be true and would name the wrong cause --
     // a weaver fixing a missing `place` would never find out their file is a version old.
     CHECK(refused.outcome.refusal.find("place") == std::string::npos);
@@ -329,7 +329,7 @@ TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
     // THE FIELD IS STILL CHECKED TOO, for the forgery that only a reader of this format
     // would produce: a version-3 envelope whose own stated version is not 3.
     const setup_persist::LoadedSetup forged = setup_persist::from_text(
-        forged_setup(two_overlays(), "\"format_version\":\"6\"", "\"format_version\":\"1\""));
+        forged_setup(two_overlays(), "\"format_version\":\"7\"", "\"format_version\":\"1\""));
     CHECK_FALSE(forged.outcome.accepted);
     CHECK(forged.outcome.refusal.find("setup version 1") != std::string::npos);
 }
@@ -1823,9 +1823,9 @@ TEST_CASE("a right press over a provider's pane crosses the seam not at all") {
     // rows that act on the rectangle, or ask the host what code stands behind the office, and
     // never on the provider's content.
     const std::vector<ContextEntry> rows = context_population(context_subject::kPane, "");
-    REQUIRE(rows.size() == 5);
-    CHECK(rows[3].row->act == Act::kEditCode);
-    CHECK(rows[4].row->act == Act::kManageRemove);
+    REQUIRE(rows.size() == 8);
+    CHECK(rows[4].row->act == Act::kEditCode);
+    CHECK(rows[7].row->act == Act::kManageRemove);
 }
 
 TEST_CASE("input spent on the open surface reaches no provider") {
@@ -1852,11 +1852,11 @@ TEST_CASE("input spent on the open surface reaches no provider") {
     CHECK(r.session().context.open);
     // Removing THIS pane through its own menu: still nothing crosses -- a pane on the desk is a
     // presentation, and removing one removes a presentation.
-    for (int step = 0; step < 4; ++step) {
-        r.key(input::scan::kDown);
+    for (int step = 0; step < 7; ++step) {
+        r.key(input::scan::kDown); // to `remove from the setup`, the last row
     }
     r.key(input::scan::kReturn);
-    CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
+    CHECK_FALSE(holds_pane(r.session().setup.active, hello_ref()));
     CHECK(seat->presses.empty());
     CHECK(seat->keys.empty());
     CHECK(seat->typed.empty());
@@ -2162,7 +2162,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
             const std::int64_t kind = offered->kind;
             REQUIRE(p.session().panes.has(kind));
             const CellRect body = external_body_rect(p.session(), kind);
-            p.press_cell(body.x, body.y); // the keys go to the pane
+            p.press_cell(body.x + kFoldArrowColumns, body.y); // the keys go to the pane
             REQUIRE(p.session().panes.keyboard == kind);
             // THE WINDOW THAT SHOWS THE PANE'S AREA IS ASKED, and only it.
             std::int64_t asks = 0;
@@ -2328,7 +2328,7 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
 
     // SELECTING, ARRANGING AND LEAVING leaves the authored order byte-stable, and the
     // foreground answer is still the one `effective_pane_order` gives.
-    r.press_pixel(on_window.x + 4, on_window.y + 4);
+    r.press_pixel(on_window.x + 24, on_window.y + 4); // its title, past the arrow
     REQUIRE(r.session().panes.selected == kind);
     const SetupPane* selected_row = pane_of(r.session().setup.active, hello_ref());
     REQUIRE(selected_row != nullptr);

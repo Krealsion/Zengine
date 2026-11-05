@@ -118,7 +118,10 @@ No key asks for these until your file binds one: `layout.rename`, `layout.duplic
 | <!-- key manage.grow -->`=`<!-- /key --> / <!-- key manage.shrink -->`-`<!-- /key --> | `manage.grow` / `manage.shrink` | grow / shrink it by the coarse step on both axes |
 | <!-- key manage.front -->`f`<!-- /key --> / <!-- key manage.back -->`b`<!-- /key --> | `manage.front` / `manage.back` | send it to the front / back |
 | <!-- key manage.raise -->`r`<!-- /key --> / <!-- key manage.lower -->`l`<!-- /key --> | `manage.raise` / `manage.lower` | raise / lower it one step |
-| <!-- key manage.remove -->`d`<!-- /key --> | `manage.remove` | take it off the layout; the Pane Manager brings it back |
+| <!-- key manage.fold -->`s`<!-- /key --> | `manage.fold` | shut it to its title, or open it ([shut, hide, dock](panes.md#shut-hide-dock)) |
+| <!-- key manage.hide -->`h`<!-- /key --> | `manage.hide` | hide it, keeping its place; the Pane Manager shows it again |
+| <!-- key manage.remove -->`d`<!-- /key --> | `manage.remove` | remove it from the setup, its place with it; the Pane Manager brings it back |
+| (none) | `manage.dock-left`, `manage.dock-right`, `manage.dock-top`, `manage.dock-bottom`, `manage.undock` | dock it on an edge, or undock it; its menu's `Dock >` |
 | <!-- key manage.reset -->`0`<!-- /key --> | `manage.reset` | reset: then <!-- key manage.reset-place -->`p`<!-- /key --> place, <!-- key manage.reset-width -->`w`<!-- /key --> width, <!-- key manage.reset-height -->`h`<!-- /key --> height, <!-- key manage.reset-order -->`o`<!-- /key --> order, <!-- key manage.done -->`escape`<!-- /key --> back |
 | <!-- key manage.close -->`escape`<!-- /key --> | `manage.close` | leave |
 | <!-- key manage.next -->`tab`<!-- /key --> / <!-- key manage.previous -->`shift+tab`<!-- /key --> | `manage.next` / `manage.previous` | the desk only: step the keyboard to the next / previous pane |

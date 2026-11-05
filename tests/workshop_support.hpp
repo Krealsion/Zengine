@@ -1883,6 +1883,60 @@ v11_session(const std::vector<Layout>& run, std::size_t active, std::int64_t w, 
     return out;
 }
 
+/// A DESK AS WORKSHOP WROTE IT AT SETUP VERSION 6: every field of version 7's but each row's fold
+/// and dock.
+inline setup_persist::v6::WorkshopSetup v6_desk(const Setup& s) {
+    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
+    setup_persist::v6::WorkshopSetup out;
+    out.format = now.format;
+    out.format_version = setup_persist::v6::kRetainedVersion;
+    out.name = now.name;
+    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
+        out.panes.push_back(setup_persist::v6::WorkshopSetupPane{
+            p.provider, p.pane, p.place, p.width, p.height, p.front, p.settings});
+    }
+    out.theme = now.theme;
+    out.locks = now.locks;
+    out.pins = now.pins;
+    return out;
+}
+
+/// A version-12 session of `run`, standing on `active`: each layout's id, its desk and remembered
+/// value at setup version 6, and the next id after them.
+inline session_history::v12::WorkshopSession
+v12_session(const std::vector<Layout>& run, std::size_t active,
+            const std::vector<session_persist::WorkshopChoice>& choices = {}) {
+    session_history::v12::WorkshopSession out;
+    out.format = session_persist::kFormat;
+    out.format_version = session_history::kV12FormatVersion;
+    std::int64_t top = 0;
+    for (const Layout& l : run) {
+        session_history::v12::WorkshopLayout layout;
+        layout.id = l.id;
+        layout.desk = v6_desk(l.desk);
+        layout.link.path = l.link.path;
+        layout.link.known = v6_desk(l.link.known);
+        out.layouts.push_back(std::move(layout));
+        top = l.id > top ? l.id : top;
+    }
+    out.active = static_cast<std::int64_t>(active);
+    out.next_id = top + 1;
+    out.choices = choices;
+    return out;
+}
+
+/// ...AS WORKSHOP WROTE ITS FILE AT VERSION 12: the header's line, then a layout a line.
+inline std::string v12_lines(const session_history::v12::WorkshopSession& s) {
+    const session_history::v12::WorkshopSessionHeader head{
+        s.format, s.format_version, static_cast<std::int64_t>(s.layouts.size()), s.active,
+        s.next_id, s.choices};
+    std::string out = loom::compat::serialize(loom::to_value(head)) + '\n';
+    for (const session_history::v12::WorkshopLayout& l : s.layouts) {
+        out += loom::compat::serialize(loom::to_value(l)) + '\n';
+    }
+    return out;
+}
+
 /// A DESK AT EVERY BOUND A FILE CAN MEET: `kMaxSetupPanes` rows whose keys are
 /// `kMaxPaneKeyLen` bytes a writer escapes, every place and extent at `kMaxPanePixels`, and
 /// `kMaxPaneSettingsPerDesk` settings with keys at their bound and texts escaped whole -- the
@@ -2463,13 +2517,15 @@ inline DoorHand& door_hand(Rig& t) {
 
 /// A PANE A CASE OPENS, STOOD IN THE COLUMN: an open with the keys places a pane the layout never
 /// had at the room's centre (WL-DESK-19), so a case that is not about placement has the layout
-/// keep the code's place and size for it first, past the doors, and the open gives them back.
+/// hold a hidden row for it at the code's place and size first, past the doors, and the open
+/// shows it there.
 template <class Rig>
 inline void left_in_column(Rig& t, const PaneRef& ref) {
     stage_run(t, [&ref](SetupState& run) {
-        std::vector<LeftPlace>& kept = run.left[run.active_id];
-        std::erase_if(kept, [&ref](const LeftPlace& l) { return l.ref == ref; });
-        kept.push_back(LeftPlace{ref, PanePlace{}, PaneSize{}, PaneSize{}});
+        if (!holds_pane(run.active, ref)) {
+            (void)add_pane(run.active, ref);
+            pane_of(run.active, ref)->fold = pane_fold::kHidden;
+        }
     });
 }
 
@@ -4357,13 +4413,22 @@ std::vector<std::string> presented_texts(Rig& r) {
 }
 
 /// THE LINE OF THE PRESENTED MENU THAT READS `label` (after whatever marks the presenter puts in
-/// front of a row), or -1.
+/// front of a row, and whatever a window's reading shows past its words, or the row's tail), or -1.
 template <class Rig>
 std::int64_t presented_line_of(Rig& r, const std::string& label) {
     const std::vector<std::string> lines = presented_texts(r);
     for (std::size_t i = 0; i < lines.size(); ++i) {
         const std::string& t = lines[i];
-        if (t.size() >= label.size() && t.compare(t.size() - label.size(), label.size(), label) == 0) {
+        // The marks are a cursor and a digit, each followed by a blank: the words begin after them.
+        std::size_t at = 0;
+        while (at < t.size() && at < 4 && (t[at] == ' ' || t[at] == '>' ||
+                                           (t[at] >= '0' && t[at] <= '9'))) {
+            ++at;
+        }
+        // ...or the line ends with the words asked for, the tail of a longer row.
+        const bool ends = t.size() >= label.size() &&
+                          t.compare(t.size() - label.size(), label.size(), label) == 0;
+        if (t.compare(at, label.size(), label) == 0 || ends) {
             return static_cast<std::int64_t>(i);
         }
     }

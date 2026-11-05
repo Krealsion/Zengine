@@ -3637,7 +3637,7 @@ void focus_manual(BuilderRig& b) {
     REQUIRE(kind != kNoPaneKind);
     if (b.r.session().panes.keyboard != kind) {
         const CellRect rect = external_body_rect(b.r.session(), kind);
-        b.r.press_cell(rect.x, rect.y);
+        b.r.press_cell(rect.x + kFoldArrowColumns, rect.y);
         REQUIRE(b.r.session().panes.keyboard == kind);
     }
 }
@@ -3947,6 +3947,8 @@ TEST_CASE("WL-DESK-17: the manual key asks for the manual of the pane holding th
     b.r.bus.drain_until_idle();
     REQUIRE(b.r.load_refusals.empty());
     b.r.extent(160, 48);
+    // ...THE MANUAL PUT AWAY FIRST: shown again, it came back where it was, over the Builder's title.
+    REQUIRE(hand_close(b.r, PaneRef{kDesktopRole, dp::kManualPane}).closed);
     const HeaderMarks marks = header_marks(b, b.kind);
     REQUIRE(marks.row.find(kChromeMarks) != std::string::npos);
     b.r.press_cell(marks.manual_x, marks.y);

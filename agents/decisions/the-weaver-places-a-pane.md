@@ -29,7 +29,8 @@ arranges or `all panes` beneath them, and every other pane fades.
 - *Fading by a property of each pane's area* -- argued: the window would gain a field; a veil in
   Workshop's own area, or its overlay, needs none.
 
-**Consequences.** A relaunch opens a pane the last run closed as a first open. A terminal shows
+**Consequences.** A hidden pane keeps its row, so a relaunch shows it where it was; a pane removed
+from the setup opens next as a first open. A terminal shows
 the words and no fade: it draws an image only where it is mostly opaque.
 
 **Laws supported.** [WL-ARR-18](../workshop/arrangement.md), [WL-DESK-19](../workshop/desktop.md),

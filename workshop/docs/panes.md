@@ -58,7 +58,8 @@ notch, carrying the marker only where it would leave sight; once none is hidden 
 the marker. Right-click a row
 (or press `m` on the marked one) for its menu beside the pointer: `show Beta`, or `focus Beta`
 and `hide Beta` for a pane on the layout; **`manage Beta >`**, which opens Workshop's own pane
-menu for *that* pane — arrange, order, reset, edit code, hide pane — whether it is covered,
+menu for *that* pane — arrange, order, reset, dock, edit code, shut or open, hide pane, remove
+from the setup — whether it is covered,
 hidden, or a pane that keeps every right-click for itself; and **`inspect in Info`**, which
 asks Info to inspect it: Info takes the ask as its own inspect, holds it back while you are
 editing a value there, and the Pane Manager's notice says what came of it. Beneath those rows, under a rule that names
@@ -76,7 +77,7 @@ opens with the keys, you place it there, the room saying **Arranging Mode Active
 [arrange](#moving-resizing-and-ordering--arrange): drag its title to move it and its edges to size
 it. The placing ends at the first key, or the first press anywhere but its title and edges, and that
 key or press goes on as it would have: in the pane it is the pane's, `Esc` too. Hidden and shown
-again in the same layout, it comes back where you left it, for as long as Workshop runs. The
+again, it comes back where you left it, this run or the next: the layout keeps its row. The
 palette opens at the centre every time and is never arranged, and a pane opened without the keys is
 placed but not arranged. Nothing is refused for want of room, from the Pane Manager, a launch key or
 `n` alike. A pane keeps a place you gave it: if that place is off this screen, showing it says so on
@@ -90,11 +91,12 @@ selects it and gives it the keyboard. It does not hide it, does not take it off 
 and never unloads the weave behind it. `Ctrl`+`p` is the one toggle, and it toggles only the
 Pane Manager's own visibility.
 
-**Hiding unloads nothing.** `x` takes the pane off the layout you are on and leaves its tool
+**Hiding unloads nothing.** `x` hides the pane on the layout you are on and leaves its tool
 running exactly as it was: the Editor keeps an unsaved file, the Terminal keeps its history,
-and `Enter` shows the pane again to find them. Its place, size and settings in that layout go
-with it, and the band names the settings it took. Hiding a pane that is not on the layout is
-refused in words, and it shows nothing.
+and `Enter` shows the pane again to find them. Its place, size and settings stay in that layout,
+so it comes back where it was, after a relaunch too. Hiding a pane that is not shown is refused in
+words, and it shows nothing. To take a pane off the layout, its place and settings with it, choose
+`remove from the setup` in its menu ([Shut, hide, dock](#shut-hide-dock)).
 
 **Showing never loads anything.** A `[gone]` row is a pane nothing in this Workshop is offering
 now: a tool that is not in your load plan, one whose artifact could not be loaded at startup,
@@ -109,7 +111,7 @@ A row for a pane this build has never heard of still appears, so a typo can be t
 you have not installed, and a layout naming an unknown pane can still be hidden without
 editing the file by hand.
 
-**A row you chose can leave the list** — a pane nothing offers, once `x` takes it off the layout,
+**A row you chose can leave the list** — a pane nothing offers, once `x` hides it,
 say. The marker turns to `?` where the row was, and a line under the list says so:
 
 ```
@@ -167,6 +169,53 @@ scrolls the one it covers; it does not select the pane and does not move the key
 does there is the pane's own: a Files, Powers or Compose list moves its cursor and the rows
 follow; the Editor scrolls its text, leaving the caret where it is.
 
+## Shut, hide, dock
+
+Each pane's title begins with an arrow: `v` while the pane is open, `>` while it is shut. **Press
+the arrow** and the pane shuts to its title, where it stands; press it again and it opens, as big
+as it was. A shut pane keeps its title even with [titles](#pane-titles) hidden, so it never looks
+gone, and the keys never go to it. Shutting writes no size: the layout keeps every word you gave
+the pane, and the stack closes up under a stacked one.
+
+![Info shut to its title at the room's top-right, its arrow pointing right and its edge one row tall, with titles shown; Notices open at the bottom-left, its title's arrow pointing down -- in a window](images/folds-shut-window.png)
+
+![Info shut to its title at the room's top-right, its arrow pointing right and its edge one row tall, with titles shown; Notices open at the bottom-left, its title's arrow pointing down -- in a terminal window, 120 by 30 cells, in characters](images/folds-shut-terminal.png)
+
+**Hide** a pane (`x` in the Pane Manager, `hide pane` in its menu, or
+<!-- key manage.hide -->`h`<!-- /key --> while arranging) and the desk shows nothing of it, but
+the layout keeps its row: showing it again puts it back where it was, at its size, with its
+settings, this run or the next. **Remove from the setup** (its menu, or
+<!-- key manage.remove -->`d`<!-- /key --> while arranging) is the one that forgets: the row goes,
+and the next show is a first open.
+
+![A desk whose layout keeps Info hidden: Notices alone at the bottom-left, and nothing of Info on the desk -- in a window](images/folds-hidden-window.png)
+
+![A desk whose layout keeps Info hidden: Notices alone at the bottom-left, and nothing of Info on the desk -- in a terminal window, 120 by 30 cells, in characters](images/folds-hidden-terminal.png)
+
+![Info shown again from the Pane Manager, back at the room's top-left where its hidden row kept it, 420 by 216 pixels, with the Pane Manager beside it -- in a window](images/folds-returned-window.png)
+
+![Info shown again from the Pane Manager, back at the room's top-left where its hidden row kept it, 420 by 216 pixels, with the Pane Manager beside it -- in a terminal window, 120 by 30 cells, in characters](images/folds-returned-terminal.png)
+
+**Dock** a pane on an edge from its menu, `Dock >` `left`, `right`, `top` or `bottom`. The edge
+keeps a thin strip its whole length -- a column of cells on a left or right edge, a row on a top
+or bottom one -- and the room is narrower by it, open or shut, so the panes against that edge move
+once, when you dock, and never again. The open docked pane stands against the strip, as long as
+the room, over whatever is under it; nothing it covers moves. The strip shows an arrow at its
+centre, pointing into the room while the dock is shut and out of it while it is open, and each
+pane docked there as a tag: its name, down a side strip a letter a row. Press the arrow to shut
+the open pane or open the first; press a tag to open that pane, which shuts the one open on that
+edge -- an edge shows one at a time. `Dock >` `undock` puts the pane back at its own place, and the
+strip goes with the edge's last pane. A pane's fold and dock are part of the layout: they are saved
+with the setup and the session, and an older file opens with every pane open and undocked.
+
+![Notices and Info docked on the right edge: a strip the room's whole height, its arrow at the centre pointing out of the room, the two names as tags down it; Notices open against the strip, the room's height, over the room -- in a window](images/docks-open-window.png)
+
+![Notices and Info docked on the right edge: a strip the room's whole height, its arrow at the centre pointing out of the room, the two names as tags down it; Notices open against the strip, the room's height, over the room -- in a terminal window, 120 by 30 cells, in characters](images/docks-open-terminal.png)
+
+![Notices and Info docked on the right edge, both shut: the strip alone, its arrow pointing into the room and the two tags down it, and the room as narrow as when the dock is open -- in a window](images/docks-shut-window.png)
+
+![Notices and Info docked on the right edge, both shut: the strip alone, its arrow pointing into the room and the two tags down it, and the room as narrow as when the dock is open -- in a terminal window, 120 by 30 cells, in characters](images/docks-shut-terminal.png)
+
 ## Moving, resizing and ordering — Arrange
 
 Arranging has two scopes, and both mean the same thing: manipulate panes directly.
@@ -199,7 +248,9 @@ be: a press is its own targeting. The keyboard steps between panes instead:
 | <!-- key manage.grow -->`=`<!-- /key --> / <!-- key manage.shrink -->`-`<!-- /key --> | **grow / shrink** it by the coarse step, <!-- value kCoarseStepCells -->4<!-- /value --> cells unless `workshop.arrange-step` says otherwise, on both axes at once — same anchor |
 | <!-- key manage.arrange -->`return`<!-- /key --> | narrow to arranging exactly that pane |
 | <!-- key manage.front -->`f`<!-- /key --> <!-- key manage.back -->`b`<!-- /key --> <!-- key manage.raise -->`r`<!-- /key --> <!-- key manage.lower -->`l`<!-- /key --> | send to front / back, raise / lower one step |
-| <!-- key manage.remove -->`d`<!-- /key --> | remove that pane from the layout — the Pane Manager brings it back |
+| <!-- key manage.fold -->`s`<!-- /key --> | **shut** that pane to its title, or open it again |
+| <!-- key manage.hide -->`h`<!-- /key --> | **hide** it, keeping its place — the Pane Manager shows it again where it was |
+| <!-- key manage.remove -->`d`<!-- /key --> | **remove it from the setup**, its place and settings with it — the Pane Manager brings it back as a first open |
 | <!-- key manage.reset -->`0`<!-- /key --> | **reset** — then <!-- key manage.reset-place -->`p`<!-- /key --> place, <!-- key manage.reset-width -->`w`<!-- /key --> width, <!-- key manage.reset-height -->`h`<!-- /key --> height, <!-- key manage.reset-order -->`o`<!-- /key --> order; <!-- key manage.done -->`escape`<!-- /key --> back |
 | <!-- key manage.close -->`escape`<!-- /key --> or right-click | leave |
 
@@ -253,8 +304,7 @@ back what they have nothing for.
 ![A right press on an empty part of Flow's canvas: Workshop's own pane menu for Flow, opened where the press landed](images/pane-menu-right-press-flow.png)
 
 **A pane's own menu** opens beside your pointer with the rows the pane offered first and
-Workshop's own rows for the pane beneath them — `arrange`, `Order >`, `Reset >`, `edit code`,
-`hide pane` — in one menu, under a rule that names the pane they act on. Choosing one of Workshop's rows is Workshop's to carry out, exactly as
+Workshop's own rows for the pane beneath them — `arrange`, `Order >`, `Reset >`, `Dock >`, `edit code`, `shut or open`, `hide pane`, `remove from the setup` — in one menu, under a rule that names the pane they act on. Choosing one of Workshop's rows is Workshop's to carry out, exactly as
 from its own menu; choosing a pane's row is the pane's. The menu is shown by the
 **menu presenter** — an ordinary weave in the `zengine.presenter` office, loaded by a plan row
 like any tool. The shipped one works like Workshop's own menu: `↑` `↓` and `Enter`, a click on a
@@ -268,7 +318,7 @@ and the band says why. When the pane you cannot right-click into is the
 one you want to arrange or hide, the Pane Manager's row for it offers **`manage <pane> >`**, and the
 pane's title row is Workshop's on every medium.
 
-![An Inventory entry's menu: the entry's own rows, a rule naming Inventory, then Workshop's arrange, Order, Reset, edit code and hide pane for the Inventory pane](images/pane-menu-standard-rows.png)
+![An Inventory entry's menu: the entry's own rows, a rule naming Inventory, then Workshop's arrange, Order, Reset, Dock, edit code, shut or open, hide pane and remove from the setup for the Inventory pane](images/pane-menu-standard-rows.png)
 
 **What a pane can and cannot do with a menu.** It chooses the rows and what a chosen row means;
 the presenter shows them and returns the choice, Workshop decides when a menu may open and where,
@@ -310,7 +360,8 @@ done with the thing you pointed at — the same operations Workshop's keys alrea
 aimed at that thing:
 
 - **a pane** — `arrange`, `Order >` (front / back / raise / lower), `Reset >`
-  (place / width / height), `edit code`, `hide pane`;
+  (place / width / height), `Dock >` (left / right / top / bottom / undock), `edit code`,
+  `shut or open`, `hide pane`, `remove from the setup`;
 - **a layout tab** — rename, duplicate, `Order >` (move left / right), remove;
 - **the empty room** — Workshop's own doors: arrange desk, save or restore the setup, reset
   order.

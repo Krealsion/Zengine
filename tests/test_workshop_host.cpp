@@ -1541,20 +1541,25 @@ TEST_CASE("a right press captures a subject and selects nothing") {
 
 TEST_CASE("the declared populations are the researched ones, keyed by id") {
     // The pane's top level: ONE arrangement entry -- moving and resizing are one weaver intent
-    // -- then two groups at their first members' positions, then Edit Code (what the pane is,
-    // not where it sits), and remove, last. Groups appear ONCE, and an empty group is
-    // structurally impossible (a group entry exists only where a member declared it).
+    // -- then three groups at their first members' positions, then Edit Code (what the pane is,
+    // not where it sits), the two folds that keep the row, and remove, last. Groups appear ONCE,
+    // and an empty group is structurally impossible (a group entry exists only where a member
+    // declared it).
     const std::vector<ContextEntry> pane = context_population(context_subject::kPane, "");
-    REQUIRE(pane.size() == 5);
+    REQUIRE(pane.size() == 8);
     CHECK_FALSE(pane[0].is_group);
     CHECK(pane[0].row->act == Act::kArrange);
     CHECK(pane[1].is_group);
     CHECK(std::string(pane[1].group) == "Order");
     CHECK(pane[2].is_group);
     CHECK(std::string(pane[2].group) == "Reset");
-    CHECK_FALSE(pane[3].is_group);
-    CHECK(pane[3].row->act == Act::kEditCode);
-    CHECK(pane[4].row->act == Act::kManageRemove);
+    CHECK(pane[3].is_group);
+    CHECK(std::string(pane[3].group) == "Dock");
+    CHECK_FALSE(pane[4].is_group);
+    CHECK(pane[4].row->act == Act::kEditCode);
+    CHECK(pane[5].row->act == Act::kManageFold);
+    CHECK(pane[6].row->act == Act::kManageHide);
+    CHECK(pane[7].row->act == Act::kManageRemove);
 
     const std::vector<ContextEntry> order =
         context_population(context_subject::kPane, "Order");
@@ -1729,8 +1734,8 @@ TEST_CASE("manage.remove removes the addressed pane by its own key") {
     CHECK(t.session().arrange.open);
     CHECK(t.session().arrange.desk);
     CHECK_FALSE(t.session().arrange.addressed());
-    // It says what it hid, by the pane's name, and nothing after.
-    CHECK(t.notice() == "hid " + std::string(stock::kName));
+    // It says what it removed, by the pane's name, and nothing after.
+    CHECK(t.notice() == "removed " + std::string(stock::kName) + " from the setup");
 }
 
 TEST_CASE("a contextual remove removes the pointed pane") {
@@ -1744,15 +1749,18 @@ TEST_CASE("a contextual remove removes the pointed pane") {
     t.key(input::scan::kUp); // the cursor bound keeps it at the top; up is a no-op
     t.key(input::scan::kDown);
     t.key(input::scan::kDown);
+    t.key(input::scan::kDown); // Dock
     t.key(input::scan::kDown); // edit code
-    t.key(input::scan::kDown); // remove, the last top-level row
+    t.key(input::scan::kDown); // shut or open
+    t.key(input::scan::kDown); // hide pane
+    t.key(input::scan::kDown); // remove from the setup, the last top-level row
     t.key(input::scan::kReturn);
     CHECK_FALSE(t.menu().open);
-    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
+    CHECK_FALSE(holds_pane(t.session().setup.active, ref_of(stock::kKind)));
     for (const OpenPane& p : t.session().panes.open) {
         CHECK(p.kind != stock::kKind);
     }
-    CHECK(t.notice().find("hid ") == 0);
+    CHECK(t.notice().find("removed ") == 0);
 }
 
 TEST_CASE("navigation backtracks cleanly and every way out closes") {
@@ -2064,7 +2072,7 @@ TEST_CASE("a switch touches no Workshop-global fact") {
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
-    t.press_canvas(builder.x + 1, builder.y + 1);
+    t.press_canvas(builder.x + 2, builder.y + 1); // its title, past the arrow
     REQUIRE(t.session().panes.selected == stock::kKind);
     // The press pointed the keys at the stand-in, which would take the switch key below as
     // every runtime pane does; the keys are put down without a gesture and the selection --
@@ -2157,7 +2165,7 @@ TEST_CASE("a tab press IS a press on the Layouts pane, and still switches") {
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
-    t.press_canvas(builder.x + 1, builder.y + 1);
+    t.press_canvas(builder.x + 2, builder.y + 1); // its title, past the arrow
     REQUIRE(t.session().panes.selected == stock::kKind);
 
     press_gesture(t, k.make);
@@ -2956,7 +2964,7 @@ TEST_CASE("Escape clears the ordinary selection last, and the inspected subject 
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
-    t.press_canvas(builder.x + 1, builder.y + 1);
+    t.press_canvas(builder.x + 2, builder.y + 1); // its title, past the arrow
     REQUIRE(t.session().panes.selected == stock::kKind);
     // The stand-in takes the keys as every runtime pane does; the Escape below is command
     // mode's, so the keys are put down without a gesture and the selection stands.

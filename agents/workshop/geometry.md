@@ -164,9 +164,21 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
+## WL-GEO-14 — A dock keeps a strip, and its open pane covers the room
+
+LAW — Each edge a shown row is docked on keeps a strip its whole length, open or shut, and the room is narrower by it; an open docked pane stands against the strip, the room's length, over it.
+
+MEANS
+- a strip is a text column on a left or right edge and a line on a top or bottom one, in whole cells;
+- the pane's width across its edge is its own words' answer, floored to the grain; it is in front;
+- docking a pane moves what stands against that edge once, by the strip; its open and its shut move nothing.
+
+WHY — `agents/decisions/docks-cover-the-room.md`
+
 ## Do not assume
 
-- That any part of the room is reserved for a pane — the room is the surface (WL-GEO-03).
+- That any part of the room is reserved for a pane — the room is the surface less the strips its
+  docks keep (WL-GEO-03, WL-GEO-14).
 - That a metric chooses where a pane goes — it sizes the two bands, and a default place is
   measured from what they leave (WL-GEO-05).
 
@@ -296,3 +308,12 @@ on it but the caret says no word, and a press on the caret's own cell reaches th
 and in a canvas field at the body's right edge" "a part whose one cell holds the caret at the body's right edge has a point
 there, and a press on it reaches the pane" "a canvas picture its office's holder no longer
 holds says its words and parts with no point, gives none, and a press where one was reaches nothing"
+
+### WL-GEO-14
+`workshop/screen.hpp` Screen::strip_left strip_px with_strips strip_rect screen_of canvas_of_room
+room_of_canvas
+`workshop/screen_chrome.cpp` docked_rect solve_desk add_desk_frames
+`workshop/setup_reconcile.hpp` presentation_order effective_pane_order
+`tests/test_workshop_screen.cpp` "a dock's strip narrows the room by its width, open or shut, and an
+open dock covers what is under it and moves no pane" "in a terminal, a dock's strip is a column or a
+row of cells, its arrow a character, its open pane over cells"

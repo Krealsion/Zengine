@@ -319,3 +319,18 @@ Red in `zengine-workshop-persistence-tests`:
 
 - a place and a size carry a number exactly where the word reads one: a version-5 desk converts by
   its words, and a number where the word reads none is refused
+
+## hide-takes-the-row
+
+A hide takes the row off the layout.
+
+In `workshop/layouts/store.cpp`:
+
+```diff
+-    hide.op = layout_op::kHide;
++    hide.op = layout_op::kUnseat;
+```
+
+Red in `zengine-workshop-persistence-tests`:
+
+- a hidden pane keeps its row and comes back where it was after a save and a load

@@ -18,7 +18,8 @@ def exercise_desk(office, view):
         place=dict(mode="pixels", x="12", y=str(35 * 12)),
         width=dict(mode="pixels", amount=str(50 * 12)),
         height=dict(mode="pixels", amount=str(11 * 12)),
-        front=str(max((int(p["front"]) for p in panes), default=-1) + 1), settings=[]))
+        front=str(max((int(p["front"]) for p in panes), default=-1) + 1), settings=[], fold="open",
+        dock="none"))
     return setup
 
 

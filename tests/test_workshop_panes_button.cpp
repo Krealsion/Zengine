@@ -293,8 +293,9 @@ void queue_key(PaneRig& r, std::int64_t scancode) {
 
 /// THE HOST'S OWN PANE MENU, as a pane's menu shows it beneath the pane's rows: the lines the
 /// shipped presenter draws for them, after its rule.
-const std::vector<std::string> kStandardLines = {"  arrange", "  Order >", "  Reset >",
-                                                 "  edit code", "  hide pane"};
+const std::vector<std::string> kStandardLines = {
+    "  arrange",       "  Order >",  "  Reset >",   "  Dock >", "  edit code", "  shut or open",
+    "  hide pane",     "  remove from the setup"};
 
 /// The canvas cell of prose row `row`, column `col` of a pane's BODY (under its header).
 CellRect body_of(PaneRig& r, std::int64_t kind) { return external_body_rect(r.session(), kind); }
@@ -856,7 +857,8 @@ TEST_CASE("WL-CTX-09: a pane's menu shows its own rows first and the host's stan
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
     // SHOWN: the pane's rows, a rule naming the pane the standard rows act on, then those rows.
-    std::vector<std::string> want = {"> First row", "  Second row", "  -- Guard --"};
+    // The rule runs to the menu's widest row, the host's `remove from the setup`.
+    std::vector<std::string> want = {"> First row", "  Second row", "  -- Guard ------------"};
     want.insert(want.end(), kStandardLines.begin(), kStandardLines.end());
     CHECK(presented_texts(t.r) == want);
     CHECK(context_rows_on(t.r.shown(), t.r.session()) == want);
@@ -1103,9 +1105,9 @@ TEST_CASE("WL-CTX-09: a standard row chosen on a pane's menu is spent by the hos
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange + 4));
+    t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange + 7));
     CHECK_FALSE(t.menu_open());
-    CHECK_FALSE(has_pane(t.r.session().setup.active, guard));
+    CHECK_FALSE(holds_pane(t.r.session().setup.active, guard));
     REQUIRE(t.guard->answers.size() == 3);
     CHECK_FALSE(t.guard->answers[2].chosen);
     CHECK(t.guard->actions.empty());
@@ -1500,7 +1502,8 @@ TEST_CASE("WL-CTX-11: the shipped presenter draws the key a row's label carries 
     REQUIRE(t.foreign_open());
     const std::vector<std::string> painted = context_rows_on(t.r.shown(), t.r.session());
     REQUIRE(painted.size() >= 2);
-    CHECK(painted[0] == "> Save source  ctrl+s");
+    // The widest words are the host's own `remove from the setup`, ten letters past `Save source`.
+    CHECK(painted[0] == "> Save source" + std::string(10 + 2, ' ') + "ctrl+s");
     CHECK(painted[1] == "  First row");
     // ...AND THE KEY IS NO PART OF WHAT IS CHOSEN: the row comes back as its id.
     t.r.key(input::scan::kReturn);

@@ -82,7 +82,7 @@ its suites.
 - That a case name or a document may carry a phase code: `law_register` refuses both, and a law
   id a name opens with must be declared. Renaming a case is a register edit: its citations follow
   in the same commit.
-- That docking exists — it is still absent and still refused.
+- That a dock moves a pane — it covers the room, and only its strip narrows it (WL-GEO-14).
 - That a seam law is stated here: what crosses to a provider is the protocol's law, and a
   register states the host's or a pane consumer's behavior.
 - That a law without a witness is hidden. Each register lists its own under `## Do not assume`.

@@ -873,7 +873,8 @@ TEST_CASE("an overlapping pane is painted where it is hit, in both front orders"
     // THE PROBE IS THE SECOND LETTER OF EACH PANE'S OWN NAME IN ITS HEADER -- `Stack` against
     // `Second` -- because the two stand-ins paint the same waiting line under it, and a probe
     // on a cell they agree about would measure nothing.
-    const std::int64_t cx = x + static_cast<std::int64_t>(std::string(kTypingElsewhere).size()) + 1;
+    const std::int64_t cx =
+        x + kFoldArrowColumns + static_cast<std::int64_t>(std::string(kTypingElsewhere).size()) + 1;
     const std::int64_t cy = y;
     REQUIRE(cells_covered(bounds_of(s.panes, s.setup.active, stock::kKind, sc).rect)
                 .contains(cx, cy));
@@ -1223,9 +1224,10 @@ TEST_CASE("removing the pane being arranged ends the arrangement about it") {
     REQUIRE_FALSE(t.session().arrange.desk);
     t.key(input::scan::kD); // remove the bound pane, by the scope's own key
     REQUIRE_FALSE(has_pane(t.session().setup.active, builder));
+    CHECK_FALSE(holds_pane(t.session().setup.active, builder));
     CHECK_FALSE(t.session().arrange.open);
     CHECK_FALSE(t.session().arrange.addressed());
-    CHECK(t.notice().find("hid ") == 0);
+    CHECK(t.notice().find("removed ") == 0);
 }
 
 TEST_CASE("the opening gestures are claimed by the band's own truth") {
@@ -1934,7 +1936,8 @@ TEST_CASE("a pane with room for the header and nothing else still says whose it 
     REQUIRE(at.front().rows.size() == 1);
     // ...AND IT CARRIES THE TYPING MARK, unset: a header is the same width whether or not the
     // pane has the keyboard, because the unmarked form spends the same two columns.
-    CHECK(at.front().rows[0].text == std::string(kTypingElsewhere) + "Probe @zengine.probe");
+    CHECK(at.front().rows[0].text ==
+          std::string(kFoldOpenArrow) + " " + kTypingElsewhere + "Probe @zengine.probe");
     CHECK(at.front().rows[0].role == gfx::role::kAccent);
 
     // AND WITH NO ROW OF TYPE AT ALL the painter says nothing rather than drawing a header
@@ -3224,7 +3227,7 @@ TEST_CASE("a version-2 whole-cell setup loads at exactly its old picture") {
 
     // AND THE NEXT SAVE WRITES THE CURRENT VERSION, WHICH ROUND-TRIPS BYTE-IDENTICALLY.
     const std::string saved = setup_persist::to_text(read.setup);
-    CHECK(saved.find("\"format_version\":\"6\"") != std::string::npos);
+    CHECK(saved.find("\"format_version\":\"7\"") != std::string::npos);
     CHECK(saved.find("\"mode\":\"pixels\"") != std::string::npos);
     const setup_persist::LoadedSetup back = setup_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
@@ -3297,8 +3300,8 @@ TEST_CASE("a version-1 session restores a whole-cell desk through a conversion")
     // number is what is asserted: the nested desk carries a `format_version` of its OWN at a
     // different number, and a search for the bare field would find that one.
     const std::string saved = session_text(read.layouts, read.active);
-    CHECK(saved.find("\"version\":12") != std::string::npos);
-    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"12\"") !=
+    CHECK(saved.find("\"version\":13") != std::string::npos);
+    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"13\"") !=
           std::string::npos);
     const session_persist::LoadedSession back = session_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
@@ -3708,7 +3711,7 @@ TEST_CASE("the contextual surface is painted where it is hit") {
     // says -- and the rows are the declared population with the cursor's own mark, labels from
     // the one action truth, groups saying they descend.
     const std::vector<std::string> rows = context_rows_on(t.shown(), t.session());
-    REQUIRE(rows.size() == 5);
+    REQUIRE(rows.size() == 8);
     for (const std::string& row : rows) {
         CHECK(row.find("ACTIONS") == std::string::npos);
         CHECK(row.find("chooses") == std::string::npos);
@@ -3716,14 +3719,17 @@ TEST_CASE("the contextual surface is painted where it is hit") {
     CHECK(rows[0] == "> arrange");
     CHECK(rows[1] == "  Order >");
     CHECK(rows[2] == "  Reset >");
-    CHECK(rows[3] == "  edit code");
-    CHECK(rows[4] == "  hide pane");
+    CHECK(rows[3] == "  Dock >");
+    CHECK(rows[4] == "  edit code");
+    CHECK(rows[5] == "  shut or open");
+    CHECK(rows[6] == "  hide pane");
+    CHECK(rows[7] == "  remove from the setup");
 
     // THE INVERSE PAIR, SPENT: a press at the row the painter drew chooses that row.
-    // Row 4 is `remove` -- and the pane is gone, through the one door.
-    t.press_canvas(context_cell_x(t.session()), context_entry_cell_y(t.session(), 4));
+    // Row 7 is `remove` -- and the pane is gone, its row with it, through the one door.
+    t.press_canvas(context_cell_x(t.session()), context_entry_cell_y(t.session(), 7));
     CHECK_FALSE(t.menu().open);
-    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
+    CHECK_FALSE(holds_pane(t.session().setup.active, ref_of(stock::kKind)));
 
     // ...and inside a group the heading's hint says the smaller way out.
     t.right_press(40, 0); // any subject re-opens; the room serves
@@ -3760,7 +3766,7 @@ TEST_CASE("manage.remove speaks through the keymap's own claim surfaces") {
         help_pairs(defaults, KeySpelling::kShort, KeyContext::kArrangePane);
     bool said = false;
     for (const std::string& pair : pairs) {
-        if (pair == "d hide pane") {
+        if (pair == "d remove from the setup") {
             said = true;
         }
     }
@@ -3954,7 +3960,7 @@ TEST_CASE("shortcut annotations teach only truthful surrounding bindings") {
     // pane holding the keys, `s` is the pane's and would not save -- so the menu does not teach
     // it. The rule is `row_active`'s, over whatever rows there are.
     t.key(input::scan::kEscape); // close the pane menu
-    t.press_canvas(slot.x + 1, slot.y + 1); // into the pane: it holds the keys
+    t.press_canvas(slot.x + 2, slot.y + 1); // into the pane, past its arrow: it holds the keys
     REQUIRE(keyboard_context(t.session()) == KeyContext::kPane);
     t.right_press(40, 15);
     REQUIRE(t.menu().subject == context_subject::kRoot);
@@ -4084,7 +4090,7 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
     // SELECTED: press the Builder where only the Builder is, and it comes forward.
     // ⚔ MUTATION (tests/mutants/workshop_screen.md#hit-walks-the-authored-order): `paint_panes` or
     // `occupied_at` walking `presentation_order` again.
-    t.press_canvas(side.x - 3, side.y + 3);
+    t.press_canvas(side.x - 2, side.y + 3); // its title, past the arrow
     REQUIRE(t.session().panes.selected == stock::kKind);
     const std::vector<std::int64_t> lifted = painted_order(t.session());
     CHECK(lifted.back() == stock::kKind);
@@ -6141,7 +6147,8 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
     // THE POINT IS THE BUILDER'S, on the effective order the paint walk spends.
     const BandStatus row = band_status(t.session(), sc);
     REQUIRE_FALSE(row.tabs.empty());
-    const std::int64_t at_x = row.tabs.front().column;
+    // ...past the Builder's arrow, which its title wears at the column the tab begins in.
+    const std::int64_t at_x = row.tabs.front().column + 1;
     const std::int64_t at_y = gfx::cell_of_pixel(layouts_body(t.session(), sc).region_y);
     CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, at_x, at_y).kind ==
           stock::kKind);
@@ -7125,4 +7132,241 @@ TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all 
     CHECK(twice == 0);
     CHECK(missed == 0);
     CHECK(stray == 0);
+}
+
+// ============================================================================
+// A pane's fold and its dock on the desk
+// ============================================================================
+
+namespace {
+
+/// THE FIRST ROW PAINTED AT A REGION'S CORNER in `canvas`, or empty: a pane's title where its
+/// header stands.
+std::string painted_row_at(const ScreenCanvas& canvas, std::int64_t x, std::int64_t y) {
+    for (const ScreenPlane& layer : canvas.layers) {
+        for (const ScreenRegion& region : layer.texts) {
+            if (region.x == x && region.y == y && !region.rows.empty()) {
+                return region.rows.front().text;
+            }
+        }
+    }
+    return std::string();
+}
+
+/// THE REGION PAINTED ON EXACTLY THIS RECTANGLE in `canvas`, or none.
+const ScreenRegion* painted_region(const ScreenCanvas& canvas, const PixelRect& r) {
+    for (const ScreenPlane& layer : canvas.layers) {
+        for (const ScreenRegion& region : layer.texts) {
+            if (region.x == r.x && region.y == r.y && region.w == r.w && region.h == r.h) {
+                return &region;
+            }
+        }
+    }
+    return nullptr;
+}
+
+PixelRect rect_of(const Live& t, std::int64_t kind) {
+    return bounds_of(t.session().panes, t.session().setup.active, kind, screen_of(t.session()))
+        .rect;
+}
+
+/// ONE STRIP MARK OF THIS SESSION: the edge's arrow, or the tag of `ref`.
+std::optional<StripMark> strip_mark(const Live& t, std::int64_t edge, const PaneRef* ref) {
+    for (const StripMark& m : strip_marks(t.session(), screen_of(t.session()))) {
+        if (m.edge == edge && (ref == nullptr ? m.arrow : (!m.arrow && m.ref == *ref))) {
+            return m;
+        }
+    }
+    return std::nullopt;
+}
+
+void press_at(Live& t, const PixelRect& r) {
+    t.press_canvas(r.x / gfx::kCellPx, r.y / gfx::kCellPx);
+    t.release_canvas(r.x / gfx::kCellPx, r.y / gfx::kCellPx);
+}
+
+/// DOCK A PANE THROUGH ITS MENU: `Dock >`, then the row `at` of the group.
+void dock_by_menu(Live& t, std::int64_t kind, int at) {
+    // A CELL OF ITS BODY WHERE IT IS THE PANE IN FRONT: stacked panes may cover each other.
+    const CellRect slot = cells_covered(rect_of(t, kind));
+    std::int64_t cx = -1;
+    std::int64_t cy = -1;
+    for (std::int64_t y = slot.y + 2; y < slot.y + slot.h - 1 && cx < 0; ++y) {
+        for (std::int64_t x = slot.x + 1; x < slot.x + slot.w - 1; ++x) {
+            if (occupied_at(t.session().panes, t.session().setup.active, screen_of(t.session()),
+                            x, y)
+                    .kind == kind) {
+                cx = x;
+                cy = y;
+                break;
+            }
+        }
+    }
+    REQUIRE(cx >= 0);
+    t.right_press_canvas(cx, cy);
+    REQUIRE(t.menu().subject == context_subject::kPane);
+    for (int i = 0; i < 3; ++i) {
+        t.key(input::scan::kDown); // past arrange, Order and Reset
+    }
+    t.key(input::scan::kReturn);
+    REQUIRE(t.menu().group == "Dock");
+    for (int i = 0; i < at; ++i) {
+        t.key(input::scan::kDown);
+    }
+    t.key(input::scan::kReturn);
+    CHECK_FALSE(t.menu().open);
+}
+
+} // namespace
+
+TEST_CASE("a shut pane shows its title alone, titles shown or hidden, and its arrow opens it") {
+    // MUTATION (tests/mutants/workshop_screen.md#shut-keeps-its-height): a shut solved at its
+    // row's own height -- the shut pane stands as tall as the open one.
+    Live t;
+    open_pane(t, ref_of(stock::kKind));
+    const Screen sc = screen_of(t.session());
+    const PixelRect open = rect_of(t, stock::kKind);
+    const SetupPane authored = *pane_of(t.session().setup.active, ref_of(stock::kKind));
+    const ExternalBodyPlace body = external_body_place(
+        open, sc, external_title_rows(t.session().panes, stock::kKind, t.session().pane_titles));
+    REQUIRE(body.header_rows == 1);
+    // THE ARROW STANDS AT THE TITLE'S START, pointing down while the pane is open.
+    CHECK(painted_row_at(paint(t.session()), body.region_x, body.region_y).rfind("v ", 0) == 0);
+    const PixelRect arrow{body.region_x, body.region_y, gfx::kCellPx, gfx::kCellPx};
+    press_at(t, arrow);
+    REQUIRE(pane_of(t.session().setup.active, ref_of(stock::kKind))->fold == pane_fold::kShut);
+    CHECK(t.notice().rfind("shut ", 0) == 0);
+    // ITS TITLE ALONE, where it stood: its edge, one row and its edge, and no size written.
+    const PixelRect shut = rect_of(t, stock::kKind);
+    CHECK(shut.x == open.x);
+    CHECK(shut.y == open.y);
+    CHECK(shut.w == open.w);
+    CHECK(shut.h == 3 * gfx::kCellPx);
+    const SetupPane now = *pane_of(t.session().setup.active, ref_of(stock::kKind));
+    CHECK(now.place == authored.place);
+    CHECK(now.width == authored.width);
+    CHECK(now.height == authored.height);
+    CHECK(painted_row_at(paint(t.session()), body.region_x, body.region_y).rfind("> ", 0) == 0);
+    // ...AND NO KEYS: a shut body shows nothing to type into.
+    CHECK(keyboard_pane(t.session().panes) == kNoPaneKind);
+    // TITLES HIDDEN, a shut pane keeps its title, or it would look hidden.
+    t.key(input::scan::kT);
+    REQUIRE_FALSE(t.session().pane_titles);
+    CHECK(external_title_rows(t.session().panes, stock::kKind, false) == 1);
+    CHECK(painted_row_at(paint(t.session()), body.region_x, body.region_y).rfind("> ", 0) == 0);
+    t.key(input::scan::kT);
+    REQUIRE(t.session().pane_titles);
+    // ITS ARROW OPENS IT, where it was and as big.
+    press_at(t, arrow);
+    REQUIRE(pane_of(t.session().setup.active, ref_of(stock::kKind))->fold == pane_fold::kOpen);
+    CHECK(rect_of(t, stock::kKind) == open);
+    CHECK(painted_row_at(paint(t.session()), body.region_x, body.region_y).rfind("v ", 0) == 0);
+}
+
+TEST_CASE("a dock's strip narrows the room by its width, open or shut, and an open dock covers what is under it and moves no pane") {
+    // MUTATION (tests/mutants/workshop_screen.md#strip-only-while-open): the strip kept only
+    // while its pane is open -- the room widens at the shut, and the pane beside it moves.
+    Live t;
+    t.extent_px(cells_px(160), cells_px(44), 0, 0);
+    open_pane(t, ref_of(stock::kKind));
+    open_pane(t, ref_of(second::kKind));
+    const Screen before = screen_of(t.session());
+    REQUIRE(before.strip_right == 0);
+    // DOCKED ON THE RIGHT, THROUGH ITS MENU: the room is narrower by the strip, and nothing else.
+    dock_by_menu(t, stock::kKind, 1);
+    REQUIRE(pane_of(t.session().setup.active, ref_of(stock::kKind))->dock == pane_dock::kRight);
+    CHECK(t.notice() == std::string("docked ") + stock::kName + " on the right edge");
+    const Screen docked = screen_of(t.session());
+    CHECK(docked.strip_right == gfx::kCellPx);
+    CHECK(docked.room_w == before.room_w - docked.strip_right);
+    CHECK(docked.room_x == before.room_x);
+    CHECK(docked.room_y == before.room_y);
+    CHECK(docked.room_h == before.room_h);
+    // ...THE OPEN DOCK STANDS AGAINST ITS STRIP, as long as the room, over what is under it.
+    const PixelRect dock_open = rect_of(t, stock::kKind);
+    CHECK(dock_open.x + dock_open.w == docked.room_x + docked.room_w);
+    CHECK(dock_open.y == docked.room_y);
+    CHECK(dock_open.h == docked.room_h);
+    CHECK(effective_pane_order(t.session().setup.active, t.session().panes).back() ==
+          stock::kKind);
+    const PixelRect beside = rect_of(t, second::kKind);
+    // ITS ARROW SHUTS IT: the strip stays, so the room and the pane beside it do not move.
+    const std::optional<StripMark> out = strip_mark(t, pane_dock::kRight, nullptr);
+    REQUIRE(out.has_value());
+    CHECK(out->text == ">"); // out of the room, while it is open
+    press_at(t, out->rect);
+    REQUIRE(pane_of(t.session().setup.active, ref_of(stock::kKind))->fold == pane_fold::kShut);
+    const Screen shut = screen_of(t.session());
+    CHECK(shut.strip_right == docked.strip_right);
+    CHECK(shut.room_w == docked.room_w);
+    CHECK(rect_of(t, second::kKind) == beside);
+    CHECK_FALSE(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, shut).open);
+    REQUIRE(strip_mark(t, pane_dock::kRight, nullptr).has_value());
+    CHECK(strip_mark(t, pane_dock::kRight, nullptr)->text == "<"); // into it, while it is shut
+    // ITS TAG OPENS IT AGAIN, as long and as wide as before, and the pane beside it stays.
+    const PaneRef stock_row = ref_of(stock::kKind);
+    const std::optional<StripMark> tag = strip_mark(t, pane_dock::kRight, &stock_row);
+    REQUIRE(tag.has_value());
+    CHECK(tag->text == std::string(stock::kName).substr(0, tag->text.size()));
+    press_at(t, tag->rect);
+    REQUIRE(pane_of(t.session().setup.active, ref_of(stock::kKind))->fold == pane_fold::kOpen);
+    CHECK(rect_of(t, stock::kKind) == dock_open);
+    CHECK(rect_of(t, second::kKind) == beside);
+    // UNDOCKED, the strip goes and the room is whole again.
+    dock_by_menu(t, stock::kKind, 4);
+    CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->dock == pane_dock::kNone);
+    CHECK(screen_of(t.session()).room_w == before.room_w);
+}
+
+TEST_CASE("in a terminal, a dock's strip is a column or a row of cells, its arrow a character, its open pane over cells") {
+    Live t;
+    t.extent_px(cells_px(160), cells_px(44), 0, 0);
+    open_pane(t, ref_of(stock::kKind));
+    open_pane(t, ref_of(second::kKind));
+    dock_by_menu(t, stock::kKind, 0); // left
+    // ...SHUT BY ITS ARROW, so the pane it covers can be docked by its own menu, then opened again
+    // by its tag: an edge's open pane covers the room, and the two edges show one each.
+    const std::optional<StripMark> arrow = strip_mark(t, pane_dock::kLeft, nullptr);
+    REQUIRE(arrow.has_value());
+    press_at(t, arrow->rect);
+    dock_by_menu(t, second::kKind, 2); // top
+    const PaneRef stock_row = ref_of(stock::kKind);
+    const std::optional<StripMark> tag = strip_mark(t, pane_dock::kLeft, &stock_row);
+    REQUIRE(tag.has_value());
+    press_at(t, tag->rect);
+    REQUIRE(pane_of(t.session().setup.active, stock_row)->fold == pane_fold::kOpen);
+    REQUIRE(pane_of(t.session().setup.active, ref_of(second::kKind))->fold == pane_fold::kOpen);
+    const Screen sc = screen_of(t.session());
+    // A COLUMN OF CELLS ON THE LEFT, A ROW OF THEM ON TOP.
+    const PixelRect left = strip_rect(sc, pane_dock::kLeft);
+    const PixelRect top = strip_rect(sc, pane_dock::kTop);
+    CHECK(left.w == gfx::kCellPx);
+    CHECK(left.x == 0);
+    CHECK(left.h == sc.band_y - (sc.room_y - sc.strip_top));
+    CHECK(top.h == gfx::kCellPx);
+    CHECK(top.x == left.x + left.w);
+    CHECK(sc.room_x == gfx::kCellPx);
+    // ...PAINTED AS CHARACTERS: the left strip's tag a letter a row, its arrow at the centre.
+    const ScreenCanvas canvas = paint(t.session());
+    const ScreenRegion* column = painted_region(canvas, left);
+    const ScreenRegion* row = painted_region(canvas, top);
+    REQUIRE(column != nullptr);
+    REQUIRE(row != nullptr);
+    const std::size_t cells = static_cast<std::size_t>(left.h / gfx::kCellPx);
+    REQUIRE(column->rows.size() == cells);
+    CHECK(column->rows[cells / 2].text == "<"); // the left dock is open: out of the room
+    CHECK(column->rows[0].text == std::string(1, stock::kName[0]));
+    REQUIRE(row->rows.size() == 1);
+    const std::string& line = row->rows.front().text;
+    CHECK(static_cast<std::int64_t>(line.size()) == top.w / gfx::kCellPx);
+    CHECK(line.substr(line.size() / 2, 1) == "^"); // the top dock is open: out of the room
+    CHECK(line.find(std::string(second::kName).substr(0, 3)) == 0);
+    // ...AND THE OPEN PANES OVER CELLS, against their strips, in front of the room.
+    const PixelRect stock_rect = rect_of(t, stock::kKind);
+    CHECK(stock_rect.x == sc.room_x);
+    CHECK(stock_rect.x % gfx::kCellPx == 0);
+    CHECK(stock_rect.w % gfx::kCellPx == 0);
+    const PixelRect second_rect = rect_of(t, second::kKind);
+    CHECK(second_rect.y == sc.room_y);
+    CHECK(second_rect.h % gfx::kCellPx == 0);
 }

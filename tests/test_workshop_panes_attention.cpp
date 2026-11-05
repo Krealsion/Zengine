@@ -54,7 +54,7 @@ struct AttentionRig {
     /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard.
     void focus() {
         const CellRect body = external_body_rect(r.session(), kind);
-        r.press_cell(body.x, body.y);
+        r.press_cell(body.x + kFoldArrowColumns, body.y);
         REQUIRE(r.session().panes.keyboard == kind);
     }
 

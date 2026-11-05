@@ -495,11 +495,10 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
                    mail);
         return;
     }
-    // REMOVE THIS PANE. The close door's own semantics through the setup's own
-    // door: the intent leaves the setup, `apply_setup` is what closes the
-    // presentation, and what the pane was presenting is untouched -- a pane on the desk is a
-    // presentation, and removing one removes a presentation. A removal works on an
-    // unresolved row exactly as on an open one (rule).
+    // REMOVE THIS PANE FROM THE SETUP: its row leaves, its place, sizes, settings and locks with
+    // it; `apply_setup` is what closes the presentation, and what the pane was presenting is
+    // untouched -- a pane on the desk is a presentation, and removing one removes a presentation.
+    // A removal works on an unresolved row exactly as on an open one (rule).
     case Act::kManageRemove: {
         const std::string name = inventory_name(ref);
         unseat_then(ref,
@@ -510,18 +509,94 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
                                 true);
                             return;
                         }
-                        say("hid " + name + discarded_settings(answered.discarded) +
+                        say("removed " + name + " from the setup" +
+                                discarded_settings(answered.discarded) +
                                 discarded_locks(answered.unlocked),
                             false);
                     },
                     mail);
         return;
     }
+    // A FOLD OR A DOCK: a word of the row the layouts' owner writes, which keeps the row and moves
+    // no size; only the room's narrowing by a strip moves what stands against it.
+    case Act::kManageFold:
+    case Act::kManageHide:
+    case Act::kManageDockLeft:
+    case Act::kManageDockRight:
+    case Act::kManageDockTop:
+    case Act::kManageDockBottom:
+    case Act::kManageUndock: fold_or_dock(a, ref, mail); return;
     // EDIT CODE: the setup has answered for the reference above, and what the pane's code is
     // is the host's to answer next (`edit_code`, agents/workshop/code.md).
     case Act::kEditCode: edit_code(ref, mail); return;
     default: return;
     }
+}
+
+// WL-LAYOUT-14 -- agents/workshop/layouts.md
+void WorkshopWeave::fold_or_dock(Act a, const PaneRef& ref, loom::Mail& mail) {
+    const SetupPane* row = pane_of(session_.setup.active, ref);
+    if (row == nullptr) {
+        say(ref_text(ref) + " is no longer in this setup -- the Pane Manager can bring it back",
+            true);
+        return;
+    }
+    if (a == Act::kManageFold) {
+        fold_pane(ref, row->fold == pane_fold::kOpen ? layout_op::kShut : layout_op::kOpen, mail);
+        return;
+    }
+    if (a == Act::kManageHide) {
+        fold_pane(ref, layout_op::kHide, mail);
+        return;
+    }
+    LayoutEdit edit;
+    edit.provider = ref.provider;
+    edit.pane = ref.pane;
+    std::int64_t edge = pane_dock::kNone;
+    switch (a) {
+    case Act::kManageDockLeft: edge = pane_dock::kLeft; break;
+    case Act::kManageDockRight: edge = pane_dock::kRight; break;
+    case Act::kManageDockTop: edge = pane_dock::kTop; break;
+    case Act::kManageDockBottom: edge = pane_dock::kBottom; break;
+    default: break;
+    }
+    edit.op = edge == pane_dock::kNone ? layout_op::kUndock : layout_op::kDock;
+    edit.name = std::string(dock_word(edge));
+    const std::string name = inventory_name(ref);
+    const std::string what = edge == pane_dock::kNone
+                                 ? "undocked " + name
+                                 : "docked " + name + " on the " + edit.name + " edge";
+    ask_layout({edit},
+               [this, what](const LayoutEditAnswered& answered, loom::Mail&) {
+                   if (!answered.accepted) {
+                       say(answered.refusal, true);
+                       return;
+                   }
+                   say(what, false);
+               },
+               mail, false);
+}
+
+// WL-LAYOUT-14 -- agents/workshop/layouts.md
+void WorkshopWeave::fold_pane(const PaneRef& ref, const char* op, loom::Mail& mail) {
+    LayoutEdit edit;
+    edit.op = op;
+    edit.provider = ref.provider;
+    edit.pane = ref.pane;
+    const std::string name = inventory_name(ref);
+    const std::string what =
+        std::string(op) == layout_op::kShut   ? "shut " + name
+        : std::string(op) == layout_op::kHide ? "hid " + name
+                                              : "opened " + name;
+    ask_layout({edit},
+               [this, what](const LayoutEditAnswered& answered, loom::Mail&) {
+                   if (!answered.accepted) {
+                       say(answered.refusal, true);
+                       return;
+                   }
+                   say(what, false);
+               },
+               mail, false);
 }
 
 void WorkshopWeave::reset_front_order(loom::Mail& mail) {
@@ -542,7 +617,8 @@ void WorkshopWeave::reset_front_order(loom::Mail& mail) {
 void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     PaneArrange& a = session_.arrange;
     const KeyContext ctx = keyboard_context(session_);
-    switch (session_.keymap.action_for(ctx, k.scancode, k.modifiers)) {
+    const Act action = session_.keymap.action_for(ctx, k.scancode, k.modifiers);
+    switch (action) {
     // -- the desk's stepping, and its door into the one-pane scope ------------------
     case Act::kManageNext: arrange_step(+1); break;
     case Act::kManagePrevious: arrange_step(-1); break;
@@ -572,7 +648,15 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
     case Act::kManageBack: spend_pane_action(Act::kManageBack, a.pane, mail); break;
     case Act::kManageRaise: spend_pane_action(Act::kManageRaise, a.pane, mail); break;
     case Act::kManageLower: spend_pane_action(Act::kManageLower, a.pane, mail); break;
-    case Act::kManageRemove: spend_pane_action(Act::kManageRemove, a.pane, mail); break;
+    case Act::kManageRemove:
+    // -- the folds and the docks, on the addressed pane, which keep its row --------
+    case Act::kManageFold:
+    case Act::kManageHide:
+    case Act::kManageDockLeft:
+    case Act::kManageDockRight:
+    case Act::kManageDockTop:
+    case Act::kManageDockBottom:
+    case Act::kManageUndock: spend_pane_action(action, a.pane, mail); break;
     // -- the reset prompt -----------------------------------------------------------
     case Act::kManageReset:
         a.resetting = true;

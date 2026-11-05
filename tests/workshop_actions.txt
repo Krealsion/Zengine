@@ -53,7 +53,14 @@ arrange-pane manage.front f front
 arrange-pane manage.back b back
 arrange-pane manage.raise r raise
 arrange-pane manage.lower l lower
-arrange-pane manage.remove d hide pane
+arrange-pane manage.fold s shut or open
+arrange-pane manage.hide h hide pane
+arrange-pane manage.remove d remove from the setup
+arrange-pane manage.dock-left unbound dock left
+arrange-pane manage.dock-right unbound dock right
+arrange-pane manage.dock-top unbound dock top
+arrange-pane manage.dock-bottom unbound dock bottom
+arrange-pane manage.undock unbound undock
 arrange-pane manage.reset 0 reset
 arrange-pane manage.close escape leave
 arrange-desk manage.grow = grow
@@ -70,7 +77,14 @@ arrange-desk manage.front f front
 arrange-desk manage.back b back
 arrange-desk manage.raise r raise
 arrange-desk manage.lower l lower
-arrange-desk manage.remove d hide pane
+arrange-desk manage.fold s shut or open
+arrange-desk manage.hide h hide pane
+arrange-desk manage.remove d remove from the setup
+arrange-desk manage.dock-left unbound dock left
+arrange-desk manage.dock-right unbound dock right
+arrange-desk manage.dock-top unbound dock top
+arrange-desk manage.dock-bottom unbound dock bottom
+arrange-desk manage.undock unbound undock
 arrange-desk manage.reset 0 reset
 arrange-desk manage.close escape leave
 arrange-reset manage.reset-place p reset place

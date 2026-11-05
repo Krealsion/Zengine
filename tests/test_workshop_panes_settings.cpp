@@ -195,20 +195,28 @@ TEST_CASE("a pane that asks for its row and a reopened row are handed their sett
     CHECK(since(2, "room") == 1);
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{legend_off()});
 
-    // A CLOSE DISCARDS THE ROW, SETTINGS AND ALL; THE REOPENED ROW KEEPS NONE, AND THAT IS HANDED
-    // TOO -- never handed is not handed none, so the pane is not left on its last layout's word.
+    // A HIDE KEEPS THE ROW, SETTINGS AND ALL, and the pane still holds them: shown again, it is
+    // given its room and handed nothing new.
     REQUIRE(hand_close(t.r, dial_ref()).closed);
     REQUIRE(seat_pane(t.r, dial_ref()).opened);
-    REQUIRE(t.seat->heard.size() == 6);
-    CHECK(since(4, "settings") == 1);
+    REQUIRE(t.seat->heard.size() == 5);
+    CHECK(since(4, "settings") == 0);
     CHECK(since(4, "room") == 1);
+    // A REMOVAL TAKES THE ROW; THE ROW SEATED AGAIN KEEPS NONE, AND THAT IS HANDED TOO -- never
+    // handed is not handed none, so the pane is not left on its last layout's word.
+    stage_desk(t.r, [](Setup& desk) { REQUIRE(remove_pane(desk, dial_ref())); });
+    t.r.bus.drain_until_idle(); // Workshop takes the desk the owner now holds
+    REQUIRE(seat_pane(t.r, dial_ref()).opened);
+    REQUIRE(t.seat->heard.size() == 7);
+    CHECK(since(5, "settings") == 1);
+    CHECK(since(5, "room") == 1);
     CHECK(t.seat->handed.back().settings.empty());
 
     // ...AND AN ASK OWES EVEN THAT: the row keeping none is handed none again.
     t.offer();
-    REQUIRE(t.seat->heard.size() == 8);
-    CHECK(since(6, "settings") == 1);
-    CHECK(since(6, "room") == 1);
+    REQUIRE(t.seat->heard.size() == 9);
+    CHECK(since(7, "settings") == 1);
+    CHECK(since(7, "room") == 1);
     CHECK(t.seat->handed.back().settings.empty());
     for (std::size_t i = 0; i < t.seat->authors.size(); ++i) {
         if (t.seat->heard[i] == "settings") {
@@ -639,23 +647,20 @@ TEST_CASE("the subject is named anew when its pane's row leaves the desk, and ag
     CHECK(t.stored().empty());
 }
 
-TEST_CASE("a close discards a pane's settings with its row, and every close door says which") {
+TEST_CASE("a close keeps a pane's settings with its row, and every close door says only what it hid") {
     InspectedDial t;
     t.open_inspected();
     REQUIRE(info_commit(t.r, dial_ref(), "legend", "off").accepted);
     REQUIRE(hand_close(t.r, dial_ref()).closed);
-    CHECK(t.r.last_notice() == "hid Dial and its settings here (legend off)");
+    CHECK(t.r.last_notice() == "hid Dial");
     REQUIRE(seat_pane(t.r, dial_ref()).opened);
-    CHECK(t.stored().empty());
+    CHECK(t.stored().size() == 1);
 
     REQUIRE(info_commit(t.r, dial_ref(), "step", "4").accepted);
     REQUIRE(hand_toggle(t.r, dial_ref()).closed);
-    CHECK(t.r.last_notice() == "hid Dial and its settings here (step 4)");
-
-    // ...AND A CLOSE OF A ROW THAT KEPT NONE SAYS NOTHING ABOUT SETTINGS.
-    REQUIRE(hand_toggle(t.r, dial_ref()).opened);
-    REQUIRE(hand_close(t.r, dial_ref()).closed);
     CHECK(t.r.last_notice() == "hid Dial");
+    REQUIRE(hand_toggle(t.r, dial_ref()).opened);
+    CHECK(t.stored().size() == 2);
 }
 
 TEST_CASE("arrangement's remove says the settings and locks it discarded too") {
@@ -672,8 +677,9 @@ TEST_CASE("arrangement's remove says the settings and locks it discarded too") {
     select_pane(t, ref_of(stock::kKind));
     t.key(input::scan::kD);
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
-    CHECK(t.notice() == "hid " + std::string(stock::kName) +
-                            " and its settings here (mode wide) and its locks here (mode)");
+    CHECK(t.notice() == "removed " + std::string(stock::kName) +
+                            " from the setup and its settings here (mode wide) and its locks here "
+                            "(mode)");
 }
 
 TEST_CASE("a pane's settings are part of what makes a linked layout modified") {
