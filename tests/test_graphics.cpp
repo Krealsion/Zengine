@@ -5319,11 +5319,14 @@ TEST_CASE("a terminal leaves out a fill that is mostly transparent, as it leaves
     }
 }
 
-TEST_CASE("in a terminal night shows its text and its grounds in the terminal's own colours and every "
-          "other colour as the nearest of its sixteen inks; block keeps an ink of its own for each") {
-    // THE POOL'S WORDS: `own` for text and grounds alone.
+TEST_CASE("in a terminal night and day show their text, grounds and frames in the terminal's own "
+          "colours and every other colour as the nearest of its sixteen inks; block keeps an ink of "
+          "its own for each") {
+    // THE POOL'S WORDS: `own` for text, grounds and frames alone. A frame is drawn in text's colour,
+    // and day's is dark: as an ink it would be black, and vanish on a dark terminal.
     for (const gfx::PaletteColor& c : gfx::themes::night().colors) {
         const bool own = c.name == gfx::colors::text.name || c.name == gfx::colors::ground.name ||
+                         c.name == gfx::colors::frame.name ||
                          c.name == gfx::colors::background.name ||
                          c.name == gfx::colors::surface.name || c.name == gfx::colors::field.name ||
                          c.name == gfx::colors::chosen.name || c.name == gfx::colors::veil.name;
@@ -5351,6 +5354,19 @@ TEST_CASE("in a terminal night shows its text and its grounds in the terminal's 
     CHECK(ink_of_glyph(t.term, from, 'A') != gw::sgr_for("own", 0));
     CHECK(ink_of_glyph(t.term, from, 'T') == gw::sgr_for("own", 0));      // the terminal's own
     CHECK(t.r.shown().rows[0].substr(0, 2) == "AT");                      // on its own ground
+    // DAY'S FRAME, dark, is the terminal's own colour too, not the black ink nearest it.
+    t.r.to_role(gfx::kGraphicsRole, gfx::themes::day());
+    t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "day"});
+    t.r.drain();
+    const std::size_t day_from = t.term.written.size();
+    gfx::Sketch d;
+    d.fill_rect("ground", 0, 0, 20 * gfx::kCellPx, 2 * gfx::kCellPx, gfx::colors::background);
+    d.text("f", 0, 0, "F", gfx::colors::frame);
+    t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+                                   loom::Message(loom::to_value(whole(kOwner, d))));
+    t.r.drain();
+    CHECK(heard.refused.empty());
+    CHECK(ink_of_glyph(t.term, day_from, 'F') == gw::sgr_for("own", 0));
     // BLOCK, the terminal look: every colour its own ink, as its theme writes it.
     for (const gfx::PaletteColor& c : gfx::themes::block().colors) {
         CHECK_MESSAGE(!c.cells.empty(), c.name);

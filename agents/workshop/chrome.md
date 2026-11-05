@@ -108,7 +108,7 @@ LAW — Workshop offers the directory three palettes, `night`, `day` and `block`
 
 MEANS
 - a file that names `classic` reads as before, and a choice between `classic` and `night` moves no area;
-- `night` is the pool's own and Workshop's default; in a terminal its text and grounds are the terminal's own colours, every other colour the nearest ink.
+- `night` is the pool's own and Workshop's default; in a terminal its text, grounds and frames are the terminal's own colours, any other the nearest ink.
 
 DOES NOT MEAN
 - that `classic` is offered: no row, menu or directory lists it.
@@ -218,9 +218,9 @@ workshop_skin_setting_row pane_setting_refused_by
 `workshop/weave_run.cpp` arrange_graphics
 `tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.skin` names,
 else Workshop's own, and a palette is said only when an area's moved"
-`tests/test_graphics.cpp` "in a terminal night shows its text and its grounds in the terminal's own
-colours and every other colour as the nearest of its sixteen inks; block keeps an ink of its own for
-each"
+`tests/test_graphics.cpp` "in a terminal night and day show their text, grounds and frames in the
+terminal's own colours and every other colour as the nearest of its sixteen inks; block keeps an ink
+of its own for each"
 
 ### WL-CHROME-11
 `workshop/screen.hpp` kFoldOpenArrow kFoldShutArrow kFoldArrowColumns chrome_mark::kFold fold_prefix
