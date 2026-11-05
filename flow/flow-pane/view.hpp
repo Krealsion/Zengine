@@ -243,8 +243,8 @@ struct Pen {
         gfx::Color ink = hue::text(), rim = hue::edge(), fill = gfx::no_color();
         switch (face) {
         case Face::Plain: break;
-        case Face::Gold: fill = hue::gold(); rim = hue::of(ink::accent, 0xebcb8b); ink = hue::on_gold(); break;
-        case Face::Gilt: rim = hue::message(); ink = hue::message(); break;
+        case Face::Gold: fill = hue::gold(); rim = hue::gold(); ink = hue::on_gold(); break;
+        case Face::Gilt: rim = hue::gilt(); ink = hue::gilt(); break;
         case Face::Teal: rim = hue::kept(); ink = hue::kept(); break;
         case Face::Quiet: ink = hue::quiet(); break;
         }

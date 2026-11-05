@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 #ifndef ZENGINE_FLOW_PANE_LOOK_HPP
 #define ZENGINE_FLOW_PANE_LOOK_HPP
-// Flow's look: its colours, each exact beside the pool colour a medium without colour shows; the
+// Flow's look: its colours, a slot of its own or a pool name each (`hue`); the
 // measures of the room a picture is laid out in; the marks a picture is made of; and the drawing a
 // graphics window is given of them -- the marks in paint order, each place a press means something
 // painted again over its place under a record that names it, and a run's caret and selection in
@@ -12,6 +12,7 @@
 #include "graphics/ops.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
+#include "flow/flow-pane/slots.hpp" // generated from slots.json: Flow's own colours
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_picture.hpp"
@@ -30,45 +31,47 @@ namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
 namespace ink = zengine::graphics::colors;
 
-/// FLOW'S COLOURS, exact where a medium shows colour, and beside each the pool colour a medium that
-/// does not shows in its place. Every surface is a ground, so a terminal paints none of them; what
-/// a word means is the pool colour it stands for.
+/// FLOW'S COLOURS, by use: each a name the window paints as the area's palette says. The three parts
+/// of a rule's sentence and their outlines are Flow's own slots (`slots.json`); every other colour
+/// is the shared pool's, so a theme that sets the pool sets Flow with every other pane.
 namespace hue {
-inline gfx::Color of(gfx::PoolColor like, std::uint32_t rgb) { return gfx::rgb(rgb, like); }
-inline gfx::Color body() { return of(ink::background, 0x262b35); }    ///< the pane's ground
-inline gfx::Color field() { return of(ink::background, 0x1b1f26); }   ///< a field, a chip, the Next line
-inline gfx::Color well() { return of(ink::background, 0x1a1d24); }    ///< the graph's ground
-inline gfx::Color band() { return of(ink::background, 0x2b303b); }    ///< a card's head, the rule's row
-inline gfx::Color card() { return of(ink::background, 0x323846); }    ///< a card's body
-inline gfx::Color badge() { return of(ink::background, 0x3b4252); }   ///< a value on a wire
-inline gfx::Color chosen() { return of(ink::background, 0x323d48); }  ///< the row the preview shows
-/// The three lanes, each its part's colour at a twentieth over the graph's ground.
-inline gfx::Color when_lane() { return of(ink::background, 0x242629); }
-inline gfx::Color do_lane() { return of(ink::background, 0x20252d); }
-inline gfx::Color then_lane() { return of(ink::background, 0x20252c); }
-/// A part of the rule's sentence: a message, a kept field, a step, at a seventh over its row.
-inline gfx::Color message_chip() { return of(ink::background, 0x464646); }
-inline gfx::Color kept_chip() { return of(ink::background, 0x39444d); }
-inline gfx::Color step_chip() { return of(ink::background, 0x384450); }
-inline gfx::Color message_rim() { return of(ink::quiet, 0x8b7e63); }
-inline gfx::Color kept_rim() { return of(ink::quiet, 0x5d767b); }
-inline gfx::Color step_rim() { return of(ink::quiet, 0x5a7886); }
-inline gfx::Color rule() { return of(ink::quiet, 0x343b49); }     ///< a line between parts
-inline gfx::Color frame() { return of(ink::quiet, 0x434c5e); }    ///< the preview's outline
-inline gfx::Color edge() { return of(ink::quiet, 0x4a5366); }     ///< an outline
-inline gfx::Color thread() { return of(ink::quiet, 0x6b7385); }   ///< the thread from a write to a say
-inline gfx::Color text() { return of(ink::text, 0xe5e9f0); }
-inline gfx::Color soft() { return of(ink::text, 0xc0c7d3); }
-inline gfx::Color quiet() { return of(ink::quiet, 0x9aa3b2); }
-inline gfx::Color faint() { return of(ink::quiet, 0x7d869a); }
-inline gfx::Color message() { return of(ink::accent, 0xebcb8b); } ///< a message: gold
-inline gfx::Color wire() { return of(ink::accent, 0x88c0d0); }    ///< wires, ports and steps
-inline gfx::Color kept() { return of(ink::accent, 0x8fbcbb); }    ///< what the rule keeps
-inline gfx::Color done() { return of(ink::text, 0xa3be8c); }      ///< ready, running, done
-inline gfx::Color warn() { return of(ink::alert, 0xd08770); }     ///< what must come first
-/// A gold button's face, and the words on it: an accent where a medium has no colour.
-inline gfx::Color gold() { return of(ink::background, 0xebcb8b); }
-inline gfx::Color on_gold() { return of(ink::accent, 0x1b1f26); }
+namespace own = zengine::flow_pane::slots;
+inline gfx::Color body() { return ink::background; }  ///< the pane's ground
+inline gfx::Color field() { return ink::field; }      ///< a field, a chip, the Next line
+inline gfx::Color well() { return ink::field; }       ///< the graph's ground
+inline gfx::Color band() { return ink::surface; }     ///< a card's head, the rule's row
+inline gfx::Color card() { return ink::surface; }     ///< a card's body
+inline gfx::Color badge() { return ink::surface; }    ///< a value on a wire
+inline gfx::Color chosen() { return ink::chosen; }    ///< the row the preview shows
+/// The three lanes, the graph's columns, on the pane's ground.
+inline gfx::Color when_lane() { return ink::background; }
+inline gfx::Color do_lane() { return ink::background; }
+inline gfx::Color then_lane() { return ink::background; }
+/// A part of the rule's sentence: a message, a kept field, a step, raised over its row, each in its
+/// own outline.
+inline gfx::Color message_chip() { return ink::surface; }
+inline gfx::Color kept_chip() { return ink::surface; }
+inline gfx::Color step_chip() { return ink::surface; }
+inline gfx::Color message_rim() { return own::message_rim; }
+inline gfx::Color kept_rim() { return own::kept_rim; }
+inline gfx::Color step_rim() { return own::step_rim; }
+inline gfx::Color rule() { return ink::quiet; }      ///< a line between parts
+inline gfx::Color frame() { return ink::edge; }      ///< the preview's outline
+inline gfx::Color edge() { return ink::edge; }       ///< an outline
+inline gfx::Color thread() { return ink::faint; }    ///< the thread from a write to a say
+inline gfx::Color text() { return ink::text; }
+inline gfx::Color soft() { return ink::text; }
+inline gfx::Color quiet() { return ink::quiet; }
+inline gfx::Color faint() { return ink::faint; }
+inline gfx::Color message() { return own::message; } ///< a message: gold
+inline gfx::Color wire() { return own::wire; }       ///< wires, ports and steps
+inline gfx::Color kept() { return own::kept; }       ///< what the rule keeps
+inline gfx::Color done() { return ink::done; }       ///< ready, running, done
+inline gfx::Color warn() { return ink::warn; }       ///< what must come first
+/// The press offered first, and the words on it; the press offered second.
+inline gfx::Color gold() { return ink::primary; }
+inline gfx::Color on_gold() { return ink::on_primary; }
+inline gfx::Color gilt() { return ink::secondary; }
 } // namespace hue
 
 /// THE ROOM'S MEASURES, as a picture is laid out in them: a character's advance and a line's

@@ -6,6 +6,10 @@
 #include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_picture.hpp"
 #include "workshop/screen_canvas.hpp"
+#include "graphics/themes.hpp"
+#include "graphics/window/palette.hpp"
+
+#include <set>
 
 namespace {
 namespace pane = zengine::flow_pane;
@@ -243,6 +247,51 @@ TEST_CASE("a part carries a run of words only where the run's whole row stands i
     // it meets.
     CHECK_FALSE(carries(group_of["graze:a"]));
     CHECK(carries(group_of["hold:b"]));
+}
+
+TEST_CASE("Flow's slots paint as a palette sets them for Flow's office, else as their defaults, and "
+          "its other colours as the pool's") {
+    const auto at = light_room();
+    pane::Drawing d;
+    d.width = at.width;
+    d.height = at.height;
+    d.light = true;
+    pane::Mark wire;
+    wire.op = pane::Mark::Op::Rect;
+    wire.x = 10;
+    wire.y = 10;
+    wire.w = 40;
+    wire.h = 20;
+    wire.fill = pane::hue::wire();
+    wire.stroke = pane::hue::message_rim();
+    d.marks.push_back(wire);
+    const auto sketched = pane::sketch_of(d, at);
+    REQUIRE(sketched.over.empty());
+    // The colours each node paints in `palette`, as the window resolves them for Flow's office.
+    const auto painted = [&](const gfx::PaletteOffered& palette) {
+        std::set<std::int64_t> out;
+        for (const gfx::Node& n : sketched.sketch.nodes())
+            for (const gfx::PaintInk& ink :
+                 gfx::window::inks_of(n.op, n.args, palette, pane::kRole))
+                if (!ink.none()) out.insert(ink.rgba);
+        return out;
+    };
+    gfx::PaletteOffered set = gfx::themes::night();
+    set.slots.push_back(gfx::PaletteSlots{pane::kRole, {{"wire", 0x0c0d0eff, "", ""},
+                                                                {"message_rim", 0x0f1011ff, "", ""}}});
+    const std::set<std::int64_t> own = painted(set);
+    CHECK(own.count(0x0c0d0eff) == 1);
+    CHECK(own.count(0x0f1011ff) == 1);
+    CHECK(own.count(0x88c0d0ff) == 0);
+    // ...A PALETTE THAT SETS NONE: each slot its default, and the ground the pool's background.
+    const std::set<std::int64_t> plain = painted(gfx::themes::night());
+    CHECK(plain.count(0x88c0d0ff) == 1);
+    CHECK(plain.count(0x8b7e63ff) == 1);
+    CHECK(plain.count(0x2e3440ff) == 1);
+    // ...AND ANOTHER OFFICE'S SETTING IS NOT FLOW'S.
+    gfx::PaletteOffered other = gfx::themes::night();
+    other.slots.push_back(gfx::PaletteSlots{"test.other", {{"wire", 0x0c0d0eff, "", ""}}});
+    CHECK(painted(other).count(0x0c0d0eff) == 0);
 }
 
 TEST_CASE("Flow keeps a long dialog draft editable without rejecting its picture") {
@@ -1196,18 +1245,18 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
     CHECK_FALSE(text_has(light.picture, "math.add"));
     CHECK(text_has(light.picture, "tally.panel.Count  amount 3  ->  total 0 -> 3  ->  said tally.Total 3"));
     std::size_t curves = 0, ports = 0;
-    std::set<std::int64_t> colours;
+    std::set<std::string> colours; // by name: the pool's and Flow's slots
     for (const auto& node : light.sketch.nodes()) {
         if (node.op == gfx::op::kPath) {
             if (const auto p = gfx::from_body<gfx::PathArgs>(node.args)) {
                 curves += p->d.find(" C") != std::string::npos ? std::size_t{1} : std::size_t{0};
-                colours.insert((p->stroke.rgba >> 8));
-                colours.insert((p->fill.rgba >> 8));
+                colours.insert(p->stroke.name);
+                colours.insert(p->fill.name);
             }
         } else if (node.op == gfx::op::kEllipse) {
             ++ports;
         } else if (node.op == gfx::op::kRect) {
-            if (const auto r = gfx::from_body<gfx::RectArgs>(node.args)) colours.insert((r->fill.rgba >> 8));
+            if (const auto r = gfx::from_body<gfx::RectArgs>(node.args)) colours.insert(r->fill.name);
         }
     }
     CHECK(curves >= 3); // amount and total into add, add's answer into total
@@ -1217,8 +1266,9 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
     CHECK(std::count(texts.begin(), texts.end(), "3") == 2);
     CHECK(std::count(texts.begin(), texts.end(), "0") == 1);
     // ...its wires, every one the message just changed, in the done colour until the next.
-    for (const std::int64_t rgb : {0x262b35, 0x1a1d24, 0x242629, 0x20252d, 0x20252c, 0x323846, 0xa3be8c})
-        CHECK_MESSAGE(colours.count(rgb) == 1, rgb);
+    for (const gfx::PoolColor c : {gfx::colors::background, gfx::colors::field, gfx::colors::surface,
+                                   gfx::colors::done})
+        CHECK_MESSAGE(colours.count(c.name) == 1, c.name);
     CHECK(light.parts.count("port:1.0") == 1);
     CHECK(light.parts.count("write:0") == 1);
     CHECK(light.parts.count("say:0") == 1);
