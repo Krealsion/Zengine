@@ -53,7 +53,7 @@ struct Quad {
 };
 
 /// ONE CELL THE TERMINAL WINDOW SHOWS: its glyph, and the pool colour whose ink in the block
-/// palette it wrote it in (none where no pool colour's is, or the terminal's own).
+/// palette it wrote it in (none where no pool colour's is, or the terminal's default).
 struct Cell {
     std::int64_t col = 0, row = 0;
     char glyph = ' ';

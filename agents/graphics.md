@@ -139,7 +139,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   higher revision paints every area wearing it again from what the window keeps, and no owner is
   told. A palette chosen before its area is placed is kept for it, so the area is introduced once.
 - **A terminal shows a colour's word, else its nearest**: its `cells` word, else the nearest of the
-  sixteen inks, never the terminal's own unless a word asks for it; a shape fills with its colour's
+  sixteen inks, never the terminal's default unless a word asks for it; a shape fills with its colour's
   fill character, and an exact colour or a slot's own shows as the pool colour it is `like`.
 - **A drawer names a colour, never a role**: a pool name, a slot of its own, or an exact value
   beside the pool colour it is `like`; where only the pool's colours are shown, a colour shows as

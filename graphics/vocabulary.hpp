@@ -392,7 +392,7 @@ struct AreaPlaced {
 };
 
 /// One named colour of a palette: its 0xRRGGBBAA; what a terminal shows where it cannot show that
-/// colour (`own`, the terminal's own ink, or one of its sixteen, perhaps `bright`, perhaps `bold`;
+/// colour (`terminal default`, the terminal's default ink, or one of its sixteen, perhaps `bright`, perhaps `bold`;
 /// "" its nearest); and the character a terminal fills a shape with in it ("" the palette's `text`
 /// fill).
 struct PaletteColor {

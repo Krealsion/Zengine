@@ -4766,20 +4766,20 @@ TEST_CASE("no source in the graphics package includes Surface") {
 }
 
 TEST_CASE("the terminal's ink and its pointer modes are the graphics package's: a colour's word, "
-          "else the nearest of its sixteen inks, never its own") {
+          "else the nearest of its sixteen inks, never its default") {
     CHECK(gw::sgr_for("cyan", 0) == "\x1b[36m");
     CHECK(gw::sgr_for("bright magenta", 0) == "\x1b[95m");
     CHECK(gw::sgr_for("red bold", 0) == "\x1b[31;1m");
-    CHECK(gw::sgr_for("own", 0) == "\x1b[39m");
+    CHECK(gw::sgr_for(gw::kTerminalDefault, 0) == "\x1b[39m");
     // NO WORD, OR ONE NAMING NO INK: the nearest of the sixteen to the colour itself.
     CHECK(gw::sgr_for("", 0xff0000ff) == "\x1b[91m");
     CHECK(gw::sgr_for("", 0xcd0000ff) == "\x1b[31m");
     CHECK(gw::sgr_for("", 0x101418ff) == "\x1b[30m");
     CHECK(gw::sgr_for("", 0xd8dee9ff) == "\x1b[37m");
     CHECK(gw::sgr_for("purple", 0x5c5cffff) == "\x1b[94m");
-    // A nearest is one of the sixteen: never the terminal's own ink, whatever the colour.
+    // A nearest is one of the sixteen: never the terminal's default ink, whatever the colour.
     for (const std::uint32_t rgba : {0x000000ffu, 0x7f7f7fffu, 0xffffffffu, 0x2e3440ffu}) {
-        CHECK(gw::sgr_for("", rgba) != gw::sgr_for("own", 0));
+        CHECK(gw::sgr_for("", rgba) != gw::sgr_for(gw::kTerminalDefault, 0));
     }
     CHECK(gw::tui_enter_sequence(true).find(gw::kTuiPointerOn) != std::string::npos);
 }
@@ -5322,7 +5322,7 @@ TEST_CASE("a terminal leaves out a fill that is mostly transparent, as it leaves
 TEST_CASE("in a terminal night and day show their text, grounds and frames in the terminal's own "
           "colours and every other colour as the nearest of its sixteen inks; block keeps an ink of "
           "its own for each") {
-    // THE POOL'S WORDS: `own` for text, grounds and frames alone. A frame is drawn in text's colour,
+    // THE POOL'S WORDS: `terminal default` for text, grounds and frames alone. A frame is drawn in text's colour,
     // and day's is dark: as an ink it would be black, and vanish on a dark terminal.
     for (const gfx::PaletteColor& c : gfx::themes::night().colors) {
         const bool own = c.name == gfx::colors::text.name || c.name == gfx::colors::ground.name ||
@@ -5330,7 +5330,7 @@ TEST_CASE("in a terminal night and day show their text, grounds and frames in th
                          c.name == gfx::colors::background.name ||
                          c.name == gfx::colors::surface.name || c.name == gfx::colors::field.name ||
                          c.name == gfx::colors::chosen.name || c.name == gfx::colors::veil.name;
-        CHECK_MESSAGE(c.cells == (own ? "own" : ""), c.name);
+        CHECK_MESSAGE(c.cells == (own ? gw::kTerminalDefault : ""), c.name);
     }
     // ...AND WHAT A TERMINAL WRITES FOR THEM.
     TypedWindow t;
@@ -5351,10 +5351,10 @@ TEST_CASE("in a terminal night and day show their text, grounds and frames in th
     t.r.drain();
     CHECK(heard.refused.empty());
     CHECK(ink_of_glyph(t.term, from, 'A') == gw::sgr_for("", 0xebcb8bff)); // the nearest ink
-    CHECK(ink_of_glyph(t.term, from, 'A') != gw::sgr_for("own", 0));
-    CHECK(ink_of_glyph(t.term, from, 'T') == gw::sgr_for("own", 0));      // the terminal's own
+    CHECK(ink_of_glyph(t.term, from, 'A') != gw::sgr_for(gw::kTerminalDefault, 0));
+    CHECK(ink_of_glyph(t.term, from, 'T') == gw::sgr_for(gw::kTerminalDefault, 0)); // the terminal's default
     CHECK(t.r.shown().rows[0].substr(0, 2) == "AT");                      // on its own ground
-    // DAY'S FRAME, dark, is the terminal's own colour too, not the black ink nearest it.
+    // DAY'S FRAME, dark, is the terminal's default colour too, not the black ink nearest it.
     t.r.to_role(gfx::kGraphicsRole, gfx::themes::day());
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "day"});
     t.r.drain();
@@ -5366,7 +5366,7 @@ TEST_CASE("in a terminal night and day show their text, grounds and frames in th
                                    loom::Message(loom::to_value(whole(kOwner, d))));
     t.r.drain();
     CHECK(heard.refused.empty());
-    CHECK(ink_of_glyph(t.term, day_from, 'F') == gw::sgr_for("own", 0));
+    CHECK(ink_of_glyph(t.term, day_from, 'F') == gw::sgr_for(gw::kTerminalDefault, 0));
     // BLOCK, the terminal look: every colour its own ink, as its theme writes it.
     for (const gfx::PaletteColor& c : gfx::themes::block().colors) {
         CHECK_MESSAGE(!c.cells.empty(), c.name);

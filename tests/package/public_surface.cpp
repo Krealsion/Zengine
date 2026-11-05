@@ -408,7 +408,7 @@ void graphics_surface() {
     for (const gfx::Node& n : picture.nodes()) {
         std::vector<gfx::PaintInk> inks;
         for (const gfx::Color& c : gfx::colors_of(n.op, n.args)) {
-            inks.push_back(c.none() ? gfx::PaintInk{} : gfx::PaintInk{0xd8dee9ff, "own", "o"});
+            inks.push_back(c.none() ? gfx::PaintInk{} : gfx::PaintInk{0xd8dee9ff, "terminal default", "o"});
         }
         task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args, inks});
     }

@@ -82,10 +82,10 @@ const gfx::PaletteColor* color_of_pool(const gfx::PaletteOffered& palette, std::
 }
 
 /// The number of the pool colour whose ink a terminal window writes as this sequence in the block
-/// palette, the one a terminal draws every colour in its own ink, or -1: the terminal's own ink is
+/// palette, the one a terminal draws every colour in its own ink, or -1: the terminal's default ink is
 /// no pool colour's.
 std::int64_t pool_of_ink(const std::string& sgr) {
-    if (sgr == gfx::window::sgr_for("own", 0)) {
+    if (sgr == gfx::window::sgr_for(gfx::window::kTerminalDefault, 0)) {
         return -1;
     }
     const gfx::PaletteOffered block = gfx::themes::block();

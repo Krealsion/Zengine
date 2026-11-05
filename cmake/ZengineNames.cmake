@@ -80,8 +80,8 @@ function(_zengine_names_cells cells file)
         return()
     endif()
     set(colours "black|red|green|yellow|blue|magenta|cyan|white")
-    if(NOT cells MATCHES "^(own|(bright )?(${colours}))( bold)?$")
-        _zengine_names_fail("${file}" "'${cells}' is not what a terminal shows: own, or one of "
+    if(NOT cells MATCHES "^(terminal default|(bright )?(${colours}))( bold)?$")
+        _zengine_names_fail("${file}" "'${cells}' is not what a terminal shows: terminal default, or one of "
                                       "its sixteen inks (bright or not), perhaps bold")
     endif()
 endfunction()

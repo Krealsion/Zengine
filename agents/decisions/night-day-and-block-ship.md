@@ -11,7 +11,7 @@ terminal classic, day and night did, every colour in the terminal's one ink.
 **Decision.** Three looks ship and are offered: `night`, the pool's own, light on a cool dark ground;
 `day`, dark on light; and `block`, the terminal look, the one theme that changes how a terminal draws.
 `classic` is another name for `night`: a row, a setting or an `app.json` naming it wears night, and
-nothing offers it. A terminal shows text and every ground in its own colour, and each other colour of
+nothing offers it. A terminal shows text and every ground in its default colours, and each other colour of
 night and day as the nearest of its sixteen inks; block keeps an ink of its own for each.
 
 **Alternatives considered.**
@@ -19,7 +19,7 @@ night and day as the nearest of its sixteen inks; block keeps an ink of its own 
   that changes nothing on screen.
 - *Argued: block a tests' fixture alone* -- it is the only look a terminal shows otherwise, and the
   tests and the snake keep it.
-- *Argued: the terminal's own ink for every colour of night and day* -- a terminal would show no
+- *Argued: the terminal's default ink for every colour of night and day* -- a terminal would show no
   colour at all; an accent would read as text.
 
 **Consequences.** A saved file that names `classic` keeps working and wears night; the setting's row

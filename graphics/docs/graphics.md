@@ -167,15 +167,15 @@ colour shows in its place: a terminal writes that colour's word and fills a shap
 character. Without it, a terminal shows the nearest of its sixteen inks.
 
 A **palette** (`PaletteOffered`) is a theme resolved for the window: each pool colour's
-`0xRRGGBBAA`, what a terminal shows where it cannot show it (`cells`: `own`, the terminal's own
-ink, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its nearest) and the
+`0xRRGGBBAA`, what a terminal shows where it cannot show it (`cells`: `terminal default`, the
+terminal's default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its nearest) and the
 character it fills a shape with (`fill`); each office's slots; and a terminal's outline, a corner,
 across and down. Whoever arranges the window offers palettes and chooses the one each area wears
 (`PaletteChosen`) through the directory; an area wearing none, or one nobody offered, wears the
 window's own, the pool's defaults, which are night's. The three shipped themes are
 `graphics::themes::night()`, `day()` and `block()` (`graphics/themes.hpp`), each generated with
 `zengine_palettes()` from its JSON in `graphics/themes/`. In a terminal the pool shows text and
-every ground in the terminal's own colours and each other colour as the nearest of its sixteen
+every ground in the terminal's default colours and each other colour as the nearest of its sixteen
 inks; `block` gives every colour an ink and a fill character of its own.
 
 An exact colour can name the pool colour a medium that cannot show it shows in its place
