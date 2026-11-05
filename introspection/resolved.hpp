@@ -276,8 +276,12 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
         view.furthest = std::min(furthest, blocks.size() - 1);
         view.first = std::min(origin, view.furthest);
     }
-    const std::vector<std::int64_t> from(heights.begin() + static_cast<std::ptrdiff_t>(view.first),
-                                         heights.end());
+    // The heights from the window's start, copied one by one: GCC 15 at -O3 misreads the range
+    // copy of a vector it saw reserved as an overread.
+    std::vector<std::int64_t> from;
+    for (std::size_t i = view.first; i < heights.size(); ++i) {
+        from.push_back(heights[i]);
+    }
     Laid laid = lay_blocks(from, budget);
     if (view.first > 0 && !laid.marker) {
         // WHAT IS ABOVE IS COUNTED TOO, on the row the blocks below would otherwise take.

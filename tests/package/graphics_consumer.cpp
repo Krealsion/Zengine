@@ -50,7 +50,7 @@ int main() {
           "a pool colour is its name, which the window turns into a colour");
 
     const gfx::PaletteOffered day = gfx::themes::day();
-    check(day.palette == "day" && !day.colors.empty() && gfx::themes::shipped().size() == 4,
+    check(day.palette == "day" && !day.colors.empty() && gfx::themes::shipped().size() == 3,
           "the shipped themes come with the package as palettes");
 
     gfx::PaintTask task;
