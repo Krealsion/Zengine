@@ -437,6 +437,13 @@ private:
             }
         }
         status(done.label + " " + outcome);
+        if (refused && done.action == kPilotLanded) {
+            // The door refuses an unload by role when no loaded library holds the role: the pilot
+            // has gone already, and the keys are still the player's to have back.
+            ctx_->pilot_flying = false;
+            write_world(mail, "keys back to the player", "keys", "true");
+            return;
+        }
         if (refused) {
             return;
         }
