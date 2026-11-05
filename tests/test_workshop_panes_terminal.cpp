@@ -529,7 +529,7 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
         CHECK(a->nodes.front().node.op == gfx::op::kRect);
         CHECK(ground->w == a->w);
         CHECK(ground->h == a->h);
-        CHECK(zengine::graphics::role_of(ground->fill) == gfx::role::kGround);
+        CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
         // EACH ROW A LINE OF THE FACE DOWN, each character an advance across.
         bool line_row = false;
         for (const gw::KeptNode& k : a->nodes) {
@@ -968,7 +968,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         CHECK(typed.column == kLineBoxColumn + 5);
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
-        // After the text the caret stands on a blank, a bar at its left in the accent role.
+        // After the text the caret stands on a blank, a bar at its left in the accent colour.
         CHECK(caret->op == gfx::op::kLine);
         const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
         REQUIRE(bar.has_value());
@@ -976,9 +976,9 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         CHECK(bar->x2 == typed.column * gfx::kCellPx);
         CHECK(bar->y1 == typed.row * gfx::kCellPx);
         CHECK(bar->y2 == typed.row * gfx::kCellPx + gfx::kCellPx - 1);
-        CHECK(zengine::graphics::role_of(bar->ink) == gfx::role::kAccent);
+        CHECK(zengine::graphics::pool_color_of(bar->ink) == gfx::colors::accent);
         CHECK(window.action_at(area, typed.column, typed.row) == "line");
-        // ...AND SO DOES THE SELECTION: the selected columns again in the accent role, asking for
+        // ...AND SO DOES THE SELECTION: the selected columns again in the accent colour, asking for
         // the line, the row's words unchanged; collapsed, it is gone and the caret stays.
         t.r.key(input::scan::kA, input::mod::kCtrl);
         const RowsCaret all = t.caret();
@@ -991,7 +991,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         CHECK(words->text == "hello");
         CHECK(words->x == all.sel_begin_col * gfx::kCellPx);
         CHECK(words->y == t.input_row() * gfx::kCellPx);
-        CHECK(zengine::graphics::role_of(words->ink) == gfx::role::kAccent);
+        CHECK(zengine::graphics::pool_color_of(words->ink) == gfx::colors::accent);
         CHECK(kept("sel" + std::to_string(t.input_row()) + ".1") == nullptr);
         for (std::int64_t c = all.sel_begin_col; c < all.sel_end_col; ++c) {
             CAPTURE(c);

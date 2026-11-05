@@ -269,9 +269,9 @@ inline constexpr CellRect cells_covered(const PixelRect& f) noexcept {
 }
 
 /// A pixel rectangle as a plane's `ScreenRect`; a negative extent draws as none.
-inline constexpr ScreenRect wire_rect_of(const PixelRect& f,
-                                         std::int64_t role) noexcept {
-    return ScreenRect{f.x, f.y, f.w > 0 ? f.w : 0, f.h > 0 ? f.h : 0, role};
+inline ScreenRect wire_rect_of(const PixelRect& f,
+                                         graphics::Color ink) {
+    return ScreenRect{f.x, f.y, f.w > 0 ? f.w : 0, f.h > 0 ? f.h : 0, ink};
 }
 
 /// AN AUTHORED PLACE ON THE CANVAS: a place is measured from the room's top-left, which stands
@@ -429,9 +429,9 @@ static_assert(kStackRows + kCoarseStepCells - 2 * kChromeCells - 1 >= 8,
 
 // ---- THE CHROME'S VOICE: three roles, and the vocabulary is the one that exists ---------
 // WL-CHROME-07, WL-CHROME-08 -- agents/workshop/chrome.md
-inline constexpr std::int64_t kPaneChrome = graphics::role::kFill;
-inline constexpr std::int64_t kPaneChromeSelected = graphics::role::kAccent;
-inline constexpr std::int64_t kTransientChrome = graphics::role::kMuted;
+inline constexpr graphics::PoolColor kPaneChrome = graphics::colors::text;
+inline constexpr graphics::PoolColor kPaneChromeSelected = graphics::colors::accent;
+inline constexpr graphics::PoolColor kTransientChrome = graphics::colors::quiet;
 
 // ---- AUTHORED INTENT, PROJECTED ONTO THIS SCREEN -------------------------------------
 // WL-PANE-08, WL-PANE-09 -- agents/workshop/panes-and-windows.md
@@ -629,7 +629,7 @@ inline constexpr std::int64_t kBottomRight = 7;
 inline constexpr std::int64_t kCount = 8;
 } // namespace pane_edge
 
-/// NO EDGE. Negative, for `role::kNone`'s reason: every edge is a non-negative index into a
+/// NO EDGE. Negative, for `no_color()`'s reason: every edge is a non-negative index into a
 /// table, so an absence cannot collide with one.
 inline constexpr std::int64_t kNoPaneEdge = -1;
 
@@ -1200,7 +1200,7 @@ std::string omitted_text(std::size_t how_many, const char* which);
 
 /// THE BACKDROP OF A PANE: its whole bounds, in one rect.
 void paint_pane_frame(ScreenPlane& layer, const PixelRect& b,
-                              std::int64_t role);
+                              graphics::Color ink);
 
 /// THE POPUP'S OR A PANE'S BODY AS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE.
 // WL-CHROME-05 -- agents/workshop/chrome.md; WL-RGN-01 -- agents/workshop/regions.md
@@ -1626,7 +1626,7 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
 /// that stand behind the pane's own area (`external_body_words`).
 void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
                     const PixelRect& b, const Screen& sc, bool titles,
-                    std::int64_t chrome = kPaneChrome);
+                    graphics::Color chrome = kPaneChrome);
 
 // ---- The arrangement's affordance rings --------------------------------------------------
 
@@ -1664,8 +1664,8 @@ namespace detail {
 /// ONE PLANE FOR ONE PRESENTATION — offered unconditionally, and taken back if that
 /// presentation turns out to draw nothing.
 // WL-FRONT-01 -- agents/workshop/planes.md
-template <typename Paint>
-inline void on_own_layer(ScreenCanvas& c, Paint&& paint_it) {
+template <typename Color>
+inline void on_own_layer(ScreenCanvas& c, Color&& paint_it) {
     c.layers.emplace_back();
     paint_it(c.layers.back());
     const ScreenPlane& drawn = c.layers.back();
@@ -1851,7 +1851,7 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 /// it, the workspace fact under them where the medium fits a second row, and the setup-name
 /// editor's caret and selection while a weaver is typing a name.
 void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
-                          const Screen& sc, std::int64_t chrome = kPaneChrome);
+                          const Screen& sc, graphics::Color chrome = kPaneChrome);
 
 // ---- A PANE'S INTERIOR, CAPTURED ----------------------------------------------------------
 

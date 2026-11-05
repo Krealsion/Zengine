@@ -14,7 +14,7 @@
 #include "flow/flow-pane/observed.hpp"
 #include "flow/flow-pane/vocabulary.hpp"
 #include "graphics/pixels.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_parts.hpp"
@@ -169,7 +169,7 @@ struct Pen {
     Picture& p;
     Measure m;
     const ws::CanvasRoom& room;
-    void rect(Box b, gfx::Paint fill, gfx::Paint stroke = gfx::no_paint(), std::int64_t radius = 0,
+    void rect(Box b, gfx::Color fill, gfx::Color stroke = gfx::no_color(), std::int64_t radius = 0,
               bool dashed = false, std::optional<Box> clip = std::nullopt) {
         if (b.empty()) return;
         Mark k;
@@ -178,7 +178,7 @@ struct Pen {
         k.fill = fill; k.stroke = stroke; k.radius = radius; k.dashed = dashed; k.clip = clip;
         p.marks.push_back(std::move(k));
     }
-    void dot(Box b, gfx::Paint fill, gfx::Paint stroke = gfx::no_paint(),
+    void dot(Box b, gfx::Color fill, gfx::Color stroke = gfx::no_color(),
              std::optional<Box> clip = std::nullopt) {
         if (b.empty()) return;
         Mark k;
@@ -187,7 +187,7 @@ struct Pen {
         k.fill = fill; k.stroke = stroke; k.clip = clip;
         p.marks.push_back(std::move(k));
     }
-    void line(std::int64_t x0, std::int64_t y0, std::int64_t x1, std::int64_t y1, gfx::Paint ink,
+    void line(std::int64_t x0, std::int64_t y0, std::int64_t x1, std::int64_t y1, gfx::Color ink,
               std::optional<Box> clip = std::nullopt) {
         Mark k;
         k.op = Mark::Op::Line;
@@ -195,7 +195,7 @@ struct Pen {
         k.stroke = ink; k.clip = clip;
         p.marks.push_back(std::move(k));
     }
-    void path(std::string d, Box bounds, gfx::Paint fill, gfx::Paint stroke,
+    void path(std::string d, Box bounds, gfx::Color fill, gfx::Color stroke,
               std::optional<Box> clip = std::nullopt) {
         Mark k;
         k.op = Mark::Op::Path;
@@ -204,7 +204,7 @@ struct Pen {
         p.marks.push_back(std::move(k));
     }
     /// A run of text, its padded region at (x, y); the mark, to give it a caret.
-    Mark& text(std::int64_t x, std::int64_t y, std::string words, gfx::Paint ink,
+    Mark& text(std::int64_t x, std::int64_t y, std::string words, gfx::Color ink,
                std::optional<Box> clip = std::nullopt) {
         Mark k;
         k.op = Mark::Op::Text;
@@ -240,10 +240,10 @@ struct Pen {
                         Icon icon = Icon::None, std::optional<Box> clip = std::nullopt) {
         const auto w = button_width(words, icon);
         const auto said = label(words, icon);
-        gfx::Paint ink = hue::text(), rim = hue::edge(), fill = gfx::no_paint();
+        gfx::Color ink = hue::text(), rim = hue::edge(), fill = gfx::no_color();
         switch (face) {
         case Face::Plain: break;
-        case Face::Gold: fill = hue::gold(); rim = hue::of(ink::kAccent, 0xebcb8b); ink = hue::on_gold(); break;
+        case Face::Gold: fill = hue::gold(); rim = hue::of(ink::accent, 0xebcb8b); ink = hue::on_gold(); break;
         case Face::Gilt: rim = hue::message(); ink = hue::message(); break;
         case Face::Teal: rim = hue::kept(); ink = hue::kept(); break;
         case Face::Quiet: ink = hue::quiet(); break;
@@ -256,15 +256,15 @@ struct Pen {
             if (icon == Icon::Play) {
                 path("M" + num(tx) + " " + num(cy - 5) + " L" + num(tx + 8) + " " + num(cy) + " L" +
                          num(tx) + " " + num(cy + 5) + " Z",
-                     {tx, cy - 5, 9, 11}, ink, gfx::no_paint(), clip);
+                     {tx, cy - 5, 9, 11}, ink, gfx::no_color(), clip);
                 tx += 16;
             } else if (icon == Icon::Square) {
-                rect({tx, cy - 4, 8, 8}, ink, gfx::no_paint(), 0, false, clip);
+                rect({tx, cy - 4, 8, 8}, ink, gfx::no_color(), 0, false, clip);
                 tx += 16;
             } else if (icon == Icon::Gear) {
                 const auto gx = x + (w - 14) / 2, gy = y + (m.tall - 14) / 2;
-                path(gear(gx, gy), {gx, gy, 15, 15}, gfx::no_paint(), ink, clip);
-                dot({gx + 5, gy + 5, 5, 5}, gfx::no_paint(), ink, clip);
+                path(gear(gx, gy), {gx, gy, 15, 15}, gfx::no_color(), ink, clip);
+                dot({gx + 5, gy + 5, 5, 5}, gfx::no_color(), ink, clip);
                 press({x, y, w, m.tall}, std::move(action), std::move(args));
                 return w;
             }
@@ -273,7 +273,7 @@ struct Pen {
                 const auto cx = tx - 2 * m.inset + width(said) + 4;
                 path("M" + num(cx) + " " + num(cy - 2) + " L" + num(cx + 7) + " " + num(cy - 2) + " L" +
                          num(static_cast<double>(cx) + 3.5) + " " + num(cy + 2) + " Z",
-                     {cx, cy - 2, 8, 5}, ink, gfx::no_paint(), clip);
+                     {cx, cy - 2, 8, 5}, ink, gfx::no_color(), clip);
             }
             press({x, y, w, m.tall}, std::move(action), std::move(args));
         } else {
@@ -313,12 +313,12 @@ inline CardRows card_rows(const Measure& m, std::int64_t x, std::int64_t y, std:
 }
 /// A CARD'S BODY: rounded, its head a band, where light; an outline in characters, its head's words
 /// on its top edge, where a character is a cell.
-inline void card(Pen& pen, const Box& b, gfx::Paint rim, std::optional<Box> clip) {
+inline void card(Pen& pen, const Box& b, gfx::Color rim, std::optional<Box> clip) {
     if (pen.m.light) {
         pen.rect(b, hue::card(), rim, 4, false, clip);
-        pen.rect({b.x + 1, b.y + 1, b.w - 2, pen.m.card - 1}, hue::band(), gfx::no_paint(), 3, false, clip);
+        pen.rect({b.x + 1, b.y + 1, b.w - 2, pen.m.card - 1}, hue::band(), gfx::no_color(), 3, false, clip);
         pen.rect({b.x + 1, b.y + pen.m.card / 2, b.w - 2, pen.m.card - pen.m.card / 2}, hue::band(),
-                 gfx::no_paint(), 0, false, clip);
+                 gfx::no_color(), 0, false, clip);
     } else {
         pen.rect(b, hue::well(), rim, 0, false, clip);
     }
@@ -326,18 +326,18 @@ inline void card(Pen& pen, const Box& b, gfx::Paint rim, std::optional<Box> clip
 /// A dashed place still to fill, where light, its dashes bright while lit; where a character is a
 /// cell, its words alone.
 inline void open_place(Pen& pen, const Box& b, std::optional<Box> clip, bool lit = false) {
-    if (pen.m.light) pen.rect(b, gfx::no_paint(), lit ? hue::text() : hue::faint(), 4, true, clip);
+    if (pen.m.light) pen.rect(b, gfx::no_color(), lit ? hue::text() : hue::faint(), 4, true, clip);
 }
 /// A CARD OR A STEP LIT: a line round it, where light, bright for what the pointer rests on.
-inline void glow(Pen& pen, const Box& b, std::optional<Box> clip, gfx::Paint ink = hue::text()) {
-    if (pen.m.light) pen.rect({b.x - 2, b.y - 2, b.w + 4, b.h + 4}, gfx::no_paint(), ink, 6, false, clip);
+inline void glow(Pen& pen, const Box& b, std::optional<Box> clip, gfx::Color ink = hue::text()) {
+    if (pen.m.light) pen.rect({b.x - 2, b.y - 2, b.w + 4, b.h + 4}, gfx::no_color(), ink, 6, false, clip);
 }
 /// A PORT: a dot at a card's edge -- a ring until wired, where light; an `o` on the edge where a
 /// character is a cell -- bright, and ringed where light, while lit.
-inline void port(Pen& pen, std::int64_t x, std::int64_t middle, gfx::Paint ink, bool filled,
+inline void port(Pen& pen, std::int64_t x, std::int64_t middle, gfx::Color ink, bool filled,
                  std::optional<Box> clip, bool lit = false) {
     if (pen.m.light) {
-        if (lit) pen.dot({x - 8, middle - 8, 16, 16}, gfx::no_paint(), hue::text(), clip);
+        if (lit) pen.dot({x - 8, middle - 8, 16, 16}, gfx::no_color(), hue::text(), clip);
         pen.dot({x - 5, middle - 5, 10, 10}, filled ? (lit ? hue::text() : ink) : hue::well(),
                 lit ? hue::text() : ink, clip);
     } else {
@@ -384,12 +384,12 @@ inline std::vector<std::pair<std::int64_t, std::int64_t>> wire_points(const Meas
 /// A WIRE from an answer to a port, leaving and arriving level: a curve twice drawn, where light --
 /// three times while lit -- and three straight runs where a character is a cell.
 inline void wire(Pen& pen, std::int64_t x0, std::int64_t y0, std::int64_t x1, std::int64_t y1,
-                 gfx::Paint ink, std::optional<Box> clip, bool lit = false) {
+                 gfx::Color ink, std::optional<Box> clip, bool lit = false) {
     if (pen.m.light) {
         const Box b{std::min(x0, x1), std::min(y0, y1) - 2, std::abs(x1 - x0) + 1, std::abs(y1 - y0) + 4};
-        if (lit) pen.path(curve(x0, y0 - 1, x1, y1 - 1), b, gfx::no_paint(), ink, clip);
-        pen.path(curve(x0, y0, x1, y1), b, gfx::no_paint(), ink, clip);
-        pen.path(curve(x0, y0 + 1, x1, y1 + 1), b, gfx::no_paint(), ink, clip);
+        if (lit) pen.path(curve(x0, y0 - 1, x1, y1 - 1), b, gfx::no_color(), ink, clip);
+        pen.path(curve(x0, y0, x1, y1), b, gfx::no_color(), ink, clip);
+        pen.path(curve(x0, y0 + 1, x1, y1 + 1), b, gfx::no_color(), ink, clip);
         return;
     }
     const auto a = x0 + pen.m.ch, z = x1 - pen.m.ch;
@@ -407,7 +407,7 @@ inline void badge(Pen& pen, std::int64_t x0, std::int64_t y0, std::int64_t x1, s
     if (pen.m.light) {
         const auto words = pen.width(value);
         const auto w = std::max<std::int64_t>(22, words + 6);
-        pen.rect({cx - w / 2, cy - pen.m.row / 2, w, pen.m.row}, hue::badge(), gfx::no_paint(), pen.m.row / 2,
+        pen.rect({cx - w / 2, cy - pen.m.row / 2, w, pen.m.row}, hue::badge(), gfx::no_color(), pen.m.row / 2,
                  false, clip);
         pen.text(cx - words / 2, cy - pen.m.row / 2, value, hue::text(), clip);
     } else {
@@ -581,11 +581,11 @@ inline void bar(Pen& pen, const Model& model, std::int64_t height) {
         std::int64_t w = 20;
         for (std::size_t i = 0; i < said.size(); ++i) w += pen.width(said[i]) - 2 * m.inset + (i > 0 ? 14 : 0);
         const Box chip{x, y + (m.tall - m.row - 2) / 2, std::min(w, space.w), m.row + 2};
-        pen.rect(chip, hue::field(), gfx::no_paint(), chip.h / 2, false, space);
+        pen.rect(chip, hue::field(), gfx::no_color(), chip.h / 2, false, space);
         std::int64_t tx = x + 10 - m.inset;
         for (std::size_t i = 0; i < said.size(); ++i) {
             if (i > 0) {
-                pen.dot({tx + m.inset + 4, chip.y + chip.h / 2 - 1, 3, 3}, ink, gfx::no_paint(), chip);
+                pen.dot({tx + m.inset + 4, chip.y + chip.h / 2 - 1, 3, 3}, ink, gfx::no_color(), chip);
                 tx += 14;
             }
             pen.text(tx, chip.y + 1, said[i], ink, chip);
@@ -639,7 +639,7 @@ inline void rule_row(Pen& pen, const Model& model, const Box& row, const Lightin
     const Box inside{row.x + (m.light ? 12 : 0), row.y, row.w - (m.light ? 24 : 0), row.h};
     std::int64_t x = inside.x;
     const auto ty = row.y + (row.h - m.row) / 2;
-    const auto say = [&](const std::string& words, gfx::Paint ink) {
+    const auto say = [&](const std::string& words, gfx::Color ink) {
         pen.text(x - (m.light ? m.inset : 0), ty, words, ink, inside);
         x += pen.width(words) - (m.light ? 2 * m.inset : 0) + (m.light ? 6 : m.ch);
     };
@@ -655,7 +655,7 @@ inline void rule_row(Pen& pen, const Model& model, const Box& row, const Lightin
         const bool to_choose = chip.kind == Chip::Kind::Open || chip.kind == Chip::Kind::StepOpen;
         const auto key = "chip:" + std::to_string(i);
         if (on) pen.p.lit.insert(key);
-        gfx::Paint fill = gfx::no_paint(), rim = hue::faint(), ink = hue::quiet();
+        gfx::Color fill = gfx::no_color(), rim = hue::faint(), ink = hue::quiet();
         bool dashed = false;
         switch (chip.kind) {
         case Chip::Kind::Message: fill = hue::message_chip(); rim = hue::message_rim(); ink = hue::message(); break;
@@ -669,7 +669,7 @@ inline void rule_row(Pen& pen, const Model& model, const Box& row, const Lightin
         if (m.light) {
             const auto w = pen.width(chip.text) - 2 * m.inset + 12;
             at = Box{x, ty - 1, w, m.row + 2};
-            if (on) pen.rect({at.x - 2, at.y - 2, at.w + 4, at.h + 4}, gfx::no_paint(), hue::text(), 5, false, inside);
+            if (on) pen.rect({at.x - 2, at.y - 2, at.w + 4, at.h + 4}, gfx::no_color(), hue::text(), 5, false, inside);
             pen.rect(at, fill, rim, 3, dashed, inside);
             pen.text(x + 6 - m.inset, ty, chip.text, ink, inside);
             x += w + 6;
@@ -803,7 +803,7 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
     }
     // A heading stands in the list, which keeps it above the preview; it breaks to two lines.
     const auto heading_columns = static_cast<std::size_t>(std::max<std::int64_t>(8, rail.w / m.ch));
-    const auto heading = [&](const std::string& words, gfx::Paint ink = hue::message()) {
+    const auto heading = [&](const std::string& words, gfx::Color ink = hue::message()) {
         for (const auto& line : wrapped(words, heading_columns, 2)) {
             pen.text(x - (m.light ? m.inset : 0), y, line, ink);
             y += line_h;
@@ -854,10 +854,10 @@ inline void rail(Pen& pen, const Model& model, const Box& rail) {
     }
     // ITS LINES, each wrapped to the rail: what it is and whose, its ports, what it is for.
     std::int64_t preview_h = 0;
-    std::vector<std::pair<std::string, gfx::Paint>> said;
+    std::vector<std::pair<std::string, gfx::Color>> said;
     if (shown) {
         const auto columns = static_cast<std::size_t>(std::max<std::int64_t>(8, m.fits(rail.w - (m.light ? 16 : 0))));
-        const auto wrap = [&](const std::string& words, gfx::Paint ink, std::size_t most) {
+        const auto wrap = [&](const std::string& words, gfx::Color ink, std::size_t most) {
             for (auto& line : wrapped(words, columns, most)) said.emplace_back(std::move(line), ink);
         };
         wrap(classification_of(*shown), hue::quiet(), 2);
@@ -1046,7 +1046,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
         pen.button(right, y_head, "Use as result", "result", {n}, Face::Plain, Icon::None, lane);
         do_end = right - (light ? 6 : m.ch);
     }
-    const auto header = [&](const Box& in, const std::string& word, gfx::Paint ink, const std::string& rest,
+    const auto header = [&](const Box& in, const std::string& word, gfx::Color ink, const std::string& rest,
                             std::int64_t end) {
         const auto hx = in.x + (light ? 14 - m.inset : m.ch);
         const auto hy = g.y + (light ? 6 : 0);
@@ -1259,7 +1259,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             const auto top = rows.box.bottom();
             const auto end = says.empty() ? slot_y : says.front().box.y;
             if (end - top >= (light ? std::int64_t{8} : m.row)) {
-                if (light) pen.rect({thread_x, top, 2, end - top}, hue::thread(), gfx::no_paint(), 0, false, then_room);
+                if (light) pen.rect({thread_x, top, 2, end - top}, hue::thread(), gfx::no_color(), 0, false, then_room);
                 pen.text(thread_x + (light ? 10 - m.inset : m.ch), top + (light ? 2 : 0), "then", hue::quiet(), then_room);
             }
         }
@@ -1299,7 +1299,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             const auto by = box.y + (box.h - (light ? m.tall : m.row)) / 2;
             const auto bx = std::max(box.x + (light ? 8 : 0), thread_x - (light ? 12 : 0));
             if (light && by > box.y)
-                pen.rect({thread_x, box.y, 2, by - box.y}, hue::thread(), gfx::no_paint(), 0, false, then_room);
+                pen.rect({thread_x, box.y, 2, by - box.y}, hue::thread(), gfx::no_color(), 0, false, then_room);
             pen.button(bx, by, label, "ask-say", {}, Face::Gilt, Icon::None, then_room);
             pen.p.subjects["say"] = box;
         }
@@ -1463,7 +1463,7 @@ inline void lanes(Pen& pen, const Model& model, const Box& g, const Lighting& li
             const auto& b = node.arguments[a];
             if (unwired(b) || b.from() == op::Binding::From::Constant) continue;
             std::optional<std::pair<std::int64_t, std::int64_t>> from;
-            gfx::Paint ink = hue::wire();
+            gfx::Color ink = hue::wire();
             if (b.from() == op::Binding::From::Node) {
                 if (const auto it = from_node.find(std::to_string(b.node_index())); it != from_node.end()) from = it->second;
             } else if (def.state->find(b.input_name())) {
@@ -1679,13 +1679,13 @@ inline void next_line(Pen& pen, const Model& model, const Box& box) {
     if (m.light) {
         pen.rect(box, hue::field(), step.tone == NextStep::Tone::Warn ? hue::warn() : hue::rule(), 4);
         x += 10;
-        pen.dot({x, box.y + box.h / 2 - 5, 10, 10}, tone, gfx::no_paint(), box);
+        pen.dot({x, box.y + box.h / 2 - 5, 10, 10}, tone, gfx::no_color(), box);
         x += 18;
     } else {
         pen.text(x, ty, "*", tone, box);
         x += 2 * m.ch;
     }
-    const auto say = [&](const std::string& words, gfx::Paint ink) {
+    const auto say = [&](const std::string& words, gfx::Color ink) {
         if (words.empty()) return;
         pen.text(x - (m.light ? m.inset : 0), ty, words, ink, box);
         x += pen.width(words) - (m.light ? 2 * m.inset : 0) + (m.light ? 8 : m.ch);
@@ -1827,7 +1827,7 @@ inline void editor(Pen& pen, const Model& model, const Box& area) {
                 for (std::size_t k = 0; k < offered.size(); ++k) {
                     const bool marked = d.pick && *d.pick == k;
                     const Box row{inside.x, oy, inside.w, m.row};
-                    if (marked && light) pen.rect(row, hue::chosen(), gfx::no_paint(), 2, false, box);
+                    if (marked && light) pen.rect(row, hue::chosen(), gfx::no_color(), 2, false, box);
                     const auto said = (light ? std::string() : std::string(marked ? "> " : "  ")) + offered[k].name;
                     pen.text(x + (light ? m.ch : 0), oy, said, marked ? hue::message() : hue::text(), box);
                     pen.text(x + (light ? m.ch : 0) + pen.width(said) - (light ? 2 * m.inset : 0) + m.ch, oy,
@@ -2006,7 +2006,7 @@ inline void wire_list(Pen& pen, const Model& model, const Box& within) {
         const auto ink = !row.kind.empty() ? (on ? hue::message() : hue::text())
                          : row.label.rfind("+ ", 0) == 0 ? hue::quiet()
                                                          : hue::message();
-        if (on && m.light) pen.rect({bx + 2, y, w - 4, m.row}, hue::chosen(), gfx::no_paint(), 2, false, box);
+        if (on && m.light) pen.rect({bx + 2, y, w - 4, m.row}, hue::chosen(), gfx::no_color(), 2, false, box);
         // The row the keys are on is marked where its indent stands.
         const bool indented = row.label.rfind("  ", 0) == 0;
         pen.text(x, y, on && indented ? "> " + row.label.substr(2) : row.label, ink, box);
@@ -2188,7 +2188,7 @@ inline Picture picture(const Model& model, const ws::CanvasRoom& room) {
         // indented, rather than ending where the room does.
         const auto columns = std::max<std::size_t>(24, static_cast<std::size_t>(std::max<std::int64_t>(0, m.fits(body.w) - 1)));
         std::int64_t y = body.y;
-        const auto lines = [&](const std::string& text, gfx::Paint ink) {
+        const auto lines = [&](const std::string& text, gfx::Color ink) {
             std::string rest = text;
             while (y + line_h <= body.bottom()) {
                 if (rest.size() <= columns) {

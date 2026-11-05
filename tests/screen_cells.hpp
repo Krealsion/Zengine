@@ -11,7 +11,7 @@
 // from the window; this reads the composition Workshop draws from.
 
 #include "graphics/pixels.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "workshop/pane_text_fit.hpp"
 #include "workshop/screen_planes.hpp"
 
@@ -32,7 +32,7 @@ inline constexpr std::int64_t kMaxCells = 16384;
 /// the column its caret stands on (-1 none).
 struct CellRow {
     ws::ScreenLabel label;
-    std::int64_t background = gfx::role::kNone;
+    gfx::Color background = gfx::no_color();
     std::int64_t ground = ws::kGroundOwn;
     std::int64_t sel_begin = 0, sel_end = 0;
     std::int64_t caret = -1;
@@ -56,13 +56,13 @@ inline void region_rows(const ws::ScreenRegion& r, std::vector<CellRow>& out) {
         const auto at = static_cast<std::size_t>(i);
         const bool said = at < r.rows.size();
         std::string text = said ? r.rows[at].text : std::string();
-        const std::int64_t role = said ? r.rows[at].role : gfx::role::kFill;
-        const std::int64_t back = said ? r.rows[at].background : gfx::role::kNone;
+        const gfx::Color ink = said ? r.rows[at].ink : gfx::colors::text;
+        const gfx::Color back = said ? r.rows[at].background : gfx::no_color();
         ws::RowSpan span = ws::selection_span_of_row(r, i, static_cast<std::int64_t>(text.size()));
         const bool has_caret = r.caret_row == i && r.caret_col >= 0 &&
                                r.caret_col <= static_cast<std::int64_t>(text.size()) &&
                                r.caret_col <= static_cast<std::int64_t>(width) && width > 0;
-        const bool takes_the_cells = r.ground != ws::kGroundBeneath || back != gfx::role::kNone;
+        const bool takes_the_cells = r.ground != ws::kGroundBeneath || back != gfx::no_color();
         if (has_caret && static_cast<std::size_t>(r.caret_col) == text.size() && text.size() < width) {
             text += ' ';
         }
@@ -78,7 +78,7 @@ inline void region_rows(const ws::ScreenRegion& r, std::vector<CellRow>& out) {
         span.begin = std::min(span.begin, static_cast<std::int64_t>(text.size()));
         span.end = std::min(span.end, static_cast<std::int64_t>(text.size()));
         out.push_back(CellRow{ws::ScreenLabel{r.x, gfx::add_cells(r.y, gfx::px_of_cells(i)),
-                                              std::move(text), role},
+                                              std::move(text), ink},
                               back, r.ground, span.begin, span.end, caret});
     }
 }
@@ -92,17 +92,14 @@ inline std::vector<CellRow> region_rows(const ws::ScreenPlane& plane) {
     return out;
 }
 
-/// The glyph a role's rect fills a cell with, so a picture read as text still tells inks apart.
-inline char glyph_of(std::int64_t role) noexcept {
-    switch (role) {
-    case gfx::role::kAccent: return '*';
-    case gfx::role::kMuted: return '.';
-    case gfx::role::kAlert: return '!';
-    case gfx::role::kGround: return ' ';
-    case gfx::role::kMediumGround: return ' ';
-    case gfx::role::kGuide: return '+';
-    default: return '#';
-    }
+/// The glyph a colour's rect fills a cell with, so a picture read as text still tells inks apart.
+inline char glyph_of(const gfx::Color& ink) noexcept {
+    if (ink == gfx::colors::accent) return '*';
+    if (ink == gfx::colors::quiet) return '.';
+    if (ink == gfx::colors::alert) return '!';
+    if (ink == gfx::colors::background || ink == gfx::colors::ground) return ' ';
+    if (ink == gfx::colors::guide) return '+';
+    return '#';
 }
 
 /// The whole canvas as rows of cells: `height` rows of `width` glyphs, the planes in list order.
@@ -134,7 +131,7 @@ inline std::vector<std::string> rows_of(const ws::ScreenCanvas& c) {
             const std::int64_t y1 = std::min(gfx::cell_of_pixel(gfx::add_cells(r.y, r.h)), h);
             for (std::int64_t y = y0; y < y1; ++y) {
                 for (std::int64_t x = x0; x < x1; ++x) {
-                    put(x, y, glyph_of(r.role));
+                    put(x, y, glyph_of(r.ink));
                 }
             }
         }

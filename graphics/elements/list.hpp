@@ -25,8 +25,8 @@ namespace zengine::graphics {
 struct ListRowFace {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     std::string text;
-    Paint fill;
-    Paint ink;
+    Color fill;
+    Color ink;
     bool selected = false;
     bool hovered = false;
     ZEN_SHAPE(ListRowFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
@@ -113,8 +113,8 @@ public:
             f.text = std::string(format(rows_[row]));
             f.selected = i == selected_;
             f.hovered = i == hovered_;
-            f.fill = by_role(role::kGround);
-            f.ink = by_role(f.selected || f.hovered ? role::kAccent : role::kFill);
+            f.fill = colors::background;
+            f.ink = f.selected || f.hovered ? colors::accent : colors::text;
             const std::string p = row_path(row);
             s.group(p, f.x, f.y, f.w, f.h);
             s.fill_rect(p + "/face", 0, 0, f.w, f.h, f.fill);

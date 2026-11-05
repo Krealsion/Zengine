@@ -1465,7 +1465,7 @@ TEST_CASE("a search the door refuses is said in the door's words, never as an em
     rig.text(std::string(ws::kMaxPowersQueryBytes + 1, 'x'));
     REQUIRE_FALSE(rig.answers.empty());
     const auto refused = rig.label("a query carries", true);
-    CHECK(refused.role == zengine::graphics::role::kAlert);
+    CHECK(refused.ink == zengine::graphics::colors::alert);
     CHECK_FALSE(rig.shows("none offered match"));
 }
 
@@ -2147,10 +2147,10 @@ TEST_CASE("a wire let go on the other end binds from either end; before the thre
     {
         const auto n = w.window.next_press();
         const auto port = w.at(port_part(rig, 1, 0));
-        CHECK(rig.label("o lhs [unwired]").role == gfx::role::kFill);
+        CHECK(rig.label("o lhs [unwired]").ink == gfx::colors::text);
         w.press(w.at("source-node:0"), n);
         w.move(port, n);
-        CHECK(rig.label("o lhs [unwired]").role == gfx::role::kAccent);
+        CHECK(rig.label("o lhs [unwired]").ink == gfx::colors::accent);
         w.release(port, n);
     }
     CHECK(from_node(argument(rig, 1, 0), 0));

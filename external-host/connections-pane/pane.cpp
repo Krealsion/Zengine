@@ -113,31 +113,31 @@ public:
         const std::int64_t height = room().text().line;
         std::int64_t row = 0;
         const auto line = [&](const std::string& path, const std::string& text,
-                              std::int64_t role) {
+                              gfx::Color ink) {
             if (row < rows) {
                 f.text(path, 0, row * height, drawable(fit(text, columns)),
-                       gfx::by_role(role));
+                       ink);
                 ++row;
             }
         };
         if (!heard_) {
-            line("waiting", "CONNECTIONS (waiting for the guest door)", gfx::role::kMuted);
+            line("waiting", "CONNECTIONS (waiting for the guest door)", gfx::colors::quiet);
             return;
         }
         if (known_.listen.empty()) {
             line("header", "CONNECTIONS -- this Workshop accepts no guests",
-                 gfx::role::kAccent);
-            line("listen", "  launch with --guests <file> to listen", gfx::role::kMuted);
+                 gfx::colors::accent);
+            line("listen", "  launch with --guests <file> to listen", gfx::colors::quiet);
             return;
         }
         line("header",
              "CONNECTIONS -- " + std::to_string(known_.rows.size()) +
                  (known_.rows.size() == 1 ? " connection" : " connections") + " at " +
                  known_.listen + (development_host() ? " -- a development host" : ""),
-             gfx::role::kAccent);
+             gfx::colors::accent);
         const std::size_t budget = rows > 1 ? static_cast<std::size_t>(rows - 1) : 0;
         if (known_.rows.empty() && budget > 0) {
-            line("nobody", "  nobody is connected", gfx::role::kMuted);
+            line("nobody", "  nobody is connected", gfx::colors::quiet);
         }
         // A CONNECTION IS SAID WHOLE OR COUNTED: one a guests-file row admitted brings its
         // version line, and its reach line when it names a role or doors; they stand together
@@ -149,7 +149,7 @@ public:
             const bool last = known_.rows.size() - shown == 1;
             if (last ? used + need > budget : used + need >= budget) {
                 line("more", "  " + omitted_text(known_.rows.size() - shown, "more"),
-                     gfx::role::kMuted);
+                     gfx::colors::quiet);
                 ++used;
                 break;
             }
@@ -157,12 +157,12 @@ public:
                 f.group("rows", 0, 0);
             }
             const std::string at = "rows/" + std::to_string(shown);
-            line(at, "  " + row_text(c), role_of(c));
+            line(at, "  " + row_text(c), ink_of(c));
             if (c.version > 0) {
-                line(at + "/version", "    " + version_text(c), role_of(c));
+                line(at + "/version", "    " + version_text(c), ink_of(c));
             }
             if (!c.scopes.empty()) {
-                line(at + "/scopes", "    " + scopes_text(c), role_of(c));
+                line(at + "/scopes", "    " + scopes_text(c), ink_of(c));
             }
             used += need;
             ++shown;
@@ -171,7 +171,7 @@ public:
             line("refused",
                  "  refused " + std::to_string(known_.refused) + ", shed " +
                      std::to_string(known_.shed) + " (all time)",
-                 gfx::role::kMuted);
+                 gfx::colors::quiet);
         }
     }
 
@@ -235,14 +235,14 @@ private:
         return false;
     }
 
-    static std::int64_t role_of(const GuestConnection& c) {
+    static gfx::Color ink_of(const GuestConnection& c) {
         if (c.state == "admitted") {
-            return gfx::role::kFill;
+            return gfx::colors::text;
         }
         if (c.state == "awaiting-decision") {
-            return gfx::role::kAlert;
+            return gfx::colors::alert;
         }
-        return gfx::role::kMuted;
+        return gfx::colors::quiet;
     }
 
     GuestConnections known_;

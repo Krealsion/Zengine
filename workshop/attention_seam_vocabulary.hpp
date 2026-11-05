@@ -11,7 +11,7 @@
 // <gesture> <label>`), never an id the pane could press. Unlike the in-host model (WL-ATTN-11),
 // these shapes ride the ordinary bus.
 
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 
 #include <zen/weave/shape.hpp>
 
@@ -27,14 +27,14 @@ struct StandingCondition {
     std::string key;
     std::string compact;
     std::string detail;
-    std::int64_t role = graphics::role::kAccent;
+    graphics::Color ink = graphics::colors::accent;
 
     /// What a weaver could press, in words composed against the effective keymap, or empty. Words
     /// and not an id: the pane cannot read a keymap.
     std::string suggestion;
 
-    ZEN_SHAPE(StandingCondition, 1, ZEN_FIELD(key), ZEN_FIELD(compact), ZEN_FIELD(detail),
-              ZEN_FIELD(role), ZEN_FIELD(suggestion));
+    ZEN_SHAPE(StandingCondition, 2, ZEN_FIELD(key), ZEN_FIELD(compact), ZEN_FIELD(detail),
+              ZEN_FIELD(ink), ZEN_FIELD(suggestion));
 };
 
 /// Every condition true right now, in the host's order (`ranks_before`, WL-ATTN-07), published to
@@ -42,7 +42,7 @@ struct StandingCondition {
 /// the retraction.
 struct StandingConditions {
     std::vector<StandingCondition> rows;
-    ZEN_SHAPE(StandingConditions, 1, ZEN_FIELD(rows));
+    ZEN_SHAPE(StandingConditions, 2, ZEN_FIELD(rows));
 };
 
 /// THE GLANCE: the loudest condition said and an honest count of the rest, `(+N more)` -- the one

@@ -20,7 +20,7 @@
 
 #include "component/accordion.hpp"
 #include "component/list_window.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -130,9 +130,9 @@ inline void FilesWeave::say_browser() {
         if (!listing_.known) {
             push_row(listing_.refusal.empty() ? "nothing has been listed yet"
                                               : listing_.refusal,
-                     zengine::graphics::role::kMuted);
+                     zengine::graphics::colors::quiet);
         } else if (total == 0) {
-            push_row("this directory is empty", zengine::graphics::role::kMuted);
+            push_row("this directory is empty", zengine::graphics::colors::quiet);
         } else {
             say_entries(total, static_cast<std::size_t>(body_rows));
         }
@@ -156,12 +156,12 @@ inline void FilesWeave::say_header(const std::string& head) {
     const FilesMeaning path{files_row::kPath, 0, {}, here};
     if (room_for < static_cast<std::int64_t>(here.size()) && reveal_ &&
         reveal_->kind == files_row::kPath) {
-        push_row(scrub(here, columns(), reveal_->column), zengine::graphics::role::kAccent, path);
+        push_row(scrub(here, columns(), reveal_->column), zengine::graphics::colors::accent, path);
         return;
     }
     const std::string shown = room_for > 0 ? fit_path(here, room_for) : std::string();
     const std::int64_t row = room().next_row();
-    push_row(lead + shown, zengine::graphics::role::kAccent);
+    push_row(lead + shown, zengine::graphics::colors::accent);
     if (!shown.empty()) {
         (void)room().map().span(
             row, at, static_cast<std::int64_t>(shown.size()),
@@ -219,9 +219,9 @@ inline std::int64_t FilesWeave::say_places(std::int64_t body_rows, std::int64_t*
     }
     const std::int64_t row = room().next_row();
     (void)room().push(ws::TextRow{fitted(head),
-                                  fold == component::Fold::kPeek ? zengine::graphics::role::kAccent
-                                                                 : zengine::graphics::role::kFill,
-                                  zengine::graphics::role::kNone, 0},
+                                  fold == component::Fold::kPeek ? zengine::graphics::colors::accent
+                                                                 : zengine::graphics::colors::text,
+                                  zengine::graphics::no_color(), 0},
                       FilesMeaning{files_row::kPlaces, 0, {}, {}});
     if (fold == component::Fold::kPeek) {
         *peek_from = row + 1;
@@ -239,7 +239,7 @@ inline std::int64_t FilesWeave::say_places(std::int64_t body_rows, std::int64_t*
                               reveal_->index == i && whole.size() > path_columns;
         push_row(revealed ? scrub(whole, columns(), reveal_->column)
                           : place_text(stops[i], path_columns),
-                 revealed ? zengine::graphics::role::kAccent : zengine::graphics::role::kFill,
+                 revealed ? zengine::graphics::colors::accent : zengine::graphics::colors::text,
                  FilesMeaning{files_row::kPlace, i, {}, stops[i].path});
     });
     return 1 + asked;
@@ -263,12 +263,12 @@ inline void FilesWeave::say_peek(std::int64_t from) {
     std::int64_t row = from;
     for (std::size_t i = win.first; i < win.end(); ++i, ++row) {
         room().composing()[static_cast<std::size_t>(row)] =
-            ws::TextRow{fitted(place_text(stops[i], path_columns)), zengine::graphics::role::kAccent};
+            ws::TextRow{fitted(place_text(stops[i], path_columns)), zengine::graphics::colors::accent};
         room().map().row(row, FilesMeaning{files_row::kPeek, i, {}, stops[i].path});
     }
     if (const std::size_t more = component::more_marker(win); more > 0) {
         room().composing()[static_cast<std::size_t>(row)] = ws::TextRow{
-            fitted("  " + ws::pane_text::omitted_text(more, "more")), zengine::graphics::role::kMuted};
+            fitted("  " + ws::pane_text::omitted_text(more, "more")), zengine::graphics::colors::quiet};
         room().map().row(row, FilesMeaning{files_row::kPeek, win.end(), {}, {}});
     }
 }
@@ -286,8 +286,8 @@ inline void FilesWeave::say_entries(std::size_t total, std::size_t body_rows) {
         const bool here = i == static_cast<std::size_t>(state_.cursor);
         const FileRow& row = listing_.rows[i];
         push_row(std::string(here ? "> " : "  ") + row_text(row),
-                 here ? zengine::graphics::role::kAccent
-                      : (row.openable ? zengine::graphics::role::kFill : zengine::graphics::role::kMuted),
+                 here ? zengine::graphics::colors::accent
+                      : (row.openable ? zengine::graphics::colors::text : zengine::graphics::colors::quiet),
                  FilesMeaning{files_row::kEntry, i, {}, row.name});
     });
 }

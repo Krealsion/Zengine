@@ -978,7 +978,7 @@ private:
                           const std::vector<zengine::workshop::TextRow>& b) {
         if (a.size() != b.size()) return false;
         for (std::size_t i = 0; i < a.size(); ++i) {
-            if (a[i].text != b[i].text || a[i].role != b[i].role ||
+            if (a[i].text != b[i].text || a[i].ink != b[i].ink ||
                 a[i].background != b[i].background) {
                 return false;
             }

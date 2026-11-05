@@ -68,7 +68,7 @@ inline void location(std::vector<workshop::TextRow>& rows, View& v, const Browse
     const auto solid = component::solid_columns(drawn, text.size());
     for (const auto& [first, size, meaning] : spans)
         v.map.span(row, static_cast<std::int64_t>(first), static_cast<std::int64_t>(size), solid, meaning);
-    rows.push_back({drawn, graphics::role::kFill, graphics::role::kNone});
+    rows.push_back({drawn, graphics::colors::text, graphics::no_color()});
 }
 inline bool active(const InventoryViews& s, const std::string& id) {
     for (const auto& v : s.views) if (v.id == id) return v.active;
@@ -102,31 +102,31 @@ inline std::vector<workshop::TextRow> render(const InventoryViews& s, const std:
     View& v, const std::vector<inventory::InventorySummary>& entries, const std::string& notice,
     const std::string& edit_label = {}, const std::string& edit_text = {}, const Browse& browse = {}) {
     namespace ws = workshop;
-    namespace role = graphics::role;
+    namespace colors = graphics::colors;
     v.map.begin();
     std::vector<workshop::TextRow> rows;
-    const auto push = [&](std::string text, std::int64_t style) {
+    const auto push = [&](std::string text, graphics::Color style) {
         if (static_cast<std::int64_t>(rows.size()) < v.rows)
-            rows.push_back({ws::pane_text::drawable(ws::pane_text::fit(text, v.columns)), style, role::kNone});
+            rows.push_back({ws::pane_text::drawable(ws::pane_text::fit(text, v.columns)), style, graphics::no_color()});
     };
     std::string kind = "inventory";
     for (const auto& x : s.views) if (x.id == id) kind = x.kind;
     push((id == "inventory" ? "INVENTORY " : std::string(active(s,id)?"ON ":"OFF ") + kind + " ") + std::to_string(entries.size()) +
          (id == "inventory" ? std::string(" | sort: ") + (v.order == 0 ? "added" : v.order == 1 ? "name" : "type") : "") +
-         (id == "inventory" ? std::string(" | hotkeys ") + (active(s, id) ? "ON" : "OFF") : ""), role::kAccent);
+         (id == "inventory" ? std::string(" | hotkeys ") + (active(s, id) ? "ON" : "OFF") : ""), colors::accent);
     const auto it = std::find_if(entries.begin(), entries.end(), [&](const auto& e) { return key(e.reference) == v.selected; });
     const auto index = it == entries.end() ? 0u : static_cast<std::size_t>(it - entries.begin());
     v.line_row = -1;
     if (!edit_label.empty()) {
-        push(edit_label, role::kAccent);
+        push(edit_label, colors::accent);
         if (static_cast<std::int64_t>(rows.size()) < v.rows) v.line_row = static_cast<std::int64_t>(rows.size());
-        push(edit_text, role::kFill);
-        push(notice.empty() ? "Enter saves; Escape cancels" : notice, role::kMuted);
+        push(edit_text, colors::text);
+        push(notice.empty() ? "Enter saves; Escape cancels" : notice, colors::quiet);
     } else if (kind != "inventory") {
         const auto capacity = kind == "row" ? (v.columns-1)/(kSlotColumns-1) :
             kind == "column" ? (v.rows-3)/(kSlotRows-1) : 1;
         if (v.columns < kSlotColumns || v.rows < kSlotRows+1 || capacity < 1) {
-            push("Resize", role::kMuted); // no invisible/clipped tile is interactive
+            push("Resize", colors::quiet); // no invisible/clipped tile is interactive
             return rows;
         }
         const auto count = static_cast<std::size_t>(capacity);
@@ -154,11 +154,11 @@ inline std::vector<workshop::TextRow> render(const InventoryViews& s, const std:
             put(3,"|"+centered(name.second,7)+"|");
             if(selected) { grid[static_cast<std::size_t>(y)][static_cast<std::size_t>(x+1)]='*'; }
         }
-        for(const auto& line:grid) push(line,role::kFill);
-        if(it!=entries.end()) push(it->label,role::kAccent);
+        for(const auto& line:grid) push(line,colors::text);
+        if(it!=entries.end()) push(it->label,colors::accent);
         if(first || entries.size()>first+count)
-            push(std::to_string(first)+" earlier | "+std::to_string(entries.size()>first+count?entries.size()-first-count:0)+" later",role::kMuted);
-        push(notice.empty()?"Drag moves | right-click actions":notice,role::kMuted);
+            push(std::to_string(first)+" earlier | "+std::to_string(entries.size()>first+count?entries.size()-first-count:0)+" later",colors::quiet);
+        push(notice.empty()?"Drag moves | right-click actions":notice,colors::quiet);
     } else {
         // Folders first (by name), then entries in the chosen order; one selection over both.
         const bool folders = browse.show && id == "inventory";
@@ -171,7 +171,7 @@ inline std::vector<workshop::TextRow> render(const InventoryViews& s, const std:
         const auto fixed = static_cast<std::int64_t>(rows.size()) + (v.rows > 2 ? 1 : 0);
         const auto budget = static_cast<std::size_t>(std::max<std::int64_t>(0, v.rows - fixed));
         const auto window = component::cursor_window(total, at, at, budget);
-        if (const auto earlier = component::earlier_marker(window); earlier > 0) push("... " + std::to_string(earlier) + " earlier", role::kMuted);
+        if (const auto earlier = component::earlier_marker(window); earlier > 0) push("... " + std::to_string(earlier) + " earlier", colors::quiet);
         for (std::size_t i = window.first; i < window.end(); ++i) {
             if (i < nf) {
                 const auto& [folder, members] = browse.folders[i];
@@ -179,20 +179,20 @@ inline std::vector<workshop::TextRow> render(const InventoryViews& s, const std:
                 v.map.row(static_cast<std::int64_t>(rows.size()), meaning);
                 push(std::string(meaning == v.selected ? "> " : "  ") + folder->name + "/  " +
                      (members ? "(" + std::to_string(members) + ")" : std::string("(empty)")) +
-                     (meaning == browse.moving ? " [moving]" : ""), role::kAccent);
+                     (meaning == browse.moving ? " [moving]" : ""), colors::accent);
                 continue;
             }
             const auto& e = entries[i - nf];
             v.map.row(static_cast<std::int64_t>(rows.size()), key(e.reference));
             push(std::string(key(e.reference) == v.selected ? "> " : "  ") + caption(s, e) +
                  (e.capture_slot ? " [capture slot]" : "") + (kind == "single" ? "" : " : " + e.schema) +
-                 (key(e.reference) == browse.moving ? " [moving]" : ""), role::kFill);
+                 (key(e.reference) == browse.moving ? " [moving]" : ""), colors::text);
         }
-        if (const auto more = component::more_marker(window); more > 0) push("... " + std::to_string(more) + " later", role::kMuted);
+        if (const auto more = component::more_marker(window); more > 0) push("... " + std::to_string(more) + " later", colors::quiet);
         if (total == 0) push(folders && browse.crumbs.size() > 1 ? "Empty folder: drop entries here; Ctrl+D new folder"
-                                                                 : "Drop entries here; right-click view actions", role::kMuted);
+                                                                 : "Drop entries here; right-click view actions", colors::quiet);
         push(!notice.empty() ? notice : folders ? "Enter opens | Backspace up | right-click actions"
-                                                : "Drag moves | right-click live & actions", role::kMuted);
+                                                : "Drag moves | right-click live & actions", colors::quiet);
     }
     return rows;
 }

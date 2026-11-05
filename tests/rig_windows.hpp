@@ -11,6 +11,7 @@
 // answers the platform as in a run. This header names no window, so a suite that includes the rig
 // compiles none.
 
+#include "graphics/color.hpp"
 #include "input/translate.hpp"
 
 #include <zen/switchboard.hpp>
@@ -43,20 +44,20 @@ struct Shown {
 };
 
 /// ONE QUAD THE OS WINDOW HANDED ITS DEVICE in the last picture it presented: its area, its place
-/// in the window's pixels, and the role whose pool colour it is in the night or the day palette
-/// (-1: none).
+/// in the window's pixels, and the pool colour it is in the night or the day palette (none where
+/// no one pool colour is).
 struct Quad {
     std::string area;
     std::int64_t x = 0, y = 0, w = 0, h = 0;
-    std::int64_t role = -1;
+    zengine::graphics::Color ink;
 };
 
-/// ONE CELL THE TERMINAL WINDOW SHOWS: its glyph, and the role whose pool colour's ink in the block
-/// palette it wrote it in (-1: none, or the terminal's own).
+/// ONE CELL THE TERMINAL WINDOW SHOWS: its glyph, and the pool colour whose ink in the block
+/// palette it wrote it in (none where no pool colour's is, or the terminal's own).
 struct Cell {
     std::int64_t col = 0, row = 0;
     char glyph = ' ';
-    std::int64_t role = -1;
+    zengine::graphics::Color ink;
 };
 
 /// Where the OS window sits on its desktop, as its backend reads it or was asked to put it.

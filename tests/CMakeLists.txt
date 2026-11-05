@@ -913,6 +913,11 @@ zengine_compile_test(graphics_drawer_compiles zengine-cn-graphics-drawer-ok)
 zengine_compile_test(graphics_undeclared_color_refused zengine-cn-graphics-undeclared-color
                      "no member named .acent.|acent.*is not a member")
 
+# A colour by a role does not build: a drawer names a pool colour, a slot or an exact value, and the
+# roles and their bridge are no name of the package's.
+zengine_compile_test(graphics_color_role_refused zengine-cn-graphics-color-role
+                     "role.*has not been declared|role.*is not a member|no member named .role.|by_role.*is not a member|no member named .by_role.")
+
 # ---- the Workshop suites --------------------------------------------------------------
 # The windows the rigs show their desk in (rig_windows.hpp): the terminal window and the OS window
 # over the suites' own devices (window_backends.hpp), compiled once here rather than in every unit

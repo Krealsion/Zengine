@@ -253,39 +253,39 @@ inline std::string power_row_text(const workshop::PowerRow& row, bool chosen,
 /// one row alone is half an answer.
 struct Detail {
     std::vector<std::string> texts;
-    std::vector<std::int64_t> roles;
+    std::vector<graphics::Color> inks;
     std::vector<bool> is_control;
 };
 
 inline Detail detail_rows(const workshop::PowerRow& row, const workshop::PowerDescribed* described,
                           std::int64_t columns) {
     Detail d;
-    const auto line = [&d, columns](std::string text, std::int64_t role, bool control = false) {
+    const auto line = [&d, columns](std::string text, graphics::Color ink, bool control = false) {
         d.texts.push_back(fit(std::move(text), columns));
-        d.roles.push_back(role);
+        d.inks.push_back(ink);
         d.is_control.push_back(control);
     };
     line(row.outputs.name.empty()
              ? std::string("  yields (not reported)")
              : "  yields " + printable(row.outputs.name) + " v" +
                    std::to_string(row.outputs.version),
-         graphics::role::kMuted);
+         graphics::colors::quiet);
     if (is_source_power(row)) {
-        line(std::string("  ") + kSampleControl, graphics::role::kAccent, true);
+        line(std::string("  ") + kSampleControl, graphics::colors::accent, true);
     }
     if (!row.about.empty()) {
-        line("  " + printable(row.about), graphics::role::kFill);
+        line("  " + printable(row.about), graphics::colors::text);
     }
     if (!row.offered) {
-        line(kNotOfferedLine, graphics::role::kMuted);
+        line(kNotOfferedLine, graphics::colors::quiet);
     }
-    line("  " + printable(row.signature), graphics::role::kMuted);
+    line("  " + printable(row.signature), graphics::colors::quiet);
     if (described == nullptr) {
         // The answer about this identity has not come: what is in force, from its row alone.
         line("  active    " + (row.provider.empty() ? std::string(kHostItself)
                                                     : printable(row.provider)) +
                  (is_composite_power(row) ? kCompositeBadge : ""),
-             graphics::role::kFill);
+             graphics::colors::text);
         return d;
     }
     for (std::size_t i = described->stack.size(); i > 0; --i) {
@@ -299,7 +299,7 @@ inline Detail detail_rows(const workshop::PowerRow& row, const workshop::PowerDe
         if (!live && !c.about.empty()) {
             said += " -- " + printable(c.about);
         }
-        line(std::move(said), live ? graphics::role::kFill : graphics::role::kMuted);
+        line(std::move(said), live ? graphics::colors::text : graphics::colors::quiet);
     }
     return d;
 }

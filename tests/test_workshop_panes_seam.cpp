@@ -668,7 +668,7 @@ TEST_CASE("setup bytes carry no descriptor, room or handle") {
     r.pick(hello_ref());
     SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(TextRow{"cached prose", gfx::role::kFill});
+    said.rows.push_back(TextRow{"cached prose", gfx::colors::text});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     REQUIRE_FALSE(held_row_texts(*r.session().panes.external_pane(r.session().panes.runtime.entries[0].kind))
                       .empty());
@@ -859,7 +859,7 @@ TEST_CASE("an oversubscribed authored setup seats every reference, the column be
     // GROWTH LAYS THE SAME PANES OUT DOWN ONE COLUMN, with no gesture at all...
     SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(TextRow{"present", gfx::role::kFill});
+    said.rows.push_back(TextRow{"present", gfx::colors::text});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     r.extent(78, 42);
     CHECK(top_of(hello) > top_of(other));
@@ -924,7 +924,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     // THE PANE HAS DRAWN, so its area holds a drawing and a room that did not change is not said
     // again.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, SeatRows{kHelloPane, {TextRow{"hello", gfx::role::kFill}}});
+        s.say(m, SeatRows{kHelloPane, {TextRow{"hello", gfx::colors::text}}});
     });
     REQUIRE(seat->rooms.size() == 1);
 
@@ -1003,7 +1003,7 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
     // THE PANE HAS DRAWN, so its area holds a drawing and a room that did not change is not said
     // again.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, SeatRows{kHelloPane, {TextRow{"hello", gfx::role::kFill}}});
+        s.say(m, SeatRows{kHelloPane, {TextRow{"hello", gfx::colors::text}}});
     });
     REQUIRE(seat->rooms.size() == 1);
     CHECK(seat->rooms[0].rows == 6);
@@ -1081,8 +1081,8 @@ TEST_CASE("a pane's rows are shown in its area at the exact body bounds") {
 
     SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(TextRow{"one", gfx::role::kAccent, gfx::role::kMuted});
-    said.rows.push_back(TextRow{"two", gfx::role::kFill});
+    said.rows.push_back(TextRow{"one", gfx::colors::accent, gfx::colors::quiet});
+    said.rows.push_back(TextRow{"two", gfx::colors::text});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
 
     shown = external_rows(r.shown(), body);
@@ -1123,7 +1123,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     SeatRows loud;
     loud.pane = kHelloPane;
     for (std::int64_t i = 0; i < granted; ++i) {
-        loud.rows.push_back(TextRow{"ZZZZZZZZ", gfx::role::kFill});
+        loud.rows.push_back(TextRow{"ZZZZZZZZ", gfx::colors::text});
     }
     r.drive(seat, [loud](ProviderSeat& s, loom::Mail& m) { s.say(m, loud); });
     REQUIRE(external_rows(r.shown(), body).size() == static_cast<std::size_t>(granted));
@@ -1172,7 +1172,7 @@ TEST_CASE("rows for a closed or never-offered pane do nothing at all") {
     // by drawing it: discovery and presentation are two doors.
     SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(TextRow{"unasked for", gfx::role::kFill});
+    said.rows.push_back(TextRow{"unasked for", gfx::colors::text});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     CHECK(r.session().panes.open.size() == 1); // the Layouts pane, and nothing else
     CHECK(r.session().panes.external.empty());
@@ -1181,7 +1181,7 @@ TEST_CASE("rows for a closed or never-offered pane do nothing at all") {
     // A PANE KEY THIS OFFICE NEVER OFFERED CREATES NO CATALOG ROW EITHER.
     SeatRows unknown;
     unknown.pane = "never-offered";
-    unknown.rows.push_back(TextRow{"nor this", gfx::role::kFill});
+    unknown.rows.push_back(TextRow{"nor this", gfx::colors::text});
     r.drive(seat, [unknown](ProviderSeat& s, loom::Mail& m) { s.say(m, unknown); });
     CHECK(r.session().panes.runtime.entries.size() == catalog_before);
     CHECK(r.session().panes.external.empty());
@@ -1263,7 +1263,7 @@ TEST_CASE("closing an external pane ends only its presentation") {
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(TextRow{"remembered", gfx::role::kFill});
+    said.rows.push_back(TextRow{"remembered", gfx::colors::text});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     REQUIRE_FALSE(held_row_texts(*r.session().panes.external_pane(kind)).empty());
     const std::int64_t said_count = seat->said;
@@ -1296,7 +1296,7 @@ TEST_CASE("a valid re-offer refreshes the descriptor and the open pane, without 
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(TextRow{"the old answer", gfx::role::kFill});
+    said.rows.push_back(TextRow{"the old answer", gfx::colors::text});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     REQUIRE_FALSE(held_row_texts(*r.session().panes.external_pane(kind)).empty());
 

@@ -378,7 +378,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
     const std::int64_t rows = seat_pane_open(s.r, seat, office.c_str(), "rows");
     REQUIRE(rows != kNoPaneKind);
     s.r.drive(seat, [](ProviderSeat& p, loom::Mail& m) {
-        p.say(m, SeatRows{"rows", {TextRow{"drop here", gfx::role::kFill}}});
+        p.say(m, SeatRows{"rows", {TextRow{"drop here", gfx::colors::text}}});
     });
     const loom::WeaveId seat_id = s.r.bus.role_holder(office);
     // The drop is queued and said sent; the pane leaves before the bus dispatches it.

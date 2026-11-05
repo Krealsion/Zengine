@@ -111,7 +111,7 @@ TEST_CASE("a refusal longer than a row is kept whole in the session, and the scr
     for (const ScreenLabel& l : all_labels(c)) {
         CHECK(l.text.find("/no/such/place/") == std::string::npos);
         if (gfx::cell_of_pixel(l.y) == cells_of(kMinScreen).band_y) {
-            CHECK(l.role != gfx::role::kAlert);
+            CHECK(l.ink != gfx::colors::alert);
         }
     }
 }
@@ -1437,9 +1437,9 @@ TEST_CASE("every projection fits the room it was given, over the whole domain") 
                         REQUIRE(byte >= 0x20u);
                         REQUIRE(byte < 0x7Fu);
                     }
-                    // A blank separator is `role::kFill`, never `role::kNone` -- that
+                    // A blank separator is `colors::text`, never `no_color()` -- that
                     // value is the absence of a BACKGROUND and is not a window's ink.
-                    REQUIRE(r.role != gfx::role::kNone);
+                    REQUIRE(r.ink != gfx::no_color());
                 }
             }
         }
@@ -1798,33 +1798,33 @@ TEST_CASE("the arrangement's visible statement is the ring on the pane itself") 
     const PixelRect at = bounds_of(t.session().panes, t.session().setup.active,
                                   stock::kKind, screen_of(t.session()))
                             .rect;
-    const auto ring_roles = [&](std::int64_t edge) {
+    const auto ring_inks = [&](std::int64_t edge) {
         // THE WIRE CURRENCY: a label's x/y are canvas PIXELS -- asserting the pixel is what
         // catches a construction that stays green while every mark paints off the canvas.
         const PixelRect cell = pane_edge_cell(at, edge);
-        std::vector<std::int64_t> roles;
+        std::vector<gfx::Color> inks;
         for (const ScreenPlane& l : paint(t.session()).layers) {
             for (const ScreenLabel& g : l.labels) {
                 if (g.x == cell.x && g.y == cell.y &&
                     g.text == std::string(pane_edge_glyph(edge))) {
-                    roles.push_back(g.role);
+                    inks.push_back(g.ink);
                 }
             }
         }
-        return roles;
+        return inks;
     };
     // UNADDRESSED: the desk shows the arrangeable set, muted.
     for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
-        const std::vector<std::int64_t> roles = ring_roles(edge);
-        REQUIRE(roles.size() == 1);
-        CHECK(roles.front() == gfx::role::kMuted);
+        const std::vector<gfx::Color> inks = ring_inks(edge);
+        REQUIRE(inks.size() == 1);
+        CHECK(inks.front() == gfx::colors::quiet);
     }
     // ADDRESSED: the keyboard's target wears the ring in accent.
     select_pane(t, ref_of(stock::kKind));
     for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
-        const std::vector<std::int64_t> roles = ring_roles(edge);
-        REQUIRE(roles.size() == 1);
-        CHECK(roles.front() == gfx::role::kAccent);
+        const std::vector<gfx::Color> inks = ring_inks(edge);
+        REQUIRE(inks.size() == 1);
+        CHECK(inks.front() == gfx::colors::accent);
     }
     // AND NO REGION OPENED OVER THE STACK'S FIRST SLOT: the statement is on the pane, not in a
     // pane covering another one.
@@ -1841,7 +1841,7 @@ TEST_CASE("the arrangement's visible statement is the ring on the pane itself") 
     t.key(input::scan::kEscape);
     REQUIRE_FALSE(t.session().arrange.open);
     for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
-        CHECK(ring_roles(edge).empty());
+        CHECK(ring_inks(edge).empty());
     }
 }
 
@@ -1864,7 +1864,7 @@ TEST_CASE("the band is the keys' legend alone, and the room takes the row the no
     CHECK(layouts_body(s, sc).rows == kTopRows); // ...and the identity's own rows, up there
     REQUIRE_FALSE(band.rows.empty());
     for (const TextRow& row : band.rows) {
-        CHECK(row.role == gfx::role::kMuted); // every row is the legend's
+        CHECK(row.ink == gfx::colors::quiet); // every row is the legend's
     }
     // THE ROOM TOOK THE ROW: the minimum composition's workspace is a row taller than the four
     // rows of band it once stood over left it.
@@ -1938,7 +1938,7 @@ TEST_CASE("a pane with room for the header and nothing else still says whose it 
     // pane has the keyboard, because the unmarked form spends the same two columns.
     CHECK(at.front().rows[0].text ==
           std::string(kFoldOpenArrow) + " " + kTypingElsewhere + "Probe @zengine.probe");
-    CHECK(at.front().rows[0].role == gfx::role::kAccent);
+    CHECK(at.front().rows[0].ink == gfx::colors::accent);
 
     // AND WITH NO ROW OF TYPE AT ALL the painter says nothing rather than drawing a header
     // into a rectangle that cannot hold one.
@@ -2014,7 +2014,7 @@ SnapMarks snap_marks(Live& t) {
     REQUIRE_FALSE((t.pictures == 0));
     for (const ScreenPlane& layer : paint(t.session()).layers) {
         for (const ScreenRect& r : layer.rects) {
-            if (r.role != gfx::role::kAccent) {
+            if (r.ink != gfx::colors::accent) {
                 continue;
             }
             if (r.w == grain && r.y == sc.room_y && r.h == sc.room_h) {
@@ -4150,10 +4150,10 @@ TEST_CASE("the selected pane wears its own chrome, and only it") {
                               .rect);
         for (const ScreenRect& r : all_rects(paint(t.session()))) {
             if (covered_cells(r) == at) {
-                return r.role;
+                return r.ink;
             }
         }
-        return gfx::role::kNone;
+        return gfx::no_color();
     };
     const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
@@ -4165,7 +4165,7 @@ TEST_CASE("the selected pane wears its own chrome, and only it") {
     REQUIRE(t.session().panes.selected == stock::kKind);
     CHECK(chrome_of(stock::kKind) == kPaneChromeSelected);
     CHECK(chrome_of(second::kKind) == kPaneChrome);
-    CHECK(kPaneChromeSelected != kPaneChrome); // the two roles are two roles
+    CHECK(kPaneChromeSelected != kPaneChrome); // the two colours are two colours
 
     // A PRESS ON NOBODY'S PANE CLEARS IT, by the same one line that set it.
     t.press_canvas(kRoomCellX + 1,
@@ -4525,7 +4525,7 @@ TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") 
     std::size_t frames = 0; // ...and no stroke of its own beside it
     for (const ScreenRect& r : all_rects(c)) {
         const CellRect at = covered_cells(r);
-        if (r.role == kPaneChrome && at.x >= box.x && at.y >= box.y &&
+        if (r.ink == kPaneChrome && at.x >= box.x && at.y >= box.y &&
             at.x + at.w <= box.x + box.w && at.y + at.h <= box.y + box.h) {
             ++frames;
         }
@@ -4544,7 +4544,7 @@ TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") 
     // medium clips and fills to (`fit_region`), so this is the ring a weaver sees.
     const Screen sdl = sdl_screen();
     const PaneInside on_sdl = pane_inside(outer, sdl);
-    const ScreenRect wire = wire_rect_of(on_sdl.rect, gfx::role::kFill);
+    const ScreenRect wire = wire_rect_of(on_sdl.rect, gfx::colors::text);
     CHECK((wire.x) ==
           outer.x + 1);
     CHECK(on_sdl.fit.view.x == outer.x + 1);
@@ -4559,7 +4559,7 @@ TEST_CASE("selected and ordinary differ in INK, and in nothing else") {
     // ⚔ MUTATION (tests/mutants/workshop_screen.md#selected-inset-further): a painter that insets a
     // SELECTED pane further, so its boundary reads heavier. The pane's contents would then jump the
     // moment a weaver pointed at it, which is the one thing a selection must never do. The picture
-    // is compared field by field: same backdrop rectangle, same published region, different ROLE.
+    // is compared field by field: same backdrop rectangle, same published region, different COLOUR.
     Live t;
     t.extent_on_window(160, 60);
     open_pane(t, ref_of(stock::kKind));
@@ -5774,7 +5774,7 @@ TEST_CASE("the move re-homed reserved rows and did not add one") {
 }
 
 TEST_CASE("every owner of the body agrees about where it begins") {
-    // THE ONE-ROW DISAGREEMENT THIS CASE REFUSES. Paint, occupancy, the placement path, the
+    // THE ONE-ROW DISAGREEMENT THIS CASE REFUSES. Color, occupancy, the placement path, the
     // overlay column, the contextual popup and the hotkey view all resolve the body from the
     // same constants -- so the question is asked of each of them rather than of the constant
     // they share.
@@ -6466,7 +6466,7 @@ TEST_CASE("command mode marks the selected pane, with brackets where text is a c
     CHECK(ring.labels[3].y == br.y);
     CHECK(ring.labels[3].text == "]");
     for (const ScreenLabel& l : ring.labels) {
-        CHECK(l.role == gfx::role::kAccent);
+        CHECK(l.ink == gfx::colors::accent);
         CHECK(l.text != std::string(kHandleGlyph)); // not an arrangement handle
     }
     // ...ON THE CANVAS AND IN A WINDOW ALIKE.
@@ -6503,7 +6503,7 @@ TEST_CASE("command mode marks the selected pane, with brackets where text is a c
     REQUIRE(fine_ring.rects.size() == 8);
     const PixelRect fb = bounds_of(fine.panes, fine.setup.active, d.kinds[1], fine_sc).rect;
     for (const ScreenRect& side : fine_ring.rects) {
-        CHECK(side.role == gfx::role::kAccent);
+        CHECK(side.ink == gfx::colors::accent);
         // Every side lies outside the pane: wholly left, right, above or below its rectangle.
         CHECK((side.x + side.w <= fb.x || side.x >= fb.x + fb.w || side.y + side.h <= fb.y ||
                side.y >= fb.y + fb.h));
@@ -6530,7 +6530,7 @@ TEST_CASE("`workshop.focus.ring` plain marks the selection in the chrome's ink, 
     paint_selection_ring(corners, d.s, sc);
     REQUIRE(corners.labels.size() == 4);
     for (const ScreenLabel& l : corners.labels) {
-        CHECK(l.role == kPaneChrome);
+        CHECK(l.ink == kPaneChrome);
     }
     // ...ONE RING IN A WINDOW, and one ring of sides where the canvas's edges are a device unit.
     CHECK(window_selection_rings(d.s).size() == 1);
@@ -6541,7 +6541,7 @@ TEST_CASE("`workshop.focus.ring` plain marks the selection in the chrome's ink, 
     paint_selection_ring(fine_ring, fine, fine_sc);
     REQUIRE(fine_ring.rects.size() == 4);
     for (const ScreenRect& side : fine_ring.rects) {
-        CHECK(side.role == kPaneChrome);
+        CHECK(side.ink == kPaneChrome);
     }
 }
 

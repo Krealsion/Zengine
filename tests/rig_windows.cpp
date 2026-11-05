@@ -65,20 +65,32 @@ std::string office_of(const std::string& window) {
     return std::string(gfx::kWindowOfficePrefix) + window;
 }
 
-/// The colour a role's pool colour has in `palette`.
-const gfx::PaletteColor* color_of_role(const gfx::PaletteOffered& palette, std::int64_t role) {
-    return gfx::window::pool_color(palette, gfx::pool_color_of_role(role).name);
+/// The pool's colours, each a number here: a reading keeps the number, and says the colour.
+constexpr gfx::PoolColor kPool[] = {gfx::colors::text,   gfx::colors::accent,     gfx::colors::quiet,
+                                    gfx::colors::alert,  gfx::colors::background, gfx::colors::ground,
+                                    gfx::colors::guide,  gfx::colors::edge};
+constexpr std::int64_t kPoolSize = static_cast<std::int64_t>(sizeof kPool / sizeof kPool[0]);
+
+/// The pool colour numbered `r` here, or none for -1.
+gfx::Color pool_at(std::int64_t r) {
+    return r < 0 || r >= kPoolSize ? gfx::no_color() : gfx::Color(kPool[r]);
 }
 
-/// The role whose ink a terminal window writes as this sequence in the block palette, the one a
-/// terminal draws every colour in its own ink, or -1: the terminal's own ink is no role's.
-std::int64_t role_of_ink(const std::string& sgr) {
+/// The colour the pool colour numbered `r` has in `palette`.
+const gfx::PaletteColor* color_of_pool(const gfx::PaletteOffered& palette, std::int64_t r) {
+    return gfx::window::pool_color(palette, kPool[r].name);
+}
+
+/// The number of the pool colour whose ink a terminal window writes as this sequence in the block
+/// palette, the one a terminal draws every colour in its own ink, or -1: the terminal's own ink is
+/// no pool colour's.
+std::int64_t pool_of_ink(const std::string& sgr) {
     if (sgr == gfx::window::sgr_for("own", 0)) {
         return -1;
     }
     const gfx::PaletteOffered block = gfx::themes::block();
-    for (std::int64_t r = 0; r <= gfx::role::kEdge; ++r) {
-        const gfx::PaletteColor* c = color_of_role(block, r);
+    for (std::int64_t r = 0; r < kPoolSize; ++r) {
+        const gfx::PaletteColor* c = color_of_pool(block, r);
         if (c != nullptr && sgr == gfx::window::sgr_for(c->cells, c->rgba)) {
             return r;
         }
@@ -86,14 +98,14 @@ std::int64_t role_of_ink(const std::string& sgr) {
     return -1;
 }
 
-/// The role a light colour is in the night or the day palette, where exactly one role is drawn in
-/// it.
-std::int64_t role_of_rgba(std::uint32_t rgba) {
+/// The number of the pool colour a light colour is in the night or the day palette, where exactly
+/// one pool colour is drawn in it.
+std::int64_t pool_of_rgba(std::uint32_t rgba) {
     for (const gfx::PaletteOffered& palette : {gfx::themes::night(), gfx::themes::day()}) {
         std::int64_t found = -1;
         int n = 0;
-        for (std::int64_t r = 0; r <= gfx::role::kEdge; ++r) {
-            const gfx::PaletteColor* c = color_of_role(palette, r);
+        for (std::int64_t r = 0; r < kPoolSize; ++r) {
+            const gfx::PaletteColor* c = color_of_pool(palette, r);
             if (c != nullptr && static_cast<std::uint32_t>(c->rgba) == rgba) {
                 found = r;
                 ++n;
@@ -258,7 +270,7 @@ struct Windows::Impl {
                             col = std::stoll(args.substr(semi + 1)) - 1;
                         }
                     } else if (j < bytes.size() && bytes[j] == 'm') {
-                        ink = role_of_ink(bytes.substr(k, j - k + 1));
+                        ink = pool_of_ink(bytes.substr(k, j - k + 1));
                     }
                     k = j;
                     continue;
@@ -527,7 +539,7 @@ std::vector<Quad> Windows::quads() {
     for (const auto& a : m.light.frames.back().areas) {
         for (const auto& prims : a.nodes) {
             for (const auto& q : prims.quads) {
-                out.push_back(Quad{a.area, a.x + q.x, a.y + q.y, q.w, q.h, role_of_rgba(q.rgba)});
+                out.push_back(Quad{a.area, a.x + q.x, a.y + q.y, q.w, q.h, pool_at(pool_of_rgba(q.rgba))});
             }
         }
     }
@@ -545,7 +557,7 @@ std::vector<Cell> Windows::cells() {
     for (std::size_t r = 0; r < rows && r < m.glyphs.size(); ++r) {
         for (std::size_t c = 0; c < cols && c < m.glyphs[r].size(); ++c) {
             out.push_back(Cell{static_cast<std::int64_t>(c), static_cast<std::int64_t>(r),
-                               m.glyphs[r][c], m.inks[r][c]});
+                               m.glyphs[r][c], pool_at(m.inks[r][c])});
         }
     }
     return out;

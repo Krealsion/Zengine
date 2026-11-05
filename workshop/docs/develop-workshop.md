@@ -187,7 +187,7 @@ new:
   Compose, Info and Inventory with their views, and both Editors -- every pane Zengine ships --
   draw their rows in their own areas through the same doors, and each is refused the same way. A host from before this change never
   sends the desktop's new sentences; a desktop from before it never hears them.
-- **A pane drawing its rows on its canvas lays the medium's own ground** (`kMediumGround`), a
+- **A pane drawing its rows on its canvas lays the medium's own ground** (the pool's `ground`), a
   role a host built before it does not know: that host refuses every picture such a pane sends,
   so a pane rebuilt from this source and loaded into it shows nothing new.
 

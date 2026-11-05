@@ -247,7 +247,7 @@ public:
         send_value_.reset();
         composing_.notice = send_attempt_.valid() ? "SUBMITTED -- queued; outcome belongs to the receiver"
                                                  : "Submission could not be queued";
-        composing_.notice_role = send_attempt_.valid() ? gfx::role::kAccent : gfx::role::kAlert;
+        composing_.notice_ink = send_attempt_.valid() ? gfx::colors::accent : gfx::colors::alert;
         say(mail);
     }
 
@@ -330,7 +330,7 @@ public:
         restoring_ = false; // the weaver chose another target: the carried form goes with the old one
         composing_.cursor = 0;
         composing_.notice.clear();
-        composing_.notice_role = gfx::role::kMuted;
+        composing_.notice_ink = gfx::colors::quiet;
         // EVERY PREVIOUS TARGET'S VOCABULARY AND DRAFT GO NOW, before anything is
         // asked. A snapshot belongs to the target it was read from, and a draft
         // belongs to a shape out of that snapshot; carrying either across would put
@@ -420,7 +420,7 @@ public:
         composing_.cursor = 0;
         composing_.stage = stage::kCatalog;
         composing_.notice = "up/down move, enter chooses";
-        composing_.notice_role = gfx::role::kMuted;
+        composing_.notice_ink = gfx::colors::quiet;
         if (std::exchange(restoring_, false)) reopen();
         say(mail);
     }
@@ -562,7 +562,7 @@ private:
                                                      zengine::composer::form_items(composing_.draft) - 1);
         composing_.notice = carried_notice_.empty() ? "The form was kept across a reload -- review, then Submit"
                                                     : carried_notice_;
-        composing_.notice_role = carried_notice_.empty() ? gfx::role::kAccent : gfx::role::kAlert;
+        composing_.notice_ink = carried_notice_.empty() ? gfx::colors::accent : gfx::colors::alert;
     }
 
     // ---- discovery ----------------------------------------------------------
@@ -637,7 +637,7 @@ private:
         composing_.stage = stage::kForm;
         composing_.cursor = 0;
         composing_.notice = "up/down move, tab include, enter acts, esc back";
-        composing_.notice_role = gfx::role::kMuted;
+        composing_.notice_ink = gfx::colors::quiet;
         say(mail);
     }
 
@@ -651,7 +651,7 @@ private:
         composing_.stage = stage::kCatalog;
         composing_.cursor = 0;
         composing_.notice.clear();
-        composing_.notice_role = gfx::role::kMuted;
+        composing_.notice_ink = gfx::colors::quiet;
         say(mail);
     }
 
@@ -766,7 +766,7 @@ private:
     bool busy() const { return send_value_.has_value() || storage_.busy(); }
     void storage_notice(loom::Mail& mail) {
         composing_.notice = storage_.result ? "Stored as a new inventory entry" : storage_.notice;
-        composing_.notice_role = gfx::role::kAccent;
+        composing_.notice_ink = gfx::colors::accent;
         say(mail);
     }
     void store(loom::Mail& mail, bool preset = false) {
@@ -834,14 +834,14 @@ private:
             }
             ++draft_generation_;
             composing_.notice = "Copied data into form -- review, then Submit";
-            composing_.notice_role = gfx::role::kAccent;
+            composing_.notice_ink = gfx::colors::accent;
         } catch (const std::exception& e) { complain(std::string("Drop refused: ") + e.what()); }
         say(mail);
     }
 
     void complain(std::string what) {
         composing_.notice = std::move(what);
-        composing_.notice_role = gfx::role::kAlert;
+        composing_.notice_ink = gfx::colors::alert;
     }
 
     /// The rows as `project` composes them for the room, each with what it means, published by the

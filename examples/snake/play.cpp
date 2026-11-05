@@ -233,7 +233,7 @@ public:
     /// for each gesture, each set by the measure of the window that shows the area.
     void picture(gfx::Sketch& f) const {
         const gfx::TextMeasure m = canvas().text();
-        f.text("status", 0, 0, ctx_->status, gfx::by_role(gfx::role::kFill));
+        f.text("status", 0, 0, ctx_->status, gfx::colors::text);
         std::int64_t x = 0;
         for (const Control& k : kControls) {
             const auto characters = static_cast<std::int64_t>(std::string(k.label).size()) + 2;

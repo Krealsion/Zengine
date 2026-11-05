@@ -3,7 +3,7 @@
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
 supports is in [chrome](../workshop/chrome.md).
 
-**Context.** Panes were rectangles with no boundary: their backdrop was `kMuted`, the workspace's
+**Context.** Panes were rectangles with no boundary: their backdrop was `quiet`, the workspace's
 own role, so a pane was a hole in the dot field, and on the shipped face near-black on near-black
 (`785bb49`, "Give the desk edges, and let the pane you are using come forward"). The first
 boundary paid the smallest thing a terminal can draw — one whole cell — on both faces, because

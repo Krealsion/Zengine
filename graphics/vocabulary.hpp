@@ -11,7 +11,6 @@
 // answers for its platform: the clipboard, its place on the desktop, a close, and its last picture.
 // Reference: graphics/docs/graphics.md.
 
-#include "graphics/role.hpp"
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>

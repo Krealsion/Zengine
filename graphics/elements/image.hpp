@@ -26,7 +26,7 @@ struct ImageFace {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     std::string source;
     double u0 = 0.0, v0 = 0.0, u1 = 1.0, v1 = 1.0;
-    Paint tint;
+    Color tint;
     ZEN_SHAPE(ImageFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(source), ZEN_FIELD(u0), ZEN_FIELD(v0), ZEN_FIELD(u1), ZEN_FIELD(v1),
               ZEN_FIELD(tint));
@@ -63,8 +63,8 @@ public:
         v1_ = std::clamp(v1, 0.0, 1.0);
     }
     /// A tint with an exact colour multiplies each pixel's red, green and blue by its own; one
-    /// without (`no_paint()`, the default, or a role alone) leaves the pixels as they are.
-    void set_tint(Paint tint) { tint_ = tint; }
+    /// without (`no_color()`, the default, or a pool colour alone) leaves the pixels as they are.
+    void set_tint(Color tint) { tint_ = tint; }
     /// The sheet; false, keeping no pixels, when `rgba` is not `pw` by `ph` by four bytes.
     bool set_pixels(std::int64_t pw, std::int64_t ph, loom::Bytes rgba) {
         if (pw <= 0 || ph <= 0 || rgba.size() != static_cast<std::size_t>(pw * ph * 4)) {
@@ -80,7 +80,7 @@ public:
 
     const std::string& path() const { return path_; }
     const std::string& source() const { return source_; }
-    const Paint& tint() const { return tint_; }
+    const Color& tint() const { return tint_; }
     bool has_pixels() const { return !rgba_.empty(); }
 
     /// The pixels the uv rectangle selects from the sheet, tinted.
@@ -126,8 +126,8 @@ public:
         s.group(path_, x_, y_, w_, h_);
         Slice sl = slice();
         if (sl.rgba.empty()) {
-            s.outline_rect(path_ + "/frame", 0, 0, w_, h_, by_role(role::kMuted));
-            s.text(path_ + "/words", 0, 0, source_, by_role(role::kMuted));
+            s.outline_rect(path_ + "/frame", 0, 0, w_, h_, colors::quiet);
+            s.text(path_ + "/words", 0, 0, source_, colors::quiet);
         } else {
             s.image(path_ + "/pixels", 0, 0, w_, h_, sl.pw, sl.ph, std::move(sl.rgba));
         }
@@ -139,7 +139,7 @@ private:
     std::string source_;
     std::int64_t x_ = 0, y_ = 0, w_ = 0, h_ = 0;
     double u0_ = 0.0, v0_ = 0.0, u1_ = 1.0, v1_ = 1.0;
-    Paint tint_;
+    Color tint_;
     std::int64_t pw_ = 0, ph_ = 0;
     loom::Bytes rgba_;
 };

@@ -13,7 +13,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -111,13 +111,13 @@ public:
         // Row one names the room, which is what makes the budget legible on screen.
         said.push_back(ws::TextRow{
             fitted("hello -- " + std::to_string(rows) + "x" + std::to_string(columns), columns),
-            gfx::role::kFill});
+            gfx::colors::text});
         // ...and the remaining rows are filled to the room exactly, so a suite reading the pane
         // can tell "this provider spent its whole room" from "this provider had nothing more to
         // say".
         for (std::int64_t i = 1; i < rows; ++i) {
             said.push_back(ws::TextRow{fitted("row " + std::to_string(i), columns),
-                                       gfx::role::kMuted});
+                                       gfx::colors::quiet});
         }
         // DELIBERATELY AS THIS OFFICE: the window takes a drawing only from the office its area
         // is named by, and holding is never speaking-for (MSG-07).

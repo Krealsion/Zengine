@@ -87,7 +87,7 @@ std::string condition_path(const std::string& key) {
 /// resolved suggestion where the host's own was the action's id, and it is the same
 /// question either way ("is this the same statement I hid?").
 std::string stamp_of(const StandingCondition& c) {
-    return c.compact + '\n' + c.detail + '\n' + std::to_string(c.role) + '\n' + c.suggestion;
+    return c.compact + '\n' + c.detail + '\n' + c.ink.name + '\n' + c.suggestion;
 }
 
 // =============================================================================
@@ -324,35 +324,35 @@ public:
         const std::int64_t height = room().text().line;
         std::int64_t row = 0;
         const auto line = [&](const std::string& path, const std::string& text,
-                              std::int64_t role) {
+                              gfx::Color ink) {
             // A SECOND GUARD: the window marks a byte it cannot draw and keeps the row, so this
             // matters only to a window that refused a picture for one such byte.
-            f.text(path, 0, row * height, drawable(fit(text, columns)), gfx::by_role(role));
+            f.text(path, 0, row * height, drawable(fit(text, columns)), ink);
             ++row;
         };
         // A notice, when there is one, leads: a pane has only its own room, so its first row
         // carries it, and it is cleared by the weaver's next act rather than by being said
         // (`agents/panes.md`).
         if (!notice_.empty() && rows > 1) {
-            line("notice", notice_, gfx::role::kAccent);
+            line("notice", notice_, gfx::colors::accent);
         }
         // A CONDITION IS NAMED BY ITS KEY, `condition:<key>`, on the row that says it, and a
         // press there asks for it; the notice and the glance are named for what they are, and
         // every other row for its place.
         bool glance = true, lines = false;
-        say_view([&](const std::string& text, std::int64_t role,
+        say_view([&](const std::string& text, gfx::Color ink,
                      std::optional<std::string> key = std::nullopt) {
             if (row >= rows) {
                 return;
             }
             if (glance) {
                 glance = false;
-                line("glance", text, role);
+                line("glance", text, ink);
                 return;
             }
             const std::string named = key ? condition_path(*key) : std::string();
             if (!named.empty()) {
-                line(named, text, role);
+                line(named, text, ink);
                 f.action(named, kConditionAction + *key);
                 return;
             }
@@ -360,7 +360,7 @@ public:
                 lines = true;
                 f.group("line", 0, 0);
             }
-            line("line/" + std::to_string(row), text, role);
+            line("line/" + std::to_string(row), text, ink);
         });
     }
 
@@ -383,19 +383,19 @@ private:
             // THE HOST HAS NOT SAID ANYTHING YET, WHICH IS NOT THE SAME AS NOTHING BEING
             // WRONG. A pane opened before the first publication has no reading at all, and
             // an empty list here would read as an all-clear this pane has no grounds for.
-            push("ATTENTION (waiting)", gfx::role::kMuted);
+            push("ATTENTION (waiting)", gfx::colors::quiet);
             return;
         }
         if (known_.empty()) {
             // NOTHING IS WRONG, SAID IN WORDS. A weaver who put this pane on their desk is
             // owed an answer, and an empty box is not one.
-            push("nothing needs your attention right now", gfx::role::kMuted);
+            push("nothing needs your attention right now", gfx::colors::quiet);
             return;
         }
         // THE GLANCE LEADS: the loudest condition the host says is true and how many more, in
-        // that condition's role -- every true one, hidden or not, since hiding is a choice about
+        // that condition's colour -- every true one, hidden or not, since hiding is a choice about
         // what this weaver reads and not about what is the case. A pane one row tall is this row.
-        push(ws::attention_glance(known_), known_.front().role);
+        push(ws::attention_glance(known_), known_.front().ink);
         const std::vector<StandingCondition> shown = visible();
         const std::int64_t budget_rows = body_budget();
         if (budget_rows <= 0) {
@@ -409,7 +409,7 @@ private:
             // than saying the all-clear.
             push("  all conditions hidden -- " + std::to_string(known_.size()) +
                      (known_.size() == 1 ? " is" : " are") + " still true",
-                 gfx::role::kMuted);
+                 gfx::colors::quiet);
             return;
         }
         // The cursor's own block is composed and reserved before the list is windowed: a window
@@ -443,25 +443,25 @@ private:
             win.markers = 1;
         }
         if (win.before > 0) {
-            push("  " + omitted_text(win.before, "earlier"), gfx::role::kMuted);
+            push("  " + omitted_text(win.before, "earlier"), gfx::colors::quiet);
         }
         for (std::size_t i = win.first; i < win.end(); ++i) {
             const StandingCondition& c = shown[i];
             const bool here = i == cursor;
-            push(std::string(here ? "> " : "  ") + c.compact, c.role, c.key);
+            push(std::string(here ? "> " : "  ") + c.compact, c.ink, c.key);
             if (!here || reserve == 0) {
                 continue;
             }
             const std::size_t said = block.size() > reserve ? reserve - 1 : block.size();
             for (std::size_t line = 0; line < said; ++line) {
-                push("    " + block[line], gfx::role::kMuted);
+                push("    " + block[line], gfx::colors::quiet);
             }
             if (said < block.size()) {
-                push("    " + omitted_text(block.size() - said, "more"), gfx::role::kMuted);
+                push("    " + omitted_text(block.size() - said, "more"), gfx::colors::quiet);
             }
         }
         if (win.after > 0) {
-            push("  " + omitted_text(win.after, "more"), gfx::role::kMuted);
+            push("  " + omitted_text(win.after, "more"), gfx::colors::quiet);
         }
     }
 

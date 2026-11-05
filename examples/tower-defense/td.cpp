@@ -12,7 +12,7 @@
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "timer/binding.hpp"
@@ -488,7 +488,7 @@ std::vector<ws::TextRow> picture(const TdState& s) {
     rows.push_back({"TOWER DEFENSE   wave " + std::to_string(s.wave) + "/" + std::to_string(kWaves) +
                         "   gold " + std::to_string(s.gold) + "   lives " + std::to_string(s.lives) +
                         "   " + phase_words(s),
-                    gfx::role::kAccent});
+                    gfx::colors::accent});
     for (int y = 0; y < kHeight; ++y) {
         std::string row = " ";
         for (int x = 0; x < kWidth; ++x) {
@@ -499,16 +499,16 @@ std::vector<ws::TextRow> picture(const TdState& s) {
             row += glyph(s, x, y);
             row += here ? ']' : ' ';
         }
-        rows.push_back({row, gfx::role::kFill});
+        rows.push_back({row, gfx::colors::text});
     }
     const bool road = on_path(s.cursor_x, s.cursor_y);
     rows.push_back({"cursor " + std::to_string(s.cursor_x) + "," + std::to_string(s.cursor_y) + " -- " +
                         (road ? "the road" : "ground") + "; a tower costs " + std::to_string(kTowerCost) +
                         " gold and reaches " + std::to_string(kTowerRange) + " cells",
-                    gfx::role::kMuted});
-    rows.push_back({s.message, s.phase >= kWon ? gfx::role::kAlert : gfx::role::kFill});
+                    gfx::colors::quiet});
+    rows.push_back({s.message, s.phase >= kWon ? gfx::colors::alert : gfx::colors::text});
     rows.push_back({"arrows move  t build  space next wave  p pause  . step  r restart  c check",
-                    gfx::role::kMuted});
+                    gfx::colors::quiet});
     return rows;
 }
 

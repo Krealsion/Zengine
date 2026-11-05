@@ -2,15 +2,15 @@
 // Copyright (c) 2026 Joshua DeMoss
 #ifndef ZENGINE_FLOW_PANE_LOOK_HPP
 #define ZENGINE_FLOW_PANE_LOOK_HPP
-// Flow's look: its colours, each exact beside the theme's role a medium without colour shows; the
+// Flow's look: its colours, each exact beside the pool colour a medium without colour shows; the
 // measures of the room a picture is laid out in; the marks a picture is made of; and the drawing a
 // graphics window is given of them -- the marks in paint order, each place a press means something
 // painted again over its place under a record that names it, and a run's caret and selection in
 // front. Reference: flow/docs/zengine.flow.md.
 #include "graphics/canvas.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/pixels.hpp"
-#include "graphics/role.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_parts.hpp"
@@ -28,46 +28,47 @@
 namespace zengine::flow_pane {
 namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
-namespace ink = zengine::graphics::role;
+namespace ink = zengine::graphics::colors;
 
-/// FLOW'S COLOURS, exact where a medium shows colour and the role beside each where it does not.
-/// Every surface is a ground, so a terminal paints none of them; what a word means is its role.
+/// FLOW'S COLOURS, exact where a medium shows colour, and beside each the pool colour a medium that
+/// does not shows in its place. Every surface is a ground, so a terminal paints none of them; what
+/// a word means is the pool colour it stands for.
 namespace hue {
-inline gfx::Paint of(std::int64_t role, std::int64_t rgb) { return gfx::exact(role, rgb); }
-inline gfx::Paint body() { return of(ink::kGround, 0x262b35); }    ///< the pane's ground
-inline gfx::Paint field() { return of(ink::kGround, 0x1b1f26); }   ///< a field, a chip, the Next line
-inline gfx::Paint well() { return of(ink::kGround, 0x1a1d24); }    ///< the graph's ground
-inline gfx::Paint band() { return of(ink::kGround, 0x2b303b); }    ///< a card's head, the rule's row
-inline gfx::Paint card() { return of(ink::kGround, 0x323846); }    ///< a card's body
-inline gfx::Paint badge() { return of(ink::kGround, 0x3b4252); }   ///< a value on a wire
-inline gfx::Paint chosen() { return of(ink::kGround, 0x323d48); }  ///< the row the preview shows
+inline gfx::Color of(gfx::PoolColor like, std::uint32_t rgb) { return gfx::rgb(rgb, like); }
+inline gfx::Color body() { return of(ink::background, 0x262b35); }    ///< the pane's ground
+inline gfx::Color field() { return of(ink::background, 0x1b1f26); }   ///< a field, a chip, the Next line
+inline gfx::Color well() { return of(ink::background, 0x1a1d24); }    ///< the graph's ground
+inline gfx::Color band() { return of(ink::background, 0x2b303b); }    ///< a card's head, the rule's row
+inline gfx::Color card() { return of(ink::background, 0x323846); }    ///< a card's body
+inline gfx::Color badge() { return of(ink::background, 0x3b4252); }   ///< a value on a wire
+inline gfx::Color chosen() { return of(ink::background, 0x323d48); }  ///< the row the preview shows
 /// The three lanes, each its part's colour at a twentieth over the graph's ground.
-inline gfx::Paint when_lane() { return of(ink::kGround, 0x242629); }
-inline gfx::Paint do_lane() { return of(ink::kGround, 0x20252d); }
-inline gfx::Paint then_lane() { return of(ink::kGround, 0x20252c); }
+inline gfx::Color when_lane() { return of(ink::background, 0x242629); }
+inline gfx::Color do_lane() { return of(ink::background, 0x20252d); }
+inline gfx::Color then_lane() { return of(ink::background, 0x20252c); }
 /// A part of the rule's sentence: a message, a kept field, a step, at a seventh over its row.
-inline gfx::Paint message_chip() { return of(ink::kGround, 0x464646); }
-inline gfx::Paint kept_chip() { return of(ink::kGround, 0x39444d); }
-inline gfx::Paint step_chip() { return of(ink::kGround, 0x384450); }
-inline gfx::Paint message_rim() { return of(ink::kMuted, 0x8b7e63); }
-inline gfx::Paint kept_rim() { return of(ink::kMuted, 0x5d767b); }
-inline gfx::Paint step_rim() { return of(ink::kMuted, 0x5a7886); }
-inline gfx::Paint rule() { return of(ink::kMuted, 0x343b49); }     ///< a line between parts
-inline gfx::Paint frame() { return of(ink::kMuted, 0x434c5e); }    ///< the preview's outline
-inline gfx::Paint edge() { return of(ink::kMuted, 0x4a5366); }     ///< an outline
-inline gfx::Paint thread() { return of(ink::kMuted, 0x6b7385); }   ///< the thread from a write to a say
-inline gfx::Paint text() { return of(ink::kFill, 0xe5e9f0); }
-inline gfx::Paint soft() { return of(ink::kFill, 0xc0c7d3); }
-inline gfx::Paint quiet() { return of(ink::kMuted, 0x9aa3b2); }
-inline gfx::Paint faint() { return of(ink::kMuted, 0x7d869a); }
-inline gfx::Paint message() { return of(ink::kAccent, 0xebcb8b); } ///< a message: gold
-inline gfx::Paint wire() { return of(ink::kAccent, 0x88c0d0); }    ///< wires, ports and steps
-inline gfx::Paint kept() { return of(ink::kAccent, 0x8fbcbb); }    ///< what the rule keeps
-inline gfx::Paint done() { return of(ink::kFill, 0xa3be8c); }      ///< ready, running, done
-inline gfx::Paint warn() { return of(ink::kAlert, 0xd08770); }     ///< what must come first
+inline gfx::Color message_chip() { return of(ink::background, 0x464646); }
+inline gfx::Color kept_chip() { return of(ink::background, 0x39444d); }
+inline gfx::Color step_chip() { return of(ink::background, 0x384450); }
+inline gfx::Color message_rim() { return of(ink::quiet, 0x8b7e63); }
+inline gfx::Color kept_rim() { return of(ink::quiet, 0x5d767b); }
+inline gfx::Color step_rim() { return of(ink::quiet, 0x5a7886); }
+inline gfx::Color rule() { return of(ink::quiet, 0x343b49); }     ///< a line between parts
+inline gfx::Color frame() { return of(ink::quiet, 0x434c5e); }    ///< the preview's outline
+inline gfx::Color edge() { return of(ink::quiet, 0x4a5366); }     ///< an outline
+inline gfx::Color thread() { return of(ink::quiet, 0x6b7385); }   ///< the thread from a write to a say
+inline gfx::Color text() { return of(ink::text, 0xe5e9f0); }
+inline gfx::Color soft() { return of(ink::text, 0xc0c7d3); }
+inline gfx::Color quiet() { return of(ink::quiet, 0x9aa3b2); }
+inline gfx::Color faint() { return of(ink::quiet, 0x7d869a); }
+inline gfx::Color message() { return of(ink::accent, 0xebcb8b); } ///< a message: gold
+inline gfx::Color wire() { return of(ink::accent, 0x88c0d0); }    ///< wires, ports and steps
+inline gfx::Color kept() { return of(ink::accent, 0x8fbcbb); }    ///< what the rule keeps
+inline gfx::Color done() { return of(ink::text, 0xa3be8c); }      ///< ready, running, done
+inline gfx::Color warn() { return of(ink::alert, 0xd08770); }     ///< what must come first
 /// A gold button's face, and the words on it: an accent where a medium has no colour.
-inline gfx::Paint gold() { return of(ink::kGround, 0xebcb8b); }
-inline gfx::Paint on_gold() { return of(ink::kAccent, 0x1b1f26); }
+inline gfx::Color gold() { return of(ink::background, 0xebcb8b); }
+inline gfx::Color on_gold() { return of(ink::accent, 0x1b1f26); }
 } // namespace hue
 
 /// THE ROOM'S MEASURES, as a picture is laid out in them: a character's advance and a line's
@@ -140,7 +141,7 @@ struct Mark {
     enum class Op { Rect, Ellipse, Line, Path, Text };
     Op op = Op::Rect;
     std::int64_t x = 0, y = 0, w = 0, h = 0;
-    gfx::Paint fill = gfx::no_paint(), stroke = gfx::no_paint(); ///< a run's ink is its fill
+    gfx::Color fill = gfx::no_color(), stroke = gfx::no_color(); ///< a run's ink is its fill
     std::int64_t radius = 0;
     bool dashed = false;
     std::string words; ///< a run's words, or a path's data in the area's pixels
@@ -274,7 +275,7 @@ inline void keep_in_room(Drawing& d, const ws::CanvasRoom& room) {
     for (auto& m : d.marks) {
         const Box clip = m.clip ? m.clip->cut(whole) : whole;
         if (m.op == Mark::Op::Text) {
-            ws::CanvasText run{m.x, m.y, m.words, gfx::role_of(m.fill), m.caret_col, m.sel_begin_col,
+            ws::CanvasText run{m.x, m.y, m.words, m.fill, m.caret_col, m.sel_begin_col,
                                m.sel_end_col};
             const auto original = m.words.size();
             // A clip keeps a run's glyphs, whose padding may stand the inset left of it.
@@ -392,12 +393,12 @@ inline Sketched sketch_of(const Drawing& d, const ws::CanvasRoom& room) {
             if (m.light && k.dashed) {
                 const Box b{x, y, k.w, k.h};
                 s.group(path, 0, 0);
-                if (!k.fill.none()) s.path(path + "/0", rounded(b, k.radius), k.fill, gfx::no_paint());
-                if (!k.stroke.none()) s.path(path + "/1", dashes(b, k.radius), gfx::no_paint(), k.stroke);
+                if (!k.fill.none()) s.path(path + "/0", rounded(b, k.radius), k.fill, gfx::no_color());
+                if (!k.stroke.none()) s.path(path + "/1", dashes(b, k.radius), gfx::no_color(), k.stroke);
             } else if (m.light && k.radius > 0) {
                 s.path(path, rounded(Box{x, y, k.w, k.h}, k.radius), k.fill, k.stroke);
             } else {
-                s.rect(path, x, y, k.w, k.h, k.fill, k.dashed ? gfx::no_paint() : k.stroke);
+                s.rect(path, x, y, k.w, k.h, k.fill, k.dashed ? gfx::no_color() : k.stroke);
             }
             break;
         case Mark::Op::Ellipse:
@@ -514,7 +515,7 @@ inline Sketched sketch_of(const Drawing& d, const ws::CanvasRoom& room) {
             out.sketch.text(node, x, gy,
                             k.words.substr(static_cast<std::size_t>(from),
                                            static_cast<std::size_t>(to - from)),
-                            gfx::by_role(ink::kAccent));
+                            ink::accent);
             if (const auto name = asks(x, gy); !name.empty()) out.sketch.action(node, name);
         }
         if (k.caret_col >= 0 && k.caret_col <= length) {
@@ -522,9 +523,9 @@ inline Sketched sketch_of(const Drawing& d, const ws::CanvasRoom& room) {
             const auto x = gx + k.caret_col * m.ch;
             const auto c = static_cast<std::size_t>(k.caret_col);
             if (!m.light && c < k.words.size() && k.words[c] != ' ')
-                out.sketch.text(node, x, gy, k.words.substr(c, 1), gfx::by_role(ink::kAccent));
+                out.sketch.text(node, x, gy, k.words.substr(c, 1), ink::accent);
             else
-                out.sketch.line(node, x, gy, x, gy + m.line - 1, gfx::by_role(ink::kAccent));
+                out.sketch.line(node, x, gy, x, gy + m.line - 1, ink::accent);
             if (const auto name = asks(x, gy); !name.empty()) out.sketch.action(node, name);
         }
     }

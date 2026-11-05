@@ -1646,13 +1646,13 @@ private:
 
     /// One row of the picture, with what it means recorded as it is written: a press is answered
     /// from the record the composition made, never from a second calculation.
-    void push_row(const std::string& text, std::int64_t role,
+    void push_row(const std::string& text, gfx::Color ink,
                   BuilderMeaning meaning = BuilderMeaning{}) {
         std::optional<BuilderMeaning> means;
         if (meaning.kind != builder_row::kNone) {
             means = std::move(meaning);
         }
-        (void)room().push(zengine::workshop::TextRow{fitted(text), role},
+        (void)room().push(zengine::workshop::TextRow{fitted(text), ink},
                           std::move(means)); // a row past the room names nothing
     }
 
@@ -1668,7 +1668,7 @@ private:
             return;
         }
         if (!notice_.empty() && rows() > 1) {
-            push_row(notice_, gfx::role::kAccent);
+            push_row(notice_, gfx::colors::accent);
         }
         if (role_.open) {
             say_role();

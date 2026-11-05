@@ -2253,7 +2253,7 @@ TEST_CASE("text area: a width wraps each paragraph at its last space, a further 
     CHECK(lines[3].begin == lines[3].end);
     CHECK(lines[3].paragraph == 1);
     CHECK(words(lines[4]) == "long");
-    CHECK(area.look(lines[4].paragraph).role == 3);
+    CHECK(area.look(lines[4].paragraph).kind == 3);
     // A word longer than the line is cut where the line ends.
     area.set("abcdefghij");
     const auto cut = area.lines(4);

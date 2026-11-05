@@ -149,9 +149,9 @@ struct AttentionRig {
 };
 
 inline Condition thing(const char* key, const char* compact, const char* detail,
-                       std::int64_t role = gfx::role::kAlert,
+                       gfx::Color ink = gfx::colors::alert,
                        const char* action = "") {
-    return Condition{key, compact, detail, role, action};
+    return Condition{key, compact, detail, ink, action};
 }
 
 /// THE ATTENTION PANE'S CENSUS: its rows in the one mode it has, which it declares by no name.
@@ -258,7 +258,7 @@ TEST_CASE("the pane shows every current condition in its owner's own words") {
     f.open();
     f.establish(thing("a.one", "the first thing", "a sentence its owner already had"));
     f.establish(thing("b.two", "the second thing", "and one for the second",
-                      gfx::role::kAccent));
+                      gfx::colors::accent));
 
     // ALL OF THEM, not only the loudest the glance names -- and in the host's own ranking.
     CHECK(f.paints("the first thing (+1 more)"));
@@ -461,14 +461,14 @@ TEST_CASE("the Attention pane leads with the glance: the loudest condition that 
     f.open();
     CHECK(f.shown().front() == "nothing needs your attention right now");
     f.unfocus(); // `establish` repaints with a key, which must not be this pane's
-    f.establish(thing("b.quiet", "a quiet thing", "why the quiet", gfx::role::kAccent));
-    f.establish(thing("a.loud", "a loud thing", "why the loud", gfx::role::kAlert));
+    f.establish(thing("b.quiet", "a quiet thing", "why the quiet", gfx::colors::accent));
+    f.establish(thing("a.loud", "a loud thing", "why the loud", gfx::colors::alert));
     f.focus();
 
-    // THE LOUDEST, WHATEVER ITS ARRIVAL, AND THE COUNT OF THE REST, IN THE LOUDEST'S ROLE.
+    // THE LOUDEST, WHATEVER ITS ARRIVAL, AND THE COUNT OF THE REST, IN THE LOUDEST'S COLOUR.
     REQUIRE_FALSE(f.held_runs().empty());
     CHECK(f.held_runs()[0].text == "a loud thing (+1 more)");
-    CHECK(f.held_runs()[0].role == gfx::role::kAlert);
+    CHECK(f.held_runs()[0].ink == gfx::colors::alert);
 
     // A PANE ONE ROW TALL IS THE GLANCE, alone.
     author_test_pane_room(f.r, f.kind, 1, 60);
@@ -580,7 +580,7 @@ TEST_CASE("an id the Attention pane never declared is no act: the notice, the hi
     f.open();
     f.unfocus(); // `establish` repaints with a key, which must not be this pane's
     f.establish(thing("a.one", "the first thing", "why the first"));
-    f.establish(thing("b.two", "the second thing", "why the second", gfx::role::kAccent));
+    f.establish(thing("b.two", "the second thing", "why the second", gfx::colors::accent));
     f.focus();
     REQUIRE(f.listed("the first thing"));
     REQUIRE(f.listed("the second thing"));
@@ -659,7 +659,7 @@ TEST_CASE("an Attention pane whose every current condition is hidden says they a
 
     // TWO, BOTH HIDDEN: the count is what is hidden.
     f.unfocus();
-    f.establish(thing("b.two", "the second thing", "why the second", gfx::role::kAccent));
+    f.establish(thing("b.two", "the second thing", "why the second", gfx::colors::accent));
     f.focus();
     REQUIRE(f.listed("the second thing"));
     f.letter(input::scan::kD, "d");
@@ -698,7 +698,7 @@ TEST_CASE("the action a condition names arrives as words and not as a name") {
     // could not press it if it wanted to and a weaver sees the key they themselves bound.
     AttentionRig f;
     f.open();
-    f.establish(thing("test.thing", "a thing", "why it is a thing", gfx::role::kAlert,
+    f.establish(thing("test.thing", "a thing", "why it is a thing", gfx::colors::alert,
                       "workshop.manage"));
     CHECK(f.text().find("try: w arrange desk") != std::string::npos);
     CHECK(f.text().find("workshop.manage") == std::string::npos);
@@ -712,7 +712,7 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
     f.establish(Condition{"test.wall", "a wall",
                           std::string("line one") + "\n" + "line two" +
                               "\t" + "and back",
-                          gfx::role::kAlert, std::string()});
+                          gfx::colors::alert, std::string()});
 
     // THE PANE'S PICTURE WAS ACCEPTED, which is the whole claim: no refusal, no cleared
     // rows, and no condition about a condition.
@@ -742,7 +742,7 @@ TEST_CASE("the pane never publishes more rows than the room it was granted") {
             std::string("a long explanation that will certainly have to be wrapped across "
                         "several rows of any column this pane is ever given, ") +
                 std::to_string(i),
-            i % 2 == 0 ? gfx::role::kAlert : gfx::role::kAccent, "workshop.manage"});
+            i % 2 == 0 ? gfx::colors::alert : gfx::colors::accent, "workshop.manage"});
     }
     // EVERY EXTENT THIS COMPOSITION IS HONEST AT, and the cursor walked the whole way down
     // each of them -- the cursor's own reserved block is what the arithmetic turns on.
@@ -880,7 +880,7 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     REQUIRE(pane != nullptr);
 
     // ITS ROWS ARE ITS OWN PICTURE, set on its room's lattice: every row the door's reading, in
-    // the role its state is drawn in.
+    // the colour its state is drawn in.
     REQUIRE(shows_canvas(*pane));
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE(shown.size() >= 3);
@@ -889,9 +889,9 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     CHECK(shown[2] == "  #2 'stranger' (unverified)  awaiting-decision");
     const std::vector<HeldRun> runs = held_runs(kind);
     REQUIRE(runs.size() >= 3);
-    CHECK(runs[0].role == gfx::role::kAccent);
-    CHECK(runs[1].role == gfx::role::kFill);
-    CHECK(runs[2].role == gfx::role::kAlert);
+    CHECK(runs[0].ink == gfx::colors::accent);
+    CHECK(runs[1].ink == gfx::colors::text);
+    CHECK(runs[2].ink == gfx::colors::alert);
     // NOTHING IN IT IS ACTED ON, so it names no part.
     CHECK(held_parts(r.session(), kind).empty());
 

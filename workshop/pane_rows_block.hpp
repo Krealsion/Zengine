@@ -120,7 +120,7 @@ public:
                 text += "  +" + std::to_string(strip.dropped) + " in menu";
             }
             const std::int64_t row = next_row();
-            if (!push(TextRow{fit_row(text), graphics::role::kFill})) {
+            if (!push(TextRow{fit_row(text), graphics::colors::text})) {
                 return;
             }
             const std::int64_t solid = component::solid_columns(
@@ -145,7 +145,7 @@ public:
         const auto marker = [&](std::size_t omitted, const char* which) {
             if (omitted > 0) {
                 (void)push(TextRow{fit_row("  " + pane_text::omitted_text(omitted, which)),
-                                   graphics::role::kMuted});
+                                   graphics::colors::quiet});
                 ++asked;
             }
         };

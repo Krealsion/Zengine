@@ -17,12 +17,12 @@
 // pane keeps the last answer between asks, replaced whole and dropped at every grant. A retained
 // sample is history: it never claims to be current, and its row leads with the tense.
 
-#include "loaded.hpp"        // `fit`, the entry roles
+#include "loaded.hpp"        // `fit`, the entry colours
 #include "powers_detail.hpp" // the words, the chrome row, the window, the detail rows
 #include "resolved.hpp"      // `kHostResolution`, `kPowersSource`, `elision`, the census words
 
 #include "component/text_box.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/powers_vocabulary.hpp"
 
@@ -303,9 +303,9 @@ namespace detail {
 /// produce: the rows and the spans are one projection in two pieces.
 struct Sayer {
     PowersView& view;
-    std::int64_t say(std::string text, std::int64_t role,
-                     std::int64_t ground = graphics::role::kNone) const {
-        view.rows.push_back(workshop::TextRow{std::move(text), role, ground});
+    std::int64_t say(std::string text, graphics::Color ink,
+                     graphics::Color ground = graphics::no_color()) const {
+        view.rows.push_back(workshop::TextRow{std::move(text), ink, ground});
         return static_cast<std::int64_t>(view.rows.size()) - 1;
     }
     /// `solid` is how many leading columns are genuine text: a control cut into `fit`'s `...` is
@@ -379,7 +379,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         }
         const std::string drawn = fit(text, columns);
         const std::int64_t solid = detail::solid_columns(drawn, text.size());
-        const std::int64_t row = say.say(drawn, graphics::role::kAccent);
+        const std::int64_t row = say.say(drawn, graphics::colors::accent);
         if (caret_at >= 0 && drawn.size() == text.size()) {
             view.caret_row = row;
             view.caret_col = caret_at;
@@ -448,7 +448,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
     if (view.population == 0) {
         if (list_budget > 0 && !ui.reading.ok && !ui.reading.reason.empty()) {
             // A search the door refused is not a search nothing matched: its sentence is the list.
-            say.say(fit(printable(ui.reading.reason), columns), graphics::role::kAlert);
+            say.say(fit(printable(ui.reading.reason), columns), graphics::colors::alert);
             --list_budget;
         } else if (list_budget > 0) {
             // An empty catalog view and a search nothing matched are different facts.
@@ -456,7 +456,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
             const bool sources = ui.view == powers_view::kSources;
             say.say(fit(searching ? kNoneMatch : (sources ? kNoSourcesHere : kNoOperatorsHere),
                         columns),
-                    graphics::role::kMuted);
+                    graphics::colors::quiet);
             --list_budget;
         }
     } else if (list_budget > 0) {
@@ -468,25 +468,25 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
             const workshop::PowerRow& p = *list[static_cast<std::size_t>(w.first + i)];
             const bool chosen_row = view.cursor == w.first + i;
             const std::int64_t row =
-                say.say(detail::power_row_text(p, chosen_row, columns), entry_role(chosen_row),
+                say.say(detail::power_row_text(p, chosen_row, columns), entry_ink(chosen_row),
                         entry_ground(chosen_row));
             // The whole row selects, and selecting is all it does.
             say.span(row, 0, columns, powers_control::kEntry, columns, p.identity);
         }
         if (w.before > 0 || w.after > 0) {
             // A count, not an entry: it carries no span.
-            say.say(powers_omission(w, columns), graphics::role::kMuted);
+            say.say(powers_omission(w, columns), graphics::colors::quiet);
         }
         list_budget -= entries;
     }
     if (beyond > 0 && list_budget > 0) {
-        say.say(beyond_page(beyond, columns), graphics::role::kMuted);
+        say.say(beyond_page(beyond, columns), graphics::colors::quiet);
     }
 
     // ---- the selected detail ------------------------------------------------------
     for (std::int64_t i = 0; i < detail_rows_taken; ++i) {
         const std::size_t at = static_cast<std::size_t>(i);
-        const std::int64_t row = say.say(block.texts[at], block.roles[at]);
+        const std::int64_t row = say.say(block.texts[at], block.inks[at]);
         if (block.is_control[at]) {
             const std::int64_t width =
                 static_cast<std::int64_t>(std::char_traits<char>::length(kSampleControl));
@@ -506,18 +506,18 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         }
         const std::size_t hidden = static_cast<std::size_t>(have - shown);
         say.say(detail::sample_header(ui.sample.ok, ui.sample.identity, hidden, columns),
-                ui.sample.ok ? graphics::role::kMuted : graphics::role::kAlert);
+                ui.sample.ok ? graphics::colors::quiet : graphics::colors::alert);
         for (std::int64_t i = 0; i < shown; ++i) {
             say.say(fit("  " + printable(body[static_cast<std::size_t>(i)]), columns),
-                    ui.sample.ok ? graphics::role::kFill : graphics::role::kAlert);
+                    ui.sample.ok ? graphics::colors::text : graphics::colors::alert);
         }
         if (hidden > 0 && shown < room) {
-            say.say(elision(hidden, columns), graphics::role::kMuted);
+            say.say(elision(hidden, columns), graphics::colors::quiet);
         }
     }
 
     if (caveat > 0) {
-        say.say(fit(kHostResolution, columns), graphics::role::kMuted);
+        say.say(fit(kHostResolution, columns), graphics::colors::quiet);
     }
     if (census > 0) {
         // The catalog census, a different question from the position marker: that counts the
@@ -526,10 +526,10 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         say.say(fit(powers_said(identities) + (identities == 1 ? " resolves" : " resolve") +
                         " here -- from " + providers_said(ui.reading.providers),
                     columns),
-                graphics::role::kMuted);
+                graphics::colors::quiet);
     }
     if (source > 0) {
-        say.say(fit(kPowersSource, columns), graphics::role::kMuted);
+        say.say(fit(kPowersSource, columns), graphics::colors::quiet);
     }
     return view;
 }

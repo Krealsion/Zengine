@@ -25,7 +25,7 @@
 
 #include "activation/activation.hpp"
 #include "component/text_box.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 
@@ -350,9 +350,9 @@ private:
         return out;
     }
 
-    /// The palette's own colours, each with the role a window that cannot show it paints instead.
-    static gfx::Paint head_ground() { return gfx::exact(gfx::role::kMediumGround, 0x1E2A3C); }
-    static gfx::Paint cursor_bar() { return gfx::exact(gfx::role::kMediumGround, 0x2C4A6E); }
+    /// The palette's own colours, each with the pool colour a medium that cannot show it shows instead.
+    static gfx::Color head_ground() { return gfx::rgb(0x1E2A3C, gfx::colors::ground); }
+    static gfx::Color cursor_bar() { return gfx::rgb(0x2C4A6E, gfx::colors::ground); }
 
     void offer(loom::Mail& mail) {
         (void)mail.as_role(kOffice).send_to_role(
@@ -493,22 +493,22 @@ private:
         const bool cells = window_.rows_room().cells;
         gfx::Sketch sketch;
         sketch.fill_rect("room", 0, 0, window_.width(), window_.height(),
-                         gfx::by_role(gfx::role::kGround));
+                         gfx::colors::background);
         sketch.fill_rect("head", 0, 0, window_.width(), kHead * text.line, head_ground());
 
         ws::RowsBlock<Line> head;
         head.begin(kHead, columns());
         const std::string prefix = "find: ";
-        (void)head.push({prefix + filter_.text(), gfx::role::kAccent});
+        (void)head.push({prefix + filter_.text(), gfx::colors::accent});
         std::string count = std::to_string(list.size()) + " of " +
                             std::to_string(listing_.entries.size());
         if (listing_.left_out > 0) {
             count += " -- " + std::to_string(listing_.left_out) + " " + listing_.left_from +
                      " left out past " + std::to_string(pal::kMaxEntries);
         }
-        (void)head.push(!notice_.empty()    ? ws::TextRow{notice_, gfx::role::kAlert}
-                        : !started_.empty() ? ws::TextRow{started_, gfx::role::kAccent}
-                                            : ws::TextRow{count, gfx::role::kMuted});
+        (void)head.push(!notice_.empty()    ? ws::TextRow{notice_, gfx::colors::alert}
+                        : !started_.empty() ? ws::TextRow{started_, gfx::colors::accent}
+                                            : ws::TextRow{count, gfx::colors::quiet});
         head.caret().row = 0;
         head.caret().column = static_cast<std::int64_t>(prefix.size() + filter_.caret());
         const auto always = [](const Line&) { return true; };
@@ -532,8 +532,8 @@ private:
                 meaning = (meaning ^ static_cast<unsigned char>(c)) * 1099511628211ULL;
             }
             (void)entries_.push({line_of(e, here, columns()),
-                                 here ? gfx::role::kAccent
-                                      : (e.off || e.gone) ? gfx::role::kMuted : gfx::role::kFill},
+                                 here ? gfx::colors::accent
+                                      : (e.off || e.gone) ? gfx::colors::quiet : gfx::colors::text},
                                 std::move(line));
         }
         (void)entries_.draw(sketch, "entries", 0, kHead * text.line, text, cells, part_of, always,

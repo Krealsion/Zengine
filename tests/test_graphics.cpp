@@ -28,7 +28,7 @@
 #include "graphics/light_paint.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/themes.hpp"
 #include "graphics/vocabulary.hpp"
@@ -134,14 +134,14 @@ gfx::PaletteOffered plain_palette() {
 // ============================================================================
 
 TEST_CASE("an operand's shape is implied by its operator: a body alone, read back by the gate") {
-    const gfx::RectArgs r{1, 2, 3, 4, gfx::by_role(gfx::role::kAccent), gfx::no_paint()};
+    const gfx::RectArgs r{1, 2, 3, 4, gfx::colors::accent, gfx::no_color()};
     const loom::Bytes body = gfx::body_of(r);
     const loom::Bytes whole = loom::bequeath_item(r);
     CHECK(body.size() < whole.size()); // the envelope is left off
     const auto back = gfx::from_body<gfx::RectArgs>(body);
     REQUIRE(back.has_value());
     CHECK(back->w == 3);
-    CHECK(zengine::graphics::role_of(back->fill) == gfx::role::kAccent);
+    CHECK(zengine::graphics::pool_color_of(back->fill) == gfx::colors::accent);
     // Another shape's body is not this one's: the gate refuses it.
     CHECK_FALSE(gfx::from_body<gfx::TextArgs>(gfx::body_of(gfx::LineArgs{})).has_value());
 }
@@ -149,8 +149,8 @@ TEST_CASE("an operand's shape is implied by its operator: a body alone, read bac
 TEST_CASE("a canvas sends the whole picture to a new window, then only what changed") {
     gfx::Canvas canvas("test.owner", "test.area");
     gfx::Sketch first;
-    first.text("score", 0, 0, "score 0", gfx::by_role(gfx::role::kMuted));
-    first.fill_rect("head", 12, 12, 12, 12, gfx::by_role(gfx::role::kAccent));
+    first.text("score", 0, 0, "score 0", gfx::colors::quiet);
+    first.fill_rect("head", 12, 12, 12, 12, gfx::colors::accent);
     // No window shows the area yet: nothing is queued.
     canvas.draw(first);
     CHECK(canvas.window().empty());
@@ -163,8 +163,8 @@ TEST_CASE("a canvas sends the whole picture to a new window, then only what chan
     gfx::Sketch again = first;
     canvas.draw(again);
     gfx::Sketch moved;
-    moved.text("score", 0, 0, "score 0", gfx::by_role(gfx::role::kMuted));
-    moved.fill_rect("head", 24, 12, 12, 12, gfx::by_role(gfx::role::kAccent));
+    moved.text("score", 0, 0, "score 0", gfx::colors::quiet);
+    moved.fill_rect("head", 24, 12, 12, 12, gfx::colors::accent);
     const gfx::Drawn d = gfx::difference(again, moved);
     REQUIRE(d.put.size() == 1);
     CHECK(d.put[0].path == "head");
@@ -205,9 +205,9 @@ std::vector<std::pair<std::string, std::int64_t>> ranks_of(const gfx::window::Wi
 
 TEST_CASE("a node put again keeps its rank, so the paint order holds, and a new node takes the next") {
     gfx::Sketch s;
-    s.text("a", 0, 0, "a", gfx::Paint{});
-    s.text("b", 0, 1, "b", gfx::Paint{});
-    s.text("c", 0, 2, "c", gfx::Paint{});
+    s.text("a", 0, 0, "a", gfx::Color{});
+    s.text("b", 0, 1, "b", gfx::Color{});
+    s.text("c", 0, 2, "c", gfx::Color{});
     gfx::window::WinArea a = store_holding(s);
     CHECK(ranks_of(a) == std::vector<std::pair<std::string, std::int64_t>>{{"a", 1}, {"b", 2}, {"c", 3}});
     // C AND A PUT AGAIN, IN THAT ORDER, AND D NEW: the two keep their ranks, d takes 4.
@@ -238,11 +238,11 @@ TEST_CASE("a node put again keeps its rank, so the paint order holds, and a new 
 TEST_CASE("a group put changes every node beneath it, and a leaf put changes itself alone") {
     gfx::Sketch s;
     s.group("g", 0, 0, 10, 10);
-    s.text("g/x", 0, 0, "x", gfx::Paint{});
+    s.text("g/x", 0, 0, "x", gfx::Color{});
     s.group("g/y", 1, 1, 5, 5);
-    s.text("g/y/z", 0, 0, "z", gfx::Paint{});
-    s.text("gx", 0, 0, "gx", gfx::Paint{}); // a sibling whose path begins with the group's
-    s.text("h", 0, 1, "h", gfx::Paint{});
+    s.text("g/y/z", 0, 0, "z", gfx::Color{});
+    s.text("gx", 0, 0, "gx", gfx::Color{}); // a sibling whose path begins with the group's
+    s.text("h", 0, 1, "h", gfx::Color{});
     gfx::window::WinArea a = store_holding(s);
     gfx::Drawn group;
     group.put = {gfx::Node{"g", "group", {}}};
@@ -265,10 +265,10 @@ TEST_CASE("a group put changes every node beneath it, and a leaf put changes its
 TEST_CASE("a removal takes a node's subtree and the records in it, and says each path gone") {
     gfx::Sketch s;
     s.group("g", 0, 0, 10, 10);
-    s.text("g/x", 0, 0, "x", gfx::Paint{});
-    s.text("g/x/deep", 0, 0, "d", gfx::Paint{});
-    s.text("gx", 0, 0, "gx", gfx::Paint{});
-    s.text("h", 0, 1, "h", gfx::Paint{});
+    s.text("g/x", 0, 0, "x", gfx::Color{});
+    s.text("g/x/deep", 0, 0, "d", gfx::Color{});
+    s.text("gx", 0, 0, "gx", gfx::Color{});
+    s.text("h", 0, 1, "h", gfx::Color{});
     gfx::window::WinArea a = store_holding(s);
     gfx::Drawn said;
     said.said = {gfx::ElementRecord{"g/x", "test.Face", {}, "pick"},
@@ -302,7 +302,7 @@ TEST_CASE("a removal takes a node's subtree and the records in it, and says each
 
 TEST_CASE("a whole drawing by the owner replaces its own nodes and keeps an element's subtree") {
     gfx::Sketch s;
-    s.text("label", 0, 0, "label", gfx::Paint{});
+    s.text("label", 0, 0, "label", gfx::Color{});
     s.group("field", 0, 1, 10, 1);
     gfx::window::WinArea a = store_holding(s);
     a.presented.push_back(gfx::window::Presented{"field", "test.Field", 1, 1, {}});
@@ -330,7 +330,7 @@ TEST_CASE("a change to every one of an area's most nodes, flat siblings, changes
         gfx::Sketch s;
         for (std::size_t i = 0; i < gfx::kMaxNodesPerArea; ++i) {
             s.text("node" + std::to_string(i), static_cast<std::int64_t>(i % 80),
-                   static_cast<std::int64_t>(i / 80), changed ? "changed" : "initial", gfx::Paint{});
+                   static_cast<std::int64_t>(i / 80), changed ? "changed" : "initial", gfx::Color{});
         }
         return s;
     };
@@ -352,7 +352,7 @@ TEST_CASE("a change to every one of an area's most nodes, flat siblings, changes
     CHECK(ranked);
     // ...AND ONE NODE CHANGED BACK CHANGES THAT ONE ALONE.
     gfx::Sketch one = after;
-    one.text("node7", 7, 0, "initial", gfx::Paint{});
+    one.text("node7", 7, 0, "initial", gfx::Color{});
     const gfx::Drawn sparse = gfx::difference(after, one);
     REQUIRE(sparse.put.size() == 1);
     CHECK(gfx::window::apply(a, {}, sparse).changed == std::set<std::string>{"node7"});
@@ -362,10 +362,10 @@ TEST_CASE("the judge takes a removed path's whole subtree out of what the area w
           "sibling whose path merely begins with it") {
     gfx::Sketch s;
     s.group("g", 0, 0, 10, 10);
-    s.text("g/x", 0, 0, "x", gfx::Paint{});
+    s.text("g/x", 0, 0, "x", gfx::Color{});
     s.group("g/x/deep", 0, 0, 5, 5);
     s.group("gx", 0, 0, 5, 5); // a sibling whose path begins with the group's
-    s.text("h", 0, 1, "h", gfx::Paint{});
+    s.text("h", 0, 1, "h", gfx::Color{});
     const gfx::window::WinArea a = store_holding(s);
     const auto judged = [&](std::vector<std::string> removed, std::vector<std::string> put) {
         gfx::Drawn d;
@@ -404,7 +404,7 @@ TEST_CASE("an area at its most nodes takes a removal and as many new nodes as it
     gfx::Sketch flat;
     for (std::size_t i = 0; i < gfx::kMaxNodesPerArea; ++i) {
         flat.text("node" + std::to_string(i), static_cast<std::int64_t>(i % 80),
-                  static_cast<std::int64_t>(i / 80), "initial", gfx::Paint{});
+                  static_cast<std::int64_t>(i / 80), "initial", gfx::Color{});
     }
     const gfx::window::WinArea a = store_holding(flat);
     gfx::Drawn half;
@@ -422,7 +422,7 @@ TEST_CASE("an area at its most nodes takes a removal and as many new nodes as it
     grouped.group("g", 0, 0, 80, 60);
     for (std::size_t i = 1; i < gfx::kMaxNodesPerArea; ++i) {
         grouped.text("g/node" + std::to_string(i), static_cast<std::int64_t>(i % 80),
-                     static_cast<std::int64_t>(i / 80), "initial", gfx::Paint{});
+                     static_cast<std::int64_t>(i / 80), "initial", gfx::Color{});
     }
     const gfx::window::WinArea b = store_holding(grouped);
     gfx::Drawn all;
@@ -438,9 +438,9 @@ TEST_CASE("an area at its most nodes takes a removal and as many new nodes as it
 TEST_CASE("a removal outside the sender's own is refused, naming the first such path in the "
           "drawing's order") {
     gfx::Sketch s;
-    s.text("label", 0, 0, "label", gfx::Paint{});
+    s.text("label", 0, 0, "label", gfx::Color{});
     s.group("field", 0, 1, 10, 1);
-    s.text("field/text", 0, 0, "text", gfx::Paint{});
+    s.text("field/text", 0, 0, "text", gfx::Color{});
     gfx::window::WinArea a = store_holding(s);
     a.presented.push_back(gfx::window::Presented{"field", "test.Field", 1, 1, {}});
     gfx::window::Drawer element;
@@ -492,7 +492,7 @@ TEST_CASE("a whole drawing that also removes judges its puts against what the dr
 TEST_CASE("the terminal painter draws all seven operators, each by its fallback") {
     gfx::Sketch s;
     s.group("g", 12, 0);
-    s.rect("g/r", 0, 0, 36, 24, gfx::no_paint(), gfx::by_role(gfx::role::kFill));
+    s.rect("g/r", 0, 0, 36, 24, gfx::no_color(), gfx::colors::text);
     const gfx::PaletteOffered look = plain_palette();
     const auto rect = painted(s, look);
     REQUIRE(rect.size() == 2);
@@ -500,21 +500,21 @@ TEST_CASE("the terminal painter draws all seven operators, each by its fallback"
     CHECK(rect[1] == " +-+");
 
     gfx::Sketch t;
-    t.text("t", 0, 0, "hi\xC3\xA9!", gfx::by_role(gfx::role::kFill));
+    t.text("t", 0, 0, "hi\xC3\xA9!", gfx::colors::text);
     CHECK(painted(t, look)[0] == "hi?!"); // one cell a character; outside ASCII, one '?'
 
     gfx::Sketch l;
-    l.line("l", 0, 0, 36, 0, gfx::by_role(gfx::role::kFill));
+    l.line("l", 0, 0, 36, 0, gfx::colors::text);
     CHECK(painted(l, look)[0] == "----");
 
     gfx::Sketch e;
-    e.ellipse("e", 0, 0, 36, 36, gfx::by_role(gfx::role::kAccent));
+    e.ellipse("e", 0, 0, 36, 36, gfx::colors::accent);
     const auto ellipse = painted(e, look);
     REQUIRE(ellipse.size() >= 2);
     CHECK(ellipse[1].find('@') != std::string::npos);
 
     gfx::Sketch p;
-    p.path("p", "M 0 0 L 36 0 L 36 36 L 0 36 Z", gfx::by_role(gfx::role::kFill));
+    p.path("p", "M 0 0 L 36 0 L 36 36 L 0 36 Z", gfx::colors::text);
     const auto path = painted(p, look);
     REQUIRE(path.size() == 3);
     CHECK(path[1] == "###");
@@ -531,7 +531,7 @@ TEST_CASE("the terminal painter draws all seven operators, each by its fallback"
 TEST_CASE("a group offsets and clips its children") {
     gfx::Sketch s;
     s.group("g", 24, 12, 24, 12);
-    s.fill_rect("g/r", 0, 0, 120, 120, gfx::by_role(gfx::role::kFill));
+    s.fill_rect("g/r", 0, 0, 120, 120, gfx::colors::text);
     const auto rows = painted(s, plain_palette());
     REQUIRE(rows.size() == 2);
     CHECK(rows[0].empty());
@@ -811,7 +811,7 @@ public:
 
     void picture(gfx::Sketch& f) const {
         f.text("beats", 0, 0, "beats " + std::to_string(state_.beats),
-               gfx::by_role(gfx::role::kFill));
+               gfx::colors::text);
         f.group("board", 0, gfx::kCellPx);
     }
 
@@ -1442,7 +1442,7 @@ public:
             return;
         }
         gfx::Sketch s;
-        s.text("words", 0, 0, words_, gfx::by_role(gfx::role::kFill));
+        s.text("words", 0, 0, words_, gfx::colors::text);
         if (!action_.empty()) {
             s.action("words", action_);
         }
@@ -1610,7 +1610,7 @@ TEST_CASE("the window tells an area's arranger, unasked, each time what the area
     // THE OWNER DRAWS AGAIN, ON ITS OWN: told again, at a version past the first.
     const loom::WeaveId owner = t.r.bus.role_holder("test.settling");
     gfx::Sketch s;
-    s.text("words", 0, 0, "other words", gfx::by_role(gfx::role::kFill));
+    s.text("words", 0, 0, "other words", gfx::colors::text);
     REQUIRE(t.r.bus.office_send_to_role_as(owner, "test.settling", window_office(),
         loom::Message(loom::to_value(gfx::Drawn{"test.settling", true, s.nodes(), {}, s.records(),
                                                 {}, false, 0}))).valid());
@@ -1623,7 +1623,7 @@ TEST_CASE("the window tells an area's arranger, unasked, each time what the area
     // THE AREA PLACED WITHOUT FOLLOWING IT, drawn again: never told, at any version.
     const loom::WeaveId quiet_owner = t.r.bus.role_holder("test.quiet");
     gfx::Sketch q;
-    q.text("words", 0, 0, "quiet again", gfx::by_role(gfx::role::kFill));
+    q.text("words", 0, 0, "quiet again", gfx::colors::text);
     REQUIRE(t.r.bus.office_send_to_role_as(quiet_owner, "test.quiet", window_office(),
         loom::Message(loom::to_value(gfx::Drawn{"test.quiet", true, q.nodes(), {}, q.records(),
                                                 {}, false, 0}))).valid());
@@ -1665,7 +1665,7 @@ TEST_CASE("a button's moment says what the window drew under the hand when it la
     const auto draw = [&t, owner](const std::string& words, const std::string& action,
                                   std::int64_t number) {
         gfx::Sketch s;
-        s.text("words", 0, 0, words, gfx::by_role(gfx::role::kFill));
+        s.text("words", 0, 0, words, gfx::colors::text);
         if (!action.empty()) s.action("words", action);
         s.number(number);
         REQUIRE(t.r.bus.office_send_to_role_as(owner, "test.hearing", window_office(),
@@ -2288,7 +2288,7 @@ struct Resized : TypedWindow {
         r.arrange(SNAKE_SO_BOARD, kOwner, kOwner, "classic",
                   2 * gfx::kCellPx, 3 * gfx::kCellPx);
         gfx::Sketch s;
-        s.text("words", 0, 0, "hello", gfx::by_role(gfx::role::kFill));
+        s.text("words", 0, 0, "hello", gfx::colors::text);
         gfx::Drawn d;
         d.area = kOwner;
         d.whole = true;
@@ -2492,7 +2492,7 @@ TEST_CASE("the terminal window copies by OSC 52, reads no clipboard, has no plac
     // next picture has it.
     const auto draw = [&](const std::string& words, bool more) {
         gfx::Sketch sk;
-        sk.text("words", 0, 0, words, gfx::by_role(gfx::role::kFill));
+        sk.text("words", 0, 0, words, gfx::colors::text);
         gfx::Drawn d;
         d.area = kOwner;
         d.whole = true;
@@ -2808,7 +2808,7 @@ public:
         f.text("hook", 0, 0,
                "hook " + std::to_string(after_hook_beats_) + " " + std::to_string(last_w_) + "x" +
                    std::to_string(last_h_),
-               gfx::by_role(gfx::role::kFill));
+               gfx::colors::text);
     }
 
     std::int64_t rooms() const { return rooms_; }
@@ -2890,7 +2890,7 @@ public:
                "timed " + std::to_string(timed_activations_) + ":" +
                    std::to_string(timed_sequence_) + " facet " +
                    std::to_string(af.activations) + ":" + std::to_string(af.last_sequence),
-               gfx::by_role(gfx::role::kFill));
+               gfx::colors::text);
     }
 
     std::int64_t timed_activations() const { return timed_activations_; }
@@ -3192,8 +3192,8 @@ TEST_CASE("a button draws its face and its label at its path, its face the recor
     CHECK(f.enabled);
     CHECK_FALSE(f.pressed);
     CHECK_FALSE(f.hovered);
-    CHECK(zengine::graphics::role_of(f.fill) == gfx::role::kGround);
-    CHECK(zengine::graphics::role_of(f.ink) == gfx::role::kFill);
+    CHECK(zengine::graphics::pool_color_of(f.fill) == gfx::colors::background);
+    CHECK(zengine::graphics::pool_color_of(f.ink) == gfx::colors::text);
     // ITS WORDS CENTRED ON A FACE AS WIDE AS ITS BOX, so a press anywhere on the box lands on it.
     const auto rows = painted(s, parts_look());
     REQUIRE(rows.size() == 2);
@@ -3212,7 +3212,7 @@ TEST_CASE("a button draws its face and its label at its path, its face the recor
     gfx::Sketch off;
     b.sketch(off, "file.save");
     CHECK(record_at(off, "save").action.empty());
-    CHECK(zengine::graphics::role_of(face_at<gfx::ButtonFace>(off, "save").ink) == gfx::role::kMuted);
+    CHECK(zengine::graphics::pool_color_of(face_at<gfx::ButtonFace>(off, "save").ink) == gfx::colors::quiet);
     CHECK_FALSE(face_at<gfx::ButtonFace>(off, "save").enabled);
     CHECK(painted(off, parts_look())[1] == "    (save)  ");
 
@@ -3229,8 +3229,8 @@ TEST_CASE("a button draws its face and its label at its path, its face the recor
     CHECK_FALSE(b.pressed());
     b.set_enabled(true);
     b.hover(true);
-    CHECK(zengine::graphics::role_of(b.face().ink) == gfx::role::kAccent);
-    CHECK(zengine::graphics::role_of(b.face().fill) == gfx::role::kGround);
+    CHECK(zengine::graphics::pool_color_of(b.face().ink) == gfx::colors::accent);
+    CHECK(zengine::graphics::pool_color_of(b.face().fill) == gfx::colors::background);
     CHECK(b.face().hovered);
 }
 
@@ -3311,12 +3311,12 @@ TEST_CASE("a checkbox says its state in its mark, keeps that state its owner's, 
     CHECK(record_at(off, "wrap").action.empty());
     const auto f = face_at<gfx::CheckboxFace>(off, "wrap");
     CHECK_FALSE(f.enabled);
-    CHECK(zengine::graphics::role_of(f.box_fill) == gfx::role::kGround);
-    CHECK(zengine::graphics::role_of(f.check_ink) == gfx::role::kMuted);
-    CHECK(zengine::graphics::role_of(f.label_ink) == gfx::role::kMuted);
+    CHECK(zengine::graphics::pool_color_of(f.box_fill) == gfx::colors::background);
+    CHECK(zengine::graphics::pool_color_of(f.check_ink) == gfx::colors::quiet);
+    CHECK(zengine::graphics::pool_color_of(f.label_ink) == gfx::colors::quiet);
     c.set_enabled(true);
     c.hover(true);
-    CHECK(zengine::graphics::role_of(c.face().label_ink) == gfx::role::kAccent);
+    CHECK(zengine::graphics::pool_color_of(c.face().label_ink) == gfx::colors::accent);
     CHECK(c.face().hovered);
 }
 
@@ -3398,12 +3398,12 @@ TEST_CASE("a list draws its shown rows each at its index with its own record and
     const auto chosen = face_at<gfx::ListRowFace>(a, "rows/0");
     CHECK(chosen.text == "alpha");
     CHECK(chosen.selected);
-    CHECK(zengine::graphics::role_of(chosen.ink) == gfx::role::kAccent);
+    CHECK(zengine::graphics::pool_color_of(chosen.ink) == gfx::colors::accent);
     CHECK(chosen.y == 0);
     CHECK(chosen.w == 8 * kCell);
     const auto next = face_at<gfx::ListRowFace>(a, "rows/1");
     CHECK_FALSE(next.selected);
-    CHECK(zengine::graphics::role_of(next.ink) == gfx::role::kFill);
+    CHECK(zengine::graphics::pool_color_of(next.ink) == gfx::colors::text);
     CHECK(next.y == kCell);
     // The chosen row says so in its words too, for a medium without colour.
     const auto rows = painted(a, parts_look());
@@ -3445,7 +3445,7 @@ TEST_CASE("a grid draws only the cells that hold something, each at its own path
 
     const auto face = [](std::int64_t, std::int64_t, int v) {
         gfx::GridCellFace f;
-        f.fill = gfx::by_role(v == 7 ? gfx::role::kAccent : gfx::role::kMuted);
+        f.fill = v == 7 ? gfx::colors::accent : gfx::colors::quiet;
         f.glyph = v == 7 ? "#" : "";
         return f;
     };
@@ -3519,10 +3519,10 @@ TEST_CASE("an icon draws its named outline scaled into its square, a name its ta
     gfx::Icon i("ok", "check");
     i.set_position(kCell, 0);
     i.set_size(2 * kCell);
-    i.set_role(gfx::role::kAlert);
+    i.set_ink(gfx::colors::alert);
     CHECK(i.name() == "check");
     CHECK(i.size() == 2 * kCell);
-    CHECK(i.role() == gfx::role::kAlert);
+    CHECK(i.ink() == gfx::colors::alert);
     gfx::Sketch s;
     i.sketch(s, "confirm");
     CHECK(node_paths(s) == Paths{"ok", "ok/shape"});
@@ -3530,12 +3530,12 @@ TEST_CASE("an icon draws its named outline scaled into its square, a name its ta
     const auto shape = gfx::from_body<gfx::PathArgs>(node_at(s, "ok/shape").args);
     REQUIRE(shape.has_value());
     CHECK(shape->d == gfx::Icon::path_data(gfx::Icon::outline("check"), 2 * kCell));
-    CHECK(zengine::graphics::role_of(shape->fill) == gfx::role::kAlert);
+    CHECK(zengine::graphics::pool_color_of(shape->fill) == gfx::colors::alert);
     const auto f = face_at<gfx::IconFace>(s, "ok");
     CHECK(f.name == "check");
     CHECK(f.x == kCell);
     CHECK(f.size == 2 * kCell);
-    CHECK(zengine::graphics::role_of(f.ink) == gfx::role::kAlert);
+    CHECK(zengine::graphics::pool_color_of(f.ink) == gfx::colors::alert);
     CHECK(record_at(s, "ok").action == "confirm");
 
     // Every outline the table holds fills its one cell in a terminal: an icon a cell large shows.
@@ -3575,13 +3575,13 @@ TEST_CASE("an image shows the rectangle of its sheet its uv corners choose, tint
     im.set_uv(-1.0, -1.0, 2.0, 2.0); // held between 0 and 1
     CHECK(im.slice().rgba == sheet);
 
-    im.set_tint(gfx::exact(gfx::role::kFill, 0x80ff00));
+    im.set_tint(gfx::rgb(0x80ff00, gfx::colors::text));
     sl = im.slice();
     CHECK(sl.rgba[0] == 128); // red by 0x80
     CHECK(sl.rgba[5] == 255); // green by 0xff
     CHECK(sl.rgba[14] == 0);  // blue by 0x00
     CHECK(sl.rgba[3] == 255); // alpha untouched
-    im.set_tint(gfx::by_role(gfx::role::kAccent)); // a role alone: no tint
+    im.set_tint(gfx::colors::accent); // a pool colour alone: no tint
     CHECK(im.slice().rgba == sheet);
 
     im.set_bounds(0, 0, 4 * kCell, 2 * kCell);
@@ -3595,7 +3595,7 @@ TEST_CASE("an image shows the rectangle of its sheet its uv corners choose, tint
     const auto f = face_at<gfx::ImageFace>(s, "sprite");
     CHECK(f.source == "sheet.png");
     CHECK(f.u1 == 1.0);
-    CHECK(zengine::graphics::role_of(f.tint) == gfx::role::kAccent);
+    CHECK(zengine::graphics::pool_color_of(f.tint) == gfx::colors::accent);
     CHECK(record_at(s, "sprite").action == "zoom");
 
     // AN EMPTY RECTANGLE, or no pixels: a frame and the words.
@@ -3670,11 +3670,11 @@ TEST_CASE("a scroll view clips the content drawn under it, moved up by its offse
     CHECK(f.scroll_offset == 2 * kCell);
     CHECK(f.thumb_size == 2 * kCell);
     CHECK(f.thumb_offset == kCell);
-    CHECK(zengine::graphics::role_of(f.track_fill) == gfx::role::kMuted);
-    CHECK(zengine::graphics::role_of(f.thumb_fill) == gfx::role::kFill);
+    CHECK(zengine::graphics::pool_color_of(f.track_fill) == gfx::colors::quiet);
+    CHECK(zengine::graphics::pool_color_of(f.thumb_fill) == gfx::colors::text);
     for (int i = 0; i < 8; ++i) {
         s.text(v.content_path() + "/l" + std::to_string(i), 0, i * kCell,
-               "line " + std::to_string(i), gfx::by_role(gfx::role::kFill));
+               "line " + std::to_string(i), gfx::colors::text);
     }
     const auto rows = painted(s, parts_look());
     CHECK(rows == Paths{"line 2 .", "line 3 o", "line 4 o", "line 5 ."});
@@ -3754,7 +3754,7 @@ TEST_CASE("a text box shows its placeholder while empty and unfocused, the part 
     const auto f = face_at<gfx::TextBoxFace>(a, "q");
     CHECK(f.placeholder == "search");
     CHECK(f.text.empty());
-    CHECK(zengine::graphics::role_of(f.border) == gfx::role::kMuted);
+    CHECK(zengine::graphics::pool_color_of(f.border) == gfx::colors::quiet);
 
     t.set_focused(true);
     t.insert("abcdefghij");
@@ -3766,7 +3766,7 @@ TEST_CASE("a text box shows its placeholder while empty and unfocused, the part 
     CHECK(typed.text == "abcdefghij"); // the record holds it whole
     CHECK(typed.cursor == 10);
     CHECK(typed.focused);
-    CHECK(zengine::graphics::role_of(typed.border) == gfx::role::kAccent);
+    CHECK(zengine::graphics::pool_color_of(typed.border) == gfx::colors::accent);
     t.move_home();
     gfx::Sketch c;
     t.sketch(c, "focus.q");
@@ -3777,7 +3777,7 @@ TEST_CASE("a text box shows its placeholder while empty and unfocused, the part 
     gfx::Sketch d;
     t.sketch(d, "focus.q");
     CHECK(record_at(d, "q").action.empty());
-    CHECK(zengine::graphics::role_of(face_at<gfx::TextBoxFace>(d, "q").ink) == gfx::role::kMuted);
+    CHECK(zengine::graphics::pool_color_of(face_at<gfx::TextBoxFace>(d, "q").ink) == gfx::colors::quiet);
     CHECK(gfx::difference(c, d).removed == Paths{"q/cursor"});
 }
 
@@ -3892,7 +3892,7 @@ struct Board {
         grid.sketch(
             s,
             [](std::int64_t, std::int64_t, int) {
-                return gfx::GridCellFace{0, 0, 0, 0, gfx::by_role(gfx::role::kAccent), ""};
+                return gfx::GridCellFace{0, 0, 0, 0, gfx::colors::accent, ""};
             },
             [](std::int64_t col, std::int64_t row, int) {
                 return "test.cell." + std::to_string(col) + "." + std::to_string(row);
@@ -3903,7 +3903,7 @@ struct Board {
         view.sketch(s, "test.bar");
         for (int i = 0; i < 8; ++i) {
             s.text(view.content_path() + "/l" + std::to_string(i), 0, i * kCell,
-                   "line " + std::to_string(i), gfx::by_role(gfx::role::kFill));
+                   "line " + std::to_string(i), gfx::colors::text);
         }
         return s;
     }
@@ -4039,7 +4039,7 @@ bool shows(const std::vector<std::string>& rows, const std::string& words) {
 }
 
 ws::StandingCondition condition(const char* key, const char* compact, const char* detail) {
-    return ws::StandingCondition{key, compact, detail, zengine::graphics::role::kAlert, ""};
+    return ws::StandingCondition{key, compact, detail, zengine::graphics::colors::alert, ""};
 }
 
 /// THE ATTENTION PANE, the library Workshop loads, in a window whose terminal is the suite's: its
@@ -4104,9 +4104,9 @@ public:
     }
     void picture(gfx::Sketch& f) const {
         f.text("words", 0, 0, "turn " + std::to_string(state_.heard),
-               gfx::by_role(gfx::role::kFill));
+               gfx::colors::text);
         if (broken_) {
-            f.text("nowhere/words", 0, gfx::kCellPx, "orphan", gfx::by_role(gfx::role::kFill));
+            f.text("nowhere/words", 0, gfx::kCellPx, "orphan", gfx::colors::text);
         }
     }
 
@@ -4134,8 +4134,8 @@ public:
     void picture(gfx::Sketch& f) const {
         constexpr std::int64_t c = gfx::kCellPx;
         f.group("button", 2 * c, c);
-        f.fill_rect("button/face", 0, 0, 8 * c, 3 * c, gfx::by_role(gfx::role::kAccent));
-        f.text("button/label", 3 * c, c, "go", gfx::by_role(gfx::role::kFill));
+        f.fill_rect("button/face", 0, 0, 8 * c, 3 * c, gfx::colors::accent);
+        f.text("button/label", 3 * c, c, "go", gfx::colors::text);
         f.action("button", "go");
     }
     void on_action(const std::string& id, loom::Mail&) {
@@ -4208,8 +4208,8 @@ public:
     void picture(gfx::Sketch& f) const {
         constexpr std::int64_t c = gfx::kCellPx;
         f.group("button", 2 * c, c);
-        f.fill_rect("button/face", 0, 0, 8 * c, 3 * c, gfx::by_role(gfx::role::kAccent));
-        f.text("button/label", 3 * c, c, "go", gfx::by_role(gfx::role::kFill));
+        f.fill_rect("button/face", 0, 0, 8 * c, 3 * c, gfx::colors::accent);
+        f.text("button/label", 3 * c, c, "go", gfx::colors::text);
         f.action("button", "go");
     }
     void rest(const std::string& part, loom::Mail&) { rests.push_back(part); }
@@ -4531,23 +4531,23 @@ std::vector<light::NodePrimitives> lit(const gfx::Sketch& s, const gfx::PaletteO
     return out;
 }
 
-/// The colour a role's pool colour paints in `palette`.
-std::uint32_t ink_of(const gfx::PaletteOffered& palette, std::int64_t role) {
+/// The colour a colour's pool colour paints in `palette`.
+std::uint32_t ink_of(const gfx::PaletteOffered& palette, gfx::Color ink) {
     return static_cast<std::uint32_t>(
-        gw::pool_color(palette, gfx::pool_color_of_role(role).name)->rgba);
+        gw::pool_color(palette, gfx::pool_color_of(ink).name)->rgba);
 }
 
 /// Every operator once, in one picture: a group holding the rest.
 gfx::Sketch every_operator() {
     gfx::Sketch s;
     s.group("g", 10, 20);
-    s.rect("g/rect", 0, 0, 40, 30, gfx::by_role(gfx::role::kAccent), gfx::by_role(gfx::role::kFill));
-    s.ellipse("g/ellipse", 50, 0, 20, 10, gfx::exact(gfx::role::kFill, 0x123456),
-              gfx::by_role(gfx::role::kMuted));
-    s.line("g/line", 0, 40, 30, 40, gfx::by_role(gfx::role::kAlert));
-    s.path("g/path", "M 0 50 L 20 50 L 20 60 L 0 60 Z", gfx::by_role(gfx::role::kGuide),
-           gfx::by_role(gfx::role::kFill));
-    s.text("g/text", 0, 70, "hi\xC3\xA9!", gfx::by_role(gfx::role::kFill));
+    s.rect("g/rect", 0, 0, 40, 30, gfx::colors::accent, gfx::colors::text);
+    s.ellipse("g/ellipse", 50, 0, 20, 10, gfx::rgb(0x123456, gfx::colors::text),
+              gfx::colors::quiet);
+    s.line("g/line", 0, 40, 30, 40, gfx::colors::alert);
+    s.path("g/path", "M 0 50 L 20 50 L 20 60 L 0 60 Z", gfx::colors::guide,
+           gfx::colors::text);
+    s.text("g/text", 0, 70, "hi\xC3\xA9!", gfx::colors::text);
     s.image("g/image", 0, 90, 4, 2, 2, 1, loom::Bytes{255, 0, 0, 255, 0, 255, 0, 255});
     return s;
 }
@@ -4562,9 +4562,9 @@ TEST_CASE("the painter for light paints all seven operators into pixel primitive
 
     const light::NodePrimitives& rect = nodes[0];
     REQUIRE(rect.quads.size() == 5); // the fill, then four edges a pixel wide
-    CHECK(rect.quads[0] == light::Quad{10, 20, 40, 30, ink_of(day, gfx::role::kAccent)});
-    CHECK(rect.quads[1] == light::Quad{10, 20, 40, 1, ink_of(day, gfx::role::kFill)});
-    CHECK(rect.quads[4] == light::Quad{49, 20, 1, 30, ink_of(day, gfx::role::kFill)});
+    CHECK(rect.quads[0] == light::Quad{10, 20, 40, 30, ink_of(day, gfx::colors::accent)});
+    CHECK(rect.quads[1] == light::Quad{10, 20, 40, 1, ink_of(day, gfx::colors::text)});
+    CHECK(rect.quads[4] == light::Quad{49, 20, 1, 30, ink_of(day, gfx::colors::text)});
 
     const light::NodePrimitives& ellipse = nodes[1];
     CHECK(ellipse.quads.size() == 10); // a span a pixel row
@@ -4574,20 +4574,20 @@ TEST_CASE("the painter for light paints all seven operators into pixel primitive
         CHECK(q.x + q.w <= 80);
     }
     CHECK(ellipse.lines.size() == 48);
-    CHECK(ellipse.lines[0].rgba == ink_of(day, gfx::role::kMuted));
+    CHECK(ellipse.lines[0].rgba == ink_of(day, gfx::colors::quiet));
 
     const light::NodePrimitives& line = nodes[2];
     REQUIRE(line.lines.size() == 1);
-    CHECK(line.lines[0] == light::Line{10, 60, 40, 60, ink_of(day, gfx::role::kAlert)});
+    CHECK(line.lines[0] == light::Line{10, 60, 40, 60, ink_of(day, gfx::colors::alert)});
 
     const light::NodePrimitives& path = nodes[3];
     CHECK(path.quads.size() == 10); // the square's ten pixel rows
-    CHECK(path.quads[0] == light::Quad{10, 70, 20, 1, ink_of(day, gfx::role::kGuide)});
+    CHECK(path.quads[0] == light::Quad{10, 70, 20, 1, ink_of(day, gfx::colors::guide)});
     CHECK(path.lines.size() == 3); // between its points as flattened: a closing Z adds none
 
     const light::NodePrimitives& text = nodes[4];
     REQUIRE(text.texts.size() == 1);
-    CHECK(text.texts[0] == light::TextRun{10, 90, ink_of(day, gfx::role::kFill), "hi?!"});
+    CHECK(text.texts[0] == light::TextRun{10, 90, ink_of(day, gfx::colors::text), "hi?!"});
 
     const light::NodePrimitives& image = nodes[5];
     REQUIRE(image.images.size() == 1);
@@ -4603,28 +4603,28 @@ TEST_CASE("the painter for light paints all seven operators into pixel primitive
     const auto unknown = lit(u, day);
     REQUIRE(unknown[0].texts.size() == 1);
     CHECK(unknown[0].texts[0].text == "?sparkle");
-    CHECK(unknown[0].texts[0].rgba == ink_of(day, gfx::role::kMuted));
+    CHECK(unknown[0].texts[0].rgba == ink_of(day, gfx::colors::quiet));
 
     // The night palette colours the same picture otherwise: a name is its palette's colour.
     gfx::Sketch g;
     g.text("t", 0, 0, "x", gfx::colors::text);
     const gfx::PaletteOffered night = gfx::themes::night();
-    CHECK(lit(g, night)[0].texts[0].rgba == ink_of(night, gfx::role::kFill));
-    CHECK(lit(g, day)[0].texts[0].rgba == ink_of(day, gfx::role::kFill));
-    CHECK(ink_of(night, gfx::role::kFill) != ink_of(day, gfx::role::kFill));
+    CHECK(lit(g, night)[0].texts[0].rgba == ink_of(night, gfx::colors::text));
+    CHECK(lit(g, day)[0].texts[0].rgba == ink_of(day, gfx::colors::text));
+    CHECK(ink_of(night, gfx::colors::text) != ink_of(day, gfx::colors::text));
 }
 
 TEST_CASE("a group's clip cuts what its children paint for light: quads, lines, text by its pixels and "
           "images") {
     gfx::Sketch s;
     s.group("g", 10, 10, 20, 12); // the clip, (10, 10) to (30, 22)
-    s.fill_rect("g/r", -5, -5, 100, 100, gfx::by_role(gfx::role::kFill));
-    s.line("g/l", -10, 5, 50, 5, gfx::by_role(gfx::role::kFill));
-    s.text("g/t", 0, 0, "abcdef", gfx::by_role(gfx::role::kFill));
-    s.text("g/below", 0, 40, "gone", gfx::by_role(gfx::role::kFill));
+    s.fill_rect("g/r", -5, -5, 100, 100, gfx::colors::text);
+    s.line("g/l", -10, 5, 50, 5, gfx::colors::text);
+    s.text("g/t", 0, 0, "abcdef", gfx::colors::text);
+    s.text("g/below", 0, 40, "gone", gfx::colors::text);
     s.image("g/i", 10, 0, 20, 10, 2, 1, loom::Bytes{1, 1, 1, 255, 2, 2, 2, 255});
-    s.text("g/above", 0, -4, "up", gfx::by_role(gfx::role::kFill));
-    s.text("g/low", 0, 6, "down", gfx::by_role(gfx::role::kFill));
+    s.text("g/above", 0, -4, "up", gfx::colors::text);
+    s.text("g/low", 0, 6, "down", gfx::colors::text);
     const auto nodes = lit(s, gfx::themes::day());
     REQUIRE(nodes.size() == 7);
     REQUIRE(nodes[0].quads.size() == 1);
@@ -4689,7 +4689,7 @@ TEST_CASE("a node painted for light packs and reads back whole, and bytes that a
 
     // What a character painter writes is not light.
     gfx::Sketch s;
-    s.fill_rect("r", 0, 0, 24, 12, gfx::by_role(gfx::role::kFill));
+    s.fill_rect("r", 0, 0, 24, 12, gfx::colors::text);
     const gfx::PaintResult cells = gfx::term::paint_task(task_in(s, gfx::themes::classic()));
     REQUIRE(cells.nodes.size() == 1);
     CHECK_FALSE(light::is_light(cells.nodes[0].cells));
@@ -4720,8 +4720,8 @@ TEST_CASE("in light a run of text stands a character every advance of the window
           "task says it, and a line of that face tall") {
     gfx::Sketch s;
     s.group("g", 0, 0, 3 * 8, 18);
-    s.text("g/row", 0, 0, "abcdef", gfx::by_role(gfx::role::kFill));
-    s.text("mark", 40, 0, "xyz", gfx::by_role(gfx::role::kFill));
+    s.text("g/row", 0, 0, "abcdef", gfx::colors::text);
+    s.text("mark", 40, 0, "xyz", gfx::colors::text);
     gfx::PaintTask task = task_in(s, gfx::themes::day());
     task.text_advance = 8;
     task.text_line = 18;
@@ -5120,7 +5120,7 @@ TEST_CASE("the OS window paints every operator for light, holds a drawing saying
     t.say("test.lit", first);
     CHECK(t.light.frames.size() == before); // held back: more of the beat follows
     gfx::Sketch tail;
-    tail.text("tail", 0, 0, "tail", gfx::by_role(gfx::role::kFill));
+    tail.text("tail", 0, 0, "tail", gfx::colors::text);
     t.say("test.lit", gfx::Drawn{"test.lit", false, tail.nodes(), {}, {}, {}, false});
     REQUIRE(t.light.frames.size() == before + 1); // the beat, shown once
     CHECK(o.refused.empty());
@@ -5131,7 +5131,7 @@ TEST_CASE("the OS window paints every operator for light, holds a drawing saying
     REQUIRE(a != nullptr);
     REQUIRE(a->nodes.size() == 7); // every operator but the group, and the tail
     CHECK(a->paths[0] == "g/rect");
-    CHECK(a->nodes[0].quads[0].rgba == ink_of(night, gfx::role::kAccent));
+    CHECK(a->nodes[0].quads[0].rgba == ink_of(night, gfx::colors::accent));
     CHECK(a->nodes[5].images.size() == 1);
 
     const gfx::WindowShown s = t.shown();
@@ -5161,8 +5161,8 @@ TEST_CASE("the OS window sets text in the face it measured: its owners are told 
     CHECK(o.rooms.back().text_line_px == face.line);
     gfx::Sketch s;
     s.group("g", 0, face.line, 3 * face.advance, face.line);
-    s.text("g/row", 0, 0, "abcdef", gfx::by_role(gfx::role::kFill));
-    s.text("word", 5 * face.advance, 0, "go", gfx::by_role(gfx::role::kFill));
+    s.text("g/row", 0, 0, "abcdef", gfx::colors::text);
+    s.text("word", 5 * face.advance, 0, "go", gfx::colors::text);
     s.action("word", "go.on");
     t.say("test.day", whole("test.day", s));
     REQUIRE(o.refused.empty());
@@ -5196,7 +5196,7 @@ TEST_CASE("the OS window paints each area in the palette it wears, painting each
     t.own("test.classic", 0, 0, 20 * gfx::kCellPx, 5 * gfx::kCellPx, "classic");
     t.own("test.day", 0, 6 * gfx::kCellPx, 20 * gfx::kCellPx, 5 * gfx::kCellPx, "day", 1);
     gfx::Sketch s;
-    s.fill_rect("r", 0, 0, 24, 12, gfx::by_role(gfx::role::kFill));
+    s.fill_rect("r", 0, 0, 24, 12, gfx::colors::text);
     t.say("test.classic", whole("test.classic", s));
     t.say("test.day", whole("test.day", s));
     const LightLog::Area* classic = t.light.area("test.classic");
@@ -5205,8 +5205,8 @@ TEST_CASE("the OS window paints each area in the palette it wears, painting each
     REQUIRE(day != nullptr);
     REQUIRE(classic->nodes.size() == 1);
     REQUIRE(day->nodes.size() == 1);
-    CHECK(classic->nodes[0].quads[0].rgba == ink_of(gfx::themes::classic(), gfx::role::kFill));
-    CHECK(day->nodes[0].quads[0].rgba == ink_of(gfx::themes::day(), gfx::role::kFill));
+    CHECK(classic->nodes[0].quads[0].rgba == ink_of(gfx::themes::classic(), gfx::colors::text));
+    CHECK(day->nodes[0].quads[0].rgba == ink_of(gfx::themes::day(), gfx::colors::text));
     // The ground is the back-most area's palette's.
     CHECK(t.light.frames.back().ground ==
           static_cast<std::uint32_t>(gw::ground_of(gfx::themes::classic())));
@@ -5214,7 +5214,7 @@ TEST_CASE("the OS window paints each area in the palette it wears, painting each
     // Each change is painted once, in its area's palette.
     const gfx::WindowShown first = t.shown();
     CHECK(first.refusals == 0);
-    s.fill_rect("r", 0, 0, 36, 12, gfx::by_role(gfx::role::kFill));
+    s.fill_rect("r", 0, 0, 36, 12, gfx::colors::text);
     t.say("test.classic", whole("test.classic", s));
     CHECK(t.shown().painter_calls == first.painter_calls + 1);
     t.say("test.day", whole("test.day", s));
@@ -5430,7 +5430,7 @@ TEST_CASE("a slot paints the palette's colour for the office that exposes it, el
 namespace {
 
 /// Operands as a drawer built against a vocabulary before colours were named drew them: a colour
-/// a role beside an exact value (`Paint` version 1).
+/// a role beside an exact value (`Color` version 1).
 struct V1Paint {
     std::int64_t role = -1;
     std::int64_t rgb = -1;
@@ -5478,13 +5478,13 @@ TEST_CASE("a left press on the OS window lands on the top node painted at its pi
     LitHeard& back = t.own("test.back", 0, 0, 400, 200, "night", 0, false, /*pointer=*/true);
     LitHeard& front = t.own("test.front", 100, 50, 200, 50, "night", 1);
     gfx::Sketch b;
-    b.fill_rect("plate", 0, 0, 400, 200, gfx::by_role(gfx::role::kGround));
-    b.fill_rect("button", 10, 10, 50, 20, gfx::by_role(gfx::role::kAccent));
+    b.fill_rect("plate", 0, 0, 400, 200, gfx::colors::background);
+    b.fill_rect("button", 10, 10, 50, 20, gfx::colors::accent);
     b.action("button", "serve");
     t.say("test.back", whole("test.back", b));
     gfx::Sketch f;
-    f.text("lid", 10, 10, "lid", gfx::by_role(gfx::role::kFill));
-    f.fill_rect("knob", 150, 10, 20, 20, gfx::by_role(gfx::role::kAccent));
+    f.text("lid", 10, 10, "lid", gfx::colors::text);
+    f.fill_rect("knob", 150, 10, 20, 20, gfx::colors::accent);
     f.action("knob", "turn");
     t.say("test.front", whole("test.front", f));
 
@@ -5724,7 +5724,7 @@ TEST_CASE("the OS window started again from what its last instance kept shows it
         LitWindow t;
         t.own("test.lit", 0, 0, 40 * gfx::kCellPx, 4 * gfx::kCellPx, "day");
         gfx::Sketch s;
-        s.text("t", 0, gfx::kCellPx, "kept", gfx::by_role(gfx::role::kFill));
+        s.text("t", 0, gfx::kCellPx, "kept", gfx::colors::text);
         t.say("test.lit", whole("test.lit", s));
         before = t.shown();
         kept = t.instance->snapshot();
@@ -5738,7 +5738,7 @@ TEST_CASE("the OS window started again from what its last instance kept shows it
     const LightLog::Area* a = again.light.area("test.lit");
     REQUIRE(a != nullptr);
     REQUIRE(a->nodes.size() == 1);
-    CHECK(a->nodes[0].texts[0].rgba == ink_of(gfx::themes::day(), gfx::role::kFill));
+    CHECK(a->nodes[0].texts[0].rgba == ink_of(gfx::themes::day(), gfx::colors::text));
     CHECK(again.r.count(0, "Drawn") == 0);
     CHECK(again.light.claims == 1);
 }
@@ -5773,8 +5773,8 @@ TEST_CASE("the OS window has its backend read back the last picture it presented
     LitWindow t;
     t.own("test.lit", 0, 0, 400, 200, "night");
     gfx::Sketch one;
-    one.text("t", 0, 0, "one", gfx::by_role(gfx::role::kFill));
-    one.fill_rect("gone", 0, 24, 48, 12, gfx::by_role(gfx::role::kAccent));
+    one.text("t", 0, 0, "one", gfx::colors::text);
+    one.fill_rect("gone", 0, 24, 48, 12, gfx::colors::accent);
     t.say("test.lit", whole("test.lit", one));
     const LightLog::Frame presented = t.light.frames.back();
     REQUIRE(t.light.area("test.lit") != nullptr);
@@ -5783,7 +5783,7 @@ TEST_CASE("the OS window has its backend read back the last picture it presented
 
     // Held back: its text changed and a node removed, with more of the beat to follow.
     gfx::Sketch two;
-    two.text("t", 0, 0, "two", gfx::by_role(gfx::role::kFill));
+    two.text("t", 0, 0, "two", gfx::colors::text);
     t.say("test.lit", gfx::Drawn{"test.lit", false, two.nodes(), {"gone"}, {}, {}, true});
     REQUIRE(t.light.frames.size() == frames);
 
@@ -5979,7 +5979,7 @@ TEST_CASE("the OS window asks its backend to grow once for each new reach of its
     REQUIRE(t.light.grown.size() == 1);
     CHECK(t.light.grown[0] == gw::PixelSize{2000, 1000});
     gfx::Sketch s;
-    s.fill_rect("r", 0, 0, 24, 12, gfx::by_role(gfx::role::kFill));
+    s.fill_rect("r", 0, 0, 24, 12, gfx::colors::text);
     t.say("test.wide", whole("test.wide", s));
     t.pump();
     CHECK(t.light.grown.size() == 1); // more pictures, the same reach: not asked again
@@ -6229,7 +6229,7 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
     TypedWindow t;
     ReadDesk d(t.r, gfx::kTerminalWindow);
     constexpr std::int64_t c = gfx::kCellPx;
-    const gfx::Paint ink = gfx::by_role(gfx::role::kFill);
+    const gfx::Color ink = gfx::colors::text;
     gfx::Sketch s;
     s.text("title", 0, 0, "Pane title", ink);
     s.text("open", 0, c, "  [open]", ink);
@@ -6346,7 +6346,7 @@ TEST_CASE("an area whose owner was told a room it must draw whole reads waiting 
     CHECK(before->words.empty());
 
     gfx::Sketch s;
-    s.text("t", 0, 0, "drawn", gfx::by_role(gfx::role::kFill));
+    s.text("t", 0, 0, "drawn", gfx::colors::text);
     t.r.bus.office_send_to_role_as(d.owners["test.blank"], "test.blank", window_office(),
                                    loom::Message(loom::to_value(whole("test.blank", s))));
     t.r.drain();
@@ -6363,12 +6363,12 @@ TEST_CASE("an area's arranger reads what the OS window shows of it: its runs of 
           "press reaches it by, what an area in front draws over left out") {
     LitWindow t;
     ReadDesk d(t.r, gfx::kSdlWindow);
-    const gfx::Paint ink = gfx::by_role(gfx::role::kFill);
+    const gfx::Color ink = gfx::colors::text;
     gfx::Sketch s;
     s.text("a", 0, 0, "lid", ink);
     s.text("b", 24, 0, " on", ink); // 8 pixels a character: it begins where "lid" ends
     s.text("c", 0, 36, "far", ink);
-    s.fill_rect("knob", 100, 40, 20, 20, gfx::by_role(gfx::role::kAccent));
+    s.fill_rect("knob", 100, 40, 20, 20, gfx::colors::accent);
     s.action("knob", "turn");
     d.own("test.read", s, 10, 20, 300, 100, 1);
 
@@ -6395,8 +6395,8 @@ TEST_CASE("an area's arranger reads what the OS window shows of it: its runs of 
     // AN AREA ANOTHER OFFICE ARRANGES IN FRONT DRAWS OVER "on" AND THE KNOB'S MIDDLE: neither is
     // what the area shows there.
     gfx::Sketch over;
-    over.fill_rect("lid", 0, 0, 30, 18, gfx::by_role(gfx::role::kGround));
-    over.fill_rect("cap", 80, 35, 30, 30, gfx::by_role(gfx::role::kGround));
+    over.fill_rect("lid", 0, 0, 30, 18, gfx::colors::background);
+    over.fill_rect("cap", 80, 35, 30, 30, gfx::colors::background);
     d.placed_by_other().own("test.front", over, 10 + 26, 20, 200, 100, 2);
     const std::optional<gfx::AreaShown> covered = d.read("test.read", first->version);
     REQUIRE(covered.has_value());
@@ -6543,8 +6543,8 @@ struct SdlWeave {
         r.to_role(gfx::kGraphicsRole, placed);
         r.drain();
         gfx::Sketch s;
-        s.fill_rect("plate", 0, 0, 200, 40, gfx::by_role(gfx::role::kGround));
-        s.text("t", 0, gfx::kCellPx, "lit", gfx::by_role(gfx::role::kFill));
+        s.fill_rect("plate", 0, 0, 200, 40, gfx::colors::background);
+        s.text("t", 0, gfx::kCellPx, "lit", gfx::colors::text);
         r.bus.office_send_to_role_as(owner, "test.lit", sdl_office(),
                                      loom::Message(loom::to_value(whole("test.lit", s))));
         r.drain();
@@ -6818,8 +6818,8 @@ TEST_CASE("the OS window over SDL copies to SDL's clipboard and reads it only wh
     RealLit t;
     t.place_area(0, 0, 400, 200);
     gfx::Sketch s;
-    s.fill_rect("red", 24, 12, 48, 24, gfx::exact(gfx::role::kAccent, 0xff0000));
-    s.fill_rect("blue", 100, 50, 10, 10, gfx::exact(gfx::role::kAccent, 0x0000ff));
+    s.fill_rect("red", 24, 12, 48, 24, gfx::rgb(0xff0000, gfx::colors::accent));
+    s.fill_rect("blue", 100, 50, 10, 10, gfx::rgb(0x0000ff, gfx::colors::accent));
     t.draw(s);
 
     // The clipboard: emptied, it reads as empty; what the window copies is SDL's, and what anyone
@@ -6957,7 +6957,7 @@ TEST_CASE("an OS window takes its title and its size from an office that arrange
 
     // WHAT ITS AREAS REACHED BEFORE does not grow it back, picture after picture...
     gfx::Sketch s;
-    s.fill_rect("r", 0, 0, 24, 12, gfx::by_role(gfx::role::kFill));
+    s.fill_rect("r", 0, 0, 24, 12, gfx::colors::text);
     t.say("test.app", whole("test.app", s));
     t.pump();
     CHECK(t.light.grown.empty());
@@ -7175,7 +7175,7 @@ TEST_CASE("a text box's two faces: [text___] in a row of cells, or its text alon
     CHECK(gfx::text_box_lettering(view, 8) == " abc    ");
     const gfx::TextMeasure m{10, 20};
     gfx::Sketch s;
-    gfx::text_box_face(s, "box", view, 8, 5, 7, m, gfx::by_role(gfx::role::kFill), true);
+    gfx::text_box_face(s, "box", view, 8, 5, 7, m, gfx::colors::text, true);
     const gfx::Node* edge = node_named(s, "box.edge");
     REQUIRE(edge != nullptr);
     const auto outline = gfx::from_body<gfx::RectArgs>(edge->args);
@@ -7183,7 +7183,7 @@ TEST_CASE("a text box's two faces: [text___] in a row of cells, or its text alon
     CHECK(outline->x == 5);
     CHECK(outline->w == 80);
     CHECK(outline->h == 20);
-    CHECK(zengine::graphics::role_of(outline->stroke) == gfx::role::kEdge);
+    CHECK(zengine::graphics::pool_color_of(outline->stroke) == gfx::colors::edge);
     const auto words = gfx::from_body<gfx::TextArgs>(node_named(s, "box.text")->args);
     REQUIRE(words.has_value());
     CHECK(words->text == "abc");
@@ -7194,7 +7194,7 @@ TEST_CASE("a text box's two faces: [text___] in a row of cells, or its text alon
     CHECK(caret->x1 == 5 + (gfx::kTextBoxInset + 3) * 10);
     // Without the keys, no caret.
     gfx::Sketch away;
-    gfx::text_box_face(away, "box", view, 8, 5, 7, m, gfx::by_role(gfx::role::kFill), false);
+    gfx::text_box_face(away, "box", view, 8, 5, 7, m, gfx::colors::text, false);
     CHECK(node_named(away, "box.caret") == nullptr);
 }
 
@@ -7210,7 +7210,7 @@ TEST_CASE("a text area in a row of cells: a marker says how many lines are above
     CHECK(cells.rows[0].text == "line 0");
     CHECK(cells.rows[3].text == "line 3");
     CHECK(cells.rows[4].marker);
-    CHECK(cells.rows[4].role == gfx::role::kMuted);
+    CHECK(cells.rows[4].kind == 0);
     CHECK(cells.rows[4].text == "... 6 more below");
     // Scrolled: a marker atop and at the foot.
     gfx::text_area_cells_scroll(area, 3, 5, 20);
@@ -7272,7 +7272,7 @@ TEST_CASE("a text area's face: wrapped less the bar's room, scrolled by pixels, 
     gfx::Sketch s;
     gfx::text_area_face(
         s, "a", area, half, 0, 0,
-        [](const zengine::component::TextLook&) { return gfx::by_role(gfx::role::kFill); }, "read",
+        [](const zengine::component::TextLook&) { return gfx::colors::text; }, "read",
         "scroll");
     const auto first = gfx::from_body<gfx::TextArgs>(node_named(s, "a.text/l0")->args);
     REQUIRE(first.has_value());
@@ -7298,7 +7298,7 @@ TEST_CASE("a text area's face: wrapped less the bar's room, scrolled by pixels, 
     gfx::Sketch quiet;
     gfx::text_area_face(
         quiet, "a", short_text, fits, 0, 0,
-        [](const zengine::component::TextLook&) { return gfx::by_role(gfx::role::kFill); });
+        [](const zengine::component::TextLook&) { return gfx::colors::text; });
     CHECK(node_named(quiet, "a.bar/thumb") == nullptr);
     CHECK(gfx::from_body<gfx::GroupArgs>(node_named(quiet, "a.text")->args)->clip_w == 100);
 }

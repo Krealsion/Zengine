@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace zengine::graphics {
 
@@ -62,7 +63,18 @@ struct PoolColor {
     const char* name;
 
     operator Color() const { return Color{color_from::kPool, name, 0, {}}; }
+    friend bool operator==(const PoolColor& a, const PoolColor& b) {
+        return std::string_view(a.name) == std::string_view(b.name);
+    }
 };
+
+/// An exact colour, opaque, 0xRRGGBB, and the pool colour a medium that cannot show it shows in
+/// its place.
+inline Color rgb(std::uint32_t value, PoolColor like) {
+    Color c = rgb(value);
+    c.like = like.name;
+    return c;
+}
 
 /// A SLOT A PANE EXPOSES, as its own generated header declares it: its name, the colour it paints
 /// where no theme sets it (0xRRGGBBAA), and the pool colour a medium that cannot show that colour

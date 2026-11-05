@@ -130,7 +130,7 @@ struct TutorDesk {
             return scope::GuestRowFacts{};
         };
         b.tool->catalog = catalog_of({{"tally", "tally"}});
-        // A MARK IS A ROLE'S INK, so the desk wears a skin a terminal draws roles in: `block`.
+        // A MARK IS A POOL COLOUR, so the desk wears the look a terminal draws each pool colour in: `block`.
         prefs_persist::Prefs prefs;
         prefs_persist::put_office_value(prefs, kWorkshopProvider, "workshop.skin",
                                         PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
@@ -215,11 +215,11 @@ const PanePart* part_named(const PaneView& view, const std::string& name) {
 
 namespace rw = zengine::testing::rig_windows;
 
-/// THE CELLS A TERMINAL WINDOW SHOWS IN THE GUIDE ROLE'S INK: what a guest's marks drew there.
+/// THE CELLS A TERMINAL WINDOW SHOWS IN THE GUIDE COLOUR: what a guest's marks drew there.
 std::vector<rw::Cell> guide_cells(TutorDesk& d) {
     std::vector<rw::Cell> out;
     for (const rw::Cell& c : d.b.r.windows.cells()) {
-        if (c.role == gfx::role::kGuide) out.push_back(c);
+        if (c.ink == gfx::colors::guide) out.push_back(c);
     }
     return out;
 }
@@ -228,12 +228,12 @@ std::vector<rw::Cell> guide_cells(TutorDesk& d) {
 std::vector<rw::Quad> guide_quads(TutorDesk& d) {
     std::vector<rw::Quad> out;
     for (const rw::Quad& q : d.b.r.windows.quads()) {
-        if (q.role == gfx::role::kGuide) out.push_back(q);
+        if (q.ink == gfx::colors::guide) out.push_back(q);
     }
     return out;
 }
 
-/// WHETHER ANY MARK IS DRAWN, in either window: a cell or a quad in the guide role's ink.
+/// WHETHER ANY MARK IS DRAWN, in either window: a cell or a quad in the guide colour.
 bool mark_drawn(TutorDesk& d) {
     return d.b.r.windows.window() == gfx::kSdlWindow ? !guide_quads(d).empty()
                                                        : !guide_cells(d).empty();
@@ -338,7 +338,7 @@ TEST_CASE("the Tutor's walk on a weaver's host, in a terminal and in a window: i
 // THE MARK'S FORM, as each window draws it
 // ============================================================================
 
-TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every row of the pane reads as before, and its label stands on a body row wholly free or is not drawn, the guest told which") {
+TEST_CASE("a mark in a terminal is its part's own cells in the guide colour: every row of the pane reads as before, and its label stands on a body row wholly free or is not drawn, the guest told which") {
     TutorDesk d("guide-terminal");
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*"}, {"zengine.builder-pane/" "*"}));
     const std::vector<std::string> plain = d.b.r.shown().rows;
@@ -346,7 +346,7 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
     REQUIRE_MESSAGE(marked.shown, marked.said);
     const std::vector<std::string> shown = d.b.r.shown().rows;
     const std::vector<rw::Cell> inked = guide_cells(d);
-    // ITS INK IS A COLOUR AND NO ATTRIBUTE, as every role's is, so the cells after it are drawn in
+    // ITS INK IS A COLOUR AND NO ATTRIBUTE, as every pool colour's is, so the cells after it are drawn in
     // their own ink, neither reversed nor bold.
     const gfx::PaletteOffered block = gfx::themes::block();
     const gfx::PaletteColor* guide = gfx::window::pool_color(block, gfx::colors::guide.name);
@@ -361,7 +361,7 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
         CHECK(((code >= 30 && code <= 39) || (code >= 90 && code <= 97)));
         at = end + 1;
     }
-    // THE PART'S OWN CELLS, in the guide role, saying what they said.
+    // THE PART'S OWN CELLS, in the guide colour, saying what they said.
     const PaneView view = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
     const PanePart* build = part_named(view, "control:" + std::string(pane::kActionBuild));
     REQUIRE(build != nullptr);
@@ -416,7 +416,7 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
     }
 }
 
-TEST_CASE("a mark in a window is an outline one pixel wide around its part inside the pane's body, in the guide role's ink as the window's plan draws it, and its label names the guest") {
+TEST_CASE("a mark in a window is an outline one pixel wide around its part inside the pane's body, in the guide colour as the window's plan draws it, and its label names the guest") {
     TutorDesk d("guide-window");
     d.on_window();
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*"}, {"zengine.builder-pane/" "*"}));

@@ -74,16 +74,16 @@ LAW — Ordinary and selected chrome have identical geometry — the same outer 
 
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
-## WL-CHROME-08 — Three chrome roles, from the closed vocabulary
+## WL-CHROME-08 — Three chrome colours, from the shared pool
 
-LAW — Three chrome roles: ordinary chrome wears the fill ink, selected chrome the accent ink, a transient surface the muted ink, all from the closed role vocabulary, with no per-medium palette.
+LAW — Three chrome colours: ordinary chrome wears the pool's `text`, selected chrome its `accent`, a transient surface its `quiet`, each a pool name the area's palette paints, with no per-medium palette.
 
 MEANS
-- the desk and the document say selection with one word, `kAccent`;
+- the desk and the document say selection with one word, `accent`;
 - on a character medium a transient edge over bare workspace is the hole its interior clears.
 
 DOES NOT MEAN
-- that an opaque background changes the three roles used for pane chrome.
+- that an opaque background changes the three colours used for pane chrome.
 
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
@@ -181,7 +181,6 @@ selected pane wears its own chrome, and only it"
 
 ### WL-CHROME-08
 `workshop/screen.hpp` kPaneChrome kPaneChromeSelected kTransientChrome
-`graphics/role.hpp` kFill kAccent kMuted
 `tests/test_workshop_screen.cpp` "selected and ordinary differ in INK, and in nothing else" "a
 transient surface stays over the pane it covers, selected or not"
 

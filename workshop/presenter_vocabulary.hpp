@@ -20,7 +20,7 @@
 
 #include "graphics/canvas.hpp"
 #include "graphics/pixels.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -404,7 +404,7 @@ private:
 /// of the row it shows, which names the line in the window ("" for a marker or a rule).
 struct MenuLine {
     std::string text;
-    std::int64_t role = graphics::role::kFill;
+    graphics::Color ink = graphics::colors::text;
     std::string row;
     bool operator==(const MenuLine&) const = default;
 };
@@ -519,11 +519,11 @@ private:
         const std::int64_t line = canvas_.text().line;
         graphics::Sketch sketch;
         sketch.fill_rect("ground", 0, 0, canvas_.width(), canvas_.height(),
-                         graphics::by_role(graphics::role::kGround));
+                         graphics::colors::background);
         for (std::size_t i = 0; i < lines_.size(); ++i) {
             const std::string node = "line" + std::to_string(i);
             sketch.text(node, 0, static_cast<std::int64_t>(i) * line, lines_[i].text,
-                        graphics::by_role(lines_[i].role));
+                        lines_[i].ink);
             if (!lines_[i].row.empty()) {
                 sketch.action(node, lines_[i].row);
             }

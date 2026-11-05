@@ -56,20 +56,20 @@ struct SnakeBoardCode {
         const std::int64_t c = b.cell;
         f.group(path, 0, 0);
         f.outline_rect(path + "/border", 0, 0, (b.cols + 2) * c, (b.rows + 2) * c,
-                       gfx::by_role(s.dead ? gfx::role::kAlert : gfx::role::kMuted));
-        const auto cell = [&](std::int64_t at, std::int64_t role) {
+                       s.dead ? gfx::colors::alert : gfx::colors::quiet);
+        const auto cell = [&](std::int64_t at, gfx::Color ink) {
             if (at < 0 || at >= b.cols * b.rows) {
                 return;
             }
             f.fill_rect(path + "/c." + std::to_string(at), (at % b.cols + 1) * c,
-                        (at / b.cols + 1) * c, c, c, gfx::by_role(role));
+                        (at / b.cols + 1) * c, c, c, ink);
         };
-        cell(b.food, gfx::role::kAlert);
+        cell(b.food, gfx::colors::alert);
         for (std::size_t i = 1; i < b.body.size(); ++i) {
-            cell(b.body[i], gfx::role::kFill);
+            cell(b.body[i], gfx::colors::text);
         }
         if (!b.body.empty()) {
-            cell(b.body.front(), gfx::role::kAccent);
+            cell(b.body.front(), gfx::colors::accent);
         }
     }
 };

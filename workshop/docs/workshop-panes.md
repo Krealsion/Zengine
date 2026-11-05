@@ -719,7 +719,7 @@ of the weave; a member the facet calls only when present is optional.
   sets type, as the icon table's `right` or `down` outline in its place. A row carries a text box
   (`TextRow::box`, `row_box`), never its look: a room of cells writes `[text___]` over the box's
   columns, or its text alone for a box that reads plain there (`row_box_plain`), and, where the
-  window sets type, its text inside an outline in `role::kEdge` (`row_text_shown`); its caret
+  window sets type, its text inside an outline in the pool's `edge` (`row_text_shown`); its caret
   stands where the room puts its text (`box_text_column`, `box_caret`). A text area standing on
   a pane's rows (`RowsTextArea`, the seat's `publish_rows`) is drawn over those rows in the room's
   face: its lines between their markers in a room of cells, scrolled freely with its bar where the

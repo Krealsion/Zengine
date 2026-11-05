@@ -725,11 +725,11 @@ inline CellRect covered_cells(const ScreenRegion& r) {
     return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
 }
 
-/// IS THERE A RECTANGLE OF THIS ROLE COVERING EXACTLY THESE CELLS?
+/// IS THERE A RECTANGLE IN THIS COLOUR COVERING EXACTLY THESE CELLS?
 inline bool has_rect(const ScreenCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
-                     std::int64_t h, std::int64_t role) {
+                     std::int64_t h, gfx::Color ink) {
     for (const ScreenRect& r : all_rects(c)) {
-        if (covered_cells(r) == CellRect{x, y, w, h} && r.role == role) {
+        if (covered_cells(r) == CellRect{x, y, w, h} && r.ink == ink) {
             return true;
         }
     }
@@ -4646,11 +4646,11 @@ inline std::string held_row_raw(std::int64_t kind, std::int64_t row) {
 }
 
 /// ONE ROW OF TEXT A PANE DREW IN ITS AREA: what it says, the blanks after its last character
-/// left off, and the role its first run is set in.
+/// left off, and the colour its first run is set in.
 struct HeldRun {
     std::int64_t row = 0;
     std::string text;
-    std::int64_t role = gfx::role::kNone;
+    gfx::Color ink = gfx::no_color();
 };
 
 /// EVERY ROW OF A PANE'S AREA ITS DRAWING SETS TEXT ON, top to bottom.
@@ -4664,7 +4664,7 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
     const zengine::graphics::window::WinArea* a = held_desks().back().mirror->area(area);
     const gfx::TextMeasure face = held_desks().back().mirror->measure(area);
     if (a == nullptr || face.line <= 0) return out;
-    std::map<std::int64_t, std::pair<std::int64_t, std::int64_t>> first; // row: x, role
+    std::map<std::int64_t, std::pair<std::int64_t, gfx::Color>> first; // row: x, colour
     for (const zengine::graphics::window::KeptNode& k : a->nodes) {
         // ...a rows drawing's runs (`workshop::rows_drawing`), `row<n>.` or `lit<n>.`
         const std::string& p = k.node.path;
@@ -4676,7 +4676,7 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         if (!run) continue;
         const std::int64_t row = gfx::floor_div_px(run->y, face.line);
         const auto at = first.find(row);
-        if (at == first.end() || run->x < at->second.first) first[row] = {run->x, zengine::graphics::role_of(run->ink)};
+        if (at == first.end() || run->x < at->second.first) first[row] = {run->x, zengine::graphics::pool_color_of(run->ink)};
     }
     for (const auto& [row, said] : first) {
         std::string text = held_row_raw(kind, row);
@@ -4685,8 +4685,8 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
     }
     if (!out.empty() || face.advance <= 0) return out;
     // A CANVAS PICTURE'S RUNS (`workshop::canvas_sketch`): each row its runs set at their columns,
-    // in the role of the first.
-    std::map<std::int64_t, std::pair<std::string, std::pair<std::int64_t, std::int64_t>>> rows;
+    // in the colour of the first.
+    std::map<std::int64_t, std::pair<std::string, std::pair<std::int64_t, gfx::Color>>> rows;
     for (const zengine::graphics::window::KeptNode& k : a->nodes) {
         if (k.node.path.rfind("picture/", 0) != 0) continue;
         const auto run = gfx::from_body<gfx::TextArgs>(k.node.args);
@@ -4694,10 +4694,10 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         const std::int64_t row = gfx::floor_div_px(run->y, face.line);
         const auto col = static_cast<std::size_t>((std::max)(std::int64_t{0}, run->x / face.advance));
         auto& [text, first_run] = rows[row];
-        if (text.empty() && first_run.first == 0 && first_run.second == 0) {
-            first_run = {run->x, zengine::graphics::role_of(run->ink)};
+        if (text.empty() && first_run.first == 0 && first_run.second.none()) {
+            first_run = {run->x, zengine::graphics::pool_color_of(run->ink)};
         } else if (run->x < first_run.first) {
-            first_run = {run->x, zengine::graphics::role_of(run->ink)};
+            first_run = {run->x, zengine::graphics::pool_color_of(run->ink)};
         }
         if (text.size() < col + run->text.size()) text.resize(col + run->text.size(), ' ');
         text.replace(col, run->text.size(), run->text);
@@ -4708,10 +4708,10 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         out.push_back(HeldRun{row, text, said.second.second});
     }
     if (!out.empty()) return out;
-    // ANY OTHER DRAWING: its rows as the window reads them, each in the role of the leftmost text
+    // ANY OTHER DRAWING: its rows as the window reads them, each in the colour of the leftmost text
     // drawn on it, a group's place carried to what it holds.
     std::map<std::string, std::pair<std::int64_t, std::int64_t>> origin;
-    std::map<std::int64_t, std::pair<std::int64_t, std::int64_t>> role_at; // row: x, role
+    std::map<std::int64_t, std::pair<std::int64_t, gfx::Color>> role_at; // row: x, colour
     for (const zengine::graphics::window::KeptNode& k : a->nodes) {
         const std::string& p = k.node.path;
         const std::string parent = gfx::parent_of(p);
@@ -4729,7 +4729,7 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
         if (!t) continue;
         const std::int64_t row = gfx::floor_div_px(oy + t->y, face.line);
         const auto at = role_at.find(row);
-        if (at == role_at.end() || ox + t->x < at->second.first) role_at[row] = {ox + t->x, zengine::graphics::role_of(t->ink)};
+        if (at == role_at.end() || ox + t->x < at->second.first) role_at[row] = {ox + t->x, zengine::graphics::pool_color_of(t->ink)};
     }
     const std::vector<std::string> said = held_read_rows(kind);
     for (const auto& [row, leftmost] : role_at) {
@@ -4740,16 +4740,16 @@ inline std::vector<HeldRun> held_runs(std::int64_t kind) {
 }
 
 /// ONE RUN OF TEXT, OR ONE RECTANGLE, A PANE DREW IN ITS AREA, in the area's pixels: its place,
-/// what it says, and the role it is drawn in -- what the drawing shows, its parts' places drawn
+/// what it says, and the colour it is drawn in -- what the drawing shows, its parts' places drawn
 /// again and its marks left out.
 struct HeldText {
     std::int64_t x = 0, y = 0;
     std::string text;
-    std::int64_t role = gfx::role::kNone;
+    gfx::Color ink = gfx::no_color();
 };
 struct HeldRect {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
-    std::int64_t role = gfx::role::kNone;
+    gfx::Color ink = gfx::no_color();
 };
 
 inline const zengine::graphics::window::WinArea* held_area(std::int64_t kind) {
@@ -4768,7 +4768,7 @@ inline std::vector<HeldText> held_texts(std::int64_t kind) {
         for (const zengine::graphics::window::KeptNode& k : a->nodes) {
             if (!held_shown_node(k.node.path)) continue;
             if (const auto t = gfx::from_body<gfx::TextArgs>(k.node.args)) {
-                out.push_back(HeldText{t->x, t->y, t->text, zengine::graphics::role_of(t->ink)});
+                out.push_back(HeldText{t->x, t->y, t->text, zengine::graphics::pool_color_of(t->ink)});
             }
         }
     }
@@ -4781,7 +4781,7 @@ inline std::vector<HeldRect> held_rects(std::int64_t kind) {
         for (const zengine::graphics::window::KeptNode& k : a->nodes) {
             if (!held_shown_node(k.node.path) || k.node.op != gfx::op::kRect) continue;
             if (const auto r = gfx::from_body<gfx::RectArgs>(k.node.args)) {
-                out.push_back(HeldRect{r->x, r->y, r->w, r->h, zengine::graphics::role_of(r->fill)});
+                out.push_back(HeldRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(r->fill)});
             }
         }
     }
@@ -4804,12 +4804,12 @@ inline bool wears_ground(const ExternalPane& pane) {
     return false;
 }
 
-/// ONE LIT ROW THE WINDOW HOLDS FOR A PANE'S AREA, as `rows_drawing` draws one: its row, the role
-/// of the ground laid under it, and the role its words are set in.
+/// ONE LIT ROW THE WINDOW HOLDS FOR A PANE'S AREA, as `rows_drawing` draws one: its row, the colour
+/// of the ground laid under it, and the colour its words are set in.
 struct HeldLitRow {
     std::int64_t row = 0;
-    std::int64_t ground = gfx::role::kNone;
-    std::int64_t ink = gfx::role::kNone;
+    gfx::Color ground = gfx::no_color();
+    gfx::Color ink = gfx::no_color();
 };
 
 inline std::vector<HeldLitRow> held_lit_rows(std::int64_t kind) {
@@ -4823,11 +4823,11 @@ inline std::vector<HeldLitRow> held_lit_rows(std::int64_t kind) {
         if (k.node.path.rfind("ground", 0) != 0 || k.node.path == "ground") continue;
         const auto rect = gfx::from_body<gfx::RectArgs>(k.node.args);
         if (!rect) continue;
-        HeldLitRow lit{gfx::floor_div_px(rect->y, face.line), zengine::graphics::role_of(rect->fill), gfx::role::kNone};
+        HeldLitRow lit{gfx::floor_div_px(rect->y, face.line), zengine::graphics::pool_color_of(rect->fill), gfx::no_color()};
         const std::string words = "lit" + k.node.path.substr(6) + ".0";
         for (const zengine::graphics::window::KeptNode& t : a->nodes) {
             if (t.node.path != words) continue;
-            if (const auto run = gfx::from_body<gfx::TextArgs>(t.node.args)) lit.ink = zengine::graphics::role_of(run->ink);
+            if (const auto run = gfx::from_body<gfx::TextArgs>(t.node.args)) lit.ink = zengine::graphics::pool_color_of(run->ink);
         }
         out.push_back(lit);
     }
@@ -4887,7 +4887,7 @@ inline RowCell row_cell_at(const CanvasRows& rows, std::int64_t x, std::int64_t 
 /// selection, where its marks stand.
 struct HeldReading {
     std::vector<std::string> rows;
-    std::vector<std::int64_t> roles; ///< each row's role: that of the first text drawn on it
+    std::vector<gfx::Color> inks; ///< each row's colour: that of the first text drawn on it
     std::map<std::string, RowPart> parts;
     RowsCaret caret;
 };
@@ -4917,11 +4917,11 @@ inline HeldReading held_reading(std::int64_t kind) {
     for (const TextRow& row : drawn_rows(sketch, a->h / face.line, columns, map, face)) {
         const std::size_t end = row.text.find_last_not_of(' ');
         out.rows.push_back(end == std::string::npos ? std::string() : row.text.substr(0, end + 1));
-        out.roles.push_back(row.role);
+        out.inks.push_back(row.ink);
     }
     while (!out.rows.empty() && out.rows.back().empty()) {
         out.rows.pop_back();
-        out.roles.pop_back();
+        out.inks.pop_back();
     }
     (void)map.settle();
     const auto available = [&](const DrawnPart& p) {

@@ -169,7 +169,6 @@ peek over the rows under their header and take no room, the pointer on what the 
 a press there opens them, a move a held press carries is no rest, and the leave ends the peek"
 
 ### WL-CANVAS-07
-`graphics/role.hpp` kMediumGround
 `workshop/pane_drawing.hpp` WindowDrawing
 `tests/test_workshop_inventory_info.cpp` "Inventory draws its rows on its canvas on the medium's own
 ground, and a name line's caret and selection stand in the line, writing nothing into it, each move

@@ -24,57 +24,15 @@
 
 namespace zengine::graphics {
 
-/// A ROLE READ AS THE POOL COLOUR IT MEANS (graphics/role.hpp), for a drawer that names a role:
-/// `kFill` text, `kAccent` accent, `kMuted` quiet, `kAlert` alert, `kGround` background,
-/// `kMediumGround` ground, `kGuide` guide, `kEdge` edge; a role it does not know is text.
-inline PoolColor pool_color_of_role(std::int64_t r) {
-    switch (r) {
-    case role::kAccent: return colors::accent;
-    case role::kMuted: return colors::quiet;
-    case role::kAlert: return colors::alert;
-    case role::kGround: return colors::background;
-    case role::kMediumGround: return colors::ground;
-    case role::kGuide: return colors::guide;
-    case role::kEdge: return colors::edge;
-    default: return colors::text;
+/// THE POOL COLOUR A COLOUR SHOWS AS where only the pool's colours are shown: a pool colour as
+/// itself, an exact colour or a slot as the pool colour it is `like`, or `text` where it names
+/// none; no paint stays no paint.
+inline Color pool_color_of(const Color& c) {
+    if (c.none() || c.from == color_from::kPool) {
+        return c;
     }
+    return c.like.empty() ? Color(colors::text) : Color{color_from::kPool, c.like, 0, {}};
 }
-
-/// A role's pool colour; `role::kNone` is no paint at all.
-inline Color by_role(std::int64_t r) {
-    return r == role::kNone ? Color{} : Color(pool_color_of_role(r));
-}
-
-/// An exact 0xRRGGBB, opaque, beside the role whose pool colour a medium that cannot show it
-/// shows in its place.
-inline Color exact(std::int64_t r, std::int64_t value) {
-    Color c = rgb(static_cast<std::uint32_t>(value));
-    if (r != role::kNone) {
-        c.like = pool_color_of_role(r).name;
-    }
-    return c;
-}
-
-inline Color no_paint() { return Color{}; }
-
-/// The role a colour means, for a reader that sorts what it read by role: a pool colour's, or the
-/// one an exact colour or a slot is `like`; `kFill` for any other, `kNone` for no paint.
-inline std::int64_t role_of(const Color& c) {
-    if (c.none()) {
-        return role::kNone;
-    }
-    const std::string& name = c.from == color_from::kPool ? c.name : c.like;
-    for (const std::int64_t r : {role::kAccent, role::kMuted, role::kAlert, role::kGround,
-                                 role::kMediumGround, role::kGuide, role::kEdge}) {
-        if (name == pool_color_of_role(r).name) {
-            return r;
-        }
-    }
-    return role::kFill;
-}
-
-/// The colour a drawer's code names by its older word.
-using Paint = Color;
 
 namespace op {
 inline constexpr const char* kGroup = "group";

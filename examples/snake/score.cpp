@@ -40,7 +40,7 @@ public:
     void picture(gfx::Sketch& f) const {
         f.text("eaten", 0, 0,
                "[score weave] eaten since I joined: " + std::to_string(state_.eaten),
-               gfx::by_role(gfx::role::kFill));
+               gfx::colors::text);
     }
 };
 

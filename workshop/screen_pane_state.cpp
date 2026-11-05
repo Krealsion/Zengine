@@ -14,8 +14,8 @@ namespace zengine::workshop {
 // WL-CHROME-04 -- agents/workshop/chrome.md; WL-PANE-05 -- agents/workshop/panes-and-windows.md
 // WL-CHROME-04 -- agents/workshop/chrome.md; WL-PANE-05 -- agents/workshop/panes-and-windows.md
 void paint_pane_frame(ScreenPlane& layer, const PixelRect& b,
-                       std::int64_t role) {
-    layer.rects.push_back(wire_rect_of(b, role));
+                       graphics::Color ink) {
+    layer.rects.push_back(wire_rect_of(b, ink));
 }
 
 // WL-CHROME-05 -- agents/workshop/chrome.md; WL-RGN-01 -- agents/workshop/regions.md
@@ -37,7 +37,7 @@ ProsePlace prose_place(const PixelRect& b, const Screen& sc) {
 // WL-RGN-01 -- agents/workshop/regions.md
 ScreenRegion prose_region(const ProsePlace& place) {
     ScreenRegion region;
-    const ScreenRect wire = wire_rect_of(place.inside, graphics::role::kFill);
+    const ScreenRect wire = wire_rect_of(place.inside, graphics::colors::text);
     region.x = wire.x;
     region.y = wire.y;
     region.w = wire.w;

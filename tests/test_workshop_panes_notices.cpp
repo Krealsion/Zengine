@@ -494,14 +494,14 @@ TEST_CASE("the Notices pane shows the launch's notes and every notice after them
     CHECK(t.bottom_notice() == t.r.session().notice);
     t.refusal();
     CHECK(t.bottom_notice() == t.r.session().notice);
-    // ...THE REFUSAL IN THE ALERT'S ROLE, a statement in the ordinary ink.
-    std::int64_t refusal_role = gfx::role::kNone, statement_role = gfx::role::kNone;
+    // ...THE REFUSAL IN THE ALERT COLOUR, a statement in the ordinary ink.
+    gfx::Color refusal_ink = gfx::no_color(), statement_ink = gfx::no_color();
     for (const HeldRun& run : held_runs(t.kind())) {
-        if (run.text.find("only layout") != std::string::npos) refusal_role = run.role;
-        if (run.text.find(NoticesRig::kLaunchNote) != std::string::npos) statement_role = run.role;
+        if (run.text.find("only layout") != std::string::npos) refusal_ink = run.ink;
+        if (run.text.find(NoticesRig::kLaunchNote) != std::string::npos) statement_ink = run.ink;
     }
-    CHECK(refusal_role == gfx::role::kAlert);
-    CHECK(statement_role == gfx::role::kFill);
+    CHECK(refusal_ink == gfx::colors::alert);
+    CHECK(statement_ink == gfx::colors::text);
 }
 
 TEST_CASE("a key and a wheel's notch move the Notices pane's rows the same") {

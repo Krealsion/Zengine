@@ -24,9 +24,9 @@ struct CheckboxFace {
     bool checked = false;
     bool enabled = true;
     bool hovered = false;
-    Paint box_fill;
-    Paint check_ink;
-    Paint label_ink;
+    Color box_fill;
+    Color check_ink;
+    Color label_ink;
     ZEN_SHAPE(CheckboxFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(label), ZEN_FIELD(checked), ZEN_FIELD(enabled), ZEN_FIELD(hovered),
               ZEN_FIELD(box_fill), ZEN_FIELD(check_ink), ZEN_FIELD(label_ink));
@@ -62,11 +62,11 @@ public:
 
     /// The record as the state stands.
     CheckboxFace face() const {
-        const Paint ink = !enabled_  ? by_role(role::kMuted)
-                          : hovered_ ? by_role(role::kAccent)
-                                     : by_role(role::kFill);
+        const Color ink = !enabled_  ? colors::quiet
+                          : hovered_ ? colors::accent
+                                     : colors::text;
         return CheckboxFace{x_, y_, w_, h_, label_, checked_, enabled_, hovered_,
-                            by_role(role::kGround), ink, ink};
+                            colors::background, ink, ink};
     }
 
     /// Draws the checkbox at its path; a press on it asks `action` of the area's owner while it is

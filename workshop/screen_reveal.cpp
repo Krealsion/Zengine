@@ -27,13 +27,13 @@ void paint_pane_affordances(ScreenPlane& layer, const Session& s,
         if (s.pane_drag.met_x.has_value()) {
             layer.rects.push_back(wire_rect_of(
                 PixelRect{inside(*s.pane_drag.met_x, sc.room_w), sc.room_y, grain, sc.room_h},
-                graphics::role::kAccent));
+                graphics::colors::accent));
         }
         if (s.pane_drag.met_y.has_value()) {
             layer.rects.push_back(wire_rect_of(
                 PixelRect{0, graphics::add_cells(sc.room_y, inside(*s.pane_drag.met_y, sc.room_h)),
                           sc.room_w, grain},
-                graphics::role::kAccent));
+                graphics::colors::accent));
         }
     }
     const auto ring = [&](const PaneRef& ref, bool emphasized) {
@@ -53,7 +53,7 @@ void paint_pane_affordances(ScreenPlane& layer, const Session& s,
             const bool chosen = held ? s.pane_drag.edge == edge : emphasized;
             layer.labels.push_back(ScreenLabel{
                 at.x, at.y, std::string(pane_edge_glyph(edge)),
-                chosen ? graphics::role::kAccent : graphics::role::kMuted});
+                chosen ? graphics::colors::accent : graphics::colors::quiet});
         }
     };
     paint_arranging_caption(layer, s, sc);
@@ -126,13 +126,13 @@ void paint_arranging_caption(ScreenPlane& layer, const Session& s, const Screen&
     const std::int64_t line = sc.text_line_px > 0 ? sc.text_line_px : graphics::kCellPx;
     const PixelRect box = arranging_caption_rect(s, sc);
     const std::int64_t x = box.x, y = box.y, w = box.w;
-    layer.rects.push_back(ScreenRect{box.x, box.y, box.w, box.h, graphics::role::kGround});
+    layer.rects.push_back(ScreenRect{box.x, box.y, box.w, box.h, graphics::colors::background});
     const auto centred = [&](const std::string& words) {
         const std::int64_t used = static_cast<std::int64_t>(words.size()) * advance;
         return x + (used < w ? (w - used) / 2 / advance * advance : 0);
     };
-    layer.labels.push_back(ScreenLabel{centred(head), y + line, head, graphics::role::kAccent});
-    layer.labels.push_back(ScreenLabel{centred(what), y + 2 * line, what, graphics::role::kMuted});
+    layer.labels.push_back(ScreenLabel{centred(head), y + line, head, graphics::colors::accent});
+    layer.labels.push_back(ScreenLabel{centred(what), y + 2 * line, what, graphics::colors::quiet});
 }
 
 } // namespace zengine::workshop

@@ -36,7 +36,7 @@
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/window/terminal_io.hpp"
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
@@ -412,7 +412,7 @@ int main(int argc, char** argv) {
             host.standing_conditions.push_back(
                 Condition{std::string(kLegacyShadowedKeyPrefix) + what,
                           std::string("older local ") + what + " file is not read",
-                          did.note, gfx::role::kAccent, std::string()});
+                          did.note, gfx::colors::accent, std::string()});
             return;
         }
         if (!transition.empty()) {

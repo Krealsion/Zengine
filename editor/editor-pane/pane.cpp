@@ -929,23 +929,23 @@ private:
                                std::int64_t columns, const std::string& note, bool bad,
                                bool status) {
         Composition out;
-        const auto push = [&out, columns](std::string text, std::int64_t role) {
-            out.rows.push_back(ws::TextRow{drawable(fit(std::move(text), columns)), role});
+        const auto push = [&out, columns](std::string text, graphics::Color ink) {
+            out.rows.push_back(ws::TextRow{drawable(fit(std::move(text), columns)), ink});
         };
         if (rows >= 1 && !status) {
             if (!note.empty()) {
-                push(note, bad ? graphics::role::kAlert : graphics::role::kMuted);
+                push(note, bad ? graphics::colors::alert : graphics::colors::quiet);
             }
         } else if (rows >= 1) {
             const bool notice_row = !note.empty() && rows >= kNoticeNeedsRows;
             if (!note.empty() && !notice_row) {
-                push(note, bad ? graphics::role::kAlert : graphics::role::kMuted);
+                push(note, bad ? graphics::colors::alert : graphics::colors::quiet);
             } else {
-                push(status_text(doc, columns), graphics::role::kAccent);
+                push(status_text(doc, columns), graphics::colors::accent);
                 out.status_row = true;
             }
             if (notice_row) {
-                push(note, bad ? graphics::role::kAlert : graphics::role::kMuted);
+                push(note, bad ? graphics::colors::alert : graphics::colors::quiet);
             }
         }
         out.chrome_rows = static_cast<std::int64_t>(out.rows.size());
@@ -961,7 +961,7 @@ private:
                 out.rows.push_back(ws::TextRow{
                     ws::expanded_slice(doc.buffer.line(r), view.first_col, text_cols,
                                        doc.buffer.tab_width()),
-                    graphics::role::kFill});
+                    graphics::colors::text});
             }
         }
         out.view = view;

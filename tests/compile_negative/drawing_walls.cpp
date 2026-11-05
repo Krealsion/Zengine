@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The compile-negative fixture for the drawing weave, the canvas and colours by name: one source,
-// four targets (ZENGINE_CN_CASE), so each refusal and its control are the same drawer but for the
+// five targets (ZENGINE_CN_CASE), so each refusal and its control are the same drawer but for the
 // thing under test (VM-WALL-04). 1 changes an element by a type outside its code's list of changes;
-// 2 defines its own end-of-delivery hook; 4 names a pool colour nobody declared; 3, the control,
-// does none of these.
+// 2 defines its own end-of-delivery hook; 4 names a pool colour nobody declared; 5 names a colour
+// by a role; 3, the control, does none of these.
 
 #include "graphics/drawing.hpp"
 
@@ -85,8 +85,20 @@ struct CnDrawer : CnBase {
     }
 };
 
+#elif ZENGINE_CN_CASE == 5 // ---- a colour by a role: MUST FAIL -----------------------
+
+struct CnDrawer : CnBase {
+    using DrawingWeave::on;
+    CnDrawer() : DrawingWeave("cn.drawer") {}
+    void on(const CnBeat&, loom::Mail&) { ++state_.beats; }
+    void picture(zengine::graphics::Sketch& f) const {
+        f.text("beats", 0, 0, "beats",
+               zengine::graphics::by_role(zengine::graphics::role::kAccent));
+    }
+};
+
 #else
-#error "ZENGINE_CN_CASE must be 1 (change_outside), 2 (after_delivery), 3 (drawer_ok) or 4"
+#error "ZENGINE_CN_CASE must be 1 (change_outside), 2 (after_delivery), 3 (drawer_ok), 4 or 5"
 #endif
 
 } // namespace

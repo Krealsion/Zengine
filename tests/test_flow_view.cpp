@@ -160,13 +160,13 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
         CHECK(window.sketch.nodes().front().op == gfx::op::kRect);
         CHECK((ground->x == 0 && ground->y == 0 && ground->w == 100 * cell &&
                ground->h == 45 * cell));
-        CHECK(zengine::graphics::role_of(ground->fill) == gfx::role::kGround);
+        CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
         CHECK(window.parts.count("control:ask-save") == 1);
         CHECK(window.parts.count("control:zoom-in") == 1);
         CHECK(std::none_of(window.parts.begin(), window.parts.end(),
                            [](const auto& part) { return part.second.action == "node"; }));
         ws::CanvasPicture many;
-        many.rects.push_back({0, 0, 120, 120, gfx::role::kGround});
+        many.rects.push_back({0, 0, 120, 120, gfx::colors::background});
         for (std::size_t i = 0; i <= gfx::kMaxElementsPerArea; ++i)
             many.parts.push_back({"part " + std::to_string(i), 0, 0, cell, cell});
         const auto said = ws::canvas_sketch(many, ws::canvas_window_room(120, 120, 0, {}));
@@ -224,7 +224,7 @@ TEST_CASE("a part carries a run of words only where the run's whole row stands i
     words.w = 80;
     words.h = 18;
     words.words = "grazed";
-    words.fill = gfx::by_role(gfx::role::kFill);
+    words.fill = gfx::colors::text;
     d.marks.push_back(words);
     d.hits.push_back({0, 0, 200, 40, "graze", {"a"}, 0});
     d.hits.push_back({0, 20, 200, 40, "hold", {"b"}, 0});
@@ -396,10 +396,10 @@ TEST_CASE("Flow projects node places and hit regions through the room's independ
     const auto ground = gfx::from_body<gfx::RectArgs>(drawn.sketch.nodes().front().args);
     REQUIRE(ground.has_value());
     CHECK((ground->w == native_room.width && ground->h == native_room.height));
-    CHECK(zengine::graphics::role_of(ground->fill) == gfx::role::kGround);
+    CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
     for (const auto& k : view.marks) {
         if (k.op != pane::Mark::Op::Text || k.words.empty()) continue;
-        ws::CanvasText run{k.x, k.y, k.words, zengine::graphics::role_of(k.fill)};
+        ws::CanvasText run{k.x, k.y, k.words, zengine::graphics::pool_color_of(k.fill)};
         const auto layout = ws::clip_canvas_text(run, {0, 0, native_room.width, native_room.height}, native_room);
         REQUIRE(layout.visible());
         CHECK(layout.text.text == k.words);
@@ -968,7 +968,7 @@ TEST_CASE("a port's dot takes a press and a rest where it is drawn, the half out
     const auto id = std::to_string(pane::place_of(m, 0));
     // Each port's dot middle, as the marks draw it: a dot 10 wide ringed in the ink of wires or of
     // what is kept.
-    const auto ringed = [](const gfx::Paint& p, const gfx::Paint& q) { return p == q; };
+    const auto ringed = [](const gfx::Color& p, const gfx::Color& q) { return p == q; };
     std::vector<std::pair<std::int64_t, std::int64_t>> dots;
     for (const auto& k : view.marks)
         if (k.op == pane::Mark::Op::Ellipse && k.w == 10 && k.h == 10 &&

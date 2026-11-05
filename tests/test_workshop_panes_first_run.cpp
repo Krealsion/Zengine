@@ -792,7 +792,7 @@ TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone 
     for (const HeldRun& run : held_runs(story)) {
         if (run.text.find("Show me: place a number field") != std::string::npos) {
             hint_drawn = true;
-            CHECK(run.role == gfx::role::kFill);
+            CHECK(run.ink == gfx::colors::text);
         }
     }
     CHECK(hint_drawn);

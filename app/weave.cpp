@@ -154,7 +154,7 @@ public:
 
     void picture(gfx::Sketch& f) const {
         if (!state_.status.empty()) {
-            f.text("status", 0, 0, state_.status, gfx::by_role(gfx::role::kAccent));
+            f.text("status", 0, 0, state_.status, gfx::colors::accent);
         }
     }
 

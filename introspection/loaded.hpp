@@ -16,7 +16,7 @@
 // arrival or departure, no timestamp.
 
 #include "component/text_box.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_text.hpp"
 
@@ -125,13 +125,13 @@ inline std::string entry_row(const LoadedWeave& w, bool chosen, std::int64_t col
                columns);
 }
 
-/// The semantic roles an entry row carries, selected and not. Two lines, in one
+/// The colours an entry row carries, selected and not. Two lines, in one
 /// place, for `entry_row`'s reason exactly.
-inline constexpr std::int64_t entry_role(bool chosen) noexcept {
-    return chosen ? graphics::role::kAccent : graphics::role::kFill;
+inline graphics::Color entry_ink(bool chosen) {
+    return chosen ? graphics::colors::accent : graphics::colors::text;
 }
-inline constexpr std::int64_t entry_ground(bool chosen) noexcept {
-    return chosen ? graphics::role::kMuted : graphics::role::kNone;
+inline graphics::Color entry_ground(bool chosen) {
+    return chosen ? graphics::colors::quiet : graphics::no_color();
 }
 
 /// Is this name still among these entries? Asked of the population, not the projection: a
@@ -237,7 +237,7 @@ inline void mark_selected(LoadedView& view, std::string_view selected, std::int6
         const LoadedWeave& w = view.shown[static_cast<std::size_t>(which)];
         const bool chosen = !selected.empty() && w.name == selected;
         view.rows[i].text = entry_row(w, chosen, columns);
-        view.rows[i].role = entry_role(chosen);
+        view.rows[i].ink = entry_ink(chosen);
         view.rows[i].background = entry_ground(chosen);
     }
 }
@@ -284,7 +284,7 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
         view.search = workshop::row_box(*box, static_cast<std::int64_t>(lead.size()), width);
         heading = lead + std::string(static_cast<std::size_t>(width), ' ');
     }
-    workshop::TextRow top{fit(heading, columns), graphics::role::kAccent};
+    workshop::TextRow top{fit(heading, columns), graphics::colors::accent};
     top.box = view.search;
     say(std::move(top), kNoEntry);
 
@@ -306,7 +306,7 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
         for (std::size_t i = origin; i < origin + shown; ++i) {
             // Copied into `shown` as it is drawn, so a press answers with what the weaver saw.
             view.shown.push_back(weaves[i]);
-            say(workshop::TextRow{entry_row(weaves[i], false, columns), entry_role(false),
+            say(workshop::TextRow{entry_row(weaves[i], false, columns), entry_ink(false),
                                         entry_ground(false)},
                 static_cast<std::int64_t>(view.shown.size()) - 1);
         }
@@ -318,7 +318,7 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
                             (origin ? std::to_string(origin) + " earlier, " : "") +
                             std::to_string(weaves.size() - origin - shown) + " more",
                         columns),
-                    graphics::role::kMuted},
+                    graphics::colors::quiet},
                 kNoEntry);
             --budget;
         }
@@ -326,14 +326,14 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& population, std
     // A spare row nothing else wanted separates the list from the small print. It
     // is the LAST claim on the budget, so it never costs an entry or a note.
     if (budget > 0 && caveat > 0) {
-        // `role::kFill`, not `role::kNone`: that is the absence of a background, never an ink.
-        say(workshop::TextRow{std::string(), graphics::role::kFill}, kNoEntry);
+        // `colors::text`, not `no_color()`: that is the absence of a background, never an ink.
+        say(workshop::TextRow{std::string(), graphics::colors::text}, kNoEntry);
     }
     if (caveat > 0) {
-        say(workshop::TextRow{fit(kNotInProcess, columns), graphics::role::kMuted}, kNoEntry);
+        say(workshop::TextRow{fit(kNotInProcess, columns), graphics::colors::quiet}, kNoEntry);
     }
     if (source > 0) {
-        say(workshop::TextRow{fit(kSnapshotSource, columns), graphics::role::kMuted},
+        say(workshop::TextRow{fit(kSnapshotSource, columns), graphics::colors::quiet},
             kNoEntry);
     }
     return view;

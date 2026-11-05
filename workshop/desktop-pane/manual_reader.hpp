@@ -11,7 +11,7 @@
 // Workshop law: agents/workshop/desktop-presenting.md
 
 #include "component/text_area.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "manual/manual.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
@@ -222,8 +222,17 @@ inline std::string group_key(const std::string& heading) {
 
 /// THE MANUAL AS A TEXT AREA HOLDS IT: one paragraph a line of the text as written -- `About` and
 /// `Use`, then each group of commands under its heading, each command's own heading carrying the
-/// keys it answers to now -- each with its look: a heading in the accent role, a list item's further
+/// keys it answers to now -- each with its look: a heading (`kHeadingLook`), a list item's further
 /// lines under its words. The area wraps it to whatever width shows it.
+inline constexpr std::int64_t kWordsLook = 0;
+inline constexpr std::int64_t kHeadingLook = 1;
+
+/// The colour each of the manual's looks reads in, by its number: words in `text`, a heading in
+/// `accent`.
+inline std::vector<graphics::Color> manual_inks() {
+    return {graphics::colors::text, graphics::colors::accent};
+}
+
 struct ManualText {
     std::string text;
     std::vector<component::TextLook> looks;
@@ -232,24 +241,24 @@ struct ManualText {
 // WL-DESK-17 -- agents/workshop/desktop-presenting.md
 inline ManualText manual_text(const ws::PaneDocumentShown& shown, const ws::KeymapShown& keymap) {
     ManualText out;
-    const auto line = [&out](const std::string& text, std::int64_t role, std::int64_t hang = 0) {
+    const auto line = [&out](const std::string& text, std::int64_t look, std::int64_t hang = 0) {
         if (!out.looks.empty()) {
             out.text += '\n';
         }
         out.text += ws::pane_text::drawable(text);
-        out.looks.push_back(component::TextLook{role, hang});
+        out.looks.push_back(component::TextLook{look, hang});
     };
-    const auto words = [&](const std::string& text, std::int64_t role) {
+    const auto words = [&](const std::string& text, std::int64_t look) {
         // A blank line parts two paragraphs, and never two items of one list.
         bool first = true, last_item = false;
         for (const std::string& paragraph : paragraphs(text)) {
             const bool item = paragraph.rfind("- ", 0) == 0 || paragraph.rfind("* ", 0) == 0;
             if (!first && !(item && last_item)) {
-                line(std::string(), graphics::role::kFill);
+                line(std::string(), kWordsLook);
             }
             first = false;
             last_item = item;
-            line(plain(paragraph), role, item ? ws::pane_text::kWrapIndent : 0);
+            line(plain(paragraph), look, item ? ws::pane_text::kWrapIndent : 0);
         }
     };
     std::string group;
@@ -260,11 +269,11 @@ inline ManualText manual_text(const ws::PaneDocumentShown& shown, const ws::Keym
             continue;
         }
         if (!out.looks.empty()) {
-            line(std::string(), graphics::role::kFill);
+            line(std::string(), kWordsLook);
         }
         if (s.group != group) {
             group = s.group;
-            line(group, graphics::role::kAccent);
+            line(group, kHeadingLook);
         }
         if (command && s.key != group_key(s.group)) {
             // The default a command's own marker writes is its heading's too, for a command that is
@@ -276,9 +285,9 @@ inline ManualText manual_text(const ws::PaneDocumentShown& shown, const ws::Keym
                     break;
                 }
             }
-            line(s.key + " -- " + keys_of(keymap, s.key, written), graphics::role::kAccent);
+            line(s.key + " -- " + keys_of(keymap, s.key, written), kHeadingLook);
         }
-        words(with_keys(s, keymap), graphics::role::kFill);
+        words(with_keys(s, keymap), kWordsLook);
     }
     return out;
 }

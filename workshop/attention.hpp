@@ -7,7 +7,7 @@
 // WHAT IS TRUE RIGHT NOW, AND WORTH A WEAVER'S ATTENTION
 // Workshop law: agents/workshop/attention.md
 
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -24,13 +24,13 @@ struct Condition {
     std::string key;
     std::string compact;
     std::string detail;
-    std::int64_t role = graphics::role::kAccent;
+    graphics::Color ink = graphics::colors::accent;
     std::string action;
 
     /// WHAT A DISMISSAL IS MEASURED AGAINST -- the condition's content, as one opaque token.
     // WL-ATTN-08 -- agents/workshop/attention.md
     std::string stamp() const {
-        return compact + '\n' + detail + '\n' + std::to_string(role) + '\n' + action;
+        return compact + '\n' + detail + '\n' + ink.name + '\n' + action;
     }
 };
 
@@ -40,7 +40,7 @@ struct Condition {
 // WL-ATTN-01 -- agents/workshop/attention.md
 inline Condition unavailable_tool(const std::string& stem, const std::string& said) {
     return Condition{"load.unavailable/" + stem, stem + " is not in this Workshop", said,
-                     graphics::role::kAlert, "build its artifact, then launch again"};
+                     graphics::colors::alert, "build its artifact, then launch again"};
 }
 
 /// AN ARTIFACT A ROW COULD NOT LOAD, AND WHAT STANDS IN ITS ROW, for the whole run: the OS window
@@ -51,7 +51,7 @@ inline Condition gave_way(const std::string& stem, const std::string& next,
                           const std::string& why) {
     return Condition{kGaveWayKeyPrefix + stem,
                      stem + " did not load; " + next + " stands in its row", why,
-                     graphics::role::kAccent, ""};
+                     graphics::colors::accent, ""};
 }
 
 /// A DEVELOPMENT HOST, for the whole run: the guests file names `host: development`, so a guest with
@@ -61,7 +61,7 @@ inline Condition development_host() {
     return Condition{"guests.host", "a development host: guests may write and build here",
                      "the guests file names this an agent's own host: a guest's hand writes files, "
                      "types into panes and reaches the editor and the Terminal, as the weaver's does",
-                     graphics::role::kAccent, ""};
+                     graphics::colors::accent, ""};
 }
 
 /// ONE GUESTS-FILE ROW AND WHAT ITS POWERS DO NOT REACH HERE, keyed by the row's place in the file
@@ -74,7 +74,7 @@ inline Condition guest_row_losses(std::size_t row, const std::string& name, std:
     return Condition{"guests.row/" + std::to_string(row),
                      "guest '" + name + "' (version " + std::to_string(version) + ") does not reach "
                          "everything its powers name here",
-                     "not here: " + detail, graphics::role::kAccent, ""};
+                     "not here: " + detail, graphics::colors::accent, ""};
 }
 
 /// WHAT A ROW'S POWERS REACH NOW THAT THEY DID NOT WHEN IT WAS WRITTEN, said beside the row as
@@ -86,7 +86,7 @@ inline Condition guest_row_gains(std::size_t row, const std::string& name, std::
     return Condition{"guests.gain/" + std::to_string(row),
                      "guest '" + name + "' (version " + std::to_string(version) + ") reaches more "
                          "here than its powers once did",
-                     "also: " + detail, graphics::role::kAccent, ""};
+                     "also: " + detail, graphics::colors::accent, ""};
 }
 
 /// WHAT ONE ROW READS AND POINTS AT, AND ITS ROLE, keyed by its place in the file: a row's reach is
@@ -99,25 +99,26 @@ inline Condition guest_row_scopes(std::size_t row, const std::string& name, std:
     return Condition{"guests.scope/" + std::to_string(row),
                      "guest '" + name + "' (version " + std::to_string(version) + ") reads and points "
                          "only where its row says",
-                     detail, graphics::role::kMuted, ""};
+                     detail, graphics::colors::quiet, ""};
 }
 
 /// HOW LOUD, AS AN ORDER.
 // WL-ATTN-07 -- agents/workshop/attention.md
-inline int attention_rank(std::int64_t role) noexcept {
-    switch (role) {
-    case graphics::role::kAlert: return 0;
-    case graphics::role::kAccent: return 1;
-    case graphics::role::kFill: return 2;
-    default: return 3;
+inline int attention_rank(const graphics::Color& ink) {
+    if (ink == graphics::colors::alert) {
+        return 0;
     }
+    if (ink == graphics::colors::accent) {
+        return 1;
+    }
+    return ink == graphics::colors::text ? 2 : 3;
 }
 
 /// THE ORDER CONDITIONS ARE PRESENTED IN, and it is derived from CURRENT TRUTH ALONE.
 // WL-ATTN-07 -- agents/workshop/attention.md
 inline bool ranks_before(const Condition& a, const Condition& b) {
-    const int ra = attention_rank(a.role);
-    const int rb = attention_rank(b.role);
+    const int ra = attention_rank(a.ink);
+    const int rb = attention_rank(b.ink);
     if (ra != rb) {
         return ra < rb;
     }

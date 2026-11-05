@@ -42,31 +42,31 @@ public:
         put(name, op::kGroup, GroupArgs{x, y, clip_w, clip_h});
     }
     void rect(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
-              std::int64_t h, Paint fill, Paint stroke = no_paint()) {
+              std::int64_t h, Color fill, Color stroke = no_color()) {
         put(name, op::kRect, RectArgs{x, y, w, h, fill, stroke});
     }
     void fill_rect(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
-                   std::int64_t h, Paint paint) {
-        rect(name, x, y, w, h, paint, no_paint());
+                   std::int64_t h, Color paint) {
+        rect(name, x, y, w, h, paint, no_color());
     }
     void outline_rect(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
-                      std::int64_t h, Paint paint) {
-        rect(name, x, y, w, h, no_paint(), paint);
+                      std::int64_t h, Color paint) {
+        rect(name, x, y, w, h, no_color(), paint);
     }
     void ellipse(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
-                 std::int64_t h, Paint fill, Paint stroke = no_paint()) {
+                 std::int64_t h, Color fill, Color stroke = no_color()) {
         put(name, op::kEllipse, EllipseArgs{x, y, w, h, fill, stroke});
     }
     void line(const std::string& name, std::int64_t x1, std::int64_t y1, std::int64_t x2,
-              std::int64_t y2, Paint ink) {
+              std::int64_t y2, Color ink) {
         put(name, op::kLine, LineArgs{x1, y1, x2, y2, ink});
     }
-    void path(const std::string& name, const std::string& d, Paint fill,
-              Paint stroke = no_paint()) {
+    void path(const std::string& name, const std::string& d, Color fill,
+              Color stroke = no_color()) {
         put(name, op::kPath, PathArgs{d, fill, stroke});
     }
     void text(const std::string& name, std::int64_t x, std::int64_t y, const std::string& words,
-              Paint ink) {
+              Color ink) {
         put(name, op::kText, TextArgs{x, y, words, ink});
     }
     void image(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,

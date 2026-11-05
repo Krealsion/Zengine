@@ -42,7 +42,7 @@ WHY — `agents/decisions/what-workshop-said-is-kept.md`
 
 ## WL-NOTE-04 — The Notices pane walks the record; a key and a wheel's notch are one action
 
-LAW — `zengine.notices-pane` shows a page of the record, the newest at the bottom, a refusal in the alert's role, no row selected; `notices.up`, `notices.down` and each wheel notch move it a notice.
+LAW — `zengine.notices-pane` shows a page of the record, the newest at the bottom, a refusal in the pool's `alert`, no row selected; `notices.up`, `notices.down` and each wheel notch move it a notice.
 
 MEANS
 - it asks again when the record moves, its room changes or the view moves, and reads only the answer to its last ask;

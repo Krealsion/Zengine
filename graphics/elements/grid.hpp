@@ -24,7 +24,7 @@ namespace zengine::graphics {
 /// drawn over it ("" for none).
 struct GridCellFace {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
-    Paint fill;
+    Color fill;
     std::string glyph;
     ZEN_SHAPE(GridCellFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(fill), ZEN_FIELD(glyph));
@@ -95,7 +95,7 @@ public:
                 s.group(p, f.x, f.y, f.w, f.h);
                 s.fill_rect(p + "/fill", 0, 0, f.w, f.h, f.fill);
                 if (!f.glyph.empty()) {
-                    s.text(p + "/glyph", 0, 0, f.glyph, by_role(role::kFill));
+                    s.text(p + "/glyph", 0, 0, f.glyph, colors::text);
                 }
                 s.record(p, f, std::string(action_for(col, row, cell)));
             }

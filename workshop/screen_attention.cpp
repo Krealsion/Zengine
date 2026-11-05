@@ -30,7 +30,7 @@ std::vector<Condition> attention_conditions(const Session& s,
         const PaneRef ref{u.provider, u.pane};
         out.push_back(Condition{pane_setting_unused_key(ref, u.key),
                                 "`" + ref_text(ref) + "` cannot use its setting " + u.key, u.why,
-                                graphics::role::kAccent, std::string()});
+                                graphics::colors::accent, std::string()});
     }
 
     // DERIVED: a pane the weaver authored, that this build can resolve, and of which no cell
@@ -43,7 +43,7 @@ std::vector<Condition> attention_conditions(const Session& s,
         }
         out.push_back(Condition{pane_window_key(row.ref),
                                 "`" + ref_text(row.ref) + "` " + pane_state_word(state),
-                                std::string(pane_state_remedy(state)), graphics::role::kAccent,
+                                std::string(pane_state_remedy(state)), graphics::colors::accent,
                                 "workshop.manage"});
     }
 
@@ -57,7 +57,7 @@ std::vector<Condition> attention_conditions(const Session& s,
                       (frontier.blocked == 1 ? "" : "s") + " behind it";
         }
         out.push_back(Condition{kFrontierKey, "project waiting on `" + frontier.artifact + "`",
-                                detail, graphics::role::kAccent, "builder.frontier"});
+                                detail, graphics::colors::accent, "builder.frontier"});
     }
 
     std::sort(out.begin(), out.end(), ranks_before);
@@ -73,7 +73,7 @@ std::vector<StandingCondition> standing_conditions(const Session& s,
         said.key = c.key;
         said.compact = c.compact;
         said.detail = c.detail;
-        said.role = c.role;
+        said.ink = c.ink;
         // An action is a name and its gesture is the keymap's, resolved here: the pane is handed
         // words it cannot press, since what crosses is prose, never an id that could be taken for
         // a handle.
@@ -100,7 +100,7 @@ bool same_conditions(const std::vector<StandingCondition>& a,
     }
     for (std::size_t i = 0; i < a.size(); ++i) {
         if (a[i].key != b[i].key || a[i].compact != b[i].compact ||
-            a[i].detail != b[i].detail || a[i].role != b[i].role ||
+            a[i].detail != b[i].detail || a[i].ink != b[i].ink ||
             a[i].suggestion != b[i].suggestion) {
             return false;
         }
@@ -237,8 +237,8 @@ void paint_context(ScreenPlane& layer, const Session& s, const Screen& sc) {
         return; // a popup with no room for a row says nothing rather than lying about the room
     }
     ScreenRegion region = prose_region(place);
-    const auto say = [&region, &place](const std::string& text, std::int64_t role) {
-        region.rows.push_back(TextRow{detail::fit(text, place.columns), role});
+    const auto say = [&region, &place](const std::string& text, graphics::Color ink) {
+        region.rows.push_back(TextRow{detail::fit(text, place.columns), ink});
     };
     // THE FIRST ROW IS AN ACTION. Nothing announces that a menu of actions
     // contains actions, and nothing restates the two gestures the band's legend is
@@ -250,15 +250,15 @@ void paint_context(ScreenPlane& layer, const Session& s, const Screen& sc) {
     const std::size_t cursor = context_cursor_bound(menu.cursor, rows.size());
     const ListWindow win = list_window(rows.size(), cursor, budget);
     if (win.before > 0) {
-        say("  " + omitted_text(win.before, "earlier"), graphics::role::kMuted);
+        say("  " + omitted_text(win.before, "earlier"), graphics::colors::quiet);
     }
     for (std::size_t i = win.first; i < win.first + win.count; ++i) {
         const bool here = i == cursor;
         say(std::string(here ? "> " : "  ") + context_row_text(s, rows[i], label_cols),
-            here ? graphics::role::kAccent : graphics::role::kFill);
+            here ? graphics::colors::accent : graphics::colors::text);
     }
     if (win.after > 0) {
-        say("  " + omitted_text(win.after, "more"), graphics::role::kMuted);
+        say("  " + omitted_text(win.after, "more"), graphics::colors::quiet);
     }
     layer.texts.push_back(std::move(region));
 }

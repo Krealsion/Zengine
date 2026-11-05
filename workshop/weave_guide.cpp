@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // A GUEST'S GUIDE MARK: one a session and one guest's a pane, on a control or part the pane shows in
-// a settled picture, drawn inside its body in the guide role -- an outline in a window, the part's
+// a settled picture, drawn inside its body in the guide colour -- an outline in a window, the part's
 // own cells in a terminal -- with a label naming the guest where it covers no word. It ends at the
 // weaver's press inside it, when its part or its pane's holder leaves, at a newer mark and with its
 // session, and never comes back. Law: agents/workshop/guide.md.
@@ -254,15 +254,15 @@ WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) 
     if (found == nullptr) return out;
     out.shown = true;
     const DeskRect& r = found->place;
-    const std::int64_t role = graphics::role::kGuide;
+    const graphics::Color ink = graphics::colors::guide;
     if (cells) {
-        // THE PART'S OWN CELLS, in the guide role: no cell beside it is drawn over.
+        // THE PART'S OWN CELLS, in the guide colour: no cell beside it is drawn over.
         const PixelRect own = clipped(PixelRect{r.x, r.y, r.w, r.h}, body);
         out.drawn = own;
         const std::int64_t fits = own.w / graphics::kCellPx;
         std::string text = found->text.substr(0, static_cast<std::size_t>(std::max<std::int64_t>(fits, 0)));
         if (static_cast<std::int64_t>(text.size()) < fits) text.append(static_cast<std::size_t>(fits) - text.size(), ' ');
-        if (own.w > 0) out.labels.push_back(ScreenLabel{own.x, own.y, text, role});
+        if (own.w > 0) out.labels.push_back(ScreenLabel{own.x, own.y, text, ink});
     } else {
         // AN OUTLINE ONE GRAIN WIDE AROUND THE PART, inside the body.
         out.drawn = clipped(PixelRect{r.x - g, r.y - g, r.w + 2 * g, r.h + 2 * g}, body);
@@ -270,7 +270,7 @@ WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) 
                                       PixelRect{r.x - g, r.y + r.h, r.w + 2 * g, g},
                                       PixelRect{r.x - g, r.y, g, r.h}, PixelRect{r.x + r.w, r.y, g, r.h}}) {
             const PixelRect in = clipped(edge, body);
-            if (in.w > 0) out.rects.push_back(wire_rect_of(in, role));
+            if (in.w > 0) out.rects.push_back(wire_rect_of(in, ink));
         }
     }
     // THE LABEL SAYS WHOSE MARK IT IS: on the row above the part, else below, where it covers no word
@@ -288,7 +288,7 @@ WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) 
         for (const PaneWord& w : words) free = free && !meets(spot, w.place);
         for (const PanePart& p : parts) free = free && !meets(spot, p.place);
         if (!free) continue;
-        out.labels.push_back(ScreenLabel{x, y, label, role});
+        out.labels.push_back(ScreenLabel{x, y, label, ink});
         out.labelled = true;
         break;
     }

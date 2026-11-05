@@ -15,7 +15,7 @@
 #include "component/text_area.hpp"
 #include "component/text_box.hpp"
 #include "graphics/canvas.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 
 #include <algorithm>
@@ -107,19 +107,19 @@ inline std::string text_box_lettering(const component::TextBoxView& view, std::i
     return out;
 }
 
-/// A BOX'S OUTLINE: one pixel in `role::kEdge` round `w` by `h` at `x`, `y`.
+/// A BOX'S OUTLINE: one pixel in `colors::edge` round `w` by `h` at `x`, `y`.
 inline void text_box_outline(Sketch& sketch, const std::string& node, std::int64_t x,
                              std::int64_t y, std::int64_t w, std::int64_t h) {
-    sketch.outline_rect(node, x, y, w, h, by_role(role::kEdge));
+    sketch.outline_rect(node, x, y, w, h, colors::edge);
 }
 
 /// A TEXT BOX DRAWN WHERE THE WINDOW SETS TYPE, `columns` characters wide at `x`, `y` in `text`'s
 /// measure, one line tall: its outline, its slice in `ink` after its inset, and while `keys` are in
-/// the box its selected columns again in the accent role and its caret a bar. A node under `node`
+/// the box its selected columns again in the accent colour and its caret a bar. A node under `node`
 /// each.
 inline void text_box_face(Sketch& sketch, const std::string& node,
                           const component::TextBoxView& view, std::int64_t columns, std::int64_t x,
-                          std::int64_t y, const TextMeasure& text, Paint ink, bool keys) {
+                          std::int64_t y, const TextMeasure& text, Color ink, bool keys) {
     text_box_outline(sketch, node + ".edge", x, y, columns * text.advance, text.line);
     const std::int64_t at = x + kTextBoxInset * text.advance;
     const auto room = static_cast<std::size_t>(text_box_room(columns));
@@ -131,10 +131,10 @@ inline void text_box_face(Sketch& sketch, const std::string& node,
         const auto from = static_cast<std::size_t>(view.selection_begin);
         const auto n = static_cast<std::size_t>(view.selection_end - view.selection_begin);
         sketch.text(node + ".sel", at + view.selection_begin * text.advance, y,
-                    view.shown.substr(from, n), by_role(role::kAccent));
+                    view.shown.substr(from, n), colors::accent);
     }
     const std::int64_t cx = at + view.caret * text.advance;
-    sketch.line(node + ".caret", cx, y, cx, y + text.line - 1, by_role(role::kAccent));
+    sketch.line(node + ".caret", cx, y, cx, y + text.line - 1, colors::accent);
 }
 
 // ---- A text area, where the window sets type ------------------------------------------------------
@@ -241,7 +241,7 @@ void text_area_face(Sketch& sketch, const std::string& node, const component::Te
     const std::string body = node + ".text";
     sketch.group(body, x, y, std::max<std::int64_t>(0, g.bar_x()), g.h);
     sketch.fill_rect(body + "/ground", 0, 0, std::max<std::int64_t>(0, g.bar_x()), g.h,
-                     by_role(role::kGround));
+                     colors::background);
     if (!action.empty()) {
         sketch.action(body, action);
     }
@@ -262,7 +262,7 @@ void text_area_face(Sketch& sketch, const std::string& node, const component::Te
                 sketch.fill_rect(name + "s",
                                  lx + static_cast<std::int64_t>(b - line.begin) * g.text.advance,
                                  ly, static_cast<std::int64_t>(e - b) * g.text.advance, g.text.line,
-                                 by_role(role::kMuted));
+                                 colors::quiet);
             }
         }
         sketch.text(name, lx, ly, text.substr(line.begin, line.end - line.begin),
@@ -270,24 +270,24 @@ void text_area_face(Sketch& sketch, const std::string& node, const component::Te
     }
     const std::string bar = node + ".bar";
     sketch.group(bar, x + g.bar_x(), y, kTextAreaBarRoom, g.h);
-    sketch.fill_rect(bar + "/room", 0, 0, kTextAreaBarRoom, g.h, by_role(role::kGround));
+    sketch.fill_rect(bar + "/room", 0, 0, kTextAreaBarRoom, g.h, colors::background);
     if (!bar_action.empty()) {
         sketch.action(bar, bar_action);
     }
     if (g.overflows()) {
         sketch.fill_rect(bar + "/thumb", (kTextAreaBarRoom - kTextAreaBarDrawn) / 2, g.thumb_y,
-                         kTextAreaBarDrawn, g.thumb_h, by_role(role::kMuted));
+                         kTextAreaBarDrawn, g.thumb_h, colors::quiet);
     }
 }
 
 // ---- A text area, in a row of cells ---------------------------------------------------------------
 
-/// ONE ROW OF A TEXT AREA IN CELLS: its text, the role it reads in (the paragraph's look, a marker's
-/// muted role), whether it is a marker, the wrapped line it shows (-1 for a marker), and its
-/// selected columns (end exclusive, equal for none).
+/// ONE ROW OF A TEXT AREA IN CELLS: its text, its paragraph's look (`TextLook::kind`, 0 for a
+/// marker), whether it is a marker, the wrapped line it shows (-1 for a marker), and its selected
+/// columns (end exclusive, equal for none).
 struct TextAreaCellRow {
     std::string text;
-    std::int64_t role = role::kFill;
+    std::int64_t kind = 0;
     bool marker = false;
     std::int64_t line = -1;
     std::int64_t selection_begin = 0, selection_end = 0;
@@ -332,7 +332,6 @@ inline TextAreaCells text_area_cells(const component::TextArea& area, std::int64
     const auto marker = [&](std::string words) {
         TextAreaCellRow row;
         row.marker = true;
-        row.role = role::kMuted;
         row.text = std::move(words);
         if (static_cast<std::int64_t>(row.text.size()) > columns) {
             row.text.resize(static_cast<std::size_t>(columns));
@@ -344,7 +343,7 @@ inline TextAreaCells text_area_cells(const component::TextArea& area, std::int64
     }
     for (std::size_t i = first; i < end; ++i) {
         const component::TextArea::ShownLine shown = area.shown_line(out.wrapped[i], i, columns);
-        out.rows.push_back(TextAreaCellRow{shown.text, shown.look.role, false,
+        out.rows.push_back(TextAreaCellRow{shown.text, shown.look.kind, false,
                                            static_cast<std::int64_t>(i), shown.selection_begin,
                                            shown.selection_end});
     }

@@ -16,7 +16,7 @@
 
 #include "loaded.hpp" // `fit`, `kElided` -- one spelling of a cut, for all three panes
 
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
 
@@ -138,7 +138,7 @@ inline std::vector<workshop::TextRow>
 artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns) {
     std::vector<workshop::TextRow> rows;
     rows.push_back(
-        workshop::TextRow{fit("  " + spelled(a.artifact), columns), graphics::role::kFill});
+        workshop::TextRow{fit("  " + spelled(a.artifact), columns), graphics::colors::text});
 
     std::string authored;
     if (!a.authored_provider.empty()) {
@@ -153,7 +153,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         authored = kNoIntent;
     }
     rows.push_back(
-        workshop::TextRow{fit("    authored  " + authored, columns), graphics::role::kMuted});
+        workshop::TextRow{fit("    authored  " + authored, columns), graphics::colors::quiet});
 
     if (a.state != workshop::kResolvedToken) {
         // Loading, refused, switched, unavailable or not reached. Only refused and unavailable
@@ -169,16 +169,16 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
                                          : kNotReached;
         rows.push_back(workshop::TextRow{
             fit("    " + std::string(said), columns),
-            refused || unavailable ? graphics::role::kAlert : graphics::role::kMuted});
+            refused || unavailable ? graphics::colors::alert : graphics::colors::quiet});
         // WHY, AND WHAT A WEAVER CAN DO -- the owner's own two fields, in its words, spelled. A
         // version 1 answer has neither, and says only the state.
         if (!a.reason.empty()) {
             rows.push_back(workshop::TextRow{fit("    why   " + spelled(a.reason), columns),
-                                                   graphics::role::kMuted});
+                                                   graphics::colors::quiet});
         }
         if (!a.next.empty()) {
             rows.push_back(workshop::TextRow{fit("    next  " + spelled(a.next), columns),
-                                                   graphics::role::kMuted});
+                                                   graphics::colors::quiet});
         }
         return rows;
     }
@@ -186,7 +186,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         rows.push_back(workshop::TextRow{
             fit("    resolved  provider " + spelled(a.provider) + ", " + powers_said(a.powers),
                 columns),
-            graphics::role::kMuted});
+            graphics::colors::quiet});
     }
     if (a.weave != 0) {
         // The offer is shown only where one was made: no handoff outcome for a row no Kernel
@@ -195,7 +195,7 @@ artifact_rows(const workshop::v3::ArtifactParticipation& a, std::int64_t columns
         if (!a.offer.empty()) {
             said += ", operator host " + a.offer;
         }
-        rows.push_back(workshop::TextRow{fit(said, columns), graphics::role::kMuted});
+        rows.push_back(workshop::TextRow{fit(said, columns), graphics::colors::quiet});
     }
     return rows;
 }
@@ -243,7 +243,7 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
                 " -- " + std::to_string(providers) + " providers, " +
                 std::to_string(weaves) + " weaves",
             columns),
-        graphics::role::kAccent});
+        graphics::colors::accent});
 
     std::vector<std::vector<workshop::TextRow>> blocks;
     std::vector<std::int64_t> heights;
@@ -293,20 +293,20 @@ inline ArrangementView project_arrangement_from(const workshop::v2::ResolvedArra
     if (laid.marker) {
         out.push_back(workshop::TextRow{
             elision(view.first, said.artifacts.size() - view.first - laid.shown, columns),
-            graphics::role::kMuted});
+            graphics::colors::quiet});
         --budget;
     }
     // A spare row nothing else wanted separates the list from the small print. It is
     // the LAST claim on the budget, so it never costs a block or a note.
     if (budget > 0 && caveat > 0) {
-        out.push_back(workshop::TextRow{std::string(), graphics::role::kFill});
+        out.push_back(workshop::TextRow{std::string(), graphics::colors::text});
     }
     if (caveat > 0) {
-        out.push_back(workshop::TextRow{fit(kNotAuthored, columns), graphics::role::kMuted});
+        out.push_back(workshop::TextRow{fit(kNotAuthored, columns), graphics::colors::quiet});
     }
     if (source > 0) {
         out.push_back(workshop::TextRow{fit("plan: " + spelled(said.plan), columns),
-                                              graphics::role::kMuted});
+                                              graphics::colors::quiet});
     }
     return view;
 }

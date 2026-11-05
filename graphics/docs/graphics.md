@@ -175,8 +175,9 @@ window's own, the pool's defaults. The four shipped themes are `graphics::themes
 `block()`, `day()` and `night()` (`graphics/themes.hpp`), each generated with `zengine_palettes()`
 from its JSON in `graphics/themes/`.
 
-A drawer written before colours were named names a role (`graphics/role.hpp`) with `by_role`, or
-an exact colour beside one with `exact`: each is read as the pool colour the role means.
+An exact colour can name the pool colour a medium that cannot show it shows in its place
+(`rgb(0x2e7d5b, colors::accent)`); where only the pool's colours are shown, any colour shows as
+its pool colour (`pool_color_of`).
 
 ## Drawing: a canvas, and one showing a beat
 
@@ -206,7 +207,7 @@ values `component/` keeps measured in characters, and keeps nothing itself. A te
 column on each side of its text (`kTextBoxInset`): in a row of cells `[text___]`
 (`text_box_spelling`), or plain, its text alone from its first column, where a prompt beside it
 already marks the place (`TextBoxInCells`, `text_box_plain`, `text_box_text_column`); where the
-window sets type its outline in `role::kEdge` round its text,
+window sets type its outline in the pool's `edge` round its text,
 selection and caret (`text_box_face`). A text area in a row of cells shows its lines between
 `N more above...` and `... N more below` (`text_area_cells`, read back by
 `text_area_cells_place`). `text_area_face` draws a text area scrolled freely: its lines from the
@@ -232,8 +233,7 @@ public:
     ScoreWeave() : Weave("snake.score") {} // the office it draws as; its area by default
     void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
     void picture(graphics::Sketch& f) const {
-        f.text("eaten", 0, 0, std::to_string(state_.eaten),
-               graphics::by_role(graphics::role::kFill));
+        f.text("eaten", 0, 0, std::to_string(state_.eaten), graphics::colors::text);
     }
 };
 ```

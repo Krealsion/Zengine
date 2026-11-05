@@ -372,7 +372,8 @@ Its law, pages and suites: [`graphics/AGENTS.md`](../../graphics/AGENTS.md).
 
 - **A window composes; each owner draws only in its own area.**
   [The window is a compositor above its medium](../../agents/graphics.md#the-window-is-a-compositor-above-its-medium)
-- **A colour is a role**, the one set every drawer names.
+- **A colour is a name the window paints**: a pool colour, a slot of the pane's own, or an exact
+  value, never one the drawer resolves itself.
   [Colour, pixels and operands](../../agents/graphics.md#colour-pixels-and-operands)
 - **The terminal's claim takes its input edge with it.**
   [The terminal's claim and the input edge](../../agents/graphics.md#the-terminals-claim-and-the-input-edge)

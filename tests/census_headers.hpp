@@ -280,7 +280,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::graphics::ElementEvent>(), // ElementEvent v1
         shape<::zengine::graphics::ElementOutcome>(), // ElementOutcome v1
         shape<::zengine::graphics::ElementDescribed>(), // ElementDescribed v1
-        shape<::zengine::graphics::Paint>(), // Paint v1
+        shape<::zengine::graphics::Color>(), // Color v1
         shape<::zengine::graphics::GroupArgs>(), // GroupArgs v1
         shape<::zengine::graphics::RectArgs>(), // RectArgs v1
         shape<::zengine::graphics::EllipseArgs>(), // EllipseArgs v1

@@ -1755,7 +1755,7 @@ TEST_CASE("a place-only change publishes no room, and a size change publishes on
     // THE PANE HAS DRAWN, so its area holds a drawing and a room that did not change is not said
     // again.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, SeatRows{kHelloPane, {TextRow{"hello", gfx::role::kFill}}});
+        s.say(m, SeatRows{kHelloPane, {TextRow{"hello", gfx::colors::text}}});
     });
     REQUIRE(r.session().panes.runtime.entries.size() == 1);
     const std::size_t rooms_before = seat->rooms.size();
@@ -2370,7 +2370,7 @@ SeatRows hello_rows(const std::vector<std::string>& lines) {
     SeatRows said;
     said.pane = kHelloPane;
     for (const std::string& line : lines) {
-        said.rows.push_back(TextRow{line, gfx::role::kFill});
+        said.rows.push_back(TextRow{line, gfx::colors::text});
     }
     return said;
 }

@@ -14,7 +14,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -54,9 +54,9 @@ std::vector<ws::TextRow> rows_for(const Hold& guard, std::int64_t blocks) {
                               : guard.lost ? "guard dropped -- the host could not keep the hold"
                                            : "guard down";
     return {
-        ws::TextRow{first, guard.held() ? gfx::role::kAccent : gfx::role::kMuted},
-        ws::TextRow{"blocks so far: " + std::to_string(blocks), gfx::role::kFill},
-        ws::TextRow{"hold the right button in me; no menu opens here", gfx::role::kMuted},
+        ws::TextRow{first, guard.held() ? gfx::colors::accent : gfx::colors::quiet},
+        ws::TextRow{"blocks so far: " + std::to_string(blocks), gfx::colors::text},
+        ws::TextRow{"hold the right button in me; no menu opens here", gfx::colors::quiet},
     };
 }
 

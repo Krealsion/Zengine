@@ -476,17 +476,17 @@ public:
         std::vector<ws::TextRow> out;
         keys_map_.begin();
         const auto push = [&out, room_rows, room_columns, this](std::string text,
-                                                                std::int64_t role, KeysMeaning m,
+                                                                graphics::Color ink, KeysMeaning m,
                                                                 std::int64_t mark = ws::kNoMark) {
             if (static_cast<std::int64_t>(out.size()) < room_rows) {
                 keys_map_.row(static_cast<std::int64_t>(out.size()), m);
-                out.push_back(ws::TextRow{fit(std::move(text), room_columns), role,
-                                          graphics::role::kNone,
+                out.push_back(ws::TextRow{fit(std::move(text), room_columns), ink,
+                                          graphics::no_color(),
                                           mark < room_columns ? mark : ws::kNoMark});
             }
         };
         if (!keys_heard_) {
-            push("HOTKEYS (waiting)", graphics::role::kMuted, KeysMeaning{});
+            push("HOTKEYS (waiting)", graphics::colors::quiet, KeysMeaning{});
             publish_keys(mail, std::move(out));
             return;
         }
@@ -498,7 +498,7 @@ public:
         }
         push("HOTKEYS -- " + std::to_string(bindings) + " in force; * moved by your file; "
              "right-click or `m` on a row to change it",
-             graphics::role::kAccent, KeysMeaning{});
+             graphics::colors::accent, KeysMeaning{});
         // THE SPELLING LINE, UNDER THE HEADING, while one is open, its caret where it stands.
         ws::RowsCaret caret;
         if (typing_.active) {
@@ -510,13 +510,13 @@ public:
                     typing_.line, static_cast<std::int64_t>(prompt.size()), room);
                 const auto at = static_cast<std::int64_t>(out.size());
                 push(prompt + std::string(static_cast<std::size_t>(room), ' '),
-                     graphics::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});
+                     graphics::colors::accent, KeysMeaning{keys_row::kFooter, 0, {}});
                 if (static_cast<std::int64_t>(out.size()) > at) {
                     out.back().box = box;
                     caret = ws::box_caret(box, at);
                 }
             } else {
-                push(prompt, graphics::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});
+                push(prompt, graphics::colors::accent, KeysMeaning{keys_row::kFooter, 0, {}});
             }
         }
         // WHERE A KEY IS MOVED, said last and reserved first: the grammar a weaver writes, the file
@@ -594,7 +594,7 @@ public:
             budget > 0 ? static_cast<std::size_t>(budget) : 0);
         keys_first_ = w.first;
         if (const std::size_t earlier = component::earlier_marker(w); earlier > 0) {
-            push("  ^ " + std::to_string(earlier) + " more above", graphics::role::kMuted,
+            push("  ^ " + std::to_string(earlier) + " more above", graphics::colors::quiet,
                  KeysMeaning{keys_row::kMarker, 0, {}});
         }
         std::int64_t peek_from = -1;
@@ -618,8 +618,8 @@ public:
                     peeking = line.section;
                 }
                 push(std::move(text),
-                     section.absent && fold != component::Fold::kPeek ? graphics::role::kMuted
-                                                                      : graphics::role::kAccent,
+                     section.absent && fold != component::Fold::kPeek ? graphics::colors::quiet
+                                                                      : graphics::colors::accent,
                      KeysMeaning{keys_row::kGroup, i, section.key}, 2);
                 continue;
             }
@@ -627,7 +627,7 @@ public:
             const std::int64_t at = static_cast<std::int64_t>(out.size());
             const std::string text = key_text(b, here);
             const std::string ref = binding_key(b);
-            push(text, here ? graphics::role::kAccent : graphics::role::kFill,
+            push(text, here ? graphics::colors::accent : graphics::colors::text,
                  KeysMeaning{keys_row::kBinding, i, ref});
             // THE KEY CELL IS A CONTROL INSIDE THE ROW -- the same meaning, recorded so a press on
             // the key is a press on the binding wherever the columns put it.
@@ -638,11 +638,11 @@ public:
                 KeysMeaning{keys_row::kBinding, i, ref});
         }
         if (const std::size_t more = component::more_marker(w); more > 0) {
-            push("  v " + std::to_string(more) + " more below", graphics::role::kMuted,
+            push("  v " + std::to_string(more) + " more below", graphics::colors::quiet,
                  KeysMeaning{keys_row::kMarker, 1, {}});
         }
         for (std::int64_t i = 0; i < footer_rows; ++i) {
-            push(footer[static_cast<std::size_t>(i)], graphics::role::kMuted,
+            push(footer[static_cast<std::size_t>(i)], graphics::colors::quiet,
                  KeysMeaning{keys_row::kFooter, static_cast<std::size_t>(i) + 1, {}});
         }
         // A PEEK: the section's keys drawn over what follows its header, to the room's end, taking
@@ -663,13 +663,13 @@ public:
             for (std::size_t k = shown.first; k < shown.end(); ++k, ++row) {
                 const std::size_t i = section.bindings[k];
                 out[static_cast<std::size_t>(row)] =
-                    ws::TextRow{key_text(keymap_.rows[i], false), graphics::role::kAccent};
+                    ws::TextRow{key_text(keymap_.rows[i], false), graphics::colors::accent};
                 keys_map_.row(row, KeysMeaning{keys_row::kPeek, i, section.key});
             }
             if (const std::size_t more = component::more_marker(shown); more > 0) {
                 out[static_cast<std::size_t>(row)] = ws::TextRow{
                     fit("  ... " + std::to_string(more) + " more", room_columns),
-                    graphics::role::kMuted};
+                    graphics::colors::quiet};
                 keys_map_.row(row, KeysMeaning{keys_row::kPeek, keymap_.rows.size(), section.key});
             }
         }

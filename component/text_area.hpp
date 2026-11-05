@@ -22,11 +22,11 @@
 
 namespace zengine::component {
 
-/// HOW ONE PARAGRAPH OF AN AREA READS: the owner's number for its look (a theme role, to a pane),
+/// HOW ONE PARAGRAPH OF AN AREA READS: the owner's number for its look, which only the owner reads,
 /// and how many columns its further lines stand in when it wraps. A paragraph is a line of the
 /// text as written, up to its `\n`.
 struct TextLook {
-    std::int64_t role = 0;
+    std::int64_t kind = 0;
     std::int64_t hang = 0;
     bool operator==(const TextLook&) const = default;
 };

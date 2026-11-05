@@ -39,12 +39,12 @@ TEST_CASE("a pane's drawings judge a press by what the window drew under the han
     const auto drawing = [](const std::string& label, const std::string& action,
                             std::int64_t number) {
         gfx::Sketch s;
-        s.fill_rect("room", 0, 0, 240, 120, gfx::by_role(gfx::role::kGround));
+        s.fill_rect("room", 0, 0, 240, 120, gfx::colors::background);
         s.group("button", 24, 24);
-        s.fill_rect("button/face", 0, 0, 96, 36, gfx::by_role(gfx::role::kAccent));
-        s.text("button/label", 12, 12, label, gfx::by_role(gfx::role::kFill));
+        s.fill_rect("button/face", 0, 0, 96, 36, gfx::colors::accent);
+        s.text("button/label", 12, 12, label, gfx::colors::text);
         if (!action.empty()) s.action("button", action);
-        s.text("note", 0, 84, "a note", gfx::by_role(gfx::role::kMuted));
+        s.text("note", 0, 84, "a note", gfx::colors::quiet);
         s.number(number);
         return s;
     };
@@ -74,7 +74,7 @@ TEST_CASE("a pane's drawings judge a press by what the window drew under the han
 
 TEST_CASE("pane canvas text clipping preserves surviving positions through both edges") {
     CanvasRoom room{36, 44, 1, true, 8, 18};
-    const CanvasText source{-5, 1, "ABCDE", gfx::role::kFill, 2, 0, 5};
+    const CanvasText source{-5, 1, "ABCDE", gfx::colors::text, 2, 0, 5};
     const auto text = clip_canvas_text(source, {0, 0, room.width, room.height}, room);
     REQUIRE(text.visible());
     CHECK(text.first_column == 1);
@@ -86,7 +86,7 @@ TEST_CASE("pane canvas text clipping preserves surviving positions through both 
     CHECK(text.text.sel_end_col == 3);
     CHECK(text.fit.columns == 3);
     CHECK_FALSE(clip_canvas_text(source, {0, 2, room.width, room.height - 2}, room).visible());
-    const auto empty_caret = clip_canvas_text({0, 0, "", gfx::role::kFill, 0},
+    const auto empty_caret = clip_canvas_text({0, 0, "", gfx::colors::text, 0},
                                                {0, 0, room.width, room.height}, room);
     REQUIRE(empty_caret.visible());
     CHECK(empty_caret.fit.graphical());

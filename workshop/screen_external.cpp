@@ -141,7 +141,7 @@ std::string external_body_words(const ExternalPane& pane, const std::string& nam
 
 // WL-FOCUS-10 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
-                    const PixelRect& b, const Screen& sc, bool titles, std::int64_t chrome) {
+                    const PixelRect& b, const Screen& sc, bool titles, graphics::Color chrome) {
     paint_pane_frame(layer, b, chrome);
     const RuntimePane* row = panes.runtime.of_kind(kind);
     if (row == nullptr) {
@@ -167,14 +167,14 @@ void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
     if (body.header_rows > 0 && (pane == nullptr || !pane->title_waits)) {
         region.rows.push_back(TextRow{
             external_header_row(*row, typing, marks, body.columns, fold_prefix(panes, kind)),
-            graphics::role::kAccent});
+            graphics::colors::accent});
     }
     // ...AND IN THE BODY, WHAT STANDS THERE BEHIND THE PANE'S OWN AREA: that Workshop waits for the
     // pane to draw, covered once its area's ground is drawn, or that its office draws in no window.
     if (body.present && pane != nullptr) {
         region.rows.push_back(TextRow{
             detail::fit(external_body_words(*pane, row->name), body.columns),
-            graphics::role::kMuted});
+            graphics::colors::quiet});
     }
     if (!region.rows.empty()) {
         layer.texts.push_back(std::move(region));
