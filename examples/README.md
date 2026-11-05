@@ -19,7 +19,7 @@ your own weave would.
 
 | | |
 |---|---|
-| [`snake/`](snake/README.md) | a snake game whose world, score, controls and clock are separate weaves |
+| [`snake/`](snake/README.md) | a snake game whose world, window, score and pilot are separate weaves |
 | [`tally-app/`](tally-app/README.md) | an app's folder written by hand -- the tally panel and its flow -- that `zengine-app` runs with no Workshop |
 | [`tally-pane/`](tally-pane/tally.cpp) | a Workshop pane with one count that survives a reload of its code ([walkthrough](../builder/docs/edit-a-running-pane.md)) |
 | [`guard-pane/`](guard-pane/guard.cpp) | a Workshop pane that blocks while the right mouse button is held on it ([walkthrough](../workshop/docs/panes.md#the-second-button--the-panes-first)) |

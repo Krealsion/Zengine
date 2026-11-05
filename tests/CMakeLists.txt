@@ -363,6 +363,7 @@ zengine_test_definitions(zengine-tests
     "SNAKE_SO_WORLD_V1=\"$<TARGET_FILE:snake-world-v1>\""
     "SNAKE_SO_WORLD_V2=\"$<TARGET_FILE:snake-world-v2>\""
     "SNAKE_SO_SCORE=\"$<TARGET_FILE:snake-score>\""
+    "SNAKE_SO_PILOT=\"$<TARGET_FILE:snake-pilot>\""
     "SNAKE_SO_BOARD=\"$<TARGET_FILE:snake-board>\""
     "STDOUT_PAINTER_SO=\"$<TARGET_FILE:zengine-test-stdout-painter>\""
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""

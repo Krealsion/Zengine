@@ -903,7 +903,7 @@ TEST_CASE("the classic and the block palettes paint the snake's board, each in i
     CHECK(classic[1] == "+------------------------+");
     CHECK(classic[10].substr(0, 14) == "|   *      ooO"); // the seed, (10,8) to (12,8), and its food
     CHECK(classic[18] == "+------------------------+");
-    CHECK(classic[19] == "[ new game ]");
+    CHECK(classic[19] == "[ new game ] [ pause ]");
 
     s.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kArea, "block"});
     s.r.drain();
@@ -2029,6 +2029,25 @@ TEST_CASE("the new-game button is the world's action, and a new game reaches the
     CHECK(changes[0].kind == 1); // SnakeNewGame, the board's second change
     CHECK(t.r.count(mark, "ElementPut", snake::kWorldRole) == 0);
     CHECK(t.r.heard.visuals.back().snake.front().x == 12); // seeded afresh
+}
+
+TEST_CASE("the pause button is the world's action: pressed, the world takes no step and the button "
+          "says resume; pressed again, it plays on") {
+    Typed t;
+    t.r.tick();
+    t.r.tick();
+    const std::size_t steps = t.r.heard.visuals.size();
+
+    t.press(16, 19); // "[ pause ]"
+    CHECK(t.r.shown().rows[19] == "[ new game ] [ resume ]");
+    t.r.tick();
+    t.r.tick();
+    CHECK(t.r.heard.visuals.size() == steps);
+
+    t.press(16, 19); // "[ resume ]"
+    CHECK(t.r.shown().rows[19] == "[ new game ] [ pause ]");
+    t.r.tick();
+    CHECK(t.r.heard.visuals.size() == steps + 1);
 }
 
 TEST_CASE("keys go from the window to the owner of each area placed to hear them, and snake's world, "

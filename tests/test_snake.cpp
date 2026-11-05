@@ -13,6 +13,7 @@
 #include "doctest.h"
 
 #include "logic.hpp"
+#include "pilot.hpp"
 #include "vocabulary.hpp"
 
 #include "graphics_rig.hpp"
@@ -50,6 +51,7 @@
 
 #include <cstdint>
 #include <exception>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <string>
@@ -195,7 +197,20 @@ struct Rig {
         reach.allow(loom::SwapWeave::zen_name, loom::SwapWeave::zen_version, manager);
         reach.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
         reach.allow(loom::ListLoaded::zen_name, loom::ListLoaded::zen_version, manager);
+        reach.allow(loom::UnloadRole::zen_name, loom::UnloadRole::zen_version, control);
         return loom::mount_granted<Probe>(bus, std::move(reach), rec);
+    }
+
+    /// Land whoever holds `role` as the playable host's operator does: by its role, at the
+    /// kernel's door.
+    Recorded::Answer unload_role(const char* role) {
+        const std::uint64_t corr = next_corr++;
+        bus.send_as(probe, control,
+                    loom::Message(loom::to_value(loom::UnloadRole{role}), probe, probe, corr));
+        drain();
+        const Recorded::Answer* a = rec.find(corr);
+        REQUIRE(a != nullptr);
+        return *a;
     }
 
     void drain() {
@@ -361,7 +376,7 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
     CHECK(schema_of<SnakeDied>()->content_id() ==
           SchemaBuilder("SnakeDied", 1).build()->content_id());
 
-    const auto world = SchemaBuilder("SnakeWorldState", 5)
+    const auto world = SchemaBuilder("SnakeWorldState", 7)
                            .field("width", Kind::Int)
                            .field("height", Kind::Int)
                            .list("snake", loom::type_message(pos))
@@ -376,6 +391,9 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
                            .field("key_left", Kind::Int)
                            .field("beat_ms", Kind::Int)
                            .field("ticks", Kind::Int)
+                           .field("paused", Kind::Bool)
+                           .field("steps", Kind::Int)
+                           .field("pause_at", Kind::Int)
                            .build();
     CHECK(schema_of<v1::SnakeWorldState>()->content_id() == world->content_id());
 }
@@ -384,8 +402,8 @@ TEST_CASE("contract: v2 state is a genuinely different identity") {
     CHECK(schema_of<v1::SnakeWorldState>()->content_id() !=
           schema_of<v2::SnakeWorldState>()->content_id());
     CHECK(schema_of<v1::SnakeWorldState>()->name() == schema_of<v2::SnakeWorldState>()->name());
-    CHECK(schema_of<v1::SnakeWorldState>()->version() == 5);
-    CHECK(schema_of<v2::SnakeWorldState>()->version() == 6);
+    CHECK(schema_of<v1::SnakeWorldState>()->version() == 7);
+    CHECK(schema_of<v2::SnakeWorldState>()->version() == 8);
 }
 
 // ============================================================================
@@ -571,6 +589,39 @@ TEST_CASE("migration: a dead world migrates dead, and the food sentinel is prese
     CHECK(!next.alive);
     CHECK(next.food.x == kNoFood);
     CHECK(next.food.y == kNoFood);
+}
+
+TEST_CASE("migration: a paused world migrates paused, its steps and the pause it asked for "
+          "carried") {
+    v1::SnakeWorldState old;
+    seed(old);
+    old.paused = true;
+    old.steps = 41;
+    old.pause_at = 60;
+    const v2::SnakeWorldState next = migrate(old);
+    CHECK(next.paused);
+    CHECK(next.steps == 41);
+    CHECK(next.pause_at == 60);
+}
+
+TEST_CASE("pilot: its choice, flown as math from a new game, keeps the snake alive and eating for "
+          "3000 steps on either board") {
+    // Long enough that the shortest way to the food alone shuts the small board's snake in: its
+    // own tail is what it steers by when the food is no safe way.
+    const auto fly = [](auto s) {
+        seed(s);
+        for (int i = 0; i < 3000 && s.alive; ++i) {
+            turn(s, pilot_choice(visual_of(s)));
+            (void)step(s);
+        }
+        return s;
+    };
+    const v1::SnakeWorldState small = fly(v1::SnakeWorldState{});
+    CHECK(small.alive);
+    CHECK(small.score >= 120);
+    const v2::SnakeWorldState large = fly(v2::SnakeWorldState{});
+    CHECK(large.alive);
+    CHECK(large.score >= 90);
 }
 
 // ============================================================================
@@ -996,10 +1047,10 @@ TEST_CASE("the world draws its new-game button as a part: a ButtonFace at new-ga
     CHECK(face->y == row * kBoardCellPx);
     CHECK(face->w == 12 * kBoardCellPx);
 
-    // ...and the window shows it as its words, on that row.
+    // ...and the window shows it as its words, on that row, the pause button beside it.
     const std::vector<std::string> rows = r.shown().rows;
     REQUIRE(rows.size() > static_cast<std::size_t>(row));
-    CHECK(rows[static_cast<std::size_t>(row)] == "[ new game ]");
+    CHECK(rows[static_cast<std::size_t>(row)] == "[ new game ] [ pause ]");
 }
 
 TEST_CASE("the world's new-game button is a gfx::Button, not a hand-written text and action") {
@@ -1037,8 +1088,13 @@ struct Timed {
         }
     });
 
-    Timed() {
+    /// `before_time` runs once the world is loaded and before the Timer is: what it loads hears
+    /// the world from its first step.
+    explicit Timed(const std::function<void(Timed&)>& before_time = {}) {
         world = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
+        if (before_time) {
+            before_time(*this);
+        }
         // Loaded through the steward, which activates it: from here the beat chain never idles,
         // so every pump is bounded by the Timer's own beats.
         const std::uint64_t corr = r.next_corr++;
@@ -1178,4 +1234,177 @@ TEST_CASE("a reload of the world keeps one beat, not two") {
     const std::int64_t after = t.ticks() - mid;
     CHECK(after >= before - 1);
     CHECK(after <= before + 1); // a second beat would double it
+}
+
+// ============================================================================
+// The pilot: a participant that plays the game, and the pause a picture asks for
+// ============================================================================
+
+namespace {
+
+/// The scancode of the world's own key that steers `dir`.
+std::int64_t key_for(std::int64_t dir) {
+    namespace scan = zengine::input::scan;
+    switch (dir) {
+    case kUp: return scan::kW;
+    case kRight: return scan::kD;
+    case kDown: return scan::kS;
+    default: return scan::kA;
+    }
+}
+
+/// A player's key, sent to the world as its window would.
+void press(loom::Switchboard& bus, std::int64_t scancode) {
+    bus.send_to_role(kWorldRole, loom::Message(loom::to_value(zengine::graphics::AreaKeyPressed{
+                                     kWorldArea, scancode, "key"})));
+}
+
+} // namespace
+
+TEST_CASE("the pilot, flown from a new game, eats and stays alive for 500 steps, stepping nothing") {
+    Rig r;
+    r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
+    const loom::WeaveId pilot = r.load("snake-pilot", SNAKE_SO_PILOT, kPilotRole);
+
+    // Lockstep: each tick the world steps, publishes, and the pilot answers with its choice.
+    constexpr int kSteps = 500;
+    v1::SnakeWorldState local;
+    for (int i = 0; i < kSteps; ++i) {
+        r.tick();
+        if (local.snake.empty()) {
+            seed(local);
+        } else {
+            (void)step(local);
+        }
+        turn(local, pilot_choice(visual_of(local)));
+        // One step a tick: a pilot that stepped the world would publish more.
+        REQUIRE(r.rec.visuals.size() == static_cast<std::size_t>(i + 1));
+        REQUIRE(same_visual(r.rec.visuals.back(), visual_of(local)));
+    }
+    const SnakeVisual last = r.rec.visuals.back();
+    CHECK(last.alive);
+    CHECK(r.rec.died == 0);
+    CHECK(last.score >= 30);
+    CHECK(r.rec.eaten == last.score);
+    CHECK(r.poke(pilot, loom::PokeRead{"heard"}).text == std::to_string(kSteps));
+    CHECK(r.poke(pilot, loom::PokeRead{"turns"}).text == std::to_string(kSteps));
+}
+
+TEST_CASE("the same start, flown twice under the world's own beat, plays the same game and pauses "
+          "on the step asked") {
+    // A picture's take: the pilot loaded and the pause asked for before time starts, then the
+    // world's own beat. Two takes are the same game, held still on the same step.
+    constexpr int kPauseAt = 60;
+    const auto take = [] {
+        Timed t([](Timed& before) {
+            (void)before.r.load("snake-pilot", SNAKE_SO_PILOT, kPilotRole);
+            REQUIRE(before.r.poke(before.world,
+                                  loom::PokeWrite{"pause_at", std::to_string(kPauseAt)})
+                        .kind == 1);
+        });
+        t.pump_for(kTickMs * (kPauseAt + kPauseAt / 2)); // half as long again as the steps take
+        CHECK(t.read("paused") == "true");
+        CHECK(t.read("steps") == std::to_string(kPauseAt));
+        CHECK(t.read("pause_at") == "0"); // asked once, and spent
+        return t.r.rec.visuals;
+    };
+    const std::vector<SnakeVisual> first = take();
+    const std::vector<SnakeVisual> second = take();
+    REQUIRE(first.size() == static_cast<std::size_t>(kPauseAt + 1)); // the new game, then the steps
+    REQUIRE(second.size() == first.size());
+    std::size_t differ = first.size();
+    for (std::size_t i = 0; i < first.size(); ++i) {
+        if (!same_visual(first[i], second[i])) {
+            differ = i;
+            break;
+        }
+    }
+    CHECK(differ == first.size());
+    CHECK(first.back().alive);
+    CHECK(first.back().score > 0); // a game in play: the pilot ate on its way
+}
+
+TEST_CASE("while the pilot flies the world's keys steer nothing, and once it lands they steer "
+          "again") {
+    Rig r;
+    const loom::WeaveId world = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
+    r.tick();
+    v1::SnakeWorldState local;
+    seed(local);
+    CHECK(r.poke(world, loom::PokeRead{"keys"}).text == "true");
+
+    // Activated, the pilot takes the wheel: the world's keys off, and the world said so.
+    const loom::WeaveId pilot = r.load("snake-pilot", SNAKE_SO_PILOT, kPilotRole);
+    CHECK(r.poke(world, loom::PokeRead{"keys"}).text == "false");
+    CHECK(r.poke(pilot, loom::PokeRead{"wheel"}).text == "true");
+    r.tick();
+    (void)step(local);
+    turn(local, pilot_choice(visual_of(local)));
+    REQUIRE(same_visual(r.rec.visuals.back(), visual_of(local)));
+
+    // A player's key, a quarter turn from where the pilot steers: it reaches the world and moves
+    // nothing.
+    for (int i = 0; i < 3; ++i) {
+        press(r.bus, key_for((local.direction + 1) % 4));
+        r.tick();
+        (void)step(local);
+        turn(local, pilot_choice(visual_of(local)));
+        REQUIRE(same_visual(r.rec.visuals.back(), visual_of(local)));
+    }
+
+    // Landed by its role, as the operator lands it. Loom tells no weave it is unloaded, so the
+    // keys stay off until the hand that landed the pilot gives them back.
+    CHECK(r.unload_role(kPilotRole).kind == 1);
+    CHECK(r.command(loom::ListLoaded{}).text.find("snake-pilot") == std::string::npos);
+    CHECK(r.poke(world, loom::PokeRead{"keys"}).text == "false");
+    CHECK(r.poke(world, loom::PokeWrite{"keys", "true"}).kind == 1);
+
+    // Now the player's key steers, and no pilot answers the step.
+    const std::int64_t wish = (local.direction + 1) % 4;
+    press(r.bus, key_for(wish));
+    turn(local, wish);
+    r.tick();
+    (void)step(local);
+    CHECK(same_visual(r.rec.visuals.back(), visual_of(local)));
+    CHECK(r.rec.visuals.back().snake.front().x == local.snake.front().x);
+    CHECK(r.rec.visuals.back().snake.front().y == local.snake.front().y);
+}
+
+TEST_CASE("a paused world takes no step until it resumes, from its own beat or any driver") {
+    namespace scan = zengine::input::scan;
+    Timed t;
+    t.pump_for(600); // the world plays under its own beat
+    REQUIRE(t.r.rec.visuals.size() >= 3);
+
+    // The player's pause: `p`, whoever steers. A beat already on its way may land first.
+    press(t.r.bus, scan::kP);
+    t.pump_for(240);
+    CHECK(t.read("paused") == "true");
+    const std::size_t held = t.r.rec.visuals.size();
+    const std::string ticks = t.read("ticks");
+    const std::string steps = t.read("steps");
+    t.pump_for(1200);
+    CHECK(t.r.rec.visuals.size() == held);
+    CHECK(t.read("ticks") == ticks);
+    CHECK(t.read("steps") == steps);
+
+    // Nor does any other driver's tick or turn, or the player's steering key, move it.
+    const std::string direction = t.read("direction");
+    const std::int64_t aside = (std::stoll(direction) + 1) % 4;
+    t.r.turn_real(aside);
+    press(t.r.bus, key_for(aside));
+    t.r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
+    t.pump_for(240);
+    CHECK(t.r.rec.visuals.size() == held);
+    CHECK(t.read("direction") == direction);
+
+    // Resumed, it plays on from where it stood.
+    press(t.r.bus, scan::kP);
+    t.pump_for(1200);
+    CHECK(t.read("paused") == "false");
+    REQUIRE(t.r.rec.visuals.size() >= held + 8);
+    const SnakeVisual& stood = t.r.rec.visuals[held - 1];
+    const SnakeVisual& next = t.r.rec.visuals[held];
+    REQUIRE(next.snake.size() >= 2);
+    CHECK(same_pos(next.snake[1], stood.snake.front()));
 }

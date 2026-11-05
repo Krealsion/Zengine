@@ -502,12 +502,13 @@ SnakeBoardData v1 0xc59060e13f9a1ec2
 SnakeBoardState v1 0x3f84130da807209c
 SnakeDied v1 0x6366f7f1d8c35179
 SnakeNewGame v1 0x112adbf050a70da4
+SnakePilotState v1 0xcc4064b8f97c4ff3
 SnakeStep v1 0x07679341002595f9
 SnakeTick v1 0xe26b16eea91e0b26
 SnakeTurn v1 0x0cee47a3070956a8
 SnakeVisual v1 0x8893c0db8d58420c
-SnakeWorldState v5 0x236b1cce2020ff06
-SnakeWorldState v6 0xdfd893b520c70284
+SnakeWorldState v7 0xeaecb276e6bbf8d1
+SnakeWorldState v8 0x19e20db6aa74d6a7
 SourceLocation v1 0x47372595bb69f14b
 SourceLocationContext v1 0xe8a9a8b7eaee5d39
 SourceOpened v1 0xee05fd82d327bc19

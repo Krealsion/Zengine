@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The snake World weave, the whole game: its rules (logic.hpp), its keys, its beat and its
-// picture. One source, two libraries: snake-world-v1 and, with `SNAKE_WORLD_V2`, snake-world-v2 (a
-// larger board and `growths`, the heir). It publishes its news for anyone, takes `SnakeTick` and
-// `SnakeTurn` from anyone, and draws its frame and its board into the window that shows its area:
-// the board said once, as the game's own element (board.hpp), and then each step as a change.
+// The snake World weave, the whole game: its rules (logic.hpp), its keys, its beat, its pause and
+// its picture. One source, two libraries: snake-world-v1 and, with `SNAKE_WORLD_V2`,
+// snake-world-v2 (a larger board and `growths`, the heir). It publishes its news for anyone, takes
+// `SnakeTick` and `SnakeTurn` from anyone, and draws its frame and its board into the window that
+// shows its area: the board said once, as the game's own element (board.hpp), and then each step
+// as a change.
 // Reference: examples/snake/README.md.
 
 // Both worlds converse: they answer `zen.PrepareShutdown` with a letter carrying their whole
@@ -44,8 +45,9 @@ using State = v2::SnakeWorldState;
 using State = v1::SnakeWorldState;
 #endif
 
-/// The action the world's new-game button names.
+/// The actions the world's buttons name: a new game, and a pause or a resume.
 constexpr const char* kNewGame = "new-game";
+constexpr const char* kPause = "pause";
 
 class SnakeWorld
     : public gfx::With<gfx::ActionFacet>::Weave<
@@ -69,19 +71,31 @@ public:
           beat_(timers().repeat(kTickTimerId, std::chrono::milliseconds(kTickMs),
                                 &SnakeWorld::on_beat)) {}
 
-    /// Any other driver's tick: a replay, a stepper, a test.
+    /// Any other driver's tick: a replay, a stepper, a test. A paused world takes no step.
     void on(const SnakeTick&, loom::Mail& mail) {
         retime(mail);
+        if (state_.paused) {
+            return;
+        }
         advance(mail);
     }
 
-    /// Any other driver's turn: a pilot, a replay.
-    void on(const SnakeTurn& t, loom::Mail&) { turn(state_, t.direction); }
+    /// Any other driver's turn: a pilot, a replay. A paused world takes no turn either.
+    void on(const SnakeTurn& t, loom::Mail&) {
+        if (!state_.paused) {
+            turn(state_, t.direction);
+        }
+    }
 
-    /// The world's own keys, from the window that shows it: the four the state names, and the
-    /// arrows, while `keys` says they steer.
+    /// The world's own keys, from the window that shows it: `p` pauses and resumes, whoever
+    /// steers; the four the state names, and the arrows, steer while `keys` says they do and the
+    /// world is not paused.
     void on(const gfx::AreaKeyPressed& k, loom::Mail&) {
-        if (!state_.keys) {
+        if (k.scancode == scan::kP) {
+            state_.paused = !state_.paused;
+            return;
+        }
+        if (!state_.keys || state_.paused) {
             return;
         }
         std::int64_t dir = -1;
@@ -99,8 +113,13 @@ public:
         }
     }
 
-    /// The new-game button, pressed in the window: a new game, sent to the board as a change.
+    /// The world's buttons, pressed in the window: the pause button pauses and resumes, as `p`
+    /// does; the new-game button starts a new game, unpaused, sent to the board as a change.
     void on_action(const std::string& action, loom::Mail& mail) {
+        if (action == kPause) {
+            state_.paused = !state_.paused;
+            return;
+        }
         if (action != kNewGame) {
             return;
         }
@@ -163,7 +182,8 @@ public:
     /// holds.
     void on_timed_activation(const loom::Activated&, loom::Mail& mail) { retime(mail); }
 
-    /// The world's own nodes: the score, the death notice, the board's place, the new-game button.
+    /// The world's own nodes: the score, the death notice, the board's place, the new-game button
+    /// and the pause button beside it, which says resume while the world is paused.
     void picture(gfx::Sketch& f) const {
         const std::int64_t c = kBoardCellPx;
         f.text("score", 0, 0, "score " + std::to_string(state_.score),
@@ -172,10 +192,16 @@ public:
             f.text("dead", 10 * c, 0, "DEAD", gfx::colors::alert);
         }
         f.group("board", 0, c);
+        const std::int64_t row = (state_.height + 3) * c;
         gfx::Button new_game("new-game", " new game ");
         new_game.set_measure(canvas().text());
-        new_game.set_bounds(0, (state_.height + 3) * c, 12 * c, c);
+        new_game.set_bounds(0, row, 12 * c, c);
         new_game.sketch(f, kNewGame);
+        const std::string said = state_.paused ? " resume " : " pause ";
+        gfx::Button pause("pause", said);
+        pause.set_measure(canvas().text());
+        pause.set_bounds(13 * c, row, (static_cast<std::int64_t>(said.size()) + 2) * c, c);
+        pause.sketch(f, kPause);
     }
 
     /// A window that does not hold the board: the board said there, whole.
@@ -192,14 +218,15 @@ private:
             return; // a firing of a pace already given up, in flight when it was
         }
         retime(mail);
-        if (state_.beat_ms <= 0) {
+        if (state_.beat_ms <= 0 || state_.paused) {
             return;
         }
         ++state_.ticks;
         advance(mail);
     }
 
-    /// One step of world time: the news published and the board told what changed.
+    /// One step of world time: the news published and the board told what changed. The step
+    /// that reaches `pause_at` pauses the world after it, once.
     void advance(loom::Mail& mail) {
 #if defined(SNAKE_WORLD_V2)
         claim_once(mail);
@@ -222,6 +249,11 @@ private:
             mail.publish(SnakeDied{});
         }
         if (ev.moved || ev.died) {
+            ++state_.steps;
+            if (state_.pause_at > 0 && state_.steps >= state_.pause_at) {
+                state_.paused = true;
+                state_.pause_at = 0;
+            }
             mail.publish(visual_of(state_));
             step_board(before);
         }
