@@ -25,6 +25,7 @@
     { "name": "frame_transient", "color": "#9aa0a6" },
     { "name": "primary", "color": "#d08700" },
     { "name": "on_primary", "color": "#ffffff" },
-    { "name": "secondary", "color": "#d08700" }
+    { "name": "secondary", "color": "#d08700" },
+    { "name": "background_alt", "color": "#ebebe6" }
   ]
 }

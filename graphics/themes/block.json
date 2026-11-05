@@ -26,6 +26,7 @@
     { "name": "frame_transient", "cells": "bright black", "fill": ":" },
     { "name": "primary", "cells": "cyan", "fill": "@" },
     { "name": "on_primary", "cells": "black", "fill": "#" },
-    { "name": "secondary", "cells": "cyan", "fill": "@" }
+    { "name": "secondary", "cells": "cyan", "fill": "@" },
+    { "name": "background_alt", "cells": "black", "fill": " " }
   ]
 }

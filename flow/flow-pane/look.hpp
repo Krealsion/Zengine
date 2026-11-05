@@ -43,10 +43,10 @@ inline gfx::Color band() { return ink::surface; }     ///< a card's head, the ru
 inline gfx::Color card() { return ink::surface; }     ///< a card's body
 inline gfx::Color badge() { return ink::surface; }    ///< a value on a wire
 inline gfx::Color chosen() { return ink::chosen; }    ///< the row the preview shows
-/// The three lanes, the graph's columns, on the pane's ground.
-inline gfx::Color when_lane() { return ink::background; }
-inline gfx::Color do_lane() { return ink::background; }
-inline gfx::Color then_lane() { return ink::background; }
+/// The three lanes, the graph's columns, on a background of their own, apart from the pane's.
+inline gfx::Color when_lane() { return ink::background_alt; }
+inline gfx::Color do_lane() { return ink::background_alt; }
+inline gfx::Color then_lane() { return ink::background_alt; }
 /// A part of the rule's sentence: a message, a kept field, a step, raised over its row, each in its
 /// own outline.
 inline gfx::Color message_chip() { return ink::surface; }

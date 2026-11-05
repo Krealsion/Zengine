@@ -47,6 +47,8 @@
     { "name": "on_primary", "color": "#1b1f26", "fill": "o",
       "about": "words on the face of the press offered first" },
     { "name": "secondary", "color": "#ebcb8b", "fill": "O",
-      "about": "the outline and words of a press offered second" }
+      "about": "the outline and words of a press offered second" },
+    { "name": "background_alt", "color": "#20252d", "cells": "terminal default", "fill": " ",
+      "about": "a second background, for regions that stand apart from the background beside them" }
   ]
 }

@@ -1265,9 +1265,10 @@ TEST_CASE("Flow made over draws its three lanes, its cards, ports and curved wir
     const auto texts = light.picture.texts();
     CHECK(std::count(texts.begin(), texts.end(), "3") == 2);
     CHECK(std::count(texts.begin(), texts.end(), "0") == 1);
-    // ...its wires, every one the message just changed, in the done colour until the next.
-    for (const gfx::PoolColor c : {gfx::colors::background, gfx::colors::field, gfx::colors::surface,
-                                   gfx::colors::done})
+    // ...its wires, every one the message just changed, in the done colour until the next; its
+    // three lanes on a background of their own, apart from the pane's.
+    for (const gfx::PoolColor c : {gfx::colors::background, gfx::colors::background_alt,
+                                   gfx::colors::field, gfx::colors::surface, gfx::colors::done})
         CHECK_MESSAGE(colours.count(c.name) == 1, c.name);
     CHECK(light.parts.count("port:1.0") == 1);
     CHECK(light.parts.count("write:0") == 1);

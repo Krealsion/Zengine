@@ -5327,6 +5327,7 @@ TEST_CASE("in a terminal night and day show their text and grounds in the termin
     for (const gfx::PaletteColor& c : gfx::themes::night().colors) {
         const bool own = c.name == gfx::colors::text.name || c.name == gfx::colors::ground.name ||
                          c.name == gfx::colors::background.name ||
+                         c.name == gfx::colors::background_alt.name ||
                          c.name == gfx::colors::surface.name || c.name == gfx::colors::field.name ||
                          c.name == gfx::colors::chosen.name || c.name == gfx::colors::veil.name;
         const bool grey = c.name == gfx::colors::frame.name;
