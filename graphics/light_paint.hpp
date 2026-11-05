@@ -311,9 +311,18 @@ private:
     void rect(std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) const {
         const PaintInk& fill = ink_of(0);
         const PaintInk& stroke = ink_of(1);
+        // A FILL SHOWING WHAT LIES BENEATH IT -- a veil -- is blended as an image of its one colour
+        // is, where a quad covers.
+        if (!fill.none() && (colour(fill) & 0xffu) != 0xffu) {
+            const std::uint32_t c = colour(fill);
+            const loom::Bytes pixel{static_cast<std::uint8_t>(c >> 24),
+                                    static_cast<std::uint8_t>(c >> 16),
+                                    static_cast<std::uint8_t>(c >> 8), static_cast<std::uint8_t>(c)};
+            image(ImageArgs{x, y, w, h, 1, 1, pixel});
+        }
         x += space_.dx;
         y += space_.dy;
-        if (!fill.none()) {
+        if (!fill.none() && (colour(fill) & 0xffu) == 0xffu) {
             quad(x, y, w, h, colour(fill));
         }
         if (!stroke.none()) {

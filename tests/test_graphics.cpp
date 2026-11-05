@@ -5357,6 +5357,29 @@ TEST_CASE("in a terminal night shows its text and its grounds in the terminal's 
     }
 }
 
+TEST_CASE("the OS window blends a fill that shows what lies beneath it, as an image of its one "
+          "colour, and covers with an opaque one: the veil fades what it veils") {
+    LitWindow lit_window;
+    LitHeard& o = lit_window.own("test.veil", 0, 0, 200, 100, "night");
+    gfx::Sketch s;
+    s.fill_rect("ground", 0, 0, 200, 100, gfx::colors::background);
+    s.fill_rect("veil", 10, 20, 30, 40, gfx::colors::veil);
+    lit_window.say("test.veil", whole("test.veil", s));
+    CHECK(o.refused.empty());
+    const LightLog::Area* a = lit_window.light.area("test.veil");
+    REQUIRE(a != nullptr);
+    REQUIRE(a->nodes.size() == 2);
+    // THE OPAQUE ONE, a quad.
+    CHECK(a->nodes[0].quads.size() == 1);
+    CHECK(a->nodes[0].images.empty());
+    // THE VEIL, night's black at half, blended over what lies beneath it.
+    CHECK(a->nodes[1].quads.empty());
+    REQUIRE(a->nodes[1].images.size() == 1);
+    const auto& im = a->nodes[1].images[0];
+    CHECK((im.x == 10 && im.y == 20 && im.w == 30 && im.h == 40 && im.pw == 1 && im.ph == 1));
+    CHECK(im.rgba == loom::Bytes{0x00, 0x00, 0x00, 0x7f});
+}
+
 TEST_CASE("a host that offers no palette paints in the window's own: the pool's colours, in each "
           "medium") {
     // THE TERMINAL: the pool's fill characters and words.
