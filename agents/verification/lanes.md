@@ -70,9 +70,9 @@ prefix, then deletes a header to prove it read the prefix.
 ## VM-LANE-11 — The lane may run in parallel, Windows included
 
 METHOD — The lane may run in parallel with `-DZEN_CTEST_ARGS=-j<n>`, same proofs, on Linux/GCC and on both Windows libraries; an entry that cannot share the machine runs alone, named in `-DZEN_CTEST_APART`.
-BECAUSE — no CTest entry writes what this build tree builds (`tutorial_walks`'s install leaves only CMake's install
-manifest there), so the entries cannot race it; every build job runs every entry in the one pool, and an entry seen to fail
-under load is kept apart only until its repair merges, its witness a loaded parallel lane.
+BECAUSE — no entry writes what this build tree builds (`tutorial_walks`'s install leaves only CMake's install manifest), so
+entries cannot race it; every build job runs every entry, apart only if seen to fail under load, until its repair merges
+(its witness a loaded parallel lane), or if its memory beside others would pass the sanitizer runner's (VM-LANE-27).
 
 ## VM-LANE-12 — The filesystem decides parallel safety
 
@@ -170,6 +170,13 @@ BECAUSE — no job reads debug information: a failing case names its file and li
 nothing in Zengine or Loom reads it as it runs, and a sanitizer's report names file and line from
 the line table alone; a weaver debugging their own build reads all of it.
 
+## VM-LANE-27 — The sanitizer lane stays inside its runner's memory, its peak said
+
+METHOD — CI's sanitizer job runs the lane through `tests/sanitizer_lane.cmake`, home of its CTest arguments, entries apart and limit; its summary names the peak, and a peak past the limit warns the run.
+BECAUSE — a standard runner has 16 GB and stops a job that reaches it with a shutdown naming no cause; the limit leaves a
+quarter spare, so added memory warns a run before one is stopped; an entry is kept apart by its peak measured alone, and the
+lane's peak is `tests/lane_memory.py`'s, which a repetition of the job reads by running the same file.
+
 ## Seen
 
 ### VM-LANE-01
@@ -213,6 +220,7 @@ the line table alone; a weaver debugging their own build reads all of it.
 ### VM-LANE-11
 `tests/verify.cmake` ZEN_CTEST_ARGS ZEN_CTEST_APART
 `.github/workflows/ci.yml` ZEN_CTEST_ARGS (every build job at `-j4`)
+`tests/sanitizer_lane.cmake` ZEN_SANITIZER_CTEST_ARGS ZEN_SANITIZER_APART
 `AGENTS.md`
 
 ### VM-LANE-12
@@ -264,3 +272,8 @@ nowhere yet
 
 ### VM-LANE-26
 `.github/workflows/ci.yml` CMAKE_CXX_FLAGS_DEBUG
+
+### VM-LANE-27
+`tests/sanitizer_lane.cmake` ZEN_SANITIZER_PEAK_GB ZEN_SANITIZER_APART
+`tests/lane_memory.py` PR_SET_CHILD_SUBREAPER same_memory self_test (its fixed cases, run by the job)
+`.github/workflows/ci.yml` lane_memory

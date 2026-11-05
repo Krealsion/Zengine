@@ -491,6 +491,12 @@ jobs:
           g++ --version
           cmake --version
           nm --version
+          python3 --version
+
+      # The lane's memory watch on its fixed cases, on this runner, before it is trusted with the
+      # lane: a peak past its limit warns, one under it does not (VM-LANE-27).
+      - name: The memory watch, on its fixed cases
+        run: python3 tests/lane_memory.py --self-test
 
       - name: Fetch pinned canonical Loom
         env:
@@ -583,21 +589,25 @@ jobs:
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Every entry in the one pool, four at a time, as in the stranger lane.
+      # Every entry, as tests/sanitizer_lane.cmake runs the lane: its CTest arguments, the entries
+      # it keeps apart, and its peak memory said, a warning on the run past its limit (VM-LANE-27).
       - name: Verify the repository-owned population under ASan + UBSan
         id: verify
         run: |
           set +e
-          cmake -DZEN_BUILD_DIR=build-san -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake 2>&1 | tee verify.log
+          cmake -DZEN_BUILD_DIR=build-san -P tests/sanitizer_lane.cmake 2>&1 | tee verify.log
           verify_rc="${PIPESTATUS[0]}"
           verify_outcome=failed
           if (( verify_rc == 0 )); then verify_outcome=passed; fi
           {
             printf '## Zengine / Linux / ASan + UBSan\n\n'
             printf '**Verification:** %s (exit %s)\n\n' "$verify_outcome" "$verify_rc"
+            peak="$(grep -E '^lane-memory: peak ' verify.log | tail -n 1)"
+            peak="${peak#lane-memory: }"
+            printf '**Memory:** %s\n\n' "${peak:-not measured}"
             printf 'Selected lines from the repository verifier and CTest output:\n\n'
             printf '```text\n'
-            grep -E 'verify:|population:|cases \(floor|judged on|[0-9]+% tests passed|test cases:|assertions:|DECLARED ABSENT|Total Test time|runtime error:|ERROR: AddressSanitizer' verify.log || true
+            grep -E 'verify:|population:|cases \(floor|judged on|[0-9]+% tests passed|test cases:|assertions:|DECLARED ABSENT|Total Test time|runtime error:|ERROR: AddressSanitizer|lane-memory:|sanitizer-lane:|title=Sanitizer lane memory' verify.log || true
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
@@ -770,7 +780,7 @@ jobs:
       # Linux and the Neovim-gated ones are absent (this runner has no Neovim). That
       # difference is declared in tests/test_population.txt, not absorbed into a slack floor,
       # so a green here means the same thing; the numbers live in that file and nowhere else.
-      # Four entries at a time, every entry in the one pool, as in every build job (VM-LANE-11).
+      # Four entries at a time, every entry in the one pool (VM-LANE-11).
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake
 
@@ -956,7 +966,7 @@ jobs:
       # MinGW job names g++ by absolute path, which carries its own roots). Without it the
       # compile entries fail as `C1083: Cannot open include file: 'cstdint'` -- an unset
       # variable that reads like a broken repository, in a lane whose run-only suites pass.
-      # Four entries at a time, every entry in the one pool, as in every build job (VM-LANE-11).
+      # Four entries at a time, every entry in the one pool (VM-LANE-11).
       # The verdict heads the run's summary, saying which of the two runs this was.
       - name: Verify the repository-owned population
         shell: pwsh
