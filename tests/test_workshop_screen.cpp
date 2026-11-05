@@ -7083,6 +7083,73 @@ TEST_CASE("WL-ARR-18: arranging says so at the room's top, naming what it arrang
     CHECK_FALSE(said(kArrangingCaption));
 }
 
+namespace {
+
+/// A night whose chrome and veil are its own: each set apart from every colour the palette holds.
+gfx::PaletteOffered chrome_apart() {
+    gfx::PaletteOffered mine = gfx::themes::night();
+    mine.palette = "chrome-apart";
+    for (gfx::PaletteColor& c : mine.colors) {
+        if (c.name == gfx::colors::frame.name) c.rgba = 0x010203ff;
+        if (c.name == gfx::colors::frame_selected.name) c.rgba = 0x040506ff;
+        if (c.name == gfx::colors::frame_transient.name) c.rgba = 0x070809ff;
+        if (c.name == gfx::colors::veil.name) c.rgba = 0x0a0b0c7f;
+    }
+    return mine;
+}
+
+/// Every colour Workshop's drawings paint in `palette` -- the desk, the overlay and each pane's
+/// frame -- as the window resolves each node's.
+std::set<std::int64_t> painted_in(const gfx::PaletteOffered& palette, const Session& s) {
+    std::set<std::int64_t> out;
+    std::vector<gfx::Sketch> drawings{workshop_window_drawing(s).sketch,
+                                      workshop_overlay_drawing(s, {})};
+    for (const std::int64_t kind : effective_pane_order(s.setup.active, s.panes)) {
+        drawings.push_back(workshop_frame_drawing(s, kind).sketch);
+    }
+    for (const gfx::Sketch& drawn : drawings) {
+        for (const gfx::Node& n : drawn.nodes()) {
+            namespace gw = zengine::graphics::window;
+            for (const gfx::PaintInk& ink : gw::inks_of(n.op, n.args, palette, kWorkshopProvider)) {
+                if (!ink.none()) out.insert(ink.rgba);
+            }
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("the chrome paints the frame, frame_selected and frame_transient its palette sets, and "
+          "the arranging veil its veil") {
+    const gfx::PaletteOffered mine = chrome_apart();
+    // ORDINARY AND SELECTED: two panes on a graphical desk, the second selected.
+    PlacedDesk d({PixelRect{0, 0, 400, 300}, PixelRect{500, 0, 400, 300}});
+    d.s.panes.selected = d.kinds[1];
+    const std::set<std::int64_t> desk = painted_in(mine, d.s);
+    CHECK(desk.count(0x010203ff) == 1);
+    CHECK(desk.count(0x040506ff) == 1);
+    CHECK(desk.count(0x070809ff) == 0);
+    CHECK(desk.count(0x0a0b0c7f) == 0);
+    // THE VEIL, over every pane but the one a weaver arranges.
+    d.s.arrange.open = true;
+    d.s.arrange.pane = PaneRef{stock::kOffice, "placed1"};
+    CHECK(painted_in(mine, d.s).count(0x0a0b0c7f) == 1);
+
+    // TRANSIENT: a pane's menu, over it.
+    Live t;
+    open_pane(t, ref_of(stock::kKind));
+    const CellRect builder = cells_covered(
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind, screen_of(t.session()))
+            .rect);
+    t.press_canvas(builder.x, builder.y);
+    REQUIRE(t.session().panes.selected == stock::kKind);
+    CHECK(painted_in(mine, t.session()).count(0x070809ff) == 0);
+    t.right_press_canvas(builder.x + 2, builder.y);
+    REQUIRE(t.menu().open);
+    CHECK(painted_in(mine, t.session()).count(0x070809ff) == 1);
+}
+
 TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all of each that shows") {
     // MUTATION (tests/mutants/workshop_screen.md#veil-each-pane-whole): each faded pane veiled
     // whole but for the arranged one -- two veils where they overlap. MUTATION
@@ -7107,8 +7174,9 @@ TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all 
     for (const gfx::Sketch* drawn : {&desk, &overlay}) {
         for (const gfx::Node& node : drawn->nodes()) {
             if (node.path.find("/veil/fade") == std::string::npos) continue;
-            const auto a = gfx::from_body<gfx::ImageArgs>(node.args);
+            const auto a = gfx::from_body<gfx::RectArgs>(node.args);
             REQUIRE(a.has_value());
+            CHECK(a->fill == gfx::colors::veil);
             veils.push_back(PixelRect{a->x, a->y, a->w, a->h});
         }
     }

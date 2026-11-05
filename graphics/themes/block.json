@@ -12,6 +12,19 @@
     { "name": "accent", "cells": "cyan", "fill": "@" },
     { "name": "alert", "cells": "red bold", "fill": "%" },
     { "name": "guide", "cells": "bright magenta", "fill": "#" },
-    { "name": "edge", "cells": "bright black", "fill": "#" }
+    { "name": "edge", "cells": "bright black", "fill": "#" },
+    { "name": "surface", "cells": "black", "fill": " " },
+    { "name": "field", "cells": "black", "fill": " " },
+    { "name": "chosen", "cells": "black", "fill": " " },
+    { "name": "veil", "cells": "own", "fill": " " },
+    { "name": "faint", "cells": "bright black", "fill": ":" },
+    { "name": "warn", "cells": "yellow", "fill": "%" },
+    { "name": "done", "cells": "green", "fill": "#" },
+    { "name": "frame", "cells": "own", "fill": "#" },
+    { "name": "frame_selected", "cells": "cyan", "fill": "@" },
+    { "name": "frame_transient", "cells": "bright black", "fill": ":" },
+    { "name": "primary", "cells": "cyan", "fill": "@" },
+    { "name": "on_primary", "cells": "black", "fill": "#" },
+    { "name": "secondary", "cells": "cyan", "fill": "@" }
   ]
 }

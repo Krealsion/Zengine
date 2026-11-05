@@ -1,6 +1,6 @@
 # Workshop law — chrome
 
-Register `WL-CHROME`: a pane's edge, the boundary rungs, the ring and the chrome roles. One law
+Register `WL-CHROME`: a pane's edge, the boundary rungs, the ring and the chrome's colours. One law
 per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-CHROME-01 — A pane has an edge, inside its own rectangle
@@ -76,10 +76,11 @@ WHY — `agents/decisions/pane-boundary-rungs.md`
 
 ## WL-CHROME-08 — Three chrome colours, from the shared pool
 
-LAW — Three chrome colours: ordinary chrome wears the pool's `text`, selected chrome its `accent`, a transient surface its `quiet`, each a pool name the area's palette paints, with no per-medium palette.
+LAW — Three chrome colours: ordinary chrome wears the pool's `frame`, selected chrome `frame_selected`, a transient surface `frame_transient`, each painted as the area's palette says.
 
 MEANS
-- the desk and the document say selection with one word, `accent`;
+- the desk and the document say selection with one word, `frame_selected`;
+- a theme sets the chrome apart from the words it frames (the pool's defaults are `text`'s, `accent`'s and `quiet`'s colours), and no medium keeps a palette of its own for it;
 - on a character medium a transient edge over bare workspace is the hole its interior clears.
 
 DOES NOT MEAN
@@ -182,7 +183,8 @@ selected pane wears its own chrome, and only it"
 ### WL-CHROME-08
 `workshop/screen.hpp` kPaneChrome kPaneChromeSelected kTransientChrome
 `tests/test_workshop_screen.cpp` "selected and ordinary differ in INK, and in nothing else" "a
-transient surface stays over the pane it covers, selected or not"
+transient surface stays over the pane it covers, selected or not" "the chrome paints the frame,
+frame_selected and frame_transient its palette sets, and the arranging veil its veil"
 
 ### WL-CHROME-09
 `workshop/panes.hpp` ExternalPane::manual

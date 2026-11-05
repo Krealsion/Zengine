@@ -11,6 +11,19 @@
     { "name": "accent", "color": "#ebcb8b" },
     { "name": "alert", "color": "#bf616a" },
     { "name": "guide", "color": "#88c0d0" },
-    { "name": "edge", "color": "#7d869a" }
+    { "name": "edge", "color": "#7d869a" },
+    { "name": "surface", "color": "#3b4252" },
+    { "name": "field", "color": "#1b1f26" },
+    { "name": "chosen", "color": "#434c5e" },
+    { "name": "veil", "color": "#0000007f" },
+    { "name": "faint", "color": "#7d869a" },
+    { "name": "warn", "color": "#d08770" },
+    { "name": "done", "color": "#a3be8c" },
+    { "name": "frame", "color": "#d8dee9" },
+    { "name": "frame_selected", "color": "#ebcb8b" },
+    { "name": "frame_transient", "color": "#4c566a" },
+    { "name": "primary", "color": "#ebcb8b" },
+    { "name": "on_primary", "color": "#1b1f26" },
+    { "name": "secondary", "color": "#ebcb8b" }
   ]
 }

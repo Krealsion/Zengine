@@ -480,11 +480,11 @@ std::vector<PixelRect> outside_of(const PixelRect& r, const PixelRect& cut) {
     return out;
 }
 
-/// WHILE ONE PANE IS ARRANGED, EVERY OTHER PANE FADES: a veil of the ground at half strength over
-/// what of each the arranged pane leaves uncovered, drawn in an area that stands in front of the
-/// panes: Workshop's own while a weaver arranges, its overlay while a pane opened is placed. Under
-/// half, so a terminal, which draws an image only where it is mostly opaque, draws none of it. The
-/// veil falls once where faded panes overlap: each pane is veiled only where no veil lies yet.
+/// WHILE ONE PANE IS ARRANGED, EVERY OTHER PANE FADES: a veil in the pool's `veil` over what of
+/// each the arranged pane leaves uncovered, drawn in an area that stands in front of the panes:
+/// Workshop's own while a weaver arranges, its overlay while a pane opened is placed. A terminal
+/// leaves out a fill that is mostly transparent, so where the veil is, it draws none. The veil
+/// falls once where faded panes overlap: each pane is veiled only where no veil lies yet.
 // WL-ARR-18 -- agents/workshop/arrangement.md
 void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const Session& s,
                          const Screen& sc) {
@@ -496,8 +496,6 @@ void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const S
         return;
     }
     const PixelRect held = bounds_of(s.panes, s.setup.active, *kept, sc).rect;
-    const std::uint8_t tone = s.skin == kSkinDay ? 0xff : 0x00;
-    const loom::Bytes veil{tone, tone, tone, 0x7f};
     sk.group(group, 0, 0);
     std::vector<PixelRect> veiled; // what the veil covers so far, in parts that do not overlap
     for (const std::int64_t kind : effective_pane_order(s.setup.active, s.panes)) {
@@ -520,8 +518,8 @@ void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const S
             parts = std::move(left);
         }
         for (const PixelRect& part : parts) {
-            sk.image(group + "/fade" + std::to_string(veiled.size()), part.x, part.y, part.w,
-                     part.h, 1, 1, veil);
+            sk.fill_rect(group + "/fade" + std::to_string(veiled.size()), part.x, part.y, part.w,
+                         part.h, graphics::colors::veil);
             veiled.push_back(part);
         }
     }

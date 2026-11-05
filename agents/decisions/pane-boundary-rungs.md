@@ -19,7 +19,8 @@ medium's reported `cell_px`). `pane_inside` tries the face's unit, then one cell
 boundary, and returns the first that leaves an interior the face can set, resolving the interior
 and its presentation together. The backdrop is the border. Every body resolution goes through
 `pane_inside`. A content-sized surface reserves the coarsest boundary. Selection changes the ink
-and not one number. Three chrome roles, from the closed vocabulary.
+and not one number. Three chrome colours, from the shared pool: `frame`, `frame_selected` and
+`frame_transient`.
 
 **Alternatives considered.**
 - *A frame grown outward around the authored rectangle* — rejected: the rectangle a weaver
@@ -33,7 +34,7 @@ and not one number. Three chrome roles, from the closed vocabulary.
   projected away and the body spills over its own left and top edge, leaving a ring on two
   sides; pinned by case `"a face that describes an interior in CELLS pays the cell"`.
 - *Another chrome shade or a per-medium palette* for a transient edge over bare workspace —
-  rejected: pane chrome uses the shared fill, accent and muted roles.
+  rejected: pane chrome uses the pool's three frame colours.
 - *Sizing a content popup for pixels* — rejected: it would cut a row off itself the moment a
   terminal drew it, and its placement would depend on the face.
 

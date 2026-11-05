@@ -427,11 +427,11 @@ static_assert(kStackRows + kCoarseStepCells - 2 * kChromeCells - 1 >= 8,
               "tightest shipped form needs: the slot's rows, plus the step, less the chrome "
               "on both sides, less the pane's own title row");
 
-// ---- THE CHROME'S VOICE: three roles, and the vocabulary is the one that exists ---------
+// ---- THE CHROME'S VOICE: three pool colours, each the palette's to set -----------------
 // WL-CHROME-07, WL-CHROME-08 -- agents/workshop/chrome.md
-inline constexpr graphics::PoolColor kPaneChrome = graphics::colors::text;
-inline constexpr graphics::PoolColor kPaneChromeSelected = graphics::colors::accent;
-inline constexpr graphics::PoolColor kTransientChrome = graphics::colors::quiet;
+inline constexpr graphics::PoolColor kPaneChrome = graphics::colors::frame;
+inline constexpr graphics::PoolColor kPaneChromeSelected = graphics::colors::frame_selected;
+inline constexpr graphics::PoolColor kTransientChrome = graphics::colors::frame_transient;
 
 // ---- AUTHORED INTENT, PROJECTED ONTO THIS SCREEN -------------------------------------
 // WL-PANE-08, WL-PANE-09 -- agents/workshop/panes-and-windows.md

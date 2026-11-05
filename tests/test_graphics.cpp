@@ -5307,6 +5307,18 @@ TEST_CASE("every palette paints in a terminal: a colour with no terminal word sh
     CHECK(ink_of_glyph(t.term, from, 'C') == "\x1b[92m");  // an exact colour's nearest
 }
 
+TEST_CASE("a terminal leaves out a fill that is mostly transparent, as it leaves out such an image: "
+          "the veil covers no cell") {
+    gfx::Sketch cells;
+    cells.text("words", 0, 0, "abc", gfx::colors::text);
+    cells.fill_rect("veil", 0, 0, 3 * gfx::kCellPx, gfx::kCellPx, gfx::colors::veil);
+    cells.fill_rect("ground", 3 * gfx::kCellPx, 0, 2 * gfx::kCellPx, gfx::kCellPx,
+                    gfx::colors::accent);
+    for (const gfx::PaletteOffered& palette : {gfx::themes::night(), gfx::themes::day()}) {
+        CHECK(painted(cells, palette)[0] == "abcOO");
+    }
+}
+
 TEST_CASE("a host that offers no palette paints in the window's own: the pool's colours, in each "
           "medium") {
     // THE TERMINAL: the pool's fill characters and words.
