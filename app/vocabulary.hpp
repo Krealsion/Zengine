@@ -59,7 +59,7 @@ struct AppPlaceSaid {
 
 /// The app's window as `app.json` writes it: its title and its size in pixels, which the app's
 /// weave says to the window it arranges in (`WindowShaped`), and `skin`, the shipped palette its
-/// areas wear (`day`, `night`, `classic` or `block`).
+/// areas wear (`night`, `day` or `block`; `classic` is another name for `night`).
 struct ZengineAppWindow {
     std::string title;
     std::int64_t width = 0;

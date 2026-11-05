@@ -32,24 +32,24 @@ Red in `zengine-workshop-desk-tests`:
 
 - Workshop's notice says a pane's words, and the desk read the pixels they came to
 
-## every-area-classic
+## every-area-night
 
-Every graphics area is given `classic`, whatever its row and Workshop keep.
+Every graphics area is given `night`, whatever its row and Workshop keep.
 
 In `workshop/weave_run.cpp`:
 
 ```diff
 -        skins[area] = own != nullptr && own->text && is_workshop_skin_choice(*own->text)
--                          ? *own->text
+-                          ? workshop_palette_of(*own->text)
 -                          : session_.skin;
-+        skins[area] = own != nullptr && false ? *own->text : std::string(kSkinClassic);
++        skins[area] = own != nullptr && false ? *own->text : std::string(kSkinNight);
 ```
 
 In `workshop/weave_run.cpp`:
 
 ```diff
 -    skins[kWorkshopProvider] = session_.skin;
-+    skins[kWorkshopProvider] = kSkinClassic;
++    skins[kWorkshopProvider] = kSkinNight;
 ```
 
 Red in `zengine-workshop-desk-tests`:

@@ -13,8 +13,8 @@ name into a colour when it paints, from the palette the area wears, and hands it
 colours; the painter knows none. A palette is offered whole at a revision, and a new one paints
 every area wearing it again with nothing drawn on the bus. The skin seam retires: the painter is the
 window's own, one of each medium behind one interface (`PaintTask` in, `PaintResult` out), and
-another way of painting is another window. The four skins become four themes, generated at build
-time.
+another way of painting is another window. The skins become themes, generated at build time; which
+ship is [its own record](night-day-and-block-ship.md).
 
 **Alternatives considered.**
 - *Argued: keep the skin seam, colour-free* -- a stranger could ship a painter without a window, at

@@ -204,7 +204,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         const PaneSetting* own =
             seat != nullptr ? find_pane_setting(seat->settings, kWorkshopSkinKey) : nullptr;
         skins[area] = own != nullptr && own->text && is_workshop_skin_choice(*own->text)
-                          ? *own->text
+                          ? workshop_palette_of(*own->text)
                           : session_.skin;
         if (frames.count(pane_frame_area(session_.panes, order[i])) != 0) {
             // its frame wears its palette

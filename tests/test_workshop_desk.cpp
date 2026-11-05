@@ -3215,17 +3215,16 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     CHECK(overlay().order == d.panes_on_desk() + 2);
     CHECK_FALSE(overlay().keys);
     CHECK_FALSE(overlay().pointer);
-    // ALL OF IT SAID AS WORKSHOP'S OFFICE: the four palettes offered once, each area's chosen once,
-    // and Workshop's room asked once.
+    // ALL OF IT SAID AS WORKSHOP'S OFFICE: the three palettes offered once, each area's chosen
+    // once, and Workshop's room asked once.
     CHECK(d.directory->arrangers == std::set<std::string>{kWorkshopProvider});
-    REQUIRE(d.directory->offered.size() == 4);
-    CHECK(d.directory->offered[0] == gfx::themes::classic());
-    CHECK(d.directory->offered[1] == gfx::themes::block());
-    CHECK(d.directory->offered[2] == gfx::themes::day());
-    CHECK(d.directory->offered[3] == gfx::themes::night());
+    REQUIRE(d.directory->offered.size() == 3);
+    CHECK(d.directory->offered[0] == gfx::themes::night());
+    CHECK(d.directory->offered[1] == gfx::themes::day());
+    CHECK(d.directory->offered[2] == gfx::themes::block());
     std::map<std::string, int> chosen;
     for (const gfx::PaletteChosen& c : d.directory->chosen) {
-        CHECK(c.palette == "classic");
+        CHECK(c.palette == "night");
         ++chosen[c.area];
     }
     std::map<std::string, int> every;
@@ -3268,7 +3267,7 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     const std::size_t offered = d.directory->offered.size();
     const std::size_t again = d.directory->placed.size();
     d.directory_does();
-    CHECK(d.directory->offered.size() == offered + 4);
+    CHECK(d.directory->offered.size() == offered + 3);
     CHECK(d.directory->placed.size() == again + d.directory->areas.size());
     CHECK(std::count(d.directory->asked.begin(), d.directory->asked.end(), own_room) == 2);
     // ...AND SO IS ANOTHER HOLDER OF ITS OFFICE, at the next repaint, though it says nothing.
@@ -3277,7 +3276,7 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     d.mount_directory();
     REQUIRE(d.directory_id.value != before);
     d.r.key(input::scan::kGrave);
-    CHECK(d.directory->offered.size() == 4);
+    CHECK(d.directory->offered.size() == 3);
     CHECK(d.directory->areas.count(kWorkshopProvider) == 1);
     CHECK(d.directory->areas.count(kAttentionArea) == 1);
     CHECK(d.directory->chosen.size() == d.directory->areas.size());
@@ -3421,7 +3420,7 @@ using Skins = std::map<std::string, std::string>;
 
 TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names, else Workshop's "
           "own, and a palette is said only when an area's moved") {
-    // ⚔ MUTATION (tests/mutants/workshop_desk.md#every-area-classic): every area given `classic`
+    // ⚔ MUTATION (tests/mutants/workshop_desk.md#every-area-night): every area given `night`
     // whatever is kept -- Workshop's `block` never reaches the directory, and neither does the
     // row's.
     SkinDesk d;
@@ -3444,8 +3443,8 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
                                                {layouts, "block"}});
     CHECK(said == 5);
 
-    // THE PANE'S ROW, `classic`: its area and its frame alone move back, and the pane is handed
-    // none of it.
+    // THE PANE'S ROW, `classic`, another name for `night`: its area and its frame alone move, to
+    // night, and the pane is handed none of it.
     from = d.directory->chosen.size();
     std::vector<v2::PaneSettings> rows_handed;
     const loom::ObserverId tap = d.r.bus.add_observer([&rows_handed](const loom::BusEvent& ev) {
@@ -3458,7 +3457,7 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     d.r.bus.remove_observer(tap);
     REQUIRE_MESSAGE(own.accepted, own.refusal);
     CHECK(own.handed == "stored and handed");
-    CHECK(d.chosen_since(from, &said) == Skins{{pane, "classic"}, {frame, "classic"}});
+    CHECK(d.chosen_since(from, &said) == Skins{{pane, "night"}, {frame, "night"}});
     CHECK(said == 2);
     // ...THE ROW'S NEW REVISION HANDED BY ITS OWNER, without Workshop's own word on it.
     REQUIRE_FALSE(rows_handed.empty());
@@ -3466,13 +3465,14 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
         CHECK(find_pane_setting(h.settings, "workshop.skin") == nullptr);
     }
 
-    // WORKSHOP'S OWN BACK TO `classic` moves Workshop's areas alone: the row already says it.
+    // WORKSHOP'S OWN, `classic`, moves Workshop's areas alone, to night: the row already wears it.
     from = d.directory->chosen.size();
     REQUIRE(d.workshop_skin("classic").accepted);
-    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "classic"},
-                                        {kWorkshopOverlayArea, "classic"},
-                                        {layouts, "classic"}});
-    // ...A CLEARED ROW TAKES WORKSHOP'S, `classic` too, so nothing more is said...
+    CHECK(d.r.session().skin == "night");
+    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "night"},
+                                        {kWorkshopOverlayArea, "night"},
+                                        {layouts, "night"}});
+    // ...A CLEARED ROW TAKES WORKSHOP'S, night too, so nothing more is said...
     from = d.directory->chosen.size();
     REQUIRE(d.pane_skin(nullptr).accepted);
     CHECK(d.chosen_since(from).empty());
@@ -3480,15 +3480,13 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     from = d.directory->chosen.size();
     REQUIRE(d.pane_skin("block").accepted);
     CHECK(d.chosen_since(from) == Skins{{pane, "block"}, {frame, "block"}});
-    // `night` AND `day` ARE SKINS AS THE OTHER TWO ARE: Workshop's own reaches its area, the
-    // row's its pane's, and each goes back as it came.
+    // `night` IS WHAT `classic` NAMED: Workshop's own said by its name moves no area.
     from = d.directory->chosen.size();
     const OfficeSettingCommitAnswered night = d.workshop_skin("night");
     REQUIRE_MESSAGE(night.accepted, night.refusal);
     CHECK(d.r.session().skin == "night");
-    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "night"},
-                                        {kWorkshopOverlayArea, "night"},
-                                        {layouts, "night"}});
+    CHECK(d.chosen_since(from).empty());
+    // `day` IS A PALETTE AS THE OTHER TWO ARE: the row's reaches its pane's area.
     from = d.directory->chosen.size();
     const PaneSettingCommitAnswered day = d.pane_skin("day");
     REQUIRE_MESSAGE(day.accepted, day.refusal);
@@ -3496,11 +3494,7 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     from = d.directory->chosen.size();
     REQUIRE(d.workshop_skin("classic").accepted);
     REQUIRE(d.pane_skin("block").accepted);
-    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "classic"},
-                                        {kWorkshopOverlayArea, "classic"},
-                                        {layouts, "classic"},
-                                        {pane, "block"},
-                                        {frame, "block"}});
+    CHECK(d.chosen_since(from) == Skins{{pane, "block"}, {frame, "block"}});
 
     // A REPAINT THAT MOVED NOTHING SAYS NO SKIN.
     from = d.directory->chosen.size();
@@ -3509,9 +3503,9 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     // A DIRECTORY THAT STARTS AFRESH HEARS EVERY AREA'S SKIN AGAIN, the row's included.
     from = d.directory->chosen.size();
     d.directory_does();
-    CHECK(d.chosen_since(from, &said) == Skins{{kWorkshopProvider, "classic"},
-                                               {kWorkshopOverlayArea, "classic"},
-                                               {layouts, "classic"},
+    CHECK(d.chosen_since(from, &said) == Skins{{kWorkshopProvider, "night"},
+                                               {kWorkshopOverlayArea, "night"},
+                                               {layouts, "night"},
                                                {pane, "block"},
                                                {frame, "block"}});
     CHECK(said == 5);
@@ -4265,7 +4259,7 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         for (const gfx::PaletteOffered& s : directory->offered) {
             offered.push_back(s.palette);
         }
-        CHECK(offered == std::vector<std::string>{"classic", "block", "day", "night"});
+        CHECK(offered == std::vector<std::string>{"night", "day", "block"});
         REQUIRE(directory->areas.count(kWorkshopProvider) == 1);
         CHECK(directory->areas.at(kWorkshopProvider).window == gfx::kSdlWindow);
         // ...AND A PANE WHOSE OFFICE DRAWS IN A WINDOW, opened, placed on it too.

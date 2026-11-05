@@ -71,7 +71,7 @@ MEANS
 
 DOES NOT MEAN
 - that the desk acts on a value: it judges and keeps it, and what it means is the pane's;
-- that a row's `workshop.skin` is stored as absence at `classic`: its absence is Workshop's own palette (WL-SETTING-13).
+- that a row's `workshop.skin` is stored as absence at `night`: its absence is Workshop's own palette (WL-SETTING-13).
 
 WHY — `agents/decisions/settings-are-rows-of-a-panes-subject.md`
 
@@ -170,7 +170,7 @@ WHY — `agents/decisions/a-setting-is-found-by-its-tags-and-pins.md`
 LAW — Each graphics area wears a palette Workshop chooses: the one its row's `workshop.skin` names, else Workshop's own; Workshop's area, its own. A choice is said when it moved, before the place.
 
 MEANS
-- `classic`, `block`, `day` or `night`, each offered every directory: the file keeps `classic` as absence; a row any, its clear giving the area back to Workshop's own;
+- `night`, `day` or `block`, each offered, `classic` as `night` (WL-CHROME-10): the file keeps `night` as absence; a row any, its clear giving the area back to Workshop's own;
 - a commit, and a directory placed with afresh, say the palettes areas wear now.
 
 DOES NOT MEAN
@@ -365,8 +365,8 @@ one"
 `workshop/weave_run.cpp` arrange_graphics
 `workshop/weave.hpp` WorkshopWeave::palettes_chosen_
 `workshop/screen.hpp` Session::skin
-`workshop/pane_settings.hpp` workshop_skin_setting_row kWorkshopSkinKey kSkinClassic kSkinBlock
-kSkinDay kSkinNight is_workshop_skin_choice row_setting_absence
+`workshop/pane_settings.hpp` workshop_skin_setting_row kWorkshopSkinKey kSkinBlock kSkinDay
+kSkinNight is_workshop_skin_choice row_setting_absence
 `tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.skin` names,
 else Workshop's own, and a palette is said only when an area's moved"
 `tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's

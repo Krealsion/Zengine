@@ -1,6 +1,6 @@
 # Workshop law — chrome
 
-Register `WL-CHROME`: a pane's edge, the boundary rungs, the ring and the chrome's colours. One law
+Register `WL-CHROME`: a pane's edge, the boundary rungs, the ring, the chrome's colours and the looks. One law
 per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-CHROME-01 — A pane has an edge, inside its own rectangle
@@ -102,6 +102,19 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
 
+## WL-CHROME-10 — Night, day and block are offered, and `classic` is night
+
+LAW — Workshop offers the directory three palettes, `night`, `day` and `block`, and its setting offers the same three; a `workshop.skin` naming `classic` is taken and wears night.
+
+MEANS
+- a file that names `classic` reads as before, and a choice between `classic` and `night` moves no area;
+- `night` is the pool's own and Workshop's default; in a terminal its text and grounds are the terminal's own colours, every other colour the nearest ink.
+
+DOES NOT MEAN
+- that `classic` is offered: no row, menu or directory lists it.
+
+WHY — `agents/decisions/night-day-and-block-ship.md`
+
 ## WL-CHROME-11 — A shut pane shows its title alone, and its arrow opens it
 
 LAW — Every pane's title begins with an arrow, down while it is open and right while it is shut, and a press on it shuts or opens the pane; a shut pane is its edge and its title, with titles hidden too.
@@ -198,6 +211,16 @@ frame_selected and frame_transient its palette sets, and the arranging veil its 
 a `?` and a gear at its top right; one that does not, or a desk with no row to show one, wears
 neither" "WL-KEY-16: the band's spelling and the Hotkeys view's are set apart from a pane's gear,
 each changing only its own surface, the `?` spelling as the Hotkeys view does"
+
+### WL-CHROME-10
+`workshop/pane_settings.hpp` kSkinClassic workshop_palette_of is_workshop_skin_choice
+workshop_skin_setting_row pane_setting_refused_by
+`workshop/weave_run.cpp` arrange_graphics
+`tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.skin` names,
+else Workshop's own, and a palette is said only when an area's moved"
+`tests/test_graphics.cpp` "in a terminal night shows its text and its grounds in the terminal's own
+colours and every other colour as the nearest of its sixteen inks; block keeps an ink of its own for
+each"
 
 ### WL-CHROME-11
 `workshop/screen.hpp` kFoldOpenArrow kFoldShutArrow kFoldArrowColumns chrome_mark::kFold fold_prefix

@@ -15,8 +15,9 @@ package ships three weaves, each with its manual: the terminal window,
 [`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`; the OS
 window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
 has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
-Four themes come with them as palettes, `classic`, `block`, `day` and `night`, generated from the
-JSON they are written in (`graphics/themes/`). The snake (`examples/snake/`) is the worked example:
+Three themes come with them as palettes, `night`, `day` and `block`, generated from the JSON they
+are written in (`graphics/themes/`); `classic`, in a setting or an `app.json`, is another name for
+`night`. The snake (`examples/snake/`) is the worked example:
 it draws its frame as nodes and its board as an element of its own.
 
 ![The snake in a terminal window wearing the classic palette: the operator's status line, the world's score and board, and the score weave's own area beside it](images/snake-classic.png)
@@ -171,9 +172,11 @@ ink, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its neare
 character it fills a shape with (`fill`); each office's slots; and a terminal's outline, a corner,
 across and down. Whoever arranges the window offers palettes and chooses the one each area wears
 (`PaletteChosen`) through the directory; an area wearing none, or one nobody offered, wears the
-window's own, the pool's defaults. The four shipped themes are `graphics::themes::classic()`,
-`block()`, `day()` and `night()` (`graphics/themes.hpp`), each generated with `zengine_palettes()`
-from its JSON in `graphics/themes/`.
+window's own, the pool's defaults, which are night's. The three shipped themes are
+`graphics::themes::night()`, `day()` and `block()` (`graphics/themes.hpp`), each generated with
+`zengine_palettes()` from its JSON in `graphics/themes/`. In a terminal the pool shows text and
+every ground in the terminal's own colours and each other colour as the nearest of its sixteen
+inks; `block` gives every colour an ink and a fill character of its own.
 
 An exact colour can name the pool colour a medium that cannot show it shows in its place
 (`rgb(0x2e7d5b, colors::accent)`); where only the pool's colours are shown, any colour shows as

@@ -72,7 +72,7 @@ constexpr const char* kWindowRole = "zengine.window.terminal";
 /// The palettes the operator offers and chooses between: two of the shipped themes, made unlike
 /// each other so a choice mid-game is unmistakable.
 inline std::vector<gfx::PaletteOffered> palettes() {
-    return {gfx::themes::classic(), gfx::themes::block()};
+    return {gfx::themes::night(), gfx::themes::block()};
 }
 
 /// The operator's buttons, in the row beneath its status line: the action each asks of the

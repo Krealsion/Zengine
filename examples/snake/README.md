@@ -33,7 +33,7 @@ Source: [`examples/snake/`](world.cpp) — world, board, score, host.
   its tally in an area of its own.
 - **Host** (`zengine-snake`) owns the boot list and nothing else: the directory, the terminal
   window, the world and the Timer service, whose loading is what starts time. Its operator weave
-  is the window's arranger -- it offers two of the shipped palettes, classic and block, and the
+  is the window's arranger -- it offers two of the shipped palettes, night and block, and the
   board's code from the host's own build, chooses each area's palette and places it -- and speaks
   the status line, with a row of
   `gfx::Button`s beneath it, in an area of its own. The window gives every key to the world and
@@ -45,7 +45,7 @@ Source: [`examples/snake/`](world.cpp) — world, board, score, host.
   attests it as the answer.
 
 Run it from the build tree, in a terminal: keys are `wasd` or the arrows to steer; `1` chooses the
-other skin, the classic or the block palette (the window paints every area again mid-game; nothing
+other skin, the night or the block palette (the window paints every area again mid-game; nothing
 is drawn again on the bus); `2` loads the score weave; `3` grows the world (graceful v1→v2 migration); `4` asks for an OS
 window, and says no window weave draws one: the snake's window is the terminal; `r` reloads the
 world in place; `n` starts a new game through the poke-reset door; `l` lists; `q` quits. The

@@ -156,7 +156,7 @@ struct Rig {
     /// and the board's code offered, the area's palette chosen, the area placed.
     void arrange(const char* board, const std::string& area, const std::string& owner,
                  const std::string& palette, std::int64_t x = 0, std::int64_t y = 0) {
-        to_role(gfx::kGraphicsRole, gfx::themes::classic());
+        to_role(gfx::kGraphicsRole, gfx::themes::night());
         to_role(gfx::kGraphicsRole, gfx::themes::block());
         to_role(gfx::kGraphicsRole, gfx::ElementCodeOffered{"SnakeBoardData", board});
         to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, palette});
