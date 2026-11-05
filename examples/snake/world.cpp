@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The snake World weave, the whole game: its rules (logic.hpp), its keys, its beat, its pause and
-// its picture. One source, two libraries: snake-world-v1 and, with `SNAKE_WORLD_V2`,
-// snake-world-v2 (a larger board and `growths`, the heir). It publishes its news for anyone, takes
-// `SnakeTick` and `SnakeTurn` from anyone, and draws its frame and its board into the window that
-// shows its area: the board said once, as the game's own element (board.hpp), and then each step
-// as a change.
+// The snake World weave, the whole game: its rules (logic.hpp), keys, beat, pause and picture. One
+// source, two libraries: snake-world-v1 and, with `SNAKE_WORLD_V2`, snake-world-v2 (a larger board
+// and `growths`, the heir). It publishes its news for anyone, takes `SnakeTick` and `SnakeTurn`
+// from anyone, and draws its frame and its board into the window that shows its area: the board
+// said once, as the game's own element (board.hpp), then each step as a change.
 // Reference: examples/snake/README.md.
 
 // Both worlds converse: they answer `zen.PrepareShutdown` with a letter carrying their whole
