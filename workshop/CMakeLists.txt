@@ -166,7 +166,7 @@ zengine_manual(zengine-workshop-guests INTERFACE ../external-host/docs/zengine.g
 add_library(zengine-workshop-bus-tally INTERFACE)
 target_include_directories(zengine-workshop-bus-tally INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-bus-tally INTERFACE zengine-graphics-vocabulary
-                                                           loom::switchboard)
+                                                           zengine-input-vocabulary loom::switchboard)
 
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop

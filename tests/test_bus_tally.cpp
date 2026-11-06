@@ -8,6 +8,7 @@
 #include "doctest.h"
 
 #include "graphics/vocabulary.hpp"
+#include "input/vocabulary.hpp"
 #include "workshop/bus_tally.hpp"
 
 #include <zen/switchboard.hpp>
@@ -75,6 +76,26 @@ public:
 
 private:
     std::string due_;
+};
+
+/// A pane that hears the input office's key and draws on its next beat.
+class HeardPane
+    : public loom::WeaveBase<HeardPane, TallySuiteState,
+                             loom::Accept<zengine::input::KeyPressed, TallyBeat>,
+                             loom::Emit<g::Drawn>> {
+public:
+    void on(const zengine::input::KeyPressed&, loom::Mail&) { due_ = true; }
+    void on(const TallyBeat&, loom::Mail& mail) {
+        if (due_) {
+            due_ = false;
+            g::Drawn d;
+            d.area = "suite.heard";
+            (void)mail.send_to_role("suite.window", d);
+        }
+    }
+
+private:
+    bool due_ = false;
 };
 
 class Window
@@ -164,4 +185,17 @@ TEST_CASE("a key reaches its paint when the weave it reached draws, turns after 
     (void)bus.send(pane, loom::Message(loom::to_value(TallyBeat{2})));
     bus.drain_until_idle();
     CHECK(tally.paints().front().count == 1);
+
+    // A KEY THE INPUT OFFICE PUBLISHES is an input too: the weave it reaches paints it later.
+    const loom::WeaveId hearer = mount_role<HeardPane>(bus, "suite.hearer");
+    (void)hearer;
+    (void)bus.publish(loom::Message(loom::to_value(zengine::input::KeyPressed{})));
+    bus.drain_until_idle();
+    (void)bus.send(hearer, loom::Message(loom::to_value(TallyBeat{3})));
+    bus.drain_until_idle();
+    bool counted = false;
+    for (const PaintRow& p : tally.paints()) {
+        counted = counted || (p.kind == "key" && p.who == "suite.hearer" && p.count == 1);
+    }
+    CHECK(counted);
 }

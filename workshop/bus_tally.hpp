@@ -6,12 +6,13 @@
 
 // Where a running bus spends its time, off Loom's own stamps: each weave's handler time
 // (`BusEvent::handler_elapsed_ns`), and each input's way to its paint -- a key, text, press or
-// wheel a window gave an area marks every weave its dispatch ancestry reaches
-// (`BusEvent::dispatch_parent`), and that weave's next painted drawing is the input's paint, however
-// many turns later. A host's observer (`Switchboard::add_observer`): no weave reads the stamps, and
-// it changes nothing it observes.
+// wheel a window gave an area, or the input office published, marks every weave its dispatch
+// ancestry reaches (`BusEvent::dispatch_parent`), and that weave's next painted drawing is the
+// input's paint, however many turns later. A host's observer: no weave reads the stamps, and it
+// changes nothing it observes.
 
 #include "graphics/vocabulary.hpp"
+#include "input/vocabulary.hpp"
 
 #include <zen/switchboard/switchboard.hpp>
 
@@ -153,16 +154,21 @@ private:
     /// The kind of input this delivery is, or empty: a release, a move and everything else are not.
     static std::string input_kind(const loom::BusEvent& e) {
         namespace g = zengine::graphics;
-        if (e.schema_name == g::AreaKeyPressed::zen_name) {
+        namespace in = zengine::input;
+        const auto either = [&e](const char* window, const char* office) {
+            return e.schema_name == window || e.schema_name == office;
+        };
+        if (either(g::AreaKeyPressed::zen_name, in::KeyPressed::zen_name)) {
             return "key";
         }
-        if (e.schema_name == g::AreaTextEntered::zen_name) {
+        if (either(g::AreaTextEntered::zen_name, in::TextEntered::zen_name)) {
             return "text";
         }
-        if (e.schema_name == g::AreaWheelTurned::zen_name) {
+        if (either(g::AreaWheelTurned::zen_name, in::PointerWheel::zen_name)) {
             return "wheel";
         }
-        if (e.schema_name == g::AreaButtonChanged::zen_name && e.payload != nullptr) {
+        if (either(g::AreaButtonChanged::zen_name, in::PointerButton::zen_name) &&
+            e.payload != nullptr) {
             const loom::Cell* pressed = e.payload->get("pressed");
             if (pressed != nullptr && pressed->as_bool()) {
                 return "press";
