@@ -3116,6 +3116,42 @@ TEST_CASE("a weave composed with facets declares its own claims and each facet's
     CHECK(raw->published.size() == 1);
 }
 
+namespace {
+
+/// A weave that claims, composed with a facet that claims too, and writes no publication hook.
+class QuietClaimer
+    : public zengine::With<ClaimingFacet>::Weave<QuietClaimer, GraphicsTestDrawer,
+                                                 loom::Accept<GraphicsTestBeat>, loom::Emit<>,
+                                                 loom::WeaveBase,
+                                                 loom::Claims<GraphicsTestClaimed>> {
+public:
+    void on(const GraphicsTestBeat&, loom::Mail& mail) {
+        own = mail.claim(GraphicsTestClaimed{1});
+        facets = mail.claim(GraphicsTestFacetClaimed{2});
+    }
+    loom::SenseClaimResult own, facets;
+};
+
+} // namespace
+
+TEST_CASE("a weave composed with facets that writes no publication hook builds, and every shape "
+          "it and its facets claim is applied as it stands when the bus publishes it") {
+    Rig r;
+    auto c = std::make_unique<QuietClaimer>();
+    QuietClaimer* raw = c.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId id = r.bus.register_weave(std::move(c), std::move(g), "test.quiet-claimer");
+    raw->zen_set_self(id);
+    r.bus.send(id, loom::Message(loom::to_value(GraphicsTestBeat{})));
+    r.drain();
+    CHECK(raw->own.accepted);
+    CHECK(raw->facets.accepted);
+    CHECK(raw->claim_published(loom::to_value(GraphicsTestClaimed{7})) ==
+          loom::Weave::PublishedClaim::Applied);
+    CHECK(raw->claim_published(loom::to_value(GraphicsTestFacetClaimed{8})) ==
+          loom::Weave::PublishedClaim::Applied);
+}
+
 // ============================================================================
 // The parts an owner draws (graphics/elements.hpp): as arithmetic, then pressed through the window
 // ============================================================================

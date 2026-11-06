@@ -287,8 +287,9 @@ Over the Timer, a drawer passes `zengine::timer::TimedWeave` as the `Base`
 parameter to `Weave`; the single-facet `DrawingWeave` shorthand keeps the compile-time wall on a
 derived `after_delivery`. A weave that claims names its `loom::Claims<...>` after `loom::WeaveBase`
 (`Weave<Self, State, Accept, Emit, loom::WeaveBase, loom::Claims<...>>`); a facet may declare
-`Claims` of its own, and the weave declares the union, each shape once. Over the Timer a weave
-claims nothing.
+`Claims` of its own, and the weave declares the union, each shape once; a shape the weave writes
+no `on_claim_published` for is applied as it stands when the bus publishes it. Over the Timer a
+weave claims nothing.
 
 ## An element of your own
 
