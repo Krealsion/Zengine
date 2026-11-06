@@ -112,6 +112,7 @@ inline void NeovimEditorWeave::press_at(std::int64_t row, std::int64_t column, b
     }
     release_drag();
     grab_ = Grab{};
+    const std::uint64_t press = ++grabs_;
     if (running()) {
         pump(mail); // what Neovim drew since the last drawing, before the press is judged
     }
@@ -126,10 +127,25 @@ inline void NeovimEditorWeave::press_at(std::int64_t row, std::int64_t column, b
     const std::int64_t r = row - chrome_rows();
     const std::int64_t c = column < 0 ? 0 : column;
     if (current && on_highlight(r, c)) {
-        Snapshot snap = snapshot_now();
-        if (snap.ok) {
-            grab_ = Grab{true, false, Take::Selection, row, column, mail.correlation(), std::move(snap)};
-        }
+        // THE SELECTION IS ASKED FIRST, AND NEOVIM'S PRESS SENT ONCE IT ANSWERS: Neovim runs a
+        // press ahead of a question asked beside it, and the press ends the selection. A motion
+        // before the answer moves nothing; a release before it makes the press a click.
+        const std::uint64_t gesture = mail.correlation();
+        snapshot_later(mail, [this, row, column, r, c, gesture, press](Snapshot snap, loom::Mail& later) {
+            if (press != grabs_ || !running()) {
+                return; // another press since, or no Neovim to press in
+            }
+            if (snap.ok) {
+                grab_ = Grab{true, false, Take::Selection, row, column, gesture, std::move(snap)};
+            }
+            drag_ = Drag{true, r, c};
+            mouse("left", "press", drag_.row, drag_.col);
+            if (pressed_ == 0) {
+                release_drag();
+            }
+            flush(later);
+        });
+        return;
     }
     drag_ = Drag{true, r, c};
     mouse("left", "press", drag_.row, drag_.col);
@@ -152,16 +168,21 @@ inline void NeovimEditorWeave::dragged(std::int64_t row, std::int64_t column, lo
                 acquire_location(true, grab_.gesture, mail);
             } else {
                 release_drag();
-                std::string why;
-                const std::optional<mp::Value> now = lua_now(nv::lua::kDocFacts, nv::rpc::params(), kAskMs, why);
-                const bool same = now.has_value() && field(*now, "buf").as_int(-1) == grab_.snap.buf &&
-                                  field(*now, "tick").as_int(-1) == grab_.snap.tick;
-                if (!same) {
-                    notice("nothing was carried -- the buffer changed after you pressed the highlight", true);
-                } else {
-                    (void)host_->input("gv");
-                    carry_snapshot(grab_.snap, true, grab_.gesture, mail);
-                }
+                const Grab g = grab_;
+                ask(nv::lua::kDocFacts, nv::rpc::params(), kAskMs, mail,
+                    [this, g](const Answer& a, loom::Mail& later) {
+                        const bool same = a.result.has_value() &&
+                                          field(*a.result, "buf").as_int(-1) == g.snap.buf &&
+                                          field(*a.result, "tick").as_int(-1) == g.snap.tick;
+                        if (!same) {
+                            notice("nothing was carried -- the buffer changed after you pressed the highlight", true);
+                        } else {
+                            (void)host_->input("gv");
+                            carry_snapshot(g.snap, true, g.gesture, later);
+                        }
+                        flush(later);
+                        resay_ = true;
+                    });
             }
             flush(mail);
             resay_ = true;
@@ -205,9 +226,19 @@ inline void NeovimEditorWeave::right_press(std::int64_t row, std::int64_t column
     const std::int64_t c = column < 0 ? 0 : column;
     pump(mail);
     if (fresh(aimed) && on_highlight(r, c)) {
-        Snapshot snap = snapshot_now();
-        if (snap.ok) {
-            release_drag();
+        // THE MENU WAITS FOR NEOVIM'S WORD ON THE SELECTION; without one, the press is Neovim's
+        // after all, and goes to it as the click it was.
+        release_drag();
+        const std::uint64_t gesture = mail.correlation();
+        snapshot_later(mail, [this, row, column, r, c, gesture](Snapshot snap, loom::Mail& later) {
+            if (!snap.ok) {
+                if (running()) {
+                    mouse("right", "press", r, c);
+                    mouse("right", "release", r, c);
+                    flush(later);
+                }
+                return;
+            }
             menu_take_ = Take::Selection;
             menu_snap_ = std::move(snap);
             menu_cell_ = Drag{true, r, c};
@@ -215,9 +246,9 @@ inline void NeovimEditorWeave::right_press(std::int64_t row, std::int64_t column
                         .at(row, column)
                         .row(kExtractRow, "Extract selection to Inventory")
                         .row(kNeovimMenuRow, "Neovim's own menu")
-                        .send(mail, nve::kEditorOffice);
-            return;
-        }
+                        .continuing(later, nve::kEditorOffice, gesture);
+        });
+        return;
     }
     release_drag();
     right_ = Drag{true, r, c};
@@ -284,7 +315,7 @@ inline void NeovimEditorWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail
         } else if (chosen == kInsertLine) {
             insert_command(d.material, d.aim);
         } else if (chosen == kInsertCpp) {
-            insert_cpp(d.material, d.aim);
+            insert_cpp(d.material, d.aim, mail);
         }
         flush(mail);
         resay_ = true;
@@ -292,14 +323,17 @@ inline void NeovimEditorWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail
     }
     const std::string chosen = menu_.take(mail, answer);
     if (chosen == kExtractRow) {
-        const Snapshot now = snapshot_now();
-        if (!now.ok || !(now == menu_snap_)) {
-            notice(now.ok ? std::string("nothing was carried -- the selection changed after the menu opened")
-                          : "nothing was carried -- " + now.refusal,
-                   true);
-        } else {
-            carry_snapshot(now, false, mail.correlation(), mail);
-        }
+        const std::uint64_t gesture = mail.correlation();
+        snapshot_later(mail, [this, gesture](Snapshot now, loom::Mail& later) {
+            if (!now.ok || !(now == menu_snap_)) {
+                notice(now.ok ? std::string("nothing was carried -- the selection changed after the menu opened")
+                              : "nothing was carried -- " + now.refusal,
+                       true);
+            } else {
+                carry_snapshot(now, false, gesture, later);
+            }
+            resay_ = true;
+        });
     } else if (chosen == kLocationRow) {
         acquire_location(false, mail.correlation(), mail);
     } else if (chosen == kNeovimMenuRow && running()) {
@@ -335,10 +369,10 @@ inline void NeovimEditorWeave::on(const ws::PaneCarryAnswered& answer, loom::Mai
 // ---- A change Neovim holds until it answers (WL-NVIM-13) ------------------------------------
 
 /// ONE CHANGE ASKED OF THE MODULE, OWNED UNTIL NEOVIM ANSWERS IT (WL-NVIM-13). `settle` runs
-/// exactly once with what Neovim said: now, when it answered within the bound or the change
-/// never reached it; or later, from `pump`, when Neovim holds the request -- which the Editor
-/// then says (`waiting`, and why) and keeps as `held_`. Nothing is sent while another change is
-/// held: that one is answered first, and this one is refused.
+/// exactly once with what Neovim said: now when the change never reached it, else from the pump
+/// that hears the answer; meanwhile it is `held_`, and once Neovim is known to hold it -- waiting
+/// for input, or past the bound -- the Editor says so (`waiting`, and why). Nothing is sent while
+/// another change is held: that one is answered first, and this one is refused.
 // WL-NVIM-13 -- agents/workshop/neovim-transfers.md
 inline void NeovimEditorWeave::change(const char* chunk, mp::Value args, std::string what,
                                       const std::string& waiting, Settle settle) {
@@ -350,22 +384,23 @@ inline void NeovimEditorWeave::change(const char* chunk, mp::Value args, std::st
         settle(Heard{std::nullopt, "Neovim is not running" + (failure_.empty() ? std::string() : ": " + failure_), false});
         return;
     }
-    auto answer = std::make_shared<std::optional<nv::rpc::Response>>();
-    std::optional<nv::rpc::Response> got;
+    Held held{std::move(what), std::make_shared<std::optional<nv::rpc::Response>>(), std::move(settle), waiting};
+    const auto answer = held.answer;
+    const auto outstanding = held.outstanding;
     std::string why;
-    switch (host_->ask("nvim_exec_lua", nv::rpc::params(mp::Value::str(chunk), std::move(args)), kAskMs, got, why,
-                       [answer](const nv::rpc::Response& r) { *answer = r; })) {
-    case nv::Host::Asked::Answered:
-        settle(heard_of(*got));
-        return;
-    case nv::Host::Asked::Unsent:
-        settle(Heard{std::nullopt, "Neovim could not be asked (" + why + ")", false});
-        return;
-    case nv::Host::Asked::Outstanding:
-        held_ = Held{std::move(what), std::move(answer), std::move(settle)};
-        notice(waiting + " -- " + why, false);
+    if (!host_->ask_later("nvim_exec_lua", nv::rpc::params(mp::Value::str(chunk), std::move(args)), kAskMs,
+                          [answer, outstanding](nv::Host::Outcome o) {
+                              if (o.asked == nv::Host::Asked::Answered) {
+                                  *answer = std::move(o.got);
+                              } else {
+                                  *outstanding = o.why;
+                              }
+                          },
+                          why, [answer](const nv::rpc::Response& r) { *answer = r; })) {
+        held.settle(Heard{std::nullopt, "Neovim could not be asked (" + why + ")", false});
         return;
     }
+    held_ = std::move(held);
 }
 
 /// WHAT AN ANSWER TO A CHANGE SAYS: the module's result or its error -- and when Neovim has
@@ -387,6 +422,11 @@ inline bool NeovimEditorWeave::settle_held() {
         return true;
     }
     if (!held_->answer->has_value()) {
+        if (!held_->said && !held_->outstanding->empty()) {
+            held_->said = true;
+            notice(held_->waiting + " -- " + *held_->outstanding, false);
+            resay_ = true;
+        }
         return false;
     }
     Held done = std::move(*held_);
@@ -423,15 +463,20 @@ inline std::string NeovimEditorWeave::grid_row(std::int64_t row) const {
     return out;
 }
 
-/// THE SELECTION NEOVIM HOLDS NOW, as its own yank would take it -- or why there is none.
-inline Snapshot NeovimEditorWeave::snapshot_now() {
+/// THE SELECTION NEOVIM HOLDS, as its own yank would take it -- or why there is none: `then`
+/// hears it once Neovim answers.
+inline void NeovimEditorWeave::snapshot_later(loom::Mail& mail, std::function<void(Snapshot, loom::Mail&)> then) {
+    ask(nv::lua::kSelection, nv::rpc::params(), kAskMs, mail,
+        [then](const Answer& a, loom::Mail& later) { then(snapshot_of(a), later); });
+}
+
+inline Snapshot NeovimEditorWeave::snapshot_of(const Answer& a) {
     Snapshot s;
-    std::string why;
-    const std::optional<mp::Value> v = lua_now(nv::lua::kSelection, nv::rpc::params(), kAskMs, why);
-    if (!v.has_value()) {
-        s.refusal = "Neovim could not be asked for its selection (" + why + ")";
+    if (!a.result.has_value()) {
+        s.refusal = "Neovim could not be asked for its selection (" + a.why + ")";
         return s;
     }
+    const std::optional<mp::Value>& v = a.result;
     if (const mp::Value* w = v->get("why"); w != nullptr) {
         s.refusal = w->as_str();
         return s;
@@ -495,14 +540,20 @@ inline void NeovimEditorWeave::carry_snapshot(const Snapshot& snap, bool drag, s
                  (lines.ok ? st::amount_words(lines.lines) : std::string("the selection")) + " of " + name, mail);
 }
 
-/// THIS FILE'S LOCATION, AT NEOVIM'S CURSOR (WL-NVIM-12).
+/// THIS FILE'S LOCATION, AT NEOVIM'S CURSOR (WL-NVIM-12), carried once Neovim says where it is.
 inline void NeovimEditorWeave::acquire_location(bool drag, std::uint64_t gesture, loom::Mail& mail) {
-    std::string why;
-    const std::optional<mp::Value> v = lua_now(nv::lua::kLocation, nv::rpc::params(), kAskMs, why);
-    if (!v.has_value()) {
-        notice("nothing was carried -- Neovim could not say where its cursor is (" + why + ")", true);
+    ask(nv::lua::kLocation, nv::rpc::params(), kAskMs, mail,
+        [this, drag, gesture](const Answer& a, loom::Mail& later) { carry_location(drag, gesture, a, later); });
+}
+
+inline void NeovimEditorWeave::carry_location(bool drag, std::uint64_t gesture, const Answer& a,
+                                              loom::Mail& mail) {
+    resay_ = true;
+    if (!a.result.has_value()) {
+        notice("nothing was carried -- Neovim could not say where its cursor is (" + a.why + ")", true);
         return;
     }
+    const std::optional<mp::Value>& v = a.result;
     const std::string name = field(*v, "name").as_str();
     if (!field(*v, "buftype").as_str().empty() || name.empty()) {
         notice("nothing was carried -- Neovim's current buffer names no file", true);
@@ -560,19 +611,31 @@ inline void NeovimEditorWeave::receive(const loom::Bytes& data, const ws::RowCel
         notice("nothing was inserted -- drop onto Neovim's text, not the status row", true);
         return;
     }
-    std::string why;
-    const std::optional<mp::Value> lang =
-        lua_now(nv::lua::kLanguage, nv::rpc::params(mp::Value::integer(400)), kAskMs, why);
-    if (!lang.has_value()) {
-        notice("nothing was inserted -- Neovim could not be asked about its buffer (" + why + ")", true);
-        return;
-    }
-    Aim aim;
-    aim.row = drop.row - chrome_rows();
-    aim.column = drop.column < 0 ? 0 : drop.column;
+    // THE ROW THE HAND SAW is kept now; Neovim's buffer is asked, and the drop goes on when it
+    // answers -- Neovim checks the buffer, its changedtick and that row again when it runs it.
+    Aim seen;
+    seen.row = drop.row - chrome_rows();
+    seen.column = drop.column < 0 ? 0 : drop.column;
+    seen.row_text = grid_row(seen.row);
+    const ws::RowCell at = drop;
+    const std::uint64_t gesture = mail.correlation();
+    ask(nv::lua::kLanguage, nv::rpc::params(mp::Value::integer(400)), kAskMs, mail,
+        [this, seen, at, m, gesture](const Answer& a, loom::Mail& later) {
+            resay_ = true;
+            if (!a.result.has_value()) {
+                notice("nothing was inserted -- Neovim could not be asked about its buffer (" + a.why + ")", true);
+                return;
+            }
+            receive_into(m, seen, at, *a.result, gesture, later);
+        });
+}
+
+/// A DROP OF TEXT OR A COMMAND, once Neovim has said what buffer the hand aimed at.
+inline void NeovimEditorWeave::receive_into(st::Material m, Aim aim, const ws::RowCell& drop, const mp::Value& lang0,
+                                            std::uint64_t gesture, loom::Mail& mail) {
+    const std::optional<mp::Value> lang = lang0;
     aim.buf = field(*lang, "buf").as_int();
     aim.tick = field(*lang, "tick").as_int();
-    aim.row_text = grid_row(aim.row);
     if (m.kind == st::MaterialKind::Text) {
         insert_lines(m.text, aim, Insertion{});
         return;
@@ -595,7 +658,7 @@ inline void NeovimEditorWeave::receive(const loom::Bytes& data, const ws::RowCel
                      .row(kInsertLine, "Insert its Terminal line")
                      .row(kInsertCpp, cpp == st::CppDocument::Yes ? "Generate C++ that builds it"
                                                                   : "Generate C++ (this .h is C++)")
-                     .send(mail, nve::kEditorOffice);
+                     .continuing(mail, nve::kEditorOffice, gesture);
     if (!drop_.menu.pending()) {
         drop_ = Dropped{};
         notice("nothing was inserted -- the choice for the dropped command could not be offered", true);
@@ -667,13 +730,19 @@ inline void NeovimEditorWeave::insert_command(const st::Material& m, const Aim& 
     insert_lines(t.line, aim, std::move(said));
 }
 
-inline void NeovimEditorWeave::insert_cpp(const st::Material& m, const Aim& aim) {
-    std::string why;
-    const std::optional<mp::Value> lang =
-        lua_now(nv::lua::kLanguage, nv::rpc::params(mp::Value::integer(400)), kAskMs, why);
+inline void NeovimEditorWeave::insert_cpp(const st::Material& m, const Aim& aim, loom::Mail& mail) {
+    // THE DOCUMENT THE GENERATOR READS is Neovim's, asked now and read when it answers.
+    ask(nv::lua::kLanguage, nv::rpc::params(mp::Value::integer(400)), kAskMs, mail,
+        [this, m, aim](const Answer& a, loom::Mail&) {
+            resay_ = true;
+            insert_cpp_from(m, aim, a);
+        });
+}
+
+inline void NeovimEditorWeave::insert_cpp_from(const st::Material& m, const Aim& aim, const Answer& lang) {
     std::vector<std::string> document;
-    if (lang.has_value()) {
-        for (const mp::Value& l : field(*lang, "lines").as_array()) {
+    if (lang.result.has_value()) {
+        for (const mp::Value& l : field(*lang.result, "lines").as_array()) {
             document.push_back(l.as_str());
         }
     }
@@ -724,6 +793,11 @@ inline void NeovimEditorWeave::open_location(const st::Material& m, loom::Mail& 
 }
 
 inline void NeovimEditorWeave::settle_location(const SourceOpened& said) {
+    if (preview_.awaiting) {
+        // THE SHOWING IS UNANSWERED: the cursor is asked once Neovim says which buffer is in front.
+        after_show_ = [this, said] { settle_location(said); };
+        return;
+    }
     Locate l = std::move(locate_);
     locate_ = Locate{};
     const office::Roots roots = office::roots_of(l.ctx, project_root());

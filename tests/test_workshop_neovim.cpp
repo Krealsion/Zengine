@@ -41,13 +41,25 @@ inline std::vector<load::ChoiceIntent> standard_and_neovim() {
             load::ChoiceIntent{pane::kEditorPaneRole, "neovim", nve::kNeovimEditorStem}};
 }
 
+/// Whether the office's holder now hears a Timer firing: the Neovim-backed Editor does, from its
+/// activation on, as it orders its beat; the standard Editor does not.
+bool holder_hears_beats(SwitchRig& s) {
+    for (const auto& schema : s.r.bus.accepted_schemas(s.holder())) {
+        if (schema->name() == zengine::timer::TimerFired::zen_name) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /// ONE BEAT, AS THE TIMER WOULD GIVE IT: to the switch coordinator, and to the office's holder when
-/// the Neovim-backed Editor holds it. Then drain.
+/// it hears one -- the Neovim-backed Editor, from its activation, so also while a switch proves
+/// it. Then drain.
 void beat(SwitchRig& s) {
     (void)s.r.bus.send(s.switcher_id, loom::Message(loom::to_value(zengine::timer::TimerFired{
                                                         "zengine.editor-switch.beat"}),
                                                     loom::WeaveId{}, loom::WeaveId{}, 0));
-    if (s.r.plan_->choice_holder(pane::kEditorPaneRole) == nve::kNeovimEditorStem) {
+    if (holder_hears_beats(s)) {
         (void)s.r.bus.send(s.holder(), loom::Message(loom::to_value(zengine::timer::TimerFired{
                                                          "zengine.neovim-editor.beat"}),
                                                      loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -90,6 +102,7 @@ SourceOpened open_through_office(SwitchRig& s, const char* name, const std::stri
         (void)mail.as_role(kSwitchAskerOffice).send_to_role(kOpeningRole, OpenSourceRequested{path});
     });
     s.r.bus.drain_until_idle();
+    (void)beat_until(s, [&] { return s.asker->opens.size() > before; });
     REQUIRE(s.asker->opens.size() == before + 1);
     return s.asker->opens.back();
 }
@@ -184,9 +197,12 @@ std::set<std::string> declared_ids(SwitchRig& s) {
 }
 
 /// WORKSHOP'S ORDERLY QUIT, the weaver's way: keys back to the workspace, then `q`.
+/// THE QUIT BY ITS KEY, and the beats until Workshop has heard every pane: it quit, or it opened the
+/// box that says why not.
 bool quit_by_key(SwitchRig& s) {
     s.r.press_cell(0, gfx::cell_of_pixel(screen_of(s.r.session()).h) - 1);
     s.r.key(input::scan::kQ);
+    (void)beat_until(s, [&] { return s.r.host.quit || s.r.session().context.open; }, 5000);
     return s.r.host.quit;
 }
 
@@ -284,6 +300,52 @@ TEST_CASE("a Neovim that never answers keeps the switch pending and cancellable,
     CHECK(s.asker->answers.back().outcome == switch_outcome::kCancelled);
     CHECK_FALSE(s.r.kernel.is_loaded(nve::kNeovimEditorStem));
     CHECK(s.holder() == first);
+}
+
+TEST_CASE("a Neovim that never answers a question holds no handler: the rest of the bus keeps delivering, and the ask is answered in words once its bound passes") {
+    SwitchRig s("nvim-mute");
+    NeovimEnvironment env(s.root, NEOVIM_FIXTURE, "mute");
+    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
+    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
+    const loom::WeaveId editor = s.holder();
+    // THE BUS'S OWN STAMP: how long the Editor's handler ran for the ask.
+    std::uint64_t ran_ns = 0;
+    bool heard = false;
+    const loom::ObserverId watching = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && e.target == editor &&
+            e.schema_name == nve::NeovimStatusRequested::zen_name) {
+            ran_ns = e.handler_elapsed_ns;
+            heard = true;
+        }
+    });
+    auto held = std::make_unique<ConsoleSeat>();
+    ConsoleSeat* console = held.get();
+    loom::Grant may_ask;
+    may_ask.allow_to_role(nve::NeovimStatusRequested::zen_name, nve::NeovimStatusRequested::zen_version,
+                          nve::kEditorOffice);
+    const loom::WeaveId console_id =
+        s.r.bus.register_weave(std::move(held), std::move(may_ask), std::string("zengine.test.console"));
+    console->zen_set_self(console_id);
+    console->next = [](loom::Mail& mail) {
+        (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorOffice, nve::NeovimStatusRequested{});
+    };
+    const auto began = std::chrono::steady_clock::now();
+    (void)s.r.bus.send(console_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    s.r.bus.drain_until_idle();
+    const auto drained = std::chrono::steady_clock::now() - began;
+    REQUIRE(heard);
+    // THE HANDLER RETURNED AT ONCE and the drain that carried it ended: Neovim holds the question,
+    // not the bus. (Waiting inside the handler, it ran the ask's whole bound, `kAskMs`.)
+    CHECK(ran_ns < 500ull * 1000 * 1000);
+    CHECK(drained < std::chrono::milliseconds(500));
+    CHECK(console->answers.empty());
+    // ...AND THE BUS KEEPS DELIVERING: the Editor's own state is read while the question stands.
+    CHECK(s.read("ready") == "true");
+    // THE ASK IS ANSWERED, in words, once its bound has passed with no answer.
+    REQUIRE(beat_until(s, [&] { return !console->answers.empty(); }, 10000));
+    CHECK_MESSAGE(console->answers.back().find("did not answer within") != std::string::npos,
+                  console->answers.back());
+    s.r.bus.remove_observer(watching);
 }
 
 TEST_CASE("the Neovim editor holding the office with no Neovim says so on its pane, refuses an open in words, and permits the quit") {
@@ -386,6 +448,7 @@ TEST_CASE("the Neovim editor declares `profile` and `status`: `status` off gives
         };
         (void)s.r.bus.send(console_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
         s.r.bus.drain_until_idle();
+        (void)beat_until(s, [&] { return console->answers.size() > before; });
         REQUIRE_MESSAGE(console->answers.size() == before + 1, "the ask was never answered");
         return console->answers.back();
     };
@@ -976,6 +1039,15 @@ TEST_CASE("from a Loom with no Workshop, Neovim listens for a second terminal, s
         };
         (void)r.bus.send(console_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
         r.bus.drain_until_idle();
+        // THE EDITOR ANSWERS ON ITS BEAT, given here as the Timer a baseline host loads would give it.
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+        while (console->answers.size() == before && std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            (void)r.bus.send(r.bus.role_holder(nve::kEditorOffice),
+                             loom::Message(loom::to_value(zengine::timer::TimerFired{"zengine.neovim-editor.beat"}),
+                                           loom::WeaveId{}, loom::WeaveId{}, 0));
+            r.bus.drain_until_idle();
+        }
         if (console->answers.size() != before + 1) {
             FAIL_CHECK("the ask was never answered");
             return std::string();

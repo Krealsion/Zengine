@@ -13,11 +13,11 @@
 // (`editor/neovim/projection.hpp`), and the Editor's facts as the office needs them: the identity it
 // claims (path, changedtick, modified), the generation its rows carry, the transfer at a switch.
 
-// The flow is never waited on (WL-NVIM-05): keys and text go as notifications, and the screen is
-// said on the next beat (the Timer's while this weave holds the office, the coordinator's tick
-// while it warms). A question is asked within a bound, in the one delivery that needs it, with
-// Neovim's fast mode asked beside it (`Host::call_now`); a start answers later, except where an
-// answer needs it, and then waits at most `kStartWaitMs`.
+// Neovim is never waited on (WL-NVIM-05): keys and text go as notifications, a question is sent
+// with Neovim's fast mode beside it (`Host::ask_later`), and what follows its answer runs in the
+// delivery that hears it -- the next beat (the Timer's while this weave holds the office, the
+// coordinator's tick while it warms) -- answering a bus ask then (`defer_answer`). A slow or stuck
+// Neovim holds no handler: its question is outstanding at its bound, a start at `kStartWaitMs`.
 
 // A change is this Editor's until Neovim answers it (WL-NVIM-13): a request Neovim holds is never
 // withdrawn, so an unanswered change stays held, one at a time, said on the status row; its whole
@@ -389,12 +389,15 @@ public:
                 send_input(mail, "<C-r>");
                 return;
             }
-            const Snapshot snap = snapshot_now();
-            if (!snap.ok) {
-                notice("nothing was carried -- " + snap.refusal, true);
-            } else {
-                carry_snapshot(snap, false, mail.correlation(), mail);
-            }
+            const std::uint64_t gesture = mail.correlation();
+            snapshot_later(mail, [this, gesture](Snapshot snap, loom::Mail& later) {
+                if (!snap.ok) {
+                    notice("nothing was carried -- " + snap.refusal, true);
+                } else {
+                    carry_snapshot(snap, false, gesture, later);
+                }
+                resay_ = true;
+            });
             resay_ = true;
         } else if (asked.id == nve::kActionLocation) {
             // A ROW WITH NO DEFAULT KEY: reached only by a chord the weaver bound (WL-NVIM-12).
@@ -439,21 +442,32 @@ public:
             answer(false, "the Editor is being switched -- quit again once the switch has settled");
             return;
         }
-        if (candidate_.live) {
-            answer(false, "Neovim is still opening " + candidate_.path + " -- quit again once it has settled");
+        if (candidate_.live || preparing_) {
+            answer(false, "Neovim is still opening " + (candidate_.live ? candidate_.path : std::string("a file")) +
+                              " -- quit again once it has settled");
             return;
         }
         if (!running()) {
             answer(true, std::string());
             return;
         }
-        std::string why;
-        const std::optional<mp::Value> unsaved = lua_now(nv::lua::kUnsaved, nv::rpc::params(), kAskMs, why);
-        if (!unsaved.has_value()) {
-            answer(false, "Neovim could not be asked whether it holds unsaved work (" + why +
+        // ASKED OF NEOVIM AND ANSWERED WHEN IT ANSWERS: Workshop waits for every pane's word.
+        const auto due = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
+        ask(nv::lua::kUnsaved, nv::rpc::params(), kAskMs, mail,
+            [this, due](const Answer& a, loom::Mail& later) { answer_quit(*due, a, later); });
+    }
+
+    /// THE QUIT'S ANSWER, from what Neovim said it holds.
+    void answer_quit(const loom::DeferredAnswer& due, const Answer& said, loom::Mail& mail) {
+        const auto answer = [&mail, &due](bool permitted, std::string why) {
+            (void)loom::answer_deferred(due, mail, PaneQuitAnswered{nve::kEditorPane, permitted, std::move(why)});
+        };
+        if (!said.result.has_value()) {
+            answer(false, "Neovim could not be asked whether it holds unsaved work (" + said.why +
                               ") -- Workshop stays open");
             return;
         }
+        const std::optional<mp::Value>& unsaved = said.result;
         std::vector<std::string> named;
         if (const mp::Value* buffers = unsaved->get("buffers"); buffers != nullptr) {
             for (const mp::Value& b : buffers->as_array()) {
@@ -512,10 +526,13 @@ public:
     void on(const loom::DispatchRefused& refused, loom::Mail& mail);
     void on(const ManagedOpenProgress&, loom::Mail&);
     void on(const ws::v3::PrepareSourceRequested& asked, loom::Mail& mail);
-    ws::v3::SourcePrepared prepare(std::int64_t op, const std::string& asked_path, std::int64_t rows,
-                                   std::int64_t columns, loom::Mail& mail);
+    void prepare(std::int64_t op, const std::string& asked_path, std::int64_t rows,
+                 std::int64_t columns, loom::Mail& mail, Prepared then);
+    void prepare_in(const Candidate& next, loom::Mail& mail, Prepared then);
+    void offer_prepared(Candidate next, EditorDocument offered, loom::Mail& mail, Prepared then);
     void on(const ManagedOpenSettled& said, loom::Mail& mail);
     bool on_claim_published(const EditorDocument& published);
+    void settle_show(const Candidate& shown, const Answer& a);
 
     void after_delivery(loom::Mail& mail) {
         if (refused_reload_) {
@@ -557,6 +574,8 @@ public:
     void on(const nve::NeovimStatusRequested&, loom::Mail& mail);
 
 private:
+    std::string listening_words(const std::string& opened) const;
+    void stop_neovim(const loom::DeferredAnswer& due, loom::Mail& mail);
     // ---- The Neovim --------------------------------------------------------------------------
 
     bool running() const noexcept { return host_ != nullptr && host_->alive(); }
@@ -608,35 +627,6 @@ private:
         return true;
     }
 
-    /// WAIT FOR A STARTING NEOVIM TO ANSWER, at most `kStartWaitMs`.
-    bool wait_ready(std::string& why) {
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kStartWaitMs);
-        while (running() && !host_->ready()) {
-            carried_.merge(host_->pump());
-            if (std::chrono::steady_clock::now() >= deadline) {
-                why = "Neovim did not become ready within " + std::to_string(kStartWaitMs / 1000) + " seconds";
-                return false;
-            }
-            (void)host_->wait(10);
-        }
-        if (!running()) {
-            failure_ = host_ != nullptr ? host_->failure() : std::string("Neovim is not running");
-            why = failure_;
-            return false;
-        }
-        return true;
-    }
-
-    /// A NEOVIM, RUNNING AND READY, for an answer that needs one now.
-    bool ensure_running(std::string& why) {
-        if (!running() && !start_embedded(ui_rows(rows_ > 0 ? rows_ : kDefaultRows, chrome_rows()),
-                                          ui_cols(columns_ > 0 ? columns_ : kDefaultCols))) {
-            why = failure_;
-            return false;
-        }
-        return wait_ready(why);
-    }
-
     std::string started_words() const {
         if (host_ == nullptr) {
             return "Neovim";
@@ -652,50 +642,187 @@ private:
         return ui_ == "remote" ? "listening at " + listen_ + " for a remote interface" : std::string("in the Editor pane");
     }
 
-    // What a switch is judged from, asked of Neovim now: in opening_switch.hpp.
-    bool wait_unblocked(int ms);
-    std::optional<Exported> export_now(std::string& why);
-    Judgement judge_now();
+    // What a switch is judged from, asked of Neovim and answered when it answers: in
+    // opening_switch.hpp.
+    void until_unblocked(std::chrono::steady_clock::time_point until, loom::Mail& mail,
+                         std::function<void(bool, loom::Mail&)> then);
+    void export_later(int ms, loom::Mail& mail, Exported_then then);
+    static std::optional<Exported> exported_of(const mp::Value& v);
+    void judge(loom::Mail& mail, Judged then);
+    Judgement judged_from(Judgement j, const Exported& e) const;
+    void adopt_placed(std::int64_t op, EditorTransfer t, bool dos, std::shared_ptr<loom::DeferredAnswer> due,
+                      loom::Mail& mail);
 
     // A change Neovim holds until it answers (WL-NVIM-13): in transfers.hpp.
     void change(const char* chunk, mp::Value args, std::string what, const std::string& waiting, Settle settle);
     Heard heard_of(const nv::rpc::Response& r) const;
     bool settle_held();
 
-    /// ONE QUESTION TO THE MODULE, answered within `ms` or refused in words.
-    std::optional<mp::Value> lua_now(const char* chunk, mp::Value args, int ms, std::string& why) {
+    // ---- Asking Neovim, never waiting (WL-NVIM-05) ------------------------------------------
+
+    std::string not_running_words() const {
+        return "Neovim is not running" + (failure_.empty() ? std::string() : ": " + failure_);
+    }
+
+    /// WHAT AN ANSWER SAYS, from the Host's outcome: the result, or why there is none.
+    static Answer answer_of(nv::Host::Outcome o) {
+        if (o.asked == nv::Host::Asked::Outstanding) {
+            return Answer{std::nullopt, o.why, true, 0};
+        }
+        if (!o.got.has_value()) {
+            return Answer{std::nullopt, "Neovim did not answer", false, 0};
+        }
+        if (!o.got->error.is_nil()) {
+            return Answer{std::nullopt, nv::rpc::error_text(o.got->error), false, o.flushes};
+        }
+        return Answer{std::move(o.got->result), std::string(), false, o.flushes};
+    }
+
+    /// ONE QUESTION TO THE MODULE, never waited for: `then` runs exactly once -- in this delivery
+    /// when it cannot be asked, else in the pump that hears what became of it, with that
+    /// delivery's Mail. A Neovim holding `kMaxAsks` questions is asked no more until it answers.
+    void ask(const char* chunk, mp::Value args, int ms, loom::Mail& mail, Then then) {
+        ask_rpc("nvim_exec_lua", nv::rpc::params(mp::Value::str(chunk), std::move(args)), ms, mail,
+                std::move(then));
+    }
+
+    /// ...and one asked where there is no Mail to answer with (a publication hook): `then` runs in
+    /// a later pump either way.
+    void ask_quietly(const char* chunk, mp::Value args, int ms, Then then) {
+        const mp::Value params = nv::rpc::params(mp::Value::str(chunk), std::move(args));
+        std::string why;
+        const std::shared_ptr<std::vector<Arrival>> inbox = inbox_;
+        ++asking_;
         if (!running()) {
-            why = "Neovim is not running" + (failure_.empty() ? std::string() : ": " + failure_);
-            return std::nullopt;
+            inbox->push_back(Arrival{Answer{std::nullopt, not_running_words(), false, 0}, std::move(then)});
+            return;
         }
-        const std::optional<nv::rpc::Response> r =
-            host_->call_now("nvim_exec_lua", nv::rpc::params(mp::Value::str(chunk), std::move(args)), ms, why);
-        if (!r.has_value()) {
-            return std::nullopt;
+        if (!host_->ask_later("nvim_exec_lua", params, ms,
+                              [inbox, then](nv::Host::Outcome o) {
+                                  inbox->push_back(Arrival{answer_of(std::move(o)), then});
+                              },
+                              why)) {
+            inbox->push_back(Arrival{Answer{std::nullopt, why, false, 0}, std::move(then)});
         }
-        if (!r->error.is_nil()) {
-            why = nv::rpc::error_text(r->error);
-            return std::nullopt;
+    }
+
+    void ask_rpc(const char* method, const mp::Value& params, int ms, loom::Mail& mail, Then then) {
+        if (!running()) {
+            then(Answer{std::nullopt, not_running_words(), false, 0}, mail);
+            return;
         }
-        return r->result;
+        if (asking_ >= kMaxAsks) {
+            then(Answer{std::nullopt,
+                        "Neovim has " + std::to_string(kMaxAsks) + " questions unanswered already",
+                        false, 0},
+                 mail);
+            return;
+        }
+        std::string why;
+        const std::shared_ptr<std::vector<Arrival>> inbox = inbox_;
+        if (!host_->ask_later(method, params, ms,
+                              [inbox, then](nv::Host::Outcome o) {
+                                  inbox->push_back(Arrival{answer_of(std::move(o)), then});
+                              },
+                              why)) {
+            then(Answer{std::nullopt, why, false, 0}, mail);
+            return;
+        }
+        ++asking_;
+    }
+
+    /// EVERY ANSWER HEARD SINCE, its continuation run in the order heard, once.
+    void hear(loom::Mail& mail) {
+        if (hearing_) {
+            return; // a continuation that pumps hears nothing new here; the loop below does
+        }
+        hearing_ = true;
+        struct Done {
+            bool* flag;
+            ~Done() { *flag = false; }
+        } done{&hearing_};
+        while (!inbox_->empty()) {
+            std::vector<Arrival> now = std::move(*inbox_);
+            inbox_->clear();
+            for (Arrival& a : now) {
+                if (asking_ > 0) {
+                    --asking_;
+                }
+                a.then(a.answer, mail);
+            }
+        }
+    }
+
+    /// A NEOVIM, RUNNING AND READY, for an answer that needs one: `then` runs once, now when one
+    /// is ready or cannot start, else in the pump where it becomes ready or fails, or at most
+    /// `kStartWaitMs` after the first waiter.
+    void when_ready(loom::Mail& mail, Ready then) {
+        if (!running()) {
+            then(false, failure_.empty() ? not_running_words() : failure_, mail);
+            return;
+        }
+        if (host_->ready()) {
+            then(true, std::string(), mail);
+            return;
+        }
+        if (readies_.empty()) {
+            ready_by_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(kStartWaitMs);
+        }
+        readies_.push_back(std::move(then));
+    }
+
+    void ensure_running(loom::Mail& mail, Ready then) {
+        if (!running() && !start_embedded(ui_rows(rows_ > 0 ? rows_ : kDefaultRows, chrome_rows()),
+                                          ui_cols(columns_ > 0 ? columns_ : kDefaultCols))) {
+            then(false, failure_, mail);
+            return;
+        }
+        when_ready(mail, std::move(then));
+    }
+
+    void settle_readies(loom::Mail& mail) {
+        if (readies_.empty()) {
+            return;
+        }
+        bool ok = false;
+        std::string why;
+        if (running() && host_->ready()) {
+            ok = true;
+        } else if (!running()) {
+            why = failure_.empty() ? not_running_words() : failure_;
+        } else if (std::chrono::steady_clock::now() >= ready_by_) {
+            why = "Neovim did not become ready within " + std::to_string(kStartWaitMs / 1000) + " seconds";
+        } else {
+            return;
+        }
+        std::vector<Ready> all = std::move(readies_);
+        readies_.clear();
+        for (Ready& r : all) {
+            r(ok, why, mail);
+        }
     }
 
     // ---- Transfer helpers, in transfers.hpp -----------------------------------------------------
 
     bool on_highlight(std::int64_t row, std::int64_t col) const;
     std::string grid_row(std::int64_t row) const;
-    Snapshot snapshot_now();
+    void snapshot_later(loom::Mail& mail, std::function<void(Snapshot, loom::Mail&)> then);
+    static Snapshot snapshot_of(const Answer& a);
     std::string project_root() const;
     void begin_pickup(const st::Pair& pair, bool drag, std::uint64_t gesture, std::string label, std::string what,
                       loom::Mail& mail);
     void carry_snapshot(const Snapshot& snap, bool drag, std::uint64_t gesture, loom::Mail& mail);
     void acquire_location(bool drag, std::uint64_t gesture, loom::Mail& mail);
+    void carry_location(bool drag, std::uint64_t gesture, const Answer& a, loom::Mail& mail);
+    void receive_into(st::Material m, Aim aim, const ws::RowCell& drop, const mp::Value& lang,
+                      std::uint64_t gesture, loom::Mail& mail);
     void receive(const loom::Bytes& data, const ws::RowCell& drop, bool aimed,
                  loom::Mail& mail);
     void insert_lines(const std::string& text, const Aim& aim, Insertion said, bool whole = false);
     void settle_insertion(const Insertion& said, const Heard& h);
     void insert_command(const st::Material& m, const Aim& aim);
-    void insert_cpp(const st::Material& m, const Aim& aim);
+    void insert_cpp(const st::Material& m, const Aim& aim, loom::Mail& mail);
+    void insert_cpp_from(const st::Material& m, const Aim& aim, const Answer& lang);
     void open_location(const st::Material& m, loom::Mail& mail);
     void settle_location(const SourceOpened& said);
 
@@ -711,16 +838,18 @@ private:
                                                    timer::fallback_spelling(order)});
     }
 
+    /// MOVE NEOVIM'S BYTES, APPLY WHAT IT SAID, and run what follows each answer it gave.
     void pump(loom::Mail& mail) {
-        if (host_ == nullptr) {
-            return;
+        if (host_ != nullptr) {
+            nv::Observed seen = std::move(carried_);
+            carried_ = nv::Observed{};
+            if (host_->phase() != nv::Host::Phase::Idle) {
+                seen.merge(host_->pump());
+            }
+            absorb(mail, std::move(seen));
         }
-        nv::Observed seen = std::move(carried_);
-        carried_ = nv::Observed{};
-        if (host_->phase() != nv::Host::Phase::Idle) {
-            seen.merge(host_->pump());
-        }
-        absorb(mail, std::move(seen));
+        settle_readies(mail);
+        hear(mail);
     }
 
     // WL-NVIM-07 -- agents/workshop/neovim.md
@@ -735,8 +864,8 @@ private:
             // A PASTE NEOVIM WAS WAITING ON can no longer be answered.
             pastes_.clear();
         }
-        if (seen.doc_changed) {
-            doc_ = host_->doc();
+        if (seen.doc_changed && !preview_.awaiting) {
+            doc_ = host_->doc(); // while a showing is unanswered, the facts are the candidate's
         }
         (void)settle_held(); // a change Neovim held, answered since -- or ended with it (WL-NVIM-13)
         for (const nv::ClipboardCopy& copy : seen.copies) {
@@ -888,7 +1017,7 @@ private:
         // start and status answers).
         std::string head = std::string(doc_.modified ? "UNSAVED " : "saved ") +
                            mode_word(host_->mode()) + " " + nv::profile_tag(choice_) + " -- ";
-        if (held_.has_value()) {
+        if (held_.has_value() && held_->said) {
             head += held_->what + " waits for Neovim -- "; // held until Neovim answers (WL-NVIM-13)
         }
         return head + (path.empty() ? std::string("no file") : tail_of_path(path, columns - static_cast<std::int64_t>(head.size())));
@@ -959,7 +1088,7 @@ private:
             return;
         }
         const std::int64_t text_cols = room_cols - kCaretCols > 0 ? room_cols - kCaretCols : 0;
-        if (preview_.active && host_->grid().flushes() == preview_.flushes) {
+        if (preview_.active && (preview_.awaiting || host_->grid().flushes() == preview_.flushes)) {
             // THE FILE A SHOWING PUT IN FRONT, BEFORE NEOVIM HAS DRAWN IT: its first lines as they
             // were prepared, so no screen of the file it replaced stands under its status.
             for (std::size_t i = 0;
@@ -1065,6 +1194,18 @@ private:
     // ---- State -------------------------------------------------------------------------------
 
     zengine::ActivationCursor activation_;
+    /// THE ANSWERS NEOVIM GAVE, waiting for the pump to run what follows each. Shared with the
+    /// Host's callbacks, which a Neovim ending may run as this weave goes.
+    std::shared_ptr<std::vector<Arrival>> inbox_ = std::make_shared<std::vector<Arrival>>();
+    std::size_t asking_ = 0;
+    bool hearing_ = false;
+    /// What waits for a starting Neovim, and until when.
+    std::vector<Ready> readies_;
+    std::chrono::steady_clock::time_point ready_by_{};
+    /// An opening is being prepared in Neovim now, before it is offered.
+    bool preparing_ = false;
+    /// What waits for Neovim's answer to a showing: a dropped location's cursor.
+    std::function<void()> after_show_;
     std::unique_ptr<nv::Host> host_;
     nv::LaunchChoice choice_;
     nv::Observed carried_;
@@ -1130,6 +1271,9 @@ private:
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;
 
+    /// The presses on the highlight counted, so a selection Neovim answers for an earlier press arms
+    /// nothing.
+    std::uint64_t grabs_ = 0;
     /// The left press whose motion is Neovim's drag, by the window's number for it. Not reload
     /// state.
     std::int64_t pressed_ = 0;
