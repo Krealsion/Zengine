@@ -488,7 +488,11 @@ const PressDriverOf kInfoPresses{info::kInfoPaneRole, [](PressWitness& w) {
                 at(*info_rows(s, key, id));
             });
         });
-}};
+}, 3};
+
+ZEN_PRESS_WITNESS_CASE(info::kInfoPaneRole, 0, "Info's rows, the first of three shares")
+ZEN_PRESS_WITNESS_CASE(info::kInfoPaneRole, 1, "Info's rows, the second of three shares")
+ZEN_PRESS_WITNESS_CASE(info::kInfoPaneRole, 2, "Info's rows, the third of three shares")
 
 } // namespace
 

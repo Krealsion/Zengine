@@ -212,10 +212,15 @@ proves; on a 12-core desktop it takes the Linux lane from about a minute to unde
 CI runs every build job at `-j4`. An entry that cannot share the machine runs alone after the
 rest when `-DZEN_CTEST_APART=<entry>;...` names it. Every build job runs every entry, in the one
 pool unless it is kept apart: an entry seen to fail under load runs apart until its repair merges,
-the repair proved on a local parallel lane, and CI's sanitizer job keeps apart the entries whose
-memory beside others would take it past its runner's. That job runs the lane as
-`cmake -DZEN_BUILD_DIR=build-san -P tests/sanitizer_lane.cmake` does, the file holding its
-arguments and the entries it keeps apart, and its summary names the lane's peak memory.
+the repair proved on a local parallel lane. A panes part longer than a piece runs as pieces,
+`workshop_panes_<part>_<n>`, each a process of its own over a range of the part's cases, and the
+population check holds every case to one piece; `ctest -R '^workshop_panes_project'` runs a part
+whole. CI's sanitizer job runs in two runners: one builds the panes program and runs its entries,
+the other builds and runs the rest. Each runs its share as
+`cmake -DZEN_BUILD_DIR=build-san -DZEN_SANITIZER_RUNNER=<runner> -P tests/sanitizer_lane.cmake`
+does, the file holding the shares, its arguments, the stack depth ASan keeps, the memory limit and
+the time budget an entry is warned past; with no runner named it runs every share in turn. The
+summary names each share's peak memory, its build's beside it, and its longest entries.
 What made parallel unsafe everywhere for a while was the
 compile-judged entries: each of them proves its point by trying to build a fixture, and they
 used to build it in this build tree — so eight tests that have nothing to do with each other
@@ -249,7 +254,7 @@ their diagnostics, plus script entries.
 | `workshop_document` | the typed property connection every editable row is built on, including both ways a commit can fail; the quit policy; editable text as a component; and the keymap that says which gesture a key is. (The name is the object document's, whose cases it held until the prototype canvas retired.) |
 | `workshop_screen` | whole screens asserted as Workshop's composed planes; what a press reaches — a pane, the room, a mode — and what a hand can and cannot reach; and the whole pixels a pane arrangement is authored in |
 | `workshop_host` | what Workshop itself presents around the panes: placement and the stack, the Layouts pane and its tab run, the contextual menu, a pane's subject rows, the Terminal line's completion vocabulary, Escape's order, and the surface that says what is currently true. (The terminal, the Builder and Info had cases here as built-ins until each became a loaded pane.) |
-| `workshop_panes_seam`, `_hand`, `_inspect`, `_info`, `_settings`, `_terminal`, `_project`, `_editor` | the external pane seam from both sides: an office authors a pane, Workshop grants the room, and a press inside that room reaches the office that owns it — against real loaded libraries through the real kernel. One program, `zengine-workshop-panes-tests`, run as eight entries by subject, each selecting its own sources' cases |
+| `workshop_panes_seam`, `_hand`, `_inspect`, `_info`, `_settings`, `_terminal`, `_project`, `_editor` | the external pane seam from both sides: an office authors a pane, Workshop grants the room, and a press inside that room reaches the office that owns it — against real loaded libraries through the real kernel. One program, `zengine-workshop-panes-tests`, run as eight parts by subject, each selecting its own sources' cases, a long part as pieces |
 | `workshop_persistence` | what survives a process and what deliberately does not: an old object document left exactly as it is, the named arrangement, the desk that comes back on its own, a saved desk naming a retired built-in read as its successor, and the installed application's per-user roots |
 | `workshop_load` | which artifacts are in the room at all: the authored load plan, its codec, and the executor that walks it |
 | `builder` | real child processes — every recipe is `cmake -E …` or this repository's own deliberately slow script, so it needs no shell and no assumption about what is installed — plus the regression canary for non-blocking custody |

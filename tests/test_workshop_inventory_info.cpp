@@ -98,6 +98,8 @@ const PressDriverOf kInventoryPanePresses{slots::kRole, [](PressWitness& w) {
             each_inventory_pane_state(s, at);
         });
 }};
+
+ZEN_PRESS_WITNESS_CASE(slots::kRole, 0, "Inventory's rows")
 }
 
 TEST_CASE("the Inventory pane answers its manual for main Inventory and each view, a section for "

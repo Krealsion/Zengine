@@ -72,7 +72,7 @@ prefix, then deletes a header to prove it read the prefix.
 METHOD — The lane may run in parallel with `-DZEN_CTEST_ARGS=-j<n>`, same proofs, on Linux/GCC and on both Windows libraries; an entry that cannot share the machine runs alone, named in `-DZEN_CTEST_APART`.
 BECAUSE — no entry writes what this build tree builds (`tutorial_walks`'s install leaves only CMake's install manifest), so
 entries cannot race it; every build job runs every entry, apart only if seen to fail under load, until its repair merges
-(its witness a loaded parallel lane), or if its memory beside others would pass the sanitizer runner's (VM-LANE-27).
+(its witness a loaded parallel lane); an entry too long for one process runs as pieces, each its own (VM-POP-22), not apart.
 
 ## VM-LANE-12 — The filesystem decides parallel safety
 
@@ -170,12 +170,12 @@ BECAUSE — no job reads debug information: a failing case names its file and li
 nothing in Zengine or Loom reads it as it runs, and a sanitizer's report names file and line from
 the line table alone; a weaver debugging their own build reads all of it.
 
-## VM-LANE-27 — The sanitizer lane stays inside its runner's memory, its peak said
+## VM-LANE-27 — The sanitizer job runs in two runners by program, inside each runner's memory and time
 
-METHOD — CI's sanitizer job runs the lane through `tests/sanitizer_lane.cmake`, home of its CTest arguments, entries apart and limit; its summary names the peak, and a peak past the limit warns the run.
-BECAUSE — a standard runner has 16 GB and stops a job that reaches it with a shutdown naming no cause; the limit leaves a
-quarter spare, so added memory warns a run before one is stopped; an entry is kept apart by its peak measured alone, and the
-lane's peak is `tests/lane_memory.py`'s, which a repetition of the job reads by running the same file.
+METHOD — CI's sanitizer job runs in two runners by program, each building and running its own through `tests/sanitizer_lane.cmake`, every entry in one; a peak past the limit or an entry past the budget warns.
+BECAUSE — a runner has 16 GB and 14 GB of disk and stops a job past either, naming no cause; the panes program is two fifths of the build and three fifths of the lane: a runner of its own;
+the limit leaves a quarter spare and the budget is a quarter of what the slowest runner seen has left of ninety minutes after its cold build; each runner says its CPU, disk and both peaks.
+ASan keeps every allocation's stack for good, so the lane keeps eight frames, which catch what thirty do and hold a long entry's memory flat; `sanitizer_lane` holds each judgement to its cases.
 
 ## Seen
 
@@ -220,7 +220,7 @@ lane's peak is `tests/lane_memory.py`'s, which a repetition of the job reads by 
 ### VM-LANE-11
 `tests/verify.cmake` ZEN_CTEST_ARGS ZEN_CTEST_APART
 `.github/workflows/ci.yml` ZEN_CTEST_ARGS (every build job at `-j4`)
-`tests/sanitizer_lane.cmake` ZEN_SANITIZER_CTEST_ARGS ZEN_SANITIZER_APART
+`tests/sanitizer_lane.cmake` ZEN_SANITIZER_CTEST_ARGS
 `AGENTS.md`
 
 ### VM-LANE-12
@@ -274,6 +274,10 @@ nowhere yet
 `.github/workflows/ci.yml` CMAKE_CXX_FLAGS_DEBUG
 
 ### VM-LANE-27
-`tests/sanitizer_lane.cmake` ZEN_SANITIZER_PEAK_GB ZEN_SANITIZER_APART
+`tests/sanitizer_lane.cmake` ZEN_SANITIZER_PEAK_GB ZEN_SANITIZER_BUDGET_S ZEN_SANITIZER_ASAN_OPTIONS ZEN_SANITIZER_RUNNERS
+zen_sanitizer_shares zen_sanitizer_programs zen_sanitizer_times zengine_sanitizer_runner_targets
+`CMakeLists.txt` zengine_sanitizer_runner_targets
+`tests/verify.cmake` ZEN_VERIFY_ENTRIES
+`tests/check_sanitizer_lane.cmake` zen_lane_expect (its fixed cases, the entry `sanitizer_lane`)
 `tests/lane_memory.py` PR_SET_CHILD_SUBREAPER same_memory self_test (its fixed cases, run by the job)
-`.github/workflows/ci.yml` lane_memory
+`.github/workflows/ci.yml` lane_memory matrix lscpu

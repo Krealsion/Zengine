@@ -5,10 +5,10 @@
 #define ZENGINE_TESTS_CENSUS_HPP
 
 // The action census, the press witness and the manual witness, shared by the pane suites: each
-// suite registers per office a census driver (`CensusDriverOf`) walking its panes through their
-// modes and a press driver (`PressDriverOf`) pressing each row. The Builder's suite holds each
-// office's lines to `tests/actions.txt` or `tests/actions/<office>.txt`, and each press to its
-// row's causes. A pane's manual is asked as any weave asks it and held to the ids its rows declare.
+// suite registers per office a census driver (`CensusDriverOf`), a press driver (`PressDriverOf`)
+// pressing each row and its press witness cases (`ZEN_PRESS_WITNESS_CASE`). The Builder's suite
+// holds each office's lines to `tests/actions.txt` or `tests/actions/<office>.txt`, and each press
+// to its row's causes; a pane's manual is held to the ids its rows declare.
 // Reference: manual/docs/manual.md.
 
 #include "workshop_support.hpp"
@@ -18,6 +18,7 @@
 #include "workshop/pane_document.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -362,18 +363,40 @@ inline std::set<std::string> declared_sends(const std::vector<ActionCause>& caus
     return out;
 }
 
-/// ONE OFFICE'S PRESSES, JUDGED: every press `judge` is handed is held to its row's causes, and
-/// the rows pressed, what each declares and what each sent are kept, by `<mode> <id>`.
+/// A ROW'S KEY AS THE PRESS WITNESS KEEPS IT: `<mode> <id>`, `-` for a pane that declares no mode.
+inline std::string press_key(const std::string& mode, const std::string& id) {
+    return (mode.empty() ? std::string("-") : mode) + " " + id;
+}
+
+/// THE SHARE A ROW'S PRESS FALLS IN, of `shares`: its key's FNV-1a hash, so a row's share is the
+/// same in every process and on every platform, whatever else the office declares.
+inline std::size_t press_share_of(const std::string& key, std::size_t shares) {
+    std::uint64_t hash = 14695981039346656037ULL;
+    for (const char c : key) {
+        hash ^= static_cast<unsigned char>(c);
+        hash *= 1099511628211ULL;
+    }
+    return static_cast<std::size_t>(hash % shares);
+}
+
+/// ONE OFFICE'S PRESSES, JUDGED: every press `judge` is handed in its share of the office's rows is
+/// held to its row's causes, and the rows pressed, what each declares and what each sent are kept,
+/// by `<mode> <id>`. A row outside the share is not pressed: another case presses it.
 class PressWitness {
 public:
-    explicit PressWitness(std::string office) : office_(std::move(office)) {}
+    explicit PressWitness(std::string office, std::size_t share = 0, std::size_t shares = 1)
+        : office_(std::move(office)), share_(share), shares_(shares) {}
+
+    /// WHETHER THE ROW KEYED `key` IS THIS WITNESS'S TO PRESS.
+    bool mine(const std::string& key) const { return press_share_of(key, shares_) == share_; }
 
     /// ONE PRESS OF THE ROW `id` IN `mode` (empty for a pane that declares none): `press` presses
     /// it, and every send `who` makes outside the pane protocol meanwhile is one `causes` declares.
     void judge(loom::Switchboard& bus, loom::WeaveId who, const std::string& mode,
                const std::string& id, const std::vector<ActionCause>& causes,
                const std::function<void()>& press) {
-        const std::string key = (mode.empty() ? std::string("-") : mode) + " " + id;
+        const std::string key = press_key(mode, id);
+        if (!mine(key)) return;
         CAPTURE(office_);
         CAPTURE(key);
         REQUIRE(who.valid());
@@ -405,27 +428,60 @@ public:
 
 private:
     std::string office_;
+    std::size_t share_ = 0;
+    std::size_t shares_ = 1;
 };
 
 /// THE PRESS DRIVERS, one per office, registered beside its census driver by the suite that drives
 /// its panes: each presses every row its panes declare in every mode, a pane made afresh for each
-/// press, so no press is judged by what an earlier one left.
+/// press, so no press is judged by what an earlier one left. An office whose presses are long gives
+/// them to `shares` cases, each pressing its share of the rows.
 using PressDriver = std::function<void(PressWitness&)>;
 inline std::map<std::string, PressDriver>& press_drivers() {
     static std::map<std::string, PressDriver> drivers;
     return drivers;
+}
+inline std::map<std::string, std::size_t>& press_shares() {
+    static std::map<std::string, std::size_t> shares;
+    return shares;
 }
 inline std::vector<std::string>& press_registered_twice() {
     static std::vector<std::string> twice;
     return twice;
 }
 struct PressDriverOf {
-    PressDriverOf(const std::string& office, PressDriver drive) {
+    PressDriverOf(const std::string& office, PressDriver drive, std::size_t shares = 1) {
         if (!press_drivers().emplace(office, std::move(drive)).second) {
             press_registered_twice().push_back(office);
         }
+        press_shares()[office] = shares;
     }
 };
+
+/// THE PRESS WITNESS'S CASES, registered as each is defined, in every process of the program
+/// whatever it runs: for each office, the shares its cases press. The census case holds every
+/// office's shares to one case each.
+inline std::map<std::string, std::vector<std::size_t>>& press_cases() {
+    static std::map<std::string, std::vector<std::size_t>> cases;
+    return cases;
+}
+struct PressCaseOf {
+    PressCaseOf(const std::string& office, std::size_t share) {
+        press_cases()[office].push_back(share);
+    }
+};
+
+/// ONE SHARE OF ONE OFFICE'S PRESS WITNESS, RUN (the Builder's suite holds it).
+void witness_presses(const std::string& office, std::size_t share);
+
+/// AN OFFICE'S PRESS WITNESS CASE: share `share` of the office's rows, pressed; `who` names the
+/// rows in the case's name.
+#define ZEN_PRESS_WITNESS_CASE(office, share, who)                                                 \
+    static const PressCaseOf DOCTEST_ANONYMOUS(zen_press_case_){office, share};                    \
+    TEST_CASE("the press witness: " who ", each pressed in each mode its suite drives, sends "     \
+              "nothing beside the pane protocol that its row does not declare") {                  \
+        witness_presses(office, share);                                                            \
+    }
 
 /// THE HOST A SUITE'S RIG DRIVES: the rig itself, or the `PaneRig` it holds as `r`.
 inline PaneRig& pane_rig(PaneRig& r) { return r; }
@@ -442,26 +498,34 @@ using StateWalk = std::function<void(Rig&, const std::function<void(const Runtim
 
 /// EACH ROW OF EACH STATE A WALK REACHES, PRESSED ON A RIG OF ITS OWN: `make` makes a fresh rig,
 /// `walk` drives it to the state, the row is pressed as Workshop says a resolved key, and the walk
-/// goes no further, so no press is judged by what another left.
+/// goes no further, so no press is judged by what another left. A row outside the witness's share
+/// is neither walked to nor pressed.
 template <class Rig>
 void press_each_state(PressWitness& w, const std::function<std::unique_ptr<Rig>()>& make,
                       const StateWalk<Rig>& walk) {
     struct Pressed {};
-    std::vector<std::size_t> rows;
+    std::vector<std::vector<std::string>> rows;
     {
         const std::unique_ptr<Rig> rig = make();
-        walk(*rig, [&](const RuntimePane& held) { rows.push_back(held.actions.size()); });
+        walk(*rig, [&](const RuntimePane& held) {
+            std::vector<std::string> keys;
+            for (const v4::PaneActionRow& row : held.actions) {
+                keys.push_back(press_key(held.mode, row.id));
+            }
+            rows.push_back(std::move(keys));
+        });
     }
     REQUIRE_FALSE(rows.empty());
     for (std::size_t state = 0; state < rows.size(); ++state) {
-        for (std::size_t i = 0; i < rows[state]; ++i) {
+        for (std::size_t i = 0; i < rows[state].size(); ++i) {
+            if (!w.mine(rows[state][i])) continue;
             const std::unique_ptr<Rig> rig = make();
             std::size_t at = 0;
             bool pressed = false;
             try {
                 walk(*rig, [&](const RuntimePane& held) {
                     if (at++ != state) return;
-                    REQUIRE(held.actions.size() == rows[state]);
+                    REQUIRE(held.actions.size() == rows[state].size());
                     const v4::PaneActionRow row = held.actions[i];
                     const std::string pane = held.pane;
                     const std::string mode = held.mode;

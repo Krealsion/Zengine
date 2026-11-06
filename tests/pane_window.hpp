@@ -335,6 +335,21 @@ public:
         return landed(cells, painted(cells), col, row);
     }
 
+    /// The action a press on each cell of `area` asks, a row of cells a row, as the real window
+    /// lands each: `action_at` for every cell, from one painting of the area.
+    std::vector<std::vector<std::string>> cell_actions(const std::string& area) {
+        std::vector<std::vector<std::string>> out;
+        each_cell(area, [&](const gw::WinArea& a, const gw::Cache& cache, std::int64_t c,
+                            std::int64_t r) {
+            if (static_cast<std::size_t>(r) >= out.size()) {
+                out.resize(static_cast<std::size_t>(r) + 1);
+            }
+            out[static_cast<std::size_t>(r)].push_back(landed(a, cache, c, r));
+            return false;
+        });
+        return out;
+    }
+
     /// Every action a press somewhere in `area` asks.
     std::set<std::string> actions(const std::string& area) {
         std::set<std::string> out;

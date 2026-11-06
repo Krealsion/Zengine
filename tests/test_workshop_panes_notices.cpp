@@ -285,6 +285,8 @@ const PressDriverOf kNoticesPresses{np::kNoticesPaneRole, [](PressWitness& w) {
         [](NoticesRig& t, const std::function<void(const RuntimePane&)>& at) { at(*t.row()); });
 }};
 
+ZEN_PRESS_WITNESS_CASE(np::kNoticesPaneRole, 0, "the Notices pane's rows")
+
 } // namespace
 
 TEST_CASE("each thing Workshop says is published once, numbered from one, a refusal told apart") {

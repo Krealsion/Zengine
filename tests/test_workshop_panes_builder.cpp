@@ -3273,25 +3273,6 @@ void list_unreached(const std::map<std::string, std::vector<ActionCause>>& decla
     }
 }
 
-/// ONE OFFICE'S PRESS WITNESS, RUN: its driver presses every row, each press is held to its row,
-/// every row the census pins for the office is pressed, and what no press sent is listed beside
-/// the build as `causes-unsent-<office>`.
-void witness_presses(const std::string& office) {
-    CAPTURE(office);
-    const auto driver = press_drivers().find(office);
-    REQUIRE_MESSAGE(driver != press_drivers().end(), "no suite registers a press driver for "
-                                                         << office);
-    PressWitness w(office);
-    driver->second(w);
-    for (const std::string& line : census_pinned_of(office)) {
-        std::istringstream in(line);
-        std::string who, mode, id;
-        in >> who >> mode >> id;
-        CHECK_MESSAGE(w.pressed.count(mode + " " + id) == 1,
-                      "pinned and never pressed by the press witness: `" << line << "`");
-    }
-    list_unreached(w.declared, w.reached, "causes-unsent-" + office);
-}
 
 /// THE STATE A BUILDER IS DRIVEN INTO BEFORE A PRESS: a build waiting to be loaded, or a
 /// realization standing, with the project waiting on its artifact.
@@ -3377,20 +3358,48 @@ const PressDriverOf kBuilderPresses{pane::kBuilderPaneRole, [](PressWitness& w) 
 
 } // namespace
 
-TEST_CASE("the press witness: each action the Builder declares, pressed in each mode it is driven "
-          "into, sends nothing beside the pane protocol that its row does not declare") {
-    witness_presses(pane::kBuilderPaneRole);
+/// ONE SHARE OF ONE OFFICE'S PRESS WITNESS, RUN: its driver presses every row of the share, each
+/// press is held to its row, every row the census pins for the office in the share is pressed, and
+/// what no press sent is listed beside the build as `causes-unsent-<office>`, `-<share>` after it
+/// for an office in several shares.
+void witness_presses(const std::string& office, std::size_t share) {
+    CAPTURE(office);
+    CAPTURE(share);
+    const auto driver = press_drivers().find(office);
+    REQUIRE_MESSAGE(driver != press_drivers().end(), "no suite registers a press driver for "
+                                                         << office);
+    const std::size_t shares = press_shares()[office];
+    REQUIRE(share < shares);
+    PressWitness w(office, share, shares);
+    driver->second(w);
+    for (const std::string& line : census_pinned_of(office)) {
+        std::istringstream in(line);
+        std::string who, mode, id;
+        in >> who >> mode >> id;
+        if (!w.mine(mode + " " + id)) continue;
+        CHECK_MESSAGE(w.pressed.count(mode + " " + id) == 1,
+                      "pinned and never pressed by the press witness: `" << line << "`");
+    }
+    std::string title = "causes-unsent-" + office;
+    if (shares > 1) title += "-" + std::to_string(share + 1);
+    list_unreached(w.declared, w.reached, title);
 }
 
+static const PressCaseOf kBuilderPressCase{pane::kBuilderPaneRole, 0};
+TEST_CASE("the press witness: each action the Builder declares, pressed in each mode it is driven "
+          "into, sends nothing beside the pane protocol that its row does not declare") {
+    witness_presses(pane::kBuilderPaneRole, 0);
+}
+
+static const PressCaseOf kDesktopPressCase{kDesktopRole, 0};
 TEST_CASE("the press witness: each row the desktop declares, pressed, sends nothing beside the pane "
           "protocol that the row does not declare -- the application's, the Pane Manager's and the "
           "Manual's") {
-    witness_presses(kDesktopRole);
+    witness_presses(kDesktopRole, 0);
 }
 
-TEST_CASE("the press witness: every other office in the census, each row its panes declare pressed "
-          "in each mode its suite drives, sends nothing beside the pane protocol that the row "
-          "does not declare") {
+TEST_CASE("the press witness: every office in the census has one press driver, every driver an "
+          "office the census holds, and each share of an office's rows one case that presses it") {
     CHECK_MESSAGE(press_registered_twice().empty(),
                   "an office's presses are registered twice: " << press_registered_twice().front());
     std::set<std::string> offices;
@@ -3401,10 +3410,23 @@ TEST_CASE("the press witness: every other office in the census, each row its pan
     }
     for (const auto& [office, drive] : press_drivers()) {
         (void)drive;
+        CAPTURE(office);
         CHECK_MESSAGE(offices.count(office) == 1,
                       "a press driver for " << office << ", which the census does not hold");
-        if (office == pane::kBuilderPaneRole || office == kDesktopRole) continue;
-        witness_presses(office);
+        // EACH SHARE ONCE: a share no case presses would leave its rows unpressed while every
+        // case passes, and one two cases press is pressed twice.
+        std::vector<std::size_t> cases = press_cases()[office];
+        std::sort(cases.begin(), cases.end());
+        std::vector<std::size_t> each(press_shares()[office]);
+        for (std::size_t i = 0; i < each.size(); ++i) each[i] = i;
+        CHECK_MESSAGE(cases == each, "the press witness's cases for " << office << " press "
+                                         << cases.size() << " shares of its " << each.size()
+                                         << ", each once");
+    }
+    for (const auto& [office, shares] : press_cases()) {
+        (void)shares;
+        CHECK_MESSAGE(press_drivers().count(office) == 1,
+                      "a press witness case for " << office << ", which no driver presses");
     }
 }
 

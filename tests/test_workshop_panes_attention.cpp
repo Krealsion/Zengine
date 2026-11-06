@@ -180,6 +180,8 @@ const PressDriverOf kAttentionPresses{pane::kAttentionPaneRole, [](PressWitness&
         [](AttentionRig& f, const std::function<void(const RuntimePane&)>& at) { at(*f.row()); });
 }};
 
+ZEN_PRESS_WITNESS_CASE(pane::kAttentionPaneRole, 0, "Attention's rows")
+
 } // namespace
 
 // ============================================================================
