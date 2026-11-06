@@ -2166,6 +2166,8 @@ const PressDriverOf kComposerPresses{kComposerOffice, [](PressWitness& w) {
         });
 }};
 
+ZEN_PRESS_WITNESS_CASE(kComposerOffice, 0, "the Composer's rows")
+
 } // namespace
 
 TEST_CASE("the manual Compose answers names exactly the commands it declares, with no target, in "

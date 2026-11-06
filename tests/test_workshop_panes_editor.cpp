@@ -6018,6 +6018,8 @@ const PressDriverOf kEditorPresses{pane::kEditorPaneRole, [](PressWitness& w) {
         });
 }};
 
+ZEN_PRESS_WITNESS_CASE(pane::kEditorPaneRole, 0, "the Editor's rows")
+
 } // namespace
 
 TEST_CASE("the manual the standard Editor answers is the office's page, naming exactly the commands "

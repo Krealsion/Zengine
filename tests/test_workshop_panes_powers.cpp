@@ -419,6 +419,8 @@ const PressDriverOf kFlowPresses{zengine::flow_pane::kRole, [](PressWitness& w) 
         });
 }};
 
+ZEN_PRESS_WITNESS_CASE(zengine::flow_pane::kRole, 0, "Flow's rows")
+
 } // namespace
 
 TEST_CASE("the manual Flow answers names exactly the commands it declares, with and without a "

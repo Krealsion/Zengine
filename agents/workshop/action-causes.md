@@ -110,13 +110,14 @@ their keymap file: the key says the button's intent, the keymap says what it cau
 the action's"
 
 ### WL-CAUSE-04
-`tests/census.hpp` pane_protocol SendsOf PressWitness PressDriverOf press_each_state
-`tests/test_workshop_panes_builder.cpp` list_unreached witness_presses "the action census: the rows the Builder declares in each
-mode, with what each press causes and the mode it enters, and the desk's, are tests/actions.txt"
-"the press witness: each action the Builder declares, pressed in each mode it is driven into, sends
-nothing beside the pane protocol that its row does not declare" "the press witness: each row the
-desktop declares, pressed, sends nothing beside the pane protocol that the row does not declare --
-the application's, the Pane Manager's and the Manual's" "the press witness: every other office in
-the census, each row its panes declare pressed in each mode its suite drives, sends nothing beside
-the pane protocol that the row does not declare"
+`tests/census.hpp` pane_protocol SendsOf PressWitness PressDriverOf press_each_state press_share_of
+PressCaseOf ZEN_PRESS_WITNESS_CASE
+`tests/test_workshop_panes_builder.cpp` list_unreached witness_presses "the action census: the rows
+the Builder declares in each mode, with what each press causes and the mode it enters, and the
+desk's, are tests/actions.txt" "the press witness: each action the Builder declares, pressed in each
+mode it is driven into, sends nothing beside the pane protocol that its row does not declare" "the
+press witness: each row the desktop declares, pressed, sends nothing beside the pane protocol that
+the row does not declare -- the application's, the Pane Manager's and the Manual's" "the press
+witness: every office in the census has one press driver, every driver an office the census holds,
+and each share of an office's rows one case that presses it"
 `tests/check_manual.cmake` zen_manual_census zen_manual_answers

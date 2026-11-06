@@ -688,6 +688,8 @@ const PressDriverOf kFilesPresses{files::kFilesRole, [](PressWitness& w) {
         });
 }};
 
+ZEN_PRESS_WITNESS_CASE(files::kFilesRole, 0, "Files' rows")
+
 } // namespace
 
 TEST_CASE("the manual Files answers names exactly the commands it declares in each step, and no "

@@ -318,6 +318,8 @@ const PressDriverOf kTerminalPresses{pane::kTerminalPaneRole, [](PressWitness& w
         });
 }};
 
+ZEN_PRESS_WITNESS_CASE(pane::kTerminalPaneRole, 0, "the Terminal's rows")
+
 } // namespace
 
 // ============================================================================

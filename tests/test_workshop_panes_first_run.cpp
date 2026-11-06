@@ -189,6 +189,8 @@ const PressDriverOf kFirstRunPresses{fr::kFirstRunRole, [](PressWitness& w) {
     }
 }};
 
+ZEN_PRESS_WITNESS_CASE(fr::kFirstRunRole, 0, "the first run's rows")
+
 } // namespace
 
 TEST_CASE("WL-FIRST-01: the quick setup shows itself once at a start that keeps settings and has "

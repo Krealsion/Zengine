@@ -163,6 +163,8 @@ const PressDriverOf kPalettePresses{kPaletteRole, [](PressWitness& w) {
     }
 }};
 
+ZEN_PRESS_WITNESS_CASE(kPaletteRole, 0, "the palette's rows")
+
 ShownBinding row(std::string group, std::string office, std::string pane, std::string id,
                            std::string label, std::string gesture, bool authored = false) {
     ShownBinding b;

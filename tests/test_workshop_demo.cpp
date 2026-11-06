@@ -117,6 +117,8 @@ const PressDriverOf kDemoPresses{demo::kRole, [](PressWitness& w) {
         w, [] { return std::make_unique<DemoDesk>(); },
         [](DemoDesk& d, const std::function<void(const RuntimePane&)>& at) { at(*d.held()); });
 }};
+
+ZEN_PRESS_WITNESS_CASE(demo::kRole, 0, "the demo controls' rows")
 }
 
 TEST_CASE("the manual the Demo controls answer is the page their build embedded, and names the one action they declare") {

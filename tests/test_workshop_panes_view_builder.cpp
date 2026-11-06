@@ -53,6 +53,8 @@ const PressDriverOf kViewBuilderPresses{vb::kRole, [](PressWitness& w) {
         });
 }};
 
+ZEN_PRESS_WITNESS_CASE(vb::kRole, 0, "the View Builder's rows")
+
 } // namespace
 
 TEST_CASE("the View Builder answers the manual its build embedded, a section for every action it "

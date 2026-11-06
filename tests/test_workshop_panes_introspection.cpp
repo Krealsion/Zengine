@@ -2327,6 +2327,8 @@ const PressDriverOf kIntrospectionPresses{kIntroOffice, [](PressWitness& w) {
         });
 }};
 
+ZEN_PRESS_WITNESS_CASE(kIntroOffice, 0, "Introspection's rows")
+
 } // namespace
 
 TEST_CASE("Powers declares its chrome row's widths as settings, and a layout's widths pad its view control and space the row's parts") {

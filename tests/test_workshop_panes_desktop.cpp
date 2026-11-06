@@ -218,9 +218,14 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
     const auto window_parts = [&] {
         std::map<std::string, RowPart> out;
         const std::vector<std::string> rows = w.rows(manager);
-        for (std::int64_t row = 0; row < static_cast<std::int64_t>(rows.size()); ++row) {
-            for (std::int64_t col = 0; col < 100; ++col) {
-                const std::string name = w.action_at(manager, col, row);
+        const std::vector<std::vector<std::string>> cells = w.cell_actions(manager);
+        for (std::int64_t row = 0; row < static_cast<std::int64_t>(rows.size()) &&
+                                   row < static_cast<std::int64_t>(cells.size());
+             ++row) {
+            const std::vector<std::string>& on_row = cells[static_cast<std::size_t>(row)];
+            for (std::int64_t col = 0; col < 100 && col < static_cast<std::int64_t>(on_row.size());
+                 ++col) {
+                const std::string& name = on_row[static_cast<std::size_t>(col)];
                 if (name.empty()) continue;
                 auto [at, fresh] = out.try_emplace(name, RowPart{name, row, col, 0});
                 if (at->second.row == row) at->second.columns = col + 1 - at->second.column;
