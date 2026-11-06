@@ -2,9 +2,10 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The `sanitizer_lane` entry (VM-LANE-27, VM-POP-22): the runners' shares and programs, a part's
-# pieces and the time budget, each judgement refusing or warning on its fixed case and passing a
-# clean sample; then every entry tests/test_population.txt declares, in one of the job's shares.
-#   cmake -DZEN_REPO=<source tree> -P tests/check_sanitizer_lane.cmake
+# pieces, the time budget and the build's memory, each judgement refusing or warning on its fixed
+# case and passing a clean sample; then every entry tests/test_population.txt declares, in one of
+# the job's shares.
+#   cmake -DZEN_REPO=<source tree> [-DZEN_WORK=<folder>] -P tests/check_sanitizer_lane.cmake
 
 cmake_minimum_required(VERSION 3.21)
 
@@ -153,6 +154,76 @@ set(ENV{GITHUB_ACTIONS} "${github}")
 zen_sanitizer_times("${junit}" one 700 said over)
 if(NOT over EQUAL 0)
     string(APPEND failures "  - every entry inside the budget: ${over} warned, wanted none\n")
+endif()
+
+# ---- the build's memory ----------------------------------------------------------------------
+
+# A runner's build as the build step runs it, at a fixed case's limit: a tree whose
+# `zengine-sanitizer-one` starts a process holding 128 MB, built under the memory watch in a
+# GitHub run. A peak past the limit warns the run, one under it does not. The watch reads /proc,
+# so these cases run on Linux, with a python3.
+find_program(python NAMES python3)
+if(NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" OR NOT python)
+    message(STATUS "sanitizer-lane-check: the build's memory cases need Linux and a python3, and "
+                   "go unrun here")
+else()
+    if(NOT DEFINED ZEN_WORK OR ZEN_WORK STREQUAL "")
+        set(ZEN_WORK "${CMAKE_CURRENT_BINARY_DIR}/sanitizer-lane-work")
+    endif()
+    file(REMOVE_RECURSE "${ZEN_WORK}")
+    file(WRITE "${ZEN_WORK}/hold.py"
+        "import time\n"
+        "held = bytearray(128 * 1024 * 1024)\n"
+        "held[::4096] = b'x' * len(held[::4096])\n"
+        "time.sleep(3)\n")
+    file(WRITE "${ZEN_WORK}/tree/CMakeLists.txt"
+        "cmake_minimum_required(VERSION 3.21)\n"
+        "project(held LANGUAGES NONE)\n"
+        "add_custom_target(zengine-sanitizer-one\n"
+        "    COMMAND \"${python}\" \"${ZEN_WORK}/hold.py\")\n")
+    file(WRITE "${ZEN_WORK}/build.cmake"
+        "include(\"${ZEN_REPO}/tests/sanitizer_lane.cmake\")\n"
+        "set(ZEN_SANITIZER_BUILD_PEAK_GB \${limit})\n"
+        "zen_sanitizer_build(one 1 rc)\n"
+        "message(\"build exit \${rc}\")\n")
+    execute_process(COMMAND ${CMAKE_COMMAND} -S "${ZEN_WORK}/tree" -B "${ZEN_WORK}/tree/build"
+                    RESULT_VARIABLE rc OUTPUT_VARIABLE text ERROR_VARIABLE text)
+    if(NOT rc EQUAL 0)
+        string(APPEND failures
+               "  - the build's memory: its tree did not configure (exit ${rc}): ${text}\n")
+    else()
+        foreach(limit 0.05 1)
+            execute_process(
+                COMMAND ${CMAKE_COMMAND} -E env GITHUB_ACTIONS=true
+                        ${CMAKE_COMMAND} "-DZEN_BUILD_DIR=${ZEN_WORK}/tree/build"
+                        "-Dlimit=${limit}" -P "${ZEN_WORK}/build.cmake"
+                RESULT_VARIABLE rc OUTPUT_VARIABLE said ERROR_VARIABLE said)
+            # Shown as words, so a failure printed under GitHub Actions marks nothing.
+            string(REPLACE "::warning" "[warning]" said "${said}")
+            set(said_${limit} "")
+            if(NOT rc EQUAL 0 OR NOT said MATCHES "build exit 0")
+                string(APPEND failures "  - the build's memory at ${limit} GB: the build failed "
+                                       "(exit ${rc}): ${said}\n")
+            elseif(NOT said MATCHES "lane-memory: peak ([0-9.]+) GB" OR CMAKE_MATCH_1 STREQUAL "0.0")
+                string(APPEND failures "  - the build's memory at ${limit} GB: no peak holding "
+                                       "the 128 MB its build held: ${said}\n")
+            else()
+                set(said_${limit} "${said}")
+            endif()
+        endforeach()
+        if(NOT said_0.05 STREQUAL "")
+            zen_lane_expect("a build's peak past its limit warns the run" "${said_0.05}"
+                            "[warning] title=Sanitizer build memory: past 0.05 GB::The peak, ")
+        endif()
+        if(NOT said_1 STREQUAL "")
+            if(said_1 MATCHES "warning")
+                string(APPEND failures "  - a build's peak under its limit warned: ${said_1}\n")
+            else()
+                math(EXPR passed "${passed} + 1")
+            endif()
+        endif()
+    endif()
+    file(REMOVE_RECURSE "${ZEN_WORK}")
 endif()
 
 # ---- the job's own shares, over every entry the manifest declares --------------------------

@@ -16,8 +16,11 @@
 cmake_policy(PUSH)
 cmake_policy(VERSION 3.21)
 
-# The limit is a standard GitHub runner's 16 GB less a quarter spare (VM-LANE-27).
+# The peak past which the run is warned: a verification's, a standard GitHub runner's 16 GB less a
+# quarter spare, and a build's, less an eighth, its compilers being the most the runner holds
+# (VM-LANE-27).
 set(ZEN_SANITIZER_PEAK_GB 12)
+set(ZEN_SANITIZER_BUILD_PEAK_GB 14)
 # An entry's seconds on the runner past which the run is warned: a quarter of what the slowest
 # runner seen has left of the job's 90 minutes once its cold build is done (VM-LANE-27).
 set(ZEN_SANITIZER_BUDGET_S 600)
@@ -243,6 +246,34 @@ function(zengine_sanitizer_runner_targets record)
     file(WRITE "${record}" "${lines}")
 endfunction()
 
+# THE MEMORY WATCH: the command under tests/lane_memory.py when there is a Python to run it, its
+# peak said and a peak past `limit` warned (none when it is empty).
+function(zen_sanitizer_watched title limit out_rc)
+    find_program(ZEN_PYTHON3 NAMES python3)
+    set(watch "")
+    if(ZEN_PYTHON3)
+        set(watch "${ZEN_PYTHON3}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/lane_memory.py"
+                  --title "${title}")
+        if(NOT limit STREQUAL "")
+            list(APPEND watch --limit-gb ${limit})
+        endif()
+        list(APPEND watch --)
+    else()
+        message(STATUS "sanitizer-lane: no python3, so ${title} goes unsaid")
+    endif()
+    execute_process(COMMAND ${watch} ${ARGN} RESULT_VARIABLE rc)
+    set(${out_rc} "${rc}" PARENT_SCOPE)
+endfunction()
+
+# THE BUILD: `zengine-sanitizer-<runner>` in ZEN_BUILD_DIR at `jobs` jobs, under the memory watch,
+# a peak past ZEN_SANITIZER_BUILD_PEAK_GB warned.
+function(zen_sanitizer_build runner jobs out_rc)
+    zen_sanitizer_watched("Sanitizer build memory" "${ZEN_SANITIZER_BUILD_PEAK_GB}" rc
+        "${CMAKE_COMMAND}" --build "${ZEN_BUILD_DIR}" --target zengine-sanitizer-${runner}
+        --parallel ${jobs})
+    set(${out_rc} "${rc}" PARENT_SCOPE)
+endfunction()
+
 cmake_policy(POP)
 
 # Everything above is read where this file is included; the lane runs only as a script.
@@ -327,32 +358,13 @@ if(ZEN_SANITIZER_STEP STREQUAL "check")
     return()
 endif()
 
-find_program(ZEN_PYTHON3 NAMES python3)
-# The command, under the memory watch when there is a Python to run it.
-function(zen_sanitizer_watched title limit out_rc)
-    set(watch "")
-    if(ZEN_PYTHON3)
-        set(watch "${ZEN_PYTHON3}" "${CMAKE_CURRENT_LIST_DIR}/lane_memory.py" --title "${title}")
-        if(NOT limit STREQUAL "")
-            list(APPEND watch --limit-gb ${limit})
-        endif()
-        list(APPEND watch --)
-    else()
-        message(STATUS "sanitizer-lane: no python3, so ${title} goes unsaid")
-    endif()
-    execute_process(COMMAND ${watch} ${ARGN} RESULT_VARIABLE rc)
-    set(${out_rc} "${rc}" PARENT_SCOPE)
-endfunction()
-
 if(ZEN_SANITIZER_STEP STREQUAL "build")
     if(NOT DEFINED ZEN_BUILD_JOBS)
         cmake_host_system_information(RESULT ZEN_BUILD_JOBS QUERY NUMBER_OF_LOGICAL_CORES)
     endif()
     foreach(runner IN LISTS runners)
         message(STATUS "sanitizer-lane: building zengine-sanitizer-${runner} at ${ZEN_BUILD_JOBS} jobs")
-        zen_sanitizer_watched("Sanitizer build memory" "" rc
-            "${CMAKE_COMMAND}" --build "${ZEN_BUILD_DIR}" --target zengine-sanitizer-${runner}
-            --parallel ${ZEN_BUILD_JOBS})
+        zen_sanitizer_build(${runner} ${ZEN_BUILD_JOBS} rc)
         if(NOT rc EQUAL 0)
             message(FATAL_ERROR "sanitizer-lane: the runner ${runner}'s build FAILED (exit ${rc})")
         endif()
