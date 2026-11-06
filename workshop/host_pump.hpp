@@ -84,6 +84,12 @@ struct ServedTurn {
 ServedTurn serve_until_idle(loom::Switchboard& bus, ShowingFailures& book,
                             const std::function<void(const std::string&)>& tell);
 
+/// SERVE ONE TURN -- the work waiting at entry (`pump_pending`) -- and tell as `serve_until_idle`
+/// does: the host loop's turn, after which the host rests while the Timer's beat is all the bus
+/// holds (`timer/rest.hpp`).
+ServedTurn serve_turn(loom::Switchboard& bus, ShowingFailures& book,
+                      const std::function<void(const std::string&)>& tell);
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_HOST_PUMP_HPP

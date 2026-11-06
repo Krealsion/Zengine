@@ -25,6 +25,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `load_*.hpp`, `*-load-plan.json` | load plan and executor (`zengine-workshop-load`); the plans |
 | `guests.hpp`, `guest_door.hpp` | the guests file and the guest door: `zengine-workshop-guests` |
 | `develop.cpp`, `prepare-runtime.cmake` | the development launch: `zengine-workshop-develop` |
+| `bus_tally.hpp` | the bus tally: handler times, and input to paint |
 
 The vocabulary is header-only (`zengine-workshop-vocabulary`), its bodies compiled once into
 `zengine-workshop-logic`; `session_migration_provider.cpp` is `zengine-workshop-session-history`.
@@ -86,6 +87,7 @@ program with its files); the subjects are in the
 
 ## Suites
 
+- `bus_tally` — the bus tally (`bus_tally.hpp`); `tests/test_bus_tally.cpp`
 - `workshop_desk` — the desk and its words, read by message; `tests/test_workshop_desk*.cpp`
 - `workshop_document` — editable rows, quit policy, the keymap; `tests/test_workshop_document.cpp`
 - `workshop_files` — project browser, recipes, development launch; `tests/test_workshop_files.cpp`

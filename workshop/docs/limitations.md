@@ -74,13 +74,13 @@ it needs a tap. See [getting started](../../docs/getting-started.md#when-it-does
 
 ### Loading the Timer service makes the process permanently non-quiescent
 
-The service seeds its one successor beat inside every beat's own handler, so from the moment it
-is loaded the bus always has something queued — whether or not any schedule is outstanding. The
-consequence for a host is that **"wait until the bus goes quiet" is never a termination
-condition once the Timer is loaded**: `loom::Switchboard::drain_until_idle()` on such a process
-does not return, exactly as its name and contract say. An ordinary host loop asks for
-`pump_pending()` and gets control back every turn; snake and Workshop want the drain, because
-the bus *is* their whole program and `stop()` is their exit.
+The service seeds its one successor beat at every beat, so from the moment it is loaded the bus
+always has something queued — whether or not any schedule is outstanding. The consequence for a
+host is that **"wait until the bus goes quiet" is never a termination condition once the Timer is
+loaded**: `loom::Switchboard::drain_until_idle()` on such a process does not return, exactly as
+its name and contract say, and spins rather than rests, since no handler sleeps. A host loop asks
+for `pump_pending()`, gets control back every turn, and rests between turns as long as the Timer
+says the bus may (`timer/rest.hpp`); Workshop, `zengine-app` and snake all turn so.
 
 ## Workshop
 

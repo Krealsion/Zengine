@@ -9,7 +9,7 @@ neovim                            doctest           always  22
 neovim_live                       doctest           neovim  21
 # Tripwires in this suite read examples/snake/play.cpp and examples/snake/world.cpp as text (VM-WALL-11).
 snake                             doctest           always  32
-timer                             doctest           always  85
+timer                             doctest           always  87
 # Tripwires in this suite read the SDL queue's reader as text: input/translate_sdl_core.hpp and
 # graphics/window/window_sdl_backend.hpp (VM-WALL-11).
 input                             doctest           always  59
@@ -21,6 +21,7 @@ graphics                          doctest           sdl     7
 ui                                doctest           always  30
 component                         doctest           always  69
 editor                            doctest           always  20
+bus_tally                         doctest           always  2
 # Tripwires in this suite read workshop/workshop.cpp, workshop/load_execute.hpp,
 # operator/source.hpp, operator/migration.hpp and tests/weavelib/operator_consumer_weave.cpp as
 # text (VM-WALL-11).

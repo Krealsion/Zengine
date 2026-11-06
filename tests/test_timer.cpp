@@ -14,6 +14,7 @@
 
 #include "timer/binding.hpp"
 #include "timer/os_clock.hpp"
+#include "timer/rest.hpp"
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -67,10 +68,12 @@ struct FakeHooks {
     loom::Switchboard* bus = nullptr;
 };
 
+/// Virtual time, booked a beat's wait at a time (`elapse_ms`): what this suite calls a beat's nap,
+/// blocking nothing. The shipped Timer's waiting is the host's rest, pinned over a host's clock.
 struct FakeClock {
     FakeHooks* h = nullptr;
     std::int64_t now_ms() { return h->now; }
-    void nap_ms(std::int64_t ms) {
+    void elapse_ms(std::int64_t ms) {
         if (ms > 0) {
             h->now += ms;
         }
@@ -1311,6 +1314,120 @@ TEST_CASE("the beat cap IS the lateness bound: idle naps the cap, a nearer deadl
     REQUIRE(s.heard.fired.size() == 2);
     CHECK(s.heard.fired_at[0] == 4);  // the deadline, not the cap
     CHECK(s.heard.fired_at[1] == 25); // reached in capped naps, no overshoot
+}
+
+// ---- the rest between turns: the shipped path, over a host's clock --------------------------
+
+/// Time only a host's rest moves. The service reads this clock and has no way to move it (no
+/// `elapse_ms`, as the OS clock has none); the host's rest naps on it, booking the nap as elapsed.
+/// A nap taken while a delivery is being dispatched is counted apart: that is a nap in a handler.
+struct RestHooks {
+    std::int64_t now = 0;
+    std::int64_t naps = 0;
+    std::int64_t napped_in_handler = 0;
+    loom::Switchboard* bus = nullptr;
+};
+
+struct HostClock {
+    RestHooks* h = nullptr;
+    std::int64_t now_ms() { return h->now; }
+    void nap_ms(std::int64_t ms) {
+        if (h->bus != nullptr && h->bus->current_dispatch().seq != 0) {
+            ++h->napped_in_handler;
+        }
+        if (ms > 0) {
+            h->now += ms;
+        }
+        ++h->naps;
+    }
+};
+
+using HostClockService = TimerServiceT<HostClock>;
+
+/// A consumer's reply to a firing, and when it was heard.
+struct RestReply {
+    std::int64_t fired_at = 0;
+    ZEN_SHAPE(RestReply, 1, ZEN_FIELD(fired_at));
+};
+
+struct RestHeard {
+    std::vector<std::int64_t> fired_at;   ///< virtual now at each firing the consumer heard
+    std::vector<std::int64_t> replied_at; ///< virtual now at each reply the listener heard
+    const RestHooks* hooks = nullptr;
+    loom::WeaveId listener{};
+};
+
+/// Answers every firing at once with a message to another weave.
+class Replier : public loom::WeaveBase<Replier, EarState, loom::Accept<TimerFired>,
+                                       loom::Emit<StartTimer, RestReply>> {
+public:
+    explicit Replier(RestHeard& heard) : heard_(&heard) {}
+    void on(const TimerFired&, loom::Mail& mail) {
+        heard_->fired_at.push_back(heard_->hooks->now);
+        (void)mail.send(heard_->listener, RestReply{heard_->hooks->now});
+    }
+
+private:
+    RestHeard* heard_;
+};
+
+class ReplyListener
+    : public loom::WeaveBase<ReplyListener, EarState, loom::Accept<RestReply>, loom::Emit<>> {
+public:
+    explicit ReplyListener(RestHeard& heard) : heard_(&heard) {}
+    void on(const RestReply&, loom::Mail&) { heard_->replied_at.push_back(heard_->hooks->now); }
+
+private:
+    RestHeard* heard_;
+};
+
+TEST_CASE("a reply to a firing is delivered in the next turn, not after a nap: the bus rests "
+          "between turns, only while the Timer's beat is all it holds") {
+    loom::Switchboard bus;
+    RestHooks hooks;
+    hooks.bus = &bus;
+    RestHeard heard;
+    heard.hooks = &hooks;
+    const loom::WeaveId service = mount_role<HostClockService>(
+        bus, kTimerRole, HostClock{&hooks}, zengine::timer::fallback_vocabulary());
+    heard.listener = loom::mount<ReplyListener>(bus, heard);
+    const loom::WeaveId replier = loom::mount<Replier>(bus, heard);
+    const loom::WeaveId door = zengine::testing::mount_door(bus);
+    bus.send_as(replier, service,
+                loom::Message(loom::to_value(StartTimer{"tick", 25, true}), replier, replier, 0));
+    zengine::testing::order_activation(bus, door, service, 1);
+
+    // The host's loop: a turn, then the rest. The bound is a hang guard; the clock moves only here.
+    HostClock host_clock{&hooks};
+    Rest<HostClock> rest(host_clock);
+    for (int turn = 0; turn < 400 && heard.replied_at.size() < 3; ++turn) {
+        bus.pump_pending();
+        (void)rest.after_turn(bus);
+    }
+
+    REQUIRE(heard.replied_at.size() == 3);
+    // EACH REPLY LANDS AT THE INSTANT OF THE FIRING IT ANSWERS: no nap stood between them.
+    CHECK(heard.replied_at == heard.fired_at);
+    CHECK(heard.fired_at == std::vector<std::int64_t>{25, 50, 75}); // each on its deadline
+    // Nothing napped inside a handler; the waiting was the host's, between turns.
+    CHECK(hooks.napped_in_handler == 0);
+    CHECK(rest.rests() > 0);
+    CHECK(rest.rests() == hooks.naps);
+}
+
+TEST_CASE("the rest waits for nothing a Timer has not claimed: no Timer, no rest") {
+    loom::Switchboard bus;
+    RestHooks hooks;
+    HostClock clock{&hooks};
+    Rest<HostClock> rest(clock);
+    RestHeard heard;
+    heard.hooks = &hooks;
+    heard.listener = loom::mount<ReplyListener>(bus, heard);
+    bus.send(heard.listener, loom::Message(loom::to_value(RestReply{0})));
+    CHECK(bus.pending() == 1);
+    CHECK(rest.quiet_ms(bus) == 0); // one thing queued, and no beat claimed it may wait
+    CHECK(rest.after_turn(bus) == 0);
+    CHECK(hooks.naps == 0);
 }
 
 TEST_CASE("cancel before the chain starts: the timer never fires at all") {

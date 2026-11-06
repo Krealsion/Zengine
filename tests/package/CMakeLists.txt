@@ -78,7 +78,8 @@ loom_weave_build_contract(oven)
 set_target_properties(oven PROPERTIES PREFIX "" OUTPUT_NAME oven)
 
 add_executable(kitchen-host kitchen_host.cpp)
-target_link_libraries(kitchen-host PRIVATE zengine::timer loom::switchboard loom::kernel)
+target_link_libraries(kitchen-host PRIVATE zengine::timer zengine::timer-rest loom::switchboard
+                                           loom::kernel)
 
 # The Timer SERVICE is a Zengine artifact, and this is where it comes from: the package says
 # where its own artifacts live, so nothing here reaches into a build tree to fetch one.

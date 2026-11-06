@@ -23,6 +23,7 @@
 #include "view/host.hpp"
 #include "weave.hpp"
 #include <zen/host/grant_wiring.hpp>
+#include "bus_tally.hpp"      // where the bus spends its time, off its own stamps
 #include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
 #include "opening.hpp"        // the opening manager this host mounts
 #include "editor_switch.hpp"  // the editor switch this host mounts
@@ -41,6 +42,8 @@
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
 #include "graphics/vocabulary.hpp"
+#include "timer/os_clock.hpp"
+#include "timer/rest.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/bridge/channel.hpp>
@@ -568,6 +571,8 @@ int main(int argc, char** argv) {
     LastWords last_words;
 
     loom::Switchboard bus;
+    // Where the bus spends its time, from its first delivery (workshop/bus_tally.hpp).
+    zengine::workshop::BusTally tally(bus);
 
     // ---- What this host remembers ---------------------------------------------------------------
     // First, before the Kernel and any weave, so the first record is the first fact. The recorder
@@ -1264,23 +1269,29 @@ int main(int argc, char** argv) {
     };
     executor.begin(std::move(begun));
 
-    // The loop: the input beat keeps the queue alive, the Timer paces it, and `q` stops the bus. A
-    // turn that ends with an empty queue means nothing will speak again: say so and leave. A
-    // native owner's showing runs inside the host's boundary (workshop/host_pump.hpp), so a throw
-    // there is Loom's Failed, told here in the owner's words.
+    // The loop: a turn, then the rest the Timer's beat allows (timer/rest.hpp), until `q`. The
+    // input beat keeps the queue alive; a turn that ends with an empty queue means nothing will
+    // speak again: say so and leave. A native owner's showing runs inside the host's boundary
+    // (workshop/host_pump.hpp), so a throw there is Loom's Failed, told here in the owner's words.
+    zengine::timer::MonotonicClock clock;
+    zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
     while (!host.quit) {
         const ServedTurn served =
-            serve_until_idle(bus, host.showings, [&journal](const std::string& said) {
+            serve_turn(bus, host.showings, [&journal](const std::string& said) {
                 journal.info("zengine.workshop", said);
                 std::printf("zengine-workshop - %s\n", said.c_str());
                 std::fflush(stdout);
             });
         (void)served;
-        if (!host.quit && bus.pending() == 0) {
+        if (host.quit) {
+            break;
+        }
+        if (bus.pending() == 0) {
             std::printf("zengine-workshop - the bus went quiet without a quit "
                         "(no timer service deployed?): exiting.\n");
             break;
         }
+        (void)rest.after_turn(bus);
     }
 
     // ---- What this run knew, and what it kept: working memory and the durable record ----------
@@ -1301,6 +1312,12 @@ int main(int argc, char** argv) {
                 static_cast<unsigned long long>(lc.appended),
                 static_cast<unsigned long long>(lc.bytes),
                 args.log.empty() ? " (no --log: nothing was written)" : "");
+    // ...and where its time went, read off the bus's own stamps, and how often it rested.
+    for (const std::string& line : tally.lines()) {
+        std::printf("zengine-workshop - %s\n", line.c_str());
+    }
+    std::printf("zengine-workshop - rested %lld times between turns\n",
+                static_cast<long long>(rest.rests()));
     if (!args.dump.empty()) {
         std::ofstream dump(args.dump);
         if (dump) {

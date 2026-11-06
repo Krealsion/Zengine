@@ -4,19 +4,18 @@
 #ifndef ZENGINE_TIMER_TIMER_WEAVE_HPP
 #define ZENGINE_TIMER_TIMER_WEAVE_HPP
 
-// The TimerService weave, over an injected Clock: anything with `std::int64_t now_ms()`
-// (monotonic) and `void nap_ms(std::int64_t)` (block; <=0 lets the clock decline). timer.cpp's is
-// the OS clock and the system's one nap; the suite's is virtual. The wire and succession are
-// the office's manual, timer/docs/zengine.timer.md; what follows here is what that page does not
-// carry: the ordering this code depends on, its traps.
+// The TimerService weave, over a Clock with `now_ms()` (monotonic): the OS clock (timer.cpp), or a
+// suite's virtual one (`ElapsingClock`). Nothing here sleeps; the host rests between turns
+// (`timer/rest.hpp`). The wire is the manual, timer/docs/zengine.timer.md; what follows is what
+// that page does not carry: the ordering this code depends on, its traps.
 // Timer law: timer/docs/timer-laws.md
 
 // The beat chain is authored from the activation (TIMER-01): accept it, decide what was
-// inherited, publish TimerReady, seed Drive 0; each valid Drive naps to the soonest deadline (at
-// most kBeatCapMs), fires what is due and seeds its one successor. A consumer's reply to a firing
-// is queued behind the next Drive, so it waits out up to one nap. The activation cursor and the
-// serial are plain members, never TimerState: a new incarnation begins unactivated, and a
-// predecessor's queued Drive is inert.
+// inherited, publish TimerReady, seed Drive 0; each valid Drive fires what is due now, seeds its
+// one successor and claims how long the bus may rest (`TimerRest`), so a reply to a firing is
+// delivered beside the next Drive, never after a nap. The activation cursor and the serial are
+// plain members, never TimerState: a new incarnation begins unactivated, and a predecessor's
+// queued Drive is inert.
 
 // When the service goes: unloaded or swapped, its parked Drive fails on its dead sender
 // (CapabilityDenied); reloaded, the same WeaveId's parked Drive is inert, and the new instance
@@ -60,6 +59,11 @@ inline constexpr bool can_advance_serial(std::int64_t serial) {
     return serial >= 0 && serial < std::numeric_limits<std::int64_t>::max();
 }
 
+/// A clock whose time moves only when told (a suite's virtual clock): `elapse_ms` books a wait as
+/// elapsed, at once.
+template <class C>
+concept ElapsingClock = requires(C c, std::int64_t ms) { c.elapse_ms(ms); };
+
 /// Six honest counters, poke-inspectable: beats, firings, timers standing, asks dropped for
 /// having nobody to answer, operations dropped from a full bootstrap hold, and entries this
 /// incarnation began with (`inherited`: restored from a predecessor's letter or carried through a
@@ -87,7 +91,8 @@ class TimerServiceT
                        EnsureRoleTimer, CancelTimer, CancelAllMyTimers, loom::PrepareShutdown,
                        loom::Bequest, loom::Refused, PrepareTimerHandover>,
           loom::Emit<TimerFired, TimerReady, Drive, TimerResolution, loom::Bequest,
-                     loom::ClaimBequest, TimerCandidatePrepared, TimerCandidateDeclined>> {
+                     loom::ClaimBequest, TimerCandidatePrepared, TimerCandidateDeclined>,
+          loom::WeaveBase, loom::Claims<TimerRest>> {
 public:
     TimerServiceT() = default;
     explicit TimerServiceT(Clock clock) : clock_(std::move(clock)) {}
@@ -231,11 +236,16 @@ public:
             return;
         }
         std::int64_t now = clock_.now_ms();
-        clock_.nap_ms(nap_until_next(now));
-        now = clock_.now_ms();
+        if constexpr (ElapsingClock<Clock>) {
+            // A VIRTUAL CLOCK books the wait as elapsed and blocks nothing, so a suite's beat lasts
+            // the wait it would claim; the OS clock has no such member.
+            clock_.elapse_ms(wait_from(now));
+            now = clock_.now_ms();
+        }
         fire_due(now, mail);
         ++this->state_.beats;
         advance_chain(mail);
+        claim_rest(now, mail);
     }
 
     void on(const StartTimer& s, loom::Mail& mail) {
@@ -295,6 +305,9 @@ public:
         }
         resolve_bootstrap(mail, /*letter=*/nullptr);
     }
+
+    /// The rest is claimed alone, never in a joint publication; one published would stand as it is.
+    bool on_claim_published(const TimerRest&) { return true; }
 
     Clock& clock() { return clock_; }
 
@@ -663,12 +676,21 @@ private:
         mail.send(op.sender, TimerResolution{op.id, resolved, std::move(reason)});
     }
 
-    std::int64_t nap_until_next(std::int64_t now) const {
-        std::int64_t nap = kBeatCapMs;
+    /// How long from `now` until something is due: the soonest deadline, at most `kBeatCapMs`.
+    std::int64_t wait_from(std::int64_t now) const {
+        std::int64_t wait = kBeatCapMs;
         for (const Entry& e : entries_) {
-            nap = std::min(nap, e.next_due - now);
+            wait = std::min(wait, e.next_due - now);
         }
-        return std::max<std::int64_t>(nap, 0);
+        return std::max<std::int64_t>(wait, 0);
+    }
+
+    /// Say, as the office, how long the bus may rest before this chain needs its next turn: the
+    /// beat just seeded, and the clock reading when something next falls due. A claim, so nothing
+    /// is queued and nothing waits here (`timer/rest.hpp` is the reader).
+    void claim_rest(std::int64_t now, loom::Mail& mail) {
+        const TimerRest rest{expected_serial_, add_clamped(now, wait_from(now))};
+        (void)mail.as_role(kTimerRole).claim(rest);
     }
 
     void fire_due(std::int64_t now, loom::Mail& mail) {

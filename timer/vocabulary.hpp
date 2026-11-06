@@ -7,7 +7,7 @@
 // The Timer package's message vocabulary: time, message-shaped. Games and packages neither read
 // the OS clock nor sleep; a weave asks for time (`StartTimer`, `EnsureTimer`, ...) and it arrives
 // as a message (`TimerFired`) from the service holding `zengine.timer`, the one place with a
-// monotonic clock and a nap. Laws: timer/docs/timer-laws.md (TIMER-01..05); every shape the
+// monotonic clock. Laws: timer/docs/timer-laws.md (TIMER-01..05); every shape the
 // service accepts, what it says and its succession: timer/docs/zengine.timer.md.
 //
 // A continuity decision is about one kind of state: intent (what a consumer wants, re-declared
@@ -306,9 +306,21 @@ inline constexpr std::int64_t kPreparedClaimBeats = 8;
 /// time", which outlives any particular implementation being swapped in.
 inline constexpr const char* kTimerRole = "zengine.timer";
 
-/// The beat cap: the longest the service naps when nothing is due sooner, and so the worst-case
-/// lateness of a firing. The one nap in the system is the service's.
+/// The beat cap: the longest a host rests between turns when nothing is due sooner, and so the
+/// worst-case lateness of a firing on a host that rests (`timer/rest.hpp`).
 inline constexpr std::int64_t kBeatCapMs = 10;
+
+/// How long the bus may rest, as the Timer claims it as its office at every beat that fired what
+/// was due: until `until_ms`, a reading of the Timer's own monotonic clock -- the soonest deadline,
+/// or `kBeatCapMs` from that beat when nothing is due sooner -- with `serial` the beat it queued
+/// behind it. A latest claim, not a message: a host reads it between turns and rests only while
+/// that beat is all its bus holds (`timer/rest.hpp`). The reading means something only in the
+/// process the Timer runs in, and a host that never reads it is served the same, only busier.
+struct TimerRest {
+    std::int64_t serial = 0;
+    std::int64_t until_ms = 0;
+    ZEN_SHAPE(TimerRest, 1, ZEN_FIELD(serial), ZEN_FIELD(until_ms));
+};
 
 } // namespace zengine::timer
 

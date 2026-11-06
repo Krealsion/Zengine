@@ -595,6 +595,15 @@ target_include_directories(zengine-editor-tests PRIVATE
 
 zengine_doctest_test(editor zengine-editor-tests)
 
+# ---- the bus tally: a host's observer of Loom's stamps, over a real bus ---------------------
+add_executable(zengine-bus-tally-tests test_bus_tally.cpp doctest_main.cpp)
+target_link_libraries(zengine-bus-tally-tests
+    PRIVATE zengine-workshop-bus-tally loom::core zengine-warnings zengine-sanitize)
+target_include_directories(zengine-bus-tally-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+zengine_doctest_test(bus_tally zengine-bus-tally-tests)
+
 # ---- the Operator suite, and the stranger that reads a rule it did not write -------------
 # `zengine-operator-stranger` is its own target so its link line can show its independence: it
 # names `zengine-operator` and nothing else, and reads every port off the operator's own schema.

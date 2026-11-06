@@ -47,7 +47,8 @@ loom_weave_build_contract(oven)             # <-- see below. Do not skip this.
 set_target_properties(oven PROPERTIES PREFIX "")
 
 add_executable(kitchen-host kitchen_host.cpp)
-target_link_libraries(kitchen-host PRIVATE zengine::timer loom::switchboard loom::kernel)
+target_link_libraries(kitchen-host PRIVATE zengine::timer zengine::timer-rest loom::switchboard
+                                           loom::kernel)
 zengine_code_page(kitchen-host)             # on Windows, every path it handles is UTF-8
 ```
 
@@ -69,6 +70,7 @@ exported targets name `loom::core`, `loom::switchboard` and — for a host — `
 | target | what linking it grants |
 |---|---|
 | `zengine::timer` | order one-shots and repeats; declare an authored rhythm |
+| `zengine::timer-rest` | a host's rest between turns, as long as the Timer says the bus may |
 | `zengine::graphics` | draw in a window's area: the vocabulary, the canvas, the drawing facet, pixels and roles |
 | `zengine::input` | receive key, text and pointer moments; translate a byte stream |
 | `zengine::ui` | author places and sizes in words; read what a room solved, in whole pixels |
@@ -259,6 +261,8 @@ program.
 // kitchen_host.cpp
 #include "kitchen.hpp"
 
+#include "timer/os_clock.hpp"
+#include "timer/rest.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
@@ -410,9 +414,13 @@ int main(int argc, char** argv) {
 
     // The host loop. `pump_pending()` dispatches what was waiting and hands control
     // back, so this condition is checked every turn while the Timer service keeps
-    // beating. The 4000 is this program's patience, not a dispatch budget.
+    // beating, and the rest naps between turns as long as the Timer says the bus may.
+    // The 4000 is this program's patience, not a dispatch budget.
+    timer::MonotonicClock clock;
+    timer::Rest<timer::MonotonicClock> rest(clock);
     for (int turn = 0; turn < 4000 && !waiter->served; ++turn) {
         bus.pump_pending();
+        (void)rest.after_turn(bus);
     }
 
     std::printf("kitchen: %s\n", waiter->served ? "the bake completed" : "NOTHING WAS SERVED");
@@ -428,7 +436,9 @@ Five host facts worth having up front:
   says so out loud; read it literally.
 - **`bus.pump_pending()` is the host loop's call.** It dispatches exactly the work that was
   waiting and gives control back, so the loop above can check `waiter->served` every turn while
-  the Timer service keeps beating. Its counterpart `bus.drain_until_idle()` keeps going until
+  the Timer service keeps beating. Between turns the host rests (`zengine::timer::Rest`, from
+  `zengine::timer-rest`): no handler sleeps, so without it the loop spins through its patience
+  before a 40 ms bake is due. Its counterpart `bus.drain_until_idle()` keeps going until
   the bus is idle, which is right for settling a world or for a host whose whole program *is*
   the bus — and with the Timer service loaded that bus is never idle, exactly as the name
   says.

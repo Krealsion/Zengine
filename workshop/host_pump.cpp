@@ -39,15 +39,14 @@ ServedTurn tell_failures(loom::Switchboard& bus, ShowingFailures& book,
     return turn;
 }
 
-} // namespace
-
-// WL-OPEN-09 -- agents/workshop/opening.md
-ServedTurn serve_until_idle(loom::Switchboard& bus, ShowingFailures& book,
-                            const std::function<void(const std::string&)>& tell) {
+/// Run one turn of the bus and tell what the boundaries wrote during it.
+template <class Turn>
+ServedTurn served(loom::Switchboard& bus, ShowingFailures& book,
+                  const std::function<void(const std::string&)>& tell, Turn turn) {
     try {
-        bus.drain_until_idle();
+        turn();
     } catch (...) {
-        // NOT CAUGHT TO BE EXPLAINED. Nothing a boundary captured leaves the drain as an
+        // NOT CAUGHT TO BE EXPLAINED. Nothing a boundary captured leaves the turn as an
         // exception, so this one is a handler's, an observer's or an owner's thrown outside
         // any boundary, and it is described by nobody here. What the boundaries DID capture
         // during the turn is told first -- a host that ends on this exception has still said
@@ -56,6 +55,20 @@ ServedTurn serve_until_idle(loom::Switchboard& bus, ShowingFailures& book,
         throw;
     }
     return tell_failures(bus, book, tell);
+}
+
+} // namespace
+
+// WL-OPEN-09 -- agents/workshop/opening.md
+ServedTurn serve_until_idle(loom::Switchboard& bus, ShowingFailures& book,
+                            const std::function<void(const std::string&)>& tell) {
+    return served(bus, book, tell, [&bus] { bus.drain_until_idle(); });
+}
+
+// WL-OPEN-09 -- agents/workshop/opening.md
+ServedTurn serve_turn(loom::Switchboard& bus, ShowingFailures& book,
+                      const std::function<void(const std::string&)>& tell) {
+    return served(bus, book, tell, [&bus] { (void)bus.pump_pending(); });
 }
 
 } // namespace zengine::workshop

@@ -57,6 +57,7 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-source-transfer-vocabulary
     zengine-activation
     zengine-timer-vocabulary
+    zengine-timer-rest
     zengine-input-vocabulary
     zengine-ui-vocabulary
     zengine-component
@@ -74,6 +75,7 @@ set_target_properties(zengine-source-transfer-vocabulary PROPERTIES EXPORT_NAME 
 
 set_target_properties(zengine-activation          PROPERTIES EXPORT_NAME activation)
 set_target_properties(zengine-timer-vocabulary    PROPERTIES EXPORT_NAME timer)
+set_target_properties(zengine-timer-rest          PROPERTIES EXPORT_NAME timer-rest)
 set_target_properties(zengine-input-vocabulary    PROPERTIES EXPORT_NAME input)
 set_target_properties(zengine-ui-vocabulary       PROPERTIES EXPORT_NAME ui)
 set_target_properties(zengine-component           PROPERTIES EXPORT_NAME component)
@@ -95,7 +97,9 @@ install(TARGETS ${ZENGINE_EXPORTED_TARGETS} EXPORT zengineTargets)
 # set's includes close over it.
 set(zengine_public_headers_activation activation/activation.hpp)
 set(zengine_public_headers_timer      timer/vocabulary.hpp
-                                      timer/binding.hpp)
+                                      timer/binding.hpp
+                                      timer/rest.hpp
+                                      timer/os_clock.hpp)
 set(zengine_public_headers_input      input/vocabulary.hpp
                                       input/translate.hpp
                                       input/input_weave.hpp)

@@ -280,7 +280,7 @@ namespace {
 struct StepClock {
     std::int64_t* now = nullptr;
     std::int64_t now_ms() const { return *now; }
-    void nap_ms(std::int64_t milliseconds) const {
+    void elapse_ms(std::int64_t milliseconds) const {
         if (milliseconds > 0) *now += milliseconds;
     }
 };

@@ -8,9 +8,14 @@
 #include "app/host.hpp"
 #include "app/program.hpp"
 
+#include "timer/os_clock.hpp"
+#include "timer/rest.hpp"
+#include "workshop/bus_tally.hpp"
+
 #include <zen/host/line_input.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
@@ -57,6 +62,17 @@ int main(int argc, char** argv) {
     }
 
     loom::Switchboard bus;
+    // Where the bus spent its time (workshop/bus_tally.hpp), said on the way out, however it ends.
+    zengine::workshop::BusTally tally(bus);
+    struct SaidLast {
+        const zengine::workshop::BusTally& tally;
+        ~SaidLast() {
+            for (const std::string& line : tally.lines()) {
+                std::cout << "zengine-app - " << line << '\n';
+            }
+            std::cout.flush();
+        }
+    } said_last{tally};
     const std::string artifacts = artifact_dir(zengine::app::program_dir());
     zengine::app::AppHost host(
         bus, zengine::app::AppPlace{folder.generic_string(), artifacts, kLibrarySuffix}, std::cout);
@@ -67,9 +83,12 @@ int main(int argc, char** argv) {
     }
     host.begin();
 
-    // The console: a turn of the bus, then a line if one is whole. The bus is never drained,
-    // since a live Timer re-arms its beat inside its own handler (`pump_pending`, MSG-09).
+    // The console: a turn of the bus, then a line if one is whole, waiting for it as long as the
+    // Timer's beat lets the bus rest (timer/rest.hpp). The bus is never drained, since a live Timer
+    // re-arms its beat at every turn (`pump_pending`, MSG-09).
     loom::host::LineInput console;
+    zengine::timer::MonotonicClock clock;
+    zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
     bool console_open = true;
     while (!host.ended()) {
         bus.pump_pending();
@@ -78,9 +97,11 @@ int main(int argc, char** argv) {
             break;
         }
         const bool idle = bus.pending() == 0;
+        const std::int64_t quiet = rest.quiet_ms(bus);
         // A load in flight is answered within turns of the bus: the next line waits for it, so a
         // line typed ahead is read against the plan as that load left it.
         if (!idle && host.executor().state() == zengine::workshop::load::Realization::Loading) {
+            clock.nap_ms(quiet);
             continue;
         }
         if (!console_open) {
@@ -97,10 +118,11 @@ int main(int argc, char** argv) {
                 std::cout.flush();
                 return waiting ? 5 : host.exit_code();
             }
+            clock.nap_ms(quiet);
             continue;
         }
         std::string line;
-        switch (console.read(&line, idle ? kIdleWaitMs : 0)) {
+        switch (console.read(&line, idle ? kIdleWaitMs : static_cast<int>(quiet))) {
         case loom::host::LineInput::Status::Line: host.command(line); break;
         case loom::host::LineInput::Status::TooLong:
             std::cout << "zengine-app - line " << console.too_long().line << " is longer than "

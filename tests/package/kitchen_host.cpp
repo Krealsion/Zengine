@@ -10,6 +10,8 @@
 
 #include "kitchen.hpp"
 
+#include "timer/os_clock.hpp"
+#include "timer/rest.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
@@ -198,12 +200,16 @@ int main(int argc, char** argv) {
                                             waiter_id, loom::WeaveId{0}));
 
     // The host loop: with the Timer service loaded the bus is never idle (the service seeds its
-    // next beat inside every beat's handler), so `drain_until_idle()` here would never return.
-    // `pump_pending()` dispatches what was waiting and hands control back, so the condition below
-    // is checked at all. The 4000 is this fixture's patience, not a dispatch budget.
+    // next beat at every beat), so `drain_until_idle()` here would never return. `pump_pending()`
+    // dispatches what was waiting and hands control back, so the condition below is checked at
+    // all, and the host rests between turns as long as the Timer's beat allows. The 4000 is this
+    // fixture's patience, not a dispatch budget.
+    timer::MonotonicClock clock;
+    timer::Rest<timer::MonotonicClock> rest(clock);
     int laps = 0;
     for (; laps < 4000 && !waiter->served; ++laps) {
         bus.pump_pending();
+        (void)rest.after_turn(bus);
     }
 
     if (!with_timer) {

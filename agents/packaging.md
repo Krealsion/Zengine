@@ -17,7 +17,9 @@ target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 ```
 
 **Exported capability targets**, `EXPORT_NAME`d to match their in-tree `zengine::` aliases so the
-house and a guest spell them identically: `activation`, `timer`, `surface`, `input`, `ui`,
+house and a guest spell them identically: `activation`, `timer`, `timer-rest` (`timer/rest.hpp`
+and the OS clock it naps on, `timer/os_clock.hpp`: the rest a host takes between turns while the
+Timer's beat is all its bus holds), `surface`, `input`, `ui`,
 `component` (the text box, the four list mechanics `list_window`, `row_map`, `held_choice` and
 `columns`, the control strip, and pure `motion::Path` sampling: every header
 `zengine_public_headers_component` lists), `operator`, `operator-consumer`, `pane` (the protocol

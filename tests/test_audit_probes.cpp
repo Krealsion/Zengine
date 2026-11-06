@@ -12,6 +12,8 @@
 // refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
+#include "timer/os_clock.hpp"
+#include "timer/rest.hpp"
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -60,6 +62,8 @@ struct Seen {
     std::int64_t stop_seen = 0;
     /// Stop the bus at the world's next visual: a lever that ends a pump on the evidence.
     bool stop_on_visual = false;
+    /// A lever pulled: the host's loop ends after the turn it was pulled in.
+    bool halted = false;
     /// The rig's live delivered-Drive counter, so an answer can stamp itself.
     const std::int64_t* drives_now = nullptr;
 
@@ -92,6 +96,7 @@ public:
         seen_->fired.push_back(f.id);
         if (!seen_->stop_id.empty() && f.id == seen_->stop_id &&
             ++seen_->stop_seen >= seen_->stop_count) {
+            seen_->halted = true;
             seen_->bus->stop();
         }
     }
@@ -99,6 +104,7 @@ public:
     void on(const zengine::snake::SnakeVisual& v, loom::Mail&) {
         seen_->visuals.push_back(v);
         if (seen_->stop_on_visual) {
+            seen_->halted = true;
             seen_->bus->stop();
         }
     }
@@ -205,15 +211,32 @@ struct Rig {
             if (ev.schema_name == "Drive" && ev.kind == loom::EventKind::Delivered) {
                 ++drives;
                 if (stop_after_drives >= 0 && drives >= stop_after_drives) {
+                    seen.halted = true;
                     bus.stop();
                 }
             }
         });
     }
 
+    /// THE HOST'S LOOP over this bus, as Workshop's: a turn, then the rest between turns on the OS
+    /// clock (timer/rest.hpp), until a lever halts it or nothing is left queued.
+    zengine::timer::MonotonicClock clock;
+    zengine::timer::Rest<zengine::timer::MonotonicClock> rest{clock};
+    void run() {
+        seen.halted = false;
+        for (;;) {
+            (void)bus.pump_pending();
+            if (seen.halted || bus.pending() == 0) {
+                break;
+            }
+            (void)rest.after_turn(bus);
+        }
+        seen.halted = false;
+    }
+
     void pump_beats(std::int64_t n) {
         stop_after_drives = drives + n;
-        bus.drain_until_idle();
+        run();
         stop_after_drives = -1;
     }
 
@@ -232,7 +255,7 @@ struct Rig {
         seen.stop_count = 1;
         seen.stop_seen = 0;
         ask(service, StartTimer{"probe.stopwatch", ms, false});
-        bus.drain_until_idle();
+        run();
         seen.stop_id.clear();
     }
 
@@ -274,10 +297,11 @@ struct FakeHooks {
     loom::Switchboard* bus = nullptr;
 };
 
+/// Virtual time, booked a beat's wait at a time (`elapse_ms`).
 struct FakeClock {
     FakeHooks* h = nullptr;
     std::int64_t now_ms() { return h->now; }
-    void nap_ms(std::int64_t ms) {
+    void elapse_ms(std::int64_t ms) {
         if (ms > 0) {
             h->now += ms;
         }
