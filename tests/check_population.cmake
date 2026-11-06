@@ -81,6 +81,39 @@ function(zengine_case_list exe out_var)
     set(${out_var} "${listed}" PARENT_SCOPE)
 endfunction()
 
+# Names the cases of a part its pieces do not select exactly once: those no piece selects, and those
+# two pieces select. `cases_<name>` in the caller holds the part's cases and each piece's, as
+# zengine_case_list gives them (VM-POP-22).
+function(zengine_pieces_each_once part pieces out_problems)
+    set(problems "")
+    foreach(piece IN LISTS pieces)
+        foreach(one IN LISTS cases_${piece})
+            string(MD5 key "${one}")
+            list(APPEND holders_${key} "${piece}")
+        endforeach()
+    endforeach()
+    foreach(one IN LISTS cases_${part})
+        string(MD5 key "${one}")
+        list(LENGTH holders_${key} count)
+        if(count EQUAL 0)
+            list(APPEND problems "${one} is in no piece of ${part}")
+        elseif(count GREATER 1)
+            string(REPLACE ";" " and " both "${holders_${key}}")
+            list(APPEND problems "${one} is in the pieces ${both} of ${part}")
+        endif()
+        set(of_part_${key} TRUE)
+    endforeach()
+    foreach(piece IN LISTS pieces)
+        foreach(one IN LISTS cases_${piece})
+            string(MD5 key "${one}")
+            if(NOT of_part_${key})
+                list(APPEND problems "${one} is in the piece ${piece} and not in its part ${part}")
+            endif()
+        endforeach()
+    endforeach()
+    set(${out_problems} "${problems}" PARENT_SCOPE)
+endfunction()
+
 # Names the cases of a program its entries do not select exactly once, when each entry selects by
 # one `--source-file`: those no entry's patterns match, and those an entry shares with another.
 function(zengine_cases_not_once exe entries out_var)
@@ -127,8 +160,16 @@ endfunction()
 #   manifest    tests/test_population.txt
 #   build_dir   the configured CTest build tree
 #   registered  the entry names `ctest -N` reported, as a CMake list
+#   running     the ones this run runs (every one when left out), each held to its kind
+
+# A piece (zengine_doctest_pieces) is its part's: the part is the manifest's entry, with its kind
+# and floor, and every case of it is in exactly one of its pieces.
 
 function(zengine_check_population manifest build_dir registered)
+    set(running "${registered}")
+    if(ARGC GREATER 3)
+        set(running "${ARGV3}")
+    endif()
     set(record "${build_dir}/zengine-test-population.cmake")
     if(NOT EXISTS "${record}")
         message(FATAL_ERROR
@@ -256,10 +297,39 @@ function(zengine_check_population manifest build_dir registered)
         endif()
     endforeach()
 
+    # ---- each piece is its part's ----------------------------------------------------------
+
+    set(units "")
+    set(running_units "")
+    foreach(name IN LISTS registered)
+        set(unit "${name}")
+        if(DEFINED ZENGINE_PIECE_OF_${name})
+            set(unit "${ZENGINE_PIECE_OF_${name}}")
+            list(APPEND registered_pieces_${unit} "${name}")
+        endif()
+        list(APPEND units "${unit}")
+        if(name IN_LIST running)
+            list(APPEND running_units "${unit}")
+        endif()
+    endforeach()
+    list(REMOVE_DUPLICATES units)
+    if(running_units)
+        list(REMOVE_DUPLICATES running_units)
+    endif()
+    foreach(unit IN LISTS units)
+        if(DEFINED ZENGINE_PIECES_${unit} AND
+           NOT "${registered_pieces_${unit}}" STREQUAL "${ZENGINE_PIECES_${unit}}")
+            string(CONCAT msg
+                "PIECES: '${unit}' runs as the pieces ${ZENGINE_PIECES_${unit}}, and this build "
+                "registers ${registered_pieces_${unit}} of them. A part runs as all its pieces.")
+            list(APPEND problems "${msg}")
+        endif()
+    endforeach()
+
     # ---- the inventory, exact ------------------------------------------------------------
 
     set(sorted_expected ${expected})
-    set(sorted_registered ${registered})
+    set(sorted_registered ${units})
     list(SORT sorted_expected)
     list(SORT sorted_registered)
 
@@ -315,6 +385,10 @@ function(zengine_check_population manifest build_dir registered)
             continue()
         endif()
 
+        # The binary and its kind's questions are the run's that runs the entry.
+        if(NOT entry IN_LIST running_units)
+            continue()
+        endif()
         set(exe "")
         if(kind STREQUAL "doctest" OR kind STREQUAL "program")
             set(exe "${ZENGINE_EXE_${entry}}")
@@ -347,6 +421,39 @@ function(zengine_check_population manifest build_dir registered)
             endif()
             string(APPEND report
                    "  ${entry}: doctest, ${count} cases (floor ${minimum} = ${formula_${entry}})\n")
+            if(DEFINED ZENGINE_PIECES_${entry})
+                # EACH CASE IN ONE PIECE, from doctest's own listing of each, which counts its
+                # range as `--count` does not.
+                zengine_case_list("${exe}" cases_${entry} ${ZENGINE_ARGS_${entry}})
+                list(LENGTH cases_${entry} listed)
+                if(NOT listed EQUAL count)
+                    string(CONCAT msg
+                        "PIECES: ${entry}'s listing reads ${listed} of the ${count} cases it "
+                        "counts; the case list could not be read whole, so its pieces cannot be "
+                        "judged. This check must be repaired rather than removed.")
+                    list(APPEND problems "${msg}")
+                endif()
+                set(sizes "")
+                foreach(piece IN LISTS ZENGINE_PIECES_${entry})
+                    zengine_assert_refuses_empty_population("${piece}" "${exe}" ${ZENGINE_ARGS_${piece}})
+                    zengine_case_list("${exe}" cases_${piece} ${ZENGINE_ARGS_${piece}})
+                    list(LENGTH cases_${piece} size)
+                    list(APPEND sizes ${size})
+                    if(size EQUAL 0)
+                        string(CONCAT msg
+                            "PIECES: ${piece} selects no case of ${entry}: its first case is "
+                            "past the part's last. Cut the part again.")
+                        list(APPEND problems "${msg}")
+                    endif()
+                endforeach()
+                zengine_pieces_each_once(${entry} "${ZENGINE_PIECES_${entry}}" said)
+                foreach(one IN LISTS said)
+                    list(APPEND problems "PIECES: ${one}")
+                endforeach()
+                string(REPLACE ";" " " sizes "${sizes}")
+                list(LENGTH ZENGINE_PIECES_${entry} pieces)
+                string(APPEND report "    run as ${pieces} pieces of ${sizes} cases\n")
+            endif()
         elseif(kind STREQUAL "compile-negative")
             if(NOT DEFINED ZENGINE_DIAGNOSTIC_${entry})
                 string(CONCAT msg
@@ -392,6 +499,18 @@ function(zengine_check_population manifest build_dir registered)
         string(MD5 program "${exe}")
         list(LENGTH entries_of_${program} shared)
         if(shared LESS 2)
+            continue()
+        endif()
+        # A program this run runs only some entries of is judged whole by the run that runs it
+        # all: its other entries' counts are not read here.
+        set(elsewhere "")
+        foreach(entry IN LISTS sorted_expected)
+            if("${ZENGINE_EXE_${entry}}" STREQUAL "${exe}" AND NOT entry IN_LIST running_units)
+                list(APPEND elsewhere "${entry}")
+            endif()
+        endforeach()
+        if(elsewhere)
+            string(APPEND report "  ${exe}: not judged whole here; ${elsewhere} run elsewhere\n")
             continue()
         endif()
         zengine_case_count("${exe}" whole)

@@ -2,9 +2,9 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # Zengine's official lane (VM-POP-01, VM-LANE-01): did the test population this repository means
-# to run exist and pass? It refuses a missing build tree, a zero-entry selection (asked of `ctest
-# -N` and refused by --no-tests=error, two independent guards), a population the manifest does not
-# declare, and a failing test; it verifies the tree it is handed, not its currency (VM-POP-09).
+# to run exist and pass? It refuses a missing build tree, a zero-entry selection (`ctest -N` and
+# --no-tests=error, two independent guards), a population the manifest does not declare, and a
+# failing test; it verifies the tree it is handed, not its currency (VM-POP-09).
 #   cmake -DZEN_BUILD_DIR=build [-DZEN_CTEST_ARGS=-V] [-DZEN_CTEST_APART=<entry>;...] -P tests/verify.cmake
 
 cmake_minimum_required(VERSION 3.18) # --no-tests=error
@@ -59,13 +59,34 @@ if(NOT registered_count EQUAL selected)
 endif()
 message(STATUS "verify: ${selected} CTest entries registered")
 
+# The entries this run runs: every registered one, or the share ZEN_VERIFY_ENTRIES names, as each
+# runner of CI's sanitizer job runs its own (VM-LANE-27); every registered entry is still held to
+# the manifest, and those this run runs to their kinds, floors and programs.
+set(running ${registered})
+if(DEFINED ZEN_VERIFY_ENTRIES)
+    if(ZEN_VERIFY_ENTRIES STREQUAL "")
+        message(FATAL_ERROR "verify: ZEN_VERIFY_ENTRIES names no entry; a share of nothing is a "
+                            "question that was never asked")
+    endif()
+    foreach(name IN LISTS ZEN_VERIFY_ENTRIES)
+        if(NOT name IN_LIST registered)
+            message(FATAL_ERROR "verify: ZEN_VERIFY_ENTRIES names '${name}', which is not a "
+                                "registered entry")
+        endif()
+    endforeach()
+    set(running ${ZEN_VERIFY_ENTRIES})
+    list(REMOVE_DUPLICATES running)
+    list(LENGTH running running_count)
+    message(STATUS "verify: this run runs ${running_count} of them")
+endif()
+
 # ---- guard 2: the population must be the one this repository declared --------------------
 # Checked here, outside the population it checks: as a CTest entry, deleting the entry would
 # delete the question with it.
 
 include("${CMAKE_CURRENT_LIST_DIR}/check_population.cmake")
 zengine_check_population("${CMAKE_CURRENT_LIST_DIR}/test_population.txt"
-                         "${ZEN_BUILD_DIR}" "${registered}")
+                         "${ZEN_BUILD_DIR}" "${registered}" "${running}")
 
 # ---- guard 2b: no test compile carries a path of the tree --------------------------------
 # Such a value keeps a compiler cache from serving the unit to a second tree; the check says how
@@ -83,31 +104,51 @@ message(STATUS "verify: ${defs_passed}")
 # ---- guard 3: run them, and let CTest refuse a zero too ----------------------------------
 
 # ZEN_CTEST_APART names entries that run alone, one after another, once the rest have run with
-# ZEN_CTEST_ARGS (VM-LANE-11): every name must be a registered entry, and both runs always run.
+# ZEN_CTEST_ARGS (VM-LANE-11): every name must be an entry this run runs, and both runs always run.
 set(apart_regex "")
 foreach(name IN LISTS ZEN_CTEST_APART)
-    if(NOT name MATCHES "^[A-Za-z0-9_]+$" OR NOT name IN_LIST registered)
+    if(NOT name MATCHES "^[A-Za-z0-9_]+$" OR NOT name IN_LIST running)
         message(FATAL_ERROR
-            "verify: ZEN_CTEST_APART names '${name}', which is not a registered entry; an entry "
-            "kept apart is kept apart by its exact name.")
+            "verify: ZEN_CTEST_APART names '${name}', which is not an entry this run runs; an "
+            "entry kept apart is kept apart by its exact name.")
     endif()
     string(APPEND apart_regex "|${name}")
 endforeach()
+# A share runs by its entries' exact names, those kept apart left to their own run.
+set(pool_select "")
+if(DEFINED ZEN_VERIFY_ENTRIES)
+    set(pool ${running})
+    if(ZEN_CTEST_APART)
+        list(REMOVE_ITEM pool ${ZEN_CTEST_APART})
+    endif()
+    string(REPLACE ";" "|" pool_regex "${pool}")
+    if(NOT pool_regex STREQUAL "")
+        set(pool_select -R "^(${pool_regex})$")
+    endif()
+endif()
 
 if(apart_regex STREQUAL "")
     execute_process(
         COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${ZEN_BUILD_DIR}"
-                --no-tests=error --output-on-failure ${ZEN_CTEST_ARGS}
+                --no-tests=error --output-on-failure ${ZEN_CTEST_ARGS} ${pool_select}
         RESULT_VARIABLE run_rc)
     if(NOT run_rc EQUAL 0)
         message(FATAL_ERROR "verify: FAILED (ctest exit ${run_rc}) over ${selected} registered entries")
     endif()
 else()
     string(SUBSTRING "${apart_regex}" 1 -1 apart_regex)
-    execute_process(
-        COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${ZEN_BUILD_DIR}"
-                --no-tests=error --output-on-failure ${ZEN_CTEST_ARGS} -E "^(${apart_regex})$"
-        RESULT_VARIABLE run_rc)
+    set(run_rc 0)
+    if(NOT DEFINED ZEN_VERIFY_ENTRIES)
+        execute_process(
+            COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${ZEN_BUILD_DIR}"
+                    --no-tests=error --output-on-failure ${ZEN_CTEST_ARGS} -E "^(${apart_regex})$"
+            RESULT_VARIABLE run_rc)
+    elseif(pool_select)
+        execute_process(
+            COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${ZEN_BUILD_DIR}"
+                    --no-tests=error --output-on-failure ${ZEN_CTEST_ARGS} ${pool_select}
+            RESULT_VARIABLE run_rc)
+    endif()
     message(STATUS "verify: the entries kept apart, alone: ${ZEN_CTEST_APART}")
     execute_process(
         COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${ZEN_BUILD_DIR}"
@@ -119,4 +160,9 @@ else()
     endif()
 endif()
 
-message(STATUS "verify: PASSED -- ${selected} declared CTest entries registered, populated and executed")
+if(DEFINED ZEN_VERIFY_ENTRIES)
+    message(STATUS "verify: PASSED -- ${selected} declared CTest entries registered, ${running_count} "
+                   "of them populated and executed here")
+else()
+    message(STATUS "verify: PASSED -- ${selected} declared CTest entries registered, populated and executed")
+endif()

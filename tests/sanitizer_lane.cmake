@@ -1,44 +1,394 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
 #
-# The sanitizer lane as CI's sanitizer job runs it, from here alone: the official lane
-# (tests/verify.cmake) over an ASan + UBSan tree, its CTest arguments and the entries it keeps
-# apart below, under tests/lane_memory.py, which says the lane's peak and warns past the limit.
-#   cmake -DZEN_BUILD_DIR=build-san -P tests/sanitizer_lane.cmake
+# The sanitizer lane as CI's sanitizer job runs it, from here alone (VM-LANE-27): tests/verify.cmake
+# over an ASan + UBSan tree, a runner's share or every share in turn, under tests/lane_memory.py,
+# each entry's time held to the budget. A step is `check`, `build` or `verify` (the default).
+#   cmake -DZEN_BUILD_DIR=build-san [-DZEN_SANITIZER_RUNNER=<runner>] [-DZEN_SANITIZER_STEP=<step>]
+#         [-DZEN_BUILD_JOBS=<n>] -P tests/sanitizer_lane.cmake
 
-cmake_minimum_required(VERSION 3.16)
+# Each step checks the shares first: every registered entry in exactly one, each runner building
+# its entries' programs. `build` then builds `zengine-sanitizer-<runner>` under the memory watch,
+# and `verify` runs the share. Zengine's configure includes this file for the runners' targets,
+# and tests/check_sanitizer_lane.cmake for the judgements its fixed cases hold to their words.
+
+# The functions below keep the policies they are defined under, wherever this file is read.
+cmake_policy(PUSH)
+cmake_policy(VERSION 3.21)
 
 # The limit is a standard GitHub runner's 16 GB less a quarter spare (VM-LANE-27).
 set(ZEN_SANITIZER_PEAK_GB 12)
+# An entry's seconds on the runner past which the run is warned: a quarter of what the slowest
+# runner seen has left of the job's 90 minutes once its cold build is done (VM-LANE-27).
+set(ZEN_SANITIZER_BUDGET_S 600)
 set(ZEN_SANITIZER_CTEST_ARGS -j4)
-# The largest peaks measured alone: beside the rest, four at a time, they take the lane past the
-# limit (VM-LANE-11), and their memory grows for as long as they run.
-set(ZEN_SANITIZER_APART workshop_panes_project workshop_panes_info)
+# Eight frames of each allocation's stack, not thirty: ASan keeps every stack for good, so a long
+# entry's memory grows with each case it runs, and eight catch what thirty do.
+set(ZEN_SANITIZER_ASAN_OPTIONS malloc_context_size=8)
 
+# The runners: each builds its own target and runs its share, the CTest entries its patterns
+# match (`*` any run of a name's characters), less those after EXCEPT. Every entry the tree
+# registers is in exactly one share, and a program's entries are in one: one runner builds the
+# panes program and runs its entries, the other builds and runs the rest. A runner builds the
+# targets it names, or ALL the tree builds less those after EXCEPT, with what they need.
+set(ZEN_SANITIZER_RUNNERS panes rest)
+set(ZEN_SANITIZER_ENTRIES_panes workshop_panes_*)
+set(ZEN_SANITIZER_BUILDS_panes zengine-workshop-panes-tests)
+set(ZEN_SANITIZER_ENTRIES_rest * EXCEPT workshop_panes_*)
+set(ZEN_SANITIZER_BUILDS_rest ALL EXCEPT zengine-workshop-panes-tests)
+
+# A list of entry patterns, before and after EXCEPT, as two regular expressions over a whole name;
+# a pattern of other characters is a problem.
+function(zen_sanitizer_patterns runner out_in out_out out_problems)
+    set(in "")
+    set(out "")
+    set(problems "")
+    set(side in)
+    foreach(pattern IN LISTS ZEN_SANITIZER_ENTRIES_${runner})
+        if(pattern STREQUAL "EXCEPT")
+            set(side out)
+            continue()
+        endif()
+        if(NOT pattern MATCHES "^[A-Za-z0-9_*]+$")
+            list(APPEND problems "the runner ${runner}'s share names '${pattern}': a pattern is an entry's name, `*` for any run of its characters")
+            continue()
+        endif()
+        string(REPLACE "*" "[A-Za-z0-9_]*" regex "${pattern}")
+        list(APPEND ${side} "${regex}")
+    endforeach()
+    if(in STREQUAL "")
+        list(APPEND problems "the runner ${runner}'s share names no entry")
+    endif()
+    string(REPLACE ";" "|" in "${in}")
+    string(REPLACE ";" "|" out "${out}")
+    set(${out_in} "${in}" PARENT_SCOPE)
+    set(${out_out} "${out}" PARENT_SCOPE)
+    set(${out_problems} "${problems}" PARENT_SCOPE)
+endfunction()
+
+# THE SHARES: each registered entry's runner, `share_<runner>` set in the caller to the entries it
+# runs. An entry in no runner's share, or in two, is a problem by name.
+function(zen_sanitizer_shares registered out_problems)
+    set(problems "")
+    foreach(runner IN LISTS ZEN_SANITIZER_RUNNERS)
+        zen_sanitizer_patterns(${runner} in_${runner} out_${runner} said)
+        list(APPEND problems ${said})
+        set(share_${runner} "")
+    endforeach()
+    foreach(entry IN LISTS registered)
+        set(holders "")
+        foreach(runner IN LISTS ZEN_SANITIZER_RUNNERS)
+            if(NOT in_${runner} STREQUAL "" AND entry MATCHES "^(${in_${runner}})$")
+                if(out_${runner} STREQUAL "" OR NOT entry MATCHES "^(${out_${runner}})$")
+                    list(APPEND holders ${runner})
+                endif()
+            endif()
+        endforeach()
+        list(LENGTH holders count)
+        if(count EQUAL 0)
+            list(APPEND problems "${entry} is in no runner's share, so no runner would run it")
+        elseif(count GREATER 1)
+            string(REPLACE ";" " and " both "${holders}")
+            list(APPEND problems "${entry} is in the shares of ${both}, so it would run in each")
+        else()
+            list(APPEND share_${holders} ${entry})
+        endif()
+    endforeach()
+    foreach(runner IN LISTS ZEN_SANITIZER_RUNNERS)
+        if(share_${runner} STREQUAL "")
+            list(APPEND problems "the runner ${runner} runs no entry")
+        endif()
+        set(share_${runner} "${share_${runner}}" PARENT_SCOPE)
+    endforeach()
+    set(${out_problems} "${problems}" PARENT_SCOPE)
+endfunction()
+
+# THE PROGRAMS: an entry the build records a target for runs in the runner that builds that
+# target, and a program's entries in one runner. Reads `share_<runner>`, the record's
+# ZENGINE_TARGET_<entry> and the runners' record's ZENGINE_SANITIZER_BUILDS_<runner>.
+function(zen_sanitizer_programs out_problems)
+    set(problems "")
+    foreach(runner IN LISTS ZEN_SANITIZER_RUNNERS)
+        foreach(entry IN LISTS share_${runner})
+            if(NOT DEFINED ZENGINE_TARGET_${entry})
+                continue()
+            endif()
+            set(target "${ZENGINE_TARGET_${entry}}")
+            string(MAKE_C_IDENTIFIER "${target}" key)
+            if(DEFINED runner_of_${key} AND NOT runner_of_${key} STREQUAL runner)
+                list(APPEND problems "${target} runs in ${runner_of_${key}} and in ${runner} (${entry}): a program's entries run in one runner")
+            endif()
+            set(runner_of_${key} ${runner})
+            if(NOT target IN_LIST ZENGINE_SANITIZER_BUILDS_${runner})
+                list(APPEND problems "${entry} runs in ${runner}, which does not build its program ${target}")
+            endif()
+        endforeach()
+    endforeach()
+    set(${out_problems} "${problems}" PARENT_SCOPE)
+endfunction()
+
+# THE BUDGET: each entry's seconds from a CTest JUnit file's text, the five longest said and each
+# past the budget a warning, as lane_memory.py warns: `::warning` under GitHub Actions, where it
+# marks the run, else a `sanitizer-lane: warning:` line. `out_over` is how many were past it.
+function(zen_sanitizer_times junit runner budget out_said out_over)
+    string(REGEX MATCHALL "<testcase [^>]*>" cases "${junit}")
+    set(timed "")
+    set(said "")
+    set(over 0)
+    math(EXPR budget_ms "${budget} * 1000")
+    foreach(one IN LISTS cases)
+        if(NOT one MATCHES " name=\"([A-Za-z0-9_]+)\"" )
+            continue()
+        endif()
+        set(entry "${CMAKE_MATCH_1}")
+        if(NOT one MATCHES " time=\"([0-9]+)(\\.([0-9]*))?\"")
+            continue()
+        endif()
+        set(whole "${CMAKE_MATCH_1}")
+        string(SUBSTRING "${CMAKE_MATCH_3}000" 0 3 milli)
+        math(EXPR ms "${whole} * 1000 + 1${milli} - 1000")
+        math(EXPR hundredths "(${ms} + 5) / 10")
+        math(EXPR shown_whole "${hundredths} / 100")
+        math(EXPR shown_part "${hundredths} % 100 + 100")
+        string(SUBSTRING "${shown_part}" 1 2 shown_part)
+        set(seconds "${shown_whole}.${shown_part}")
+        string(LENGTH "${ms}" digits)
+        string(REPEAT "0" "12" pad)
+        math(EXPR keep "12 - ${digits}")
+        string(SUBSTRING "${pad}" 0 ${keep} pad)
+        list(APPEND timed "${pad}${ms} ${entry} ${seconds}")
+        if(ms GREATER budget_ms)
+            math(EXPR over "${over} + 1")
+            set(words "${entry} took ${seconds} s in the runner ${runner}, past the budget of ${budget} s an entry: cut it into pieces or cases (VM-LANE-27)")
+            if("$ENV{GITHUB_ACTIONS}" STREQUAL "true")
+                string(APPEND said "::warning title=Sanitizer entry time::${words}\n")
+            else()
+                string(APPEND said "sanitizer-lane: warning: ${words}\n")
+            endif()
+        endif()
+    endforeach()
+    list(SORT timed ORDER DESCENDING)
+    list(LENGTH timed count)
+    set(longest "")
+    set(n 0)
+    foreach(row IN LISTS timed)
+        if(n EQUAL 5)
+            break()
+        endif()
+        string(REGEX REPLACE "^[0-9]+ ([^ ]+) ([^ ]+)$" "\\1 \\2 s" row "${row}")
+        list(APPEND longest "${row}")
+        math(EXPR n "${n} + 1")
+    endforeach()
+    string(REPLACE ";" ", " longest "${longest}")
+    set(${out_said} "sanitizer-lane: ${runner}: ${count} entries timed, the longest ${longest}\n${said}" PARENT_SCOPE)
+    set(${out_over} ${over} PARENT_SCOPE)
+endfunction()
+
+# THE RUNNERS' TARGETS, at configure: `zengine-sanitizer-<runner>` depending on what the runner
+# builds, and the record of it. ALL is every target the tree's `all` builds.
+function(zengine_sanitizer_runner_targets record)
+    set(every "")
+    set(directories "${CMAKE_SOURCE_DIR}")
+    while(directories)
+        list(POP_FRONT directories directory)
+        get_property(excluded DIRECTORY "${directory}" PROPERTY EXCLUDE_FROM_ALL)
+        if(excluded)
+            continue()
+        endif()
+        get_property(below DIRECTORY "${directory}" PROPERTY SUBDIRECTORIES)
+        list(APPEND directories ${below})
+        get_property(targets DIRECTORY "${directory}" PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(target IN LISTS targets)
+            get_target_property(type ${target} TYPE)
+            get_target_property(apart ${target} EXCLUDE_FROM_ALL)
+            if(NOT type STREQUAL "INTERFACE_LIBRARY" AND NOT apart)
+                list(APPEND every ${target})
+            endif()
+        endforeach()
+    endwhile()
+    set(lines "# GENERATED AT CONFIGURE TIME by Zengine/CMakeLists.txt from tests/sanitizer_lane.cmake.\n")
+    foreach(runner IN LISTS ZEN_SANITIZER_RUNNERS)
+        set(builds "")
+        set(side in)
+        set(except "")
+        foreach(word IN LISTS ZEN_SANITIZER_BUILDS_${runner})
+            if(word STREQUAL "EXCEPT")
+                set(side except)
+            elseif(word STREQUAL "ALL" AND side STREQUAL "in")
+                list(APPEND builds ${every})
+            else()
+                if(NOT TARGET ${word})
+                    message(FATAL_ERROR
+                        "tests/sanitizer_lane.cmake: the runner ${runner} builds '${word}', which "
+                        "is no target of this tree. A runner names the targets it builds.")
+                endif()
+                if(side STREQUAL "in")
+                    list(APPEND builds ${word})
+                else()
+                    list(APPEND except ${word})
+                endif()
+            endif()
+        endforeach()
+        if(except)
+            list(REMOVE_ITEM builds ${except})
+        endif()
+        list(REMOVE_DUPLICATES builds)
+        if(NOT builds)
+            message(FATAL_ERROR "tests/sanitizer_lane.cmake: the runner ${runner} builds nothing.")
+        endif()
+        add_custom_target(zengine-sanitizer-${runner})
+        add_dependencies(zengine-sanitizer-${runner} ${builds})
+        string(APPEND lines "set(ZENGINE_SANITIZER_BUILDS_${runner} \"${builds}\")\n")
+    endforeach()
+    file(WRITE "${record}" "${lines}")
+endfunction()
+
+cmake_policy(POP)
+
+# Everything above is read where this file is included; the lane runs only as a script.
+get_filename_component(zen_sanitizer_self "${CMAKE_CURRENT_LIST_FILE}" REALPATH)
+if(NOT DEFINED CMAKE_SCRIPT_MODE_FILE)
+    return()
+endif()
+get_filename_component(zen_sanitizer_script "${CMAKE_SCRIPT_MODE_FILE}" REALPATH)
+if(NOT zen_sanitizer_script STREQUAL zen_sanitizer_self)
+    return()
+endif()
+
+# ---- the lane ------------------------------------------------------------------------------
+
+cmake_minimum_required(VERSION 3.21) # ctest --output-junit
 if(NOT DEFINED ZEN_BUILD_DIR OR ZEN_BUILD_DIR STREQUAL "")
     message(FATAL_ERROR "sanitizer-lane: pass -DZEN_BUILD_DIR=<an ASan + UBSan build tree>")
 endif()
-foreach(own ZEN_CTEST_ARGS ZEN_CTEST_APART)
+get_filename_component(ZEN_BUILD_DIR "${ZEN_BUILD_DIR}" ABSOLUTE)
+foreach(own ZEN_CTEST_ARGS ZEN_CTEST_APART ZEN_VERIFY_ENTRIES)
     if(DEFINED ${own})
         message(FATAL_ERROR "sanitizer-lane: ${own} is this lane's own, set in this file; run "
                             "tests/verify.cmake for a lane with arguments of yours")
     endif()
 endforeach()
+if(NOT DEFINED ZEN_SANITIZER_STEP)
+    set(ZEN_SANITIZER_STEP verify)
+endif()
+if(NOT ZEN_SANITIZER_STEP MATCHES "^(check|build|verify)$")
+    message(FATAL_ERROR "sanitizer-lane: ZEN_SANITIZER_STEP is check, build or verify, not "
+                        "'${ZEN_SANITIZER_STEP}'")
+endif()
+set(runners ${ZEN_SANITIZER_RUNNERS})
+if(DEFINED ZEN_SANITIZER_RUNNER)
+    if(NOT ZEN_SANITIZER_RUNNER IN_LIST ZEN_SANITIZER_RUNNERS)
+        message(FATAL_ERROR "sanitizer-lane: the runners are ${ZEN_SANITIZER_RUNNERS}, not "
+                            "'${ZEN_SANITIZER_RUNNER}'")
+    endif()
+    set(runners ${ZEN_SANITIZER_RUNNER})
+endif()
 
-string(REPLACE ";" "\\;" apart "${ZEN_SANITIZER_APART}")
-set(verify "${CMAKE_COMMAND}" "-DZEN_BUILD_DIR=${ZEN_BUILD_DIR}"
-    "-DZEN_CTEST_ARGS=${ZEN_SANITIZER_CTEST_ARGS}" "-DZEN_CTEST_APART=${apart}"
-    -P "${CMAKE_CURRENT_LIST_DIR}/verify.cmake")
+# The check, before anything is built: what the tree registers, in exactly one share each.
+foreach(record zengine-test-population.cmake zengine-sanitizer-runners.cmake)
+    if(NOT EXISTS "${ZEN_BUILD_DIR}/${record}")
+        message(FATAL_ERROR "sanitizer-lane: '${ZEN_BUILD_DIR}' has no ${record}; configure it "
+                            "with tests on first")
+    endif()
+    include("${ZEN_BUILD_DIR}/${record}")
+endforeach()
+execute_process(COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${ZEN_BUILD_DIR}" -N
+                OUTPUT_VARIABLE listing RESULT_VARIABLE list_rc)
+if(NOT list_rc EQUAL 0)
+    message(FATAL_ERROR "sanitizer-lane: could not list the registered tests (exit ${list_rc})")
+endif()
+string(REPLACE "\r" "" listing "${listing}")
+string(REPLACE "\n" ";" listing "${listing}")
+set(registered "")
+foreach(line IN LISTS listing)
+    if(line MATCHES "^ *Test +#[0-9]+: +(.+)$")
+        string(STRIP "${CMAKE_MATCH_1}" name)
+        list(APPEND registered "${name}")
+    endif()
+endforeach()
+if(registered STREQUAL "")
+    message(FATAL_ERROR "sanitizer-lane: the tree registers no entry; an empty population is a "
+                        "failure, not a pass (VM-POP-01)")
+endif()
+zen_sanitizer_shares("${registered}" problems)
+if(problems STREQUAL "")
+    zen_sanitizer_programs(problems)
+endif()
+if(NOT problems STREQUAL "")
+    string(REPLACE ";" "\n  - " problems "${problems}")
+    message(FATAL_ERROR "sanitizer-lane: the runners' shares refused (tests/sanitizer_lane.cmake):\n"
+                        "  - ${problems}")
+endif()
+foreach(runner IN LISTS ZEN_SANITIZER_RUNNERS)
+    list(LENGTH share_${runner} count)
+    message(STATUS "sanitizer-lane: the runner ${runner} runs ${count} entries")
+endforeach()
+if(ZEN_SANITIZER_STEP STREQUAL "check")
+    return()
+endif()
+
 find_program(ZEN_PYTHON3 NAMES python3)
-if(ZEN_PYTHON3)
-    execute_process(COMMAND "${ZEN_PYTHON3}" "${CMAKE_CURRENT_LIST_DIR}/lane_memory.py"
-                            --limit-gb ${ZEN_SANITIZER_PEAK_GB} --title "Sanitizer lane memory"
-                            -- ${verify}
-                    RESULT_VARIABLE rc)
+# The command, under the memory watch when there is a Python to run it.
+function(zen_sanitizer_watched title limit out_rc)
+    set(watch "")
+    if(ZEN_PYTHON3)
+        set(watch "${ZEN_PYTHON3}" "${CMAKE_CURRENT_LIST_DIR}/lane_memory.py" --title "${title}")
+        if(NOT limit STREQUAL "")
+            list(APPEND watch --limit-gb ${limit})
+        endif()
+        list(APPEND watch --)
+    else()
+        message(STATUS "sanitizer-lane: no python3, so ${title} goes unsaid")
+    endif()
+    execute_process(COMMAND ${watch} ${ARGN} RESULT_VARIABLE rc)
+    set(${out_rc} "${rc}" PARENT_SCOPE)
+endfunction()
+
+if(ZEN_SANITIZER_STEP STREQUAL "build")
+    if(NOT DEFINED ZEN_BUILD_JOBS)
+        cmake_host_system_information(RESULT ZEN_BUILD_JOBS QUERY NUMBER_OF_LOGICAL_CORES)
+    endif()
+    foreach(runner IN LISTS runners)
+        message(STATUS "sanitizer-lane: building zengine-sanitizer-${runner} at ${ZEN_BUILD_JOBS} jobs")
+        zen_sanitizer_watched("Sanitizer build memory" "" rc
+            "${CMAKE_COMMAND}" --build "${ZEN_BUILD_DIR}" --target zengine-sanitizer-${runner}
+            --parallel ${ZEN_BUILD_JOBS})
+        if(NOT rc EQUAL 0)
+            message(FATAL_ERROR "sanitizer-lane: the runner ${runner}'s build FAILED (exit ${rc})")
+        endif()
+    endforeach()
+    return()
+endif()
+
+# Every option ASan was given stands; the stack depth comes last, and the last occurrence wins.
+if("$ENV{ASAN_OPTIONS}" STREQUAL "")
+    set(ENV{ASAN_OPTIONS} "${ZEN_SANITIZER_ASAN_OPTIONS}")
 else()
-    message(STATUS "sanitizer-lane: no python3, so the lane runs without its memory said")
-    execute_process(COMMAND ${verify} RESULT_VARIABLE rc)
+    set(ENV{ASAN_OPTIONS} "$ENV{ASAN_OPTIONS}:${ZEN_SANITIZER_ASAN_OPTIONS}")
 endif()
-if(NOT rc EQUAL 0)
-    message(FATAL_ERROR "sanitizer-lane: FAILED (exit ${rc})")
+message(STATUS "sanitizer-lane: ASAN_OPTIONS=$ENV{ASAN_OPTIONS}")
+set(failed "")
+foreach(runner IN LISTS runners)
+    set(junit "${ZEN_BUILD_DIR}/sanitizer-lane-${runner}.xml")
+    set(ctest_args ${ZEN_SANITIZER_CTEST_ARGS} --output-junit "${junit}")
+    string(REPLACE ";" "\\;" ctest_args "${ctest_args}")
+    string(REPLACE ";" "\\;" entries "${share_${runner}}")
+    message(STATUS "sanitizer-lane: the runner ${runner}'s share")
+    zen_sanitizer_watched("Sanitizer lane memory" ${ZEN_SANITIZER_PEAK_GB} rc
+        "${CMAKE_COMMAND}" "-DZEN_BUILD_DIR=${ZEN_BUILD_DIR}" "-DZEN_CTEST_ARGS=${ctest_args}"
+        "-DZEN_VERIFY_ENTRIES=${entries}" -P "${CMAKE_CURRENT_LIST_DIR}/verify.cmake")
+    if(EXISTS "${junit}")
+        file(READ "${junit}" text)
+        zen_sanitizer_times("${text}" ${runner} ${ZEN_SANITIZER_BUDGET_S} said over)
+        message("${said}")
+    else()
+        message(STATUS "sanitizer-lane: ${runner}: CTest wrote no times (${junit})")
+    endif()
+    if(NOT rc EQUAL 0)
+        list(APPEND failed "${runner} (exit ${rc})")
+    endif()
+endforeach()
+if(NOT failed STREQUAL "")
+    message(FATAL_ERROR "sanitizer-lane: FAILED: ${failed}")
 endif()
+message(STATUS "sanitizer-lane: PASSED: ${runners}")

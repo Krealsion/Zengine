@@ -69,7 +69,7 @@ surviving smoke test, from the supported default Windows package.
 
 ## VM-POP-11 — The Workshop family is split by subject
 
-METHOD — The Workshop family is split into entries by SUBJECT, the panes program's into parts (VM-POP-22); pick the one your change can falsify, build its target and run that entry alone.
+METHOD — The Workshop family is split into entries by SUBJECT, the panes program's into parts (VM-POP-22); pick the one your change can falsify, build its target and run that entry alone, or its pieces.
 BECAUSE — one file behind one entry had reached thirty thousand lines: thirty seconds of
 compiling before an assertion could run, and a nineteen-second test the scheduler could hand to
 one worker, a floor neither the machine nor the population explained.
@@ -140,10 +140,10 @@ counts balanced, the sentence said "repointed rather than deleted", the protecti
 
 ## VM-POP-22 — One program may serve several entries, each its own sources' cases
 
-METHOD — One doctest program may run as several entries, each selecting its sources' cases with one `--source-file`; a source is in one part, and the entries' counts sum to the program's.
-BECAUSE — the panes program as one entry ran alone for twenty minutes under ASan while three
-workers waited; separate programs cannot hold it, since the action census needs every office's
-drivers in the process that runs it, and parts with floors alone let a case fall between them.
+METHOD — One doctest program may run as several entries, each its sources' cases by one `--source-file`, a source in one part, their counts summing to its; a long part runs as pieces, each case in one.
+BECAUSE — the panes program as one entry ran alone for twenty minutes under ASan while three workers waited; separate programs cannot hold it, since the action census needs every office's
+drivers in one process, and parts with floors alone let a case fall between them. A piece is a process of its own over `--first`/`--last`; `--count` leaves a range out, so a piece is
+counted from its listing, and a run is empty when it starts no case: a range past a part's end passes every filter and runs nothing.
 
 ## VM-POP-23 — A doctest option is read once, from its last occurrence
 
@@ -226,9 +226,11 @@ nowhere"
 `tests/test_population.txt`
 
 ### VM-POP-22
-`CMakeLists.txt` zengine_doctest_test
+`CMakeLists.txt` zengine_doctest_test zengine_doctest_pieces
 `tests/CMakeLists.txt` zengine_workshop_suite
-`tests/check_population.cmake` zengine_check_population zengine_cases_not_once
+`tests/check_population.cmake` zengine_check_population zengine_cases_not_once zengine_pieces_each_once
+`tests/doctest_main.cpp` RunCensus::cases_run
+`tests/check_sanitizer_lane.cmake` (its fixed cases of a part's pieces)
 `tests/test_population.txt`
 
 ### VM-POP-23

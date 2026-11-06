@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The one translation unit that compiles doctest and provides main() for EVERY Zengine runtime
-// test binary; a suite includes "doctest.h" and defines no config macro. A run that selected no
-// case is a FAILURE (POP-01): stock doctest answers SUCCESS and exits 0 when a filter matches
-// nothing, and 2.4.11 has no option that refuses it, so this main() reads the run's population
-// from TestRunStats and refuses an empty one by name. It is Zengine's own copy, not Loom's: this
+// test binary; a suite includes "doctest.h" and defines no config macro. A run that started no
+// case is a FAILURE (POP-01): stock doctest answers SUCCESS and exits 0 when a filter or a range
+// matches nothing, and 2.4.11 has no option that refuses it, so this main() counts the cases the
+// run started and refuses an empty run by name. It is Zengine's own copy, not Loom's: this
 // repository builds against an INSTALLED Loom, which ships no test metadata.
 
 #define DOCTEST_CONFIG_IMPLEMENT
@@ -29,7 +29,7 @@ namespace {
 /// (which doctest owns and deletes), read by main() afterwards.
 struct RunCensus {
     bool ran = false;
-    unsigned cases_selected = 0;
+    unsigned cases_run = 0;
 };
 
 RunCensus& census() {
@@ -39,19 +39,17 @@ RunCensus& census() {
 
 /// A listener, not a reporter: listeners are prepended to whatever reporter the
 /// command line chose, so this observes every run without replacing the console
-/// output. It exists only to remember how many cases passed the filters.
+/// output. It exists only to count the cases the run started: doctest's own count of the cases
+/// passing its filters leaves out `--first` and `--last`.
 struct PopulationListener : doctest::IReporter {
     explicit PopulationListener(const doctest::ContextOptions&) {}
 
-    void test_run_end(const doctest::TestRunStats& stats) override {
-        census().ran = true;
-        census().cases_selected = stats.numTestCasesPassingFilters;
-    }
+    void test_run_end(const doctest::TestRunStats&) override { census().ran = true; }
+    void test_case_start(const doctest::TestCaseData&) override { ++census().cases_run; }
 
     // Everything else is deliberately inert.
     void report_query(const doctest::QueryData&) override {}
     void test_run_start() override {}
-    void test_case_start(const doctest::TestCaseData&) override {}
     void test_case_reenter(const doctest::TestCaseData&) override {}
     void test_case_end(const doctest::CurrentTestCaseStats&) override {}
     void test_case_exception(const doctest::TestCaseException&) override {}
@@ -90,10 +88,10 @@ int main(int argc, char** argv) {
     doctest::Context context(argc, argv);
     const int result = context.run();
 
-    // Only a REAL RUN that selected nothing is refused: doctest calls test_run_end only outside
+    // Only a REAL RUN that started no case is refused: doctest calls test_run_end only outside
     // query mode, so `--count`, the `--list-*` modes, `--help`, `--version` and `--no-run` stay a
     // silent zero exit -- the modes tests/check_population.cmake takes its inventory with.
-    if (census().ran && census().cases_selected == 0) {
+    if (census().ran && census().cases_run == 0) {
         std::fprintf(stderr,
                      "\n"
                      "===============================================================================\n"
@@ -101,7 +99,7 @@ int main(int argc, char** argv) {
                      "[zengine] A named verification target that executes nothing has not passed; it\n"
                      "[zengine] has no evidence at all. Something the filter names is gone: a renamed\n"
                      "[zengine] or deleted TEST_CASE, a case compiled out by an #if, or a stale\n"
-                     "[zengine] filter.\n"
+                     "[zengine] filter or case range.\n"
                      "[zengine] Command line:");
         for (int i = 1; i < argc; ++i) {
             std::fprintf(stderr, " %s", argv[i]);

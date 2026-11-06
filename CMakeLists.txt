@@ -272,22 +272,89 @@ function(zengine_doctest_test entry target)
             "The program's own arguments go after ARGS.")
     endif()
     add_test(NAME ${entry} COMMAND ${target} ${DT_ARGS})
+    zengine_doctest_record(recorded ${entry} ${target} ${DT_ARGS})
+    zengine_record_test(${entry} doctest "${recorded}")
+endfunction()
+
+# What the record keeps of a doctest entry: its program, the target that builds it, and the
+# arguments it runs with, read back as CMake source, like a compile test's diagnostic.
+function(zengine_doctest_record out entry target)
     set(recorded "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
-    if(DT_ARGS)
-        # Read back as CMake source, like a compile test's diagnostic.
-        string(REPLACE "\\" "\\\\" quoted "${DT_ARGS}")
+    string(APPEND recorded "\nset(ZENGINE_TARGET_${entry} \"${target}\")")
+    if(ARGN)
+        string(REPLACE "\\" "\\\\" quoted "${ARGN}")
         string(REPLACE "\"" "\\\"" quoted "${quoted}")
         string(APPEND recorded "\nset(ZENGINE_ARGS_${entry} \"${quoted}\")")
     endif()
+    set(${out} "${recorded}" PARENT_SCOPE)
+endfunction()
+
+# A doctest entry too long for one process, run as PIECES (VM-POP-22): CTest entries `<entry>_<n>`,
+# each the entry's cases from its first to the next piece's first, by doctest's `--first`/`--last`
+# (from 1 among the cases its arguments select); `PIECES` names the first case of each piece after
+# the first, rising. The entry keeps its row, floor and name; tests/verify.cmake holds every case
+# of it to one piece.
+#   zengine_doctest_pieces(<entry> <target> [ARGS <arguments...>] PIECES <first>...)
+function(zengine_doctest_pieces entry target)
+    cmake_parse_arguments(DP "" "" "ARGS;PIECES" ${ARGN})
+    if(DP_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR
+            "zengine_doctest_pieces(${entry}): unrecognized argument(s) "
+            "'${DP_UNPARSED_ARGUMENTS}'. The program's arguments go after ARGS, the pieces' first "
+            "cases after PIECES.")
+    endif()
+    if(NOT DP_PIECES)
+        message(FATAL_ERROR
+            "zengine_doctest_pieces(${entry}): no PIECES. An entry run whole is "
+            "zengine_doctest_test's.")
+    endif()
+    set(firsts 1)
+    set(previous 1)
+    foreach(first IN LISTS DP_PIECES)
+        if(NOT first MATCHES "^[1-9][0-9]*$" OR NOT first GREATER previous)
+            message(FATAL_ERROR
+                "zengine_doctest_pieces(${entry}): PIECES ${DP_PIECES} -- each piece's first case "
+                "is a number above the one before it, the first piece's being 1, so that the "
+                "pieces cut the entry's cases without a gap or a case twice.")
+        endif()
+        list(APPEND firsts ${first})
+        set(previous ${first})
+    endforeach()
+    list(LENGTH firsts count)
+    set(pieces "")
+    foreach(n RANGE 1 ${count})
+        math(EXPR at "${n} - 1")
+        list(GET firsts ${at} first)
+        set(range "--first=${first}")
+        if(n LESS count)
+            list(GET firsts ${n} next)
+            math(EXPR last "${next} - 1")
+            list(APPEND range "--last=${last}")
+        endif()
+        set(piece ${entry}_${n})
+        add_test(NAME ${piece} COMMAND ${target} ${DP_ARGS} ${range})
+        zengine_doctest_record(recorded ${piece} ${target} ${DP_ARGS} ${range})
+        string(APPEND recorded "\nset(ZENGINE_PIECE_OF_${piece} \"${entry}\")")
+        zengine_record_test(${piece} doctest "${recorded}")
+        list(APPEND pieces ${piece})
+    endforeach()
+    zengine_doctest_record(recorded ${entry} ${target} ${DP_ARGS})
+    string(APPEND recorded "\nset(ZENGINE_PIECES_${entry} \"${pieces}\")")
     zengine_record_test(${entry} doctest "${recorded}")
 endfunction()
 
 # A plain program with no doctest population: the contract is that the entry exists and CTest
 # still runs the real command; no cases are invented for it. Arguments after the target are the
-# program's own (the guest journey names the host it launches); the record keeps the executable.
+# program's own (the guest journey names the host it launches); the record keeps the executable,
+# and the target that builds it when this tree builds it.
 function(zengine_program_test entry target)
     add_test(NAME ${entry} COMMAND ${target} ${ARGN})
-    zengine_record_test(${entry} program "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
+    set(recorded "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
+    get_target_property(imported ${target} IMPORTED)
+    if(NOT imported)
+        string(APPEND recorded "\nset(ZENGINE_TARGET_${entry} \"${target}\")")
+    endif()
+    zengine_record_test(${entry} program "${recorded}")
 endfunction()
 
 # A repository-owned CMake script run over the source tree, its own kind because none of the
@@ -446,6 +513,15 @@ endif()
 # After the last program is defined, so that each one, the tests' included, is given the manifest.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineCodePage.cmake)
 zengine_program_code_page()
+
+# ---- the sanitizer job's runners ---------------------------------------------------------
+# Each runner builds only what it runs: `zengine-sanitizer-<runner>` builds the targets
+# tests/sanitizer_lane.cmake gives it, and <build>/zengine-sanitizer-runners.cmake records them for
+# the lane (VM-LANE-27). After the last program is defined, so that `ALL` is every target.
+if(BUILD_TESTING)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/tests/sanitizer_lane.cmake)
+    zengine_sanitizer_runner_targets("${CMAKE_BINARY_DIR}/zengine-sanitizer-runners.cmake")
+endif()
 
 # ---- the package a stranger installs and finds -----------------------------------------
 # Last, since it names every target it exports and stages the loadable artifacts by

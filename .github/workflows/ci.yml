@@ -474,12 +474,18 @@ jobs:
   # defects of that kind, in test code and on the press path, the lane above had called
   # green. It runs the SAME population, no subset, no lowered floor, no gate off, the OS window
   # included, so a red here is about the code and never about a lane that quietly shrank.
+  # TWO RUNNERS, BY PROGRAM (VM-LANE-27): each builds only what it runs and runs its share of the
+  # entries, tests/sanitizer_lane.cmake the home of both shares, and every entry is in one.
   zengine-linux-asan-ubsan:
-    name: Zengine / Linux / ASan + UBSan
+    name: Zengine / Linux / ASan + UBSan / ${{ matrix.runner }}
     needs: [zengine-change-kind, resolve-loom]
     if: ${{ !cancelled() && needs.zengine-change-kind.outputs.compiled != 'false' && needs.resolve-loom.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [panes, rest]
     steps:
       - name: Check out Zengine
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -492,6 +498,14 @@ jobs:
           cmake --version
           nm --version
           python3 --version
+
+      # THE RUNNER, SAID: its CPU, its memory and its free disk, here, after the build and after
+      # the verification, so a slow or a full runner is read from the run rather than guessed.
+      - name: The runner, at its start
+        run: |
+          lscpu | grep -E '^(Model name|CPU\(s\)|Thread\(s\) per core|Core\(s\) per socket):'
+          free -g
+          df -h / "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
 
       # The lane's memory watch on its fixed cases, on this runner, before it is trusted with the
       # lane: a peak past its limit warns, one under it does not (VM-LANE-27).
@@ -558,12 +572,16 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "compiler=$compiler" >> "$GITHUB_OUTPUT"
 
+      # A store of each runner's own, which holds what its build compiles; the store of the job's
+      # one runner before it, while there is one, serves a runner that has none yet.
       - name: Restore the compiler cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-asan-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-linux-asan-${{ steps.ccache.outputs.compiler }}-
+          key: ccache-linux-asan-${{ matrix.runner }}-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ccache-linux-asan-${{ matrix.runner }}-${{ steps.ccache.outputs.compiler }}-
+            ccache-linux-asan-${{ steps.ccache.outputs.compiler }}-
 
       - name: Configure Zengine as a stranger, instrumented
         run: |
@@ -579,38 +597,66 @@ jobs:
             -DZENGINE_SANITIZE=ON \
             -DZENGINE_NEOVIM_PROGRAM="$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim"
 
-      - name: Build Zengine
+      # The runner's own target, as tests/sanitizer_lane.cmake builds it: its shares checked first,
+      # every entry in one, and the build's peak memory said.
+      - name: Build Zengine, this runner's share
         run: |
           "$ZEN_CCACHE" --zero-stats
-          cmake --build build-san --parallel "$(nproc)"
+          set +e
+          cmake -DZEN_BUILD_DIR=build-san -DZEN_SANITIZER_RUNNER=${{ matrix.runner }} \
+            -DZEN_SANITIZER_STEP=build -DZEN_BUILD_JOBS="$(nproc)" \
+            -P tests/sanitizer_lane.cmake 2>&1 | tee build.log
+          build_rc="${PIPESTATUS[0]}"
           {
-            printf '## Zengine / Linux / ASan + UBSan: the compiler cache\n\n```text\n'
+            printf '## Zengine / Linux / ASan + UBSan / ${{ matrix.runner }}: the build\n\n'
+            peak="$(grep -E '^lane-memory: peak ' build.log | tail -n 1)"
+            printf '**Memory:** %s\n\n' "${peak#lane-memory: }"
+            printf '```text\n'
+            grep -E 'sanitizer-lane:|lane-memory:' build.log || true
             "$ZEN_CCACHE" --show-stats --verbose
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$build_rc"
 
-      # Every entry, as tests/sanitizer_lane.cmake runs the lane: its CTest arguments, the entries
-      # it keeps apart, and its peak memory said, a warning on the run past its limit (VM-LANE-27).
-      - name: Verify the repository-owned population under ASan + UBSan
+      - name: The runner, after its build
+        if: ${{ !cancelled() }}
+        run: |
+          free -g
+          df -h / "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+          du -sh build-san "$RUNNER_TEMP/ccache" 2>/dev/null || true
+
+      # This runner's share, as tests/sanitizer_lane.cmake runs it: its CTest arguments, its stack
+      # depth, its peak memory and each entry's time said, a warning on the run past the limit or
+      # past the budget (VM-LANE-27).
+      - name: Verify the repository-owned population under ASan + UBSan, this runner's share
         id: verify
         run: |
           set +e
-          cmake -DZEN_BUILD_DIR=build-san -P tests/sanitizer_lane.cmake 2>&1 | tee verify.log
+          cmake -DZEN_BUILD_DIR=build-san -DZEN_SANITIZER_RUNNER=${{ matrix.runner }} \
+            -P tests/sanitizer_lane.cmake 2>&1 | tee verify.log
           verify_rc="${PIPESTATUS[0]}"
           verify_outcome=failed
           if (( verify_rc == 0 )); then verify_outcome=passed; fi
           {
-            printf '## Zengine / Linux / ASan + UBSan\n\n'
+            printf '## Zengine / Linux / ASan + UBSan / ${{ matrix.runner }}\n\n'
             printf '**Verification:** %s (exit %s)\n\n' "$verify_outcome" "$verify_rc"
             peak="$(grep -E '^lane-memory: peak ' verify.log | tail -n 1)"
             peak="${peak#lane-memory: }"
             printf '**Memory:** %s\n\n' "${peak:-not measured}"
+            built="$(grep -E '^lane-memory: peak ' build.log 2>/dev/null | tail -n 1)"
+            printf '**The build'"'"'s memory:** %s\n\n' "${built#lane-memory: }"
             printf 'Selected lines from the repository verifier and CTest output:\n\n'
             printf '```text\n'
-            grep -E 'verify:|population:|cases \(floor|judged on|[0-9]+% tests passed|test cases:|assertions:|DECLARED ABSENT|Total Test time|runtime error:|ERROR: AddressSanitizer|lane-memory:|sanitizer-lane:|title=Sanitizer lane memory' verify.log || true
+            grep -E 'verify:|population:|cases \(floor|run as [0-9]+ pieces|judged on|[0-9]+% tests passed|test cases:|assertions:|DECLARED ABSENT|Total Test time|runtime error:|ERROR: AddressSanitizer|lane-memory:|sanitizer-lane:|title=Sanitizer (lane memory|entry time)' verify.log || true
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
+
+      - name: The runner, after its verification
+        if: ${{ !cancelled() }}
+        run: |
+          free -g
+          df -h / "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
 
       # As the stranger lane's: a red verification keeps the journeys' roots and evidence.
       - name: Pack the journeys' work folders of a failed verification
@@ -634,7 +680,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: journey-work-sanitizer-attempt-${{ github.run_attempt }}
+          name: journey-work-sanitizer-${{ matrix.runner }}-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/journey-work.tar.gz
           if-no-files-found: error
           retention-days: 14
@@ -650,7 +696,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-asan-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ccache-linux-asan-${{ matrix.runner }}-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # THE TWO WINDOWS LANES ARE TWO STANDARD LIBRARIES, and a claim about "Windows" names the
   # one it was measured on. MinGW-w64/libstdc++ is the maintainers' daily build, so this lane is

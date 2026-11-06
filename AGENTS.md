@@ -66,6 +66,8 @@ The suites no one folder holds:
   (`tests/package/judges/`)
 - `configure_switches` — a configure naming a retired switch, refused by name before a compiler
   is sought (`tests/check_configure_switches.cmake`)
+- `sanitizer_lane` — the sanitizer lane's shares, pieces and time budget, each refusing or warning
+  on its fixed case (`tests/check_sanitizer_lane.cmake`)
 
 **Where law lives (the re-accretion guard).** Surface law belongs in the routed surface
 document that owns it; this core gains a rule only when the rule is genuinely cross-cutting —
