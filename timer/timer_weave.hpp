@@ -306,6 +306,9 @@ public:
         resolve_bootstrap(mail, /*letter=*/nullptr);
     }
 
+    /// The rest is claimed alone, never in a joint publication; one published would stand as it is.
+    bool on_claim_published(const TimerRest&) { return true; }
+
     Clock& clock() { return clock_; }
 
     /// The state a reload carries: the counters, and every standing timer as the letter describes
