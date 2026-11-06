@@ -159,7 +159,7 @@ component/text_box.hpp   TextBox          text + caret + anchor + first_visible,
                                           a press on any column of the box, its blank room
                                           included, placing or extending the caret
 
-component/text_area.hpp  TextLook{role, hang}
+component/text_area.hpp  TextLook{kind, hang}
                                           how a paragraph reads: the owner's number for its
                                           look, the columns its further lines stand in
                          TextArea         text + looks + TextPlaces + the scroll's place

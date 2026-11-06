@@ -3240,7 +3240,7 @@ TEST_CASE("a refused prefs file is spoken, stands, and is never overwritten") {
         const Condition* wall = condition_by_key(now, kPrefsWallKey);
         REQUIRE(wall != nullptr);
         CHECK(wall->compact.find("defaults stand") != std::string::npos);
-        CHECK(wall->role == gfx::role::kAlert);
+        CHECK(wall->ink == gfx::colors::alert);
     }
     CHECK(t.glance().find("preferences refused") != std::string::npos);
     CHECK(t.session().pane_titles);

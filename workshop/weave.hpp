@@ -1693,7 +1693,7 @@ private:
         bool labelled = false; ///< whether its label found room, last drawn
     };
     std::map<std::uint64_t, GuideMark> guide_marks_;
-    /// What one mark draws now: its rects and label in the guide role, inside its pane's body, and
+    /// What one mark draws now: its rects and label in the guide colour, inside its pane's body, and
     /// whether its part shows (`shown`) in a settled picture (`settled`).
     struct GuideDrawing {
         bool settled = false;

@@ -308,7 +308,7 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 // WL-TAB-01 -- agents/workshop/tab-run.md
 // WL-TAB-01, WL-TAB-05 -- agents/workshop/tab-run.md
 void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
-                   const Screen& sc, std::int64_t chrome) {
+                   const Screen& sc, graphics::Color chrome) {
     paint_pane_frame(layer, b, chrome);
     const ExternalBodyPlace place = external_body_place(b, sc, 0);
     ScreenRegion band;
@@ -351,7 +351,7 @@ void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
         identity = band_status(s, place).text;
     }
 
-    band.rows.push_back(TextRow{std::move(identity), graphics::role::kMuted});
+    band.rows.push_back(TextRow{std::move(identity), graphics::colors::quiet});
     band.rows.back().box = naming_box;
     if (caret_col != kNoCaret) {
         band.caret_row = 0;
@@ -369,7 +369,7 @@ void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
     if (budget >= 2 && !naming) {
         band.rows.push_back(
             TextRow{detail::fit(workspace_text(s), columns),
-                    graphics::role::kMuted});
+                    graphics::colors::quiet});
     }
     layer.texts.push_back(std::move(band));
 }

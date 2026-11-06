@@ -82,13 +82,15 @@ inline TerminalSize native_terminal_size() noexcept {
 
 /// The sixteen inks a terminal shows, by name, in the order their codes count (30 to 37, then the
 /// bright ones, 90 to 97), each with the colour a terminal shows it in by default (xterm's).
+/// The `cells` word for the terminal's default colours: its default ink (SGR 39) and ground (49).
+inline constexpr std::string_view kTerminalDefault = "terminal default";
 inline constexpr std::array<const char*, 8> kTerminalInkNames = {
     "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"};
 inline constexpr std::array<std::uint32_t, 16> kTerminalInkColors = {
     0x000000, 0xcd0000, 0x00cd00, 0xcdcd00, 0x0000ee, 0xcd00cd, 0x00cdcd, 0xe5e5e5,
     0x7f7f7f, 0xff0000, 0x00ff00, 0xffff00, 0x5c5cff, 0xff00ff, 0x00ffff, 0xffffff};
 
-/// The ink a `cells` word names, as SGR's codes: `own`, the terminal's own text colour (39), or one
+/// The ink a `cells` word names, as SGR's codes: `terminal default`, the terminal's default ink (39), or one
 /// of its sixteen (`red` 31, `bright red` 91), each perhaps `bold` (`;1`); "" where the word names
 /// none of them.
 inline std::string sgr_codes_of_word(std::string_view word) {
@@ -99,7 +101,7 @@ inline std::string sgr_codes_of_word(std::string_view word) {
         bold = true;
         word.remove_suffix(kBold.size());
     }
-    if (word == "own") {
+    if (word == kTerminalDefault) {
         codes = "39";
     } else {
         int base = 30;
@@ -144,8 +146,8 @@ inline int nearest_terminal_ink(std::int64_t rgba) noexcept {
 }
 
 /// What a terminal is written to show a colour: the ink its `cells` word names, else the nearest of
-/// the sixteen to the colour itself. The terminal's own ink is shown only where a word asks for it:
-/// a nearest is always one of the sixteen, never the terminal's own ink or ground.
+/// the sixteen to the colour itself. The terminal's default ink is shown only where a word asks for
+/// it: a nearest is always one of the sixteen, never the terminal's default ink or ground.
 inline std::string sgr_for(std::string_view cells, std::int64_t rgba) {
     std::string codes = sgr_codes_of_word(cells);
     if (codes.empty()) {

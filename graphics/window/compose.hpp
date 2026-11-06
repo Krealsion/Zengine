@@ -25,8 +25,8 @@ namespace zengine::graphics::window {
 
 using CellAt = std::pair<std::int64_t, std::int64_t>; ///< a column and a row of the window
 
-/// The colour a terminal window numbers 0: the terminal's own ink, where no area painted.
-inline constexpr std::int64_t kOwnInk = 0;
+/// The colour a terminal window numbers 0: the terminal's default ink, where no area painted.
+inline constexpr std::int64_t kDefaultInk = 0;
 
 /// Where an area's cells stand among its window's.
 struct Place {
@@ -190,7 +190,7 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
         std::size_t area = 0;
         const std::vector<std::int64_t>* key = nullptr;
         char glyph = ' ';
-        std::int64_t ink = kOwnInk;
+        std::int64_t ink = kDefaultInk;
     };
     std::vector<Top> tops(n);
     const auto front = front_to_back(areas);

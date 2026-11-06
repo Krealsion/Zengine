@@ -55,7 +55,7 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
     struct Drawn {
         const char* op;
         std::int64_t x, y, w, h;
-        std::int64_t role;
+        graphics::Color ink;
         const std::string* words;
         std::int64_t inset = 0; ///< where its words begin inside its box
         const CanvasText* run = nullptr; ///< the run it draws, whose caret and selection it marks
@@ -67,19 +67,19 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
     std::vector<Drawn> drawn;
     drawn.reserve(c.rects.size() + c.labels.size() + c.texts.size());
     for (const CanvasRect& r : c.rects) {
-        drawn.push_back({graphics::op::kRect, r.x, r.y, r.w, r.h, r.role, nullptr});
+        drawn.push_back({graphics::op::kRect, r.x, r.y, r.w, r.h, r.ink, nullptr});
     }
     for (const CanvasLabel& l : c.labels) {
         drawn.push_back({graphics::op::kText, l.x, l.y, across(l.text.size(), kPaneCanvasUnit),
-                         kPaneCanvasUnit, l.role, &l.text});
+                         kPaneCanvasUnit, l.ink, &l.text});
     }
     for (const CanvasText& t : c.texts) {
         // AN UNPADDED RUN'S GLYPHS STAND AT ITS X/Y, its box the medium's inset around them.
         const std::int64_t back = t.padded ? 0 : metrics.inset;
         const Drawn run{graphics::op::kText, t.x - back, t.y - back,
                         across(t.text.size(), metrics.advance), metrics.line + 2 * metrics.inset,
-                        t.role, &t.text, metrics.inset, &t};
-        if (t.background != graphics::role::kNone) {
+                        t.ink, &t.text, metrics.inset, &t};
+        if (t.background != graphics::no_color()) {
             drawn.push_back({graphics::op::kRect, run.x, run.y, run.w, run.h, t.background,
                              nullptr});
         }
@@ -90,7 +90,7 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
     };
 
     // THE MARKS, as the rows drawing marks a row (`rows_drawing`): a run's selected characters
-    // again in the accent role, and its caret a bar at the left of the character it sits before,
+    // again in the accent colour, and its caret a bar at the left of the character it sits before,
     // as a window that sets type draws one -- in a room of cells, that character again in the
     // accent role, which a bar there would hide, and a bar where it sits before none. Each asks what
     // the last named part over its place asks, so a press on it reaches what lies beneath.
@@ -153,23 +153,23 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
                    std::to_string(graphics::kMaxNodesPerArea) + " nodes and " +
                    std::to_string(graphics::kMaxElementsPerArea) + " pressed parts";
         out.sketch.fill_rect("ground", 0, 0, room.width, room.height,
-                             graphics::by_role(graphics::role::kGround));
+                             graphics::colors::background);
         out.sketch.group("picture", 0, 0);
-        out.sketch.text("picture/0", 0, 0, out.over, graphics::by_role(graphics::role::kAlert));
+        out.sketch.text("picture/0", 0, 0, out.over, graphics::colors::alert);
         return out;
     }
 
     const auto put = [&](const std::string& path, const Drawn& d, std::int64_t dx,
                          std::int64_t dy) {
         if (d.words == nullptr) {
-            out.sketch.fill_rect(path, d.x - dx, d.y - dy, d.w, d.h, graphics::by_role(d.role));
+            out.sketch.fill_rect(path, d.x - dx, d.y - dy, d.w, d.h, d.ink);
         } else {
             out.sketch.text(path, d.x + d.inset - dx, d.y + d.inset - dy, *d.words,
-                            graphics::by_role(d.role));
+                            d.ink);
         }
     };
     out.sketch.fill_rect("ground", 0, 0, room.width, room.height,
-                         graphics::by_role(graphics::role::kGround));
+                         graphics::colors::background);
     out.sketch.group("picture", 0, 0);
     for (std::size_t i = 0; i < drawn.size(); ++i) {
         put("picture/" + std::to_string(i), drawn[i], 0, 0);
@@ -193,7 +193,7 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
     if (!marks.empty()) out.sketch.group("marks", 0, 0);
     for (const Mark& m : marks) {
         const std::string node = "marks/" + m.node;
-        const graphics::Paint accent = graphics::by_role(graphics::role::kAccent);
+        const graphics::Color accent = graphics::colors::accent;
         if (m.words.empty()) {
             out.sketch.line(node, m.x, m.y, m.x, m.y + metrics.line - 1, accent);
         } else {

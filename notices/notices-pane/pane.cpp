@@ -208,12 +208,12 @@ private:
             return;
         }
         if (!heard_) {
-            (void)r.push(TextRow{"waiting for the notices record", gfx::role::kMuted});
+            (void)r.push(TextRow{"waiting for the notices record", gfx::colors::quiet});
             publish(mail);
             return;
         }
         if (page_.rows.empty() && page_.before == 0 && page_.after == 0) {
-            (void)r.push(TextRow{"nothing said yet", gfx::role::kMuted});
+            (void)r.push(TextRow{"nothing said yet", gfx::colors::quiet});
             publish(mail);
             return;
         }
@@ -261,23 +261,23 @@ private:
                     ? omitted_text(static_cast<std::size_t>(older_hidden_), "earlier")
                     : "... " + std::to_string(page_.let_go) + " let go -- the record keeps " +
                           std::to_string(page_.keep);
-            (void)r.push(TextRow{"  " + said, gfx::role::kMuted});
+            (void)r.push(TextRow{"  " + said, gfx::colors::quiet});
         }
         for (std::size_t b = blocks.size(); b-- > 0;) {
             const Block& block = blocks[b];
-            const std::int64_t role =
-                block.notice->refusal ? gfx::role::kAlert : gfx::role::kFill;
+            const gfx::Color ink =
+                block.notice->refusal ? gfx::colors::alert : gfx::colors::text;
             for (std::size_t line = 0; line < block.lines.size(); ++line) {
                 std::optional<std::int64_t> meaning;
                 if (line == 0) {
                     meaning = block.notice->number;
                 }
-                (void)r.push(TextRow{block.lines[line], role}, meaning);
+                (void)r.push(TextRow{block.lines[line], ink}, meaning);
             }
         }
         if (newer_row > 0) {
             (void)r.push(TextRow{"  " + omitted_text(static_cast<std::size_t>(page_.after), "newer"),
-                                 gfx::role::kMuted});
+                                 gfx::colors::quiet});
         }
         publish(mail);
     }

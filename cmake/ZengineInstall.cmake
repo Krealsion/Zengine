@@ -157,11 +157,11 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
 # The graphics vocabulary an owner draws with, its colours by name -- the pool's generated names
-# and the shipped themes' palettes among them -- its roles, the elements, the two painters' code
+# and the shipped themes' palettes among them -- the elements, the two painters' code
 # (for characters and for light), the seam an element's code is written against and the pixel
 # arithmetic; the windows and the directory are artifacts. Beside them, the terminal's claim and
 # size.
-set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/color.hpp graphics/role.hpp
+set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/color.hpp
     graphics/ops.hpp graphics/implied.hpp graphics/painting.hpp graphics/term_paint.hpp
     graphics/light_paint.hpp graphics/canvas.hpp graphics/drawing.hpp graphics/elements.hpp
     graphics/element_abi.h graphics/element_export.hpp graphics/pixels.hpp

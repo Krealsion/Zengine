@@ -115,9 +115,9 @@ A section of a pane off the desk is drawn as any other, not grey.
 In `workshop/desktop-pane/hotkeys_view.hpp`:
 
 ```diff
--                     section.absent && fold != component::Fold::kPeek ? graphics::role::kMuted
--                                                                      : graphics::role::kAccent,
-+                     graphics::role::kAccent,
+-                     section.absent && fold != component::Fold::kPeek ? graphics::colors::quiet
+-                                                                      : graphics::colors::accent,
++                     graphics::colors::accent,
 ```
 
 Red in `zengine-workshop-panes-tests`:

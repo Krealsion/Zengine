@@ -110,8 +110,8 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
         if (n.op != graphics::op::kText) {
             continue;
         }
-        // Its words wherever they show, in any ink: a row takes its role from the colour the text
-        // names.
+        // Its words wherever they show, in any ink: a row takes the pool colour its text's colour
+        // shows as.
         const auto words = graphics::from_body<graphics::TextArgs>(n.args);
         graphics::PaintNode shown_node = n;
         shown_node.inks = {graphics::PaintInk{0, {}, {}}};
@@ -134,7 +134,7 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
             }
             text[col] = c.glyph;
             if (!roled[r]) {
-                out[r].role = words ? graphics::role_of(words->ink) : graphics::role::kFill;
+                out[r].ink = words ? graphics::pool_color_of(words->ink) : graphics::colors::text;
                 roled[r] = true;
             }
             if (!run) {
@@ -189,14 +189,23 @@ struct RowsRoom {
     }
 };
 
-/// A TEXT AREA STANDING ON A PANE'S ROWS: from row `row`, `rows` tall, the value it draws from, and
-/// the names a press on its text and on its bar asks. The painter draws it over those rows in the
-/// room's face: its lines between their markers in a room of cells (`graphics::text_area_cells`),
-/// scrolled freely with its bar where the window sets type (`graphics::text_area_face`).
+/// A TEXT AREA STANDING ON A PANE'S ROWS: from row `row`, `rows` tall, the value it draws from, the
+/// names a press on its text and on its bar asks, and the colour each of its owner's looks reads in,
+/// by the look's number (`component::TextLook::kind`; a look past them reads as `text`, a marker as
+/// `quiet`). The painter draws it over those rows in the room's face: its lines between their
+/// markers in a room of cells (`graphics::text_area_cells`), scrolled freely with its bar where the
+/// window sets type (`graphics::text_area_face`).
 struct RowsTextArea {
     std::int64_t row = 0, rows = 0;
     component::TextArea area;
     std::string part, bar;
+    std::vector<graphics::Color> inks;
+
+    graphics::Color ink(std::int64_t kind) const {
+        return kind >= 0 && static_cast<std::size_t>(kind) < inks.size()
+                   ? inks[static_cast<std::size_t>(kind)]
+                   : graphics::Color(graphics::colors::text);
+    }
 };
 
 /// WHERE A TEXT AREA ON ROWS STANDS IN A WINDOW SETTING TYPE IN `room`: its pixels, and the
@@ -266,7 +275,9 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
                 if (rows.size() <= at) {
                     rows.resize(at + 1);
                 }
-                rows[at] = TextRow{cells.rows[i].text, cells.rows[i].role};
+                rows[at] = TextRow{cells.rows[i].text,
+                                   cells.rows[i].marker ? graphics::Color(graphics::colors::quiet)
+                                                        : a.ink(cells.rows[i].kind)};
                 if (cells.rows[i].selection_end > cells.rows[i].selection_begin) {
                     area_selection[static_cast<std::int64_t>(at)] =
                         RowSpan{cells.rows[i].selection_begin, cells.rows[i].selection_end};
@@ -294,7 +305,7 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
     const std::int64_t advance = room.text.advance;
     const std::int64_t line = room.text.line;
     out.sketch.fill_rect("room", 0, 0, room.width, room.height,
-                         graphics::by_role(graphics::role::kGround));
+                         graphics::colors::background);
     std::size_t nodes = 1, records = 0;
     const std::size_t shown =
         max_rows > 0 ? (std::min)(rows.size(), static_cast<std::size_t>(max_rows)) : rows.size();
@@ -351,7 +362,7 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
                 ++cover[static_cast<std::size_t>(c)];
             }
         }
-        const bool lit = rows[r].background != graphics::role::kNone;
+        const bool lit = rows[r].background != graphics::no_color();
         const std::string prefix = (lit ? "lit" : "row") + std::to_string(r) + ".";
         std::vector<Run> runs;
         std::size_t asks = 0;
@@ -386,11 +397,11 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
         if (lit) {
             out.sketch.fill_rect("ground" + std::to_string(r), 0, row * line,
                                  (std::max)(extent, columns) * advance, line,
-                                 graphics::by_role(rows[r].background));
+                                 rows[r].background);
         }
         for (const Run& one : runs) {
             out.sketch.text(one.node, one.x * advance, row * line, one.words,
-                            graphics::by_role(rows[r].role));
+                            rows[r].ink);
             if (!one.action.empty()) {
                 say_part(one.node, one.action);
             }
@@ -407,7 +418,7 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
             out.sketch.path(node + "/shape",
                             graphics::Icon::path_data(graphics::Icon::outline(open ? "down" : "right"),
                                                       size),
-                            graphics::by_role(rows[r].role));
+                            rows[r].ink);
         }
         for (const std::size_t k : here) {
             if (parts[k].name.empty() || out.places.count(parts[k].name) != 0) {
@@ -445,7 +456,7 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
             records += 2;
             graphics::text_area_face(
                 out.sketch, "area" + std::to_string(k), a.area, at.geometry, at.x, at.y,
-                [](const component::TextLook& look) { return graphics::by_role(look.role); },
+                [&a](const component::TextLook& look) { return a.ink(look.kind); },
                 a.part, a.bar);
             if (!a.part.empty()) {
                 out.places[a.part] = RowCell{a.row, 0, true};
@@ -508,7 +519,7 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
             const auto from = static_cast<std::size_t>(a);
             out.sketch.text(node, a * advance, m * line,
                             text.substr(from, static_cast<std::size_t>(b - a)),
-                            graphics::by_role(graphics::role::kAccent));
+                            graphics::colors::accent);
             ask(node, asks);
             a = b;
         }
@@ -524,10 +535,10 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
         const auto at = static_cast<std::size_t>(column);
         if (room.cells && at < text.size() && text[at] != ' ') {
             out.sketch.text("caret", column * advance, caret.row * line, text.substr(at, 1),
-                            graphics::by_role(graphics::role::kAccent));
+                            graphics::colors::accent);
         } else {
             out.sketch.line("caret", column * advance, caret.row * line, column * advance,
-                            caret.row * line + line - 1, graphics::by_role(graphics::role::kAccent));
+                            caret.row * line + line - 1, graphics::colors::accent);
         }
         ask("caret", asks);
     }

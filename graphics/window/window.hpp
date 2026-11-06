@@ -1139,7 +1139,7 @@ private:
         }
     }
 
-    /// Paint all of an area afresh.
+    /// Color all of an area afresh.
     void remake(const WinArea& a) {
         medium_.cover_area(a);
         medium_.drop_area(a.area);

@@ -740,8 +740,8 @@ TEST_CASE("the heading and the subject's properties are the pane's rows, over th
     const std::vector<HeldLitRow> lit = held_lit_rows(f.kind);
     REQUIRE(lit.size() == 1);
     CHECK(lit[0].row == 0); // the heading's row, the lattice's first
-    CHECK(lit[0].ground == gfx::role::kMuted);
-    CHECK(lit[0].ink == gfx::role::kAccent);
+    CHECK(lit[0].ground == gfx::colors::quiet);
+    CHECK(lit[0].ink == gfx::colors::accent);
 }
 
 TEST_CASE("the picture is PUBLISHED, so a gesture that never touched the pane moves it") {
@@ -2714,7 +2714,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
     const std::int64_t row = f.property_at("Width");
     REQUIRE(row >= 0);
     // ...THE CARET A BAR AT THE LEFT OF ITS CELL in the window, asking for the property -- in a
-    // room of cells over a character, that character drawn again in the accent role.
+    // room of cells over a character, that character drawn again in the accent colour.
     const auto bar_at = [&](std::int64_t column) {
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
@@ -2724,7 +2724,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
             CHECK(mark->x == column * gfx::kCellPx);
             CHECK(mark->y == row * gfx::kCellPx);
             CHECK(mark->text.size() == 1);
-            CHECK(zengine::graphics::role_of(mark->ink) == gfx::role::kAccent);
+            CHECK(zengine::graphics::pool_color_of(mark->ink) == gfx::colors::accent);
         } else {
             CHECK(caret->op == gfx::op::kLine);
             const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
@@ -2733,7 +2733,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
             CHECK(bar->x2 == column * gfx::kCellPx);
             CHECK(bar->y1 == row * gfx::kCellPx);
             CHECK(bar->y2 == row * gfx::kCellPx + gfx::kCellPx - 1);
-            CHECK(zengine::graphics::role_of(bar->ink) == gfx::role::kAccent);
+            CHECK(zengine::graphics::pool_color_of(bar->ink) == gfx::colors::accent);
         }
         CHECK(asks("caret") == "property:Width");
     };
@@ -2750,7 +2750,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
     CHECK(held_caret(held()).sel_begin_row == row);
     CHECK(held_caret(held()).sel_begin_col == 11);
     CHECK(held_caret(held()).sel_end_col == 12);
-    // ...THE SELECTION its columns again in the accent role, asking for the property, the row's
+    // ...THE SELECTION its columns again in the accent colour, asking for the property, the row's
     // words unchanged. A window started again, holding nothing, is drawn both with the rows, whole.
     const auto selected = [&] {
         const std::string sel = "sel" + std::to_string(row) + ".0";
@@ -2761,7 +2761,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
         CHECK(words->text == "7");
         CHECK(words->x == 11 * gfx::kCellPx);
         CHECK(words->y == row * gfx::kCellPx);
-        CHECK(zengine::graphics::role_of(words->ink) == gfx::role::kAccent);
+        CHECK(zengine::graphics::pool_color_of(words->ink) == gfx::colors::accent);
         CHECK(asks(sel) == "property:Width");
         CHECK(marks() == 2);
     };

@@ -41,10 +41,10 @@ endforeach()
 
 # ---- The drawing weave's, the canvas's and the colours' walls (owned by the Graphics suite) ------
 #
-# The Timer pattern again: three refusals and their control, from one source
+# The Timer pattern again: four refusals and their control, from one source
 # (`compile_negative/drawing_walls.cpp`).
-set(ZENGINE_GRAPHICS_CN_NAMES change-outside after-delivery drawer-ok undeclared-color)
-set(ZENGINE_GRAPHICS_CN_IDS 1 2 3 4)
+set(ZENGINE_GRAPHICS_CN_NAMES change-outside after-delivery drawer-ok undeclared-color color-role)
+set(ZENGINE_GRAPHICS_CN_IDS 1 2 3 4 5)
 foreach(case_name case_id IN ZIP_LISTS ZENGINE_GRAPHICS_CN_NAMES ZENGINE_GRAPHICS_CN_IDS)
     add_executable(zengine-cn-graphics-${case_name} EXCLUDE_FROM_ALL
         drawing_walls.cpp)

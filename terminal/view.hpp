@@ -20,7 +20,7 @@
 #include "workshop/terminal_seam_vocabulary.hpp"
 
 #include "component/text_box.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "workshop/pane_rows.hpp"
 
 #include <zen/weave.hpp>
@@ -233,8 +233,8 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     list_row_count_ = 0;
     list_shown_first_ = 0;
     std::vector<zengine::workshop::TextRow> out;
-    const auto push = [&out, this](std::string text, std::int64_t role) {
-        out.push_back(zengine::workshop::TextRow{drawable(fit(std::move(text), columns())), role});
+    const auto push = [&out, this](std::string text, gfx::Color ink) {
+        out.push_back(zengine::workshop::TextRow{drawable(fit(std::move(text), columns())), ink});
     };
     if (rows() <= 0 || columns() <= 0) {
         (void)room().map().settle();
@@ -256,7 +256,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
 
     // A REFUSAL THE DOOR GAVE, over the top row, where a weaver will see it.
     if (notice) {
-        push(notice_, zengine::graphics::role::kAlert);
+        push(notice_, zengine::graphics::colors::alert);
     }
 
     // THE HEADER NAMES THE IDENTITY whose record this is. A presentation may hold
@@ -266,13 +266,13 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
         push(known_.attached
                  ? "TERMINAL -- weave #" + std::to_string(known_.participant)
                  : "TERMINAL -- no participant was mounted on this bus",
-             zengine::graphics::role::kAccent);
+             zengine::graphics::colors::accent);
     }
     if (legend) {
         // WHERE THE SETTING SHOWS, SO WHERE A VALUE IT CANNOT USE IS SAID.
         legend_row_ = static_cast<std::int64_t>(out.size());
         push(legend_problem_.empty() ? legend_text() : legend_problem_,
-             legend_problem_.empty() ? zengine::graphics::role::kMuted : zengine::graphics::role::kAlert);
+             legend_problem_.empty() ? zengine::graphics::colors::quiet : zengine::graphics::colors::alert);
     }
 
     // THE LIST'S SHARE, DECIDED BEFORE THE TRANSCRIPT'S so the transcript gets what is
@@ -319,7 +319,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
         if (below > 0 && !bottom) {
             said += " -- " + std::to_string(below) + " more rows below";
         }
-        push(std::move(said), zengine::graphics::role::kMuted);
+        push(std::move(said), zengine::graphics::colors::quiet);
     }
     for (std::int64_t i = 0; i < view; ++i) {
         const std::int64_t at = top + i;
@@ -332,18 +332,18 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
             }
         }
         push(at < record.total() ? record.rows[static_cast<std::size_t>(at)] : std::string(),
-             zengine::graphics::role::kFill);
+             zengine::graphics::colors::text);
     }
     if (bottom) {
         bottom_marker_row_ = static_cast<std::int64_t>(out.size());
-        push(below_text(below), zengine::graphics::role::kMuted);
+        push(below_text(below), zengine::graphics::colors::quiet);
     }
     if (list_wanted > 0 && list_open) {
         list_first_row_ = static_cast<std::int64_t>(out.size());
         list_row_count_ = static_cast<std::int64_t>(list_wanted);
         say_list(list_wanted, push);
     } else if (list_wanted > 0) {
-        push(history, zengine::graphics::role::kMuted);
+        push(history, zengine::graphics::colors::quiet);
     }
 
     // THE LINE BEING TYPED, AND -- while there is nothing on it -- the gesture that
@@ -363,7 +363,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     input_row_ = static_cast<std::int64_t>(out.size());
     push(prompt_ + " " + std::string(static_cast<std::size_t>(line_box_.columns), ' ') +
              (prompting ? "  Tab: what can this terminal say?  Up: recall a command" : ""),
-         known_.attached ? zengine::graphics::role::kAccent : zengine::graphics::role::kAlert);
+         known_.attached ? zengine::graphics::colors::accent : zengine::graphics::colors::alert);
     out.back().box = line_box_;
 
     if (static_cast<std::int64_t>(out.size()) > rows()) {
@@ -406,7 +406,7 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
     if (cursor_moved_ && !offered_.candidates.empty()) {
         heading += " -- Enter: take it, Shift+Enter: run the line";
     }
-    push(std::move(heading), zengine::graphics::role::kMuted);
+    push(std::move(heading), zengine::graphics::colors::quiet);
     for (std::size_t i = first; i < last; ++i) {
         const ShownCandidate& c = offered_.candidates[i];
         const bool chosen = i == selected_;
@@ -417,7 +417,7 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
             // names and a list in a large one shows names and meanings.
             text += "   " + c.detail;
         }
-        push(std::move(text), chosen ? zengine::graphics::role::kAccent : zengine::graphics::role::kFill);
+        push(std::move(text), chosen ? zengine::graphics::colors::accent : zengine::graphics::colors::text);
     }
 }
 

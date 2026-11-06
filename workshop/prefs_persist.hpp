@@ -184,7 +184,7 @@ struct Presentation {
     KeySpelling hotkeys_keys = kHotkeysKeysDefaultValue;
     bool pins_per_layout = false;
     bool ring_plain = false;
-    std::string skin = kSkinClassic;
+    std::string skin = kSkinNight;
     bool completion_required_first = false;
     std::int64_t arrange_step_cells = kCoarseStepCells;
     std::int64_t snap_reach_px = kPaneSnapReachPx;
@@ -516,8 +516,8 @@ inline Presentation presentation_of(const Prefs& p) {
     const PaneSetting ring = workshop_value(p, kFocusRingKey);
     out.ring_plain = ring.text && *ring.text == kRingPlain;
     const PaneSetting skin = workshop_value(p, kSkinKey);
-    out.skin = skin.text && is_workshop_skin_choice(*skin.text) ? *skin.text
-                                                                : std::string(kSkinClassic);
+    out.skin = skin.text && is_workshop_skin_choice(*skin.text) ? workshop_palette_of(*skin.text)
+                                                                : std::string(kSkinNight);
     const PaneSetting order = workshop_value(p, kCompletionOrderKey);
     out.completion_required_first = order.text && *order.text == kCompletionRequiredFirst;
     // A NUMBER OUTSIDE ITS BOUNDS NEVER REACHES HERE from a file or a commit, both judged against

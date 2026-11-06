@@ -72,7 +72,7 @@ constexpr const char* kWindowRole = "zengine.window.terminal";
 /// The palettes the operator offers and chooses between: two of the shipped themes, made unlike
 /// each other so a choice mid-game is unmistakable.
 inline std::vector<gfx::PaletteOffered> palettes() {
-    return {gfx::themes::classic(), gfx::themes::block()};
+    return {gfx::themes::night(), gfx::themes::block()};
 }
 
 /// The operator's buttons, in the row beneath its status line: the action each asks of the
@@ -233,7 +233,7 @@ public:
     /// for each gesture, each set by the measure of the window that shows the area.
     void picture(gfx::Sketch& f) const {
         const gfx::TextMeasure m = canvas().text();
-        f.text("status", 0, 0, ctx_->status, gfx::by_role(gfx::role::kFill));
+        f.text("status", 0, 0, ctx_->status, gfx::colors::text);
         std::int64_t x = 0;
         for (const Control& k : kControls) {
             const auto characters = static_cast<std::int64_t>(std::string(k.label).size()) + 2;

@@ -21,9 +21,8 @@ target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-a
 # palettes (`zengine::graphics::themes`, graphics/themes.hpp): generated, and installed beside the
 # vocabulary with the JSON they come from.
 set(ZENGINE_GRAPHICS_POOL ${CMAKE_CURRENT_SOURCE_DIR}/pool.json)
-set(ZENGINE_GRAPHICS_THEMES ${CMAKE_CURRENT_SOURCE_DIR}/themes/classic.json
-    ${CMAKE_CURRENT_SOURCE_DIR}/themes/block.json ${CMAKE_CURRENT_SOURCE_DIR}/themes/day.json
-    ${CMAKE_CURRENT_SOURCE_DIR}/themes/night.json)
+set(ZENGINE_GRAPHICS_THEMES ${CMAKE_CURRENT_SOURCE_DIR}/themes/night.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/themes/day.json ${CMAKE_CURRENT_SOURCE_DIR}/themes/block.json)
 zengine_names(zengine-graphics-vocabulary JSON ${ZENGINE_GRAPHICS_POOL}
               NAMESPACE zengine::graphics::colors HEADER graphics/colors.hpp)
 zengine_palettes(zengine-graphics-vocabulary POOL ${ZENGINE_GRAPHICS_POOL}

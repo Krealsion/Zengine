@@ -757,7 +757,7 @@ foreach(stem IN ITEMS thermostat boundaries high_water empty)
 endforeach()
 add_executable(zengine-flow-tests test_flow.cpp test_flow_runtime.cpp test_flow_graph.cpp test_flow_view.cpp doctest_main.cpp)
 target_link_libraries(zengine-flow-tests PRIVATE zengine-flow zengine-graphics-vocabulary loom::kernel
-                                                 zengine-warnings zengine-sanitize)
+                                                 zengine-flow-slots zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-flow-tests
     "FLOW_THERMOSTAT=\"$<TARGET_FILE:zengine-flow-thermostat>\""
@@ -773,7 +773,7 @@ zengine_doctest_test(flow zengine-flow-tests)
 add_executable(zengine-flow-pane-tests test_flow_pane.cpp doctest_main.cpp)
 # ...and Workshop's vocabulary for the discovery door it mounts, whose manual rides that target.
 target_link_libraries(zengine-flow-pane-tests PRIVATE zengine-flow zengine-activation loom::kernel
-    zengine-workshop-vocabulary zengine-warnings zengine-sanitize)
+    zengine-workshop-vocabulary zengine-flow-slots zengine-warnings zengine-sanitize)
 target_include_directories(zengine-flow-pane-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-flow-pane-tests "FLOW_PANE_ARTIFACT=\"$<TARGET_FILE:zengine-flow-pane>\"")
 add_dependencies(zengine-flow-pane-tests zengine-flow-pane)
@@ -912,6 +912,11 @@ zengine_compile_test(graphics_drawer_compiles zengine-cn-graphics-drawer-ok)
 # its JSON (cmake/ZengineNames.cmake), and the drawer that builds names one that is declared.
 zengine_compile_test(graphics_undeclared_color_refused zengine-cn-graphics-undeclared-color
                      "no member named .acent.|acent.*is not a member")
+
+# A colour by a role does not build: a drawer names a pool colour, a slot or an exact value, and the
+# roles and their bridge are no name of the package's.
+zengine_compile_test(graphics_color_role_refused zengine-cn-graphics-color-role
+                     "role.*has not been declared|role.*is not a member|no member named .role.|by_role.*is not a member|no member named .by_role.")
 
 # ---- the Workshop suites --------------------------------------------------------------
 # The windows the rigs show their desk in (rig_windows.hpp): the terminal window and the OS window

@@ -28,7 +28,7 @@
 
 namespace zengine::view_builder {
 namespace ws = zengine::workshop;
-namespace ink = zengine::graphics::role;
+namespace ink = zengine::graphics::colors;
 
 /// A rectangle of the picture in local pixels.
 struct Area {
@@ -282,7 +282,7 @@ inline std::string clean(std::string text) {
 inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& room) {
     Picture out;
     out.grain = std::max<std::int64_t>(1, room.grain);
-    out.content.rects.push_back({0, 0, room.width, room.height, ink::kGround});
+    out.content.rects.push_back({0, 0, room.width, room.height, ink::background});
     const auto metrics = ws::canvas_text_metrics(room);
     const auto advance = std::max<std::int64_t>(1, metrics.advance);
     const auto line = graphics::add_cells(metrics.line, 2 * metrics.inset);
@@ -311,9 +311,9 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
 
     // A line keeps to its column, from `from` to `limit`, and a row of a column above the status.
     std::int64_t from = 0, limit = columns, stop = rows;
-    const auto put = [&](std::int64_t col, std::int64_t row, std::string text, std::int64_t role = ink::kFill) {
+    const auto put = [&](std::int64_t col, std::int64_t row, std::string text, zengine::graphics::Color ink = ink::text) {
         if (row < 0 || row >= stop) return std::int64_t{0};
-        ws::CanvasText run{col * advance, row * line, clean(std::move(text)), role};
+        ws::CanvasText run{col * advance, row * line, clean(std::move(text)), ink};
         const auto left = from * advance;
         const ws::CanvasTextBox clip{left, 0, std::min(room.width, limit * advance + 2 * metrics.inset) - left, room.height};
         auto placed = ws::clip_canvas_text(run, clip, room);
@@ -328,7 +328,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
     };
     const auto button = [&](std::int64_t col, std::int64_t row, const std::string& title, std::string action,
                             std::vector<std::string> args = {}) {
-        const auto width = put(col, row, "[" + title + "]", ink::kAccent);
+        const auto width = put(col, row, "[" + title + "]", ink::accent);
         press(col, row, width, std::move(action), std::move(args));
         return col + width + 1;
     };
@@ -339,7 +339,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
         if (row < 1 || row >= status) return col + width + 1;
         const bool typing = p.box && p.box->field == field && p.box->element == element;
         const Area at{col * advance, row * line, width * advance + 2 * metrics.inset, line};
-        out.content.rects.push_back({at.x, at.y, at.w, at.h, ink::kMuted});
+        out.content.rects.push_back({at.x, at.y, at.w, at.h, ink::quiet});
         std::string shown = value;
         std::int64_t caret = ws::kNoCaret;
         if (typing) {
@@ -353,7 +353,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
                 static_cast<std::size_t>(caret) >= shown.size())
                 shown += ' ';
         }
-        ws::CanvasText run{at.x, at.y, clean(shown), typing ? ink::kAccent : ink::kFill, caret};
+        ws::CanvasText run{at.x, at.y, clean(shown), typing ? ink::accent : ink::text, caret};
         auto placed = ws::clip_canvas_text(run, {at.x, at.y, at.w, at.h}, room);
         if (placed.visible()) out.content.texts.push_back(placed.text);
         out.hits.push_back({at, "box", {field, element ? std::to_string(*element) : std::string()}});
@@ -389,7 +389,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
         const auto index = std::to_string(i);
         const auto& e = d.elements[i];
         const auto head = giving_way(e.id + " (" + view::kind_word(e.kind) + ")", width - 9);
-        put(at, row, head + " ", ink::kAccent);
+        put(at, row, head + " ", ink::accent);
         button(at + static_cast<std::int64_t>(head.size()) + 1, row, "Remove", "remove", {index});
         ++row;
         const auto fields = element_fields(e);
@@ -433,7 +433,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
                 press(at, row, said, "shows", {index});
                 ++row;
             } else {
-                put(at, row, "shows nothing: drag a shape here", ink::kMuted);
+                put(at, row, "shows nothing: drag a shape here", ink::quiet);
                 press(at, row, width, "shows", {index});
                 ++row;
             }
@@ -446,7 +446,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
                                                           width - static_cast<std::int64_t>(whole.size()) - 2);
                 const auto says = giving_way(whole, width - boxed - 2);
                 const auto said = static_cast<std::int64_t>(says.size());
-                put(at, row, says, ink::kAccent);
+                put(at, row, says, ink::accent);
                 press(at, row, said, "says", {index});
                 box(at + said + 1, row, boxed, "intent", i, intent_name(d, *intent));
                 ++row;
@@ -461,9 +461,9 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
                 col = button(at, row, "Make intent", "intent", {index});
                 button(col, row, "Drop intent", "drop-intent", {index});
                 ++row;
-                put(at, row++, "drag `says` out, or right-press it", ink::kMuted);
+                put(at, row++, "drag `says` out, or right-press it", ink::quiet);
             } else {
-                put(at, row++, "says nothing yet", ink::kMuted);
+                put(at, row++, "says nothing yet", ink::quiet);
                 button(at, row++, "Make intent", "intent", {index});
             }
         }
@@ -492,9 +492,9 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
     // THE GRID a place by hand snaps to: the builder's own, never the view's.
     col = put(0, 5, "Grid ");
     col = box(col, 5, 4, "grid", std::nullopt, std::to_string(p.grid));
-    put(col, 5, p.grid <= 1 ? "px: none" : "px", ink::kMuted);
+    put(col, 5, p.grid <= 1 ? "px: none" : "px", ink::quiet);
     std::int64_t row = 6;
-    put(0, row++, "Elements (" + std::to_string(d.elements.size()) + ")", ink::kAccent);
+    put(0, row++, "Elements (" + std::to_string(d.elements.size()) + ")", ink::accent);
     // Stacked, the values take the rows below the list, which keeps a few rows whatever they
     // need; the list follows the selected element.
     std::int64_t below = 0;
@@ -519,21 +519,21 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
         const auto& e = d.elements[i];
         const bool is_chosen = m.selected && *m.selected == i;
         if ((p.hovered && *p.hovered == i) || (p.landing && *p.landing == i))
-            out.content.rects.push_back({0, row * line, side * advance + 2 * metrics.inset, line, ink::kMuted});
+            out.content.rects.push_back({0, row * line, side * advance + 2 * metrics.inset, line, ink::quiet});
         put(0, row, std::string(is_chosen ? "> " : "  ") + e.id + "  " + view::kind_word(e.kind) + "  \"" +
                         e.label + "\"",
-            is_chosen ? ink::kAccent : ink::kFill);
+            is_chosen ? ink::accent : ink::text);
         press(0, row, side, "select", {std::to_string(i)});
         ++row;
     }
-    if (d.elements.empty()) put(0, row++, "  none yet: drag a kind in", ink::kMuted);
+    if (d.elements.empty()) put(0, row++, "  none yet: drag a kind in", ink::quiet);
     if (chosen && !beside) (void)values(0, side, std::max(row, list_end) + 1);
     if (beside) {
         // THE DETAILS COLUMN: the selected element's values, or what selecting one shows.
         from = details_col;
         limit = columns;
         if (chosen) (void)values(details_col, details, 1);
-        else put(details_col, 1, "select an element to see its values", ink::kMuted);
+        else put(details_col, 1, "select an element to see its values", ink::quiet);
     }
     from = 0;
     limit = columns;
@@ -546,10 +546,10 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
     const auto& area = out.design;
     if (!area.empty()) {
         out.hits.push_back({area, "canvas", {}});
-        out.content.rects.push_back({area.x, area.y, area.w, area.h, ink::kGround});
-        out.content.rects.push_back({area.x - rule, area.y - rule, area.w + rule, rule, ink::kMuted});
-        out.content.rects.push_back({area.x - rule, area.y, rule, area.h, ink::kMuted});
-        if (beside) out.content.rects.push_back({area.x + area.w, area.y - rule, rule, area.h + rule, ink::kMuted});
+        out.content.rects.push_back({area.x, area.y, area.w, area.h, ink::background});
+        out.content.rects.push_back({area.x - rule, area.y - rule, area.w + rule, rule, ink::quiet});
+        out.content.rects.push_back({area.x - rule, area.y, rule, area.h, ink::quiet});
+        if (beside) out.content.rects.push_back({area.x + area.w, area.y - rule, rule, area.h + rule, ink::quiet});
         const auto [reach_x, reach_y] = pan_reach(d, area, view::notice_band(room));
         p.pan_x = std::clamp<std::int64_t>(p.pan_x, 0, reach_x);
         p.pan_y = std::clamp<std::int64_t>(p.pan_y, 0, reach_y);
@@ -577,13 +577,13 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
         }
         const auto mark = [&](const Area& a) {
             const auto inside = a.within(area);
-            if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, ink::kAccent});
+            if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, ink::accent});
         };
-        const auto outline = [&](const Area& a, std::int64_t role, std::int64_t t) {
+        const auto outline = [&](const Area& a, zengine::graphics::Color ink, std::int64_t t) {
             for (const Area& side_of : {Area{a.x - t, a.y - t, a.w + 2 * t, t}, Area{a.x - t, a.y + a.h, a.w + 2 * t, t},
                                         Area{a.x - t, a.y, t, a.h}, Area{a.x + a.w, a.y, t, a.h}}) {
                 const auto inside = side_of.within(area);
-                if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, role});
+                if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, ink});
             }
         };
         const auto thin = room.graphical ? graphics::kPixelGrainPx : out.grain;
@@ -599,13 +599,13 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
             const auto up = [&](std::int64_t v) { return down(v) == v ? v : down(v) + out.grain; };
             const auto size_h = d.height;
             const auto right = out.view.x + out.view.w, bottom = out.view.y + size_h;
-            const auto drawn_in = [&](const Area& a, std::int64_t role) {
+            const auto drawn_in = [&](const Area& a, zengine::graphics::Color ink) {
                 const auto inside = a.within(area);
-                if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, role});
+                if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, ink});
                 return inside;
             };
-            drawn_in({right, out.view.y, thin, size_h + thin}, ink::kMuted);
-            drawn_in({out.view.x, bottom, out.view.w, thin}, ink::kMuted);
+            drawn_in({right, out.view.y, thin, size_h + thin}, ink::quiet);
+            drawn_in({out.view.x, bottom, out.view.w, thin}, ink::quiet);
             const auto grip = room.graphical ? 8 : out.grain;
             const std::pair<int, int> edges[] = {{1, 0}, {0, 1}, {1, 1}};
             for (const auto& [sx, sy] : edges) {
@@ -618,19 +618,19 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
                     handle = {sx ? up(right) : down(out.view.x + out.view.w / 2),
                               sy ? up(bottom) : down(out.view.y + size_h / 2), grip, grip};
                 }
-                const auto inside = drawn_in(handle, ink::kFill);
+                const auto inside = drawn_in(handle, ink::text);
                 if (!inside.empty()) out.hits.push_back({inside, "size", {std::to_string(sx), std::to_string(sy)}});
             }
         }
         // The element the pointer rests on, in the fill's ink: a quiet field's own box is muted.
         if (p.hovered && *p.hovered < d.elements.size() && (!chosen || *p.hovered != *m.selected))
-            outline(element_area(out.view, d.elements[*p.hovered]), ink::kFill, thin);
+            outline(element_area(out.view, d.elements[*p.hovered]), ink::text, thin);
         if (p.landing && *p.landing < d.elements.size())
-            outline(element_area(out.view, d.elements[*p.landing]), ink::kAccent, 2 * thin);
+            outline(element_area(out.view, d.elements[*p.landing]), ink::accent, 2 * thin);
         if (p.ghost) {
             const auto [w, h] = made_size(p.ghost->kind);
             outline(element_area(out.view, view::Element{"", p.ghost->kind, "", p.ghost->x, p.ghost->y, w, h, ""}),
-                    ink::kMuted, thin);
+                    ink::quiet, thin);
         }
         // THE EDGE A SNAP MET, while the hand holds what it places: a line across the canvas.
         if (p.met_x) mark({out.view.x + *p.met_x, area.y, thin, area.h});
@@ -641,7 +641,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
             // a corner's meet, the corner's is pressed. Each handle names its sides: -1 the left or
             // top, 1 the right or bottom, 0 neither.
             const auto at = element_area(out.view, d.elements[*m.selected]);
-            outline(at, ink::kAccent, thin);
+            outline(at, ink::accent, thin);
             const auto size = room.graphical ? 8 : out.grain;
             const auto down = [&](std::int64_t v) { return graphics::floor_div_px(v, out.grain) * out.grain; };
             const std::pair<int, int> sides[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
@@ -676,10 +676,10 @@ inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& ro
 
     // The status, then the notice on the last two rows: a host's answer is often long.
     put(0, status, d.name + (m.running ? " / running" : " / stopped") + (m.path.empty() ? std::string() : " / " + m.path),
-        ink::kMuted);
+        ink::quiet);
     const auto notice = view::wrap(m.notice, columns, 2);
     for (std::size_t i = 0; i < notice.size(); ++i)
-        put(0, status + 1 + static_cast<std::int64_t>(i), notice[i], ink::kAccent);
+        put(0, status + 1 + static_cast<std::int64_t>(i), notice[i], ink::accent);
     // Rectangles a room cannot hold are dropped: a picture is admitted whole or not at all.
     std::erase_if(out.content.rects, [](const auto& r) { return r.w <= 0 || r.h <= 0; });
     return out;

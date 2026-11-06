@@ -79,13 +79,13 @@ void WorkshopWeave::install_live(const LiveLayout& live, loom::Mail& mail) {
                       live.session_refused +
                           " (the file is left exactly as it is, and this run will not write "
                           "over it)",
-                      graphics::role::kAlert, std::string()});
+                      graphics::colors::alert, std::string()});
     }
     settings_refused_ = live.settings_refused;
     if (!live.settings_refused.empty()) {
         session_.conditions.establish(Condition{kPrefsWallKey,
                                                 "preferences refused -- defaults stand",
-                                                live.settings_refused, graphics::role::kAlert,
+                                                live.settings_refused, graphics::colors::alert,
                                                 std::string()});
     }
     // A SEAT STILL OWED TO THE STORE STAYS PAINTED over the desk it sent.

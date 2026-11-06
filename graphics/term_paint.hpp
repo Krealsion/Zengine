@@ -267,6 +267,8 @@ private:
         return (*inks_)[static_cast<std::size_t>(i)];
     }
     bool none(std::int64_t i) const { return ink_of(i).none(); }
+    /// Whether colour `i` is mostly transparent: a fill in it is left out, as an image's cell is.
+    bool sheer(std::int64_t i) const { return !none(i) && (ink_of(i).rgba & 0xff) < 0x80; }
 
     /// The character a shape is filled with in colour `i`.
     char glyph_of(std::int64_t i) const {
@@ -298,7 +300,7 @@ private:
                     const bool across = r == r0 || r == r1 - 1;
                     const bool down = c == c0 || c == c1 - 1;
                     put(c, r, across && down ? corner_ : across ? across_ : down_, 1);
-                } else if (!none(0)) {
+                } else if (!none(0) && !sheer(0)) {
                     put(c, r, glyph_of(0), 0);
                 }
             }

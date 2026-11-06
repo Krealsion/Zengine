@@ -29,8 +29,8 @@ struct ScrollBarFace {
     std::int64_t scroll_offset = 0;
     std::int64_t thumb_offset = 0;
     std::int64_t thumb_size = 0;
-    Paint track_fill;
-    Paint thumb_fill;
+    Color track_fill;
+    Color thumb_fill;
     ZEN_SHAPE(ScrollBarFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(content_size), ZEN_FIELD(viewport_size), ZEN_FIELD(scroll_offset),
               ZEN_FIELD(thumb_offset), ZEN_FIELD(thumb_size), ZEN_FIELD(track_fill),
@@ -104,8 +104,8 @@ public:
         f.scroll_offset = scroll_;
         f.thumb_offset = thumb_offset();
         f.thumb_size = thumb_size();
-        f.track_fill = by_role(role::kMuted);
-        f.thumb_fill = by_role(role::kFill);
+        f.track_fill = colors::quiet;
+        f.thumb_fill = colors::text;
         return f;
     }
 

@@ -123,7 +123,7 @@ inline const mp::Value& field(const mp::Value& v, const char* key) {
     return f != nullptr ? *f : absent;
 }
 
-/// THE FINGERPRINT OF THE ROWS DRAWN: every row's text and role, the caret, the one range and the
+/// THE FINGERPRINT OF THE ROWS DRAWN: every row's text and colours, the caret, the one range and the
 /// generation -- what a weaver saw, so a press or a drop aimed at it can be told from one aimed at
 /// a screen that moved since (FNV-1a).
 inline std::uint64_t picture_hash(const std::vector<ws::TextRow>& rows, const ws::RowsCaret& caret,
@@ -136,11 +136,19 @@ inline std::uint64_t picture_hash(const std::vector<ws::TextRow>& rows, const ws
         }
     };
     const auto num = [&mix](std::int64_t v) { mix(&v, sizeof v); };
+    const auto color = [&mix, &num](const graphics::Color& c) {
+        num(c.from);
+        num(static_cast<std::int64_t>(c.name.size()));
+        mix(c.name.data(), c.name.size());
+        num(c.rgba);
+        num(static_cast<std::int64_t>(c.like.size()));
+        mix(c.like.data(), c.like.size());
+    };
     for (const ws::TextRow& r : rows) {
         num(static_cast<std::int64_t>(r.text.size()));
         mix(r.text.data(), r.text.size());
-        num(r.role);
-        num(r.background);
+        color(r.ink);
+        color(r.background);
     }
     num(caret.row);
     num(caret.column);

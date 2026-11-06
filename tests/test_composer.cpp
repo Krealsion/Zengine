@@ -633,7 +633,7 @@ TEST_CASE("a field row says PRESENCE and VALUE separately") {
     }
 }
 
-TEST_CASE("a required field nobody has authored is in the ALERT role") {
+TEST_CASE("a required field nobody has authored is in the ALERT colour") {
     // It is the one thing standing between this draft and a send, so it is said in
     // characters first (`(required)`) and in ink second.
     cmp::Composing c = composing_form(three_scalars());
@@ -643,7 +643,7 @@ TEST_CASE("a required field nobody has authored is in the ALERT role") {
     for (const cmp::RenderedRow& r : v.rows) {
         if (r.row.text.find("id:Text  (required)") != std::string::npos) {
             found = true;
-            CHECK(r.row.role == gfx::role::kAlert);
+            CHECK(r.row.ink == gfx::colors::alert);
         }
     }
     CHECK(found);
@@ -763,9 +763,9 @@ TEST_CASE("every row of every projection fits the room it was granted") {
                         REQUIRE(byte >= 0x20u);
                         REQUIRE(byte < 0x7Fu);
                     }
-                    // A blank row is `role::kFill`, never `role::kNone` -- that value
+                    // A blank row is `colors::text`, never `no_color()` -- that value
                     // is the absence of a BACKGROUND and is not a window's ink.
-                    REQUIRE(r.row.role != gfx::role::kNone);
+                    REQUIRE(r.row.ink != gfx::no_color());
                 }
             }
         }
@@ -962,7 +962,7 @@ TEST_CASE("the notice outranks the list, because a refusal nobody can see is wor
     }
     c.snapshot = snapshot_of(std::move(roots));
     c.notice = "field 'delay_ms' (Int) cannot take this value";
-    c.notice_role = gfx::role::kAlert;
+    c.notice_ink = gfx::colors::alert;
     for (std::int64_t rows = 3; rows <= 10; ++rows) {
         CAPTURE(rows);
         const cmp::ComposerView v = cmp::project(c, rows, 60);

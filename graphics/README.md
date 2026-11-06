@@ -38,8 +38,7 @@ an element the window presents from the owner's data (`element_export.hpp`).
 |---|---|
 | `vocabulary.hpp` | the messages: the node, the element record, drawing, elements, the directory, a window's report |
 | `color.hpp` | a colour a draw carries: an exact value, a name from the shared pool, or a slot its pane exposes |
-| `pool.json`, `themes/` | the pool's colours and their defaults, and the four shipped themes, generated into C++ names (`graphics/colors.hpp`) and palettes (`graphics/themes.hpp`) as the package is configured |
-| `role.hpp` | the roles a drawer may still name, each read as a pool colour |
+| `pool.json`, `themes/` | the pool's colours and their defaults, and the three shipped themes, generated into C++ names (`graphics/colors.hpp`) and palettes (`graphics/themes.hpp`) as the package is configured |
 | `pixels.hpp` | arithmetic on pixels and cells that cannot overflow, a pixel in a medium's device unit, and the grain a hit test floors by |
 | `ops.hpp` | the seven operators and their operands, and the colours each carries |
 | `implied.hpp` | a value's body without its envelope, where an operator or a type implies its shape |

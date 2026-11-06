@@ -30,9 +30,9 @@ struct TextBoxFace {
     std::int64_t cursor = 0;
     bool focused = false;
     bool enabled = true;
-    Paint fill;
-    Paint ink;
-    Paint border;
+    Color fill;
+    Color ink;
+    Color border;
     ZEN_SHAPE(TextBoxFace, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(text), ZEN_FIELD(placeholder), ZEN_FIELD(cursor), ZEN_FIELD(focused),
               ZEN_FIELD(enabled), ZEN_FIELD(fill), ZEN_FIELD(ink), ZEN_FIELD(border));
@@ -119,8 +119,8 @@ public:
     /// The record as the state stands.
     TextBoxFace face() const {
         return TextBoxFace{x_, y_, w_, h_, text_, placeholder_, cursor(), focused_, enabled_,
-                           by_role(role::kGround), by_role(enabled_ ? role::kFill : role::kMuted),
-                           by_role(focused_ ? role::kAccent : role::kMuted)};
+                           colors::background, enabled_ ? colors::text : colors::quiet,
+                           focused_ ? colors::accent : colors::quiet};
     }
 
     /// How the window showing it sets text (`AreaRoom::measure`): its text and cursor stand by it.
@@ -142,10 +142,10 @@ public:
         s.group(path_, x_, y_, w_, h_);
         s.rect(path_ + "/box", 0, 0, w_, h_, f.fill, f.border);
         s.text(path_ + "/text", advance, ty, window(shown, first, room),
-               hint ? by_role(role::kMuted) : f.ink);
+               hint ? colors::quiet : f.ink);
         if (focused_) {
             const std::int64_t cx = (1 + at - first) * advance;
-            s.line(path_ + "/cursor", cx, ty, cx, ty + line - 1, by_role(role::kAccent));
+            s.line(path_ + "/cursor", cx, ty, cx, ty + line - 1, colors::accent);
         }
         s.record(path_, f, enabled_ ? action : std::string());
     }

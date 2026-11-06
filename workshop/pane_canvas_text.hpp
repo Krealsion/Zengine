@@ -6,7 +6,7 @@
 #include "pane_picture.hpp"
 #include "pane_text_fit.hpp"
 #include "graphics/pixels.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <limits>
@@ -42,7 +42,7 @@ inline constexpr CanvasTextMetrics canvas_text_metrics(const CanvasRoom& room) n
 struct CanvasTextLayout {
     CanvasText text;
     /// The ground a run names under its characters (`CanvasText::background`).
-    std::int64_t background = graphics::role::kNone;
+    graphics::Color background = graphics::no_color();
     CanvasTextBox bounds;
     std::size_t first_column = 0;
     RegionFit fit;
@@ -101,7 +101,7 @@ inline CanvasTextLayout clip_canvas_text_by(const CanvasText& text, const Canvas
     const auto end = first + take;
     const bool visible_caret = has_caret && caret >= first && caret <= end;
     if (take == 0 && !visible_caret) return out;
-    out.text = CanvasText{x, y, text.text.substr(first, end - first), text.role};
+    out.text = CanvasText{x, y, text.text.substr(first, end - first), text.ink};
     out.text.caret_col = visible_caret ? static_cast<std::int64_t>(caret - first) : -1;
     out.text.sel_begin_col = out.text.sel_end_col = -1;
     if (text.sel_begin_col >= 0 && text.sel_end_col > text.sel_begin_col) {

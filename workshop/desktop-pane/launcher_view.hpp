@@ -24,7 +24,7 @@
 #include "component/held_choice.hpp"
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "input/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 
@@ -302,21 +302,21 @@ public:
         }
         std::vector<ws::TextRow> out;
         map_.begin();
-        const auto push = [&out, rows, columns, this](std::string text, std::int64_t role,
+        const auto push = [&out, rows, columns, this](std::string text, graphics::Color ink,
                                                       LauncherMeaning m) {
             if (static_cast<std::int64_t>(out.size()) < rows) {
                 map_.row(static_cast<std::int64_t>(out.size()), m);
-                out.push_back(ws::TextRow{fit(std::move(text), columns), role});
+                out.push_back(ws::TextRow{fit(std::move(text), columns), ink});
             }
         };
         if (!heard_) {
             // THE HOST HAS NOT SAID ANYTHING YET, WHICH IS NOT THE SAME AS THERE BEING NO
             // PANES. An empty list here would read as a Workshop with no tools in it.
-            push("PANES (waiting)", graphics::role::kMuted, LauncherMeaning{});
+            push("PANES (waiting)", graphics::colors::quiet, LauncherMeaning{});
             publish_launcher(mail, std::move(out));
             return;
         }
-        push("PANES -- " + std::to_string(known_.size()), graphics::role::kAccent,
+        push("PANES -- " + std::to_string(known_.size()), graphics::colors::accent,
              LauncherMeaning{});
         std::vector<std::string> notes;
         // THE MARKER HOLDING NOTHING IS SAID FOR AS LONG AS IT HOLDS NOTHING -- a state, not an
@@ -353,7 +353,7 @@ public:
         const component::ListWindow w = list_window();
         first_ = w.first;
         if (const std::size_t earlier = component::earlier_marker(w); earlier > 0) {
-            push("  ^ " + std::to_string(earlier) + " more above", graphics::role::kMuted,
+            push("  ^ " + std::to_string(earlier) + " more above", graphics::colors::quiet,
                  LauncherMeaning{launcher_row::kMarker, 0, {}});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
@@ -364,31 +364,31 @@ public:
             // send a weaver pressing Return at a pane that is never going to appear; one the run
             // is still loading is neither, and `[gone]` of it would be a verdict nobody reached.
             std::string mark = p.open ? "[open]" : "[    ]";
-            std::int64_t role = p.open ? graphics::role::kAccent : graphics::role::kFill;
+            graphics::Color ink = p.open ? graphics::colors::accent : graphics::colors::text;
             if (!p.available && p.pending) {
                 mark = "[load]";
-                role = graphics::role::kMuted;
+                ink = graphics::colors::quiet;
             } else if (!p.available) {
                 mark = "[gone]";
-                role = graphics::role::kAlert;
+                ink = graphics::colors::alert;
             }
             // A MARKER THAT HOLDS NOTHING (its pane left the list) is `?`, not `>`.
             const char* marker = here ? (choice_.lost ? "? " : "> ") : "  ";
             const std::int64_t at = static_cast<std::int64_t>(out.size());
             const std::string text = fit(std::string(marker) + mark + " " + drawable(p.name), columns);
             const std::string ref = launcher_ref(i);
-            push(text, role, LauncherMeaning{launcher_row::kName, i, ref});
+            push(text, ink, LauncherMeaning{launcher_row::kName, i, ref});
             // THE MARK IS A CONTROL INSIDE THE ROW: recorded only where the cut left it whole.
             (void)map_.span(at, kMarkFirst, kMarkWidth,
                             component::solid_columns(text, static_cast<std::size_t>(columns)),
                             LauncherMeaning{launcher_row::kMark, i, ref});
         }
         if (const std::size_t more = component::more_marker(w); more > 0) {
-            push("  v " + std::to_string(more) + " more below", graphics::role::kMuted,
+            push("  v " + std::to_string(more) + " more below", graphics::colors::quiet,
                  LauncherMeaning{launcher_row::kMarker, 1, {}});
         }
         for (std::int64_t i = 0; i < note_rows; ++i) {
-            push("  " + notes[static_cast<std::size_t>(i)], graphics::role::kAlert,
+            push("  " + notes[static_cast<std::size_t>(i)], graphics::colors::alert,
                  LauncherMeaning{launcher_row::kNote, static_cast<std::size_t>(i), {}});
         }
         publish_launcher(mail, std::move(out));

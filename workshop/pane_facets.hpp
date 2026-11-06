@@ -596,7 +596,7 @@ public:
         graphics::Sketch sketch;
         // THE ROOM'S GROUND FIRST, all of it, so nothing behind the area shows through.
         sketch.fill_rect("room", 0, 0, window_.width(), window_.height(),
-                         graphics::by_role(graphics::role::kGround));
+                         graphics::colors::background);
         self.picture(sketch);
         window_actions_.clear();
         for (const graphics::ElementRecord& record : sketch.records()) {

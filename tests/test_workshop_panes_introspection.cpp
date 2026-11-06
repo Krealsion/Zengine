@@ -37,7 +37,7 @@ TEST_CASE("the arrangement's summary is DERIVED from the rows it is printed over
     // those numbers is counted over the very list below it, so the summary and the
     // rows cannot come to disagree.
     CHECK(rows[0].text == "4 of 4 artifacts resolved -- 2 providers, 3 weaves");
-    CHECK(rows[0].role == gfx::role::kAccent);
+    CHECK(rows[0].ink == gfx::colors::accent);
     CHECK(row_with(rows, "%") == -1);
     CHECK(row_with(rows, "100") == -1);
 }
@@ -60,10 +60,10 @@ TEST_CASE("a partial arrangement cannot read as a complete one") {
     const std::int64_t untried = row_with(rows, intro::kNotReached);
     REQUIRE(untried >= 0);
     CHECK(refused != untried);
-    // AND ONLY ONE OF THEM IS AN ALERT. `kAlert` is "something the weaver must see"; a
+    // AND ONLY ONE OF THEM IS AN ALERT. `alert` is "something the weaver must see"; a
     // row nothing has reached yet in a project that is still coming up is not that.
-    CHECK(rows[static_cast<std::size_t>(refused)].role == gfx::role::kAlert);
-    CHECK(rows[static_cast<std::size_t>(untried)].role == gfx::role::kMuted);
+    CHECK(rows[static_cast<std::size_t>(refused)].ink == gfx::colors::alert);
+    CHECK(rows[static_cast<std::size_t>(untried)].ink == gfx::colors::quiet);
 }
 
 TEST_CASE("an unavailable optional row reads as settled, with the owner's reason and next step, "
@@ -80,7 +80,7 @@ TEST_CASE("an unavailable optional row reads as settled, with the owner's reason
     CHECK(rows[0].text == "3 of 4 artifacts resolved, 1 unavailable -- 1 providers, 2 weaves");
     const std::int64_t gone = row_with(rows, intro::kUnavailableRow);
     REQUIRE(gone >= 0);
-    CHECK(rows[static_cast<std::size_t>(gone)].role == gfx::role::kAlert);
+    CHECK(rows[static_cast<std::size_t>(gone)].ink == gfx::colors::alert);
     CHECK(row_with(rows, intro::kNotReached) == -1); // the defect: it read as never attempted
     CHECK(row_with(rows, "why   weave load refused: open failed") > gone);
     CHECK(row_with(rows, "next  make it available (build it), then relaunch Workshop") > gone);
@@ -107,7 +107,7 @@ TEST_CASE("a project still coming up shows LOADING, and it is not an alert") {
     CHECK(row_with(rows, "%") == -1);
     const std::int64_t loading = row_with(rows, intro::kLoadingNow);
     REQUIRE(loading >= 0);
-    CHECK(rows[static_cast<std::size_t>(loading)].role == gfx::role::kMuted);
+    CHECK(rows[static_cast<std::size_t>(loading)].ink == gfx::colors::quiet);
     // ...AND NOTHING SAYS REFUSED, because nothing refused.
     CHECK(row_with(rows, intro::kRefusedRow) == -1);
 }
@@ -283,7 +283,7 @@ TEST_CASE("the plan line is spent only out of genuine slack") {
     const std::vector<TextRow> roomy = intro::project_arrangement(said, 30, 70);
     const std::int64_t at = row_with(roomy, "plan: default-load-plan.json");
     REQUIRE(at >= 0);
-    CHECK(roomy[static_cast<std::size_t>(at)].role == gfx::role::kMuted);
+    CHECK(roomy[static_cast<std::size_t>(at)].ink == gfx::colors::quiet);
 }
 
 TEST_CASE("every arrangement projection fits the room it was given") {
@@ -706,7 +706,7 @@ TEST_CASE("a search the door refused shows the door's sentence, and is not an em
     const std::vector<std::string> shown = texts_of(view.rows);
     const std::int64_t at = row_with_text(shown, refused.reason);
     REQUIRE(at >= 0);
-    CHECK(view.rows[static_cast<std::size_t>(at)].role == gfx::role::kAlert);
+    CHECK(view.rows[static_cast<std::size_t>(at)].ink == gfx::colors::alert);
     CHECK(row_with_text(shown, intro::kNoneMatch) == -1);
     CHECK(row_with_text(shown, intro::kNoSourcesHere) == -1);
 }

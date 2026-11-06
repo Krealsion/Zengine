@@ -13,7 +13,7 @@
 
 #include "graphics/implied.hpp"
 #include "graphics/ops.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 #include "manual/manual.hpp"
 
@@ -80,9 +80,9 @@ public:
     }
     void say(loom::Mail& mail) {
         room().begin();
-        (void)room().push(ws::TextRow{"Tally: " + std::to_string(count), gfx::role::kAccent},
+        (void)room().push(ws::TextRow{"Tally: " + std::to_string(count), gfx::colors::accent},
                           std::string("count"));
-        (void)room().push(ws::TextRow{"press the count to add one", gfx::role::kMuted});
+        (void)room().push(ws::TextRow{"press the count to add one", gfx::colors::quiet});
         room().publish(
             mail, [](const std::string& m) { return "row:" + m; }, [](const std::string&) { return true; });
     }

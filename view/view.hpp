@@ -51,7 +51,7 @@
 
 namespace zengine::view {
 namespace ws = zengine::workshop;
-namespace ink = zengine::graphics::role;
+namespace ink = zengine::graphics::colors;
 
 /// The office every pane answers.
 inline constexpr const char* kWorkshopRole = "zengine.workshop";
@@ -193,7 +193,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     const auto room = sized(d, granted);
     Picture out;
     out.grain = std::max<std::int64_t>(1, room.grain);
-    out.content.rects.push_back({0, 0, granted.width, granted.height, ink::kGround});
+    out.content.rects.push_back({0, 0, granted.width, granted.height, ink::background});
     out.rects_by.emplace_back();
     std::string by; // the element drawing now
     const auto metrics = ws::canvas_text_metrics(room);
@@ -215,9 +215,9 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     const auto notice_y = std::max<std::int64_t>(
         0, graphics::floor_div_px(room.height - line * static_cast<std::int64_t>(notice_lines.size()),
                                  out.grain) * out.grain);
-    const auto text = [&](std::int64_t x, std::int64_t y, std::string words, std::int64_t role,
+    const auto text = [&](std::int64_t x, std::int64_t y, std::string words, zengine::graphics::Color ink,
                           ws::CanvasTextBox clip, std::int64_t caret = ws::kNoCaret) {
-        ws::CanvasText run{x, y, std::move(words), role, caret};
+        ws::CanvasText run{x, y, std::move(words), ink, caret};
         auto placed = ws::clip_canvas_text(run, clip, room);
         if (!placed.visible()) return;
         out.content.texts.push_back(placed.text);
@@ -247,7 +247,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
         // the caret and the accent of a field's words; a button's words are always accented.
         if (e.kind == Kind::number) {
             const bool focused = p.focus && *p.focus == e.id;
-            rect({x, y, w, std::min(h, notice_y - y), ink::kMuted});
+            rect({x, y, w, std::min(h, notice_y - y), ink::quiet});
             const auto box = field_box(p, e);
             const auto caption = e.label.empty() ? std::string() : e.label + ": ";
             const auto caret = static_cast<std::int64_t>(caption.size() + box.caret());
@@ -256,27 +256,27 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
             const bool after = focused && !ws::canvas_text_metrics(granted).graphical &&
                                box.caret() >= box.text().size();
             text(x + inset, middle, caption + box.text() + (after ? " " : ""),
-                 focused ? ink::kAccent : ink::kFill, clip, focused ? caret : ws::kNoCaret);
+                 focused ? ink::accent : ink::text, clip, focused ? caret : ws::kNoCaret);
         } else if (e.kind == Kind::button) {
-            rect({x, y, w, std::min(h, notice_y - y), ink::kMuted});
-            text(x + inset, middle, e.label, ink::kAccent, clip);
+            rect({x, y, w, std::min(h, notice_y - y), ink::quiet});
+            text(x + inset, middle, e.label, ink::accent, clip);
         } else {
             std::string words = e.label;
-            std::int64_t role = ink::kFill;
+            zengine::graphics::Color ink = ink::text;
             if (const auto* s = d.shown(e.id)) {
                 const auto* value = told_at(told, *s->shape);
                 const auto* cell = value ? value->get(s->field) : nullptr;
                 words += (words.empty() ? "" : ": ") + (cell ? shown_text(*cell) : std::string("waiting"));
-                if (!cell) role = ink::kMuted;
+                if (!cell) ink = ink::quiet;
             }
-            text(up(x), middle, std::move(words), role, clip);
+            text(up(x), middle, std::move(words), ink, clip);
         }
         if (h > 0 && w > 0 && y < notice_y) out.hits.push_back({x, y, w, std::min(h, notice_y - y), e.id});
     }
     by.clear();
     for (std::size_t i = 0; i < notice_lines.size(); ++i) {
         const auto y = notice_y + line * static_cast<std::int64_t>(i);
-        text(0, y, notice_lines[i], p.alert ? ink::kAlert : ink::kMuted, {0, y, room.width, line});
+        text(0, y, notice_lines[i], p.alert ? ink::alert : ink::quiet, {0, y, room.width, line});
     }
     // Rectangles a room cannot hold are dropped.
     for (std::size_t i = out.content.rects.size(); i-- > 0;) {
@@ -308,18 +308,18 @@ inline graphics::Sketch sketch(const Description& d, const Picture& p,
     };
     for (std::size_t i = 0; i < p.content.rects.size(); ++i) {
         const auto& r = p.content.rects[i];
-        out.fill_rect(node("box", p.rects_by[i], "ground"), r.x, r.y, r.w, r.h, graphics::by_role(r.role));
+        out.fill_rect(node("box", p.rects_by[i], "ground"), r.x, r.y, r.w, r.h, r.ink);
     }
     for (std::size_t i = 0; i < p.content.texts.size(); ++i) {
         const auto& t = p.content.texts[i];
         out.text(node("text", p.texts_by[i], "notice"), t.x + m.inset, t.y + m.inset, t.text,
-                 graphics::by_role(t.role));
+                 t.ink);
     }
     for (const auto& t : p.content.texts) {
         if (t.caret_col < 0) continue;
         const std::int64_t cx = t.x + m.inset + t.caret_col * m.advance;
         const std::int64_t cy = t.y + m.inset;
-        out.line("caret", cx, cy, cx, cy + m.line - 1, graphics::by_role(ink::kAccent));
+        out.line("caret", cx, cy, cx, cy + m.line - 1, ink::accent);
         break;
     }
     return out;

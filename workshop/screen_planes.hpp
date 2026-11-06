@@ -8,7 +8,7 @@
 // Plain values, private to Workshop's screen: none crosses as a message. Reference:
 // workshop/docs/workshop-panes.md.
 
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "workshop/pane_rows.hpp"
 
 #include <cstdint>
@@ -24,7 +24,7 @@ struct ScreenRect {
     std::int64_t y = 0;
     std::int64_t w = 0;
     std::int64_t h = 0;
-    std::int64_t role = graphics::role::kFill;
+    graphics::Color ink = graphics::colors::text;
     bool operator==(const ScreenRect&) const = default;
 };
 
@@ -33,7 +33,7 @@ struct ScreenLabel {
     std::int64_t x = 0;
     std::int64_t y = 0;
     std::string text;
-    std::int64_t role = graphics::role::kFill;
+    graphics::Color ink = graphics::colors::text;
     bool operator==(const ScreenLabel&) const = default;
 };
 

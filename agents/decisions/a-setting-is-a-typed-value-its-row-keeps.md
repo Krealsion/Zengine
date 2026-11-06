@@ -25,7 +25,7 @@ to version 8, whose version 7 is a conversion's (`session_v7_to_v8`), never the 
   `modified` forever, and a fifth field costs every setting a decoded cell, which the desk's
   bound cannot spare. A fraction is a whole number of a finer unit.
 - *Argued: a list, a colour or a gesture* — refused: a set is one flag per member, a pane draws
-  in roles, so a colour is a role's name, and gestures are the keymap's.
+  by names, so a colour is a pool name or a slot's, and gestures are the keymap's.
 - *Argued: an optional list of settings* — refused: absent and `[]` would be two spellings of
   none.
 

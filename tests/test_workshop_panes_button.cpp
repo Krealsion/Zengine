@@ -356,8 +356,8 @@ TEST_CASE("text inside a picture: rows drawn into a free picture at a place of i
     text.advance = 10;
     text.line = 20;
     gfx::Sketch picture;
-    picture.fill_rect("ground", 0, 0, 400, 300, gfx::by_role(gfx::role::kGround));
-    picture.ellipse("dot", 0, 0, 30, 30, gfx::by_role(gfx::role::kAccent));
+    picture.fill_rect("ground", 0, 0, 400, 300, gfx::colors::background);
+    picture.ellipse("dot", 0, 0, 30, 30, gfx::colors::accent);
     picture.action("dot", "dot.press");
     const RowsRoom room = block.draw(
         picture, "words", 100, 50, text, false,
@@ -422,7 +422,7 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder hears the window 
 TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the column of the character each cell shows, a caret moving none") {
     Rigged t;
     drive_seat(t.r, t.guard_id, t.guard, [](ButtonSeat& s, loom::Mail& m) {
-        s.draw_rows(m, {TextRow{"abcdef", gfx::role::kFill}}, RowsCaret{0, 2});
+        s.draw_rows(m, {TextRow{"abcdef", gfx::colors::text}}, RowsCaret{0, 2});
     });
     const ExternalPane* pane = t.r.session().panes.external_pane(t.guard_kind);
     REQUIRE(pane != nullptr);

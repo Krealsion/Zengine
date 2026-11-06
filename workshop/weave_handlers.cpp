@@ -44,7 +44,7 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
         keymap_standing_ = "refused, so the shipped bindings stand: " + loaded.outcome.refusal;
         session_.conditions.establish(
             Condition{kKeymapWallKey, "keymap refused -- default bindings stand",
-                      loaded.outcome.refusal, graphics::role::kAlert, std::string()});
+                      loaded.outcome.refusal, graphics::colors::alert, std::string()});
         return;
     }
     session_.keymap = loaded.keymap;

@@ -159,7 +159,7 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, SeatRows{kHelloPane, {TextRow{"abcdefgh", gfx::role::kFill}}});
+        s.say(m, SeatRows{kHelloPane, {TextRow{"abcdefgh", gfx::colors::text}}});
     });
     r.extent_on_window(150, 60);
     // THE PLACE AND SIZE THAT GIVE IT: found by asking the same resolution the painter asks, so the
@@ -200,7 +200,7 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
     const ExternalBodyPlace body = external_body_of(r.session(), kind);
     // ...and the provider draws in the room it was given there, so its picture is settled.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, SeatRows{kHelloPane, {TextRow{"abcdefgh", gfx::role::kFill}}});
+        s.say(m, SeatRows{kHelloPane, {TextRow{"abcdefgh", gfx::colors::text}}});
     });
 
     // THE INSPECTION DOOR READS IT, aiming at the drawn glyphs.
@@ -526,7 +526,7 @@ TEST_CASE("marking a row changes that row and nothing else about the view") {
     std::size_t moved = 0;
     for (std::size_t i = 0; i < after.rows.size(); ++i) {
         if (after.rows[i].text == before.rows[i].text &&
-            after.rows[i].role == before.rows[i].role &&
+            after.rows[i].ink == before.rows[i].ink &&
             after.rows[i].background == before.rows[i].background) {
             continue;
         }
@@ -535,7 +535,7 @@ TEST_CASE("marking a row changes that row and nothing else about the view") {
         // one: a weaver in a terminal with no colour can still see which row is chosen.
         CHECK(after.rows[i].text.rfind(intro::kSelectedMark, 0) == 0);
         CHECK(before.rows[i].text.rfind(intro::kUnselectedMark, 0) == 0);
-        CHECK(after.rows[i].role == gfx::role::kAccent);
+        CHECK(after.rows[i].ink == gfx::colors::accent);
         CHECK(after.rows[i].text.find("weave-1") != std::string::npos);
         // AND THE WIDTH IS UNMOVED, because the mark spends the indent the row already
         // had. A list cannot start cutting names because something in it was selected.
@@ -555,7 +555,7 @@ TEST_CASE("marking a row changes that row and nothing else about the view") {
     intro::mark_selected(cleared, "", 46);
     for (std::size_t i = 0; i < cleared.rows.size(); ++i) {
         CHECK(cleared.rows[i].text == before.rows[i].text);
-        CHECK(cleared.rows[i].role == before.rows[i].role);
+        CHECK(cleared.rows[i].ink == before.rows[i].ink);
         CHECK(cleared.rows[i].background == before.rows[i].background);
     }
 }
@@ -3503,7 +3503,7 @@ public:
     void on(const gfx::AreaRoom& r, loom::Mail& mail) {
         if (!window_.room(r, mail)) return;
         const RowsRoom room = window_.rows_room();
-        window_.draw(rows_drawing(std::vector<TextRow>{{"a pane", gfx::role::kFill}},
+        window_.draw(rows_drawing(std::vector<TextRow>{{"a pane", gfx::colors::text}},
                                   std::vector<RowPart>{}, room, room.columns())
                          .sketch,
                      mail);

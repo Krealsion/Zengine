@@ -27,7 +27,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "component/text_box.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "input/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 
@@ -359,12 +359,12 @@ public:
         std::vector<workshop::TextRow> out;
         composed_.clear();
         caret_ = {};
-        const auto push = [&out, this](std::string text, std::int64_t role,
-                                       std::int64_t ground = graphics::role::kNone,
+        const auto push = [&out, this](std::string text, graphics::Color ink,
+                                       graphics::Color ground = graphics::no_color(),
                                        const workshop::RowBox& box = {}) {
             out.push_back(workshop::TextRow{
                 workshop::pane_text::drawable(workshop::pane_text::fit(std::move(text), columns_)),
-                role, ground});
+                ink, ground});
             out.back().box = box;
         };
         // THE BODY IS COMPOSED WITHOUT THE NOTICE, and `finish` puts it in front, so a row's
@@ -379,7 +379,7 @@ public:
         // THE LIST BEGINS HERE, AND THE GROUND IS WHAT SAYS SO: the front sentence above it is
         // alert ink, and the heading names whose properties follow.
         push(known_.subject == 0 ? std::string("PROPERTIES") : "PANE " + known_.name,
-             graphics::role::kAccent, graphics::role::kMuted);
+             graphics::colors::accent, graphics::colors::quiet);
         if (budget > 0) {
             say_properties(static_cast<std::size_t>(budget), push, mark);
         }
@@ -870,7 +870,7 @@ private:
     void say_properties(std::size_t share, Push&& push, Mark&& mark) {
         if (known_.subject == 0) {
             (void)share; // said whatever the share is: an empty list is offered nothing
-            push(kNoSubjectRow, graphics::role::kMuted);
+            push(kNoSubjectRow, graphics::colors::quiet);
             return;
         }
         const std::size_t focus =
@@ -878,23 +878,23 @@ private:
                         : static_cast<std::size_t>(cursor_ < 0 ? 0 : cursor_);
         const ListWindow win = list_window(known_.properties.size(), focus, share);
         if (win.before > 0) {
-            push(workshop::pane_text::omitted_text(win.before, "earlier"), graphics::role::kMuted);
+            push(workshop::pane_text::omitted_text(win.before, "earlier"), graphics::colors::quiet);
         }
         const std::int64_t value_columns = columns_ - kPropertyMarkCols - kPropertyLabelCols;
         for (std::size_t n = 0; n < win.count; ++n) {
             const std::size_t i = win.first + n;
             const workshop::ShownProperty& p = known_.properties[i];
             if (p.section) {
-                push(" " + p.label, graphics::role::kAccent);
+                push(" " + p.label, graphics::colors::accent);
                 continue;
             }
             const bool here = i == focus;
             const bool editing = draft_.open && i == static_cast<std::size_t>(draft_.row);
-            std::int64_t role = graphics::role::kFill;
+            graphics::Color ink = graphics::colors::text;
             if (editing) {
-                role = graphics::role::kAlert; // a live draft is never quiet
+                ink = graphics::colors::alert; // a live draft is never quiet
             } else if (!p.editable) {
-                role = graphics::role::kMuted; // not the weaver's to author
+                ink = graphics::colors::quiet; // not the weaver's to author
             }
             std::string text =
                 std::string(here || editing ? ">" : " ") +
@@ -914,10 +914,10 @@ private:
             if (editing && value_columns > 0) {
                 caret_ = workshop::box_caret(box, composed_.back().row);
             }
-            push(std::move(text), role, graphics::role::kNone, box);
+            push(std::move(text), ink, graphics::no_color(), box);
         }
         if (win.after > 0) {
-            push(workshop::pane_text::omitted_text(win.after, "more"), graphics::role::kMuted);
+            push(workshop::pane_text::omitted_text(win.after, "more"), graphics::colors::quiet);
         }
     }
 
@@ -931,7 +931,7 @@ private:
             out.insert(out.begin(), workshop::TextRow{
                                         workshop::pane_text::drawable(
                                             workshop::pane_text::fit(front_sentence(), columns_)),
-                                        graphics::role::kAlert});
+                                        graphics::colors::alert});
         }
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));

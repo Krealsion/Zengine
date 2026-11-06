@@ -19,7 +19,7 @@
 
 #include "component/list_window.hpp"
 #include "component/text_box.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -136,7 +136,7 @@ inline void BuilderPaneWeave::say_recipes() {
     if (!known_.source.empty()) {
         head += " in " + known_.source;
     }
-    push_row(head, zengine::graphics::role::kAccent);
+    push_row(head, zengine::graphics::colors::accent);
     const std::vector<ControlRow> controls = list_controls();
     const std::int64_t body_rows =
         rows() - 1 - (notice_.empty() ? 0 : 1) - room().strip_rows(controls);
@@ -154,7 +154,7 @@ inline void BuilderPaneWeave::say_recipes() {
             meaning.artifact = artifact_key(i);
             push_row(std::string(here ? "> " : "  ") + product_words(row) +
                          (chosen ? "   (chosen)" : ""),
-                     here ? zengine::graphics::role::kAccent : zengine::graphics::role::kFill,
+                     here ? zengine::graphics::colors::accent : zengine::graphics::colors::text,
                      std::move(meaning));
         });
     }
@@ -322,13 +322,13 @@ inline void BuilderPaneWeave::say_role() {
                     .size());
     }
     push_row(prompt + std::string(static_cast<std::size_t>(box.columns), ' '),
-             zengine::graphics::role::kAccent,
+             zengine::graphics::colors::accent,
              BuilderMeaning{builder_row::kLine, 0, {}, role_.stem});
     if (room_left) {
         room().composing().back().box = box;
     }
     push_row(labelled_row("loads", role_.stem + " (built by `" + role_.recipe + "`)"),
-             zengine::graphics::role::kMuted);
+             zengine::graphics::colors::quiet);
     say_controls(role_controls());
 }
 

@@ -9,7 +9,7 @@
 // owns what it shows and what a press on it means.
 
 #include "graphics/pixels.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -42,7 +42,7 @@ struct CanvasRoom {
 /// A rectangle filled in a role.
 struct CanvasRect {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
-    std::int64_t role = graphics::role::kFill;
+    graphics::Color ink = graphics::colors::text;
     bool operator==(const CanvasRect&) const = default;
 };
 
@@ -50,22 +50,22 @@ struct CanvasRect {
 struct CanvasLabel {
     std::int64_t x = 0, y = 0;
     std::string text;
-    std::int64_t role = graphics::role::kFill;
+    graphics::Color ink = graphics::colors::text;
     bool operator==(const CanvasLabel&) const = default;
 };
 
 /// ONE LINE OF TEXT IN THE WINDOW'S MEASURE: `x`/`y` its padded region's origin (`padded`), or its
 /// first character's cell, so unpadded runs a line apart stack as rows do; caret and selection are
 /// byte columns of its text, the selection `[begin, end)`; a ground of its own under its
-/// characters (`role::kNone`: the material beneath). Whole glyphs and rows go at the room's edge.
+/// characters (`no_color()`: the material beneath). Whole glyphs and rows go at the room's edge.
 struct CanvasText {
     std::int64_t x = 0, y = 0;
     std::string text;
-    std::int64_t role = graphics::role::kFill;
+    graphics::Color ink = graphics::colors::text;
     std::int64_t caret_col = -1;
     std::int64_t sel_begin_col = -1, sel_end_col = -1;
     bool padded = true;
-    std::int64_t background = graphics::role::kNone;
+    graphics::Color background = graphics::no_color();
     bool operator==(const CanvasText&) const = default;
 };
 

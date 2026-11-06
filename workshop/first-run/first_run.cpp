@@ -22,7 +22,7 @@
 #include "workshop/settings_seam_vocabulary.hpp"
 
 #include "activation/activation.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "launcher/vocabulary.hpp"
@@ -792,7 +792,7 @@ private:
     static std::int64_t rows(const ws::WindowDrawing& w) { return w.rows_room().rows(); }
     static std::int64_t columns(const ws::WindowDrawing& w) { return w.rows_room().columns(); }
 
-    /// LINES DRAWN in `w`'s area, each with its role, numbered by what their items mean -- the
+    /// LINES DRAWN in `w`'s area, each with its colour, numbered by what their items mean -- the
     /// line each item stands on -- so a notice under them, which no press chooses, moves nothing.
     template <class Line>
     static void draw(ws::WindowDrawing& w, const std::vector<Line>& lines, loom::Mail& mail) {
@@ -809,15 +809,15 @@ private:
                           1099511628211ULL;
             }
             ++at;
-            std::int64_t role = gfx::role::kFill;
+            gfx::Color ink = gfx::colors::text;
             switch (l.ink) {
             case Line::Ink::kHeading:
-            case Line::Ink::kCursor: role = gfx::role::kAccent; break;
-            case Line::Ink::kMuted: role = gfx::role::kMuted; break;
-            case Line::Ink::kAlert: role = gfx::role::kAlert; break;
+            case Line::Ink::kCursor: ink = gfx::colors::accent; break;
+            case Line::Ink::kMuted: ink = gfx::colors::quiet; break;
+            case Line::Ink::kAlert: ink = gfx::colors::alert; break;
             default: break;
             }
-            drawn.push_back({l.text, role});
+            drawn.push_back({l.text, ink});
         }
         ws::RowsDrawing rows_drawn = ws::rows_drawing(drawn, std::vector<ws::RowPart>{},
                                                       w.rows_room(), columns(w), ws::RowsCaret{},

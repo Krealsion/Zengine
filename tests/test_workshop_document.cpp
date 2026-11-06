@@ -826,7 +826,7 @@ TEST_CASE("a same-context collision is refused naming both actions and the gestu
     REQUIRE(wall != nullptr);
     CHECK(wall->detail.find("setup.name") != std::string::npos);
     CHECK(wall->compact.find("default bindings stand") != std::string::npos);
-    CHECK(wall->role == gfx::role::kAlert);
+    CHECK(wall->ink == gfx::colors::alert);
     const std::size_t before = layout_count(t.session().setup);
     t.key(input::scan::kEquals);
     CHECK(layout_count(t.session().setup) == before + 1); // the default still adds one

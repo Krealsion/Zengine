@@ -170,9 +170,9 @@ WHY — `agents/decisions/escape-is-back.md`
 LAW — While arranging is open the room's top says `Arranging Mode Active` on its own ground, beneath it the pane arranged or `all panes`; in a window every pane but the one arranged fades.
 
 MEANS
-- the fade is a veil of the ground at half strength over what of each other pane the arranged one leaves showing, in Workshop's own area, or its overlay while a pane is placed as it opened;
+- the fade is a veil in the pool's `veil` over what of each other pane the arranged one leaves showing, in Workshop's own area, or its overlay while a pane is placed as it opened;
 - where faded panes overlap the veil falls once, so every faded pane fades alike;
-- a terminal shows the words and no veil.
+- a terminal shows the words and no veil: it leaves out a fill that is mostly transparent.
 
 DOES NOT MEAN
 - that the desk's arrangement fades a pane: every pane is arranged there.

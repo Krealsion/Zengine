@@ -230,16 +230,16 @@ public:
         const auto* record = gfx::window::record_of(area, path);
         return record ? record->action : std::string();
     }
-    /// Every rectangle and run of text it keeps, in the order drawn, as `x,y w h role` or `x,y role words`.
+    /// Every rectangle and run of text it keeps, in the order drawn, as `x,y w h colour` or `x,y colour words`.
     std::vector<std::string> drawing() const {
         std::vector<std::string> out;
         for (const auto& k : area.nodes)
             if (auto r = k.node.op == gfx::op::kRect ? gfx::from_body<gfx::RectArgs>(k.node.args) : std::nullopt)
                 out.push_back(std::to_string(r->x) + "," + std::to_string(r->y) + " " + std::to_string(r->w) +
-                              " " + std::to_string(r->h) + " " + std::to_string(zengine::graphics::role_of(r->fill)));
+                              " " + std::to_string(r->h) + " " + zengine::graphics::pool_color_of(r->fill).name);
         for (const auto& k : area.nodes)
             if (auto t = k.node.op == gfx::op::kText ? gfx::from_body<gfx::TextArgs>(k.node.args) : std::nullopt)
-                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " + std::to_string(zengine::graphics::role_of(t->ink)) +
+                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " + zengine::graphics::pool_color_of(t->ink).name +
                               " " + t->text);
         return out;
     }
@@ -350,10 +350,10 @@ struct Rig {
         for (const auto* k : order) {
             if (k->node.op == gfx::op::kRect) {
                 if (const auto r = gfx::from_body<gfx::RectArgs>(k->node.args))
-                    kept.rects.push_back(ws::CanvasRect{r->x, r->y, r->w, r->h, zengine::graphics::role_of(r->fill)});
+                    kept.rects.push_back(ws::CanvasRect{r->x, r->y, r->w, r->h, zengine::graphics::pool_color_of(r->fill)});
             } else if (k->node.op == gfx::op::kText) {
                 if (const auto t = gfx::from_body<gfx::TextArgs>(k->node.args))
-                    kept.texts.push_back(ws::CanvasText{t->x - inset, t->y - inset, t->text, zengine::graphics::role_of(t->ink)});
+                    kept.texts.push_back(ws::CanvasText{t->x - inset, t->y - inset, t->text, zengine::graphics::pool_color_of(t->ink)});
             }
         }
         return &kept;
@@ -516,10 +516,10 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     REQUIRE(p != nullptr);
     const auto size_w = 600, size_h = 300;
     CHECK(std::any_of(p->rects.begin(), p->rects.end(), [&](const auto& r) {
-        return r.role == zengine::graphics::role::kGround && r.x == 0 && r.y == 0 && r.w == 12 * 80 && r.h == 12 * 40;
+        return r.ink == zengine::graphics::colors::background && r.x == 0 && r.y == 0 && r.w == 12 * 80 && r.h == 12 * 40;
     }));
     for (const auto& r : p->rects) {
-        if (r.role == zengine::graphics::role::kGround) continue;
+        if (r.ink == zengine::graphics::colors::background) continue;
         CHECK(r.x + r.w <= size_w);
         CHECK(r.y + r.h <= size_h);
     }
@@ -1002,7 +1002,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK(w.window->holds("box:count"));
 
         // A FOCUSED FIELD'S CARET stands in the window as Workshop's panes draw theirs: a bar in
-        // the accent role at the left of the cell it stands before, asking nothing. It moves as
+        // the accent colour at the left of the cell it stands before, asking nothing. It moves as
         // the caret does, and goes with the focus.
         const auto kept = [&](const std::string& path) -> const gfx::Node* {
             for (const auto& k : w.window->area.nodes)
@@ -1023,7 +1023,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
             CHECK(bar->x2 == bar->x1);
             CHECK(bar->y1 == words->y);
             CHECK(bar->y2 == words->y + gfx::kCellPx - 1);
-            CHECK(zengine::graphics::role_of(bar->ink) == zengine::graphics::role::kAccent);
+            CHECK(zengine::graphics::pool_color_of(bar->ink) == zengine::graphics::colors::accent);
             CHECK(w.window->action("caret").empty());
             CHECK(w.window->refused.empty());
         };
@@ -1356,7 +1356,7 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     CHECK(has(rig.words("tally.panel"), "Total: 45|"));
     const auto* picture = rig.latest("tally.panel");
     REQUIRE(picture != nullptr);
-    CHECK(picture->texts.back().role == zengine::graphics::role::kAlert);
+    CHECK(picture->texts.back().ink == zengine::graphics::colors::alert);
 
     rig.fill("tally.panel", d.elements[2], "1");
     rig.fill("tally.panel", d.elements[1], "2000000");
@@ -1383,7 +1383,7 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     const ws::CanvasRoom asked{up(o.width), up(o.height) + 12 * o.text_rows, 12, false, 0, 0};
     std::string notice;
     for (const auto& t : view::picture(d, {}, refusal, asked).content.texts)
-        if (t.role == zengine::graphics::role::kAlert) notice += t.text + " ";
+        if (t.ink == zengine::graphics::colors::alert) notice += t.text + " ";
     CHECK(has(notice, "from 0 toward 10"));
     CHECK_FALSE(has(notice, "..."));
 }
@@ -1430,7 +1430,7 @@ TEST_CASE("the names and refusals a view only carries reach its notice row spell
     rig.tell("tally.panel", ws::PaneTextInput{view::kPane, "1\xC2\xB2"});
     CHECK(has(rig.words("tally.panel"), "start: 0|"));
     CHECK(has(rig.words("tally.panel"), "not typed -- a number field holds plain ASCII|"));
-    CHECK(rig.latest("tally.panel")->texts.back().role == zengine::graphics::role::kAlert);
+    CHECK(rig.latest("tally.panel")->texts.back().ink == zengine::graphics::colors::alert);
     CHECK(judged().empty());
 }
 
@@ -1817,14 +1817,14 @@ TEST_CASE("a view's terminal picture is the window's picture floored to cells, i
     focused.focus = "step";
     const auto marked = view::picture(d, {}, focused, terminal);
     for (const auto& r : marked.content.rects)
-        if (r.role != zengine::graphics::role::kGround) CHECK(r.role == zengine::graphics::role::kMuted);
+        if (r.ink != zengine::graphics::colors::background) CHECK(r.ink == zengine::graphics::colors::quiet);
     for (const auto& t : marked.content.texts) {
         if (t.text.rfind("step: ", 0) == 0) {
-            CHECK(t.role == zengine::graphics::role::kAccent);
+            CHECK(t.ink == zengine::graphics::colors::accent);
             CHECK(t.caret_col >= 0);
         }
-        if (t.text == "Count") CHECK(t.role == zengine::graphics::role::kAccent);
-        if (t.text.rfind("start: ", 0) == 0) CHECK(t.role == zengine::graphics::role::kFill);
+        if (t.text == "Count") CHECK(t.ink == zengine::graphics::colors::accent);
+        if (t.text.rfind("start: ", 0) == 0) CHECK(t.ink == zengine::graphics::colors::text);
     }
     // Presses read the same map in both media.
     CHECK(a.hits.size() == b.hits.size());

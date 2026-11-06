@@ -625,7 +625,7 @@ TEST_CASE("a source may sit LATER in the document than what measures against it"
     CHECK(scene.items[2].rect == Rect{132, 72, 72, 36});  // B, in A
     CHECK(scene.items[0].rect == Rect{144, 84, 24, 24});  // C, in B
 
-    // Paint order is what it always was, so the topmost at an overlapping pixel is the LAST in
+    // Color order is what it always was, so the topmost at an overlapping pixel is the LAST in
     // the document -- B -- even though B is what everything else depends on. Dependency order is
     // not z-order.
     REQUIRE(hit(scene, 144, 84) != nullptr);

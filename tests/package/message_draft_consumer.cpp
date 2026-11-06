@@ -22,7 +22,7 @@ int main() {
         require(loom::schema_of<zengine::flow_pane::FlowEdit>()->find("action") != nullptr, "authoring protocol missing");
         const zengine::workshop::CanvasRoom room{960, 480, 4, true, 8, 18};
         const auto text = zengine::workshop::clip_canvas_text(
-            {0, 0, "native", zengine::graphics::role::kFill, 3, 1, 4},
+            {0, 0, "native", zengine::graphics::colors::text, 3, 1, 4},
             {0, 0, room.width, room.height}, room);
         require(text.visible() && text.fit.graphical() && text.fit.columns == 6,
                 "installed canvas text helper lost its measured fit");

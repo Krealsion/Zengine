@@ -1631,12 +1631,12 @@ private:
 
     /// One row of the picture, with what it means recorded as it is written: a press is answered
     /// from the record the composition made, never from a second calculation.
-    void push_row(const std::string& text, std::int64_t role, FilesMeaning meaning = FilesMeaning{}) {
+    void push_row(const std::string& text, gfx::Color ink, FilesMeaning meaning = FilesMeaning{}) {
         std::optional<FilesMeaning> means;
         if (meaning.kind != files_row::kNone) {
             means = std::move(meaning);
         }
-        (void)room().push(zengine::workshop::TextRow{fitted(text), role}, std::move(means));
+        (void)room().push(zengine::workshop::TextRow{fitted(text), ink}, std::move(means));
     }
 
     /// The whole picture. The notice leads and is composed first, since the row map records
@@ -1662,7 +1662,7 @@ private:
         // last act. A one-row room keeps its header instead, which is the pane's identity and
         // where it is standing; there is nothing useful to say in one row twice.
         if (!notice_.empty() && rows() > 1) {
-            push_row(notice_, gfx::role::kAccent);
+            push_row(notice_, gfx::colors::accent);
         }
         if (chooser_.open) {
             say_chooser();

@@ -167,9 +167,9 @@ public:
     void picture(gfx::Sketch& f) const {
         const std::int64_t c = kBoardCellPx;
         f.text("score", 0, 0, "score " + std::to_string(state_.score),
-               gfx::by_role(gfx::role::kMuted));
+               gfx::colors::quiet);
         if (!state_.alive) {
-            f.text("dead", 10 * c, 0, "DEAD", gfx::by_role(gfx::role::kAlert));
+            f.text("dead", 10 * c, 0, "DEAD", gfx::colors::alert);
         }
         f.group("board", 0, c);
         gfx::Button new_game("new-game", " new game ");

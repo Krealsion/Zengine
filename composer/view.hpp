@@ -16,7 +16,7 @@
 // knows no bus: a test can hand it a draft and a budget and ask what a weaver would see.
 
 #include "composer/draft.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "workshop/pane_rows.hpp"
 
 #include <zen/kind.hpp>
@@ -50,7 +50,7 @@ inline constexpr std::int64_t kForm = 4;
 
 /// WHAT A ROW OF THIS PANE NAMES.
 ///
-/// `kNothing` is NEGATIVE for `role::kNone`'s and `kNoEntry`'s reason: every other
+/// `kNothing` is NEGATIVE for `no_color()`'s and `kNoEntry`'s reason: every other
 /// meaning is a non-negative index into something, so an absence cannot collide
 /// with a row anybody meant, and a consumer that forgot to test would fall out of
 /// range rather than into the first item.
@@ -92,7 +92,7 @@ struct ComposerView {
 /// THE MARK AT THE HEAD OF EVERY SELECTABLE ROW, and the two characters cost no
 /// columns: an unselected row is already indented by two, so selecting one exchanges
 /// two spaces for a mark and a space and no row changes width. `>` is the statement
-/// and the accent role is the second signal, never the other way round -- a terminal
+/// and the accent colour is the second signal, never the other way round -- a terminal
 /// with no colour must still be able to say "this one".
 inline constexpr const char* kSelectedMark = "> ";
 inline constexpr const char* kUnselectedMark = "  ";
@@ -303,7 +303,7 @@ struct Composing {
     MessageDraft draft;
     std::int64_t cursor = 0;   ///< into the roots in the catalog, into `form_items` in the form
     std::string notice;        ///< the last thing this pane has to say about what it did
-    std::int64_t notice_role = graphics::role::kMuted;
+    graphics::Color notice_ink = graphics::colors::quiet;
 };
 
 /// WHICH ITEM A ROW OF THIS VIEW NAMES, or nothing.
@@ -376,14 +376,14 @@ struct Sayer {
     const Composing& composing;
     ComposerView& view;
     std::string under;
-    void operator()(std::string text, std::int64_t role, RowMeaning means = RowMeaning{},
-                    std::int64_t ground = graphics::role::kNone) const {
+    void operator()(std::string text, graphics::Color ink, RowMeaning means = RowMeaning{},
+                    graphics::Color ground = graphics::no_color()) const {
         if (means.what != meaning::kNothing) {
             means.part = part_name(composing, means);
             means.under = under;
         }
         view.rows.push_back(RenderedRow{
-            zengine::workshop::TextRow{std::move(text), role, ground}, std::move(means)});
+            zengine::workshop::TextRow{std::move(text), ink, ground}, std::move(means)});
     }
 };
 
@@ -405,16 +405,16 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
 
     // ---- the target line, always -------------------------------------------
     if (c.stage == stage::kNoTarget) {
-        say(fit("no weave selected", columns), graphics::role::kMuted);
+        say(fit("no weave selected", columns), graphics::colors::quiet);
         --left;
         if (left > 0) {
-            say(fit("press a row in the Loaded pane", columns), graphics::role::kMuted);
+            say(fit("press a row in the Loaded pane", columns), graphics::colors::quiet);
             --left;
         }
         return view;
     }
     if (c.stage == stage::kNoRole) {
-        say(fit("selected " + c.library, columns), graphics::role::kFill);
+        say(fit("selected " + c.library, columns), graphics::colors::text);
         --left;
         if (left > 0) {
             // AN OBSERVED ABSENCE, AND NOT A GUESS. The kernel binds a role at load
@@ -422,12 +422,12 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             // library holds none. Nothing here manufactures a WeaveId, addresses the
             // library by name, or sweeps for a participant that might answer.
             say(fit("(no messaging role observed -- nothing to address)", columns),
-                graphics::role::kMuted);
+                graphics::colors::quiet);
             --left;
         }
         return view;
     }
-    say(target_row_text(c, columns), graphics::role::kAccent);
+    say(target_row_text(c, columns), graphics::colors::accent);
     --left;
 
     // ---- the notice, reserved before anything variable ---------------------
@@ -439,14 +439,14 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             // Transport refusal is observed separately. A delivered request still
             // need not receive an application answer; elapsed time invents no outcome.
             say(fit("asked what it accepts -- no answer observed yet", columns),
-                graphics::role::kMuted);
+                graphics::colors::quiet);
             --left;
         }
     } else if (c.stage == stage::kCatalog) {
         const std::int64_t population = static_cast<std::int64_t>(c.snapshot.roots.size());
         if (left > 0) {
             say(fit("accepted messages -- " + std::to_string(population), columns),
-                graphics::role::kAccent);
+                graphics::colors::accent);
             --left;
         }
         const Window w = window_of(population, c.cursor, left);
@@ -460,9 +460,9 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             say(fit(std::string(chosen ? kSelectedMark : kUnselectedMark) + root->name() + " v" +
                         std::to_string(root->version()) + "  " + fields_text(*root),
                     columns),
-                chosen ? graphics::role::kAccent : graphics::role::kFill,
+                chosen ? graphics::colors::accent : graphics::colors::text,
                 RowMeaning{meaning::kMessage, i},
-                chosen ? graphics::role::kMuted : graphics::role::kNone);
+                chosen ? graphics::colors::quiet : graphics::no_color());
         }
         left -= w.count;
         // THE MARKER IS A ROW OF THE BUDGET, so a budget with no rows left has no
@@ -471,7 +471,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
         // says the list is incomplete at that size is the HEADING, which stated the
         // population before the list was offered anything.
         if (left > 0 && (w.before > 0 || w.after > 0)) {
-            say(fit(omission_text(w), columns), graphics::role::kMuted);
+            say(fit(omission_text(w), columns), graphics::colors::quiet);
             --left;
         }
     } else if (c.stage == stage::kForm && c.draft.valid()) {
@@ -479,7 +479,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             say(fit(c.draft.schema->name() + " v" + std::to_string(c.draft.schema->version()) +
                         " -> @" + c.role,
                     columns),
-                graphics::role::kAccent);
+                graphics::colors::accent);
             --left;
         }
         // The two controls are a fixed demand, subtracted before the fields are offered
@@ -494,37 +494,37 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             const loom::Field& f = c.draft.field(which);
             const FieldDraft& d = c.draft.fields[which];
             const bool editing = chosen && d.present && typeable(f.type.kind);
-            std::int64_t role = graphics::role::kFill;
+            graphics::Color ink = graphics::colors::text;
             if (chosen) {
-                role = graphics::role::kAccent;
+                ink = graphics::colors::accent;
             } else if (composability(f.type.kind) != Composability::kScalar) {
-                role = graphics::role::kMuted;
+                ink = graphics::colors::quiet;
             } else if (!d.present && f.required) {
                 // A REQUIRED FIELD NOBODY HAS AUTHORED IS SOMETHING THE WEAVER MUST
                 // SEE -- it is the one thing standing between this draft and a send.
-                role = graphics::role::kAlert;
+                ink = graphics::colors::alert;
             }
             const FieldRow field = field_row(c.draft, which, chosen, editing, columns);
             if (field.caret != zengine::workshop::kNoCaret) {
                 view.caret_row = static_cast<std::int64_t>(view.rows.size());
                 view.caret_col = field.caret;
             }
-            say(field.text, role, RowMeaning{meaning::kField, i},
-                chosen ? graphics::role::kMuted : graphics::role::kNone);
+            say(field.text, ink, RowMeaning{meaning::kField, i},
+                chosen ? graphics::colors::quiet : graphics::no_color());
             if (field.box.present() && !view.rows.empty()) {
                 view.rows.back().row.box = field.box;
             }
         }
         left -= w.count;
         if (left > 0 && (w.before > 0 || w.after > 0)) {
-            say(fit(omission_text(w), columns), graphics::role::kMuted);
+            say(fit(omission_text(w), columns), graphics::colors::quiet);
             --left;
         }
         if (controls > 0) {
             // Anchored to the foot, so spare room falls between the fields and the controls,
             // and the two targets do not move as a weaver scrolls.
             while (left > controls) {
-                say(std::string(), graphics::role::kFill);
+                say(std::string(), graphics::colors::text);
                 --left;
             }
             const bool on_submit = c.cursor == submit_index(c.draft);
@@ -533,22 +533,22 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             // signal, never the only one: a terminal has no ground to tint.
             say(fit(std::string(on_submit ? kSelectedMark : kUnselectedMark) + "[ Submit ]",
                     columns),
-                on_submit ? graphics::role::kAccent : graphics::role::kFill,
-                RowMeaning{meaning::kSubmit, 0}, graphics::role::kMuted);
+                on_submit ? graphics::colors::accent : graphics::colors::text,
+                RowMeaning{meaning::kSubmit, 0}, graphics::colors::quiet);
             say(fit(std::string(on_back ? kSelectedMark : kUnselectedMark) + "[ Back ]", columns),
-                on_back ? graphics::role::kAccent : graphics::role::kFill,
-                RowMeaning{meaning::kBack, 0}, graphics::role::kMuted);
+                on_back ? graphics::colors::accent : graphics::colors::text,
+                RowMeaning{meaning::kBack, 0}, graphics::colors::quiet);
             left -= controls;
         }
     }
 
     if (notice > 0) {
-        say(fit(c.notice, columns), c.notice_role);
+        say(fit(c.notice, columns), c.notice_ink);
     }
     // ...and the library line only out of GENUINE slack: it is the DIAGNOSTIC
     // identity, useful and never necessary, so it takes a row nothing else wanted.
     if (left > 0 && !c.library.empty()) {
-        say(library_row_text(c, columns), graphics::role::kMuted);
+        say(library_row_text(c, columns), graphics::colors::quiet);
     }
     return view;
 }

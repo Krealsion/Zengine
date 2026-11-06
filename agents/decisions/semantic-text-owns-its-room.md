@@ -10,8 +10,8 @@ line is eighteen, so a one-cell region holds zero rows; what can migrate is a ru
 name was the hard case: a region takes its rectangle, and the object's rectangle is authored
 material (`3805414`, "Let semantic type sit on material somebody else owns"). Given the room to
 the workspace's right edge, a six-cell object with a 32-byte name planned 564 px over 72 px of
-material — nine characters legible on the body, twenty-three drawn on a `kMuted` backdrop in the
-name's own `kMuted` ink (`510d639`, the commit that bound a name to its material).
+material — nine characters legible on the body, twenty-three drawn on a `quiet` backdrop in the
+name's own `quiet` ink (`510d639`, the commit that bound a name to its material).
 
 **Decision.** `prose_place` + `prose_region` is the one call for the popup and a pane's body, each
 in its own rectangle. The Builder is a region composed by explicit priority, facts dropped whole.
@@ -27,8 +27,8 @@ floored at one cell, so a name that does not fit is marked rather than fading.
   monochrome terminal the material becomes a blank rectangle.
 - *A region ground that reconstitutes material* — built and refused: it would cut the name at
   the body's width or paint material across a workspace that has none (`3805414`).
-- *A colour or role for the overrun* — rejected: nothing reads on both a `kFill` body and a
-  `kMuted` backdrop, and `kAccent` means the pointed thing; another shade would not repair
+- *A colour for the overrun* — rejected: nothing reads on both a `text` body and a
+  `quiet` backdrop, and `accent` means the pointed thing; another shade would not repair
   incorrect bounds (`510d639`).
 - *`paint_panel_row`, the cell-lattice row spelling* — gone with its last consumer (`git log
   -S'paint_panel_row'` → `a99858f`).

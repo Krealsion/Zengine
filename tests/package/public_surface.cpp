@@ -28,7 +28,7 @@
 #include "graphics/elements.hpp"
 #include "graphics/light_paint.hpp"
 #include "graphics/ops.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/terminal_io.hpp"
@@ -251,7 +251,7 @@ void pane_surface() {
 
     std::vector<ws::TextRow> said;
     said.push_back(ws::TextRow{"Tally: 3"});
-    check(said.size() == 1 && said[0].role == zengine::graphics::role::kFill,
+    check(said.size() == 1 && said[0].ink == zengine::graphics::colors::text,
           "a pane's rows are the pane helpers' own plain values");
 
     // A pane names the parts of its rows it keeps across redraws; the installed judge says
@@ -291,7 +291,7 @@ void pane_surface() {
           "a point of the area reads back to a row and a column of the rows drawn there");
     // ...and a picture of the pane's own, the helpers' plain value, is drawn for the window's room.
     ws::CanvasPicture picture;
-    picture.rects.push_back(ws::CanvasRect{0, 0, 40, 16, zengine::graphics::role::kAccent});
+    picture.rects.push_back(ws::CanvasRect{0, 0, 40, 16, zengine::graphics::colors::accent});
     picture.parts.push_back(ws::CanvasPart{"box", 0, 0, 40, 16});
     const ws::CanvasSketch sketched =
         ws::canvas_sketch(picture, ws::canvas_window_room(160, 48, 0, text));
@@ -408,7 +408,7 @@ void graphics_surface() {
     for (const gfx::Node& n : picture.nodes()) {
         std::vector<gfx::PaintInk> inks;
         for (const gfx::Color& c : gfx::colors_of(n.op, n.args)) {
-            inks.push_back(c.none() ? gfx::PaintInk{} : gfx::PaintInk{0xd8dee9ff, "own", "o"});
+            inks.push_back(c.none() ? gfx::PaintInk{} : gfx::PaintInk{0xd8dee9ff, "terminal default", "o"});
         }
         task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args, inks});
     }

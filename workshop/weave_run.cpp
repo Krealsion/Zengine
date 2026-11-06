@@ -61,10 +61,10 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     if (carried_.drag && value_drag_.moved && !value_drag_.released && drag_pointer_.understood) {
         ScreenPlane overlay;
         const auto rect = wire_rect_of(PixelRect{drag_pointer_.px.x, drag_pointer_.px.y,
-            12 * graphics::kCellPx, graphics::kCellPx}, graphics::role::kAccent);
+            12 * graphics::kCellPx, graphics::kCellPx}, graphics::colors::accent);
         overlay.rects.push_back(rect);
         overlay.labels.push_back(
-            ScreenLabel{rect.x, rect.y, "[value]", graphics::role::kFill});
+            ScreenLabel{rect.x, rect.y, "[value]", graphics::colors::text});
         window_overlays_.push_back(std::move(overlay));
     }
     // ...and EVERY GUEST'S GUIDE MARK, each judged against what shows now.
@@ -204,7 +204,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         const PaneSetting* own =
             seat != nullptr ? find_pane_setting(seat->settings, kWorkshopSkinKey) : nullptr;
         skins[area] = own != nullptr && own->text && is_workshop_skin_choice(*own->text)
-                          ? *own->text
+                          ? workshop_palette_of(*own->text)
                           : session_.skin;
         if (frames.count(pane_frame_area(session_.panes, order[i])) != 0) {
             // its frame wears its palette

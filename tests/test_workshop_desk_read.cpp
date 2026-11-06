@@ -381,7 +381,7 @@ CanvasPicture labelled(std::size_t pane, const CanvasRoom& room) {
     CanvasPicture p;
     for (std::size_t i = 0; i < kReadWords; ++i) {
         const auto [x, y] = word_slot(i, kReadWordCells, room);
-        p.labels.push_back(CanvasLabel{x, y, label_text(pane, i), gfx::role::kFill});
+        p.labels.push_back(CanvasLabel{x, y, label_text(pane, i), gfx::colors::text});
     }
     return p;
 }
@@ -405,9 +405,9 @@ CanvasPicture full_picture(const CanvasRoom& room) {
     for (std::size_t i = 0; i < kFullWords; ++i) {
         const auto [x, y] = word_slot(i, kFullWordCells, room);
         if (i < kFullLabels) {
-            p.labels.push_back(CanvasLabel{x, y, full_word(i), gfx::role::kFill});
+            p.labels.push_back(CanvasLabel{x, y, full_word(i), gfx::colors::text});
         } else {
-            p.texts.push_back(CanvasText{x, y, full_word(i), gfx::role::kFill});
+            p.texts.push_back(CanvasText{x, y, full_word(i), gfx::colors::text});
         }
     }
     for (std::size_t i = 0; i < kFullParts; ++i) {
@@ -439,7 +439,7 @@ CanvasPicture high_text_picture() {
     CanvasPicture p;
     for (std::size_t i = 0; i < kHighWords; ++i) {
         p.labels.push_back(CanvasLabel{0, static_cast<std::int64_t>(i) * kPaneCanvasUnit,
-                                       high_text_word(i), gfx::role::kFill});
+                                       high_text_word(i), gfx::colors::text});
     }
     for (std::size_t i = 0; i < kHighTextParts; ++i) {
         p.parts.push_back(CanvasPart{"over" + std::to_string(i), 0,
@@ -873,7 +873,7 @@ TEST_CASE("a capture guest's asks for the desk, a pane's page, the inventory and
     d.place(0, 4, 4, 32, 12);
     d.reseat();
     CanvasPicture picture;
-    picture.labels.push_back(CanvasLabel{0, 0, "guest words", gfx::role::kFill});
+    picture.labels.push_back(CanvasLabel{0, 0, "guest words", gfx::colors::text});
     d.draw(0, picture);
     const auto ask_all = [office](loom::Mail& m) {
         (void)m.send_to_role(kWorkshopProvider, DeskReadRequested{});
@@ -950,7 +950,7 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
     seat_high_text(d, office);
     // A SMALL PICTURE FIRST: the desk read carries its reading whole, in the one turn.
     CanvasPicture small;
-    small.labels.push_back(CanvasLabel{0, 0, "small", gfx::role::kFill});
+    small.labels.push_back(CanvasLabel{0, 0, "small", gfx::colors::text});
     d.draw(0, small);
     DeskRead desk;
     REQUIRE(d.read(desk).empty());
@@ -1165,7 +1165,7 @@ PaneStamp stamp_for(const std::vector<PaneStamp>& stamps, const std::string& off
 /// A LINE A PANE TYPED: `text` on its first row, and a caret after it when `caret`.
 CanvasPicture typed(const std::string& text, bool caret) {
     CanvasPicture p;
-    CanvasText line{0, 0, text.empty() ? std::string(" ") : text, gfx::role::kFill};
+    CanvasText line{0, 0, text.empty() ? std::string(" ") : text, gfx::colors::text};
     if (caret) line.caret_col = static_cast<std::int64_t>(text.size());
     p.texts.push_back(line);
     return p;
@@ -1174,7 +1174,7 @@ CanvasPicture typed(const std::string& text, bool caret) {
 /// A picture saying `word` alone.
 CanvasPicture saying(const std::string& word) {
     CanvasPicture p;
-    p.labels.push_back(CanvasLabel{0, 0, word, gfx::role::kFill});
+    p.labels.push_back(CanvasLabel{0, 0, word, gfx::colors::text});
     return p;
 }
 

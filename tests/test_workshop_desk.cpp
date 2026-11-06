@@ -454,12 +454,12 @@ struct SketchRig : DeskRig {
         const auto line = room.text_line_px > 0 ? room.text_line_px : kPaneCanvasUnit;
         ++number;
         CanvasPicture p;
-        p.rects.push_back(CanvasRect{0, 0, 10 * kPaneCanvasUnit, kPaneCanvasUnit, gfx::role::kMuted});
-        p.labels.push_back(CanvasLabel{kPaneCanvasUnit, 0, "node one", gfx::role::kFill});
+        p.rects.push_back(CanvasRect{0, 0, 10 * kPaneCanvasUnit, kPaneCanvasUnit, gfx::colors::quiet});
+        p.labels.push_back(CanvasLabel{kPaneCanvasUnit, 0, "node one", gfx::colors::text});
         p.labels.push_back(CanvasLabel{2 * kPaneCanvasUnit, 2 * kPaneCanvasUnit, "[Label]",
-                                       gfx::role::kAccent});
-        p.texts.push_back(CanvasText{0, 4 * kPaneCanvasUnit, "measured words", gfx::role::kFill});
-        CanvasText typed{0, 4 * kPaneCanvasUnit + 2 * line, "typed here", gfx::role::kFill};
+                                       gfx::colors::accent});
+        p.texts.push_back(CanvasText{0, 4 * kPaneCanvasUnit, "measured words", gfx::colors::text});
+        CanvasText typed{0, 4 * kPaneCanvasUnit + 2 * line, "typed here", gfx::colors::text};
         typed.caret_col = 3;
         p.texts.push_back(typed);
         return p;
@@ -495,11 +495,11 @@ struct SketchRig : DeskRig {
 /// THE TEXT PANES' ROWS, said again for the room the window just gave their areas.
 void say_rows(DeskRig& d) {
     d.r.drive(d.alpha, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, SeatRows{"alpha", {TextRow{"first row", gfx::role::kFill},
-                                    TextRow{"press [Save] here", gfx::role::kFill}}, {}});
+        s.say(m, SeatRows{"alpha", {TextRow{"first row", gfx::colors::text},
+                                    TextRow{"press [Save] here", gfx::colors::text}}, {}});
     });
     d.r.drive(d.beta, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, SeatRows{"beta", {TextRow{"beta row", gfx::role::kFill}}, {}});
+        s.say(m, SeatRows{"beta", {TextRow{"beta row", gfx::colors::text}}, {}});
     });
 }
 
@@ -1046,7 +1046,7 @@ bool frame_drawn(PaneRig& r, const ScreenCanvas& c, const DeskRect& p, bool wind
     for (const ScreenPlane& layer : c.layers) {
         for (const ScreenRect& rect : layer.rects) {
             if (rect.x != p.x || rect.y != p.y || rect.w != p.w || rect.h != p.h ||
-                (rect.role != kPaneChrome && rect.role != kPaneChromeSelected)) {
+                (rect.ink != kPaneChrome && rect.ink != kPaneChromeSelected)) {
                 continue;
             }
             if (!window) {
@@ -1144,7 +1144,7 @@ TEST_CASE("a character's point is the cell showing it, a caret moving none, and 
         }
         const std::string text = "abcdef";
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
-            s.say(m, SeatRows{"alpha", {TextRow{text, gfx::role::kFill}}, {}});
+            s.say(m, SeatRows{"alpha", {TextRow{text, gfx::colors::text}}, {}});
             s.caret(m, "alpha", RowsCaret{0, 2}); // before the `c`
         });
         for (std::int64_t column = 0; column < static_cast<std::int64_t>(text.size()); ++column) {
@@ -1208,7 +1208,7 @@ TEST_CASE("a row as wide as its pane with a caret in it says every character, at
             full += static_cast<char>('a' + i % 26);
         }
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
-            s.say(m, SeatRows{"alpha", {TextRow{full, gfx::role::kFill}}, {}});
+            s.say(m, SeatRows{"alpha", {TextRow{full, gfx::colors::text}}, {}});
             s.caret(m, "alpha", RowsCaret{0, at_end ? body.columns : 3});
         });
         PaneView view;
@@ -1248,8 +1248,8 @@ TEST_CASE("a row with nothing on it but the caret says no word, and a press on t
     {
         DeskRig d;
         d.r.drive(d.alpha, [](ProviderSeat& s, loom::Mail& m) {
-            s.say(m, SeatRows{"alpha", {TextRow{"", gfx::role::kFill},
-                                        TextRow{"below", gfx::role::kFill}}, {}});
+            s.say(m, SeatRows{"alpha", {TextRow{"", gfx::colors::text},
+                                        TextRow{"below", gfx::colors::text}}, {}});
             s.caret(m, "alpha", RowsCaret{0, 0});
         });
         PaneView view;
@@ -1269,7 +1269,7 @@ TEST_CASE("a row with nothing on it but the caret says no word, and a press on t
         SketchRig d;
         const CanvasRoom room = d.sketch->room();
         CanvasPicture p;
-        CanvasText field{room.width - kPaneCanvasUnit, 2 * kPaneCanvasUnit, "", gfx::role::kFill};
+        CanvasText field{room.width - kPaneCanvasUnit, 2 * kPaneCanvasUnit, "", gfx::colors::text};
         field.caret_col = 0;
         p.texts.push_back(field);
         d.draw_picture(p);
@@ -1336,7 +1336,7 @@ TEST_CASE("a part whose one cell holds the caret at the body's right edge has a 
         }
         const std::int64_t edge = body.columns - 1;
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
-            s.say(m, SeatRows{"alpha", {TextRow{full, gfx::role::kFill}}, {RowPart{"control:edge", 0, edge, 1}}});
+            s.say(m, SeatRows{"alpha", {TextRow{full, gfx::colors::text}}, {RowPart{"control:edge", 0, edge, 1}}});
             s.caret(m, "alpha", RowsCaret{0, edge});
         });
         PaneView view;
@@ -1366,9 +1366,9 @@ TEST_CASE("a text pane's named parts are said under the pane's own names over th
         // The caret before `ess`, which moves no character in either medium.
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
             s.say(m, SeatRows{"alpha",
-                                           {TextRow{"first row", gfx::role::kFill},
-                                            TextRow{"press [Save] here", gfx::role::kFill},
-                                            TextRow{"", gfx::role::kFill}},
+                                           {TextRow{"first row", gfx::colors::text},
+                                            TextRow{"press [Save] here", gfx::colors::text},
+                                            TextRow{"", gfx::colors::text}},
                                            {RowPart{"row:first", 0, 0, body.columns},
                                             RowPart{"control:save", 1, 6, 6},
                                             RowPart{"field:empty", 2, 0, 4}}});
@@ -1430,9 +1430,9 @@ TEST_CASE("a part's point is a place of its own: beside a control a row holds, o
         // third's every character is `[Go]`'s, and the blank cells after it are the row's.
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
             s.say(m, SeatRows{"alpha",
-                                           {TextRow{"> [open] Files", gfx::role::kFill},
-                                            TextRow{"[one][two]", gfx::role::kFill},
-                                            TextRow{"[Go]", gfx::role::kFill}},
+                                           {TextRow{"> [open] Files", gfx::colors::text},
+                                            TextRow{"[one][two]", gfx::colors::text},
+                                            TextRow{"[Go]", gfx::colors::text}},
                                            {RowPart{"pane:files", 0, 0, body.columns},
                                             RowPart{"mark:files", 0, 2, 6},
                                             RowPart{"row:both", 1, 0, 10},
@@ -1523,7 +1523,7 @@ TEST_CASE("a part keeps its name across its pane's redraws, and is said and pres
     const auto draw = [&](std::vector<std::string> rows, std::vector<RowPart> parts) {
         SeatRows c{"alpha", {}, std::move(parts)};
         for (std::string& text : rows) {
-            c.rows.push_back(TextRow{std::move(text), gfx::role::kFill});
+            c.rows.push_back(TextRow{std::move(text), gfx::colors::text});
         }
         d.r.drive(d.alpha, [c](ProviderSeat& s, loom::Mail& m) { s.say(m, c); });
     };
@@ -1937,7 +1937,7 @@ TEST_CASE("a picture of as many parts as it may name gives each a point a press 
         }
         // OVER ONE RECT AND NO CARET, so each part repaints one node and asks the only records.
         CanvasPicture over;
-        over.rects.push_back(CanvasRect{0, 0, room.width, room.height, gfx::role::kMuted});
+        over.rects.push_back(CanvasRect{0, 0, room.width, room.height, gfx::colors::quiet});
         over.parts = parts;
         d.draw_picture(over);
         REQUIRE(d.sketch->rejected.empty());
@@ -2010,8 +2010,8 @@ TEST_CASE("a row part is pressed where its row map gives it the press, not on a 
             row_parts(map, body.columns, [](const std::string& meaning) { return meaning; });
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
             s.say(m, SeatRows{"alpha",
-                                           {TextRow{"0123456789abcdef", gfx::role::kFill},
-                                            TextRow{"one two three", gfx::role::kFill}},
+                                           {TextRow{"0123456789abcdef", gfx::colors::text},
+                                            TextRow{"one two three", gfx::colors::text}},
                                            parts});
         });
         PaneView view;
@@ -2080,8 +2080,8 @@ TEST_CASE("a pane's names survive the canvas: its next image draws a picture und
         const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
             s.say(m, SeatRows{"alpha",
-                                           {TextRow{"first row", gfx::role::kFill},
-                                            TextRow{"press [Save] here", gfx::role::kFill}},
+                                           {TextRow{"first row", gfx::colors::text},
+                                            TextRow{"press [Save] here", gfx::colors::text}},
                                            {RowPart{"row:first", 0, 0, body.columns},
                                             RowPart{"control:save", 1, 6, 6}}});
         });
@@ -2120,10 +2120,10 @@ TEST_CASE("a pane's names survive the canvas: its next image draws a picture und
         const CanvasRoom room = next->room();
         const std::int64_t u = kPaneCanvasUnit;
         CanvasPicture picture;
-        picture.labels = {CanvasLabel{0, 0, "first row", gfx::role::kFill},
-                          CanvasLabel{0, u, "press", gfx::role::kFill},
-                          CanvasLabel{6 * u, u, "[Save]", gfx::role::kAccent},
-                          CanvasLabel{13 * u, u, "here", gfx::role::kFill}};
+        picture.labels = {CanvasLabel{0, 0, "first row", gfx::colors::text},
+                          CanvasLabel{0, u, "press", gfx::colors::text},
+                          CanvasLabel{6 * u, u, "[Save]", gfx::colors::accent},
+                          CanvasLabel{13 * u, u, "here", gfx::colors::text}};
         picture.parts = {CanvasPart{"row:first", 0, 0, room.width, u},
                          CanvasPart{"control:save", 6 * u, u, 6 * u, u}};
         drive([picture](SketchSeat& s, loom::Mail& m) { s.draw(m, picture); });
@@ -2161,10 +2161,10 @@ TEST_CASE("a canvas pane's rows set on its room's lattice are words on its parts
         const CanvasRoom room = d.sketch->room();
         const CanvasTextMetrics m = canvas_text_metrics(room);
         CanvasPicture p;
-        p.rects.push_back(CanvasRect{0, 0, room.width, room.height, gfx::role::kGround});
+        p.rects.push_back(CanvasRect{0, 0, room.width, room.height, gfx::colors::background});
         const std::vector<std::string> rows = {"> [open] Layouts", "  [    ] Loaded"};
         for (std::size_t r = 0; r < rows.size(); ++r) {
-            CanvasText run{m.inset, static_cast<std::int64_t>(r) * m.line, rows[r], gfx::role::kFill};
+            CanvasText run{m.inset, static_cast<std::int64_t>(r) * m.line, rows[r], gfx::colors::text};
             run.padded = false;
             p.texts.push_back(run);
         }
@@ -2215,8 +2215,8 @@ TEST_CASE("every place a named part gives is where the medium draws its words, i
         const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
         d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
             s.say(m, SeatRows{"alpha",
-                                           {TextRow{"first row", gfx::role::kFill},
-                                            TextRow{"press [Save] here", gfx::role::kFill}},
+                                           {TextRow{"first row", gfx::colors::text},
+                                            TextRow{"press [Save] here", gfx::colors::text}},
                                            {RowPart{"row:first", 0, 0, body.columns},
                                             RowPart{"control:save", 1, 6, 6},
                                             RowPart{"word:here", 1, 13, 4}}});
@@ -2430,8 +2430,8 @@ TEST_CASE("a part's listed point presses that part, one in the middle of a row t
         const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
         REQUIRE(body.columns >= 20);
         // THREE CONTROLS ON ONE ROW, two of them past its start, and one in another row's middle.
-        const std::vector<TextRow> rows{{"[one] [two] [three]", gfx::role::kFill},
-                                                        {"press [Save] here", gfx::role::kFill}};
+        const std::vector<TextRow> rows{{"[one] [two] [three]", gfx::colors::text},
+                                                        {"press [Save] here", gfx::colors::text}};
         d.r.drive(d.alpha, [&rows](ProviderSeat& s, loom::Mail& m) {
             s.say(m, SeatRows{"alpha", rows,
                                            {RowPart{"control:one", 0, 0, 5},
@@ -2522,7 +2522,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     // ...its last row below where Workshop's menu on its title reaches.
     for (const char* text : {"first row", "a row that runs under the front pane", "short", "", "", "",
                              "", "", "", "", "", "", "a row below the front pane, said all"}) {
-        rows.push_back(TextRow{text, gfx::role::kFill});
+        rows.push_back(TextRow{text, gfx::colors::text});
     }
     d.r.drive(d.alpha, [&rows](ProviderSeat& s, loom::Mail& m) {
         s.say(m, SeatRows{"alpha", rows,
@@ -2531,7 +2531,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
                                         RowPart{"row:below", 6, 0, 36}}});
     });
     d.r.drive(front, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, SeatRows{"front", {TextRow{"in front", gfx::role::kFill}}, {}});
+        s.say(m, SeatRows{"front", {TextRow{"in front", gfx::colors::text}}, {}});
     });
     const auto page = [&d](PaneView& out) {
         return d.page(PaneViewRequested{kAlphaOffice, "alpha", 0, PaneStamp{}}, out);
@@ -3215,17 +3215,16 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     CHECK(overlay().order == d.panes_on_desk() + 2);
     CHECK_FALSE(overlay().keys);
     CHECK_FALSE(overlay().pointer);
-    // ALL OF IT SAID AS WORKSHOP'S OFFICE: the four palettes offered once, each area's chosen once,
-    // and Workshop's room asked once.
+    // ALL OF IT SAID AS WORKSHOP'S OFFICE: the three palettes offered once, each area's chosen
+    // once, and Workshop's room asked once.
     CHECK(d.directory->arrangers == std::set<std::string>{kWorkshopProvider});
-    REQUIRE(d.directory->offered.size() == 4);
-    CHECK(d.directory->offered[0] == gfx::themes::classic());
-    CHECK(d.directory->offered[1] == gfx::themes::block());
-    CHECK(d.directory->offered[2] == gfx::themes::day());
-    CHECK(d.directory->offered[3] == gfx::themes::night());
+    REQUIRE(d.directory->offered.size() == 3);
+    CHECK(d.directory->offered[0] == gfx::themes::night());
+    CHECK(d.directory->offered[1] == gfx::themes::day());
+    CHECK(d.directory->offered[2] == gfx::themes::block());
     std::map<std::string, int> chosen;
     for (const gfx::PaletteChosen& c : d.directory->chosen) {
-        CHECK(c.palette == "classic");
+        CHECK(c.palette == "night");
         ++chosen[c.area];
     }
     std::map<std::string, int> every;
@@ -3268,7 +3267,7 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     const std::size_t offered = d.directory->offered.size();
     const std::size_t again = d.directory->placed.size();
     d.directory_does();
-    CHECK(d.directory->offered.size() == offered + 4);
+    CHECK(d.directory->offered.size() == offered + 3);
     CHECK(d.directory->placed.size() == again + d.directory->areas.size());
     CHECK(std::count(d.directory->asked.begin(), d.directory->asked.end(), own_room) == 2);
     // ...AND SO IS ANOTHER HOLDER OF ITS OFFICE, at the next repaint, though it says nothing.
@@ -3277,7 +3276,7 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     d.mount_directory();
     REQUIRE(d.directory_id.value != before);
     d.r.key(input::scan::kGrave);
-    CHECK(d.directory->offered.size() == 4);
+    CHECK(d.directory->offered.size() == 3);
     CHECK(d.directory->areas.count(kWorkshopProvider) == 1);
     CHECK(d.directory->areas.count(kAttentionArea) == 1);
     CHECK(d.directory->chosen.size() == d.directory->areas.size());
@@ -3421,7 +3420,7 @@ using Skins = std::map<std::string, std::string>;
 
 TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names, else Workshop's "
           "own, and a palette is said only when an area's moved") {
-    // ⚔ MUTATION (tests/mutants/workshop_desk.md#every-area-classic): every area given `classic`
+    // ⚔ MUTATION (tests/mutants/workshop_desk.md#every-area-night): every area given `night`
     // whatever is kept -- Workshop's `block` never reaches the directory, and neither does the
     // row's.
     SkinDesk d;
@@ -3444,8 +3443,8 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
                                                {layouts, "block"}});
     CHECK(said == 5);
 
-    // THE PANE'S ROW, `classic`: its area and its frame alone move back, and the pane is handed
-    // none of it.
+    // THE PANE'S ROW, `classic`, another name for `night`: its area and its frame alone move, to
+    // night, and the pane is handed none of it.
     from = d.directory->chosen.size();
     std::vector<v2::PaneSettings> rows_handed;
     const loom::ObserverId tap = d.r.bus.add_observer([&rows_handed](const loom::BusEvent& ev) {
@@ -3458,7 +3457,7 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     d.r.bus.remove_observer(tap);
     REQUIRE_MESSAGE(own.accepted, own.refusal);
     CHECK(own.handed == "stored and handed");
-    CHECK(d.chosen_since(from, &said) == Skins{{pane, "classic"}, {frame, "classic"}});
+    CHECK(d.chosen_since(from, &said) == Skins{{pane, "night"}, {frame, "night"}});
     CHECK(said == 2);
     // ...THE ROW'S NEW REVISION HANDED BY ITS OWNER, without Workshop's own word on it.
     REQUIRE_FALSE(rows_handed.empty());
@@ -3466,13 +3465,14 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
         CHECK(find_pane_setting(h.settings, "workshop.skin") == nullptr);
     }
 
-    // WORKSHOP'S OWN BACK TO `classic` moves Workshop's areas alone: the row already says it.
+    // WORKSHOP'S OWN, `classic`, moves Workshop's areas alone, to night: the row already wears it.
     from = d.directory->chosen.size();
     REQUIRE(d.workshop_skin("classic").accepted);
-    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "classic"},
-                                        {kWorkshopOverlayArea, "classic"},
-                                        {layouts, "classic"}});
-    // ...A CLEARED ROW TAKES WORKSHOP'S, `classic` too, so nothing more is said...
+    CHECK(d.r.session().skin == "night");
+    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "night"},
+                                        {kWorkshopOverlayArea, "night"},
+                                        {layouts, "night"}});
+    // ...A CLEARED ROW TAKES WORKSHOP'S, night too, so nothing more is said...
     from = d.directory->chosen.size();
     REQUIRE(d.pane_skin(nullptr).accepted);
     CHECK(d.chosen_since(from).empty());
@@ -3480,15 +3480,13 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     from = d.directory->chosen.size();
     REQUIRE(d.pane_skin("block").accepted);
     CHECK(d.chosen_since(from) == Skins{{pane, "block"}, {frame, "block"}});
-    // `night` AND `day` ARE SKINS AS THE OTHER TWO ARE: Workshop's own reaches its area, the
-    // row's its pane's, and each goes back as it came.
+    // `night` IS WHAT `classic` NAMED: Workshop's own said by its name moves no area.
     from = d.directory->chosen.size();
     const OfficeSettingCommitAnswered night = d.workshop_skin("night");
     REQUIRE_MESSAGE(night.accepted, night.refusal);
     CHECK(d.r.session().skin == "night");
-    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "night"},
-                                        {kWorkshopOverlayArea, "night"},
-                                        {layouts, "night"}});
+    CHECK(d.chosen_since(from).empty());
+    // `day` IS A PALETTE AS THE OTHER TWO ARE: the row's reaches its pane's area.
     from = d.directory->chosen.size();
     const PaneSettingCommitAnswered day = d.pane_skin("day");
     REQUIRE_MESSAGE(day.accepted, day.refusal);
@@ -3496,11 +3494,7 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     from = d.directory->chosen.size();
     REQUIRE(d.workshop_skin("classic").accepted);
     REQUIRE(d.pane_skin("block").accepted);
-    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "classic"},
-                                        {kWorkshopOverlayArea, "classic"},
-                                        {layouts, "classic"},
-                                        {pane, "block"},
-                                        {frame, "block"}});
+    CHECK(d.chosen_since(from) == Skins{{pane, "block"}, {frame, "block"}});
 
     // A REPAINT THAT MOVED NOTHING SAYS NO SKIN.
     from = d.directory->chosen.size();
@@ -3509,9 +3503,9 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     // A DIRECTORY THAT STARTS AFRESH HEARS EVERY AREA'S SKIN AGAIN, the row's included.
     from = d.directory->chosen.size();
     d.directory_does();
-    CHECK(d.chosen_since(from, &said) == Skins{{kWorkshopProvider, "classic"},
-                                               {kWorkshopOverlayArea, "classic"},
-                                               {layouts, "classic"},
+    CHECK(d.chosen_since(from, &said) == Skins{{kWorkshopProvider, "night"},
+                                               {kWorkshopOverlayArea, "night"},
+                                               {layouts, "night"},
                                                {pane, "block"},
                                                {frame, "block"}});
     CHECK(said == 5);
@@ -4265,7 +4259,7 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         for (const gfx::PaletteOffered& s : directory->offered) {
             offered.push_back(s.palette);
         }
-        CHECK(offered == std::vector<std::string>{"classic", "block", "day", "night"});
+        CHECK(offered == std::vector<std::string>{"night", "day", "block"});
         REQUIRE(directory->areas.count(kWorkshopProvider) == 1);
         CHECK(directory->areas.at(kWorkshopProvider).window == gfx::kSdlWindow);
         // ...AND A PANE WHOSE OFFICE DRAWS IN A WINDOW, opened, placed on it too.
@@ -4393,8 +4387,8 @@ TEST_CASE("in the terminal window a row's point is the cell the window shows it 
     REQUIRE(d.r.windows.window() == gfx::kTerminalWindow);
     const std::string text = "abcdef";
     d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, SeatRows{"alpha", {TextRow{text, gfx::role::kFill},
-                                       TextRow{text, gfx::role::kFill}}});
+        s.say(m, SeatRows{"alpha", {TextRow{text, gfx::colors::text},
+                                       TextRow{text, gfx::colors::text}}});
     });
     PaneView view;
     REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
@@ -4463,7 +4457,7 @@ TEST_CASE("a guest's guide mark stands over the panes in Workshop's overlay in t
     }
     d.r.drive(seat, [](ProviderSeat& p, loom::Mail& m) {
         p.say(m, SeatRows{"marked",
-                                       {TextRow{"[go] there", gfx::role::kFill}}, {RowPart{"control:go", 0, 0, 4}}});
+                                       {TextRow{"[go] there", gfx::colors::text}}, {RowPart{"control:go", 0, 0, 4}}});
     });
     // THE GUEST, admitted as `tutor`, its session alive.
     auto made = std::make_unique<GuideGuest>();
@@ -4521,7 +4515,7 @@ TEST_CASE("a guest's guide mark stands over the panes in Workshop's overlay in t
                 if (const auto t = gfx::from_body<gfx::TextArgs>(n.node.args)) labels.push_back(*t);
             } else if (n.node.op == gfx::op::kRect) {
                 const auto r = gfx::from_body<gfx::RectArgs>(n.node.args);
-                if (r && zengine::graphics::role_of(r->fill) == gfx::role::kGround) grounds.push_back(*r);
+                if (r && zengine::graphics::pool_color_of(r->fill) == gfx::colors::background) grounds.push_back(*r);
             }
         }
         REQUIRE_FALSE(labels.empty());
@@ -4782,7 +4776,7 @@ struct PointerDesk {
         const auto& placed = d.directory->areas.at(area);
         const RowsRoom room{placed.w, placed.h, gfx::TextMeasure{}};
         const RowsDrawing drawing =
-            rows_drawing(std::vector<TextRow>{{text, gfx::role::kFill}},
+            rows_drawing(std::vector<TextRow>{{text, gfx::colors::text}},
                          std::vector<RowPart>{RowPart{"control:go", 0, 0, 4}}, room,
                          room.columns());
         const std::string office = window.weave().office();

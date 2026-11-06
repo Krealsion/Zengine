@@ -38,7 +38,7 @@ inline constexpr std::int64_t kUnmeasuredReach = 1000;
 
 /// The bytes that show cells on a terminal: for each run, a cursor move (left out where the cursor
 /// already stands), its ink where it changes (`inks`, by the number each cell holds; one it does
-/// not hold is the terminal's own), and the glyphs.
+/// not hold is the terminal's default), and the glyphs.
 inline std::string ansi(const std::vector<term::Cell>& cells, const std::vector<std::string>& inks) {
     std::string out;
     std::int64_t at_col = -1, at_row = -1, ink = -1;
@@ -49,7 +49,7 @@ inline std::string ansi(const std::vector<term::Cell>& cells, const std::vector<
         if (c.ink != ink) {
             ink = c.ink;
             const bool held = c.ink >= 0 && static_cast<std::size_t>(c.ink) < inks.size();
-            out += held ? inks[static_cast<std::size_t>(c.ink)] : sgr_for("own", 0);
+            out += held ? inks[static_cast<std::size_t>(c.ink)] : sgr_for(kTerminalDefault, 0);
         }
         out.push_back(c.glyph);
         at_col = c.col + 1;
@@ -319,8 +319,8 @@ private:
     Cache cache_;
     DirtyCells dirty_; ///< the cells to show again, over the terminal's size
     std::vector<std::string> shown_rows_; ///< the glyphs on the terminal, as its showings left them
-    /// The inks the window writes its terminal in, by number: the terminal's own first (kOwnInk).
-    std::vector<std::string> inks_{sgr_for("own", 0)};
+    /// The inks the window writes its terminal in, by number: the terminal's default first (kDefaultInk).
+    std::vector<std::string> inks_{sgr_for(kTerminalDefault, 0)};
     std::int64_t cols_ = kUnmeasuredCols;
     std::int64_t rows_ = kUnmeasuredRows;
     std::int64_t reach_cols_ = kUnmeasuredCols; ///< how far its areas reach, with no terminal

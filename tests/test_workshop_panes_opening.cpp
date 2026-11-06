@@ -200,7 +200,7 @@ public:
     void draw(loom::Mail& mail) {
         if (!window_.shown()) return;
         const RowsRoom room = window_.rows_room();
-        window_.draw(rows_drawing(std::vector<TextRow>{{row, gfx::role::kFill}},
+        window_.draw(rows_drawing(std::vector<TextRow>{{row, gfx::colors::text}},
                                   std::vector<RowPart>{RowPart{"document", 0, 0,
                                                                static_cast<std::int64_t>(row.size())}},
                                   room, room.columns())

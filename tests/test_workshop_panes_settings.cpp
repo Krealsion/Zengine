@@ -1497,9 +1497,8 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
         FAIL("no row ", key);
         return v2::PaneSettingRow{};
     };
-    CHECK(row_of("workshop.skin").text == std::string("classic"));
-    CHECK(row_of("workshop.skin").choices ==
-          std::vector<std::string>{"classic", "block", "day", "night"});
+    CHECK(row_of("workshop.skin").text == std::string("night"));
+    CHECK(row_of("workshop.skin").choices == std::vector<std::string>{"night", "day", "block"});
     CHECK(row_of("workshop.completion-order").text == std::string("declared"));
     CHECK(row_of("workshop.completion-order").choices ==
           std::vector<std::string>{"declared", "required-first"});
@@ -1950,7 +1949,7 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
     // A SKIN IT DOES NOT TAKE, AND ANY OTHER `workshop.` KEY, ARE REFUSED, nothing written.
     PaneSettingCommitAnswered a = t.commit(text_at(at, "workshop.skin", "plain"));
     CHECK_FALSE(a.accepted);
-    CHECK(a.refusal == "workshop.skin takes one of classic, block, day, night, not a text `plain`");
+    CHECK(a.refusal == "workshop.skin takes one of night, day, block, not a text `plain`");
     a = t.commit(text_at(at, "workshop.text", "x"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal.find("has no counted setting `workshop.text`") != std::string::npos);
@@ -1972,11 +1971,11 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
     CHECK_FALSE(plain.accepted);
     CHECK(plain.refusal ==
           "`" + ref_text(dial_ref()) +
-              "`: workshop.skin takes one of classic, block, day, night, not a text `plain`");
+              "`: workshop.skin takes one of night, day, block, not a text `plain`");
     CHECK(check_pane_settings(dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, 1,
                                                        std::nullopt}})
               .refusal.find(
-                  "workshop.skin takes one of classic, block, day, night, not a number `1`") !=
+                  "workshop.skin takes one of night, day, block, not a number `1`") !=
           std::string::npos);
 }
 

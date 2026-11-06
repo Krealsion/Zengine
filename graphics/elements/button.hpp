@@ -23,8 +23,8 @@ namespace zengine::graphics {
 struct ButtonFace {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     std::string label;
-    Paint fill;
-    Paint ink;
+    Color fill;
+    Color ink;
     bool enabled = true;
     bool pressed = false;
     bool hovered = false;
@@ -65,14 +65,14 @@ public:
 
     /// The record as the state stands.
     ButtonFace face() const {
-        ButtonFace f{x_, y_, w_, h_, label_, by_role(role::kGround), by_role(role::kFill),
+        ButtonFace f{x_, y_, w_, h_, label_, colors::background, colors::text,
                      enabled_, pressed_, hovered_};
         if (!enabled_) {
-            f.ink = by_role(role::kMuted);
+            f.ink = colors::quiet;
         } else if (pressed_) {
-            f.fill = by_role(role::kAccent);
+            f.fill = colors::accent;
         } else if (hovered_) {
-            f.ink = by_role(role::kAccent);
+            f.ink = colors::accent;
         }
         return f;
     }

@@ -371,7 +371,7 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
         std::vector<TextRow> many;
         std::vector<RowPart> named;
         for (std::int64_t i = 0; i < 3000; ++i) {
-            many.push_back(TextRow{"  [    ] row " + std::to_string(i), gfx::role::kFill});
+            many.push_back(TextRow{"  [    ] row " + std::to_string(i), gfx::colors::text});
             named.push_back({"pane:" + std::to_string(i), i, 0, 40});
             named.push_back({"mark:" + std::to_string(i), i, 2, 6});
         }
@@ -2080,10 +2080,10 @@ TEST_CASE("WL-DESK-21: the Hotkeys pane is in sections, a section a pane -- the 
     CHECK(row_containing(rows, "desktop.terminal") < 0); // every section shut: no key shows
     // GREY AT THE FOOT, a pane off the desk; the desk's own and Workshop's in the accent ink.
     const HeldReading read = held_reading(k.hotkeys);
-    REQUIRE(read.roles.size() > static_cast<std::size_t>(manager));
-    CHECK(read.roles[static_cast<std::size_t>(manager)] == gfx::role::kMuted);
-    CHECK(read.roles[static_cast<std::size_t>(own)] == gfx::role::kAccent);
-    CHECK(read.roles[static_cast<std::size_t>(app)] == gfx::role::kAccent);
+    REQUIRE(read.inks.size() > static_cast<std::size_t>(manager));
+    CHECK(read.inks[static_cast<std::size_t>(manager)] == gfx::colors::quiet);
+    CHECK(read.inks[static_cast<std::size_t>(own)] == gfx::colors::accent);
+    CHECK(read.inks[static_cast<std::size_t>(app)] == gfx::colors::accent);
 
     // RIGHT OPENS THE SECTION THE CURSOR STANDS ON, AND AGAIN STEPS INTO IT.
     k.r.key(input::scan::kHome);

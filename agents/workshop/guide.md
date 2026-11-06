@@ -66,9 +66,9 @@ MEANS
 
 WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 
-## WL-GUIDE-06 — A mark is drawn inside its pane in the guide role, and ends when its part does
+## WL-GUIDE-06 — A mark is drawn inside its pane in the guide colour, and ends when its part does
 
-LAW — A mark is drawn in `role::kGuide` inside its pane's body, never over another word; it ends at the weaver's press inside it, a settled picture without its part, a new holder, or its session's end.
+LAW — A mark is drawn in the pool's `guide` inside its pane's body, never over another word; it ends at the weaver's press inside it, a settled picture without its part, a new holder, or its session's end.
 
 MEANS
 - in a window an outline one grain wide; in a terminal the part's own cells, none beside them;
@@ -141,12 +141,11 @@ on Connections, the Hotkeys pane or a part whose press opens either"
 
 ### WL-GUIDE-06
 `workshop/weave_guide.cpp` guide_drawing guide_layer guide_pressed end_guide
-`graphics/role.hpp` kGuide
 `tests/test_workshop_panes_guide.cpp` "the Tutor's walk on a weaver's host, in a terminal and in a window: it
 reads the Builder, marks [build], the weaver's press inside the mark ends it and builds, the desk moves, and
-the next mark stands" "a mark in a terminal is its part's own cells in the guide role: every row of the pane
+the next mark stands" "a mark in a terminal is its part's own cells in the guide colour: every row of the pane
 reads as before, and its label stands on a body row wholly free or is not drawn, the guest told which" "a
-mark in a window is an outline one pixel wide around its part inside the pane's body, in the guide role's ink
+mark in a window is an outline one pixel wide around its part inside the pane's body, in the guide colour
 as the window's plan draws it, and its label names the guest" "a mark's part reads the same with the mark as
 without it, and a mark is no cover" "a mark ends, and never comes back, when its part leaves a settled
 picture, and its guest is told why" "a mark ends when its guest's session ends, and a guest's own press

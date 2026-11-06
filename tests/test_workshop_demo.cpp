@@ -235,9 +235,9 @@ TEST_CASE("a row's fold mark is its own character in a room of cells, and where 
     // ⚔ MUTATION (tests/mutants/workshop_demo.md#fold-mark-outlined-in-cells): each medium given the
     // other's mark.
     const std::vector<TextRow> rows{
-        TextRow{"+ places (4)", gfx::role::kFill, gfx::role::kNone, 0},
-        TextRow{"  - keys", gfx::role::kAccent, gfx::role::kNone, 2},
-        TextRow{"plain + text", gfx::role::kFill}};
+        TextRow{"+ places (4)", gfx::colors::text, gfx::no_color(), 0},
+        TextRow{"  - keys", gfx::colors::accent, gfx::no_color(), 2},
+        TextRow{"plain + text", gfx::colors::text}};
     const std::vector<RowPart> parts{};
     const auto node = [](const RowsDrawing& d, const std::string& path) -> const gfx::Node* {
         for (const gfx::Node& n : d.sketch.nodes()) {
@@ -262,17 +262,17 @@ TEST_CASE("a row's fold mark is its own character in a room of cells, and where 
     const RowsRoom room{20 * face.advance, 3 * face.line, face};
     const RowsDrawing typed = rows_drawing(rows, parts, room, room.columns());
     const std::int64_t size = (std::min)(face.line, 2 * face.advance) * 2 / 3;
-    const auto outline = [&](const std::string& path, const char* name, std::int64_t role) {
+    const auto outline = [&](const std::string& path, const char* name, gfx::Color ink) {
         const gfx::Node* shape = node(typed, path);
         REQUIRE_MESSAGE(shape != nullptr, "no outline ", path);
         CHECK(shape->op == gfx::op::kPath);
         const auto args = gfx::from_body<gfx::PathArgs>(shape->args);
         REQUIRE(args.has_value());
         CHECK(args->d == gfx::Icon::path_data(gfx::Icon::outline(name), size));
-        CHECK(zengine::graphics::role_of(args->fill) == role);
+        CHECK(zengine::graphics::pool_color_of(args->fill) == ink);
     };
-    outline("row0.mark/shape", "right", gfx::role::kFill);
-    outline("row1.mark/shape", "down", gfx::role::kAccent);
+    outline("row0.mark/shape", "right", gfx::colors::text);
+    outline("row1.mark/shape", "down", gfx::colors::accent);
     CHECK(node(typed, "row2.mark/shape") == nullptr); // no mark: a `+` in its words is a word
     const gfx::Node* group = node(typed, "row1.mark");
     REQUIRE(group != nullptr);
@@ -293,7 +293,7 @@ TEST_CASE("a row carries its text box, and each room draws its face: `[ab__]` in
           "face over them") {
     zengine::component::TextBox box;
     box.set("ab", 2);
-    TextRow boxed{"find", gfx::role::kFill};
+    TextRow boxed{"find", gfx::colors::text};
     boxed.box = row_box(box, 5, 6);
     // A BOX KEEPS A BLANK FOR ITS CARET: a text longer than the box shows its tail with the caret
     // after it on the box's blank room, never on its closing edge.
@@ -308,12 +308,12 @@ TEST_CASE("a row carries its text box, and each room draws its face: `[ab__]` in
     zengine::component::TextBox typed_line;
     typed_line.set("ls -l", 5);
     const RowBox plain = row_box_plain(typed_line, 2, 10, true);
-    CHECK(row_text_shown(TextRow{">", gfx::role::kFill, gfx::role::kNone, kNoMark, plain}, true) ==
+    CHECK(row_text_shown(TextRow{">", gfx::colors::text, gfx::no_color(), kNoMark, plain}, true) ==
           "> ls -l     ");
     CHECK(box_text_column(plain, true) == 2);
     CHECK(box_caret(plain, 0, true).column == 2 + 5);
     const RowBox outlined = row_box_plain(typed_line, 2, 10, false);
-    CHECK(row_text_shown(TextRow{">", gfx::role::kFill, gfx::role::kNone, kNoMark, outlined},
+    CHECK(row_text_shown(TextRow{">", gfx::colors::text, gfx::no_color(), kNoMark, outlined},
                          false) == ">  ls -l    ");
     CHECK(box_text_column(outlined, false) == 3);
     CHECK(box_caret(outlined, 0, false).column == 3 + 5);
@@ -328,7 +328,7 @@ TEST_CASE("a row carries its text box, and each room draws its face: `[ab__]` in
     };
     zengine::component::TextArea area;
     area.set("one\ntwo\nthree\nfour");
-    const std::vector<RowsTextArea> areas{RowsTextArea{1, 2, area, "read", "scroll"}};
+    const std::vector<RowsTextArea> areas{RowsTextArea{1, 2, area, "read", "scroll", {}}};
     // A ROOM OF CELLS: the box spelled over its columns, no outline, and the area's lines between
     // their markers on its rows.
     const RowsDrawing in_cells = rows_drawing(
@@ -352,7 +352,7 @@ TEST_CASE("a row carries its text box, and each room draws its face: `[ab__]` in
     REQUIRE(rect.has_value());
     CHECK(rect->x == 5 * face.advance);
     CHECK(rect->w == 6 * face.advance);
-    CHECK(zengine::graphics::role_of(rect->stroke) == gfx::role::kEdge);
+    CHECK(zengine::graphics::pool_color_of(rect->stroke) == gfx::colors::edge);
     std::string words;
     for (const gfx::Node& n : typed.sketch.nodes()) {
         if (n.path.rfind("row0.", 0) == 0 && n.op == gfx::op::kText) {
@@ -377,7 +377,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
             "face") {
         const gfx::TextMeasure face{8, 18};
         const std::vector<TextRow> rows{
-            {"[a] one   [x] [y]", gfx::role::kFill}, {"plain", gfx::role::kMuted}};
+            {"[a] one   [x] [y]", gfx::colors::text}, {"plain", gfx::colors::quiet}};
         const std::vector<RowPart> parts{{"entry:one", 0, 0, 20, true},
                                                  {"control:a", 0, 0, 3, true},
                                                  {"control:x", 0, 10, 3, true}};
@@ -393,7 +393,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         CHECK(ground->y == 0);
         CHECK(ground->w == room.width);
         CHECK(ground->h == room.height);
-        CHECK(zengine::graphics::role_of(ground->fill) == gfx::role::kGround);
+        CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
         // EACH RUN where the face sets it: its column an advance across, its row a line down.
         bool plain = false, control = false;
         for (const gfx::Node& n : drawing.sketch.nodes()) {
@@ -425,7 +425,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
     SUBCASE("rows drawn for a graphics window ask, cell by cell, for the part a press there "
             "reaches: a control inside a named row is its own, and an unnamed run is no part") {
         const std::vector<TextRow> rows{
-            {"[a] one   [x] [y]", gfx::role::kFill}, {"plain", gfx::role::kMuted}};
+            {"[a] one   [x] [y]", gfx::colors::text}, {"plain", gfx::colors::quiet}};
         // IN THE ORDER A PRESS READS THEM: the row entire, then the runs inside it.
         const std::vector<RowPart> parts{{"entry:one", 0, 0, 20, true},
                                                  {"control:a", 0, 0, 3, true},
@@ -462,7 +462,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         // TWO PARTS THAT OVERLAP: each lands on a cell it alone holds, though a press on the
         // overlap reaches the later one.
         const RowsDrawing overlap = rows_drawing(
-            std::vector<TextRow>{{"abcdefghij", gfx::role::kFill}},
+            std::vector<TextRow>{{"abcdefghij", gfx::colors::text}},
             std::vector<RowPart>{{"left", 0, 0, 6, true}, {"right", 0, 3, 7, true}},
             cell_room(10, 1), 10);
         REQUIRE(overlap.places.size() == 2);
@@ -473,9 +473,9 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
             "what the part beneath it asks: none without a caret, the caret on the last column "
             "when it stands past it, and neither on a row past the rows asked for") {
         namespace gfx = zengine::graphics;
-        const std::vector<TextRow> rows{{"first row", gfx::role::kFill},
-                                        {"second", gfx::role::kFill},
-                                        {"third", gfx::role::kFill}};
+        const std::vector<TextRow> rows{{"first row", gfx::colors::text},
+                                        {"second", gfx::colors::text},
+                                        {"third", gfx::colors::text}};
         const std::vector<RowPart> parts{{"one", 0, 0, 10, true}, {"two", 1, 0, 3, true}};
         const auto node = [](const RowsDrawing& d, const std::string& path) -> const gfx::Node* {
             for (const gfx::Node& n : d.sketch.nodes()) {
@@ -495,7 +495,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
             CHECK(n->op == gfx::op::kText);
             const std::optional<gfx::TextArgs> text = gfx::from_body<gfx::TextArgs>(n->args);
             REQUIRE(text.has_value());
-            CHECK(zengine::graphics::role_of(text->ink) == gfx::role::kAccent);
+            CHECK(zengine::graphics::pool_color_of(text->ink) == gfx::colors::accent);
             return *text;
         };
         const RowsDrawing plain = rows_drawing(rows, parts, cell_room(10, 3), 10);
@@ -535,7 +535,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         CHECK(line->x2 == 9 * gfx::kCellPx);
         CHECK(line->y1 == gfx::kCellPx);
         CHECK(line->y2 == 2 * gfx::kCellPx - 1);
-        CHECK(zengine::graphics::role_of(line->ink) == gfx::role::kAccent);
+        CHECK(zengine::graphics::pool_color_of(line->ink) == gfx::colors::accent);
         CHECK(asks(marked, "caret").empty());
         // THE MARKS STAND IN FRONT: drawn after every row.
         CHECK(marked.sketch.nodes().back().path == "caret");
@@ -553,7 +553,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         std::vector<RowPart> each;
         const auto past = static_cast<std::int64_t>(gfx::kMaxElementsPerArea) + 20;
         for (std::int64_t i = 0; i < past + 10; ++i) {
-            many.push_back({"xxxxxx", gfx::role::kFill});
+            many.push_back({"xxxxxx", gfx::colors::text});
             each.push_back({"p" + std::to_string(i), i, 0, 2, true});
         }
         RowsCaret beyond;
@@ -610,7 +610,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         REQUIRE(ground.has_value());
         CHECK(a->nodes.front().node.op == gfx::op::kRect);
         CHECK((ground->w == a->w && ground->h == a->h));
-        CHECK(zengine::graphics::role_of(ground->fill) == gfx::role::kGround);
+        CHECK(zengine::graphics::pool_color_of(ground->fill) == gfx::colors::background);
         std::set<std::int64_t> lines;
         for (const zengine::graphics::window::KeptNode& n : a->nodes) {
             if (n.node.op != gfx::op::kText) continue;

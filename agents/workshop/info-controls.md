@@ -25,7 +25,7 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-04 — A row the weaver cannot author is muted, and refused in words
 
-LAW — With no control there is nothing to present as unavailable; a row the weaver cannot author is still said in the muted role and refused in words when Return is pressed on it.
+LAW — With no control there is nothing to present as unavailable; a row the weaver cannot author is still said in the pool's `quiet` and refused in words when Return is pressed on it.
 
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
@@ -84,7 +84,6 @@ and the office is answered what the host said"
 
 ### WL-CTRL-06
 `info/property_view.hpp` compose
-`graphics/role.hpp` kAccent kMuted kNone
 `workshop/pane_rows.hpp` TextRow TextRow::background
 `tests/test_workshop_panes_info.cpp` "the heading and the subject's properties are the pane's rows,
 over the host's subject, and the panes are the Pane Manager's to list"

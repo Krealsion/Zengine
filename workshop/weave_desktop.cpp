@@ -722,7 +722,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
     } else {
         session_.conditions.establish(Condition{
             kKeymapUnwrittenKey, "a binding changed for this run only",
-            "`" + asked.action + "` " + how + " -- " + answer.file_refusal, graphics::role::kAlert,
+            "`" + asked.action + "` " + how + " -- " + answer.file_refusal, graphics::colors::alert,
             std::string()});
     }
     answer.sentence = "`" + asked.action + "` " + how +

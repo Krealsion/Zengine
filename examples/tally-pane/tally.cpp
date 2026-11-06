@@ -14,7 +14,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 
@@ -40,8 +40,8 @@ namespace gfx = zengine::graphics;
 // because it changes the code and not the state's shape.
 std::vector<ws::TextRow> rows_for(std::int64_t count) {
     return {
-        ws::TextRow{"Tally: " + std::to_string(count), gfx::role::kAccent},
-        ws::TextRow{"press into me, then Space adds one", gfx::role::kMuted},
+        ws::TextRow{"Tally: " + std::to_string(count), gfx::colors::accent},
+        ws::TextRow{"press into me, then Space adds one", gfx::colors::quiet},
     };
 }
 
@@ -57,11 +57,11 @@ constexpr const char* kWorkshop = "zengine.workshop";
 constexpr const char* kPane = "tally";
 constexpr const char* kAddOne = "tally.add";
 
-// The picture's own colours, each with the role a window that cannot show it paints instead.
-const gfx::Paint kCard = gfx::exact(gfx::role::kMediumGround, 0x24324A);
-const gfx::Paint kBadge = gfx::exact(gfx::role::kAccent, 0xF2A541);
-const gfx::Paint kButton = gfx::exact(gfx::role::kAccent, 0x2E7D5B);
-const gfx::Paint kButtonWords = gfx::exact(gfx::role::kFill, 0xFFFFFF);
+// The picture's own colours, each with the pool colour a medium that cannot show it shows instead.
+const gfx::Color kCard = gfx::rgb(0x24324A, gfx::colors::ground);
+const gfx::Color kBadge = gfx::rgb(0xF2A541, gfx::colors::accent);
+const gfx::Color kButton = gfx::rgb(0x2E7D5B, gfx::colors::accent);
+const gfx::Color kButtonWords = gfx::rgb(0xFFFFFF, gfx::colors::text);
 
 // What a reload in place carries across. Add, remove or retype a field and the next reload is
 // refused before anything is replaced: the shape changed but kept its name and version. The
@@ -179,7 +179,7 @@ private:
             (std::max)(std::int64_t{0}, (std::min)(width - 3 * pad - button_w, 40 * text.advance));
         const std::int64_t card_h = (std::min)(height - 2 * pad, 3 * text.line);
         gfx::Sketch sketch;
-        sketch.fill_rect("room", 0, 0, width, height, gfx::by_role(gfx::role::kGround));
+        sketch.fill_rect("room", 0, 0, width, height, gfx::colors::background);
         sketch.fill_rect("card", pad, pad, card_w, card_h, kCard);
         sketch.ellipse("badge", pad + text.advance / 2, pad + text.line / 4, text.advance,
                        text.line / 2, kBadge);

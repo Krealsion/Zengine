@@ -372,7 +372,7 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     // genuinely bigger, in cells -- and nothing is painted over it where no pane stands.
     CHECK(cells_of(sc).room_w == 100);
     CHECK(cells_of(sc).room_h == 28);
-    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 100, 28, gfx::role::kMuted));
+    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 100, 28, gfx::colors::quiet));
     // The workspace fact lives in the band's own row, and it moved with the extent: what a
     // share resolves against is said where the tool speaks. It is the whole surface, so the
     // room runs under the pane rather than stopping short of the edge.
@@ -416,7 +416,7 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     CHECK(cells_of(screen_of(s)).w == 78);
     CHECK(cells_of(screen_of(s)).h == 22);
     CHECK(cells_of(screen_of(s)).room_h == 17);
-    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 78, 17, gfx::role::kMuted));
+    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 78, 17, gfx::colors::quiet));
     // THE COMPOSITION, 78 by 22 -- the workspace at its full extent, the bands where they
     // belong -- with no objects column: a default `Session` opens what `kDefaultPanes` names,
     // and a run with no medium has no load plan. The two help rows hold what the keymap
@@ -968,7 +968,7 @@ TEST_CASE("what is true is said to whoever presents it, healthy or not") {
 
     // A WALL: true, said across the seam, the glance a presenter leads with...
     live(t).conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
-                                           gfx::role::kAlert, std::string()});
+                                           gfx::colors::alert, std::string()});
     t.key(input::scan::kDown);
     CHECK(t.glance() == "a wall");
 }
@@ -987,7 +987,7 @@ TEST_CASE("an unavailable tool is named by its artifact on the host's own condit
     CHECK(gone.key == "load.unavailable/zengine-desktop-pane");
     CHECK(gone.compact == "zengine-desktop-pane is not in this Workshop");
     CHECK(gone.detail == said); // the refusing layer's own sentence, whole
-    CHECK(gone.role == gfx::role::kAlert);
+    CHECK(gone.ink == gfx::colors::alert);
     CHECK(gone.action == "build its artifact, then launch again");
 
     // ...SAID ACROSS THE SEAM, in the host's own order: the glance a presenter leads with names the
@@ -1086,13 +1086,13 @@ TEST_CASE("a held condition stands until its owner retracts it") {
     CHECK(attention_conditions(s).empty());
 
     s.conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
-                                     gfx::role::kAlert, std::string()});
+                                     gfx::colors::alert, std::string()});
     REQUIRE(attention_conditions(s).size() == 1);
     CHECK(attention_glance(standing_conditions(s, {})) == "a wall");
 
     // AN UPDATE UNDER THE SAME KEY IS ONE CONDITION, not a second row.
     s.conditions.establish(Condition{"test.wall", "the same wall", "a better reason",
-                                     gfx::role::kAlert, std::string()});
+                                     gfx::colors::alert, std::string()});
     REQUIRE(attention_conditions(s).size() == 1);
     CHECK(attention_conditions(s).front().detail == "a better reason");
 
@@ -1128,7 +1128,7 @@ TEST_CASE("a derived condition enters and leaves attention with its subject") {
     CHECK(off.front().compact.find(ref_text(builder)) != std::string::npos);
     // THE REMEDY IS `pane_state`'S OWN COLUMN, said where a weaver can read it.
     CHECK(off.front().detail == std::string(pane_state_remedy(pane_state::kOffRoom)));
-    CHECK(off.front().role == gfx::role::kAccent); // actionable, not an error
+    CHECK(off.front().ink == gfx::colors::accent); // actionable, not an error
     CHECK(off.front().action == "workshop.manage");
 
     // ...AND IT IS GONE THE MOMENT THE PLACE IS RESET. No retract call exists on this
@@ -1192,8 +1192,8 @@ TEST_CASE("the project frontier is a condition while it waits and nothing after"
         REQUIRE(waiting != nullptr);
         CHECK(waiting->compact.find("zengine-thing") != std::string::npos);
         CHECK(waiting->detail.find("2 authored rows behind it") != std::string::npos);
-        // WAITING IS NOT A FAILURE, and the role says so.
-        CHECK(waiting->role == gfx::role::kAccent);
+        // WAITING IS NOT A FAILURE, and the colour says so.
+        CHECK(waiting->ink == gfx::colors::accent);
         CHECK(waiting->action == "builder.frontier");
     }
     CHECK(t.glance().find("project waiting") != std::string::npos);
@@ -1243,7 +1243,7 @@ TEST_CASE("an alert condition opens nothing") {
     const std::vector<Condition> now = t.conditions();
     const Condition* wall = condition_by_key(now, kPrefsWallKey);
     REQUIRE(wall != nullptr);
-    REQUIRE(wall->role == gfx::role::kAlert);
+    REQUIRE(wall->ink == gfx::colors::alert);
 
     for (int beat = 0; beat < 4; ++beat) {
         t.ready();
@@ -1313,7 +1313,7 @@ TEST_CASE("a condition names an action and what crosses is the weaver's own gest
     Keyed t(path);
     Session& s = const_cast<Session&>(t.session());
     s.conditions.establish(Condition{"test.thing", "a thing", "why it is a thing",
-                                     gfx::role::kAlert, "workshop.manage"});
+                                     gfx::colors::alert, "workshop.manage"});
     t.key(input::scan::kEscape); // an unbound key: a repaint, which says what is true
 
     // THE SENTENCE THAT CROSSES CARRIES THE WEAVER'S GESTURE, not the default: one truth,
@@ -1337,11 +1337,11 @@ TEST_CASE("the glance is ranked by truth, and says how many it is not saying") {
     Session s;
     // Established in the OPPOSITE order to the one they rank in, so a projection that
     // ordered by arrival would pick the wrong winner.
-    s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why", gfx::role::kAccent,
+    s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why", gfx::colors::accent,
                                      std::string()});
     s.conditions.establish(Condition{"a.quiet", "another quiet thing", "why",
-                                     gfx::role::kAccent, std::string()});
-    s.conditions.establish(Condition{"z.loud", "a loud thing", "why", gfx::role::kAlert,
+                                     gfx::colors::accent, std::string()});
+    s.conditions.establish(Condition{"z.loud", "a loud thing", "why", gfx::colors::alert,
                                      std::string()});
     const std::vector<Condition> shown = attention_conditions(s);
     REQUIRE(shown.size() == 3);
@@ -1356,10 +1356,10 @@ TEST_CASE("the glance is ranked by truth, and says how many it is not saying") {
     s.conditions.retract("b.quiet");
     CHECK(attention_glance(standing_conditions(s, {})) == "a loud thing");
 
-    // AND RANKING IS TOTAL OVER A ROLE THIS VOCABULARY DOES NOT HAVE YET.
-    CHECK(attention_rank(gfx::role::kAlert) < attention_rank(gfx::role::kAccent));
-    CHECK(attention_rank(gfx::role::kAccent) < attention_rank(gfx::role::kFill));
-    CHECK(attention_rank(gfx::role::kFill) < attention_rank(9999));
+    // AND RANKING IS TOTAL OVER A COLOUR THE RANK DOES NOT NAME.
+    CHECK(attention_rank(gfx::colors::alert) < attention_rank(gfx::colors::accent));
+    CHECK(attention_rank(gfx::colors::accent) < attention_rank(gfx::colors::text));
+    CHECK(attention_rank(gfx::colors::text) < attention_rank(gfx::rgb(0x123456)));
 }
 
 TEST_CASE("what is true is said across the seam, in the host's own order and words") {
@@ -1371,9 +1371,9 @@ TEST_CASE("what is true is said across the seam, in the host's own order and wor
     Live t;
     Session& s = const_cast<Session&>(t.session());
     s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why it is quiet",
-                                     gfx::role::kAccent, std::string()});
+                                     gfx::colors::accent, std::string()});
     s.conditions.establish(Condition{"z.loud", "a loud thing", "why it is loud",
-                                     gfx::role::kAlert, "workshop.manage"});
+                                     gfx::colors::alert, "workshop.manage"});
     t.ready();
     REQUIRE_FALSE(t.said_conditions.empty());
     const StandingConditions& said = t.said_conditions.back();
@@ -1386,7 +1386,7 @@ TEST_CASE("what is true is said across the seam, in the host's own order and wor
     CHECK(said.rows[1].key == "b.quiet");
     CHECK(said.rows[0].compact == "a loud thing");
     CHECK(said.rows[0].detail == "why it is loud");
-    CHECK(said.rows[0].role == gfx::role::kAlert);
+    CHECK(said.rows[0].ink == gfx::colors::alert);
 
     // ...AND THE ACTION CROSSES AS PROSE, NOT AS A NAME: the pane is handed the sentence,
     // resolved through the keymap in force -- so an id never reaches the far side and nothing
@@ -1417,7 +1417,7 @@ TEST_CASE("nothing new is nothing said, which is what stops the seam looping") {
     // ...AND NEWS IS SAID THE ONCE. One condition arrives, one publication follows it.
     Session& s = const_cast<Session&>(t.session());
     s.conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
-                                     gfx::role::kAlert, std::string()});
+                                     gfx::colors::alert, std::string()});
     t.key(input::scan::kDown);
     REQUIRE(t.said_conditions.size() == after_first + 1);
     CHECK(t.said_conditions.back().rows.size() == 1);
@@ -1478,7 +1478,7 @@ TEST_CASE("the condition path carries no timer, no callback and no history") {
     // ...and the one package include it has is the ONE vocabulary it spends: no Workshop
     // header, and nothing of the substrate at all. A condition has no wire form, so it
     // cannot be sent, recorded, logged or persisted, and this is where that is enforced.
-    CHECK(text.find("#include \"graphics/role.hpp\"") != std::string::npos);
+    CHECK(text.find("#include \"graphics/colors.hpp\"") != std::string::npos);
     CHECK(text.find("#include \"screen.hpp\"") == std::string::npos);
     CHECK(text.find("#include \"panes.hpp\"") == std::string::npos);
     CHECK(text.find("<zen/") == std::string::npos);

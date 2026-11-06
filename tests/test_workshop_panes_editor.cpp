@@ -1956,7 +1956,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         CHECK_FALSE(seen.heard.back().whole);
         CHECK(window.rows(area)[static_cast<std::size_t>(w.chrome())] == "xone");
 
-        // THE SELECTION STANDS IN ITS ROW IN THE ACCENT ROLE, asking what its line asks.
+        // THE SELECTION STANDS IN ITS ROW IN THE ACCENT COLOUR, asking what its line asks.
         window.click(area, 0, w.chrome() + 1);
         w.key(input::scan::kRight, input::mod::kShift);
         w.key(input::scan::kRight, input::mod::kShift);
@@ -1966,7 +1966,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         const std::optional<gfx::TextArgs> words = gfx::from_body<gfx::TextArgs>(selected->args);
         REQUIRE(words.has_value());
         CHECK(words->text == "tw");
-        CHECK(zengine::graphics::role_of(words->ink) == gfx::role::kAccent);
+        CHECK(zengine::graphics::pool_color_of(words->ink) == gfx::colors::accent);
         CHECK(window.action_at(area, 0, second) == "line:2");
         CHECK(window.rows(area)[static_cast<std::size_t>(second)] == "two");
 
@@ -1980,7 +1980,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         CHECK_FALSE(seen.heard.back().whole);
         const std::int64_t third = w.chrome() + 2;
         // In a room of cells the caret over a character is that character drawn again in the
-        // accent role, which a bar there would hide.
+        // accent colour, which a bar there would hide.
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
         CHECK(caret->op == gfx::op::kText);
@@ -1989,7 +1989,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         CHECK(drawn_caret->x == 0);
         CHECK(drawn_caret->y == third * gfx::kCellPx);
         CHECK(drawn_caret->text == "t");
-        CHECK(zengine::graphics::role_of(drawn_caret->ink) == gfx::role::kAccent);
+        CHECK(zengine::graphics::pool_color_of(drawn_caret->ink) == gfx::colors::accent);
         CHECK(kept("sel" + std::to_string(second) + ".0") == nullptr);
         CHECK(window.action_at(area, 0, third) == "line:3");
         // ...AND IT LEAVES NO SWEEP ARMED: the pointer moving after it selects nothing from where

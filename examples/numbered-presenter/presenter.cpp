@@ -13,7 +13,7 @@
 
 #include "activation/activation.hpp"
 #include "component/list_window.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 
@@ -259,19 +259,19 @@ private:
         std::vector<ws::MenuLine> lines;
         if (earlier > 0) {
             lines.push_back(ws::MenuLine{fitted("  ^ " + std::to_string(earlier) + " above"),
-                                         gfx::role::kMuted, std::string()});
+                                         gfx::colors::quiet, std::string()});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const bool here = static_cast<std::int64_t>(i) == state_.cursor;
             bool standard = false;
             const ws::PaneMenuRow& row = row_of(static_cast<std::int64_t>(i), standard);
             lines.push_back(ws::MenuLine{line_for(i, row.label, here, state_.room_columns),
-                                         here ? gfx::role::kAccent : gfx::role::kFill,
+                                         here ? gfx::colors::accent : gfx::colors::text,
                                          std::string()});
         }
         if (more > 0) {
             lines.push_back(ws::MenuLine{fitted("  v " + std::to_string(more) + " below"),
-                                         gfx::role::kMuted, std::string()});
+                                         gfx::colors::quiet, std::string()});
         }
         std::int64_t width = 1;
         for (const ws::MenuLine& line : lines) {

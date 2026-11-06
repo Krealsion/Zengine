@@ -27,7 +27,7 @@
 
 #include "activation/activation.hpp"
 #include "component/list_window.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -274,7 +274,7 @@ private:
         if (earlier > 0) {
             lines.push_back(ws::MenuLine{
                 drawable("  ... " + std::to_string(earlier) + " earlier", columns),
-                gfx::role::kMuted, std::string()});
+                gfx::colors::quiet, std::string()});
         }
         // A ROW'S KEY STANDS APART, two blanks after the widest words, and a narrow room cuts the
         // words before a key. THE RULE NAMES THE PANE THE STANDARD ROWS ACT ON, as wide as the
@@ -287,13 +287,13 @@ private:
             const ws::PaneMenuRow* row = row_of(entry, standard);
             if (row == nullptr) {
                 lines.push_back(ws::MenuLine{drawable(rule_line(state_.pane_name, widest), columns),
-                                             gfx::role::kMuted, std::string()});
+                                             gfx::colors::quiet, std::string()});
                 continue;
             }
             const bool here = entry == state_.cursor;
             ws::MenuLine line{
                 drawable(std::string(here ? "> " : "  ") + ws::menu_row_text(*row, laid), columns),
-                here ? gfx::role::kAccent : gfx::role::kFill, std::string()};
+                here ? gfx::colors::accent : gfx::colors::text, std::string()};
             // THE LINE IS NAMED BY ITS ROW'S ID, as the id the choice comes back as: a requester's
             // row and a standard row alike, the first line to carry an id keeping it.
             if (!line.text.empty() && ws::pane_part_name_problem(row->id) == nullptr &&
@@ -304,7 +304,7 @@ private:
         }
         if (more > 0) {
             lines.push_back(ws::MenuLine{drawable("  ... " + std::to_string(more) + " more", columns),
-                                         gfx::role::kMuted, std::string()});
+                                         gfx::colors::quiet, std::string()});
         }
         std::int64_t width = 1;
         for (const ws::MenuLine& line : lines) {

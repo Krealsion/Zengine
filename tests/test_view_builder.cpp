@@ -146,13 +146,13 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         REQUIRE_FALSE(own.content.texts.empty());
         for (const auto& t : own.content.texts) {
             const auto moved = std::count_if(pic.content.texts.begin(), pic.content.texts.end(), [&](const auto& u) {
-                return u.text == t.text && u.role == t.role && u.x == t.x + area.x && u.y == t.y + area.y;
+                return u.text == t.text && u.ink == t.ink && u.x == t.x + area.x && u.y == t.y + area.y;
             });
             CHECK_MESSAGE(moved == 1, t.text);
         }
         for (const auto& r : own.content.rects) {
             const auto moved = std::count_if(pic.content.rects.begin(), pic.content.rects.end(), [&](const auto& u) {
-                return u.role == r.role && u.x == r.x + area.x && u.y == r.y + area.y && u.w == r.w && u.h == r.h;
+                return u.ink == r.ink && u.x == r.x + area.x && u.y == r.y + area.y && u.w == r.w && u.h == r.h;
             });
             CHECK(moved >= 1);
         }
@@ -179,7 +179,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(boxes == std::vector<std::string>{"id", "label", "x", "y", "w", "h"});
         const auto total = vb::element_area(area, m.description.elements[4]);
         CHECK(std::any_of(pic.content.rects.begin(), pic.content.rects.end(), [&](const auto& r) {
-            return r.role == zengine::graphics::role::kAccent && r.y + r.h == total.y && r.x <= total.x;
+            return r.ink == zengine::graphics::colors::accent && r.y + r.h == total.y && r.x <= total.x;
         }));
         const auto listed = [&](const std::string& start) {
             return std::any_of(pic.content.texts.begin(), pic.content.texts.end(),
@@ -240,7 +240,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
             return r.x >= area.x && r.x < right && r.x + r.w > right;
         }));
         CHECK(std::any_of(cut.content.rects.begin(), cut.content.rects.end(), [&](const auto& r) {
-            return r.role == zengine::graphics::role::kMuted && r.x == right - 50 && r.x + r.w == right;
+            return r.ink == zengine::graphics::colors::quiet && r.x == right - 50 && r.x + r.w == right;
         }));
         // A pan past its reach is held to it: the view's right edge, and a cell beyond it where
         // its handles sit, at the area's right edge.
@@ -656,7 +656,7 @@ struct Rig {
     /// The design area, read off the latest picture: the ground the view's own picture brought.
     vb::Area design() const {
         for (const auto& r : picture().rects)
-            if (r.role == zengine::graphics::role::kGround && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
+            if (r.ink == zengine::graphics::colors::background && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
         FAIL("no design area in the picture");
         return {};
     }
@@ -692,10 +692,10 @@ struct Rig {
                 return &t;
         return nullptr;
     }
-    /// Is the element at `at` outlined in `role`, `thick` pixels deep: its bottom edge's rule.
-    bool marked(std::int64_t role, const vb::Area& at, std::int64_t thick) const {
+    /// Is the element at `at` outlined in `ink`, `thick` pixels deep: its bottom edge's rule.
+    bool marked(gfx::Color ink, const vb::Area& at, std::int64_t thick) const {
         return std::any_of(picture().rects.begin(), picture().rects.end(), [&](const auto& r) {
-            return r.role == role && r.y == at.y + at.h && r.h == thick && r.x <= at.x && r.x + r.w >= at.x + at.w;
+            return r.ink == ink && r.y == at.y + at.h && r.h == thick && r.x <= at.x && r.x + r.w >= at.x + at.w;
         });
     }
     void drop(const loom::Value& value, const std::string& start) {
@@ -959,7 +959,7 @@ TEST_CASE("a kind dragged from the palette is made where it is let go on the des
     rig.pointer(ws::canvas_pointer::kMove, area.x + 30, area.y + 40, 1);
     // Where it would be made is marked while the hand holds it, and nothing is made yet.
     CHECK(rig.now().elements.empty());
-    CHECK(rig.marked(zengine::graphics::role::kMuted,
+    CHECK(rig.marked(zengine::graphics::colors::quiet,
                      vb::element_area(area, view::Element{"", view::Kind::number, "", 30, 40, 144, 24, ""}),
                      gfx::kPixelGrainPx));
     rig.pointer(ws::canvas_pointer::kRelease, area.x + 30, area.y + 40, 1);
@@ -987,7 +987,7 @@ TEST_CASE("a kind dragged from the palette is made where it is let go on the des
 }
 
 TEST_CASE("an element dragged on the design canvas moves and a corner resizes it, in whole pixels and snapped to the others' edges; a value typed in its box or an arrow key places it exactly; a lost drag puts it back") {
-    namespace ink = zengine::graphics::role;
+    namespace ink = zengine::graphics::colors;
     TempDir dir;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
@@ -1004,7 +1004,7 @@ TEST_CASE("an element dragged on the design canvas moves and a corner resizes it
     const auto area = rig.design();
     const auto line = [&](std::int64_t py) {
         return std::any_of(rig.picture().rects.begin(), rig.picture().rects.end(), [&](const auto& r) {
-            return r.role == ink::kAccent && r.x == area.x && r.w == area.w && r.y == area.y + py &&
+            return r.ink == ink::accent && r.x == area.x && r.w == area.w && r.y == area.y + py &&
                    r.h == gfx::kPixelGrainPx;
         });
     };
@@ -1261,7 +1261,7 @@ TEST_CASE("each side of the selected element has a handle that moves that side a
     const auto middle = std::min(down(at.y + at.h / 2), down(at.y + at.h - 1));
     std::vector<std::string> sides;
     for (const auto& r : rig.picture().rects)
-        if (r.role == zengine::graphics::role::kAccent && r.x == right && r.y == middle && r.w == unit && r.h == unit)
+        if (r.ink == zengine::graphics::colors::accent && r.x == right && r.y == middle && r.w == unit && r.h == unit)
             sides.push_back("right");
     CHECK(sides == std::vector<std::string>{"right"});
     drag(right, middle, 2 * unit, unit, 24);
@@ -1273,7 +1273,7 @@ TEST_CASE("each side of the selected element has a handle that moves that side a
 }
 
 TEST_CASE("the middle button pans the design canvas: an element past its edge is seen, pressed, dragged and dropped on where it is drawn, nothing of the view is drawn outside the canvas, and the pan is never saved") {
-    namespace ink = zengine::graphics::role;
+    namespace ink = zengine::graphics::colors;
     TempDir dir;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
@@ -1288,7 +1288,7 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     REQUIRE(900 > area.h);
     const auto far_box = [&](const vb::Area& at) {
         return std::count_if(rig.picture().rects.begin(), rig.picture().rects.end(), [&](const auto& r) {
-            return r.role == ink::kMuted && r.x == at.x && r.y == at.y && r.w == at.w && r.h == at.h;
+            return r.ink == ink::quiet && r.x == at.x && r.y == at.y && r.w == at.w && r.h == at.h;
         });
     };
     // NOTHING OF THE VIEW OUTSIDE THE CANVAS: the far button is past its edges, so not drawn.
@@ -1315,7 +1315,7 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     CHECK(rig.drawn("start: 0") == nullptr); // panned past, so not drawn
     // RESTING on it marks it where it is drawn.
     rig.hover(distant.x + distant.w / 2, distant.y + distant.h / 2);
-    CHECK(rig.marked(ink::kFill, distant, gfx::kPixelGrainPx));
+    CHECK(rig.marked(ink::text, distant, gfx::kPixelGrainPx));
     // PRESSED AND DRAGGED where it is drawn: selected and moved.
     rig.pointer(ws::canvas_pointer::kPress, distant.x + distant.w / 2, distant.y + distant.h / 2, 31);
     CHECK(rig.text("far (button) ") != nullptr);
@@ -1425,7 +1425,7 @@ std::string first_version_bytes(const view::Description& d) {
 } // namespace
 
 TEST_CASE("the view's size is set by its handles on the design canvas or typed into its boxes; the canvas draws the view in exactly its size; its edges snap as an element's do, and an element's to them; a view saved without a size opens with the size it needs") {
-    namespace ink = zengine::graphics::role;
+    namespace ink = zengine::graphics::colors;
     TempDir dir;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
@@ -1438,7 +1438,7 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
     const auto area = rig.design();
     const auto ground = [&](std::int64_t w, std::int64_t h) {
         return std::count_if(rig.picture().rects.begin(), rig.picture().rects.end(), [&](const auto& r) {
-            return r.role == ink::kGround && r.x == area.x && r.y == area.y && r.w == w &&
+            return r.ink == ink::background && r.x == area.x && r.y == area.y && r.w == w &&
                    r.h == h;
         });
     };
@@ -1492,7 +1492,7 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
     const auto up = [](std::int64_t v) { return (v + unit - 1) / unit * unit; };
     const auto right = cells.x + up(px(500));
     CHECK(std::any_of(rig.picture().rects.begin(), rig.picture().rects.end(), [&](const auto& r) {
-        return r.role == ink::kFill && r.x == right && r.w == unit && r.h == unit && r.y == cells.y + px(132) / 2 / unit * unit;
+        return r.ink == ink::text && r.x == right && r.w == unit && r.h == unit && r.y == cells.y + px(132) / 2 / unit * unit;
     }));
     rig.host(window_room(++rig.grant));
 
@@ -1687,40 +1687,40 @@ TEST_CASE("a view shrunk to its elements while its notice shows keeps every elem
 }
 
 TEST_CASE("the pointer resting on an element marks it and its row; a carried value marks the label it would land on; leaving puts the marks down") {
-    namespace ink = zengine::graphics::role;
+    namespace ink = zengine::graphics::colors;
     const auto thin = zengine::graphics::kPixelGrainPx;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     REQUIRE(rig.edit("select", {"3"}).ok);
     const auto d = rig.now();
     const auto start = vb::element_area(rig.design(), d.elements[0]);
-    CHECK_FALSE(rig.marked(ink::kFill, start, thin));
+    CHECK_FALSE(rig.marked(ink::text, start, thin));
     auto [x, y] = rig.middle(d.elements[0]);
     rig.hover(x, y);
-    CHECK(rig.marked(ink::kFill, start, thin));
+    CHECK(rig.marked(ink::text, start, thin));
     // ...and its row in the list.
     const auto* row = rig.text("  start  number");
     REQUIRE(row != nullptr);
     CHECK(std::any_of(rig.picture().rects.begin(), rig.picture().rects.end(),
-                      [&](const auto& r) { return r.role == ink::kMuted && r.x == 0 && r.y == row->y; }));
+                      [&](const auto& r) { return r.ink == ink::quiet && r.x == 0 && r.y == row->y; }));
     // Resting moves nothing: the selection is still `count`.
     CHECK(rig.text("count (button) ") != nullptr);
     // A CARRIED VALUE over the label marks where it would land; over a number field it marks nothing.
     const auto total = vb::element_area(rig.design(), d.elements[4]);
     std::tie(x, y) = rig.middle(d.elements[4]);
     rig.hover(x, y, true, true);
-    CHECK(rig.marked(ink::kAccent, total, 2 * thin));
-    CHECK_FALSE(rig.marked(ink::kFill, start, thin));
+    CHECK(rig.marked(ink::accent, total, 2 * thin));
+    CHECK_FALSE(rig.marked(ink::text, start, thin));
     std::tie(x, y) = rig.middle(d.elements[1]);
     rig.hover(x, y, true, true);
-    CHECK_FALSE(rig.marked(ink::kAccent, total, 2 * thin));
-    CHECK_FALSE(rig.marked(ink::kAccent, vb::element_area(rig.design(), d.elements[1]), 2 * thin));
+    CHECK_FALSE(rig.marked(ink::accent, total, 2 * thin));
+    CHECK_FALSE(rig.marked(ink::accent, vb::element_area(rig.design(), d.elements[1]), 2 * thin));
     // LEAVING puts every mark down.
     std::tie(x, y) = rig.middle(d.elements[0]);
     rig.hover(x, y);
-    REQUIRE(rig.marked(ink::kFill, start, thin));
+    REQUIRE(rig.marked(ink::text, start, thin));
     rig.hover(x, y, false);
-    CHECK_FALSE(rig.marked(ink::kFill, start, thin));
+    CHECK_FALSE(rig.marked(ink::text, start, thin));
 }
 
 TEST_CASE("a value typed into its box is kept by Return or Tab, refused in words with its box kept for repair, and put back by Escape") {
@@ -1789,7 +1789,7 @@ TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret
     // Typing at its end scrolls the box: it shows the label's tail, not its front.
     const auto* scrolled = [&]() -> const ws::CanvasText* {
         for (const auto& t : rig.picture().texts)
-            if (t.role == zengine::graphics::role::kAccent && !t.text.empty() &&
+            if (t.ink == zengine::graphics::colors::accent && !t.text.empty() &&
                 long_label.size() >= t.text.size() &&
                 long_label.compare(long_label.size() - t.text.size(), t.text.size(), t.text) == 0)
                 return &t;
@@ -2329,7 +2329,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         // RESTING ON AN ELEMENT NOT SELECTED MARKS IT; the pointer leaving the area puts it down.
         const auto rests = vb::element_area(rig.design(), rig.now().elements[1]);
         const auto marked = [&] {
-            return rig.marked(zengine::graphics::role::kFill, rests, gfx::kCellPx);
+            return rig.marked(zengine::graphics::colors::text, rests, gfx::kCellPx);
         };
         REQUIRE_FALSE(marked());
         const auto [mx, my] = rig.middle(rig.now().elements[1]);

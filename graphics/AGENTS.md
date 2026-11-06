@@ -8,11 +8,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | path | what it is |
 |---|---|
 | `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the pointer in an area (`AreaButtonChanged` ... `AreaPointerLeft`), the directory's and the palettes (`PaletteOffered`, `PaletteChosen`), `WindowShown`; `kGraphicsRole` |
-| `color.hpp` | a colour a draw carries, `Color`: an exact value (`rgb`, `rgba`), a pool name (`PoolColor`) or a slot (`SlotColor`) |
-| `pool.json`, `themes/*.json` | the pool's colours and their defaults, and the four shipped themes, generated at configure time into `graphics/colors.hpp` (`colors::accent` ...) and `graphics/themes.hpp` (`themes::classic()` ...) by `cmake/ZengineNames.cmake` |
-| `role.hpp` | the roles a drawer may still name, `role::kFill` ... `role::kEdge`, and `role::kNone`, each read as a pool colour (`ops.hpp`: `by_role`, `exact`) |
+| `color.hpp` | a colour a draw carries, `Color`: an exact value (`rgb`, `rgba`, beside the pool colour it is `like`), a pool name (`PoolColor`) or a slot (`SlotColor`) |
+| `pool.json`, `themes/*.json` | the pool's colours and their defaults, and the three shipped themes, generated at configure time into `graphics/colors.hpp` (`colors::accent` ...) and `graphics/themes.hpp` (`themes::night()` ...) by `cmake/ZengineNames.cmake` |
 | `pixels.hpp` | saturating pixel arithmetic: `add_cells`, `sub_px`, `mul_px`, `floor_div_px`, `px_of_cells`, `cell_of_pixel`, `device_of_px`, `px_span_contains` and the grains |
-| `ops.hpp`, `implied.hpp` | the seven operators' operands and the colours each carries (`colors_of`), refused in words when they do not read (`operands_refused`); a body without its envelope |
+| `ops.hpp`, `implied.hpp` | the seven operators' operands and the colours each carries (`colors_of`), the pool colour a colour shows as (`pool_color_of`), refused in words when they do not read (`operands_refused`); a body without its envelope |
 | `canvas.hpp` | `Sketch`, `Canvas`, `difference`: an owner's drawing, sent as what changed |
 | `elements.hpp`, `elements/*.hpp` | the parts an owner draws into a `Sketch`: `Button`, `Checkbox`, `List`, `Grid`, `Icon`, `Image`, `ScrollView`, `TextBox`; each its nodes and its `*Face` record, the action the owner names riding the record; and the text pieces' stateless faces over `component/`'s values (`text_face.hpp`) |
 | `drawing.hpp` | `DrawingWeave`: a drawer's authoring base, the room's handshake and the showing |
@@ -59,6 +58,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 - `graphics_own_after_delivery_refused` — a drawing weave whose drawer replaces the
   end-of-delivery hook does not compile (case 2)
 - `graphics_undeclared_color_refused` — a pool colour nobody declared does not compile (case 4)
+- `graphics_color_role_refused` — a colour named by a role does not compile (case 5)
 - `graphics_drawer_compiles` — the walls' positive control, a drawer naming a declared colour that
   builds (case 3)
 
@@ -71,7 +71,7 @@ rows; it shares the rig.
   board's code beside the snake's host; `examples/snake/play.cpp` loads the directory and the
   window, and its operator weave is the arranger, offering two of the shipped palettes.
   `workshop/CMakeLists.txt` stages the window and the directory beside `zengine-workshop` (and the
-  OS window where the build has SDL), whose weave arranges when they are loaded and offers the four
+  OS window where the build has SDL), whose weave arranges when they are loaded and offers the three
   shipped palettes, and `cmake/ZengineInstall.cmake` installs them as artifacts, all but the OS
   window, whose SDL the install does not own, with the generator and the pool's and themes' JSON.
 - Grants: the snake host grants its operator `AreaPlaced`, `PaletteOffered`, `PaletteChosen`,

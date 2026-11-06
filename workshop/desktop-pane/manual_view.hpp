@@ -24,7 +24,7 @@
 #include "component/row_map.hpp"
 #include "component/text_area.hpp"
 #include "graphics/elements/text_face.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 #include "input/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 
@@ -268,24 +268,24 @@ public:
             return;
         }
         std::vector<ws::TextRow> out;
-        const auto push = [&out, room_rows, room_columns](std::string text, std::int64_t role) {
+        const auto push = [&out, room_rows, room_columns](std::string text, graphics::Color ink) {
             if (static_cast<std::int64_t>(out.size()) < room_rows) {
                 out.push_back(
-                    ws::TextRow{fit(std::move(text), room_columns), role});
+                    ws::TextRow{fit(std::move(text), room_columns), ink});
             }
         };
         if (manual_.office.empty() && manual_.word.empty()) {
             push("MANUAL -- press the ? at the top right of a pane to read its manual here",
-                 graphics::role::kMuted);
+                 graphics::colors::quiet);
             publish_manual(mail, std::move(out));
             return;
         }
         push("MANUAL -- " + manual_.office + (manual_.pane.empty() ? "" : "/" + manual_.pane),
-             graphics::role::kAccent);
+             graphics::colors::accent);
         if (!manual_.words || !keys_heard) {
             push(manual_.words ? std::string("waiting for the keys in force") : manual_.word,
-                 manual_.asked != 0 || manual_.words ? graphics::role::kMuted
-                                                     : graphics::role::kAlert);
+                 manual_.asked != 0 || manual_.words ? graphics::colors::quiet
+                                                     : graphics::colors::alert);
             publish_manual(mail, std::move(out));
             return;
         }
@@ -295,7 +295,8 @@ public:
         const auto first = static_cast<std::int64_t>(out.size());
         std::vector<ws::RowsTextArea> areas;
         areas.push_back(
-            ws::RowsTextArea{first, body, manual_.text, kManualTextPart, kManualBarPart});
+            ws::RowsTextArea{first, body, manual_.text, kManualTextPart, kManualBarPart,
+                             manual_reader::manual_inks()});
         publish_manual(mail, std::move(out), {}, std::move(areas));
     }
 

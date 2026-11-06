@@ -11,7 +11,6 @@
 // answers for its platform: the clipboard, its place on the desktop, a close, and its last picture.
 // Reference: graphics/docs/graphics.md.
 
-#include "graphics/role.hpp"
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
@@ -393,7 +392,7 @@ struct AreaPlaced {
 };
 
 /// One named colour of a palette: its 0xRRGGBBAA; what a terminal shows where it cannot show that
-/// colour (`own`, the terminal's own ink, or one of its sixteen, perhaps `bright`, perhaps `bold`;
+/// colour (`terminal default`, the terminal's default ink, or one of its sixteen, perhaps `bright`, perhaps `bold`;
 /// "" its nearest); and the character a terminal fills a shape with in it ("" the palette's `text`
 /// fill).
 struct PaletteColor {

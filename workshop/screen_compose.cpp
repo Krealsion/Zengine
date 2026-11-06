@@ -26,7 +26,7 @@ void paint_panes(ScreenCanvas& c, const Session& s, const Screen& sc) {
         if (b.w <= 0 || b.h <= 0) {
             continue;
         }
-        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
+        const graphics::Color chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
         detail::on_own_layer(c, [&](ScreenPlane& layer) {
             if (p.kind == pane_kind::kLayouts) {
                 // The layout run, the setup association and the workspace fact: the rectangle is
@@ -99,7 +99,7 @@ void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc
     }
     // THE STYLE `workshop.focus.ring` NAMES: the accent's two rings, or one in the chrome's ink.
     const bool plain = s.selection_ring_plain;
-    const std::int64_t role = plain ? kPaneChrome : graphics::role::kAccent;
+    const graphics::Color ink = plain ? kPaneChrome : graphics::colors::accent;
     // WHERE AN EDGE IS FINER THAN A CELL, the rings, each as its four sides.
     const std::int64_t grain = chrome_grain(sc);
     if (grain < graphics::kCellPx) {
@@ -112,7 +112,7 @@ void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc
                                           PixelRect{r.x, r.y + r.h - grain, r.w, grain},
                                           PixelRect{r.x, r.y, grain, r.h},
                                           PixelRect{r.x + r.w - grain, r.y, grain, r.h}}) {
-                layer.rects.push_back(wire_rect_of(side, role));
+                layer.rects.push_back(wire_rect_of(side, ink));
             }
         }
         return;
@@ -127,7 +127,7 @@ void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc
     };
     for (const auto& [edge, glyph] : kCorners) {
         const PixelRect at = pane_edge_cell(b, edge);
-        layer.labels.push_back(ScreenLabel{at.x, at.y, glyph, role});
+        layer.labels.push_back(ScreenLabel{at.x, at.y, glyph, ink});
     }
 }
 
@@ -188,7 +188,7 @@ ScreenRegion band_region(const Session& s, const Screen& sc) {
     }
 
     for (std::string& row : legend) {
-        band.rows.push_back(TextRow{std::move(row), graphics::role::kMuted});
+        band.rows.push_back(TextRow{std::move(row), graphics::colors::quiet});
     }
     return band;
 }
@@ -196,7 +196,7 @@ ScreenRegion band_region(const Session& s, const Screen& sc) {
 namespace {
 
 /// EVERY DOCK'S STRIP, its own ground the whole length of its edge, its arrow and its tags in it:
-/// an open pane's tag and an open edge's arrow in the accent ink, the rest muted.
+/// an open pane's tag and an open edge's arrow in the accent ink, the rest quiet.
 // WL-CHROME-12 -- agents/workshop/chrome.md
 void paint_strips(ScreenPlane& layer, const Session& s, const Screen& sc) {
     const std::vector<StripMark> marks = strip_marks(s, sc);
@@ -215,22 +215,22 @@ void paint_strips(ScreenPlane& layer, const Session& s, const Screen& sc) {
         region.h = r.h;
         if (vertical) {
             region.rows.assign(static_cast<std::size_t>(std::max<std::int64_t>(fit.rows, 0)),
-                               TextRow{" ", graphics::role::kMuted});
+                               TextRow{" ", graphics::colors::quiet});
         } else if (fit.rows > 0) {
             region.rows.push_back(TextRow{
                 std::string(static_cast<std::size_t>(std::max<std::int64_t>(fit.columns, 0)), ' '),
-                graphics::role::kMuted});
+                graphics::colors::quiet});
         }
         for (const StripMark& m : marks) {
             if (m.edge != edge) {
                 continue;
             }
-            const std::int64_t role = m.open ? graphics::role::kAccent : graphics::role::kMuted;
+            const graphics::Color ink = m.open ? graphics::colors::accent : graphics::colors::quiet;
             if (vertical) {
                 for (std::size_t i = 0; i < m.text.size(); ++i) {
                     const std::size_t at = static_cast<std::size_t>(m.row) + i;
                     if (at < region.rows.size()) {
-                        region.rows[at] = TextRow{std::string(1, m.text[i]), role};
+                        region.rows[at] = TextRow{std::string(1, m.text[i]), ink};
                     }
                 }
             } else if (!region.rows.empty()) {
@@ -242,7 +242,7 @@ void paint_strips(ScreenPlane& layer, const Session& s, const Screen& sc) {
                     }
                 }
                 if (m.open) {
-                    region.rows.front().role = graphics::role::kAccent;
+                    region.rows.front().ink = graphics::colors::accent;
                 }
             }
         }
@@ -323,17 +323,17 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
         return at;
     };
     if (g.ground != kGroundBeneath) {
-        sk.fill_rect(name + "/ground", 0, 0, g.w, g.h, graphics::by_role(graphics::role::kGround));
+        sk.fill_rect(name + "/ground", 0, 0, g.w, g.h, graphics::colors::background);
     }
     for (std::size_t r = 0; r < g.rows.size(); ++r) {
         const TextRow& row = g.rows[r];
         const PixelRect at = local(static_cast<std::int64_t>(r), 0, 0);
-        if (row.background != graphics::role::kNone) {
+        if (row.background != graphics::no_color()) {
             sk.fill_rect(name + "/bg" + std::to_string(r), 0, at.y, g.w, at.h,
-                         graphics::by_role(row.background));
+                         row.background);
         }
         sk.text(name + "/row" + std::to_string(r), at.x, at.y,
-                row_text_shown(row, !fit.graphical()), graphics::by_role(row.role));
+                row_text_shown(row, !fit.graphical()), row.ink);
         // A TEXT BOX on the row: spelled in its text in a room of cells, an outline round its
         // columns where the medium sets type.
         if (row.box.present() && fit.graphical()) {
@@ -358,14 +358,14 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
             sk.text(name + "/sel" + std::to_string(r), at.x, at.y,
                     text.substr(static_cast<std::size_t>(first),
                                 static_cast<std::size_t>(last - first)),
-                    graphics::by_role(graphics::role::kAccent));
+                    graphics::colors::accent);
         }
     }
     if (g.caret_row >= 0 && g.caret_row < static_cast<std::int64_t>(g.rows.size()) &&
         g.caret_col >= 0) {
         const PixelRect at = local(g.caret_row, g.caret_col, 1);
         sk.line(name + "/caret", at.x, at.y, at.x, at.y + at.h - 1,
-                graphics::by_role(graphics::role::kAccent));
+                graphics::colors::accent);
     }
 }
 
@@ -385,14 +385,14 @@ void draw_plane(graphics::Sketch& sk, const std::string& name, const ScreenPlane
             continue;
         }
         if (PixelRect{r.x, r.y, r.w, r.h} != frame) {
-            sk.fill_rect(at, r.x, r.y, r.w, r.h, graphics::by_role(r.role));
+            sk.fill_rect(at, r.x, r.y, r.w, r.h, r.ink);
             continue;
         }
         if (opaque) {
             sk.fill_rect(at + "-ground", r.x, r.y, r.w, r.h,
-                         graphics::by_role(graphics::role::kGround));
+                         graphics::colors::background);
         }
-        sk.outline_rect(at, r.x, r.y, r.w, r.h, graphics::by_role(r.role));
+        sk.outline_rect(at, r.x, r.y, r.w, r.h, r.ink);
     }
     const std::int64_t advance =
         sc.text_advance_px > 0 ? sc.text_advance_px : graphics::kCellPx;
@@ -403,9 +403,9 @@ void draw_plane(graphics::Sketch& sk, const std::string& name, const ScreenPlane
         if (grounded && !l.text.empty()) {
             sk.fill_rect(at + "-ground", l.x, l.y,
                          static_cast<std::int64_t>(l.text.size()) * advance, line,
-                         graphics::by_role(graphics::role::kGround));
+                         graphics::colors::background);
         }
-        sk.text(at, l.x, l.y, l.text, graphics::by_role(l.role));
+        sk.text(at, l.x, l.y, l.text, l.ink);
     }
     for (std::size_t i = 0; i < layer.texts.size(); ++i) {
         draw_region(sk, name + "/text" + std::to_string(i), layer.texts[i], sc);
@@ -427,7 +427,7 @@ void draw_part(WorkshopWindowDrawing& out, const std::string& group, const std::
     words.resize(static_cast<std::size_t>(columns), ' ');
     const PixelRect at = span_px(fit, r, column, columns);
     const std::string node = group + "/part" + std::to_string(out.sketch.records().size());
-    out.sketch.text(node, at.x, at.y, words, graphics::by_role(row.role));
+    out.sketch.text(node, at.x, at.y, words, row.ink);
     out.sketch.action(node, action);
 }
 
@@ -480,11 +480,11 @@ std::vector<PixelRect> outside_of(const PixelRect& r, const PixelRect& cut) {
     return out;
 }
 
-/// WHILE ONE PANE IS ARRANGED, EVERY OTHER PANE FADES: a veil of the ground at half strength over
-/// what of each the arranged pane leaves uncovered, drawn in an area that stands in front of the
-/// panes: Workshop's own while a weaver arranges, its overlay while a pane opened is placed. Under
-/// half, so a terminal, which draws an image only where it is mostly opaque, draws none of it. The
-/// veil falls once where faded panes overlap: each pane is veiled only where no veil lies yet.
+/// WHILE ONE PANE IS ARRANGED, EVERY OTHER PANE FADES: a veil in the pool's `veil` over what of
+/// each the arranged pane leaves uncovered, drawn in an area that stands in front of the panes:
+/// Workshop's own while a weaver arranges, its overlay while a pane opened is placed. A terminal
+/// leaves out a fill that is mostly transparent, so where the veil is, it draws none. The veil
+/// falls once where faded panes overlap: each pane is veiled only where no veil lies yet.
 // WL-ARR-18 -- agents/workshop/arrangement.md
 void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const Session& s,
                          const Screen& sc) {
@@ -496,8 +496,6 @@ void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const S
         return;
     }
     const PixelRect held = bounds_of(s.panes, s.setup.active, *kept, sc).rect;
-    const std::uint8_t tone = s.skin == kSkinDay ? 0xff : 0x00;
-    const loom::Bytes veil{tone, tone, tone, 0x7f};
     sk.group(group, 0, 0);
     std::vector<PixelRect> veiled; // what the veil covers so far, in parts that do not overlap
     for (const std::int64_t kind : effective_pane_order(s.setup.active, s.panes)) {
@@ -520,8 +518,8 @@ void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const S
             parts = std::move(left);
         }
         for (const PixelRect& part : parts) {
-            sk.image(group + "/fade" + std::to_string(veiled.size()), part.x, part.y, part.w,
-                     part.h, 1, 1, veil);
+            sk.fill_rect(group + "/fade" + std::to_string(veiled.size()), part.x, part.y, part.w,
+                         part.h, graphics::colors::veil);
             veiled.push_back(part);
         }
     }
@@ -532,7 +530,7 @@ void draw_arranging_veil(graphics::Sketch& sk, const std::string& group, const S
 /// tabs, as their parts.
 void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
                const PixelRect& b, const Screen& sc, const std::string& desk) {
-    const std::int64_t chrome = kind == selected_pane(s.panes) ? kPaneChromeSelected : kPaneChrome;
+    const graphics::Color chrome = kind == selected_pane(s.panes) ? kPaneChromeSelected : kPaneChrome;
     ScreenPlane layer;
     if (kind == pane_kind::kLayouts) {
         const std::string group = desk + "/layouts";
@@ -542,7 +540,7 @@ void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
         if (tab_row != kNoBandRow) {
             const ExternalBodyPlace place = layouts_body(s, sc);
             const BandStatus band = band_status(s, place);
-            const TextRow row{band.text, graphics::role::kMuted};
+            const TextRow row{band.text, graphics::colors::quiet};
             for (const LayoutTab& tab : band.tabs) {
                 draw_part(out, group, "layout:" + std::to_string(tab.at), place.fit, tab_row,
                           tab.column, tab.columns, row);
@@ -620,9 +618,8 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
         for (std::size_t i = 0; i < rings.size(); ++i) {
             out.sketch.outline_rect(group + "/ring" + std::to_string(i), rings[i].x, rings[i].y,
                                     rings[i].w, rings[i].h,
-                                    graphics::by_role(s.selection_ring_plain
-                                                          ? kPaneChrome
-                                                          : graphics::role::kAccent));
+                                    s.selection_ring_plain ? kPaneChrome
+                                                           : graphics::colors::accent);
         }
     }
     if (s.context.open) {

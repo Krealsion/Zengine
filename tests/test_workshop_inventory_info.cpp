@@ -1601,7 +1601,7 @@ input::InjectedEvent at_local(InventoryStory& s, std::int64_t kind, std::int64_t
 /// The View Builder's design area, read off its picture: the ground the view's own picture brought.
 zengine::view_builder::Area design_of(InventoryStory& s) {
     for (const HeldRect& r : held_rects(s.builder))
-        if (r.role == gfx::role::kGround && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
+        if (r.ink == gfx::colors::background && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
     FAIL("the builder drew no design area");
     return {};
 }
@@ -1783,7 +1783,7 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
     const auto landing = [&] {
         const std::vector<HeldRect> rects = held_rects(s.builder);
         return std::any_of(rects.begin(), rects.end(), [&](const auto& r) {
-            return r.role == gfx::role::kAccent && r.y == label.y + label.h && r.h == 2 * gfx::kCellPx;
+            return r.ink == gfx::colors::accent && r.y == label.y + label.h && r.h == 2 * gfx::kCellPx;
         });
     };
     CHECK(landing());

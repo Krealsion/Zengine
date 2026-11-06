@@ -15,11 +15,12 @@ package ships three weaves, each with its manual: the terminal window,
 [`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`; the OS
 window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
 has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
-Four themes come with them as palettes, `classic`, `block`, `day` and `night`, generated from the
-JSON they are written in (`graphics/themes/`). The snake (`examples/snake/`) is the worked example:
+Three themes come with them as palettes, `night`, `day` and `block`, generated from the JSON they
+are written in (`graphics/themes/`); `classic`, in a setting or an `app.json`, is another name for
+`night`. The snake (`examples/snake/`) is the worked example:
 it draws its frame as nodes and its board as an element of its own.
 
-![The snake in a terminal window wearing the classic palette: the operator's status line, the world's score and board, and the score weave's own area beside it](images/snake-classic.png)
+![The snake in a terminal window wearing the night palette: the operator's status line, the world's score and board, and the score weave's own area beside it](images/snake-night.png)
 
 ![The same window after 1 chose the block palette mid-game: the window painted what it keeps in the other palette, and nothing was drawn again on the bus](images/snake-block.png)
 
@@ -166,17 +167,21 @@ colour shows in its place: a terminal writes that colour's word and fills a shap
 character. Without it, a terminal shows the nearest of its sixteen inks.
 
 A **palette** (`PaletteOffered`) is a theme resolved for the window: each pool colour's
-`0xRRGGBBAA`, what a terminal shows where it cannot show it (`cells`: `own`, the terminal's own
-ink, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its nearest) and the
+`0xRRGGBBAA`, what a terminal shows where it cannot show it (`cells`: `terminal default`, the
+terminal's default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its nearest) and the
 character it fills a shape with (`fill`); each office's slots; and a terminal's outline, a corner,
 across and down. Whoever arranges the window offers palettes and chooses the one each area wears
 (`PaletteChosen`) through the directory; an area wearing none, or one nobody offered, wears the
-window's own, the pool's defaults. The four shipped themes are `graphics::themes::classic()`,
-`block()`, `day()` and `night()` (`graphics/themes.hpp`), each generated with `zengine_palettes()`
-from its JSON in `graphics/themes/`.
+window's own, the pool's defaults, which are night's. The three shipped themes are
+`graphics::themes::night()`, `day()` and `block()` (`graphics/themes.hpp`), each generated with
+`zengine_palettes()` from its JSON in `graphics/themes/`. In a terminal the pool shows text and
+every ground in the terminal's default colours, a pane's frame in grey (`bright black`), and each
+other colour as the nearest of its sixteen
+inks; `block` gives every colour an ink and a fill character of its own.
 
-A drawer written before colours were named names a role (`graphics/role.hpp`) with `by_role`, or
-an exact colour beside one with `exact`: each is read as the pool colour the role means.
+An exact colour can name the pool colour a medium that cannot show it shows in its place
+(`rgb(0x2e7d5b, colors::accent)`); where only the pool's colours are shown, any colour shows as
+its pool colour (`pool_color_of`).
 
 ## Drawing: a canvas, and one showing a beat
 
@@ -206,7 +211,7 @@ values `component/` keeps measured in characters, and keeps nothing itself. A te
 column on each side of its text (`kTextBoxInset`): in a row of cells `[text___]`
 (`text_box_spelling`), or plain, its text alone from its first column, where a prompt beside it
 already marks the place (`TextBoxInCells`, `text_box_plain`, `text_box_text_column`); where the
-window sets type its outline in `role::kEdge` round its text,
+window sets type its outline in the pool's `edge` round its text,
 selection and caret (`text_box_face`). A text area in a row of cells shows its lines between
 `N more above...` and `... N more below` (`text_area_cells`, read back by
 `text_area_cells_place`). `text_area_face` draws a text area scrolled freely: its lines from the
@@ -232,8 +237,7 @@ public:
     ScoreWeave() : Weave("snake.score") {} // the office it draws as; its area by default
     void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
     void picture(graphics::Sketch& f) const {
-        f.text("eaten", 0, 0, std::to_string(state_.eaten),
-               graphics::by_role(graphics::role::kFill));
+        f.text("eaten", 0, 0, std::to_string(state_.eaten), graphics::colors::text);
     }
 };
 ```

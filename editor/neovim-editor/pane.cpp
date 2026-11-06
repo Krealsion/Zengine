@@ -950,10 +950,10 @@ private:
         const std::int64_t chrome = chrome_rows();
         if (!notice_.empty()) {
             rows.push_back(ws::TextRow{drawable(fit(notice_, room_cols)),
-                                                   notice_bad_ ? graphics::role::kAlert : graphics::role::kMuted});
+                                                   notice_bad_ ? graphics::colors::alert : graphics::colors::quiet});
         } else if (chrome > 0) {
             rows.push_back(ws::TextRow{drawable(fit(status_text(room_cols), room_cols)),
-                                                   graphics::role::kAccent});
+                                                   graphics::colors::accent});
         }
         if (!running() || !host_->ready()) {
             return;
@@ -965,7 +965,7 @@ private:
             for (std::size_t i = 0;
                  i < preview_.lines.size() && static_cast<std::int64_t>(i) + chrome < room_rows; ++i) {
                 rows.push_back(ws::TextRow{preview_line(preview_.lines[i], text_cols),
-                                                       graphics::role::kFill});
+                                                       graphics::colors::text});
             }
             return;
         }
@@ -993,11 +993,11 @@ private:
         }
         for (std::int64_t r = 0; r < shown_rows; ++r) {
             const nv::Screen::Row& row = screen.rows[static_cast<std::size_t>(r)];
-            std::int64_t role = graphics::role::kFill;
+            graphics::Color ink = graphics::colors::text;
             switch (row.kind) {
-            case nv::RowKind::Chrome: role = graphics::role::kAccent; break;
-            case nv::RowKind::Muted: role = graphics::role::kMuted; break;
-            case nv::RowKind::Alert: role = graphics::role::kAlert; break;
+            case nv::RowKind::Chrome: ink = graphics::colors::accent; break;
+            case nv::RowKind::Muted: ink = graphics::colors::quiet; break;
+            case nv::RowKind::Alert: ink = graphics::colors::alert; break;
             case nv::RowKind::Text: break;
             }
             // A ROW'S BLANKS GO, BUT NOT THE ONES THE CARET OR THE RANGE STANDS ON: Neovim's cursor on
@@ -1011,7 +1011,7 @@ private:
             while (static_cast<std::int64_t>(text.size()) > keep && !text.empty() && text.back() == ' ') {
                 text.pop_back();
             }
-            rows.push_back(ws::TextRow{drawable(fit(std::move(text), text_cols)), role});
+            rows.push_back(ws::TextRow{drawable(fit(std::move(text), text_cols)), ink});
         }
     }
 

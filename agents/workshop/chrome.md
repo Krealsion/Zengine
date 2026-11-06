@@ -1,6 +1,6 @@
 # Workshop law — chrome
 
-Register `WL-CHROME`: a pane's edge, the boundary rungs, the ring and the chrome roles. One law
+Register `WL-CHROME`: a pane's edge, the boundary rungs, the ring, the chrome's colours and the looks. One law
 per heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
 
 ## WL-CHROME-01 — A pane has an edge, inside its own rectangle
@@ -74,16 +74,17 @@ LAW — Ordinary and selected chrome have identical geometry — the same outer 
 
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
-## WL-CHROME-08 — Three chrome roles, from the closed vocabulary
+## WL-CHROME-08 — Three chrome colours, from the shared pool
 
-LAW — Three chrome roles: ordinary chrome wears the fill ink, selected chrome the accent ink, a transient surface the muted ink, all from the closed role vocabulary, with no per-medium palette.
+LAW — Three chrome colours: ordinary chrome wears the pool's `frame`, selected chrome `frame_selected`, a transient surface `frame_transient`, each painted as the area's palette says.
 
 MEANS
-- the desk and the document say selection with one word, `kAccent`;
+- the desk and the document say selection with one word, `frame_selected`; in a terminal ordinary chrome is grey (`bright black`) in every look, on a dark terminal or a light one;
+- a theme sets the chrome apart from the words it frames (the pool's defaults are `text`'s, `accent`'s and `quiet`'s colours), and no medium keeps a palette of its own for it;
 - on a character medium a transient edge over bare workspace is the hole its interior clears.
 
 DOES NOT MEAN
-- that an opaque background changes the three roles used for pane chrome.
+- that an opaque background changes the three colours used for pane chrome.
 
 WHY — `agents/decisions/pane-boundary-rungs.md`
 
@@ -100,6 +101,19 @@ DOES NOT MEAN
 - that Workshop shows or keeps the manual: the application's row shows it, and nothing is held.
 
 WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
+
+## WL-CHROME-10 — Night, day and block are offered, and `classic` is night
+
+LAW — Workshop offers the directory three palettes, `night`, `day` and `block`, and its setting offers the same three; a `workshop.skin` naming `classic` is taken and wears night.
+
+MEANS
+- a file that names `classic` reads as before, and a choice between `classic` and `night` moves no area;
+- `night` is the pool's own and Workshop's default; in a terminal its text and grounds are the terminal's default colours, a pane's frame grey, any other the nearest ink.
+
+DOES NOT MEAN
+- that `classic` is offered: no row, menu or directory lists it.
+
+WHY — `agents/decisions/night-day-and-block-ship.md`
 
 ## WL-CHROME-11 — A shut pane shows its title alone, and its arrow opens it
 
@@ -181,9 +195,12 @@ selected pane wears its own chrome, and only it"
 
 ### WL-CHROME-08
 `workshop/screen.hpp` kPaneChrome kPaneChromeSelected kTransientChrome
-`graphics/role.hpp` kFill kAccent kMuted
 `tests/test_workshop_screen.cpp` "selected and ordinary differ in INK, and in nothing else" "a
-transient surface stays over the pane it covers, selected or not"
+transient surface stays over the pane it covers, selected or not" "the chrome paints the frame,
+frame_selected and frame_transient its palette sets, and the arranging veil its veil"
+`tests/test_graphics.cpp` "in a terminal night and day show their text and grounds in the terminal's
+default colours, a pane's frame grey and every other colour as the nearest of its sixteen inks; block
+keeps an ink of its own for each, its frame grey too"
 
 ### WL-CHROME-09
 `workshop/panes.hpp` ExternalPane::manual
@@ -197,6 +214,16 @@ transient surface stays over the pane it covers, selected or not"
 a `?` and a gear at its top right; one that does not, or a desk with no row to show one, wears
 neither" "WL-KEY-16: the band's spelling and the Hotkeys view's are set apart from a pane's gear,
 each changing only its own surface, the `?` spelling as the Hotkeys view does"
+
+### WL-CHROME-10
+`workshop/pane_settings.hpp` kSkinClassic workshop_palette_of is_workshop_skin_choice
+workshop_skin_setting_row pane_setting_refused_by
+`workshop/weave_run.cpp` arrange_graphics
+`tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.skin` names,
+else Workshop's own, and a palette is said only when an area's moved"
+`tests/test_graphics.cpp` "in a terminal night and day show their text and grounds in the terminal's
+default colours, a pane's frame grey and every other colour as the nearest of its sixteen inks; block
+keeps an ink of its own for each, its frame grey too"
 
 ### WL-CHROME-11
 `workshop/screen.hpp` kFoldOpenArrow kFoldShutArrow kFoldArrowColumns chrome_mark::kFold fold_prefix

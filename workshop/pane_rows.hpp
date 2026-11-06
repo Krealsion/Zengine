@@ -10,7 +10,7 @@
 
 #include "component/text_box.hpp"
 #include "graphics/elements/text_face.hpp"
-#include "graphics/role.hpp"
+#include "graphics/colors.hpp"
 
 #include <cstdint>
 #include <string>
@@ -18,7 +18,7 @@
 
 namespace zengine::workshop {
 
-/// No caret, and no selection: negative, as `graphics::role::kNone` is, so neither is a row.
+/// No caret, and no selection: negative, as `graphics::no_color()` is, so neither is a row.
 inline constexpr std::int64_t kNoCaret = -1;
 inline constexpr std::int64_t kNoSelection = -1;
 /// No fold mark on a row.
@@ -65,7 +65,7 @@ inline RowBox row_box(const component::TextBox& box, std::int64_t column, std::i
 }
 
 /// ONE ROW OF TEXT: plain text, the role its characters are drawn in, and a ground beneath them
-/// (`role::kNone`, the default, shows whatever the area shows there). Plain ASCII: a character is
+/// (`no_color()`, the default, shows whatever the area shows there). Plain ASCII: a character is
 /// an advance of the window's text, and a byte past it would split. `mark` is the column of a
 /// section's fold mark, `+` or `-` (`component::fold_mark`): a medium of characters draws the
 /// character, and a window that sets type the icon table's `right` or `down` in its place. `box` is
@@ -73,8 +73,8 @@ inline RowBox row_box(const component::TextBox& box, std::int64_t column, std::i
 /// own face of it (`row_text_shown`).
 struct TextRow {
     std::string text;
-    std::int64_t role = graphics::role::kFill;
-    std::int64_t background = graphics::role::kNone;
+    graphics::Color ink = graphics::colors::text;
+    graphics::Color background = graphics::no_color();
     std::int64_t mark = kNoMark;
     RowBox box{};
     bool operator==(const TextRow&) const = default;
