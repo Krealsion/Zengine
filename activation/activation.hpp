@@ -186,6 +186,10 @@ struct SelectBase<
     using type = Base<Self, State, AcceptList, EmitList, Dispatch>;
 };
 
+/// The second, defaulted parameter of the facet's own publication hook: a weave's handler takes
+/// the claim alone, so asking for one never finds the facet's.
+struct ForwardedClaim {};
+
 template <class Tuple, class... Args>
 struct FirstFacetConstructible : std::false_type {};
 
@@ -288,7 +292,7 @@ public:
     /// `bool` applied or declined, or `loom::Weave::PublishedClaim`; with none, applied as it
     /// stands. Unconstrained, so asking whether a weave has a handler never asks this one.
     template <class S>
-    loom::Weave::PublishedClaim on_claim_published(const S& claim) {
+    loom::Weave::PublishedClaim on_claim_published(const S& claim, ForwardedClaim = {}) {
         Self* self = static_cast<Self*>(this);
         if constexpr (requires {
                           static_cast<bool (Self::*)(const S&)>(&Self::on_claim_published);
