@@ -20,12 +20,14 @@
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/pane_doors.hpp"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iterator>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -69,6 +71,9 @@ struct TransferStory {
     std::int64_t editor = 0, inventory = 0;
     std::shared_ptr<std::vector<QuietReader::Event>> physical =
         std::make_shared<std::vector<QuietReader::Event>>();
+    /// The beat an Editor that answers on its beat is given, as the Timer would give it; none for
+    /// one that answers in the delivery that asks.
+    std::function<void()> beat;
 
     /// `stem` is the image that holds the Editor's office: the standard Editor, or another
     /// implementation of it (the Neovim-backed Editor's suite passes its own). `desktop` loads the
@@ -223,6 +228,10 @@ struct TransferStory {
         asker->next = [path](DoorAsker& a, loom::Mail& mail) { a.ask(mail, kOpeningRole, OpenSourceRequested{path}); };
         r.bus.send(asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
         r.bus.drain_until_idle();
+        for (int turn = 0; beat && turn < 4000 && asker->opens.size() == before; ++turn) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            beat();
+        }
         REQUIRE(asker->opens.size() == before + 1);
         if (!asker->opens.back().accepted) MESSAGE("the open was refused: " << asker->opens.back().refusal);
         return asker->opens.back();

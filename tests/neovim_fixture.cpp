@@ -109,8 +109,8 @@ int main(int argc, char** argv) {
     // environment's ZENGINE_NEOVIM_FIXTURE_MODE, else `ok`: api level 13, attach, the "module",
     // `nvim_get_mode`, `nvim_input` echoed as a flush, exit 0 on `qa!`. `old` is level 12; after
     // the first request `garbage` writes non-RPC bytes, `crash` exits 3, `flood` overflows every
-    // bound and `stranger` answers an id nobody asked; `silent` answers nothing; `prompt` is
-    // blocked in `r` and never serves the module; `ignore-quit` ignores `qa!`; `visual` is `ok` in Visual.
+    // bound and `stranger` answers an id nobody asked; `silent` answers nothing, `mute` no question
+    // after its start; `prompt` is blocked in `r`; `ignore-quit` ignores `qa!`; `visual` is Visual.
     const char* from_env = std::getenv("ZENGINE_NEOVIM_FIXTURE_MODE");
     const std::string mode = argc > 1 && argv[1][0] != '-' ? std::string(argv[1])
                              : from_env != nullptr && *from_env != '\0' ? std::string(from_env)
@@ -119,6 +119,7 @@ int main(int argc, char** argv) {
     mp::Decoder decoder(limits);
     char buf[4096];
     bool first = true;
+    bool installed = false;
     for (;;) {
         const long n = read_some(buf, sizeof buf);
         if (n <= 0) {
@@ -189,9 +190,10 @@ int main(int argc, char** argv) {
                 // THE ANSWER AND THE SCREEN AFTER IT IN ONE WRITE, as Neovim answers and then redraws.
                 write_all(response(id, mp::Value::nil(), mp::Value::nil()) + redraw_of("after"));
             } else if (method == "nvim_exec_lua") {
-                if (mode == "prompt") {
+                if (mode == "prompt" || (mode == "mute" && installed)) {
                     continue; // never served, as a real prompt never serves it
                 }
+                installed = true;
                 mp::Value::Map said;
                 said.push_back({mp::Value::str("did_enter"), mp::Value::integer(1)});
                 said.push_back({mp::Value::str("clipboard"), mp::Value::boolean(true)});

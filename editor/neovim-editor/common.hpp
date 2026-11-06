@@ -102,6 +102,9 @@ inline constexpr int kAdoptMs = 10000;
 /// ...and a start an answer waits for (an open with no Neovim running, a baseline start).
 inline constexpr int kStartWaitMs = 10000;
 
+/// HOW MANY QUESTIONS NEOVIM MAY HOLD UNANSWERED at once before another is refused in words.
+inline constexpr std::size_t kMaxAsks = 32;
+
 /// THE ROWS A TRANSFER'S MENUS OFFER, told apart by name: a drop's, and a press's.
 inline constexpr const char* kInsertLine = "neovim.insert-line";
 inline constexpr const char* kInsertCpp = "neovim.insert-cpp";
@@ -399,13 +402,17 @@ struct Heard {
 };
 using Settle = std::function<void(const Heard&)>;
 
-/// A CHANGE NEOVIM HOLDS, sent once with its whole target, which Neovim checks again when it
-/// runs it. The Editor keeps it until the answer (or Neovim's end) fills `answer` -- inside a
-/// pump, by the only callback that can -- and then says `settle`'s outcome, exactly once.
+/// A CHANGE THE EDITOR OWNS UNTIL NEOVIM ANSWERS IT, sent once with its whole target, which Neovim
+/// checks again when it runs it. Kept from the send until the answer (or Neovim's end) fills
+/// `answer` -- inside a pump, by the only callbacks that can -- and then `settle`'s outcome is said,
+/// exactly once. Once Neovim is known to hold it (`outstanding`, why), the Editor says it waits.
 struct Held {
     std::string what; ///< "a drop", "a location's cursor": what the status row says still waits
     std::shared_ptr<std::optional<nv::rpc::Response>> answer;
     Settle settle;
+    std::string waiting; ///< what the Editor says while Neovim holds it
+    std::shared_ptr<std::string> outstanding = std::make_shared<std::string>();
+    bool said = false; ///< the wait has been said
 };
 
 /// WHAT AN INSERTION SAYS ONCE NEOVIM HAS TAKEN IT, however late.
@@ -451,11 +458,38 @@ struct Judgement {
 };
 
 /// THE FILE A SHOWING PUT IN FRONT, BEFORE NEOVIM HAS DRAWN IT: its first lines, and how many
-/// flushes this Neovim had made when it answered the showing -- its preview stands until the next.
+/// flushes this Neovim had made when it answered the showing -- its preview stands until the next,
+/// and until the answer while `awaiting` it.
 struct Preview {
     bool active = false;
     std::vector<std::string> lines;
     std::uint64_t flushes = 0;
+    bool awaiting = false;
+};
+
+// ---- A question to Neovim, never waited for (WL-NVIM-05) --------------------------------
+
+/// WHAT A QUESTION CAME TO: the module's result, or why there is none -- never sent, an error,
+/// Neovim ended, or `outstanding`: Neovim waits for input or did not answer within the bound, and
+/// still holds the request. `flushes` is the screen's when the answer arrived.
+struct Answer {
+    std::optional<mp::Value> result;
+    std::string why;
+    bool outstanding = false;
+    std::uint64_t flushes = 0;
+};
+/// What follows an answer, in the delivery that heard it.
+using Then = std::function<void(const Answer&, loom::Mail&)>;
+/// What follows a Neovim becoming ready, or failing to.
+using Ready = std::function<void(bool ok, const std::string& why, loom::Mail&)>;
+/// What follows a preparation, a judgment and an export, once Neovim has answered.
+using Prepared = std::function<void(ws::v3::SourcePrepared, loom::Mail&)>;
+using Judged = std::function<void(Judgement, loom::Mail&)>;
+using Exported_then = std::function<void(std::optional<Exported>, const Answer&, loom::Mail&)>;
+/// An answer heard inside the Host and its continuation, waiting for the pump to run it.
+struct Arrival {
+    Answer answer;
+    Then then;
 };
 
 } // namespace zengine::neovim_editor::detail

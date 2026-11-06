@@ -69,7 +69,7 @@ WHY — `agents/decisions/a-held-change-is-owned-until-answered.md`
 ### WL-NVIM-10
 `editor/neovim-editor/pane.cpp` carries_selection declare
 `editor/neovim-editor/transfers.hpp` on_window press_at dragged right_press
-carry_snapshot snapshot_now
+carry_snapshot snapshot_later
 `editor/neovim/lua.hpp` kSelection
 `tests/test_workshop_neovim_transfers.cpp` "a Visual selection dragged from its highlight lands in a
 named Inventory folder as exactly what Neovim's yank takes, unsaved edits included, and Neovim keeps
@@ -113,9 +113,9 @@ whole, and begin the line once the bound cut it; no saved line checks nothing, a
 nothing"
 
 ### WL-NVIM-13
-`editor/neovim/host.hpp` Host::ask Host::Asked Host::call_now
+`editor/neovim/host.hpp` Host::ask_later Host::Asked
 `editor/neovim-editor/pane.cpp` status_text
-`editor/neovim-editor/opening_switch.hpp` judge_now
+`editor/neovim-editor/opening_switch.hpp` judge
 `editor/neovim-editor/transfers.hpp` change settle_held heard_of insert_lines settle_location
 `editor/neovim/lua.hpp` kDrop kLocate
 `tests/test_neovim_live.cpp` "a change asked while Neovim waits for input is outstanding, not

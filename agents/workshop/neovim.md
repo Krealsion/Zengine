@@ -13,7 +13,7 @@ never restated.
 LAW — The Neovim-backed Editor holds `zengine.editor` with the Editor's pane key and answers the doors the standard Editor answers, so Files, the Builder and Edit Code reach it by reaching the office.
 
 MEANS
-- an open is loaded hidden, its claim unmoved, and shown at the publication, or Declined in words;
+- an open is loaded hidden, its claim unmoved, shown at the publication ahead of every later key; a refused showing is said when Neovim answers;
 - the old door relays to the opening manager with the requester's right kept;
 - while its pane holds the keys, `^s` writes the buffer and `^o` is Neovim's own jump back.
 
@@ -57,14 +57,17 @@ MEANS
 
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 
-## WL-NVIM-05 — Waiting on Neovim is bounded, and a Neovim that cannot serve is said in words
+## WL-NVIM-05 — Neovim is never waited on, and a Neovim that cannot serve is said in words
 
-LAW — The flow is never waited on; a question is asked within a bound beside Neovim's fast mode; a start answers later; a missing, too old, prompting or silent Neovim is said in its words and moves nothing.
+LAW — No handler waits on Neovim: a question is answered on the beat that hears it, outstanding at its bound; a start answers later; a missing, too old, prompting or silent Neovim is said in its words.
 
 MEANS
-- a warm-up that never answers keeps the switch pending and cancellable; its candidate goes too;
-- with no Neovim the pane says so, an open is refused in words, and the quit is permitted;
+- a bus ask the Editor answers from Neovim is answered when Neovim answers, and the bus delivers meanwhile;
+- a warm-up that never answers keeps the switch pending and cancellable; with no Neovim the pane says so, an open is refused in words, and the quit is permitted;
 - the beat is ordered in the Timer's own words, and a beat the Timer refuses is said on the pane.
+
+DOES NOT MEAN
+- that a press or a cursor races its question: a press on the highlight reaches Neovim once it has said what it selected, a location's cursor once it has shown the file.
 
 WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 
@@ -154,7 +157,7 @@ caret is"
 
 ### WL-NVIM-03
 `editor/neovim/document.hpp` place carry neovim_text file_bytes
-`editor/neovim-editor/opening_switch.hpp` on(EditorAdoptRequested) judge_now
+`editor/neovim-editor/opening_switch.hpp` on(EditorAdoptRequested) adopt_placed
 `tests/test_workshop_neovim.cpp` "standard to Neovim and back carries the unsaved document and its
 caret exactly, with Neovim editing between" "a selection crosses to Neovim as Visual and comes back
 as the same range, in its direction"
@@ -162,17 +165,21 @@ as the same range, in its direction"
 adjusted"
 
 ### WL-NVIM-04
-`editor/neovim-editor/opening_switch.hpp` judge_now wait_unblocked on(EditorHandoffJudgeRequested)
-on(EditorHandoffRequested)
+`editor/neovim-editor/opening_switch.hpp` judge judged_from until_unblocked
+on(EditorHandoffJudgeRequested) on(EditorHandoffRequested)
 `tests/test_workshop_neovim.cpp` "a switch away from Neovim names another modified buffer for
 consent, and carries the current one" "an unfinished command in Neovim is reset by a switch and
 said, and a prompt refuses the switch until it is answered"
 
 ### WL-NVIM-05
-`editor/neovim/host.hpp` Host::call_now Host::start
-`editor/neovim-editor/pane.cpp` lua_now ensure_running ensure_beat on(TimerResolution)
+`editor/neovim/host.hpp` Host::ask_later Host::start
+`editor/neovim-editor/pane.cpp` ask ask_rpc hear when_ready ensure_running ensure_beat
+on(TimerResolution)
 `editor/neovim-editor/opening_switch.hpp` on(EditorWarmRequested) settle_warm
-`tests/test_workshop_neovim.cpp` "the Neovim editor orders its beat in words the Timer reads, and a
+`editor/neovim-editor/transfers.hpp` press_at settle_location
+`tests/test_workshop_neovim.cpp` "a Neovim that never answers a question holds no handler: the rest
+of the bus keeps delivering, and the ask is answered in words once its bound passes" "the Neovim
+editor orders its beat in words the Timer reads, and a
 refused beat is said on its pane" "a Neovim choice whose program is not there refuses the switch in
 words, and the standard Editor keeps editing" "a Neovim older than 0.11 refuses the switch naming
 its version" "a Neovim that stops at a prompt while starting refuses the switch in its words" "a
@@ -181,8 +188,8 @@ cancel" "the Neovim editor holding the office with no Neovim says so on its pane
 words, and permits the quit"
 
 ### WL-NVIM-06
-`editor/neovim-editor/pane.cpp` snapshot on(PaneQuitRequested) absorb
-`editor/neovim-editor/opening_switch.hpp` judge_now
+`editor/neovim-editor/pane.cpp` snapshot on(PaneQuitRequested) answer_quit absorb
+`editor/neovim-editor/opening_switch.hpp` judge
 `tests/test_workshop_neovim.cpp` "the orderly quit is refused while Neovim holds unsaved changes,
 naming the file, and permitted once written" "Neovim ended from inside leaves the office held with
 no document, said so, and switching back carries nothing" "a reload of the Neovim editor is refused

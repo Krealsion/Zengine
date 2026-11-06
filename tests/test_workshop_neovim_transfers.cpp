@@ -58,6 +58,7 @@ struct NeovimStory : NeovimHome, TransferStory {
         reader = probe.get();
         reader_id = r.bus.register_weave(std::move(probe), loom::Grant{}, std::string());
         reader->zen_set_self(reader_id);
+        beat = [this] { tick(); };
         REQUIRE_MESSAGE(until([&] { return read("ready") == "true"; }), "Neovim never became ready: ", read("failure"));
     }
 
@@ -89,6 +90,37 @@ struct NeovimStory : NeovimHome, TransferStory {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             tick();
         }
+    }
+    /// THE GESTURES AS A HAND MAKES THEM, each followed by beats: the Editor asks Neovim what a
+    /// press, a key or a drop met and goes on when it answers, as a hand gives it time to between a
+    /// press on Neovim's screen and its motion.
+    void click(std::int64_t kind, std::int64_t row, std::int64_t column, std::int64_t button = 1) {
+        TransferStory::click(kind, row, column, button);
+        settle();
+    }
+    void key(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
+        TransferStory::key(scan, mods);
+        settle();
+    }
+    void drag(std::int64_t from, std::int64_t from_row, std::int64_t from_col, std::int64_t to, std::int64_t to_row,
+              std::int64_t to_col) {
+        auto press = at(from, from_row, from_col, "PointerButton", true);
+        auto release = at(to, to_row, to_col, "PointerButton", false);
+        auto move = release;
+        move.kind = "PointerMoved";
+        move.dx = release.x - press.x;
+        move.dy = release.y - press.y;
+        if (from != editor) {
+            batch({press, move, release}); // a drop: Neovim hears of it at the release
+            settle();
+            return;
+        }
+        batch({press});
+        settle();
+        batch({move});
+        settle();
+        batch({release});
+        settle();
     }
     std::string read(const char* field) {
         const std::uint64_t corr = ++reads;

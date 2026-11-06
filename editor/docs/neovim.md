@@ -306,8 +306,9 @@ from a **second terminal**, so `loom-host` keeps its console.
    ```
 
    Start `loom-host` again: `2 started -- boot COMPLETE`. The Timer settles its own beat when it
-   starts, which is why it starts again after the decisions rather than before them. Without the
-   beat Neovim still runs, but this host notices Neovim ending only when you next ask.
+   starts, which is why it starts again after the decisions rather than before them. The Neovim
+   editor answers each ask below on its beat, once Neovim has answered it, so without the Timer
+   Neovim still runs but no ask is answered.
 3. Find the Neovim editor's weave with `weaves` -- the one that accepts `NeovimStartRequested`
    (weave 6 with this boot file) -- and ask it to start Neovim on a file. The console asks for
    every field, so name `listen` too; empty chooses an address for you:

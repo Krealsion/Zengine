@@ -9,7 +9,7 @@ command's Terminal line chosen while Neovim sat in an unfinished `g` was said "n
 inserted", and the Escape that ended the wait inserted it, modified. msgpack-RPC has no cancel,
 and Neovim runs a request it held once its wait ends, in the order sent, after keys already typed.
 
-**Decision.** A change Neovim leaves unanswered is held, not refused. `Host::ask` says
+**Decision.** A change Neovim leaves unanswered is held, not refused. `Host::ask_later` says
 `Outstanding` and hands the late answer, or Neovim's end, to the caller exactly once. The Editor
 keeps one held change, sent once with its whole target -- buffer, changedtick, cell and screen
 row, or line and its saved text -- which Neovim checks again when it runs it. The notice and the
