@@ -29,23 +29,29 @@ DOES NOT MEAN
 PROVEN BY — `timer/timer_weave.hpp` (activation cursor + serial); suite
 `timer` (chain cases, replacement-boundary chain end).
 
-## TIMER-02 — The host owes the service nothing
+## TIMER-02 — The host owes the service nothing but its rest
 
 LAW — The host never winds the clock. Loading the service is what starts time:
 the control door activates the fresh incarnation and the service seeds its own
-first beat.
+first beat. No handler sleeps: at every beat the service fires what is due and
+claims, as its office, how long the bus may rest (`TimerRest`); the host rests
+between turns only while that beat is all its bus holds (`timer/rest.hpp`).
 
 MEANS
 - load order decides nothing — every package arranges its own timers on its
   own activation (or on `TimerReady`);
-- there is no host beat, no host loop, no host sleep.
+- there is no host beat and no host schedule: the host turns the bus and
+  rests, and what it rests for is the service's claim, never a time of its own;
+- a reply to a firing, a key or an answer queued beside the next beat is
+  delivered in the next turn, not after a nap.
 
 DOES NOT MEAN
-- that the pump is the Timer's — pumping the bus is running the world; the nap
-  inside the beat is merely where the world breathes.
+- that a host must rest — one that never does is served the same, only busier;
+- that the pump is the Timer's — pumping the bus is running the world; the rest
+  between turns is merely where the world breathes.
 
-PROVEN BY — suite `timer` (no-wind cases); the snake host contributes nothing
-to time.
+PROVEN BY — suite `timer` (no-wind cases; the rest between turns, with nothing
+napped inside a handler); the snake host contributes nothing to time.
 
 ## TIMER-03 — Continuity carries remaining duration, never due times
 

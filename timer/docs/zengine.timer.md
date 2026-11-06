@@ -9,12 +9,12 @@ once with [TimedWeave](timed-weaves.md) and never sends these itself.
 
 ## About
 
-The Timer is the one place in the running system that reads the OS clock or sleeps. It keeps
-time in beats, its own `Drive` messages, one chain from each activation: loading it is what starts
-time, and no host winds it. Each beat naps until the soonest deadline, never longer than
-`kBeatCapMs` (`timer/vocabulary.hpp`), which is the most a firing can be late; fires what is due;
-and sends the next beat. A repeating timer that came due late fires once and keeps its rhythm,
-never a burst to catch up.
+The Timer is the one place in the running system that keeps time, in beats, its own `Drive`
+messages, one chain from each activation: loading it is what starts time, and no host winds it.
+Each beat fires what is due and sends the next, and sleeps nowhere: the host rests between turns
+while the next beat is all its bus holds ([`timer/rest.hpp`](../rest.hpp)), never past
+`kBeatCapMs` (`timer/vocabulary.hpp`), the most a firing can be late. A repeating timer that came
+due late fires once and keeps its rhythm.
 
 A delay is normalized before it is scheduled, by the rule `timer.normalize_delay`
 ([`timer/normalize.hpp`](../normalize.hpp)): a repeating delay below 1 ms becomes 1, a one-shot
@@ -180,8 +180,12 @@ what it inherited; `TimerFired` v1, to the weave or the role a timer names, each
 due; `TimerResolution` v1, to the weave that sent an ordered ask. Activated, it claims its
 predecessor's letter, `zen.ClaimBequest` to the Loom's manager role, and waits `kBootstrapBeats`
 beats for it before starting fresh; asked `zen.PrepareShutdown`, it answers with a `zen.Bequest`
-holding `TimerHandoff` v1, firing, cancelling and advancing nothing. To follow it, accept
-`TimerReady` and the receipts of your own orders; its counters are read by a poke.
+holding `TimerHandoff` v1, firing, cancelling and advancing nothing. At every beat that fired what
+was due it claims `TimerRest` v1 as the office, a latest claim rather than a message: `serial`,
+the beat it sent next, and `until_ms`, the reading of its own clock until which the bus may rest.
+A host reads it between turns (`timer/rest.hpp`); the reading means something only in the
+Timer's process. To follow it, accept `TimerReady` and the receipts of your own orders; its
+counters are read by a poke.
 
 ## See also
 

@@ -4,9 +4,10 @@
 what your weave *is*, use [TimedWeave](timed-weaves.md) instead.
 
 Time in Zen is a service: the `zengine-timer` weave holds the `zengine.timer`
-role, owns the monotonic clock and the one nap in the system, and delivers
-beats to whoever asks. Your weave never sleeps, never polls, and never talks to
-an id — always to the role.
+role, owns the monotonic clock, and delivers beats to whoever asks; the host
+rests between turns for as long as the Timer says the bus may
+([`timer/rest.hpp`](../rest.hpp)). Your weave never sleeps, never polls, and
+never talks to an id — always to the role.
 
 ## Order a timer
 

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Timer service over a virtual clock: the shipped `TimerServiceT` in every respect but the
-// clock, whose nap books the requested duration as elapsed. Continuity is a claim about durations
+// clock, which books each beat's wait as elapsed (`elapse_ms`). Continuity is a claim about durations
 // (TIMER-03), so each beat is exactly `kBeatCapMs` of virtual time and every duration an exact
 // integer nobody waits for, through the real kernel, swap and bequest. Three libraries from this
 // source: the incumbent, the prepared candidate (the same code, since what prepares must be what
@@ -23,15 +23,14 @@ namespace {
 
 /// Time that moves only when the service decides to wait for it.
 ///
-/// `nap_ms` returns instantly and books the requested duration as elapsed. A nap
-/// of zero or less is the service saying something is already due, and moves
-/// nothing — exactly as the real clock declines to sleep in that case.
+/// `elapse_ms` returns instantly and books a beat's wait as elapsed. A wait of zero
+/// or less is the service saying something is already due, and moves nothing.
 struct VirtualClock {
     std::int64_t now = 0;
 
     std::int64_t now_ms() { return now; }
 
-    void nap_ms(std::int64_t ms) {
+    void elapse_ms(std::int64_t ms) {
         if (ms > 0) {
             now += ms;
         }

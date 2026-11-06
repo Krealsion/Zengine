@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// zengine-snake, the playable host: it owns the boot list and nothing else -- it draws nothing of
-// the game, knows no snake rules, reads no keys, keeps no clock and pumps nobody. The world keeps
-// its own rules, keys and beat; the terminal window reads the terminal and shows what owners draw;
+// zengine-snake, the playable host: it owns the boot list and its loop's rest, and nothing else --
+// it draws nothing of the game, knows no snake rules, reads no keys and keeps no time: between
+// turns it rests as long as the Timer's beat allows (timer/rest.hpp). The world keeps its own
+// rules, keys and beat; the terminal window reads the terminal and shows what owners draw;
 // the directory introduces the two; and the operator weave arranges the window, chooses its
 // palette, speaks the status line and sends every lifecycle command (examples/snake/README.md).
 
@@ -22,7 +23,10 @@
 #include "graphics/themes.hpp" // generated: the shipped themes, as palettes
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
+#include "timer/os_clock.hpp"
+#include "timer/rest.hpp"
 #include "timer/vocabulary.hpp"
+#include "workshop/bus_tally.hpp"
 
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/control.hpp>
@@ -55,6 +59,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -128,8 +133,8 @@ struct OperatorContext {
     loom::WeaveId control{}; ///< the kernel's door, which lands the pilot by its role
     std::string dir; ///< where the host resolves loadable weaves and code (beside itself)
 
-    /// The host's stop lever: with time inside the bus, drain_until_idle() returns only when told
-    /// to stop, so the quit key must stop the bus, not just set a flag.
+    /// The host's stop lever: the quit key ends the turn it is read in, so the loop reads the wish
+    /// before it rests.
     std::function<void()> request_stop;
 
     std::string so(const char* stem) const;
@@ -539,7 +544,20 @@ int main(int argc, char** argv) {
     std::printf("zengine-snake - containment: %s\n", loom::Kernel::containment_note());
     std::fflush(stdout);
 
+    // Where the bus spent its time (workshop/bus_tally.hpp), said once the weaves are gone and the
+    // window has given the terminal back: declared before the bus, so it speaks after it.
+    struct SaidLast {
+        std::vector<std::string> lines;
+        ~SaidLast() {
+            for (const std::string& line : lines) {
+                std::printf("zengine-snake - %s\n", line.c_str());
+            }
+            std::fflush(stdout);
+        }
+    } said_last;
+
     loom::Switchboard bus;
+    zengine::workshop::BusTally tally(bus);
     // The demo loads exactly the artifacts its own build just produced, so it says so rather than
     // relying on a default the Loom no longer has.
     loom::Kernel kernel(
@@ -607,15 +625,23 @@ int main(int argc, char** argv) {
     boot("load timer service",
          loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), timer::kTimerRole});
 
-    // The whole game runs inside `drain_until_idle()`, which returns only on quit while the beat
-    // chain lives; a drain that comes back idle means nothing here will ever speak again.
+    // The whole game runs in this loop: a turn, then the rest the Timer's beat allows. A turn that
+    // leaves nothing queued means nothing here will ever speak again.
+    zengine::timer::MonotonicClock clock;
+    zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
     while (!ctx.quit) {
-        bus.drain_until_idle();
-        if (!ctx.quit && bus.pending() == 0) {
+        (void)bus.pump_pending();
+        if (ctx.quit) {
+            break;
+        }
+        if (bus.pending() == 0) {
             std::printf("zengine-snake - the bus went quiet without a quit "
                         "(no timer service deployed?): time is gone, exiting.\n");
             break;
         }
+        (void)rest.after_turn(bus);
     }
+    said_last.lines = tally.lines();
+    said_last.lines.push_back("rested " + std::to_string(rest.rests()) + " times between turns");
     return 0;
 }

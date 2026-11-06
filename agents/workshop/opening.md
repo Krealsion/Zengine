@@ -108,11 +108,11 @@ WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-09 — A native showing failure is captured where it is thrown, not at the pump
 
-LAW — A native owner applies a published claim inside `contain_showing`: a throw there is Failed, its words in the host's book; `serve_until_idle` tells the book and propagates every exception.
+LAW — A native owner applies a published claim inside `contain_showing`: a throw there is Failed, its words in the host's book; the host's turn (`serve_turn`) tells the book and propagates every exception.
 
 MEANS
 - the words come from the code around the owner's application, never a bus event or a held owner;
-- the book is told on every exit of the turn, also while an exception leaves it unchanged;
+- the book is told on every exit of the turn, also while an exception leaves it unchanged, and a suite's drain (`serve_until_idle`) tells it the same way;
 - Declined is returned, never thrown; a native owner throwing outside the boundary propagates.
 
 DOES NOT MEAN
@@ -233,7 +233,7 @@ minting again"
 
 ### WL-OPEN-09
 `workshop/host_pump.hpp` contain_showing ShowingFailures ServedTurn
-`workshop/host_pump.cpp` serve_until_idle
+`workshop/host_pump.cpp` serve_until_idle serve_turn
 `workshop/weave.hpp` HostContext::showings
 `workshop/weave_managed.cpp` on_claim_published
 `tests/test_workshop_panes_opening.cpp` "a native owner's failed showing is told in the words its

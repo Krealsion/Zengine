@@ -54,7 +54,7 @@ accepted while the child still inherited the parent's handles.
 
 ## VM-PLAT-08 — On Windows a short sleep lasts a scheduler tick
 
-METHOD — On Windows `Sleep` and `sleep_for` wait a scheduler tick (~15.6 ms) for any shorter period; the shipped Timer naps on a high-resolution timer instead, and a case judges what a nap asks, never how long it took.
+METHOD — On Windows `Sleep` and `sleep_for` wait a scheduler tick (~15.6 ms) for any shorter period; the host's rest naps on a high-resolution timer instead, and a case judges what a nap asks, never how long it took.
 BECAUSE — `Sleep(1)` and a 1 ms `sleep_for` each took 15.5 ms on Windows 11 where a
 high-resolution waitable timer took 1.5, and `GetTickCount64` steps 15 or 16 ms; a busy machine
 lengthens every wait but cannot coarsen a reading or change what a nap asked.

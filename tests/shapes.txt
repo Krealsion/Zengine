@@ -568,6 +568,7 @@ TimerHandoff v1 0x975d9409baeb32e6
 TimerHandoffEntry v1 0x0dd1c73b59596c5f
 TimerReady v1 0xfd706b8cd362b054
 TimerResolution v1 0x15ac3e359e6be7cf
+TimerRest v1 0x5ca27effbb0ef6cd
 TimerState v3 0xf033d33722423255
 TranscriptShown v2 0x88ee053776cd190a
 ViewAnswer v1 0x8806809e6456d821

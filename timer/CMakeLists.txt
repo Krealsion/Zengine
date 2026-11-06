@@ -1,5 +1,6 @@
-# The Timer package: time, message-shaped. The vocabulary, and one loadable weave that is its
-# sole authority and the only place in the running system that reads the OS clock or sleeps.
+# The Timer package: time, message-shaped. The vocabulary, one loadable weave that is its sole
+# authority over time, and the rest a host takes between turns while the Timer's beat is all its
+# bus holds -- the only sleep in a running system.
 
 # The vocabulary travels as a header-only interface target, same as input's:
 # consumers spell `#include "timer/vocabulary.hpp"`. Portable — shapes are
@@ -13,6 +14,15 @@ add_library(zengine::timer ALIAS zengine-timer-vocabulary)
 # <zen/weave/shape.hpp>, and binding.hpp <zen/weave.hpp> and the activation cursor. In this tree
 # the omission would be invisible; from an installed package it decides whether a consumer compiles.
 target_link_libraries(zengine-timer-vocabulary INTERFACE loom::core zengine::activation)
+
+# The rest between turns (`timer/rest.hpp`) over the OS clock (`timer/os_clock.hpp`): header-only,
+# a host's, reading the Timer's claim off the host's own Switchboard.
+add_library(zengine-timer-rest INTERFACE)
+target_include_directories(zengine-timer-rest INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::timer-rest ALIAS zengine-timer-rest)
+target_link_libraries(zengine-timer-rest INTERFACE zengine-timer-vocabulary loom::switchboard)
 
 # The weave itself needs a Loom that can HOST loadable weaves (the same
 # honest question every package asks: does this install export loom::kernel?).

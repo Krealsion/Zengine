@@ -38,7 +38,9 @@ target_link_libraries(zengine-app-host INTERFACE zengine-app-vocabulary zengine-
                                                  loom::switchboard loom::core)
 
 add_executable(zengine-app main.cpp)
-target_link_libraries(zengine-app PRIVATE zengine-app-host zengine-warnings zengine-sanitize)
+target_link_libraries(zengine-app PRIVATE zengine-app-host zengine-timer-rest
+                                          zengine-workshop-bus-tally zengine-warnings
+                                          zengine-sanitize)
 # Where the installed package's artifacts stand from the installed program, a relative path, so
 # the package names no machine's layout. A build stages its artifacts beside the program instead.
 file(RELATIVE_PATH zengine_app_artifacts "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}"

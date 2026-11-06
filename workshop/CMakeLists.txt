@@ -161,6 +161,13 @@ target_link_libraries(zengine-workshop-guests
 # from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
 zengine_manual(zengine-workshop-guests INTERFACE ../external-host/docs/zengine.guests.md)
 
+# The bus tally (`bus_tally.hpp`): where a running bus spends its time, off Loom's own stamps, by a
+# host's observer. Header-only; Workshop, `zengine-app` and the snake keep one and say it at the end.
+add_library(zengine-workshop-bus-tally INTERFACE)
+target_include_directories(zengine-workshop-bus-tally INTERFACE ${CMAKE_SOURCE_DIR})
+target_link_libraries(zengine-workshop-bus-tally INTERFACE zengine-graphics-vocabulary
+                                                           loom::switchboard)
+
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal loom::history
@@ -178,6 +185,9 @@ target_link_libraries(zengine-workshop
             # here to save a plan row. The operator package is the host half of the catalog this host
             # owns, which starts empty and is filled by mounting providers.
             zengine-operator
+            # ...and the rest between turns, on the OS clock (timer/rest.hpp), and the tally of
+            # where the bus spends its time (workshop/bus_tally.hpp).
+            zengine-timer-rest zengine-workshop-bus-tally
             # ...and the load plan: the typed plan, its codec and its executor.
             zengine-workshop-load
             # ...and the view host this host composes beside the Flow host.
