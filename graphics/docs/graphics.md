@@ -20,9 +20,9 @@ are written in (`graphics/themes/`); `classic`, in a setting or an `app.json`, i
 `night`. The snake (`examples/snake/`) is the worked example:
 it draws its frame as nodes and its board as an element of its own.
 
-![The snake in a terminal window wearing the night palette: the operator's status line, the world's score and board, and the score weave's own area beside it](images/snake-night.png)
+![The snake in a terminal window wearing the night palette, its pilot flying and the game paused after step 120: the operator's status line, the world's score, board and buttons, and the score weave's own area beside it](images/snake-night.png)
 
-![The same window after 1 chose the block palette mid-game: the window painted what it keeps in the other palette, and nothing was drawn again on the bus](images/snake-block.png)
+![The same window after 1 chose the block palette: the window painted what it keeps in the other palette, and nothing was drawn again on the bus](images/snake-block.png)
 
 ## Who says what
 

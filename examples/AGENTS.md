@@ -12,6 +12,7 @@ them and their practices are. It states no law. The repository's own rules are t
 | `snake/world.cpp` | loadable weaves `snake-world-v1` and `snake-world-v2` (`SNAKE_WORLD_V2`) |
 | `snake/board.cpp` | element code `snake-board` (a provider library), presenting `board.hpp`'s `SnakeBoardData` |
 | `snake/score.cpp` | loadable weave `snake-score`, role `snake.score` |
+| `snake/pilot.cpp` | loadable weave `snake-pilot`, role `snake.pilot`; its choice: `pilot.hpp`, pure |
 | `snake/play.cpp` | executable `zengine-snake`, the playable host; state: `play_state.hpp` |
 | `snake/vocabulary.hpp` | snake's shapes and role `snake.world`; `logic.hpp`: the pure simulation |
 | `tally-app/` | an app's folder `zengine-app` runs; `fixture.cpp`, `zengine-tally-app-fixture`, writes its view and flow from `tally.hpp` |
@@ -32,8 +33,8 @@ root routes; the presenter's half of a pane's menu is `agents/workshop/pane-menu
 
 - `snake` — the game headless: the content-id contract, simulation and migration as math, live
   swaps through the real kernel, a palette chosen mid-game, the world's doors beside its own keys
-  and beat, zero stdout bytes with no terminal (`tests/test_snake.cpp`; it reads `play.cpp` and
-  `world.cpp` as text)
+  and beat, the pilot flying and landing, the pause, zero stdout bytes with no terminal
+  (`tests/test_snake.cpp`; it reads `play.cpp` and `world.cpp` as text)
 - `story_journey` — `tower-defense/story.py`'s custody of the Workshop and Loom-host
   processes it starts (`tests/session/story_journey.py`; the `session` gate)
 - `workshop_probe` — the probe weave on one bus behind a scripted link: when it may say

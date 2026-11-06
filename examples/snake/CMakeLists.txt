@@ -1,6 +1,7 @@
-# The snake package: the first game -- a World that keeps its own rules, keys and beat and draws
-# into a terminal window, its board as the game's own element code, a late-loaded Score weave, and
-# the playable host that drives the live-evolution moments (examples/snake/README.md).
+# The snake package: the first game -- a World that keeps its own rules, keys, beat and pause and
+# draws into a terminal window, its board as the game's own element code, a late-loaded Score
+# weave, a Pilot that plays it, and the playable host that drives the live-evolution moments
+# (examples/snake/README.md).
 
 # Everything here needs a Loom that can host .so weaves, which is to say one exporting
 # loom::kernel: Linux does; Windows does only with the development backend enabled.
@@ -21,6 +22,8 @@ foreach(world snake-world-v1 snake-world-v2)
 endforeach()
 zengine_weave(snake-score score.cpp)
 target_link_libraries(snake-score PRIVATE zengine-graphics-vocabulary zengine-input-vocabulary)
+zengine_weave(snake-pilot pilot.cpp)
+target_link_libraries(snake-pilot PRIVATE zengine-input-vocabulary zengine-activation)
 
 # The board's code: element code a window opens, not a weave -- no participant lives in it.
 zengine_provider(snake-board board.cpp)
@@ -34,8 +37,8 @@ add_executable(zengine-snake play.cpp)
 target_link_libraries(zengine-snake
     PRIVATE loom::kernel loom::switchboard loom::core zengine-graphics-vocabulary
             zengine-input-vocabulary zengine-timer-vocabulary zengine-warnings zengine-sanitize)
-set(zengine_snake_runtime zengine-snake snake-world-v1 snake-world-v2 snake-score snake-board
-    zengine-graphics zengine-window-terminal zengine-timer)
+set(zengine_snake_runtime zengine-snake snake-world-v1 snake-world-v2 snake-score snake-pilot
+    snake-board zengine-graphics zengine-window-terminal zengine-timer)
 set_target_properties(${zengine_snake_runtime}
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

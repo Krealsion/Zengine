@@ -16,8 +16,9 @@ MEANS
 - a piece that earns its place and shows a forced sign is given the whole job, not folded.
 
 DOES NOT MEAN — that a folded piece's uses are lost. The snake's controls and clock are the
-world's keys and beat; a pilot, a replay and a pace still reach it through `SnakeTurn`,
-`SnakeTick` and its state.
+world's keys and beat; its pilot, a replay and a pace still reach it through `SnakeTurn`,
+`SnakeTick` and its state. The pilot is a participant by an exercised replacement: flown in the
+player's place and landed again, live.
 
 WHY — `agents/decisions/a-participant-earns-its-place.md`
 
@@ -25,4 +26,7 @@ WHY — `agents/decisions/a-participant-earns-its-place.md`
 
 ### WL-PART-01
 `examples/snake/world.cpp` SnakeWorld
-`tests/test_snake.cpp` "a pilot steers through the world's door while the world's own keys are off" "a reload of the world keeps one beat, not two"
+`examples/snake/pilot.cpp` SnakePilot
+`tests/test_snake.cpp` "a pilot steers through the world's door while the world's own keys are off"
+"a reload of the world keeps one beat, not two" "while the pilot flies the world's keys steer
+nothing, and once it lands they steer again"

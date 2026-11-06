@@ -177,7 +177,7 @@ SnakeVisual visual_of(const State& s) {
 /// The migration, v1 -> v2: explicit, total and pure, pinned as math. The old board is laid
 /// centred in the new one and the scene moves as a rigid body -- every segment and the food by
 /// the same (dx, dy) -- so the snake's pose is preserved and the world grows around it. Score,
-/// direction, aliveness and the bindings carry, `growths` records one growth, a dead world
+/// direction, aliveness, the bindings and the pause carry, `growths` records one growth, a dead world
 /// migrates dead, and the off-board food sentinel is preserved, not translated. The board was
 /// presented at the old size, so the heir presents it again: nothing it presented carries.
 inline v2::SnakeWorldState migrate(const v1::SnakeWorldState& old) {
@@ -203,6 +203,9 @@ inline v2::SnakeWorldState migrate(const v1::SnakeWorldState& old) {
     next.key_left = old.key_left;
     next.beat_ms = old.beat_ms;
     next.ticks = old.ticks;
+    next.paused = old.paused;
+    next.steps = old.steps;
+    next.pause_at = old.pause_at;
     next.growths = 1;
     return next;
 }

@@ -8,10 +8,11 @@
 // palette, speaks the status line and sends every lifecycle command (examples/snake/README.md).
 
 // The moments are keys, which the window gives the world and the operator alike, and the
-// operator's buttons beneath its status line, each making its key's gesture: 1 chooses the other
-// palette (painted again mid-game; nothing drawn again on the bus), 2 loads the score weave, 3
-// grows the world (a graceful swap: the v1 world writes its letter and the v2 heir migrates it), 4
-// says no window weave draws an OS window; r reloads the world, n starts afresh, l lists, q quits.
+// operator's buttons beneath its status line, each making its key's gesture: 1 the other palette,
+// 2 the score weave, 3 the world grown (a graceful swap: v1's letter, v2's migration), 4 no OS
+// window, 5 the pilot flown or landed; r reloads the world, n starts afresh, l lists, q quits.
+// `--pilot` flies the pilot from birth and `--pause-at <step>` pauses the first game after that
+// step: the same game every run, held still on the same step.
 
 #include "play_state.hpp"
 #include "vocabulary.hpp"
@@ -46,6 +47,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <map>
 #include <memory>
@@ -85,24 +87,29 @@ constexpr const char* kReloadAction = "reload";
 constexpr const char* kNewAction = "new";
 constexpr const char* kListAction = "list";
 constexpr const char* kQuitAction = "quit";
+constexpr const char* kPilotAction = "pilot";
 struct Control {
     const char* action;
     const char* label;
 };
 constexpr Control kControls[] = {
-    {kPaletteAction, "1 skin"},  {kScoreAction, "2 score"}, {kGrowAction, "3 grow"},
-    {kReloadAction, "r reload"}, {kNewAction, "n new"},     {kListAction, "l list"},
-    {kQuitAction, "q quit"},
+    {kPaletteAction, "1 skin"}, {kScoreAction, "2 score"},  {kGrowAction, "3 grow"},
+    {kPilotAction, "5 pilot"},  {kReloadAction, "r reload"}, {kNewAction, "n new"},
+    {kListAction, "l list"},    {kQuitAction, "q quit"},
 };
 
 /// What the host remembers about a command in flight, so an answer can be reported in the words
 /// of the question, and so a success can flip the operator's own trackers.
 struct Pending {
     std::string label;
-    int action = 0; // 0 none, 2 world migrated, 3 score loaded
+    int action = 0; // 0 none, else one of the moments below
 };
 constexpr int kWorldGrown = 2;
 constexpr int kScoreLoaded = 3;
+constexpr int kPilotFlown = 4;
+constexpr int kPilotLanded = 5;
+constexpr int kWorldReset = 6;
+constexpr int kWorldLoaded = 7;
 
 /// How many commands the operator keeps in flight at once; one more is refused out loud.
 constexpr std::size_t kAsksInFlight = 32;
@@ -114,8 +121,11 @@ struct OperatorContext {
     int palette = 0;           ///< which of the two palettes the window's areas wear
     bool world_is_v2 = false;  ///< which world generation holds the role
     bool score_loaded = false; ///< whether the score weave has an area
+    bool pilot_flying = false; ///< whether the pilot holds its role, and with it the wheel
+    std::int64_t pause_at = 0; ///< the step the first game pauses itself after (`--pause-at`)
     std::string status;        ///< the status line, drawn again in a window started afresh
     loom::WeaveId manager{};
+    loom::WeaveId control{}; ///< the kernel's door, which lands the pilot by its role
     std::string dir; ///< where the host resolves loadable weaves and code (beside itself)
 
     /// The host's stop lever: with time inside the bus, drain_until_idle() returns only when told
@@ -132,11 +142,19 @@ struct OperatorContext {
                         action);
     }
 
-    /// An ask of the world's reset door, by role: whoever holds the world when it arrives answers.
-    loom::AskOpened ask_world_reset(std::string label) {
-        return remember(asks.open_to_role(kWorldRole, loom::PokeResetState::zen_name,
-                                          loom::PokeResetState::zen_version),
-                        std::move(label), 0);
+    /// The same, of the kernel's door.
+    template <class Cmd>
+    loom::AskOpened ask_control(std::string label, int action) {
+        return remember(asks.open(control, Cmd::zen_name, Cmd::zen_version), std::move(label),
+                        action);
+    }
+
+    /// An ask of one of the world's poke doors, by role: whoever holds the world when it arrives
+    /// answers.
+    template <class Poke>
+    loom::AskOpened ask_world(std::string label, int action) {
+        return remember(asks.open_to_role(kWorldRole, Poke::zen_name, Poke::zen_version),
+                        std::move(label), action);
     }
 
     loom::AskOpened remember(loom::AskOpened opened, std::string label, int action) {
@@ -149,17 +167,16 @@ struct OperatorContext {
 
 /// The host's hand on the bus and the window's arranger: it places the areas, offers the palettes
 /// and the board's code, chooses the palette, draws the status line and its buttons, holds the
-/// reach (the manager, target-scoped, and the world's poke-reset door by role), and hears every
-/// answer.
+/// reach (the manager and the kernel's door, target-scoped, and the world's poke doors by role),
+/// and hears every answer.
 class OperatorWeave
     : public gfx::With<gfx::ActionFacet>::Weave<
           OperatorWeave, OperatorState,
           loom::Accept<loom::Result, loom::Ack, loom::Refused, gfx::AreaKeyPressed,
                        gfx::GraphicsReady>,
           loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
-                     loom::PokeResetState, gfx::AreaPlaced, gfx::PaletteOffered,
-                     gfx::PaletteChosen,
-                     gfx::ElementCodeOffered>> {
+                     loom::UnloadRole, loom::PokeResetState, loom::PokeWrite, gfx::AreaPlaced,
+                     gfx::PaletteOffered, gfx::PaletteChosen, gfx::ElementCodeOffered>> {
 public:
     using Weave::on;
 
@@ -195,6 +212,7 @@ public:
             break;
         case scan::k2: load_score(mail); break;
         case scan::k3: grow_world(mail); break;
+        case scan::k5: fly_or_land(mail); break;
         case scan::kR: reload_world(mail); break;
         case scan::kL: list_loaded(mail); break;
         case scan::kN: reset_world(mail); break;
@@ -218,6 +236,8 @@ public:
             load_score(mail);
         } else if (action == kGrowAction) {
             grow_world(mail);
+        } else if (action == kPilotAction) {
+            fly_or_land(mail);
         } else if (action == kReloadAction) {
             reload_world(mail);
         } else if (action == kNewAction) {
@@ -271,10 +291,41 @@ private:
                 loom::ReloadWeave{stem, ctx_->so(stem)});
     }
 
+    /// The pilot flown, or landed. Flown, it takes the wheel itself; landed by its role at the
+    /// kernel's door, it hears nothing of it, so the keys go back to the player once the door
+    /// says it has gone.
+    void fly_or_land(loom::Mail& mail) {
+        if (!ctx_->pilot_flying) {
+            command(mail, "fly the pilot", kPilotFlown,
+                    loom::LoadWeave{"snake-pilot", ctx_->so("snake-pilot"), kPilotRole});
+            return;
+        }
+        const std::string label = "land the pilot";
+        if (const loom::AskOpened opened =
+                ctx_->ask_control<loom::UnloadRole>(label, kPilotLanded)) {
+            mail.send(ctx_->control, loom::UnloadRole{kPilotRole}, opened.correlation);
+            status(label + " ...");
+        } else {
+            not_sent(label);
+        }
+    }
+
     void reset_world(loom::Mail& mail) {
         const std::string label = "new game (poke reset)";
-        if (const loom::AskOpened opened = ctx_->ask_world_reset(label)) {
+        if (const loom::AskOpened opened =
+                ctx_->ask_world<loom::PokeResetState>(label, kWorldReset)) {
             mail.send_to_role(kWorldRole, loom::PokeResetState{}, opened.correlation);
+            status(label + " ...");
+        } else {
+            not_sent(label);
+        }
+    }
+
+    /// One of the world's fields written, by role: the keys handed over, or a pause asked for.
+    void write_world(loom::Mail& mail, const std::string& label, const char* field,
+                     const std::string& value) {
+        if (const loom::AskOpened opened = ctx_->ask_world<loom::PokeWrite>(label, 0)) {
+            mail.send_to_role(kWorldRole, loom::PokeWrite{field, value}, opened.correlation);
             status(label + " ...");
         } else {
             not_sent(label);
@@ -345,9 +396,10 @@ private:
                " commands still wait for an answer");
     }
 
-    /// The status line's words, drawn at the end of the delivery that said them.
+    /// The status line's words, drawn at the end of the delivery that said them, and who steers.
     void status(const std::string& text) {
-        ctx_->status = "[zen] " + text + "   (wasd | 4 sdl)";
+        ctx_->status = "[zen] " + text + "   (" +
+                       (ctx_->pilot_flying ? "the pilot steers" : "wasd") + " | p pause | 4 sdl)";
     }
 
     void answered(loom::Mail& mail, const std::string& outcome, bool refused) {
@@ -369,17 +421,43 @@ private:
         }
         // A successful moment flips the trackers here, in the answer's own handler: the answer,
         // not the wish, is what flips them.
+        const Pending done = it->second;
+        ctx_->pending.erase(it);
         if (!refused) {
-            if (it->second.action == kWorldGrown) {
+            if (done.action == kWorldGrown) {
                 ctx_->world_is_v2 = true;
-            } else if (it->second.action == kScoreLoaded) {
+            } else if (done.action == kScoreLoaded) {
                 ctx_->score_loaded = true;
                 place_score(mail);
                 choose_palette(mail);
+            } else if (done.action == kPilotFlown) {
+                ctx_->pilot_flying = true;
+            } else if (done.action == kPilotLanded) {
+                ctx_->pilot_flying = false;
             }
         }
-        status(it->second.label + " " + outcome);
-        ctx_->pending.erase(it);
+        status(done.label + " " + outcome);
+        if (refused && done.action == kPilotLanded) {
+            // The door refuses an unload by role when no loaded library holds the role: the pilot
+            // has gone already, and the keys are still the player's to have back.
+            ctx_->pilot_flying = false;
+            write_world(mail, "keys back to the player", "keys", "true");
+            return;
+        }
+        if (refused) {
+            return;
+        }
+        // What a moment leaves to do once it is done: the keys back to the player when the pilot
+        // has gone; back to the pilot when a reset gave the world its defaults while it flies;
+        // the first game's pause asked for once the world is there.
+        if (done.action == kPilotLanded) {
+            write_world(mail, "keys back to the player", "keys", "true");
+        } else if (done.action == kWorldReset && ctx_->pilot_flying) {
+            write_world(mail, "keys kept from the player", "keys", "false");
+        } else if (done.action == kWorldLoaded && ctx_->pause_at > 0) {
+            write_world(mail, "pause after step " + std::to_string(ctx_->pause_at), "pause_at",
+                        std::to_string(ctx_->pause_at));
+        }
     }
 
     OperatorContext* ctx_;
@@ -432,7 +510,30 @@ std::string OperatorContext::so(const char* stem) const { return dir + "/" + ste
 
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    // The two ways to start: as a player, or with the pilot flying from birth and, if asked, the
+    // first game pausing itself after a step.
+    bool fly_at_birth = false;
+    std::int64_t pause_at = 0;
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--pilot") {
+            fly_at_birth = true;
+        } else if (arg == "--pause-at" && i + 1 < argc) {
+            char* end = nullptr;
+            pause_at = std::strtoll(argv[++i], &end, 10);
+            if (end == argv[i] || *end != '\0' || pause_at < 1) {
+                pause_at = -1;
+            }
+        } else {
+            pause_at = -1;
+        }
+        if (pause_at < 0) {
+            std::fprintf(stderr, "usage: zengine-snake [--pilot] [--pause-at <step>]\n");
+            return 2;
+        }
+    }
+
     // The honest line, in plain scrollback before the window takes the terminal: this host
     // isolates nothing anywhere, and on Windows it is the explicit development/demo backend.
     std::printf("zengine-snake - containment: %s\n", loom::Kernel::containment_note());
@@ -448,6 +549,8 @@ int main() {
 
     OperatorContext ctx;
     ctx.manager = manager;
+    ctx.control = control;
+    ctx.pause_at = pause_at;
     ctx.dir = exe_dir();
     ctx.request_stop = [&bus] { bus.stop(); };
     loom::Grant reach; // the manager (the dangerous grant, target-scoped)...
@@ -455,9 +558,12 @@ int main() {
     reach.allow(loom::SwapWeave::zen_name, loom::SwapWeave::zen_version, manager);
     reach.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
     reach.allow(loom::ListLoaded::zen_name, loom::ListLoaded::zen_version, manager);
-    // ...the world's reset door, by role (the n key)...
+    // ...the kernel's door, for one thing: landing the pilot by its role...
+    reach.allow(loom::UnloadRole::zen_name, loom::UnloadRole::zen_version, control);
+    // ...the world's reset and write doors, by role (the n key; the keys, a pause)...
     reach.allow_to_role(loom::PokeResetState::zen_name, loom::PokeResetState::zen_version,
                         kWorldRole);
+    reach.allow_to_role(loom::PokeWrite::zen_name, loom::PokeWrite::zen_version, kWorldRole);
     // ...the directory, as the window's arranger and as a drawer asking its room, and the window,
     // for the status line.
     reach.allow_to_role(gfx::AreaPlaced::zen_name, gfx::AreaPlaced::zen_version,
@@ -476,22 +582,28 @@ int main() {
     raw->zen_set_self(op);
 
     // Startup commands are sent AS the operator, asked in the same book its key commands use.
-    const auto boot = [&](std::string label, const auto& cmd) {
+    const auto boot = [&](std::string label, const auto& cmd, int action = 0) {
         using Cmd = std::decay_t<decltype(cmd)>;
-        if (const loom::AskOpened opened = ctx.ask_manager<Cmd>(std::move(label), 0)) {
+        if (const loom::AskOpened opened = ctx.ask_manager<Cmd>(std::move(label), action)) {
             bus.send_as(op, manager,
                         loom::Message(loom::to_value(cmd), op, op, opened.correlation));
         }
     };
 
     // Birth of the game: the directory first (its hello is what has the operator arrange the
-    // window), then the window that takes the terminal, the world, and the timer service, whose
-    // loading is what starts time: every weave arranges its own beat on its own activation.
+    // window), then the window that takes the terminal, the world, the pilot when it flies from
+    // birth, and the timer service, whose loading is what starts time: every weave arranges its
+    // own beat on its own activation, so the pilot hears the first game from its first step.
     boot("load directory", loom::LoadWeave{"zengine-graphics", ctx.so("zengine-graphics"),
                                            gfx::kGraphicsRole});
     boot("load terminal window", loom::LoadWeave{"zengine-window-terminal",
                                                  ctx.so("zengine-window-terminal"), kWindowRole});
-    boot("load world v1", loom::LoadWeave{"snake-world-v1", ctx.so("snake-world-v1"), kWorldRole});
+    boot("load world v1", loom::LoadWeave{"snake-world-v1", ctx.so("snake-world-v1"), kWorldRole},
+         kWorldLoaded);
+    if (fly_at_birth) {
+        boot("fly the pilot",
+             loom::LoadWeave{"snake-pilot", ctx.so("snake-pilot"), kPilotRole}, kPilotFlown);
+    }
     boot("load timer service",
          loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), timer::kTimerRole});
 

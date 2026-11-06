@@ -77,8 +77,9 @@ namespace v1 {
 
 /// The first world's state: the game (an empty `snake` is a new game, seeded on the next tick),
 /// its bindings -- whether its keys steer and which four, and its pace, 0 for no beat of its own
-/// -- and the beats it has taken. Every field is poke-manipulable: the state holds no secrets,
-/// and the suite uses that hand as its game-master.
+/// -- the beats it has taken, and its pause: whether it is paused, the steps this game has taken,
+/// and the step it pauses itself after, 0 for none. Every field is poke-manipulable: the state
+/// holds no secrets, and the suite uses that hand as its game-master.
 struct SnakeWorldState {
     std::int64_t width = 24;
     std::int64_t height = 16;
@@ -94,11 +95,15 @@ struct SnakeWorldState {
     std::int64_t key_left = zengine::input::scan::kA;
     std::int64_t beat_ms = kTickMs;
     std::int64_t ticks = 0;
+    bool paused = false;
+    std::int64_t steps = 0;
+    std::int64_t pause_at = 0;
     ZEN_EXPOSE();
-    ZEN_SHAPE(SnakeWorldState, 5, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(snake),
+    ZEN_SHAPE(SnakeWorldState, 7, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(snake),
               ZEN_FIELD(food), ZEN_FIELD(direction), ZEN_FIELD(alive), ZEN_FIELD(score),
               ZEN_FIELD(keys), ZEN_FIELD(key_up), ZEN_FIELD(key_right), ZEN_FIELD(key_down),
-              ZEN_FIELD(key_left), ZEN_FIELD(beat_ms), ZEN_FIELD(ticks));
+              ZEN_FIELD(key_left), ZEN_FIELD(beat_ms), ZEN_FIELD(ticks), ZEN_FIELD(paused),
+              ZEN_FIELD(steps), ZEN_FIELD(pause_at));
 };
 
 } // namespace v1
@@ -122,22 +127,28 @@ struct SnakeWorldState {
     std::int64_t key_left = zengine::input::scan::kA;
     std::int64_t beat_ms = kTickMs;
     std::int64_t ticks = 0;
+    bool paused = false;
+    std::int64_t steps = 0;
+    std::int64_t pause_at = 0;
     std::int64_t growths = 0;
     ZEN_EXPOSE();
-    ZEN_SHAPE(SnakeWorldState, 6, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(snake),
+    ZEN_SHAPE(SnakeWorldState, 8, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(snake),
               ZEN_FIELD(food), ZEN_FIELD(direction), ZEN_FIELD(alive), ZEN_FIELD(score),
               ZEN_FIELD(keys), ZEN_FIELD(key_up), ZEN_FIELD(key_right), ZEN_FIELD(key_down),
-              ZEN_FIELD(key_left), ZEN_FIELD(beat_ms), ZEN_FIELD(ticks), ZEN_FIELD(growths));
+              ZEN_FIELD(key_left), ZEN_FIELD(beat_ms), ZEN_FIELD(ticks), ZEN_FIELD(paused),
+              ZEN_FIELD(steps), ZEN_FIELD(pause_at), ZEN_FIELD(growths));
 };
 
 } // namespace v2
 
-/// The one role this package binds: roles are the addresses that survive replacement. It is also
-/// the world's office, the owner of its area.
+/// The world's role: roles are the addresses that survive replacement. It is also the world's
+/// office, the owner of its area.
 inline constexpr const char* kWorldRole = "snake.world";
 /// The area the world draws in, and the score weave's office and area.
 inline constexpr const char* kWorldArea = "snake.world";
 inline constexpr const char* kScoreRole = "snake.score";
+/// The pilot's role, the address it is landed by.
+inline constexpr const char* kPilotRole = "snake.pilot";
 
 /// The world's own beat, a repeating timer under this id (a new pace asks under a new one).
 inline constexpr const char* kTickTimerId = "snake.tick";

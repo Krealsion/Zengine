@@ -8,7 +8,7 @@ smoke                             program           always
 neovim                            doctest           always  22
 neovim_live                       doctest           neovim  21
 # Tripwires in this suite read examples/snake/play.cpp and examples/snake/world.cpp as text (VM-WALL-11).
-snake                             doctest           always  26
+snake                             doctest           always  32
 timer                             doctest           always  85
 # Tripwires in this suite read the SDL queue's reader as text: input/translate_sdl_core.hpp and
 # graphics/window/window_sdl_backend.hpp (VM-WALL-11).
@@ -16,7 +16,7 @@ input                             doctest           always  59
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 # A tripwire in this suite reads graphics/ as text (VM-WALL-11).
-graphics                          doctest           always  128
+graphics                          doctest           always  129
 graphics                          doctest           sdl     7
 ui                                doctest           always  30
 component                         doctest           always  69
