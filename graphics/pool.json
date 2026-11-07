@@ -8,7 +8,7 @@
       "about": "the face every text is set in: monospaced, embedded in the window, regular and bold" }
   ],
   "sizes": [
-    { "name": "small", "points": 11, "about": "words beside the text, set smaller" },
+    { "name": "caption", "points": 11, "about": "words beside the text, set smaller" },
     { "name": "body", "points": 13, "about": "ordinary text: what a text naming no size stands at" },
     { "name": "heading", "points": 16, "about": "a heading over a part of a pane" },
     { "name": "title", "points": 20, "about": "a title over a whole surface" }

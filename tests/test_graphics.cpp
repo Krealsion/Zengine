@@ -7480,6 +7480,7 @@ const std::string kMarked = "e\xCC\x81";
 const std::string kGrin = "\xF0\x9F\x98\x80";
 const std::string kLine = kE + kZhe + kZhong + kMarked + kGrin;
 
+#if defined(GRAPHICS_HAS_SDL)
 /// The OS window sets text in its embedded faces alone, so a picture never moves with the fonts
 /// of the machine it is taken on.
 void embedded_faces_only() {
@@ -7533,6 +7534,7 @@ Picture picture_of(RealLit& t) {
     REQUIRE(p->format == "image/bmp");
     return Picture{p->bytes, static_cast<int>(p->width), static_cast<int>(p->height)};
 }
+#endif // GRAPHICS_HAS_SDL
 
 } // namespace
 
@@ -7636,6 +7638,7 @@ TEST_CASE("a terminal shows bold where a text asks it, and says each ink's weigh
     CHECK(bold.substr(4) == regular.substr(5)); // the one ink, at two weights
 }
 
+#if defined(GRAPHICS_HAS_SDL)
 TEST_CASE("the OS window draws a line of an accented letter, a Cyrillic one, an ideograph, a "
           "combining mark and an emoji at their columns, from its embedded faces") {
     sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
@@ -7687,12 +7690,12 @@ TEST_CASE("the OS window measures each of the pool's sizes in the room it says, 
     const gfx::AreaRoom room = t.heard.rooms.back();
     const gfx::TextMeasure body = room.measure();
     const gfx::TextMeasure heading = room.measure(gfx::sizes::heading.name);
-    const gfx::TextMeasure small = room.measure(gfx::sizes::small.name);
+    const gfx::TextMeasure caption = room.measure(gfx::sizes::caption.name);
     // EVERY SIZE OF THE POOL IS IN THE ROOM, measured before the owner lays its text out.
     CHECK(room.measures.size() == gfx::window::built_in_palette().sizes.size());
     CHECK(heading.line > body.line);
     CHECK(heading.advance > body.advance);
-    CHECK(small.line < body.line);
+    CHECK(caption.line < body.line);
     CHECK(room.measure("no such size") == body);
 
     gfx::Sketch s;
@@ -7721,3 +7724,4 @@ TEST_CASE("the OS window measures each of the pool's sizes in the room it says, 
                                 60 + static_cast<int>(heading.line), ground);
     CHECK(bold_ink > plain_ink);
 }
+#endif // GRAPHICS_HAS_SDL

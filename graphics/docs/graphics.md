@@ -188,7 +188,7 @@ its pool colour (`pool_color_of`).
 A text draw carries a size, a font and a weight beside its colour (`TextArgs`, `graphics/ops.hpp`;
 `graphics/text_style.hpp`). A size is a pool name or a slot (`TextSize`), a font a pool name, both
 generated from `graphics/pool.json` with the colours (pool format 2): `zengine::graphics::sizes`
-holds `small`, `body`, `heading` and `title`, and `zengine::graphics::fonts` holds `text`, which
+holds `caption`, `body`, `heading` and `title`, and `zengine::graphics::fonts` holds `text`, which
 names the face it sets text in. A text naming no size stands at `body`, and one naming no font is
 set in `text`; a weight is `text_weight::kRegular` or `kBold`.
 

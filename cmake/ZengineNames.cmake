@@ -62,6 +62,12 @@ function(_zengine_names_identifier name file)
     if(NOT name MATCHES "^[A-Za-z_][A-Za-z0-9_]*$" OR name IN_LIST keywords)
         _zengine_names_fail("${file}" "'${name}' cannot be a C++ name")
     endif()
+    # ...nor the words Windows' headers define as macros, which no name there can be.
+    set(macros small near far min max interface pascal cdecl IN OUT OPTIONAL)
+    if(name IN_LIST macros)
+        _zengine_names_fail("${file}" "'${name}' is a macro Windows' headers define, so it "
+                                      "cannot be a C++ name there")
+    endif()
 endfunction()
 
 # <out> = 0xRRGGBBAA from "#rrggbb" or "#rrggbbaa".
