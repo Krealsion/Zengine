@@ -12,7 +12,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `normalize.hpp` | `timer.normalize_delay`, the delay rule as an operator; `DelayAuthority` |
 | `timer_weave.hpp` | `TimerServiceT<Clock>`, the service over an injected clock |
 | `rest.hpp` | `Rest<Clock>`: the rest between turns a host takes while the Timer's beat is all its bus holds, read off `TimerRest`; installed |
-| `held_beat.hpp` | `HeldBeat`: a source's beat let go while a host's one wait (Loom's `loom::host::Reactor`) holds what it claims it waits on |
+| `held_beat.hpp` | `HeldBeat`: a source's beat let go while a host's one wait (Loom's `loom::host::Reactor`) holds what it claims it waits on; installed |
 | `os_clock.hpp` | the OS clock and the nap the rest takes; on Windows the performance counter and a high-resolution waitable timer; installed |
 | `timer.cpp` | binds the OS clock; exports `TimerService` and the `zengine.timer` provider |
 | `CMakeLists.txt` | `zengine-timer-vocabulary` and the `zengine-timer` weave |
