@@ -630,7 +630,7 @@ TEST_CASE("pilot: its choice, flown as math from a new game, keeps the snake ali
 // Tier 3 — the three moments, end to end (real .so, real kernel, real steward)
 // ============================================================================
 
-TEST_CASE("moment 1: another skin is chosen while the game continues, and nothing is drawn again") {
+TEST_CASE("moment 1: another theme is chosen while the game continues, and nothing is drawn again") {
     namespace rig = zengine::testing::graphics_rig;
     rig::Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, zengine::graphics::kGraphicsRole).valid());

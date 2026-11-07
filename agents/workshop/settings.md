@@ -18,12 +18,12 @@ WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## WL-SETTING-02 — A layout's row keeps its pane's settings, judged by form alone
 
-LAW — A setup row keeps its pane's settings in key order, once each, at most `kMaxPaneSettingsPerRow` of them and a desk `kMaxPaneSettingsPerDesk`; a `workshop.` key but `workshop.skin` is refused by name.
+LAW — A setup row keeps its pane's settings in key order, once each, at most `kMaxPaneSettingsPerRow` of them and a desk `kMaxPaneSettingsPerDesk`; a `workshop.` key but `workshop.theme` is refused by name.
 
 MEANS
 - form alone: an unresolved reference keeps its settings byte for byte, whatever they mean;
 - the desk's bound keeps a session at every bound inside Loom's decode budget (`kMaxDecodedCells`);
-- `workshop.skin` is Workshop's word for the pane's area (WL-SETTING-13), judged as its own row says; any other `workshop.` key is a newer Workshop's.
+- `workshop.theme` is Workshop's word for the pane's area (WL-SETTING-13), judged as its own row says; any other `workshop.` key is a newer Workshop's.
 
 DOES NOT MEAN
 - that a refused file is half read: it is refused whole, and `r` leaves the file and the desk.
@@ -71,7 +71,7 @@ MEANS
 
 DOES NOT MEAN
 - that the desk acts on a value: it judges and keeps it, and what it means is the pane's;
-- that a row's `workshop.skin` is stored as absence at `night`: its absence is Workshop's own palette (WL-SETTING-13).
+- that a row's `workshop.theme` is stored as absence at `night`: its absence is Workshop's own palette (WL-SETTING-13).
 
 WHY — `agents/decisions/settings-are-rows-of-a-panes-subject.md`
 
@@ -91,7 +91,7 @@ LAW — The layouts' owner's `PaneSettingsRequested` reads a pane's row of the l
 
 MEANS
 - a revision is minted afresh when the desk put live, the row's settings, its counted declaration or the office's holder moved, and never again;
-- refused in order with nothing written: the asker, the row, the revision, a lock, a clear given a value, a key no declaration takes (`workshop.skin` is taken), a value not taken;
+- refused in order with nothing written: the asker, the row, the revision, a lock, a clear given a value, a key no declaration takes (`workshop.theme` is taken), a value not taken;
 - a clear takes back a kept key, declared or not; clearing an absent key, or writing the value kept, mints nothing.
 
 DOES NOT MEAN
@@ -167,14 +167,14 @@ WHY — `agents/decisions/a-setting-is-found-by-its-tags-and-pins.md`
 
 ## WL-SETTING-13 — Each graphics area wears its row's palette, else Workshop's own
 
-LAW — Each graphics area wears a palette Workshop chooses: the one its row's `workshop.skin` names, else Workshop's own; Workshop's area, its own. A choice is said when it moved, before the place.
+LAW — A graphics area wears the palette its row's `workshop.theme` names, else the live layout's baseline, else Workshop's own; Workshop's area, the last two. A choice is said when it moved, before the place.
 
 MEANS
-- `night`, `day` or `block`, each offered, `classic` as `night` (WL-CHROME-10): the file keeps `night` as absence; a row any, its clear giving the area back to Workshop's own;
-- a commit, and a directory placed with afresh, say the palettes areas wear now.
+- `night`, `day` or `block`, each offered, `classic` as `night` (WL-CHROME-10): the file keeps `night` as absence; a row any, its clear giving the area back;
+- a commit, a baseline written and a directory placed with afresh say what areas wear now.
 
 DOES NOT MEAN
-- that the pane hears its palette: the row's `workshop.skin` is Workshop's, and is never handed to the pane;
+- that the pane hears its palette: the row's `workshop.theme` is Workshop's, never handed to the pane;
 - that Workshop holds a pane's own settings: its copy of the live layout keeps a row's `workshop.` keys alone.
 
 WHY — `agents/decisions/a-colour-is-a-name-the-window-paints.md`
@@ -194,8 +194,8 @@ key, and changes nothing"
 `workshop/setup.hpp` check_pane_settings kMaxPaneSettingsPerDesk desk_setting_count check_setup
 SetupPane::settings desk_units
 `workshop/pane_settings.hpp` kMaxPaneSettingsPerRow kDeskSettingPrefix is_desk_setting_key
-kWorkshopSkinKey workshop_skin_setting_row
-`tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
+kWorkshopThemeKey workshop_theme_setting_row
+`tests/test_workshop_panes_settings.cpp` "a row's `workshop.theme` is Workshop's word for its pane's
 area: taken on every row, kept as written, shown in Info, and never handed to the pane"
 `tests/test_workshop_persistence.cpp` "a setting holding no value, or two, is refused by every
 reader, naming its key" "a setup holding a Workshop setting is refused by name, and `r` leaves file
@@ -225,7 +225,7 @@ declares, and an identical declaration keeps a draft"
 `workshop/layouts/owner.cpp` hand_rows settle on(PaneSettingsAsked) layouts_grant
 `workshop/pane_settings.hpp` PaneSettings PaneSettingsAsked pane_held_settings
 `workshop/pane_settings_taken.hpp` PaneSettingsFacet take_pane_settings SettingsTaken
-`tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
+`tests/test_workshop_panes_settings.cpp` "a row's `workshop.theme` is Workshop's word for its pane's
 area: taken on every row, kept as written, shown in Info, and never handed to the pane" "the
 layouts' owner hands a seated pane its row's settings, whether or not it declared" "a holder that
 takes no settings is handed none" "a layout switch hands a pane its new layout's settings once, and
@@ -364,10 +364,10 @@ one"
 ### WL-SETTING-13
 `workshop/weave_run.cpp` arrange_graphics
 `workshop/weave.hpp` WorkshopWeave::palettes_chosen_
-`workshop/screen.hpp` Session::skin
-`workshop/pane_settings.hpp` workshop_skin_setting_row kWorkshopSkinKey kSkinBlock kSkinDay
-kSkinNight is_workshop_skin_choice row_setting_absence
-`tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.skin` names,
+`workshop/screen.hpp` Session::theme
+`workshop/pane_settings.hpp` workshop_theme_setting_row kWorkshopThemeKey kThemeBlock kThemeDay
+kThemeNight is_workshop_theme_choice row_setting_absence
+`tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.theme` names,
 else Workshop's own, and a palette is said only when an area's moved"
-`tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
+`tests/test_workshop_panes_settings.cpp` "a row's `workshop.theme` is Workshop's word for its pane's
 area: taken on every row, kept as written, shown in Info, and never handed to the pane"

@@ -13,7 +13,8 @@
 
 
 #include "terminal/complete.hpp" // the completer's values, and where a line can go
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam
@@ -50,6 +51,7 @@
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "workshop/screen_planes.hpp"
 #include "graphics/vocabulary.hpp"
+#include "settings/vocabulary.hpp" // where the themes are, told to the theme reader
 #include "terminal/door.hpp" // the door onto the terminal participant, composed below
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
@@ -251,6 +253,15 @@ struct HostContext {
     // WL-SESSION-01, WL-SESSION-04, WL-SESSION-13 -- agents/workshop/session.md
     std::string session_path;
 
+    /// WHERE THE THEMES ARE, as the theme reader (`zengine.settings`) is told: the weaver's own
+    /// folder, empty where this launch keeps none, and the folder of the themes shipped beside this
+    /// host.
+    std::string themes_path;
+    std::string shipped_themes_path;
+
+    /// The offices the plan in force names, read at the call; none where no plan is in force.
+    std::function<std::vector<std::string>()> planned_offices;
+
     /// The one file this Workshop's KEYMAP is read from.
     // WL-KEY-07 -- agents/workshop/keyboard.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string keymap_path;
@@ -429,6 +440,10 @@ class WorkshopWeave
                                           // Workshop's own settings and the save came to, and its
                                           // one question of the judge
                                           zengine::workshop::LiveLayout,
+                                          // the theme reader: a theme's entries it skipped once
+                                          // their office declared
+                                          zengine::settings::ThemeSkipsSaid,
+                                          zengine::settings::ThemesPlacedRequested,
                                           zengine::workshop::LayoutEditAnswered,
                                           zengine::workshop::OfficeSettings,
                                           zengine::workshop::OfficeSettingCommitAnswered,
@@ -952,6 +967,10 @@ public:
 
     /// THE LIVE LAYOUT, AS ITS OWNER SENDS IT: presented, and the owner's sentence said.
     void on(const LiveLayout& live, loom::Mail& mail);
+    /// A THEME'S ENTRIES THE THEME READER SKIPPED once their office declared, said on the band.
+    void on(const settings::ThemeSkipsSaid& said, loom::Mail& mail);
+    /// THE THEME READER ASKS WHERE THE THEMES ARE: told again, whatever it was told before.
+    void on(const settings::ThemesPlacedRequested& asked, loom::Mail& mail);
     /// WHAT ONE OF THIS DESK'S EDITS CAME TO, for the gesture that asked it.
     void on(const LayoutEditAnswered& answered, loom::Mail& mail);
     /// THE SESSION WRITTEN, or why not: the quit that asked it ends.
@@ -1724,6 +1743,11 @@ private:
     /// and draw the desk in the window that shows Workshop's area: what every repaint ends with.
     void show_in_graphics(loom::Mail& mail);
     void arrange_graphics(loom::Mail& mail);
+    /// THE THEME THE DESK WEARS: the live layout's baseline, else Workshop's own (`workshop.theme`).
+    std::string worn_theme() const;
+    /// WHERE THE THEMES ARE, told to the theme reader whenever another weave holds its office or
+    /// anything told changes.
+    void place_themes(loom::Mail& mail);
     void draw_window(loom::Mail& mail);
     /// WHETHER WORKSHOP'S OWN AREA STANDS IN FRONT OF EVERY PANE'S: while a weaver arranges, a
     /// menu is open, or something is carried, so the press, the motion and the release those
@@ -1766,6 +1790,10 @@ private:
     /// The directory placed with -- its holder and incarnation -- and whether one is known.
     bool graphics_known_ = false;
     std::uint64_t graphics_holder_ = 0;
+    /// The theme reader told, by its holder and incarnation, and what it was told.
+    std::uint64_t themes_holder_ = 0;
+    std::int64_t themes_incarnation_ = 0;
+    settings::ThemesPlaced themes_placed_;
     std::int64_t graphics_incarnation_ = 0;
     /// Workshop's own room was asked of this directory.
     bool graphics_asked_ = false;

@@ -132,8 +132,8 @@ struct TutorDesk {
         b.tool->catalog = catalog_of({{"tally", "tally"}});
         // A MARK IS A POOL COLOUR, so the desk wears the look a terminal draws each pool colour in: `block`.
         prefs_persist::Prefs prefs;
-        prefs_persist::put_office_value(prefs, kWorkshopProvider, "workshop.skin",
-                                        PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
+        prefs_persist::put_office_value(prefs, kWorkshopProvider, "workshop.theme",
+                                        PaneSetting{"workshop.theme", std::nullopt, std::nullopt,
                                                     std::string("block")});
         b.r.host.prefs_path = (b.root / "workshop-prefs.json").generic_string();
         REQUIRE(prefs_persist::save_file(b.r.host.prefs_path, prefs).accepted);

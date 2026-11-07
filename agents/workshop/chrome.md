@@ -104,7 +104,7 @@ WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
 
 ## WL-CHROME-10 — Night, day and block are offered, and `classic` is night
 
-LAW — Workshop offers the directory three palettes, `night`, `day` and `block`, and its setting offers the same three; a `workshop.skin` naming `classic` is taken and wears night.
+LAW — Three themes ship, `night`, `day` and `block`: Workshop offers their palettes, the theme reader its own over them, its setting the same three; a `workshop.theme` naming `classic` wears night.
 
 MEANS
 - a file that names `classic` reads as before, and a choice between `classic` and `night` moves no area;
@@ -216,10 +216,10 @@ neither" "WL-KEY-16: the band's spelling and the Hotkeys view's are set apart fr
 each changing only its own surface, the `?` spelling as the Hotkeys view does"
 
 ### WL-CHROME-10
-`workshop/pane_settings.hpp` kSkinClassic workshop_palette_of is_workshop_skin_choice
-workshop_skin_setting_row pane_setting_refused_by
+`workshop/pane_settings.hpp` kThemeClassic workshop_palette_of is_workshop_theme_choice
+workshop_theme_setting_row pane_setting_refused_by
 `workshop/weave_run.cpp` arrange_graphics
-`tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.skin` names,
+`tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.theme` names,
 else Workshop's own, and a palette is said only when an area's moved"
 `tests/test_graphics.cpp` "in a terminal night and day show their text and grounds in the terminal's
 default colours, a pane's frame grey and every other colour as the nearest of its sixteen inks; block

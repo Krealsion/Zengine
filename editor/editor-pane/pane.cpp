@@ -40,7 +40,8 @@
 #include "workshop/pane_settings_taken.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include "activation/activation.hpp"
 #include "component/text_box.hpp"
@@ -586,7 +587,7 @@ private:
             notice("no source is open -- nothing was saved", true);
             return;
         }
-        const Written written = ws::persist::write_file(
+        const Written written = zengine::persist::write_file(
             e_.path, ws::source_text(e_.buffer.lines(), e_.convention));
         if (!written.accepted) {
             notice(written.refusal, true);

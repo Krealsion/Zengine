@@ -51,7 +51,7 @@ Red in `zengine-workshop-panes-tests`:
 
 `parse_gesture` has no `none`: the word is read as a key, and refused.
 
-In `workshop/gesture_grammar.hpp`:
+In `input/gesture_grammar.hpp`:
 
 ```diff
 -    if (text == "none") {

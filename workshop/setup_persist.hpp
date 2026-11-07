@@ -9,7 +9,8 @@
 // Workshop law: agents/workshop/setup-file.md (+2 registers; agents/workshop.md routes)
 
 #include "pane_migration.hpp"
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 #include "setup.hpp"
 
 #include "graphics/pixels.hpp" // a retired file's sub-units landed on pixels
@@ -924,8 +925,9 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
         SetupPane row;
         row.ref = PaneRef{p.provider, p.pane};
         row.front = p.front;
-        // AS WRITTEN: their form is the law's to judge below, and their meaning the pane's.
-        row.settings = p.settings;
+        // AS WRITTEN, each key in its current spelling: their form is the law's to judge below,
+        // and their meaning the pane's.
+        row.settings = current_settings(p.settings);
         // A WORD WITH NO MEANING, OR A FIELD WHERE ITS WORD READS NONE, REFUSES THE WHOLE
         // CANDIDATE and leaves whatever the caller is showing exactly as it was.
         if (const Written w = place_in(p.place, row.place); !w.accepted) {
@@ -947,10 +949,13 @@ inline Written setup_in(const WorkshopSetup& file, Setup& out,
     }
     candidate.theme = file.theme;
     for (const WorkshopSetupLock& lock : file.locks) {
-        candidate.locks.push_back(SetupLock{PaneRef{lock.provider, lock.pane}, lock.key});
+        candidate.locks.push_back(
+            SetupLock{PaneRef{lock.provider, lock.pane}, current_setting_key(lock.key)});
     }
     for (const WorkshopSetupPinList& list : file.pins) {
-        candidate.pins.push_back(SetupPins{PaneRef{list.provider, list.pane}, list.keys});
+        std::vector<std::string> keys;
+        for (const std::string& k : list.keys) keys.push_back(current_setting_key(k));
+        candidate.pins.push_back(SetupPins{PaneRef{list.provider, list.pane}, std::move(keys)});
     }
     // A pane that changed hands is rewritten here, in the one function that turns written rows
     // into a live `Setup` (the setup file, every desk in a session, every remembered link). The

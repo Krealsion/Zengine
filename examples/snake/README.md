@@ -61,13 +61,13 @@ Source: [`examples/snake/`](world.cpp) — world, board, score, pilot, host.
   poke doors, sent by role, only when Loom attests it as the answer.
 
 Run it from the build tree, in a terminal: keys are `wasd` or the arrows to steer and `p` to pause;
-`1` chooses the other skin, the night or the block palette (the window paints every area again
+`1` chooses the other theme, the night or the block palette (the window paints every area again
 mid-game; nothing is drawn again on the bus); `2` loads the score weave; `3` grows the world
 (graceful v1→v2 migration); `4` asks for an OS window, and says no window weave draws one: the
 snake's window is the terminal; `5` flies the pilot, and lands it again; `r` reloads the world in
 place; `n` starts a new game through the poke-reset door, which gives the world its defaults, so
 while the pilot flies the operator writes the keys off again; `l` lists; `q` quits. The buttons
-beneath the status line, `[1 skin]` to `[q quit]`, do what their keys do. Pressing `[ new game ]`
+beneath the status line, `[1 theme]` to `[q quit]`, do what their keys do. Pressing `[ new game ]`
 with the pointer starts one too, sent to the board as a change, and `[ pause ]` pauses as `p`
 does.
 

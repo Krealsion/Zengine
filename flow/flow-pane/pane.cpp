@@ -98,12 +98,14 @@ class FlowPane final
                        ws::PaneCanvasValueDrop, ws::PaneCarryAnswered, gfx::AreaRoom,
                        gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
                        gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded,
-                       gfx::AreaPointerLeft, zengine::view::ViewWiring>,
+                       gfx::AreaPointerLeft, zengine::view::ViewWiring,
+                       zengine::settings::SlotsAsked>,
           loom::Emit<ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop, fh::FlowCatalog,
                      ws::PaneOperationRequested, ws::PaneValueCarryRequested, gfx::Drawn,
-                     gfx::RoomAsked, zengine::view::ViewWiringRequested>> {
+                     gfx::RoomAsked, zengine::view::ViewWiringRequested,
+                     zengine::settings::SlotsDeclared>> {
 public:
   loom::Value snapshot() const override {
     pane::FlowPaneState saved;
@@ -130,6 +132,7 @@ public:
     return loom::to_value(saved);
   }
   void on_activated(loom::Mail &mail) {
+    declare_slots(mail);
     // AN ACTIVATION ENDS A WRITE STILL ASKED: a successor's ask numbers start again, so an
     // earlier answer could be read as a new ask's. Its dialog stays, to be confirmed again.
     if (const FlowAsk *ended = asks().find(of_kind(FlowAsk::Kind::kWrite))) {
@@ -198,6 +201,11 @@ public:
                                704, 396, 0};
   }
   void offered(loom::Mail &mail) { declare(mail, true); }
+  /// THE THEME READER ASKS FOR FLOW'S SLOTS: said again, as on each activation.
+  void on(const zengine::settings::SlotsAsked &, loom::Mail &mail) {
+    if (mail.authored_from_role(zengine::settings::kSettingsRole))
+      declare_slots(mail);
+  }
   void on(const ws::ActionsJudged &answer, loom::Mail &mail) {
     if (!host(mail, answer.pane))
       return;
@@ -1310,6 +1318,13 @@ public:
   }
 
 private:
+  /// FLOW'S SLOTS, said to the theme reader as Flow's office, which counts them while this life of
+  /// Flow holds it.
+  void declare_slots(loom::Mail &mail) {
+    (void)mail.as_role(pane::kRole)
+        .send_to_role(zengine::settings::kSettingsRole, zengine::flow_pane::hue::declared());
+  }
+
   struct Drag {
     std::int64_t gesture = 0, node_id = 0, revision = 0, x = 0, y = 0,
                  base_x = 0, base_y = 0;

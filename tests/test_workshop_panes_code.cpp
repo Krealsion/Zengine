@@ -42,7 +42,7 @@ inline PaneRef builder_ref() { return PaneRef{bpane::kBuilderPaneRole, bpane::kB
 inline PaneRef editor_ref() { return PaneRef{kEditorOffice, "editor"}; }
 
 inline std::string spelled(const std::filesystem::path& at) {
-    return persist::resolved_against(std::string(), at.generic_string());
+    return zengine::persist::resolved_against(std::string(), at.generic_string());
 }
 
 inline bld::Recipe single_recipe(const std::string& id, const std::string& artifact,

@@ -13,6 +13,7 @@
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
 #include "flow/flow-pane/slots.hpp" // generated from slots.json: Flow's own colours
+#include "settings/slots.hpp"        // the slots said to the theme reader
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_picture.hpp"
@@ -72,6 +73,17 @@ inline gfx::Color warn() { return ink::warn; }       ///< what must come first
 inline gfx::Color gold() { return ink::primary; }
 inline gfx::Color on_gold() { return ink::on_primary; }
 inline gfx::Color gilt() { return ink::secondary; }
+
+/// FLOW'S SLOTS, as it says them to the theme reader: each of its own colours by name, with its
+/// default and the pool colour a terminal shows it as.
+inline zengine::settings::SlotsDeclared declared() {
+    zengine::settings::SlotsDeclared d;
+    for (const gfx::SlotColor& s : {own::message, own::kept, own::wire, own::message_rim,
+                                    own::kept_rim, own::step_rim}) {
+        d.colors.push_back({s.name, static_cast<std::int64_t>(s.rgba), s.like});
+    }
+    return d;
+}
 } // namespace hue
 
 /// THE ROOM'S MEASURES, as a picture is laid out in them: a character's advance and a line's

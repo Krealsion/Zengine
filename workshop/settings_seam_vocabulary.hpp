@@ -299,7 +299,7 @@ struct LayoutSettings {
     friend bool operator==(const LayoutSettings&, const LayoutSettings&) = default;
 };
 
-/// WHAT A PANE OR AN OFFICE TAKES: a pane's counted declaration with `workshop.skin` first, or, with
+/// WHAT A PANE OR AN OFFICE TAKES: a pane's counted declaration with `workshop.theme` first, or, with
 /// `pane` empty, an office's office-wide rows.
 struct DeclaredSettings {
     std::string provider;

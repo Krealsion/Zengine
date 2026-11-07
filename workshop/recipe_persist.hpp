@@ -7,7 +7,8 @@
 // The build recipes' own file: which artifacts this project can build, and how.
 // Workshop law: agents/workshop/project.md
 
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include "builder/recipe.hpp"
 

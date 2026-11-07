@@ -8,6 +8,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | path | what it is |
 |---|---|
 | `vocabulary.hpp` | the contract: moments, `scan::`, `mod::`, `space::`, sessions, `kInputRole` |
+| `gesture_grammar.hpp` | `Gesture` and its grammar: how a key is written and read back, as the keymap and a theme's keys spell it; its law is the keymap's spelling register, `agents/workshop/key-spelling.md` |
 | `translate.hpp` | POSIX terminal and Win32 console events to moments, as pure code |
 | `translate_sdl_core.hpp` | SDL events to moments, pure, for the OS window, which reads SDL's queue |
 | `window_claim.hpp` | a window's claim on the terminal's input, or on SDL's queue: the reader yields the terminal to either |

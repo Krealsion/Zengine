@@ -10,6 +10,7 @@
 #include "timeline.hpp"
 #include "attention/vocabulary.hpp"
 #include "graphics/themes.hpp"
+#include "settings/vocabulary.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/screen_planes.hpp"
 #include "workshop/desk_read.hpp"
@@ -22,6 +23,8 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <optional>
 #include <functional>
 #include <map>
 #include <memory>
@@ -224,7 +227,8 @@ TEST_CASE("the desk says every pane on it, in the desk's order, with its state, 
     CHECK_FALSE(info->keys);
 }
 
-TEST_CASE("the desk says which pane is selected and holds the keys, and a pane placed off the screen is off the room with no visible part") {
+TEST_CASE("the desk says which pane is selected and holds the keys, and a pane placed off the "
+          "screen is off the room with no visible part") {
     DeskRig d;
     // A PRESS INTO ALPHA'S BODY selects it, lifts it to the front, and points the keys at it.
     press_body(d.r, d.alpha_kind);
@@ -561,7 +565,8 @@ TEST_CASE("a glyph grid is made with its corner, advance and line named, from no
     CHECK(in_window.line == 12);
 }
 
-TEST_CASE("a text pane's words are its rows, each with its place and size, and a press at a word's point or a character's lands on that row and column") {
+TEST_CASE("a text pane's words are its rows, each with its place and size, and a press at a "
+          "word's point or a character's lands on that row and column") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -621,7 +626,8 @@ TEST_CASE("a text pane's words are its rows, each with its place and size, and a
     }
 }
 
-TEST_CASE("a canvas pane's words are its labels and text runs, each where it is drawn, and a press at a word's point lands inside it in the pane's own canvas") {
+TEST_CASE("a canvas pane's words are its labels and text runs, each where it is drawn, and a "
+          "press at a word's point lands inside it in the pane's own canvas") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         SketchRig d;
@@ -1008,7 +1014,8 @@ TEST_CASE("a held press a menu takes ends its canvas pane's wait in that same re
     CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
 }
 
-TEST_CASE("a pane's words are covered while a menu is open or arranging, no point a press would land on, and the desk still answers") {
+TEST_CASE("a pane's words are covered while a menu is open or arranging, no point a press would "
+          "land on, and the desk still answers") {
     DeskRig d;
     say_rows(d);
     PaneView view;
@@ -1135,7 +1142,8 @@ std::int64_t row_right_edge(const ExternalBodyPlace& body) {
 
 } // namespace
 
-TEST_CASE("a character's point is the cell showing it, a caret moving none, and a press on a cell reaches the pane as the column of the character it shows") {
+TEST_CASE("a character's point is the cell showing it, a caret moving none, and a press on a cell "
+          "reaches the pane as the column of the character it shows") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -1190,7 +1198,8 @@ TEST_CASE("a character's point is the cell showing it, a caret moving none, and 
     }
 }
 
-TEST_CASE("a row as wide as its pane with a caret in it says every character, at a place inside the pane, the caret past its end on its last cell") {
+TEST_CASE("a row as wide as its pane with a caret in it says every character, at a place inside "
+          "the pane, the caret past its end on its last cell") {
     for (const auto& medium : {std::pair{false, false}, std::pair{false, true}, std::pair{true, false},
                                std::pair{true, true}}) {
         const bool window = medium.first;
@@ -1242,7 +1251,8 @@ TEST_CASE("a row as wide as its pane with a caret in it says every character, at
     }
 }
 
-TEST_CASE("a row with nothing on it but the caret says no word, and a press on the caret's own cell reaches the pane, in a text row and in a canvas field at the body's right edge") {
+TEST_CASE("a row with nothing on it but the caret says no word, and a press on the caret's own "
+          "cell reaches the pane, in a text row and in a canvas field at the body's right edge") {
     // THE WINDOW'S READING IS ITS RUNS OF TEXT: a caret on an empty row is a mark the window draws,
     // no character, so the reading says no word there -- and the cell is still the pane's.
     {
@@ -1321,7 +1331,8 @@ void press_lands(DeskRig& d, const PanePart& part, const NamedRun& run) {
 
 } // namespace
 
-TEST_CASE("a part whose one cell holds the caret at the body's right edge has a point there, and a press on it reaches the pane") {
+TEST_CASE("a part whose one cell holds the caret at the body's right edge has a point there, and "
+          "a press on it reaches the pane") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -1354,7 +1365,8 @@ TEST_CASE("a part whose one cell holds the caret at the body's right edge has a 
     }
 }
 
-TEST_CASE("a text pane's named parts are said under the pane's own names over the cells that show them, and a press at a part's point lands on it, in a window and in a terminal") {
+TEST_CASE("a text pane's named parts are said under the pane's own names over the cells that show "
+          "them, and a press at a part's point lands on it, in a window and in a terminal") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -1416,7 +1428,8 @@ TEST_CASE("a text pane's named parts are said under the pane's own names over th
     }
 }
 
-TEST_CASE("a part's point is a place of its own: beside a control a row holds, on a row's blank cell where its text is a control's, and none for a row with no place of its own") {
+TEST_CASE("a part's point is a place of its own: beside a control a row holds, on a row's blank "
+          "cell where its text is a control's, and none for a row with no place of its own") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -1466,7 +1479,8 @@ TEST_CASE("a part's point is a place of its own: beside a control a row holds, o
     }
 }
 
-TEST_CASE("a row map's parts are named by what each span means, and a name nothing, one the judge would refuse or one taken is left unnamed") {
+TEST_CASE("a row map's parts are named by what each span means, and a name nothing, one the judge "
+          "would refuse or one taken is left unnamed") {
     component::RowMap<std::string> map;
     map.begin();
     REQUIRE(map.span(0, 2, 4, 20, "control"));
@@ -1548,7 +1562,9 @@ TEST_CASE("a part keeps its name across its pane's redraws, and is said and pres
     press_lands(d, *now, NamedRun{"control:save", 2, 2, 8});
 }
 
-TEST_CASE("a canvas pane's named parts are said where its body shows them, with the words inside them, and a press at a part's point lands inside it in the pane's own canvas, in a window and in a terminal") {
+TEST_CASE("a canvas pane's named parts are said where its body shows them, with the words inside "
+          "them, and a press at a part's point lands inside it in the pane's own canvas, in a "
+          "window and in a terminal") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         SketchRig d;
@@ -1609,7 +1625,8 @@ TEST_CASE("a canvas pane's named parts are said where its body shows them, with 
     }
 }
 
-TEST_CASE("a canvas part's point is its own: a part with another over its centre is pressed where nothing inside it is, and a part a terminal paints on no cell is not said there") {
+TEST_CASE("a canvas part's point is its own: a part with another over its centre is pressed where "
+          "nothing inside it is, and a part a terminal paints on no cell is not said there") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         SketchRig d;
@@ -1687,7 +1704,9 @@ CanvasPicture named_view(const zengine::view::Description& d, const zengine::vie
 
 } // namespace
 
-TEST_CASE("a part under another is pressed where a press reaches it as its pane reads a press: the later of two parts takes the place they share, and so does a place the pane names nothing, in a window and in a terminal") {
+TEST_CASE("a part under another is pressed where a press reaches it as its pane reads a press: "
+          "the later of two parts takes the place they share, and so does a place the pane names "
+          "nothing, in a window and in a terminal") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         SketchRig d;
@@ -1762,7 +1781,8 @@ TEST_CASE("two overlapping buttons in a running view are each pressed where the 
     }
 }
 
-TEST_CASE("the View Builder's two overlapping elements are each pressed where the builder gives that element the press, in a window and in a terminal") {
+TEST_CASE("the View Builder's two overlapping elements are each pressed where the builder gives "
+          "that element the press, in a window and in a terminal") {
     namespace vb = zengine::view_builder;
     for (const bool window : {false, true}) {
         CAPTURE(window);
@@ -2030,7 +2050,8 @@ TEST_CASE("a row part is pressed where its row map gives it the press, not on a 
     }
 }
 
-TEST_CASE("the desk names the lines of Workshop's own menu by the action or group each shows, over the line it is drawn on") {
+TEST_CASE("the desk names the lines of Workshop's own menu by the action or group each shows, "
+          "over the line it is drawn on") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -2070,7 +2091,8 @@ TEST_CASE("the desk names the lines of Workshop's own menu by the action or grou
     }
 }
 
-TEST_CASE("a pane's names survive the canvas: its next image draws a picture under the names its rows had, and each is pressed where the picture draws it") {
+TEST_CASE("a pane's names survive the canvas: its next image draws a picture under the names its "
+          "rows had, and each is pressed where the picture draws it") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         DeskRig d;
@@ -2153,7 +2175,8 @@ TEST_CASE("a pane's names survive the canvas: its next image draws a picture und
     }
 }
 
-TEST_CASE("a canvas pane's rows set on its room's lattice are words on its parts' rows, and a part's text is the characters drawn inside it") {
+TEST_CASE("a canvas pane's rows set on its room's lattice are words on its parts' rows, and a "
+          "part's text is the characters drawn inside it") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
         SketchRig d;
@@ -3379,7 +3402,7 @@ struct SkinDesk : WindowDesk {
         OfficeSettingCommitRequested c;
         c.office = kWorkshopProvider;
         c.revision = editor->office.back().revision;
-        c.key = "workshop.skin";
+        c.key = "workshop.theme";
         c.text = std::string(skin);
         ask(c);
         REQUIRE_FALSE(editor->office_acted.empty());
@@ -3393,7 +3416,7 @@ struct SkinDesk : WindowDesk {
         c.provider = apane::kAttentionPaneRole;
         c.pane = apane::kAttentionPane;
         c.revision = editor->rows.back().revision;
-        c.key = "workshop.skin";
+        c.key = "workshop.theme";
         if (skin != nullptr) {
             c.text = std::string(skin);
         } else {
@@ -3419,7 +3442,7 @@ using Skins = std::map<std::string, std::string>;
 
 } // namespace
 
-TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names, else Workshop's "
+TEST_CASE("each graphics area wears the palette its row's `workshop.theme` names, else Workshop's "
           "own, and a palette is said only when an area's moved") {
     // ⚔ MUTATION (tests/mutants/workshop_desk.md#every-area-night): every area given `night`
     // whatever is kept -- Workshop's `block` never reaches the directory, and neither does the
@@ -3434,7 +3457,7 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     std::size_t from = d.directory->chosen.size();
     const OfficeSettingCommitAnswered wide = d.workshop_skin("block");
     REQUIRE_MESSAGE(wide.accepted, wide.refusal);
-    CHECK(d.r.session().skin == "block");
+    CHECK(d.r.session().theme == "block");
     const std::string frame = pane_frame_area(d.r.session().panes, d.kind);
     const std::string layouts = pane_frame_area(d.r.session().panes, pane_kind::kLayouts);
     CHECK(d.chosen_since(from, &said) == Skins{{kWorkshopProvider, "block"},
@@ -3463,13 +3486,13 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     // ...THE ROW'S NEW REVISION HANDED BY ITS OWNER, without Workshop's own word on it.
     REQUIRE_FALSE(rows_handed.empty());
     for (const v2::PaneSettings& h : rows_handed) {
-        CHECK(find_pane_setting(h.settings, "workshop.skin") == nullptr);
+        CHECK(find_pane_setting(h.settings, "workshop.theme") == nullptr);
     }
 
     // WORKSHOP'S OWN, `classic`, moves Workshop's areas alone, to night: the row already wears it.
     from = d.directory->chosen.size();
     REQUIRE(d.workshop_skin("classic").accepted);
-    CHECK(d.r.session().skin == "night");
+    CHECK(d.r.session().theme == "night");
     CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "night"},
                                         {kWorkshopOverlayArea, "night"},
                                         {layouts, "night"}});
@@ -3485,7 +3508,7 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
     from = d.directory->chosen.size();
     const OfficeSettingCommitAnswered night = d.workshop_skin("night");
     REQUIRE_MESSAGE(night.accepted, night.refusal);
-    CHECK(d.r.session().skin == "night");
+    CHECK(d.r.session().theme == "night");
     CHECK(d.chosen_since(from).empty());
     // `day` IS A PALETTE AS THE OTHER TWO ARE: the row's reaches its pane's area.
     from = d.directory->chosen.size();
@@ -5239,4 +5262,336 @@ TEST_CASE("with pane titles hidden, a press the window gives a canvas pane's are
     CHECK_FALSE(pane->title_waits);
     CHECK_FALSE(same_place(*pane, titled));
     CHECK(d.refused.empty());
+}
+
+// ---- Themes read at run time: the theme reader beside a live Workshop ------------------------
+
+namespace {
+
+namespace st = zengine::settings;
+
+/// AN OFFICE THAT ASKS THE THEME READER, or speaks as a pane with slots: it applies a theme, locks
+/// a setting, or says its slots, inside its own delivery, and keeps every answer.
+class ThemeAsker
+    : public loom::WeaveBase<ThemeAsker, ArrangedDirectoryState,
+                             loom::Accept<st::ThemeActed, PaneSettingLockAnswered, st::SlotsAsked,
+                                          SeatDo>,
+                             loom::Emit<st::ThemeApplyRequested, PaneSettingLockRequested,
+                                        st::SlotsDeclared>> {
+public:
+    void on(const st::ThemeActed& a, loom::Mail& mail) {
+        if (mail.answers_ask()) acted.push_back(a);
+    }
+    void on(const PaneSettingLockAnswered& a, loom::Mail& mail) {
+        if (mail.answers_ask()) locked.push_back(a);
+    }
+    void on(const st::SlotsAsked&, loom::Mail&) { ++asked; }
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+
+    std::function<void(loom::Mail&)> next;
+    std::vector<st::ThemeActed> acted;
+    std::vector<PaneSettingLockAnswered> locked;
+    int asked = 0;
+};
+
+constexpr const char* kThemeAskerOffice = "test.themes";
+
+/// THE WINDOW DESK WITH THE THEME READER LOADED: the weaver's themes in a folder of this case's own,
+/// the shipped ones beside it, Flow's office named by the plan and not loaded, and an office that
+/// asks.
+struct ThemeDesk : SkinDesk {
+    std::filesystem::path folder;
+    loom::WeaveId settings_id{};
+    ThemeAsker* asker = nullptr;
+    loom::WeaveId asker_id{};
+
+    ThemeDesk() {
+        static int made = 0;
+        folder = std::filesystem::temp_directory_path() /
+                 ("zen-theme-desk-" + std::to_string(++made));
+        std::error_code ec;
+        std::filesystem::remove_all(folder, ec);
+        std::filesystem::create_directories(folder / "themes");
+        r.host.themes_path = (folder / "themes").generic_string();
+        r.host.shipped_themes_path = SHIPPED_THEMES_DIR;
+        r.host.planned_offices = [] { return std::vector<std::string>{"zengine.flow"}; };
+        asker = mount(kThemeAskerOffice, &asker_id);
+        settings_id = r.load("zengine-settings", WORKSHOP_SO_SETTINGS, st::kSettingsRole);
+        REQUIRE(settings_id.valid());
+    }
+    ~ThemeDesk() {
+        std::error_code ec;
+        std::filesystem::remove_all(folder, ec);
+    }
+    ThemeDesk(const ThemeDesk&) = delete;
+    ThemeDesk& operator=(const ThemeDesk&) = delete;
+
+    ThemeAsker* mount(const char* office, loom::WeaveId* id) {
+        auto made_one = std::make_unique<ThemeAsker>();
+        ThemeAsker* raw = made_one.get();
+        loom::Grant grant;
+        grant.allow_to_any(st::ThemeApplyRequested::zen_name, st::ThemeApplyRequested::zen_version);
+        grant.allow_to_any(PaneSettingLockRequested::zen_name, PaneSettingLockRequested::zen_version);
+        grant.allow_to_any(st::SlotsDeclared::zen_name, st::SlotsDeclared::zen_version);
+        *id = r.bus.register_weave(std::move(made_one), std::move(grant), office);
+        raw->zen_set_self(*id);
+        return raw;
+    }
+
+    void write(const char* name, const std::string& text) {
+        std::ofstream out(folder / "themes" / (std::string(name) + ".json"),
+                          std::ios::binary | std::ios::trunc);
+        out << text;
+    }
+
+    void inside(ThemeAsker* who, loom::WeaveId id, std::function<void(loom::Mail&)> what) {
+        who->next = std::move(what);
+        (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        r.bus.drain_until_idle();
+    }
+
+    st::ThemeActed apply(const char* theme, const char* mode = st::kApplyMerge,
+                         bool baseline = false) {
+        const std::size_t before = asker->acted.size();
+        st::ThemeApplyRequested a;
+        a.theme = theme;
+        a.mode = mode;
+        a.baseline = baseline;
+        inside(asker, asker_id, [a](loom::Mail& mail) {
+            (void)mail.as_role(kThemeAskerOffice).send_to_role(st::kSettingsRole, a, 1);
+        });
+        REQUIRE(asker->acted.size() == before + 1);
+        return asker->acted.back();
+    }
+
+    /// The palette last offered under `name` by the theme reader, or none.
+    const gfx::PaletteOffered* offered(const std::string& name) const {
+        const gfx::PaletteOffered* last = nullptr;
+        for (const gfx::PaletteOffered& p : directory->offered) {
+            if (p.palette == name && p.revision > 1) last = &p;
+        }
+        return last;
+    }
+
+    std::int64_t color(const std::string& palette, const char* name) const {
+        const gfx::PaletteOffered* p = offered(palette);
+        REQUIRE(p != nullptr);
+        for (const gfx::PaletteColor& c : p->colors) {
+            if (c.name == name) return c.rgba;
+        }
+        FAIL("no colour " << name << " in " << palette);
+        return 0;
+    }
+
+    std::optional<bool> detail() {
+        const SetupPane* row = pane_of(r.run().active,
+                                       PaneRef{apane::kAttentionPaneRole, apane::kAttentionPane});
+        REQUIRE(row != nullptr);
+        const PaneSetting* s = find_pane_setting(row->settings, "detail");
+        return s != nullptr ? s->flag : std::nullopt;
+    }
+};
+
+std::int64_t pool_color(const char* name) {
+    for (const gfx::PaletteColor& c : gfx::themes::built_in().colors) {
+        if (c.name == name) return c.rgba;
+    }
+    return 0;
+}
+
+} // namespace
+
+TEST_CASE("a theme edited on disk and applied changes the palette a window paints with no build, and no pane hears of it") {
+    ThemeDesk d;
+    d.write("mine", R"({ "format": "zengine-theme", "format_version": 2, "name": "mine",
+  "colors": [ { "name": "accent", "color": "#112233" } ] })");
+    // EVERY THEME IN THE FOLDERS IS OFFERED once the reader is told where they are; this one was
+    // written after, and is read when it is applied.
+    REQUIRE(d.offered("night") != nullptr);
+    REQUIRE(d.offered("block") != nullptr);
+    std::size_t from = d.directory->chosen.size();
+    const st::ThemeActed first = d.apply("mine", st::kApplyReset, true);
+    REQUIRE_MESSAGE(first.accepted, first.refusal);
+    CHECK(first.palette == "mine");
+    CHECK(first.baseline);
+    CHECK(d.color("mine", "accent") == 0x112233ff);
+    // ...AND THE LAYOUT'S BASELINE CHOOSES ITS AREAS' PALETTE.
+    CHECK(d.r.run().active.theme.name == "mine");
+    CHECK(d.chosen_since(from).at(kWorkshopProvider) == "mine");
+    CHECK(d.chosen_since(from).at(kAttentionArea) == "mine");
+
+    // EDITED ON DISK AND APPLIED AGAIN: a new revision of the same palette, and the pane is told
+    // nothing at all.
+    // ⚔ MUTATION (tests/mutants/workshop_desk.md#apply-keeps-held): an apply that leaves a
+    // palette it already offers as it was -- the edit on disk would never reach the window.
+    const std::int64_t revision = d.offered("mine")->revision;
+    d.write("mine", R"({ "format": "zengine-theme", "format_version": 2, "name": "mine",
+  "colors": [ { "name": "accent", "color": "#445566" } ] })");
+    const RuntimePane* attention =
+        d.r.session().panes.runtime.find(apane::kAttentionPaneRole, apane::kAttentionPane);
+    REQUIRE(attention != nullptr);
+    const loom::WeaveId pane = d.r.bus.role_holder(apane::kAttentionPaneRole);
+    REQUIRE(pane.valid());
+    std::vector<std::string> heard;
+    const loom::ObserverId tap = d.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.target == pane) heard.push_back(ev.schema_name);
+    });
+    from = d.directory->chosen.size();
+    const st::ThemeActed again = d.apply("mine", st::kApplyReset, true);
+    d.r.bus.remove_observer(tap);
+    REQUIRE_MESSAGE(again.accepted, again.refusal);
+    CHECK(d.color("mine", "accent") == 0x445566ff);
+    CHECK(d.offered("mine")->revision > revision);
+    CHECK(again.revision == d.offered("mine")->revision);
+    CHECK(d.chosen_since(from).empty());
+    CHECK(heard.empty());
+}
+
+TEST_CASE("a theme's entry nothing takes is skipped and said, or refuses it whole naming it, and "
+          "a value that is no colour refuses whatever it says") {
+    ThemeDesk d;
+    d.write("loose", R"({ "format": "zengine-theme", "format_version": 2, "name": "loose",
+  "on_failure": "skip",
+  "colors": [ { "name": "accent", "color": "#ff0000" } ],
+  "slots": [ { "office": "zengine.unplanned", "colors": [ { "name": "rim", "color": "#00ff00" } ] } ] })");
+    const st::ThemeActed skipped = d.apply("loose");
+    REQUIRE_MESSAGE(skipped.accepted, skipped.refusal);
+    REQUIRE(skipped.skipped.size() == 1);
+    CHECK(skipped.skipped[0].target == "zengine.unplanned");
+    CHECK(skipped.skipped[0].key == "rim");
+    CHECK(skipped.skipped[0].why == "nothing takes it");
+    CHECK(d.color("night", "accent") == 0xff0000ff);
+
+    d.write("strict", R"({ "format": "zengine-theme", "format_version": 2, "name": "strict",
+  "on_failure": "refuse",
+  "colors": [ { "name": "background", "color": "#000044" } ],
+  "slots": [ { "office": "zengine.unplanned", "colors": [ { "name": "rim", "color": "#00ff00" } ] } ] })");
+    const std::size_t offered = d.directory->offered.size();
+    const st::ThemeActed refused = d.apply("strict");
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal.find("theme `strict`: `rim` of `zengine.unplanned` -- nothing takes it") !=
+          std::string::npos);
+    CHECK(d.directory->offered.size() == offered);
+    CHECK(d.color("night", "background") != 0x000044ff);
+
+    d.write("wrong", R"({ "format": "zengine-theme", "format_version": 2, "name": "wrong",
+  "on_failure": "skip", "colors": [ { "name": "accent", "color": "#12345g" } ] })");
+    const st::ThemeActed wrong = d.apply("wrong");
+    CHECK_FALSE(wrong.accepted);
+    CHECK(wrong.refusal.find("`#12345g`, which is no colour") != std::string::npos);
+    CHECK(d.directory->offered.size() == offered);
+}
+
+TEST_CASE("merge leaves what a theme does not name and reset returns it to its default, settings and colours alike") {
+    ThemeDesk d;
+    d.write("warm", R"({ "format": "zengine-theme", "format_version": 2, "name": "warm",
+  "colors": [ { "name": "accent", "color": "#aa0000" } ],
+  "settings": [ { "target": "zengine.attention/attention", "key": "detail", "flag": false } ] })");
+    d.write("cool", R"({ "format": "zengine-theme", "format_version": 2, "name": "cool",
+  "colors": [ { "name": "background", "color": "#000044" } ] })");
+    REQUIRE(d.apply("warm").accepted);
+    CHECK(d.detail() == false);
+    CHECK(d.color("night", "accent") == 0xaa0000ff);
+    // ⚔ MUTATION (tests/mutants/workshop_desk.md#merge-from-defaults): a merge built over the
+    // pool's defaults -- warm's accent would be lost to cool.
+    REQUIRE(d.apply("cool").accepted);
+    CHECK(d.color("night", "accent") == 0xaa0000ff);
+    CHECK(d.color("night", "background") == 0x000044ff);
+    CHECK(d.detail() == false);
+    const st::ThemeActed reset = d.apply("cool", st::kApplyReset);
+    REQUIRE_MESSAGE(reset.accepted, reset.refusal);
+    CHECK(d.color("night", "accent") == pool_color("accent"));
+    CHECK(d.color("night", "background") == 0x000044ff);
+    // BLOCK, WORN OVER WHAT IS WORN AS A LAYER: its colours stand, block's outline and terminal
+    // words over them.
+    REQUIRE(d.apply("block").accepted);
+    const gfx::PaletteOffered* night = d.offered("night");
+    REQUIRE(night != nullptr);
+    CHECK(night->outline == "===");
+    CHECK(d.color("night", "background") == 0x000044ff);
+}
+
+TEST_CASE("a locked setting survives a theme as its final layer and is listed in what the theme came to") {
+    ThemeDesk d;
+    d.inside(d.asker, d.asker_id, [](loom::Mail& mail) {
+        (void)mail.as_role(kThemeAskerOffice)
+            .send_to_role(kLayoutsRole,
+                          PaneSettingLockRequested{"zengine.attention/attention", "detail",
+                                                   kLockAct, kLockScopeLayout, 0, 0},
+                          2);
+    });
+    REQUIRE(d.asker->locked.size() == 1);
+    REQUIRE_MESSAGE(d.asker->locked.back().accepted, d.asker->locked.back().refusal);
+    d.write("quiet", R"({ "format": "zengine-theme", "format_version": 2, "name": "quiet",
+  "settings": [ { "target": "zengine.attention/attention", "key": "detail", "flag": false } ] })");
+    const std::optional<bool> held = d.detail();
+    const st::ThemeActed acted = d.apply("quiet");
+    REQUIRE_MESSAGE(acted.accepted, acted.refusal);
+    CHECK(acted.written == 0);
+    REQUIRE(acted.locked.size() == 1);
+    CHECK(acted.locked[0].target == "zengine.attention/attention");
+    CHECK(acted.locked[0].key == "detail");
+    CHECK(d.detail() == held);
+}
+
+TEST_CASE("a slot of an office the plan names, not yet loaded, waits for it, and applies when it declares") {
+    ThemeDesk d;
+    d.write("wires", R"({ "format": "zengine-theme", "format_version": 2, "name": "wires",
+  "on_failure": "refuse",
+  "slots": [ { "office": "zengine.flow",
+               "colors": [ { "name": "wire", "color": "#ff8800" }, { "name": "glow", "color": "#00ff00" } ] } ] })");
+    const st::ThemeActed acted = d.apply("wires");
+    REQUIRE_MESSAGE(acted.accepted, acted.refusal);
+    CHECK(acted.waiting == std::vector<std::string>{"zengine.flow"});
+    CHECK(d.offered("night")->slots.empty());
+    // FLOW COMES, and says its slots: what it holds applies, and what it does not is said.
+    loom::WeaveId flow_id{};
+    ThemeAsker* flow = d.mount("zengine.flow", &flow_id);
+    d.inside(flow, flow_id, [](loom::Mail& mail) {
+        (void)mail.as_role("zengine.flow")
+            .send_to_role(st::kSettingsRole,
+                          st::SlotsDeclared{{st::SlotColorDeclared{"wire", 0x88c0d0ff, "accent"}}, {}});
+    });
+    const gfx::PaletteOffered* night = d.offered("night");
+    REQUIRE(night->slots.size() == 1);
+    CHECK(night->slots[0].office == "zengine.flow");
+    REQUIRE(night->slots[0].colors.size() == 1);
+    CHECK(night->slots[0].colors[0].name == "wire");
+    CHECK(night->slots[0].colors[0].rgba == 0xff8800ff);
+    CAPTURE(d.r.session().notice);
+    CHECK(d.r.session().notice.find("theme wires skipped glow of zengine.flow") != std::string::npos);
+}
+
+TEST_CASE("several gestures ask one action through the keymap's door, and a version-1 theme file applies as it would have") {
+    ThemeDesk d;
+    d.write("keys", R"({ "format": "zengine-theme", "format_version": 2, "name": "keys",
+  "keys": [ { "action": "layout.rename", "gestures": ["ctrl+alt+r", "alt+r"] } ] })");
+    const st::ThemeActed acted = d.apply("keys");
+    REQUIRE_MESSAGE(acted.accepted, acted.refusal);
+    CHECK(acted.keys == 1);
+    std::vector<std::string> bound;
+    for (const AuthoredOverride& o : d.r.session().keymap.authored) {
+        if (o.action == "layout.rename") bound.push_back(o.gesture);
+    }
+    CHECK(bound == std::vector<std::string>{"ctrl+alt+r", "alt+r"});
+
+    // A FILE AN OLDER WORKSHOP WROTE, Loom's envelope around one setting.
+    st::v1::ThemeFile old;
+    old.format = st::kThemeFormat;
+    old.format_version = st::kThemeFormatVersionOne;
+    old.name = "older";
+    st::ThemeSetting quiet;
+    quiet.target = "zengine.attention/attention";
+    quiet.key = "detail";
+    quiet.flag = false;
+    old.settings = {quiet};
+    d.write("older", loom::compat::serialize(loom::to_value(old)));
+    const st::ThemeActed older = d.apply("older");
+    REQUIRE_MESSAGE(older.accepted, older.refusal);
+    CHECK(older.written == 1);
+    CHECK(d.detail() == false);
 }

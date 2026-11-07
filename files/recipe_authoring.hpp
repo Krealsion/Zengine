@@ -17,7 +17,8 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include "component/list_window.hpp"
 #include "component/text_box.hpp"
@@ -407,7 +408,7 @@ inline void FilesWeave::compose_recipe(loom::Mail& mail) {
     RecipeAuthorRequested& draft = next.draft;
     draft.tree = a.chosen.tree;
     draft.id = a.values[0];
-    const std::string place = ws::persist::resolved_against(a.dir, a.chosen.name);
+    const std::string place = zengine::persist::resolved_against(a.dir, a.chosen.name);
     if (!draft.tree) {
         draft.artifact = a.values[1];
         draft.source = place;
