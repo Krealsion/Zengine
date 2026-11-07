@@ -306,9 +306,12 @@ inline constexpr std::int64_t kPreparedClaimBeats = 8;
 /// time", which outlives any particular implementation being swapped in.
 inline constexpr const char* kTimerRole = "zengine.timer";
 
-/// The beat cap: the longest a host rests between turns when nothing is due sooner, and so the
-/// worst-case lateness of a firing on a host that rests (`timer/rest.hpp`).
-inline constexpr std::int64_t kBeatCapMs = 10;
+/// The beat cap: the longest a host rests between turns when nothing is due sooner
+/// (`timer/rest.hpp`). Not a firing's lateness, since a rest ends at the soonest deadline, nor a
+/// source's, since a host's one wait ends for whatever it holds and a source it does not hold
+/// keeps a beat of its own. A safety net: the longest anything neither waited on nor due can go
+/// unseen, and the one turn a second an idle host keeps.
+inline constexpr std::int64_t kBeatCapMs = 1000;
 
 /// How long the bus may rest, as the Timer claims it as its office at every beat that fired what
 /// was due: until `until_ms`, a reading of the Timer's own monotonic clock -- the soonest deadline,

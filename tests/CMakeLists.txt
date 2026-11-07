@@ -503,7 +503,7 @@ zengine_compile_test(timer_cursor_bypass_refused zengine-cn-cursor
 # vocabulary because the weave's own beat is part of its contract.
 add_executable(zengine-input-tests test_input.cpp doctest_main.cpp)
 target_link_libraries(zengine-input-tests
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-input-vocabulary
+    PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy zengine-input-vocabulary
             zengine-timer-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-input-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party

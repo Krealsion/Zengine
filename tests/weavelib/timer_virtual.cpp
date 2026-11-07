@@ -3,12 +3,13 @@
 
 // The Timer service over a virtual clock: the shipped `TimerServiceT` in every respect but the
 // clock, which books each beat's wait as elapsed (`elapse_ms`). Continuity is a claim about durations
-// (TIMER-03), so each beat is exactly `kBeatCapMs` of virtual time and every duration an exact
+// (TIMER-03), so each beat is exactly `kVirtualStepMs` of virtual time and every duration an exact
 // integer nobody waits for, through the real kernel, swap and bequest. Three libraries from this
 // source: the incumbent, the prepared candidate (the same code, since what prepares must be what
 // goes live), and a candidate that declines, broken here rather than by a branch in the package.
 
 #include "timer/normalize.hpp"
+#include "virtual_step.hpp"
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -29,6 +30,7 @@ struct VirtualClock {
     std::int64_t now = 0;
 
     std::int64_t now_ms() { return now; }
+    std::int64_t step_ms() const { return zengine::testing::kVirtualStepMs; }
 
     void elapse_ms(std::int64_t ms) {
         if (ms > 0) {

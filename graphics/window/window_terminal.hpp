@@ -215,6 +215,24 @@ public:
 
     std::vector<zengine::input::InputEvent> poll() { return terminal_.poll(); }
 
+    /// What a host's wait waits on for this window, as its terminal says; nothing to wait on for a
+    /// terminal that cannot say.
+    std::optional<loom::host::WaitSet> wait_set() {
+        if constexpr (requires { terminal_.wait_set(); }) {
+            return terminal_.wait_set();
+        } else {
+            return std::nullopt;
+        }
+    }
+    /// Whether the window must look again soon whatever its terminal says.
+    bool on_time() const {
+        if constexpr (requires { terminal_.holding(); }) {
+            return terminal_.holding();
+        } else {
+            return false;
+        }
+    }
+
     /// A terminal has no close box: nothing asks it to close.
     bool close_requested() const noexcept { return false; }
     bool take_close() noexcept { return false; }

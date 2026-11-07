@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
+
+#include "weavelib/virtual_step.hpp" // the suites' virtual beat
 #include "flow/flow-host/runtime.hpp"
 #include "flow/example.hpp"
 #include "operator/primitives.hpp"
@@ -280,6 +282,7 @@ namespace {
 struct StepClock {
     std::int64_t* now = nullptr;
     std::int64_t now_ms() const { return *now; }
+    std::int64_t step_ms() const { return zengine::testing::kVirtualStepMs; }
     void elapse_ms(std::int64_t milliseconds) const {
         if (milliseconds > 0) *now += milliseconds;
     }

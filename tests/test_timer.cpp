@@ -12,6 +12,10 @@
 // refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
+#include "weavelib/virtual_step.hpp" // the suites' virtual beat
+
+using zengine::testing::kVirtualStepMs;
+
 #include "timer/binding.hpp"
 #include "timer/os_clock.hpp"
 #include "timer/rest.hpp"
@@ -63,6 +67,7 @@ namespace {
 /// provable without waiting for it not to happen).
 struct FakeHooks {
     std::int64_t now = 0;
+    std::int64_t step = zengine::testing::kVirtualStepMs; ///< a beat's step; 0 or less: the cap
     std::int64_t beats = 0;
     std::int64_t stop_after = -1; ///< stop the bus once beats reaches this
     loom::Switchboard* bus = nullptr;
@@ -73,6 +78,7 @@ struct FakeHooks {
 struct FakeClock {
     FakeHooks* h = nullptr;
     std::int64_t now_ms() { return h->now; }
+    std::int64_t step_ms() const { return h->step; }
     void elapse_ms(std::int64_t ms) {
         if (ms > 0) {
             h->now += ms;
@@ -581,7 +587,7 @@ struct Rig {
 
     /// Pump until one message of `schema` has been handled, then stop: the continuity lane's
     /// ruler. Virtual time moves only inside a beat's nap, so stopping at a named message puts
-    /// the clock at a known instant, and every duration after it is exactly `kBeatCapMs` per
+    /// the clock at a known instant, and every duration after it is exactly `kVirtualStepMs` per
     /// delivered beat. The beat budget is a hang guard, not a schedule: the chain never quiesces.
     void pump_until(std::string schema, std::int64_t max_beats = 400) {
         stop_on_schema = std::move(schema);
@@ -772,7 +778,7 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
 
     // The address and the beat cap are contract too.
     CHECK(std::string(kTimerRole) == "zengine.timer");
-    CHECK(kBeatCapMs == 10);
+    CHECK(kBeatCapMs == 1000);
 }
 
 TEST_CASE("contract: the ordered continuity shapes are frozen the same way, and their Text fields "
@@ -1290,16 +1296,16 @@ TEST_CASE("a LATE repeating timer gets one firing, never a burst (the catch-up c
 
 TEST_CASE("the beat cap IS the lateness bound: idle naps the cap, a nearer deadline shortens it") {
     // kBeatCapMs is pinned as a constant in tier 1; this pins the BEHAVIOR it
-    // names — the two halves of the vocabulary's claim that the cap is "the
-    // worst-case lateness of a firing and the arrival bound on a StartTimer
-    // being considered".
+    // names over a clock that books what the Timer claims: with nothing due a
+    // beat lasts the cap, and an ask arriving behind it is seen only after it.
     FakeRig r;
+    r.hooks.step = 0; // no step of its own: a beat books the cap, as a host's rest lasts it
     r.run_beats(3, /*start=*/true);
     CHECK(r.hooks.now == 3 * kBeatCapMs); // nothing standing: each beat naps the cap
 
     // An ask queued behind a parked beat waits out that beat's whole nap
     // before it is even seen. With an empty table that nap is a full cap — so
-    // a 1ms timer asked at t=30 fires at t=41, not t=31. That gap IS the bound.
+    // a 1ms timer asked after three such beats fires one cap and a millisecond later.
     r.ask_as(r.ear, StartTimer{"late", 1, false});
     r.run_beats(3);
     REQUIRE(r.heard.fired.size() == 1);
@@ -1308,6 +1314,7 @@ TEST_CASE("the beat cap IS the lateness bound: idle naps the cap, a nearer deadl
     // The other half: a deadline nearer than the cap shortens the nap to it,
     // and a farther one is walked there in capped steps, landing exactly on it.
     FakeRig s;
+    s.hooks.step = 0;
     s.ask_as(s.ear, StartTimer{"soon", 4, false});
     s.ask_as(s.ear, StartTimer{"far", 25, false});
     s.run_beats(5, /*start=*/true);
@@ -2620,7 +2627,7 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
 // ============================================================================
 // Real libraries, the real kernel and steward, a real graceful replacement and a real letter
 // through the real gate, all through `zengine-timer-virtual` -- TimerServiceT as shipped over a
-// clock whose nap books the duration and returns: one delivered beat is exactly kBeatCapMs.
+// clock whose nap books the duration and returns: one delivered beat is exactly kVirtualStepMs.
 
 namespace {
 
@@ -2664,7 +2671,7 @@ TEST_CASE("continuity, graceful: a five-second one-shot with two seconds left cr
 
     // 3. Three seconds of virtual time, the ceremony's own beats counted in, so
     // that when the predecessor reads its clock exactly 3000ms have passed.
-    r.pump_beats(3000 / kBeatCapMs - kGracefulCeremonyBeats);
+    r.pump_beats(3000 / kVirtualStepMs - kGracefulCeremonyBeats);
 
     // 4. The graceful replacement. Same library, a genuinely new incarnation.
     const std::uint64_t corr = r.command(loom::SwapWeave{
@@ -2715,7 +2722,7 @@ TEST_CASE("continuity, graceful: a five-second one-shot with two seconds left cr
     // not guessed — the heir's clock began at zero and only napping beats have
     // moved it since the letter landed, so the beats left are exactly countable.
     const std::int64_t napped = r.drives - r.letters[1].drives;
-    const std::int64_t to_boundary = 2000 / kBeatCapMs - napped;
+    const std::int64_t to_boundary = 2000 / kVirtualStepMs - napped;
     REQUIRE(to_boundary > 1);
     r.pump_beats(to_boundary - 1); // one beat short of two seconds
     CHECK(r.ask_probe(probe).fires == 0);
@@ -2749,7 +2756,7 @@ TEST_CASE("continuity, graceful: a five-second one-shot with two seconds left cr
     CHECK(rep.resolved == kResolutionRestarted);
     CHECK(r.poke_int(successor, "active") == 1);
 
-    r.pump_beats(5000 / kBeatCapMs + 4);
+    r.pump_beats(5000 / kVirtualStepMs + 4);
     rep = r.ask_probe(probe);
     CHECK(rep.fires == 2); // once more, and only once more
     CHECK(rep.lifecycle == "spent");
@@ -2761,7 +2768,7 @@ TEST_CASE("continuity, hard: no letter exists, so the declared fallback restarts
     const loom::WeaveId timer = r.load("zengine-timer-virtual", TIMER_VIRTUAL_SO, kTimerRole);
     const loom::WeaveId probe = r.load("zengine-probe-oneshot", PROBE_ONESHOT_SO, "");
     anchor_probe(r, probe, timer);
-    r.pump_beats(3000 / kBeatCapMs);
+    r.pump_beats(3000 / kVirtualStepMs);
 
     // A HARD replacement: the incumbent is never asked, so nothing is offered.
     const std::uint64_t corr = r.command(loom::SwapWeave{
@@ -2787,12 +2794,12 @@ TEST_CASE("continuity, hard: no letter exists, so the declared fallback restarts
     // AND IT DOES NOT FIRE AT THE OLD BOUNDARY. Two seconds of virtual time was
     // the whole remaining schedule a moment ago; from a full restart it is not
     // even half of one.
-    r.pump_beats(2000 / kBeatCapMs + 10);
+    r.pump_beats(2000 / kVirtualStepMs + 10);
     CHECK(r.ask_probe(probe).fires == 0);
 
     // It fires at the FULL declared delay instead, which is the honest meaning
     // of "restarted".
-    r.pump_beats(3000 / kBeatCapMs + 10);
+    r.pump_beats(3000 / kVirtualStepMs + 10);
     CHECK(r.ask_probe(probe).fires == 1);
 }
 
@@ -2804,7 +2811,7 @@ TEST_CASE("continuity, reload: an in-place reload keeps every standing timer, on
     anchor_probe(r, probe, timer);
     // ...and a raw repeating timer nobody re-asks for: only the service can carry it.
     r.ask(timer, StartTimer{"suite.repeat", 1000, true});
-    r.pump_beats(3000 / kBeatCapMs);
+    r.pump_beats(3000 / kVirtualStepMs);
     const auto repeats = [&] {
         return std::count(r.seen.fired.begin(), r.seen.fired.end(), "suite.repeat");
     };
@@ -2842,7 +2849,7 @@ TEST_CASE("continuity, reload: an in-place reload keeps every standing timer, on
     CHECK(oneshot->delay_ms == 5000);
     CHECK(oneshot->remaining_ms > 0);
     CHECK(oneshot->remaining_ms <= 2000);
-    const std::int64_t left = oneshot->remaining_ms / kBeatCapMs;
+    const std::int64_t left = oneshot->remaining_ms / kVirtualStepMs;
 
     // IT FIRES WHEN ITS OWN TIME RUNS OUT, ONCE; THE REPEATING ONE KEEPS BEATING. Each ask and the
     // ruler spend a beat or two of their own, so the boundary is held to a few beats either side.
@@ -2873,7 +2880,7 @@ TEST_CASE("continuity, required preservation: an order with no acceptable fallba
     CHECK(r.poke_int(timer, "active") == 0); // no entry, not a silently-restarted one
 
     // And it stays that way: a refused order is not a deferred one.
-    r.pump_beats(5000 / kBeatCapMs + 20);
+    r.pump_beats(5000 / kVirtualStepMs + 20);
     CHECK(r.ask_probe(probe).fires == 0);
     CHECK(r.poke_int(timer, "active") == 0);
 }
@@ -3863,7 +3870,7 @@ struct Keystone {
     /// the ruler's own cost taken back off it.
     std::int64_t probe_remaining() {
         return remaining_now(zengine::probe::kProbeTimerId) -
-               kRulerTrailingBeats * kBeatCapMs;
+               kRulerTrailingBeats * kVirtualStepMs;
     }
 
     /// Advance the live Timer until exactly `want` milliseconds of the probe's
@@ -3871,8 +3878,8 @@ struct Keystone {
     void advance_until_remaining(std::int64_t want) {
         const std::int64_t now = probe_remaining();
         REQUIRE(now >= want);
-        REQUIRE((now - want) % kBeatCapMs == 0);
-        r.pump_beats((now - want) / kBeatCapMs);
+        REQUIRE((now - want) % kVirtualStepMs == 0);
+        r.pump_beats((now - want) / kVirtualStepMs);
     }
 
     /// The last letter that crossed the wire, decoded through the real gate. It REQUIREs one:
@@ -3956,7 +3963,7 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     // beats, then let it run: the ask goes through the coordinator-only door,
     // the candidate answers for itself, and the coordinator admits it inside
     // that same delivery.
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
     const std::int64_t beats_before = k.field(k.incumbent, "beats");
     k.ask(kInheritFromIncumbent);
     k.r.pump_until(TimerReady::zen_name);
@@ -4022,7 +4029,7 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     // fires; the next beat fires exactly once -- not five seconds from the commit, as a
     // re-anchored schedule or a stale snapshot would. The ruler now reads the CANDIDATE (it is
     // addressed to the role), itself the proof the inherited schedule is the one it holds.
-    k.advance_until_remaining(kBeatCapMs);
+    k.advance_until_remaining(kVirtualStepMs);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
     k.r.pump_beats(1);
     rep = k.r.ask_probe(k.probe);
@@ -4030,7 +4037,7 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     CHECK(rep.lifecycle == "spent");
 
     // ...and only once. A full five seconds later there is still one firing.
-    k.r.pump_beats(5000 / kBeatCapMs);
+    k.r.pump_beats(5000 / kVirtualStepMs);
     CHECK(k.r.ask_probe(k.probe).fires == 1);
 }
 
@@ -4051,11 +4058,11 @@ TEST_CASE("keystone: the incumbent moved DURING preparation, and what crossed wa
     // the incumbent's OWN beat counter says the second really elapsed on it.
     const std::int64_t beats_at_begin = k.field(k.incumbent, "beats");
     REQUIRE(k.r.bus.tick_preparation(k.prep.txn).ok);
-    k.advance_until_remaining(1000 + kPreparedCeremonyBeats * kBeatCapMs);
+    k.advance_until_remaining(1000 + kPreparedCeremonyBeats * kVirtualStepMs);
     REQUIRE(k.r.bus.tick_preparation(k.prep.txn).ok);
     CHECK(k.r.bus.transaction_state(k.prep.txn) == loom::TxnState::Preparing);
     CHECK(k.field(k.incumbent, "beats") - beats_at_begin ==
-          1000 / kBeatCapMs - kPreparedCeremonyBeats);
+          1000 / kVirtualStepMs - kPreparedCeremonyBeats);
 
     // ...and THE INCUMBENT WAS THE ONE SERVING THROUGH IT. Not "the role still
     // pointed at it" — it answered.
@@ -4082,7 +4089,7 @@ TEST_CASE("keystone: the incumbent moved DURING preparation, and what crossed wa
     // And it fires after THAT second — not after the two the earlier snapshot
     // would have carried, which is a full second of daylight between the honest
     // answer and the plausible one.
-    k.advance_until_remaining(kBeatCapMs);
+    k.advance_until_remaining(kVirtualStepMs);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
     k.r.pump_beats(1);
     CHECK(k.r.ask_probe(k.probe).fires == 1);
@@ -4092,7 +4099,7 @@ TEST_CASE("keystone: the queue boundary — an operation ordered before the admi
           "letter, one ordered after it is held and replayed, and neither happens twice") {
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
 
@@ -4180,7 +4187,7 @@ void incumbent_never_stopped_being_the_timer(Keystone& k, loom::WeaveId candidat
 
     // ...and the schedule was not reset: it runs out where it always would have,
     // and fires exactly once.
-    k.advance_until_remaining(kBeatCapMs);
+    k.advance_until_remaining(kVirtualStepMs);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
     k.r.pump_beats(1);
     CHECK(k.r.ask_probe(k.probe).fires == 1);
@@ -4286,7 +4293,7 @@ TEST_CASE("keystone: an admission that refuses AT DISPATCH leaves the incumbent 
     // dispatch are two moments, and the world may change between them.
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
     k.ask(kInheritFromIncumbent);
@@ -4328,7 +4335,7 @@ TEST_CASE("keystone: the boundary is a POSITION IN THE QUEUE — a by-id operati
     // written, and CROSSES. Both sides of the boundary are truthful, and neither is silent.
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
 
@@ -4368,7 +4375,7 @@ TEST_CASE("keystone: on commit the incumbent's chain simply ends — because the
           "role — and exactly one new chain begins") {
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
     k.ask(kInheritFromIncumbent);
@@ -4517,7 +4524,7 @@ TEST_CASE("keystone: a forged letter cannot be inherited by a prepared candidate
           "wait early, and cannot overwrite what it did inherit") {
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
 
@@ -4596,7 +4603,7 @@ TEST_CASE("keystone: retirement is private and finite — the old artifact unloa
           "and the new service never notices") {
     Keystone k;
     anchor_required_probe(k);
-    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kVirtualStepMs);
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
     k.ask(kInheritFromIncumbent);
@@ -4631,7 +4638,7 @@ TEST_CASE("keystone: retirement is private and finite — the old artifact unloa
     CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
     CHECK(k.r.seen.ready == ready_before);
     CHECK(k.r.seen.fired.size() == fired_before);
-    k.advance_until_remaining(kBeatCapMs);
+    k.advance_until_remaining(kVirtualStepMs);
     CHECK(k.r.ask_probe(k.probe).fires == 0);
     k.r.pump_beats(1);
     CHECK(k.r.ask_probe(k.probe).fires == 1);

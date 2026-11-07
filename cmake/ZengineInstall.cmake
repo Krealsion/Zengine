@@ -99,7 +99,8 @@ set(zengine_public_headers_activation activation/activation.hpp)
 set(zengine_public_headers_timer      timer/vocabulary.hpp
                                       timer/binding.hpp
                                       timer/rest.hpp
-                                      timer/os_clock.hpp)
+                                      timer/os_clock.hpp
+                                      timer/held_beat.hpp)
 set(zengine_public_headers_input      input/vocabulary.hpp
                                       input/translate.hpp
                                       input/input_weave.hpp)

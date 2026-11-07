@@ -80,7 +80,8 @@ host is that **"wait until the bus goes quiet" is never a termination condition 
 loaded**: `loom::Switchboard::drain_until_idle()` on such a process does not return, exactly as
 its name and contract say, and spins rather than rests, since no handler sleeps. A host loop asks
 for `pump_pending()`, gets control back every turn, and rests between turns as long as the Timer
-says the bus may (`timer/rest.hpp`); Workshop, `zengine-app` and snake all turn so.
+says the bus may (`timer/rest.hpp`), in one wait on every source it trusts (Loom's
+`loom::host::Reactor`); Workshop, `zengine-app` and snake all turn so.
 
 ## Workshop
 

@@ -14,6 +14,7 @@
 // none the weave has no such door. Reference: input/docs/zengine.input.md.
 
 #include "component/motion.hpp"
+#include "timer/held_beat.hpp"
 #include "translate.hpp"
 #include "vocabulary.hpp"
 
@@ -28,6 +29,7 @@
 #include <cstdint>
 #include <functional>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -84,7 +86,7 @@ struct EmitsOf<std::variant<Ts...>> {
 
 /// The doors every Input weave accepts.
 using Accepts = loom::Accept<PumpInput, InputSessionRequested, InputSessionClosed, InjectInput,
-                             PointerMotionRequested>;
+                             PointerMotionRequested, loom::host::Waited>;
 
 } // namespace detail
 
@@ -95,7 +97,8 @@ class InputWeaveT;
 template <class Reader, class... Facets>
 using InputWeaveBase = typename zengine::With<Facets...>::template Weave<
     InputWeaveT<Reader, Facets...>, InputState, detail::Accepts,
-    typename detail::EmitsOf<detail::ReaderEvent<Reader>>::type, zengine::timer::TimedWeave>;
+    typename detail::EmitsOf<detail::ReaderEvent<Reader>>::type, zengine::timer::TimedWeave,
+    loom::Claims<loom::host::WaitSet>>;
 
 template <class Reader, class... Facets>
 class InputWeaveT : public InputWeaveBase<Reader, Facets...> {
@@ -114,6 +117,18 @@ public:
     /// The direct door: the same hands, on request, for suites, diagnostics and
     /// timer-less hosts.
     void on(const PumpInput&, loom::Mail& mail) { pump(mail); }
+
+    /// What the host's one wait said about this office: ready, so it reads now; or that it holds
+    /// the office's claim, or no longer does, so the beat stops or runs (timer/held_beat.hpp).
+    void on(const loom::host::Waited& w, loom::Mail& mail) {
+        if (held_.hear(w, mail)) {
+            pump(mail);
+        }
+    }
+
+    /// After every delivery, whatever it changed: what the reader waits on is claimed and the beat
+    /// run as that leaves it (`settle_wait`).
+    void after_delivery(loom::Mail& mail) { settle_wait(mail); }
 
     /// The state a reload carries: the counters, the last number given, and the open session --
     /// its holder, its count and what it holds down -- so a reloaded weave keeps serving its holder
@@ -504,7 +519,24 @@ private:
         }
     }
 
+    /// What the reader waits on claimed as this office after every delivery, and the beat run as
+    /// the host's wait leaves it: stopped while the wait holds the claim, running while it does
+    /// not, while the reader cannot say what it waits on, while it holds part of a sequence, and
+    /// while a motion plays.
+    void settle_wait(loom::Mail& mail) {
+        std::optional<loom::host::WaitSet> set;
+        bool on_time = motion_.answer.valid();
+        if constexpr (requires { reader_.wait_set(); }) {
+            set = reader_.wait_set();
+        }
+        if constexpr (requires { reader_.holding(); }) {
+            on_time = on_time || reader_.holding();
+        }
+        held_.settle(mail, kInputRole, set, on_time, pump_);
+    }
+
     typename InputWeaveBase<Reader, Facets...>::Handle pump_;
+    zengine::timer::HeldBeat held_; ///< whether a host's one wait holds this office's claim
     Reader reader_;
     Session session_;
     Now now_ = [] { return Clock::now(); };

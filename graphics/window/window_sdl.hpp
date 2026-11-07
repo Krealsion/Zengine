@@ -751,6 +751,22 @@ public:
         return out;
     }
 
+    /// What a host's wait waits on for this window: the thread's messages where SDL's window is
+    /// this thread's own; where it is not, nothing it can name, and the window keeps its beat.
+    std::optional<loom::host::WaitSet> wait_set() const {
+        if constexpr (requires { backend_.waits_on_messages(); }) {
+            if (backend_.waits_on_messages()) {
+                loom::host::WaitSet set;
+                set.messages = true;
+                return set;
+            }
+        }
+        return std::nullopt;
+    }
+    /// Whether the window must look again soon: a remembered maximize, given its room, lands on
+    /// the next look.
+    bool on_time() const { return maximize_ == Maximize::kRoomGiven; }
+
     /// What the backend read on this beat. A remembered maximize given its room lands first.
     std::vector<zengine::input::InputEvent> poll() {
         if (maximize_ == Maximize::kRoomGiven) {

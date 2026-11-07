@@ -296,6 +296,14 @@ again.
 `TimerResolution` v1, from the Timer: what became of the window's order for its beat, kept by its
 timer binding.
 
+### `loom.host.Waited`
+
+`loom.host.Waited` v1, from the host alone, about what the window claims it waits on after every
+delivery (`loom.host.WaitSet`): on Windows' own video driver the thread's messages, else nothing,
+and the beat stays. Held, the beat stops, running again only while a remembered maximize waits;
+let go, it runs; ready, the window does what its beat does at once. From any participant it is
+nothing.
+
 ### `ClipboardCopy`
 
 `ClipboardCopy` v1, a weaver's copy: the text put on the platform's clipboard, with no showing and

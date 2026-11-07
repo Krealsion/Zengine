@@ -23,6 +23,8 @@
 // MSG_NOSIGNAL; a pipe write to an exited child raises SIGPIPE), its own process group, every
 // other descriptor closed before exec, and on Linux death with the thread that started it.
 
+#include <zen/host/wait_set.hpp>
+
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -445,6 +447,11 @@ public:
     /// passed. True unless the time ran out.
     bool wait(int ms);
 
+    /// What that wait waits on, for a host's one wait to hold instead (`loom::host::WaitSet`):
+    /// Windows, each pipe's pending read and the process while it runs; POSIX, the socket and the
+    /// error pipe. `*now` when there may be output already, which only another read can say.
+    loom::host::WaitSet wait_set(bool* now) const;
+
     const std::string& error_tail() const noexcept { return error_tail_; }
 
     struct Ended {
@@ -645,6 +652,32 @@ inline bool Child::wait(int ms) {
     }
     const DWORD r = ::WaitForMultipleObjects(count, handles, FALSE, static_cast<DWORD>(ms < 0 ? 0 : ms));
     return r < WAIT_OBJECT_0 + count;
+}
+
+inline loom::host::WaitSet Child::wait_set(bool* now) const {
+    loom::host::WaitSet set;
+    *now = false;
+    if (state_ == nullptr) {
+        return set;
+    }
+    const detail::WindowsChild& s = *state_;
+    if (!s.out.ended && !s.out.pending) {
+        *now = true; // a read was cut short by its budget
+        return set;
+    }
+    const auto add = [&set](HANDLE h) {
+        set.handles.push_back(static_cast<std::int64_t>(reinterpret_cast<std::intptr_t>(h)));
+    };
+    if (s.out.pending) {
+        add(s.out.event);
+    }
+    if (s.err.pending) {
+        add(s.err.event);
+    }
+    if (s.process != nullptr && !exited_) {
+        add(s.process);
+    }
+    return set;
 }
 
 inline Child::Ended Child::finish(int grace_ms) {
@@ -979,6 +1012,18 @@ inline bool Child::wait(int ms) {
     while ((r = ::poll(fds, count, ms < 0 ? 0 : ms)) < 0 && errno == EINTR) {
     }
     return r > 0;
+}
+
+inline loom::host::WaitSet Child::wait_set(bool* now) const {
+    loom::host::WaitSet set;
+    *now = false;
+    if (io_ >= 0 && !output_ended_) {
+        set.handles.push_back(io_);
+    }
+    if (err_ >= 0) {
+        set.handles.push_back(err_);
+    }
+    return set;
 }
 
 inline Child::Ended Child::finish(int grace_ms) {

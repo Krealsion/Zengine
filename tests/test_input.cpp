@@ -27,6 +27,7 @@
 #include "timer/vocabulary.hpp" // the weave's own beat is part of its contract
 #include "vocabulary.hpp"       // snake's — the chain lane speaks both packages
 
+#include <zen/host/reactor.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/admission.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -35,6 +36,18 @@
 #include <zen/weave.hpp>
 
 #include <chrono>
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -2803,3 +2816,197 @@ TEST_CASE("the terminal window's own reader takes, reads and gives back the term
 }
 
 #endif
+
+// ============================================================================
+// A host's one wait (Loom's `zen/host/reactor.hpp`): the office's beat stops only once the host's
+// wait holds what its reader waits on, and what it waits on then wakes it; a host with no wait,
+// and a `Waited` from any participant, leave the beat as it was (timer/held_beat.hpp).
+
+namespace {
+
+/// ONE WAITABLE THING the case sets: a manual-reset event, or a pipe readable while a byte is in
+/// it.
+class Signal {
+public:
+    Signal() {
+#if defined(_WIN32)
+        event_ = ::CreateEventW(nullptr, TRUE, FALSE, nullptr);
+#else
+        int fds[2] = {-1, -1};
+        REQUIRE(::pipe(fds) == 0);
+        read_ = fds[0];
+        write_ = fds[1];
+        (void)::fcntl(read_, F_SETFL, ::fcntl(read_, F_GETFL) | O_NONBLOCK);
+#endif
+    }
+    ~Signal() {
+#if defined(_WIN32)
+        (void)::CloseHandle(event_);
+#else
+        ::close(read_);
+        ::close(write_);
+#endif
+    }
+    Signal(const Signal&) = delete;
+    Signal& operator=(const Signal&) = delete;
+    std::int64_t handle() const {
+#if defined(_WIN32)
+        return static_cast<std::int64_t>(reinterpret_cast<std::intptr_t>(event_));
+#else
+        return read_;
+#endif
+    }
+    void set() {
+#if defined(_WIN32)
+        (void)::SetEvent(event_);
+#else
+        const char one = 1;
+        REQUIRE(::write(write_, &one, 1) == 1);
+#endif
+    }
+    void clear() {
+#if defined(_WIN32)
+        (void)::ResetEvent(event_);
+#else
+        char buf[16];
+        while (::read(read_, buf, sizeof buf) > 0) {
+        }
+#endif
+    }
+
+private:
+#if defined(_WIN32)
+    HANDLE event_ = nullptr;
+#else
+    int read_ = -1;
+    int write_ = -1;
+#endif
+};
+
+/// A reader that says what it waits on, as the platform readers do: a look takes what is ready.
+struct WaitableReader {
+    Signal* signal = nullptr;
+    std::vector<std::vector<InputEvent>>* feed = nullptr;
+    std::vector<InputEvent> poll() {
+        signal->clear();
+        if (feed->empty()) {
+            return {};
+        }
+        std::vector<InputEvent> batch = std::move(feed->front());
+        feed->erase(feed->begin());
+        return batch;
+    }
+    loom::host::WaitSet wait_set() const {
+        loom::host::WaitSet set;
+        set.handles.push_back(signal->handle());
+        return set;
+    }
+};
+
+struct BookState {
+    std::int64_t asks = 0;
+    ZEN_SHAPE(BookState, 1, ZEN_FIELD(asks));
+};
+
+/// A stand-in Timer that counts the office's asks for its beat and its cancels of it.
+class BeatBook : public loom::WeaveBase<BeatBook, BookState,
+                                        loom::Accept<zengine::timer::EnsureRoleTimer,
+                                                     zengine::timer::CancelTimer>,
+                                        loom::Emit<>> {
+public:
+    void on(const zengine::timer::EnsureRoleTimer& s, loom::Mail&) {
+        if (s.id == kPumpTimerId) {
+            ++ensures;
+        }
+    }
+    void on(const zengine::timer::CancelTimer& c, loom::Mail&) {
+        if (c.id == kPumpTimerId) {
+            ++cancels;
+        }
+    }
+    int ensures = 0;
+    int cancels = 0;
+};
+
+/// The office in its role over a waitable reader, ears, the stand-in Timer, and its activation.
+struct HeldRig {
+    loom::Switchboard bus;
+    Signal signal;
+    std::vector<std::vector<InputEvent>> feed;
+    std::vector<InputEvent> heard;
+    BeatBook* book = nullptr;
+    loom::WeaveId weave{};
+
+    HeldRig() {
+        weave = mount_into_role<InputWeaveT<WaitableReader>>(bus, std::string(kInputRole),
+                                                             WaitableReader{&signal, &feed});
+        (void)loom::mount<Ears>(bus, heard);
+        const loom::WeaveId timer = mount_into_role<BeatBook>(bus, zengine::timer::kTimerRole);
+        book = static_cast<BeatBook*>(bus.weave(timer));
+        const loom::WeaveId door = zengine::testing::mount_door(bus);
+        zengine::testing::order_activation(bus, door, weave, 1);
+        bus.drain_until_idle();
+        bus.send_to_role(kInputRole, loom::Message(loom::to_value(PumpInput{}))); // a first look
+        bus.drain_until_idle();
+    }
+};
+
+} // namespace
+
+TEST_CASE("held: the office's beat stops once a host's one wait holds its reader, and what the "
+          "reader waits on wakes it") {
+    HeldRig r;
+    REQUIRE(r.book->ensures == 1);
+    CHECK(r.book->cancels == 0); // claimed, but no host has said it waits
+
+    loom::host::Reactor wait(r.bus);
+    wait.trust(kInputRole);
+    (void)wait.after_turn(0);
+    r.bus.drain_until_idle();
+    CHECK(r.book->cancels == 1); // held: the beat is let go
+    REQUIRE_FALSE(wait.sources().empty());
+    CHECK(wait.sources().front().held);
+
+    // What the reader waits on is ready: the wait ends for it, and the office reads at once.
+    r.feed.push_back({KeyPressed{scan::kD, "D"}});
+    r.signal.set();
+    const auto t = std::chrono::steady_clock::now();
+    const loom::host::Reactor::Woke woke = wait.after_turn(5000);
+    const auto took = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          std::chrono::steady_clock::now() - t)
+                          .count();
+    CHECK(woke.offices == 1);
+    CHECK(took < 2500);
+    r.bus.drain_until_idle();
+    REQUIRE(r.heard.size() == 1);
+    CHECK(std::get<KeyPressed>(r.heard[0]).name == "D");
+    CHECK(r.book->ensures == 1); // and the beat stays let go
+
+    // The host stops waiting on it: the beat runs again.
+    wait.distrust(kInputRole);
+    r.bus.drain_until_idle();
+    CHECK(r.book->ensures == 2);
+}
+
+TEST_CASE("held: with no host's wait the office's beat is never let go") {
+    HeldRig r;
+    for (int i = 0; i < 5; ++i) {
+        r.bus.send_to_role(kInputRole, loom::Message(loom::to_value(PumpInput{})));
+        r.bus.drain_until_idle();
+    }
+    CHECK(r.book->ensures == 1);
+    CHECK(r.book->cancels == 0);
+}
+
+TEST_CASE("held: a Waited from a participant is nothing, so no weave stops the office's beat") {
+    HeldRig r;
+    loom::Grant may;
+    may.allow_to_role(loom::host::Waited::zen_name, loom::host::Waited::zen_version,
+                      std::string(kInputRole));
+    const loom::WeaveId forger = loom::mount_granted<BeatBook>(r.bus, std::move(may));
+    loom::host::Waited said;
+    said.held = true;
+    r.bus.send_as_to_role(forger, kInputRole, loom::Message(loom::to_value(said), forger));
+    r.bus.drain_until_idle();
+    CHECK(r.book->cancels == 0);
+}

@@ -12,6 +12,8 @@
 // refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
+#include "weavelib/virtual_step.hpp" // the suites' virtual beat
+
 #include "timer/os_clock.hpp"
 #include "timer/rest.hpp"
 #include "timer/timer_weave.hpp"
@@ -297,10 +299,11 @@ struct FakeHooks {
     loom::Switchboard* bus = nullptr;
 };
 
-/// Virtual time, booked a beat's wait at a time (`elapse_ms`).
+/// Virtual time, booked a beat's wait at a time (`elapse_ms`), the suites' step at most.
 struct FakeClock {
     FakeHooks* h = nullptr;
     std::int64_t now_ms() { return h->now; }
+    std::int64_t step_ms() const { return zengine::testing::kVirtualStepMs; }
     void elapse_ms(std::int64_t ms) {
         if (ms > 0) {
             h->now += ms;
@@ -521,9 +524,10 @@ TEST_CASE("probe B: a reload does not INHERIT the old chain — the predecessor'
 
 TEST_CASE("probe C: neither a replayed Drive nor a replayed activation can fork time — "
           "one chain, whatever is re-delivered") {
-    // Deterministic fake-clock form. With no timers standing, every beat naps kBeatCapMs, and a
-    // parked pump leaves exactly the in-flight Drives in the queue: pending() IS the chain
-    // count, the instrument that would see a second chain being created.
+    // Deterministic fake-clock form. With no timers standing, every beat naps
+    // zengine::testing::kVirtualStepMs, and a parked pump leaves exactly the in-flight Drives in
+    // the queue: pending() IS the chain count, the instrument that would see a second chain being
+    // created.
     FakeRig baseline;
     baseline.run_beats(6, /*start=*/true);
     CHECK(baseline.hooks.beats == 6);
@@ -592,7 +596,7 @@ TEST_CASE("probe D: a consumer loaded LONG AFTER time started begins anyway — 
     // stretches but never shortens.
     const std::uint64_t corr = r.command(
         loom::LoadWeave{"snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole});
-    const std::int64_t bound = 10 * zengine::snake::kTickMs / kBeatCapMs;
+    const std::int64_t bound = 10 * zengine::snake::kTickMs / zengine::testing::kVirtualStepMs;
     r.pump_until_visual(bound);
     const Seen::Answer* loaded = r.seen.find(corr);
     REQUIRE(loaded != nullptr);

@@ -253,6 +253,10 @@ public:
     /// exactly one thing: release a pending LONE Escape as the Escape key. A
     /// longer fragment is unambiguously an unfinished sequence and keeps
     /// waiting — silence is the correct output for "half a mouse report".
+    /// Whether part of a sequence is held: a lone Escape waits for the next empty read to be
+    /// released, so its reader must look again soon however quiet the terminal is.
+    bool holding() const noexcept { return !pending_.empty(); }
+
     std::vector<InputEvent> idle() {
         std::vector<InputEvent> out;
         if (pending_.size() == 1 && pending_[0] == 0x1b) {

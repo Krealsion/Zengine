@@ -14,6 +14,8 @@
 #include "translate.hpp"
 #include "window_claim.hpp" // the windows' claims on the process's input
 
+#include <zen/host/wait_set.hpp>
+
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -81,6 +83,18 @@ public:
         return out;
     }
 
+    /// What a host's wait waits on for it (`loom::host::WaitSet`): the console's input handle while
+    /// it reads the console, which every record read takes back; nothing while it does not.
+    loom::host::WaitSet wait_set() {
+        loom::host::WaitSet set;
+        if (settle()) {
+            set.handles.push_back(static_cast<std::int64_t>(reinterpret_cast<std::intptr_t>(in_)));
+        }
+        return set;
+    }
+    /// A console reader holds nothing between reads.
+    bool holding() const noexcept { return false; }
+
 private:
     /// Whether it reads now: it takes the console while it may, and gives back the mode it set
     /// while an OS window holds input. A terminal window's mode it never touches.
@@ -93,7 +107,9 @@ private:
                 ok_ = in_ != INVALID_HANDLE_VALUE && ::GetConsoleMode(in_, &saved_) != 0;
                 absent_ = !ok_;
                 if (ok_) {
-                    ::SetConsoleMode(in_, ENABLE_EXTENDED_FLAGS | ENABLE_MOUSE_INPUT);
+                    // A resize is a record too, so what waits on the console wakes for it.
+                    ::SetConsoleMode(in_, ENABLE_EXTENDED_FLAGS | ENABLE_MOUSE_INPUT |
+                                              ENABLE_WINDOW_INPUT);
                 }
             }
             return ok_;
@@ -148,6 +164,18 @@ public:
         }
         return parser_.feed(buf, static_cast<std::size_t>(n));
     }
+
+    /// What a host's wait waits on for it (`loom::host::WaitSet`): standard input while it reads
+    /// the terminal; nothing while it does not.
+    loom::host::WaitSet wait_set() {
+        loom::host::WaitSet set;
+        if (settle()) {
+            set.handles.push_back(STDIN_FILENO);
+        }
+        return set;
+    }
+    /// Whether part of a sequence is held, which only the next read, empty or not, can settle.
+    bool holding() const noexcept { return parser_.holding(); }
 
 private:
     /// Whether it reads now: it takes the terminal while it may, and gives back the mode it set

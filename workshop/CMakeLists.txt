@@ -171,6 +171,8 @@ target_link_libraries(zengine-workshop-bus-tally INTERFACE zengine-graphics-voca
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal loom::history
+            # ...and the one wait it rests in between turns
+            loom::host-policy
             # ...and the crossing, through the guests library: the door this host mounts when a
             # guests file names other hosts, and the policy that file becomes.
             zengine-workshop-guests loom::bridge

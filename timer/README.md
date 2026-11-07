@@ -29,6 +29,7 @@ writes `#include "timer/vocabulary.hpp"` for the messages and `#include "timer/b
 | `normalize.hpp` | the rule for what an authored delay becomes |
 | `timer_weave.hpp` | the Timer weave itself, over any clock |
 | `rest.hpp` | the rest a host takes between turns, as long as the Timer says the bus may |
+| `held_beat.hpp` | a source's beat, let go while a host's one wait holds what the source waits on |
 | `os_clock.hpp` | the real clock: monotonic milliseconds and the nap the rest takes, its own period on Windows too |
 | `timer.cpp` | the Timer over the real clock, built as the `zengine-timer` weave |
 | `CMakeLists.txt` | the build |

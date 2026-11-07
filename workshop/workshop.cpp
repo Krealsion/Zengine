@@ -44,6 +44,8 @@
 #include "graphics/vocabulary.hpp"
 #include "timer/os_clock.hpp"
 #include "timer/rest.hpp"
+
+#include <zen/host/reactor.hpp>
 #include "timer/vocabulary.hpp"
 
 #include <zen/bridge/channel.hpp>
@@ -1269,12 +1271,20 @@ int main(int argc, char** argv) {
     };
     executor.begin(std::move(begun));
 
-    // The loop: a turn, then the rest the Timer's beat allows (timer/rest.hpp), until `q`. The
-    // input beat keeps the queue alive; a turn that ends with an empty queue means nothing will
-    // speak again: say so and leave. A native owner's showing runs inside the host's boundary
-    // (workshop/host_pump.hpp), so a throw there is Loom's Failed, told here in the owner's words.
+    // The loop: a turn, then one wait on every source the plan's offices and the guest door say
+    // they wait on, for as long as the Timer's beat allows (timer/rest.hpp), until `q`. A turn
+    // that ends with an empty queue means nothing will speak again: say so and leave. A native
+    // owner's showing runs inside the host's boundary (workshop/host_pump.hpp), so a throw there is
+    // Loom's Failed, told here in the owner's words.
     zengine::timer::MonotonicClock clock;
     zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
+    loom::host::Reactor wait(bus);
+    for (const std::string& office : load::plan_offices(executor.plan())) {
+        wait.trust(office);
+    }
+    if (guest_door != nullptr) {
+        wait.trust(kGuestsRole);
+    }
     while (!host.quit) {
         const ServedTurn served =
             serve_turn(bus, host.showings, [&journal](const std::string& said) {
@@ -1291,7 +1301,7 @@ int main(int argc, char** argv) {
                         "(no timer service deployed?): exiting.\n");
             break;
         }
-        (void)rest.after_turn(bus);
+        (void)wait.after_turn(rest.quiet_ms(bus));
     }
 
     // ---- What this run knew, and what it kept: working memory and the durable record ----------
@@ -1316,8 +1326,10 @@ int main(int argc, char** argv) {
     for (const std::string& line : tally.lines()) {
         std::printf("zengine-workshop - %s\n", line.c_str());
     }
-    std::printf("zengine-workshop - rested %lld times between turns\n",
-                static_cast<long long>(rest.rests()));
+    std::printf("zengine-workshop - rested %llu times between turns until the Timer's deadline, "
+                "and was woken %llu times before it\n",
+                static_cast<unsigned long long>(wait.lasted()),
+                static_cast<unsigned long long>(wait.woken()));
     if (!args.dump.empty()) {
         std::ofstream dump(args.dump);
         if (dump) {
