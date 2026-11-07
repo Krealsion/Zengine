@@ -54,6 +54,8 @@ int main() {
           "the shipped themes come with the package as palettes");
 
     gfx::PaintTask task;
+    task.text_advance = 8; // the face the label is set in, and hit with below
+    task.text_line = 18;
     task.nodes.push_back(gfx::PaintNode{"plate", {1}, picture.nodes()[0].op,
                                         picture.nodes()[0].args,
                                         {gfx::PaintInk{0x336699ff, {}, {}}, gfx::PaintInk{}}, {}, {}});
@@ -82,8 +84,8 @@ int main() {
     check(!gfx::light::unpack_node(loom::Bytes{1, 2, 3}).has_value(),
           "bytes a character painter wrote are not read as light");
 
-    check(gfx::window::sgr_for("cyan", 0) == "\x1b[36m" &&
-              gfx::window::sgr_for("", 0xff0000ff) == "\x1b[91m",
+    check(gfx::window::sgr_for("cyan", 0) == "\x1b[22;36m" &&
+              gfx::window::sgr_for("", 0xff0000ff) == "\x1b[22;91m",
           "the terminal's ink for a colour, its word or its nearest, comes with the package");
     const gfx::window::TerminalSize size = gfx::window::native_terminal_size();
     check(size.cols >= 0 && size.rows >= 0, "a terminal's size is asked, and never negative");
