@@ -157,7 +157,7 @@ and each refuses the others"
 `workshop/weave_session.cpp` save_last_session on(SessionSaveAnswered)
 `workshop/weave_handlers.cpp` on(SurfaceCloseRequested)
 `workshop/weave.hpp` HostContext::session_path
-`workshop/persist.hpp` write_file
+`persist/file.hpp` write_file
 `graphics/vocabulary.hpp` SurfaceCloseRequested
 `workshop/layouts/session_persist.hpp` save_file
 `workshop/layouts/owner.cpp` on(SessionSaveRequested)
@@ -176,7 +176,7 @@ had"
 file survives the run that could not read it, and opens later"
 
 ### WL-SESSION-18
-`workshop/persist.hpp` write_file_making_room
+`persist/file.hpp` write_file_making_room
 `tests/test_workshop_persistence.cpp` "a first launch is not an error, and needs no file to exist"
 "a save into a place that does not exist refuses before it writes anything"
 

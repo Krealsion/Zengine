@@ -48,7 +48,7 @@ app made in Workshop runs in on its own, its console deciding what runs.
 | front page | what it owns |
 |---|---|
 | [timer/](../timer/README.md) | the clock, the only sleep, one beat chain per activation; the Timer laws |
-| [input/](../input/README.md) | the sole producer of key, text and pointer moments |
+| [input/](../input/README.md) | the sole producer of key, text and pointer moments, and how a key is written |
 | [graphics/](../graphics/README.md) | drawing into a window: nodes, elements, colours by name, the two windows and their palettes |
 | [ui/](../ui/README.md) | authored placement and extent, resolved against a viewport |
 | [component/](../component/README.md) | reusable pieces of a tool: text editing, list and table arithmetic, a control strip, motion sampling |
@@ -57,6 +57,7 @@ app made in Workshop runs in on its own, its console deciding what runs.
 | [maker/](../maker/README.md) | a weave built from a weaver's definition, edited live |
 | [message-draft/](../message-draft/README.md) | typed value forms, unfinished drafts and named presets |
 | [manual/](../manual/README.md) | a weave's manual, compiled into the weave it describes |
+| [persist/](../persist/README.md) | a durable file read within a bound and written without risking the last good copy |
 
 **Examples** — [examples/](../examples/README.md): worked examples, among them a game whose parts
 are separate weaves and a small game made from inside Workshop.

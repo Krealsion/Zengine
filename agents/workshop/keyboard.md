@@ -166,7 +166,7 @@ spelling" "an override survives restart, and deleting the file restores defaults
 `workshop/screen.hpp` Session::keymap
 `workshop/screen_bindings.cpp` hotkey_text
 `workshop/screen_layouts.cpp` setup_hints
-`workshop/gesture_grammar.hpp` gesture_text
+`input/gesture_grammar.hpp` gesture_text
 `tests/test_workshop_document.cpp` "an authored override changes dispatch AND every displayed
 spelling"
 `tests/test_workshop_panes_window.cpp` "the coarse step is ordinary action vocabulary, not pane
@@ -185,7 +185,8 @@ host answers ^s nowhere"
 marks the text box's keys as nobody's to move"
 
 ### WL-KEY-04
-`workshop/keymap.hpp` Keymap Gesture Keymap::action_for
+`workshop/keymap.hpp` Keymap Keymap::action_for
+`input/gesture_grammar.hpp` Gesture
 `tests/test_workshop_document.cpp` "exact modifier matching -- the accidental subset aliases no
 longer fire" "a known backend gap is accepted and said, never silently rewritten"
 
@@ -227,7 +228,7 @@ defaults"
 ### WL-KEY-08
 `workshop/keymap.hpp` PaneRows::gaps contexts_intersect AuthoredOverride Keymap::row_gestures
 Keymap::row_answers
-`workshop/gesture_grammar.hpp` posix_gap gap_sentence
+`input/gesture_grammar.hpp` posix_gap gap_sentence
 `workshop/keymap_join.hpp` component_owns_gesture apply_overrides AuthoredGestures
 authored_gestures_for join_app_rows join_pane_rows
 `workshop/keymap_persist.hpp` from_text
@@ -276,7 +277,7 @@ as they are in force: a moved row where it moved, a disabled one as having no ke
 marks the text box's keys as nobody's to move"
 
 ### WL-KEY-12
-`workshop/gesture_grammar.hpp` expected_text_of
+`input/gesture_grammar.hpp` expected_text_of
 `workshop/weave.hpp` WorkshopWeave::Hand::swallow_text
 `workshop/weave_seam.cpp` same_keystroke
 `workshop/weave_handlers.cpp` on(KeyPressed)
@@ -309,7 +310,7 @@ context that is not the pane's own" "a pane that owns one action may put its oth
 action's key"
 
 ### WL-KEY-19
-`workshop/gesture_grammar.hpp` kDoubleShift is_shift_scan
+`input/gesture_grammar.hpp` kDoubleShift is_shift_scan
 `workshop/weave_shift.cpp` shift_tapped on(KeyReleased)
 `workshop/weave_operation.cpp` count_gesture
 `tests/test_workshop_panes_palette.cpp` "WL-KEY-19: two Shift taps of one hand open the palette; a

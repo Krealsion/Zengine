@@ -23,7 +23,8 @@
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_rows.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <zen/weave.hpp>
 
@@ -120,7 +121,7 @@ inline void NeovimEditorWeave::prepare(std::int64_t op, const std::string& asked
     Candidate next;
     next.live = true;
     next.op = static_cast<std::uint64_t>(op);
-    next.path = ws::persist::resolved_against(project_dir_, asked_path);
+    next.path = zengine::persist::resolved_against(project_dir_, asked_path);
     next.rows = rows;
     next.columns = columns;
     preparing_ = true;
@@ -841,7 +842,7 @@ inline Judgement NeovimEditorWeave::judged_from(Judgement j, const Exported& e0)
     if (!e->modified) {
         t.saved_text = t.text;
     } else {
-        const ws::persist::FileText saved = ws::persist::read_file(t.path, 1u << 28, "a source file");
+        const zengine::persist::FileText saved = zengine::persist::read_file(t.path, 1u << 28, "a source file");
         std::error_code ec;
         if (saved.outcome.accepted) {
             t.saved_text = saved.text;
@@ -899,7 +900,7 @@ inline void NeovimEditorWeave::on(const nve::NeovimStartRequested& asked, loom::
             (void)loom::answer_deferred(*due, later, loom::Result{listening_words(std::string())});
             return;
         }
-        const std::string path = ws::persist::resolved_against(
+        const std::string path = zengine::persist::resolved_against(
             project_known_ ? project_dir_ : std::filesystem::current_path().generic_string(), asked_path);
         ask(nv::lua::kPrepare, nv::rpc::params(mp::Value::str(path), mp::Value::integer(1)), kAskMs, later,
             [this, due, path](const Answer& a, loom::Mail& l2) {

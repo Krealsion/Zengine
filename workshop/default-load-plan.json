@@ -284,6 +284,17 @@
         "otherwise": []
       },
       {
+        "artifact": "zengine-settings",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.settings"
+          }
+        ],
+        "optional": true,
+        "otherwise": []
+      },
+      {
         "artifact": "zengine-palette",
         "provider": [],
         "weave": [

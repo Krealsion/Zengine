@@ -16,7 +16,7 @@
 #include "rig_windows.hpp"
 
 #include "info/settings_rows.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
 #include "workshop/property.hpp"
 #include "workshop/screen.hpp"
 #include "workshop/setup.hpp"
@@ -4006,6 +4006,9 @@ struct PaneRig {
         }
         if (stem == "zengine-notices-pane") {
             return WORKSHOP_SO_NOTICES_PANE;
+        }
+        if (stem == "zengine-settings") {
+            return WORKSHOP_SO_SETTINGS;
         }
 #ifdef WORKSHOP_SO_COMPOSER
         if (stem == "zengine-composer") return WORKSHOP_SO_COMPOSER;

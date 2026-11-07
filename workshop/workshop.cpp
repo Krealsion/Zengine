@@ -374,8 +374,8 @@ int main(int argc, char** argv) {
         host.retired_document = args.document;
     } else if (!host.project_dir.empty()) {
         std::error_code ec;
-        const std::string old = zengine::workshop::persist::resolved_against(
-            host.project_dir, zengine::workshop::persist::kRetiredDocumentName);
+        const std::string old = zengine::persist::resolved_against(
+            host.project_dir, zengine::workshop::kRetiredDocumentName);
         if (std::filesystem::is_regular_file(old, ec)) {
             host.retired_document = old;
         }
@@ -395,6 +395,11 @@ int main(int argc, char** argv) {
 #if !defined(_WIN32)
     host.posix_terminal = true;
 #endif
+    // The weaver's own themes stand in a folder under the per-user configuration root, and the
+    // shipped ones beside this host; an isolated launch keeps none of its own.
+    host.themes_path = user_paths::resolve_durable_path("", args.isolated, config_root,
+                                                        zengine::settings::kThemesSubdir);
+    host.shipped_themes_path = host.dir + "/" + zengine::settings::kThemesSubdir;
     host.prefs_path = user_paths::resolve_durable_path(
         args.prefs, args.isolated, config_root, prefs_persist::kDefaultPrefsFileName);
     host.session_path = user_paths::resolve_durable_path(
@@ -1219,6 +1224,7 @@ int main(int argc, char** argv) {
         switch_host.kernel = &kernel;
         switch_host.office = kEditorRole;
         switch_host.choices = [&executor] { return executor.plan().choices; };
+        host.planned_offices = [&executor] { return load::plan_offices(executor.plan()); };
         switch_host.holder = [&executor] { return executor.choice_holder(kEditorRole); };
         switch_host.image_of = [&executor](const std::string& stem) { return executor.image_of(stem); };
         switch_host.record = [&executor](const std::string& stem, loom::WeaveId weave,

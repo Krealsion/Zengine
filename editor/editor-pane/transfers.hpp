@@ -28,7 +28,8 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <zen/weave.hpp>
 
@@ -419,7 +420,7 @@ inline std::string EditorPaneWeave::where_words(EditorPos p) const {
 }
 
 inline std::string EditorPaneWeave::project_root() const {
-    return project_known_ ? ws::persist::resolved_against(std::string(), project_dir_) : std::string();
+    return project_known_ ? zengine::persist::resolved_against(std::string(), project_dir_) : std::string();
 }
 
 /// ONE ACQUISITION, whichever hand asked -- the highlight's drag, the right-click menu, or the

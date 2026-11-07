@@ -108,18 +108,38 @@ st::ThemeFile theme(std::string name, std::vector<std::string> includes = {},
     return t;
 }
 
+/// ...each key one action and one gesture.
+st::ThemeFile theme(std::string name, std::vector<std::string> includes,
+                    std::vector<st::ThemeSetting> settings,
+                    std::vector<std::pair<std::string, std::string>> keys) {
+    std::vector<st::ThemeKey> each;
+    for (auto& [action, gesture] : keys) {
+        each.push_back(st::ThemeKey{action, {gesture}});
+    }
+    return theme(std::move(name), std::move(includes), std::move(settings), std::move(each));
+}
+
 /// Save a theme as a new file, and require that it was written.
 void put(const TempDir& d, st::ThemeFile t) {
     const std::string name = t.name;
-    const zengine::workshop::Written w = st::save_file(d.dir(), std::move(t));
+    const st::Written w = st::save_file(d.dir(), std::move(t));
     REQUIRE_MESSAGE(w.accepted, name << ": " << w.refusal);
 }
 
-/// The text without its canonical order: a hand's file, settings as written.
-std::string as_written(st::ThemeFile t) {
-    t.format = st::kThemeFormat;
-    t.format_version = st::kThemeFormatVersion;
-    return loom::compat::serialize(loom::to_value(t));
+/// A version-1 file, as an older Workshop wrote one: Loom's envelope around its settings and keys,
+/// each key its one gesture.
+std::string version_one(const st::ThemeFile& t) {
+    st::v1::ThemeFile old;
+    old.format = st::kThemeFormat;
+    old.format_version = st::kThemeFormatVersionOne;
+    old.name = t.name;
+    old.summary = t.summary;
+    old.includes = t.includes;
+    old.settings = t.settings;
+    for (const st::ThemeKey& k : t.keys) {
+        old.keys.push_back(st::v1::ThemeKey{k.action, k.gestures.front()});
+    }
+    return loom::compat::serialize(loom::to_value(old));
 }
 
 std::string replaced(std::string text, std::string_view from, std::string_view to) {
@@ -190,9 +210,9 @@ TEST_CASE("a theme setting's target is every pane, an office, or one pane of an 
 TEST_CASE("a theme setting holds exactly one value, or is a clear holding none") {
     CHECK(st::check_theme_setting(number("*", "wheel-rows", 5)).accepted);
     CHECK(st::check_theme_setting(flag("zengine.terminal/terminal", "legend", false)).accepted);
-    CHECK(st::check_theme_setting(text("zengine.workshop", "workshop.skin", "block")).accepted);
+    CHECK(st::check_theme_setting(text("zengine.workshop", "workshop.theme", "block")).accepted);
     // Workshop's own keys are a theme's to set, under its office, a pane or every pane.
-    CHECK(st::check_theme_setting(text("*", "workshop.skin", "classic")).accepted);
+    CHECK(st::check_theme_setting(text("*", "workshop.theme", "classic")).accepted);
     CHECK(st::check_theme_setting(cleared("zengine.skin", "window.face")).accepted);
 
     st::ThemeSetting none = number("*", "wheel-rows", 1);
@@ -213,15 +233,15 @@ TEST_CASE("a theme setting holds exactly one value, or is a clear holding none")
 }
 
 TEST_CASE("a theme key names an action and a gesture the keymap reads, none among them") {
-    CHECK(st::check_theme_key(st::ThemeKey{"focus.left", "h"}).accepted);
-    CHECK(st::check_theme_key(st::ThemeKey{"layout.next", "ctrl+shift+n"}).accepted);
-    CHECK(st::check_theme_key(st::ThemeKey{"workshop.quit", "none"}).accepted);
-    CHECK(says(st::check_theme_key(st::ThemeKey{"focus.left", "hyper+h"}).refusal,
+    CHECK(st::check_theme_key(st::ThemeKey{"focus.left", {"h"}}).accepted);
+    CHECK(st::check_theme_key(st::ThemeKey{"layout.next", {"ctrl+shift+n"}}).accepted);
+    CHECK(st::check_theme_key(st::ThemeKey{"workshop.quit", {"none"}}).accepted);
+    CHECK(says(st::check_theme_key(st::ThemeKey{"focus.left", {"hyper+h"}}).refusal,
                "is not a modifier"));
-    CHECK(says(st::check_theme_key(st::ThemeKey{"focus.left", ""}).refusal, "cannot be empty"));
-    CHECK(says(st::check_theme_key(st::ThemeKey{"Focus.Left", "h"}).refusal, "is not"));
-    CHECK(says(st::check_theme_key(st::ThemeKey{"", "h"}).refusal, "1 to 64 bytes"));
-    CHECK(says(st::check_theme_key(st::ThemeKey{std::string(65, 'a'), "h"}).refusal,
+    CHECK(says(st::check_theme_key(st::ThemeKey{"focus.left", {""}}).refusal, "cannot be empty"));
+    CHECK(says(st::check_theme_key(st::ThemeKey{"Focus.Left", {"h"}}).refusal, "is not"));
+    CHECK(says(st::check_theme_key(st::ThemeKey{"", {"h"}}).refusal, "1 to 64 bytes"));
+    CHECK(says(st::check_theme_key(st::ThemeKey{std::string(65, 'a'), {"h"}}).refusal,
                "1 to 64 bytes"));
 }
 
@@ -261,21 +281,32 @@ TEST_CASE("a theme file sets nothing twice, includes nothing twice or itself, an
     CHECK(st::check_theme_file(theme("t", {}, settings)).accepted);
     std::vector<st::ThemeKey> keys;
     for (std::size_t i = 0; i <= st::kMaxThemeKeys; ++i) {
-        keys.push_back(st::ThemeKey{"a" + std::to_string(i), "none"});
+        keys.push_back(st::ThemeKey{"a" + std::to_string(i), {"none"}});
     }
     CHECK(says(st::check_theme_file(theme("t", {}, {}, keys)).refusal, "at most 128 keys"));
 }
 
 TEST_CASE("a theme reads back from its text with its settings in target and key order") {
     st::ThemeFile t = theme("evening", {"dark", "compact"},
-                            {text("zengine.workshop", "workshop.skin", "block"),
+                            {text("zengine.workshop", "workshop.theme", "block"),
                              flag("zengine.terminal/terminal", "legend", false),
                              number("*", "wheel-rows", 5), cleared("zengine.skin", "window.face")},
                             {{"focus.right", "l"}, {"focus.left", "h"}});
     t.summary = "a dark palette and vim movement";
 
     // A hand's file, its settings out of order, reads in order; the bytes are kept as read.
-    const std::string hand = as_written(t);
+    const std::string hand = R"({
+  "format": "zengine-theme", "format_version": 2, "name": "evening",
+  "summary": "a dark palette and vim movement", "includes": ["dark", "compact"],
+  "settings": [
+    { "target": "zengine.workshop", "key": "workshop.theme", "text": "block" },
+    { "target": "zengine.terminal/terminal", "key": "legend", "flag": false },
+    { "target": "*", "key": "wheel-rows", "number": 5 },
+    { "target": "zengine.skin", "key": "window.face", "clear": true }
+  ],
+  "keys": [ { "action": "focus.right", "gestures": ["l"] },
+            { "action": "focus.left", "gestures": ["h"] } ]
+})";
     const st::LoadedTheme loaded = st::from_text(hand);
     REQUIRE_MESSAGE(loaded.outcome.accepted, loaded.outcome.refusal);
     CHECK(loaded.raw_bytes == hand);
@@ -300,32 +331,43 @@ TEST_CASE("a theme reads back from its text with its settings in target and key 
     CHECK(st::to_text(again.theme) == written);
 }
 
-TEST_CASE("a theme file is refused by what its envelope says it is before its fields are judged") {
+TEST_CASE("a theme file is refused by what it says it is before its members are judged") {
     const std::string good = st::to_text(theme("evening", {}, {number("*", "wheel-rows", 5)}));
     REQUIRE(st::from_text(good).outcome.accepted);
+    CHECK(says(good, "\"format_version\": 2"));
 
-    // Another file of the family is named by what it is, not by its first odd field.
+    // Another file of the family is named by what its envelope says it is.
     zengine::workshop::prefs_persist::Prefs prefs;
     const st::LoadedTheme other =
         st::from_text(zengine::workshop::prefs_persist::to_text(prefs), "x.json");
     CHECK(says(other.outcome.refusal, "x.json: not a theme file: it says it is `WorkshopPrefs`"));
-    // ⚔ MUTATION (tests/mutants/settings_themes.md#envelope-version-unread): the envelope's version
-    // left to admission -- the renamed field would be named where the version that renamed it
-    // should be.
-    const std::string later = replaced(replaced(good, "\"version\":1", "\"version\":2"),
-                                       "\"summary\"", "\"blurb\"");
-    CHECK(says(st::from_text(later).outcome.refusal, "theme version 2 -- this build reads version 1"));
+    // ⚔ MUTATION (tests/mutants/settings_themes.md#envelope-version-unread): the version left to
+    // the members -- the renamed member would be named where the version that renamed it should be.
+    const std::string later = replaced(replaced(good, "\"format_version\": 2",
+                                                "\"format_version\": 3"),
+                                       "\"on_failure\"", "\"blurb\"");
+    CHECK(says(st::from_text(later).outcome.refusal,
+               "theme version 3 -- this build reads versions 1 and 2"));
+    st::v1::ThemeFile envelope;
+    envelope.format = st::kThemeFormat;
+    envelope.format_version = st::kThemeFormatVersion;
+    envelope.name = "evening";
+    const std::string wrapped = replaced(loom::compat::serialize(loom::to_value(envelope)),
+                                         "\"version\":1", "\"version\":2");
+    CHECK(says(st::from_text(wrapped).outcome.refusal, "a version-2 theme is plain JSON"));
 
     const st::LoadedTheme format =
         st::from_text(replaced(good, "\"zengine-theme\"", "\"zengine-workshop-prefs\""));
     CHECK(says(format.outcome.refusal, "not a theme file: it says it is `zengine-workshop-prefs`"));
-    const st::LoadedTheme version =
-        st::from_text(replaced(good, "\"format_version\":\"1\"", "\"format_version\":\"2\""));
-    CHECK(says(version.outcome.refusal, "theme version 2"));
     CHECK(says(st::from_text("{not json").outcome.refusal, "theme: not a theme file"));
-    CHECK(says(st::from_text(replaced(good, "\"key\":\"wheel-rows\"", "\"key\":\"Wheel\""))
+    CHECK(says(st::from_text(replaced(good, "\"key\": \"wheel-rows\"", "\"key\": \"Wheel\""))
                    .outcome.refusal,
                "a setting's key"));
+    // A member the file does not hold is refused by its name, so a misspelling is no silence.
+    CHECK(says(st::from_text(replaced(good, "\"on_failure\"", "\"colours\"")).outcome.refusal,
+               "has `colours`, which is none of: format, format_version"));
+    CHECK(says(st::from_text(replaced(good, "\"number\": 5", "\"number\": \"5\"")).outcome.refusal,
+               "`number` is a text, not a number"));
 }
 
 TEST_CASE("a theme file past its ceiling is refused before it is parsed, read or written") {
@@ -362,7 +404,7 @@ TEST_CASE("a theme is written new, and over itself only when asked and only whil
     CHECK(first.raw_bytes == read_bytes(path));
 
     // Over an existing theme only with `replace`.
-    const zengine::workshop::Written refused =
+    const st::Written refused =
         st::save_file(folder, theme("evening", {}, {number("*", "wheel-rows", 6)}));
     CHECK(says(refused.refusal, "theme `evening` already exists -- pass replace to overwrite it"));
     CHECK(read_bytes(path) == first.raw_bytes);
@@ -376,7 +418,7 @@ TEST_CASE("a theme is written new, and over itself only when asked and only whil
     REQUIRE(st::load_file(folder, "evening").theme.settings.at(0).number == 7);
     // ⚔ MUTATION (tests/mutants/settings_themes.md#stale-write-unguarded): the guard skipped -- a
     // second hand's write lost to a stale reader.
-    const zengine::workshop::Written stale = st::save_file(
+    const st::Written stale = st::save_file(
         folder, theme("evening", {}, {number("*", "wheel-rows", 8)}), true, first.raw_bytes);
     CHECK(says(stale.refusal, "`evening` changed on disk since it was read -- nothing was written"));
     CHECK(read_bytes(path) == second);
@@ -421,7 +463,7 @@ TEST_CASE("a theme alone resolves to its own entries, with a fingerprint that is
     CHECK(st::resolve_theme(d.dir(), "moved").fingerprint != r.fingerprint);
     put(d, theme("cleared", {"plain"}, {cleared("*", "wheel-rows")}));
     CHECK(st::resolve_theme(d.dir(), "cleared").fingerprint != r.fingerprint);
-    CHECK(st::theme_fingerprint({}, {}) != 0);
+    CHECK(st::theme_fingerprint(st::ThemeResolved{}) != 0);
 }
 
 TEST_CASE("a theme's includes apply first and in order, and later wins, a clear among them") {
@@ -434,7 +476,7 @@ TEST_CASE("a theme's includes apply first and in order, and later wins, a clear 
                  {number("zengine.skin", "window.face", 15),
                   cleared("zengine.terminal/terminal", "legend")}));
     put(d, theme("solarized-dark", {"dark"},
-                 {number("*", "wheel-rows", 5), text("zengine.workshop", "workshop.skin", "block")},
+                 {number("*", "wheel-rows", 5), text("zengine.workshop", "workshop.theme", "block")},
                  {{"focus.left", "ctrl+h"}}));
     const st::ThemeResolved r = st::resolve_theme(d.dir(), "solarized-dark");
     REQUIRE_MESSAGE(r.accepted, r.refusal);
@@ -452,9 +494,9 @@ TEST_CASE("a theme's includes apply first and in order, and later wins, a clear 
     CHECK(r.settings[3].from_theme == "solarized-dark");
     // A key keeps the place it was first set in, and takes the later gesture.
     REQUIRE(r.keys.size() == 2);
-    CHECK(r.keys[0].key == st::ThemeKey{"focus.left", "ctrl+h"});
+    CHECK(r.keys[0].key == st::ThemeKey{"focus.left", {"ctrl+h"}});
     CHECK(r.keys[0].from_theme == "solarized-dark");
-    CHECK(r.keys[1].key == st::ThemeKey{"focus.right", "l"});
+    CHECK(r.keys[1].key == st::ThemeKey{"focus.right", {"l"}});
     CHECK(r.keys[1].from_theme == "base");
 
     // Of two includes, the later wins.
@@ -485,7 +527,7 @@ TEST_CASE("a theme included by two paths is no cycle, and its later application 
     REQUIRE(entry(r, "zengine.skin", "window.face") != nullptr);
     CHECK(entry(r, "zengine.skin", "window.face")->from_theme == "c");
     REQUIRE(r.keys.size() == 1);
-    CHECK(r.keys[0].key.gesture == "h");
+    CHECK(r.keys[0].key.gestures == std::vector<std::string>{"h"});
     CHECK(r.keys[0].from_theme == "common");
 }
 
@@ -511,10 +553,10 @@ TEST_CASE("a cycle refuses the whole resolution, naming its path") {
 
     // A theme including itself is refused as it is read; a loader that skips the form check
     // meets the same cycle on the path.
-    write_bytes(st::theme_path(d.dir(), "self"), as_written(theme("self", {"self"})));
+    write_bytes(st::theme_path(d.dir(), "self"), version_one(theme("self", {"self"})));
     CHECK(says(st::resolve_theme(d.dir(), "self").refusal, "theme cycle: self -> self"));
     const st::ThemeResolved unchecked = st::resolve_theme_with("self", [](std::string_view name) {
-        return st::LoadedTheme{zengine::workshop::Written::ok(), theme(std::string(name), {"self"}),
+        return st::LoadedTheme{st::Written::ok(), theme(std::string(name), {"self"}),
                                std::string()};
     });
     CHECK(unchecked.refusal == "theme cycle: self -> self");
@@ -620,23 +662,32 @@ TEST_CASE("a folder's themes are listed by name, a broken file with its refusal"
     // ⚔ MUTATION (tests/mutants/settings_themes.md#broken-file-unlisted): a file that does not load
     // left out -- the weaver could never see why.
     CHECK(says(listed[0].refusal, "not a theme file"));
-    CHECK(listed[1] == st::ThemeSummary{"evening", "the evening", {"zebra"}, 2, 0, ""});
-    CHECK(listed[2] == st::ThemeSummary{"zebra", "", {}, 1, 1, ""});
+    CHECK(listed[1] == st::ThemeSummary{"evening", "the evening", {"zebra"}, 2, 0, 0, ""});
+    CHECK(listed[2] == st::ThemeSummary{"zebra", "", {}, 1, 1, 0, ""});
     CHECK(st::list_themes(d.dir() + "/absent").empty());
 }
 
 TEST_CASE("every settings shape reads back from its text as it was") {
-    const st::ThemeSetting setting = text("zengine.workshop", "workshop.skin", "block");
-    const st::ThemeKey key{"focus.left", "ctrl+h"};
+    const st::ThemeSetting setting = text("zengine.workshop", "workshop.theme", "block");
+    const st::ThemeKey key{"focus.left", {"ctrl+h", "f5"}};
     st::ThemeFile file = theme("evening", {"dark"}, {setting, cleared("*", "legend")}, {key});
     file.format = st::kThemeFormat;
     file.format_version = st::kThemeFormatVersion;
     file.summary = "a summary";
     const st::ResolvedThemeSetting resolved_setting{setting, "dark"};
     const st::ResolvedThemeKey resolved_key{key, "evening"};
+    file.on_failure = st::kOnFailureSkip;
+    file.outline = "+-|";
+    file.colors = {st::ThemeColor{"accent", "#ebcb8b", "yellow", "O"}};
+    file.fonts = {st::ThemeFont{"text", "JetBrains Mono"}};
+    file.sizes = {st::ThemeSize{"heading", 15}};
+    file.slots = {st::ThemeSlots{"zengine.flow", {st::ThemeColor{"wire", "#88c0d0", "cyan", ""}},
+                                 {st::ThemeSize{"label", 11}}}};
     const st::ThemeResolved resolved{true, "", "evening", "a summary", {"dark", "evening"},
-                                     {resolved_setting}, {resolved_key}, -42};
-    const st::ThemeSummary summary{"evening", "a summary", {"dark"}, 2, 1, ""};
+                                     st::kOnFailureSkip, "===", file.colors, file.fonts,
+                                     file.sizes, file.slots, {resolved_setting}, {resolved_key},
+                                     -42};
+    const st::ThemeSummary summary{"evening", "a summary", {"dark"}, 2, 1, 5, ""};
     const st::ThemeSkip skip{2, "*", "legend", "locked in this layout"};
 
     CHECK(round_trip(setting) == setting);
@@ -649,10 +700,11 @@ TEST_CASE("every settings shape reads back from its text as it was") {
     CHECK(round_trip(resolved) == resolved);
     CHECK(round_trip(summary) == summary);
     const st::ThemeApplyRequested apply{"evening", {0, 2}, false, {"layout"},
-                                        st::kApplyKeepMine, true};
+                                        st::kApplyReset, true};
     CHECK(round_trip(apply) == apply);
     CHECK(round_trip(skip) == skip);
-    const st::ThemeActed acted{true, "", "evening", 3, 1, {skip}, 2, true};
+    const st::ThemeActed acted{true, "", "evening", 3, 1, {skip}, {skip}, 2, "night", 7,
+                               {"zengine.flow"}, true};
     CHECK(round_trip(acted) == acted);
     const st::ThemeSaveRequested save{file, true};
     CHECK(round_trip(save) == save);
@@ -663,7 +715,7 @@ TEST_CASE("every settings shape reads back from its text as it was") {
     const st::ThemeSaved saved{false, "already exists", "evening", "themes/evening.json"};
     CHECK(round_trip(saved) == saved);
     CHECK(round_trip(st::ThemesRequested{}) == st::ThemesRequested{});
-    const st::ThemesShown shown{{summary, st::ThemeSummary{"broken", "", {}, 0, 0, "why"}}};
+    const st::ThemesShown shown{{summary, st::ThemeSummary{"broken", "", {}, 0, 0, 0, "why"}}};
     CHECK(round_trip(shown) == shown);
     const st::ThemeResolveRequested resolve{"evening"};
     CHECK(round_trip(resolve) == resolve);
@@ -673,5 +725,14 @@ TEST_CASE("every settings shape reads back from its text as it was") {
     CHECK(round_trip(from) == from);
     const st::ThemeProvenanceShown provenance_shown{true, "", 3, "evening", "current", {from}};
     CHECK(round_trip(provenance_shown) == provenance_shown);
+    const st::SlotsDeclared slots{{st::SlotColorDeclared{"wire", 0x88c0d0ff, "accent"}},
+                                  {st::SlotSizeDeclared{"label", 11}}};
+    CHECK(round_trip(slots) == slots);
+    CHECK(round_trip(st::SlotsAsked{}) == st::SlotsAsked{});
+    const st::ThemesPlaced placed{"/home/w/.config/zengine-workshop/themes", "/opt/zengine/themes",
+                                  {"zengine.flow"}, "night"};
+    CHECK(round_trip(placed) == placed);
+    const st::ThemeSkipsSaid said{"evening", "night", {skip}};
+    CHECK(round_trip(said) == said);
     CHECK(std::string(st::kSettingsRole) == "zengine.settings");
 }

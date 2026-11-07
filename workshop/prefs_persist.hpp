@@ -14,7 +14,8 @@
 
 #include "keymap.hpp"
 #include "pane_settings.hpp"
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 #include "screen.hpp" // the arrangement's measures: each setting's default and bounds
 #include "settings_seam_vocabulary.hpp"
 
@@ -77,7 +78,7 @@ inline constexpr const char* kBandKeysKey = "workshop.band-keys";
 inline constexpr const char* kHotkeysKeysKey = "workshop.hotkeys-keys";
 inline constexpr const char* kPinnedScopeKey = "workshop.pinned-scope";
 inline constexpr const char* kFocusRingKey = "workshop.focus.ring";
-inline constexpr const char* kSkinKey = kWorkshopSkinKey;
+inline constexpr const char* kThemeKey = kWorkshopThemeKey;
 inline constexpr const char* kCompletionOrderKey = "workshop.completion-order";
 inline constexpr const char* kArrangeStepKey = "workshop.arrange-step";
 inline constexpr const char* kSnapReachKey = "workshop.snap-reach";
@@ -160,7 +161,7 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_office_rows() {
                  {"chrome", "settings"}, true, "pin order scope: workshop-wide or per-layout"),
             text(kFocusRingKey, kRingAccent, {kRingAccent, kRingPlain}, {"chrome", "focus"}, false,
                  "command-mode selection ring style: accent or plain"),
-            workshop_skin_setting_row(),
+            workshop_theme_setting_row(),
             text(kCompletionOrderKey, kCompletionDeclared,
                  {kCompletionDeclared, kCompletionRequiredFirst}, {"completion", "input"}, false,
                  "argument completion field order: declared or required-first"),
@@ -184,7 +185,7 @@ struct Presentation {
     KeySpelling hotkeys_keys = kHotkeysKeysDefaultValue;
     bool pins_per_layout = false;
     bool ring_plain = false;
-    std::string skin = kSkinNight;
+    std::string theme = kThemeNight;
     bool completion_required_first = false;
     std::int64_t arrange_step_cells = kCoarseStepCells;
     std::int64_t snap_reach_px = kPaneSnapReachPx;
@@ -515,9 +516,9 @@ inline Presentation presentation_of(const Prefs& p) {
     out.pins_per_layout = scope.text && *scope.text == kPinsPerLayout;
     const PaneSetting ring = workshop_value(p, kFocusRingKey);
     out.ring_plain = ring.text && *ring.text == kRingPlain;
-    const PaneSetting skin = workshop_value(p, kSkinKey);
-    out.skin = skin.text && is_workshop_skin_choice(*skin.text) ? workshop_palette_of(*skin.text)
-                                                                : std::string(kSkinNight);
+    const PaneSetting theme = workshop_value(p, kThemeKey);
+    out.theme = theme.text && is_workshop_theme_choice(*theme.text) ? workshop_palette_of(*theme.text)
+                                                                    : std::string(kThemeNight);
     const PaneSetting order = workshop_value(p, kCompletionOrderKey);
     out.completion_required_first = order.text && *order.text == kCompletionRequiredFirst;
     // A NUMBER OUTSIDE ITS BOUNDS NEVER REACHES HERE from a file or a commit, both judged against
@@ -925,6 +926,16 @@ inline LoadedPrefs from_text(std::string_view bytes) {
     }
     if (format_version != expected) {
         return LoadedPrefs::no(wrong_version(format_version));
+    }
+    // EACH KEY IN ITS CURRENT SPELLING, as every file of the family is read.
+    for (OfficeSettingsKept& o : loaded.kept.offices) {
+        o.settings = current_settings(std::move(o.settings));
+    }
+    for (PinList& pins : loaded.kept.pins) {
+        for (std::string& k : pins.keys) k = current_setting_key(std::move(k));
+    }
+    for (SettingLock& lock : loaded.kept.locks) {
+        lock.key = current_setting_key(std::move(lock.key));
     }
     if (std::string wrong = kept_problem(loaded.kept, expected == kLayoutEntriesVersion);
         !wrong.empty()) {

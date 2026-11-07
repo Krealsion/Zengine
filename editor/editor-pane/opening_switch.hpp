@@ -20,7 +20,8 @@
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <zen/weave.hpp>
 
@@ -523,7 +524,7 @@ inline Written EditorPaneWeave::resolve(const std::string& requested, std::strin
                            "this run began -- open " +
                            requested + " by its full path");
     }
-    out = ws::persist::resolved_against(project_dir_, requested);
+    out = zengine::persist::resolved_against(project_dir_, requested);
     return Written::ok();
 }
 
@@ -564,8 +565,8 @@ inline Plan EditorPaneWeave::judge_source(const std::string& requested) {
     // READ AND JUDGE BEFORE ANYTHING MOVES: a refused file costs the asker its refusal
     // and nothing else -- the current document (if any) and the file itself are exactly
     // as they were.
-    const ws::persist::FileText read =
-        ws::persist::read_file(plan.path, ws::kMaxSourceBytes, "a source file");
+    const zengine::persist::FileText read =
+        zengine::persist::read_file(plan.path, ws::kMaxSourceBytes, "a source file");
     if (!read.outcome.accepted) {
         plan.outcome = read.outcome;
         return plan;

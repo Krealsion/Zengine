@@ -2,7 +2,7 @@
   "format": "zengine-theme",
   "format_version": 2,
   "name": "block",
-  "summary": "classic's light; in a terminal, solid fill characters, a rule of '=' for every edge, and each colour in its own ink",
+  "summary": "the terminal look: solid fills, '=' edges, each colour its ink",
   "outline": "===",
   "colors": [
     { "name": "ground", "cells": "terminal default", "fill": "#" },

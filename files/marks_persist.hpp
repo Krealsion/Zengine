@@ -9,7 +9,8 @@
 
 #include "files/marks.hpp"
 #include "workshop/path_admission.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>

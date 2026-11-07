@@ -4,11 +4,13 @@
 #ifndef ZENGINE_WORKSHOP_KEYMAP_HPP
 #define ZENGINE_WORKSHOP_KEYMAP_HPP
 
-// One executable binding truth: the action catalog, the gesture grammar, and the keymap.
+// One executable binding truth: the action catalog and the keymap, spelled by the input
+// library's gesture grammar.
 // Workshop law: agents/workshop/keyboard.md (+7 registers; agents/workshop.md routes)
 
 #include "pane_vocabulary.hpp" // ActionCause and an action id's bound
 
+#include "input/gesture_grammar.hpp"
 #include "input/vocabulary.hpp"
 
 #include <cstddef>
@@ -83,27 +85,33 @@ inline constexpr bool contexts_intersect(KeyContext a, KeyContext b) noexcept {
     return false;
 }
 
-/// One gesture as the wire reports it: a named scancode and the EXACT observed modifier bits.
-// WL-KEY-04 -- agents/workshop/keyboard.md
-struct Gesture {
-    std::int64_t scancode = 0;
-    std::int64_t modifiers = 0;
-
-    friend constexpr bool operator==(const Gesture& a, const Gesture& b) noexcept {
-        return a.scancode == b.scancode && a.modifiers == b.modifiers;
-    }
-};
-
-/// IS THIS A GESTURE A WEAVER CAN PRESS?
-// WL-CTX-06 -- agents/workshop/contextual.md; WL-KEY-13 -- agents/workshop/key-spelling.md
-inline constexpr bool is_bound(const Gesture& g) noexcept {
-    return g.scancode != input::scan::kUnknown;
-}
-
-/// The declaration a row makes when the action is reachable from a surface that names it
-/// and from no key at all.
-// WL-KEY-13 -- agents/workshop/key-spelling.md
-inline constexpr Gesture kNoGesture{input::scan::kUnknown, input::mod::kNone};
+/// How a key is written and read is the input library's (`input/gesture_grammar.hpp`); the
+/// keymap spells and parses with it.
+using input::Gesture;
+using input::is_bound;
+using input::kNoGesture;
+using input::kDoubleShift;
+using input::is_shift_scan;
+using input::kFirstModifierScan;
+using input::kLastModifierScan;
+using input::is_modifier_scan;
+using input::key_name_of;
+using input::scancode_of_name;
+using input::gesture_word;
+using input::is_letter_scan;
+using input::gesture_text;
+using input::KeySpelling;
+using input::kSpelledShort;
+using input::kSpelledFull;
+using input::spelling_word;
+using input::spelling_of;
+using input::spell_gesture;
+using input::ParsedGesture;
+using input::parse_gesture;
+using input::is_posix_editing_scan;
+using input::posix_gap;
+using input::gap_sentence;
+using input::expected_text_of;
 
 /// THE ACTION IDENTITIES, as the code spells them.
 // WL-KEY-01 -- agents/workshop/keyboard.md
@@ -413,13 +421,7 @@ inline constexpr ActionRow kActionCatalog[] = {
 
 inline constexpr std::size_t kActionCatalogCount = sizeof(kActionCatalog) / sizeof(kActionCatalog[0]);
 
-} // namespace zengine::workshop
 
-// The written gesture grammar and what a backend cannot produce: a part of this header,
-// which the keymap value and its joins spell and parse with.
-#include "gesture_grammar.hpp"
-
-namespace zengine::workshop {
 
 // ---- The legend preference ---------------------------------------------------------------
 

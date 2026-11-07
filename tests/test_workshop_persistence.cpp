@@ -61,8 +61,8 @@ TEST_CASE("a missing file is an ordinary refusal, not a crash and not an empty f
     // THE FILE DOORS EVERY DURABLE ARTIFACT SHARES (WL-DOC-15): the setup, the keymap, the
     // prefs, the session, the plan and a pane definition read and write through them.
     TempDir dir("missing");
-    const persist::FileText read =
-        persist::read_file(dir.file("never-written.json"), 1024, "a test file");
+    const zengine::persist::FileText read =
+        zengine::persist::read_file(dir.file("never-written.json"), 1024, "a test file");
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.outcome.refusal.find("never-written.json") != std::string::npos);
     CHECK(read.text.empty());
@@ -74,16 +74,16 @@ TEST_CASE("a detected write failure leaves the last good save readable and uncha
     TempDir dir("failsave");
     const std::string path = dir.file("setup.json");
     const std::string first = setup_persist::to_text(default_setup());
-    REQUIRE(persist::write_file(path, first).accepted);
+    REQUIRE(zengine::persist::write_file(path, first).accepted);
     REQUIRE(slurp(path) == first);
 
     // A controlled, deterministic, non-destructive failure: the sibling path the writer must use
     // is occupied by a DIRECTORY, so the write cannot open. No permission games, and the same
     // result on every supported platform.
-    std::filesystem::create_directories(persist::pending_path(path));
+    std::filesystem::create_directories(zengine::persist::pending_path(path));
     const std::string second = setup_persist::to_text(setup_of("Other", {stock::kKind}));
     REQUIRE(second != first);
-    const Written refused = persist::write_file(path, second);
+    const Written refused = zengine::persist::write_file(path, second);
     CHECK_FALSE(refused.accepted);
     CHECK_FALSE(refused.refusal.empty());
 
@@ -92,18 +92,18 @@ TEST_CASE("a detected write failure leaves the last good save readable and uncha
     CHECK(setup_persist::load_file(path).outcome.accepted);
 
     std::error_code ec;
-    std::filesystem::remove_all(persist::pending_path(path), ec);
-    CHECK(persist::write_file(path, second).accepted); // and it works again
+    std::filesystem::remove_all(zengine::persist::pending_path(path), ec);
+    CHECK(zengine::persist::write_file(path, second).accepted); // and it works again
     CHECK(slurp(path) == second);
 }
 
 TEST_CASE("a save into a place that does not exist refuses before it writes anything") {
     TempDir dir("nowhere");
     const std::string path = (dir.path() / "no-such-directory" / "setup.json").string();
-    const Written refused = persist::write_file(path, setup_persist::to_text(default_setup()));
+    const Written refused = zengine::persist::write_file(path, setup_persist::to_text(default_setup()));
     CHECK_FALSE(refused.accepted);
     CHECK_FALSE(std::filesystem::exists(path));
-    CHECK_FALSE(std::filesystem::exists(persist::pending_path(path)));
+    CHECK_FALSE(std::filesystem::exists(zengine::persist::pending_path(path)));
 }
 
 TEST_CASE("a file too large to be what it claims is refused before it is read") {
@@ -116,7 +116,7 @@ TEST_CASE("a file too large to be what it claims is refused before it is read") 
             out.write(chunk.data(), static_cast<std::streamsize>(chunk.size()));
         }
     }
-    const persist::FileText read = persist::read_file(path, 1u << 16, "a test file");
+    const zengine::persist::FileText read = zengine::persist::read_file(path, 1u << 16, "a test file");
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.outcome.refusal.find("larger than a test file can be") != std::string::npos);
     CHECK(read.text.empty());
@@ -783,7 +783,7 @@ TEST_CASE("a setup file on disk is the setup read back from it") {
     // The bytes on disk are the bytes the writer produced -- no wrapper, no
     // trailer, nothing added by the file layer -- and the sibling is gone.
     CHECK(slurp(path) == setup_persist::to_text(original));
-    CHECK_FALSE(std::filesystem::exists(persist::pending_path(path)));
+    CHECK_FALSE(std::filesystem::exists(zengine::persist::pending_path(path)));
 
     // Saving again over an existing setup replaces it.
     const Setup second = setup_of("Info only", {second::kKind});
@@ -825,7 +825,7 @@ TEST_CASE("a detected setup write failure leaves the last good setup file untouc
 
     // A controlled, deterministic, non-destructive failure: the sibling path the
     // writer must use is occupied by a DIRECTORY, so the write cannot open.
-    std::filesystem::create_directories(persist::pending_path(path));
+    std::filesystem::create_directories(zengine::persist::pending_path(path));
 
     const Setup second = setup_of("Better", {stock::kKind, second::kKind});
     const Written refused = setup_persist::save_file(path, second);
@@ -839,7 +839,7 @@ TEST_CASE("a detected setup write failure leaves the last good setup file untouc
     CHECK(reloaded.setup == first);
 
     std::error_code ec;
-    std::filesystem::remove_all(persist::pending_path(path), ec);
+    std::filesystem::remove_all(zengine::persist::pending_path(path), ec);
     CHECK(setup_persist::save_file(path, second).accepted); // and it works again
     CHECK(setup_persist::load_file(path).setup == second);
 }
@@ -2623,12 +2623,12 @@ TEST_CASE("a write that fails leaves the last good session where it was") {
 
     // The sibling the writer needs is occupied by a DIRECTORY, so the candidate
     // cannot be written -- and the destination is never opened.
-    std::filesystem::create_directories(persist::pending_path(path));
+    std::filesystem::create_directories(zengine::persist::pending_path(path));
     const Written refused = save_last_run(path, one_layout(setup_of("Second", {second::kKind})), 0,
                                           cells_px(90), cells_px(30), window_persist::Placement{});
     CHECK_FALSE(refused.accepted);
     CHECK(slurp(path) == good);
-    std::filesystem::remove_all(persist::pending_path(path));
+    std::filesystem::remove_all(zengine::persist::pending_path(path));
     CHECK(save_last_run(path, one_layout(setup_of("Second", {second::kKind})), 0, cells_px(90),
                         cells_px(30), window_persist::Placement{})
               .accepted);
@@ -2935,12 +2935,12 @@ TEST_CASE("a weaver's files under a folder named beyond ASCII are written, found
     // The one-time import, from a legacy file in such a folder to a root in another.
     const std::string legacy = folder + "/workshop-keymap.json";
     const std::string keymap = folder + "/config/zengine-workshop/workshop-keymap.json";
-    REQUIRE(persist::write_file(legacy, "the weaver's bytes").accepted);
+    REQUIRE(zengine::persist::write_file(legacy, "the weaver's bytes").accepted);
     const user_paths::LegacyImport did =
         user_paths::import_legacy_file(keymap, legacy, "keymap", keymap_persist::kMaxKeymapBytes);
     CHECK_MESSAGE(did.imported, did.note);
     CHECK(std::filesystem::exists(held(keymap)));
-    const persist::FileText back = persist::read_file(keymap, 1024, "a keymap");
+    const zengine::persist::FileText back = zengine::persist::read_file(keymap, 1024, "a keymap");
     REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
     CHECK(back.text == "the weaver's bytes");
 }
@@ -2963,7 +2963,7 @@ TEST_CASE("the host resolves the weaver's files through the one precedence") {
     // The project file stays a project file: its default is still the bare name, and an old
     // object document's bare name is only LOOKED FOR in the project, to be said and left alone.
     CHECK(host.find("kDefaultSetupFileName") != std::string::npos);
-    CHECK(host.find("persist::kRetiredDocumentName") != std::string::npos);
+    CHECK(host.find("workshop::kRetiredDocumentName") != std::string::npos);
 }
 
 // ---- The prefs file ------------------------------------------------------------------
@@ -3881,7 +3881,7 @@ TEST_CASE("`r` restores into the live layout and clears no shelf") {
     CHECK(layout_at(t.run(), 0) == shelved);
 
     // A REFUSED RESTORE COSTS THE NOTICE AND NOTHING ELSE, shelf included.
-    REQUIRE(persist::write_file(dir.file("s.json"), "{ not a setup").accepted);
+    REQUIRE(zengine::persist::write_file(dir.file("s.json"), "{ not a setup").accepted);
     const std::vector<Setup> before = shelf_of(t);
     t.key(input::scan::kR);
     CHECK(t.session().notice_is_bad);

@@ -45,7 +45,7 @@ headers.
   maker weave per session; `flow/native.hpp` `NativeWeave` builds on `Runtime`.
 - `files.hpp` alone: `view/description.hpp`, `message-draft/library.hpp`,
   `inventory/inventory-pane/toolbox_file.hpp`; `view/CMakeLists.txt` links `zengine-maker`.
-- `files.hpp` restates `workshop/persist.hpp`'s read and write; nothing here includes `workshop/`.
+- `files.hpp` restates `persist/file.hpp`'s read and write; nothing here includes `workshop/`.
 
 ## Pages
 

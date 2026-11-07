@@ -459,7 +459,7 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   present keeps its settings byte for byte, and no setting is converted, defaulted or dropped. A
   row keeps at most `kMaxPaneSettingsPerRow` settings and a desk `kMaxPaneSettingsPerDesk`; a key
   is at most `kMaxPaneSettingKeyLen` bytes and a text `kMaxPaneSettingTextLen`.
-- **Keys under `workshop.` are Workshop's own.** A row keeps one, `workshop.skin`, the skin its
+- **Keys under `workshop.` are Workshop's own.** A row keeps one, `workshop.theme`, the theme its
   pane's area is painted in, which the pane is never handed; a file holding any other is refused
   by name rather than half read, and a pane declares none.
 - **Three kinds and no more**: a switch, a count or step, a word. A choice among words is a text

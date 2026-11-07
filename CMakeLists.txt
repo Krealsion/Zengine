@@ -420,6 +420,7 @@ endfunction()
 # does not constrain the order; `if(TARGET ...)` and `$<TARGET_FILE:...>` are answered when read.
 
 add_subdirectory(activation)
+add_subdirectory(persist)
 add_subdirectory(manual)
 add_subdirectory(operator)
 add_subdirectory(maker)

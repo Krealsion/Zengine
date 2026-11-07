@@ -71,7 +71,7 @@ Rigs: `tests/editor_transfer_story.hpp`, `tests/workshop_switch_rig.hpp`.
 - Seam vocabulary: `workshop/pane_seam_vocabulary.hpp` (`kEditorRole`, the open),
   `workshop/open_seam_vocabulary.hpp`, `workshop/editor_handoff_vocabulary.hpp`,
   `workshop/editor_switch_vocabulary.hpp`; the carry is `workshop/pane_carry.hpp`.
-- Both Editors read files through `workshop/persist.hpp`, and the standard Editor writes through
+- Both Editors read files through `persist/file.hpp`, and the standard Editor writes through
   it; `workshop/pane_migration.hpp` reads a desk saved under the Editor's old office.
 
 ## Pages

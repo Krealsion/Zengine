@@ -28,7 +28,8 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <zen/weave.hpp>
 
@@ -506,7 +507,7 @@ inline Snapshot NeovimEditorWeave::snapshot_of(const Answer& a) {
 }
 
 inline std::string NeovimEditorWeave::project_root() const {
-    return project_known_ ? ws::persist::resolved_against(std::string(), project_dir_) : std::string();
+    return project_known_ ? zengine::persist::resolved_against(std::string(), project_dir_) : std::string();
 }
 
 /// ASK WORKSHOP TO APPROVE A CARRY OF THIS PAIR FOR THE GESTURE THAT CAUSED IT; the carry

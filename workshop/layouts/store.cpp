@@ -8,7 +8,8 @@
 
 #include "workshop/layouts/store.hpp"
 
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <algorithm>
 #include <filesystem>
@@ -737,9 +738,9 @@ void LayoutStore::settle_live() { (void)pin_everywhere_locks(live_desk(run_)); }
 
 const v2::PaneSettingRow* LayoutStore::declared_row(const PaneRef& ref,
                                                     const std::string& key) const {
-    static const v2::PaneSettingRow skin_row = workshop_skin_setting_row();
-    if (key == kWorkshopSkinKey) {
-        return &skin_row;
+    static const v2::PaneSettingRow theme_row = workshop_theme_setting_row();
+    if (key == kWorkshopThemeKey) {
+        return &theme_row;
     }
     return row_named(counted(ref), key);
 }
@@ -828,9 +829,9 @@ PaneSettingCommitAnswered LayoutStore::commit_pane(const std::string& refused,
             declared = (*rows)[i].key == asked.key ? &(*rows)[i] : declared;
         }
         // WORKSHOP'S OWN WORD FOR THE PANE'S AREA, whatever the pane declares.
-        const PaneSettingRow skin_row = narrow_setting_row(workshop_skin_setting_row());
-        if (asked.key == kWorkshopSkinKey) {
-            declared = &skin_row;
+        const PaneSettingRow theme_row = narrow_setting_row(workshop_theme_setting_row());
+        if (asked.key == kWorkshopThemeKey) {
+            declared = &theme_row;
         }
         if (declared == nullptr) {
             return refuse(ref_text(ref) + " has no counted setting `" + asked.key +
@@ -1344,9 +1345,9 @@ LayoutSettingsAnswered LayoutStore::layout_settings_reading() const {
         if (rows == nullptr) {
             continue;
         }
-        DeclaredSettings d{p.ref.provider, p.ref.pane, {workshop_skin_setting_row()}};
+        DeclaredSettings d{p.ref.provider, p.ref.pane, {workshop_theme_setting_row()}};
         for (const v2::PaneSettingRow& row : *rows) {
-            if (row.key != kWorkshopSkinKey) {
+            if (row.key != kWorkshopThemeKey) {
                 d.rows.push_back(row);
             }
         }

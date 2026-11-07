@@ -17,7 +17,9 @@ window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-
 has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
 Three themes come with them as palettes, `night`, `day` and `block`, generated from the JSON they
 are written in (`graphics/themes/`); `classic`, in a setting or an `app.json`, is another name for
-`night`. The snake (`examples/snake/`) is the worked example:
+`night`. In Workshop the theme reader, the `zengine.settings` office, reads the same files and the
+weaver's own at run time, and offers each theme as a palette
+([Settings](../../settings/README.md)). The snake (`examples/snake/`) is the worked example:
 it draws its frame as nodes and its board as an element of its own.
 
 ![The snake in a terminal window wearing the night palette, its pilot flying and the game paused after step 120: the operator's status line, the world's score, board and buttons, and the score weave's own area beside it](images/snake-night.png)
@@ -170,9 +172,10 @@ A **palette** (`PaletteOffered`) is a theme resolved for the window: each pool c
 `0xRRGGBBAA`, what a terminal shows where it cannot show it (`cells`: `terminal default`, the
 terminal's default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its nearest) and the
 character it fills a shape with (`fill`); each office's slots; and a terminal's outline, a corner,
-across and down. Whoever arranges the window offers palettes and chooses the one each area wears
-(`PaletteChosen`) through the directory; an area wearing none, or one nobody offered, wears the
-window's own, the pool's defaults, which are night's. The three shipped themes are
+across and down. Whoever arranges the window offers palettes, or in Workshop its theme reader at a
+higher revision, and the arranger chooses the one each area wears (`PaletteChosen`) through the
+directory; an area wearing none, or one nobody offered, wears the window's own, the pool's defaults,
+which are night's. The three shipped themes are
 `graphics::themes::night()`, `day()` and `block()` (`graphics/themes.hpp`), each generated with
 `zengine_palettes()` from its JSON in `graphics/themes/`. In a terminal the pool shows text and
 every ground in the terminal's default colours, a pane's frame in grey (`bright black`), and each

@@ -1463,7 +1463,7 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
     }
     CHECK(keys == std::vector<std::string>{
                       "workshop.pane-titles", "workshop.band-keys", "workshop.hotkeys-keys",
-                      "workshop.pinned-scope", "workshop.focus.ring", "workshop.skin",
+                      "workshop.pinned-scope", "workshop.focus.ring", "workshop.theme",
                       "workshop.completion-order", "workshop.arrange-step", "workshop.snap-reach",
                       "workshop.stack-rows", "workshop.open-at"});
     CHECK(shown.rows == prefs_persist::workshop_office_rows());
@@ -1485,7 +1485,7 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
         }
     }
     CHECK(pinned == std::vector<std::string>{"workshop.pane-titles", "workshop.pinned-scope",
-                                             "workshop.skin"});
+                                             "workshop.theme"});
     CHECK(pinned.size() <= kMaxDefaultPins);
     CHECK(tags.size() <= kMaxDeclaredTags);
     const auto row_of = [&shown](const char* key) {
@@ -1497,8 +1497,8 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
         FAIL("no row ", key);
         return v2::PaneSettingRow{};
     };
-    CHECK(row_of("workshop.skin").text == std::string("night"));
-    CHECK(row_of("workshop.skin").choices == std::vector<std::string>{"night", "day", "block"});
+    CHECK(row_of("workshop.theme").text == std::string("night"));
+    CHECK(row_of("workshop.theme").choices == std::vector<std::string>{"night", "day", "block"});
     CHECK(row_of("workshop.completion-order").text == std::string("declared"));
     CHECK(row_of("workshop.completion-order").choices ==
           std::vector<std::string>{"declared", "required-first"});
@@ -1902,16 +1902,16 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     CHECK_MESSAGE(carried.outcome.accepted, carried.outcome.refusal);
 }
 
-TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken on every row, kept as written, shown in Info, and never handed to the pane") {
+TEST_CASE("a row's `workshop.theme` is Workshop's word for its pane's area: taken on every row, kept as written, shown in Info, and never handed to the pane") {
     RevisionRig t;
     t.open();
     const PaneSettingsAnswered before = t.read();
     // A ROW TAKES IT, whatever its pane declares, and the pane is handed none of it.
-    const PaneSettingCommitAnswered block = t.commit(text_at(before.revision, "workshop.skin", "block"));
+    const PaneSettingCommitAnswered block = t.commit(text_at(before.revision, "workshop.theme", "block"));
     REQUIRE_MESSAGE(block.accepted, block.refusal);
     CHECK(block.handed == "stored and handed");
     CHECK(t.stored() ==
-          std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
+          std::vector<PaneSetting>{PaneSetting{"workshop.theme", std::nullopt, std::nullopt,
                                                std::string("block")}});
     REQUIRE_FALSE(t.seat->handed.empty());
     CHECK(t.seat->handed.back().revision == block.revision);
@@ -1920,26 +1920,26 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
     CHECK(shown.settings == t.stored());
     CHECK(shown.said == "stored and handed");
     for (const v2::PaneSettingRow& row : shown.rows) {
-        CHECK(row.key != "workshop.skin"); // the pane's declaration, as the pane declared it
+        CHECK(row.key != "workshop.theme"); // the pane's declaration, as the pane declared it
     }
     // INFO SHOWS IT AS A SETTING THE ROW TAKES, not a key kept for nobody.
     REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
-    CHECK(info_value(t.r, dial_ref(), "workshop.skin") == "block");
+    CHECK(info_value(t.r, dial_ref(), "workshop.theme") == "block");
 
     // `classic` IS KEPT AS WRITTEN: its absence is Workshop's own palette, which may be `block`.
-    const PaneSettingCommitAnswered classic = t.commit(text_at(block.revision, "workshop.skin", "classic"));
+    const PaneSettingCommitAnswered classic = t.commit(text_at(block.revision, "workshop.theme", "classic"));
     REQUIRE_MESSAGE(classic.accepted, classic.refusal);
     CHECK(t.stored() ==
-          std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
+          std::vector<PaneSetting>{PaneSetting{"workshop.theme", std::nullopt, std::nullopt,
                                                std::string("classic")}});
     CHECK(t.seat->handed.back().settings.empty());
     // `day` AND `night` ARE TAKEN AS THE OTHER TWO ARE, kept as written and handed to no pane.
     std::int64_t at = classic.revision;
     for (const char* painter : {"day", "night"}) {
         CAPTURE(painter);
-        const PaneSettingCommitAnswered kept = t.commit(text_at(at, "workshop.skin", painter));
+        const PaneSettingCommitAnswered kept = t.commit(text_at(at, "workshop.theme", painter));
         REQUIRE_MESSAGE(kept.accepted, kept.refusal);
-        CHECK(t.stored() == std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt,
+        CHECK(t.stored() == std::vector<PaneSetting>{PaneSetting{"workshop.theme", std::nullopt,
                                                                  std::nullopt,
                                                                  std::string(painter)}});
         CHECK(t.seat->handed.back().settings.empty());
@@ -1947,9 +1947,9 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
         at = kept.revision;
     }
     // A SKIN IT DOES NOT TAKE, AND ANY OTHER `workshop.` KEY, ARE REFUSED, nothing written.
-    PaneSettingCommitAnswered a = t.commit(text_at(at, "workshop.skin", "plain"));
+    PaneSettingCommitAnswered a = t.commit(text_at(at, "workshop.theme", "plain"));
     CHECK_FALSE(a.accepted);
-    CHECK(a.refusal == "workshop.skin takes one of night, day, block, not a text `plain`");
+    CHECK(a.refusal == "workshop.theme takes one of night, day, block, not a text `plain`");
     a = t.commit(text_at(at, "workshop.text", "x"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal.find("has no counted setting `workshop.text`") != std::string::npos);
@@ -1957,25 +1957,25 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
     // ...AND A CLEAR GIVES THE AREA BACK TO WORKSHOP'S OWN.
     PaneSettingCommitRequested clear;
     clear.revision = at;
-    clear.key = "workshop.skin";
+    clear.key = "workshop.theme";
     clear.clear = true;
     const PaneSettingCommitAnswered cleared = t.commit(clear);
     REQUIRE_MESSAGE(cleared.accepted, cleared.refusal);
     CHECK(t.stored().empty());
 
     // THE SETUP FILE'S CHECK READS A ROW KEEPING IT, and refuses one it does not take by name.
-    const PaneSetting skin_block{"workshop.skin", std::nullopt, std::nullopt, std::string("block")};
+    const PaneSetting skin_block{"workshop.theme", std::nullopt, std::nullopt, std::string("block")};
     CHECK(check_pane_settings(dial_ref(), {skin_block}).accepted);
     const Written plain = check_pane_settings(
-        dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, std::nullopt, std::string("plain")}});
+        dial_ref(), {PaneSetting{"workshop.theme", std::nullopt, std::nullopt, std::string("plain")}});
     CHECK_FALSE(plain.accepted);
     CHECK(plain.refusal ==
           "`" + ref_text(dial_ref()) +
-              "`: workshop.skin takes one of night, day, block, not a text `plain`");
-    CHECK(check_pane_settings(dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, 1,
+              "`: workshop.theme takes one of night, day, block, not a text `plain`");
+    CHECK(check_pane_settings(dial_ref(), {PaneSetting{"workshop.theme", std::nullopt, 1,
                                                        std::nullopt}})
               .refusal.find(
-                  "workshop.skin takes one of night, day, block, not a number `1`") !=
+                  "workshop.theme takes one of night, day, block, not a number `1`") !=
           std::string::npos);
 }
 
@@ -2186,7 +2186,7 @@ TEST_CASE("a lock act is refused in words with nothing changed: an act or a scop
     away.target = "test.dial/other";
     CHECK(t.lock(away).refusal == "test.dial/other neither declares nor keeps `legend` in layout " +
                                       quoted_setup_name(t.r.session().setup.active.name));
-    away.key = kWorkshopSkinKey;
+    away.key = kWorkshopThemeKey;
     CHECK(t.lock(away).refusal == "test.dial/other is not in layout " +
                                       quoted_setup_name(t.r.session().setup.active.name) +
                                       " -- a layout's lock holds its row");
@@ -2235,7 +2235,7 @@ TEST_CASE("an office-wide setting is locked everywhere alone, and its lock freez
     CHECK(file.kept.locks[0].target == kWorkshopProvider);
     // A FILE ANOTHER HAND CHANGED SINCE IS NEVER WRITTEN OVER, so the act is refused, nothing changed.
     REQUIRE(prefs_persist::save_file(t.r.host.prefs_path, prefs_persist::Prefs{}).accepted);
-    ring.key = kWorkshopSkinKey;
+    ring.key = kWorkshopThemeKey;
     a = t.lock(ring);
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal.rfind("nothing changed: Workshop's settings file was not written -- the "
@@ -2369,7 +2369,7 @@ TEST_CASE("every layout is read at once: each row with its locks, what each pane
     }
     REQUIRE(dial != nullptr);
     REQUIRE(dial->rows.size() == 4);
-    CHECK(dial->rows[0].key == kWorkshopSkinKey);
+    CHECK(dial->rows[0].key == kWorkshopThemeKey);
     CHECK(dial->rows[1].key == "legend");
     REQUIRE(workshop != nullptr);
     CHECK(workshop->rows == prefs_persist::workshop_office_rows());

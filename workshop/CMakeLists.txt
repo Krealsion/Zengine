@@ -16,6 +16,8 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-voc
                                                             zengine-builder-vocabulary
                                                             zengine-manual
                                                             zengine-operator
+                                                            zengine-persist
+                                                            zengine-settings-vocabulary
                                                             loom::core
                                                             loom::terminal)
 # ...and the manuals of the host's own offices compiled into it, each office answering a shape's
@@ -256,7 +258,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 set(zengine_workshop_artifacts zengine-input zengine-timer zengine-inventory zengine-inventory-pane
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
-                               zengine-notices zengine-notices-pane
+                               zengine-notices zengine-notices-pane zengine-settings
                                zengine-desktop-pane zengine-connections-pane zengine-demo-control
                                zengine-menu-presenter zengine-palette zengine-first-run
                                zengine-flow-pane zengine-view-builder
@@ -314,6 +316,22 @@ foreach(plan IN LISTS zengine_workshop_plans)
         COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${plan}
         COMMENT "workshop: staging ${plan} beside the host")
+    list(APPEND zengine_workshop_staged ${stamp})
+endforeach()
+
+# ---- The shipped themes, which the settings weave reads --------------------------------
+#
+# The theme files the pool's palettes are generated from (graphics/themes/), staged in `themes/`
+# beside the host, where Workshop names them to the settings weave as the shipped folder.
+foreach(theme IN LISTS ZENGINE_GRAPHICS_THEMES)
+    get_filename_component(theme_name ${theme} NAME)
+    set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-theme-${theme_name}.stamp)
+    add_custom_command(OUTPUT ${stamp}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${zengine_workshop_dir}/themes
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${theme} ${zengine_workshop_dir}/themes
+        COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
+        DEPENDS ${theme}
+        COMMENT "workshop: staging the theme ${theme_name} beside the host")
     list(APPEND zengine_workshop_staged ${stamp})
 endforeach()
 

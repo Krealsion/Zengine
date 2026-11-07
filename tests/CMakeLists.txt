@@ -847,12 +847,19 @@ target_link_libraries(zengine-message-draft-tests PRIVATE zengine-message-draft 
 target_include_directories(zengine-message-draft-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_doctest_test(message_draft zengine-message-draft-tests)
 
-# ---- THE SETTINGS THEMES SUITE: a theme file's form, its reading and writing, and resolution ---
-# Header-only (settings/theme_persist.hpp, settings/vocabulary.hpp): every file it writes is under a
-# temporary directory of its own.
-add_executable(zengine-settings-themes-tests test_settings_themes.cpp doctest_main.cpp)
+# ---- THE SETTINGS THEMES SUITE: a theme file's form, its reading and writing, resolution, and how
+# a theme applies, as values ---
+# Header-only (settings/theme_persist.hpp, settings/apply.hpp, settings/vocabulary.hpp): every file
+# it writes is under a temporary directory of its own.
+add_executable(zengine-settings-themes-tests test_settings_themes.cpp test_settings_apply.cpp
+               doctest_main.cpp)
 target_link_libraries(zengine-settings-themes-tests
-    PRIVATE zengine-settings-vocabulary loom::core zengine-warnings zengine-sanitize)
+    PRIVATE zengine-settings-vocabulary zengine-graphics-vocabulary zengine-workshop-vocabulary
+            zengine-flow-slots loom::core zengine-warnings zengine-sanitize)
+# ...and the files it reads as they ship: the themes and Flow's slots.
+zengine_test_definitions(zengine-settings-themes-tests
+    "GRAPHICS_THEMES_DIR=\"${CMAKE_SOURCE_DIR}/graphics/themes\""
+    "FLOW_SLOTS_JSON=\"${CMAKE_SOURCE_DIR}/flow/flow-pane/slots.json\"")
 target_include_directories(zengine-settings-themes-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_doctest_test(settings_themes zengine-settings-themes-tests)
 
@@ -995,6 +1002,9 @@ set(ZENGINE_WORKSHOP_DEFS
     # (`default_setup`).
     "WORKSHOP_SO_NOTICES=\"$<TARGET_FILE:zengine-notices>\""
     "WORKSHOP_SO_NOTICES_PANE=\"$<TARGET_FILE:zengine-notices-pane>\""
+    # The theme reader, and the themes shipped beside the host it reads.
+    "WORKSHOP_SO_SETTINGS=\"$<TARGET_FILE:zengine-settings>\""
+    "SHIPPED_THEMES_DIR=\"${CMAKE_SOURCE_DIR}/graphics/themes\""
     # The Info pane: the shipped desk names it (`default_setup`), so here a fresh Workshop's
     # own second pane resolves.
     "WORKSHOP_SO_INFO_PANE=\"$<TARGET_FILE:zengine-info-pane>\""
@@ -1027,7 +1037,7 @@ set(ZENGINE_WORKSHOP_DEFS
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-graphics zengine-workshop-staging
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
-    zengine-attention-pane zengine-notices zengine-notices-pane
+    zengine-attention-pane zengine-notices zengine-notices-pane zengine-settings
     zengine-info-pane zengine-desktop-pane zengine-terminal-pane
     zengine-connections-pane zengine-flow-pane zengine-view-builder
     zengine-legacy-pane
