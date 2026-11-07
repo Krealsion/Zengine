@@ -108,6 +108,10 @@ kMaxPathBytes                   graphics/vocabulary.hpp                   kMaxPa
 kMaxPathDepth                   graphics/vocabulary.hpp                   kMaxPathDepth
 window::kPumpBeatMs             graphics/window/window.hpp                kPumpBeatMs
 
+# ---- the sanitizer lane's memory limits
+ZEN_SANITIZER_PEAK_GB           tests/sanitizer_lane.cmake                ZEN_SANITIZER_PEAK_GB
+ZEN_SANITIZER_BUILD_PEAK_GB     tests/sanitizer_lane.cmake                ZEN_SANITIZER_BUILD_PEAK_GB
+
 # ---- the Timer
 kPreparedClaimBeats             timer/vocabulary.hpp                      kPreparedClaimBeats
 kMaxHandoffEntries              timer/vocabulary.hpp                      kMaxHandoffEntries

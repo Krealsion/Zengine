@@ -172,10 +172,10 @@ the line table alone; a weaver debugging their own build reads all of it.
 
 ## VM-LANE-27 — The sanitizer job runs in two runners by program, inside each runner's memory and time
 
-METHOD — CI's sanitizer job runs in two runners by program, each building and running its own through `tests/sanitizer_lane.cmake`, every entry in one; a peak past the limit or an entry past the budget warns.
-BECAUSE — a runner has 16 GB and 14 GB of disk and stops a job past either, naming no cause; the panes program is two fifths of the build and three fifths of the lane: a runner of its own;
-the limit leaves a quarter spare and the budget is a quarter of what the slowest runner seen has left of ninety minutes after its cold build; each runner says its CPU, disk and both peaks.
-ASan keeps every allocation's stack for good, so the lane keeps eight frames, which catch what thirty do and hold a long entry's memory flat; `sanitizer_lane` holds each judgement to its cases.
+METHOD — CI's sanitizer job runs in two runners by program, each building and running its own through `tests/sanitizer_lane.cmake`, every entry in one; a peak past its limit or an entry past the budget warns.
+BECAUSE — a runner has 16 GB and 14 GB of disk and stops a job past either, naming no cause; the panes program is two fifths of the build and three fifths of the lane; a verification warns
+past <!-- value ZEN_SANITIZER_PEAK_GB -->12<!-- /value --> GB, a quarter spare, a build, of compilers alone, past <!-- value ZEN_SANITIZER_BUILD_PEAK_GB -->14<!-- /value --> GB; the budget is a
+quarter of the slowest runner's 90 minutes less its cold build. ASan keeps every stack for good: eight frames catch what thirty do, memory flat; `sanitizer_lane` holds each judgement to cases.
 
 ## Seen
 
@@ -274,8 +274,9 @@ nowhere yet
 `.github/workflows/ci.yml` CMAKE_CXX_FLAGS_DEBUG
 
 ### VM-LANE-27
-`tests/sanitizer_lane.cmake` ZEN_SANITIZER_PEAK_GB ZEN_SANITIZER_BUDGET_S ZEN_SANITIZER_ASAN_OPTIONS ZEN_SANITIZER_RUNNERS
-zen_sanitizer_shares zen_sanitizer_programs zen_sanitizer_times zengine_sanitizer_runner_targets
+`tests/sanitizer_lane.cmake` ZEN_SANITIZER_PEAK_GB ZEN_SANITIZER_BUILD_PEAK_GB ZEN_SANITIZER_BUDGET_S ZEN_SANITIZER_ASAN_OPTIONS ZEN_SANITIZER_RUNNERS
+zen_sanitizer_shares zen_sanitizer_programs zen_sanitizer_times zen_sanitizer_watched zen_sanitizer_build
+zengine_sanitizer_runner_targets
 `CMakeLists.txt` zengine_sanitizer_runner_targets
 `tests/verify.cmake` ZEN_VERIFY_ENTRIES
 `tests/check_sanitizer_lane.cmake` zen_lane_expect (its fixed cases, the entry `sanitizer_lane`)
