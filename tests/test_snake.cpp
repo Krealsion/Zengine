@@ -1408,3 +1408,55 @@ TEST_CASE("a paused world takes no step until it resumes, from its own beat or a
     REQUIRE(next.snake.size() >= 2);
     CHECK(same_pos(next.snake[1], stood.snake.front()));
 }
+
+TEST_CASE("a paused world's beat rests and the world resumed keeps its pace") {
+    namespace scan = zengine::input::scan;
+    Timed t;
+    // The world's own beats, as the bus delivered them to it: every pace's id begins with the
+    // tick's.
+    std::int64_t beats = 0;
+    const loom::ObserverId tap = t.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && e.target == t.world && e.payload != nullptr &&
+            loom::same_identity(e.payload->schema(),
+                                *loom::schema_of<zengine::timer::TimerFired>()) &&
+            loom::from_value<zengine::timer::TimerFired>(*e.payload).id.rfind(kTickTimerId, 0) ==
+                0) {
+            ++beats;
+        }
+    });
+    const auto beats_in = [&](std::int64_t ms) {
+        const std::int64_t before = beats;
+        t.pump_for(ms);
+        return beats - before;
+    };
+
+    const std::int64_t playing = beats_in(1200);
+    CHECK(playing >= 9);
+    CHECK(playing <= 11);
+
+    // Paused by its key: a beat already on its way may land, and then none.
+    press(t.r.bus, scan::kP);
+    t.pump_for(240);
+    REQUIRE(t.read("paused") == "true");
+    CHECK(beats_in(1200) == 0);
+
+    // Resumed, at the pace it held.
+    press(t.r.bus, scan::kP);
+    t.pump_for(240);
+    REQUIRE(t.read("paused") == "false");
+    const std::int64_t resumed = beats_in(1200);
+    CHECK(resumed >= playing - 1);
+    CHECK(resumed <= playing + 1);
+
+    // A pause written into its state rests the beat as its key does, and a resume wakes it.
+    t.write("paused", "true");
+    t.pump_for(240);
+    CHECK(beats_in(1200) == 0);
+    t.write("paused", "false");
+    t.pump_for(240);
+    const std::int64_t written = beats_in(1200);
+    CHECK(written >= playing - 1);
+    CHECK(written <= playing + 1);
+
+    t.r.bus.remove_observer(tap);
+}

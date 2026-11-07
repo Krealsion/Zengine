@@ -335,6 +335,107 @@ TEST_CASE("Flow observes quiet state changes through the existing timer conversa
     CHECK(flow::read_project(fh::view(observed->project)).state.get("heating")->as_bool());
 }
 
+TEST_CASE("Flow's clock beats only while an input is in flight or a change is untold") {
+    Rig rig;
+    std::int64_t now = 0;
+    using Service = zengine::timer::TimerServiceT<StepClock>;
+    auto service = std::make_unique<Service>(StepClock{&now});
+    auto* timer = service.get();
+    auto timer_grant = loom::emit_default_grant(*timer);
+    const auto timer_id = rig.bus.register_weave(std::move(service), std::move(timer_grant),
+                                                 zengine::timer::kTimerRole);
+    timer->zen_set_self(timer_id);
+    zengine::testing::order_activation(rig.bus, zengine::testing::mount_door(rig.bus), timer_id, 1);
+
+    // The beats are the clock's firings as the bus delivered them; the virtual clock moves only
+    // while the Timer's own chain turns, so a span of it is a count of turns.
+    std::int64_t beats = 0;
+    const auto tap = rig.bus.add_observer([&](const loom::BusEvent& event) {
+        if (event.kind == loom::EventKind::Delivered && event.payload != nullptr &&
+            loom::same_identity(event.payload->schema(), *loom::schema_of<zengine::timer::TimerFired>()) &&
+            loom::from_value<zengine::timer::TimerFired>(*event.payload).id == "zengine.flow.observe")
+            ++beats;
+    });
+    const auto wait = [&](std::int64_t ms) {
+        const auto until = now + ms;
+        for (unsigned turn = 0; turn < 100000 && now < until; ++turn) rig.bus.pump_pending();
+        REQUIRE(now >= until);
+    };
+    const auto changes = [&] {
+        return std::count_if(rig.reader->messages.begin(), rig.reader->messages.end(), [](const auto& message) {
+            return loom::same_identity(message.payload.schema(), *loom::schema_of<fh::FlowChanged>());
+        });
+    };
+    const auto ask = [&](const auto& request) {
+        const auto corr = ++rig.correlation;
+        rig.bus.send_as_to_role(rig.client, fh::kFlowHostRole,
+            loom::Message(loom::to_value(request), rig.client, {}, corr));
+        for (unsigned turn = 0; turn < 4096; ++turn) {
+            rig.bus.pump_pending();
+            for (const auto& message : rig.reader->messages)
+                if (message.correlation == corr &&
+                    loom::same_identity(message.payload.schema(), *loom::schema_of<fh::FlowAnswer>()))
+                    return loom::from_value<fh::FlowAnswer>(message.payload);
+        }
+        FAIL("no correlated Flow answer");
+        return fh::FlowAnswer{};
+    };
+    const auto quiet = [&] {
+        wait(200);
+        const auto before = beats;
+        wait(2000);
+        return beats - before;
+    };
+
+    // No session: nothing to look at, so no beat.
+    CHECK(quiet() == 0);
+
+    // A running session with nothing in flight has nothing to look at either.
+    auto project = rig.project();
+    project.definition.emits.clear();
+    for (auto& trigger : project.definition.on) trigger.emits.clear();
+    const auto started = ask(fh::FlowRun{"draft", fh::bytes(flow::project_bytes(project))});
+    REQUIRE(started.ok);
+    CHECK(quiet() == 0);
+
+    // An input opens a fence: the clock beats until it settles and its owner is told.
+    loom::Value reading(project.definition.accepts.front());
+    reading.set("degrees", loom::Cell::integer(17));
+    const auto told = changes();
+    const auto before_input = beats;
+    REQUIRE(ask(fh::FlowSend{"draft", fh::bytes(loom::serialize(reading))}).ok);
+    wait(200);
+    CHECK(beats > before_input);
+    CHECK(changes() > told);
+    CHECK(ask(fh::FlowInspect{"draft", 0}).pending == 0);
+    CHECK(quiet() == 0);
+
+    // An applied edit changes the session with no input: the clock wakes to tell the owner.
+    auto edit = project.definition;
+    ++edit.revision;
+    const auto told_before_edit = changes();
+    REQUIRE(ask(fh::FlowApply{"draft", fh::bytes(zengine::maker::definition_bytes(edit))}).ok);
+    wait(200);
+    CHECK(changes() > told_before_edit);
+    CHECK(quiet() == 0);
+
+    // A message that reaches the rule from anyone else changes its journal with no fence: the
+    // clock wakes to tell the owner, then rests again.
+    const loom::WeaveId subject{std::stoull(started.subject)};
+    loom::Grant foreign_grant;
+    const auto accepted = project.definition.accepts.front();
+    foreign_grant.allow(accepted->name(), accepted->version(), subject);
+    const auto foreign = rig.bus.register_weave(std::make_unique<Client>(), foreign_grant);
+    reading.set("degrees", loom::Cell::integer(25));
+    const auto told_before_foreign = changes();
+    rig.bus.send_as(foreign, subject, loom::Message(reading, foreign));
+    wait(200);
+    CHECK(changes() > told_before_foreign);
+    CHECK(quiet() == 0);
+
+    rig.bus.remove_observer(tap);
+}
+
 TEST_CASE("Flow input identity is target scoped and foreign outputs cannot impersonate its subject") {
     Rig rig;
     const auto started = rig.run();
