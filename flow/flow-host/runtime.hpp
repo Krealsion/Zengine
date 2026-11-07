@@ -181,7 +181,7 @@ private:
     loom::ObserverId observer_{};
     std::map<std::uint64_t, Session> sessions_;
 
-    /// Something changed: the clock beats again if it rests. One ask while it is wanted.
+    /// A change is untold: the clock beats again if it rests. One ask while it is wanted.
     void wake() {
         if (awake_ || !clock_.valid()) return;
         awake_ = true;
@@ -236,7 +236,6 @@ private:
         if (!result) throw std::runtime_error(result.reason);
         s.definition = std::move(definition);
         s.observation->changed = true;
-        wake();
     }
     void send(std::uint64_t id, const loom::Bytes& payload, std::uint64_t correlation) {
         auto& s = session(id);
@@ -260,9 +259,9 @@ private:
         if (!ticket.valid()) throw std::runtime_error("input was not queued (host dispatch fence unavailable)");
         s.fences.push_back({fence, ticket, correlation});
         s.observation->record("queued", correlation, payload, "input queued; delivery and behavior are separate facts");
-        wake();
     }
-    // Each bus event: noted in its session's journal, and the clock woken by a change it made.
+    // Each bus event: noted in its session's journal, and the clock woken by a change still
+    // untold. The one waker: a change made in a request is followed by its answer's delivery.
     void observed(const loom::BusEvent& event) {
         note(event);
         if (awake_) return;

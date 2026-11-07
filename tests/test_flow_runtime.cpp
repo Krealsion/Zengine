@@ -410,6 +410,15 @@ TEST_CASE("Flow's clock beats only while an input is in flight or a change is un
     CHECK(ask(fh::FlowInspect{"draft", 0}).pending == 0);
     CHECK(quiet() == 0);
 
+    // An applied edit changes the session with no input: the clock wakes to tell the owner.
+    auto edit = project.definition;
+    ++edit.revision;
+    const auto told_before_edit = changes();
+    REQUIRE(ask(fh::FlowApply{"draft", fh::bytes(zengine::maker::definition_bytes(edit))}).ok);
+    wait(200);
+    CHECK(changes() > told_before_edit);
+    CHECK(quiet() == 0);
+
     // A message that reaches the rule from anyone else changes its journal with no fence: the
     // clock wakes to tell the owner, then rests again.
     const loom::WeaveId subject{std::stoull(started.subject)};
