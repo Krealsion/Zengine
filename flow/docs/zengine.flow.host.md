@@ -32,7 +32,7 @@ Every bound is the host's own, declared in [`flow/flow-host/runtime.hpp`](../flo
 the oldest dropped and counted; `kMaxEventBytes` of one event's payload, past which it is left out
 and the event says so; and the maker file limit, `maker::kMaxFileBytes`, for a project, a
 definition, an input and a catalog answer. The host looks at its sessions on its own beat,
-`zengine.flow.observe`.
+`zengine.flow.observe`, which runs only while an input is in flight or a change is untold.
 
 ## Use
 

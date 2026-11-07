@@ -72,7 +72,6 @@ public:
 
     /// Any other driver's tick: a replay, a stepper, a test. A paused world takes no step.
     void on(const SnakeTick&, loom::Mail& mail) {
-        retime(mail);
         if (state_.paused) {
             return;
         }
@@ -160,7 +159,6 @@ public:
             } else {
                 continue;
             }
-            retime(mail);
             mail.publish(visual_of(state_));
             present_board(); // the board it inherited, said again whole
             return;
@@ -177,9 +175,9 @@ public:
     }
 #endif
 
-    /// Started, or started again (a reload keeps the state): the beat follows the pace the state
-    /// holds.
-    void on_timed_activation(const loom::Activated&, loom::Mail& mail) { retime(mail); }
+    /// After every delivery, and every write into its state: the beat follows the state, at the
+    /// pace it holds and only while the world plays. Started again by a reload, it does the same.
+    void after_delivery(loom::Mail& mail) { keep_beat(mail); }
 
     /// The world's own nodes: the score, the death notice, the board's place, the new-game button
     /// and the pause button beside it, which says resume while the world is paused.
@@ -216,7 +214,6 @@ private:
         if (f.id != beat_.id()) {
             return; // a firing of a pace already given up, in flight when it was
         }
-        retime(mail);
         if (state_.beat_ms <= 0 || state_.paused) {
             return;
         }
@@ -317,6 +314,20 @@ private:
         state_.key_left = from.key_left;
         state_.beat_ms = from.beat_ms;
         state_.ticks = from.ticks;
+    }
+
+    /// The beat at the state's pace, given up while the world is paused and asked again when it
+    /// resumes.
+    void keep_beat(loom::Mail& mail) {
+        retime(mail);
+        if (armed_ms_ <= 0) {
+            return;
+        }
+        if (state_.paused && beat_.waiting()) {
+            beat_.cancel(mail);
+        } else if (!state_.paused && beat_.canceled()) {
+            beat_.restart(mail);
+        }
     }
 
     /// A pace written since the beat was asked for: the beat given up and asked again at the new

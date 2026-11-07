@@ -8,7 +8,7 @@ smoke                             program           always
 neovim                            doctest           always  22
 neovim_live                       doctest           neovim  21
 # Tripwires in this suite read examples/snake/play.cpp and examples/snake/world.cpp as text (VM-WALL-11).
-snake                             doctest           always  32
+snake                             doctest           always  35
 timer                             doctest           always  87
 # Tripwires in this suite read the SDL queue's reader as text: input/translate_sdl_core.hpp and
 # graphics/window/window_sdl_backend.hpp (VM-WALL-11).
@@ -111,7 +111,7 @@ folder_map                        script            always
 manual                            script            always
 configure_switches                script            always
 sanitizer_lane                    script            always
-flow                              doctest           always  61
+flow                              doctest           always  82
 
 message_draft                     doctest           always  11
 settings_themes                   doctest           always  18

@@ -46,6 +46,9 @@ struct FlowHostPulse {
 /// The state of the host's own weaves, its office and its clock: none. Their sessions and beat
 /// are the host's, never reload-kept state.
 struct FlowHostClockState { ZEN_SHAPE(FlowHostClockState, 1); };
+/// The host's word to its clock: beat again.
+struct FlowHostClockStart { ZEN_SHAPE(FlowHostClockStart, 1); };
+class Clock;
 struct Observation {
     std::deque<FlowEvent> events;
     std::int64_t next = 1;
@@ -129,7 +132,10 @@ public:
     // Call once per ordinary host turn. This never pumps, waits or dispatches.
     // Notifications are queued outside input fences so a pane's inspection cannot
     // become part of the very fence whose completion it is trying to display.
-    void poll() {
+    // True while there is still something to look at: an input in flight, or a change
+    // its owner has not been told.
+    bool poll() {
+        bool work = false;
         for (auto& [subject, session] : sessions_) {
             for (auto it = session.fences.begin(); it != session.fences.end();) {
                 if (bus_.fence_state(it->fence) != loom::FenceState::Open) {
@@ -143,11 +149,15 @@ public:
                     loom::to_value(detail::FlowHostPulse{std::to_string(subject)}), manager_));
                 if (ticket.valid()) session.observation->changed = false;
             }
+            work = work || !session.fences.empty() ||
+                   (session.observation->changed && manager_.valid());
         }
+        return work;
     }
 
 private:
     friend class Manager;
+    friend class detail::Clock;
     struct Pending {
         loom::Fence fence;
         loom::Ticket ticket;
@@ -166,8 +176,17 @@ private:
     loom::Switchboard& bus_;
     op::Catalog& catalog_;
     loom::WeaveId manager_{}, clock_{};
+    /// Whether the clock's beat is wanted: asked for and not yet given up.
+    bool awake_ = false;
     loom::ObserverId observer_{};
     std::map<std::uint64_t, Session> sessions_;
+
+    /// Something changed: the clock beats again if it rests. One ask while it is wanted.
+    void wake() {
+        if (awake_ || !clock_.valid()) return;
+        awake_ = true;
+        bus_.send(clock_, loom::Message(loom::to_value(detail::FlowHostClockStart{})));
+    }
 
     std::uint64_t create(flow::Project project) {
         if (bus_.role_holder(project.definition.name).valid())
@@ -217,6 +236,7 @@ private:
         if (!result) throw std::runtime_error(result.reason);
         s.definition = std::move(definition);
         s.observation->changed = true;
+        wake();
     }
     void send(std::uint64_t id, const loom::Bytes& payload, std::uint64_t correlation) {
         auto& s = session(id);
@@ -240,8 +260,19 @@ private:
         if (!ticket.valid()) throw std::runtime_error("input was not queued (host dispatch fence unavailable)");
         s.fences.push_back({fence, ticket, correlation});
         s.observation->record("queued", correlation, payload, "input queued; delivery and behavior are separate facts");
+        wake();
     }
+    // Each bus event: noted in its session's journal, and the clock woken by a change it made.
     void observed(const loom::BusEvent& event) {
+        note(event);
+        if (awake_) return;
+        for (const auto& [subject, s] : sessions_)
+            if (s.observation->changed) {
+                wake();
+                return;
+            }
+    }
+    void note(const loom::BusEvent& event) {
         // WHAT A RULE SAID, as the session's own participant heard it from the rule: journaled
         // with the arrival whose handling said it, the delivery the bus was dispatching when the
         // output was queued.
@@ -448,7 +479,8 @@ private:
 };
 
 namespace detail {
-struct FlowHostClockStart { ZEN_SHAPE(FlowHostClockStart, 1); };
+// The host's beat: it looks at the sessions every 16 ms while an input is in flight or a change
+// is untold, and rests when a look finds neither, until the host says something changed.
 class Clock final : public timer::TimedWeave<Clock, FlowHostClockState, loom::Accept<FlowHostClockStart>> {
 public:
     explicit Clock(RuntimeHost& host) : host_(host) {
@@ -458,7 +490,11 @@ public:
     void on(const FlowHostClockStart&, loom::Mail& mail) {
         if (!mail.sender().valid()) beat_.restart(mail);
     }
-    void beat(const timer::TimerFired&, loom::Mail&) { host_.poll(); }
+    void beat(const timer::TimerFired&, loom::Mail& mail) {
+        if (host_.poll() || beat_.canceled()) return;
+        beat_.cancel(mail);
+        host_.awake_ = false;
+    }
 private:
     RuntimeHost& host_;
     timer::TimerHandle<Clock> beat_;
@@ -489,7 +525,7 @@ inline loom::WeaveId RuntimeHost::mount() {
     auto* raw_clock = clock.get();
     clock_ = bus_.register_weave(std::move(clock), std::move(tick));
     raw_clock->zen_set_self(clock_);
-    bus_.send(clock_, loom::Message(loom::to_value(detail::FlowHostClockStart{})));
+    wake();
     return manager_;
 }
 

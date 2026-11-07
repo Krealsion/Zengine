@@ -22,8 +22,10 @@ Source: [`examples/snake/`](world.cpp) — world, board, score, pilot, host.
   it still holds the board.
 - **Its pause** is the world's, whoever steers: `p` or the pause button pauses it and resumes it,
   and a paused world takes no step -- from its beat or a `SnakeTick` -- and no turn until it
-  resumes. Writing `pause_at` asks it to pause itself after that step of the game, once: with the
-  pilot flying from the first step, the same game held still on the same step every run.
+  resumes. Its beat rests while it is paused, however the pause was written, and a resumed world
+  beats again at the pace it held. Writing `pause_at` asks it to pause itself after that step of
+  the game, once: with the pilot flying from the first step, the same game held still on the same
+  step every run.
   Both versions converse (`zen.PrepareShutdown` → a letter); v2 is additionally an heir -- it
   claims by role on first wake and folds a v1 inheritance through `migrate()`.
 - **Its doors stay open.** `SnakeTick` and `SnakeTurn`, sent by role to whoever holds

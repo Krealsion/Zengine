@@ -64,7 +64,9 @@ provenance or grants. Reusing one never reuses old authority.
 The host adapter owns one fence per queued input. It never pumps or waits. An ordinary Timer
 binding wakes its observation clock every 16 ms, retires settled fences and asks the manager to
 notify the session owner. Quiet state-only triggers therefore update the pane without relying
-on an output message. Hosts without a Timer can call `RuntimeHost::poll()` between their own
+on an output message. The clock beats only while an input is in flight or a change has not
+been told, and rests when a look finds neither: an input, an applied edit or a message reaching
+a session wakes it again, so an idle host takes no beat. Hosts without a Timer can call `RuntimeHost::poll()` between their own
 turns; manual inspection still reads current state and fence status.
 
 A fence counts the synchronous dispatch descendants of one input. It does not wait for future
