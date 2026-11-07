@@ -5,6 +5,7 @@
 // Workshop law: agents/workshop/tab-run.md (+5 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
+#include "component/text.hpp"
 
 namespace zengine::workshop {
 
@@ -185,15 +186,15 @@ LayoutTabRun layout_tab_run(const LiveDesk& setup, std::int64_t columns) {
         LayoutTab tab;
         tab.at = i;
         tab.active = i == live;
-        tab.column = static_cast<std::int64_t>(run.text.size());
+        tab.column = static_cast<std::int64_t>(component::text_columns(run.text));
         // THE LIVE TAB IS CUT RATHER THAN DROPPED where even it alone cannot fit, because
         // "which layout am I in" is the one thing this run may not stop saying (rule 2).
         // `detail::fit` marks the cut, and the span recorded is what was actually written.
         std::string shown = text[i];
-        if (tab.column + static_cast<std::int64_t>(shown.size()) > columns - tail_cost) {
+        if (tab.column + static_cast<std::int64_t>(component::text_columns(shown)) > columns - tail_cost) {
             shown = detail::fit(std::move(shown), columns - tail_cost - tab.column);
         }
-        tab.columns = static_cast<std::int64_t>(shown.size());
+        tab.columns = static_cast<std::int64_t>(component::text_columns(shown));
         run.text += shown;
         run.tabs.push_back(tab);
     }
@@ -202,7 +203,7 @@ LayoutTabRun layout_tab_run(const LiveDesk& setup, std::int64_t columns) {
     }
     // ...and the create affordance out of what is genuinely left, last and from the same budget
     // (rule 3), so it never pushes the association's reservation off a narrow row.
-    const std::int64_t written = static_cast<std::int64_t>(run.text.size());
+    const std::int64_t written = static_cast<std::int64_t>(component::text_columns(run.text));
     if (written + kLayoutCreateCols <= columns) {
         run.create_column = written + 1; // the pad cell belongs to the gap, not to the mark
         run.create_columns = 1;
@@ -220,7 +221,7 @@ BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     const LayoutTabRun run = layout_tab_run(s.setup, layout_tab_columns(place.columns));
     out.before = run.before;
     out.after = run.after;
-    const std::int64_t left = static_cast<std::int64_t>(run.text.size());
+    const std::int64_t left = static_cast<std::int64_t>(component::text_columns(run.text));
     std::string rest = setup_rest_text(s.setup, s.panes, s.keymap, s.band_keys);
     // The workspace fact folds in where the top band has no second row for it, into the cuttable
     // half: a room's size is the one fact here a weaver can also read off their window.
@@ -231,7 +232,7 @@ BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     // to the unresolved count and the two gestures too, and only what then does not fit is cut
     // from the right. The verdict is reserved, the tail degrades, the path absorbs.
     const std::int64_t path_columns = place.columns - left - kSetupStatusCols + kElidedCols -
-                                      static_cast<std::int64_t>(rest.size());
+                                      static_cast<std::int64_t>(component::text_columns(rest));
     std::string standing = setup_link_text(
         s.setup, path_columns > kElidedCols ? path_columns : kElidedCols);
     // The status is right-adjusted where there is room: the gap is the row's slack, which pins the
@@ -239,7 +240,7 @@ BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     // it.
     std::string line = run.text;
     const std::int64_t joined =
-        left + kStatusJoinCols + static_cast<std::int64_t>(standing.size() + rest.size());
+        left + kStatusJoinCols + static_cast<std::int64_t>(component::text_columns(standing) + component::text_columns(rest));
     if (joined < place.columns) {
         line.append(static_cast<std::size_t>(place.columns - joined + kStatusJoinCols), ' ');
     } else {
@@ -250,7 +251,7 @@ BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     out.text = detail::fit(std::move(line), place.columns);
     // A span the row's own cut removed is not a tab any more. Unreachable at every honest extent,
     // and kept: a span outliving its bytes is stale geometry a press must never be answered from.
-    const std::int64_t painted = static_cast<std::int64_t>(out.text.size());
+    const std::int64_t painted = static_cast<std::int64_t>(component::text_columns(out.text));
     for (const LayoutTab& tab : run.tabs) {
         if (tab.column + tab.columns <= painted) {
             out.tabs.push_back(tab);

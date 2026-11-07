@@ -56,10 +56,10 @@ int main() {
     gfx::PaintTask task;
     task.nodes.push_back(gfx::PaintNode{"plate", {1}, picture.nodes()[0].op,
                                         picture.nodes()[0].args,
-                                        {gfx::PaintInk{0x336699ff, {}, {}}, gfx::PaintInk{}}});
+                                        {gfx::PaintInk{0x336699ff, {}, {}}, gfx::PaintInk{}}, {}, {}});
     task.nodes.push_back(gfx::PaintNode{"label", {2}, picture.nodes()[1].op,
                                         picture.nodes()[1].args,
-                                        {gfx::PaintInk{0x112233ff, {}, {}}}});
+                                        {gfx::PaintInk{0x112233ff, {}, {}}}, {}, {}});
     const gfx::PaintResult painted = gfx::light::paint_task(task);
     check(painted.nodes.size() == 2, "the painter for light paints each node");
     const auto plate = gfx::light::unpack_node(painted.nodes[0].cells);

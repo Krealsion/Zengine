@@ -50,8 +50,9 @@ another pane, and the pane opens or comes forward with your keys in it; the Pane
 Every other key is the line's own: characters, the caret keys, `Home` and `End`, erasing, undo,
 `Shift` with the caret keys to select, and the clipboard. A press on the line places the caret, and
 a second press in the same word selects it; a press does not sweep a selection. Pasted text is
-flattened onto one line, and refused whole when it would not draw: `the clipboard holds bytes
-outside plain ASCII, which this line cannot carry truthfully -- nothing was pasted`.
+flattened onto one line, every character as written, and refused whole, said, when what is left
+would not draw: `the clipboard holds a control character or bytes that spell no character, which
+this line cannot carry truthfully -- nothing was pasted`.
 
 A press on a submitted, received or answer row picks up a copy of its value
 ([`entry`](#entry)).

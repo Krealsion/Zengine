@@ -67,8 +67,8 @@ and `view::ViewWiring`.
 - It draws in its size within the room Workshop grants: each element at its pixels, a number
   field's text and caret, a button's label, a label and the value it shows, and beneath the size
   a notice in `view::kNoticeRows` lines of the medium's text (`view::notice_band`), so no element
-  is under it. Other parties' words on the notice -- a shape's name, a refusal -- are spelled in
-  printable ASCII (`workshop::pane_text::ascii_spelling`). A pane smaller than the view and its
+  is under it. Other parties' words on the notice -- a shape's name, a refusal -- are shown as
+  written (`workshop::pane_text::printable`). A pane smaller than the view and its
   notice rows cuts the picture.
   Text sits on the medium's own lattice inside its element and is fitted to what the medium
   measures, so a terminal shows the same picture floored to cells.

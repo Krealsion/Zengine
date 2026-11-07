@@ -3128,7 +3128,8 @@ std::set<std::pair<std::int64_t, std::int64_t>> painted_cells(const gw::WinArea&
     for (const gw::KeptNode& k : a.nodes) {
         task.nodes.push_back(gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path), k.node.op,
                                             k.node.args,
-                                            gw::inks_of(k.node.op, k.node.args, palette, a.owner)});
+                                            gw::inks_of(k.node.op, k.node.args, palette, a.owner),
+                                            {}, {}});
     }
     std::set<std::pair<std::int64_t, std::int64_t>> out;
     for (const gfx::NodePaint& np : gfx::term::paint_task(task).nodes) {
@@ -4144,7 +4145,7 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
     const auto offer = [&window](std::int64_t cols, std::int64_t rows,
                                  std::string name = gfx::kTerminalWindow) {
         window.publish(gfx::WindowOffered{name, cells_px(cols), cells_px(rows), 7, 0, gfx::kCellPx,
-                                          gfx::kCellPx});
+                                          gfx::kCellPx, {}});
     };
     REQUIRE(seat->asks.empty());
 
@@ -4239,7 +4240,7 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
 
         os_does([](loom::Mail& m) {
             (void)m.as_role(sdl_window_office())
-                .publish(gfx::WindowOffered{gfx::kSdlWindow, 1085, 361, 3, gfx::kCellPx, 8, 18});
+                .publish(gfx::WindowOffered{gfx::kSdlWindow, 1085, 361, 3, gfx::kCellPx, 8, 18, {}});
         });
         // UP IN IT, the last session restored first, and laid out in its room in pixels, its text
         // the face the window measured and the device unit the pixel, as the window says...
@@ -4355,7 +4356,7 @@ TEST_CASE("in the terminal window a point in cells is the window's own cell, wit
     r.mount_workshop();
     Sayer<gfx::WindowOffered> window(r, terminal_window_office());
     window.publish(gfx::WindowOffered{gfx::kTerminalWindow, cells_px(120), cells_px(40), 7, 0,
-                                      gfx::kCellPx, gfx::kCellPx});
+                                      gfx::kCellPx, gfx::kCellPx, {}});
     const Session& s = r.session();
     r.key(input::scan::kA);
     REQUIRE(s.context.open);

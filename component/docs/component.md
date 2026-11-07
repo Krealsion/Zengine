@@ -124,6 +124,12 @@ and the pane that owns the operation is the only party that can give one.
 component/text.hpp       is_continuation_byte / character_before / character_after
                          character_boundary / character_boundary_at_or_after
                                           what a CHARACTER is, in this application
+                         character_columns / text_columns / columns_between
+                         cut_at_columns / byte_at_column / start_for_columns / column_slice
+                                          how many COLUMNS a character takes: 0, 1 or 2 by
+                                          Unicode's width classes (`unicode_width.hpp`,
+                                          written by tools/unicode-width.py), the one rule
+                                          every presentation lays text out by
                          word_before / word_after
                                           what a WORD is: space-delimited runs, nothing more
                          pasteable_line   what foreign bytes become in a one-line box
@@ -188,7 +194,9 @@ same value scrolled freely with a bar: both are faces (`graphics/elements/text_f
 itself; the scroll's keys are the owner's, which names its own actions.
 
 **This package knows no medium, and each look is a face.** A text piece is measured here in
-characters, as both media lay a row out: what a width shows (`text_box_view`, `TextArea::lines`,
+columns, each character taking its own -- none for a combining mark, two for a wide character such
+as an ideograph or an emoji -- as both media lay a row out, and a cut never falls inside a
+character: what a width shows (`text_box_view`, `TextArea::lines`,
 `shown_line`), where its caret and selection stand, which place a press means (`text_box_press`,
 `place_in_line`). How it looks -- a box's `[text___]` in a row of cells or its outline where the
 window sets type, an area's markers or its bar -- is a face beside the others in

@@ -1928,7 +1928,7 @@ TEST_CASE("a value dropped on no label is refused in words whatever is selected;
     CHECK(d.shows[0].field == "total");
 }
 
-TEST_CASE("a label bound to a shape named beyond plain ASCII leaves the builder's whole picture drawable, the design canvas spelling the name the view waits for") {
+TEST_CASE("a label bound to a shape named beyond plain ASCII leaves the builder's whole picture drawn, the design canvas showing the name the view waits for as written") {
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     REQUIRE(rig.edit("select", {"4"}).ok);
@@ -1944,10 +1944,10 @@ TEST_CASE("a label bound to a shape named beyond plain ASCII leaves the builder'
     CHECK(d.shows[0].shape->name() == "tally.Gr\xC3\xB6\xC3\x9F" "e");
     // The picture the builder drew is one its window keeps whole...
     CHECK(rig.shown->weave().refusals.empty());
-    // ...and the view's own notice on the design canvas spells the name, one `?` a character.
+    // ...and the view's own notice on the design canvas shows the name, every character as written.
     const auto* waiting = rig.drawn("waiting to be told");
     REQUIRE(waiting != nullptr);
-    CHECK(waiting->text == "waiting to be told tally.Gr??e");
+    CHECK(waiting->text == "waiting to be told tally.Gr\xC3\xB6\xC3\x9F" "e");
     CHECK(rig.drawn("Total: waiting") != nullptr);
 }
 

@@ -125,7 +125,7 @@ or picks up"
 PresenterReady MenuClosed MenuReturned MenuShown kMaxMenuLines MenuDrawing MenuLine
 close_held_menu
 `workshop/menu-presenter/presenter.cpp` MenuPresenter refusal_of MenuPresenter::give_back
-MenuPresenter::row_of MenuPresenter::is_rule rule_line drawable
+MenuPresenter::row_of MenuPresenter::is_rule rule_line menu_line
 `examples/numbered-presenter/presenter.cpp` NumberedPresenter digit_row line_for
 NumberedPresenter::give_back NumberedPresenter::row_of
 `workshop/pane_menu.hpp` Asked Asked::take Offer

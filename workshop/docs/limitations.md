@@ -379,11 +379,11 @@ arrive as a single space, and two copied lines land joined by one. A paste is al
 gesture for undo** — `Ctrl`+`Z` after pasting takes back the paste and leaves what you had
 typed before it.
 
-**Text outside plain ASCII is not pasted, and the pane says so.** A line whose row draws those
-bytes as spaces would show you something other than what you would submit, so the whole paste
-is refused with a sentence above the line rather than a half of it landing. Typing such a
-character is refused the same way — that door is the pane's own, and it arrived with the pane;
-the modal terminal this replaced let those bytes into the line.
+**Control characters a line cannot flatten, and bytes that spell no character, are not pasted, and
+the pane says so.** A line holding them would
+show you something other than what you would submit, so the whole paste is refused with a
+sentence above the line rather than a half of it landing; every character is pasted as written.
+Typing such bytes is refused the same way — that door is the pane's own.
 
 **A refusal never takes the line's row.** If a door refuses what the Terminal asked it to run,
 the sentence appears *above* your command line — the line stays where it was, with your caret

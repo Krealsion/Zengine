@@ -66,8 +66,9 @@ public:
         put(name, op::kPath, PathArgs{d, fill, stroke});
     }
     void text(const std::string& name, std::int64_t x, std::int64_t y, const std::string& words,
-              Color ink) {
-        put(name, op::kText, TextArgs{x, y, words, ink});
+              Color ink, TextSize size = {}, std::int64_t weight = text_weight::kRegular,
+              std::string font = {}) {
+        put(name, op::kText, TextArgs{x, y, words, ink, std::move(size), std::move(font), weight});
     }
     void image(const std::string& name, std::int64_t x, std::int64_t y, std::int64_t w,
                std::int64_t h, std::int64_t pw, std::int64_t ph, loom::Bytes rgba) {

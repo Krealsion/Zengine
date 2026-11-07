@@ -56,7 +56,7 @@ struct Quad {
 /// palette it wrote it in (none where no pool colour's is, or the terminal's default).
 struct Cell {
     std::int64_t col = 0, row = 0;
-    char glyph = ' ';
+    std::string glyph = " "; ///< its character; "" for the second cell of a wide one
     zengine::graphics::Color ink;
 };
 

@@ -2683,11 +2683,9 @@ TEST_CASE("an open the desk cannot show opens nothing, and Files says why") {
 
 TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
     // `u` on a file that is not JSON asks the project door, whose `from_text` answers with Loom's
-    // `Error::message()`, and that message carries a UTF-8 em dash in its `detail`. The seam
-    // refuses a WHOLE publication over one such byte, hiding the refusal behind the generic room
-    // banner, so `push_row` spells it through `ascii_spelling` (`workshop/pane_text.hpp`). The
-    // answer is `from_text`'s own, not mocked: 96 bytes with the dash at byte 60; the notice is
-    // 180 bytes unspelled and 178 spelled.
+    // `Error::message()`, and that message carries a UTF-8 em dash in its `detail`, which a row
+    // shows as itself (`printable`, `workshop/pane_text.hpp`). The answer is `from_text`'s own, not
+    // mocked: 96 bytes with the dash at byte 60; the notice is 180 bytes, 178 columns.
     FilesRig f("files-nonascii-refusal");
     put_file(f.root / "not-a-catalog.txt", "not json at all\n");
 
@@ -2702,20 +2700,16 @@ TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
         REQUIRE_MESSAGE(held_canvas_rows(*pane).columns > 178, "granted only ",
                         held_canvas_rows(*pane).columns,
                         " columns -- too narrow for this case to mean anything");
-        // ADMITTED, NOT REFUSED. ⚔ MUTATION
-        // (tests/mutants/workshop_panes_files.md#rows-not-spelled): `ascii_spelling` dropped from
-        // `push_row` turns this red -- the canvas refuses the whole picture over the byte it cannot
-        // draw, and the picture Workshop holds is the one before the answer, which says nothing of
-        // it.
+        // ADMITTED, NOT REFUSED: the picture Workshop holds is the one with the answer.
         const std::vector<std::string> held = held_row_texts(*pane);
         REQUIRE(any_row(held, "MalformedBytes"));
-        // THE EM DASH SURVIVED AS ITS ASCII TWIN -- spelled, not dropped, not left as raw UTF-8.
-        CHECK(any_row(held, "MalformedBytes - not valid JSON: invalid literal"));
+        // THE EM DASH IS ITSELF -- not dropped, not spelled -- and every row is whole characters.
+        CHECK(any_row(held, "MalformedBytes \xE2\x80\x94 not valid JSON: invalid literal"));
         for (const std::string& row : held) {
-            for (const char c : row) {
-                const unsigned char byte = static_cast<unsigned char>(c);
-                CHECK(byte >= 0x20u);
-                CHECK(byte < 0x7Fu);
+            for (std::size_t i = 0; i < row.size(); i = zengine::component::character_end(row, i)) {
+                CHECK(zengine::component::code_point_at(row, i) !=
+                      zengine::component::kNotACharacter);
+                CHECK(zengine::component::code_point_at(row, i) >= 0x20u);
             }
         }
         // THE WEAVER'S OWN SCREEN AGREES: the canvas draws the same sentence, not the generic
@@ -2731,7 +2725,7 @@ TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
 
     SUBCASE("a narrow control: a room too narrow for the reason at all still admits") {
         // THE NARROWEST ROOM THIS BUILD GRANTS (`kScreenMinW`, `screen.hpp`), under 60 columns:
-        // `fit` cuts the row long before the dash at byte 121 of the unspelled notice, so fixed
+        // `fit` cuts the row long before the dash at byte 121 of the notice, so fixed
         // and unfixed code admit it alike. Holding width at its floor rules out a narrow room
         // dodging the byte as the reason the wide case passes.
         f.open(kScreenMinCols, kScreenMinRows);

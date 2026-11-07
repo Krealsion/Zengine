@@ -99,9 +99,9 @@ constexpr std::int64_t kFilesWheelRows = 3;
 constexpr std::int64_t kFilesWheelRowsLow = 1;
 constexpr std::int64_t kFilesWheelRowsHigh = 24;
 
-/// The shared pane text helpers (`workshop/pane_text.hpp`); `judge_content` is why the fit must
-/// be applied at all.
-using zengine::workshop::pane_text::ascii_spelling;
+/// The shared pane text helpers (`workshop/pane_text.hpp`): every row fitted to the columns the
+/// pane was granted.
+using zengine::workshop::pane_text::printable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::fit_path;
 using zengine::workshop::pane_text::scrub;
@@ -1590,13 +1590,7 @@ private:
     // ---- Clipboard (the authoring line's paste) -----------------------------------------
 
     static bool admissible(std::string_view text) {
-        for (const char c : text) {
-            const unsigned char b = static_cast<unsigned char>(c);
-            if (b < 0x20u || b >= 0x7Fu) {
-                return false;
-            }
-        }
-        return true;
+        return zengine::workshop::pane_text::admissible(std::string(text));
     }
 
     /// A paste is asked of the window that shows the pane's area, and of nobody while none does.
@@ -1617,12 +1611,11 @@ private:
 
     // ---- Saying what the pane shows -----------------------------------------------------
 
-    /// One row's text as this pane draws it: spelled before it is fit (`ascii_spelling`,
-    /// `workshop/pane_text.hpp`), since a notice can relay another owner's diagnostic verbatim,
-    /// which may carry UTF-8, and `judge_content` admits a publication whole or not at all, so
-    /// one unspelled byte would refuse every row this pane sent.
+    /// One row's text as this pane draws it, made printable before it is fit (`printable`,
+    /// `workshop/pane_text.hpp`), since a notice can relay another owner's diagnostic verbatim:
+    /// every character as written, a control character a space and an escape sequence left out.
     std::string fitted(const std::string& text) const {
-        return fit(ascii_spelling(text), columns());
+        return fit(printable(text), columns());
     }
     /// ...as the facet's strip and window take it (`PaneRowsFacet::push_controls`).
     auto fit_row() const {

@@ -302,11 +302,11 @@ What the reader shows, and what it does not:
   a line too long to keep is cut and counted. The header says so whenever it happened. The numbers
   are in `builder/vocabulary.hpp` (`kKeptOperations`, `kKeptHeadBytes`, `kKeptTailBytes`,
   `kMaxKeptLineBytes`). Nothing is written to a file, and a restart keeps nothing.
-- **It is spelled in what the screen can draw.** A compiler's curly quotes and dashes are shown as
-  their plain ASCII twins, any other character that cannot be drawn as `?`, and colour codes not at
-  all — and the header counts them. A path, a line and column and the caret line under the source
-  read exactly as written. On Windows, Ninja re-encodes the non-ASCII characters it passes on, so
-  a compiler's quotes can arrive as other characters and read as `?`.
+- **It is shown as written.** A compiler's curly quotes and dashes are shown as themselves, a tab
+  or other control character as a space, and colour codes not at all — and the header counts what
+  it did not show. A path, a line and column and the caret line under the source read exactly as
+  written. On Windows, Ninja re-encodes the non-ASCII characters it passes on, so a compiler's
+  quotes can arrive as other characters.
 
 **A build that worked and a load that was refused are two answers.** Take one message out of the
 `loom::Accept<…>` list near the top of `attention/pane.cpp` — `PaneActionRequested`, say —

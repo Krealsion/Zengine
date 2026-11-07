@@ -18,6 +18,7 @@
 #include "composer/draft.hpp"
 #include "graphics/colors.hpp"
 #include "workshop/pane_rows.hpp"
+#include "workshop/pane_text.hpp"
 
 #include <zen/kind.hpp>
 #include <zen/schema.hpp>
@@ -97,33 +98,16 @@ struct ComposerView {
 inline constexpr const char* kSelectedMark = "> ";
 inline constexpr const char* kUnselectedMark = "  ";
 
-/// The mark this view leaves where it could not show everything -- three plain
-/// characters, because this canvas is plain ASCII by contract.
-inline constexpr const char* kElided = "...";
+/// The mark this view leaves where it could not show everything: the panes' own.
+inline constexpr const char* kElided = zengine::workshop::pane_text::kElided;
 
-/// Fit `text` into `columns`, and say so when it did not fit. A copy, as introspection's is: a
-/// provider is a stranger to Workshop's own composition. `workshop/pane_text.hpp` now shares one
-/// between the pane weaves, and this pane has not moved to it. Not a second measurer: the
-/// measuring was `workshop::fit_region`'s, and this spends the number.
-inline std::string fit(std::string text, std::int64_t columns) {
-    if (columns <= 0) {
-        return {};
-    }
-    // A row is printable ASCII. Preserve the draft bytes; substitute only in
-    // this preview so copied UTF-8 or control bytes cannot silence the whole pane.
-    for (char& c : text) if (static_cast<unsigned char>(c) < 32 ||
-                            static_cast<unsigned char>(c) > 126) c = '?';
-    const std::size_t room = static_cast<std::size_t>(columns);
-    if (text.size() <= room) {
-        return text;
-    }
-    const std::size_t mark = std::char_traits<char>::length(kElided);
-    if (room <= mark) {
-        return std::string(kElided).substr(0, room);
-    }
-    text.resize(room - mark);
-    text += kElided;
-    return text;
+/// Fit `text` into `columns`, and say so when it did not fit: the panes' shared fit, in columns,
+/// over the text as a row shows it -- every character as written, a control character a space
+/// (`pane_text::printable`). The draft keeps the bytes typed; only this preview changes. Not a
+/// second measurer: the measuring was `workshop::fit_region`'s, and this spends the number.
+inline std::string fit(const std::string& text, std::int64_t columns) {
+    return zengine::workshop::pane_text::fit(zengine::workshop::pane_text::printable(text),
+                                             columns);
 }
 
 /// Which run of a list a budget can show while keeping the focus visible, and how much is
@@ -273,11 +257,11 @@ inline FieldRow field_row(const MessageDraft& draft, std::size_t which, bool cho
     row += "  ";
     // A column past the value's room, where a caret after its last character stands.
     const zengine::workshop::RowBox box = zengine::workshop::row_box(
-        d.value, static_cast<std::int64_t>(row.size()),
+        d.value, zengine::workshop::pane_text::columns_of(row),
         room + 1 + 2 * zengine::graphics::kTextBoxInset);
     const std::string whole = row + std::string(static_cast<std::size_t>(box.columns), ' ');
     const std::string drawn = fit(whole, columns);
-    if (drawn.size() != whole.size()) {
+    if (drawn != zengine::workshop::pane_text::printable(whole)) {
         return {drawn, zengine::workshop::kNoCaret};
     }
     return {drawn, zengine::workshop::box_caret(box, 0).column, box};

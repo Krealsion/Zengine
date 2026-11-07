@@ -330,7 +330,7 @@ inline void BuilderPaneWeave::publish(Facts facts, const std::string& said_detai
     if (said_kept > 0) {
         said = labelled_block("said",
                            said_detail.empty() ? std::string("--")
-                                               : ascii_spelling(said_detail),
+                                               : printable(said_detail),
                            said_kept, columns());
     }
     std::size_t said_at = 0;

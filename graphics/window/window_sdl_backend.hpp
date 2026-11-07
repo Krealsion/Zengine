@@ -185,8 +185,12 @@ public:
         }
     }
 
-    /// The measure of the face text is set in.
+    /// The measure of the face text is set in, at the body's size.
     TextMeasure text() const { return face_.measure(); }
+    /// ...and in `face` at `points`.
+    TextMeasure measure(const std::string& face, std::int64_t points) {
+        return face_.measure(face, points);
+    }
 
     PixelSize size() const {
         int w = 0, h = 0;
@@ -737,7 +741,8 @@ private:
             const bool cut = t.cut_top > 0 || t.cut_foot > 0;
             if (cut) {
                 const std::int64_t top = oy + t.y + t.cut_top;
-                const std::int64_t foot = oy + t.y + face_.measure().line - t.cut_foot;
+                const std::int64_t tall = t.line > 0 ? t.line : face_.measure().line;
+                const std::int64_t foot = oy + t.y + tall - t.cut_foot;
                 const std::int64_t y0 = (std::max)(top, static_cast<std::int64_t>(area.y));
                 const std::int64_t y1 =
                     (std::min)(foot, static_cast<std::int64_t>(area.y) + area.h);
@@ -748,7 +753,7 @@ private:
                 SDL_SetRenderClipRect(renderer_, &kept);
             }
             face_.draw(renderer_, static_cast<float>(ox + t.x), static_cast<float>(oy + t.y),
-                       t.rgba, t.text);
+                       t.rgba, t.text, t.advance, t.line, t.points, t.weight, t.face);
             if (cut) {
                 SDL_SetRenderClipRect(renderer_, &area);
             }

@@ -278,7 +278,7 @@ TEST_CASE("Flow's slots paint as a palette sets them for Flow's office, else as 
     };
     gfx::PaletteOffered set = gfx::themes::night();
     set.slots.push_back(gfx::PaletteSlots{pane::kRole, {{"wire", 0x0c0d0eff, "", ""},
-                                                                {"message_rim", 0x0f1011ff, "", ""}}});
+                                                                {"message_rim", 0x0f1011ff, "", ""}}, {}});
     const std::set<std::int64_t> own = painted(set);
     CHECK(own.count(0x0c0d0eff) == 1);
     CHECK(own.count(0x0f1011ff) == 1);
@@ -290,7 +290,7 @@ TEST_CASE("Flow's slots paint as a palette sets them for Flow's office, else as 
     CHECK(plain.count(0x2e3440ff) == 1);
     // ...AND ANOTHER OFFICE'S SETTING IS NOT FLOW'S.
     gfx::PaletteOffered other = gfx::themes::night();
-    other.slots.push_back(gfx::PaletteSlots{"test.other", {{"wire", 0x0c0d0eff, "", ""}}});
+    other.slots.push_back(gfx::PaletteSlots{"test.other", {{"wire", 0x0c0d0eff, "", ""}}, {}});
     CHECK(painted(other).count(0x0c0d0eff) == 0);
 }
 

@@ -27,6 +27,8 @@
 
 #include "activation/activation.hpp"
 #include "component/list_window.hpp"
+#include "component/text.hpp"
+#include "workshop/pane_text.hpp"
 #include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 
@@ -62,23 +64,17 @@ std::string rule_line(const std::string& pane_name, std::size_t widest) {
     if (!pane_name.empty()) {
         out += " " + pane_name + " --";
     }
-    while (out.size() < widest + 2) {
+    while (component::text_columns(out) < widest + 2) {
         out += '-';
     }
     return out;
 }
 
-/// ONE LINE OF TEXT A WINDOW CAN DRAW, at most `columns` wide: an undrawable byte becomes a space
-/// (a label is the requester's words, and one bad byte must not cost the weaver the menu).
-std::string drawable(const std::string& text, std::int64_t columns) {
-    std::string out;
-    for (const char c : text) {
-        if (static_cast<std::int64_t>(out.size()) >= columns) {
-            break;
-        }
-        const unsigned char byte = static_cast<unsigned char>(c);
-        out += byte < 0x20u || byte >= 0x7Fu ? ' ' : c;
-    }
+/// ONE LINE OF A MENU, at most `columns` wide, cut at whole characters: a label is the requester's
+/// words, shown as written, a control character a space (`pane_text::printable`).
+std::string menu_line(const std::string& text, std::int64_t columns) {
+    std::string out = ws::pane_text::printable(text);
+    out.resize(component::cut_at_columns(out, 0, columns > 0 ? static_cast<std::size_t>(columns) : 0));
     return out;
 }
 
@@ -273,7 +269,7 @@ private:
         std::set<std::string> named;
         if (earlier > 0) {
             lines.push_back(ws::MenuLine{
-                drawable("  ... " + std::to_string(earlier) + " earlier", columns),
+                menu_line("  ... " + std::to_string(earlier) + " earlier", columns),
                 gfx::colors::quiet, std::string()});
         }
         // A ROW'S KEY STANDS APART, two blanks after the widest words, and a narrow room cuts the
@@ -286,13 +282,13 @@ private:
             bool standard = false;
             const ws::PaneMenuRow* row = row_of(entry, standard);
             if (row == nullptr) {
-                lines.push_back(ws::MenuLine{drawable(rule_line(state_.pane_name, widest), columns),
+                lines.push_back(ws::MenuLine{menu_line(rule_line(state_.pane_name, widest), columns),
                                              gfx::colors::quiet, std::string()});
                 continue;
             }
             const bool here = entry == state_.cursor;
             ws::MenuLine line{
-                drawable(std::string(here ? "> " : "  ") + ws::menu_row_text(*row, laid), columns),
+                menu_line(std::string(here ? "> " : "  ") + ws::menu_row_text(*row, laid), columns),
                 here ? gfx::colors::accent : gfx::colors::text, std::string()};
             // THE LINE IS NAMED BY ITS ROW'S ID, as the id the choice comes back as: a requester's
             // row and a standard row alike, the first line to carry an id keeping it.
@@ -303,7 +299,7 @@ private:
             lines.push_back(std::move(line));
         }
         if (more > 0) {
-            lines.push_back(ws::MenuLine{drawable("  ... " + std::to_string(more) + " more", columns),
+            lines.push_back(ws::MenuLine{menu_line("  ... " + std::to_string(more) + " more", columns),
                                          gfx::colors::quiet, std::string()});
         }
         std::int64_t width = 1;

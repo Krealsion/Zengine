@@ -10,6 +10,7 @@
 // presses with Zengine's parser. Reference: graphics/docs/zengine.window.terminal.md, its manual,
 // compiled in and answered.
 
+#include "component/text.hpp"
 #include "graphics/window/compose.hpp"
 #include "graphics/window/terminal_io.hpp"
 #include "graphics/window/window.hpp"
@@ -36,13 +37,33 @@ inline constexpr std::int64_t kUnmeasuredRows = 24;
 /// The furthest its areas make such a window reach, in cells each way.
 inline constexpr std::int64_t kUnmeasuredReach = 1000;
 
+/// What a cell's character shows as on a terminal: itself where the terminal's encoding carries
+/// UTF-8 (`utf8`), else printable ASCII as itself, any other character `?` and the second cell of a
+/// wide character a blank, so every column still holds one.
+inline std::string shown_glyph(const std::string& glyph, bool utf8) {
+    if (utf8) {
+        return glyph;
+    }
+    if (glyph.empty()) {
+        return " ";
+    }
+    const auto b = static_cast<unsigned char>(glyph.front());
+    return glyph.size() == 1 && b >= 0x20u && b < 0x7Fu ? glyph : std::string(term::kUnshownGlyph);
+}
+
 /// The bytes that show cells on a terminal: for each run, a cursor move (left out where the cursor
 /// already stands), its ink where it changes (`inks`, by the number each cell holds; one it does
-/// not hold is the terminal's default), and the glyphs.
-inline std::string ansi(const std::vector<term::Cell>& cells, const std::vector<std::string>& inks) {
+/// not hold is the terminal's default), and the characters as its encoding shows them
+/// (`shown_glyph`). Where it carries UTF-8 a wide character's second cell writes nothing: the
+/// character before it covers it.
+inline std::string ansi(const std::vector<term::Cell>& cells, const std::vector<std::string>& inks,
+                        bool utf8 = true) {
     std::string out;
     std::int64_t at_col = -1, at_row = -1, ink = -1;
     for (const term::Cell& c : cells) {
+        if (utf8 && c.glyph.empty()) {
+            continue;
+        }
         if (c.col != at_col || c.row != at_row) {
             out += "\x1b[" + std::to_string(c.row + 1) + ";" + std::to_string(c.col + 1) + "H";
         }
@@ -51,9 +72,20 @@ inline std::string ansi(const std::vector<term::Cell>& cells, const std::vector<
             const bool held = c.ink >= 0 && static_cast<std::size_t>(c.ink) < inks.size();
             out += held ? inks[static_cast<std::size_t>(c.ink)] : sgr_for(kTerminalDefault, 0);
         }
-        out.push_back(c.glyph);
-        at_col = c.col + 1;
+        const std::string shown = shown_glyph(c.glyph, utf8);
+        out += shown;
+        const auto cols = static_cast<std::int64_t>(component::text_columns(shown));
+        at_col = c.col + (cols > 1 ? cols : 1);
         at_row = c.row;
+    }
+    return out;
+}
+
+/// A row of cells as text: each cell's character in its column, as `shown_glyph` shows it.
+inline std::string cells_text(const std::vector<std::string>& row, bool utf8) {
+    std::string out;
+    for (const std::string& g : row) {
+        out += shown_glyph(g, utf8);
     }
     return out;
 }
@@ -106,8 +138,18 @@ public:
     }
     /// Its device unit is the cell, which a window offers as no pixels in one.
     static constexpr std::int64_t kCellDevicePx = 0;
-    /// It sets text one character a cell.
+    /// It sets text one character a cell, a wide one in two, at one size.
     static constexpr TextMeasure text() { return TextMeasure{kCellPx, kCellPx}; }
+
+    /// Whether its terminal's encoding carries UTF-8, as the terminal says: a character past ASCII
+    /// is written as itself where it does, and as `?` where it does not.
+    bool utf8() const {
+        if constexpr (requires { terminal_.utf8(); }) {
+            return terminal_.utf8();
+        } else {
+            return true;
+        }
+    }
 
     void clear() { cache_.clear(); }
     void cover(const WinArea& a, const std::string& path) {
@@ -145,12 +187,13 @@ public:
             }
             PaintedNode kept;
             kept.key = n->second->key;
-            std::map<std::int64_t, std::int64_t> numbered; // each of the node's colours, once
+            // each of the node's colours and weights, once
+            std::map<std::pair<std::int64_t, bool>, std::int64_t> numbered;
             for (term::Cell c : term::unpack(np.cells)) {
                 if (c.col >= 0 && c.row >= 0 && c.col < pl.cols && c.row < pl.rows) {
-                    const auto [at, fresh] = numbered.try_emplace(c.ink, 0);
+                    const auto [at, fresh] = numbered.try_emplace({c.ink, c.bold}, 0);
                     if (fresh) {
-                        at->second = number(ink_of(c.ink, *n->second, task));
+                        at->second = number(ink_of(c.ink, *n->second, task), c.bold);
                     }
                     c.ink = at->second;
                     kept.cells.push_back(c);
@@ -170,7 +213,7 @@ public:
         }
         const std::vector<term::Cell> cells = compose(areas, cache_, dirty_);
         dirty_.clear();
-        const std::string bytes = ansi(cells, inks_);
+        const std::string bytes = ansi(cells, inks_, utf8());
         terminal_.write(bytes);
         keep_shown(cells);
         ++showings_;
@@ -182,13 +225,18 @@ public:
         DirtyCells all;
         all.size(cols_, rows_);
         all.mark_all();
-        std::vector<std::string> rows(static_cast<std::size_t>(rows_),
-                                      std::string(static_cast<std::size_t>(cols_), ' '));
+        std::vector<std::vector<std::string>> cells(
+            static_cast<std::size_t>(rows_),
+            std::vector<std::string>(static_cast<std::size_t>(cols_), " "));
         for (const term::Cell& c : compose(areas, cache_, all)) {
-            rows[static_cast<std::size_t>(c.row)][static_cast<std::size_t>(c.col)] = c.glyph;
+            cells[static_cast<std::size_t>(c.row)][static_cast<std::size_t>(c.col)] = c.glyph;
         }
-        for (std::string& r : rows) {
+        std::vector<std::string> rows;
+        rows.reserve(cells.size());
+        for (const std::vector<std::string>& row : cells) {
+            std::string r = cells_text(row, utf8());
             r.erase(r.find_last_not_of(' ') + 1);
+            rows.push_back(std::move(r));
         }
         return rows;
     }
@@ -250,8 +298,9 @@ public:
     /// Nor a title or a size: the terminal's are its own.
     void shape(const std::string&, const PixelSize&) {}
 
-    /// The cells the terminal last showed, less their ink: a row of glyphs a line, each ending in a
-    /// newline, at the size they were shown at; none before the first showing.
+    /// The cells the terminal last showed, less their ink: a row of characters a line, as its
+    /// encoding shows them, each ending in a newline, at the size they were shown at; none before
+    /// the first showing.
     std::optional<CapturedWindowPicture> capture() const {
         if (showings_ == 0 || shown_rows_.empty()) {
             return std::nullopt;
@@ -261,8 +310,8 @@ public:
         p.height = static_cast<std::int64_t>(shown_rows_.size());
         p.format = "text/cells";
         p.bytes.reserve(shown_rows_.size() * (shown_rows_.front().size() + 1));
-        for (const std::string& row : shown_rows_) {
-            p.bytes += row;
+        for (const std::vector<std::string>& row : shown_rows_) {
+            p.bytes += cells_text(row, utf8());
             p.bytes += '\n';
         }
         return p;
@@ -293,8 +342,8 @@ private:
     /// window measured at another size marks every cell, so its next showing covers the grid whole.
     void keep_shown(const std::vector<term::Cell>& cells) {
         shown_rows_.resize(static_cast<std::size_t>(rows_));
-        for (std::string& row : shown_rows_) {
-            row.resize(static_cast<std::size_t>(cols_), ' ');
+        for (std::vector<std::string>& row : shown_rows_) {
+            row.resize(static_cast<std::size_t>(cols_), " ");
         }
         for (const term::Cell& c : cells) {
             shown_rows_[static_cast<std::size_t>(c.row)][static_cast<std::size_t>(c.col)] = c.glyph;
@@ -315,10 +364,10 @@ private:
                    : kNoPaint;
     }
 
-    /// The number of the ink the terminal is written to show a colour in: each ink numbered once,
-    /// so a window holds no more numbers than the inks a terminal has words for.
-    std::int64_t number(const PaintInk& ink) {
-        const std::string sgr = sgr_for(ink.cells, ink.rgba);
+    /// The number of the ink the terminal is written to show a colour in, regular or bold: each ink
+    /// numbered once, so a window holds no more numbers than the inks a terminal has words for.
+    std::int64_t number(const PaintInk& ink, bool bold = false) {
+        const std::string sgr = sgr_for(ink.cells, ink.rgba, bold);
         const auto it = std::find(inks_.begin(), inks_.end(), sgr);
         if (it != inks_.end()) {
             return static_cast<std::int64_t>(it - inks_.begin());
@@ -336,7 +385,8 @@ private:
     Terminal terminal_;
     Cache cache_;
     DirtyCells dirty_; ///< the cells to show again, over the terminal's size
-    std::vector<std::string> shown_rows_; ///< the glyphs on the terminal, as its showings left them
+    /// The characters on the terminal, a cell each, as its showings left them.
+    std::vector<std::vector<std::string>> shown_rows_;
     /// The inks the window writes its terminal in, by number: the terminal's default first (kDefaultInk).
     std::vector<std::string> inks_{sgr_for(kTerminalDefault, 0)};
     std::int64_t cols_ = kUnmeasuredCols;

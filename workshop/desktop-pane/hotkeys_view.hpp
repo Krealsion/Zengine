@@ -525,17 +525,17 @@ public:
         // came to is said whatever it keeps.
         std::vector<std::string> footer;
         if (!keys_notice_.empty()) {
-            footer.push_back("  " + drawable(keys_notice_));
+            footer.push_back("  " + printable(keys_notice_));
         }
         if (!keys_rows_decl.word.empty()) {
-            footer.push_back("  " + drawable(keys_rows_decl.word));
+            footer.push_back("  " + printable(keys_rows_decl.word));
         }
         if (help_shown_) {
             footer.push_back("keymap file: " + (keymap_.file.empty() ? std::string("(none)")
-                                                                     : drawable(keymap_.file)));
+                                                                     : printable(keymap_.file)));
         }
         if (!keymap_.word.empty()) {
-            footer.push_back("  " + drawable(keymap_.word));
+            footer.push_back("  " + printable(keymap_.word));
         }
         if (help_shown_) {
             footer.push_back("or write {\"action\": \"<id>\", \"gesture\": \"alt+up\"} in the "
@@ -695,7 +695,10 @@ private:
     /// A SPELLING IS THE KEYMAP FILE'S GRAMMAR, PLAIN ASCII ON ONE LINE: typed or pasted text that
     /// holds anything else is refused whole at the line, and said, rather than drawn or changed.
     void type_spelling(zengine::component::TextBox& line, const std::string& text) {
-        if (!admissible(text)) {
+        const bool plain = std::all_of(text.begin(), text.end(), [](char c) {
+            return static_cast<unsigned char>(c) >= 0x20u && static_cast<unsigned char>(c) < 0x7Fu;
+        });
+        if (!plain) {
             keys_notice_ = "not typed -- a key's spelling is plain ASCII on one line";
             return;
         }
@@ -752,7 +755,7 @@ private:
             const std::string key = section_key(b);
             const auto [found, fresh] = at.emplace(key, sections_.size());
             if (fresh) {
-                sections_.push_back(KeysSection{key, drawable(b.group),
+                sections_.push_back(KeysSection{key, printable(b.group),
                                                 !b.pane.empty() && inventory_heard_ &&
                                                     on_desk_.count(b.office + "/" + b.pane) == 0,
                                                 {}});

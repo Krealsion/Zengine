@@ -12,6 +12,7 @@
 // Reference: workshop/docs/workshop-panes.md, "The pane facets".
 
 #include "component/row_map.hpp"
+#include "component/text.hpp"
 #include "component/text_area.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/elements/icon.hpp"
@@ -94,7 +95,7 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
     nodes.reserve(sketch.nodes().size());
     for (const graphics::Node& n : sketch.nodes()) {
         nodes.push_back(
-            graphics::PaintNode{n.path, {}, n.op, lattice ? n.args : on_cells(n, measure), {}});
+            graphics::PaintNode{n.path, {}, n.op, lattice ? n.args : on_cells(n, measure), {}, {}, {}});
     }
     const std::map<std::string, graphics::term::Space> at = graphics::term::spaces(nodes);
     const graphics::PaintTask task{};
@@ -106,6 +107,7 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
     };
     std::map<std::string, Run> shown;
     std::vector<bool> roled;
+    std::vector<std::vector<std::string>> glyphs; // each row's characters, a cell each
     for (const graphics::PaintNode& n : nodes) {
         if (n.op != graphics::op::kText) {
             continue;
@@ -127,12 +129,13 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
             if (out.size() <= r) {
                 out.resize(r + 1);
                 roled.resize(r + 1, false);
+                glyphs.resize(r + 1);
             }
-            std::string& text = out[r].text;
-            if (text.size() <= col) {
-                text.resize(col + 1, ' ');
+            std::vector<std::string>& cells_of_row = glyphs[r];
+            if (cells_of_row.size() <= col) {
+                cells_of_row.resize(col + 1, " ");
             }
-            text[col] = c.glyph;
+            cells_of_row[col] = c.glyph;
             if (!roled[r]) {
                 out[r].ink = words ? graphics::pool_color_of(words->ink) : graphics::colors::text;
                 roled[r] = true;
@@ -146,6 +149,12 @@ inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int6
         }
         if (run) {
             shown[n.path] = *run;
+        }
+    }
+    for (std::size_t r = 0; r < glyphs.size(); ++r) {
+        out[r].text.clear();
+        for (const std::string& g : glyphs[r]) {
+            out[r].text += g;
         }
     }
 
@@ -333,17 +342,19 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
         // `right` for a shut one's `+`; a room of cells draws the character.
         const std::int64_t mark = rows[r].mark;
         const bool outlined = !room.cells && mark >= 0 &&
-                              mark < static_cast<std::int64_t>(rows[r].text.size());
+                              mark < static_cast<std::int64_t>(component::text_columns(rows[r].text));
         // A TEXT BOX, where the window sets type: an outline round its columns.
         const RowBox& box = rows[r].box;
         const bool boxed = !room.cells && box.present();
         std::string blanked;
         if (outlined) {
-            blanked = rows[r].text;
-            blanked[static_cast<std::size_t>(mark)] = ' ';
+            const auto at = static_cast<std::size_t>(mark);
+            const std::size_t all = component::text_columns(rows[r].text);
+            blanked = component::column_slice(rows[r].text, 0, at) + " " +
+                      component::column_slice(rows[r].text, at + 1, all - at - 1);
         }
         const std::string& text = outlined ? blanked : rows[r].text;
-        const auto said = static_cast<std::int64_t>(text.size());
+        const auto said = static_cast<std::int64_t>(component::text_columns(text));
         std::vector<std::size_t> here;
         std::int64_t extent = said;
         for (std::size_t k = 0; k < parts.size(); ++k) {
@@ -377,10 +388,8 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
                 Run one;
                 one.node = prefix + std::to_string(runs.size());
                 one.x = a;
-                one.words = a < said ? text.substr(static_cast<std::size_t>(a),
-                                                   static_cast<std::size_t>(end - a))
-                                     : std::string();
-                one.words.resize(static_cast<std::size_t>(end - a), ' ');
+                one.words = component::column_slice(text, static_cast<std::size_t>(a),
+                                                    static_cast<std::size_t>(end - a));
                 one.action = k >= 0 ? parts[static_cast<std::size_t>(k)].name : std::string();
                 asks += one.action.empty() ? std::size_t{0} : std::size_t{1};
                 runs.push_back(std::move(one));
@@ -411,7 +420,8 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
                                        box.columns * advance, line);
         }
         if (outlined) {
-            const bool open = rows[r].text[static_cast<std::size_t>(mark)] == '-';
+            const bool open =
+                component::column_slice(rows[r].text, static_cast<std::size_t>(mark), 1) == "-";
             const std::int64_t size = (std::min)(line, 2 * advance) * 2 / 3;
             const std::string node = prefix + "mark";
             out.sketch.group(node, mark * advance, row * line + (line - size) / 2, size, size);
@@ -500,7 +510,8 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
             continue;
         }
         const std::string& text = rows[static_cast<std::size_t>(m)].text;
-        const auto length = (std::min)(static_cast<std::int64_t>(text.size()), columns);
+        const auto length =
+            (std::min)(static_cast<std::int64_t>(component::text_columns(text)), columns);
         const auto area_span = area_selection.find(m);
         const RowSpan span = area_span != area_selection.end()
                                  ? area_span->second
@@ -518,7 +529,7 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
             }
             const auto from = static_cast<std::size_t>(a);
             out.sketch.text(node, a * advance, m * line,
-                            text.substr(from, static_cast<std::size_t>(b - a)),
+                            component::column_slice(text, from, static_cast<std::size_t>(b - a)),
                             graphics::colors::accent);
             ask(node, asks);
             a = b;
@@ -533,8 +544,11 @@ RowsDrawing rows_drawing(const std::vector<TextRow>& given,
     if (room_for(asks)) {
         const std::string& text = rows[static_cast<std::size_t>(caret.row)].text;
         const auto at = static_cast<std::size_t>(column);
-        if (room.cells && at < text.size() && text[at] != ' ') {
-            out.sketch.text("caret", column * advance, caret.row * line, text.substr(at, 1),
+        const std::string under = at < component::text_columns(text)
+                                      ? component::column_slice(text, at, 1)
+                                      : std::string();
+        if (room.cells && !under.empty() && under != " ") {
+            out.sketch.text("caret", column * advance, caret.row * line, under,
                             graphics::colors::accent);
         } else {
             out.sketch.line("caret", column * advance, caret.row * line, column * advance,

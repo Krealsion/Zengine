@@ -498,8 +498,8 @@ public:
         // keeps copy-here paste-there true on a terminal that claims nothing.
         const std::string offered = a.readable ? a.text : clip_.text;
         if (!admissible(component::pasteable_line(offered))) {
-            notice_ = "the clipboard holds bytes outside plain ASCII, which this line cannot "
-                      "carry truthfully -- nothing was pasted";
+            notice_ = "the clipboard holds a control character or bytes that spell no character, "
+                      "which this line cannot carry truthfully -- nothing was pasted";
             say(mail);
             return;
         }

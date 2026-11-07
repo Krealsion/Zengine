@@ -346,8 +346,8 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide colour: eve
     REQUIRE_MESSAGE(marked.shown, marked.said);
     const std::vector<std::string> shown = d.b.r.shown().rows;
     const std::vector<rw::Cell> inked = guide_cells(d);
-    // ITS INK IS A COLOUR AND NO ATTRIBUTE, as every pool colour's is, so the cells after it are drawn in
-    // their own ink, neither reversed nor bold.
+    // ITS INK IS A COLOUR AT NORMAL WEIGHT (22) AND NO OTHER ATTRIBUTE, as every pool colour's is, so
+    // the cells after it are drawn in their own ink, neither reversed nor bold.
     const gfx::PaletteOffered block = gfx::themes::block();
     const gfx::PaletteColor* guide = gfx::window::pool_color(block, gfx::colors::guide.name);
     REQUIRE(guide != nullptr);
@@ -358,7 +358,7 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide colour: eve
         const std::size_t end = std::min(params.find(';', at), params.size());
         const int code = std::stoi(params.substr(at, end - at));
         CAPTURE(code);
-        CHECK(((code >= 30 && code <= 39) || (code >= 90 && code <= 97)));
+        CHECK((code == 22 || (code >= 30 && code <= 39) || (code >= 90 && code <= 97)));
         at = end + 1;
     }
     // THE PART'S OWN CELLS, in the guide colour, saying what they said.

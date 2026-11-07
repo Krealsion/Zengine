@@ -363,7 +363,7 @@ public:
                                        graphics::Color ground = graphics::no_color(),
                                        const workshop::RowBox& box = {}) {
             out.push_back(workshop::TextRow{
-                workshop::pane_text::drawable(workshop::pane_text::fit(std::move(text), columns_)),
+                workshop::pane_text::printable(workshop::pane_text::fit(std::move(text), columns_)),
                 ink, ground});
             out.back().box = box;
         };
@@ -929,7 +929,7 @@ private:
                 out.resize(static_cast<std::size_t>(rows_ - 1));
             }
             out.insert(out.begin(), workshop::TextRow{
-                                        workshop::pane_text::drawable(
+                                        workshop::pane_text::printable(
                                             workshop::pane_text::fit(front_sentence(), columns_)),
                                         graphics::colors::alert});
         }

@@ -56,15 +56,27 @@ inline std::int64_t text_box_room(std::int64_t columns, TextBoxInCells look, boo
     return columns > 2 * edge ? columns - 2 * edge : 0;
 }
 
-/// A box's slice as characters show it: a byte outside printable ASCII a `?`, one column a byte.
+/// A box's slice as characters show it: every character as itself, at the columns the text core
+/// gives it, and a control character or bytes that spell none a `?`, in its one column.
 inline std::string text_box_printable(const std::string& shown) {
-    std::string out = shown;
-    for (char& c : out) {
-        const auto b = static_cast<unsigned char>(c);
-        if (b < 0x20u || b > 0x7eu) {
-            c = '?';
+    std::string out;
+    out.reserve(shown.size());
+    for (std::size_t i = 0; i < shown.size(); i = component::character_end(shown, i)) {
+        const char32_t cp = component::code_point_at(shown, i);
+        if (cp == component::kNotACharacter || cp < 0x20u || (cp >= 0x7Fu && cp < 0xA0u)) {
+            out.push_back('?');
+        } else {
+            out.append(shown, i, component::character_end(shown, i) - i);
         }
     }
+    return out;
+}
+
+/// A slice made `room` columns wide: cut at whole characters, then `fill` to the width.
+inline std::string text_box_filled(const std::string& shown, std::size_t room, char fill) {
+    std::string out = text_box_printable(shown);
+    out.resize(component::cut_at_columns(out, 0, room));
+    out.append(room - component::text_columns(out), fill);
     return out;
 }
 
@@ -78,9 +90,7 @@ inline std::string text_box_spelling(const component::TextBoxView& view, std::in
         return std::string("[]").substr(0, static_cast<std::size_t>(columns));
     }
     const auto room = static_cast<std::size_t>(text_box_room(columns));
-    std::string inside = text_box_printable(view.shown.substr(0, room));
-    inside.resize(room, '_');
-    return "[" + inside + "]";
+    return "[" + text_box_filled(view.shown, room, '_') + "]";
 }
 
 /// ...A PLAIN BOX IN A ROW OF CELLS, `columns` wide: its slice, then blanks.
@@ -88,10 +98,7 @@ inline std::string text_box_plain(const component::TextBoxView& view, std::int64
     if (columns <= 0) {
         return {};
     }
-    const auto room = static_cast<std::size_t>(columns);
-    std::string out = text_box_printable(view.shown.substr(0, room));
-    out.resize(room, ' ');
-    return out;
+    return text_box_filled(view.shown, static_cast<std::size_t>(columns), ' ');
 }
 
 /// ...AND THE CHARACTERS IT SHOWS WHERE THE WINDOW SETS TYPE, `columns` wide: its slice inside the
@@ -100,10 +107,14 @@ inline std::string text_box_lettering(const component::TextBoxView& view, std::i
     if (columns <= 0) {
         return {};
     }
-    std::string out(static_cast<std::size_t>(columns), ' ');
     const auto room = static_cast<std::size_t>(text_box_room(columns));
-    out.replace(static_cast<std::size_t>(kTextBoxInset), (std::min)(room, view.shown.size()),
-                text_box_printable(view.shown.substr(0, room)));
+    const auto inset = static_cast<std::size_t>(kTextBoxInset);
+    const auto all = static_cast<std::size_t>(columns);
+    std::string out(inset < all ? inset : all, ' ');
+    if (all > inset) {
+        out += text_box_filled(view.shown, (std::min)(room, all - inset), ' ');
+    }
+    out.append(all - component::text_columns(out), ' ');
     return out;
 }
 
@@ -123,7 +134,8 @@ inline void text_box_face(Sketch& sketch, const std::string& node,
     text_box_outline(sketch, node + ".edge", x, y, columns * text.advance, text.line);
     const std::int64_t at = x + kTextBoxInset * text.advance;
     const auto room = static_cast<std::size_t>(text_box_room(columns));
-    sketch.text(node + ".text", at, y, view.shown.substr(0, room), ink);
+    sketch.text(node + ".text", at, y,
+                view.shown.substr(0, component::cut_at_columns(view.shown, 0, room)), ink);
     if (!keys) {
         return;
     }
@@ -131,7 +143,7 @@ inline void text_box_face(Sketch& sketch, const std::string& node,
         const auto from = static_cast<std::size_t>(view.selection_begin);
         const auto n = static_cast<std::size_t>(view.selection_end - view.selection_begin);
         sketch.text(node + ".sel", at + view.selection_begin * text.advance, y,
-                    view.shown.substr(from, n), colors::accent);
+                    component::column_slice(view.shown, from, n), colors::accent);
     }
     const std::int64_t cx = at + view.caret * text.advance;
     sketch.line(node + ".caret", cx, y, cx, y + text.line - 1, colors::accent);
