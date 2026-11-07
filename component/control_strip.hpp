@@ -12,6 +12,8 @@
 // control it will refuse. The first control is never dropped while a row can hold it.
 // Reference: component/docs/component.md.
 
+#include "component/text.hpp"
+
 #include <algorithm>
 #include <concepts>
 #include <cstddef>
@@ -86,12 +88,12 @@ inline ControlStrip pack_controls(const std::vector<Control>& controls, std::int
     std::string row;
     for (std::size_t i = 0; i < controls.size(); ++i) {
         const std::string face = control_face(controls[i]);
-        const std::int64_t width = static_cast<std::int64_t>(face.size());
+        const std::int64_t width = static_cast<std::int64_t>(text_columns(face));
         if (width > columns) {
             ++strip.dropped; // wider than the pane: not drawable, and not a target
             continue;
         }
-        const std::int64_t at = row.empty() ? 0 : static_cast<std::int64_t>(row.size()) + 1;
+        const std::int64_t at = row.empty() ? 0 : static_cast<std::int64_t>(text_columns(row)) + 1;
         if (at + width > columns) {
             if (static_cast<std::int64_t>(strip.rows.size()) + 1 >= max_rows) {
                 // The last row this strip may spend is already the one being filled: everything
@@ -102,7 +104,8 @@ inline ControlStrip pack_controls(const std::vector<Control>& controls, std::int
             strip.rows.push_back(std::move(row));
             row.clear();
         }
-        const std::int64_t first = row.empty() ? 0 : static_cast<std::int64_t>(row.size()) + 1;
+        const std::int64_t first =
+            row.empty() ? 0 : static_cast<std::int64_t>(text_columns(row)) + 1;
         if (!row.empty()) {
             row += ' ';
         }

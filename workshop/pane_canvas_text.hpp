@@ -5,6 +5,7 @@
 
 #include "pane_picture.hpp"
 #include "pane_text_fit.hpp"
+#include "component/text.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/colors.hpp"
 #include <algorithm>
@@ -84,7 +85,11 @@ inline CanvasTextLayout clip_canvas_text_by(const CanvasText& text, const Canvas
     const auto height = graphics::add_cells(m.line, pad);
     const auto y = floor_at(text.y);
     if (y < top || y >= bottom || height > bottom - y) return out;
-    const auto length = (std::min)(text.text.size(), kPaneCanvasMaxTextRunBytes);
+    // A RUN IS LAID IN COLUMNS, each character taking its own (`component::character_columns`),
+    // within its byte bound, cut at a whole character.
+    const std::string bounded = text.text.substr(
+        0, component::character_boundary(text.text, kPaneCanvasMaxTextRunBytes));
+    const auto length = component::text_columns(bounded);
     const bool has_caret = text.caret_col >= 0 &&
         text.caret_col <= static_cast<std::int64_t>(length);
     const auto caret = has_caret ? static_cast<std::size_t>(text.caret_col) : std::size_t{0};
@@ -101,7 +106,7 @@ inline CanvasTextLayout clip_canvas_text_by(const CanvasText& text, const Canvas
     const auto end = first + take;
     const bool visible_caret = has_caret && caret >= first && caret <= end;
     if (take == 0 && !visible_caret) return out;
-    out.text = CanvasText{x, y, text.text.substr(first, end - first), text.ink};
+    out.text = CanvasText{x, y, component::column_slice(bounded, first, take), text.ink};
     out.text.caret_col = visible_caret ? static_cast<std::int64_t>(caret - first) : -1;
     out.text.sel_begin_col = out.text.sel_end_col = -1;
     if (text.sel_begin_col >= 0 && text.sel_end_col > text.sel_begin_col) {

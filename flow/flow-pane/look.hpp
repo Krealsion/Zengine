@@ -171,7 +171,7 @@ struct Hit {
     }
 };
 
-/// Printable ASCII as itself; a control byte as '?', as a window draws any other.
+/// Printable ASCII as itself; any other byte as '?', so Flow's rows stay a byte a column.
 inline std::string clean(std::string text) {
     for (auto& c : text)
         if (static_cast<unsigned char>(c) < 32 || static_cast<unsigned char>(c) > 126) c = '?';

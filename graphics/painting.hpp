@@ -34,17 +34,21 @@ struct PaintInk {
 };
 
 /// A node as a painter needs it: its place in the area's paint order (its ancestors' ranks, then
-/// its own), its operator and operands' body, and the colours its operands name as the window
-/// resolved them, in the order `colors_of` gives (graphics/ops.hpp). A painter reads its colours
-/// from `inks` alone.
+/// its own), its operator and operands' body, the colours its operands name as the window resolved
+/// them, in the order `colors_of` gives (graphics/ops.hpp), and for a text the font, size and
+/// measure the window resolved its size and font to (`face`, the face's family; none, all zero,
+/// where the task's measure stands). A painter reads its colours from `inks` alone, and a text's
+/// measure from `text` where it holds one.
 struct PaintNode {
     std::string path;
     std::vector<std::int64_t> key;
     std::string op;
     loom::Bytes args;
     std::vector<PaintInk> inks;
-    ZEN_SHAPE(PaintNode, 2, ZEN_FIELD(path), ZEN_FIELD(key), ZEN_FIELD(op), ZEN_FIELD(args),
-              ZEN_FIELD(inks));
+    TextMeasured text{};
+    std::string face{};
+    ZEN_SHAPE(PaintNode, 3, ZEN_FIELD(path), ZEN_FIELD(key), ZEN_FIELD(op), ZEN_FIELD(args),
+              ZEN_FIELD(inks), ZEN_FIELD(text), ZEN_FIELD(face));
 };
 
 /// Window -> painter: paint these nodes, each with every ancestor present, at this many pixels a
@@ -60,7 +64,7 @@ struct PaintTask {
     PaintInk plain;
     PaintInk quiet;
     std::string outline = "+-|";
-    ZEN_SHAPE(PaintTask, 3, ZEN_FIELD(nodes), ZEN_FIELD(grain), ZEN_FIELD(text_advance),
+    ZEN_SHAPE(PaintTask, 4, ZEN_FIELD(nodes), ZEN_FIELD(grain), ZEN_FIELD(text_advance),
               ZEN_FIELD(text_line), ZEN_FIELD(plain), ZEN_FIELD(quiet), ZEN_FIELD(outline));
 };
 

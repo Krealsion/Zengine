@@ -56,7 +56,7 @@ public:
         const auto line = [&](const std::string& path, std::int64_t row, const std::string& text) {
             if (row >= room.rows()) return false;
             f.text(path, 0, row * room.text().line,
-                   ws::pane_text::drawable(ws::pane_text::fit(text, room.columns())),
+                   ws::pane_text::printable(ws::pane_text::fit(text, room.columns())),
                    graphics::colors::text);
             return true;
         };

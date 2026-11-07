@@ -149,12 +149,12 @@ inline void FilesWeave::say_browser() {
 /// whole path stands across the row instead, scrolled to where the pointer's column puts it
 /// (`scrub`), and the row entire is the path's.
 inline void FilesWeave::say_header(const std::string& head) {
-    const std::string lead = ascii_spelling(head);
-    const std::string here = ascii_spelling(where());
-    const std::int64_t at = static_cast<std::int64_t>(lead.size());
+    const std::string lead = printable(head);
+    const std::string here = printable(where());
+    const std::int64_t at = ws::pane_text::columns_of(lead);
     const std::int64_t room_for = columns() - at;
     const FilesMeaning path{files_row::kPath, 0, {}, here};
-    if (room_for < static_cast<std::int64_t>(here.size()) && reveal_ &&
+    if (room_for < ws::pane_text::columns_of(here) && reveal_ &&
         reveal_->kind == files_row::kPath) {
         push_row(scrub(here, columns(), reveal_->column), zengine::graphics::colors::accent, path);
         return;
@@ -164,7 +164,7 @@ inline void FilesWeave::say_header(const std::string& head) {
     push_row(lead + shown, zengine::graphics::colors::accent);
     if (!shown.empty()) {
         (void)room().map().span(
-            row, at, static_cast<std::int64_t>(shown.size()),
+            row, at, ws::pane_text::columns_of(shown),
             component::solid_columns(fitted(lead + shown), static_cast<std::size_t>(columns())),
             path);
     }
@@ -178,8 +178,8 @@ inline constexpr std::size_t kPlaceIndent = 4;
 inline std::size_t FilesWeave::place_path_columns(const std::vector<MarkedPlace>& stops) const {
     std::size_t widest = 0, said = 0;
     for (const MarkedPlace& place : stops) {
-        widest = (std::max)(widest, ascii_spelling(place.path).size());
-        said = (std::max)(said, ws::provenance_words(place.from).size());
+        widest = (std::max)(widest, component::text_columns(printable(place.path)));
+        said = (std::max)(said, component::text_columns(ws::provenance_words(place.from)));
     }
     const std::int64_t room = columns() - static_cast<std::int64_t>(kPlaceIndent) -
                               (said > 0 ? 2 + static_cast<std::int64_t>(said) : 0);
@@ -192,7 +192,7 @@ inline std::string FilesWeave::place_text(const MarkedPlace& place,
                                           std::size_t path_columns) const {
     const std::string why = ws::provenance_words(place.from);
     std::string out = std::string(kPlaceIndent, ' ') +
-                      ws::pane_text::pad(fit_path(ascii_spelling(place.path),
+                      ws::pane_text::pad(fit_path(printable(place.path),
                                                   static_cast<std::int64_t>(path_columns)),
                                          path_columns);
     if (!why.empty()) {
@@ -234,9 +234,9 @@ inline std::int64_t FilesWeave::say_places(std::int64_t body_rows, std::int64_t*
     const component::ListWindow win = component::scroll_window(stops.size(), 0, span.body);
     const std::size_t path_columns = place_path_columns(stops);
     const std::int64_t asked = room().push_window(win, fit_row(), [&](std::size_t i) {
-        const std::string whole = ascii_spelling(stops[i].path);
+        const std::string whole = printable(stops[i].path);
         const bool revealed = reveal_ && reveal_->kind == files_row::kPlace &&
-                              reveal_->index == i && whole.size() > path_columns;
+                              reveal_->index == i && component::text_columns(whole) > path_columns;
         push_row(revealed ? scrub(whole, columns(), reveal_->column)
                           : place_text(stops[i], path_columns),
                  revealed ? zengine::graphics::colors::accent : zengine::graphics::colors::text,

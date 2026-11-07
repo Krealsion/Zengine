@@ -13,6 +13,8 @@
 // so which is active is never said by colour alone. Both functions are pure.
 // Reference: component/docs/component.md.
 
+#include "component/text.hpp"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -101,7 +103,7 @@ inline TabStrip window_tab_strip(const std::vector<std::string>& tabs, std::size
         active = 0;
     }
     const auto face = [&tabs](std::size_t i) {
-        return static_cast<std::int64_t>(tabs[i].size()) + 2;
+        return static_cast<std::int64_t>(text_columns(tabs[i])) + 2;
     };
     const auto count_width = [](std::size_t hidden) {
         return hidden == 0 ? std::int64_t{0}
@@ -144,10 +146,10 @@ inline TabStrip window_tab_strip(const std::vector<std::string>& tabs, std::size
             ++at;
         }
         const std::string drawn = tab_face(tabs[i], i == active);
-        out.tabs.push_back(PlacedTab{i, tabs[i], i == active, at,
-                                     static_cast<std::int64_t>(drawn.size())});
+        const auto drawn_width = static_cast<std::int64_t>(text_columns(drawn));
+        out.tabs.push_back(PlacedTab{i, tabs[i], i == active, at, drawn_width});
         out.text += drawn;
-        at += static_cast<std::int64_t>(drawn.size());
+        at += drawn_width;
     }
     if (out.after > 0) {
         const std::string mark = std::to_string(out.after) + ">";

@@ -2520,10 +2520,10 @@ TEST_CASE("the Builder's role line shows the medium's caret where the line's is,
     const std::int64_t prompt = static_cast<std::int64_t>(std::string("role for a> [").size());
     CHECK(held_caret(*pane).row == line);
     CHECK(held_caret(*pane).column == prompt + 4);
-    // A CHARACTER THE ROW SPELLS IN ONE CELL counts one column, whatever its bytes: typed after
+    // A CHARACTER THE ROW SHOWS IN ONE CELL counts one column, whatever its bytes: typed after
     // a two-byte character, the caret stands one cell past it.
     b.r.text("\xC3\xA9");
-    CHECK(any_row(b.shown(), "role for a> [main?"));
+    CHECK(any_row(b.shown(), "role for a> [main\xC3\xA9"));
     CHECK(held_caret(*pane).column == prompt + 5);
     b.r.key(input::scan::kLeft);
     CHECK(held_caret(*pane).column == prompt + 4);

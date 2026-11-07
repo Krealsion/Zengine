@@ -1528,15 +1528,22 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.typed().rfind("a b c", 0) == 0);
 
-    // ⚠ AND WHAT NORMALIZATION CANNOT REPAIR IS REFUSED WHOLE AND SAID OUT LOUD. A byte
-    // outside printable ASCII survives `pasteable_line` and would sit in a line whose own row
-    // draws it as a space -- so a weaver would submit something other than what they read.
-    // This pane's typed door already refuses one; the difference here is that the door speaks.
+    // A CHARACTER PAST ASCII IS PASTED AS IT IS: its row draws it as itself, so what a weaver
+    // submits is what they read.
     t.clear_line();
-    t.type("hold");
     t.r.windows.set_clipboard("na\xC3\xAFve");
     t.r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.text().find("outside plain ASCII") != std::string::npos);
+    CHECK(t.typed().rfind("na\xC3\xAFve", 0) == 0);
+
+    // ⚠ AND WHAT NORMALIZATION CANNOT REPAIR IS REFUSED WHOLE AND SAID OUT LOUD: a control character
+    // past the ones `pasteable_line` flattens (U+0085, next line) survives it, and no row could draw
+    // what it says. This pane's typed door already refuses one; the difference here is that the
+    // door speaks.
+    t.clear_line();
+    t.type("hold");
+    t.r.windows.set_clipboard("na\xC2\x85ve");
+    t.r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.text().find("the clipboard holds a control character") != std::string::npos);
     CHECK(t.typed().rfind("hold", 0) == 0); // ...and the line is untouched
     CHECK(t.input_text().find("na") == std::string::npos);
 

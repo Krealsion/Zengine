@@ -189,7 +189,7 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
     struct Top {
         std::size_t area = 0;
         const std::vector<std::int64_t>* key = nullptr;
-        char glyph = ' ';
+        std::string glyph = " ";
         std::int64_t ink = kDefaultInk;
     };
     std::vector<Top> tops(n);
@@ -327,7 +327,7 @@ inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cac
     struct Top {
         const std::string* path = nullptr;
         const std::vector<std::int64_t>* key = nullptr;
-        char glyph = ' ';
+        std::string glyph = " ";
         bool hidden = false;
     };
     std::vector<Top> grid(static_cast<std::size_t>(w * (r1 - r0)));
@@ -394,7 +394,7 @@ inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cac
                 if (from < 0) {
                     from = c;
                 }
-                run.push_back(t.glyph);
+                run += t.glyph;
             } else {
                 flush();
             }
@@ -516,7 +516,7 @@ inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cac
     for (std::int64_t r = r0; r < r1; ++r) {
         for (std::int64_t c = c0; c < c1; ++c) {
             const Top& t = grid[at(c, r)];
-            if (t.path != nullptr && !t.hidden && t.glyph != ' ') {
+            if (t.path != nullptr && !t.hidden && t.glyph != " ") {
                 last_char[static_cast<std::size_t>(r - r0)] = c;
             }
         }

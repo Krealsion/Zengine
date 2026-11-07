@@ -6,16 +6,15 @@ it supports are in [build-output](../workshop/build-output.md).
 **Context.** A weaver whose build failed could not read the compiler's reason inside Workshop.
 The runner joined each look's lines with ` | ` and kept its last 2,048 characters; the tool's
 status carried the last three observations; the Builder's `said` rows showed that string's
-start, usually a command echo. A row carrying GCC's UTF-8 quotes would also have refused the
-Builder's whole picture at `judge_content`. The walkthrough sent weavers to rerun the command in a
-terminal.
+start, usually a command echo. The walkthrough sent weavers to rerun the command in a terminal.
 
 **Decision.** The runner says every byte, in order, in bounded messages. The Builder tool keeps,
 per operation, the lines at both ends of the output with the middle counted, for its last few
 operations, and answers one bounded page to whoever asks by operation number. The Builder pane's
 `read output` is a mode bound to one operation: one row per line, cut and panned rather than
-wrapped, under a header that names the operation, its outcome, its lines and what was spelled,
-cut or not kept. Every row the pane publishes is spelled in characters a canvas draws.
+wrapped, under a header that names the operation, its outcome, its lines and what was not shown,
+cut or not kept. Every row the pane publishes shows its characters as written, a control character
+as a space and an escape sequence as nothing.
 
 **Alternatives considered.**
 - *A longer `said` block* — argued: rows cannot recover bytes the runner had already dropped.

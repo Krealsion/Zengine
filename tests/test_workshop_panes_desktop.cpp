@@ -1299,10 +1299,10 @@ TEST_CASE("WL-KEY-18: a version-1 file is imported explicitly, unrelated and unk
     CHECK(refused.outcome.refusal.find("version 1 keymap") != std::string::npos);
 }
 
-TEST_CASE("the Hotkeys pane says Workshop's refusal of its own keys in words it can draw, when the refusal quotes a gesture the keymap file spells outside plain ASCII") {
+TEST_CASE("the Hotkeys pane says Workshop's refusal of its own keys as written, when the refusal quotes a gesture the keymap file spells outside plain ASCII") {
     // THE WEAVER'S FILE GIVES ONE OF THIS PANE'S OWN ROWS A KEY NO KEYMAP CAN NAME, so its
     // declaration is refused in words quoting the file. The pane says them as it says every other
-    // party's words, one mark for each character a canvas cannot set, in a picture Workshop admits.
+    // party's words, every character as written, in a picture Workshop admits.
     Keys k("hotkeys-refused-spelling", keymap_file_text("default", {{"hotkeys.up", "ctrl+\xC3\xA9"}}));
     REQUIRE(k.r.session().keymap.pane_rows(k.hotkeys) == nullptr); // none of its rows in force
     const std::string text = k.text();
@@ -1311,8 +1311,8 @@ TEST_CASE("the Hotkeys pane says Workshop's refusal of its own keys in words it 
     REQUIRE(pane != nullptr);
     CHECK(shows_canvas(*pane));
     CHECK(text.find("HOTKEYS -- ") != std::string::npos);
-    CHECK(text.find("keys refused: Hotkeys @zengine.desktop: `hotkeys.up`: `?` is not a key") !=
-          std::string::npos);
+    CHECK(text.find("keys refused: Hotkeys @zengine.desktop: `hotkeys.up`: `\xC3\xA9` is not a "
+                    "key") != std::string::npos);
 }
 
 TEST_CASE("WL-KEY-17: the table has coherent columns, a visible cursor the wheel and the keys walk, a press that chooses a row, and a heading press that is handed back; a small room keeps the notice") {
@@ -1456,15 +1456,14 @@ TEST_CASE("WL-DESK-14: a press the window landed on a Hotkeys row where another 
 // Defects reproduced through the real desktop, and guarded (WL-DESK-14, WL-CTX-09, WL-KEY-17)
 // =============================================================================
 
-TEST_CASE("WL-DESK-14: a pane offered under a name a canvas cannot draw keeps its row, the name made drawable") {
-    // THE LIST IS ONE PICTURE, refused whole for one byte it cannot draw, so a name another party
-    // chose is drawn as this pane draws every other party's words: one mark for each character
-    // a canvas cannot set. The list stays the list, and the row is pressed as any other.
+TEST_CASE("WL-DESK-14: a pane offered under a name past plain ASCII keeps its row, the name drawn as written") {
+    // A NAME ANOTHER PARTY CHOSE is drawn as this pane draws every other party's words: every
+    // character as written. The list stays the list, and the row is pressed as any other.
     Desk d;
     d.r.drive(d.tools, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"cafe", "Caf\xC3\xA9", "a fixture"});
     });
-    const auto row = d.walk_to("Caf?");
+    const auto row = d.walk_to("Caf\xC3\xA9");
     CAPTURE(joined(d.rows()));
     REQUIRE(row >= 0);
     CHECK(shows_canvas(*d.r.session().panes.external_pane(d.launcher)));
@@ -1473,10 +1472,10 @@ TEST_CASE("WL-DESK-14: a pane offered under a name a canvas cannot draw keeps it
     CHECK(d.open("cafe"));
 }
 
-TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawable, and refuses a spelling typed or pasted outside plain ASCII at the line, says so and leaves the line as it is") {
-    // THE TABLE IS ONE PICTURE, refused whole for one byte a canvas cannot draw. A name another
-    // party chose is drawn as this pane draws every other party's words, one mark for each such
-    // character; a spelling is the keymap file's grammar, so text outside it is never typed.
+TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name as written, and refuses a spelling typed or pasted outside plain ASCII at the line, says so and leaves the line as it is") {
+    // A NAME ANOTHER PARTY CHOSE is drawn as this pane draws every other party's words, every
+    // character as written; a spelling is the keymap file's grammar, plain ASCII, so text outside
+    // it is never typed.
     Keys k("hotkeys-undrawable");
     k.r.on_os_window(); // the medium a paste asks
     ProviderSeat* tools = k.r.mount_provider("zengine.test.tools");
@@ -1503,7 +1502,7 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawab
         CAPTURE(joined(rows));
         REQUIRE(brew >= 1);
         CHECK(rows[static_cast<std::size_t>(brew - 1)].substr(2) ==
-              "  pane Caf? @zengine.test.tools");
+              "  pane Caf\xC3\xA9 @zengine.test.tools");
         admitted();
     }
     // A SPELLING TYPED OUTSIDE PLAIN ASCII: refused whole at the line, and said; the line and its

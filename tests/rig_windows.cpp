@@ -11,6 +11,7 @@
 #include "lifecycle_door.hpp"
 #include "window_backends.hpp"
 
+#include "component/text.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/themes.hpp"
 #include "graphics/vocabulary.hpp"
@@ -144,8 +145,9 @@ struct Windows::Impl {
     std::string up; ///< the window showing now
     std::uint64_t asks = 1; ///< the next ask's correlation
     std::uint64_t readings = 0;
-    // THE TERMINAL'S SCREEN, as its writes left it: a glyph and the ink it was written in a cell.
-    std::vector<std::string> glyphs;
+    // THE TERMINAL'S SCREEN, as its writes left it: a character and the ink it was written in a
+    // cell, a wide character's second cell holding none.
+    std::vector<std::vector<std::string>> glyphs;
     std::vector<std::vector<std::int64_t>> inks;
     bool watching = false;
     std::vector<Shown> watched;
@@ -242,7 +244,9 @@ struct Windows::Impl {
         const auto cols = static_cast<std::size_t>((std::max)(term.size.cols, std::int64_t{0}));
         s.rows.resize(rows);
         for (std::size_t r = 0; r < rows && r < glyphs.size(); ++r) {
-            s.rows[r] = glyphs[r].substr(0, cols);
+            for (std::size_t c = 0; c < cols && c < glyphs[r].size(); ++c) {
+                s.rows[r] += glyphs[r][c];
+            }
             trim(s.rows[r]);
         }
         return s;
@@ -280,22 +284,44 @@ struct Windows::Impl {
                     k = end == std::string::npos ? bytes.size() : end;
                     continue;
                 }
+                // ONE CHARACTER, in the columns the text core gives it, as a terminal lays it.
+                const std::size_t end = zengine::component::character_end(bytes, k);
+                const int w = zengine::component::character_columns(bytes, k);
+                const std::string ch = bytes.substr(k, end - k);
+                k = end - 1;
                 if (row >= 0 && col >= 0) {
+                    if (w == 0) {
+                        const auto r = static_cast<std::size_t>(row);
+                        if (col > 0 && r < glyphs.size() &&
+                            static_cast<std::size_t>(col - 1) < glyphs[r].size()) {
+                            std::size_t at = static_cast<std::size_t>(col - 1);
+                            if (glyphs[r][at].empty() && at > 0) {
+                                --at;
+                            }
+                            glyphs[r][at] += ch;
+                        }
+                        continue;
+                    }
                     const auto r = static_cast<std::size_t>(row);
                     const auto c = static_cast<std::size_t>(col);
+                    const std::size_t last = c + static_cast<std::size_t>(w) - 1;
                     if (glyphs.size() <= r) {
                         glyphs.resize(r + 1);
                         inks.resize(r + 1);
                     }
-                    if (glyphs[r].size() <= c) {
-                        glyphs[r].resize(c + 1, ' ');
-                        inks[r].resize(c + 1, -1);
+                    if (glyphs[r].size() <= last) {
+                        glyphs[r].resize(last + 1, " ");
+                        inks[r].resize(last + 1, -1);
                     }
-                    glyphs[r][c] = bytes[k];
+                    glyphs[r][c] = ch;
                     inks[r][c] = ink;
+                    if (w == 2) {
+                        glyphs[r][c + 1] = "";
+                        inks[r][c + 1] = ink;
+                    }
                     drew = true;
                 }
-                ++col;
+                col += w;
             }
             if (watching && drew) {
                 watched.push_back(terminal_screen());
@@ -375,12 +401,14 @@ std::string Shown::text_at_px(std::int64_t x, std::int64_t y, std::int64_t colum
     if (x < 0 || advance <= 0) {
         return std::string();
     }
+    // BY COLUMNS, each character taking its own, as the window lays a row out.
     const auto from = static_cast<std::size_t>(x / advance);
-    if (from >= row.size()) {
+    const std::size_t all = zengine::component::text_columns(row);
+    if (from >= all) {
         return std::string();
     }
-    std::string out = columns < 0 ? row.substr(from)
-                                  : row.substr(from, static_cast<std::size_t>(columns));
+    const std::size_t take = columns < 0 ? all - from : static_cast<std::size_t>(columns);
+    std::string out = zengine::component::column_slice(row, from, take);
     trim(out);
     return out;
 }

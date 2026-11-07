@@ -62,7 +62,7 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // `component/list_window.hpp`'s.
 
 using zengine::component::ListWindow;
-using zengine::workshop::pane_text::drawable;
+using zengine::workshop::pane_text::printable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::omitted_text;
 using zengine::workshop::pane_text::wrap;
@@ -327,7 +327,7 @@ public:
                               gfx::Color ink) {
             // A SECOND GUARD: the window marks a byte it cannot draw and keeps the row, so this
             // matters only to a window that refused a picture for one such byte.
-            f.text(path, 0, row * height, drawable(fit(text, columns)), ink);
+            f.text(path, 0, row * height, printable(fit(text, columns)), ink);
             ++row;
         };
         // A notice, when there is one, leads: a pane has only its own room, so its first row

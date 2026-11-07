@@ -33,6 +33,7 @@ namespace pane_menu = zengine::workshop::pane_menu;
 using ws::pane_text::admissible;
 using ws::pane_text::fit;
 using ws::pane_text::pad;
+using ws::pane_text::printable;
 
 /// WHO THIS WEAVE IS TALKING TO -- the host's office, spelled as a literal exactly as every
 /// other provider spells it. A provider is a stranger to Workshop's internals and says who it
@@ -54,32 +55,6 @@ inline constexpr const char* kViewBuilderPane = "view-builder";
 
 /// THE SENTENCE FOR A PRESS THE WINDOW LANDED ON A ROW THIS PANE HAS SINCE REPLACED THERE.
 inline constexpr const char* kMovedSentence = "the list moved -- press again";
-
-/// A SENTENCE ANOTHER PARTY WROTE, MADE DRAWABLE: the host refuses a row carrying a byte a canvas
-/// cannot draw, and a loader's refusal may quote a file's bytes or break a line. What this
-/// pane prints of another's words is one row of printable text.
-inline std::string drawable(const std::string& text) {
-    std::string out;
-    out.reserve(text.size());
-    for (std::size_t i = 0; i < text.size(); ++i) {
-        const unsigned char b = static_cast<unsigned char>(text[i]);
-        if (b < 0x20 || b == 0x7f) {
-            out += ' ';
-        } else if (b >= 0x80) {
-            // ONE MARK PER MULTI-BYTE SEQUENCE: the lead byte says how long it is.
-            out += '?';
-            std::size_t more = b >= 0xf0 ? 3 : b >= 0xe0 ? 2 : b >= 0xc0 ? 1 : 0;
-            while (more > 0 && i + 1 < text.size() &&
-                   (static_cast<unsigned char>(text[i + 1]) & 0xc0) == 0x80) {
-                ++i;
-                --more;
-            }
-        } else {
-            out += text[i];
-        }
-    }
-    return out;
-}
 
 /// THE SEPARATOR INSIDE A MENU SUBJECT: a `PaneRef`'s two halves, or a binding's three, joined
 /// by a byte neither a pane key nor a gesture spelling may contain.

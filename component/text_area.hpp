@@ -6,8 +6,8 @@
 
 // Text longer than its place, read only: wrapped by width, scrolled, its text selected and copied,
 // over the text core (`text.hpp`). The scroll and the selection are places in the text, never rows
-// or pixels, so a text wrapped again at another width keeps both. No medium: measured in characters,
-// as both media lay a row out; how it looks -- a window's bar, a row of cells' markers -- is a face's
+// or pixels, so a text wrapped again at another width keeps both. No medium: measured in columns,
+// each character's own (`character_columns`), as both media lay a row out; how it looks -- a window's bar, a row of cells' markers -- is a face's
 // (`graphics/elements/text_face.hpp`).
 // Reference: component/docs/component.md.
 
@@ -116,16 +116,15 @@ public:
         return found;
     }
 
-    /// THE PLACE A COLUMN OF A SHOWN LINE NAMES: the line's own bytes from its indent on, a column
-    /// in the indent its first, one past its words its end, snapped back to a character's start.
+    /// THE PLACE A COLUMN OF A SHOWN LINE NAMES: the character covering it, from the line's indent
+    /// on (`byte_at_column`), a column in the indent its first, one past its words its end.
     std::size_t place_in_line(const Line& line, std::int64_t column) const noexcept {
         const std::int64_t into = column - line.indent;
         if (into <= 0) {
             return line.begin;
         }
-        const std::size_t ahead = static_cast<std::size_t>(into);
-        const std::size_t at = ahead < line.end - line.begin ? line.begin + ahead : line.end;
-        return character_boundary(text_, at);
+        const std::string_view own(text_.data(), line.end);
+        return byte_at_column(own, line.begin, static_cast<std::size_t>(into));
     }
 
     // ---- The scroll, by whole lines --------------------------------------------------------------
@@ -284,17 +283,21 @@ public:
         ShownLine row;
         row.look = look(line.paragraph);
         row.line = index;
-        row.text = std::string(static_cast<std::size_t>(line.indent), ' ') +
-                   text_.substr(line.begin, line.end - line.begin);
-        if (static_cast<std::int64_t>(row.text.size()) > columns) {
-            row.text.resize(static_cast<std::size_t>(columns > 0 ? columns : 0));
-        }
+        const std::size_t room = columns > 0 ? static_cast<std::size_t>(columns) : 0;
+        const std::size_t indent =
+            line.indent > 0 ? static_cast<std::size_t>(line.indent) : 0;
+        const std::size_t lead = indent < room ? indent : room;
+        const std::string_view own(text_.data(), line.end);
+        const std::size_t end = cut_at_columns(own, line.begin, room - lead);
+        row.text = std::string(lead, ' ') + text_.substr(line.begin, end - line.begin);
         if (places_.has_selection()) {
             const std::size_t b = places_.begin() > line.begin ? places_.begin() : line.begin;
             const std::size_t e = places_.end() < line.end ? places_.end() : line.end;
             if (e > b) {
-                row.selection_begin = line.indent + static_cast<std::int64_t>(b - line.begin);
-                row.selection_end = line.indent + static_cast<std::int64_t>(e - line.begin);
+                row.selection_begin =
+                    line.indent + static_cast<std::int64_t>(columns_between(text_, line.begin, b));
+                row.selection_end =
+                    line.indent + static_cast<std::int64_t>(columns_between(text_, line.begin, e));
             }
         }
         return row;
@@ -315,14 +318,16 @@ private:
         while (at < to) {
             const std::int64_t indent = !first && hang > 0 && hang < columns ? hang : 0;
             const auto take = static_cast<std::size_t>(columns - indent);
-            if (to - at <= take) {
+            const std::string_view paragraph_text(text_.data(), to);
+            const std::size_t fits = cut_at_columns(paragraph_text, at, take);
+            if (fits >= to) {
                 out.push_back(Line{at, to, paragraph, indent});
                 return;
             }
-            std::size_t cut = at + take;
+            std::size_t cut = fits;
             std::size_t next = 0;
             bool spaced = false;
-            for (std::size_t i = cut; i > at; --i) {
+            for (std::size_t i = fits; i > at; --i) {
                 if (text_[i] == ' ') {
                     cut = i;
                     spaced = true;
@@ -332,9 +337,8 @@ private:
             if (spaced) {
                 next = cut + 1;
             } else {
-                cut = character_boundary(text_, cut);
                 if (cut <= at) {
-                    cut = character_after(text_, at);
+                    cut = character_end(paragraph_text, at);
                 }
                 next = cut;
             }

@@ -54,7 +54,7 @@ namespace ws = zengine::workshop;
 
 using ws::EditorDocument;
 using ws::EditorTransfer;
-using ws::pane_text::drawable;
+using ws::pane_text::printable;
 using ws::pane_text::fit;
 
 namespace office = zengine::editor_office;
@@ -231,8 +231,8 @@ inline PasteLines paste_lines(const std::string& text) {
     return out;
 }
 
-/// ONE LINE OF A FILE AS THE PANE CAN DRAW IT, before Neovim draws it: tabs to the next eighth
-/// column, and every byte the pane cannot draw as `?`.
+/// ONE LINE OF A FILE AS THE PANE DRAWS IT, before Neovim draws it: tabs to the next eighth
+/// column, and every other control character a space (`printable`).
 inline std::string preview_line(const std::string& line, std::int64_t columns) {
     std::string out;
     for (const char c : line) {
@@ -247,7 +247,7 @@ inline std::string preview_line(const std::string& line, std::int64_t columns) {
             break;
         }
     }
-    return drawable(fit(std::move(out), columns));
+    return printable(fit(std::move(out), columns));
 }
 
 inline long long process_id() {

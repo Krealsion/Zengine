@@ -11,6 +11,8 @@
 // text, colour, medium or wire shape: `Meaning` is whatever the consumer's press handler reads.
 // Reference: component/docs/component.md.
 
+#include "component/text.hpp"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -24,8 +26,8 @@ namespace zengine::component {
 /// `kElided`'s three).
 inline std::int64_t solid_columns(const std::string& drawn, std::size_t wanted,
                                   std::size_t mark = 3) noexcept {
-    std::int64_t solid = static_cast<std::int64_t>(drawn.size());
-    if (drawn.size() < wanted) {
+    std::int64_t solid = static_cast<std::int64_t>(text_columns(drawn));
+    if (text_columns(drawn) < wanted) {
         solid -= static_cast<std::int64_t>(mark);
     }
     return solid < 0 ? 0 : solid;

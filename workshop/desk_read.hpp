@@ -18,6 +18,7 @@
 #include "screen.hpp"
 #include "setup.hpp"
 
+#include "component/text.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
@@ -86,16 +87,16 @@ inline void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t colum
     y = graphics::cell_of_pixel(g.y + row * g.line);
 }
 
-/// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its bytes' cells of the
-/// grid, and its middle byte's centre as the place a press names it -- or, with no byte to name,
+/// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its columns' cells of the
+/// grid, and its middle column's centre as the place a press names it -- or, with no column to name,
 /// its first cell, where a caret on an empty line stands.
 inline PaneWord word_on(const GlyphGrid& g, std::int64_t row, std::int64_t column, std::string text,
                         std::int64_t space) {
     PaneWord w;
-    const std::int64_t bytes = static_cast<std::int64_t>(text.size());
-    const std::int64_t n = (std::max<std::int64_t>)(1, bytes);
+    const std::int64_t cols = static_cast<std::int64_t>(component::text_columns(text));
+    const std::int64_t n = (std::max<std::int64_t>)(1, cols);
     w.place = DeskRect{g.x + column * g.advance, g.y + row * g.line, n * g.advance, g.line};
-    glyph_point(g, row, column + (bytes > 0 ? (bytes - 1) / 2 : 0), space, w.x, w.y);
+    glyph_point(g, row, column + (cols > 0 ? (cols - 1) / 2 : 0), space, w.x, w.y);
     w.space = space;
     w.text = std::move(text);
     return w;
@@ -164,15 +165,16 @@ bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
     const std::int64_t first = part.column;
     const std::int64_t last = (std::min)(end - 1, cells - 1);
     if (first > last) return false;
-    const auto size = static_cast<std::int64_t>(shown.size());
+    const auto size = static_cast<std::int64_t>(component::text_columns(shown));
     const auto from = static_cast<std::size_t>((std::min)(part.column, size));
     const auto to = static_cast<std::size_t>((std::min)(end, size));
     out.name = part.name;
     say_available(out, part);
-    out.text = without_trailing_blanks(shown.substr(from, to - from));
+    out.text = without_trailing_blanks(component::column_slice(shown, from, to - from));
     out.place = DeskRect{g.x + first * g.advance, g.y + row * g.line, (last - first + 1) * g.advance,
                          g.line};
-    const std::int64_t characters_end = part.column + static_cast<std::int64_t>(out.text.size());
+    const std::int64_t characters_end =
+        part.column + static_cast<std::int64_t>(component::text_columns(out.text));
     std::vector<std::int64_t> characters, blanks;
     for (std::int64_t c = part.column; c <= last; ++c) {
         if (owner[static_cast<std::size_t>(c)] != self) continue;
@@ -195,21 +197,21 @@ bool row_part_on(const GlyphGrid& g, std::int64_t row, const std::string& shown,
 inline std::string words_inside(const std::vector<PaneWord>& words, const DeskRect& place) {
     std::string out;
     for (const PaneWord& w : words) {
-        const auto bytes = static_cast<std::int64_t>(w.text.size());
+        const auto cols = static_cast<std::int64_t>(component::text_columns(w.text));
         // ...ON ITS ROWS: a word whose line's middle the part holds, the part cut where its clip is.
         const std::int64_t middle = w.place.y + w.place.h / 2;
-        if (bytes == 0 || middle < place.y || middle >= place.y + place.h) {
+        if (cols == 0 || middle < place.y || middle >= place.y + place.h) {
             continue;
         }
-        const std::int64_t advance = w.place.w / bytes;
+        const std::int64_t advance = w.place.w / cols;
         if (advance <= 0) continue;
         const std::int64_t first = (std::max<std::int64_t>)(
             0, -graphics::floor_div_px(w.place.x - place.x, advance));
         const std::int64_t end = (std::min<std::int64_t>)(
-            bytes, graphics::floor_div_px(place.x + place.w - w.place.x, advance));
+            cols, graphics::floor_div_px(place.x + place.w - w.place.x, advance));
         if (end <= first) continue;
-        const std::string piece =
-            w.text.substr(static_cast<std::size_t>(first), static_cast<std::size_t>(end - first));
+        const std::string piece = component::column_slice(w.text, static_cast<std::size_t>(first),
+                                                          static_cast<std::size_t>(end - first));
         out += out.empty() ? piece : " " + piece;
     }
     return out;

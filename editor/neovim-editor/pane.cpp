@@ -120,7 +120,7 @@ using ws::PaneTextInput;
 using ws::ProjectRoot;
 using ws::ProjectRootRequested;
 using ws::SourceOpened;
-using zengine::workshop::pane_text::drawable;
+using zengine::workshop::pane_text::printable;
 using zengine::workshop::pane_text::fit;
 
 using namespace zengine::neovim_editor::detail;
@@ -1112,10 +1112,10 @@ private:
         }
         const std::int64_t chrome = chrome_rows();
         if (!notice_.empty()) {
-            rows.push_back(ws::TextRow{drawable(fit(notice_, room_cols)),
+            rows.push_back(ws::TextRow{printable(fit(notice_, room_cols)),
                                                    notice_bad_ ? graphics::colors::alert : graphics::colors::quiet});
         } else if (chrome > 0) {
-            rows.push_back(ws::TextRow{drawable(fit(status_text(room_cols), room_cols)),
+            rows.push_back(ws::TextRow{printable(fit(status_text(room_cols), room_cols)),
                                                    graphics::colors::accent});
         }
         if (!running() || !host_->ready()) {
@@ -1174,7 +1174,7 @@ private:
             while (static_cast<std::int64_t>(text.size()) > keep && !text.empty() && text.back() == ' ') {
                 text.pop_back();
             }
-            rows.push_back(ws::TextRow{drawable(fit(std::move(text), text_cols)), ink});
+            rows.push_back(ws::TextRow{printable(fit(std::move(text), text_cols)), ink});
         }
     }
 

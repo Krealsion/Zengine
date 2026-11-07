@@ -74,7 +74,7 @@ using ws::ProjectRoot;
 using ws::ProjectRootRequested;
 using ws::SourceOpened;
 using ws::Written;
-using zengine::workshop::pane_text::drawable;
+using zengine::workshop::pane_text::printable;
 using zengine::workshop::pane_text::fit;
 
 namespace office = zengine::editor_office;

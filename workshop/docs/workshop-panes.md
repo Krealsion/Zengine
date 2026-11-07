@@ -815,7 +815,7 @@ A pane draws in one of three ways ([`workshop/pane_facets.hpp`](../pane_facets.h
 
 A canvas picture is a value a pane composes and draws in its own area
 ([`workshop/pane_picture.hpp`](../pane_picture.hpp)): rectangles (`CanvasRect`), labels
-(`CanvasLabel`, one canvas cell per printable ASCII byte), runs of text in the window's measure
+(`CanvasLabel`, a canvas cell a column of its characters), runs of text in the window's measure
 (`CanvasText`) and the parts it names (`CanvasPart`), for the room it is composed in
 (`CanvasRoom`: the area's size, the window's grain -- one pixel where it shows every pixel, a cell
 where its unit is the cell -- and how it sets text). None of it crosses as a message: the pane draws

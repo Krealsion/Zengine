@@ -963,7 +963,7 @@ TEST_CASE("a press between a room and the pane's answer to it names nothing") {
     lw.in_one_turn([&lw, area](pw::PaneWindow& w, loom::Mail& m) {
         (void)m.as_role(w.office()).send_to_role(
             kIntroOffice, gfx::AreaRoom{area, w.window(), 1, 46 * gfx::kCellPx, 6 * gfx::kCellPx,
-                                        {}, false, 0, gfx::kCellPx, gfx::kCellPx});
+                                        {}, false, 0, gfx::kCellPx, gfx::kCellPx, {}});
         lw.press_in(w, m, area, 1, 7);
     });
     // NOTHING WAS SELECTED, because at the moment the press arrived this pane was showing

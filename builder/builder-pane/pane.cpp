@@ -83,7 +83,7 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 // Workshop's own text helpers, shared through `workshop/pane_text.hpp`, because `screen.hpp`
 // is the host's presentation and not a header a loaded image may include.
 
-using zengine::workshop::pane_text::ascii_spelling;
+using zengine::workshop::pane_text::printable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::fitted_label;
 using zengine::workshop::pane_text::pad;
@@ -97,16 +97,10 @@ std::string labelled_row(const char* label, const std::string& value) {
 }
 
 /// A ROLE A WEAVER TYPES IS ONE LINE OF PLAIN TEXT. The plan's own law judges it (the host
-/// refuses an empty or malformed one in the plan's words); this only keeps control bytes and
-/// newlines out of a single-line field, `files.cpp`'s `admissible` for the same reason.
+/// refuses an empty or malformed one in the plan's words); this only keeps control characters
+/// and newlines out of a single-line field (`pane_text::admissible`).
 bool admissible(std::string_view text) {
-    for (const char c : text) {
-        const unsigned char u = static_cast<unsigned char>(c);
-        if (u < 0x20 || u == 0x7F) {
-            return false;
-        }
-    }
-    return true;
+    return zengine::workshop::pane_text::admissible(std::string(text));
 }
 
 /// The sentence for a press the window landed on a row this pane has since replaced there: a press
@@ -820,15 +814,12 @@ public:
                     // doing anything.
                     open_recipes(mail);
                 } else if (m->kind == builder_row::kLine && role_.open) {
-                    // A PRESS IS READ IN WHAT THE ROW DRAWS, as the caret is: the pressed column
-                    // counts the spelled characters before it, never the typed bytes.
-                    // The box's text stands after its inset.
+                    // A PRESS IS READ IN WHAT THE ROW DRAWS, as the caret is: in columns, the
+                    // box's text standing after the prompt and its inset.
                     const std::string prompt = active_role_prompt();
-                    const std::string shown = role_.line.visible(
-                        zengine::graphics::text_box_room(role_value_columns(prompt)));
-                    role_.line.place(role_.line.position_at_column(spelled_column_byte(
-                        shown, column - static_cast<std::int64_t>(prompt.size()) -
-                                   zengine::graphics::kTextBoxInset)));
+                    role_.line.place(role_.line.position_at_column(
+                        column - zengine::workshop::pane_text::columns_of(prompt) -
+                        zengine::graphics::kTextBoxInset));
                     say(mail);
                 }
             },
@@ -1633,11 +1624,10 @@ private:
 
     // ---- Saying what the pane shows ---------------------------------------------------
 
-    /// One row's text as this pane draws it: spelled in what a canvas draws (WL-OUT-03), since a
-    /// row may carry another owner's words, and one byte Workshop's canvas cannot draw refuses
-    /// the pane's whole picture (`canvas_content_problem`).
+    /// One row's text as this pane draws it: as a row shows another owner's words (WL-OUT-03),
+    /// every character as written, a control character a space and an escape sequence left out.
     std::string fitted(const std::string& text) const {
-        return fit(ascii_spelling(text), columns());
+        return fit(printable(text), columns());
     }
     /// ...as the facet's strip and window take it (`PaneRowsFacet::push_controls`).
     auto fit_row() const {
@@ -1771,7 +1761,6 @@ private:
     std::string role_prompt() const;
     std::string active_role_prompt() const;
     std::int64_t role_value_columns(const std::string& prompt) const;
-    static std::int64_t spelled_column_byte(const std::string& shown, std::int64_t column);
     void say_role();
     void say_recipes();
 

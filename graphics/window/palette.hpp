@@ -113,6 +113,78 @@ inline std::vector<PaintInk> inks_of(const std::string& op, const loom::Bytes& a
     return out;
 }
 
+// ---- A text's size and font -----------------------------------------------------------------
+
+/// A pool size in `palette`: its own, else the pool's default; nothing where neither holds it.
+inline const PaletteSize* pool_size(const PaletteOffered& palette, std::string_view name) {
+    for (const PaletteSize& s : palette.sizes) {
+        if (s.name == name) {
+            return &s;
+        }
+    }
+    for (const PaletteSize& s : built_in_palette().sizes) {
+        if (s.name == name) {
+            return &s;
+        }
+    }
+    return nullptr;
+}
+
+/// The points the pool's `body` stands at in `palette`, and the window's own where no palette
+/// holds one.
+inline std::int64_t body_points(const PaletteOffered& palette) {
+    const PaletteSize* s = pool_size(palette, kBodySize);
+    return s != nullptr && s->points > 0 ? s->points : 13;
+}
+
+/// A TEXT SIZE A DRAW NAMES, AS SET in `palette` in an area `office` owns: a pool size as the
+/// palette says, else as the pool's own default, else as `body`; a slot as the palette says for the
+/// area's owner, else at the points the drawing carries, else as `body`. Its name is the pool's, or
+/// the slot's.
+inline PaletteSize resolve_size(const TextSize& size, const PaletteOffered& palette,
+                                const std::string& office) {
+    if (size.from == size_from::kSlot) {
+        for (const PaletteSlots& s : palette.slots) {
+            if (s.office != office) {
+                continue;
+            }
+            for (const PaletteSize& z : s.sizes) {
+                if (z.name == size.name && z.points > 0) {
+                    return z;
+                }
+            }
+        }
+        if (size.points > 0) {
+            return PaletteSize{size.name, size.points};
+        }
+        return PaletteSize{kBodySize, body_points(palette)};
+    }
+    const std::string name = size.pool_name();
+    if (const PaletteSize* s = pool_size(palette, name); s != nullptr && s->points > 0) {
+        return *s;
+    }
+    return PaletteSize{kBodySize, body_points(palette)};
+}
+
+/// THE FACE A FONT A DRAW NAMES IS SET IN, in `palette`: the font's face as the palette says, else
+/// as the pool's own default, else the pool's `text`'s.
+inline std::string resolve_face(const std::string& font, const PaletteOffered& palette) {
+    const std::string name = font.empty() ? std::string(kTextFont) : font;
+    for (const std::vector<PaletteFont>* fonts : {&palette.fonts, &built_in_palette().fonts}) {
+        for (const PaletteFont& f : *fonts) {
+            if (f.name == name) {
+                return f.face;
+            }
+        }
+    }
+    for (const PaletteFont& f : built_in_palette().fonts) {
+        if (f.name == kTextFont) {
+            return f.face;
+        }
+    }
+    return {};
+}
+
 /// A task's own colours and outline, as `palette` gives them for an area `office` owns: its text,
 /// its quiet, and a terminal's corner, across and down.
 inline void dress(PaintTask& task, const PaletteOffered& palette, const std::string& office) {

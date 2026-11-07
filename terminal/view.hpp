@@ -33,7 +33,7 @@
 
 namespace {
 
-using zengine::workshop::pane_text::drawable;
+using zengine::workshop::pane_text::printable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::wrap;
 
@@ -234,7 +234,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     list_shown_first_ = 0;
     std::vector<zengine::workshop::TextRow> out;
     const auto push = [&out, this](std::string text, gfx::Color ink) {
-        out.push_back(zengine::workshop::TextRow{drawable(fit(std::move(text), columns())), ink});
+        out.push_back(zengine::workshop::TextRow{printable(fit(std::move(text), columns())), ink});
     };
     if (rows() <= 0 || columns() <= 0) {
         (void)room().map().settle();

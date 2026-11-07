@@ -118,7 +118,7 @@ public:
         const auto width = s.columns;
         const auto push = [&](std::string text, graphics::Color ink, graphics::Color ground = graphics::no_color()) {
             if (static_cast<std::int64_t>(out.rows.size()) < s.rows)
-                out.rows.push_back({workshop::pane_text::drawable(workshop::pane_text::fit(std::move(text), width)), ink, ground});
+                out.rows.push_back({workshop::pane_text::printable(workshop::pane_text::fit(std::move(text), width)), ink, ground});
         };
         if (!s.used) {
             push(s.title + " -- unused view slot", graphics::colors::accent, graphics::colors::quiet);
@@ -206,7 +206,7 @@ private:
                 text += word;
                 ++next;
             }
-            out.rows.push_back({workshop::pane_text::drawable(text), graphics::colors::text, graphics::no_color()});
+            out.rows.push_back({workshop::pane_text::printable(text), graphics::colors::text, graphics::no_color()});
             last_row = row; last_text = text;
             if (next >= items.size()) break;
         }
@@ -217,7 +217,7 @@ private:
                 if (!last_text.empty()) last_text += ' ';
                 map_.span(last_row, start, 5, s.columns, Meaning{Meaning::kControl, kActionViewMenu, {}});
                 last_text += "[...]";
-                out.rows[static_cast<std::size_t>(last_row)].text = workshop::pane_text::drawable(last_text);
+                out.rows[static_cast<std::size_t>(last_row)].text = workshop::pane_text::printable(last_text);
             }
         }
     }

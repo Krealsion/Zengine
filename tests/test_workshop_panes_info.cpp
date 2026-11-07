@@ -1117,10 +1117,9 @@ TEST_CASE("a room too short for the body invents none of it") {
     const CellRect body = external_body_rect(f.r.session(), f.kind);
     CHECK(static_cast<std::int64_t>(f.shown().size()) <= body.h);
     CHECK(static_cast<std::int64_t>(f.shown().size()) < tall);
-    // AND EVERY ROW FITS THE COLUMNS IT WAS GRANTED -- the other half of `judge_content`,
-    // which refuses a publication WHOLE when one row is a byte too wide.
+    // AND EVERY ROW FITS THE COLUMNS IT WAS GRANTED.
     for (const std::string& row_text : f.shown()) {
-        CHECK(static_cast<std::int64_t>(row_text.size()) <= body.w);
+        CHECK(static_cast<std::int64_t>(zengine::component::text_columns(row_text)) <= body.w);
     }
 }
 

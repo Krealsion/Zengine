@@ -1388,7 +1388,7 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     CHECK_FALSE(has(notice, "..."));
 }
 
-TEST_CASE("the names and refusals a view only carries reach its notice row spelled in plain ASCII, and text typed into a number field that a canvas cannot draw is refused there, the field as it was") {
+TEST_CASE("the names and refusals a view only carries reach its notice row as they are written, and text typed into a number field outside plain ASCII is refused there, the field as it was") {
     Rig rig;
     // A view told `tally.Größe` and saying `tally.panel.Añadir`: names a weaver gave in their own
     // language, which no rule keeps to ASCII.
@@ -1404,28 +1404,29 @@ TEST_CASE("the names and refusals a view only carries reach its notice row spell
         return rig.window->refused.empty() ? std::string() : rig.window->refused.back();
     };
     rig.room("tally.panel");
-    // WAITING: the shape's name, one `?` a character.
-    CHECK(has(rig.words("tally.panel"), "waiting to be told tally.Gr??e|"));
+    // WAITING: the shape's name, every character as written.
+    CHECK(has(rig.words("tally.panel"), "waiting to be told tally.Gr\xC3\xB6\xC3\x9F" "e|"));
     CHECK(judged().empty());
 
-    // REFUSED A SEAT, in the desk's words: a dash is its ASCII twin.
+    // REFUSED A SEAT, in the desk's words, its dash a dash.
     rig.tell("tally.panel", ws::PaneRevealAnswered{view::kPane, false, "the desk is full \xE2\x80\x94 caf\xC3\xA9 holds it"});
-    CHECK(has(rig.words("tally.panel"), "no seat on the desk: the desk is full - caf? holds it|"));
+    CHECK(has(rig.words("tally.panel"), "no seat on the desk: the desk is full \xE2\x80\x94 caf\xC3\xA9 holds it|"));
     CHECK(judged().empty());
 
     // SAID where nothing accepts it: the intent's name.
     rig.press("tally.panel", d.elements[3]);
-    CHECK(has(rig.words("tally.panel"), "said tally.panel.A?adir; nothing accepts it|"));
+    CHECK(has(rig.words("tally.panel"), "said tally.panel.A\xC3\xB1" "adir; nothing accepts it|"));
     CHECK(judged().empty());
 
     // REFUSED by an accepter of the intent, in its owner's words.
     (void)rig.bus.register_weave(std::make_unique<Refuser>(d.intents[0].shape, "caf\xC3\xA9 refuses A\xC3\xB1" "adir"),
                                  loom::Grant{}.allow_any());
     rig.press("tally.panel", d.elements[3]);
-    CHECK(has(rig.words("tally.panel"), "refused: caf? refuses A?adir|"));
+    CHECK(has(rig.words("tally.panel"), "refused: caf\xC3\xA9 refuses A\xC3\xB1" "adir|"));
     CHECK(judged().empty());
 
-    // TYPED TEXT a number field cannot draw is refused at the door and said; the field keeps its text.
+    // TYPED TEXT outside plain ASCII, which no number is written in, is refused at the door and said;
+    // the field keeps its text.
     rig.press("tally.panel", d.elements[0]);
     rig.tell("tally.panel", ws::PaneTextInput{view::kPane, "1\xC2\xB2"});
     CHECK(has(rig.words("tally.panel"), "start: 0|"));

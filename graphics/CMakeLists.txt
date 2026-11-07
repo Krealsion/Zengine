@@ -57,27 +57,37 @@ target_link_libraries(zengine-window-terminal PRIVATE zengine-graphics-vocabular
                                                       zengine-activation zengine-operator)
 
 # The OS window, through SDL3: built where this configuration has SDL (cmake/ZengineSdl.cmake), as
-# it is by default. Its manual is compiled in, as the terminal window's is, and so is its face: the
-# font's bytes become a translation unit in the build tree, nothing installed, staged or discovered
-# at runtime (graphics/window/fonts/PROVENANCE.md).
+# it is by default. Its manual is compiled in, as the terminal window's is, and so are its faces:
+# each font's bytes become a translation unit in the build tree, nothing installed, staged or
+# discovered at runtime (graphics/window/fonts/PROVENANCE.md) -- JetBrains Mono, regular and bold,
+# and GNU Unifont and Unifont Upper, the last resort for every character the others lack.
 if(ZENGINE_SDL_LIB)
-    set(zengine_window_font_unit "${CMAKE_CURRENT_BINARY_DIR}/zengine_window_font.cpp")
-    add_custom_command(
-        OUTPUT ${zengine_window_font_unit}
-        COMMAND ${CMAKE_COMMAND}
-                -DZEN_EMBED_INPUT=${CMAKE_CURRENT_SOURCE_DIR}/window/fonts/JetBrainsMono-Regular.ttf
-                -DZEN_EMBED_OUTPUT=${zengine_window_font_unit}
-                -DZEN_EMBED_NAME=kWindowFontBytes
-                -DZEN_EMBED_NAMESPACE=zengine::graphics::window
-                -P ${CMAKE_SOURCE_DIR}/cmake/EmbedBinary.cmake
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/window/fonts/JetBrainsMono-Regular.ttf
-                ${CMAKE_SOURCE_DIR}/cmake/EmbedBinary.cmake
-        COMMENT "zengine-window-sdl: embedding JetBrains Mono into the weave"
-        VERBATIM)
-    # The face's bytes as objects of their own, so the graphics suite, which builds the backend in
-    # process, links the same face the weave does. A quarter of a million initializers of somebody
-    # else's data: the warning discipline is about code this repository wrote.
-    add_library(zengine-window-font OBJECT ${zengine_window_font_unit})
+    set(zengine_window_font_units "")
+    foreach(face IN ITEMS "JetBrainsMono-Regular.ttf;kWindowFontBytes"
+                          "JetBrainsMono-Bold.ttf;kWindowBoldFontBytes"
+                          "Unifont-17.0.05.otf;kLastResortFontBytes"
+                          "UnifontUpper-17.0.05.otf;kLastResortUpperFontBytes")
+        list(GET face 0 file)
+        list(GET face 1 name)
+        set(unit "${CMAKE_CURRENT_BINARY_DIR}/zengine_window_font_${name}.cpp")
+        add_custom_command(
+            OUTPUT ${unit}
+            COMMAND ${CMAKE_COMMAND}
+                    -DZEN_EMBED_INPUT=${CMAKE_CURRENT_SOURCE_DIR}/window/fonts/${file}
+                    -DZEN_EMBED_OUTPUT=${unit}
+                    -DZEN_EMBED_NAME=${name}
+                    -DZEN_EMBED_NAMESPACE=zengine::graphics::window
+                    -P ${CMAKE_SOURCE_DIR}/cmake/EmbedBinary.cmake
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/window/fonts/${file}
+                    ${CMAKE_SOURCE_DIR}/cmake/EmbedBinary.cmake
+            COMMENT "zengine-window-sdl: embedding ${file} into the weave"
+            VERBATIM)
+        list(APPEND zengine_window_font_units ${unit})
+    endforeach()
+    # The faces' bytes as objects of their own, so the graphics suite, which builds the backend in
+    # process, links the same faces the weave does. Millions of initializers of somebody else's
+    # data: the warning discipline is about code this repository wrote.
+    add_library(zengine-window-font OBJECT ${zengine_window_font_units})
     set_target_properties(zengine-window-font PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_compile_options(zengine-window-font PRIVATE -w)
     zengine_weave(zengine-window-sdl window/window_sdl.cpp MANUAL docs/zengine.window.sdl.md)

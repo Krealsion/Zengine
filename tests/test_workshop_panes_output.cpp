@@ -278,11 +278,14 @@ struct OutputRig {
     }
 };
 
-bool every_byte_drawable(const std::vector<std::string>& rows) {
+/// Whether every row is whole characters a row shows as themselves: none a control character, and
+/// no bytes that spell none.
+bool every_character_shown(const std::vector<std::string>& rows) {
     for (const std::string& row : rows) {
-        for (const char c : row) {
-            const unsigned char b = static_cast<unsigned char>(c);
-            if (b < 0x20u || b >= 0x7Fu) {
+        for (std::size_t i = 0; i < row.size(); i = zengine::component::character_end(row, i)) {
+            const char32_t cp = zengine::component::code_point_at(row, i);
+            if (cp == zengine::component::kNotACharacter || cp < 0x20u ||
+                (cp >= 0x7Fu && cp < 0xA0u)) {
                 return false;
             }
         }
@@ -293,16 +296,16 @@ bool every_byte_drawable(const std::vector<std::string>& rows) {
 } // namespace
 
 // ============================================================================
-// The reader: a failed build's own words, on rows a canvas can draw
+// The reader: a failed build's own words, on rows that show them as written
 // ============================================================================
 
-TEST_CASE("read output shows a failed build's own lines on rows Workshop takes, spelled in ASCII and said to be") {
+TEST_CASE("read output shows a failed build's own lines on rows Workshop takes, as written, the control characters it did not show said") {
     OutputRig o("out-read");
     o.open();
     o.build(1, kDiagnostic, 1);
 
-    // THE BUILDER'S OWN FACE SAYS IT FAILED AND WHERE ITS WORDS ARE -- and Workshop took it: a
-    // `said` row built from a compiler's non-ASCII line would otherwise refuse the whole picture.
+    // THE BUILDER'S OWN FACE SAYS IT FAILED AND WHERE ITS WORDS ARE -- and Workshop took it, a
+    // `said` row built from a compiler's non-ASCII line among its rows.
     REQUIRE(o.refused == 0);
     CHECK(o.text().find("FAILED -- op #1") != std::string::npos);
     CHECK(o.text().find("-- read output") != std::string::npos);
@@ -310,15 +313,16 @@ TEST_CASE("read output shows a failed build's own lines on rows Workshop takes, 
     o.letter(input::scan::kL, "l");
     const std::vector<std::string> rows = o.rows();
     REQUIRE(o.refused == 0);
-    CHECK(every_byte_drawable(rows));
+    CHECK(every_character_shown(rows));
     REQUIRE(rows.size() >= 10);
-    // ONE HEADER: the operation, its recipe, how it ended, which lines, and what was spelled.
+    // ONE HEADER: the operation, its recipe, how it ended and which lines; a build that wrote no
+    // control character has none to count.
     CHECK(rows[0].rfind("output #1 attention -- FAILED, exit 1 -- lines 1-9 of 9", 0) == 0);
-    CHECK(rows[0].find("4 characters spelled in ASCII") != std::string::npos);
-    // ...THEN THE LINES, ONE ROW EACH, IN ORDER: the compiler's line whole, its quotes spelled.
+    CHECK(rows[0].find("not shown") == std::string::npos);
+    // ...THEN THE LINES, ONE ROW EACH, IN ORDER: the compiler's line whole, its quotes its own.
     CHECK(rows[1].rfind("[1/2] Building CXX object", 0) == 0);
     CHECK(rows[2].rfind("FAILED: attention/", 0) == 0);
-    CHECK(rows[5] == "/home/weaver/zen checkout/attention/pane.cpp:416:23: error: 'oops' was "
+    CHECK(rows[5] == "/home/weaver/zen checkout/attention/pane.cpp:416:23: error: \xE2\x80\x98oops\xE2\x80\x99 was "
                      "not declared in this scope");
     CHECK(rows[6] == "  416 |         push(\"ATTENTION\" + oops);");
     CHECK(rows[7] == "      |                            ^~~~"); // the caret stays under its column
@@ -347,10 +351,21 @@ TEST_CASE("read output shows a failed build's own lines on rows Workshop takes, 
     CHECK(o.text().find("FAILED -- op #1") != std::string::npos);
 }
 
+TEST_CASE("read output leaves a build's colour codes out and its tabs a space, and its header counts each") {
+    OutputRig o("out-codes");
+    o.open();
+    o.build(1, "\x1b[31merror\x1b[0m:\tred\n", 1);
+    o.letter(input::scan::kL, "l");
+    const std::vector<std::string> rows = o.rows();
+    REQUIRE(rows.size() >= 2);
+    CHECK(every_character_shown(rows));
+    CHECK(rows[1] == "error: red"); // two escape sequences left out, the tab one space
+    CHECK(rows[0].find("3 control characters not shown") != std::string::npos);
+}
+
 TEST_CASE("a compiler's non-ASCII words in a build's last lines leave the Builder's picture standing") {
     // THE LAST LINE IS THE ONE WITH THE QUOTES, so the tool's `detail`, the notice and the `said`
-    // rows all carry them. One byte a canvas cannot draw refuses a pane's whole publication
-    // (`judge_content`); spelled, the picture stands and reads as the compiler meant it.
+    // rows all carry them: the picture stands and reads as the compiler wrote it.
     OutputRig o("out-detail");
     o.open();
     o.build(1,
@@ -358,8 +373,8 @@ TEST_CASE("a compiler's non-ASCII words in a build's last lines leave the Builde
             "\xE2\x80\x98oops\xE2\x80\x99 was not declared in this scope\n",
             1);
     REQUIRE(o.refused == 0);
-    CHECK(every_byte_drawable(o.rows()));
-    CHECK(o.text().find("error: 'oops' was not declared") != std::string::npos);
+    CHECK(every_character_shown(o.rows()));
+    CHECK(o.text().find("error: \xE2\x80\x98oops\xE2\x80\x99 was not declared") != std::string::npos);
 }
 
 TEST_CASE("the reader stays bound to its build: a newer build and a new status do not move it, and it steps between the builds kept") {
@@ -379,7 +394,7 @@ TEST_CASE("the reader stays bound to its build: a newer build and a new status d
     CHECK(rows[0].rfind("output #1 attention -- FAILED, exit 1", 0) == 0);
     CHECK(rows[0].find("build #2 is newer") != std::string::npos);
     REQUIRE(rows.size() > 5);
-    CHECK(rows[5].find("error: 'oops' was not declared") != std::string::npos);
+    CHECK(rows[5].find("error: \xE2\x80\x98oops\xE2\x80\x99 was not declared") != std::string::npos);
 
     // A THIRD BUILD, ASKED BY SOMEBODY ELSE WHILE THIS READER IS OPEN, MOVES NOTHING IT SHOWS.
     (void)o.r.bus.send_to_role(bld::kBuilderRole,
