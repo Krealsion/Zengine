@@ -176,11 +176,13 @@ struct SelectBase {
     using type = Base<Dispatch, State, AcceptList, EmitList, ClaimList>;
 };
 
+/// A base with Timer bindings (`timer::TimedWeave`), asked of the very type the weave derives from:
+/// naming another instantiation would make that one a class too, and MSVC builds its virtuals.
 template <template <class...> class Base, class Self, class Dispatch, class State, class AcceptList,
           class EmitList, class ClaimList>
 struct SelectBase<
     Base, Self, Dispatch, State, AcceptList, EmitList, ClaimList,
-    std::void_t<typename Base<Self, State, AcceptList, EmitList, Dispatch>::Bindings>> {
+    std::void_t<typename Base<Self, State, AcceptList, EmitList, Dispatch, ClaimList>::Bindings>> {
     using type = Base<Self, State, AcceptList, EmitList, Dispatch, ClaimList>;
 };
 
