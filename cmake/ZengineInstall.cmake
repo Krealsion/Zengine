@@ -352,6 +352,8 @@ if(ZENGINE_PACKAGE)
     foreach(plan IN LISTS zengine_package_plans)
         install(FILES ${CMAKE_SOURCE_DIR}/workshop/${plan} DESTINATION ${zengine_package_bin})
     endforeach()
+    # ...and the shipped themes, in `themes/` beside them, which the settings weave reads.
+    install(FILES ${ZENGINE_GRAPHICS_THEMES} DESTINATION ${zengine_package_bin}/themes)
     # No recipe catalog: the build's own names this build tree, and an absent catalog is a valid
     # one ("build recipes: none"). No development catalog, runtime script or launch either.
 

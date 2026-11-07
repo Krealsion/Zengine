@@ -614,7 +614,7 @@ TEST_CASE("a persisted mark is admitted, never re-based, and never quietly dropp
     REQUIRE(loaded.outcome.accepted);
     // THE RELATIVE ROW IS REFUSED AND RESOLVED AGAINST NOTHING: a mark re-based against the
     // process's own footing would mean a different directory on every launch, the two-bases
-    // defect `persist::resolved_against` exists to end.
+    // defect `zengine::persist::resolved_against` exists to end.
     const std::vector<std::string> only_good{good};
     CHECK(loaded.weaver == only_good);
     CHECK(loaded.skipped.find("relative/place") != std::string::npos);

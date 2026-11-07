@@ -466,7 +466,7 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
 
 /// WHAT A ROW'S SETTINGS MAY BE, judged by form alone: each one a setting (`pane_setting_problem`),
 /// in key order and once each, at most `kMaxPaneSettingsPerRow`, and none under `workshop.` but
-/// `workshop.skin`, which takes what its setting takes: a newer Workshop's word this one does not
+/// `workshop.theme`, which takes what its setting takes: a newer Workshop's word this one does not
 /// know would be dropped unread.
 // WL-SETTING-02 -- agents/workshop/settings.md
 inline Written check_pane_settings(const PaneRef& ref, const std::vector<PaneSetting>& settings) {
@@ -483,12 +483,12 @@ inline Written check_pane_settings(const PaneRef& ref, const std::vector<PaneSet
             return Written::no(whose + ": " + wrong);
         }
         if (is_desk_setting_key(s.key)) {
-            if (s.key != kWorkshopSkinKey) {
+            if (s.key != kWorkshopThemeKey) {
                 return Written::no(whose + ": `" + s.key +
                                    "` is a Workshop setting this Workshop does not know");
             }
             if (const std::string refused =
-                    pane_setting_refused_by(narrow_setting_row(workshop_skin_setting_row()), s);
+                    pane_setting_refused_by(narrow_setting_row(workshop_theme_setting_row()), s);
                 !refused.empty()) {
                 return Written::no(whose + ": " + refused);
             }

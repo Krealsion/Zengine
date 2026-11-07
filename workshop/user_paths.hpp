@@ -14,7 +14,16 @@
 #include <string_view>
 #include <system_error>
 
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
+
+namespace zengine::workshop {
+
+/// The name the retired object document was saved under: kept so a launch can say that a file
+/// under it is left exactly as it is (`workshop.cpp`), and never read as anything else.
+inline constexpr const char* kRetiredDocumentName = "workshop.json";
+
+} // namespace zengine::workshop
 
 namespace zengine::workshop::user_paths {
 

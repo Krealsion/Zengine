@@ -37,7 +37,8 @@ again draws nothing.
 
 Whoever arranges the window -- the *arranger*, in the snake's host its operator weave, in Workshop
 Workshop's own -- offers the palettes and the element code, chooses each area's palette and places
-it. Once the window has offered itself, each area placed is introduced, and its owner hears its
+it; in Workshop the theme reader (`zengine.settings`) offers the palettes of the themes it reads
+too. Once the window has offered itself, each area placed is introduced, and its owner hears its
 room from the window. An area wearing a palette no one offered, or none, is painted in the
 window's own until one is offered. An owner that starts again asks its room with
 [`RoomAsked`](#roomasked).

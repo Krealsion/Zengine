@@ -45,7 +45,7 @@ the doors it asks). Its marks file's shapes are counted by `workshop_shapes`
 - Door: `ProjectDoor` (`zengine.project`, where the project is and the recipe acts) in
   `workshop/pane_doors.hpp`, mounted in `workshop/workshop.cpp`, which resolves the marks path;
   the open is answered in `workshop/weave_opening.cpp`.
-- The pure half includes `workshop/path_admission.hpp` and `workshop/persist.hpp`.
+- The pure half includes `workshop/path_admission.hpp` and `persist/file.hpp`.
 - A desk naming `zengine.workshop/project-files` is converted by `workshop/pane_migration.hpp`.
 
 ## Pages

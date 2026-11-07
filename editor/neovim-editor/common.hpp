@@ -21,7 +21,8 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include "graphics/vocabulary.hpp"
 
@@ -115,7 +116,7 @@ inline constexpr const char* kNeovimMenuRow = "neovim.menu";
 /// A PATH AS THE STANDARD EDITOR SPELLS ONE: absolute, lexically normal, forward slashes -- so the
 /// office's two implementations name one file one way and a same-path open is recognised.
 inline std::string spelled(const std::string& name) {
-    return ws::persist::resolved_against(std::string(), name);
+    return zengine::persist::resolved_against(std::string(), name);
 }
 
 /// ONE FIELD OF A MODULE ANSWER, or nil where the answer has none -- so an answer that lacks a

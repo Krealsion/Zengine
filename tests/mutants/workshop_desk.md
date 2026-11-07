@@ -39,22 +39,22 @@ Every graphics area is given `night`, whatever its row and Workshop keep.
 In `workshop/weave_run.cpp`:
 
 ```diff
--        skins[area] = own != nullptr && own->text && is_workshop_skin_choice(*own->text)
+-        themes[area] = own != nullptr && own->text && is_workshop_theme_choice(*own->text)
 -                          ? workshop_palette_of(*own->text)
--                          : session_.skin;
-+        skins[area] = own != nullptr && false ? *own->text : std::string(kSkinNight);
+-                          : worn;
++        themes[area] = own != nullptr && false ? *own->text : std::string(kThemeNight);
 ```
 
 In `workshop/weave_run.cpp`:
 
 ```diff
--    skins[kWorkshopProvider] = session_.skin;
-+    skins[kWorkshopProvider] = kSkinNight;
+-    themes[kWorkshopProvider] = worn;
++    themes[kWorkshopProvider] = kThemeNight;
 ```
 
 Red in `zengine-workshop-desk-tests`:
 
-- each graphics area wears the palette its row's `workshop.skin` names, else Workshop's own, and a
+- each graphics area wears the palette its row's `workshop.theme` names, else Workshop's own, and a
   palette is said only when an area's moved
 
 ## area-named-by-its-office
@@ -91,3 +91,35 @@ Red in `zengine-workshop-desk-tests`:
 
 - the terminal window offered brings Workshop up in it, the last session restored first, and lays
   the desk out in the window's room
+
+## apply-keeps-held
+
+An apply leaves a palette the theme reader already offers as it was.
+
+In `settings/weave.cpp`:
+
+```diff
+-            if (worn.empty() || !offered.insert(name).second) {
++            if (worn.empty() || !offered.insert(name).second || held(name) != nullptr) {
+```
+
+Red in `zengine-workshop-desk-tests`:
+
+- a theme edited on disk and applied changes the palette a window paints with no build, and no pane
+  hears of it
+
+## merge-from-defaults
+
+A theme applied by `merge` is laid over the pool's defaults, not over the palette the layout wears.
+
+In `settings/weave.cpp`:
+
+```diff
+-            if (!reset) {
++            if (!reset && false) {
+```
+
+Red in `zengine-workshop-desk-tests`:
+
+- merge leaves what a theme does not name and reset returns it to its default, settings and colours
+  alike

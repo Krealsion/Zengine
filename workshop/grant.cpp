@@ -22,6 +22,9 @@ loom::Grant workshop_grant() {
     speak.allow_to_role(graphics::WindowShaped::zen_name, graphics::WindowShaped::zen_version,
                         std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow);
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
+    // ...where the themes are, to the theme reader.
+    speak.allow_to_role(settings::ThemesPlaced::zen_name, settings::ThemesPlaced::zen_version,
+                        settings::kSettingsRole);
     // ...and to the layouts' owner: each edit of the live layout, Workshop's own settings declared
     // and written, the session's save asked, and the judge's answer about the weaver's act.
     speak.allow_to_role(LayoutEditRequested::zen_name, LayoutEditRequested::zen_version,

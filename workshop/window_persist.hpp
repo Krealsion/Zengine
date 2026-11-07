@@ -9,7 +9,8 @@
 // window file exists yet, the same three facts read from a session file an older Workshop wrote.
 // Workshop law: agents/workshop/window-file.md
 
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 #include "screen.hpp"
 
 #include <zen/admission.hpp>

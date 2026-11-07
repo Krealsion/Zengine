@@ -24,9 +24,10 @@ ship is [its own record](night-day-and-block-ship.md).
   name looks like.
 
 **Consequences.** Workshop, the snake and an app offer palettes where they offered skins; a row's
-`workshop.skin` names one. Drawings in the operands' first versions are refused in words. A GPU
-painter is packaging behind the same interface, not a redesign. Three places still say `skin` for
-a theme -- the `workshop.skin` setting, `app.json`'s `window.skin` and the snake's `1 skin` -- a
-known debt, kept until they are renamed.
+`workshop.theme` names one. Drawings in the operands' first versions are refused in words. A GPU
+painter is packaging behind the same interface, not a redesign. Themes are read at run time by the
+settings office, which offers each as a palette and applies one whole or on top (WL-THEME-01, WL-THEME-02).
+One place still says `skin` for a theme, `app.json`'s `window.skin`, a known debt kept until it is
+renamed.
 
-**Laws supported.** [WL-SETTING-13](../workshop/settings.md).
+**Laws supported.** [WL-SETTING-13](../workshop/settings.md), [WL-THEME-01](../workshop/themes.md), [WL-THEME-02](../workshop/themes.md).

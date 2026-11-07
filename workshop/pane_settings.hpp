@@ -13,6 +13,7 @@
 
 #include <zen/weave/shape.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -308,15 +309,40 @@ template <class Valued> inline std::string setting_value_named(const Valued& v) 
     return std::string(setting_kind_word(kind)) + " `" + setting_value_text(v) + "`";
 }
 
-/// THE ONE `workshop.` KEY A ROW KEEPS: the palette its pane's graphics area wears, over the
-/// Workshop-wide one, named by one of the shipped themes' names. Workshop reads it, and it is never
+/// THE ONE `workshop.` KEY A ROW KEEPS: the theme whose palette its pane's graphics area wears,
+/// over the desk's, named by one of the shipped themes' names. Workshop reads it, and it is never
 /// handed to the pane.
-inline constexpr const char* kWorkshopSkinKey = "workshop.skin";
-inline constexpr const char* kSkinNight = "night";
-inline constexpr const char* kSkinDay = "day";
-inline constexpr const char* kSkinBlock = "block";
+inline constexpr const char* kWorkshopThemeKey = "workshop.theme";
+inline constexpr const char* kThemeNight = "night";
+inline constexpr const char* kThemeDay = "day";
+inline constexpr const char* kThemeBlock = "block";
 /// Another name for `night`: a row or a file naming it wears night, and nothing offers it.
-inline constexpr const char* kSkinClassic = "classic";
+inline constexpr const char* kThemeClassic = "classic";
+
+/// THE OTHER SPELLING OF `workshop.theme` A FILE MAY HOLD: read as `workshop.theme`, and never
+/// written.
+inline constexpr const char* kWorkshopThemeKeyOlder = "workshop.skin";
+
+/// A key as a file holds it, as this Workshop reads it.
+inline std::string current_setting_key(std::string key) {
+    return key == kWorkshopThemeKeyOlder ? std::string(kWorkshopThemeKey) : key;
+}
+
+/// A row's settings as a file holds them, as this Workshop reads them: each key in its current
+/// spelling, the row kept in key order.
+inline std::vector<PaneSetting> current_settings(std::vector<PaneSetting> settings) {
+    bool moved = false;
+    for (PaneSetting& s : settings) {
+        std::string key = current_setting_key(s.key);
+        moved = moved || key != s.key;
+        s.key = std::move(key);
+    }
+    if (moved) {
+        std::stable_sort(settings.begin(), settings.end(),
+                         [](const PaneSetting& a, const PaneSetting& b) { return a.key < b.key; });
+    }
+    return settings;
+}
 
 /// WHY A DECLARED SETTING DOES NOT TAKE A VALUE, naming what it does take; empty when it takes it.
 template <class Valued>
@@ -334,8 +360,8 @@ inline std::string pane_setting_refused_by(const PaneSettingRow& row, const Valu
             for (const std::string& c : row.choices) {
                 takes = takes || c == *v.text;
             }
-            // A choice taken by its other name: `workshop.skin`'s `classic`, which is `night`.
-            takes = takes || (row.key == kWorkshopSkinKey && *v.text == kSkinClassic);
+            // A choice taken by its other name: `workshop.theme`'s `classic`, which is `night`.
+            takes = takes || (row.key == kWorkshopThemeKey && *v.text == kThemeClassic);
         }
     }
     if (takes) {
@@ -540,33 +566,33 @@ inline const PaneSetting* find_pane_setting(const std::vector<PaneSetting>& all,
 
 // ---- Workshop's own word on a row: the palette its area wears ------------------------------
 
-/// The palette a `workshop.skin` value names: `night` for its other name, else the value.
+/// The palette a `workshop.theme` value names: `night` for its other name, else the value.
 inline std::string workshop_palette_of(std::string_view s) {
-    return s == kSkinClassic ? std::string(kSkinNight) : std::string(s);
+    return s == kThemeClassic ? std::string(kThemeNight) : std::string(s);
 }
 
 /// Whether `s` names one of the three palettes Workshop offers the graphics directory, or `night`
 /// by its other name.
-inline bool is_workshop_skin_choice(std::string_view s) noexcept {
-    return s == kSkinNight || s == kSkinDay || s == kSkinBlock || s == kSkinClassic;
+inline bool is_workshop_theme_choice(std::string_view s) noexcept {
+    return s == kThemeNight || s == kThemeDay || s == kThemeBlock || s == kThemeClassic;
 }
 
 /// The palette setting, as Workshop's office declares it and a row is judged by.
-inline v2::PaneSettingRow workshop_skin_setting_row() {
+inline v2::PaneSettingRow workshop_theme_setting_row() {
     v2::PaneSettingRow row;
-    row.key = kWorkshopSkinKey;
-    row.text = kSkinNight;
-    row.choices = {kSkinNight, kSkinDay, kSkinBlock};
+    row.key = kWorkshopThemeKey;
+    row.text = kThemeNight;
+    row.choices = {kThemeNight, kThemeDay, kThemeBlock};
     row.tags = {"chrome", "color"};
     row.pinned = true;
-    row.summary = "palette for graphics areas: night, day or block";
+    row.summary = "theme for graphics areas: night, day or block";
     return row;
 }
 
-/// WHAT A ROW KEEPS AS ITS ABSENCE: a setting's default, and nothing for `workshop.skin`, whose
+/// WHAT A ROW KEEPS AS ITS ABSENCE: a setting's default, and nothing for `workshop.theme`, whose
 /// absence on a row is Workshop's own palette -- so a row keeps `night` as well as any other.
 inline std::optional<PaneSetting> row_setting_absence(const PaneSettingRow& row) {
-    if (row.key == kWorkshopSkinKey) {
+    if (row.key == kWorkshopThemeKey) {
         return std::nullopt;
     }
     return pane_setting_default(row);

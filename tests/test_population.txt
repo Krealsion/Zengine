@@ -51,7 +51,7 @@ neovim_journey                    program           session-neovim
 # A case in this suite reads the keymap example in workshop/docs/hotkeys.md, as a weaver copies it.
 workshop_document                 doctest           always  48
 workshop_screen                   doctest           always  162
-workshop_desk                     doctest           always  79
+workshop_desk                     doctest           always  85
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  78
 # The panes program, run as eight parts, each its own sources' cases, a long one as pieces (VM-POP-22).
@@ -114,7 +114,7 @@ sanitizer_lane                    script            always
 flow                              doctest           always  82
 
 message_draft                     doctest           always  11
-settings_themes                   doctest           always  18
+settings_themes                   doctest           always  30
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  41

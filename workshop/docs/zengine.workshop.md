@@ -749,11 +749,25 @@ not. Its condition is retracted, a trial it held is let go, and a refusal is sai
 where a switch of the Editor stands. Attention says it, with the line that confirms or cancels it;
 its outcome is said on the band, `editor switch <op>: <outcome>`.
 
+### `ThemesPlacedRequested`
+
+`ThemesPlacedRequested` v1, from `zengine.settings`
+([`settings/vocabulary.hpp`](../../settings/vocabulary.hpp)): the theme reader, activated, asks
+where the themes are. Workshop answers with `ThemesPlaced`, sent to `zengine.settings` -- the folder
+of your themes, empty in an isolated launch, the folder of the shipped ones beside it, the offices
+its plan names and the theme its own areas wear -- and sends it again whenever any of it changes.
+
+### `ThemeSkipsSaid`
+
+`ThemeSkipsSaid` v1, from `zengine.settings`: the entries of a theme that waited for an office to
+declare its slots and that its declaration does not hold. Workshop says them on its band,
+`theme <name> skipped <key> of <office> -- <why>`.
+
 ### `GraphicsReady`
 
 `GraphicsReady`, from `zengine.graphics`
 ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): a directory started afresh. Workshop,
-its arranger, offers the four shipped palettes, chooses each area's (the one `workshop.skin` names),
+its arranger, offers the three shipped palettes, chooses each area's (WL-SETTING-13),
 and places each open pane's frame (`zengine.workshop.frame.<office>.<pane>`) at its depth with the
 pane's own area over its body in front where its office draws there; its own area, taking the keys;
 and `zengine.workshop.overlay` in front, deaf. It asks its rooms.

@@ -39,7 +39,7 @@ inline void put_bytes(const std::filesystem::path& at, const std::string& bytes)
 }
 
 inline std::string spelled(const std::filesystem::path& at) {
-    return persist::resolved_against(std::string(), at.generic_string());
+    return zengine::persist::resolved_against(std::string(), at.generic_string());
 }
 
 inline constexpr const char* kSwitchAskerOffice = "zengine.test.switch-asker";

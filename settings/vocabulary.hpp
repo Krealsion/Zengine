@@ -4,11 +4,12 @@
 #ifndef ZENGINE_SETTINGS_VOCABULARY_HPP
 #define ZENGINE_SETTINGS_VOCABULARY_HPP
 
-// THE SETTINGS OFFICE'S DOORS, `zengine.settings`: apply a theme to layouts, save one, snapshot a
-// layout or promote its entries as one, list the themes, resolve one, and say where each of a
-// layout's settings came from. No weave holds the office, so nothing answers them. The theme file
-// and its resolution are `theme_persist.hpp`.
+// THE SETTINGS OFFICE'S DOORS, `zengine.settings`, held by the `zengine-settings` weave: apply a
+// theme to layouts, save one, snapshot a layout or promote its entries as one, list the themes,
+// resolve one, say where each of a layout's settings came from, and hear the slots an office
+// exposes. The theme file and its resolution are `theme_persist.hpp`.
 
+#include "settings/slots.hpp"
 #include "settings/theme_persist.hpp"
 
 #include <zen/weave/shape.hpp>
@@ -19,17 +20,15 @@
 
 namespace zengine::settings {
 
-/// The office every door here is addressed to.
-inline constexpr const char* kSettingsRole = "zengine.settings";
+/// The words `ThemeApplyRequested::mode` takes: `merge` applies what the theme names and leaves
+/// the rest; `reset` returns the rest to its default first, so the theme applies whole.
+inline constexpr const char* kApplyMerge = "merge";
+inline constexpr const char* kApplyReset = "reset";
 
-/// The words `ThemeApplyRequested::mode` takes.
-inline constexpr const char* kApplyReplace = "replace";
-inline constexpr const char* kApplyKeepMine = "keep-mine";
-inline constexpr const char* kApplyClearAbsent = "clear-absent";
-
-/// APPLY THEME `theme` to the layouts at `layouts` (or every layout), only the entries carrying
-/// one of `only_tags` when any is named, written as `mode` says; `baseline` makes it the layouts'
-/// baseline too.
+/// APPLY THEME `theme` to the layouts whose ids are `layouts` (none named: the live one; or every
+/// layout), only the settings carrying one of `only_tags` when any is named, as `mode` says
+/// (`merge` when empty); `baseline` makes it the layouts' baseline too, which chooses the palette
+/// their areas wear.
 struct ThemeApplyRequested {
     std::string theme;
     std::vector<std::int64_t> layouts;
@@ -38,13 +37,14 @@ struct ThemeApplyRequested {
     std::string mode;
     bool baseline = false;
 
-    ZEN_SHAPE(ThemeApplyRequested, 1, ZEN_FIELD(theme), ZEN_FIELD(layouts),
+    ZEN_SHAPE(ThemeApplyRequested, 2, ZEN_FIELD(theme), ZEN_FIELD(layouts),
               ZEN_FIELD(all_layouts), ZEN_FIELD(only_tags), ZEN_FIELD(mode),
               ZEN_FIELD(baseline));
     friend bool operator==(const ThemeApplyRequested&, const ThemeApplyRequested&) = default;
 };
 
-/// One entry an apply left alone in one layout, and why.
+/// One entry an apply left alone in one layout (0 for an entry of no layout: a colour, a key),
+/// and why.
 struct ThemeSkip {
     std::int64_t layout = -1;
     std::string target;
@@ -55,8 +55,10 @@ struct ThemeSkip {
     friend bool operator==(const ThemeSkip&, const ThemeSkip&) = default;
 };
 
-/// THE ANSWER TO `ThemeApplyRequested`: settings written and found already so, entries skipped,
-/// keys set, and whether the baseline moved -- or the refusal.
+/// THE ANSWER TO `ThemeApplyRequested`: settings written and found already so; the entries nothing
+/// took, skipped and said; the settings locks kept, the final layer; the keys set; the palette
+/// offered and its revision; each office whose slot entries wait for it to declare; and whether the
+/// baseline moved -- or the refusal, naming the entry that refused the theme.
 struct ThemeActed {
     bool accepted = false;
     std::string refusal;
@@ -64,11 +66,16 @@ struct ThemeActed {
     std::int64_t written = 0;
     std::int64_t unchanged = 0;
     std::vector<ThemeSkip> skipped;
+    std::vector<ThemeSkip> locked;
     std::int64_t keys = 0;
+    std::string palette;
+    std::int64_t revision = 0;
+    std::vector<std::string> waiting;
     bool baseline = false;
 
-    ZEN_SHAPE(ThemeActed, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal), ZEN_FIELD(theme),
-              ZEN_FIELD(written), ZEN_FIELD(unchanged), ZEN_FIELD(skipped), ZEN_FIELD(keys),
+    ZEN_SHAPE(ThemeActed, 2, ZEN_FIELD(accepted), ZEN_FIELD(refusal), ZEN_FIELD(theme),
+              ZEN_FIELD(written), ZEN_FIELD(unchanged), ZEN_FIELD(skipped), ZEN_FIELD(locked),
+              ZEN_FIELD(keys), ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(waiting),
               ZEN_FIELD(baseline));
     friend bool operator==(const ThemeActed&, const ThemeActed&) = default;
 };
@@ -78,7 +85,7 @@ struct ThemeSaveRequested {
     ThemeFile theme;
     bool replace = false;
 
-    ZEN_SHAPE(ThemeSaveRequested, 1, ZEN_FIELD(theme), ZEN_FIELD(replace));
+    ZEN_SHAPE(ThemeSaveRequested, 2, ZEN_FIELD(theme), ZEN_FIELD(replace));
     friend bool operator==(const ThemeSaveRequested&, const ThemeSaveRequested&) = default;
 };
 
@@ -129,7 +136,7 @@ struct ThemesRequested {
 struct ThemesShown {
     std::vector<ThemeSummary> themes;
 
-    ZEN_SHAPE(ThemesShown, 1, ZEN_FIELD(themes));
+    ZEN_SHAPE(ThemesShown, 2, ZEN_FIELD(themes));
     friend bool operator==(const ThemesShown&, const ThemesShown&) = default;
 };
 
@@ -178,6 +185,45 @@ struct ThemeProvenanceShown {
               ZEN_FIELD(layout), ZEN_FIELD(baseline), ZEN_FIELD(status), ZEN_FIELD(entries));
     friend bool operator==(const ThemeProvenanceShown&, const ThemeProvenanceShown&) = default;
 };
+
+// ---- What the host tells the office, and what the office says later -------------------------
+
+/// THE HOST -> the settings office, each time any of it changes and whenever another weave comes
+/// to hold the office: the folder of the weaver's own themes ("" for none, as an isolated launch
+/// keeps none), the folder of the themes shipped beside the host, the offices its load plan names,
+/// and the theme the host's own areas wear where a layout names no baseline. A theme of the
+/// weaver's wins over a shipped one of its name.
+struct ThemesPlaced {
+    std::string themes;
+    std::string shipped;
+    std::vector<std::string> planned;
+    std::string worn;
+
+    ZEN_SHAPE(ThemesPlaced, 1, ZEN_FIELD(themes), ZEN_FIELD(shipped), ZEN_FIELD(planned),
+              ZEN_FIELD(worn));
+    friend bool operator==(const ThemesPlaced&, const ThemesPlaced&) = default;
+};
+
+/// THE SETTINGS OFFICE -> the host, on each of its activations: say where the themes are, so an
+/// office held after the host last said it hears it.
+struct ThemesPlacedRequested {
+    ZEN_SHAPE(ThemesPlacedRequested, 1);
+    friend bool operator==(const ThemesPlacedRequested&, const ThemesPlacedRequested&) = default;
+};
+
+/// THE SETTINGS OFFICE -> any, once an office the plan named has declared its slots: the entries of
+/// theme `theme` that waited for it and that its declaration does not hold, skipped, each with why.
+struct ThemeSkipsSaid {
+    std::string theme;
+    std::string palette;
+    std::vector<ThemeSkip> skipped;
+
+    ZEN_SHAPE(ThemeSkipsSaid, 1, ZEN_FIELD(theme), ZEN_FIELD(palette), ZEN_FIELD(skipped));
+    friend bool operator==(const ThemeSkipsSaid&, const ThemeSkipsSaid&) = default;
+};
+
+/// How many applies the office holds at once, waiting on the layouts and the keymap.
+inline constexpr std::size_t kMaxAppliesInFlight = 4;
 
 } // namespace zengine::settings
 

@@ -80,11 +80,11 @@ inline std::string bytes_of(const std::filesystem::path& at) {
 }
 
 /// THE DOOR'S OWN SPELLING OF A PATH. The Editor resolves every entrant through
-/// `persist::resolved_against` -- absolute, lexically normal, one separator convention -- so
+/// `zengine::persist::resolved_against` -- absolute, lexically normal, one separator convention -- so
 /// a case spells its expectation through the same function rather than a platform's
 /// punctuation.
 inline std::string spelled(const std::filesystem::path& at) {
-    return persist::resolved_against(std::string(), at.generic_string());
+    return zengine::persist::resolved_against(std::string(), at.generic_string());
 }
 
 /// THE UNRELATED DELIVERY THAT LETS A HELD ANSWER BE SPENT: `defer_answer()` moves an answer out

@@ -67,7 +67,7 @@ revision the asker read.
 
 - **Takes:** `provider`, `pane`, `revision`, `key`, and the value in its kind's one field --
   `flag`, `number` or `text` -- or `clear` and no field for the setting's default. Every row takes
-  `workshop.skin`, the skin of the pane's graphics area, which the pane is never handed.
+  `workshop.theme`, the theme the pane's graphics area wears, which the pane is never handed.
 - **Answers:** `PaneSettingCommitAnswered{accepted, refusal, revision, handed}`, to the asker alone:
   the row's revision after the write, or as it stood. Workshop's band says `committed <key> of
   <pane> = <value>` and how far the hand-off got.
@@ -156,7 +156,7 @@ order.
 - **Answers:** `LayoutSettingsAnswered{revision, active, layouts, declared, everywhere}`, to the
   asker alone: each layout's `id`, place, name, baseline theme (`name` and `fingerprint`, a name of
   "" for none) and rows, each row's `settings` and `locked` keys there; what each pane's counted
-  declaration takes, `workshop.skin` first, and each office's office-wide rows, with `pane` empty;
+  declaration takes, `workshop.theme` first, and each office's office-wide rows, with `pane` empty;
   the everywhere locks; the live layout's place; and the `revision` it all stands at.
 - **Refuses:** an empty reading at `revision` 0, to an asker the settings doors do not serve.
 - **Example:** `ask @zengine.layouts LayoutSettingsRequested 1`.

@@ -85,9 +85,9 @@ inline std::vector<gfx::PaletteOffered> palettes() {
 }
 
 /// The operator's buttons, in the row beneath its status line: the action each asks of the
-/// operator, and its words, which name the key that makes the same gesture. `skin` is the game's
-/// word for the look a palette gives it.
-constexpr const char* kPaletteAction = "skin";
+/// operator, and its words, which name the key that makes the same gesture. `theme` chooses the
+/// look a palette gives the game.
+constexpr const char* kPaletteAction = "theme";
 constexpr const char* kScoreAction = "score";
 constexpr const char* kGrowAction = "grow";
 constexpr const char* kReloadAction = "reload";
@@ -100,7 +100,7 @@ struct Control {
     const char* label;
 };
 constexpr Control kControls[] = {
-    {kPaletteAction, "1 skin"}, {kScoreAction, "2 score"},  {kGrowAction, "3 grow"},
+    {kPaletteAction, "1 theme"}, {kScoreAction, "2 score"},  {kGrowAction, "3 grow"},
     {kPilotAction, "5 pilot"},  {kReloadAction, "r reload"}, {kNewAction, "n new"},
     {kListAction, "l list"},    {kQuitAction, "q quit"},
 };
@@ -278,7 +278,7 @@ private:
     void flip_palette(loom::Mail& mail) {
         ctx_->palette = 1 - ctx_->palette;
         choose_palette(mail);
-        status("skin -> " + palettes()[static_cast<std::size_t>(ctx_->palette)].palette);
+        status("theme -> " + palettes()[static_cast<std::size_t>(ctx_->palette)].palette);
     }
 
     void load_score(loom::Mail& mail) {

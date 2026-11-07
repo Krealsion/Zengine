@@ -41,7 +41,7 @@ void WorkshopWeave::apply_workshop_settings(const std::vector<PaneSetting>& sett
     session_.band_keys = said.band_keys;
     session_.hotkeys_keys = said.hotkeys_keys;
     session_.selection_ring_plain = said.ring_plain;
-    session_.skin = said.skin;
+    session_.theme = said.theme;
     session_.completion_required_first = said.completion_required_first;
     session_.arrange_step_cells = said.arrange_step_cells;
     session_.snap_reach_px = said.snap_reach_px;

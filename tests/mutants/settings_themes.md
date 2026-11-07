@@ -97,18 +97,18 @@ Red in `zengine-settings-themes-tests`:
 
 ## envelope-version-unread
 
-A theme file's version is left to admission, unread in its envelope.
+A theme file's version is left unread, so its members are judged against this build's.
 
 In `settings/theme_persist.hpp`:
 
 ```diff
--    if (claim.claimed_version() != ThemeFile::zen_version) {
-+    if (false) {
+-        if (t.format_version != kThemeFormatVersion) {
++        if (false) {
 ```
 
 Red in `zengine-settings-themes-tests`:
 
-- a theme file is refused by what its envelope says it is before its fields are judged
+- a theme file is refused by what it says it is before its members are judged
 
 ## read-without-ceiling
 
@@ -117,8 +117,8 @@ A theme file is read from disk with a ceiling a thousand times its own.
 In `settings/theme_persist.hpp`:
 
 ```diff
--        workshop::persist::read_file(path, kMaxThemeBytes, "a theme file");
-+        workshop::persist::read_file(path, kMaxThemeBytes * 1000, "a theme file");
+-    const persist::FileText read = persist::read_file(path, kMaxThemeBytes, "a theme file");
++    const persist::FileText read = persist::read_file(path, kMaxThemeBytes * 1000, "a theme file");
 ```
 
 Red in `zengine-settings-themes-tests`:
@@ -148,7 +148,7 @@ In `settings/theme_persist.hpp`:
 
 ```diff
 -        mix(s.target);
-+        mix(r.from_theme);
++        mix(rs.from_theme);
 +        mix(s.target);
 ```
 
@@ -163,8 +163,8 @@ A resolution passes over each clear a theme holds.
 In `settings/theme_persist.hpp`:
 
 ```diff
--        for (const ThemeSetting& s : loaded.theme.settings) {
-+        for (const ThemeSetting& s : loaded.theme.settings) {
+-        for (const ThemeSetting& s : t.settings) {
++        for (const ThemeSetting& s : t.settings) {
 +            if (s.clear) continue;
 ```
 
@@ -209,7 +209,7 @@ A theme file that does not load is left out of its folder's listing.
 In `settings/theme_persist.hpp`:
 
 ```diff
--            out.push_back(ThemeSummary{stem, std::string(), {}, 0, 0, loaded.outcome.refusal});
+-            out.push_back(ThemeSummary{stem, std::string(), {}, 0, 0, 0, loaded.outcome.refusal});
 ```
 
 Red in `zengine-settings-themes-tests`:

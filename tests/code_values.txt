@@ -133,6 +133,11 @@ kMaxThemesResolved              settings/theme_persist.hpp                kMaxTh
 kMaxThemeDepth                  settings/theme_persist.hpp                kMaxThemeDepth
 kMaxResolvedEntries             settings/theme_persist.hpp                kMaxResolvedEntries
 kMaxThemeBytes                  settings/theme_persist.hpp                kMaxThemeBytes
+kMaxThemeGestures               settings/theme_persist.hpp                kMaxThemeGestures
+kMaxThemeColors                 settings/theme_persist.hpp                kMaxThemeColors
+kMaxThemeFonts                  settings/theme_persist.hpp                kMaxThemeFonts
+kMaxThemeSizes                  settings/theme_persist.hpp                kMaxThemeSizes
+kMaxThemeSlotOffices            settings/theme_persist.hpp                kMaxThemeSlotOffices
 
 # ---- carrying text
 kMaxCarryBytes                  workshop/pane_carry.hpp                   kMaxCarryBytes

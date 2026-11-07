@@ -211,7 +211,7 @@ keeps its paste" "the old door still opens and shows, or refuses truthfully, by 
 ### WL-EDIT-06
 `editor/editor-pane/pane.cpp` project_dir_ project_known_ on(ProjectRoot)
 `editor/editor-pane/opening_switch.hpp` resolve
-`workshop/persist.hpp` resolved_against
+`persist/file.hpp` resolved_against
 `editor/editor-pane/editor.hpp` EditorState::path
 `tests/test_workshop_panes_editor.cpp` "a relative path is the project's file, and means nothing
 until the project has said" "re-requesting the open source reveals it and destroys nothing"

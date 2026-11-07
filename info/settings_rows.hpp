@@ -74,7 +74,7 @@ inline std::string value_text(const workshop::PaneSettingsAnswered& read,
 }
 
 /// THE ROWS, in the declaration's order and then the kept keys in the row's: every key the row
-/// stores that no declared setting takes is a kept row, `workshop.skin` a declared one once kept.
+/// stores that no declared setting takes is a kept row, `workshop.theme` a declared one once kept.
 // WL-SETTING-05 -- agents/workshop/settings.md
 inline std::vector<SettingsRow> rows_of(const workshop::PaneSettingsAnswered& read) {
     std::vector<SettingsRow> out;
@@ -88,9 +88,9 @@ inline std::vector<SettingsRow> rows_of(const workshop::PaneSettingsAnswered& re
         for (const workshop::PaneSettingRow& row : declared) {
             takes = takes || row.key == stored.key;
         }
-        if (!takes && stored.key == workshop::kWorkshopSkinKey) {
+        if (!takes && stored.key == workshop::kWorkshopThemeKey) {
             // WORKSHOP'S OWN WORD FOR THE PANE'S AREA is a setting a row takes, once kept.
-            declared.push_back(workshop::narrow_setting_row(workshop::workshop_skin_setting_row()));
+            declared.push_back(workshop::narrow_setting_row(workshop::workshop_theme_setting_row()));
         } else if (!takes) {
             kept.push_back(stored.key);
         }

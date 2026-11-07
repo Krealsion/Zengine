@@ -24,6 +24,7 @@ and links `zengine::input`.
 | | |
 |---|---|
 | `vocabulary.hpp` | the messages, key codes, modifiers and pointer spaces |
+| `gesture_grammar.hpp` | how a key is written and read back (`ctrl+k`, `^k`), and what a backend cannot produce |
 | `translate.hpp` | how terminal and console events become those messages |
 | `translate_sdl_core.hpp` | how SDL window events become those messages, for the OS window |
 | `input_weave.hpp` | the Input weave itself, over any reader |

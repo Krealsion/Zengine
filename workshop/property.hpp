@@ -7,6 +7,8 @@
 // The typed connection between an editor and the property it presents.
 // Workshop law: agents/workshop/document.md (+1 register; agents/workshop.md routes)
 
+#include "persist/written.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -17,15 +19,8 @@
 
 namespace zengine::workshop {
 
-/// The outcome of an attempted write. A refusal carries its reason, in words a
-/// weaver can act on -- the reason IS the feature, so there is no bare `false`.
-struct Written {
-    bool accepted = false;
-    std::string refusal;
-
-    static Written ok() { return Written{true, {}}; }
-    static Written no(std::string why) { return Written{false, std::move(why)}; }
-};
+/// The outcome of an attempted write: the file library's (`persist/written.hpp`).
+using persist::Written;
 
 /// A typed connection to one property of one thing: read it, or try to write it.
 // WL-DOC-02 -- agents/workshop/document.md
