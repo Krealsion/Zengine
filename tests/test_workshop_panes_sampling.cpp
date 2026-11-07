@@ -547,10 +547,10 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     r.key(input::scan::kRight);
     CHECK(caret_at() == query_at + 3);
 
-    // AND A NON-ADMISSIBLE CHUNK IS REFUSED WHOLE. The row contract is printable ASCII; a weaver
-    // who typed `naive` with a diaeresis gets NONE of it rather than a mangled half, and the pane
-    // keeps speaking rather than losing a whole update.
-    r.text("na\xC3\xAFve");
+    // AND A NON-ADMISSIBLE CHUNK IS REFUSED WHOLE: bytes that spell no character, which no row could
+    // show as typed, give the weaver NONE of it rather than a mangled half, and the pane keeps
+    // speaking rather than losing a whole update.
+    r.text("na\xC3ve");
     CHECK(pane_rows(r, kind)[0].find("find: rec") != std::string::npos);
     CHECK(pane_rows(r, kind)[0].find("na") == std::string::npos);
 

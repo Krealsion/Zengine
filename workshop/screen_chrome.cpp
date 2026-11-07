@@ -6,6 +6,7 @@
 // Workshop law: agents/workshop/panes-and-windows.md (+8 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
+#include "component/text.hpp"
 
 #include "ui/layout.hpp"
 
@@ -387,7 +388,7 @@ std::vector<StripMark> strip_marks(const Session& s, const Screen& sc) {
         // one that would reach it starts past it.
         std::int64_t at = 0;
         for (StripMark& tag : tags) {
-            const std::int64_t len = static_cast<std::int64_t>(tag.text.size());
+            const std::int64_t len = static_cast<std::int64_t>(component::text_columns(tag.text));
             if (len <= 0) {
                 continue;
             }
@@ -398,9 +399,9 @@ std::vector<StripMark> strip_marks(const Session& s, const Screen& sc) {
                 break;
             }
             if (at + len > length) {
-                tag.text.resize(static_cast<std::size_t>(length - at));
+                tag.text.resize(component::cut_at_columns(tag.text, 0, static_cast<std::size_t>(length - at)));
             }
-            const std::int64_t shown = static_cast<std::int64_t>(tag.text.size());
+            const std::int64_t shown = static_cast<std::int64_t>(component::text_columns(tag.text));
             tag.rect = strip_span(fit, vertical, at, shown);
             (vertical ? tag.row : tag.column) = at;
             out.push_back(tag);

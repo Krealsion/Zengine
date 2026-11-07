@@ -35,14 +35,14 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-build-keeps-its-own-words.md`
 
-## WL-OUT-03 — A pane spells the words it carries in what a canvas draws, and counts them
+## WL-OUT-03 — A pane shows the words it carries as written, and counts what it does not show
 
-LAW — `ascii_spelling` gives compilers' UTF-8 punctuation its ASCII twin, any other undrawable character `?` and an escape sequence nothing, counting each; the Builder pane spells every row it says.
+LAW — `printable` shows every character as written, a tab or any other control character as one space and a terminal escape sequence as nothing, counting each; the Builder pane shows every row it says so.
 
 MEANS
-- a picture carrying a compiler's quotes is one Workshop takes, not one it refuses for a byte;
-- printable ASCII passes untouched, so a path, a line and column and a caret line read as written;
-- what the tool keeps is never spelled: only a row a pane shows is.
+- a compiler's quotes and a path past plain ASCII read on the row as the compiler wrote them;
+- a line, a column and a caret line keep their columns, since a control character still takes one;
+- what the tool keeps is never changed: only a row a pane shows is.
 
 DOES NOT MEAN
 - that the Editor admits such text: a source document stays printable ASCII.
@@ -51,7 +51,7 @@ WHY — `agents/decisions/a-build-keeps-its-own-words.md`
 
 ## WL-OUT-04 — The Builder's reader is bound to one operation until it is closed
 
-LAW — `read output` binds a mode to the operation the tool's picture names: a header saying how it ended, which lines and what was spelled, cut or not kept, then one row per line, cut and panned.
+LAW — `read output` binds a mode to the operation the tool's picture names: a header saying how it ended, which lines and what was not shown, cut or not kept, then one row per line, cut and panned.
 
 MEANS
 - a newer build, a status about another operation or a new choice moves nothing it shows;
@@ -68,8 +68,8 @@ WHY — `agents/decisions/a-build-keeps-its-own-words.md`
 
 - That a build's words are complete once kept: both ends are, and the middle of a long build is
   counted, not kept (WL-OUT-02).
-- That a spelled row is the bytes the compiler wrote: it is what a canvas can draw of them, and
-  the header says how many characters were spelled (WL-OUT-03).
+- That a row is the bytes the compiler wrote: it leaves out its escape sequences and shows its
+  control characters as spaces, and the header says how many it did not show (WL-OUT-03).
 - That a compiler's non-ASCII words arrive as it wrote them on every platform: on Windows Ninja
   re-encodes the output it passes on, and the kept bytes are what reached the pipe (WL-OUT-01).
 
@@ -92,19 +92,19 @@ never pages across it" "the tool keeps the last few operations' output, and an o
 is said, not replaced"
 
 ### WL-OUT-03
-`workshop/pane_text.hpp` ascii_spelling
+`workshop/pane_text.hpp` printable
 `builder/builder-pane/pane.cpp` say
 `builder/builder-pane/view.hpp` publish
 `builder/builder-pane/output_reader.hpp` say_output
 `tests/test_workshop_panes_output.cpp` "a compiler's non-ASCII words in a build's last lines leave
 the Builder's picture standing" "read output shows a failed build's own lines on rows Workshop
-takes, spelled in ASCII and said to be"
+takes, as written, the control characters it did not show said"
 
 ### WL-OUT-04
 `builder/builder-pane/output_reader.hpp` open_output say_output read_output scroll ask_page
 `builder/builder-pane/vocabulary.hpp` kActionOutput kActionOutputClose
 `tests/test_workshop_panes_output.cpp` "read output shows a failed build's own lines on rows
-Workshop takes, spelled in ASCII and said to be" "the reader stays bound to its build: a newer build
+Workshop takes, as written, the control characters it did not show said" "the reader stays bound to its build: a newer build
 and a new status do not move it, and it steps between the builds kept" "a build the tool no longer
 keeps is said, and no other build's lines are shown under its number" "a build that worked and a
 realization that was refused read as two answers, and the reader says the build succeeded" "a page

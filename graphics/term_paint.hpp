@@ -7,9 +7,12 @@
 // Painting nodes for a medium of characters: every operator, natively or by its fallback, into the
 // area's cells (`kCellPx` pixels a cell, each edge floored to its cell), each cell in one of the
 // colours the window resolved for its node (`PaintNode::inks`) and a shape filled with that
-// colour's character. It knows no colour and keeps nothing between calls.
+// colour's character. Text stands a character a cell by the columns the text core gives it
+// (`component::character_columns`): a wide character in two cells, a combining mark in the cell of
+// the character before it. It knows no colour and keeps nothing between calls.
 // Reference: graphics/docs/graphics.md, "The operators".
 
+#include "component/text.hpp"
 #include "graphics/implied.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
@@ -17,6 +20,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <map>
@@ -34,16 +38,24 @@ inline constexpr std::int64_t kQuiet = -3; ///< `PaintTask::quiet`
 } // namespace ink
 
 /// One cell: where, its character, and its colour -- as painted, which of its node's colours
-/// (`ink::`); as a terminal window keeps it, the colour that window numbered.
+/// (`ink::`); as a terminal window keeps it, the colour that window numbered. Its character is one
+/// character's UTF-8 with the characters of no column after it; the second cell of a wide character
+/// holds none ("") and shows the right half of the one before it.
 struct Cell {
     std::int64_t col = 0, row = 0;
-    char glyph = ' ';
+    std::string glyph = " ";
     std::int64_t ink = ink::kPlain;
+    bool bold = false;
 };
 
-/// Cells packed as runs: each run a row's neighbouring cells of one colour -- its column and row as
-/// two bytes each, low byte first, the colour (a signed byte), the count (1 to 255), then that many
-/// glyphs.
+/// The character a cell shows for a control character or bytes that spell none, and where a
+/// terminal's encoding carries no character past ASCII.
+inline constexpr const char* kUnshownGlyph = "?";
+
+/// Cells packed as runs: each run a row's neighbouring cells of one colour and weight -- its column
+/// and row as two bytes each, low byte first, the colour (a signed byte), the weight (1 bold, else
+/// 0), the count (1 to 255), then that many glyphs, each its length in bytes (one byte, at most 255)
+/// and its bytes.
 inline loom::Bytes pack(const std::vector<Cell>& cells) {
     loom::Bytes out;
     std::size_t i = 0;
@@ -51,7 +63,7 @@ inline loom::Bytes pack(const std::vector<Cell>& cells) {
         std::size_t n = 1;
         while (i + n < cells.size() && n < 255 && cells[i + n].row == cells[i].row &&
                cells[i + n].col == cells[i].col + static_cast<std::int64_t>(n) &&
-               cells[i + n].ink == cells[i].ink) {
+               cells[i + n].ink == cells[i].ink && cells[i + n].bold == cells[i].bold) {
             ++n;
         }
         const Cell& c = cells[i];
@@ -60,9 +72,13 @@ inline loom::Bytes pack(const std::vector<Cell>& cells) {
         out.push_back(static_cast<std::uint8_t>(c.row & 0xff));
         out.push_back(static_cast<std::uint8_t>((c.row >> 8) & 0xff));
         out.push_back(static_cast<std::uint8_t>(c.ink & 0xff));
+        out.push_back(static_cast<std::uint8_t>(c.bold ? 1 : 0));
         out.push_back(static_cast<std::uint8_t>(n));
         for (std::size_t k = 0; k < n; ++k) {
-            out.push_back(static_cast<std::uint8_t>(cells[i + k].glyph));
+            const std::string& g = cells[i + k].glyph;
+            const std::size_t len = g.size() < 255 ? g.size() : 255;
+            out.push_back(static_cast<std::uint8_t>(len));
+            out.insert(out.end(), g.begin(), g.begin() + static_cast<std::ptrdiff_t>(len));
         }
         i += n;
     }
@@ -72,15 +88,23 @@ inline loom::Bytes pack(const std::vector<Cell>& cells) {
 inline std::vector<Cell> unpack(const loom::Bytes& bytes) {
     std::vector<Cell> out;
     std::size_t i = 0;
-    while (i + 6 <= bytes.size()) {
+    while (i + 7 <= bytes.size()) {
         const std::int64_t col = static_cast<std::int64_t>(bytes[i] | (bytes[i + 1] << 8));
         const std::int64_t row = static_cast<std::int64_t>(bytes[i + 2] | (bytes[i + 3] << 8));
         const std::int64_t ink = static_cast<std::int64_t>(static_cast<std::int8_t>(bytes[i + 4]));
-        const std::size_t n = bytes[i + 5];
-        i += 6;
-        for (std::size_t k = 0; k < n && i < bytes.size(); ++k, ++i) {
+        const bool bold = bytes[i + 5] != 0;
+        const std::size_t n = bytes[i + 6];
+        i += 7;
+        for (std::size_t k = 0; k < n && i < bytes.size(); ++k) {
+            const std::size_t len = bytes[i++];
+            if (bytes.size() - i < len) {
+                break;
+            }
             out.push_back(Cell{col + static_cast<std::int64_t>(k), row,
-                               static_cast<char>(bytes[i]), ink});
+                               std::string(bytes.begin() + static_cast<std::ptrdiff_t>(i),
+                                           bytes.begin() + static_cast<std::ptrdiff_t>(i + len)),
+                               ink, bold});
+            i += len;
         }
     }
     return out;
@@ -240,7 +264,9 @@ public:
             }
         } else if (op == op::kText) {
             if (auto a = from_body<TextArgs>(args)) {
+                bold_ = a->weight == text_weight::kBold;
                 text(a->x, a->y, a->text, 0);
+                bold_ = false;
             }
         } else if (op == op::kImage) {
             if (auto a = from_body<ImageArgs>(args)) {
@@ -276,15 +302,22 @@ private:
         return f.empty() ? '#' : f.front();
     }
 
-    void put(std::int64_t col, std::int64_t row, char glyph, std::int64_t i) const {
+    /// Whether a cell is one this node may paint: inside its clip and the area.
+    bool paints(std::int64_t col, std::int64_t row) const {
         if (space_.clipped && (col < floor_cell(space_.cx0) || col >= floor_cell(space_.cx1) ||
                                row < floor_cell(space_.cy0) || row >= floor_cell(space_.cy1))) {
-            return;
+            return false;
         }
-        if (col < 0 || row < 0) {
-            return;
+        return col >= 0 && row >= 0;
+    }
+
+    void put(std::int64_t col, std::int64_t row, std::string glyph, std::int64_t i) const {
+        if (paints(col, row)) {
+            out_->push_back(Cell{col, row, std::move(glyph), i, bold_});
         }
-        out_->push_back(Cell{col, row, glyph, i});
+    }
+    void put(std::int64_t col, std::int64_t row, char glyph, std::int64_t i) const {
+        put(col, row, std::string(1, glyph), i);
     }
 
     /// A rectangle in colours 0 (its fill) and 1 (its stroke).
@@ -435,21 +468,46 @@ private:
         }
     }
 
-    /// One cell a character, in colour `i`: printable ASCII as itself, any other character (all of
-    /// its UTF-8 bytes) as one '?'.
+    /// Text in colour `i`, a character in the columns the text core gives it: one cell, or two for
+    /// a wide character -- the second holding none -- drawn only where both its cells are painted,
+    /// so no clip cuts one; a character of no column joins the cell of the one before it. A control
+    /// character, or bytes that spell none, is `kUnshownGlyph` in its cell.
     void text(std::int64_t x, std::int64_t y, const std::string& s, std::int64_t i) const {
         if (none(i)) {
             return;
         }
         const std::int64_t r = floor_cell(y + space_.dy);
         std::int64_t col = floor_cell(x + space_.dx);
-        for (const char raw : s) {
-            const auto ch = static_cast<unsigned char>(raw);
-            if (ch >= 0x80 && ch < 0xc0) {
+        const std::size_t first = out_->size();
+        bool last_put = false; // whether the character before this one was painted
+        for (std::size_t at = 0; at < s.size(); at = component::character_end(s, at)) {
+            const char32_t cp = component::code_point_at(s, at);
+            const int w = component::character_columns(s, at);
+            const std::size_t end = component::character_end(s, at);
+            if (w == 0) {
+                if (last_put && out_->size() > first) {
+                    // A WIDE CHARACTER'S MARK JOINS THE CELL THAT HOLDS IT, not its empty half.
+                    std::size_t k = out_->size() - 1;
+                    if ((*out_)[k].glyph.empty() && k > first) {
+                        --k;
+                    }
+                    (*out_)[k].glyph.append(s, at, end - at);
+                }
                 continue;
             }
-            put(col, r, (ch >= 0x20 && ch < 0x7f) ? static_cast<char>(ch) : '?', i);
-            ++col;
+            const bool shown = cp != component::kNotACharacter && cp >= 0x20u &&
+                               !(cp >= 0x7Fu && cp < 0xA0u);
+            if (w == 2) {
+                last_put = paints(col, r) && paints(col + 1, r);
+                if (last_put) {
+                    put(col, r, s.substr(at, end - at), i);
+                    put(col + 1, r, std::string(), i);
+                }
+            } else {
+                last_put = paints(col, r);
+                put(col, r, shown ? s.substr(at, end - at) : std::string(kUnshownGlyph), i);
+            }
+            col += w;
         }
     }
 
@@ -491,6 +549,7 @@ private:
 
     const PaintTask& task_;
     char corner_ = '+', across_ = '-', down_ = '|';
+    mutable bool bold_ = false; ///< whether the text being painted is bold
     mutable Space space_;
     mutable std::vector<Cell>* out_ = nullptr;
     mutable const std::vector<PaintInk>* inks_ = nullptr;

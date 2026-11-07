@@ -156,8 +156,8 @@ inline std::int64_t BuilderPaneWeave::output_body_rows() const {
 /// THE READER'S ROWS. One header naming the operation, how it ended and which lines show;
 /// then the lines, each on ONE row, cut at the width with a mark and panned by the arrows,
 /// so a caret line stays under the line it points into and a long command echo costs one
-/// row. Every line is spelled in ASCII (`ascii_spelling`), and the header says how many
-/// characters that spelled on the rows shown. A gap the tool no longer keeps is a row of its
+/// row. Every line is shown as written (`printable`): a control character a space and an escape
+/// sequence left out, and the header says how many control characters the rows shown did not show. A gap the tool no longer keeps is a row of its
 /// own, never two ends shown as one.
 // WL-OUT-04 -- agents/workshop/build-output.md
 inline void BuilderPaneWeave::say_output() {
@@ -183,7 +183,7 @@ inline void BuilderPaneWeave::say_output() {
         return;
     }
     std::vector<std::string> body;
-    std::size_t spelled = 0;
+    std::size_t unshown = 0;
     const std::int64_t room = output_body_rows();
     const std::int64_t asked_from = output_.top == 0 ? p.first : output_.top;
     if (p.omitted > 0 && p.first > asked_from && p.first == p.omitted_from + p.omitted) {
@@ -194,9 +194,9 @@ inline void BuilderPaneWeave::say_output() {
         if (static_cast<std::int64_t>(body.size()) >= room) {
             break;
         }
-        std::string shown = ascii_spelling(line, &spelled);
+        std::string shown = printable(line, &unshown);
         const std::size_t pan = static_cast<std::size_t>(output_.pan);
-        shown = shown.size() > pan ? shown.substr(pan) : std::string();
+        shown = shown.substr(zengine::component::byte_at_column(shown, 0, pan));
         body.push_back(std::move(shown));
         ++last;
     }
@@ -216,8 +216,9 @@ inline void BuilderPaneWeave::say_output() {
     if (p.omitted > 0) {
         head += ", " + std::to_string(p.omitted) + " not kept";
     }
-    if (spelled > 0) {
-        head += ", " + std::to_string(spelled) + " characters spelled in ASCII";
+    if (unshown > 0) {
+        head += ", " + std::to_string(unshown) +
+                (unshown == 1 ? " control character not shown" : " control characters not shown");
     }
     if (p.cut > 0) {
         head += ", " + std::to_string(p.cut) + " bytes cut from long lines";

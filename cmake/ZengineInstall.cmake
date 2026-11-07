@@ -108,6 +108,7 @@ set(zengine_public_headers_ui         ui/vocabulary.hpp
                                       ui/layout.hpp)
 set(zengine_public_headers_manual     manual/manual.hpp)
 set(zengine_public_headers_component  component/motion.hpp
+                                      component/unicode_width.hpp
                                       component/text.hpp
                                       component/text_box.hpp
                                       component/text_area.hpp
@@ -167,6 +168,7 @@ set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.
 # arithmetic; the windows and the directory are artifacts. Beside them, the terminal's claim and
 # size.
 set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/color.hpp
+                                    graphics/text_style.hpp
     graphics/ops.hpp graphics/implied.hpp graphics/painting.hpp graphics/term_paint.hpp
     graphics/light_paint.hpp graphics/canvas.hpp graphics/drawing.hpp graphics/elements.hpp
     graphics/element_abi.h graphics/element_export.hpp graphics/pixels.hpp
@@ -378,6 +380,8 @@ if(ZENGINE_PACKAGE)
     install(FILES ${CMAKE_SOURCE_DIR}/LICENSING.md ${CMAKE_SOURCE_DIR}/THIRD_PARTY_NOTICES.md
             DESTINATION licenses/zengine)
     install(FILES ${CMAKE_SOURCE_DIR}/graphics/window/fonts/OFL.txt DESTINATION licenses/jetbrains-mono)
+    install(FILES ${CMAKE_SOURCE_DIR}/graphics/window/fonts/OFL-Unifont.txt
+            DESTINATION licenses/unifont RENAME OFL.txt)
     install(FILES ${sdl3_fetched_SOURCE_DIR}/LICENSE.txt DESTINATION licenses/SDL3)
     install(FILES ${sdl3_ttf_fetched_SOURCE_DIR}/LICENSE.txt DESTINATION licenses/SDL3_ttf)
     set(zengine_package_ft ${sdl3_ttf_fetched_SOURCE_DIR}/external/freetype)

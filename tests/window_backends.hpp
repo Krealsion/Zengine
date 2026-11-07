@@ -41,6 +41,7 @@ struct TermLog {
     std::vector<std::string> writes;              ///< each write, one showing each
     zengine::graphics::window::TerminalSize size{80, 30};  ///< its size in cells, the suite's to change
     bool keeps = true; ///< false: what the window writes is taken and not kept
+    bool utf8 = true;  ///< whether its encoding carries UTF-8, the suite's to change
 };
 
 class FakeTerminal {
@@ -48,6 +49,7 @@ public:
     FakeTerminal() = default;
     explicit FakeTerminal(TermLog* log) : log_(log) {}
     void claim() {}
+    bool utf8() const { return log_ == nullptr || log_->utf8; }
     zengine::graphics::window::TerminalSize size() const {
         return log_ != nullptr ? log_->size : TermLog{}.size;
     }

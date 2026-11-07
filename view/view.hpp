@@ -43,6 +43,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <algorithm>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -210,7 +211,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     // The notice carries other parties' words -- a shape's name, a refusal -- spelled in what a
     // window draws.
     const auto notice_lines =
-        wrap(ws::pane_text::ascii_spelling(p.notice.empty() ? waiting_sentence(d, told) : p.notice),
+        wrap(ws::pane_text::printable(p.notice.empty() ? waiting_sentence(d, told) : p.notice),
              columns, std::min(kNoticeRows, free_rows));
     const auto notice_y = std::max<std::int64_t>(
         0, graphics::floor_div_px(room.height - line * static_cast<std::int64_t>(notice_lines.size()),
@@ -864,7 +865,10 @@ private:
     void type(const std::string& text, loom::Bus& bus) {
         if (!presentation_.focus) return;
         auto& box = field(*presentation_.focus);
-        if (!ws::pane_text::admissible(text)) {
+        const bool plain = std::all_of(text.begin(), text.end(), [](char c) {
+            return static_cast<unsigned char>(c) >= 0x20u && static_cast<unsigned char>(c) < 0x7Fu;
+        });
+        if (!plain) { // a number is written in plain ASCII, whatever a row can show
             presentation_.notice = "not typed -- a number field holds plain ASCII";
             presentation_.alert = true;
         } else if (box.size() + text.size() > kMaxFieldTextBytes) {

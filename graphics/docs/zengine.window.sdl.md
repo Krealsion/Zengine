@@ -26,9 +26,10 @@ pixels (`graphics/window/window_sdl.hpp`), centred on its display's usable area,
 when it goes; reloaded, it leaves it to the instance after it. An area placed past its edge grows
 it, as far as its display holds it. With `ZENGINE_SDL_NOT_FOCUSABLE=1` it never takes the
 keyboard and opens behind every window on Windows. Where it cannot open (no display, no usable
-driver) it says why on standard error and its load fails. Its text is its face, the embedded
-JetBrains Mono (else SDL's debug face), measured as it takes its window: a character's advance
-and a line's height.
+driver) it says why on standard error and its load fails.
+
+**Text.** Every character, at its columns, its palette's sizes, regular or bold
+([text](graphics.md#text-sizes-fonts-weight)).
 
 **Painting.** A node is painted once, when it changes, into pixel primitives -- rectangles, lines,
 runs of text in the face, images -- in its area's palette, each name it carries turned into a
@@ -92,8 +93,8 @@ back.
   <depth>`; `'<path>' has operands over <bytes> bytes`; `area '<area>' would hold more than <bound>
   nodes` (or `elements`); `record '<path>' has no node at its path`; `record '<path>' is not the
   sender's to say`; `'<path>': its <operator> operands do not read as <shape> version <n>, the one
-  this window reads (version 1 named its colours by role, and is not read)`, for a rectangle, an
-  ellipse, a line, a path or text whose operands are not this vocabulary's.
+  this window reads (version 1 named its colours by role, and is not read)` (for text, version 2
+  too), for a rectangle, an ellipse, a line, a path or text whose operands are not this vocabulary's.
 - **Example:** a drawing weave sends the nodes its picture changed in a beat with `more`, then its
   element's change without it, so the beat is shown once.
 
@@ -133,8 +134,8 @@ back.
 
 - **Takes:** nothing.
 - **Answers:** `WindowShown` v1, to the asker alone: the window's name, `sdl`, and incarnation; its
-  rows as text, the window read as a grid of cells of `kCellPx` pixels, each run of text one cell a
-  character from the cell it starts in, front areas over those behind, trailing spaces left off; how
+  rows as text, the window read as a grid of cells of `kCellPx` pixels, each run of text a character
+  at its columns from the cell it starts in, front areas over those behind, trailing spaces left off; how
   many areas, nodes and presented elements it keeps; and since it started, its showings (pictures
   presented) and the bytes of the primitives they drew, the calls of its painter and of its element
   code, its refusals, and the last one's words.

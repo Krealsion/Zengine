@@ -386,7 +386,7 @@ The Hotkeys pane's two help lines are drawn whatever `help` says.
 In `workshop/desktop-pane/hotkeys_view.hpp`:
 
 ```diff
-             footer.push_back("  " + drawable(keys_rows_decl.word));
+             footer.push_back("  " + printable(keys_rows_decl.word));
          }
 -        if (help_shown_) {
 +        if (true) {
@@ -395,7 +395,7 @@ In `workshop/desktop-pane/hotkeys_view.hpp`:
 In `workshop/desktop-pane/hotkeys_view.hpp`:
 
 ```diff
-             footer.push_back("  " + drawable(keymap_.word));
+             footer.push_back("  " + printable(keymap_.word));
          }
 -        if (help_shown_) {
 +        if (true) {

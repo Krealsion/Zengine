@@ -116,7 +116,7 @@ and the `action` a press anywhere in it asks of the area's owner.
 | `ellipse` | a box, a fill and an outline | the cells whose centre falls inside | a span a pixel row; its outline in lines |
 | `line` | two points and an ink | a walk of cells in `- | / \` | a line |
 | `path` | SVG path data (`M L H V C Q Z`), a fill and an outline | curves flattened; cells by centre | curves flattened; spans a pixel row, even-odd |
-| `text` | a point, words and an ink | one cell a character; outside ASCII, `?` | a run of text, a character every advance of the window's face (`PaintTask::text_advance`); outside ASCII, `?`; a line a clip crosses cut by its pixels |
+| `text` | a point, words, an ink, a size, a font and a weight | a character a cell, a wide one in two and a combining mark in the cell before it; bold where it shows bold; one size; `?` where its encoding carries no character past ASCII | every character, at its columns of its size's advance; bold where asked; a character a clip would cut left out whole, a line a clip crosses cut by its pixels |
 | `image` | a box and pixels, four bytes each | a luminance ramp, one glyph a cell | its pixels, scaled into its box |
 
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
@@ -183,6 +183,43 @@ An exact colour can name the pool colour a medium that cannot show it shows in i
 (`rgb(0x2e7d5b, colors::accent)`); where only the pool's colours are shown, any colour shows as
 its pool colour (`pool_color_of`).
 
+## Text: sizes, fonts, weight
+
+A text draw carries a size, a font and a weight beside its colour (`TextArgs`, `graphics/ops.hpp`;
+`graphics/text_style.hpp`). A size is a pool name or a slot (`TextSize`), a font a pool name, both
+generated from `graphics/pool.json` with the colours (pool format 2): `zengine::graphics::sizes`
+holds `caption`, `body`, `heading` and `title`, and `zengine::graphics::fonts` holds `text`, which
+names the face it sets text in. A text naming no size stands at `body`, and one naming no font is
+set in `text`; a weight is `text_weight::kRegular` or `kBold`.
+
+```cpp
+sketch.text("card/title", x, y, "Counter", graphics::colors::accent, graphics::sizes::heading,
+            graphics::text_weight::kBold);
+```
+
+The window turns a size into points and a font into a face when it paints, from the area's
+palette (`PaletteOffered`'s `sizes` and `fonts`), and says each pool size's measure in the room
+before an owner lays its text out: `AreaRoom::measures`, one `TextMeasured` a size, its points and
+its column's advance and line in pixels; `measure(size)` reads one, and `measure()` is `body`'s. A
+slot size (`SlotSize`, a slots file's `sizes`) stands at the points its palette sets for the area's
+owner, else at its own. A window of characters sets every size in its cell and shows bold through
+its ink. Every font is monospaced, so an owner places text by columns: each character takes the
+columns the text core gives it (`component::character_columns`), 0, 1 or 2 by Unicode's width
+classes, the rule both painters and a terminal draw by.
+
+The OS window ([`zengine.window.sdl`](zengine.window.sdl.md)) sets text in the embedded JetBrains
+Mono, regular and bold, each size measured as it is first asked. A character that face lacks is
+drawn from the platform's own fonts -- the Windows font folder, the folders fontconfig reads,
+macOS's, at most `window::kMaxPlatformFaces` files, looked in once a character -- and else from GNU
+Unifont and Unifont Upper, embedded as the last resort, so every character is drawn somewhere; such
+a glyph sits centred in its own columns, scaled down where it would not fit them. With
+`ZENGINE_SDL_EMBEDDED_FACES=1` the window draws from its embedded faces alone, so a picture never
+moves with the fonts of the machine it is taken on; the suites and the pictures of these pages are
+taken so. A face that will not open says why on standard error, and the window sets its text in
+SDL's debug face. A terminal ([`zengine.window.terminal`](zengine.window.terminal.md)) writes every
+character its encoding carries, a wide one over two cells, and `?` for each character past ASCII
+where its encoding carries none, one column each.
+
 ## Drawing: a canvas, and one showing a beat
 
 `graphics/canvas.hpp` is what an owner draws with. A `Sketch` collects one picture; a `Canvas`,
@@ -196,18 +233,18 @@ A canvas draws whole when its window is new, started again, resized or sets text
 the window says the area is empty. The window tells the room (`AreaRoom`): its name, its
 incarnation, its width and height (`width()`, `height()`), the references of the owner's elements
 it still presents there, whether it holds none of the owner's drawing there (`empty`): an area
-shown afresh, or given to this owner; and how it sets text (`text()`, a `TextMeasure`: a
-character's advance and a line's height in pixels, the OS window's face or a terminal's cell, and
-`cell_px()`, its device pixels in a cell). An owner places its text by that measure, a row a line
-and a character an advance, and paints its area's ground: what it leaves unpainted shows what
-stands behind it. `room` answers whether the window, its incarnation, its size or its measure
+shown afresh, or given to this owner; and how it sets text (`text()`, a `TextMeasure`: a column's
+advance and a line's height in pixels at `body`, the OS window's face or a terminal's cell, every
+other size's in `measures`, and `cell_px()`, its device pixels in a cell). An owner places its text
+by that measure, a row a line and a column an advance, and paints its area's ground: what it leaves
+unpainted shows what stands behind it. `room` answers whether the window, its incarnation, its size or its measure
 changed or the area is empty, and `holds` whether the window presents an element, so an owner says
 again only what the window does not hold.
 
 ## Drawing the text pieces
 
 `graphics/elements/text_face.hpp` holds the text pieces' looks, a face each medium's, drawn from the
-values `component/` keeps measured in characters, and keeps nothing itself. A text box keeps a
+values `component/` keeps measured in columns, and keeps nothing itself. A text box keeps a
 column on each side of its text (`kTextBoxInset`): in a row of cells `[text___]`
 (`text_box_spelling`), or plain, its text alone from its first column, where a prompt beside it
 already marks the place (`TextBoxInCells`, `text_box_plain`, `text_box_text_column`); where the

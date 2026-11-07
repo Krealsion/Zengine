@@ -18,6 +18,7 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
+#include "component/text.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/colors.hpp"
@@ -241,8 +242,10 @@ inline MenuWidths menu_widths(std::initializer_list<const std::vector<PaneMenuRo
     for (const std::vector<PaneMenuRow>* run : runs) {
         for (const PaneMenuRow& r : *run) {
             const MenuRowWords parts = menu_row_words(r.label);
-            w.words = parts.words.size() > w.words ? parts.words.size() : w.words;
-            w.keys = parts.key.size() > w.keys ? parts.key.size() : w.keys;
+            const std::size_t words = component::text_columns(parts.words);
+            const std::size_t keys = component::text_columns(parts.key);
+            w.words = words > w.words ? words : w.words;
+            w.keys = keys > w.keys ? keys : w.keys;
         }
     }
     if (w.keys == 0) {
@@ -258,15 +261,15 @@ inline MenuWidths menu_widths(std::initializer_list<const std::vector<PaneMenuRo
 }
 
 /// ONE ROW'S TEXT AFTER ITS MARK, laid in the columns `w`: its words, and for a row that names a key
-/// in a menu showing keys, its words cut to the words column, blanks to it and two more, then its
-/// key.
+/// in a menu showing keys, its words cut to the words column at whole characters, blanks to it and
+/// two more, then its key; every width in columns.
 inline std::string menu_row_text(const PaneMenuRow& row, const MenuWidths& w) {
     const MenuRowWords parts = menu_row_words(row.label);
     if (w.keys == 0 || parts.key.empty()) {
         return parts.words;
     }
-    std::string out = parts.words.substr(0, w.words);
-    out.resize(w.words, ' ');
+    std::string out = parts.words.substr(0, component::cut_at_columns(parts.words, 0, w.words));
+    out.append(w.words - component::text_columns(out), ' ');
     return out + "  " + parts.key;
 }
 

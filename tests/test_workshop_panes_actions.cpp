@@ -2859,8 +2859,8 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
     CHECK(hotkeys_pane_text(r).find("more below") != std::string::npos);
 }
 
-TEST_CASE("the Hotkeys pane names a keymap file whose path a canvas cannot draw with the path made "
-          "drawable, in a picture Workshop admits") {
+TEST_CASE("the Hotkeys pane names a keymap file whose path holds a character past plain ASCII with "
+          "the path as written, in a picture Workshop admits") {
     // A PATH NO FILE IS AT, holding a character a profile directory may hold: the host reads
     // nothing there, and no key is edited here, so nothing is written there either.
     const std::string path = "caf\xC3\xA9/keymap.json";
@@ -2885,8 +2885,8 @@ TEST_CASE("the Hotkeys pane names a keymap file whose path a canvas cannot draw 
     REQUIRE(shown != nullptr);
     CHECK(shows_canvas(*shown));
     CHECK(keys.find("HOTKEYS -- ") != std::string::npos);
-    // ...ONE MARK FOR THE CHARACTER, as the desktop spells every other party's words.
-    CHECK(keys.find("\nkeymap file: caf?/keymap.json\n") != std::string::npos);
+    // ...EVERY CHARACTER AS WRITTEN, as the desktop shows every other party's words.
+    CHECK(keys.find("\nkeymap file: caf\xC3\xA9/keymap.json\n") != std::string::npos);
 }
 
 TEST_CASE("the Hotkeys pane declares its `help` setting, and a layout keeping it off gives the footer's help lines to the list") {

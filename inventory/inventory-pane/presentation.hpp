@@ -64,7 +64,7 @@ inline void location(std::vector<workshop::TextRow>& rows, View& v, const Browse
         if (text.size() + 12 + count.size() <= width) text += "  +" + count + " in views";
         else if (text.size() + 2 + count.size() <= width) text += " +" + count;
     }
-    const auto drawn = workshop::pane_text::drawable(workshop::pane_text::fit(text, v.columns));
+    const auto drawn = workshop::pane_text::printable(workshop::pane_text::fit(text, v.columns));
     const auto solid = component::solid_columns(drawn, text.size());
     for (const auto& [first, size, meaning] : spans)
         v.map.span(row, static_cast<std::int64_t>(first), static_cast<std::int64_t>(size), solid, meaning);
@@ -107,7 +107,7 @@ inline std::vector<workshop::TextRow> render(const InventoryViews& s, const std:
     std::vector<workshop::TextRow> rows;
     const auto push = [&](std::string text, graphics::Color style) {
         if (static_cast<std::int64_t>(rows.size()) < v.rows)
-            rows.push_back({ws::pane_text::drawable(ws::pane_text::fit(text, v.columns)), style, graphics::no_color()});
+            rows.push_back({ws::pane_text::printable(ws::pane_text::fit(text, v.columns)), style, graphics::no_color()});
     };
     std::string kind = "inventory";
     for (const auto& x : s.views) if (x.id == id) kind = x.kind;

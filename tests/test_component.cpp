@@ -112,6 +112,118 @@ TEST_CASE("component: a character boundary is one rule, walked in four direction
 
 // ---- 2. The caret ------------------------------------------------------------------------
 
+TEST_CASE("component: a character takes the columns its width class gives, the one rule every "
+          "presentation lays text out by") {
+    // THE LINE THE WITNESS NAMES: an accented letter, a Cyrillic one, an ideograph, a letter with a
+    // combining mark after it, and an emoji -- 1, 1, 2, 0 (the mark) and 2 columns.
+    const std::string e_acute = "\xC3\xA9";        // U+00E9, two bytes
+    const std::string zhe = "\xD0\xB6";            // U+0436, two bytes
+    const std::string zhong = "\xE4\xB8\xAD";      // U+4E2D, three bytes
+    const std::string acute = "\xCC\x81";          // U+0301, a combining mark, two bytes
+    const std::string grin = "\xF0\x9F\x98\x80";   // U+1F600, four bytes
+    const std::string line = e_acute + zhe + zhong + "e" + acute + grin;
+
+    CHECK(code_point_at(e_acute, 0) == char32_t{0xE9});
+    CHECK(code_point_at(grin, 0) == char32_t{0x1F600});
+    CHECK(character_columns(e_acute, 0) == 1);
+    CHECK(character_columns(zhe, 0) == 1);
+    CHECK(character_columns(zhong, 0) == 2);
+    CHECK(character_columns(acute, 0) == 0);
+    CHECK(character_columns(grin, 0) == 2);
+    CHECK(text_columns(line) == 7); // 1 + 1 + 2 + 1 + 0 + 2
+
+    // WHERE EACH STANDS: the column before each character's first byte.
+    const std::size_t at_zhong = e_acute.size() + zhe.size();
+    const std::size_t at_e = at_zhong + zhong.size();
+    const std::size_t at_grin = at_e + 1 + acute.size();
+    CHECK(columns_between(line, 0, e_acute.size()) == 1);
+    CHECK(columns_between(line, 0, at_zhong) == 2);
+    CHECK(columns_between(line, 0, at_e) == 4);
+    CHECK(columns_between(line, 0, at_grin) == 5);
+    // ...and every column names the character covering it: both of a wide one name it, and the
+    // mark stays with the letter before it.
+    CHECK(byte_at_column(line, 0, 2) == at_zhong);
+    CHECK(byte_at_column(line, 0, 3) == at_zhong);
+    CHECK(byte_at_column(line, 0, 4) == at_e);
+    CHECK(byte_at_column(line, 0, 5) == at_grin);
+    CHECK(byte_at_column(line, 0, 6) == at_grin);
+    CHECK(byte_at_column(line, 0, 7) == line.size());
+
+    // PRINTABLE ASCII TAKES A COLUMN A BYTE, so every ASCII row is laid out as it always was.
+    for (unsigned char c = 0x20; c < 0x7f; ++c) {
+        CHECK(character_columns(std::string(1, static_cast<char>(c)), 0) == 1);
+    }
+    const std::string ascii = "the same columns as bytes";
+    CHECK(text_columns(ascii) == ascii.size());
+
+    // BYTES THAT SPELL NO CHARACTER take one column, as a control does: drawn as `?` where it stands.
+    CHECK(code_point_at("\xC3", 0) == kNotACharacter);        // a lead with no continuation
+    CHECK(code_point_at("\xE0\x80\x80", 0) == kNotACharacter); // an over-long spelling
+    CHECK(code_point_at("\xED\xA0\x80", 0) == kNotACharacter); // a surrogate
+    CHECK(character_columns("\xC3", 0) == 1);
+    CHECK(character_columns("\t", 0) == 1);
+
+    // A TEXT BOX COUNTS ITS VIEW IN THE SAME COLUMNS: the caret after the ideograph stands at
+    // column 4, and a press on either half of it names it.
+    TextBox box;
+    box.set(line, 0);
+    box.place(at_e);
+    const TextBoxView v = text_box_view(box, 20);
+    CHECK(v.shown == line);
+    CHECK(v.caret == 4);
+    CHECK(box.position_at_column(2) == at_zhong);
+    CHECK(box.position_at_column(3) == at_zhong);
+}
+
+TEST_CASE("component: a cut at every byte of a 2-, 3- and 4-byte character never splits one, "
+          "prefix and tail") {
+    // THE SWEEP: each character between ASCII neighbours, every budget a cut can ask, from the
+    // front (`cut_at_columns`, the prefix a row keeps) and from the back (`start_for_columns`, the
+    // tail a path keeps), and every slice of columns (`column_slice`): each answer a boundary, its
+    // text whole characters, never wider than asked.
+    const std::vector<std::string> wides = {"\xC3\xA9", "\xE4\xB8\xAD", "\xF0\x9F\x98\x80",
+                                            "e\xCC\x81"};
+    for (const std::string& ch : wides) {
+        for (std::size_t lead = 0; lead <= 3; ++lead) {
+            const std::string text = std::string(lead, 'a') + ch + "zz";
+            const std::vector<std::size_t> starts = boundaries(text);
+            const std::size_t all = text_columns(text);
+            CAPTURE(text);
+            for (std::size_t budget = 0; budget <= all + 1; ++budget) {
+                CAPTURE(budget);
+                const std::size_t front = cut_at_columns(text, 0, budget);
+                CHECK(std::find(starts.begin(), starts.end(), front) != starts.end());
+                CHECK(columns_between(text, 0, front) <= budget);
+                const std::size_t back = start_for_columns(text, text.size(), budget);
+                CHECK(std::find(starts.begin(), starts.end(), back) != starts.end());
+                CHECK(columns_between(text, back, text.size()) <= budget);
+                for (std::size_t from = 0; from <= all; ++from) {
+                    const std::string slice = column_slice(text, from, budget);
+                    CHECK(text_columns(slice) == budget);
+                    for (std::size_t i = 0; i < slice.size(); i = character_end(slice, i)) {
+                        CHECK(code_point_at(slice, i) != kNotACharacter);
+                    }
+                }
+            }
+            // ...AND A TEXT BOX AT EVERY CAPACITY shows whole characters, with every place it can
+            // keep its window at.
+            for (const std::size_t place : starts) {
+                for (std::int64_t room = 1; room <= static_cast<std::int64_t>(all) + 1; ++room) {
+                    TextBox box;
+                    box.set(text, 0);
+                    box.place(place);
+                    const TextBoxView v = text_box_view(box, room);
+                    CHECK(text_columns(v.shown) <= static_cast<std::size_t>(room));
+                    for (std::size_t i = 0; i < v.shown.size(); i = character_end(v.shown, i)) {
+                        CHECK(code_point_at(v.shown, i) != kNotACharacter);
+                    }
+                    CHECK(v.caret <= room);
+                }
+            }
+        }
+    }
+}
+
 TEST_CASE("component: an empty box has exactly one position, and every operation keeps it") {
     TextBox in;
     CHECK(in.empty());
@@ -304,12 +416,11 @@ TEST_CASE("the caret steps over a character, never into the middle of one") {
     in.backspace();
     CHECK(in.text() == "a");
 
-    // WHAT IS NOT CLAIMED, said out loud: the accented letter occupies TWO columns in every
-    // presentation of this component, because each is one column per BYTE. The caret agrees
-    // with what is drawn, which is the property that matters; codepoint and grapheme correctness
-    // are claimed nowhere above it.
+    // THE COLUMNS ARE THE CHARACTERS': the accented letter takes one column in every presentation,
+    // as its width class gives it, so the caret after it stands at column 2, where it is drawn.
+    // Grapheme clusters are claimed nowhere above it.
     in.set("a\xC3\xA9z", 3);
-    CHECK(in.caret_column() == 3); // three COLUMNS for two characters, and that is the truth
+    CHECK(in.caret_column() == 2); // two columns for two characters
 }
 
 TEST_CASE("the window is state, and every operation leaves the caret inside it") {
@@ -319,7 +430,8 @@ TEST_CASE("the window is state, and every operation leaves the caret inside it")
     constexpr std::int64_t kRoom = 10;
     const auto inside = [](const TextBox& in, std::int64_t room) {
         return in.first_visible() <= in.caret() &&
-               in.caret() - in.first_visible() <= static_cast<std::size_t>(room);
+               columns_between(in.text(), in.first_visible(), in.caret()) <=
+                   static_cast<std::size_t>(room);
     };
 
     SUBCASE("a line that fits does not move the window") {
@@ -578,9 +690,10 @@ TEST_CASE("the window never begins inside a character") {
             CHECK(in.first_visible() % 2 == 0);
             CHECK(in.caret() % 2 == 0);
             CHECK_FALSE(is_continuation_byte(in.text()[in.first_visible()]));
-            // ...AND THE CARET IS STILL IN IT.
+            // ...AND THE CARET IS STILL IN IT, counted in the columns the row draws.
             CHECK(in.first_visible() <= in.caret());
-            CHECK(in.caret() - in.first_visible() <= static_cast<std::size_t>(room));
+            CHECK(columns_between(in.text(), in.first_visible(), in.caret()) <=
+                  static_cast<std::size_t>(room));
             // THE SLICE BEGINS ON A WHOLE CHARACTER.
             const std::string shown = in.visible(room);
             if (!shown.empty()) {
@@ -589,13 +702,15 @@ TEST_CASE("the window never begins inside a character") {
         }
     }
 
-    // AND THE FORWARD SNAP COSTS AT MOST ONE CHARACTER OF TEXT, never the caret: a window
-    // that wanted to begin at byte 11 begins at 12, which is the é the weaver can actually
-    // read rather than its second half.
+    // AND THE WINDOW IS COUNTED IN COLUMNS, an accented letter one: twelve fit in thirteen, from the
+    // start, and five from the eighth, a whole character.
     in.end();
     in.keep_caret_visible(13);
-    CHECK(in.first_visible() == 12);
-    CHECK(in.visible(13) == "\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9");
+    CHECK(in.first_visible() == 0);
+    CHECK(in.visible(13) == accented);
+    in.keep_caret_visible(5);
+    CHECK(in.first_visible() == 14);
+    CHECK(in.visible(5) == "\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9");
 }
 
 // ---- 3. The window -----------------------------------------------------------------------
@@ -779,8 +894,9 @@ TEST_CASE("component: a column of the visible slice names a byte of the WHOLE te
     // here is a byte index and makes no claim to be a boundary.
     TextBox multi;
     multi.set("a\xC3\xA9z", 0);
-    CHECK(multi.position_at_column(2) == 2); // the middle of the accented letter...
-    multi.place(multi.position_at_column(2));
+    CHECK(multi.position_at_column(1) == 1); // the accented letter's column names its first byte
+    CHECK(multi.position_at_column(2) == 3); // ...and the next column the letter after it
+    multi.place(multi.position_at_column(1));
     CHECK(multi.caret() == 1); // ...and the caret lands on the character it hit
 }
 

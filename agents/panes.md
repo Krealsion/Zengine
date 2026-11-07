@@ -892,13 +892,12 @@ the weave simply began accepting them. `introspection/powers.hpp` is the pure ha
   picture marked `(updating)`, which takes no press. What survives an answer is everything the
   WEAVER authored — view, query, filter, both selections, the retained sample — because none of
   those is a fact about the host.
-- **TYPED AND PASTED TEXT IS GATED TO PRINTABLE ASCII AT THIS PANE'S DOOR, AND REFUSED WHOLE.**
-  `TextBox::type` admits any UTF-8, and `canvas_content_problem` (a picture) and `judge_content`
-  (prose) refuse a whole update for one byte a canvas cannot draw, so a chunk with any
-  inadmissible byte is declined entirely — the Editor pane's own paste posture. Every road into
-  the query passes that one door: typing, a mirrored `ClipboardCopy`, and the answer to a paste
-  ask. The Composer takes the other posture: its draft keeps the bytes typed, and its rows
-  draw each byte a canvas cannot as `?`.
+- **TYPED AND PASTED TEXT IS ADMITTED WHOLE OR REFUSED WHOLE AT THIS PANE'S DOOR.**
+  `TextBox::type` admits any UTF-8, and every row draws a character as written, so a chunk is
+  declined entirely only where it holds a control character or bytes that spell no character
+  (`pane_text::admissible`). Every road into the query passes that one door: typing, a mirrored
+  `ClipboardCopy`, and the answer to a paste ask. The Composer takes the other posture: its draft
+  keeps the bytes typed, and its rows show each as a row shows any text (`pane_text::printable`).
 - **THE QUERY'S SELECTION IS FUNCTIONAL AND INVISIBLE.** The pane says where the query's caret
   stands and draws no selection for it, so cut and copy work and no highlight shows. Named
   residual.

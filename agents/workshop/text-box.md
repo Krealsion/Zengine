@@ -45,9 +45,9 @@ reconcile above the participant check were its one measurer, and the pane owns b
 
 WHY — `agents/decisions/the-line-is-a-window.md`
 
-## WL-TEXT-05 — The left edge snaps forwards, the right cut is a byte cut
+## WL-TEXT-05 — The left edge snaps forwards, the right cut falls between whole characters
 
-LAW — The left edge snaps forwards to a character boundary, the right-hand cut is a byte cut as every fitted row's is, and one column the line may not use is reserved for the caret, on both media.
+LAW — The left edge snaps forwards to a character boundary, the right cut falls between whole characters as every fitted row's does, and one column is kept for the caret, on both media.
 
 MEANS
 - snapping backwards would carry the right edge back and push the caret off its row;
@@ -123,7 +123,7 @@ WHY — `agents/decisions/editing-text-is-a-component.md`
 LAW — The caret measurers take the box itself, the visible selection is the only span arithmetic, and the selection measurers add exactly the prose offset the caret measurers add: one measurer family.
 
 MEANS
-- `pasteable_line` flattens foreign bytes into one line, for the byte=column grid's sake.
+- `pasteable_line` flattens foreign bytes into one line, since a row is one line of columns.
 
 WHY — `agents/decisions/the-line-is-a-window.md`
 

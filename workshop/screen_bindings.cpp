@@ -6,6 +6,8 @@
 
 #include "screen.hpp"
 
+#include "component/text.hpp"
+
 namespace zengine::workshop {
 
 // ---- Spelling the effective bindings -----------------------------------------------------
@@ -128,11 +130,12 @@ bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
 namespace detail {
 
 std::string pad(std::string text, std::size_t width) {
-    if (text.size() > width) {
-        text.resize(width);
-        return text;
+    std::size_t cols = component::text_columns(text);
+    if (cols > width) {
+        text.resize(component::cut_at_columns(text, 0, width));
+        cols = component::text_columns(text);
     }
-    text.append(width - text.size(), ' ');
+    text.append(width - cols, ' ');
     return text;
 }
 
@@ -142,14 +145,14 @@ std::string fit(std::string text, std::int64_t width) {
         return {};
     }
     const std::size_t room = static_cast<std::size_t>(width);
-    if (text.size() <= room) {
+    if (component::text_columns(text) <= room) {
         return text; // it fits, so nothing about it changes -- not even its role
     }
     const std::size_t mark = std::char_traits<char>::length(kElided);
     if (room <= mark) {
         return std::string(kElided).substr(0, room);
     }
-    text.resize(room - mark);
+    text.resize(component::cut_at_columns(text, 0, room - mark));
     text += kElided;
     return text;
 }
@@ -175,15 +178,17 @@ std::string fit_path(const std::string& path, std::int64_t width) {
         return {};
     }
     const std::size_t room = static_cast<std::size_t>(width);
-    if (path.size() <= room) {
+    if (component::text_columns(path) <= room) {
         return path; // it fits, so nothing about it changes
     }
     const std::size_t mark = std::char_traits<char>::length(kElided);
     const std::size_t root = path_root_cue(path);
-    if (root + mark + 1 > room) {
+    const std::size_t root_cols = component::columns_between(path, 0, root);
+    if (root_cols + mark + 1 > room) {
         return fit(path, width); // no room for root + mark + one cell of tail
     }
-    std::string tail = path.substr(path.size() - (room - root - mark));
+    const std::size_t from = component::start_for_columns(path, path.size(), room - root_cols - mark);
+    std::string tail = path.substr(from < root ? root : from);
     const std::size_t boundary = tail.find('/');
     if (boundary != std::string::npos && boundary + 1 < tail.size()) {
         tail = tail.substr(boundary); // start the tail at a whole component

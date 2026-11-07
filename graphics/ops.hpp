@@ -13,6 +13,7 @@
 #include "graphics/color.hpp"
 #include "graphics/colors.hpp" // generated from graphics/pool.json
 #include "graphics/implied.hpp"
+#include "graphics/text_style.hpp"
 #include "graphics/vocabulary.hpp"
 
 #include <zen/value.hpp>
@@ -86,12 +87,18 @@ struct PathArgs {
     ZEN_SHAPE(PathArgs, 2, ZEN_FIELD(d), ZEN_FIELD(fill), ZEN_FIELD(stroke));
 };
 
-/// text: words from (x, y), the top of their line.
+/// text: words from (x, y), the top of their line, every character drawn, a character every advance
+/// of its size by the columns it takes (`component::character_columns`), in a pool font ("" the
+/// pool's `text`) at a size, regular or bold (`text_weight::`).
 struct TextArgs {
     std::int64_t x = 0, y = 0;
     std::string text;
     Color ink;
-    ZEN_SHAPE(TextArgs, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(ink));
+    TextSize size;
+    std::string font;
+    std::int64_t weight = text_weight::kRegular;
+    ZEN_SHAPE(TextArgs, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(ink),
+              ZEN_FIELD(size), ZEN_FIELD(font), ZEN_FIELD(weight));
 };
 
 /// image: `pw` x `ph` pixels, four bytes each (red, green, blue, alpha), shown in (x, y, w, h).
@@ -140,7 +147,10 @@ std::string refused_unless(const std::string& op, const loom::Bytes& args) {
     const auto& schema = *loom::schema_of<Args>();
     return "its " + op + " operands do not read as " + schema.name() + " version " +
            std::to_string(schema.version()) +
-           ", the one this window reads (version 1 named its colours by role, and is not read)";
+           ", the one this window reads (version 1 named its colours by role, and is not read" +
+           (op == op::kText ? std::string("; version 2 carried no size, font or weight, and is "
+                                          "not read)")
+                            : std::string(")"));
 }
 } // namespace detail
 

@@ -40,7 +40,8 @@ only while a pane holds your keys: press into it first.
   [`project.up`](#projectup) and [`project.down`](#projectdown) once it holds your keys; a press
   gives it the keys and does nothing else.
 - **Powers**: type to search; the query is the pane's one field, edited, copied and pasted as any
-  text field is. Text carrying a byte that is not printable ASCII is refused whole. Choose a view
+  text field is. Text carrying a control character, or bytes that spell no character, is refused
+  whole. Choose a view
   ([`powers.view`](#powersview)), walk the list ([`powers.down`](#powersdown)) or press a power to
   select it, and sample a selected Source ([`powers.sample`](#powerssample)). Press a power and
   drag to carry its operator reference, `zengine.OperatorRef`, to Inventory or Flow; a form such

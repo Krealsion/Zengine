@@ -95,25 +95,34 @@ gfx::PaintTask task_in(const gfx::Sketch& s, const gfx::PaletteOffered& palette)
     std::int64_t rank = 1;
     for (const gfx::Node& n : s.nodes()) {
         task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args,
-                                            gfx::window::inks_of(n.op, n.args, palette, "")});
+                                            gfx::window::inks_of(n.op, n.args, palette, ""), {},
+                                            {}});
     }
     return task;
 }
 
 /// The cells one node paints for a medium of characters, as text rows from the area's 0,0.
 std::vector<std::string> painted(const gfx::Sketch& s, const gfx::PaletteOffered& palette) {
-    std::vector<std::string> rows;
+    std::vector<std::vector<std::string>> cells;
     for (const gfx::NodePaint& np : gfx::term::paint_task(task_in(s, palette)).nodes) {
         for (const gfx::term::Cell& c : gfx::term::unpack(np.cells)) {
-            while (rows.size() <= static_cast<std::size_t>(c.row)) {
-                rows.emplace_back();
+            while (cells.size() <= static_cast<std::size_t>(c.row)) {
+                cells.emplace_back();
             }
-            std::string& row = rows[static_cast<std::size_t>(c.row)];
+            std::vector<std::string>& row = cells[static_cast<std::size_t>(c.row)];
             if (row.size() <= static_cast<std::size_t>(c.col)) {
-                row.resize(static_cast<std::size_t>(c.col) + 1, ' ');
+                row.resize(static_cast<std::size_t>(c.col) + 1, " ");
             }
             row[static_cast<std::size_t>(c.col)] = c.glyph;
         }
+    }
+    std::vector<std::string> rows;
+    for (const std::vector<std::string>& row : cells) {
+        std::string r;
+        for (const std::string& g : row) {
+            r += g;
+        }
+        rows.push_back(std::move(r));
     }
     return rows;
 }
@@ -501,7 +510,7 @@ TEST_CASE("the terminal painter draws all seven operators, each by its fallback"
 
     gfx::Sketch t;
     t.text("t", 0, 0, "hi\xC3\xA9!", gfx::colors::text);
-    CHECK(painted(t, look)[0] == "hi?!"); // one cell a character; outside ASCII, one '?'
+    CHECK(painted(t, look)[0] == "hi\xC3\xA9!"); // one cell a character, every character itself
 
     gfx::Sketch l;
     l.line("l", 0, 0, 36, 0, gfx::colors::text);
@@ -1360,16 +1369,16 @@ TEST_CASE("a canvas told its window sets text in another measure draws whole aga
           "measure for its owner") {
     gfx::Canvas canvas("test.area");
     REQUIRE(canvas.room(gfx::AreaRoom{"test.area", "sdl", 7, 240, 120, {}, false, gfx::kCellPx,
-                                      8, 18}));
+                                      8, 18, {}}));
     CHECK(canvas.cell_px() == gfx::kCellPx);
     CHECK(canvas.text() == gfx::TextMeasure{8, 18});
     CHECK_FALSE(canvas.room(gfx::AreaRoom{"test.area", "sdl", 7, 240, 120, {}, false,
-                                          gfx::kCellPx, 8, 18}));
+                                          gfx::kCellPx, 8, 18, {}}));
     CHECK(canvas.room(gfx::AreaRoom{"test.area", "sdl", 7, 240, 120, {}, false, gfx::kCellPx, 7,
-                                    16}));
+                                    16, {}}));
     CHECK(canvas.text() == gfx::TextMeasure{7, 16});
     // A ROOM THAT SAYS NO MEASURE is a window whose text is the cell.
-    CHECK(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 240, 120, {}, false, 0, 0, 0}));
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 240, 120, {}, false, 0, 0, 0, {}}));
     CHECK(canvas.text() == gfx::TextMeasure{});
 }
 
@@ -4642,7 +4651,10 @@ TEST_CASE("the painter for light paints all seven operators into pixel primitive
 
     const light::NodePrimitives& text = nodes[4];
     REQUIRE(text.texts.size() == 1);
-    CHECK(text.texts[0] == light::TextRun{10, 90, ink_of(day, gfx::colors::text), "hi?!"});
+    CHECK(text.texts[0].x == 10);
+    CHECK(text.texts[0].y == 90);
+    CHECK(text.texts[0].rgba == ink_of(day, gfx::colors::text));
+    CHECK(text.texts[0].text == "hi\xC3\xA9!"); // every character drawn as itself
 
     const light::NodePrimitives& image = nodes[5];
     REQUIRE(image.images.size() == 1);
@@ -4716,7 +4728,8 @@ TEST_CASE("a node painted for light packs and reads back whole, and bytes that a
     light::NodePrimitives n;
     n.quads.push_back(light::Quad{-3, 4, 5, 6, 0x11223344u});
     n.lines.push_back(light::Line{1, 2, 3, 4, 0xaabbccddu});
-    n.texts.push_back(light::TextRun{7, 8, 0x01020304u, "words", 3, 2}); // its cut rows ride too
+    // its cut rows, its measure, size, weight and face ride too
+    n.texts.push_back(light::TextRun{7, 8, 0x01020304u, "words", 3, 2, 9, 19, 16, 1, "Face"});
     n.images.push_back(light::ImageBlit{0, 0, 2, 2, 1, 1, loom::Bytes{9, 9, 9, 9}});
     const loom::Bytes packed = light::pack_node(n);
     CHECK(light::is_light(packed));
@@ -4755,7 +4768,7 @@ TEST_CASE("a point lands on a node painted for light where it painted, and withi
           "line") {
     light::NodePrimitives n;
     n.quads.push_back(light::Quad{10, 10, 5, 5, 0});
-    n.texts.push_back(light::TextRun{40, 0, 0, "abc"});
+    n.texts.push_back(light::TextRun{40, 0, 0, "abc", 0, 0, 0, 0, 0, 0, {}});
     n.images.push_back(light::ImageBlit{0, 40, 8, 8, 1, 1, loom::Bytes{0, 0, 0, 0}});
     n.lines.push_back(light::Line{100, 0, 100, 50, 0});
     const gfx::TextMeasure face{8, 18};
@@ -4822,16 +4835,17 @@ TEST_CASE("no source in the graphics package includes Surface") {
 
 TEST_CASE("the terminal's ink and its pointer modes are the graphics package's: a colour's word, "
           "else the nearest of its sixteen inks, never its default") {
-    CHECK(gw::sgr_for("cyan", 0) == "\x1b[36m");
-    CHECK(gw::sgr_for("bright magenta", 0) == "\x1b[95m");
-    CHECK(gw::sgr_for("red bold", 0) == "\x1b[31;1m");
-    CHECK(gw::sgr_for(gw::kTerminalDefault, 0) == "\x1b[39m");
+    // EACH INK SAYS ITS WEIGHT, normal (22) or bold (1), so none carries into the next.
+    CHECK(gw::sgr_for("cyan", 0) == "\x1b[22;36m");
+    CHECK(gw::sgr_for("bright magenta", 0) == "\x1b[22;95m");
+    CHECK(gw::sgr_for("red bold", 0) == "\x1b[1;31m");
+    CHECK(gw::sgr_for(gw::kTerminalDefault, 0) == "\x1b[22;39m");
     // NO WORD, OR ONE NAMING NO INK: the nearest of the sixteen to the colour itself.
-    CHECK(gw::sgr_for("", 0xff0000ff) == "\x1b[91m");
-    CHECK(gw::sgr_for("", 0xcd0000ff) == "\x1b[31m");
-    CHECK(gw::sgr_for("", 0x101418ff) == "\x1b[30m");
-    CHECK(gw::sgr_for("", 0xd8dee9ff) == "\x1b[37m");
-    CHECK(gw::sgr_for("purple", 0x5c5cffff) == "\x1b[94m");
+    CHECK(gw::sgr_for("", 0xff0000ff) == "\x1b[22;91m");
+    CHECK(gw::sgr_for("", 0xcd0000ff) == "\x1b[22;31m");
+    CHECK(gw::sgr_for("", 0x101418ff) == "\x1b[22;30m");
+    CHECK(gw::sgr_for("", 0xd8dee9ff) == "\x1b[22;37m");
+    CHECK(gw::sgr_for("purple", 0x5c5cffff) == "\x1b[22;94m");
     // A nearest is one of the sixteen: never the terminal's default ink, whatever the colour.
     for (const std::uint32_t rgba : {0x000000ffu, 0x7f7f7fffu, 0xffffffffu, 0x2e3440ffu}) {
         CHECK(gw::sgr_for("", rgba) != gw::sgr_for(gw::kTerminalDefault, 0));
@@ -5193,7 +5207,7 @@ TEST_CASE("the OS window paints every operator for light, holds a drawing saying
     CHECK(s.window == gfx::kSdlWindow);
     CHECK(s.nodes == 8);
     CHECK(s.rows.size() == static_cast<std::size_t>(gw::kDefaultHeight / t.light.face.line));
-    CHECK(any_row_has(s, "hi?!"));
+    CHECK(any_row_has(s, "hi\xC3\xA9!"));
     CHECK(s.rows[0].rfind("tail", 0) == 0);
     CHECK(s.showings == static_cast<std::int64_t>(t.light.frames.size()));
     CHECK(s.device_bytes > 0);
@@ -5357,9 +5371,9 @@ TEST_CASE("every palette paints in a terminal: a colour with no terminal word sh
     t.r.drain();
     CHECK(heard.refused.empty());
     CHECK(t.r.shown().rows[0] == "ABC");
-    CHECK(ink_of_glyph(t.term, from, 'A') == "\x1b[31m");  // the nearest: red
-    CHECK(ink_of_glyph(t.term, from, 'B') == "\x1b[96m");  // its word
-    CHECK(ink_of_glyph(t.term, from, 'C') == "\x1b[92m");  // an exact colour's nearest
+    CHECK(ink_of_glyph(t.term, from, 'A') == "\x1b[22;31m");  // the nearest: red
+    CHECK(ink_of_glyph(t.term, from, 'B') == "\x1b[22;96m");  // its word
+    CHECK(ink_of_glyph(t.term, from, 'C') == "\x1b[22;92m");  // an exact colour's nearest
 }
 
 TEST_CASE("a terminal leaves out a fill that is mostly transparent, as it leaves out such an image: "
@@ -5551,8 +5565,8 @@ TEST_CASE("a slot paints the palette's colour for the office that exposes it, el
     LitWindow t;
     gfx::PaletteOffered slotted = gfx::themes::night();
     slotted.palette = "slotted";
-    slotted.slots.push_back(gfx::PaletteSlots{"test.slotted", {{"card", 0x010203ff, "", ""}}});
-    slotted.slots.push_back(gfx::PaletteSlots{"test.other", {{"badge", 0x040506ff, "", ""}}});
+    slotted.slots.push_back(gfx::PaletteSlots{"test.slotted", {{"card", 0x010203ff, "", ""}}, {}});
+    slotted.slots.push_back(gfx::PaletteSlots{"test.other", {{"badge", 0x040506ff, "", ""}}, {}});
     t.r.to_role(gfx::kGraphicsRole, slotted);
     t.r.drain();
     t.own("test.slotted", 0, 0, 100, 50, "slotted");
@@ -7452,3 +7466,262 @@ TEST_CASE("a text area's face: wrapped less the bar's room, scrolled by pixels, 
     CHECK(node_named(quiet, "a.bar/thumb") == nullptr);
     CHECK(gfx::from_body<gfx::GroupArgs>(node_named(quiet, "a.text")->args)->clip_w == 100);
 }
+
+// ---- Every character, weight and size ------------------------------------------------------
+
+namespace {
+
+/// The line the witnesses draw: an accented letter, a Cyrillic one, an ideograph, a letter with a
+/// combining mark after it, and an emoji -- 1, 1, 2, 1 (with its mark) and 2 columns.
+const std::string kE = "\xC3\xA9";
+const std::string kZhe = "\xD0\xB6";
+const std::string kZhong = "\xE4\xB8\xAD";
+const std::string kMarked = "e\xCC\x81";
+const std::string kGrin = "\xF0\x9F\x98\x80";
+const std::string kLine = kE + kZhe + kZhong + kMarked + kGrin;
+
+#if defined(GRAPHICS_HAS_SDL)
+/// The OS window sets text in its embedded faces alone, so a picture never moves with the fonts
+/// of the machine it is taken on.
+void embedded_faces_only() {
+#if defined(_WIN32)
+    ::_putenv_s(gw::kEmbeddedFacesVariable, "1");
+#else
+    ::setenv(gw::kEmbeddedFacesVariable, "1", 1);
+#endif
+}
+
+/// The BMP a window captured, read: a pixel's red, green and blue.
+struct Picture {
+    std::string bytes;
+    int w = 0, h = 0;
+    std::uint32_t at(int px, int py) const {
+        const std::size_t row = (static_cast<std::size_t>(w) * 3 + 3) & ~std::size_t{3};
+        const std::size_t i = 54 + static_cast<std::size_t>(h - 1 - py) * row +
+                              static_cast<std::size_t>(px) * 3;
+        const auto byte = [&](std::size_t k) {
+            return static_cast<std::uint32_t>(static_cast<unsigned char>(bytes[i + k]));
+        };
+        return (byte(2) << 16) | (byte(1) << 8) | byte(0);
+    }
+    /// How many pixels of the box from (x0, y0) to (x1, y1), right and foot exclusive, are not
+    /// `ground`.
+    int ink(int x0, int y0, int x1, int y1, std::uint32_t ground) const {
+        int n = 0;
+        for (int y = (std::max)(0, y0); y < (std::min)(h, y1); ++y) {
+            for (int x = (std::max)(0, x0); x < (std::min)(w, x1); ++x) {
+                n += at(x, y) != ground ? 1 : 0;
+            }
+        }
+        return n;
+    }
+    /// The first and last rows of the box holding a pixel that is not `ground`; -1, -1 where none.
+    std::pair<int, int> inked_rows(int x0, int y0, int x1, int y1, std::uint32_t ground) const {
+        int first = -1, last = -1;
+        for (int y = (std::max)(0, y0); y < (std::min)(h, y1); ++y) {
+            if (ink(x0, y, x1, y + 1, ground) > 0) {
+                first = first < 0 ? y : first;
+                last = y;
+            }
+        }
+        return {first, last};
+    }
+};
+
+Picture picture_of(RealLit& t) {
+    const auto p = t.instance->capture();
+    REQUIRE(p.has_value());
+    REQUIRE(p->format == "image/bmp");
+    return Picture{p->bytes, static_cast<int>(p->width), static_cast<int>(p->height)};
+}
+#endif // GRAPHICS_HAS_SDL
+
+} // namespace
+
+TEST_CASE("a line of an accented letter, a Cyrillic one, an ideograph, a combining mark and an "
+          "emoji is painted at their columns, 1, 1, 2, 0 and 2, for characters and for light") {
+    gfx::Sketch s;
+    s.text("line", 0, 0, kLine, gfx::colors::text);
+
+    // FOR CHARACTERS: a character a cell, the ideograph and the emoji in two -- their second
+    // holding none -- and the mark in the cell of the letter it marks.
+    const gfx::PaintResult cells = gfx::term::paint_task(task_in(s, gfx::themes::night()));
+    REQUIRE(cells.nodes.size() == 1);
+    std::vector<std::pair<std::int64_t, std::string>> got;
+    for (const gfx::term::Cell& c : gfx::term::unpack(cells.nodes[0].cells)) {
+        got.emplace_back(c.col, c.glyph);
+    }
+    const std::vector<std::pair<std::int64_t, std::string>> want = {
+        {0, kE}, {1, kZhe}, {2, kZhong}, {3, ""}, {4, kMarked}, {5, kGrin}, {6, ""}};
+    CHECK(got == want);
+    CHECK(painted(s, gfx::themes::night())[0] == kLine);
+
+    // FOR LIGHT: every character as itself, each at its column of the face's advance.
+    const gfx::PaintTask task = task_in(s, gfx::themes::night());
+    REQUIRE(task.text_advance > 0);
+    const gfx::PaintResult lit = gfx::light::paint_task(task);
+    const auto prims = gfx::light::unpack_node(lit.nodes.at(0).cells);
+    REQUIRE(prims.has_value());
+    REQUIRE(prims->texts.size() == 1);
+    CHECK(prims->texts[0].text == kLine);
+    const std::int64_t a = task.text_advance;
+    std::vector<std::pair<std::int64_t, int>> placed;
+    for (const light::RunCharacter& ch : light::characters_of(prims->texts[0].text, 0, a)) {
+        placed.emplace_back(ch.x, ch.columns);
+    }
+    const std::vector<std::pair<std::int64_t, int>> columns = {
+        {0, 1}, {a, 1}, {2 * a, 2}, {4 * a, 1}, {5 * a, 2}};
+    CHECK(placed == columns);
+}
+
+TEST_CASE("a terminal shows every character its encoding carries, a wide one in two cells, and "
+          "where its encoding carries none past ASCII, a ? for each, one column each") {
+    for (const bool utf8 : {true, false}) {
+        CAPTURE(utf8);
+        TypedWindow t;
+        t.term.utf8 = utf8;
+        OwnerHeard heard;
+        const loom::WeaveId owner = mount_owner(t.r, heard, kOwner);
+        t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "night"});
+        t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, kOwner, 0, 0,
+                                                        20 * gfx::kCellPx, 2 * gfx::kCellPx, 0,
+                                                        false});
+        t.r.drain();
+        const std::size_t from = t.term.written.size();
+        gfx::Sketch s;
+        s.text("line", 0, 0, kLine + "|", gfx::colors::text);
+        t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+                                       loom::Message(loom::to_value(whole(kOwner, s))));
+        t.r.drain();
+        CHECK(heard.refused.empty());
+        const std::string written = t.term.written.substr(from);
+        if (utf8) {
+            // EVERY CHARACTER WRITTEN AS ITSELF, the bar after the emoji in the eighth column.
+            CHECK(t.r.shown().rows[0] == kLine + "|");
+            for (const std::string& ch : {kE, kZhe, kZhong, kMarked, kGrin}) {
+                CHECK(written.find(ch) != std::string::npos);
+            }
+        } else {
+            // A ? A CHARACTER PAST ASCII, one column each, a wide one's second column blank: the
+            // bar stands where the layout put it.
+            CHECK(t.r.shown().rows[0] == "??? ?? |");
+            CHECK(std::none_of(written.begin(), written.end(),
+                               [](char c) { return static_cast<unsigned char>(c) >= 0x80; }));
+        }
+    }
+}
+
+TEST_CASE("a terminal shows bold where a text asks it, and says each ink's weight so none carries "
+          "into the next") {
+    CHECK(gw::sgr_for("bright black", 0) == "\x1b[22;90m");
+    CHECK(gw::sgr_for("bright black", 0, true) == "\x1b[1;90m");
+    CHECK(gw::sgr_for("red bold", 0) == "\x1b[1;31m");
+    TypedWindow t;
+    OwnerHeard heard;
+    const loom::WeaveId owner = mount_owner(t.r, heard, kOwner);
+    t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "night"});
+    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, kOwner, 0, 0,
+                                                    20 * gfx::kCellPx, 2 * gfx::kCellPx, 0, false});
+    t.r.drain();
+    const std::size_t from = t.term.written.size();
+    gfx::Sketch s;
+    s.text("b", 0, 0, "B", gfx::colors::accent, gfx::sizes::heading, gfx::text_weight::kBold);
+    s.text("r", gfx::kCellPx, 0, "R", gfx::colors::accent);
+    t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+                                   loom::Message(loom::to_value(whole(kOwner, s))));
+    t.r.drain();
+    CHECK(t.r.shown().rows[0] == "BR"); // one size always: the heading stands in its one cell
+    const std::string bold = ink_of_glyph(t.term, from, 'B');
+    const std::string regular = ink_of_glyph(t.term, from, 'R');
+    CHECK(bold.rfind("\x1b[1;", 0) == 0);
+    CHECK(regular.rfind("\x1b[22;", 0) == 0);
+    CHECK(bold.substr(4) == regular.substr(5)); // the one ink, at two weights
+}
+
+#if defined(GRAPHICS_HAS_SDL)
+TEST_CASE("the OS window draws a line of an accented letter, a Cyrillic one, an ideograph, a "
+          "combining mark and an emoji at their columns, from its embedded faces") {
+    sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
+    embedded_faces_only();
+    RealLit t;
+    t.place_area(0, 0, 400, 100);
+    gfx::Sketch s;
+    s.text("line", 0, 0, kLine, gfx::rgb(0x000000));
+    t.draw(s);
+    t.pump();
+    REQUIRE_FALSE(t.heard.rooms.empty());
+    const gfx::TextMeasure m = t.heard.rooms.back().measure();
+    const int a = static_cast<int>(m.advance), line = static_cast<int>(m.line);
+    REQUIRE(a > 0);
+    const Picture p = picture_of(t);
+    const auto ground = static_cast<std::uint32_t>(gw::ground_of(gfx::themes::day()) >> 8);
+    // EACH CHARACTER INKS ITS OWN COLUMNS: one for the letters, both of two for the ideograph and
+    // the emoji, which a fallback face draws in their own cells.
+    CHECK(p.ink(0, 0, a, line, ground) > 0);          // the accented letter
+    CHECK(p.ink(a, 0, 2 * a, line, ground) > 0);      // the Cyrillic letter
+    CHECK(p.ink(2 * a, 0, 3 * a, line, ground) > 0);  // the ideograph's first column
+    CHECK(p.ink(3 * a, 0, 4 * a, line, ground) > 0);  // ...and its second
+    CHECK(p.ink(4 * a, 0, 5 * a, line, ground) > 0);  // the marked letter
+    CHECK(p.ink(5 * a, 0, 6 * a, line, ground) > 0);  // the emoji's first column
+    CHECK(p.ink(6 * a, 0, 7 * a, line, ground) > 0);  // ...and its second
+    CHECK(p.ink(7 * a, 0, 400, line, ground) == 0);   // and nothing past the line's seven
+    // THE MARK STANDS ON ITS LETTER: the marked letter inks higher than the bare one beside it.
+    gfx::Sketch bare;
+    bare.text("bare", 0, 40, "e", gfx::rgb(0x000000));
+    bare.text("marked", 2 * a, 40, kMarked, gfx::rgb(0x000000));
+    t.draw(bare);
+    t.pump();
+    const Picture q = picture_of(t);
+    const auto e_rows = q.inked_rows(0, 40, a, 40 + line, ground);
+    const auto marked_rows = q.inked_rows(2 * a, 40, 3 * a, 40 + line, ground);
+    REQUIRE(e_rows.first >= 0);
+    REQUIRE(marked_rows.first >= 0);
+    CHECK(marked_rows.first < e_rows.first);
+}
+
+TEST_CASE("the OS window measures each of the pool's sizes in the room it says, and draws a heading "
+          "in bold at that height") {
+    sdl_video_driver("dummy");
+    embedded_faces_only();
+    RealLit t;
+    t.place_area(0, 0, 400, 200);
+    t.pump();
+    REQUIRE_FALSE(t.heard.rooms.empty());
+    const gfx::AreaRoom room = t.heard.rooms.back();
+    const gfx::TextMeasure body = room.measure();
+    const gfx::TextMeasure heading = room.measure(gfx::sizes::heading.name);
+    const gfx::TextMeasure caption = room.measure(gfx::sizes::caption.name);
+    // EVERY SIZE OF THE POOL IS IN THE ROOM, measured before the owner lays its text out.
+    CHECK(room.measures.size() == gfx::window::built_in_palette().sizes.size());
+    CHECK(heading.line > body.line);
+    CHECK(heading.advance > body.advance);
+    CHECK(caption.line < body.line);
+    CHECK(room.measure("no such size") == body);
+
+    gfx::Sketch s;
+    s.text("body", 0, 0, "M", gfx::rgb(0x000000));
+    s.text("heading", 0, 60, "M", gfx::rgb(0x000000), gfx::sizes::heading,
+           gfx::text_weight::kBold);
+    s.text("plain", 100, 60, "M", gfx::rgb(0x000000), gfx::sizes::heading);
+    t.draw(s);
+    t.pump();
+    const Picture p = picture_of(t);
+    const auto ground = static_cast<std::uint32_t>(gw::ground_of(gfx::themes::day()) >> 8);
+    const auto body_rows = p.inked_rows(0, 0, static_cast<int>(body.advance),
+                                        static_cast<int>(body.line), ground);
+    const auto heading_rows = p.inked_rows(0, 60, static_cast<int>(heading.advance),
+                                           60 + static_cast<int>(heading.line), ground);
+    REQUIRE(body_rows.first >= 0);
+    REQUIRE(heading_rows.first >= 0);
+    // TALLER, AND INSIDE ITS OWN LINE.
+    CHECK(heading_rows.second - heading_rows.first > body_rows.second - body_rows.first);
+    CHECK(heading_rows.first >= 60);
+    CHECK(heading_rows.second < 60 + static_cast<int>(heading.line));
+    // BOLD: more ink than the same letter at the same size, regular.
+    const int bold_ink = p.ink(0, 60, static_cast<int>(heading.advance),
+                               60 + static_cast<int>(heading.line), ground);
+    const int plain_ink = p.ink(100, 60, 100 + static_cast<int>(heading.advance),
+                                60 + static_cast<int>(heading.line), ground);
+    CHECK(bold_ink > plain_ink);
+}
+#endif // GRAPHICS_HAS_SDL

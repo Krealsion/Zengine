@@ -11,9 +11,9 @@
 // capacity is always an argument, and the `Clipboard` it operates on is the owner's.
 // Reference: component/docs/component.md.
 //
-// The unit is a byte and the steps are characters: every presentation counts one column per
-// byte, so a caret is a byte index, and the operations never stop inside a UTF-8 character.
-// Not Unicode width, grapheme clusters, combining marks or double-width glyphs.
+// A caret is a byte index and the steps are characters, so no operation stops inside a UTF-8
+// character; a width is columns, each character taking the columns the text core gives it
+// (`character_columns`), so a wide character takes two and a combining mark none.
 
 #include "component/text.hpp"
 
@@ -89,8 +89,9 @@ inline constexpr std::size_t kEditingVocabularyCount =
 ///                                        first_visible, caret and anchor are on
 ///                                        character boundaries
 ///
-///     after keep_caret_visible(N)        caret - first_visible <= N
-///                                        first_visible <= max(0, size() - N)
+///     after keep_caret_visible(N)        columns(first_visible, caret) <= N
+///                                        columns(first_visible, size()) >= N, or
+///                                        first_visible is as far back as fits N
 ///
 /// The selection is the anchor and the caret: no selection is `anchor == caret`, so there is no
 /// flag to fall out of step. Undo is bounded local snapshots of {text, caret, anchor}, with
@@ -149,68 +150,66 @@ public:
             return VisibleSpan{};
         }
         const std::size_t room = static_cast<std::size_t>(columns);
-        const std::size_t left = text_.size() - first_;
-        const std::size_t shown_end = first_ + (left < room ? left : room);
+        const std::size_t shown_end = cut_at_columns(text_, first_, room);
         const std::size_t lo = selection_begin() > first_ ? selection_begin() : first_;
         const std::size_t hi = selection_end() < shown_end ? selection_end() : shown_end;
         if (lo >= hi) {
             return VisibleSpan{};
         }
-        return VisibleSpan{static_cast<std::int64_t>(lo - first_),
-                           static_cast<std::int64_t>(hi - first_)};
+        return VisibleSpan{static_cast<std::int64_t>(columns_between(text_, first_, lo)),
+                           static_cast<std::int64_t>(columns_between(text_, first_, hi))};
     }
 
     /// How many columns from the start of the visible slice the caret sits at: computed here so
     /// no consumer subtracts for itself. It may equal the capacity, since a caret is between
     /// characters and the position after the last visible one is a real column.
-    std::size_t caret_column() const noexcept { return places_.caret - first_; }
+    std::size_t caret_column() const noexcept {
+        return places_.caret > first_ ? columns_between(text_, first_, places_.caret) : 0;
+    }
 
-    /// The byte a column of the visible slice names, clamped into the text: `first_visible +
-    /// column`, the pointer's arithmetic. A column at or before the start gives `first_visible`
-    /// (what the weaver could see); one past the last byte gives `size()`, the end of the whole
-    /// text -- honest, since after `keep_caret_visible` blank room at the right means the text
-    /// ended there. The result is not snapped to a character boundary; `place()` does that.
+    /// The byte a column of the visible slice names, clamped into the text: the character that
+    /// covers the column, counted from `first_visible` (`byte_at_column`), the pointer's
+    /// arithmetic -- a column inside a wide character names that character. A column at or before
+    /// the start gives `first_visible` (what the weaver could see); one past the last character
+    /// gives `size()`, the end of the whole text -- honest, since after `keep_caret_visible` blank
+    /// room at the right means the text ended there.
     std::size_t position_at_column(std::int64_t column) const noexcept {
         const std::size_t from = first_ < text_.size() ? first_ : text_.size();
         if (column <= 0) {
             return from;
         }
-        const std::uint64_t ahead = static_cast<std::uint64_t>(column);
-        return ahead < static_cast<std::uint64_t>(text_.size() - from)
-                   ? from + static_cast<std::size_t>(ahead)
-                   : text_.size();
+        return byte_at_column(text_, from, static_cast<std::size_t>(column));
     }
 
-    /// The part of the text a row of `columns` columns is showing: a slice, never a mutation.
-    /// The right-hand cut is a byte cut, as every presentation makes it; snapping it to a
-    /// character boundary would shorten the row while the caret's column is computed from the
-    /// window. The left edge is a position this class chooses; the right edge is a cut.
+    /// The part of the text a row of `columns` columns is showing: a slice, never a mutation. The
+    /// left edge is a position this class chooses; the right edge is a cut at whole characters
+    /// (`cut_at_columns`), so a wide character with one column left is not shown.
     std::string visible(std::int64_t columns) const {
         if (columns <= 0 || first_ >= text_.size()) {
             return {};
         }
-        const std::size_t room = static_cast<std::size_t>(columns);
-        const std::size_t left = text_.size() - first_;
-        return text_.substr(first_, left < room ? left : room);
+        const std::size_t end = cut_at_columns(text_, first_, static_cast<std::size_t>(columns));
+        return text_.substr(first_, end - first_);
     }
 
     /// Move the window as little as it takes to see the caret, given the row's room: no
     /// animation, recentring or margin. The rules, in order: (1) no blank room on the right while
     /// text is hidden on the left, which is what makes deleting recover freed room; (2) the caret
     /// is not left of the window; (3) nor past its right; (4) the window does not begin inside a
-    /// character. Afterwards `first_visible <= size() - columns` whenever the text is longer
-    /// than the row, so blank room at the right means the text ended there.
+    /// character. Every measure is in columns. Afterwards the text from `first_visible` fills the
+    /// row whenever it is longer than the row, so blank room at the right means the text ended
+    /// there.
     void keep_caret_visible(std::int64_t columns) noexcept {
         const std::size_t room = columns > 0 ? static_cast<std::size_t>(columns) : 0;
-        const std::size_t furthest = text_.size() > room ? text_.size() - room : 0;
+        const std::size_t furthest = start_for_columns(text_, text_.size(), room);
         if (first_ > furthest) {
             first_ = furthest;
         }
         if (first_ > places_.caret) {
             first_ = places_.caret;
         }
-        if (places_.caret - first_ > room) {
-            first_ = places_.caret - room;
+        if (columns_between(text_, first_, places_.caret) > room) {
+            first_ = start_for_columns(text_, places_.caret, room);
         }
         first_ = character_boundary_at_or_after(text_, first_);
     }

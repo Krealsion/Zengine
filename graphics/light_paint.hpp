@@ -12,6 +12,7 @@
 // and keeps nothing between calls.
 // Reference: graphics/docs/graphics.md, "The operators".
 
+#include "component/text.hpp"
 #include "graphics/implied.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
@@ -31,11 +32,13 @@
 namespace zengine::graphics::light {
 
 /// The tag that opens a node painted for light: 'L', 'G', 'T' and this layout's version.
-inline constexpr std::array<std::uint8_t, 4> kTag = {'L', 'G', 'T', 2};
+inline constexpr std::array<std::uint8_t, 4> kTag = {'L', 'G', 'T', 3};
 
 /// A filled rectangle; a line; a run of text from the top left of its line, less the pixel rows a
-/// clip cut from its top and its foot; an image of `pw` x `ph` pixels (red, green, blue, alpha)
-/// shown in (x, y, w, h). Every colour is 0xRRGGBBAA.
+/// clip cut from its top and its foot, its characters a column `advance` pixels wide each by the
+/// columns the text core gives them, a `line` tall, set in `face` at `points`, regular or bold
+/// (`text_weight::`); an image of `pw` x `ph` pixels (red, green, blue, alpha) shown in (x, y, w,
+/// h). Every colour is 0xRRGGBBAA.
 struct Quad {
     std::int32_t x = 0, y = 0, w = 0, h = 0;
     std::uint32_t rgba = 0;
@@ -51,6 +54,9 @@ struct TextRun {
     std::uint32_t rgba = 0;
     std::string text;
     std::int32_t cut_top = 0, cut_foot = 0;
+    std::int32_t advance = 0, line = 0;
+    std::int32_t points = 0, weight = 0;
+    std::string face{};
     bool operator==(const TextRun&) const = default;
 };
 struct ImageBlit {
@@ -58,6 +64,32 @@ struct ImageBlit {
     loom::Bytes rgba;
     bool operator==(const ImageBlit&) const = default;
 };
+
+/// ONE CHARACTER OF A RUN WHERE IT STANDS: its left edge in the run's pixels, its glyph -- its UTF-8
+/// and the characters of no column after it -- and the columns it takes.
+struct RunCharacter {
+    std::int64_t x = 0;
+    std::string glyph;
+    int columns = 1;
+};
+
+/// A run's characters in order, a column `advance` pixels wide each (the run's own, or `fallback`
+/// where it carries none), by the columns the text core gives them.
+inline std::vector<RunCharacter> characters_of(const std::string& text, std::int64_t x,
+                                               std::int64_t advance) {
+    std::vector<RunCharacter> out;
+    for (std::size_t i = 0; i < text.size(); i = component::character_end(text, i)) {
+        const std::size_t end = component::character_end(text, i);
+        const int w = component::character_columns(text, i);
+        if (w == 0 && !out.empty()) {
+            out.back().glyph.append(text, i, end - i);
+            continue;
+        }
+        out.push_back(RunCharacter{x, text.substr(i, end - i), w});
+        x += advance * w;
+    }
+    return out;
+}
 
 /// One node as painted for light, in its area's pixels: drawn quads first, then lines, text and
 /// images.
@@ -128,7 +160,8 @@ inline bool is_light(const loom::Bytes& b) {
 /// A node's primitives packed, little end first: the tag; the counts of quads, lines, texts and
 /// images (four uint32); each quad as x, y, w, h (four int32) and its RGBA (uint32), 20 bytes; each
 /// line as x1, y1, x2, y2 and its RGBA, 20 bytes; each text as x, y, its RGBA, its cut top and
-/// foot, its length and its bytes; each image as x, y, w, h, pw, ph, the length of its pixels and `pw * ph * 4` bytes.
+/// foot, its advance, line, points and weight, its face's length and bytes, its length and its
+/// bytes; each image as x, y, w, h, pw, ph, the length of its pixels and `pw * ph * 4` bytes.
 inline loom::Bytes pack_node(const NodePrimitives& n) {
     loom::Bytes b(kTag.begin(), kTag.end());
     detail::put32(b, static_cast<std::uint32_t>(n.quads.size()));
@@ -153,6 +186,11 @@ inline loom::Bytes pack_node(const NodePrimitives& n) {
         detail::put32(b, t.rgba);
         detail::put32(b, static_cast<std::uint32_t>(t.cut_top));
         detail::put32(b, static_cast<std::uint32_t>(t.cut_foot));
+        for (const std::int32_t v : {t.advance, t.line, t.points, t.weight}) {
+            detail::put32(b, static_cast<std::uint32_t>(v));
+        }
+        detail::put32(b, static_cast<std::uint32_t>(t.face.size()));
+        b.insert(b.end(), t.face.begin(), t.face.end());
         detail::put32(b, static_cast<std::uint32_t>(t.text.size()));
         b.insert(b.end(), t.text.begin(), t.text.end());
     }
@@ -202,12 +240,16 @@ inline std::optional<NodePrimitives> unpack_node(const loom::Bytes& b) {
     }
     for (std::uint32_t i = 0; i < texts; ++i) {
         TextRun t;
-        std::uint32_t len = 0;
+        std::uint32_t face_len = 0, len = 0;
+        const std::uint8_t* face = nullptr;
         const std::uint8_t* at = nullptr;
         if (!r.i32(t.x) || !r.i32(t.y) || !r.u32(t.rgba) || !r.i32(t.cut_top) ||
-            !r.i32(t.cut_foot) || !r.u32(len) || !r.bytes(len, at)) {
+            !r.i32(t.cut_foot) || !r.i32(t.advance) || !r.i32(t.line) || !r.i32(t.points) ||
+            !r.i32(t.weight) || !r.u32(face_len) || !r.bytes(face_len, face) || !r.u32(len) ||
+            !r.bytes(len, at)) {
             return std::nullopt;
         }
+        t.face.assign(reinterpret_cast<const char*>(face), face_len);
         t.text.assign(reinterpret_cast<const char*>(at), len);
         n.texts.push_back(std::move(t));
     }
@@ -268,14 +310,16 @@ public:
             }
         } else if (op == op::kText) {
             if (auto a = from_body<TextArgs>(args)) {
-                text(a->x, a->y, a->text, ink_of(0));
+                const bool own = node.text.advance > 0 && node.text.line > 0;
+                text(a->x, a->y, a->text, ink_of(0), own ? node.text.measure() : text_,
+                     own ? node.text.points : 0, a->weight, node.face);
             }
         } else if (op == op::kImage) {
             if (auto a = from_body<ImageArgs>(args)) {
                 image(*a);
             }
         } else if (op != op::kGroup) {
-            text(0, 0, "?" + op, task_.quiet);
+            text(0, 0, "?" + op, task_.quiet, text_, 0, text_weight::kRegular, {});
         }
     }
 
@@ -461,17 +505,21 @@ private:
         }
     }
 
-    /// Printable ASCII as itself, any other character (all of its UTF-8 bytes) as one '?', a
-    /// character every advance of the window's face; a character outside the clip is left out, and
-    /// a line the clip crosses is cut by its pixels: the rows above or below the clip are said cut,
+    /// Every character as itself, in the columns the text core gives it (`character_columns`), a
+    /// column every advance of `m`, in `face` at `points` (0 the window's own), at `weight`: a
+    /// character of no column stays with the one before it, and a control character or bytes that
+    /// spell none is a `?` in its column. A character a clip would cut is left out whole, and a
+    /// line the clip crosses is cut by its pixels: the rows above or below the clip are said cut,
     /// and a line wholly outside it is not drawn.
-    void text(std::int64_t x, std::int64_t y, const std::string& s, const PaintInk& ink) const {
+    void text(std::int64_t x, std::int64_t y, const std::string& s, const PaintInk& ink,
+              const TextMeasure& m, std::int64_t points, std::int64_t weight,
+              const std::string& face) const {
         if (ink.none()) {
             return;
         }
         x += space_.dx;
         y += space_.dy;
-        const std::int64_t tall = text_.line > 0 ? text_.line : 1;
+        const std::int64_t tall = m.line > 0 ? m.line : 1;
         std::int64_t cut_top = 0, cut_foot = 0;
         if (space_.clipped) {
             if (y + tall <= space_.cy0 || y >= space_.cy1) {
@@ -482,31 +530,52 @@ private:
         }
         std::string shown;
         std::int64_t at = x, first = x;
-        for (const char raw : s) {
-            const auto ch = static_cast<unsigned char>(raw);
-            if (ch >= 0x80 && ch < 0xc0) {
+        bool kept = false; // whether the character before this one was shown
+        for (std::size_t i = 0; i < s.size(); i = component::character_end(s, i)) {
+            const std::size_t end = component::character_end(s, i);
+            const int w = component::character_columns(s, i);
+            if (w == 0) {
+                if (kept) {
+                    shown.append(s, i, end - i);
+                }
                 continue;
             }
-            const char glyph = (ch >= 0x20 && ch < 0x7f) ? static_cast<char>(ch) : '?';
-            const bool inside =
-                !space_.clipped || (at >= space_.cx0 && at + text_.advance <= space_.cx1);
+            const char32_t cp = component::code_point_at(s, i);
+            const bool drawable = cp != component::kNotACharacter && cp >= 0x20u &&
+                                  !(cp >= 0x7Fu && cp < 0xA0u);
+            const std::int64_t wide = m.advance * w;
+            const bool inside = !space_.clipped || (at >= space_.cx0 && at + wide <= space_.cx1);
             if (inside) {
                 if (shown.empty()) {
                     first = at;
                 }
-                shown.push_back(glyph);
+                if (drawable) {
+                    shown.append(s, i, end - i);
+                } else {
+                    shown.push_back('?');
+                }
             } else if (!shown.empty()) {
                 break;
             }
-            at += text_.advance;
+            kept = inside;
+            at += wide;
         }
         if (shown.empty()) {
             return;
         }
-        out_->texts.push_back(TextRun{static_cast<std::int32_t>(first),
-                                      static_cast<std::int32_t>(y), colour(ink), shown,
-                                      static_cast<std::int32_t>(cut_top),
-                                      static_cast<std::int32_t>(cut_foot)});
+        TextRun run;
+        run.x = static_cast<std::int32_t>(first);
+        run.y = static_cast<std::int32_t>(y);
+        run.rgba = colour(ink);
+        run.text = shown;
+        run.cut_top = static_cast<std::int32_t>(cut_top);
+        run.cut_foot = static_cast<std::int32_t>(cut_foot);
+        run.advance = static_cast<std::int32_t>(m.advance);
+        run.line = static_cast<std::int32_t>(m.line);
+        run.points = static_cast<std::int32_t>(points);
+        run.weight = static_cast<std::int32_t>(weight);
+        run.face = face;
+        out_->texts.push_back(std::move(run));
     }
 
     /// An image in its box, cut to the clip: the pixels of the part shown kept, scaled into it.
@@ -574,8 +643,8 @@ inline PaintResult paint_task(const PaintTask& task) {
 }
 
 /// Whether a point of the area, in its pixels, lands on what a node painted: inside a quad, a
-/// run of text's box (an advance of `text` a character, a line of it tall) or an image's, or
-/// within a pixel of a line.
+/// run of text's box (its own advance a column, a line of it tall, or `text`'s where it carries
+/// none) or an image's, or within a pixel of a line.
 inline bool hits_node(const NodePrimitives& n, std::int64_t x, std::int64_t y,
                       const TextMeasure& text) {
     const auto inside = [&](std::int64_t bx, std::int64_t by, std::int64_t bw, std::int64_t bh) {
@@ -587,8 +656,10 @@ inline bool hits_node(const NodePrimitives& n, std::int64_t x, std::int64_t y,
         }
     }
     for (const TextRun& t : n.texts) {
-        if (inside(t.x, t.y, static_cast<std::int64_t>(t.text.size()) * text.advance,
-                   text.line)) {
+        const std::int64_t advance = t.advance > 0 ? t.advance : text.advance;
+        const std::int64_t line = t.line > 0 ? t.line : text.line;
+        if (inside(t.x, t.y,
+                   static_cast<std::int64_t>(component::text_columns(t.text)) * advance, line)) {
             return true;
         }
     }

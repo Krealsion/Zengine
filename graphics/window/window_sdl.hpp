@@ -261,8 +261,19 @@ public:
     PixelRoom offered() const { return PixelRoom{size_.width, size_.height}; }
     /// Its device pixels in one cell: every pixel shown.
     static constexpr std::int64_t kCellDevicePx = kCellPx;
-    /// How it sets text: the measure of its backend's face, taken when the window was.
+    /// How it sets text: the measure of its backend's face at the body's size, taken when the
+    /// window was.
     TextMeasure text() const { return text_; }
+    /// ...and in `face` at `points`: its backend's measure, or the body's where it gives none.
+    TextMeasure measure(const std::string& face, std::int64_t points) {
+        if constexpr (requires { backend_.measure(face, points); }) {
+            const TextMeasure m = backend_.measure(face, points);
+            if (m.advance > 0 && m.line > 0) {
+                return m;
+            }
+        }
+        return text_;
+    }
 
     void clear() {
         cache_.clear();
@@ -366,28 +377,39 @@ public:
     std::vector<std::string> rows_shown(const std::vector<WinArea>& areas) const {
         const std::int64_t cols = size_.width / text_.advance;
         const std::int64_t lines = size_.height / text_.line;
-        std::vector<std::string> rows(static_cast<std::size_t>(lines),
-                                      std::string(static_cast<std::size_t>(cols), ' '));
+        std::vector<std::vector<std::string>> cells(
+            static_cast<std::size_t>(lines),
+            std::vector<std::string>(static_cast<std::size_t>(cols), " "));
         for (const WinArea* a : back_to_front(areas)) {
             for (const auto& [path, k] : painted(a->area)) {
                 for (const light::TextRun& t : k->prims->texts) {
                     const std::int64_t y = a->y + t.y;
                     const std::int64_t r = floor_div(y, text_.line);
-                    std::int64_t x = a->x + t.x;
-                    for (const char ch : t.text) {
+                    const std::int64_t adv = t.advance > 0 ? t.advance : text_.advance;
+                    for (const light::RunCharacter& ch : light::characters_of(t.text, a->x + t.x, adv)) {
+                        const std::int64_t x = ch.x;
                         const std::int64_t c = floor_div(x, text_.advance);
-                        const bool inside = x >= a->x && x + text_.advance <= a->x + a->w &&
+                        const bool inside = x >= a->x && x + adv * ch.columns <= a->x + a->w &&
                                             y >= a->y && y < a->y + a->h;
                         if (inside && c >= 0 && r >= 0 && c < cols && r < lines) {
-                            rows[static_cast<std::size_t>(r)][static_cast<std::size_t>(c)] = ch;
+                            cells[static_cast<std::size_t>(r)][static_cast<std::size_t>(c)] = ch.glyph;
+                            for (int more = 1; more < ch.columns && c + more < cols; ++more) {
+                                cells[static_cast<std::size_t>(r)][static_cast<std::size_t>(c + more)] = "";
+                            }
                         }
-                        x += text_.advance;
                     }
                 }
             }
         }
-        for (std::string& r : rows) {
+        std::vector<std::string> rows;
+        rows.reserve(cells.size());
+        for (const std::vector<std::string>& row : cells) {
+            std::string r;
+            for (const std::string& g : row) {
+                r += g;
+            }
             r.erase(r.find_last_not_of(' ') + 1);
+            rows.push_back(std::move(r));
         }
         return rows;
     }
@@ -431,14 +453,15 @@ public:
             return true;
         };
         const PaintedNodes own = painted(a.area);
-        // THE WORDS: every character where it stands, a later node's over an earlier one's.
-        std::map<std::pair<std::int64_t, std::int64_t>, char> chars; // (y, x) in the area
+        // THE WORDS: every character where it stands, a later node's over an earlier one's, with
+        // the pixels it spans.
+        std::map<std::pair<std::int64_t, std::int64_t>, std::pair<std::string, std::int64_t>>
+            chars; // (y, x) in the area: the character and its width
         for (const auto& [path, k] : own) {
             for (const light::TextRun& t : k->prims->texts) {
-                std::int64_t x = t.x;
-                for (const char ch : t.text) {
-                    chars[{t.y, x}] = ch;
-                    x += adv;
+                const std::int64_t run_adv = t.advance > 0 ? t.advance : adv;
+                for (const light::RunCharacter& ch : light::characters_of(t.text, t.x, run_adv)) {
+                    chars[{t.y, ch.x}] = {ch.glyph, run_adv * ch.columns};
                 }
             }
         }
@@ -453,13 +476,14 @@ public:
             run.clear();
             open = false;
         };
-        for (const auto& [at, ch] : chars) {
+        for (const auto& [at, character] : chars) {
             const auto [y, x] = at;
+            const auto& [ch, wide] = character;
             // ...judged at the middle of what the area shows of it: a line the area's foot cuts is
             // read by its part above the cut.
             const std::int64_t foot = (std::min)(y + line, a.h);
-            const bool inside = x >= 0 && x + adv <= a.w && y >= 0 && y < a.h &&
-                                shows(a.x + x + adv / 2, a.y + (y + foot) / 2);
+            const bool inside = x >= 0 && x + wide <= a.w && y >= 0 && y < a.h &&
+                                shows(a.x + x + wide / 2, a.y + (y + foot) / 2);
             if (open && (!inside || y != run_y || x != next_x)) {
                 flush();
             }
@@ -471,8 +495,8 @@ public:
                 run_x = x;
                 run_y = y;
             }
-            run.push_back(ch);
-            next_x = x + adv;
+            run += ch;
+            next_x = x + wide;
         }
         if (open) {
             flush();
@@ -511,7 +535,11 @@ public:
             for (const light::TextRun& t : k->prims->texts) {
                 const std::size_t at = t.text.find_last_not_of(' ');
                 if (at == std::string::npos) continue;
-                const std::int64_t x = t.x + static_cast<std::int64_t>(at) * adv;
+                const std::int64_t run_adv = t.advance > 0 ? t.advance : adv;
+                const std::int64_t x =
+                    t.x + static_cast<std::int64_t>(component::columns_between(
+                              t.text, 0, component::character_boundary(t.text, at))) *
+                              run_adv;
                 const auto it = last_char.find(t.y);
                 if (it == last_char.end() || it->second < x) last_char[t.y] = x;
             }
@@ -582,13 +610,16 @@ public:
                     if (mine) grid(q.x, q.y, q.w, q.h);
                 }
                 for (const light::TextRun& t : p.texts) {
-                    const auto n = static_cast<std::int64_t>(t.text.size());
-                    span(t.x, t.y, n * adv, line);
+                    const auto n = static_cast<std::int64_t>(component::text_columns(t.text));
+                    const std::int64_t run_adv = t.advance > 0 ? t.advance : adv;
+                    const std::int64_t run_line = t.line > 0 ? t.line : line;
+                    span(t.x, t.y, n * run_adv, run_line);
                     const auto end = last_char.find(t.y);
                     for (std::int64_t i = 0; mine && i < n; ++i) {
-                        points.emplace_back(t.x + i * adv + adv / 2, t.y + line / 2);
-                        if (end != last_char.end() && t.x + i * adv <= end->second) {
-                            lettered.emplace_back(t.x + i * adv + adv / 2, t.y + line / 2);
+                        points.emplace_back(t.x + i * run_adv + run_adv / 2, t.y + run_line / 2);
+                        if (end != last_char.end() && t.x + i * run_adv <= end->second) {
+                            lettered.emplace_back(t.x + i * run_adv + run_adv / 2,
+                                                  t.y + run_line / 2);
                         }
                     }
                 }
@@ -887,7 +918,7 @@ private:
     static std::int64_t weight(const light::NodePrimitives& p) {
         std::int64_t n = static_cast<std::int64_t>(p.quads.size() + p.lines.size()) * 20;
         for (const light::TextRun& t : p.texts) {
-            n += 24 + static_cast<std::int64_t>(t.text.size());
+            n += 44 + static_cast<std::int64_t>(t.face.size() + t.text.size());
         }
         for (const light::ImageBlit& im : p.images) {
             n += 28 + static_cast<std::int64_t>(im.rgba.size());

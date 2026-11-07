@@ -1028,13 +1028,16 @@ TEST_CASE("copied nested arguments and complete messages retain schema and indep
     CHECK(cmp::compose(snap, restored).status == loom::Composition::Status::Error);
 }
 
-TEST_CASE("command text keeps its bytes while the row preview stays printable") {
+TEST_CASE("command text keeps its bytes while the row preview shows it as a row shows any text") {
     const auto shape = loom::SchemaBuilder("UnicodeCommand", 1).field("text", loom::Kind::Text).build();
     const std::string text = "caf\xc3\xa9\nnext";
     loom::Value value(shape); value.set("text", loom::Cell::text(text));
     const auto draft = cmp::from_message(shape, value);
     const auto row = cmp::field_row_text(draft, 0, true, true, 80);
-    for (const char c : row) CHECK((c >= 32 && c <= 126));
+    // EVERY CHARACTER AS ITSELF, its line break a `?` in its one column, as a box shows a control
+    // character: one row, whole characters.
+    CHECK(row.find("caf\xc3\xa9?next") != std::string::npos);
+    for (const char c : row) CHECK(static_cast<unsigned char>(c) >= 32);
     const auto made = cmp::compose(snapshot_of({shape}), draft);
     REQUIRE(made.status == loom::Composition::Status::Ready);
     CHECK(loom::assemble(made).get("text")->as_text() == text);

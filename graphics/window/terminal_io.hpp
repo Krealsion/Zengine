@@ -14,6 +14,7 @@
 // graphics/docs/zengine.window.terminal.md.
 
 #include <array>
+#include <cstdlib>
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -238,15 +239,21 @@ inline int nearest_terminal_ink(std::int64_t rgba) noexcept {
     return best < 8 ? 30 + best : 90 + (best - 8);
 }
 
-/// What a terminal is written to show a colour: the ink its `cells` word names, else the nearest of
-/// the sixteen to the colour itself. The terminal's default ink is shown only where a word asks for
-/// it: a nearest is always one of the sixteen, never the terminal's default ink or ground.
-inline std::string sgr_for(std::string_view cells, std::int64_t rgba) {
+/// What a terminal is written to show a colour, regular or `bold`: the ink its `cells` word names,
+/// else the nearest of the sixteen to the colour itself, and its weight said every time (`22`
+/// normal, `1` bold), so one ink's weight never carries into the next. The terminal's default ink
+/// is shown only where a word asks for it: a nearest is always one of the sixteen, never the
+/// terminal's default ink or ground.
+inline std::string sgr_for(std::string_view cells, std::int64_t rgba, bool bold = false) {
     std::string codes = sgr_codes_of_word(cells);
     if (codes.empty()) {
         codes = std::to_string(nearest_terminal_ink(rgba));
     }
-    return "\x1b[" + codes + "m";
+    const bool word_bold = codes.size() > 2 && codes.compare(codes.size() - 2, 2, ";1") == 0;
+    if (word_bold) {
+        codes.resize(codes.size() - 2);
+    }
+    return "\x1b[" + std::string(bold || word_bold ? "1;" : "22;") + codes + "m";
 }
 
 /// The terminal modes a painter claims, as bytes a suite can read. Pointer reporting is asked
@@ -327,6 +334,30 @@ inline std::string terminal_clipboard_sequence(std::string_view text) {
     return "\x1b]52;c;" + terminal_base64(text) + "\x07";
 }
 
+/// WHETHER A LOCALE CARRIES UTF-8, as POSIX resolves one from the environment: the first of
+/// `LC_ALL`, `LC_CTYPE` and `LANG` that is set and not empty names it, and none is the C locale,
+/// which carries ASCII alone. A name whose codeset is UTF-8 (`en_US.UTF-8`, `C.utf8`) carries it.
+inline bool terminal_locale_is_utf8(const char* lc_all, const char* lc_ctype, const char* lang) {
+    const char* named = nullptr;
+    for (const char* v : {lc_all, lc_ctype, lang}) {
+        if (v != nullptr && v[0] != '\0') {
+            named = v;
+            break;
+        }
+    }
+    if (named == nullptr) {
+        return false;
+    }
+    std::string lower;
+    for (const char* p = named; *p != '\0'; ++p) {
+        const char c = *p;
+        if (c != '-' && c != '_') {
+            lower.push_back(c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c);
+        }
+    }
+    return lower.find("utf8") != std::string::npos;
+}
+
 /// The terminal's output side, claimed for exactly its owner's lifetime -- alternate screen,
 /// hidden cursor, in-band pointer reporting, and on Windows VT processing and the UTF-8 codepage
 /// -- and restored whole on destruction. With no console (redirected, headless) the claim is
@@ -379,6 +410,18 @@ public:
     /// How big the terminal is now, gated on the same `ok_` as the claim, so a run that found
     /// no terminal to take has none to measure. The OS question is `native_terminal_size()`'s.
     TerminalSize size() const { return ok_ ? native_terminal_size() : TerminalSize{}; }
+
+    /// Whether the terminal's encoding carries UTF-8: on Windows its console's output code page,
+    /// which the claim sets to UTF-8 and a console that refused keeps; elsewhere the locale the
+    /// environment names (`terminal_locale_is_utf8`). Output with no terminal is UTF-8.
+    bool utf8() const {
+#if defined(_WIN32)
+        return !ok_ || ::GetConsoleOutputCP() == CP_UTF8;
+#else
+        return !ok_ || terminal_locale_is_utf8(std::getenv("LC_ALL"), std::getenv("LC_CTYPE"),
+                                               std::getenv("LANG"));
+#endif
+    }
 
 private:
     static void enter() {

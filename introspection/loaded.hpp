@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace zengine::introspection {
@@ -45,10 +46,8 @@ inline constexpr const char* kNotInProcess = "in-process weaves are not in the k
 /// room grant or a wheel move -- Loom offers no arrival or departure event.
 inline constexpr const char* kSnapshotSource = "snapshot from zen.ListLoaded";
 
-/// The mark this view leaves where it could not show everything -- Workshop's own
-/// three plain characters, for their reason: this canvas is plain ASCII by
-/// contract and a glyph a medium cannot draw is a mark a weaver cannot read.
-inline constexpr const char* kElided = "...";
+/// The mark this view leaves where it could not show everything: the panes' own three dots.
+inline constexpr const char* kElided = workshop::pane_text::kElided;
 
 /// What a row says instead of a role when the kernel bound none.
 inline constexpr const char* kNoRole = "(no role)";
@@ -63,24 +62,12 @@ inline constexpr const char* kUnselectedMark = "  ";
 /// marker). Negative, so it cannot collide with an index into `shown`.
 inline constexpr std::int64_t kNoEntry = -1;
 
-/// Fit `text` into `columns`, and say so when it did not fit. A second copy of
-/// `workshop::detail::fit`, deliberately: a provider is a stranger to Workshop's private
-/// composition. Not a second measurer: `workshop::fit_region` measured, and this spends it.
+/// Fit `text` into `columns`, and say so when it did not fit: the panes' shared fit, in columns,
+/// cut at whole characters (`workshop/pane_text.hpp`), not Workshop's private one -- a provider is
+/// a stranger to Workshop's own composition. Not a second measurer: `workshop::fit_region`
+/// measured, and this spends it.
 inline std::string fit(std::string text, std::int64_t columns) {
-    if (columns <= 0) {
-        return {};
-    }
-    const std::size_t room = static_cast<std::size_t>(columns);
-    if (text.size() <= room) {
-        return text;
-    }
-    const std::size_t mark = std::char_traits<char>::length(kElided);
-    if (room <= mark) {
-        return std::string(kElided).substr(0, room);
-    }
-    text.resize(room - mark);
-    text += kElided;
-    return text;
+    return workshop::pane_text::fit(std::move(text), columns);
 }
 
 /// The Manager's answer, read: `name@role,name,...` from `Kernel::loaded()`. The wire form has no
@@ -111,10 +98,10 @@ inline std::vector<LoadedWeave> parse_loaded(std::string_view blob) {
     return out;
 }
 
-/// A plan's or a loader's words -- a stem, a role, a path, a refusal -- spelled in what a canvas
-/// draws: a row carrying one byte it cannot draw would refuse the pane's whole picture.
+/// A plan's or a loader's words -- a stem, a role, a path, a refusal -- as a row shows them: every
+/// character as written, a control character a space (`pane_text::printable`).
 inline std::string spelled(const std::string& text) {
-    return workshop::pane_text::ascii_spelling(text);
+    return workshop::pane_text::printable(text);
 }
 
 /// One row per weave: the mark, the name and the role, fitted whole so marked and unmarked rows

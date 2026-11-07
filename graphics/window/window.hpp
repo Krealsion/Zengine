@@ -60,7 +60,7 @@ struct WindowState {
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
     std::vector<PaletteOffered> palettes;
-    ZEN_SHAPE(WindowState, 9, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 10, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals), ZEN_FIELD(palettes));
 };
 
@@ -369,7 +369,7 @@ public:
         s.epoch = this->state_.epoch;
         s.version = version_of(a->area);
         s.waiting = waiting_.count(a->area) != 0;
-        const TextMeasure text = medium_.text();
+        const TextMeasure text = body_measure(palette_of(*a));
         s.advance = text.advance;
         s.line = text.line;
         if (asked.since != 0 && asked.since == s.version) {
@@ -1124,6 +1124,56 @@ private:
         return p != nullptr ? *p : built_in_palette();
     }
 
+    /// How the medium sets text in a face at a size, regular: the measure it offers for it.
+    TextMeasure measure_in(const std::string& face, std::int64_t points) {
+        if constexpr (requires { medium_.measure(face, points); }) {
+            return medium_.measure(face, points);
+        } else {
+            return medium_.text();
+        }
+    }
+
+    /// Every pool size of `palette` as the medium sets it in the pool's `text` font: the measures
+    /// a room and an offer carry, so an owner places text at each size before it draws.
+    std::vector<TextMeasured> measures_of(const PaletteOffered& palette) {
+        std::vector<TextMeasured> out;
+        const std::string face = resolve_face(kTextFont, palette);
+        std::vector<std::string> named;
+        for (const std::vector<PaletteSize>* sizes : {&palette.sizes, &built_in_palette().sizes}) {
+            for (const PaletteSize& s : *sizes) {
+                if (std::find(named.begin(), named.end(), s.name) != named.end() || s.points <= 0) {
+                    continue;
+                }
+                named.push_back(s.name);
+                const TextMeasure m = measure_in(face, s.points);
+                out.push_back(TextMeasured{kTextFont, s.name, s.points, m.advance, m.line});
+            }
+        }
+        return out;
+    }
+
+    /// How the medium sets text at the pool's `body` in `palette`.
+    TextMeasure body_measure(const PaletteOffered& palette) {
+        return measure_in(resolve_face(kTextFont, palette), body_points(palette));
+    }
+
+    /// The font, size and measure a text node is set at in `palette` in an area `office` owns, and
+    /// its face; none for a node that is no text, or whose operands do not read.
+    void dress_text(PaintNode& node, const PaletteOffered& palette, const std::string& office) {
+        if (node.op != op::kText) {
+            return;
+        }
+        const auto args = from_body<TextArgs>(node.args);
+        if (!args) {
+            return;
+        }
+        const PaletteSize size = resolve_size(args->size, palette, office);
+        node.face = resolve_face(args->font, palette);
+        const TextMeasure m = measure_in(node.face, size.points);
+        node.text = TextMeasured{args->font.empty() ? std::string(kTextFont) : args->font,
+                                 size.name, size.points, m.advance, m.line};
+    }
+
     /// Some of an area's nodes painted by its medium, each sent with every ancestor present (a
     /// node is drawn in their space) and every colour it names resolved in the area's palette.
     void paint(const WinArea& a, const std::set<std::string>& paths) {
@@ -1147,16 +1197,17 @@ private:
             return;
         }
         PaintTask task;
-        const TextMeasure text = medium_.text();
+        const PaletteOffered& palette = palette_of(a);
+        const TextMeasure text = body_measure(palette);
         task.text_advance = text.advance;
         task.text_line = text.line;
-        const PaletteOffered& palette = palette_of(a);
         dress(task, palette, a.owner);
         for (const KeptNode& k : a.nodes) {
             if (send.count(k.node.path) != 0) {
-                task.nodes.push_back(PaintNode{k.node.path, key_of(at, k.node.path), k.node.op,
-                                               k.node.args,
-                                               inks_of(k.node.op, k.node.args, palette, a.owner)});
+                PaintNode node{k.node.path, key_of(at, k.node.path), k.node.op, k.node.args,
+                               inks_of(k.node.op, k.node.args, palette, a.owner), {}, {}};
+                dress_text(node, palette, a.owner);
+                task.nodes.push_back(std::move(node));
             }
         }
         std::string why;
@@ -1316,10 +1367,11 @@ private:
     /// lays out in its room.
     void offer(loom::Mail& mail) {
         const PixelRoom size = medium_.offered();
-        const TextMeasure text = medium_.text();
+        const TextMeasure text = body_measure(built_in_palette());
         (void)mail.as_role(office()).publish(
             WindowOffered{Medium::kWindow, size.width, size.height, this->state_.epoch,
-                          Medium::kCellDevicePx, text.advance, text.line});
+                          Medium::kCellDevicePx, text.advance, text.line,
+                          measures_of(built_in_palette())});
     }
 
     /// An area's room, to its owner: this window, its incarnation, the area's size, the references
@@ -1329,10 +1381,11 @@ private:
         if (a.owner.empty()) {
             return;
         }
-        const TextMeasure text = medium_.text();
+        const PaletteOffered& palette = palette_of(a);
+        const TextMeasure text = body_measure(palette);
         AreaRoom r{a.area, Medium::kWindow, this->state_.epoch, a.w, a.h, {},
                    a.nodes.empty() && a.records.empty() && a.presented.empty(),
-                   Medium::kCellDevicePx, text.advance, text.line};
+                   Medium::kCellDevicePx, text.advance, text.line, measures_of(palette)};
         for (const Presented& p : a.presented) {
             r.elements.push_back(p.ref);
         }

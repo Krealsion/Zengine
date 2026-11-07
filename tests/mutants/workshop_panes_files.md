@@ -103,21 +103,6 @@ Red in `zengine-workshop-panes-tests`:
 
 - the authoring line asks the window that shows Files for a paste, the OS window or the terminal's
 
-## rows-not-spelled
-
-A Files row carries its text as its bytes are.
-
-In `files/files.cpp`:
-
-```diff
--        return fit(ascii_spelling(text), columns());
-+        return fit(text, columns());
-```
-
-Red in `zengine-workshop-panes-tests`:
-
-- a catalog refusal carrying a non-ASCII byte is still admitted
-
 ## centring-window
 
 The listing's window centres the cursor at each picture, rather than moving by the least it can.

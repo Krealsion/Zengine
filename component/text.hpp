@@ -4,19 +4,24 @@
 #ifndef ZENGINE_COMPONENT_TEXT_HPP
 #define ZENGINE_COMPONENT_TEXT_HPP
 
-// The core the text pieces share: what a character and a word are, a selection as two places in a
-// text, and a copy of what lies between them. The text box (`text_box.hpp`) edits one line over
-// it and the text area (`text_area.hpp`) shows long text, read only, over it. No medium, no
-// policy: a place is a byte between two characters, and every rule here keeps one on a boundary.
-// Reference: component/docs/component.md.
+// The core the text pieces share: what a character and a word are, how many columns a character
+// takes, a selection as two places in a text, and a copy of what lies between them. The text box
+// (`text_box.hpp`) edits one line over it and the text area (`text_area.hpp`) shows long text,
+// read only, over it. No medium, no policy: a place is a byte between two characters, and every
+// rule here keeps one on a boundary. Reference: component/docs/component.md.
 //
-// The unit is a byte and the steps are characters: every presentation counts one column per
-// byte, so a place is a byte index, and the operations never stop inside a UTF-8 character.
-// Not Unicode width, grapheme clusters, combining marks or double-width glyphs.
+// A place is a byte index and the steps are characters, so no operation stops inside a UTF-8
+// character. A character takes 0, 1 or 2 columns by Unicode's width classes
+// (`character_columns`), the one rule every presentation lays text out by: the text pieces here,
+// both painters and a terminal. Not grapheme clusters: a combining mark is a character of its own
+// that takes no column, and a cut keeps it with the character before it.
+
+#include "component/unicode_width.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace zengine::component {
 
@@ -84,6 +89,196 @@ inline std::size_t character_boundary_at_or_after(const std::string& line,
         ++i;
     }
     return i;
+}
+
+// ---- How many columns a character takes ------------------------------------------------
+//
+// One rule, read by everything that lays text out or draws it: a character is a lead byte and the
+// continuation bytes after it (`character_end`), and it takes the columns its code point's width
+// class gives -- none for a combining mark, a format character or a joining jamo, two for a wide
+// or fullwidth one (an ideograph, an emoji shown as emoji), one for every other. Bytes that do not
+// spell one well-formed character take one column, as does a control character: a presentation
+// draws either as `?` in that column.
+
+/// What a character's bytes spell where they spell no code point.
+inline constexpr char32_t kNotACharacter = 0xFFFFFFFFu;
+
+/// THE BYTE AFTER THE CHARACTER AT `at`: its lead byte and the continuation bytes after it, and
+/// `text.size()` where `at` is at or past the end.
+inline std::size_t character_end(std::string_view text, std::size_t at) noexcept {
+    if (at >= text.size()) {
+        return text.size();
+    }
+    std::size_t i = at + 1;
+    while (i < text.size() && is_continuation_byte(text[i])) {
+        ++i;
+    }
+    return i;
+}
+
+/// THE CODE POINT THE CHARACTER AT `at` SPELLS: its bytes (`character_end`) as one well-formed
+/// UTF-8 sequence -- the shortest spelling, no surrogate, at most U+10FFFF -- or `kNotACharacter`
+/// where they are not one, or `at` is past the end.
+inline char32_t code_point_at(std::string_view text, std::size_t at) noexcept {
+    if (at >= text.size()) {
+        return kNotACharacter;
+    }
+    const std::size_t end = character_end(text, at);
+    const auto lead = static_cast<unsigned char>(text[at]);
+    std::size_t want = 0;
+    char32_t cp = 0;
+    if (lead < 0x80u) {
+        want = 1;
+        cp = lead;
+    } else if (lead >= 0xC2u && lead <= 0xDFu) {
+        want = 2;
+        cp = lead & 0x1Fu;
+    } else if (lead >= 0xE0u && lead <= 0xEFu) {
+        want = 3;
+        cp = lead & 0x0Fu;
+    } else if (lead >= 0xF0u && lead <= 0xF4u) {
+        want = 4;
+        cp = lead & 0x07u;
+    }
+    if (want == 0 || end - at != want) {
+        return kNotACharacter;
+    }
+    for (std::size_t i = at + 1; i < end; ++i) {
+        cp = (cp << 6) | (static_cast<unsigned char>(text[i]) & 0x3Fu);
+    }
+    const bool shortest = (want != 3 || cp >= 0x800u) && (want != 4 || cp >= 0x10000u);
+    if (!shortest || cp > 0x10FFFFu || (cp >= 0xD800u && cp <= 0xDFFFu)) {
+        return kNotACharacter;
+    }
+    return cp;
+}
+
+namespace detail {
+template <std::size_t N>
+constexpr bool in_ranges(const unicode_width::CodeRange (&ranges)[N], char32_t cp) noexcept {
+    std::size_t lo = 0, hi = N;
+    while (lo < hi) {
+        const std::size_t mid = lo + (hi - lo) / 2;
+        if (cp < ranges[mid].first) {
+            hi = mid;
+        } else if (cp > ranges[mid].last) {
+            lo = mid + 1;
+        } else {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace detail
+
+/// HOW MANY COLUMNS A CODE POINT TAKES: 0, 1 or 2 by its width class (above); a control character
+/// and `kNotACharacter` take one.
+inline int code_point_columns(char32_t cp) noexcept {
+    if (cp == kNotACharacter || cp < 0x300u) {
+        return 1; // below the combining marks every character, and every control, takes one
+    }
+    if (detail::in_ranges(unicode_width::kNone, cp)) {
+        return 0;
+    }
+    return detail::in_ranges(unicode_width::kTwo, cp) ? 2 : 1;
+}
+
+/// HOW MANY COLUMNS THE CHARACTER AT `at` TAKES, by its code point (`code_point_at`).
+inline int character_columns(std::string_view text, std::size_t at) noexcept {
+    return code_point_columns(code_point_at(text, at));
+}
+
+/// HOW MANY COLUMNS THE CHARACTERS FROM `from` TO `to` TAKE, each counted whole from its lead byte;
+/// `to` is clamped into the text.
+inline std::size_t columns_between(std::string_view text, std::size_t from,
+                                   std::size_t to) noexcept {
+    to = to < text.size() ? to : text.size();
+    std::size_t cols = 0;
+    for (std::size_t i = from; i < to; i = character_end(text, i)) {
+        cols += static_cast<std::size_t>(character_columns(text, i));
+    }
+    return cols;
+}
+
+/// HOW MANY COLUMNS A TEXT TAKES.
+inline std::size_t text_columns(std::string_view text) noexcept {
+    return columns_between(text, 0, text.size());
+}
+
+/// WHERE A RUN FROM `from` THAT FITS IN `columns` ENDS: after the last whole character that fits,
+/// with the characters of no column that follow it, which belong with it. A cut never falls inside
+/// a character, and a wide character with one column left is left out whole.
+inline std::size_t cut_at_columns(std::string_view text, std::size_t from,
+                                  std::size_t columns) noexcept {
+    std::size_t used = 0;
+    std::size_t i = from < text.size() ? from : text.size();
+    while (i < text.size()) {
+        const auto w = static_cast<std::size_t>(character_columns(text, i));
+        if (used + w > columns) {
+            break;
+        }
+        used += w;
+        i = character_end(text, i);
+    }
+    return i;
+}
+
+/// THE BYTE WHERE THE CHARACTER COVERING `column` BEGINS, counted from `from`: a column inside a
+/// wide character names that character, and a column past the text names its end. A character of
+/// no column stays with the one before it, so the answer is a character that takes a column, or the
+/// end.
+inline std::size_t byte_at_column(std::string_view text, std::size_t from,
+                                  std::size_t column) noexcept {
+    std::size_t used = 0;
+    std::size_t i = from < text.size() ? from : text.size();
+    while (i < text.size()) {
+        const auto w = static_cast<std::size_t>(character_columns(text, i));
+        if (w > 0 && used + w > column) {
+            return i;
+        }
+        used += w;
+        i = character_end(text, i);
+    }
+    return i;
+}
+
+/// THE FURTHEST BACK A RUN ENDING AT `to` MAY START AND STILL FIT IN `columns`: a character
+/// boundary, the run's columns at most `columns`.
+inline std::size_t start_for_columns(std::string_view text, std::size_t to,
+                                     std::size_t columns) noexcept {
+    std::size_t start = to < text.size() ? to : text.size();
+    std::size_t used = 0;
+    while (start > 0) {
+        std::size_t prev = start - 1;
+        while (prev > 0 && is_continuation_byte(text[prev])) {
+            --prev;
+        }
+        const auto w = static_cast<std::size_t>(character_columns(text, prev));
+        if (used + w > columns) {
+            break;
+        }
+        used += w;
+        start = prev;
+    }
+    return start;
+}
+
+/// THE CHARACTERS A RUN OF COLUMNS SHOWS: what `text` laid from column 0 shows from `column` for
+/// `columns`, as a string exactly that many columns wide -- a wide character the run's start or end
+/// would cut left out whole and its column blank, and blanks past the text's end.
+inline std::string column_slice(std::string_view text, std::size_t column, std::size_t columns) {
+    std::size_t from = byte_at_column(text, 0, column);
+    std::size_t at = columns_between(text, 0, from);
+    if (at < column) {
+        from = character_end(text, from); // a wide character the run's start cuts
+        at = columns_between(text, 0, from);
+    }
+    const std::size_t lead = at - column < columns ? at - column : columns;
+    const std::size_t end = cut_at_columns(text, from, columns - lead);
+    std::string out(lead, ' ');
+    out.append(text.substr(from, end - from));
+    out.append(columns - lead - columns_between(text, from, end), ' ');
+    return out;
 }
 
 // ---- What a word is, in this application ------------------------------------------------

@@ -5,10 +5,13 @@
 #define ZENGINE_WORKSHOP_PANE_TEXT_HPP
 
 // The text a pane shapes before it publishes: fitted to the columns it was granted, wrapped,
-// padded, and stripped of bytes a canvas cannot draw. One copy for every pane package, beside the
-// protocol because `judge_content` refuses a whole publication for one row too wide. The host's
-// own `detail::fit` is deliberately separate: a host sharing code with the panes it judges would
-// judge its own output, so where the two disagree, the pane's rows change.
+// padded, and kept to what a row shows. One copy for every pane package. Every width is columns,
+// each character taking the columns the text core gives it (`component::character_columns`), so a
+// wide character takes two, a combining mark none, and no cut falls inside a character. The
+// host's own `detail::fit` is separate: a host sharing code with the panes it judges would judge
+// its own output, so where the two disagree, the pane's rows change.
+
+#include "component/text.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -24,23 +27,28 @@ inline constexpr const char* kElided = "...";
 /// How far a wrapped continuation row is indented, when the room can hold an indent at all.
 inline constexpr std::int64_t kWrapIndent = 2;
 
+/// How many columns a text takes (`component::text_columns`), as a signed width.
+inline std::int64_t columns_of(std::string_view text) {
+    return static_cast<std::int64_t>(component::text_columns(text));
+}
+
 /// ONE ROW, FITTED TO A COLUMN BUDGET, WITH THE CUT MARKED. A width at or below zero is no
 /// room at all and answers with nothing; a width at or below the mark's own length answers
 /// with as much of the mark as fits, because a row that says only "..." still says that
-/// something was cut.
+/// something was cut. The cut falls between whole characters.
 inline std::string fit(std::string text, std::int64_t width) {
     if (width <= 0) {
         return {};
     }
     const std::size_t room = static_cast<std::size_t>(width);
-    if (text.size() <= room) {
+    if (component::text_columns(text) <= room) {
         return text; // it fits, so nothing about it changes -- not even its role
     }
     const std::size_t mark = std::string_view(kElided).size();
     if (room <= mark) {
         return std::string(kElided).substr(0, room);
     }
-    text.resize(room - mark);
+    text.resize(component::cut_at_columns(text, 0, room - mark));
     text += kElided;
     return text;
 }
@@ -63,25 +71,28 @@ inline std::size_t path_root(std::string_view path) {
 
 /// A PATH FITTED TO A COLUMN BUDGET BY ITS MIDDLE: its root (`path_root`), the mark, and as much of
 /// its end as fits -- the drive that says which filesystem, and the end that says which file. A
-/// path that fits is itself; a budget with no room for the root, the mark and one character of the
+/// path that fits is itself; a budget with no room for the root, the mark and one column of the
 /// end is `fit`'s, cut at the end.
 inline std::string fit_path(const std::string& path, std::int64_t width) {
     if (width <= 0) {
         return {};
     }
     const std::size_t room = static_cast<std::size_t>(width);
-    if (path.size() <= room) {
+    if (component::text_columns(path) <= room) {
         return path;
     }
     const std::size_t mark = std::string_view(kElided).size();
     const std::size_t root = path_root(path);
-    if (root + mark + 1 > room) {
+    const std::size_t root_cols = component::columns_between(path, 0, root);
+    if (root_cols + mark + 1 > room) {
         return fit(path, width);
     }
-    return path.substr(0, root) + kElided + path.substr(path.size() - (room - root - mark));
+    std::size_t tail = component::start_for_columns(path, path.size(), room - root_cols - mark);
+    tail = tail < root ? root : tail;
+    return path.substr(0, root) + kElided + path.substr(tail);
 }
 
-/// A TEXT LONGER THAN ITS ROW, SHOWN WHOLE BY THE POINTER RESTING ON IT: `width` characters of it,
+/// A TEXT LONGER THAN ITS ROW, SHOWN WHOLE BY THE POINTER RESTING ON IT: `width` columns of it,
 /// from where the pointer's `column` puts them -- the row's first column shows the text's start,
 /// its last the text's end, and every column between an offset proportional to it, never moving
 /// back as the column moves right. Nothing is cut and no mark is drawn. A text that fits is itself.
@@ -90,33 +101,37 @@ inline std::string scrub(const std::string& text, std::int64_t width, std::int64
         return {};
     }
     const std::size_t room = static_cast<std::size_t>(width);
-    if (text.size() <= room) {
+    const std::size_t total = component::text_columns(text);
+    if (total <= room) {
         return text;
     }
-    const std::uint64_t hidden = text.size() - room;
+    const std::uint64_t hidden = total - room;
     const std::int64_t last = width - 1;
     const std::int64_t at = column < 0 ? 0 : (column > last ? last : column);
     const std::uint64_t offset =
         last == 0 ? 0
                   : (static_cast<std::uint64_t>(at) * hidden * 2 + static_cast<std::uint64_t>(last)) /
                         (static_cast<std::uint64_t>(last) * 2);
-    return text.substr(static_cast<std::size_t>(offset), room);
+    const std::size_t from = component::byte_at_column(text, 0, static_cast<std::size_t>(offset));
+    return text.substr(from, component::cut_at_columns(text, from, room) - from);
 }
 
-/// ONE ROW, PADDED TO A WIDTH -- and truncated to it, unmarked, because a caller that pads is
-/// composing a column it has already measured rather than cutting a weaver's prose.
+/// ONE ROW, PADDED TO A WIDTH IN COLUMNS -- and truncated to it, unmarked, at whole characters,
+/// because a caller that pads is composing a column it has already measured rather than cutting a
+/// weaver's prose. A wide character the cut leaves out leaves its column blank.
 inline std::string pad(std::string text, std::size_t width) {
-    if (text.size() > width) {
-        text.resize(width);
-        return text;
+    std::size_t cols = component::text_columns(text);
+    if (cols > width) {
+        text.resize(component::cut_at_columns(text, 0, width));
+        cols = component::text_columns(text);
     }
-    text.append(width - text.size(), ' ');
+    text.append(width - cols, ' ');
     return text;
 }
 
 /// A sentence across as many rows as it needs, broken at a space where there is one and at the
-/// budget where there is not, continuations indented. A break spends one space, never a run: the
-/// rest are a weaver's own bytes.
+/// budget where there is not, continuations indented, every row at most `width` columns. A break
+/// spends one space, never a run: the rest are a weaver's own bytes.
 inline std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
     std::vector<std::string> rows;
     if (width <= 0) {
@@ -129,18 +144,22 @@ inline std::vector<std::string> wrap(const std::string& text, std::int64_t width
     while (true) {
         const std::string lead(rows.empty() ? 0 : indent, ' ');
         const std::size_t take = room - lead.size();
-        if (text.size() - at <= take) {
+        const std::size_t fits = component::cut_at_columns(text, at, take);
+        if (fits >= text.size()) {
             rows.push_back(lead + text.substr(at));
             return rows;
         }
-        std::size_t cut = at + take;
+        std::size_t cut = fits;
         bool broke = false;
-        for (std::size_t i = cut; i > at; --i) {
+        for (std::size_t i = fits; i > at; --i) {
             if (text[i] == ' ') {
                 cut = i;
                 broke = true;
                 break;
             }
+        }
+        if (!broke && cut <= at) {
+            cut = component::character_end(text, at); // wider than the row: shown alone
         }
         rows.push_back(lead + text.substr(at, cut - at));
         at = cut;
@@ -165,35 +184,20 @@ inline std::string omitted_text(std::size_t how_many, const char* which) {
 /// the row did not draw.
 inline std::string fitted_label(const std::string& full, std::int64_t columns,
                                 std::int64_t floor) {
-    const std::int64_t full_cols = static_cast<std::int64_t>(full.size());
+    const std::int64_t full_cols = columns_of(full);
     if (columns <= 0 || full_cols + floor <= columns) {
         return full;
     }
     return fit(full, columns - floor);
 }
 
-/// EVERY BYTE A CANVAS CAN DRAW, AT THE PANE'S OWN DOOR. A weaver's own text -- an object's
-/// name, a property's value, a path -- has never been required to be printable ASCII. The window
-/// marks a byte it cannot draw and keeps the row, so this is a second guard, for a window that
-/// would refuse a picture for one such byte: a space costs the weaver a character they can see is
-/// missing, and a refusal would cost them the pane.
-inline std::string drawable(std::string text) {
-    for (char& c : text) {
-        const unsigned char byte = static_cast<unsigned char>(c);
-        if (byte < 0x20u || byte >= 0x7Fu) {
-            c = ' ';
-        }
-    }
-    return text;
-}
-
-/// A line somebody else wrote, spelled in what a canvas can draw, and how many characters had to
-/// be spelled (`spelled`, when given, grows by that many). For words a pane only carries, read as
-/// UTF-8 characters: common punctuation becomes its ASCII twin, a tab a space, any other
-/// undrawable character one `?`, and a terminal escape sequence is left out whole. Printable
-/// ASCII passes through untouched.
+/// WORDS SOMEBODY ELSE WROTE, AS A ROW SHOWS THEM, and how many characters that changed
+/// (`changed`, when given, grows by that many): every character as written, a tab or any other
+/// control character one space, and a terminal escape sequence left out whole -- a CSI one to its
+/// final byte, any other the escape alone. A row is one line, and an escape is a terminal's
+/// instruction, not text.
 // WL-OUT-03 -- agents/workshop/build-output.md
-inline std::string ascii_spelling(const std::string& text, std::size_t* spelled = nullptr) {
+inline std::string printable(const std::string& text, std::size_t* changed = nullptr) {
     std::string out;
     out.reserve(text.size());
     std::size_t count = 0;
@@ -201,19 +205,7 @@ inline std::string ascii_spelling(const std::string& text, std::size_t* spelled 
     std::size_t i = 0;
     while (i < n) {
         const unsigned char b = static_cast<unsigned char>(text[i]);
-        if (b >= 0x20u && b < 0x7Fu) {
-            out += static_cast<char>(b);
-            ++i;
-            continue;
-        }
-        if (b == '\t') {
-            out += ' ';
-            ++i;
-            continue;
-        }
         if (b == 0x1Bu) {
-            // AN ESCAPE SEQUENCE IS A TERMINAL'S INSTRUCTION, NOT TEXT: a CSI one is left out to
-            // its final byte, and a lone ESC by itself.
             ++count;
             ++i;
             if (i < n && text[i] == '[') {
@@ -228,81 +220,30 @@ inline std::string ascii_spelling(const std::string& text, std::size_t* spelled 
             }
             continue;
         }
-        std::size_t width = 0;
-        std::uint32_t cp = 0;
-        if (b >= 0xC2u && b <= 0xDFu) {
-            width = 2;
-            cp = b & 0x1Fu;
-        } else if (b >= 0xE0u && b <= 0xEFu) {
-            width = 3;
-            cp = b & 0x0Fu;
-        } else if (b >= 0xF0u && b <= 0xF4u) {
-            width = 4;
-            cp = b & 0x07u;
-        }
-        bool whole = width != 0 && i + width <= n;
-        for (std::size_t k = 1; whole && k < width; ++k) {
-            const unsigned char c = static_cast<unsigned char>(text[i + k]);
-            if ((c & 0xC0u) != 0x80u) {
-                whole = false;
-            } else {
-                cp = (cp << 6) | (c & 0x3Fu);
-            }
-        }
-        ++count;
-        if (!whole) {
-            out += '?';
-            ++i;
-            continue;
-        }
-        i += width;
-        switch (cp) {
-        case 0x2018: case 0x2019: case 0x201A: case 0x201B: case 0x2032:
-            out += '\'';
-            break;
-        case 0x201C: case 0x201D: case 0x201E: case 0x201F: case 0x2033:
-            out += '"';
-            break;
-        case 0x2010: case 0x2011: case 0x2012: case 0x2013: case 0x2014: case 0x2015:
-        case 0x2212:
-            out += '-';
-            break;
-        case 0x2026:
-            out += "...";
-            break;
-        case 0x00A0: case 0x2002: case 0x2003: case 0x2009: case 0x202F:
+        const std::size_t end = component::character_end(text, i);
+        const char32_t cp = component::code_point_at(text, i);
+        if (b < 0x20u || b == 0x7Fu || (cp >= 0x80u && cp < 0xA0u)) {
             out += ' ';
-            break;
-        case 0x00AB:
-            out += "<<";
-            break;
-        case 0x00BB:
-            out += ">>";
-            break;
-        case 0x2039:
-            out += '<';
-            break;
-        case 0x203A:
-            out += '>';
-            break;
-        default:
-            out += '?';
-            break;
+            ++count;
+        } else {
+            out.append(text, i, end - i);
         }
+        i = end;
     }
-    if (spelled != nullptr) {
-        *spelled += count;
+    if (changed != nullptr) {
+        *changed += count;
     }
     return out;
 }
 
-/// ...and the same question the other way: is this text, whole, something a canvas can draw?
-/// `drawable` repairs what a pane is about to say; this refuses what a weaver typed or pasted,
-/// because silently changing their bytes is worse. Two doors, two postures, one byte rule.
+/// ...and the same question the other way: is this text, whole, one a row shows as it is written?
+/// `printable` repairs what a pane is about to say; this refuses what a weaver typed or pasted --
+/// a control character, or bytes that spell no character -- because silently changing their bytes
+/// is worse. Two doors, two postures, one rule.
 inline bool admissible(const std::string& text) {
-    for (const char c : text) {
-        const unsigned char byte = static_cast<unsigned char>(c);
-        if (byte < 0x20u || byte >= 0x7Fu) {
+    for (std::size_t i = 0; i < text.size(); i = component::character_end(text, i)) {
+        const char32_t cp = component::code_point_at(text, i);
+        if (cp == component::kNotACharacter || cp < 0x20u || (cp >= 0x7Fu && cp < 0xA0u)) {
             return false;
         }
     }

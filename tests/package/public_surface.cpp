@@ -410,7 +410,7 @@ void graphics_surface() {
         for (const gfx::Color& c : gfx::colors_of(n.op, n.args)) {
             inks.push_back(c.none() ? gfx::PaintInk{} : gfx::PaintInk{0xd8dee9ff, "terminal default", "o"});
         }
-        task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args, inks});
+        task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args, inks, {}, {}});
     }
     std::string top;
     for (const gfx::NodePaint& painted : gfx::term::paint_task(task).nodes) {
@@ -419,7 +419,7 @@ void graphics_surface() {
                 if (top.size() <= static_cast<std::size_t>(c.col)) {
                     top.resize(static_cast<std::size_t>(c.col) + 1, ' ');
                 }
-                top[static_cast<std::size_t>(c.col)] = c.glyph;
+                top[static_cast<std::size_t>(c.col)] = c.glyph.empty() ? ' ' : c.glyph.front();
             }
         }
     }

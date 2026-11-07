@@ -171,10 +171,10 @@ TEST_CASE("a provider-only artifact is visible and wears no weave") {
     CHECK(text[i + 3].find("weave") == std::string::npos);
 }
 
-TEST_CASE("a provider's name for itself is drawn on its resolved row in what a row can carry") {
-    // THE IDENTITY A PROVIDER DECLARES ABOUT ITSELF, as the door carries it: a letter no canvas
-    // draws is drawn as one `?`, so one provider's word cannot refuse the whole Project picture.
-    // No provider this tree builds declares such a name, so the answer is a value here.
+TEST_CASE("a provider's name for itself is drawn on its resolved row as it is written") {
+    // THE IDENTITY A PROVIDER DECLARES ABOUT ITSELF, as the door carries it: a letter past plain
+    // ASCII is drawn as itself, every row whole characters. No provider this tree builds declares
+    // such a name, so the answer is a value here.
     ws::ResolvedArrangement said = shaped_arrangement();
     said.artifacts[0].provider = "zengine.operators.b\xC3\xA1sic";
     const std::vector<TextRow> rows = intro::project_arrangement(said, 40, 80);
@@ -183,11 +183,11 @@ TEST_CASE("a provider's name for itself is drawn on its resolved row in what a r
     REQUIRE(at >= 0);
     const std::size_t i = static_cast<std::size_t>(at);
     REQUIRE(i + 2 < text.size());
-    CHECK(text[i + 2] == "    resolved  provider zengine.operators.b?sic, 2 powers");
+    CHECK(text[i + 2] == "    resolved  provider zengine.operators.b\xC3\xA1sic, 2 powers");
     for (const std::string& row : text) {
-        for (const char c : row) {
-            const unsigned char b = static_cast<unsigned char>(c);
-            CHECK((b >= 0x20u && b < 0x7Fu));
+        for (std::size_t k = 0; k < row.size(); k = zengine::component::character_end(row, k)) {
+            CHECK(zengine::component::code_point_at(row, k) != zengine::component::kNotACharacter);
+            CHECK(zengine::component::code_point_at(row, k) >= 0x20u);
         }
     }
 }
@@ -1553,11 +1553,11 @@ TEST_CASE("Project's window starts at an artifact, shows whole blocks from it, c
     CHECK(row_with(all.rows, "more") < 0);
 }
 
-TEST_CASE("the Project pane spells the words a plan and its loader carry, and its picture is "
-          "drawn") {
-    // A ROLE, A STEM, THE LOADER'S REFUSAL AND THE PLAN'S PATH, each holding a letter no canvas
-    // draws, through the real door: each is drawn as one `?` per character, and the picture is
-    // drawn in the pane's area.
+TEST_CASE("the Project pane shows the words a plan and its loader carry as written, and its "
+          "picture is drawn") {
+    // A ROLE, A STEM, THE LOADER'S REFUSAL AND THE PLAN'S PATH, each holding a letter past plain
+    // ASCII, through the real door: each is drawn as itself, and the picture is drawn in the pane's
+    // area.
     PaneRig r;
     r.mount_workshop();
     load::LoadPlan plan = pane_plan();
@@ -1596,19 +1596,19 @@ TEST_CASE("the Project pane spells the words a plan and its loader carry, and it
     const std::int64_t plain = row_with_text(shown, "zengine-plain-weave");
     REQUIRE(plain >= 0);
     REQUIRE(static_cast<std::size_t>(plain) + 1 < shown.size());
-    CHECK(shown[static_cast<std::size_t>(plain) + 1] == "    authored  weave test.pl?in");
+    CHECK(shown[static_cast<std::size_t>(plain) + 1] == "    authored  weave test.pl\xC3\xA9in");
 
-    const std::int64_t stem = row_with_text(shown, "caf?-tool");
+    const std::int64_t stem = row_with_text(shown, "caf\xC3\xA9-tool");
     REQUIRE(stem >= 0);
     const std::size_t at = static_cast<std::size_t>(stem);
     REQUIRE(at + 4 < shown.size());
-    CHECK(shown[at] == "  caf?-tool");
+    CHECK(shown[at] == "  caf\xC3\xA9-tool");
     CHECK(shown[at + 1] == "    authored  weave test.unbuilt");
     CHECK(shown[at + 2] == "    " + std::string(intro::kUnavailableRow));
     CHECK(shown[at + 3].rfind("    why   weave load refused: ", 0) == 0);
-    CHECK(shown[at + 3].find("caf?-tool") != std::string::npos);
-    CHECK(shown[at + 4].rfind("    next  make 'caf?-tool' available", 0) == 0);
-    CHECK(any_row(shown, "plan: /home/jos?/zen/default-load-plan.json"));
+    CHECK(shown[at + 3].find("caf\xC3\xA9-tool") != std::string::npos);
+    CHECK(shown[at + 4].rfind("    next  make 'caf\xC3\xA9-tool' available", 0) == 0);
+    CHECK(any_row(shown, "plan: /home/jos\xC3\xA9/zen/default-load-plan.json"));
 }
 
 TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
@@ -1650,7 +1650,7 @@ TEST_CASE("two lists of loaded weaves are two meanings whatever their names hold
     r.pick(intro_ref());
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
     const std::int64_t kind = intro_row(r, kIntroPane)->kind;
-    const std::int64_t row = row_with_text(pane_rows(r, kind), "a?b");
+    const std::int64_t row = row_with_text(pane_rows(r, kind), "a b"); // its line break a space
     REQUIRE(row >= 0);
     const std::string drawn = part_drawn_at(kind, row, 3);
     const std::int64_t first = numbers.of(r.session(), kind);
@@ -1665,7 +1665,7 @@ TEST_CASE("two lists of loaded weaves are two meanings whatever their names hold
     const std::vector<std::string> now = pane_rows(r, kind);
     REQUIRE(static_cast<std::size_t>(row) + 1 < now.size());
     CHECK(now[static_cast<std::size_t>(row)] == "  a @test.one");
-    CHECK(now[static_cast<std::size_t>(row) + 1] == "  b?c @test.two");
+    CHECK(now[static_cast<std::size_t>(row) + 1] == "  b c @test.two");
     REQUIRE(numbers.of(r.session(), kind) != first);
 
     // A PRESS THE WINDOW LANDED ON THE FIRST PICTURE, on the row that showed `a\nb`: drawn under
@@ -1678,10 +1678,10 @@ TEST_CASE("two lists of loaded weaves are two meanings whatever their names hold
     CHECK(ears.heard[0].library == "a");
 }
 
-TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is drawn") {
-    // THE KERNEL'S MAP AS IT CAME: a library name and a role each holding a letter no canvas
-    // draws. Each is drawn as one `?` per character, the picture is drawn in the pane's area, and
-    // a press still selects the library by its own name.
+TEST_CASE("the Loaded pane shows a weave's name and role as written, and its picture is drawn") {
+    // THE KERNEL'S MAP AS IT CAME: a library name and a role each holding a letter past plain
+    // ASCII. Each is drawn as itself, the picture is drawn in the pane's area, and a press selects
+    // the library by its own name.
     Ears ears;
     PaneRig r;
     r.mount_workshop();
@@ -1701,18 +1701,18 @@ TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is dr
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
     CHECK(shown[0] == loaded_heading("3"));
-    const std::int64_t at = row_with_text(shown, "plain-caf?");
+    const std::int64_t at = row_with_text(shown, "plain-caf\xC3\xA9");
     REQUIRE(at >= 0);
-    CHECK(shown[static_cast<std::size_t>(at)] == "  plain-caf? @test.pl?in");
+    CHECK(shown[static_cast<std::size_t>(at)] == "  plain-caf\xC3\xA9 @test.pl\xC3\xA9in");
 
-    // THE MARKED ROW IS SPELLED THE SAME WAY, and the selection carries the kernel's own bytes.
+    // THE MARKED ROW IS SHOWN THE SAME WAY, and the selection carries the kernel's own bytes.
     press_pane(r, kind, at, 1);
     const ExternalPane* marked = r.session().panes.external_pane(kind);
     REQUIRE(marked != nullptr);
     CHECK(shows_canvas(*marked));
     const std::vector<std::string> chosen = pane_rows(r, kind);
     REQUIRE(static_cast<std::size_t>(at) < chosen.size());
-    CHECK(chosen[static_cast<std::size_t>(at)] == "> plain-caf? @test.pl?in");
+    CHECK(chosen[static_cast<std::size_t>(at)] == "> plain-caf\xC3\xA9 @test.pl\xC3\xA9in");
     REQUIRE(ears.heard.size() == 1);
     CHECK(ears.heard[0].library == "plain-caf\xC3\xA9");
     CHECK(ears.heard[0].role == "test.pl\xC3\xA9in");

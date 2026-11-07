@@ -7,6 +7,7 @@
 
 #include "screen.hpp"
 #include "workshop/pane_drawing.hpp" // pane_area: every pane's area, `<office>.<pane>`
+#include "component/text.hpp"
 
 #include <algorithm>
 #include <iterator>
@@ -227,19 +228,25 @@ void paint_strips(ScreenPlane& layer, const Session& s, const Screen& sc) {
             }
             const graphics::Color ink = m.open ? graphics::colors::accent : graphics::colors::quiet;
             if (vertical) {
-                for (std::size_t i = 0; i < m.text.size(); ++i) {
-                    const std::size_t at = static_cast<std::size_t>(m.row) + i;
+                // A CHARACTER A ROW, down the strip.
+                std::size_t at = static_cast<std::size_t>(m.row);
+                for (std::size_t i = 0; i < m.text.size(); i = component::character_end(m.text, i)) {
                     if (at < region.rows.size()) {
-                        region.rows[at] = TextRow{std::string(1, m.text[i]), ink};
+                        region.rows[at] = TextRow{
+                            m.text.substr(i, component::character_end(m.text, i) - i), ink};
                     }
+                    ++at;
                 }
             } else if (!region.rows.empty()) {
+                // THE TAG WRITTEN OVER THE ROW'S COLUMNS from its own, at whole characters.
                 std::string& line = region.rows.front().text;
-                for (std::size_t i = 0; i < m.text.size(); ++i) {
-                    const std::size_t at = static_cast<std::size_t>(m.column) + i;
-                    if (at < line.size()) {
-                        line[at] = m.text[i];
-                    }
+                const std::size_t line_cols = component::text_columns(line);
+                const auto col = static_cast<std::size_t>(m.column);
+                if (col < line_cols) {
+                    const std::size_t width = (std::min)(component::text_columns(m.text), line_cols - col);
+                    line = component::column_slice(line, 0, col) +
+                           component::column_slice(m.text, 0, width) +
+                           component::column_slice(line, col + width, line_cols - col - width);
                 }
                 if (m.open) {
                     region.rows.front().ink = graphics::colors::accent;
@@ -402,7 +409,7 @@ void draw_plane(graphics::Sketch& sk, const std::string& name, const ScreenPlane
         const std::string at = name + "/label" + std::to_string(i);
         if (grounded && !l.text.empty()) {
             sk.fill_rect(at + "-ground", l.x, l.y,
-                         static_cast<std::int64_t>(l.text.size()) * advance, line,
+                         static_cast<std::int64_t>(component::text_columns(l.text)) * advance, line,
                          graphics::colors::background);
         }
         sk.text(at, l.x, l.y, l.text, l.ink);
@@ -420,11 +427,8 @@ void draw_part(WorkshopWindowDrawing& out, const std::string& group, const std::
     if (columns <= 0 || column < 0) {
         return;
     }
-    std::string words = column < static_cast<std::int64_t>(row.text.size())
-                            ? row.text.substr(static_cast<std::size_t>(column),
-                                              static_cast<std::size_t>(columns))
-                            : std::string();
-    words.resize(static_cast<std::size_t>(columns), ' ');
+    const std::string words = component::column_slice(row.text, static_cast<std::size_t>(column),
+                                                      static_cast<std::size_t>(columns));
     const PixelRect at = span_px(fit, r, column, columns);
     const std::string node = group + "/part" + std::to_string(out.sketch.records().size());
     out.sketch.text(node, at.x, at.y, words, row.ink);

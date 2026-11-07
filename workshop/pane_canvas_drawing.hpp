@@ -9,6 +9,7 @@
 // painted, so a part is pressed wherever the picture shows it, and a later part over an earlier one,
 // as a pane reads a press on its picture. Reference: graphics/docs/graphics.md.
 
+#include "component/text.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/vocabulary.hpp"
@@ -61,8 +62,8 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
         const CanvasText* run = nullptr; ///< the run it draws, whose caret and selection it marks
     };
     const auto metrics = canvas_text_metrics(room);
-    const auto across = [&](std::size_t bytes, std::int64_t advance) {
-        return static_cast<std::int64_t>(bytes) * advance + 2 * metrics.inset;
+    const auto across = [&](std::size_t columns, std::int64_t advance) {
+        return static_cast<std::int64_t>(columns) * advance + 2 * metrics.inset;
     };
     std::vector<Drawn> drawn;
     drawn.reserve(c.rects.size() + c.labels.size() + c.texts.size());
@@ -70,14 +71,14 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
         drawn.push_back({graphics::op::kRect, r.x, r.y, r.w, r.h, r.ink, nullptr});
     }
     for (const CanvasLabel& l : c.labels) {
-        drawn.push_back({graphics::op::kText, l.x, l.y, across(l.text.size(), kPaneCanvasUnit),
+        drawn.push_back({graphics::op::kText, l.x, l.y, across(component::text_columns(l.text), kPaneCanvasUnit),
                          kPaneCanvasUnit, l.ink, &l.text});
     }
     for (const CanvasText& t : c.texts) {
         // AN UNPADDED RUN'S GLYPHS STAND AT ITS X/Y, its box the medium's inset around them.
         const std::int64_t back = t.padded ? 0 : metrics.inset;
         const Drawn run{graphics::op::kText, t.x - back, t.y - back,
-                        across(t.text.size(), metrics.advance), metrics.line + 2 * metrics.inset,
+                        across(component::text_columns(t.text), metrics.advance), metrics.line + 2 * metrics.inset,
                         t.ink, &t.text, metrics.inset, &t};
         if (t.background != graphics::no_color()) {
             drawn.push_back({graphics::op::kRect, run.x, run.y, run.w, run.h, t.background,
@@ -106,7 +107,7 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
         const CanvasText* t = drawn[i].run;
         if (t == nullptr) continue;
         const std::int64_t gx = drawn[i].x + drawn[i].inset, gy = drawn[i].y + drawn[i].inset;
-        const auto length = static_cast<std::int64_t>(t->text.size());
+        const auto length = static_cast<std::int64_t>(component::text_columns(t->text));
         const auto mark = [&](std::string node, std::int64_t column, std::string words) {
             Mark m{std::move(node), gx + column * metrics.advance, gy, std::move(words), {}, true};
             for (const CanvasPart& p : c.parts) {
@@ -122,12 +123,16 @@ inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room
         const std::int64_t to = (std::min)(length, t->sel_end_col);
         if (t->sel_begin_col >= 0 && from < to) {
             mark("sel" + std::to_string(i), from,
-                 t->text.substr(static_cast<std::size_t>(from), static_cast<std::size_t>(to - from)));
+                 component::column_slice(t->text, static_cast<std::size_t>(from),
+                                         static_cast<std::size_t>(to - from)));
         }
         if (t->caret_col >= 0 && t->caret_col <= length) {
             const auto at = static_cast<std::size_t>(t->caret_col);
-            const bool on = !metrics.graphical && at < t->text.size() && t->text[at] != ' ';
-            mark("caret" + std::to_string(i), t->caret_col, on ? t->text.substr(at, 1) : "");
+            const std::string under = at < component::text_columns(t->text)
+                                          ? component::column_slice(t->text, at, 1)
+                                          : std::string();
+            const bool on = !metrics.graphical && !under.empty() && under != " ";
+            mark("caret" + std::to_string(i), t->caret_col, on ? under : "");
         }
     }
 

@@ -57,6 +57,34 @@ struct TextMeasure {
     friend bool operator==(const TextMeasure&, const TextMeasure&) = default;
 };
 
+/// HOW A WINDOW SETS TEXT IN ONE FONT AT ONE SIZE: the pool font's and size's names (or a slot's,
+/// for its owner), the points the size stands at, and the advance from one column to the next and
+/// the height of a line, in pixels. A window of characters sets every size in its cell.
+struct TextMeasured {
+    std::string font;
+    std::string size;
+    std::int64_t points = 0;
+    std::int64_t advance = 0, line = 0;
+    ZEN_SHAPE(TextMeasured, 1, ZEN_FIELD(font), ZEN_FIELD(size), ZEN_FIELD(points),
+              ZEN_FIELD(advance), ZEN_FIELD(line));
+    TextMeasure measure() const { return TextMeasure{advance, line}; }
+    friend bool operator==(const TextMeasured&, const TextMeasured&) = default;
+};
+
+/// The measure a list says for a pool size (`size`, "" the pool's `body`) in the pool's `text`
+/// font, or `otherwise` where it says none.
+inline TextMeasure measure_of_size(const std::vector<TextMeasured>& measures,
+                                   const std::string& size, const TextMeasure& otherwise) {
+    const std::string want = size.empty() ? std::string("body") : size;
+    for (const TextMeasured& m : measures) {
+        if (m.size == want && (m.font.empty() || m.font == "text") && m.advance > 0 &&
+            m.line > 0) {
+            return m.measure();
+        }
+    }
+    return otherwise;
+}
+
 /// THE ONE PRIMITIVE. Its `path` is its owner's name for it, unique in its area, and its place: the
 /// segments before the last name the node it lives in. `op` names the operator that draws it, and
 /// `args` are that operator's operands, their shape implied by the operator (graphics/ops.hpp), so
@@ -336,9 +364,10 @@ struct WindowOffered {
     std::int64_t epoch = 0;
     std::int64_t cell_px = 0;
     std::int64_t text_advance_px = 0, text_line_px = 0;
-    ZEN_SHAPE(WindowOffered, 3, ZEN_FIELD(window), ZEN_FIELD(width), ZEN_FIELD(height),
+    std::vector<TextMeasured> measures{};
+    ZEN_SHAPE(WindowOffered, 4, ZEN_FIELD(window), ZEN_FIELD(width), ZEN_FIELD(height),
               ZEN_FIELD(epoch), ZEN_FIELD(cell_px), ZEN_FIELD(text_advance_px),
-              ZEN_FIELD(text_line_px));
+              ZEN_FIELD(text_line_px), ZEN_FIELD(measures));
 };
 
 /// The longest title a window takes, in bytes; a longer one is cut where a character begins.
@@ -405,11 +434,30 @@ struct PaletteColor {
     friend bool operator==(const PaletteColor&, const PaletteColor&) = default;
 };
 
-/// One office's slots in a palette: the colours it sets for the slots that office exposes.
+/// One text size of a palette: its name and the points it stands at.
+struct PaletteSize {
+    std::string name;
+    std::int64_t points = 0;
+    ZEN_SHAPE(PaletteSize, 1, ZEN_FIELD(name), ZEN_FIELD(points));
+    friend bool operator==(const PaletteSize&, const PaletteSize&) = default;
+};
+
+/// One font of a palette: its name and the face it sets text in (a family a window knows: the
+/// one it embeds, `JetBrains Mono`).
+struct PaletteFont {
+    std::string name;
+    std::string face;
+    ZEN_SHAPE(PaletteFont, 1, ZEN_FIELD(name), ZEN_FIELD(face));
+    friend bool operator==(const PaletteFont&, const PaletteFont&) = default;
+};
+
+/// One office's slots in a palette: the colours and the text sizes it sets for the slots that
+/// office exposes.
 struct PaletteSlots {
     std::string office;
     std::vector<PaletteColor> colors;
-    ZEN_SHAPE(PaletteSlots, 1, ZEN_FIELD(office), ZEN_FIELD(colors));
+    std::vector<PaletteSize> sizes{};
+    ZEN_SHAPE(PaletteSlots, 2, ZEN_FIELD(office), ZEN_FIELD(colors), ZEN_FIELD(sizes));
     friend bool operator==(const PaletteSlots&, const PaletteSlots&) = default;
 };
 
@@ -421,10 +469,12 @@ struct PaletteOffered {
     std::string palette;
     std::int64_t revision = 0;
     std::vector<PaletteColor> colors;
+    std::vector<PaletteFont> fonts{};
+    std::vector<PaletteSize> sizes{};
     std::vector<PaletteSlots> slots;
     std::string outline = "+-|";
-    ZEN_SHAPE(PaletteOffered, 1, ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(colors),
-              ZEN_FIELD(slots), ZEN_FIELD(outline));
+    ZEN_SHAPE(PaletteOffered, 2, ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(colors),
+              ZEN_FIELD(fonts), ZEN_FIELD(sizes), ZEN_FIELD(slots), ZEN_FIELD(outline));
     friend bool operator==(const PaletteOffered&, const PaletteOffered&) = default;
 };
 
@@ -494,14 +544,21 @@ struct AreaRoom {
     bool empty = false;
     std::int64_t cell_px = 0;
     std::int64_t text_advance_px = kCellPx, text_line_px = kCellPx;
-    ZEN_SHAPE(AreaRoom, 4, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
+    std::vector<TextMeasured> measures{};
+    ZEN_SHAPE(AreaRoom, 5, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
               ZEN_FIELD(h), ZEN_FIELD(elements), ZEN_FIELD(empty), ZEN_FIELD(cell_px),
-              ZEN_FIELD(text_advance_px), ZEN_FIELD(text_line_px));
+              ZEN_FIELD(text_advance_px), ZEN_FIELD(text_line_px), ZEN_FIELD(measures));
 
-    /// How the window sets text: its measure, or the cell's where it said none.
+    /// How the window sets text at the pool's `body`: its measure, or the cell's where it said
+    /// none.
     TextMeasure measure() const {
         return TextMeasure{text_advance_px > 0 ? text_advance_px : kCellPx,
                            text_line_px > 0 ? text_line_px : kCellPx};
+    }
+    /// ...and at the pool size `size` ("" the pool's `body`), in the pool's `text` font: the
+    /// measure the window said for it, or the body's where it said none.
+    TextMeasure measure(const std::string& size) const {
+        return measure_of_size(measures, size, measure());
     }
 };
 

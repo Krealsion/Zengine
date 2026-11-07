@@ -43,7 +43,7 @@ using ws::v2::PaneOffered;
 /// THE GUESTS FILE'S WORD for a host whose guests write and build as its weaver does.
 constexpr const char* kDevelopmentHost = "development";
 
-using zengine::workshop::pane_text::drawable;
+using zengine::workshop::pane_text::printable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::omitted_text;
 
@@ -115,7 +115,7 @@ public:
         const auto line = [&](const std::string& path, const std::string& text,
                               gfx::Color ink) {
             if (row < rows) {
-                f.text(path, 0, row * height, drawable(fit(text, columns)),
+                f.text(path, 0, row * height, printable(fit(text, columns)),
                        ink);
                 ++row;
             }

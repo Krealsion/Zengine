@@ -245,7 +245,7 @@ inline ManualText manual_text(const ws::PaneDocumentShown& shown, const ws::Keym
         if (!out.looks.empty()) {
             out.text += '\n';
         }
-        out.text += ws::pane_text::drawable(text);
+        out.text += ws::pane_text::printable(text);
         out.looks.push_back(component::TextLook{look, hang});
     };
     const auto words = [&](const std::string& text, std::int64_t look) {

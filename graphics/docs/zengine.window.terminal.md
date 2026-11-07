@@ -81,7 +81,10 @@ reading the terminal.
   whose subtrees go; `said` and `unsaid`, element records; `more`, true when more of the same beat
   follows from this drawer; `number`, the drawer's own for what its drawing means, which the window
   says with each press that lands there.
-- **Answers:** nothing; the window paints what changed and, unless `more`, shows it.
+- **Answers:** nothing; the window paints what changed and, unless `more`, shows it: text a
+  character a cell, a wide one over two, one size, bold through its ink; as itself where the
+  terminal's encoding carries UTF-8 (a console's code page, else `LC_ALL`, `LC_CTYPE` or `LANG`),
+  else `?` a character ([text](graphics.md#text-sizes-fonts-weight)).
 - **Refuses:** in `DrawnRefused` to the sender, the whole drawing: `window 'terminal' shows no area
   '<area>'`; `area '<area>' is drawn only by its owner, <owner>`; `'<path>' is not the sender's to
   draw` (or `to remove`), where an element the window presents lies; `'<path>' is drawn in
@@ -89,8 +92,8 @@ reading the terminal.
   <depth>`; `'<path>' has operands over <bytes> bytes`; `area '<area>' would hold more than <bound>
   nodes` (or `elements`); `record '<path>' has no node at its path`; `record '<path>' is not the
   sender's to say`; `'<path>': its <operator> operands do not read as <shape> version <n>, the one
-  this window reads (version 1 named its colours by role, and is not read)`, for a rectangle, an
-  ellipse, a line, a path or text whose operands are not this vocabulary's.
+  this window reads (version 1 named its colours by role, and is not read)` (for text, version 2
+  too), for a rectangle, an ellipse, a line, a path or text whose operands are not this vocabulary's.
 - **Example:** the snake's world, a drawing weave, sends the nodes its picture changed in a tick
   with `more`, then its board's change without it, so the tick is shown once.
 

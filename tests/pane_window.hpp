@@ -248,7 +248,7 @@ public:
         a->h = h;
         say(owner, gfx::AreaRoom{area, w_->window(), epoch, a->w, a->h, {},
                                  a->nodes.empty() && a->records.empty(), cell_px_, face_.advance,
-                                 face_.line});
+                                 face_.line, {}});
     }
 
     /// WHAT `area` SHOWS, row by row, its nodes in the window's paint order read as Workshop reads
@@ -572,7 +572,7 @@ public:
     void offer(const std::string& to, std::int64_t width_px, std::int64_t height_px,
                std::int64_t epoch = 1) {
         say(to, gfx::WindowOffered{w_->window(), width_px, height_px, epoch, 0, gfx::kCellPx,
-                                   gfx::kCellPx});
+                                   gfx::kCellPx, {}});
     }
 
     /// A DRAWING OF `area` REFUSED, told its owner as this window's office, whatever it last drew.
@@ -655,7 +655,8 @@ private:
             task.nodes.push_back(gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path),
                                                 k.node.op, k.node.args,
                                                 gw::inks_of(k.node.op, k.node.args, palette,
-                                                            a.owner)});
+                                                            a.owner),
+                                                {}, {}});
         }
         const gw::Place pl = gw::place_of(a);
         gw::Cache cache;

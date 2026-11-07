@@ -930,7 +930,7 @@ private:
                                bool status) {
         Composition out;
         const auto push = [&out, columns](std::string text, graphics::Color ink) {
-            out.rows.push_back(ws::TextRow{drawable(fit(std::move(text), columns)), ink});
+            out.rows.push_back(ws::TextRow{printable(fit(std::move(text), columns)), ink});
         };
         if (rows >= 1 && !status) {
             if (!note.empty()) {

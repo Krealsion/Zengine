@@ -338,7 +338,7 @@ public:
         const std::string* said[] = {&lost, &notice_, &gone, &pane_rows_decl.word, &app.word};
         for (const std::string* word : said) {
             if (!word->empty()) {
-                notes.push_back(drawable(*word));
+                notes.push_back(printable(*word));
             }
         }
         std::int64_t budget = rows - 1;
@@ -375,7 +375,7 @@ public:
             // A MARKER THAT HOLDS NOTHING (its pane left the list) is `?`, not `>`.
             const char* marker = here ? (choice_.lost ? "? " : "> ") : "  ";
             const std::int64_t at = static_cast<std::int64_t>(out.size());
-            const std::string text = fit(std::string(marker) + mark + " " + drawable(p.name), columns);
+            const std::string text = fit(std::string(marker) + mark + " " + printable(p.name), columns);
             const std::string ref = launcher_ref(i);
             push(text, ink, LauncherMeaning{launcher_row::kName, i, ref});
             // THE MARK IS A CONTROL INSIDE THE ROW: recorded only where the cut left it whole.
