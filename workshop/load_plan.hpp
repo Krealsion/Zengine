@@ -11,6 +11,7 @@
 
 #include "operator/catalog.hpp" // `op::MountMode` -- one spelling of overlay
 
+#include <algorithm>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -114,6 +115,31 @@ struct LoadPlan {
 
     friend bool operator==(const LoadPlan&, const LoadPlan&) = default;
 };
+
+/// EVERY OFFICE THE PLAN MAY PLACE A WEAVE IN, each once, in the order the plan names them: each
+/// row's role, the roles its alternatives load under, and every authored choice's. What a host
+/// trusts its one wait with (`loom::host::Reactor`): the plan is the weaver's own, so what holds an
+/// office it names may say what it waits on.
+inline std::vector<std::string> plan_offices(const LoadPlan& plan) {
+    std::vector<std::string> out;
+    const auto add = [&out](const std::string& role) {
+        if (!role.empty() && std::find(out.begin(), out.end(), role) == out.end()) {
+            out.push_back(role);
+        }
+    };
+    for (const ArtifactIntent& row : plan.artifacts) {
+        if (row.weave) {
+            add(row.weave->role);
+        }
+        for (const AlternativeIntent& alt : row.otherwise) {
+            add(alt.weave.role);
+        }
+    }
+    for (const ChoiceIntent& c : plan.choices) {
+        add(c.role);
+    }
+    return out;
+}
 
 // ---- The plan's own law -------------------------------------------------------
 

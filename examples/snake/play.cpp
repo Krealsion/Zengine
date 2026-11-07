@@ -25,6 +25,8 @@
 #include "input/vocabulary.hpp"
 #include "timer/os_clock.hpp"
 #include "timer/rest.hpp"
+
+#include <zen/host/reactor.hpp>
 #include "timer/vocabulary.hpp"
 #include "workshop/bus_tally.hpp"
 
@@ -625,10 +627,13 @@ int main(int argc, char** argv) {
     boot("load timer service",
          loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), timer::kTimerRole});
 
-    // The whole game runs in this loop: a turn, then the rest the Timer's beat allows. A turn that
-    // leaves nothing queued means nothing here will ever speak again.
+    // The whole game runs in this loop: a turn, then one wait on the window's terminal for as long
+    // as the Timer's beat allows. A turn that leaves nothing queued means nothing here will ever
+    // speak again.
     zengine::timer::MonotonicClock clock;
     zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
+    loom::host::Reactor wait(bus);
+    wait.trust(kWindowRole);
     while (!ctx.quit) {
         (void)bus.pump_pending();
         if (ctx.quit) {
@@ -639,9 +644,11 @@ int main(int argc, char** argv) {
                         "(no timer service deployed?): time is gone, exiting.\n");
             break;
         }
-        (void)rest.after_turn(bus);
+        (void)wait.after_turn(rest.quiet_ms(bus));
     }
     said_last.lines = tally.lines();
-    said_last.lines.push_back("rested " + std::to_string(rest.rests()) + " times between turns");
+    said_last.lines.push_back("rested " + std::to_string(wait.lasted()) +
+                              " times between turns until the Timer's deadline, and was woken " +
+                              std::to_string(wait.woken()) + " times before it");
     return 0;
 }

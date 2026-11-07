@@ -21,7 +21,10 @@ grant. Its own answers are to the asker alone, and a guest is never told another
 
 When a connection ends, the door closes the input session its guest held, on the guest's behalf,
 lets go of the ask for the plan the guest was holding, and the observation relay beside it forgets
-the guest's subscriptions. The door does its work on a beat of its own from the Timer.
+the guest's subscriptions. The door does its work on a beat of its own from the Timer, or, where a
+host's one wait holds what the crossing waits on -- its listener, every guest and what it owes them
+-- when that wait says the crossing is ready; it then lets its beat go, keeping it only while an
+ask for the plan waits for the plan to come to rest.
 
 ## Use
 
@@ -124,10 +127,16 @@ inventory when a connection came, changed or went. Shape: [`timer/vocabulary.hpp
 `TimerResolution` v1, from the Timer: what it made of the door's ask for its beat. Shape:
 [`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
 
+### `loom.host.Waited`
+
+`loom.host.Waited` v1, from the host alone: its one wait holds the door's claim, so the beat stops;
+holds it no longer, so the beat runs again; or the crossing is ready, and the door does what its
+beat does at once. From any participant it is nothing.
+
 ## Follow
 
 The door publishes the inventory from `zengine.guests`, `GuestConnections` v1, v2 and v3 together,
-on each beat on which a connection came, changed or went, and once on its first beat, empty or not.
+on each service in which a connection came, changed or went, and once on its first, empty or not.
 A connection that closed is said `closed` once, then dropped. The publications carry every row's
 powers and losses, so they are for Workshop's own participants: no guest observes them, and the
 relay refuses a guest that asks, `guest '<name>' may not observe GuestConnections v<n>: it says every

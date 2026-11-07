@@ -58,3 +58,16 @@ deadlines — [TIMER-03](timer-laws.md)); your `preferred/fallback`
 choice is honored per timer, and the receipt tells you what actually happened.
 Deeper: [the Timer's manual](zengine.timer.md), every message it accepts and what it does when
 it is replaced.
+
+## What the cap bounds
+
+A host rests between turns until what is due next, so no firing is late for the rest. With
+nothing due it rests at most `kBeatCapMs` (`timer/vocabulary.hpp`), and that bound is a safety net,
+not a source's lateness: a host that rests in Loom's one wait (`loom::host::Reactor`) wakes at once
+for every source the wait holds -- a window, the Input office, a Neovim pane, the guest door each
+claim what they wait on -- and a source the wait does not hold keeps a beat of its own
+([`timer/held_beat.hpp`](../held_beat.hpp)). So the cap is the longest that anything neither waited
+on nor due goes unseen, and the one turn a second an idle host keeps.
+
+A suite's virtual clock that books each beat as elapsed may name a shorter step (`step_ms`), so
+virtual seconds pass in many beats; a host's clock has none.

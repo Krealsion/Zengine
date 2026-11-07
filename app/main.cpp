@@ -13,6 +13,7 @@
 #include "workshop/bus_tally.hpp"
 
 #include <zen/host/line_input.hpp>
+#include <zen/host/reactor.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -83,12 +84,18 @@ int main(int argc, char** argv) {
     }
     host.begin();
 
-    // The console: a turn of the bus, then a line if one is whole, waiting for it as long as the
-    // Timer's beat lets the bus rest (timer/rest.hpp). The bus is never drained, since a live Timer
+    // The console: a turn of the bus, then one wait on the console's next line and every source
+    // the plan's offices say they wait on, as long as the Timer's beat lets the bus rest
+    // (timer/rest.hpp), then a line if one is whole. The bus is never drained, since a live Timer
     // re-arms its beat at every turn (`pump_pending`, MSG-09).
     loom::host::LineInput console;
     zengine::timer::MonotonicClock clock;
     zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
+    loom::host::Reactor wait(bus);
+    namespace load = zengine::workshop::load;
+    for (const std::string& office : load::plan_offices(host.executor().plan())) {
+        wait.trust(office);
+    }
     bool console_open = true;
     while (!host.ended()) {
         bus.pump_pending();
@@ -99,9 +106,11 @@ int main(int argc, char** argv) {
         const bool idle = bus.pending() == 0;
         const std::int64_t quiet = rest.quiet_ms(bus);
         // A load in flight is answered within turns of the bus: the next line waits for it, so a
-        // line typed ahead is read against the plan as that load left it.
+        // line typed ahead is read against the plan as that load left it, and the wait does not
+        // wake for it meanwhile.
         if (!idle && host.executor().state() == zengine::workshop::load::Realization::Loading) {
-            clock.nap_ms(quiet);
+            wait.watch(nullptr);
+            (void)wait.after_turn(quiet);
             continue;
         }
         if (!console_open) {
@@ -118,11 +127,14 @@ int main(int argc, char** argv) {
                 std::cout.flush();
                 return waiting ? 5 : host.exit_code();
             }
-            clock.nap_ms(quiet);
+            wait.watch(nullptr);
+            (void)wait.after_turn(quiet);
             continue;
         }
+        wait.watch(&console);
+        (void)wait.after_turn(idle ? kIdleWaitMs : quiet);
         std::string line;
-        switch (console.read(&line, idle ? kIdleWaitMs : static_cast<int>(quiet))) {
+        switch (console.read(&line, 0)) {
         case loom::host::LineInput::Status::Line: host.command(line); break;
         case loom::host::LineInput::Status::TooLong:
             std::cout << "zengine-app - line " << console.too_long().line << " is longer than "

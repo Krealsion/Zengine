@@ -235,6 +235,18 @@ public:
         return out;
     }
 
+    /// Whether what SDL reads arrives as this thread's own window messages, so a wait on the
+    /// thread's message queue hears it: Windows' own video driver, once the window stands. Every
+    /// other driver is read only by asking it.
+    bool waits_on_messages() const {
+#if defined(_WIN32)
+        const char* driver = SDL_GetCurrentVideoDriver();
+        return window_ != nullptr && driver != nullptr && std::string_view(driver) == "windows";
+#else
+        return false;
+#endif
+    }
+
     /// What SDL's queue holds, emptied in queue order: keys and their releases, their text, and
     /// the pointer's moves, buttons and wheel translated; a close asked of the window or of the
     /// application is said; an uncovered or resized window asks to be drawn again. Nothing the

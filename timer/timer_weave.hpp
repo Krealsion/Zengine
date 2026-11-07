@@ -64,6 +64,14 @@ inline constexpr bool can_advance_serial(std::int64_t serial) {
 template <class C>
 concept ElapsingClock = requires(C c, std::int64_t ms) { c.elapse_ms(ms); };
 
+/// A virtual clock that says the longest one beat books when nothing is due sooner (`step_ms`, 0
+/// or less for `kBeatCapMs`), so a suite counts its virtual seconds in short beats. The OS clock
+/// has none: a host rests the cap.
+template <class C>
+concept SteppingClock = ElapsingClock<C> && requires(const C c) {
+    { c.step_ms() } -> std::convertible_to<std::int64_t>;
+};
+
 /// Six honest counters, poke-inspectable: beats, firings, timers standing, asks dropped for
 /// having nobody to answer, operations dropped from a full bootstrap hold, and entries this
 /// incarnation began with (`inherited`: restored from a predecessor's letter or carried through a
@@ -676,9 +684,16 @@ private:
         mail.send(op.sender, TimerResolution{op.id, resolved, std::move(reason)});
     }
 
-    /// How long from `now` until something is due: the soonest deadline, at most `kBeatCapMs`.
+    /// How long from `now` until something is due: the soonest deadline, at most `kBeatCapMs` (a
+    /// stepping virtual clock's step, where it says one).
     std::int64_t wait_from(std::int64_t now) const {
         std::int64_t wait = kBeatCapMs;
+        if constexpr (SteppingClock<Clock>) {
+            const std::int64_t step = static_cast<std::int64_t>(clock_.step_ms());
+            if (step > 0) {
+                wait = std::min(wait, step);
+            }
+        }
         for (const Entry& e : entries_) {
             wait = std::min(wait, e.next_due - now);
         }

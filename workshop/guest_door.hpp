@@ -10,6 +10,7 @@
 // the bus. Not authority: every guest's send is checked at the bus under the guest's own grant.
 
 #include "guest_seam_vocabulary.hpp"
+#include "timer/held_beat.hpp"
 #include "guests.hpp"
 #include "pane_operation.hpp" // the question about a sender's scope, and its answer
 
@@ -55,11 +56,12 @@ using GuestDoorBase =
     GuestDoor, GuestDoorState,
     loom::Accept<GuestConnectionsRequested, v2::GuestConnectionsRequested,
                  v3::GuestConnectionsRequested, GuestRowDescribedRequested,
-                 v2::GuestRowDescribedRequested, GuestPlanRequested, ActorScopeRequested>,
+                 v2::GuestRowDescribedRequested, GuestPlanRequested, ActorScopeRequested,
+                 loom::host::Waited>,
     loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections, GuestRowDescribed,
                v2::GuestRowDescribed, GuestPlanSaid, ActorScopeJudged, loom::Refused,
                input::InputSessionClosed>,
-    zengine::timer::TimedWeave>;
+    zengine::timer::TimedWeave, loom::Claims<loom::host::WaitSet>>;
 
 class GuestDoor final : public GuestDoorBase {
 public:
@@ -78,6 +80,19 @@ public:
     }
 
     using GuestDoorBase::on;
+
+    /// What the host's one wait said about the door: a connection, a guest's bytes or an answer
+    /// the crossing owes is ready, so the door serves now; or the wait holds the door's claim, or
+    /// no longer does, so its beat stops or runs (timer/held_beat.hpp).
+    void on(const loom::host::Waited& w, loom::Mail& mail) {
+        if (waited_.hear(w, mail)) {
+            on_beat(zengine::timer::TimerFired{}, mail);
+        }
+    }
+
+    /// After every delivery, whatever it changed: what the crossing waits on is claimed and the
+    /// beat run as that leaves it (`settle_wait`); an ask held for the plan keeps it running.
+    void after_delivery(loom::Mail& mail) { settle_wait(mail); }
 
     /// A presenter that just arrived asks; it is answered with the inventory as it stands.
     void on(const GuestConnectionsRequested&, loom::Mail& mail) {
@@ -446,11 +461,20 @@ private:
         let_go_.clear();
     }
 
+    /// What the crossing waits on claimed as this office after every delivery (Loom's
+    /// `BridgeServer::wait_set`: the listener, every guest and what the crossing owes), and the
+    /// beat run as the host's wait leaves it: stopped while the wait holds the claim, running while
+    /// it does not and while an ask waits for the plan to come to rest, which only a look can see.
+    void settle_wait(loom::Mail& mail) {
+        waited_.settle(mail, kGuestsRole, server_->wait_set(), !held_.empty(), beat_);
+    }
+
     std::string listen_;
     guests::GuestsFile file_;
     std::shared_ptr<guests::AdmittedRows> admitted_;
     std::unique_ptr<loom::BridgeServer> server_;
     GuestDoorBase::Handle beat_;
+    zengine::timer::HeldBeat waited_; ///< whether a host's one wait holds this office's claim
     bool dirty_ = true; ///< the first beat says the inventory once, empty or not
     std::vector<loom::WeaveId> gone_;
     std::function<void(loom::WeaveId)> when_gone_;

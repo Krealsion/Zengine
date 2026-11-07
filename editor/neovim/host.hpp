@@ -405,6 +405,20 @@ public:
     /// The one bounded wait: until output may be available, Neovim has gone, or `ms` passed.
     bool wait(int ms) { return alive() ? child_.wait(ms) : true; }
 
+    /// What that wait waits on, for a host's one wait to hold instead: nothing while no Neovim
+    /// runs. `*now` when there may be output already.
+    loom::host::WaitSet wait_set(bool* now) const {
+        *now = false;
+        if (phase_ == Phase::Idle || !child_.holds()) {
+            return loom::host::WaitSet{};
+        }
+        return child_.wait_set(now);
+    }
+
+    /// Whether this host must be pumped on time whatever Neovim says: a question asked for later
+    /// waits out its bound, and bytes the pipe has not taken are written, only when it pumps.
+    bool on_time() const noexcept { return !later_.empty() || session_.outbound_size() > 0; }
+
     const Grid& grid() const noexcept { return grid_; }
     /// The screen's flushes when the last answer `ask` returned arrived: what Neovim drew before it
     /// answered, and nothing it drew after, though one read brought both.

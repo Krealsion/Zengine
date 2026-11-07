@@ -12,9 +12,9 @@ once with [TimedWeave](timed-weaves.md) and never sends these itself.
 The Timer is the one place in the running system that keeps time, in beats, its own `Drive`
 messages, one chain from each activation: loading it is what starts time, and no host winds it.
 Each beat fires what is due and sends the next, and sleeps nowhere: the host rests between turns
-while the next beat is all its bus holds ([`timer/rest.hpp`](../rest.hpp)), never past
-`kBeatCapMs` (`timer/vocabulary.hpp`), the most a firing can be late. A repeating timer that came
-due late fires once and keeps its rhythm.
+while the next beat is all its bus holds ([`timer/rest.hpp`](../rest.hpp)), until what is due,
+at most `kBeatCapMs` ([what it bounds](timers.md#what-the-cap-bounds)). A repeating timer that
+came due late fires once and keeps its rhythm.
 
 A delay is normalized before it is scheduled, by the rule `timer.normalize_delay`
 ([`timer/normalize.hpp`](../normalize.hpp)): a repeating delay below 1 ms becomes 1, a one-shot

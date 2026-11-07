@@ -12,6 +12,7 @@
 // (graphics/window/window_terminal.hpp), light in an OS window (graphics/window/window_sdl.hpp).
 
 #include "graphics/painting.hpp"
+#include "timer/held_beat.hpp"
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/compose.hpp"
 #include "graphics/window/palette.hpp"
@@ -111,14 +112,14 @@ using WindowBase = typename zengine::With<
                  ElementCodeOffered, PaletteOffered, GraphicsReady, WindowShowAsked, AreaShowAsked,
                  zengine::input::AttributedInput, ClipboardCopy, ClipboardTextRequested,
                  SurfacePlacementRemembered, PumpSurface, SurfaceCaptureRequested,
-                 SurfaceCaptureChunkRequested, WindowShaped>,
+                 SurfaceCaptureChunkRequested, WindowShaped, loom::host::Waited>,
     loom::Emit<DrawnRefused, WindowOffered, AreaRoom, AreaKeyPressed, AreaKeyReleased,
                AreaTextEntered, ActionRequested, AreaButtonChanged, AreaPointerMoved,
                AreaWheelTurned, AreaPressed, AreaHoldEnded, AreaPointerLeft, AreaHandRefused,
                WindowShown, AreaShown, AreaSettled,
                SurfaceCloseRequested, SurfacePlacement, ClipboardText, SurfaceCaptured,
                SurfaceCaptureChunk, loom::Refused>,
-    zengine::timer::TimedWeave>;
+    zengine::timer::TimedWeave, loom::Claims<loom::host::WaitSet>>;
 
 /// The window over `Medium`, which names it (`kWindow`), carries its manual (`kManual`), and
 /// keeps, paints, shows, lands and reads what the window asks of it.
@@ -474,6 +475,18 @@ public:
     /// The beat's work, asked for now.
     void on(const PumpSurface&, loom::Mail& mail) { service_pump(mail); }
 
+    /// What the host's one wait said about this window: ready, so it looks now; or that it holds
+    /// the window's claim, or no longer does, so its beat stops or runs (timer/held_beat.hpp).
+    void on(const loom::host::Waited& w, loom::Mail& mail) {
+        if (held_.hear(w, mail)) {
+            service_pump(mail);
+        }
+    }
+
+    /// After every delivery, whatever it changed: what the window waits on is claimed and its beat
+    /// run as that leaves it (`settle_wait`).
+    void after_delivery(loom::Mail& mail) { settle_wait(mail); }
+
     /// A picture of what the window last presented: now, or on the showing that passes
     /// `after_frame`, the window's showings its frame count; one may wait at a time.
     void on(const SurfaceCaptureRequested& asked, loom::Mail& mail) {
@@ -623,6 +636,21 @@ private:
             (void)mail.as_role(office()).publish(SurfaceCloseRequested{});
         }
         settle(mail, false);
+    }
+
+    /// What this window waits on claimed as its office after every delivery, and its beat run as
+    /// the host's wait leaves it: stopped while the wait holds the claim, running while it does
+    /// not, while the medium cannot be waited on, and while the medium must look again soon.
+    void settle_wait(loom::Mail& mail) {
+        std::optional<loom::host::WaitSet> set;
+        bool on_time = false;
+        if constexpr (requires { medium_.wait_set(); }) {
+            set = medium_.wait_set();
+        }
+        if constexpr (requires { medium_.on_time(); }) {
+            on_time = medium_.on_time();
+        }
+        held_.settle(mail, office(), set, on_time, pump_);
     }
 
     /// A hand: the weaver's own, which the platform gives, or a participant's the input office
@@ -1373,6 +1401,7 @@ private:
 
     Medium medium_;
     typename WindowBase<Medium>::Handle pump_;
+    zengine::timer::HeldBeat held_; ///< whether a host's one wait holds this window's claim
     std::map<HoldKey, Hold> holds_;
     /// The presses whose area the window withdrew or handed over while held, until their release:
     /// it reaches nobody. A hold an area in front ended is released where it lands.

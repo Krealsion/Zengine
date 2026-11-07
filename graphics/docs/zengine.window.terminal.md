@@ -277,6 +277,13 @@ again.
 `TimerResolution` v1, from the Timer: what became of the window's order for its beat, kept by its
 timer binding.
 
+### `loom.host.Waited`
+
+`loom.host.Waited` v1, from the host alone, about what the window claims it waits on after every
+delivery (`loom.host.WaitSet`): its terminal's input, and on POSIX a resize. Held, the beat stops,
+running again only while a lone Escape waits; let go, it runs; ready, the window does what its
+beat does at once. From any participant it is nothing.
+
 ### `ClipboardCopy`
 
 `ClipboardCopy` v1, a weaver's copy: the text written to the terminal as its copy sequence, OSC 52,

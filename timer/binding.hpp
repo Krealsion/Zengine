@@ -197,7 +197,7 @@ public:
     std::size_t size() const { return bindings_.size(); }
 
 private:
-    template <class S, class State, class A, class E, class D>
+    template <class S, class State, class A, class E, class D, class C>
     friend class TimedWeave;
     friend class TimerHandle<Self>;
 
@@ -320,14 +320,14 @@ private:
 };
 
 /// The authoring base: `WeaveBase` plus the Timer protocol, already handled. The author's own
-/// Accept/Emit get the binding's prepended; the manifest carries the composed contract and no
-/// wildcard, widened grant or undeclared emission.
+/// Accept/Emit get the binding's prepended, and its Claims pass through as they stand; the
+/// manifest carries the composed contract and no wildcard, widened grant or undeclared emission.
 template <class Self, class State, class AcceptList, class EmitList = loom::Emit<>,
-          class Dispatch = Self>
+          class Dispatch = Self, class ClaimList = loom::Claims<>>
 class TimedWeave;
 
-template <class Self, class State, class... A, class... E, class Dispatch>
-class TimedWeave<Self, State, loom::Accept<A...>, loom::Emit<E...>, Dispatch>
+template <class Self, class State, class... A, class... E, class Dispatch, class... C>
+class TimedWeave<Self, State, loom::Accept<A...>, loom::Emit<E...>, Dispatch, loom::Claims<C...>>
     : public loom::WeaveBase<
           Dispatch, State,
           typename zengine::detail::UnionLists<
@@ -335,7 +335,8 @@ class TimedWeave<Self, State, loom::Accept<A...>, loom::Emit<E...>, Dispatch>
               loom::Accept<A...>>::type,
           typename zengine::detail::UnionLists<
               loom::Emit<EnsureTimer, EnsureRoleTimer, CancelTimer>,
-              loom::Emit<E...>>::type> {
+              loom::Emit<E...>>::type,
+          loom::Claims<C...>> {
 public:
     using Bindings = TimerBindings<Self>;
     using Handle = TimerHandle<Self>;

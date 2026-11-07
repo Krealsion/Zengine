@@ -52,7 +52,11 @@ power may send the four session shapes, and Workshop closes a gone guest's sessi
 The weave keeps its own beat. When it is activated, and whenever the Timer says it is ready, it asks
 the Timer for a repeating beat, `zengine.input.pump`, every `kPumpBeatMs` milliseconds
 (`EnsureRoleTimer`, addressed to its office, so a successor inherits it), and each beat polls the
-platform once ([the Timer binding](../../timer/docs/timer-binding.md)).
+platform once ([the Timer binding](../../timer/docs/timer-binding.md)). After every look it claims,
+as its office, what its reader waits on (`loom.host.WaitSet` v1): the terminal's input while it
+reads it, nothing while a window holds it. Where a host's one wait holds that claim it reads when
+the wait says the terminal is ready, and lets its beat go, keeping it only while a timed motion
+plays or a lone `ESC` waits to be released ([`Waited`](#loomhostwaited)).
 
 
 ## Commands
@@ -160,6 +164,12 @@ beat again, which keeps the one beat it has rather than adding a second.
 
 `TimerResolution` v1, from the Timer: what it made of the weave's order for its beat, kept by the
 binding and answered with nothing.
+
+### `loom.host.Waited`
+
+`loom.host.Waited` v1, from the host alone: its one wait holds the office's claim, so the beat
+stops; holds it no longer, so the beat runs again; or the terminal is ready, and the weave polls
+it once, as a beat does. From any participant it is nothing.
 
 ## Follow
 

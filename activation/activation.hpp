@@ -181,9 +181,7 @@ template <template <class...> class Base, class Self, class Dispatch, class Stat
 struct SelectBase<
     Base, Self, Dispatch, State, AcceptList, EmitList, ClaimList,
     std::void_t<typename Base<Self, State, AcceptList, EmitList, Dispatch>::Bindings>> {
-    static_assert(std::is_same_v<ClaimList, loom::Claims<>>,
-                  "zengine::With: a weave over timer::TimedWeave declares no claims");
-    using type = Base<Self, State, AcceptList, EmitList, Dispatch>;
+    using type = Base<Self, State, AcceptList, EmitList, Dispatch, ClaimList>;
 };
 
 /// The second, defaulted parameter of the facet's own publication hook: a weave's handler takes

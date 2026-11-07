@@ -12,6 +12,8 @@
 // refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
+#include "weavelib/virtual_step.hpp" // the virtual Timer's beat
+
 #include "logic.hpp"
 #include "pilot.hpp"
 #include "vocabulary.hpp"
@@ -1114,7 +1116,7 @@ struct Timed {
 
     /// A stretch of virtual time: each beat of the virtual Timer is `kBeatCapMs` of it.
     void pump_for(std::int64_t ms) {
-        stop_after = drives + ms / zengine::timer::kBeatCapMs;
+        stop_after = drives + ms / zengine::testing::kVirtualStepMs;
         Hush hush;
         r.bus.drain_until_idle();
         stop_after = -1;
@@ -1123,7 +1125,7 @@ struct Timed {
     /// Until the answer to `corr` arrives, bounded by a hundred beats.
     void pump_until(std::uint64_t corr) {
         stop_on = corr;
-        pump_for(100 * zengine::timer::kBeatCapMs);
+        pump_for(100 * zengine::testing::kVirtualStepMs);
         stop_on = 0;
     }
 

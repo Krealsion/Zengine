@@ -8,8 +8,10 @@
 // repository asks an operating system how big a terminal is (the only `#if defined(_WIN32)` the
 // terminal medium needs), the modes a painter takes and gives back, the ink it shows a colour in, the
 // copy sequence, and the claim itself, held for exactly its owner's lifetime. Read by the terminal
-// window. Asked, not watched: no SIGWINCH handler and no thread, since a painter asks on its beat,
-// which is prompt enough. Reference: graphics/docs/zengine.window.terminal.md.
+// window, which asks the size each time it looks. On POSIX a resize also writes a pipe
+// (`ResizeWatch`) that a host's one wait holds, so a resize wakes the painter that asks; on Windows
+// a resize is a console input record, which wakes it the same way. Reference:
+// graphics/docs/zengine.window.terminal.md.
 
 #include <array>
 #include <cstdint>
@@ -26,6 +28,9 @@
 #endif
 #include <windows.h>
 #elif defined(__unix__) || defined(__APPLE__)
+#include <cerrno>
+#include <csignal>
+#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #else
@@ -79,6 +84,94 @@ inline TerminalSize native_terminal_size() noexcept {
     return TerminalSize{};
 #endif
 }
+
+#if defined(__unix__) || defined(__APPLE__)
+
+/// A RESIZE, WRITTEN TO A PIPE: while one stands, a `SIGWINCH` writes a byte to its read end's
+/// pipe, so a host's wait on that end wakes whoever asks the size. It stands for exactly its
+/// owner's life, and puts back the handler it found when it goes, so an unloaded weave leaves no
+/// handler of its own behind; one already there is still called. One at a time: a second gives
+/// nothing to wait on.
+class ResizeWatch {
+public:
+    ResizeWatch() {
+        if (write_fd() >= 0) {
+            return; // another stands
+        }
+        int fds[2] = {-1, -1};
+        if (::pipe(fds) != 0) {
+            return;
+        }
+        for (const int fd : fds) {
+            (void)::fcntl(fd, F_SETFL, ::fcntl(fd, F_GETFL) | O_NONBLOCK);
+            (void)::fcntl(fd, F_SETFD, FD_CLOEXEC);
+        }
+        struct sigaction on {};
+        on.sa_handler = &ResizeWatch::on_resize;
+        on.sa_flags = SA_RESTART;
+        sigemptyset(&on.sa_mask);
+        write_fd() = fds[1];
+        if (::sigaction(SIGWINCH, &on, &previous()) != 0) {
+            write_fd() = -1;
+            ::close(fds[0]);
+            ::close(fds[1]);
+            return;
+        }
+        read_ = fds[0];
+        write_ = fds[1];
+    }
+    ~ResizeWatch() {
+        if (read_ < 0) {
+            return;
+        }
+        (void)::sigaction(SIGWINCH, &previous(), nullptr);
+        write_fd() = -1;
+        ::close(read_);
+        ::close(write_);
+    }
+    ResizeWatch(const ResizeWatch&) = delete;
+    ResizeWatch& operator=(const ResizeWatch&) = delete;
+
+    /// The read end, or -1 when no watch stands here.
+    int fd() const noexcept { return read_; }
+    /// What the resizes since the last look wrote, read away.
+    void drain() const noexcept {
+        if (read_ < 0) {
+            return;
+        }
+        char buf[64];
+        while (::read(read_, buf, sizeof buf) > 0) {
+        }
+    }
+
+private:
+    static int& write_fd() noexcept {
+        static int fd = -1;
+        return fd;
+    }
+    static struct sigaction& previous() noexcept {
+        static struct sigaction was {};
+        return was;
+    }
+    static void on_resize(int sig) {
+        const int saved = errno;
+        if (write_fd() >= 0) {
+            const char one = 1;
+            (void)!::write(write_fd(), &one, 1);
+        }
+        const struct sigaction& was = previous();
+        if ((was.sa_flags & SA_SIGINFO) == 0 && was.sa_handler != SIG_DFL &&
+            was.sa_handler != SIG_IGN && was.sa_handler != nullptr) {
+            was.sa_handler(sig);
+        }
+        errno = saved;
+    }
+
+    int read_ = -1;
+    int write_ = -1;
+};
+
+#endif
 
 /// The sixteen inks a terminal shows, by name, in the order their codes count (30 to 37, then the
 /// bright ones, 90 to 97), each with the colour a terminal shows it in by default (xterm's).

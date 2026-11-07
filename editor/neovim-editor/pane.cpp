@@ -33,6 +33,7 @@
 // three share: the bounds and names, the arithmetic and the records of its conversations.
 
 #include "editor/neovim-editor/common.hpp"
+#include "timer/held_beat.hpp"
 #include "editor/neovim-editor/vocabulary.hpp"
 
 #include "editor/neovim/host.hpp"
@@ -142,7 +143,7 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                  ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                  ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
                  graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
-                 graphics::AreaWheelTurned, graphics::AreaHoldEnded>,
+                 graphics::AreaWheelTurned, graphics::AreaHoldEnded, loom::host::Waited>,
     loom::Emit<PaneOffered, ws::v3::PaneActions,
                ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                PaneQuitAnswered, SourceOpened, ws::v3::SourcePrepared,
@@ -152,7 +153,7 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused,
                ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
                graphics::Drawn, graphics::RoomAsked, ws::v2::PaneSettingsDeclared>,
-    loom::WeaveBase, loom::Claims<EditorDocument>>;
+    loom::WeaveBase, loom::Claims<EditorDocument, loom::host::WaitSet>>;
 
 // WL-NVIM-01 -- agents/workshop/neovim.md
 class NeovimEditorWeave : public NeovimEditorBase {
@@ -207,7 +208,7 @@ public:
     }
 
     void on(const timer::TimerReady&, loom::Mail& mail) {
-        if (activation_.activated()) {
+        if (activation_.activated() && beating_) {
             ensure_beat(mail);
         }
     }
@@ -217,6 +218,18 @@ public:
             return;
         }
         pump(mail);
+    }
+
+    /// What the host's one wait said about this office: Neovim is ready to be read, so the pane
+    /// pumps now; or the wait holds the pane's claim, or no longer does, so the beat stops or runs
+    /// (timer/held_beat.hpp).
+    void on(const loom::host::Waited& w, loom::Mail& mail) {
+        if (!activation_.activated()) {
+            return;
+        }
+        if (waited_.hear(w, mail)) {
+            pump(mail);
+        }
     }
 
     /// WHAT THE TIMER DID ABOUT THE BEAT. A refusal is said on the pane: without the beat, Neovim's
@@ -551,6 +564,7 @@ public:
             say(mail);
         }
         claim_document(mail);
+        settle_wait(mail);
     }
 
     // ---- A switch: this editor as the incumbent (WL-SWITCH-04), in opening_switch.hpp -----------
@@ -832,6 +846,7 @@ private:
     /// the remaining time of a standing schedule, accept a restart -- spelled by the Timer
     /// vocabulary, because the Timer refuses an order whose continuity it cannot read.
     void ensure_beat(loom::Mail& mail) {
+        beating_ = true;
         const timer::ContinuityOrder order;
         (void)mail.send_to_role(timer::kTimerRole,
                                 timer::EnsureTimer{kBeatId, kBeatMs, true, timer::spelling_of(order.preferred),
@@ -850,6 +865,25 @@ private:
         }
         settle_readies(mail);
         hear(mail);
+    }
+
+    /// What Neovim's pipes wait on claimed as this office after every delivery, and the beat run as
+    /// the host's wait leaves it: stopped while the wait holds the claim, running while it does not
+    /// and while the pane must pump on time -- output a read left, a question waiting out its
+    /// bound, bytes the pipe has not taken, a Neovim not yet ready by its bound.
+    void settle_wait(loom::Mail& mail) {
+        bool now = false;
+        const loom::host::WaitSet set =
+            host_ != nullptr ? host_->wait_set(&now) : loom::host::WaitSet{};
+        const bool on_time =
+            now || !readies_.empty() || (host_ != nullptr && host_->on_time());
+        const bool beats = waited_.settle(mail, nve::kEditorOffice, set, on_time);
+        if (beats && !beating_) {
+            ensure_beat(mail);
+        } else if (!beats && beating_) {
+            beating_ = false;
+            (void)mail.send_to_role(timer::kTimerRole, timer::CancelTimer{kBeatId});
+        }
     }
 
     // WL-NVIM-07 -- agents/workshop/neovim.md
@@ -1199,6 +1233,8 @@ private:
     std::shared_ptr<std::vector<Arrival>> inbox_ = std::make_shared<std::vector<Arrival>>();
     std::size_t asking_ = 0;
     bool hearing_ = false;
+    bool beating_ = false;          ///< the beat is asked of the Timer
+    zengine::timer::HeldBeat waited_; ///< whether a host's one wait holds this office's claim
     /// What waits for a starting Neovim, and until when.
     std::vector<Ready> readies_;
     std::chrono::steady_clock::time_point ready_by_{};
