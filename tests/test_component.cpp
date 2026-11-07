@@ -123,8 +123,8 @@ TEST_CASE("component: a character takes the columns its width class gives, the o
     const std::string grin = "\xF0\x9F\x98\x80";   // U+1F600, four bytes
     const std::string line = e_acute + zhe + zhong + "e" + acute + grin;
 
-    CHECK(code_point_at(e_acute, 0) == U'é');
-    CHECK(code_point_at(grin, 0) == U'\U0001F600');
+    CHECK(code_point_at(e_acute, 0) == char32_t{0xE9});
+    CHECK(code_point_at(grin, 0) == char32_t{0x1F600});
     CHECK(character_columns(e_acute, 0) == 1);
     CHECK(character_columns(zhe, 0) == 1);
     CHECK(character_columns(zhong, 0) == 2);

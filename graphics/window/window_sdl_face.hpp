@@ -265,7 +265,7 @@ public:
             const char32_t cp = component::code_point_at(text, i);
             i = end;
             const int cols = w > 0 ? w : 1;
-            if (w > 0 && cp != U' ' && cp != U'\u3000') {
+            if (w > 0 && cp != char32_t{0x20} && cp != char32_t{0x3000}) {
                 if (const Glyph* gl = glyph(cluster, cp, pt, bold)) {
                     SDL_SetTextureColorMod(gl->texture, r, g, b);
                     SDL_SetTextureAlphaMod(gl->texture, a);
