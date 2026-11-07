@@ -171,7 +171,7 @@ pane draws them, in a window and in a terminal alike -- here the standard Editor
 
 ![The standard Editor with "total" selected and the caret after it, above Neovim with "total" selected in Visual mode, in a window](images/editors-caret-selection-window.png)
 
-![The same two Editors in a 120 x 30 terminal: the selection in reverse video, the standard Editor's caret on the cell after it](images/editors-caret-selection-terminal.png)
+![The same two Editors in a 120 x 30 terminal: total selected in each, drawn in the look's highlight ink, the standard Editor's caret on the cell after it](images/editors-caret-selection-terminal.png)
 
 The editing keys are the Editor's own mechanics and are **not remappable**; the six that *are*
 keymap rows are the pane's declared commands ([Commands](zengine.editor.md#commands)) and remap
