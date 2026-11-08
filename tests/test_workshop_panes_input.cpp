@@ -1981,10 +1981,10 @@ struct ComposeRig {
     void select(const std::string& role, const std::string& library) {
         select_as(kIntroRole, role, library);
     }
-    void select_as(const std::string& role, const std::string& role,
+    void select_as(const std::string& speaker, const std::string& role,
                    const std::string& library) {
-        selector->next = [role, role, library](Selector& s, loom::Mail& m) {
-            s.say(m, role, intro::LoadedSelected{"loaded", library, role});
+        selector->next = [speaker, role, library](Selector& s, loom::Mail& m) {
+            s.say(m, speaker, intro::LoadedSelected{"loaded", library, role});
         };
         (void)r.bus.send(selector_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));

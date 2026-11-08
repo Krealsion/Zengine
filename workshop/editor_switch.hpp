@@ -630,7 +630,7 @@ private:
         op_.image = host_.image_of ? host_.image_of(op_.destination_stem) : std::string();
         op_.txn.emplace(*host_.bus, *host_.kernel);
         loom::PreparedReplacement::Start start;
-        start.operator_id = self();
+        start.initiator_id = self();
         start.coordinator = self();
         start.role = host_.role;
         start.candidate_name = op_.destination_stem;

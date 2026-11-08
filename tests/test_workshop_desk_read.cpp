@@ -1019,8 +1019,8 @@ TEST_CASE("a picture of long words under a part a row, as many as a window keeps
 
 TEST_CASE("a capture guest reads a high-text picture whole over the bridge, page by page, and its connection answers the next ask") {
     ReadRig d;
-    const std::string role = "zengine.test.read-high";
-    open_high_text(d, role);
+    const std::string read_role = "zengine.test.read-high";
+    open_high_text(d, read_role);
 
     // WORKSHOP'S OWN DOOR on the rig's bus, a row of the guests file holding `capture`.
     guests::GuestsFile file;
@@ -1075,14 +1075,14 @@ TEST_CASE("a capture guest reads a high-text picture whole over the bridge, page
     REQUIRE(read.ok());
     const DeskRead desk = loom::from_value<DeskRead>(read.value());
     const auto stamp = std::find_if(desk.stamps.begin(), desk.stamps.end(), [&](const PaneStamp& st) {
-        return st.provider == role && st.pane == kReadPane;
+        return st.provider == read_role && st.pane == kReadPane;
     });
     REQUIRE(stamp != desk.stamps.end());
     std::vector<PaneView> pages;
     std::uint64_t correlation = 2;
     for (std::int64_t from = 0;; ++correlation) {
         REQUIRE_MESSAGE(ask("zengine.workshop", correlation,
-                            loom::to_value(PaneViewRequested{role, kReadPane, from, *stamp})),
+                            loom::to_value(PaneViewRequested{read_role, kReadPane, from, *stamp})),
                         "the page from " << from << " never came; the connection "
                                          << (guest.disconnected() ? "ended" : "is still open"));
         const std::string& payload = answers[correlation];
