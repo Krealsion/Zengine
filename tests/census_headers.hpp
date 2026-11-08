@@ -286,7 +286,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::AppActionRow>(), // AppActionRow v1
         shape<::zengine::workshop::AppActions>(), // AppActions v1
         shape<::zengine::composer::ComposerCommandContext>(), // ComposerCommandContext v1
-        shape<::zengine::snake::OperatorState>(), // OperatorState v1
+        shape<::zengine::snake::ConsoleState>(), // ConsoleState v1
         // What crosses the window's two seams, and the operands of the seven operators: bytes in
         // process, in no weave's manifest.
         shape<::zengine::graphics::PaintNode>(), // PaintNode v1

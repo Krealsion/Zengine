@@ -5,7 +5,7 @@
 // world publishes and answers each with one `SnakeTurn`, its choice pilot.hpp's. It never steps
 // the world: the world's own beat is the game's time. When it is activated it takes the wheel,
 // writing the world's `keys` false so a player's keys and the pilot never steer at once; Loom
-// tells no weave it is unloaded, so whoever lands it gives the keys back (the host's operator,
+// tells no weave it is unloaded, so whoever lands it gives the keys back (the host's console,
 // play.cpp). Reference: examples/snake/README.md.
 
 #include "pilot.hpp"

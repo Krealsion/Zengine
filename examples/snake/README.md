@@ -46,15 +46,15 @@ Source: [`examples/snake/`](world.cpp) — world, board, score, pilot, host.
   its own tail ([`pilot.hpp`](pilot.hpp), pure, so the suite flies a mirror of it in lockstep).
   It never steps the world: the world's beat is the game's time. Activated, it takes the wheel,
   writing the world's `keys` false; Loom tells no weave it is unloaded, so whoever lands it gives
-  the keys back -- the operator does, once the kernel's door says the pilot has gone.
+  the keys back -- the console does, once the kernel's door says the pilot has gone.
 - **Host** (`zengine-snake`) owns the boot list and nothing else: the directory, the TUI
   window, the world, the pilot when it flies from birth, and the Timer service, whose loading is
-  what starts time. Its operator weave is the window's arranger -- it offers two of the shipped
+  what starts time. Its console weave is the window's arranger -- it offers two of the shipped
   palettes, night and block, and the board's code from the host's own build, chooses each area's
   palette and places it -- and speaks the status line, which says who steers, with a row of
   `gfx::Button`s beneath it, in an area of its own. The window gives every key to the world and
-  the operator alike, and a press on an operator button to the operator, which makes the same
-  gesture as the key the button names. Every command the operator sends is an ask in its
+  the console alike, and a press on a console button to the console, which makes the same
+  gesture as the key the button names. Every command the console sends is an ask in its
   `loom::AskBook` (`<zen/weave/ask_book.hpp>`), which is bounded: one more than it tracks is
   refused out loud. An answer settles an ask of the manager, or of the kernel's door that lands
   the pilot, when it carries that ask's correlation and its stamp, and an ask of the world's
@@ -66,7 +66,7 @@ mid-game; nothing is drawn again on the bus); `2` loads the score weave; `3` gro
 (graceful v1→v2 migration); `4` asks for a GUI window, and says no window weave draws one: the
 snake's window is the terminal; `5` flies the pilot, and lands it again; `r` reloads the world in
 place; `n` starts a new game through the poke-reset door, which gives the world its defaults, so
-while the pilot flies the operator writes the keys off again; `l` lists; `q` quits. The buttons
+while the pilot flies the console writes the keys off again; `l` lists; `q` quits. The buttons
 beneath the status line, `[1 skin]` to `[q quit]`, do what their keys do. Pressing `[ new game ]`
 with the pointer starts one too, sent to the board as a change, and `[ pause ]` pauses as `p`
 does.
