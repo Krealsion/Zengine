@@ -8,7 +8,8 @@
 
 #include "workshop/layouts/store.hpp"
 
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <algorithm>
 #include <filesystem>

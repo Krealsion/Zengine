@@ -10,7 +10,7 @@
 
 #include "workshop/keymap.hpp"        // `parse_gesture`, an action id's bound
 #include "workshop/pane_settings.hpp" // a setting's key, kinds and text
-#include "workshop/persist.hpp"       // the bounded read and the safe write
+#include "persist/file.hpp"           // the bounded read and the safe write
 #include "workshop/property.hpp"      // `Written`
 
 #include <zen/admission.hpp>
@@ -388,8 +388,8 @@ inline LoadedTheme load_file(const std::string& dir, std::string_view name) {
         return LoadedTheme::no(form.refusal);
     }
     const std::string path = theme_path(dir, name);
-    const workshop::persist::FileText read =
-        workshop::persist::read_file(path, kMaxThemeBytes, "a theme file");
+    const persist::FileText read =
+        persist::read_file(path, kMaxThemeBytes, "a theme file");
     if (!read.outcome.accepted) {
         return LoadedTheme{read.outcome, ThemeFile{}, std::string()};
     }
@@ -423,15 +423,15 @@ save_file(const std::string& dir, ThemeFile theme, bool replace = false,
                                      "` already exists -- pass replace to overwrite it");
     }
     if (there && expected_bytes.has_value()) {
-        const workshop::persist::FileText current =
-            workshop::persist::read_file(path, kMaxThemeBytes, "a theme file");
+        const persist::FileText current =
+            persist::read_file(path, kMaxThemeBytes, "a theme file");
         if (!current.outcome.accepted || current.text != *expected_bytes) {
             return workshop::Written::no("`" + theme.name +
                                          "` changed on disk since it was read -- nothing was "
                                          "written");
         }
     }
-    return workshop::persist::write_file_making_room(path, to_text(std::move(theme)));
+    return persist::write_file_making_room(path, to_text(std::move(theme)));
 }
 
 // ---- Resolution --------------------------------------------------------------------------

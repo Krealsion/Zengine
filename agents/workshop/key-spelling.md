@@ -42,21 +42,20 @@ WHY — `agents/decisions/each-surface-spells-a-key-as-the-weaver-chose.md`
 ## Proven by
 
 ### WL-KEY-13
-`workshop/keymap.hpp` layout.duplicate layout.move-left layout.move-right kNoGesture scan::kUnknown
-is_bound layout.rename
-`workshop/gesture_grammar.hpp` gesture_text
+`workshop/keymap.hpp` layout.duplicate layout.move-left layout.move-right layout.rename
+`input/gesture_grammar.hpp` kNoGesture scan::kUnknown is_bound gesture_text
 `tests/test_workshop_document.cpp` "an action with no default gesture answers to no key, and says
 so"
 `tests/test_workshop_screen.cpp` "shortcut annotations teach only truthful surrounding bindings"
 
 ### WL-KEY-14
-`workshop/gesture_grammar.hpp` gesture_word parse_gesture key_name_of scancode_of_name
+`input/gesture_grammar.hpp` gesture_word parse_gesture key_name_of scancode_of_name
 `tests/test_workshop_document.cpp` "a written gesture is modifier words in one order out, any order
 in, and never twice" "a known backend gap is accepted and said, never silently rewritten" "a
 shift+letter binding swallows the capital its keystroke produced"
 
 ### WL-KEY-16
-`workshop/gesture_grammar.hpp` KeySpelling spell_gesture
+`input/gesture_grammar.hpp` KeySpelling spell_gesture
 `workshop/screen.hpp` Session::band_keys
 `workshop/prefs_persist.hpp` kKeysDefault
 `workshop/screen_hotkeys.cpp` shown_as

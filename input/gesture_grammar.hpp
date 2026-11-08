@@ -1,22 +1,44 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_GESTURE_GRAMMAR_HPP
-#define ZENGINE_WORKSHOP_GESTURE_GRAMMAR_HPP
+#ifndef ZENGINE_INPUT_GESTURE_GRAMMAR_HPP
+#define ZENGINE_INPUT_GESTURE_GRAMMAR_HPP
 
-// How a keymap writes a key and reads one back -- a file's spelling, the band's and a
-// legend's -- and what a backend cannot produce. A part of `workshop/keymap.hpp`, which
-// includes it after the action catalog; nothing else includes it.
+// How a key is written and read back -- a file's spelling, the band's and a legend's -- and
+// what a backend cannot produce: one gesture, a named scancode and its modifier bits, and its
+// grammar, read by the keymap (`workshop/keymap.hpp`) and by a theme's keys (`settings/`).
 // Workshop law: agents/workshop/key-spelling.md (+2 registers; agents/workshop.md routes)
 
-#include "input/vocabulary.hpp"
+#include "vocabulary.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
 
-namespace zengine::workshop {
+namespace zengine::input {
+
+/// One gesture as the wire reports it: a named scancode and the EXACT observed modifier bits.
+// WL-KEY-04 -- agents/workshop/keyboard.md
+struct Gesture {
+    std::int64_t scancode = 0;
+    std::int64_t modifiers = 0;
+
+    friend constexpr bool operator==(const Gesture& a, const Gesture& b) noexcept {
+        return a.scancode == b.scancode && a.modifiers == b.modifiers;
+    }
+};
+
+/// IS THIS A GESTURE A WEAVER CAN PRESS?
+// WL-CTX-06 -- agents/workshop/contextual.md; WL-KEY-13 -- agents/workshop/key-spelling.md
+inline constexpr bool is_bound(const Gesture& g) noexcept {
+    return g.scancode != scan::kUnknown;
+}
+
+/// The declaration a row makes when the action is reachable from a surface that names it
+/// and from no key at all.
+// WL-KEY-13 -- agents/workshop/key-spelling.md
+inline constexpr Gesture kNoGesture{scan::kUnknown, mod::kNone};
 
 // ---- The written gesture grammar ---------------------------------------------------------
 //
@@ -402,6 +424,6 @@ inline std::string expected_text_of(std::int64_t scancode, std::int64_t modifier
     }
 }
 
-} // namespace zengine::workshop
+} // namespace zengine::input
 
-#endif // ZENGINE_WORKSHOP_GESTURE_GRAMMAR_HPP
+#endif // ZENGINE_INPUT_GESTURE_GRAMMAR_HPP

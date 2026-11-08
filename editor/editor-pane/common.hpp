@@ -23,7 +23,8 @@
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include "graphics/vocabulary.hpp"
 

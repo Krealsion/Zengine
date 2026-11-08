@@ -274,8 +274,7 @@ chord the text box owns, whoever wrote it" "a pane's row and an above-the-modes 
 collide unless the pane declares it stands in, in both arrival orders"
 
 ### WL-DESK-08
-`workshop/keymap.hpp` kNoGesture is_bound
-`workshop/gesture_grammar.hpp` parse_gesture
+`input/gesture_grammar.hpp` kNoGesture is_bound parse_gesture
 `tests/test_workshop_panes_actions.cpp` "a weaver's authored row moves an application row, and
 `none` disables it"
 

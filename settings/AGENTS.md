@@ -29,8 +29,8 @@ Its shapes are pinned by `workshop_shapes` (`tests/census_headers.hpp`, `tests/s
 ## Host side
 
 None: no weave holds `zengine.settings`, and Workshop reads no theme. A theme's settings and
-keys are judged by `workshop/pane_settings.hpp` and `workshop/gesture_grammar.hpp`, and its file is
-read and written through `workshop/persist.hpp`.
+keys are judged by `workshop/pane_settings.hpp` and `input/gesture_grammar.hpp`, and its file is
+read and written through `persist/file.hpp`.
 
 ## Pages
 

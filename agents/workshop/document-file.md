@@ -33,7 +33,7 @@ WHY — `agents/decisions/the-document-model.md`
 ## Proven by
 
 ### WL-DOC-15
-`workshop/persist.hpp` read_file write_file pending_path FileText
+`persist/file.hpp` read_file write_file pending_path FileText
 `tests/test_workshop_persistence.cpp` "a missing file is an ordinary refusal, not a crash and not an
 empty file" "a detected write failure leaves the last good save readable and unchanged" "a save into
 a place that does not exist refuses before it writes anything" "a file too large to be what it
@@ -41,7 +41,7 @@ claims is refused before it is read"
 
 ### WL-DOC-22
 `workshop/weave.hpp` HostContext::retired_document
-`workshop/persist.hpp` kRetiredDocumentName
+`workshop/user_paths.hpp` kRetiredDocumentName
 `workshop/weave_handlers.cpp` retired_document
 `workshop/workshop.cpp` retired_document kRetiredDocumentName
 `tests/test_workshop_persistence.cpp` "an old object document is left exactly as it is: a launch

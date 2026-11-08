@@ -13,7 +13,8 @@
 
 
 #include "terminal/complete.hpp" // the completer's values, and where a line can go
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
 #include "attention_seam_vocabulary.hpp" // what is true right now, said across the seam

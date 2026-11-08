@@ -5,7 +5,7 @@
 #define ZENGINE_MAKER_FILES_HPP
 
 // THE TWO FILES ON DISK, read and written under the durable discipline the Workshop's
-// persistence owns (workshop/persist.hpp): a read is size-capped before it is opened, so a
+// persistence owns (persist/file.hpp): a read is size-capped before it is opened, so a
 // file that is too large to be what it claims is refused rather than slurped; a write lands
 // in a sibling and is renamed over the target, so the last good file is never at risk.
 //

@@ -136,7 +136,8 @@ kOnRoot context_same_id
 ### WL-CTX-06
 `workshop/screen_attention.cpp` context_annotation context_row_text
 `workshop/screen_arrange.cpp` keyboard_context_beneath_menu
-`workshop/keymap.hpp` active_in is_bound
+`workshop/keymap.hpp` active_in
+`input/gesture_grammar.hpp` is_bound
 `tests/test_workshop_screen.cpp` "shortcut annotations teach only truthful surrounding bindings"
 `tests/test_workshop_host.cpp` "a tab's context menu acts on THAT tab"
 

@@ -92,7 +92,7 @@ TEST_CASE("a refusal longer than a row is kept whole in the session, and the scr
     // sentence is a real door's: the file door, refusing a path a weaver could type. What Workshop
     // said is published and shown by the Notices pane, so the screen it paints draws none of it.
     const std::string path = "/no/such/place/" + std::string(90, 'x') + ".json";
-    const persist::FileText read = persist::read_file(path, 1024, "a test file");
+    const zengine::persist::FileText read = zengine::persist::read_file(path, 1024, "a test file");
     REQUIRE_FALSE(read.outcome.accepted);
     const std::string refusal = read.outcome.refusal;
     REQUIRE(refusal.size() > static_cast<std::size_t>(cells_of(kMinScreen).w));

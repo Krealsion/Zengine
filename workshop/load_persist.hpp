@@ -8,7 +8,8 @@
 // document beside the setup.
 
 #include "load_plan.hpp"
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>

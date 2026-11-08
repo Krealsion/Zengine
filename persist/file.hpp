@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_PERSIST_HPP
-#define ZENGINE_WORKSHOP_PERSIST_HPP
+#ifndef ZENGINE_PERSIST_FILE_HPP
+#define ZENGINE_PERSIST_FILE_HPP
 
 // The file doors every durable artifact shares: one safe write, one bounded read, and one way a
-// relative spelling is resolved.
+// relative spelling is resolved -- Workshop's files and a theme's alike.
 // Workshop law: agents/workshop/document-file.md (+3 registers; agents/workshop.md routes)
 
-#include "property.hpp" // `Written`
+#include "persist/written.hpp"
 
 #include <charconv>
 #include <cstddef>
@@ -23,11 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace zengine::workshop::persist {
-
-/// The name the retired object document was saved under: kept so a launch can say that a file
-/// under it is left exactly as it is (`workshop.cpp`), and never read as anything else.
-inline constexpr const char* kRetiredDocumentName = "workshop.json";
+namespace zengine::persist {
 
 // ---- The file itself -------------------------------------------------------
 
@@ -297,6 +293,6 @@ members(std::string_view object) {
 
 } // namespace json
 
-} // namespace zengine::workshop::persist
+} // namespace zengine::persist
 
-#endif // ZENGINE_WORKSHOP_PERSIST_HPP
+#endif // ZENGINE_PERSIST_FILE_HPP

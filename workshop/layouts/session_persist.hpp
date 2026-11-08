@@ -12,7 +12,8 @@
 #include "operator/catalog.hpp"
 #include "operator/migration.hpp"
 #include "workshop/layouts/run.hpp"
-#include "workshop/persist.hpp" // and the members a file of lines carries, read as text
+#include "persist/file.hpp" // and the members a file of lines carries, read as text
+#include "workshop/property.hpp" // `Written`
 #include "workshop/setup.hpp"
 #include "workshop/setup_persist.hpp"
 

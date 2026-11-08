@@ -3,7 +3,7 @@
 # lives here (`editor.hpp`: the buffer, the byte law, the tab geometry), so a keystroke never
 # crosses the seam; what crosses is a source request, a preparation, a quit answer, rows and a
 # caret. One target, no platform half: the weave composes text from the buffer it holds and
-# reads or writes one file through `workshop/persist.hpp`'s atomic writer.
+# reads or writes one file through `persist/file.hpp`'s atomic writer.
 
 # The weave needs a Loom that can HOST loadable weaves — the same honest question every
 # package here asks.

@@ -885,7 +885,7 @@ TEST_CASE("a candidate that cannot be read installs nothing at all") {
                                        "/install", root.generic_string(),
                                        &HostContext::so_in);
     CHECK_FALSE(no.accepted);
-    // THE OWNER'S OWN WORDS, unwrapped: `persist::read_file` names the file and says why.
+    // THE OWNER'S OWN WORDS, unwrapped: `zengine::persist::read_file` names the file and says why.
     CHECK(no.refusal.find("not-here.json") != std::string::npos);
     CHECK(held_by(owner) == before);
 }

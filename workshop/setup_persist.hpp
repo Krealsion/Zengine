@@ -9,7 +9,8 @@
 // Workshop law: agents/workshop/setup-file.md (+2 registers; agents/workshop.md routes)
 
 #include "pane_migration.hpp"
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 #include "setup.hpp"
 
 #include "graphics/pixels.hpp" // a retired file's sub-units landed on pixels
