@@ -121,51 +121,51 @@ answer itself: it is answered to the asker alone, and nothing of it is said in N
 
 ### `EditorHandoffJudged`
 
-`EditorHandoffJudged` v1, from the editor in role: what a switch away would lose, reset or
+`EditorHandoffJudged` v1, from `zengine.editor`, the editor in the role: what a switch away would lose, reset or
 refuse, and the room the document is shown in. A refusal ends the switch, `the editor in role
 refused: <its words>`; losses ask for your consent first. The handoff's shapes are
 [`workshop/editor_handoff_vocabulary.hpp`](../../workshop/editor_handoff_vocabulary.hpp).
 
 ### `EditorWarmed`
 
-`EditorWarmed` v1, from the destination, loaded sealed: it started what it needs, in the room the
+`EditorWarmed` v1, from any weave the switch loaded sealed as its destination: it started what it needs, in the room the
 editor in role had, or why not, `` `neovim` could not start: <its words> ``.
 
 ### `EditorHandoffOffered`
 
-`EditorHandoffOffered` v1, from the editor in role: the exact document, and that it holds still,
+`EditorHandoffOffered` v1, from `zengine.editor`, the editor in the role: the exact document, and that it holds still,
 taking no input until the outcome. A refusal ends the switch, `the editor in role refused at the
 boundary: <its words>`.
 
 ### `EditorAdopted`
 
-`EditorAdopted` v1, from the destination, Loom's preparation answer: it adopted the document, and
+`EditorAdopted` v1, from any weave the switch loaded sealed as its destination, Loom's preparation answer: it adopted the document, and
 the role moves; or `` `neovim` could not adopt the document: <its words> ``, and nothing moves.
 
 ### `EditorLive`
 
-`EditorLive` v1, from the successor holding the role: it serves. When it does not, the outcome is
+`EditorLive` v1, from `zengine.editor`, the successor holding the role: it serves. When it does not, the outcome is
 `failed-after-commit`, `` `neovim` holds zengine.editor and did not prove it serves: ... -- the
 retired `standard` was kept ``, and the next switch releases the retired editor.
 
 ### `EditorRetired`
 
-`EditorRetired` v1, from the retired editor: how many inputs it refused while it held still, said
+`EditorRetired` v1, from any weave that held the role and was retired: how many inputs it refused while it held still, said
 among the answer's notes before it is unloaded.
 
 ### `TimerReady`
 
-`TimerReady` v1, from the Timer, `zengine.timer`: a Timer is there, and the switch orders its beat
+`TimerReady` v1, from `zengine.timer`, the Timer: a Timer is there, and the switch orders its beat
 from it again.
 
 ### `TimerFired`
 
-`TimerFired` v1, the switch's beat, `zengine.editor-switch.beat`: while the destination starts or
+`TimerFired` v1, from `zengine.timer`, the switch's beat, `zengine.editor-switch.beat`: while the destination starts or
 adopts, each beat is handed on to it; idle, the beat stops itself.
 
 ### `TimerResolution`
 
-`TimerResolution` v1, from the Timer: what became of the switch's order for its beat.
+`TimerResolution` v1, from `zengine.timer`, the Timer: what became of the switch's order for its beat.
 
 ## Follow
 

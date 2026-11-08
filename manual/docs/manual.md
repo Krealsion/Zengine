@@ -80,6 +80,13 @@ declaring it, as the Builder pane's `builder.build` sends
 [`BuildRequested`](../../builder/docs/zengine.builder.md#buildrequested). It links no other
 shape: the words around a link are the page's, and the check reads only which shapes it links.
 
+**A Hears entry names who sends it, by role**, in its first paragraph: from `` `<role>` `` where
+one role sends it (`` `Drive` v2, from `zengine.timer`, the Timer itself ``), with the role of any
+window that shows an area written `zengine.window.*`; from any weave of a kind where the sender
+is any such weave (`from any weave granted it`); or from the host, for what the host itself says.
+The role is one a manual is named by, one the value register names
+([`tests/code_values.txt`](../../tests/code_values.txt)) or Loom's.
+
 **What a page never writes**: a field's type, a version beyond a shape's own `Name vN`, or a count
 the code owns; a fact another page owns, which it links instead.
 

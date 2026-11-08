@@ -88,7 +88,7 @@ Any role may ask what it can start.
 
 ### `ProjectRoot`
 
-`ProjectRoot` v1, the project role's answer to the launcher's own ask at its start: where the
+`ProjectRoot` v1, from `zengine.project`, the project role's answer to the launcher's own ask at its start: where the
 project is. Apps and demo roots are found there.
 
 ## Follow

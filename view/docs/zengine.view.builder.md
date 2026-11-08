@@ -227,7 +227,7 @@ pane's rows hold.
 
 ### `ViewEdit`
 
-`ViewEdit` v1 ([vocabulary.hpp](../view-builder/vocabulary.hpp)), from a weave granted it: one edit
+`ViewEdit` v1 ([vocabulary.hpp](../view-builder/vocabulary.hpp)), from any weave granted it: one edit
 by name, `action` and its `arguments`, as the controls make them; the edit `describe` says their
 grammar on the notice. Answered to the asker with `ViewEdited` v1: whether it was taken, the
 notice, and the view's bytes. An edit is taken whole or refused whole. Its `save` writes at once:
@@ -235,7 +235,7 @@ only a hand's save asks Workshop.
 
 ### `AreaRoom`
 
-`AreaRoom` v4, from the graphics window that shows the area `zengine.view.builder`, as that
+`AreaRoom` v4, from `zengine.window.*`, the graphics window that shows the area `zengine.view.builder`, as that
 window's role ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room
 there, in the window's unit and text. It draws its picture for that room on its ground, whole in a
 new window, incarnation, size or measure, or an empty area, then only what changed. Each time it
@@ -243,14 +243,14 @@ starts it asks the graphics directory, `zengine.graphics`, for this room (`RoomA
 
 ### `DrawnRefused`
 
-`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was.
+`DrawnRefused` v1, from `zengine.window.*`, that window: a drawing it refused, and why. What it shows stays as it was.
 A refused change is drawn again whole at once; a refused whole picture is said on the notice, `The
 graphics window refused the View Builder's picture: <the reason>`, and the pane draws there again
 at its next change.
 
 ### `ActionRequested`
 
-`ActionRequested` v1, from a window showing the area deaf to the pointer: a press on one of the
+`ActionRequested` v1, from `zengine.window.*`, a window showing the area deaf to the pointer: a press on one of the
 pane's places there, by the name its Workshop picture gives it -- `control:view.<action>`,
 `kind:<kind>`, `list:<id>`, `element:<id>`, `box:<field>` -- a click let go where it was pressed:
 a kind makes one below the last, an element or its row is selected, a box opens with the caret
@@ -258,7 +258,7 @@ after its value. It begins no drag and carries nothing, and Workshop refuses a s
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v4, from that window: a button pressed or let go in the pane's area, on the part
+`AreaButtonChanged` v4, from `zengine.window.*`, that window: a button pressed or let go in the pane's area, on the part
 the window drew there: a kind held to make where it is let go, an element held to move or resize, a
 box opened with the caret where pressed, the canvas panned by the middle button, a right press on
 what a button says offered to carry out, else handed back. One on another part than the pane shows
@@ -266,22 +266,22 @@ there now is refused in words. Its moves and release carry the press's number.
 
 ### `AreaPointerMoved`
 
-`AreaPointerMoved` v1, from that window: the pointer moved in the pane's area. While a press there
+`AreaPointerMoved` v1, from `zengine.window.*`, that window: the pointer moved in the pane's area. While a press there
 is held it drags as on Workshop's canvas; with none held it marks the element it rests on.
 
 ### `AreaWheelTurned`
 
-`AreaWheelTurned` v1, from that window: the wheel over the pane's area, which scrolls the element
+`AreaWheelTurned` v1, from `zengine.window.*`, that window: the wheel over the pane's area, which scrolls the element
 list as on Workshop's canvas.
 
 ### `AreaHoldEnded`
 
-`AreaHoldEnded` v1, from that window, about the pane's area: the press held there ended with no
+`AreaHoldEnded` v1, from `zengine.window.*`, that window, about the pane's area: the press held there ended with no
 release, a lost press, which puts back what its drag moved.
 
 ### `AreaPointerLeft`
 
-`AreaPointerLeft` v1, from that window, about the pane's area: the pointer left it, and the mark of
+`AreaPointerLeft` v1, from `zengine.window.*`, that window, about the pane's area: the pointer left it, and the mark of
 what it rested on goes.
 
 ## Follow

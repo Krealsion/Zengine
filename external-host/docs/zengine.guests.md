@@ -113,18 +113,18 @@ guest: the Inventory pane, refused `NoSuchTarget`, saves.
 
 ### `TimerFired`
 
-`TimerFired` v1, from the Timer: the door's beat, `zengine.guests.service`. On each, the door admits,
+`TimerFired` v1, from `zengine.timer`, the Timer: the door's beat, `zengine.guests.service`. On each, the door admits,
 refuses and ends connections, answers the asks for the plan once it is at rest, and publishes the
 inventory when a connection came, changed or went. Shape: [`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
 
 ### `TimerReady`
 
-`TimerReady` v1, from the Timer: it is live, so the door asks for its beat again. Shape:
+`TimerReady` v1, from `zengine.timer`, the Timer: it is live, so the door asks for its beat again. Shape:
 [`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
 
 ### `TimerResolution`
 
-`TimerResolution` v1, from the Timer: what it made of the door's ask for its beat. Shape:
+`TimerResolution` v1, from `zengine.timer`, the Timer: what it made of the door's ask for its beat. Shape:
 [`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
 
 ### `loom.host.Waited`

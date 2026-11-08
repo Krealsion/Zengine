@@ -169,7 +169,7 @@ to become the Timer.
 
 ### `Drive`
 
-`Drive` v2, from the Timer itself through its role: its own beat. A beat is acted on only when
+`Drive` v2, from `zengine.timer`, the Timer itself: its own beat. A beat is acted on only when
 the Timer is activated, the beat names the current activation, carries the serial expected next
 and comes from the chain's own sender; any other is ignored whole.
 

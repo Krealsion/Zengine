@@ -234,7 +234,7 @@ reading the terminal.
 
 ### `AreaIntroduced`
 
-`AreaIntroduced` v9, from the directory: an area, its owner, its arranger, place, order, the key
+`AreaIntroduced` v9, from `zengine.graphics`: an area, its owner, its arranger, place, order, the key
 moments and pointer it hears, the palette it wears, `weaver_only` and `followed`. The window keeps
 it, paints it again where it moved or wears another palette, empties it when another owner draws in it, ends a
 press held for it or now covered by it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas`
@@ -242,17 +242,17 @@ it is not shown, and `WindowShown` reports `the window shows <bound> areas: '<ar
 
 ### `AreaWithdrawn`
 
-`AreaWithdrawn` v1, from the directory: the area is no longer this window's. What it held goes, a
+`AreaWithdrawn` v1, from `zengine.graphics`, the directory: the area is no longer this window's. What it held goes, a
 press held for it ends, and the cells it covered are shown again.
 
 ### `ElementCodeOffered`
 
-`ElementCodeOffered` v1, from the directory: the library whose code presents an element type. New
+`ElementCodeOffered` v1, from `zengine.graphics`, the directory: the library whose code presents an element type. New
 code for a type the window presents draws each such element again, from the state it kept.
 
 ### `PaletteOffered`
 
-`PaletteOffered` v1, from the directory: a palette, whole, at a revision. The window keeps the
+`PaletteOffered` v1, from `zengine.graphics`, the directory: a palette, whole, at a revision. The window keeps the
 latest revision of each palette in its state, and paints every area wearing it again from what it
 keeps: its owners are told nothing and draw nothing. A revision no higher than the one kept changes
 nothing; past `kMaxPalettes` palettes one is not held, and `WindowShown` reports `the window holds
@@ -260,24 +260,24 @@ nothing; past `kMaxPalettes` palettes one is not held, and `WindowShown` reports
 
 ### `GraphicsReady`
 
-`GraphicsReady` v1, from a directory started afresh: the window offers itself again
+`GraphicsReady` v1, from `zengine.graphics`, a directory started afresh: the window offers itself again
 (`WindowOffered`), and keeps its areas until the directory says otherwise.
 
 ### `TimerFired`
 
-`TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It measures the
+`TimerFired` v1, from `zengine.timer`, the Timer: the window's beat, `zengine.window.pump`. It measures the
 terminal, and at another size in cells shows its whole picture at that size and offers itself
 again (`WindowOffered`) with the new size and the same incarnation. Then it reads what the terminal
 typed and sends the keys, their releases, their text and the pointer on.
 
 ### `TimerReady`
 
-`TimerReady` v1, from the Timer: the service is there, first or again; the window orders its beat
+`TimerReady` v1, from `zengine.timer`, the Timer: the service is there, first or again; the window orders its beat
 again.
 
 ### `TimerResolution`
 
-`TimerResolution` v1, from the Timer: what became of the window's order for its beat, kept by its
+`TimerResolution` v1, from `zengine.timer`, the Timer: what became of the window's order for its beat, kept by its
 timer binding.
 
 ### `loom.host.Waited`
@@ -289,7 +289,7 @@ beat does at once. From any participant it is nothing.
 
 ### `ClipboardCopy`
 
-`ClipboardCopy` v1, a weaver's copy: the text written to the terminal as its copy sequence, OSC 52,
+`ClipboardCopy` v1, from any weave that copies, a weaver's copy: the text written to the terminal as its copy sequence, OSC 52,
 which no terminal confirms. It is no showing, and nothing answers it.
 
 ### `AttributedInput`

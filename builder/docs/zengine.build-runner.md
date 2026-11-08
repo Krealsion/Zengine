@@ -74,18 +74,18 @@ its products.
 
 ### `TimerFired`
 
-`TimerFired` v1, from the Timer, `zengine.timer`: the runner's beat, `zengine.builder.look`. On each,
+`TimerFired` v1, from `zengine.timer`, the Timer: the runner's beat, `zengine.builder.look`. On each,
 it looks at what it holds, as [`LookAtBuilds`](#lookatbuilds) does. Shape:
 [`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
 
 ### `TimerReady`
 
-`TimerReady` v1, from the Timer: a Timer is there, so a runner holding a build asks for its beat
+`TimerReady` v1, from `zengine.timer`, the Timer: a Timer is there, so a runner holding a build asks for its beat
 again. Shape: [`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
 
 ### `TimerResolution`
 
-`TimerResolution` v1, from the Timer: what it made of the runner's ask for its beat. Shape:
+`TimerResolution` v1, from `zengine.timer`, the Timer: what it made of the runner's ask for its beat. Shape:
 [`timer/vocabulary.hpp`](../../timer/vocabulary.hpp).
 
 ## Follow

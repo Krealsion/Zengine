@@ -78,30 +78,30 @@ ignored.
 
 ### `MenuInput`
 
-`MenuInput` v1, from Workshop: you did something to menu `menu`: a key (its verb: up, down, choose
+`MenuInput` v1, from `zengine.workshop`: you did something to menu `menu`: a key (its verb: up, down, choose
 or back), or a press outside. For a menu it does not hold, it hands the act back: `this image does
 not hold that menu`.
 
 ### `AreaRoom`
 
-`AreaRoom` v4, from the window that shows the menu's area: the area's size and how the window sets
+`AreaRoom` v4, from `zengine.window.*`, the window that shows the menu's area: the area's size and how the window sets
 text. The presenter draws the menu there whole whenever the window holds none of it.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v4, from that window: a button pressed or let go in the menu's area, under the
+`AreaButtonChanged` v4, from `zengine.window.*`, that window: a button pressed or let go in the menu's area, under the
 press's number. A primary press on a row's line chooses the row, said under that number; one the
 window landed on another line than the menu shows there now, or in another menu's area, means
 nothing here.
 
 ### `DrawnRefused`
 
-`DrawnRefused` v1, from that window: it refused a drawing. A refused change is drawn again whole at
+`DrawnRefused` v1, from `zengine.window.*`, that window: it refused a drawing. A refused change is drawn again whole at
 once; a refused whole drawing waits for other lines.
 
 ### `MenuWithdrawn`
 
-`MenuWithdrawn` v1, from Workshop: Workshop ended menu `menu`, and `why` says how. The presenter
+`MenuWithdrawn` v1, from `zengine.workshop`: Workshop ended menu `menu`, and `why` says how. The presenter
 answers the pane unchosen in those words. For a menu it does not hold, it hands it back as it does
 an act.
 

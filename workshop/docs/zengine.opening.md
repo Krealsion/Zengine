@@ -71,19 +71,19 @@ it arrived), `zen.JointEnded` (the bus ended the open, a participant replaced or
 
 ### `PresentationTrial`
 
-`PresentationTrial` v3, from the desk: whether the Editor pane would seat, and the room its area
+`PresentationTrial` v3, from `zengine.workshop`, the desk: whether the Editor pane would seat, and the room its area
 will have (`OpeningRoom`, in pixels and the window's measure), so the Editor prepares the candidate
 for it. A refused trial ends the open in the desk's words.
 
 ### `SourcePrepared`
 
-`SourcePrepared` v3, from the Editor: the candidate is ready for the reserved room, or the
+`SourcePrepared` v3, from `zengine.editor`, the Editor: the candidate is ready for the reserved room, or the
 Editor's refusal. The desk is asked to admit the seat; the Editor draws the candidate in its own
 area as it commits its claim.
 
 ### `PresentationAdmitted`
 
-`PresentationAdmitted` v1, from the desk: the candidate admitted, and the role publishes both
+`PresentationAdmitted` v1, from `zengine.workshop`, the desk: the candidate admitted, and the role publishes both
 claims at once; or refused, in the desk's words, and the open ends with nothing moved.
 
 ## Follow

@@ -323,7 +323,7 @@ Closes the line; nothing is asked. For a new copy's name, the stored copy keeps 
 
 ### `InventoryViewEdit`
 
-`InventoryViewEdit` v1 changes the arrangement: `create` a view (`text` single, row or column,
+`InventoryViewEdit` v1, from any weave granted it, changes the arrangement: `create` a view (`text` single, row or column,
 optional `entry`), `move` an entry to `view` (before `before`), `context` a view's hotkeys on or off,
 `bind` an entry to a target role in `text` and a key, `enable` its hotkey. Answers `zen.Ack`;
 it never runs a command. Refuses `Finish the current inventory operation or editor first`, `Choose
@@ -331,13 +331,13 @@ single, row or column`, `That inventory view is unavailable`, and a chord Deskto
 
 ### `InventoryViewsRequested`
 
-`InventoryViewsRequested` v1 asks for the arrangement: answers `InventoryViews` v1, every view with
+`InventoryViewsRequested` v1, from any weave granted it, asks for the arrangement: answers `InventoryViews` v1, every view with
 its kind, whether its hotkeys are on and its entries in order, and every hotkey with its target,
 chord and switch. Main Inventory's view is `inventory`.
 
 ### `InventoryToolboxSave`
 
-`InventoryToolboxSave` v1 `{path}` saves a toolbox file, as
+`InventoryToolboxSave` v1 `{path}`, from any weave granted it, saves a toolbox file, as
 [`inventory.toolbox.save`](#inventorytoolboxsave): the guest door first judges whether its sender
 may write ([`ActorScopeRequested`](../../external-host/docs/zengine.guests.md#actorscoperequested));
 with no door there is no guest. Answers `InventoryToolboxFinished` v1 `{operation, path, entries}`,
@@ -345,7 +345,7 @@ with no door there is no guest. Answers `InventoryToolboxFinished` v1 `{operatio
 
 ### `InventoryToolboxRestore`
 
-`InventoryToolboxRestore` v1 `{path, replace}` restores one, as
+`InventoryToolboxRestore` v1 `{path, replace}`, from any weave granted it, restores one, as
 [`inventory.toolbox.restore`](#inventorytoolboxrestore); `replace` false needs an empty collection.
 It writes no file and asks the grant alone. Answers `InventoryToolboxFinished` v1, `restore`, or
 `zen.Refused`.

@@ -51,7 +51,7 @@ role `zengine.notices`); a value under what the record holds lets the oldest go 
 
 ### `NoticeSaid`
 
-`NoticeSaid` v1, published by `zengine.workshop` alone
+`NoticeSaid` v1, published from `zengine.workshop` alone
 ([`workshop/notice_seam_vocabulary.hpp`](../../workshop/notice_seam_vocabulary.hpp)): each is kept as
 heard, after the newest, since Workshop says each notice once.
 

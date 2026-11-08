@@ -196,12 +196,11 @@ From any other role it is ignored.
 
 ### `ClipboardCopy`
 
-`ClipboardCopy` v1 ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): a copy made anywhere
-in Workshop, kept so that a paste into a field has it.
+`ClipboardCopy` v1 ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)), from any weave that copies: a copy made anywhere in Workshop, kept so that a paste into a field has it.
 
 ### `ClipboardText`
 
-`ClipboardText` v1, from the window that shows the pane: the text a paste into a field asked for. It
+`ClipboardText` v1, from `zengine.window.*`, the window that shows the pane: the text a paste into a field asked for. It
 lands in the field that asked, and nowhere once that form or field has changed.
 
 ### `InventoryEntry`
@@ -211,7 +210,7 @@ lands in the field that asked, and nowhere once that form or field has changed.
 
 ### `AreaRoom`
 
-`AreaRoom` v4, from the graphics window that shows the area `zengine.composer`, as that window's
+`AreaRoom` v4, from `zengine.window.*`, the graphics window that shows the area `zengine.composer`, as that window's
 role ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): Compose's room there and the
 window's text. Compose draws its rows in it over the room's ground, a line of that text each, its
 caret a bar, whole in a new window, incarnation, size or measure, or an empty area, then only what
@@ -219,19 +218,19 @@ changed.
 
 ### `DrawnRefused`
 
-`DrawnRefused` v1, from that window: rows it refused, and why. What it shows stays as it was. A
+`DrawnRefused` v1, from `zengine.window.*`, that window: rows it refused, and why. What it shows stays as it was. A
 refused change is followed at once by the rows last sent, whole; after a refused whole drawing,
 nothing is sent until Compose's rows change, and that drawing goes whole.
 
 ### `ActionRequested`
 
-`ActionRequested` v1, from that window, where it shows Compose's area deaf to the pointer: a press
+`ActionRequested` v1, from `zengine.window.*`, that window, where it shows Compose's area deaf to the pointer: a press
 on one of Compose's rows there, by the row's name, which is the press Workshop's canvas makes on that
 row.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v4, from that window: a button pressed in Compose's area, at its point, with
+`AreaButtonChanged` v4, from `zengine.window.*`, that window: a button pressed in Compose's area, at its point, with
 what the window drew there. The first button on a row presses that row, read against whether the
 keys were already Compose's as Workshop last said; the third is handed back, under the window's
 number for the press, so Workshop's own pane menu opens there. One the window landed on another row
@@ -239,12 +238,12 @@ than Compose shows there now is refused in words. A release means nothing.
 
 ### `AreaPointerMoved`
 
-`AreaPointerMoved` v1, from that window: the pointer moved in Compose's area. It means nothing to
+`AreaPointerMoved` v1, from `zengine.window.*`, that window: the pointer moved in Compose's area. It means nothing to
 rows.
 
 ### `AreaWheelTurned`
 
-`AreaWheelTurned` v1, from that window: the wheel over Compose's area, which is the wheel on
+`AreaWheelTurned` v1, from `zengine.window.*`, that window: the wheel over Compose's area, which is the wheel on
 Workshop's canvas.
 
 ## Follow

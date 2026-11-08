@@ -538,13 +538,13 @@ Takes the view into use, empty.
 
 ### `PaneInventory`
 
-From Workshop alone: every pane it knows, whole, each time the list changes
+From `zengine.workshop` alone: every pane it knows, whole, each time the list changes
 ([`workshop/desktop_seam_vocabulary.hpp`](../../workshop/desktop_seam_vocabulary.hpp)), read for
 which of Info's views are on the desk; a hidden view keeps its draft and ends its watch.
 
 ### `PaneSubjectShown`
 
-From Workshop alone: the pane inspected and its rows, whole, each time they change
+From `zengine.workshop` alone: the pane inspected and its rows, whole, each time they change
 ([`workshop/inspection_seam_vocabulary.hpp`](../../workshop/inspection_seam_vocabulary.hpp)).
 Workshop names what the rows address; a draft opened on other rows is abandoned.
 
@@ -556,14 +556,13 @@ once.
 
 ### `PaneResetRequested`
 
-A reset of one view ([`workshop/setup_control.hpp`](../../workshop/setup_control.hpp)), from a guest
-with the `demo` power: the default pane drops its drafts and goes back to its properties; another
+A reset of one view ([`workshop/setup_control.hpp`](../../workshop/setup_control.hpp)), from any guest with the `demo` power: the default pane drops its drafts and goes back to its properties; another
 view is emptied. Refused, `Info reset needs its pane and no pending commit`, while that view waits
 on an ask.
 
 ### `InspectPaneRequested`
 
-From a role, as the Pane Manager's `inspect in Info` row asks: the default pane asks Workshop to
+From any role, as the Pane Manager's `inspect in Info` row asks: the default pane asks Workshop to
 make that pane the subject, shown under `PANE <its name>`, and answers with Workshop's
 `PaneSubjectActed`, or in its own words: `finish the edit first -- commit it or cancel it` while a
 draft is open; `inspect not submitted -- nothing was queued`; `inspect not delivered -- nothing

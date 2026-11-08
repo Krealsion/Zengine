@@ -180,17 +180,17 @@ published ([Follow](#follow)); until one is handed it, it holds
 
 ### `TimerReady`
 
-`TimerReady` v1, from the Timer: it is there, first or again after a reload. The weave asks for its
+`TimerReady` v1, from `zengine.timer`, the Timer: it is there, first or again after a reload. The weave asks for its
 beat again, which keeps the one beat it has rather than adding a second.
 
 ### `TimerFired`
 
-`TimerFired` v1, from the Timer: a beat. Its own, `zengine.input.pump`, polls the platform once, as
+`TimerFired` v1, from `zengine.timer`, the Timer: a beat. Its own, `zengine.input.pump`, polls the platform once, as
 `PumpInput` does; another timer's firing aimed at the role polls nothing.
 
 ### `TimerResolution`
 
-`TimerResolution` v1, from the Timer: what it made of the weave's order for its beat, kept by the
+`TimerResolution` v1, from `zengine.timer`, the Timer: what it made of the weave's order for its beat, kept by the
 binding and answered with nothing.
 
 ### `loom.host.Waited`

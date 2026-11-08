@@ -247,14 +247,14 @@ their hand already ([`vocabulary.hpp`](../layouts/vocabulary.hpp)).
 
 ### `PaneSettingsDeclared`
 
-`PaneSettingsDeclared`, from a pane's role: the settings it takes, each a key, a default and what
+`PaneSettingsDeclared`, from any pane's role: the settings it takes, each a key, a default and what
 it takes, and at version 2 its tags, pin and summary. Judged whole; a refusal is said on
 Workshop's band, `<name> @<role>: its settings were not taken -- <why>`, and the settings in
 force stand. It counts while the incarnation that sent it holds the role.
 
 ### `PaneSettingsAsked`
 
-`PaneSettingsAsked`, from a pane's role, once in each life of its holder, after that life's first
+`PaneSettingsAsked`, from any pane's role, once in each life of its holder, after that life's first
 message. This role hands the holder its row now, without `workshop.` keys, in the newest
 `PaneSettings` it takes -- v2 with the row's revision -- or, while the live layout seats the pane
 nowhere, every default at revision 0; and again whenever what it holds would differ: another
@@ -262,7 +262,7 @@ holder, revision or settings. A holder that takes neither is handed nothing.
 
 ### `PaneSettingUnused`
 
-`PaneSettingUnused`, from a pane's role: a setting it was handed at a revision and cannot use,
+`PaneSettingUnused`, from any pane's role: a setting it was handed at a revision and cannot use,
 and why. Kept while its holder holds that revision, from the holder that was handed it, at most
 `kMaxPaneSettingsPerRow`; said in the row's reading (`it cannot use <key> -- <why>`) and on
 Attention. One naming another revision, or said personally, is dropped; a key or a reason it
@@ -270,19 +270,19 @@ cannot have meant is refused on Workshop's band, nothing kept.
 
 ### `RoleSettingsDeclared`
 
-`RoleSettingsDeclared`, from a role, Workshop's own among them: the role-wide settings it
+`RoleSettingsDeclared`, from any role, Workshop's own among them: the role-wide settings it
 takes, judged whole by a pane declaration's rules and replaced by a later one; it counts while the
 incarnation that sent it holds the role. Its holder is handed `RoleSettings` at each revision,
 when it accepts it. A refusal is said on Workshop's band.
 
 ### `PaneInventory`
 
-`PaneInventory`, from Workshop: the panes it presents, each by its name, read for the names this
+`PaneInventory`, from `zengine.workshop`: the panes it presents, each by its name, read for the names this
 role says and for which panes a desk put live can name.
 
 ### `WeaversActAnswered`
 
-`WeaversActAnswered`, from Workshop, answering this role's `WeaversActRequested{gesture,
+`WeaversActAnswered`, from `zengine.workshop`, answering this role's `WeaversActRequested{gesture,
 role}`: whether `gesture` is the weaver's current act sent to a pane of `role`. An unlock
 waiting on it is answered then.
 
