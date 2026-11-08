@@ -1538,7 +1538,7 @@ TEST_CASE("Project's window starts at an artifact, shows whole blocks from it, c
     // FROM THE SECOND: its block first, and what is above it counted with what is below.
     const intro::ArrangementView second = intro::project_arrangement_from(said, 10, 60, 1);
     CHECK(second.first == 1);
-    CHECK(texts(second).at(1) == "  zengine-window-terminal");
+    CHECK(texts(second).at(1) == "  zengine-window-tui");
     CHECK(row_with(second.rows, "  ... 1 earlier, 1 more") >= 0);
     // PAST THE END: held at the furthest start that still fills the window.
     const intro::ArrangementView past = intro::project_arrangement_from(said, 10, 60, 99);
@@ -2487,15 +2487,15 @@ TEST_CASE("the browser this host used to compile is named by no presentation sou
     }
 }
 
-TEST_CASE("Powers asks the window that shows it for a paste into its query, the OS window or the terminal's") {
+TEST_CASE("Powers asks the window that shows it for a paste into its query, the GUI window or the terminal's") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#paste-asked-elsewhere): Powers'
     // paste asked of another role than the window showing its area.
     namespace gfx = zengine::graphics;
-    for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+    for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
         CAPTURE(window);
         const bool os = std::string(window) == gfx::kSdlWindow;
         PaneRig r;
-        if (os) r.on_os_window();
+        if (os) r.on_gui_window();
         const std::int64_t kind = open_powers(r);
         make_taller(r, intro::kPowersPane, 18);
         press_pane(r, kind, 0, 0); // the keys, by the weaver's press on the pane

@@ -506,7 +506,7 @@ TEST_CASE("a sample refused in words a canvas cannot draw is shown on the Powers
 
 TEST_CASE("the query is typed, edited, copied and pasted through the shipped seams") {
     PaneRig r;
-    r.on_os_window(); // the medium that owns the platform clipboard
+    r.on_gui_window(); // the medium that owns the platform clipboard
     const std::int64_t kind = open_powers(r);
     make_taller(r, intro::kPowersPane, 18);
     focus_pane(r, kind);

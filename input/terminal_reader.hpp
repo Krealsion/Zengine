@@ -8,7 +8,7 @@
 // (raw mode on POSIX; the console input mode on Windows) while it holds the terminal, and hands
 // each native event to the pure translators in translate.hpp. With no console (a pipe, a test run)
 // it yields nothing. It yields the terminal to a window as `window_claim.hpp` says, putting back
-// the mode it found when an OS window comes. Read by the Input weave and by a terminal window.
+// the mode it found when a GUI window comes. Read by the Input weave and by a TUI window.
 // Reference: input/docs/input.md.
 
 #include "translate.hpp"
@@ -97,10 +97,10 @@ public:
 
 private:
     /// Whether it reads now: it takes the console while it may, and gives back the mode it set
-    /// while an OS window holds input. A terminal window's mode it never touches.
+    /// while a GUI window holds input. A TUI window's mode it never touches.
     bool settle() {
-        const bool terminal_window = window_holds_terminal_input();
-        if (terminal_reader_may_use_terminal(window_owner_, terminal_window,
+        const bool tui_window = window_holds_terminal_input();
+        if (terminal_reader_may_use_terminal(window_owner_, tui_window,
                                              window_holds_sdl_input())) {
             if (!ok_ && !absent_) {
                 in_ = ::GetStdHandle(STD_INPUT_HANDLE);
@@ -114,12 +114,12 @@ private:
             }
             return ok_;
         }
-        if (!terminal_window) {
+        if (!tui_window) {
             give_back();
         }
         return false;
     }
-    /// The mode it found put back, unless a terminal window holds the console, whose mode it is.
+    /// The mode it found put back, unless a TUI window holds the console, whose mode it is.
     void give_back() {
         if (ok_ && (window_owner_ || !window_holds_terminal_input())) {
             ::SetConsoleMode(in_, saved_);
@@ -179,10 +179,10 @@ public:
 
 private:
     /// Whether it reads now: it takes the terminal while it may, and gives back the mode it set
-    /// while an OS window holds input. A terminal window's mode it never touches.
+    /// while a GUI window holds input. A TUI window's mode it never touches.
     bool settle() {
-        const bool terminal_window = window_holds_terminal_input();
-        if (terminal_reader_may_use_terminal(window_owner_, terminal_window,
+        const bool tui_window = window_holds_terminal_input();
+        if (terminal_reader_may_use_terminal(window_owner_, tui_window,
                                              window_holds_sdl_input())) {
             if (!ok_ && !absent_) {
                 ok_ = ::tcgetattr(STDIN_FILENO, &saved_) == 0;
@@ -198,12 +198,12 @@ private:
             }
             return ok_;
         }
-        if (!terminal_window) {
+        if (!tui_window) {
             give_back();
         }
         return false;
     }
-    /// The mode it found put back, unless a terminal window holds the terminal, whose mode it is.
+    /// The mode it found put back, unless a TUI window holds the terminal, whose mode it is.
     void give_back() {
         if (ok_ && (window_owner_ || !window_holds_terminal_input())) {
             ::tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved_);

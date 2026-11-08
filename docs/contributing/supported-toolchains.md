@@ -62,7 +62,7 @@ It keeps what the toolchain's own manifest says:
 
 A doctest program that finds itself in any other code page refuses to run (exit 71), so the
 Windows lanes test the narrow strings that ship. The console keeps its own code page: the
-terminal window sets its output to UTF-8 while it draws, and a line printed to a console before
+TUI window sets its output to UTF-8 while it draws, and a line printed to a console before
 that is shown in the console's page.
 
 ### The paths the build tools carry
@@ -203,10 +203,10 @@ Inside this repository, `zengine_weave()` applies it. Outside, call it yourself;
 
 ## SDL
 
-The OS window is the only weave that sees SDL. It fetches a **pinned** shared SDL3 (with a
+The GUI window is the only weave that sees SDL. It fetches a **pinned** shared SDL3 (with a
 checksum in the build) where none is installed, along with SDL_ttf and its vendored FreeType on
 the same pinned-and-checksummed fetch. Decline the whole thing with `-DZENGINE_TUI_ONLY=ON`: the
-terminal window alone. `ZENGINE_SDL_SKIN` is retired, and a configure naming it is refused, with
+TUI window alone. `ZENGINE_SDL_SKIN` is retired, and a configure naming it is refused, with
 the fix.
 
 Licences and provenance for all of it are in

@@ -19,10 +19,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `term_paint.hpp`, `light_paint.hpp` | the window's own painters: for characters, and for light |
 | `element_abi.h`, `element_export.hpp` | the element seam (`zengine_element`), `ZENGINE_EXPORT_ELEMENT` |
 | `window/store.hpp`, `window/seams.hpp`, `window/palette.hpp`, `window/window.hpp` | the window's areas and judge; the element code it opens; the palettes it holds and a name turned into a colour (`resolve`); `Window<Medium>`, the window over its medium |
-| `window/compose.hpp`, `window/terminal_io.hpp`, `window/window_terminal.hpp` | the terminal's painted cells, composition and landing; the terminal's claim, size, ink (`sgr_for`: a colour's word, else its nearest) and copy sequence; `TerminalMedium`, `WindowT<Terminal>` |
+| `window/compose.hpp`, `window/terminal_io.hpp`, `window/window_tui.hpp` | the terminal's painted cells, composition and landing; the terminal's claim, size, ink (`sgr_for`: a colour's word, else its nearest) and copy sequence; `TerminalMedium`, `WindowT<Terminal>` |
 | `window/window_sdl.hpp` | the medium of light over a pixel backend: `LightMedium`, `SdlWindowT<Backend>`; the desktop's arithmetic, and the BMP a picture is read back as |
-| `window/window_sdl_backend.hpp` | the OS window's backend through SDL3, `ProcessSdlBackend` |
-| `window/window.cpp`, `window/window_sdl.cpp` | loadable weaves `zengine-window-terminal` and, where the build has SDL, `zengine-window-sdl` |
+| `window/window_sdl_backend.hpp` | the GUI window's backend through SDL3, `ProcessSdlBackend` |
+| `window/window.cpp`, `window/window_sdl.cpp` | loadable weaves `zengine-window-tui` and, where the build has SDL, `zengine-window-sdl` |
 | `directory.cpp` | loadable weave `zengine-graphics` |
 | `CMakeLists.txt` | `zengine-graphics-vocabulary` (header-only, `zengine::graphics`) with its generated names and palettes, the weaves |
 
@@ -45,11 +45,11 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   and each role's manual answering for every shape it accepts; every part in `elements/` drawn,
   changed and painted, and pressed through the window, its action asked or nothing sent; the
   Attention and Connections panes Workshop loads drawn, pressed and reloaded in a window, and a
-  pane's refused drawing followed by a whole one; the OS window over the suite's own pixel
+  pane's refused drawing followed by a whole one; the GUI window over the suite's own pixel
   backend, every operator painted, pressed, typed into, resized, asked to close and started again
   from what it kept; both windows' clipboard, place on the desktop and last picture read back, and
   the desktop's arithmetic and the BMP; and, where the build has SDL, its weave under SDL's dummy
-  driver emptying SDL's queue, claiming it while loaded, keeping its one OS window across a reload,
+  driver emptying SDL's queue, claiming it while loaded, keeping its one GUI window across a reload,
   and holding one again once replaced, and its own backend centring, growing and placing its window,
   copying to SDL's clipboard and reading its pixels back; `tests/test_graphics.cpp`,
   `tests/graphics_rig.hpp`
@@ -71,22 +71,22 @@ rows; it shares the rig.
   board's code beside the snake's host; `examples/snake/play.cpp` loads the directory and the
   window, and its operator weave is the arranger, offering two of the shipped palettes.
   `workshop/CMakeLists.txt` stages the window and the directory beside `zengine-workshop` (and the
-  OS window where the build has SDL), whose weave arranges when they are loaded and offers the three
+  GUI window where the build has SDL), whose weave arranges when they are loaded and offers the three
   shipped palettes, and `cmake/ZengineInstall.cmake` installs them as artifacts, all but the OS
   window, whose SDL the install does not own, with the generator and the pool's and themes' JSON.
 - Grants: the snake host grants its operator `AreaPlaced`, `PaletteOffered`, `PaletteChosen`,
   `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's role.
-- Beyond the snake: the terminal window reads its terminal with `input/terminal_reader.hpp` and
-  claims its output with `window/terminal_io.hpp`; the OS window reads SDL's queue with
+- Beyond the snake: the TUI window reads its terminal with `input/terminal_reader.hpp` and
+  claims its output with `window/terminal_io.hpp`; the GUI window reads SDL's queue with
   `input/translate_sdl_core.hpp` over the SDL `cmake/ZengineSdl.cmake` acquires; each claims its
   input edge with `input/window_claim.hpp`; both open element code with `operator/image.hpp`. `cmake/ZengineInstall.cmake` installs the headers `zengine::graphics`
   carries.
 
 ## Pages
 
-- [`zengine.window.terminal`](docs/zengine.window.terminal.md), the terminal window's manual,
+- [`zengine.window.tui`](docs/zengine.window.tui.md), the TUI window's manual,
   compiled in
-- [`zengine.window.sdl`](docs/zengine.window.sdl.md), the OS window's manual, compiled in
+- [`zengine.window.sdl`](docs/zengine.window.sdl.md), the GUI window's manual, compiled in
 - [`zengine.graphics`](docs/zengine.graphics.md), the directory's manual, compiled in
 - [The Graphics package](docs/graphics.md), drawing into a window
 

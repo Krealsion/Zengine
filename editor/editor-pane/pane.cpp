@@ -614,7 +614,7 @@ private:
         notice_.clear();
         e_.follow_caret = true;
         if (clip_.writes != copied_before) {
-            // A COPY IS SAID TO THE PROCESS ONCE: the OS window offers it to the platform's
+            // A COPY IS SAID TO THE PROCESS ONCE: the GUI window offers it to the platform's
             // clipboard and every other text-holding participant mirrors it.
             mail.publish(graphics::ClipboardCopy{clip_.text});
         }

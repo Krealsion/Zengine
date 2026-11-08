@@ -32,7 +32,7 @@ Keep [**cheat_sheet.md**](cheat_sheet.md) open beside your editor.
   on a POSIX terminal, a Windows console, or an SDL window.
 - **Draw** — draw in your own area of a window, naming your colours: the window turns each name
   into a colour as it paints, from the *palette* your area wears, so a theme repaints you without a
-  word to you; the window is a replaceable weave over a terminal or an OS window
+  word to you; the window is a replaceable weave over a terminal or a GUI window
   ([graphics](graphics/docs/graphics.md)). Your code touches no terminal.
 - **Load and replace weaves at run time** — through the Loom's Kernel, from an authored
   plan file.
@@ -52,7 +52,7 @@ What is not, stated plainly:
 
 - **Two packages, each for its reader.** `find_package(zengine)` exports capability targets
   — the pane protocol a one-file Workshop pane speaks among them — and installs the loadable
-  artifacts they need; Workshop and the OS window are not in it — see [Using Zengine
+  artifacts they need; Workshop and the GUI window are not in it — see [Using Zengine
   from another project](docs/getting-started.md#using-zengine-from-another-project). The
   package a stranger downloads ([below](#download-and-run)) carries Workshop, ready to run, and
   builds nothing.
@@ -156,7 +156,7 @@ loads and runs it — is [docs/getting-started.md](docs/getting-started.md).
 ./Zengine/build/workshop/zengine-workshop
 ```
 
-It opens in an OS window, or, where none can open, in the terminal you started it from, which
+It opens in a GUI window, or, where none can open, in the terminal you started it from, which
 needs at least **78x22**. In the terminal by choice:
 
 ```sh

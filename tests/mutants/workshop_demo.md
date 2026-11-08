@@ -37,7 +37,7 @@ Red in `zengine-workshop-panes-tests`:
 
 ## every-reoffer-held
 
-The OS window holds every re-offer, however far it is from what `fit` stands on.
+The GUI window holds every re-offer, however far it is from what `fit` stands on.
 
 In `workshop/setup_reconcile.hpp`:
 
@@ -64,12 +64,12 @@ In `workshop/setup_reconcile.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- pane comfort: a re-offer within one pixel of what `fit` stands on is held in the OS window alone,
-  and the terminal window follows it
+- pane comfort: a re-offer within one pixel of what `fit` stands on is held in the GUI window alone,
+  and the TUI window follows it
 
 ## terminal-holds-too
 
-The terminal window holds a re-offer within a pixel as the OS window does.
+The TUI window holds a re-offer within a pixel as the GUI window does.
 
 In `workshop/setup_reconcile.hpp`:
 
@@ -80,8 +80,8 @@ In `workshop/setup_reconcile.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- pane comfort: a re-offer within one pixel of what `fit` stands on is held in the OS window alone,
-  and the terminal window follows it
+- pane comfort: a re-offer within one pixel of what `fit` stands on is held in the GUI window alone,
+  and the TUI window follows it
 
 ## two-pixel-hold
 
@@ -96,8 +96,8 @@ In `workshop/setup_reconcile.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- pane comfort: a re-offer within one pixel of what `fit` stands on is held in the OS window alone,
-  and the terminal window follows it
+- pane comfort: a re-offer within one pixel of what `fit` stands on is held in the GUI window alone,
+  and the TUI window follows it
 
 ## held-note-silent
 

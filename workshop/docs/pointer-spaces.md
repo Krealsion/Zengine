@@ -18,8 +18,8 @@ MEDIUM      what the platform reported, in its own numbers
             terminal: terminal cells, 0-based
             window:   window pixels, 0-based at the window's origin
 
-CANVAS      the window's pixels, twelve to a cell; the OS window shows each,
-            the terminal window floors them to cells
+CANVAS      the window's pixels, twelve to a cell; the GUI window shows each,
+            the TUI window floors them to cells
 
 AREA        an owner's own area, in canvas pixels from the area's corner
 ```
@@ -41,8 +41,8 @@ the numbers in that moment are the medium's own.
 ## The window owns MEDIUM → AREA
 
 Each window reads its own platform's moments and lays its own canvas out, so the step from a
-medium's numbers to a canvas pixel is the window's, and nobody else's: the terminal window draws
-canvas cell (0,0) on its terminal's first cell, one cell every `kCellPx` pixels; the OS window draws
+medium's numbers to a canvas pixel is the window's, and nobody else's: the TUI window draws
+canvas cell (0,0) on its terminal's first cell, one cell every `kCellPx` pixels; the GUI window draws
 the canvas 1:1 from its origin. It hands the owner of the area under the hand the position in that
 area's canvas pixels (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`). Where a moment
 is read in its medium's numbers, its **grain** travels beside the position: a window pixel is

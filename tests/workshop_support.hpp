@@ -813,7 +813,7 @@ private:
 };
 
 /// HOW MANY PASTES WERE ASKED of the role `window` names, counted on `bus` from the delivery of
-/// each to its holder: the terminal window reads no clipboard and keeps no count of its own.
+/// each to its holder: the TUI window reads no clipboard and keeps no count of its own.
 inline loom::ObserverId count_paste_asks(loom::Switchboard& bus, std::string window,
                                          std::int64_t& asks) {
     return bus.add_observer([&bus, window = std::move(window), &asks](const loom::BusEvent& ev) {
@@ -1103,8 +1103,8 @@ struct Live {
     }
 
     /// A ROOM OF `width` BY `height` CANVAS CELLS, the window sized to it as a weaver sizes it: a
-    /// cell medium (the terminal window) unless a face is given, `adv` by `line` canvas pixels a
-    /// character (the OS window). The window says its device unit itself, so `cell` is kept only
+    /// cell medium (the TUI window) unless a face is given, `adv` by `line` canvas pixels a
+    /// character (the GUI window). The window says its device unit itself, so `cell` is kept only
     /// for the spelling of a medium the rig no longer reports.
     void extent(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
                 std::int64_t line = 0, std::int64_t cell = 0) {
@@ -1118,7 +1118,7 @@ struct Live {
         const auto [a, l] = face_for(adv, line);
         windows.room(width, height, a, l);
     }
-    /// THE SHIPPED GRAPHICAL FACE, at a room in canvas cells: the OS window with its face.
+    /// THE SHIPPED GRAPHICAL FACE, at a room in canvas cells: the GUI window with its face.
     void extent_on_window(std::int64_t width, std::int64_t height) {
         extent(width, height, 8, 18, gfx::kCellPx);
     }
@@ -1145,8 +1145,8 @@ struct Live {
         window_button(cx, cy, true, button);
         window_button(cx, cy, false, button);
     }
-    /// ...AT A POINT IN THE MEDIUM'S OWN SPACE, as a reading names one: the terminal window's cell,
-    /// its rows above the desk counted, or the OS window's pixel.
+    /// ...AT A POINT IN THE MEDIUM'S OWN SPACE, as a reading names one: the TUI window's cell,
+    /// its rows above the desk counted, or the GUI window's pixel.
     void hand_button(std::int64_t x, std::int64_t y, std::int64_t space, bool pressed,
                      std::int64_t button = 1) {
         come_up();
@@ -1171,20 +1171,20 @@ struct Live {
         bus.drain_until_idle();
     }
 
-    /// THE OS WINDOW FROM HERE ON, with the face it ships with, for every room after -- one given
+    /// THE GUI WINDOW FROM HERE ON, with the face it ships with, for every room after -- one given
     /// in cells too: the medium whose platform clipboard a paste can read (`windows.set_clipboard`).
-    /// The terminal window reads none. A window up already is moved to it now.
-    void on_os_window() {
-        os_window = true;
+    /// The TUI window reads none. A window up already is moved to it now.
+    void on_gui_window() {
+        gui_window = true;
         if (windows.up()) {
             const Session& s = w->session();
             windows.room(s.screen_w, s.screen_h, 8, 18);
         }
     }
-    bool os_window = false;
-    /// The face a room is shown with: the one asked, or the OS window's own once this rig is on it.
+    bool gui_window = false;
+    /// The face a room is shown with: the one asked, or the GUI window's own once this rig is on it.
     std::pair<std::int64_t, std::int64_t> face_for(std::int64_t adv, std::int64_t line) const {
-        if (os_window && (adv <= 0 || line <= 0)) {
+        if (gui_window && (adv <= 0 || line <= 0)) {
             return {8, 18};
         }
         return {adv, line};
@@ -1196,7 +1196,7 @@ struct Live {
     bool own_medium() {
         if (in_window && !windows.up() &&
             (bus.role_holder(gfx::kGraphicsRole).valid() ||
-             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow).valid() ||
+             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow).valid() ||
              bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow).valid())) {
             in_window = false;
         }
@@ -1245,7 +1245,7 @@ struct Live {
     }
 
     /// The same workspace cell, as the WINDOW would report it: the pixel at the
-    /// cell's top-left corner. Deliberately the inverse of the OS window's
+    /// cell's top-left corner. Deliberately the inverse of the GUI window's
     /// own layout and not of the terminal's -- the two media report different
     /// numbers for one place (workshop/docs/pointer-spaces.md).
     std::int64_t px_x(std::int64_t wx) const { return wx * gfx::kCellPx; }
@@ -1322,7 +1322,7 @@ struct Live {
                                                    input::space::kCells, input::mod::kNone});
     }
 
-    /// The same three gestures, arriving from the OS window. The
+    /// The same three gestures, arriving from the GUI window. The
     /// `+ cell/2` puts the event in the MIDDLE of the cell rather than on its
     /// corner, which is where a weaver's pointer actually is and is what makes a
     /// truncating (rather than flooring) projection visible.
@@ -1340,7 +1340,7 @@ struct Live {
                                                    input::space::kPixels, input::mod::kNone});
     }
 
-    /// THE WINDOW'S BEATS UNTIL ITS ROOM STANDS: the OS window grows to the reach of the areas it
+    /// THE WINDOW'S BEATS UNTIL ITS ROOM STANDS: the GUI window grows to the reach of the areas it
     /// shows on one beat and offers its new room on the next.
     void window_settles() {
         for (int beat = 0; beat < 4; ++beat) {
@@ -3772,8 +3772,8 @@ struct PaneRig {
     }
 
     /// A ROOM OF `width` BY `height` CANVAS CELLS, the window sized to it as a weaver sizes it: a
-    /// cell medium -- the terminal window, its device unit the cell -- unless a face is given, `adv`
-    /// by `line` canvas pixels a character, which the OS window sets text in, every pixel shown.
+    /// cell medium -- the TUI window, its device unit the cell -- unless a face is given, `adv`
+    /// by `line` canvas pixels a character, which the GUI window sets text in, every pixel shown.
     /// The window says its device unit itself, so `cell` is kept only for the spelling of a
     /// medium the rig no longer reports.
     void extent(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
@@ -3791,7 +3791,7 @@ struct PaneRig {
         windows.room(width, height, a, l);
     }
 
-    /// THE SHIPPED GRAPHICAL FACE, at whatever room a case wants -- the OS window with the face
+    /// THE SHIPPED GRAPHICAL FACE, at whatever room a case wants -- the GUI window with the face
     /// it measures. Named, so a case reads as "the weaver is on the window" rather than as numbers.
     void extent_on_window(std::int64_t width, std::int64_t height) {
         extent(width, height, 8, 18, gfx::kCellPx);
@@ -3819,8 +3819,8 @@ struct PaneRig {
         window_button(cx, cy, true, button);
         window_button(cx, cy, false, button);
     }
-    /// ...AT A POINT IN THE MEDIUM'S OWN SPACE, as a reading names one: the terminal window's cell,
-    /// its rows above the desk counted, or the OS window's pixel.
+    /// ...AT A POINT IN THE MEDIUM'S OWN SPACE, as a reading names one: the TUI window's cell,
+    /// its rows above the desk counted, or the GUI window's pixel.
     void hand_button(std::int64_t x, std::int64_t y, std::int64_t space, bool pressed,
                      std::int64_t button = 1) {
         come_up();
@@ -3845,20 +3845,20 @@ struct PaneRig {
         bus.drain_until_idle();
     }
 
-    /// THE OS WINDOW FROM HERE ON, with the face it ships with, for every room after -- one given
+    /// THE GUI WINDOW FROM HERE ON, with the face it ships with, for every room after -- one given
     /// in cells too: the medium whose platform clipboard a paste can read (`windows.set_clipboard`).
-    /// The terminal window reads none. A window up already is moved to it now.
-    void on_os_window() {
-        os_window = true;
+    /// The TUI window reads none. A window up already is moved to it now.
+    void on_gui_window() {
+        gui_window = true;
         if (windows.up()) {
             const Session& s = w->session();
             windows.room(s.screen_w, s.screen_h, 8, 18);
         }
     }
-    bool os_window = false;
-    /// The face a room is shown with: the one asked, or the OS window's own once this rig is on it.
+    bool gui_window = false;
+    /// The face a room is shown with: the one asked, or the GUI window's own once this rig is on it.
     std::pair<std::int64_t, std::int64_t> face_for(std::int64_t adv, std::int64_t line) const {
-        if (os_window && (adv <= 0 || line <= 0)) {
+        if (gui_window && (adv <= 0 || line <= 0)) {
             return {8, 18};
         }
         return {adv, line};
@@ -3870,7 +3870,7 @@ struct PaneRig {
     bool own_medium() {
         if (in_window && !windows.up() &&
             (bus.role_holder(gfx::kGraphicsRole).valid() ||
-             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow).valid() ||
+             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow).valid() ||
              bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow).valid())) {
             in_window = false;
         }
@@ -3917,7 +3917,7 @@ struct PaneRig {
     }
     /// A CASE'S OWN WINDOW'S HAND for a button, set by the case that seated it.
     std::function<void(const input::PointerButton&)> own_hand;
-    /// THE WINDOW'S BEATS UNTIL ITS ROOM STANDS: the OS window grows to the reach of the areas it
+    /// THE WINDOW'S BEATS UNTIL ITS ROOM STANDS: the GUI window grows to the reach of the areas it
     /// shows on one beat and offers its new room on the next.
     void window_settles() {
         for (int beat = 0; beat < 4; ++beat) {
@@ -3937,14 +3937,14 @@ struct PaneRig {
                                     loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
         bus.drain_until_idle();
     }
-    /// A PRIMARY PRESS AT A CANVAS CELL, as the terminal window reports it. These cases speak
+    /// A PRIMARY PRESS AT A CANVAS CELL, as the TUI window reports it. These cases speak
     /// canvas cells, not workspace cells, because a pane is placed on the canvas and never in the
     /// document's room -- `Live::term_x/y` is the other conversation's inverse.
     void press_cell(std::int64_t cx, std::int64_t cy) {
         hand_moment(input::PointerButton{1, true, cx, cy, input::space::kCells,
                                          input::mod::kNone});
     }
-    /// THE WHEEL AT A CANVAS CELL, as the terminal window reports it. `dy` is notches, +1 away
+    /// THE WHEEL AT A CANVAS CELL, as the TUI window reports it. `dy` is notches, +1 away
     /// from the weaver, fractional as a precise wheel reports.
     void wheel_cell(double dy, std::int64_t cx, std::int64_t cy) {
         hand_moment(input::PointerWheel{0.0, dy, cx, cy, input::space::kCells,
@@ -3964,7 +3964,7 @@ struct PaneRig {
         hand_moment(input::PointerButton{1, false, cx, cy, input::space::kCells,
                                          input::mod::kNone});
     }
-    /// THE HAND MOVING AT A CANVAS CELL, as the terminal window reports it -- what a sweep is
+    /// THE HAND MOVING AT A CANVAS CELL, as the TUI window reports it -- what a sweep is
     /// made of between its press and its release.
     void motion_cell(std::int64_t cx, std::int64_t cy) {
         hand_moment(input::PointerMoved{cx, cy, 0, 0, input::space::kCells,
@@ -5406,7 +5406,7 @@ inline ws::ResolvedArrangement shaped_arrangement() {
     said.artifacts.push_back(resolved_provider(
         participation("zengine-operators-basic", "normal", ""), "zengine.operators.basic", 2));
     said.artifacts.push_back(resolved_weave(
-        participation("zengine-window-terminal", "", "zengine.window.terminal"), 4,
+        participation("zengine-window-tui", "", "zengine.window.tui"), 4,
         "not-a-consumer"));
     said.artifacts.push_back(resolved_weave(
         resolved_provider(participation("zengine-timer", "normal", "zengine.timer"),
@@ -5596,7 +5596,7 @@ inline std::int64_t open_powers(PaneRig& r) {
 
 /// THE ROWS A PANE SHOWS, read off the window as `external_rows` and `canvas_rows_shown` read them;
 /// on a rig whose case seated a medium of its own (`own_medium`), which shows no desk here, the
-/// rows Workshop holds for the pane. A terminal window draws the caret as a bar over the cell it
+/// rows Workshop holds for the pane. A TUI window draws the caret as a bar over the cell it
 /// stands before, so a row read for its text reads that one cell as the pane holds it, and a bar
 /// past the row's end as nothing.
 inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
@@ -5618,7 +5618,7 @@ inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
     std::vector<std::string> out = pane != nullptr && shows_canvas(*pane)
                                        ? canvas_rows_shown(r.session(), shown, kind)
                                        : external_rows(shown, external_body_rect(r.session(), kind));
-    if (pane == nullptr || shown.window != gfx::kTerminalWindow) {
+    if (pane == nullptr || shown.window != gfx::kTuiWindow) {
         return out;
     }
     const RowsCaret caret = held_caret(*pane);
@@ -5749,7 +5749,7 @@ inline void press_as_drawn(PaneRig& r, std::int64_t kind, std::int64_t row, std:
         REQUIRE(r.bus.role_send_to_role_as(r.windows.id(), r.windows.role(), pane->provider,
                                              loom::Message(loom::to_value(b), {}, {}, press))
                     .valid());
-        const gfx::AreaPressed told{std::string(gfx::kTerminalWindow), area, button, pressed,
+        const gfx::AreaPressed told{std::string(gfx::kTuiWindow), area, button, pressed,
                                     body.x * gfx::kCellPx + b.x,
                                     (body.y + kExternalHeaderRows) * gfx::kCellPx + b.y, true, 0,
                                     area, part, drawing};

@@ -52,11 +52,11 @@ cmake -DZEN_BUILD_DIR=build-dev -P tests/verify.cmake
 
 A dependency's proof rides its version, so the sibling build contributes its libraries and
 nothing else: its tests and examples are forced off, as is its own SDL2 UI-tree renderer (which
-is a different thing from Zengine's OS window).
+is a different thing from Zengine's GUI window).
 
 ### Where a fetched dependency goes, and that nothing prunes it
 
-The OS window fetches SDL3, SDL_ttf and FreeType at configure time
+The GUI window fetches SDL3, SDL_ttf and FreeType at configure time
 ([supported toolchains](supported-toolchains.md#sdl)). Under WSL, building from a
 Windows-mounted checkout, those trees cannot live in the build directory — that filesystem cannot
 hold the symlinks inside SDL's tarball — so the build sends them to
@@ -104,7 +104,7 @@ host that loads it is an installed Loom session host, which is uninstrumented an
 instrumented image. It only declares shapes, and Workshop on the far side of `workshop_journey`
 stays instrumented.
 
-The lane runs the **full** population, the OS window included — the verifier prints
+The lane runs the **full** population, the GUI window included — the verifier prints
 `gates active: always;sdl`, and every entry the ordinary lane declares is here at the same
 floor. No floor is lowered and no gate is turned off to buy the instrumentation.
 
@@ -174,7 +174,7 @@ installs with `--strip` and asks first ([`package_arm.cmake`](../../tests/packag
 | find the launchers, the first page, the notices and the SDL in the prefix | a package that dropped what a stranger opens or Workshop loads |
 | run `zengine-workshop --version`, read `BUILD-INFO.txt` | an identity that is not this checkout's commit |
 | read every file in `bin/` and `lib/` for the source and build folders | an image that names the machine that built it |
-| start Workshop from the prefix on the OS window's plan and on the terminal's, PATH naming only the system | a row that does not load from the package alone |
+| start Workshop from the prefix on the GUI window's plan and on the terminal's, PATH naming only the system | a row that does not load from the package alone |
 
 It is deliberately **not** a CTest entry: it installs, relocates and configures a second
 unrelated project, and folding that into `ctest` would put a nested CMake build inside a test

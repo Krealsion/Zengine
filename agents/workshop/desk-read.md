@@ -155,7 +155,7 @@ pane in front, Workshop's menu, arranging -- and beside a menu nothing has a poi
 are covered while a menu is open or arranging, no point a press would land on, and the desk still
 answers" "Layouts and the band are read as Workshop draws them: tabs as named parts, the band's
 words with no point"
-`tests/test_graphics.cpp` "an area's arranger reads what the terminal window shows of it: its text
+`tests/test_graphics.cpp` "an area's arranger reads what the TUI window shows of it: its text
 by row in the area's pixels, each part by its box and the cell a press reaches it by, what another's
 area in front paints over left out and its own hiding nothing, and asked again since its version,
 the same"
@@ -191,7 +191,7 @@ when it draws again" "a weaver's press in a pane's area of the window ends a gue
 standing there, and the press is the pane's"
 `tests/test_graphics.cpp` "the window tells an area's arranger, unasked, each time what the area
 shows settles at a new version, and once a version, when it follows the area, and where presses
-landed and that the pointer left; an area it placed without following it is told none of it" "an area's arranger reads what the terminal window shows of it: its text
+landed and that the pointer left; an area it placed without following it is told none of it" "an area's arranger reads what the TUI window shows of it: its text
 by row in the area's pixels, each part by its box and the cell a press reaches it by, what another's
 area in front paints over left out and its own hiding nothing, and asked again since its version,
 the same" "an area whose owner was told a room it must draw whole reads waiting until the owner

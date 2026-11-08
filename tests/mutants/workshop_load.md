@@ -24,7 +24,7 @@ Red in `zengine-workshop-load-tests`:
 
 ## window-kept-without-opening
 
-The OS window's backend goes on as a window when SDL cannot start its video.
+The GUI window's backend goes on as a window when SDL cannot start its video.
 
 In `graphics/window/window_sdl_backend.hpp`:
 
@@ -41,8 +41,8 @@ In `graphics/window/window_sdl_backend.hpp`:
 
 Red in `zengine-workshop-load-tests`:
 
-- the shipped window row in the OS window's absence: told a driver it lacks, the OS window gives way
-  to the terminal window, said once, and leaves nothing loaded; in a build without it, the terminal
+- the shipped window row in the GUI window's absence: told a driver it lacks, the GUI window gives way
+  to the TUI window, said once, and leaves nothing loaded; in a build without it, the terminal
   window loads unsaid
 
 ## retired-row-opened

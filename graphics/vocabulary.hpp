@@ -25,11 +25,11 @@ namespace zengine::graphics {
 /// The directory's role: which windows exist, which areas each shows, who draws in each, which
 /// palette it wears and which code presents each element type.
 inline constexpr const char* kGraphicsRole = "zengine.graphics";
-/// A window's role is this prefix and its name: `zengine.window.terminal`.
+/// A window's role is this prefix and its name: `zengine.window.tui`.
 inline constexpr const char* kWindowRolePrefix = "zengine.window.";
-/// The terminal window's name: one terminal to a process, so one terminal window.
-inline constexpr const char* kTerminalWindow = "terminal";
-/// The OS window's name: a window of light on the desktop, drawn through SDL.
+/// The TUI window's name: one terminal to a process, so one TUI window.
+inline constexpr const char* kTuiWindow = "tui";
+/// The GUI window's name: a window of light on the desktop, drawn through SDL.
 inline constexpr const char* kSdlWindow = "sdl";
 
 /// The bounds one area keeps in its window. A drawing past any of them is refused whole, in words
@@ -381,7 +381,7 @@ inline constexpr std::size_t kMaxWindowTitleBytes = 256;
 
 /// An arranger -> a window's role, as the role that arranges an area in that window: the
 /// window's title, and its size in pixels. The window takes it only from a role that arranges in
-/// it and only when it names that window; anything else changes nothing. An OS window sets both,
+/// it and only when it names that window; anything else changes nothing. A GUI window sets both,
 /// keeping a size past its display's usable area within it, a side of 0 keeping that side as it is,
 /// and a title cut to `kMaxWindowTitleBytes`, an empty one keeping its own; a terminal keeps its
 /// own size and title. A window
@@ -680,7 +680,7 @@ struct AreaSettled {
 // The clipboard, the window's place on its desktop, a close its desktop asked for, and the picture
 // last presented: each window that shows answers them, as its role, as far as its platform can.
 
-/// Give the medium a turn to service its platform now, such as an OS window's event queue: the
+/// Give the medium a turn to service its platform now, such as a GUI window's event queue: the
 /// work its own beat does, on request, for suites and for hosts with no Timer.
 struct PumpSurface {
     ZEN_SHAPE(PumpSurface, 1);
@@ -688,7 +688,7 @@ struct PumpSurface {
 
 /// The medium was asked to close, as by a window's close box: a lifecycle fact, not an input
 /// moment, so it is never confused with a weaver's quit key. Whoever hears it applies its own quit
-/// policy, which may be to stay. No terminal is asked; an OS window publishes it as its role.
+/// policy, which may be to stay. No terminal is asked; a GUI window publishes it as its role.
 struct SurfaceCloseRequested {
     ZEN_SHAPE(SurfaceCloseRequested, 1);
 };

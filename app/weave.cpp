@@ -211,7 +211,7 @@ private:
         const std::string& named = file_.window.skin;
         std::optional<gfx::PaletteOffered> palette = shipped_palette(named);
         if (!palette) {
-            palette = shipped_palette(window_.window == gfx::kTerminalWindow ? "night" : "day");
+            palette = shipped_palette(window_.window == gfx::kTuiWindow ? "night" : "day");
             if (read_) {
                 say("app.json names the palette '" + named + "'; a window wears night, day " +
                     "or block");

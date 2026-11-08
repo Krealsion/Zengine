@@ -232,7 +232,7 @@ runtime_claim_name real_world
 `tests/test_workshop_files.cpp` "the development launch claims its runtime, prepares it through the
 runtime script, then starts only that runtime's host, with its own plan and development catalog,
 in a project directory of its own, and lets the claim go only after that host exits" "a
-development launch that is refused starts nothing and holds nothing after: no OS window, a
+development launch that is refused starts nothing and holds nothing after: no GUI window, a
 runtime another launch holds or that could not be claimed, a runtime whose host is running, a
 runtime script that refused or never ran, a project path that is no directory, an argument it does
 not know" "two launches of one runtime that overlap before its host starts: exactly one prepares and

@@ -1020,7 +1020,7 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
     };
     std::size_t said = seat->rooms.size();
     // EACH IS THE PANE'S INTERIOR: two cells less on both axes than its rectangle in a cell
-    // medium, its visible boundary coming out of it; a pixel less on each side in the OS window,
+    // medium, its visible boundary coming out of it; a pixel less on each side in the GUI window,
     // which shows every pixel.
     for (const Grant& g : std::vector<Grant>{{120, 40, 0, 0, 6, 82},
                                              {200, 60, 0, 0, 6, 122},
@@ -1047,7 +1047,7 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
             CHECK(seat->rooms.back().rows == g.rows);
             CHECK(seat->rooms.back().columns == g.columns);
         } else {
-            // IN THE OS WINDOW THE ROOM IS THE AREA THE WINDOW GIVES, its whole width in the face's
+            // IN THE GUI WINDOW THE ROOM IS THE AREA THE WINDOW GIVES, its whole width in the face's
             // characters: the body's inset is the area's to draw in.
             const ExternalPane* placed = r.session().panes.external_pane(kind);
             REQUIRE(placed != nullptr);

@@ -256,7 +256,7 @@ struct HostContext {
     // WL-KEY-07 -- agents/workshop/keyboard.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string keymap_path;
 
-    /// WHETHER THIS HOST'S TERMINAL WINDOW READS ITS KEYS FROM A POSIX TERMINAL
+    /// WHETHER THIS HOST'S TUI WINDOW READS ITS KEYS FROM A POSIX TERMINAL
     /// (`input/terminal_reader.hpp`): shown in that window, Workshop puts each pane row's POSIX key
     /// in force in place of its default. The program sets it on a build that is not Windows.
     // WL-KEY-08 -- agents/workshop/keyboard.md
@@ -275,7 +275,7 @@ struct HostContext {
     std::string transition_note;
 
     /// WHAT A ROW OF THE PLAN COULD NOT LOAD AND GAVE WAY FROM, a sentence each, read when the
-    /// desk comes up and said once there: an OS window that could not open, so the terminal
+    /// desk comes up and said once there: a GUI window that could not open, so the terminal
     /// window holds the desk. Empty, or none, when every row loaded its own artifact.
     std::function<std::vector<std::string>()> passed_over;
 
@@ -1188,7 +1188,7 @@ public:
     /// A GRAPHICS DIRECTORY STARTED AFRESH: the palettes offered, every area placed and its palette
     /// chosen again, and Workshop's own room asked.
     void on(const graphics::GraphicsReady&, loom::Mail& mail);
-    /// THE TERMINAL WINDOW OFFERED ITSELF, as its own role: Workshop comes up in it while no
+    /// THE TUI WINDOW OFFERED ITSELF, as its own role: Workshop comes up in it while no
     /// surface has, and lays its screen out in the window's room while no medium has named its
     /// unit.
     void on(const graphics::WindowOffered& w, loom::Mail& mail);
@@ -1410,7 +1410,7 @@ private:
     void restore_window(const window_persist::LoadedWindow& window, loom::Mail& mail);
     /// THE RESTORE'S SENTENCE, said when the owner's first picture brings the run back.
     void say_restored(const LiveLayout& live, loom::Mail& mail);
-    /// The OS window shaped to the room the restore held for it, then placed, once.
+    /// The GUI window shaped to the room the restore held for it, then placed, once.
     void shape_restored_window(loom::Mail& mail);
 
     /// WRITE DOWN THE DESK AND THE ROOM, ON THE WAY OUT.
@@ -1783,7 +1783,7 @@ private:
     /// Workshop's own room was asked of this directory.
     bool graphics_asked_ = false;
     /// The graphics window the desk's areas are placed on, and whether a window offered itself.
-    std::string window_name_ = graphics::kTerminalWindow;
+    std::string window_name_ = graphics::kTuiWindow;
     bool window_offered_ = false;
     /// A PRESS A GRAPHICS WINDOW HOLDS IN A PANE'S AREA, by button: that pane, its area and the
     /// window's number for the press, until its release or until the window ends the hold.
@@ -2098,7 +2098,7 @@ private:
     /// unit the restore's sentence is said in, whichever window offers itself after.
     std::optional<std::int64_t> first_unit_;
 
-    /// THE OS WINDOW'S OWN ROOM, TO SHAPE IT TO AT RESTORE, AND THE PLACE AFTER IT: held until the
+    /// THE GUI WINDOW'S OWN ROOM, TO SHAPE IT TO AT RESTORE, AND THE PLACE AFTER IT: held until the
     /// desk's area is in that window, since a window takes a shaping only from a role arranging
     /// in it, and sent shape first, so a maximize lands on the room a restore-down returns to.
     // WL-SESSION-20 -- agents/workshop/window-file.md

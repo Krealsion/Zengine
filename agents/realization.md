@@ -67,8 +67,8 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   the one rule that spells a stem as a file (`HostContext::so`), which is why ONE plan is
   legal on Linux and Windows with no platform field.
 - **`--load-plan` is the door, and there is no compiled-in fallback plan**: a missing file
-  refuses by path and the host exits without mounting or loading anything. The OS window's
-  arrangement is a second SHIPPED PLAN staged only where the OS window and SDL's reader exist.
+  refuses by path and the host exits without mounting or loading anything. The GUI window's
+  arrangement is a second SHIPPED PLAN staged only where the GUI window and SDL's reader exist.
 - **Filesystem presence is not load authority.** The suite stages a real directory holding
   MORE artifacts than any plan names and proves an unlisted valid provider is neither opened
   nor mounted. A lookup table could not have asked the question.
@@ -168,7 +168,7 @@ begin(plan)                    the ordinary host loop        answered()
   Attention pane lists, its glance first. The Pane Manager's `[gone]` rows read the INVENTORY,
   not these conditions: they name a missing tool only once an offer or a desk row gave it a
   row, and a row whose role a plan row still owes is `pending` there (`role_pending`),
-  never `[gone]` — the walk has not reached its verdict. In a terminal Workshop the terminal window
+  never `[gone]` — the walk has not reached its verdict. In a terminal Workshop the TUI window
   owns the terminal from its row on, so the console lines after it are drawn over. The owner has no
   opinion about process lifetime, and COMPLETION ends nothing.
 - **THE CONTROL DOOR PATH IS LOAD-BEARING.** `Kernel::load` is reachable from the host and

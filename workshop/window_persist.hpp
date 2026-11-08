@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_WINDOW_PERSIST_HPP
 
 // Workshop's window file: the room its desk had, where its window sat on the desktop and how large
-// the OS window was, written at an orderly close and read at the next start -- and, once, when no
+// the GUI window was, written at an orderly close and read at the next start -- and, once, when no
 // window file exists yet, the same three facts read from a session file an older Workshop wrote.
 // Workshop law: agents/workshop/window-file.md
 
@@ -99,7 +99,7 @@ struct WorkshopPlacement {
 };
 
 /// THE WINDOW FILE: what it is, which version, the normal window's room, where the window sat,
-/// and the OS window's own normal room (0 by 0 where none was kept).
+/// and the GUI window's own normal room (0 by 0 where none was kept).
 // WL-SESSION-21 -- agents/workshop/window-file.md
 struct WorkshopWindow {
     std::string format;
@@ -143,7 +143,7 @@ struct Placement {
     std::int64_t x = 0;     ///< the normal window's top-left, opaque desktop units
     std::int64_t y = 0;
     bool maximized = false; ///< whether the window was maximized
-    /// The OS window's normal room, in its pixels, kept beside the place whether or not one is
+    /// The GUI window's normal room, in its pixels, kept beside the place whether or not one is
     /// known; 0 by 0 when none was kept.
     // WL-SESSION-20 -- agents/workshop/window-file.md
     std::int64_t room_w = 0;
@@ -278,7 +278,7 @@ inline LoadedWindow from_text(std::string_view bytes) {
     if (const Written placed = placement_in(file.placement, place); !placed.accepted) {
         return LoadedWindow::no(placed.refusal);
     }
-    // THE OS WINDOW'S ROOM IS JUDGED WHERE IT IS USED, as the viewport is, and refuses nothing.
+    // THE GUI WINDOW'S ROOM IS JUDGED WHERE IT IS USED, as the viewport is, and refuses nothing.
     place.room_w = file.window_room.width;
     place.room_h = file.window_room.height;
     return loaded_from(file.viewport.width, file.viewport.height, place);
@@ -301,7 +301,7 @@ inline LoadedWindow load_file(const std::string& path) {
 // WL-SESSION-21 -- agents/workshop/window-file.md
 
 /// The session format whose room is the first said in canvas pixels, the first with a desktop
-/// placement, and the first with the OS window's own room; and the last a session held them in.
+/// placement, and the first with the GUI window's own room; and the last a session held them in.
 inline constexpr std::int64_t kSessionPixelsVersion = 7;
 inline constexpr std::int64_t kSessionPlacementVersion = 3;
 inline constexpr std::int64_t kSessionWindowRoomVersion = 10;
@@ -311,7 +311,7 @@ inline constexpr std::int64_t kSessionLastWindowVersion = 11;
 inline constexpr std::int64_t kSessionCellPx = 12;
 
 /// THE WINDOW'S FACTS IN A SESSION FILE AN OLDER WORKSHOP WROTE: its room (in cells before
-/// version 7), its placement from version 3, and the OS window's room from version 10, read from
+/// version 7), its placement from version 3, and the GUI window's room from version 10, read from
 /// the session's own value -- or, from version 11, its header line -- and judged as the window
 /// file's own are. Nothing when the session is of a version that keeps none of them, or is not
 /// read; never a refusal of the start.

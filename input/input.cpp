@@ -7,7 +7,7 @@
 // platform's input-side state for exactly the weave's lifetime: construction engages it,
 // destruction restores it. Reference: input/docs/input.md
 
-// The output side (alternate screen, VT processing) is the terminal window's ground. With no
+// The output side (alternate screen, VT processing) is the TUI window's ground. With no
 // console (redirected stdin, headless ctest, a pipe) the reader stays disabled and poll() yields
 // nothing.
 

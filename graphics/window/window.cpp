@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The loadable weave `zengine-window-terminal`: the terminal window over the process's own
+// The loadable weave `zengine-window-tui`: the TUI window over the process's own
 // terminal. It takes the terminal when it is activated -- its output side through the terminal's
 // claim (graphics/window/terminal_io.hpp), its input side as the Input weave reads it
 // (input/terminal_reader.hpp) -- and gives both back when it goes. While it is loaded it claims the
 // terminal's input, so an Input weave beside it leaves the terminal to it. With no terminal (a
 // pipe, a suite) it writes nothing and reads nothing, and still keeps and composes its picture.
 
-#include "graphics/window/window_terminal.hpp"
+#include "graphics/window/window_tui.hpp"
 
 #include "input/terminal_reader.hpp"
 
@@ -24,14 +24,14 @@ namespace {
 
 class ProcessTerminal {
 public:
-    ProcessTerminal() { zengine::input::claim_window_terminal_input(); }
+    ProcessTerminal() { zengine::input::claim_window_tui_input(); }
     ~ProcessTerminal() {
 #if !defined(_WIN32)
         resize_.reset();
 #endif
         in_.reset();
         out_.reset();
-        zengine::input::release_window_terminal_input();
+        zengine::input::release_window_tui_input();
     }
     ProcessTerminal(const ProcessTerminal&) = delete;
     ProcessTerminal& operator=(const ProcessTerminal&) = delete;
@@ -84,8 +84,8 @@ private:
 #endif
 };
 
-using TerminalWindow = zengine::graphics::window::WindowT<ProcessTerminal>;
+using TuiWindow = zengine::graphics::window::WindowT<ProcessTerminal>;
 
 } // namespace
 
-ZEN_EXPORT_WEAVE(TerminalWindow)
+ZEN_EXPORT_WEAVE(TuiWindow)

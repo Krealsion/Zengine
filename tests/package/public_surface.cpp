@@ -376,7 +376,7 @@ void source_transfer_surface() {
 
 // ---- zengine::graphics -----------------------------------------------------------------
 // An owner's drawing from the installed headers alone: a button sketched, a canvas told its room
-// and handed the picture, and the picture painted into cells by the code the terminal window
+// and handed the picture, and the picture painted into cells by the code the TUI window
 // runs. No window and no bus: those are the artifacts'.
 void graphics_surface() {
     namespace gfx = zengine::graphics;
@@ -392,12 +392,12 @@ void graphics_surface() {
     check(canvas.window().empty() && canvas.width() == 0, "a canvas no window has answered has no room");
     gfx::AreaRoom room;
     room.area = "kitchen.oven";
-    room.window = gfx::kTerminalWindow;
+    room.window = gfx::kTuiWindow;
     room.epoch = 1;
     room.w = 20 * gfx::kCellPx;
     room.h = 2 * gfx::kCellPx;
     check(canvas.room(room) && canvas.width() == room.w &&
-              canvas.window_role() == "zengine.window.terminal",
+              canvas.window_role() == "zengine.window.tui",
           "a canvas keeps the room its window told, and names that window's role");
     check(!canvas.room(room), "and the same room told again changes nothing");
 

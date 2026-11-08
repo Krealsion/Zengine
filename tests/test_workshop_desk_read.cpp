@@ -839,7 +839,7 @@ loom::Grant capture_grant() {
           loom::schema_of<KeymapRequested>()}) {
         grant.allow_to_role(shape->name(), shape->version(), kWorkshopProvider);
     }
-    const std::string window = std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
+    const std::string window = std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
     grant.allow_to_role(gfx::SurfaceCaptureRequested::zen_name,
                         gfx::SurfaceCaptureRequested::zen_version, window);
     grant.allow_to_role(gfx::SurfaceCaptureChunkRequested::zen_name,

@@ -590,7 +590,7 @@ private:
     /// `Escape` in the DEFAULT class, so every pane's own Escape stays its own; `Ctrl+f` a pane's
     /// manual, above every mode, since only a chord reaches past a pane holding the keys;
     /// `Ctrl+Space` the palette, a chord every window says, typing nothing where it opens; and
-    /// double Shift, its second key, which the OS window says.
+    /// double Shift, its second key, which the GUI window says.
     static std::vector<AppActionRow> app_rows() {
         return {
             AppActionRow{pane::kActionTerminal, "terminal", input::scan::kT, input::mod::kCtrl,

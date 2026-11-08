@@ -2476,16 +2476,16 @@ TEST_CASE("the wheel walks the Builder's recipe list, three rows a notch, and me
     CHECK_MESSAGE(bp_row(b.shown(), "> one -> a") >= 0, b.text());
 }
 
-TEST_CASE("the Builder's role line asks the window that shows the pane for a paste, the OS window or the terminal's") {
+TEST_CASE("the Builder's role line asks the window that shows the pane for a paste, the GUI window or the terminal's") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_builder.md#paste-asked-of-another-role): the
     // Builder's paste asked of another role than the window showing its area.
     namespace gfx = zengine::graphics;
-    for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+    for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
         CAPTURE(window);
         const bool os = std::string(window) == gfx::kSdlWindow;
         BuilderRig b("bld-paste-window");
         b.tool->catalog = catalog_of({{"one", "a"}});
-        if (os) b.r.on_os_window();
+        if (os) b.r.on_gui_window();
         b.open();
         std::int64_t asks = 0;
         const loom::ObserverId tap =

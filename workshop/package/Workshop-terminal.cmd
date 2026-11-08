@@ -1,7 +1,7 @@
 @echo off
 rem Workshop in this console (--tui). Its project is %USERPROFILE%\Zengine, the window's, made at
 rem the first start and kept across packages; a plan that project holds starts here too, in its
-rem terminal window. Each start names this package's zengine-app in the project, where an exported
+rem TUI window. Each start names this package's zengine-app in the project, where an exported
 rem app's run.cmd finds it.
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul

@@ -276,7 +276,7 @@ TEST_CASE("a close is the window's that shows the desk: one said by anyone else 
     bool stopped = false;
     t.host.request_stop = [&stopped] { stopped = true; };
     t.ready();
-    REQUIRE(t.windows.window() == gfx::kTerminalWindow);
+    REQUIRE(t.windows.window() == gfx::kTuiWindow);
     const auto say_as = [&t](const std::string& role) {
         loom::Grant grant;
         grant.allow_to_any(gfx::SurfaceCloseRequested::zen_name,
@@ -393,10 +393,10 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     // ...and the cell projection stands the caret on a cell, moving no character of the row.
     CHECK(label_at(t.shown(), 0, 0).find("layout name> [Default") == 0);
 
-    // ON THE OS WINDOW, whose platform clipboard a paste can read, A PANE COPIES -- publishing
+    // ON THE GUI WINDOW, whose platform clipboard a paste can read, A PANE COPIES -- publishing
     // `ClipboardCopy`, as every pane does with its own selection -- and this host's name editor
     // pastes it: the two boxes are in two images.
-    t.on_os_window();
+    t.on_gui_window();
     REQUIRE(t.session().setup.naming.open);
     t.publish(loom::to_value(gfx::ClipboardCopy{"Morning"}));
     // Paste replaces the selection: the name a weaver copied in a PANE arrives here.
@@ -501,7 +501,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     REQUIRE(form_open);
 
     // A medium whose platform clipboard can be read, for the provider's own paste conversation.
-    r.on_os_window();
+    r.on_gui_window();
 
     // Type into the field under the cursor (typing makes it present), select all, copy.
     r.text("hello");
@@ -654,7 +654,7 @@ TEST_CASE("paste reads the platform current, not the mirror stale") {
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kC, input::mod::kCtrl); // mirror = "stale", platform = "stale"
     REQUIRE(t.session().clipboard.text == "stale");
-    t.on_os_window(); // the medium whose platform clipboard a paste reads
+    t.on_gui_window(); // the medium whose platform clipboard a paste reads
     REQUIRE(t.session().setup.naming.open);
     t.windows.set_clipboard("fresh"); // an unrelated application copies; nothing travels
     t.key(input::scan::kA, input::mod::kCtrl);
@@ -667,7 +667,7 @@ TEST_CASE("paste reads the platform current, not the mirror stale") {
     CHECK(t.windows.clipboard_reads() == 2);
 }
 
-TEST_CASE("in the terminal window, which reads no clipboard, paste inserts nothing and breaks nothing") {
+TEST_CASE("in the TUI window, which reads no clipboard, paste inserts nothing and breaks nothing") {
     // The honest degradation: the window says it can read no clipboard, so the paste simply
     // does not happen -- consumed, so it cannot fall through to an application binding -- and
     // pressing it past the book's capacity stays quiet rather than becoming a crash or a queue.

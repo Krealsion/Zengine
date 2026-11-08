@@ -617,7 +617,7 @@ TEST_CASE("a closed pane occupies nothing, and neither does a screen with none o
 }
 
 TEST_CASE("the window's pixels meet the same pane the terminal's cells do") {
-    // THE OTHER MEDIUM, through the OS window's own projection. Occupancy is
+    // THE OTHER MEDIUM, through the GUI window's own projection. Occupancy is
     // asked in CANVAS cells, so both media arrive at the same question -- and the
     // case is worth having because the two report different numbers for one place,
     // which is exactly where a second geometry would hide.
@@ -6546,7 +6546,7 @@ using zengine::graphics::kCellPx;
 TEST_CASE("region: with no text metric a region is exactly its own cells") {
     // THE HINGE OF A REGION'S HONESTY. A window that measures no face has said "text is a
     // cell", and this is what that resolves to: the region's own bounds, no inset, no pixel
-    // arithmetic anybody has to trust. The terminal window lives here, and so does the OS window
+    // arithmetic anybody has to trust. The TUI window lives here, and so does the GUI window
     // before its face opens and after a face has failed to open.
     const RegionFit f = fit_region(cells_px(3), cells_px(4), cells_px(20), cells_px(6), 0, 0);
     CHECK(f.columns == 20);

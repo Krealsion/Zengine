@@ -148,7 +148,7 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
         if (row.provider == ref.provider && row.pane == ref.pane) {
             row.name = offer.name;       // in place: the position and the handle are kept,
             row.summary = offer.summary; // so an open pane stays the pane it was
-            // THE FIRST OFFER STANDS for `default`; `fit` takes this one, and in the OS window
+            // THE FIRST OFFER STANDS for `default`; `fit` takes this one, and in the GUI window
             // stays where it stands while this is within a pixel of it.
             row.latest = asked;
             if (!within_a_pixel(asked, row.standing)) {
@@ -416,7 +416,7 @@ inline PreferredExtent preferred_extent(const RuntimePane* pane, const StackCapa
 }
 
 /// The offer `fit` reads in this room: the latest where the medium cannot say a pixel, and in the
-/// OS window the one it stands on, which a re-offer within a pixel of it does not move.
+/// GUI window the one it stands on, which a re-offer within a pixel of it does not move.
 // WL-PANE-17 -- agents/workshop/panes-and-windows.md
 inline const PaneOfferedBody& fit_offer(const RuntimePane& pane, const StackCapacity& room) {
     return room.grain == 1 ? pane.standing : pane.latest;

@@ -27,7 +27,7 @@ like.
   [supported toolchains](docs/contributing/supported-toolchains.md#the-matrix),
   [MSVC](docs/contributing/supported-toolchains.md#msvc),
   [MinGW](docs/contributing/supported-toolchains.md#mingw).
-- No SDL, the terminal window alone, `ZENGINE_TUI_ONLY=ON`:
+- No SDL, the TUI window alone, `ZENGINE_TUI_ONLY=ON`:
   [SDL](docs/contributing/supported-toolchains.md#sdl).
 
 ## Using Zengine from another project

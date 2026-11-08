@@ -1816,7 +1816,7 @@ struct WindowBeats {
     WindowBeats& operator=(const WindowBeats&) = delete;
 };
 
-constexpr const char* kTerminalWindowRole = "zengine.window.terminal";
+constexpr const char* kTuiWindowRole = "zengine.window.tui";
 
 } // namespace
 
@@ -1824,9 +1824,9 @@ TEST_CASE("consumer BEFORE the timer: its declared beat waits, and TimerReady "
           "is what rescues it") {
     Rig r;
     WindowBeats beats(r.bus);
-    // The terminal window is loaded into a world with NO timer service: it declares its pump
+    // The TUI window is loaded into a world with NO timer service: it declares its pump
     // beat, and nothing serves it. It could not retry alone, which is why TimerReady matters.
-    (void)r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowRole);
+    (void)r.load("zengine-window-tui", WINDOW_SO, kTuiWindowRole);
     r.bus.drain_until_idle(); // nothing is alive; this drains
     CHECK(r.bus.pending() == 0);
     // Measured, not assumed: it is being beaten by nothing.
@@ -1844,7 +1844,7 @@ TEST_CASE("a window reloaded in place asks from its own activation and does NOT 
     Rig r;
     WindowBeats beats(r.bus);
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    const loom::WeaveId first = r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowRole);
+    const loom::WeaveId first = r.load("zengine-window-tui", WINDOW_SO, kTuiWindowRole);
     r.pump_for(timer_so, 60);
     const std::int64_t standing_before =
         std::stoll(r.poke_timed(timer_so, timer_so, loom::PokeRead{"active"}).text);
@@ -1853,14 +1853,14 @@ TEST_CASE("a window reloaded in place asks from its own activation and does NOT 
     // Replace the window in place. The successor's own activation makes it ask.
     const std::uint64_t corr = r.next_corr++;
     r.bus.send_as(r.witness, r.manager,
-                  loom::Message(loom::to_value(loom::ReloadWeave{"zengine-window-terminal",
+                  loom::Message(loom::to_value(loom::ReloadWeave{"zengine-window-tui",
                                                                  WINDOW_SO}),
                                 r.witness, r.witness, corr));
     // A reload takes what the machine gives it: wait for the answer rather than a fixed window,
     // then give the successor beats of its own.
     const Seen::Answer reloaded = r.wait_answer(timer_so, corr, "window reload");
     REQUIRE_MESSAGE(reloaded.kind != 2, "window reload refused: ", reloaded.text);
-    const loom::WeaveId successor = r.bus.role_holder(kTerminalWindowRole);
+    const loom::WeaveId successor = r.bus.role_holder(kTuiWindowRole);
     REQUIRE(successor.valid());
     CHECK(successor == first); // a reload in place keeps the weave's id; its incarnation is new
     const std::int64_t fired_before = beats.fired;
@@ -1898,7 +1898,7 @@ TEST_CASE("the window keeps itself served: beats with nobody pumping") {
     Rig r;
     WindowBeats beats(r.bus);
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    (void)r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowRole);
+    (void)r.load("zengine-window-tui", WINDOW_SO, kTuiWindowRole);
 
     r.pump_for(timer_so, 80);
 

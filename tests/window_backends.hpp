@@ -5,8 +5,8 @@
 #define ZENGINE_TESTS_WINDOW_BACKENDS_HPP
 
 // The two windows' devices as the suites hold them: a terminal the suite types into, reads and
-// sizes, under the terminal window (`graphics/window/window_terminal.hpp`), and a pixel backend the
-// suite reads, sizes and types into, under the OS window (`graphics/window/window_sdl.hpp`). The
+// sizes, under the TUI window (`graphics/window/window_tui.hpp`), and a pixel backend the
+// suite reads, sizes and types into, under the GUI window (`graphics/window/window_sdl.hpp`). The
 // graphics suite drives the windows over them; the Workshop rig shows its desk in them
 // (`rig_windows.hpp`). Each log keeps what its window wrote unless it is told to keep nothing.
 
@@ -14,7 +14,7 @@
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/window.hpp"
 #include "graphics/window/window_sdl.hpp"
-#include "graphics/window/window_terminal.hpp"
+#include "graphics/window/window_tui.hpp"
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
 
@@ -85,7 +85,7 @@ private:
     TermLog* log_ = nullptr;
 };
 
-/// What the OS window handed its backend and what the suite queues for it to read.
+/// What the GUI window handed its backend and what the suite queues for it to read.
 struct LightLog {
     struct Area {
         std::string area;
@@ -102,13 +102,13 @@ struct LightLog {
         bool operator==(const Frame&) const = default;
     };
     gw::PixelSize size{gw::kDefaultWidth, gw::kDefaultHeight};
-    gfx::TextMeasure face{8, 18}; ///< the face it sets text in, as the OS window's measures
+    gfx::TextMeasure face{8, 18}; ///< the face it sets text in, as the GUI window's measures
     gw::PixelPolled queued;
     std::vector<Frame> frames;
     bool keeps = true; ///< false: each picture is presented and not kept in `frames`
     bool keeps_last = false; ///< true: `frames` holds the last picture presented, and only it
     int claims = 0;
-    bool drawing = true; ///< false: no OS window, so nothing is presented
+    bool drawing = true; ///< false: no GUI window, so nothing is presented
     bool reading = true; ///< false: a picture cannot be read back
     std::vector<Frame> captured;              ///< each picture it was asked to read back
     std::optional<std::string> clipboard;     ///< what its clipboard holds; none: no read exists
@@ -236,7 +236,7 @@ private:
 };
 
 /// The two windows over them.
-using FakeTerminalWindow = gw::WindowT<FakeTerminal>;
+using FakeTuiWindow = gw::WindowT<FakeTerminal>;
 using FakeSdlWindow = gw::SdlWindowT<FakeSdlBackend>;
 
 } // namespace zengine::testing::window_backends

@@ -2080,7 +2080,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
 
 TEST_CASE("^c copies, does not quit, and the copy reaches the platform clipboard") {
     EditorRig e("edit-copy");
-    e.r.on_os_window(); // the medium whose platform clipboard a paste reads
+    e.r.on_gui_window(); // the medium whose platform clipboard a paste reads
     e.open();
     e.open_file("a.cpp", "one two\n");
     e.press_doc(0, 0);
@@ -2142,7 +2142,7 @@ TEST_CASE("an empty Editor pane takes the keys and does nothing with them") {
 
 TEST_CASE("copy here, paste there -- multiline, through the medium's own answer") {
     EditorRig e("edit-paste");
-    e.r.on_os_window(); // the medium whose platform clipboard a paste reads
+    e.r.on_gui_window(); // the medium whose platform clipboard a paste reads
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
     e.press_doc(0, 0);
@@ -2223,7 +2223,7 @@ TEST_CASE("a paste still arriving refuses another source, and its answer lands w
 TEST_CASE("a clipboard holding non-ASCII refuses the paste, and typed non-ASCII is refused "
           "with a sentence") {
     EditorRig e("edit-ascii");
-    e.r.on_os_window(); // the medium whose platform clipboard a paste reads
+    e.r.on_gui_window(); // the medium whose platform clipboard a paste reads
     e.open();
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 3);

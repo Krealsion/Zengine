@@ -126,8 +126,8 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
             : "object document " + host_->retired_document +
                   " left as it is -- the object canvas retired, and nothing here reads or "
                   "writes it";
-    // ...AND WHAT THE PLAN COULD NOT LOAD AND GAVE WAY FROM, said once: the OS window that could
-    // not open here, so the desk is in the terminal window, and why.
+    // ...AND WHAT THE PLAN COULD NOT LOAD AND GAVE WAY FROM, said once: the GUI window that could
+    // not open here, so the desk is in the TUI window, and why.
     std::string gave_way;
     if (host_->passed_over) {
         for (const std::string& gone : host_->passed_over()) {
@@ -187,7 +187,7 @@ void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
 
 // WL-GEO-08 -- agents/workshop/geometry.md
 void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
-    if ((w.window != graphics::kTerminalWindow && w.window != graphics::kSdlWindow) ||
+    if ((w.window != graphics::kTuiWindow && w.window != graphics::kSdlWindow) ||
         !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + w.window)) {
         return;
     }
@@ -199,9 +199,9 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
         window_epoch_ = w.epoch;
         forget_area_readings(mail);
     }
-    // ...AND THE KEYS IN FORCE FOR WHERE THEY COME FROM: a POSIX terminal's, in the terminal window
+    // ...AND THE KEYS IN FORCE FOR WHERE THEY COME FROM: a POSIX terminal's, in the TUI window
     // of a host whose terminal is one, and the defaults everywhere else.
-    set_posix_layer(host_->posix_terminal && w.window == graphics::kTerminalWindow, mail);
+    set_posix_layer(host_->posix_terminal && w.window == graphics::kTuiWindow, mail);
     if (window_name_ != w.window) {
         window_name_ = w.window;
         areas_placed_.clear();
@@ -215,8 +215,8 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if (!desk_started_) {
         start_desk(mail);
     }
-    // THE WINDOW'S ROOM: its pixels, the device unit it says -- the OS window's pixel, the terminal
-    // window's cell -- and its text: the face the OS window measured, a cell where the window's
+    // THE WINDOW'S ROOM: its pixels, the device unit it says -- the GUI window's pixel, the terminal
+    // window's cell -- and its text: the face the GUI window measured, a cell where the window's
     // unit is the cell. A window that offers another size is laid out in again.
     if (w.width <= 0 || w.height <= 0) {
         return;

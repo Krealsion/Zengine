@@ -372,7 +372,7 @@ TEST_CASE("the restore's sentence is said once, in the unit the first window nam
         t.r.host.session_path = session;
         t.launch_note.clear();
         if (os) {
-            t.r.on_os_window();
+            t.r.on_gui_window();
         }
         t.open(120, 75);
         t.r.extent(100, 40);
@@ -382,7 +382,7 @@ TEST_CASE("the restore's sentence is said once, in the unit the first window nam
         t.kept_as_heard();
     }
     // ANOTHER NOTICE BEFORE THE ROOM: a terminal that offered itself before it had a room named no
-    // unit, so the sentence waits for the first room a window offers -- the OS window's, or the
+    // unit, so the sentence waits for the first room a window offers -- the GUI window's, or the
     // terminal's own -- and is said after the other, once, in that window's unit.
     for (const bool os : {true, false}) {
         CAPTURE(os);
@@ -396,7 +396,7 @@ TEST_CASE("the restore's sentence is said once, in the unit the first window nam
         REQUIRE_FALSE(t.reader->heard.empty());
         const std::int64_t before = t.reader->heard.back().number;
         if (os) {
-            t.r.on_os_window();
+            t.r.on_gui_window();
         } else {
             t.r.windows.room(cells_px(120), cells_px(75));
             t.r.windows.queue_offer(cells_px(120), cells_px(75));

@@ -2758,21 +2758,21 @@ TEST_CASE("the development launch claims its runtime, prepares it through the ru
     CHECK(std::filesystem::path(develop::choose({"--project", "here"}, facts).project).is_absolute());
 }
 
-TEST_CASE("a development launch that is refused starts nothing and holds nothing after: no OS window, a runtime another launch holds or that could not be claimed, a runtime whose host is running, a runtime script that refused or never ran, a project path that is no directory, an argument it does not know") {
+TEST_CASE("a development launch that is refused starts nothing and holds nothing after: no GUI window, a runtime another launch holds or that could not be claimed, a runtime whose host is running, a runtime script that refused or never ran, a project path that is no directory, an argument it does not know") {
     namespace develop = zengine::workshop::develop;
     const develop::Facts facts = launch_facts();
     const develop::Choice usual = develop::choose({}, facts);
     const std::string claim = "claim /tree/workshop-runtime";
     const std::string in_use = "in use? /tree/workshop-runtime/zengine-workshop";
 
-    // A TREE CONFIGURED WITHOUT THE OS WINDOW has no window to open Workshop in.
+    // A TREE CONFIGURED WITHOUT THE GUI WINDOW has no window to open Workshop in.
     develop::Facts plain = facts;
     plain.plan.clear();
     LaunchDoors unplanned;
     CHECK(develop::launch(plain, usual, unplanned.world()) == 1);
     CHECK(unplanned.asked.empty());
     CHECK(unplanned.ran.empty());
-    CHECK(unplanned.said_words("has no OS window to open Workshop in"));
+    CHECK(unplanned.said_words("has no GUI window to open Workshop in"));
 
     // ANOTHER LAUNCH HOLDS THE RUNTIME, or its claim could not be asked for: nothing more is asked.
     LaunchDoors elsewhere;

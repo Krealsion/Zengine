@@ -18,11 +18,11 @@ shape carries, and what each platform can vouch for, is [the Input package](inpu
 The weave never writes to the screen. It says pointer positions in terminal cells. On a POSIX
 terminal it reads its standard input in raw mode, and says a key's release right after its press,
 since a terminal reports whole keystrokes; pointer reports arrive only once whatever shows the
-terminal has turned them on, as the terminal window does. On Windows it reads the console's
+terminal has turned them on, as the TUI window does. On Windows it reads the console's
 records, releases included. With no terminal (a pipe, a test run) it reads nothing, and says
-nothing. When a terminal window (`zengine.window.terminal`) holds the process's terminal in the
+nothing. When a TUI window (`zengine.window.tui`) holds the process's terminal in the
 same run, it leaves the terminal's input to the window and serves input sessions alone. Beside the
-OS window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), which reads its own
+GUI window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), which reads its own
 events, it serves input sessions alone and leaves the console the run was started from as it was:
 not read, what is typed there echoed, and a Ctrl+C there ending the run as it ends any program.
 

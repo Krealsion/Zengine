@@ -86,10 +86,10 @@ else()
     set(bare_path "/usr/bin:/bin")
 endif()
 file(WRITE "${work}/package-start-input.txt" "")
-# Each start: its name, its driver, its flag, the window it loads, and whether the OS window gave way.
+# Each start: its name, its driver, its flag, the window it loads, and whether the GUI window gave way.
 set(starts "window|offscreen||zengine-window-sdl|no"
-           "tui|offscreen|--tui|zengine-window-terminal|no"
-           "no-display|zengine-no-such-driver||zengine-window-terminal|yes")
+           "tui|offscreen|--tui|zengine-window-tui|no"
+           "no-display|zengine-no-such-driver||zengine-window-tui|yes")
 foreach(start IN LISTS starts)
     string(REPLACE "|" ";" start "${start}")
     list(GET start 0 name)
@@ -111,7 +111,7 @@ foreach(start IN LISTS starts)
         set(loaded_all FALSE)
     endif()
     if(gave_way STREQUAL "yes" AND NOT start_said MATCHES
-       "`zengine-window-sdl` did not load, so `zengine-window-terminal` stands in its row")
+       "`zengine-window-sdl` did not load, so `zengine-window-tui` stands in its row")
         set(loaded_all FALSE)
     endif()
     if(gave_way STREQUAL "no" AND start_said MATCHES "did not load, so")

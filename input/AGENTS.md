@@ -10,7 +10,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `vocabulary.hpp` | the contract: moments, `scan::`, `mod::`, `space::`, sessions, `kInputRole` |
 | `gesture_grammar.hpp` | `Gesture` and its grammar: how a key is written and read back, as the keymap and a theme's keys spell it; its law is the keymap's spelling register, `agents/workshop/key-spelling.md` |
 | `translate.hpp` | POSIX terminal and Win32 console events to moments, as pure code |
-| `translate_sdl_core.hpp` | SDL events to moments, pure, for the OS window, which reads SDL's queue |
+| `translate_sdl_core.hpp` | SDL events to moments, pure, for the GUI window, which reads SDL's queue |
 | `window_claim.hpp` | a window's claim on the terminal's input, or on SDL's queue: the reader yields the terminal to either |
 | `input_weave.hpp` | the weave over an injected reader: publish, beat, sessions, motion, facets |
 | `role_page.hpp` | `RolePage`: the role manual both loadable weaves answer from; not installed |
@@ -46,8 +46,8 @@ is Workshop's side, a press and a key reaching a pane.
   `workshop/keymap.hpp`, `workshop/pane_escape.hpp` and `workshop/screen.hpp` read the vocabulary.
 - Beyond Workshop: `graphics/window/terminal_io.hpp` turns terminal pointer reporting on;
   `cmake/ZengineInstall.cmake` installs the headers and `zengine-input`;
-  `input/terminal_reader.hpp`'s readers are the terminal window's input edge too
-  (`graphics/window/window.cpp`); the OS window translates SDL's
+  `input/terminal_reader.hpp`'s readers are the TUI window's input edge too
+  (`graphics/window/window.cpp`); the GUI window translates SDL's
   queue with `input/translate_sdl_core.hpp` and claims it with `input/window_claim.hpp`
   (`graphics/window/window_sdl_backend.hpp`); and the snake's world consumes the keys it is given
   (`examples/snake/world.cpp`).

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The graphics package proven headless, in two tiers: the vocabulary, the canvas, colours by name,
-// both painters and the element seam as pure arithmetic; and the terminal window, the directory,
+// both painters and the element seam as pure arithmetic; and the TUI window, the directory,
 // the palettes and the snake's board through the real kernel -- what is said once, what crosses a
 // tick, what a palette chosen or a participant replaced costs on the bus, where a press goes, and
 // every bound refused in words. The window's terminal is the suite's own where a press must be typed.
@@ -36,12 +36,12 @@
 #include "graphics_suite/colors.hpp" // generated from tests/graphics_slots.json
 #include "graphics/window/terminal_io.hpp"
 #include "graphics/window/window_sdl.hpp"
-#include "graphics/window/window_terminal.hpp"
+#include "graphics/window/window_tui.hpp"
 #include "input/terminal_reader.hpp"
 #include "input/translate.hpp"
 #include "manuals/zengine.graphics.hpp"
 #include "manuals/zengine.window.sdl.hpp"
-#include "manuals/zengine.window.terminal.hpp"
+#include "manuals/zengine.window.tui.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/pane_facets.hpp"
@@ -553,12 +553,12 @@ TEST_CASE("a group offsets and clips its children") {
 
 namespace {
 
-/// The snake in a terminal window, arranged as a host's arranger arranges it.
+/// The snake in a TUI window, arranged as a host's arranger arranges it.
 struct Snake {
     Rig r;
     Snake() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+        REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
         REQUIRE(r.load("snake-world-v1", WORLD_V1_SO, snake::kWorldRole).valid());
         r.arrange(SNAKE_SO_BOARD, kArea, snake::kWorldRole,
                   "night");
@@ -836,7 +836,7 @@ struct Drawing {
     loom::WeaveId drawer;
     Drawing() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+        REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
         auto d = std::make_unique<BeatDrawer>();
         BeatDrawer* raw = d.get();
         loom::Grant g = loom::emit_default_grant(*raw);
@@ -856,7 +856,7 @@ struct Bounded {
     loom::WeaveId owner;
     Bounded() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+        REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
         auto o = std::make_unique<Owner>(heard);
         Owner* raw = o.get();
         loom::Grant g = loom::emit_default_grant(*raw);
@@ -1004,7 +1004,7 @@ TEST_CASE("the window reloaded: nothing is drawn, and it shows what it kept") {
     const gfx::WindowShown before = r.shown();
     const std::size_t mark = r.log.size();
     const auto reloaded =
-        r.command(loom::ReloadWeave{"zengine-window-terminal", WINDOW_SO});
+        r.command(loom::ReloadWeave{"zengine-window-tui", WINDOW_SO});
     REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
     CHECK(r.count(mark, "Drawn", snake::kWorldRole) == 0);
     CHECK(r.count(mark, "ElementPut", snake::kWorldRole) == 0);
@@ -1022,7 +1022,7 @@ TEST_CASE("the window replaced: the frame drawn whole once and the board said on
     r.tick();
     const gfx::WindowShown before = r.shown();
     const std::size_t mark = r.log.size();
-    const auto swapped = r.command(loom::SwapWeave{window_role(), "zengine-window-terminal",
+    const auto swapped = r.command(loom::SwapWeave{window_role(), "zengine-window-tui",
                                                    WINDOW_SO, /*graceful=*/false});
     REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
     const auto drawn = r.read<gfx::Drawn>(mark, snake::kWorldRole);
@@ -1040,30 +1040,30 @@ TEST_CASE("the window holds the process's terminal input while it is loaded, rel
     REQUIRE_FALSE(in::window_holds_terminal_input());
     {
         Rig r;
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
-        CHECK(in::window_terminal_input_claims() == 1);
+        REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
+        CHECK(in::window_tui_input_claims() == 1);
 
         // A reload makes the successor before it destroys its predecessor: one claim, not none.
-        const auto reloaded = r.command(loom::ReloadWeave{"zengine-window-terminal", WINDOW_SO});
+        const auto reloaded = r.command(loom::ReloadWeave{"zengine-window-tui", WINDOW_SO});
         REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
-        CHECK(in::window_terminal_input_claims() == 1);
+        CHECK(in::window_tui_input_claims() == 1);
 
-        const auto swapped = r.command(loom::SwapWeave{window_role(), "zengine-window-terminal",
+        const auto swapped = r.command(loom::SwapWeave{window_role(), "zengine-window-tui",
                                                        WINDOW_SO, /*graceful=*/false});
         REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
-        CHECK(in::window_terminal_input_claims() == 1);
+        CHECK(in::window_tui_input_claims() == 1);
     }
     CHECK_FALSE(in::window_holds_terminal_input());
 }
 
 TEST_CASE("the window's page answers for every shape it accepts, and names no other") {
     Rig r;
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
     const std::vector<std::string> described =
         described_shapes_of(r.bus, r.bus.role_holder(window_role()));
     REQUIRE_FALSE(described.empty());
     CHECK(check_role_manual(r.bus, window_role()) >= described.size());
-    check_page_names_accepted(zengine::manual::pages::zengine_window_terminal::kManual, described);
+    check_page_names_accepted(zengine::manual::pages::zengine_window_tui::kManual, described);
 }
 
 TEST_CASE("the world reloaded: its room asked, its frame drawn whole once, its board not said again") {
@@ -1292,7 +1292,7 @@ TEST_CASE("an area given another owner starts empty, its room naming none of the
 
     const std::size_t mark = b.r.log.size();
     b.r.to_role(gfx::kGraphicsRole,
-                gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, "test.heir", 0, 0,
+                gfx::AreaPlaced{kOwner, gfx::kTuiWindow, "test.heir", 0, 0,
                                 50 * gfx::kCellPx, 22 * gfx::kCellPx, 0, true});
     b.r.drain();
     const auto rooms = b.r.read<gfx::AreaRoom>(mark, window_role());
@@ -1316,7 +1316,7 @@ TEST_CASE("an area withdrawn and placed again at the same size starts empty, its
     };
     // PLACED AGAIN WHERE IT STANDS, the window keeps the drawing and says so.
     std::size_t mark = d.r.log.size();
-    place(gfx::kTerminalWindow);
+    place(gfx::kTuiWindow);
     auto rooms = d.r.read<gfx::AreaRoom>(mark, window_role());
     REQUIRE(rooms.size() == 1);
     CHECK_FALSE(rooms[0].empty);
@@ -1326,7 +1326,7 @@ TEST_CASE("an area withdrawn and placed again at the same size starts empty, its
     place("");
     CHECK(d.r.shown().elements == 0);
     mark = d.r.log.size();
-    place(gfx::kTerminalWindow);
+    place(gfx::kTuiWindow);
     rooms = d.r.read<gfx::AreaRoom>(mark, window_role());
     REQUIRE(rooms.size() == 1);
     CHECK(rooms[0].empty);
@@ -1335,13 +1335,13 @@ TEST_CASE("an area withdrawn and placed again at the same size starts empty, its
     CHECK(d.r.shown().elements == 1);
 }
 
-TEST_CASE("a terminal window with no terminal to measure shows as far as its areas reach, and no "
+TEST_CASE("a TUI window with no terminal to measure shows as far as its areas reach, and no "
           "less than its unmeasured size") {
     Drawing d; // the suite's terminal is no terminal: a pipe
     d.beat();
     REQUIRE(d.r.shown().rows.size() == static_cast<std::size_t>(gfx::window::kUnmeasuredRows));
     d.r.to_role(gfx::kGraphicsRole,
-                gfx::AreaPlaced{kDrawer, gfx::kTerminalWindow, kDrawer, 100 * gfx::kCellPx,
+                gfx::AreaPlaced{kDrawer, gfx::kTuiWindow, kDrawer, 100 * gfx::kCellPx,
                                 30 * gfx::kCellPx, 50 * gfx::kCellPx, 22 * gfx::kCellPx, 0, true});
     d.r.drain();
     const gfx::WindowShown shown = d.r.shown();
@@ -1349,7 +1349,7 @@ TEST_CASE("a terminal window with no terminal to measure shows as far as its are
     CHECK(shown.rows[30].substr(100) == "beats 1");
     // BACK WHERE IT STARTED, the window is its unmeasured size again.
     d.r.to_role(gfx::kGraphicsRole,
-                gfx::AreaPlaced{kDrawer, gfx::kTerminalWindow, kDrawer, 0, 0, 50 * gfx::kCellPx,
+                gfx::AreaPlaced{kDrawer, gfx::kTuiWindow, kDrawer, 0, 0, 50 * gfx::kCellPx,
                                 22 * gfx::kCellPx, 0, true});
     d.r.drain();
     CHECK(d.r.shown().rows.size() == static_cast<std::size_t>(gfx::window::kUnmeasuredRows));
@@ -1537,7 +1537,7 @@ private:
 
 constexpr const char* kArranger = "test.arranger";
 
-/// THE TERMINAL WINDOW WITH OWNERS OF THE SUITE'S OWN, each area placed by the suite as root, or
+/// THE TUI WINDOW WITH OWNERS OF THE SUITE'S OWN, each area placed by the suite as root, or
 /// by the suite's arranger under its role.
 struct PointerDesk : TypedWindow {
     PressesHeard presses;
@@ -1571,7 +1571,7 @@ struct PointerDesk : TypedWindow {
                std::int64_t w, std::int64_t h, std::int64_t order, bool pointer,
                bool by_arranger = false, bool followed = true) {
         constexpr std::int64_t c = gfx::kCellPx;
-        gfx::AreaPlaced placed{area,  gfx::kTerminalWindow, owner, col * c, row * c, w * c, h * c,
+        gfx::AreaPlaced placed{area,  gfx::kTuiWindow, owner, col * c, row * c, w * c, h * c,
                                order, false};
         placed.pointer = pointer;
         placed.followed = followed;
@@ -1613,7 +1613,7 @@ TEST_CASE("the window tells an area's arranger, unasked, each time what the area
     REQUIRE(t.r.screen().find("quiet words") != std::string::npos);
     REQUIRE_FALSE(t.presses.settled.empty());
     const gfx::AreaSettled first = t.presses.settled.back();
-    CHECK(first.window == gfx::kTerminalWindow);
+    CHECK(first.window == gfx::kTuiWindow);
     CHECK(first.area == "test.settling");
     const std::size_t told = t.presses.settled.size();
     // THE OWNER DRAWS AGAIN, ON ITS OWN: told again, at a version past the first.
@@ -1723,7 +1723,7 @@ TEST_CASE("a button's moment says what the window drew under the hand when it la
     CHECK(hearing.buttons.size() == 4);
 }
 
-TEST_CASE("the terminal window gives the owner of an area placed to hear the pointer each moment "
+TEST_CASE("the TUI window gives the owner of an area placed to hear the pointer each moment "
           "there as the moment it was, naming the area, at its own point in pixels, and an area "
           "placed without it none") {
     PointerDesk t;
@@ -1813,7 +1813,7 @@ TEST_CASE("the window tells the arranger of an area another role owns where each
     REQUIRE(owned.buttons.size() == 2);
     REQUIRE(t.presses.pressed.size() == 2);
     const gfx::AreaPressed& down = t.presses.pressed[0].first;
-    CHECK(down.window == gfx::kTerminalWindow);
+    CHECK(down.window == gfx::kTuiWindow);
     CHECK(down.area == "test.hearing");
     CHECK(down.button == 3);
     CHECK(down.pressed);
@@ -2144,7 +2144,7 @@ TEST_CASE("a key, its release and the text it types go from the window to the ow
         loom::Grant g = loom::emit_default_grant(*raw);
         const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), role);
         raw->zen_set_self(id);
-        gfx::AreaPlaced placed{role, gfx::kTerminalWindow, role, 0, y, 10 * gfx::kCellPx,
+        gfx::AreaPlaced placed{role, gfx::kTuiWindow, role, 0, y, 10 * gfx::kCellPx,
                                2 * gfx::kCellPx, 1, keys};
         placed.releases = more;
         placed.text = more;
@@ -2225,12 +2225,12 @@ TEST_CASE("the window offers itself as its own role to whoever follows it: the d
         r.bus.register_weave(std::move(made), std::move(g), "test.arranger");
     raw->zen_set_self(follower);
     const std::size_t mark = r.log.size();
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
     // ACTIVATED: one offer, published as the window's role, heard by the directory and the
     // arranger alike.
     REQUIRE(heard.offers.size() == 1);
     CHECK(heard.from_window[0]);
-    CHECK(heard.offers[0].window == gfx::kTerminalWindow);
+    CHECK(heard.offers[0].window == gfx::kTuiWindow);
     // ...its terminal's size in pixels, a cell's each, or none where the suite's output is no
     // terminal it can measure, and its text a cell.
     CHECK(((heard.offers[0].width > 0 && heard.offers[0].height > 0) ||
@@ -2361,7 +2361,7 @@ void check_resized(Resized& t, zengine::graphics::window::TerminalSize size, std
     t.pump();
     const std::vector<gfx::WindowOffered> offers = offers_to_directory(r, mark);
     REQUIRE(offers.size() == 1);
-    CHECK(offers[0].window == gfx::kTerminalWindow);
+    CHECK(offers[0].window == gfx::kTuiWindow);
     CHECK(offers[0].width == (measured ? cols * gfx::kCellPx : 0));
     CHECK(offers[0].height == (measured ? rows * gfx::kCellPx : 0));
     CHECK(offers[0].epoch == t.epoch);
@@ -2465,7 +2465,7 @@ TEST_CASE("an arranger following the window's offer places its area across the r
     CHECK(after.rows[3].empty());
 }
 
-TEST_CASE("the terminal window copies by OSC 52, reads no clipboard, has no placement to say or take, "
+TEST_CASE("the TUI window copies by OSC 52, reads no clipboard, has no placement to say or take, "
           "and reads back the cells it last showed, at the size it showed them, none before") {
     {
         TypedWindow bare(true); // activated, and nothing shown yet
@@ -2855,7 +2855,7 @@ struct FacetedRig {
 
     FacetedRig() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+        REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
         auto d = std::make_unique<FacetedDrawer>();
         raw = d.get();
         loom::Grant g = loom::emit_default_grant(*raw);
@@ -2968,7 +2968,7 @@ TEST_CASE("an AreaRoom with the same window and epoch and a changed w or h updat
     REQUIRE(f.raw->rooms() == 1);
     const std::size_t mark = f.r.log.size();
     f.r.to_role(gfx::kGraphicsRole,
-                gfx::AreaPlaced{kDrawer, gfx::kTerminalWindow, kDrawer, 0, 0,
+                gfx::AreaPlaced{kDrawer, gfx::kTuiWindow, kDrawer, 0, 0,
                                 40 * gfx::kCellPx, 18 * gfx::kCellPx, 0, true});
     f.r.drain();
     const auto rooms = f.r.read<gfx::AreaRoom>(mark, window_role());
@@ -3020,7 +3020,7 @@ TEST_CASE("a facet on Activated composed over TimedWeave deduplicates zen.Activa
           "on_timed_activation and the facet's handler on an accepted activation") {
     Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
     auto d = std::make_unique<TimedActivatedDrawer>();
     TimedActivatedDrawer* raw = d.get();
     loom::Grant g = loom::emit_default_grant(*raw);
@@ -4076,13 +4076,13 @@ loom::WeaveId mount_as(Rig& r, const std::string& role) {
     return id;
 }
 
-/// The area of the terminal window for a role's pane, `<role>.<pane>`, at its corner, 62
+/// The area of the TUI window for a role's pane, `<role>.<pane>`, at its corner, 62
 /// cells by 10, wearing the classic palette.
 void place_pane(Rig& r, const std::string& role, const std::string& pane) {
     const std::string area = ws::pane_area(role, pane);
     r.to_role(gfx::kGraphicsRole, gfx::themes::night());
     r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, "night"});
-    r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{area, gfx::kTerminalWindow, role, 0, 0,
+    r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{area, gfx::kTuiWindow, role, 0, 0,
                                                   62 * gfx::kCellPx, 10 * gfx::kCellPx, 0});
     r.drain();
 }
@@ -4151,7 +4151,7 @@ struct GraphicsTestPaneTurn {
 /// again, and a broken turn draws a node in a parent it never drew, which the window refuses. Its
 /// manual is any page; nothing asks for it.
 using TestDrawing = ws::PaneDrawingFacet<kTestPane, kTestPane,
-                                         zengine::manual::pages::zengine_window_terminal::kManual>;
+                                         zengine::manual::pages::zengine_window_tui::kManual>;
 
 class TestPane
     : public zengine::With<TestDrawing>::Weave<TestPane, GraphicsTestOwner,
@@ -4187,7 +4187,7 @@ constexpr const char* kButtonPane = "test.button";
 /// A PANE ON THE DRAWING FACET THAT DRAWS A BUTTON: a filled face eight cells by three, its label
 /// inside, the group named `go`; it counts the presses that asked `go`, and those it refused.
 using ButtonDrawing = ws::PaneDrawingFacet<kButtonPane, kButtonPane,
-                                           zengine::manual::pages::zengine_window_terminal::kManual>;
+                                           zengine::manual::pages::zengine_window_tui::kManual>;
 class ButtonPane
     : public zengine::With<ButtonDrawing>::Weave<ButtonPane, GraphicsTestOwner, loom::Accept<>> {
 public:
@@ -4225,7 +4225,7 @@ TEST_CASE("a pane on the drawing facet is pressed over a drawn button's whole fa
     button->zen_set_self(id);
     t.r.to_role(gfx::kGraphicsRole, gfx::themes::night());
     const std::string area = ws::pane_area(kButtonPane, kButtonPane);
-    gfx::AreaPlaced placed{area, gfx::kTerminalWindow, kButtonPane, 0, 0,
+    gfx::AreaPlaced placed{area, gfx::kTuiWindow, kButtonPane, 0, 0,
                            20 * gfx::kCellPx, 6 * gfx::kCellPx, 0};
     placed.pointer = true;
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, "night"});
@@ -4260,7 +4260,7 @@ constexpr const char* kRestPane = "test.rest";
 /// A PANE ON THE DRAWING FACET THAT IS TOLD WHERE THE POINTER RESTS: the button `go` and room
 /// beside it; it keeps each part a rest named, in order, and counts the leaves.
 using RestDrawing = ws::PaneDrawingFacet<kRestPane, kRestPane,
-                                         zengine::manual::pages::zengine_window_terminal::kManual,
+                                         zengine::manual::pages::zengine_window_tui::kManual,
                                          ws::v2::PaneOffered, ws::kHearsRest>;
 class RestPane
     : public zengine::With<RestDrawing>::Weave<RestPane, GraphicsTestOwner, loom::Accept<>> {
@@ -4295,7 +4295,7 @@ TEST_CASE("a pane on the drawing facet is handed the part the pointer rests on, 
     pane->zen_set_self(id);
     t.r.to_role(gfx::kGraphicsRole, gfx::themes::night());
     const std::string area = ws::pane_area(kRestPane, kRestPane);
-    gfx::AreaPlaced placed{area, gfx::kTerminalWindow, kRestPane, 0, 0, 20 * gfx::kCellPx,
+    gfx::AreaPlaced placed{area, gfx::kTuiWindow, kRestPane, 0, 0, 20 * gfx::kCellPx,
                            6 * gfx::kCellPx, 0};
     placed.pointer = true;
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, "night"});
@@ -4338,7 +4338,7 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
           "drawing goes whole, never as a change from a picture the window does not hold") {
     Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
     (void)mount_as<TestPane>(r, kTestPane);
     place_pane(r, kTestPane, kTestPane);
     REQUIRE(r.read<gfx::Drawn>(0, kTestPane).size() == 1);
@@ -4520,7 +4520,7 @@ TEST_CASE("the Connections pane draws in a graphics window: whole on its room, e
           "as what changed, and nothing named for a press") {
     Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, window_role()).valid());
     const loom::WeaveId door = mount_as<DoorSpeaker>(r, ws::kGuestsRole);
     REQUIRE(r.load(cpane::kConnectionsPaneStem, CONNECTIONS_PANE_SO, cpane::kConnectionsPaneRole)
                 .valid());
@@ -4574,7 +4574,7 @@ TEST_CASE("the Connections pane draws in a graphics window: whole on its room, e
 }
 
 // ============================================================================
-// Light -- the painter for light, the palettes, and the OS window over a pixel backend
+// Light -- the painter for light, the palettes, and the GUI window over a pixel backend
 // ============================================================================
 
 namespace {
@@ -4988,7 +4988,7 @@ namespace {
 
 using FakeSdlWindow = gw::SdlWindowT<FakeSdlBackend>;
 
-/// What an owner in the OS window was told, as the window's role.
+/// What an owner in the GUI window was told, as the window's role.
 struct LitHeard {
     std::vector<gfx::AreaRoom> rooms;
     std::vector<std::string> refused;
@@ -5066,7 +5066,7 @@ gfx::Drawn whole(const std::string& area, const gfx::Sketch& s) {
     return gfx::Drawn{area, true, s.nodes(), {}, s.records(), {}, false};
 }
 
-/// The OS window over the suite's backend, beside the directory, its palettes offered: mounted in
+/// The GUI window over the suite's backend, beside the directory, its palettes offered: mounted in
 /// process at its role and activated as Loom's control door activates.
 struct LitWindow {
     Rig r;
@@ -5177,7 +5177,7 @@ bool any_row_has(const gfx::WindowShown& s, const std::string& words) {
 
 } // namespace
 
-TEST_CASE("the OS window paints every operator for light, holds a drawing saying more back, and "
+TEST_CASE("the GUI window paints every operator for light, holds a drawing saying more back, and "
           "shows the beat once") {
     LitWindow t;
     LitHeard& o = t.own("test.lit", 0, 0, 40 * gfx::kCellPx, 20 * gfx::kCellPx, "night");
@@ -5217,7 +5217,7 @@ TEST_CASE("the OS window paints every operator for light, holds a drawing saying
     CHECK(o.refused[0] == "window 'sdl' shows no area 'test.nowhere'");
 }
 
-TEST_CASE("the OS window sets text in the face it measured: its owners are told it, its painter sets "
+TEST_CASE("the GUI window sets text in the face it measured: its owners are told it, its painter sets "
           "each run a character an advance, the window reads its text so, and a press lands on a "
           "run's characters") {
     LitWindow t;
@@ -5259,7 +5259,7 @@ TEST_CASE("the OS window sets text in the face it measured: its owners are told 
     CHECK(o.actions.size() == 1);
 }
 
-TEST_CASE("the OS window paints each area in the palette it wears, painting each change once, and "
+TEST_CASE("the GUI window paints each area in the palette it wears, painting each change once, and "
           "is cleared to the ground of the area furthest back") {
     LitWindow t;
     t.own("test.classic", 0, 0, 20 * gfx::kCellPx, 5 * gfx::kCellPx, "night");
@@ -5358,7 +5358,7 @@ TEST_CASE("every palette paints in a terminal: a colour with no terminal word sh
     }
     t.r.to_role(gfx::kGraphicsRole, unworded);
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "unworded"});
-    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, kOwner, 0, 0,
+    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTuiWindow, kOwner, 0, 0,
                                                     20 * gfx::kCellPx, 2 * gfx::kCellPx, 0, false});
     t.r.drain();
     const std::size_t from = t.term.written.size();
@@ -5408,7 +5408,7 @@ TEST_CASE("in a terminal night and day show their text and grounds in the termin
     const loom::WeaveId owner = mount_owner(t.r, heard, kOwner);
     t.r.to_role(gfx::kGraphicsRole, gfx::themes::night());
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "night"});
-    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, kOwner, 0, 0,
+    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTuiWindow, kOwner, 0, 0,
                                                     20 * gfx::kCellPx, 2 * gfx::kCellPx, 0, false});
     t.r.drain();
     const std::size_t from = t.term.written.size();
@@ -5448,7 +5448,7 @@ TEST_CASE("in a terminal night and day show their text and grounds in the termin
     }
 }
 
-TEST_CASE("the OS window blends a fill that shows what lies beneath it, as an image of its one "
+TEST_CASE("the GUI window blends a fill that shows what lies beneath it, as an image of its one "
           "colour, and covers with an opaque one: the veil fades what it veils") {
     LitWindow lit_window;
     LitHeard& o = lit_window.own("test.veil", 0, 0, 200, 100, "night");
@@ -5477,7 +5477,7 @@ TEST_CASE("a host that offers no palette paints in the window's own: the pool's 
     TypedWindow t;
     OwnerHeard heard;
     const loom::WeaveId owner = mount_owner(t.r, heard, kOwner);
-    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, kOwner, 0, 0,
+    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTuiWindow, kOwner, 0, 0,
                                                     20 * gfx::kCellPx, 2 * gfx::kCellPx, 0, false});
     t.r.drain();
     gfx::Sketch s;
@@ -5493,7 +5493,7 @@ TEST_CASE("a host that offers no palette paints in the window's own: the pool's 
     CHECK(rows[0] == "oooOO");
     CHECK(rows[1] == "own");
 
-    // THE OS WINDOW: the pool's colours, and its ground.
+    // THE GUI WINDOW: the pool's colours, and its ground.
     LitWindow lit_window;
     LitHeard& o = lit_window.own("test.own", 0, 0, 200, 100, "");
     lit_window.say("test.own", whole("test.own", s));
@@ -5615,7 +5615,7 @@ TEST_CASE("a drawing in the operands' first versions, colours by role, is refuse
     TypedWindow t;
     OwnerHeard heard;
     const loom::WeaveId owner = mount_owner(t.r, heard, kOwner);
-    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, kOwner, 0, 0,
+    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTuiWindow, kOwner, 0, 0,
                                                     20 * gfx::kCellPx, 2 * gfx::kCellPx, 0, false});
     t.r.drain();
     gfx::Sketch s;
@@ -5635,7 +5635,7 @@ TEST_CASE("a drawing in the operands' first versions, colours by role, is refuse
     }
 }
 
-TEST_CASE("a left press on the OS window lands on the top node painted at its pixel: in an area "
+TEST_CASE("a left press on the GUI window lands on the top node painted at its pixel: in an area "
           "placed to hear the pointer the press itself, a part's or not, and in one placed without "
           "it a record's action, nothing drawn there taking it letting it through") {
     LitWindow t;
@@ -5694,7 +5694,7 @@ TEST_CASE("a left press on the OS window lands on the top node painted at its pi
     CHECK(back.pressed[8].first.y == gfx::kCellPx + gfx::kCellPx / 2);
 }
 
-TEST_CASE("keys, their text and their releases go from the OS window to the owner of each area "
+TEST_CASE("keys, their text and their releases go from the GUI window to the owner of each area "
           "placed to hear them, and to no other, each naming that area and the weaver's own hand") {
     LitWindow t;
     LitHeard& keys = t.own("test.keys", 0, 0, 100, 100, "night", 0, /*keys=*/true);
@@ -5710,7 +5710,7 @@ TEST_CASE("keys, their text and their releases go from the OS window to the owne
     CHECK(deaf.said.empty());
 }
 
-TEST_CASE("the OS window gives a release, another button, a move and the wheel to the owner of "
+TEST_CASE("the GUI window gives a release, another button, a move and the wheel to the owner of "
           "the area they land in, at its own pixel, only when it was placed to hear the pointer, "
           "and a held press its moves and its release wherever they land") {
     namespace in = zengine::input;
@@ -5786,7 +5786,7 @@ TEST_CASE("the OS window gives a release, another button, a move and the wheel t
     CHECK(deaf.pressed.empty());
 }
 
-TEST_CASE("the OS window publishes a close its desktop asked for as its role, once for each ask, "
+TEST_CASE("the GUI window publishes a close its desktop asked for as its role, once for each ask, "
           "on the beat or a pump; a terminal is never asked") {
     LitWindow t(nullptr, true);
     PlatformAsker& ask = t.platform;
@@ -5816,7 +5816,7 @@ TEST_CASE("the OS window publishes a close its desktop asked for as its role, on
     CHECK_FALSE(terminal.take_close());
 }
 
-TEST_CASE("the OS window resized offers itself again in its new size in pixels, under the same "
+TEST_CASE("the GUI window resized offers itself again in its new size in pixels, under the same "
           "incarnation, and draws its picture again at any new size") {
     LitWindow t;
     t.own("test.lit", 0, 0, 100, 100, "night");
@@ -5859,7 +5859,7 @@ TEST_CASE("the OS window resized offers itself again in its new size in pixels, 
     CHECK(t.r.read<gfx::WindowOffered>(mark, sdl_role()).empty());
 }
 
-TEST_CASE("an element said in the OS window is drawn by its code, and a change of it is painted "
+TEST_CASE("an element said in the GUI window is drawn by its code, and a change of it is painted "
           "again") {
     LitWindow t;
     LitHeard& o = t.own("test.board", 0, 0, 30 * gfx::kCellPx, 10 * gfx::kCellPx, "night");
@@ -5880,7 +5880,7 @@ TEST_CASE("an element said in the OS window is drawn by its code, and a change o
     CHECK(t.light.area("test.board")->nodes != before);
 }
 
-TEST_CASE("the OS window started again from what its last instance kept shows it, under the same "
+TEST_CASE("the GUI window started again from what its last instance kept shows it, under the same "
           "incarnation, and nothing is drawn again") {
     std::optional<loom::Value> kept;
     gfx::WindowShown before;
@@ -5907,7 +5907,7 @@ TEST_CASE("the OS window started again from what its last instance kept shows it
     CHECK(again.light.claims == 1);
 }
 
-TEST_CASE("the OS window's page answers for every shape it accepts, and names no other") {
+TEST_CASE("the GUI window's page answers for every shape it accepts, and names no other") {
     LitWindow t;
     const std::vector<std::string> described = described_shapes_of(t.r.bus, t.window);
     REQUIRE_FALSE(described.empty());
@@ -5915,9 +5915,9 @@ TEST_CASE("the OS window's page answers for every shape it accepts, and names no
     check_page_names_accepted(zengine::manual::pages::zengine_window_sdl::kManual, described);
 }
 
-TEST_CASE("the OS window has its backend read back the last picture it presented: none before one, "
+TEST_CASE("the GUI window has its backend read back the last picture it presented: none before one, "
           "and never a drawing held back since, nor without a node removed since") {
-    // Nothing presented, nothing to read back; with no OS window, nothing is presented.
+    // Nothing presented, nothing to read back; with no GUI window, nothing is presented.
     LightLog quiet;
     quiet.drawing = false;
     gw::LightMedium<FakeSdlBackend> medium(FakeSdlBackend{&quiet});
@@ -6015,7 +6015,7 @@ TEST_CASE("the OS window has its backend read back the last picture it presented
     }
 }
 
-TEST_CASE("the OS window's clipboard and its place on the desktop are its backend's: a copy handed "
+TEST_CASE("the GUI window's clipboard and its place on the desktop are its backend's: a copy handed "
           "on, the clipboard read only when asked, its placement read, and a remembered place") {
     LitWindow t;
     t.own("test.lit", 0, 0, 400, 200, "night");
@@ -6115,7 +6115,7 @@ TEST_CASE("the OS window's clipboard and its place on the desktop are its backen
     }
 }
 
-TEST_CASE("an OS window a weaver made narrower and a pixel taller is not grown back while its "
+TEST_CASE("a GUI window a weaver made narrower and a pixel taller is not grown back while its "
           "areas are placed again for it one at a time") {
     LitWindow t;
     t.own("test.desk", 0, 0, gw::kDefaultWidth, gw::kDefaultHeight, "night");
@@ -6134,7 +6134,7 @@ TEST_CASE("an OS window a weaver made narrower and a pixel taller is not grown b
     }
 }
 
-TEST_CASE("the OS window asks its backend to grow once for each new reach of its areas past it, and "
+TEST_CASE("the GUI window asks its backend to grow once for each new reach of its areas past it, and "
           "maximizes a remembered maximize on the beat after its next picture, once") {
     LitWindow t;
     t.own("test.small", 0, 0, 400, 200, "night");
@@ -6395,12 +6395,12 @@ bool same_word(const gfx::AreaWord& w, std::int64_t x, std::int64_t y, const std
 
 } // namespace
 
-TEST_CASE("an area's arranger reads what the terminal window shows of it: its text by row in the "
+TEST_CASE("an area's arranger reads what the TUI window shows of it: its text by row in the "
           "area's pixels, each part by its box and the cell a press reaches it by, what another's "
           "area in front paints over left out and its own hiding nothing, and asked again since its "
           "version, the same") {
     TypedWindow t;
-    ReadDesk d(t.r, gfx::kTerminalWindow);
+    ReadDesk d(t.r, gfx::kTuiWindow);
     constexpr std::int64_t c = gfx::kCellPx;
     const gfx::Color ink = gfx::colors::text;
     gfx::Sketch s;
@@ -6413,7 +6413,7 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
 
     const std::optional<gfx::AreaShown> first = d.read("test.read");
     REQUIRE(first.has_value());
-    CHECK(first->window == gfx::kTerminalWindow);
+    CHECK(first->window == gfx::kTuiWindow);
     CHECK(first->area == "test.read");
     CHECK(first->epoch == t.r.shown().epoch);
     CHECK(first->version != 0);
@@ -6471,7 +6471,7 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
     // to know, and hides nothing of the area it reads.
     const std::string lid = "test.reader-lid";
     d.as_reader(gfx::kGraphicsRole, gfx::PaletteChosen{lid, "night"});
-    d.as_reader(gfx::kGraphicsRole, gfx::AreaPlaced{lid, gfx::kTerminalWindow, ReadDesk::kReader,
+    d.as_reader(gfx::kGraphicsRole, gfx::AreaPlaced{lid, gfx::kTuiWindow, ReadDesk::kReader,
                                                     2 * c, c, 4 * c, c, 3, false, false, false});
     gfx::Sketch mine;
     mine.text("lid", 0, 0, "YYYY", ink);
@@ -6497,7 +6497,7 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
 
     // ANYONE BUT ITS ARRANGER, AND AN AREA THE WINDOW DOES NOT SHOW, ARE REFUSED IN WORDS.
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{"test.mine", "night"});
-    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{"test.mine", gfx::kTerminalWindow, "test.read",
+    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{"test.mine", gfx::kTuiWindow, "test.read",
                                                     0, 10 * c, 4 * c, c, 0, false});
     t.r.drain();
     CHECK_FALSE(d.read("test.mine").has_value());
@@ -6510,7 +6510,7 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
 TEST_CASE("an area whose owner was told a room it must draw whole reads waiting until the owner "
           "draws, and its owner's drawing moves its version") {
     TypedWindow t;
-    ReadDesk d(t.r, gfx::kTerminalWindow);
+    ReadDesk d(t.r, gfx::kTuiWindow);
     constexpr std::int64_t c = gfx::kCellPx;
     d.own("test.blank", std::nullopt, 0, 0, 10 * c, 2 * c, 1);
     const std::optional<gfx::AreaShown> before = d.read("test.blank");
@@ -6531,7 +6531,7 @@ TEST_CASE("an area whose owner was told a room it must draw whole reads waiting 
     CHECK(after->words[0].text == "drawn");
 }
 
-TEST_CASE("an area's arranger reads what the OS window shows of it: its runs of text in its face's "
+TEST_CASE("an area's arranger reads what the GUI window shows of it: its runs of text in its face's "
           "measure, each part by the box its primitives span and the point nearest its middle a "
           "press reaches it by, what an area in front draws over left out") {
     LitWindow t;
@@ -6587,7 +6587,7 @@ TEST_CASE("a participant's press the input role injects lands in the window as t
           "beside it holds its own, and a moment the platform gave or another role said is not "
           "taken") {
     TypedWindow t;
-    ReadDesk d(t.r, gfx::kTerminalWindow);
+    ReadDesk d(t.r, gfx::kTuiWindow);
     constexpr std::int64_t c = gfx::kCellPx;
     std::vector<gfx::AreaButtonChanged>& owner =
         d.own("test.hearing", std::nullopt, 10 * c, 2 * c, 20 * c, 5 * c, 1, /*pointer=*/true);
@@ -6635,7 +6635,7 @@ TEST_CASE("a participant's press the input role injects lands in the window as t
 TEST_CASE("the window counts the weaver's clicks by the input role's time: two presses 300 ms "
           "apart are a double click at 400 ms and not at 200, and at 800 a 600 ms pair is one") {
     TypedWindow t;
-    ReadDesk d(t.r, gfx::kTerminalWindow);
+    ReadDesk d(t.r, gfx::kTuiWindow);
     constexpr std::int64_t c = gfx::kCellPx;
     std::int64_t now = 0;
     t.term.clock = [&now] { return now; };
@@ -6692,7 +6692,7 @@ TEST_CASE("the window counts the weaver's clicks by the input role's time: two p
 TEST_CASE("a console's records and a POSIX terminal's reports count clicks alike, by the input "
           "role's time and never the console's own double click") {
     TypedWindow t;
-    ReadDesk d(t.r, gfx::kTerminalWindow);
+    ReadDesk d(t.r, gfx::kTuiWindow);
     constexpr std::int64_t c = gfx::kCellPx;
     std::int64_t now = 0;
     t.term.clock = [&now] { return now; };
@@ -6749,7 +6749,7 @@ TEST_CASE("a participant's clicks are counted as the weaver's are, for its own h
           "click reaches the owner as one, named as its own, and its click beside the weaver's "
           "stays two single clicks") {
     TypedWindow t;
-    ReadDesk d(t.r, gfx::kTerminalWindow);
+    ReadDesk d(t.r, gfx::kTuiWindow);
     constexpr std::int64_t c = gfx::kCellPx;
     std::int64_t now = 0;
     t.term.clock = [&now] { return now; };
@@ -6795,7 +6795,7 @@ TEST_CASE("a participant's clicks are counted as the weaver's are, for its own h
 TEST_CASE("an area placed for the weaver's hand alone refuses a participant's press and wheel, its "
           "arranger told, drops the moves and the release after, and takes the weaver's own") {
     TypedWindow t;
-    ReadDesk d(t.r, gfx::kTerminalWindow);
+    ReadDesk d(t.r, gfx::kTuiWindow);
     constexpr std::int64_t c = gfx::kCellPx;
     std::vector<gfx::AreaButtonChanged>& owner =
         d.own("test.weaver", std::nullopt, 0, 0, 20 * c, 5 * c, 1, /*pointer=*/true,
@@ -6808,7 +6808,7 @@ TEST_CASE("an area placed for the weaver's hand alone refuses a participant's pr
     CHECK(owner.empty());
     CHECK(d.heard.pressed.empty());
     REQUIRE(d.heard.hands.size() == 2);
-    CHECK(d.heard.hands[0].window == gfx::kTerminalWindow);
+    CHECK(d.heard.hands[0].window == gfx::kTuiWindow);
     CHECK(d.heard.hands[0].area == "test.weaver");
     CHECK(d.heard.hands[0].actor == 9);
     CHECK(d.heard.hands[0].x == 3 * c + 6);
@@ -6825,8 +6825,8 @@ TEST_CASE("an area placed for the weaver's hand alone refuses a participant's pr
 
 namespace {
 
-/// The OS windows SDL holds in this process, by id.
-std::vector<SDL_WindowID> os_windows() {
+/// The GUI windows SDL holds in this process, by id.
+std::vector<SDL_WindowID> gui_windows() {
     std::vector<SDL_WindowID> out;
     if (SDL_WasInit(SDL_INIT_VIDEO) == 0) {
         return out;
@@ -6850,7 +6850,7 @@ void sdl_video_driver(const char* name) {
 #endif
 }
 
-/// The OS window's own weave, loaded through the kernel beside the directory, an owner drawing in
+/// The GUI window's own weave, loaded through the kernel beside the directory, an owner drawing in
 /// it wearing the day palette.
 struct SdlWeave {
     Rig r;
@@ -6904,9 +6904,9 @@ int queued_events() {
 
 } // namespace
 
-TEST_CASE("the OS window opens one window on the desktop, draws in it, keeps that one window "
+TEST_CASE("the GUI window opens one window on the desktop, draws in it, keeps that one window "
           "across a reload, holds one again once replaced, and closes it when it goes") {
-    REQUIRE(os_windows().empty());
+    REQUIRE(gui_windows().empty());
     {
         SdlWeave w;
         const gfx::WindowShown first = w.shown();
@@ -6915,7 +6915,7 @@ TEST_CASE("the OS window opens one window on the desktop, draws in it, keeps tha
         CHECK(first.showings > 0);
         CHECK(first.painter_calls > 0);
         CHECK(first.refusals == 0);
-        const std::vector<SDL_WindowID> opened = os_windows();
+        const std::vector<SDL_WindowID> opened = gui_windows();
         REQUIRE(opened.size() == 1);
 
         const auto reloaded = w.r.command(loom::ReloadWeave{"zengine-window-sdl", WINDOW_SDL_SO});
@@ -6923,21 +6923,21 @@ TEST_CASE("the OS window opens one window on the desktop, draws in it, keeps tha
         const gfx::WindowShown after = w.shown();
         CHECK(after.epoch == first.epoch);
         CHECK(after.rows == first.rows);
-        CHECK(os_windows() == opened); // the same window, handed over, not made again
+        CHECK(gui_windows() == opened); // the same window, handed over, not made again
 
         const auto swapped = w.r.command(loom::SwapWeave{sdl_role(), "zengine-window-sdl",
                                                          WINDOW_SDL_SO, /*graceful=*/false});
         REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
         CHECK(w.shown().epoch != first.epoch);
-        // Replaced, the window goes before its successor comes: it closes its OS window, and the
+        // Replaced, the window goes before its successor comes: it closes its GUI window, and the
         // successor opens one of its own -- one window, never two.
-        CHECK(os_windows().size() == 1);
+        CHECK(gui_windows().size() == 1);
     }
-    CHECK(os_windows().empty());
+    CHECK(gui_windows().empty());
     CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0); // and SDL is given back whole
 }
 
-TEST_CASE("the OS window SDL cannot open, told a video driver it lacks, is refused at its load and "
+TEST_CASE("the GUI window SDL cannot open, told a video driver it lacks, is refused at its load and "
           "leaves no window, no SDL, no role held and no claim on SDL's queue") {
     sdl_video_driver("zengine-no-such-driver");
     {
@@ -6947,7 +6947,7 @@ TEST_CASE("the OS window SDL cannot open, told a video driver it lacks, is refus
             r.command(loom::LoadWeave{"zengine-window-sdl", WINDOW_SDL_SO, sdl_role()});
         CHECK(loaded.kind == 2); // refused: the weave would not be made
         CHECK_FALSE(r.bus.role_holder(sdl_role()).valid());
-        CHECK(os_windows().empty());
+        CHECK(gui_windows().empty());
         CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
         // With no window to read for, the queue is left to an SDL Input reader beside it.
         CHECK_FALSE(zengine::input::window_holds_sdl_input());
@@ -6955,7 +6955,7 @@ TEST_CASE("the OS window SDL cannot open, told a video driver it lacks, is refus
     sdl_video_driver("dummy");
 }
 
-TEST_CASE("the OS window claims SDL's queue while it is loaded, reloaded or replaced, and gives "
+TEST_CASE("the GUI window claims SDL's queue while it is loaded, reloaded or replaced, and gives "
           "the claim back when it goes") {
     namespace in = zengine::input;
     sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
@@ -6977,7 +6977,7 @@ TEST_CASE("the OS window claims SDL's queue while it is loaded, reloaded or repl
     CHECK_FALSE(in::window_holds_sdl_input());
 }
 
-TEST_CASE("the OS window empties SDL's own queue: a key's release, a move, another button and the "
+TEST_CASE("the GUI window empties SDL's own queue: a key's release, a move, another button and the "
           "wheel reach the owner placed to hear them, and a close request is taken off the queue") {
     sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
     SdlWeave w(/*keys=*/true, /*pointer=*/true);
@@ -7034,7 +7034,7 @@ namespace {
 
 using RealSdlWindow = gw::SdlWindowT<gw::ProcessSdlBackend>;
 
-/// The OS window over its own SDL backend, mounted in process at its role beside the directory as
+/// The GUI window over its own SDL backend, mounted in process at its role beside the directory as
 /// `LitWindow` mounts it over the suite's, an owner placed in it wearing the day palette: a case may ask
 /// it what only C++ in its own process can, its clipboard, its place and its picture.
 struct RealLit {
@@ -7086,9 +7086,9 @@ struct RealLit {
     }
 };
 
-/// SDL's own window for the one OS window the process holds.
-SDL_Window* the_os_window() {
-    const std::vector<SDL_WindowID> ids = os_windows();
+/// SDL's own window for the one GUI window the process holds.
+SDL_Window* the_gui_window() {
+    const std::vector<SDL_WindowID> ids = gui_windows();
     return ids.size() == 1 ? SDL_GetWindowFromID(ids[0]) : nullptr;
 }
 
@@ -7102,7 +7102,7 @@ struct UsableBounds {
 
 } // namespace
 
-TEST_CASE("the OS window over SDL opens centred on its display's usable area, its top-left there "
+TEST_CASE("the GUI window over SDL opens centred on its display's usable area, its top-left there "
           "when it is larger, grows within it for an area placed past it, and goes to a "
           "remembered place kept whole there") {
     sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
@@ -7110,7 +7110,7 @@ TEST_CASE("the OS window over SDL opens centred on its display's usable area, it
     // display, past the usable area's corner; the window keeps its top-left on it.
     UsableBounds usable("100,50,1000,600");
     RealLit t;
-    SDL_Window* os = the_os_window();
+    SDL_Window* os = the_gui_window();
     REQUIRE(os != nullptr);
     int x = 0, y = 0, w = 0, h = 0;
     REQUIRE(SDL_GetWindowPosition(os, &x, &y));
@@ -7145,7 +7145,7 @@ TEST_CASE("the OS window over SDL opens centred on its display's usable area, it
     CHECK(t.instance->placement() == gw::WindowPlacementValue{100, 150, false});
 }
 
-TEST_CASE("the OS window over SDL copies to SDL's clipboard and reads it only when asked, and "
+TEST_CASE("the GUI window over SDL copies to SDL's clipboard and reads it only when asked, and "
           "reads back the picture it presented as a BMP of the pixels it drew") {
     sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
     RealLit t;
@@ -7175,7 +7175,7 @@ TEST_CASE("the OS window over SDL copies to SDL's clipboard and reads it only wh
     CHECK(p->format == "image/bmp");
     CHECK(p->cell_px == gfx::kCellPx);
     int w = 0, h = 0;
-    REQUIRE(SDL_GetWindowSizeInPixels(the_os_window(), &w, &h));
+    REQUIRE(SDL_GetWindowSizeInPixels(the_gui_window(), &w, &h));
     CHECK(p->width == w);
     CHECK(p->height == h);
     const std::size_t row = (static_cast<std::size_t>(w) * 3 + 3) & ~std::size_t{3};
@@ -7197,18 +7197,18 @@ TEST_CASE("the OS window over SDL copies to SDL's clipboard and reads it only wh
     CHECK(t.shown().showings == showings); // read back, not shown again
 }
 
-TEST_CASE("the OS window over SDL that cannot open is refused at its making, in SDL's words, "
+TEST_CASE("the GUI window over SDL that cannot open is refused at its making, in SDL's words, "
           "holding no window, no SDL and no claim on SDL's queue") {
     sdl_video_driver("zengine-no-such-driver");
     std::string said;
     try {
         const RealSdlWindow made;
-        FAIL("an OS window was made with no video driver SDL can use");
+        FAIL("a GUI window was made with no video driver SDL can use");
     } catch (const std::runtime_error& refused) {
         said = refused.what();
     }
     CHECK(said.rfind("zengine-window-sdl: SDL_Init(SDL_INIT_VIDEO) failed: ", 0) == 0);
-    CHECK(os_windows().empty());
+    CHECK(gui_windows().empty());
     CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
     CHECK_FALSE(zengine::input::window_holds_sdl_input());
     sdl_video_driver("dummy");
@@ -7257,7 +7257,7 @@ TEST_CASE("a shaped window is as large as asked, a side of 0 keeping its own, ne
     CHECK(gw::shaped_within({1, 1}, {1600, 900}, 16, 39, display) == gw::PixelSize{1, 1});
 }
 
-TEST_CASE("an OS window takes its title and its size from a role that arranges an area in it, "
+TEST_CASE("a GUI window takes its title and its size from a role that arranges an area in it, "
           "and from no other; a shaped window is not grown back by what it held before") {
     // MUTATION (tests/mutants/graphics.md#shaped-by-any-role): a shaping taken from any role --
     // the window is shaped by `test.other`.
@@ -7275,7 +7275,7 @@ TEST_CASE("an OS window takes its title and its size from a role that arranges a
     const loom::WeaveId stranger = t.r.bus.register_weave(std::move(made), std::move(g), "test.stranger");
     raw->zen_set_self(stranger);
     say_as(t, stranger, "test.stranger", gfx::WindowShaped{gfx::kSdlWindow, "stranger", 320, 260});
-    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kTerminalWindow, "tally", 320, 260});
+    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kTuiWindow, "tally", 320, 260});
     CHECK(t.light.shaped.empty());
     CHECK(t.light.size == gw::PixelSize{gw::kDefaultWidth, gw::kDefaultHeight});
 
@@ -7650,7 +7650,7 @@ const std::string kGrin = "\xF0\x9F\x98\x80";
 const std::string kLine = kE + kZhe + kZhong + kMarked + kGrin;
 
 #if defined(GRAPHICS_HAS_SDL)
-/// The OS window sets text in its embedded faces alone, so a picture never moves with the fonts
+/// The GUI window sets text in its embedded faces alone, so a picture never moves with the fonts
 /// of the machine it is taken on.
 void embedded_faces_only() {
 #if defined(_WIN32)
@@ -7752,7 +7752,7 @@ TEST_CASE("a terminal shows every character its encoding carries, a wide one in 
         OwnerHeard heard;
         const loom::WeaveId owner = mount_owner(t.r, heard, kOwner);
         t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "night"});
-        t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, kOwner, 0, 0,
+        t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTuiWindow, kOwner, 0, 0,
                                                         20 * gfx::kCellPx, 2 * gfx::kCellPx, 0,
                                                         false});
         t.r.drain();
@@ -7789,7 +7789,7 @@ TEST_CASE("a terminal shows bold where a text asks it, and says each ink's weigh
     OwnerHeard heard;
     const loom::WeaveId owner = mount_owner(t.r, heard, kOwner);
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "night"});
-    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, kOwner, 0, 0,
+    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTuiWindow, kOwner, 0, 0,
                                                     20 * gfx::kCellPx, 2 * gfx::kCellPx, 0, false});
     t.r.drain();
     const std::size_t from = t.term.written.size();
@@ -7808,7 +7808,7 @@ TEST_CASE("a terminal shows bold where a text asks it, and says each ink's weigh
 }
 
 #if defined(GRAPHICS_HAS_SDL)
-TEST_CASE("the OS window draws a line of an accented letter, a Cyrillic one, an ideograph, a "
+TEST_CASE("the GUI window draws a line of an accented letter, a Cyrillic one, an ideograph, a "
           "combining mark and an emoji at their columns, from its embedded faces") {
     sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
     embedded_faces_only();
@@ -7848,7 +7848,7 @@ TEST_CASE("the OS window draws a line of an accented letter, a Cyrillic one, an 
     CHECK(marked_rows.first < e_rows.first);
 }
 
-TEST_CASE("the OS window measures each of the pool's sizes in the room it says, and draws a heading "
+TEST_CASE("the GUI window measures each of the pool's sizes in the room it says, and draws a heading "
           "in bold at that height") {
     sdl_video_driver("dummy");
     embedded_faces_only();

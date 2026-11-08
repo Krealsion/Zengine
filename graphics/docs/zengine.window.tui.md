@@ -1,9 +1,9 @@
-# zengine.window.terminal -- the terminal window
+# zengine.window.tui -- the TUI window
 
 **Manual.** The window over the process's own terminal: the weave that does the whole job of
-showing what its areas' owners draw. It answers to the role `zengine.window.terminal` (a
+showing what its areas' owners draw. It answers to the role `zengine.window.tui` (a
 window's role is `zengine.window.` and its name, `terminal`) and is built as
-`zengine-window-terminal`, a file a host loads. It keeps what each owner drew, paints it in the
+`zengine-window-tui`, a file a host loads. It keeps what each owner drew, paints it in the
 palette its area wears, composes the areas, writes the terminal only the cells that changed, and
 sends the terminal's keys, their text and its pointer to the owners. The directory,
 [`zengine.graphics`](zengine.graphics.md), introduces its areas to it. It answers for its terminal
@@ -24,7 +24,7 @@ It takes the terminal when activated, its output with the terminal's claim
 (`graphics/window/terminal_io.hpp`) and its input as the Input weave reads it
 (`input/terminal_reader.hpp`), and gives both back when it goes. With no terminal (a pipe, a suite)
 it reads and writes nothing, offers no size, and draws its picture as far as its areas reach
-(`graphics/window/window_terminal.hpp`: at least `kUnmeasuredCols` by `kUnmeasuredRows`).
+(`graphics/window/window_tui.hpp`: at least `kUnmeasuredCols` by `kUnmeasuredRows`).
 
 **Showing.** A node is painted once, when it changes, in its area's palette. The areas are
 composed front to back by their order, and the terminal is written only the cells that changed,
@@ -176,7 +176,7 @@ reading the terminal.
 
 `SurfacePlacementRemembered` v1 offers back a place on the desktop a session remembered.
 
-- **Takes:** `x`, `y` and `maximized`, as an OS window said them.
+- **Takes:** `x`, `y` and `maximized`, as a GUI window said them.
 - **Answers:** nothing: a terminal's window is its emulator's, so this window takes no place and
   says none (`SurfacePlacement`).
 - **Refuses:** nothing.
@@ -225,7 +225,7 @@ reading the terminal.
 
 `WindowShaped` v1 names a window and sizes it, said by a role that arranges an area in it.
 
-- **Takes:** `window`, `title`, `width` and `height`, as an OS window takes them.
+- **Takes:** `window`, `title`, `width` and `height`, as a GUI window takes them.
 - **Answers:** nothing: the terminal's size and title are its emulator's, so this window keeps them.
 - **Refuses:** nothing.
 - **Example:** an app's weave says its window's title and size; the terminal stays as it is.

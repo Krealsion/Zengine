@@ -213,9 +213,9 @@ lands in no later draft, and one asked for by the draft still standing lands in 
 `workshop/weave_pointer.cpp` answers_ask on(ClipboardText)
 `workshop/weave_seam.cpp` begin_clipboard_paste
 `graphics/vocabulary.hpp` ClipboardText::readable
-`tests/test_workshop_document.cpp` "in the terminal window, which reads no clipboard, paste inserts
+`tests/test_workshop_document.cpp` "in the TUI window, which reads no clipboard, paste inserts
 nothing and breaks nothing"
-`tests/test_graphics.cpp` "the terminal window copies by OSC 52, reads no clipboard, has no placement to
+`tests/test_graphics.cpp` "the TUI window copies by OSC 52, reads no clipboard, has no placement to
 say or take, and reads back the cells it last showed, at the size it showed them, none before"
 `workshop/weave.hpp` WorkshopWeave::medium_role
 

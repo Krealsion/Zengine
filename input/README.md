@@ -25,7 +25,7 @@ and links `zengine::input`.
 |---|---|
 | `vocabulary.hpp` | the messages, key codes, modifiers and pointer spaces |
 | `translate.hpp` | how terminal and console events become those messages |
-| `translate_sdl_core.hpp` | how SDL window events become those messages, for the OS window |
+| `translate_sdl_core.hpp` | how SDL window events become those messages, for the GUI window |
 | `input_weave.hpp` | the Input weave itself, over any reader |
 | `terminal_reader.hpp` | the terminal and console readers |
 | `window_claim.hpp` | a window's claim on the terminal, which the reader leaves to it, or SDL's queue |

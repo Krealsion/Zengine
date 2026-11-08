@@ -1128,7 +1128,7 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
 
 TEST_CASE("the same gesture in a terminal names the same row of the same room") {
     // MEDIUM-INDEPENDENT BY CONSTRUCTION, and this is the witness. The TUI's mouse
-    // reporting is already live (DECSET 1002+1006, claimed by the terminal window), the
+    // reporting is already live (DECSET 1002+1006, claimed by the TUI window), the
     // wire already carries a `space`, and Workshop reads it into the pane's own canvas place
     // rather than branching on a backend -- so a terminal press reaches the same row of
     // Loaded's lattice (`row_cell_at`) with no parity work and no new protocol.

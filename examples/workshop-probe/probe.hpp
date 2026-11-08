@@ -32,12 +32,12 @@
 
 namespace zengine::workshop_probe {
 
-/// THE ROLES THAT HOLD WORKSHOP'S PICTURE, in the order a run asks them: the OS window and the
-/// terminal window (`graphics/vocabulary.hpp`'s `kWindowRolePrefix`, `kSdlWindow`,
-/// `kTerminalWindow`). A far Workshop loads one of them; the other is no role there.
+/// THE ROLES THAT HOLD WORKSHOP'S PICTURE, in the order a run asks them: the GUI window and the
+/// TUI window (`graphics/vocabulary.hpp`'s `kWindowRolePrefix`, `kSdlWindow`,
+/// `kTuiWindow`). A far Workshop loads one of them; the other is no role there.
 inline constexpr std::array<const char*, 2> kCaptureRoles = {
     "zengine.window.sdl",
-    "zengine.window.terminal",
+    "zengine.window.tui",
 };
 
 /// RUN THE JOURNEY. Sent by the weaver (the console's `send <probe> RunProbe 1 ...`), and

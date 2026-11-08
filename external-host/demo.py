@@ -458,7 +458,7 @@ def main():
     parser.add_argument("--zengine-prefix", help="installed Zengine prefix, for a setup whose project builds against it")
     parser.add_argument("--toolchain-bin", help="a directory put first on PATH for Workshop and the Loom host")
     parser.add_argument("--tui", action="store_true",
-                        help="Workshop in the terminal window (its own --tui), not the OS window")
+                        help="Workshop in the TUI window (its own --tui), not the GUI window")
     parser.add_argument("--neovim", help="a Neovim program: the Neovim-backed Editor holds the Editor's role from the start")
     parser.add_argument("--wait", type=float, default=900, help="seconds start/status wait for readiness, or walk for its run, before answering")
     parser.add_argument("--pictures", type=Path, help="walk: a new or empty folder for the walk's pictures, rows and steps.json")

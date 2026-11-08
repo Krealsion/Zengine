@@ -585,7 +585,7 @@ run look: worker session 15; 75 remembered deliveries to it -- 8 answered its as
 
 (Trimmed: the directory, the inputs and the worker's notes.) A row that may `capture` also reads
 the desk once after the inventory, and asks its pictures first of the window role the desk's
-input space names (`zengine.window.terminal` for cells, `zengine.window.sdl` for pixels); another
+input space names (`zengine.window.tui` for cells, `zengine.window.sdl` for pixels); another
 row asks each role in turn. The run names no chord by default: it presses only the `chord` and
 `click` it is given, and one given neither is refused before anything is pressed. A batch after
 which nothing repainted fails naming `arm=true` and `changed=false`. The pictures are in the run's
@@ -828,7 +828,7 @@ defaults): `scancode=19 modifiers=2` is Ctrl+P, `scancode=81 modifiers=0` a bare
 arrives when the journey settles, on a later console turn. Every step in that line is what
 the far **owner** answered — the Input weave's `InputInjected`, the guest door's inventory, the
 window's `SurfaceCaptured` — never something the probe inferred from a picture or from being
-admitted. Open `workshop-probe.bmp`: it is what the OS window presented, read back from
+admitted. Open `workshop-probe.bmp`: it is what the GUI window presented, read back from
 its own renderer after the frame that followed the chord — the Pane Manager the chord opened is
 in it.
 
@@ -841,8 +841,8 @@ including the consumer's repaint. Only then does the probe request the current p
 This is a causal ordering guarantee for that bus work, not a delay or an assumption about FIFO.
 It does not wait for timers, asynchronous child-process replies, another host, or all background
 work, and settlement alone does not say whether the intended application operation succeeded.
-Those owners still need their own completion answers. The terminal window hands back its cells
-(`text/cells`), the OS window its pixels (`image/bmp`); either is what that window itself drew.
+Those owners still need their own completion answers. The TUI window hands back its cells
+(`text/cells`), the GUI window its pixels (`image/bmp`); either is what that window itself drew.
 
 **What injection tests, and what it does not.** An injected moment enters at the Input weave
 and is published as the same `KeyPressed`, `TextEntered` and `PointerButton` every consumer
@@ -1035,7 +1035,7 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
 ![Two overlapping buttons pressed by name in a 1440 by 900 window, each where its pane gives it the press: above, button2 lies over button1's centre and the View Builder selects button1 when element:button1 is pressed, on the part of it button2 leaves; below, the running view my.view says button1 says nothing yet when its element:button1 is pressed](images/overlapping-parts-pressed-by-name.png)
 
 Every place is in canvas pixels: a window's pixel is one, a terminal's cell is `kCellPx`
-(<!-- value kCellPx -->12<!-- /value -->), and the terminal window draws canvas row 0 on its
+(<!-- value kCellPx -->12<!-- /value -->), and the TUI window draws canvas row 0 on its
 console's row 0. A point to press is in the space the medium reads input in, which the
 answer names. This reads presentation; it does not select, activate, grant authority or expose
 arbitrary state. A later gesture can still encounter a changed picture; the query is not an

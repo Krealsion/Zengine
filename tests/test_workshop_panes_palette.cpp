@@ -534,7 +534,7 @@ struct Hands {
 } // namespace
 
 TEST_CASE("double-shift is a key of Workshop's own: spelled, read back, shown as shift shift, taking "
-          "no modifier, and said as the OS window's") {
+          "no modifier, and said as the GUI window's") {
     const ParsedGesture parsed = parse_gesture("double-shift");
     REQUIRE(parsed.accepted);
     CHECK(parsed.gesture == Gesture{kDoubleShift, input::mod::kNone});
@@ -546,7 +546,7 @@ TEST_CASE("double-shift is a key of Workshop's own: spelled, read back, shown as
     CHECK(modified.refusal.find("no modifier") != std::string::npos);
     const char* gap = posix_gap(parsed.gesture);
     REQUIRE(gap != nullptr);
-    CHECK(std::string(gap).find("double-shift is the OS window's") != std::string::npos);
+    CHECK(std::string(gap).find("double-shift is the GUI window's") != std::string::npos);
     // A SHIFT ALONE is still no key a row names.
     CHECK_FALSE(parse_gesture("shift").accepted);
 }

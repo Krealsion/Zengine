@@ -22,7 +22,7 @@ right-click a shipped pane → edit code → change it → Ctrl+s
 - **A Zengine checkout that is yours to edit.** The files the Editor opens and saves are that
   checkout's.
 - **An installed Loom**, and a compiler and CMake that build Zengine with SDL (the default) —
-  what [Build it](../../README.md#build-it) asks for. The launch opens Workshop in the OS window.
+  what [Build it](../../README.md#build-it) asks for. The launch opens Workshop in the GUI window.
 - **CLion**, or a shell. The launch is one run configuration in CLion and one executable in a
   shell; both run the same thing.
 
@@ -216,7 +216,7 @@ Every refusal copies nothing, starts nothing, and leaves the runtime as it was.
 | `… made from the build tree …, not from …` | the directory is another build tree's runtime, or this tree moved | another directory |
 | `… is not empty and is not a development runtime …` | `--runtime` names a directory of other files | an empty or new directory |
 | `… is not there -- build the tree first` | the tree has not built what a runtime copies | build, then Run |
-| `… has no OS window to open Workshop in …` | the tree was configured with `-DZENGINE_TUI_ONLY=ON` | configure with SDL |
+| `… has no GUI window to open Workshop in …` | the tree was configured with `-DZENGINE_TUI_ONLY=ON` | configure with SDL |
 
 ## The loop: point, change, build, reload
 

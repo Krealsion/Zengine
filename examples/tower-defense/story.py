@@ -1440,7 +1440,7 @@ def hold_until(release):
 def again(args):
     """Launch Workshop again on a stopped story's game, with a new Loom session, and check it.
     In the window, Workshop launches in the game directory with no plan named, so the project's
-    own plan loads the image `keep` promoted. With --tui it is the terminal window: Workshop's own
+    own plan loads the image `keep` promoted. With --tui it is the TUI window: Workshop's own
     --tui over the runtime's plan, in a project of its own with the story's recipes, and the
     Builder's `o` loads the kept game, as a weaver would. Either way the game must
     pass its rules check and run a wave under its keys, and the example's toolbox must restore
@@ -1595,7 +1595,7 @@ def main():
     p.add_argument("--expect", default="finished", help="monitor: finished, needs-attention or any")
     p.add_argument("--wait", type=float, default=960.0,
                    help="monitor: how long this command waits; the run goes on when it stops waiting")
-    p.add_argument("--tui", action="store_true", help="again: the terminal window, not the OS window")
+    p.add_argument("--tui", action="store_true", help="again: the TUI window, not the GUI window")
     p.add_argument("--hold", action="store_true",
                    help="again: once checked, keep that Workshop up for a weaver's own hand until Return "
                         "or DIR/again-N/release")

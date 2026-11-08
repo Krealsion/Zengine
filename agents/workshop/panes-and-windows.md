@@ -163,7 +163,7 @@ LAW — A preferred size budgets body text, or a canvas body of whole pixels, pl
 
 MEANS
 - a pixel body is granted exactly: to the pixel in a window, rounded up to cells in a terminal;
-- `default` reads the first accepted offer; `fit` follows each re-offer at once, either way, save one the OS window holds and says: within a pixel, on every axis, of what it stands on;
+- `default` reads the first accepted offer; `fit` follows each re-offer at once, either way, save one the GUI window holds and says: within a pixel, on every axis, of what it stands on;
 - the column spends the default height a pane is drawn at; old providers keep their fallback.
 
 WHY — `agents/decisions/preferred-pane-space.md`
@@ -318,7 +318,7 @@ arranging"
 metrics" "pane comfort survives offer refresh and rejects malformed preferences" "pane comfort: the
 column spends each pane's preferred height, and begins again at its top when spent" "pane comfort:
 `fit` follows a pane switching between two sizes each time, in both windows, and `default` keeps
-the first" "pane comfort: a re-offer within one pixel of what `fit` stands on is held in the OS window
-alone, and the terminal window follows it" "pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer"
+the first" "pane comfort: a re-offer within one pixel of what `fit` stands on is held in the GUI window
+alone, and the TUI window follows it" "pane comfort: a `fit` axis says what it stands on where that is not the pane's latest offer"
 `tests/test_workshop_panes_canvas.cpp` "a view asks for its size in pixels and its pane grants
 exactly that room: to the pixel in a window, to the cells that hold it in a terminal"

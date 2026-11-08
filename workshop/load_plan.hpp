@@ -40,8 +40,8 @@ inline constexpr std::size_t kMaxChoiceNameLen = 32;
 /// roles this build knows: a plan may name a role this build has never heard of.
 inline constexpr std::size_t kMaxWeaveRoleLen = 64;
 
-/// How many artifacts one row may name to try in its place. One is the use -- the OS window, else
-/// the terminal window; four bounds a forged file.
+/// How many artifacts one row may name to try in its place. One is the use -- the GUI window, else
+/// the TUI window; four bounds a forged file.
 inline constexpr std::size_t kMaxRowAlternatives = 4;
 
 // ---- One artifact's optional surfaces -----------------------------------------
@@ -99,8 +99,8 @@ struct ArtifactIntent {
     bool optional = false;
     /// What this row loads where its own artifact cannot (format version 4), in the order tried:
     /// one whose load is refused passes to the next, one this installation does not hold is
-    /// passed over unsaid, and the first that loads stands in the row for the run. The OS window,
-    /// else the terminal window, is the shipped plan's.
+    /// passed over unsaid, and the first that loads stands in the row for the run. The GUI window,
+    /// else the TUI window, is the shipped plan's.
     std::vector<AlternativeIntent> otherwise{};
 
     friend bool operator==(const ArtifactIntent&, const ArtifactIntent&) = default;

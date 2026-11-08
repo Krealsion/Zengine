@@ -22,8 +22,8 @@ own decision and is never reported as anybody's outcome.
 The three Loom paths are what an installed Loom's package names (`LOOM_HOST_PROGRAM`,
 `LOOM_RUNS_ARTIFACT`, `LOOM_SESSION_RUNTIME`); tests/CMakeLists.txt passes them.
 
-Workshop starts in the terminal window (`--tui`), whose pictures are its cells (`text/cells`); with
-`--graphical` it starts with no flag, in the OS window, whose pictures are its pixels (`image/bmp`), kept
+Workshop starts in the TUI window (`--tui`), whose pictures are its cells (`text/cells`); with
+`--graphical` it starts with no flag, in the GUI window, whose pictures are its pixels (`image/bmp`), kept
 for a person to look at. Exit 0 only when every check held.
 """
 

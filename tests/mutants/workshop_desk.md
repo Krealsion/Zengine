@@ -76,18 +76,18 @@ Red in `zengine-workshop-desk-tests`:
 
 - every pane's graphics area is `<role>.<pane>`, a role's one pane as each of its several
 
-## only-the-terminal-window
+## only-the-tui-window
 
-Workshop takes the terminal window's offer alone.
+Workshop takes the TUI window's offer alone.
 
 In `workshop/weave_handlers.cpp`:
 
 ```diff
--    if ((w.window != graphics::kTerminalWindow && w.window != graphics::kSdlWindow) ||
-+    if ((w.window != graphics::kTerminalWindow) ||
+-    if ((w.window != graphics::kTuiWindow && w.window != graphics::kSdlWindow) ||
++    if ((w.window != graphics::kTuiWindow) ||
 ```
 
 Red in `zengine-workshop-desk-tests`:
 
-- the terminal window offered brings Workshop up in it, the last session restored first, and lays
+- the TUI window offered brings Workshop up in it, the last session restored first, and lays
   the desk out in the window's room

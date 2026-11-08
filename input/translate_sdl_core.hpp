@@ -6,7 +6,7 @@
 
 // SDL native events -> Input's moments, as pure code with no SDL headers: a reader passes an
 // event's fields as plain values and SDL's constants are spelled locally, so the lane that never
-// opens a window pins the whole translation, and the OS window's backend, which reads SDL's queue
+// opens a window pins the whole translation, and the GUI window's backend, which reads SDL's queue
 // and translates here (graphics/window/window_sdl_backend.hpp), pins the constants against the
 // real headers. Reference: input/docs/input.md.
 

@@ -136,7 +136,7 @@ implies the whole sequence.
 (`| held: ...`, `Kernel::containment` of its stem: a library's is the startup containment line,
 a module's its box's), a waiting row as `waiting to be built: ...`, each unavailable row
 as `unavailable: ...` and the operators it can resolve as `operators: ...`. It prints these lines
-to standard output when no terminal medium holds a measured terminal there — the terminal window,
+to standard output when no terminal medium holds a measured terminal there — the TUI window,
 or a terminal skin, whose picture the lines would scroll. A refused startup's lines and its refusal
 are always printed: where a terminal medium held the terminal, last, once Workshop has unloaded it
 and the terminal is yours again. The
@@ -280,11 +280,11 @@ build is a retry, and the host keeps running.
 
 | | |
 |---|---|
-| shipped default | `workshop/default-load-plan.json`, the OS window, else the terminal window, staged beside the host binary in every build |
+| shipped default | `workshop/default-load-plan.json`, the GUI window, else the TUI window, staged beside the host binary in every build |
 | project plan | `<project>/workshop-plan.json`, written by `o` in the Builder; the plan in force when it exists and no `--load-plan` is given |
 | default lookup | `<directory of the executable>/default-load-plan.json`, when there is no project plan |
 | override | `--load-plan <path>`, used exactly as given |
-| retired | `graphical-load-plan.json`, named where no such file is: refused with its fix ([load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window)) |
+| retired | `graphical-load-plan.json`, named where no such file is: refused with its fix ([load plans](load-plans.md#the-window-the-gui-window-else-the-tui-window)) |
 | missing | refused by path, and the host exits without mounting or loading anything |
 
 There is **no compiled-in fallback plan**. A host that could manufacture an arrangement when the
@@ -297,9 +297,9 @@ experiment nobody else can repeat — which is exactly what a plan file makes re
 window the desk opens in is therefore a row of the plan, and presentation and input remain two
 independent rows rather than one deduced from the other. The default puts two rows before the
 input row: the graphics directory, `zengine-graphics`, and the window: `zengine-window-sdl`, the
-OS window, which reads SDL's queue itself, **otherwise** `zengine-window-terminal`, which shows the
+GUI window, which reads SDL's queue itself, **otherwise** `zengine-window-tui`, which shows the
 desk in its own terminal and reads that terminal's keys. The input row, `zengine-input`, follows
-them and serves input sessions beside either. `--tui` takes the terminal window alone among the
+them and serves input sessions beside either. `--tui` takes the TUI window alone among the
 windows the plan offers, and refuses a plan offering none, before anything opens. A plan naming a
 retired Skin or `zengine-input-sdl` is refused by name before anything opens
 ([load plans](load-plans.md#a-project-plan-that-names-a-skin)).
@@ -394,7 +394,7 @@ refuses as any row does, naming the last tried. A row with `otherwise` loads a w
 no operators; an alternative names no artifact another row or alternative names, loads into no
 role another row or another row's alternative may load into, and none is a choice or in a
 role with choices. The shipped plan is version 4, its window row the one with an `otherwise`
-([load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window)). A plan naming no
+([load plans](load-plans.md#the-window-the-gui-window-else-the-tui-window)). A plan naming no
 row's alternatives is still written as version 1, 2 or 3, byte for byte, and a version-4 file
 naming none is refused.
 
@@ -403,8 +403,8 @@ naming none is refused.
   "provider": [],
   "weave":    [ { "role": "zengine.window.sdl" } ],
   "optional": false,
-  "otherwise": [ { "artifact": "zengine-window-terminal",
-                   "weave": [ { "role": "zengine.window.terminal" } ] } ] }
+  "otherwise": [ { "artifact": "zengine-window-tui",
+                   "weave": [ { "role": "zengine.window.tui" } ] } ] }
 ```
 
 Two things a hand-author needs to know:

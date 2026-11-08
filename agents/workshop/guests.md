@@ -316,7 +316,7 @@ press beside it holds its own, and a moment the platform gave or another role sa
 "a key, its release and the text it types go from the window to the owner of each area placed to
 hear that moment, and to no other, each naming that area and the weaver's own hand; an owner placed
 for keys alone is given nothing else, and nothing is refused" "keys, their text and their releases
-go from the OS window to the owner of each area placed to hear them, and to no other, each naming that area and the
+go from the GUI window to the owner of each area placed to hear them, and to no other, each naming that area and the
 weaver's own hand" "an area placed for the weaver's hand alone refuses a participant's press and
 wheel, its arranger told, drops the moves and the release after, and takes the weaver's own"
 `tests/test_workshop_editor_transfers.cpp` "on a weaver's host a guest's wheel and value drop toward

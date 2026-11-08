@@ -206,5 +206,5 @@ In `builder/builder-pane/pane.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- the Builder's role line asks the window that shows the pane for a paste, the OS window or the
+- the Builder's role line asks the window that shows the pane for a paste, the GUI window or the
   terminal's

@@ -1418,7 +1418,7 @@ def run_checks(tools, runtime):
             self.assertEqual(steps.point("126,42"), (126, 42, steps.SPACE_PIXELS))
             self.assertEqual(steps.point("2,3@console"), (2, 3, steps.SPACE_CELLS))
             self.assertEqual(steps.point("2,3@canvas"), (2, 3, steps.SPACE_CELLS))
-            # ...and in the terminal window, which spends no console row above the canvas.
+            # ...and in the TUI window, which spends no console row above the canvas.
             for bad in ("2,3c", "2,3@screen", "2,3@", "2@canvas"):
                 with self.subTest(bad=bad):
                     with self.assertRaisesRegex(ValueError, "@console"):
@@ -3261,7 +3261,7 @@ def run_checks(tools, runtime):
             self.assertIn("changed=false", str(failed.exception))
 
         def test_the_window_role_is_the_one_the_desk_names(self):
-            for space, role in ((steps.SPACE_CELLS, "zengine.window.terminal"),
+            for space, role in ((steps.SPACE_CELLS, "zengine.window.tui"),
                                   (steps.SPACE_PIXELS, "zengine.window.sdl")):
                 ctx = Context(steps)
                 asked = []

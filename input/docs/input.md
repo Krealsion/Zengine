@@ -24,7 +24,7 @@ application meaning and is not spoken here at any version.
 | `PointerWheel` v1 | notches, position, space, modifiers. |
 
 Positions are int64 and carry a `space` (`kCells` on the two terminal backends, `kPixels` where the
-OS window reads SDL's events) so a terminal cell can never be mistaken for a window pixel. Editing
+GUI window reads SDL's events) so a terminal cell can never be mistaken for a window pixel. Editing
 controls are keys, never text: Backspace, Enter and Escape arrive as transitions, and what they
 *mean* is the application's.
 
@@ -56,10 +56,10 @@ follows paste intent, so the clipboard is read through the window when a paste a
 `ClipboardTextRequested` ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), and
 never watched; no moment carries clipboard text. Each backend's exact honest reach — which modifiers
 it can vouch for on which keys — stays documented in `input/translate.hpp`. The terminal readers
-(`input/terminal_reader.hpp`) serve any program reading a terminal, a terminal window among them,
+(`input/terminal_reader.hpp`) serve any program reading a terminal, a TUI window among them,
 not only the Input weave.
 
-**Who turns the terminal's pointer on:** the **terminal window**, because terminal modes are
+**Who turns the terminal's pointer on:** the **TUI window**, because terminal modes are
 output and the output stream is already claimed and released on the window's own lifetime
 (`graphics/window/terminal_io.hpp`). Input never writes a byte to the terminal; it parses SGR
 reports whenever they arrive, and they only arrive because the window asked. The two packages need
@@ -68,7 +68,7 @@ no coordination surface between them.
 ## Scan names are names for values that already arrive
 
 `scan::kHome`, `kDelete` and `kEnd` are names, not new reach. SDL's scancode passes through
-untranslated (`input/translate_sdl_core.hpp`), so the OS window has always delivered them unnamed;
+untranslated (`input/translate_sdl_core.hpp`), so the GUI window has always delivered them unnamed;
 the POSIX terminal backend names their CSI sequences and the Win32 console backend their VKs. A
 constant here is not a claim that every backend can produce one: `translate.hpp` remains where each
 backend's honest reach is written.

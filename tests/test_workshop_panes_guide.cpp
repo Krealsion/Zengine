@@ -140,7 +140,7 @@ struct TutorDesk {
         b.open(160, 48, with_editor, true, true, false, /*with_desktop=*/true);
     }
 
-    /// THE SAME DESK ON THE OS WINDOW.
+    /// THE SAME DESK ON THE GUI WINDOW.
     void on_window() { b.r.extent_on_window(160, 48); }
 
     Tutor& admit(guests::GuestRow row) {
@@ -215,7 +215,7 @@ const PanePart* part_named(const PaneView& view, const std::string& name) {
 
 namespace rw = zengine::testing::rig_windows;
 
-/// THE CELLS A TERMINAL WINDOW SHOWS IN THE GUIDE COLOUR: what a guest's marks drew there.
+/// THE CELLS A TUI WINDOW SHOWS IN THE GUIDE COLOUR: what a guest's marks drew there.
 std::vector<rw::Cell> guide_cells(TutorDesk& d) {
     std::vector<rw::Cell> out;
     for (const rw::Cell& c : d.b.r.windows.cells()) {
@@ -224,7 +224,7 @@ std::vector<rw::Cell> guide_cells(TutorDesk& d) {
     return out;
 }
 
-/// THE QUADS THE OS WINDOW DRAWS IN THE GUIDE ROLE'S INK: a mark's outline there.
+/// THE QUADS THE GUI WINDOW DRAWS IN THE GUIDE ROLE'S INK: a mark's outline there.
 std::vector<rw::Quad> guide_quads(TutorDesk& d) {
     std::vector<rw::Quad> out;
     for (const rw::Quad& q : d.b.r.windows.quads()) {

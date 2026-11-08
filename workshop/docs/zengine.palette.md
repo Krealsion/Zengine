@@ -5,7 +5,7 @@ each layout, each open pane's manual, and each setup and app you can start -- an
 choose. It is the weave in the role `zengine.palette`, built as
 `zengine-palette` and loaded by a row of the shipped plans that load a window. Open it from
 anywhere with <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, the desktop's
-[`desktop.palette`](zengine.desktop.md#desktoppalette); in the OS window by tapping Shift twice,
+[`desktop.palette`](zengine.desktop.md#desktoppalette); in the GUI window by tapping Shift twice,
 <!-- key desktop.palette-shift -->`double-shift`<!-- /key -->; or as any pane from the Pane
 Manager.
 

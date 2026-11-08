@@ -73,7 +73,7 @@ Workshop's own condition row names it for the whole run — `zengine-desktop-pan
 Workshop` — the empty room is blank, and you have no application defaults and no Pane Manager
 until you build it and launch again. Workshop's own keys (`w`, `a`, the layout keys, `q`) still
 work. A graphical launch also prints the refusal on its console; in a terminal Workshop the
-terminal window owns the terminal by then, so the condition row is where it is said.
+TUI window owns the terminal by then, so the condition row is where it is said.
 
 ## The default keys
 
@@ -370,7 +370,7 @@ none of these limits. Workshop applies what you authored as you wrote it, in eve
 tells you which terminals cannot say it.
 
 **A POSIX terminal's keys:** a pane may name a second key for an action whose default a POSIX
-terminal cannot deliver. Shown in the terminal window on a system other than Windows, whose keys
+terminal cannot deliver. Shown in the TUI window on a system other than Windows, whose keys
 come from a POSIX terminal, Workshop puts that key in force in place of the default; everywhere
 else the default stands. The band spells the key in force, and the Hotkeys pane shows the default
 with the POSIX key beside it, as `ctrl+shift+s  posix alt+end`. A row your file names moves in

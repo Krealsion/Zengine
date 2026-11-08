@@ -272,7 +272,7 @@ TEST_CASE("every shape this tree publishes is pinned by content id under its nam
 
 TEST_CASE("a weave the census cannot make is named in the words it refused to be made in") {
     // ⚔ MUTATION (tests/mutants/shapes_census.md#create-given-no-sink): the census handing `create`
-    // no sink -- the OS window told a driver SDL lacks is named as making nothing, and SDL's words
+    // no sink -- the GUI window told a driver SDL lacks is named as making nothing, and SDL's words
     // are lost.
     std::string window;
     for (const std::string& path : lines_of(ZENGINE_CENSUS_WEAVES)) {
@@ -282,7 +282,7 @@ TEST_CASE("a weave the census cannot make is named in the words it refused to be
         }
     }
     if (window.empty()) {
-        MESSAGE("this build holds no OS window, so no weave the census reads refuses to be made");
+        MESSAGE("this build holds no GUI window, so no weave the census reads refuses to be made");
         return;
     }
     std::string why;

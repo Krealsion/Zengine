@@ -217,7 +217,7 @@ endforeach()
 # Loom statically and needs nothing else at load time.
 set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 
-# Out of the developer package: the OS window (a fetched SDL is a build-tree library this package
+# Out of the developer package: the GUI window (a fetched SDL is a build-tree library this package
 # does not carry); introspection and the composer, shown only inside a Workshop run; the snake
 # example; every test fixture. The package a stranger downloads (ZENGINE_PACKAGE, below) carries
 # Workshop with the SDL it built, in bin/.
@@ -233,7 +233,7 @@ set(zengine_installable_artifacts
     zengine-guest-vocabulary     # weave for an EXTERNAL Loom host: Workshop's guest vocabulary
                                  # declared there, so a session's Python tools can speak it
     zengine-graphics             # weave: the graphics directory
-    zengine-window-terminal)     # weave: the window over the process's own terminal
+    zengine-window-tui)     # weave: the window over the process's own terminal
 
 set(ZENGINE_INSTALLED_ARTIFACTS "")
 foreach(artifact IN LISTS zengine_installable_artifacts)
@@ -316,7 +316,7 @@ endif()
 # identity and the notices. Every other build stays the developer's package.
 if(ZENGINE_PACKAGE)
     if(NOT TARGET zengine-workshop OR NOT TARGET zengine-window-sdl)
-        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE needs the Workshop host and the OS window "
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE needs the Workshop host and the GUI window "
                             "(a Loom with loom::kernel, and no ZENGINE_TUI_ONLY)")
     endif()
     if(NOT zengine_sdl_fetched OR NOT zengine_sdl_ttf_fetched)

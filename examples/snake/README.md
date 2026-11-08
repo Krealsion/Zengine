@@ -14,7 +14,7 @@ Source: [`examples/snake/`](world.cpp) — world, board, score, pilot, host.
   is paused, the steps this game has taken, and the step it pauses itself after) -- and publishes
   its news,
   `SnakeVisual`, `FoodEaten` and `SnakeDied`, for anyone. It draws its frame (the score, a death
-  notice, a new-game button and a pause button) as nodes into the terminal window that shows its
+  notice, a new-game button and a pause button) as nodes into the TUI window that shows its
   area, and its board as an element of the game's own: said once, then each step as a change. Each
   button is a `gfx::Button` ([`graphics/elements/button.hpp`](../../graphics/elements/button.hpp)),
   so beside its nodes the window holds a `ButtonFace` record at `new-game` and at `pause`, naming
@@ -63,7 +63,7 @@ Source: [`examples/snake/`](world.cpp) — world, board, score, pilot, host.
 Run it from the build tree, in a terminal: keys are `wasd` or the arrows to steer and `p` to pause;
 `1` chooses the other skin, the night or the block palette (the window paints every area again
 mid-game; nothing is drawn again on the bus); `2` loads the score weave; `3` grows the world
-(graceful v1→v2 migration); `4` asks for an OS window, and says no window weave draws one: the
+(graceful v1→v2 migration); `4` asks for a GUI window, and says no window weave draws one: the
 snake's window is the terminal; `5` flies the pilot, and lands it again; `r` reloads the world in
 place; `n` starts a new game through the poke-reset door, which gives the world its defaults, so
 while the pilot flies the operator writes the keys off again; `l` lists; `q` quits. The buttons

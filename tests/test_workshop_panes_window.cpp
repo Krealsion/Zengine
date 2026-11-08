@@ -2133,12 +2133,12 @@ namespace gfx = zengine::graphics;
 } // namespace
 
 TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot move it") {
-    SUBCASE("a pane a graphics window shows asks that window for a paste, the OS window or the "
+    SUBCASE("a pane a graphics window shows asks that window for a paste, the GUI window or the "
             "terminal's") {
         // ⚔ MUTATION (tests/mutants/workshop_panes_window.md#paste-asked-elsewhere): the Terminal
         // pane's paste asked of another role than the window showing it.
         namespace term = zengine::terminal_pane;
-        for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+        for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
             CAPTURE(window);
             const bool os = std::string(window) == gfx::kSdlWindow;
             PaneRig p;
@@ -2151,7 +2151,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
             plan.artifacts.push_back(row);
             const load::Executed done = p.run_plan(plan);
             REQUIRE_MESSAGE(done.ok, done.refusal);
-            if (os) p.on_os_window();
+            if (os) p.on_gui_window();
             p.ready();
             p.extent(160, 48);
             const PaneRef ref{term::kTerminalPaneRole, term::kTerminalPane};

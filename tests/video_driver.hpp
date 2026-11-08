@@ -5,7 +5,7 @@
 #define ZENGINE_TESTS_VIDEO_DRIVER_HPP
 
 // SDL's video driver, named for this process while a `VideoDriver` lives, as a weaver's environment
-// names it, and given back as it was after: the OS window (`zengine-window-sdl`) told a driver SDL
+// names it, and given back as it was after: the GUI window (`zengine-window-sdl`) told a driver SDL
 // lacks cannot open, and refuses to be made in SDL's words. The load and shapes suites hold it.
 
 #include <cstdlib>

@@ -1607,7 +1607,7 @@ TEST_CASE("a clipboard answer asked for by an Info draft that has closed lands i
     // A PASTE BELONGS TO THE DRAFT THAT ASKED (`agents/decisions/a-paste-is-a-conversation.md`).
     InfoRig f;
     f.open();
-    f.r.on_os_window();
+    f.r.on_gui_window();
     f.r.windows.set_clipboard("PASTED");
     f.draft_on("Width");
 

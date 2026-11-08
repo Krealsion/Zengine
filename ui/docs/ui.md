@@ -47,7 +47,7 @@ No kernel, no weave, no bus: the package is vocabulary and arithmetic, header-on
 Not a widget set and not a drawing vocabulary. There are no widget kinds, no colour, no z and no
 style; paint order is authored order. It knows nothing about painting: `zengine::graphics` is the
 drawing vocabulary, and a solved scene is what you paint *from*. Its unit is the whole pixel; a
-cell is a terminal window's step and nothing more. A frame lays its parts freely, each by its own
+cell is a TUI window's step and nothing more. A frame lays its parts freely, each by its own
 words, or down a column that begins again at its top. No frame divides its span among its parts,
 and no part is placed beside another: a part is placed in its frame, never relative to a sibling.
 

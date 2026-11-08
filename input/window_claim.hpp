@@ -5,7 +5,7 @@
 #define ZENGINE_INPUT_WINDOW_CLAIM_HPP
 
 // A window's claim on an input edge it shares with an Input reader in the same process: the
-// terminal window's on the terminal's input, the OS window's on SDL's queue, which also leaves the
+// TUI window's on the terminal's input, the GUI window's on SDL's queue, which also leaves the
 // console the run started from to the person at it. Window and reader share no variable, so a
 // claim lives in the environment as `<pid>:<count>`: a child ignores a claim under another pid,
 // and the count keeps it across a reload in place, which builds the new window first.
@@ -32,7 +32,7 @@
 
 namespace zengine::input {
 
-inline constexpr const char* kWindowTerminalInputVariable = "ZENGINE_WINDOW_TERMINAL_INPUT_PID";
+inline constexpr const char* kWindowTuiInputVariable = "ZENGINE_WINDOW_TUI_INPUT_PID";
 inline constexpr const char* kWindowSdlInputVariable = "ZENGINE_WINDOW_SDL_INPUT_PID";
 
 namespace detail {
@@ -104,47 +104,47 @@ inline void release_window(const char* variable) {
 
 } // namespace detail
 
-// ---- the terminal window's claim on the terminal's input ---------------------------------------
+// ---- the TUI window's claim on the terminal's input ---------------------------------------
 
-/// How many terminal windows in this process hold its terminal's input.
-inline std::int64_t window_terminal_input_claims() {
-    return detail::window_claims(kWindowTerminalInputVariable);
+/// How many TUI windows in this process hold its terminal's input.
+inline std::int64_t window_tui_input_claims() {
+    return detail::window_claims(kWindowTuiInputVariable);
 }
 
-inline bool window_holds_terminal_input() { return window_terminal_input_claims() > 0; }
+inline bool window_holds_terminal_input() { return window_tui_input_claims() > 0; }
 
-/// A terminal window's, once when it is made: one more claim on this process's terminal input.
-inline void claim_window_terminal_input() { detail::claim_window(kWindowTerminalInputVariable); }
+/// A TUI window's, once when it is made: one more claim on this process's terminal input.
+inline void claim_window_tui_input() { detail::claim_window(kWindowTuiInputVariable); }
 
-/// A terminal window's, once when it goes: its claim given back, the variable gone with the last.
-inline void release_window_terminal_input() {
-    detail::release_window(kWindowTerminalInputVariable);
+/// A TUI window's, once when it goes: its claim given back, the variable gone with the last.
+inline void release_window_tui_input() {
+    detail::release_window(kWindowTuiInputVariable);
 }
 
-/// A reader touches the terminal when it is the terminal window's own, or when no window in this
-/// process holds input: neither a terminal window holding the terminal nor an OS window, which
+/// A reader touches the terminal when it is the TUI window's own, or when no window in this
+/// process holds input: neither a TUI window holding the terminal nor a GUI window, which
 /// reads its own events and leaves the console the run started from to the person at it.
-inline bool terminal_reader_may_use_terminal(bool window_owner, bool terminal_window_holds,
-                                             bool os_window_holds) {
-    return window_owner || (!terminal_window_holds && !os_window_holds);
+inline bool terminal_reader_may_use_terminal(bool window_owner, bool tui_window_holds,
+                                             bool gui_window_holds) {
+    return window_owner || (!tui_window_holds && !gui_window_holds);
 }
 
-// ---- the OS window's claim on SDL's event queue ------------------------------------------------
+// ---- the GUI window's claim on SDL's event queue ------------------------------------------------
 
-/// How many OS windows in this process hold SDL's event queue.
+/// How many GUI windows in this process hold SDL's event queue.
 inline std::int64_t window_sdl_input_claims() {
     return detail::window_claims(kWindowSdlInputVariable);
 }
 
 inline bool window_holds_sdl_input() { return window_sdl_input_claims() > 0; }
 
-/// An OS window's, once when it is made: one more claim on this process's SDL queue.
+/// A GUI window's, once when it is made: one more claim on this process's SDL queue.
 inline void claim_window_sdl_input() { detail::claim_window(kWindowSdlInputVariable); }
 
-/// An OS window's, once when it goes or finds it has no window to read: its claim given back.
+/// A GUI window's, once when it goes or finds it has no window to read: its claim given back.
 inline void release_window_sdl_input() { detail::release_window(kWindowSdlInputVariable); }
 
-/// The SDL Input reader drains SDL's queue only while no OS window in this process holds it.
+/// The SDL Input reader drains SDL's queue only while no GUI window in this process holds it.
 inline bool sdl_reader_may_use_sdl() { return !window_holds_sdl_input(); }
 
 } // namespace zengine::input

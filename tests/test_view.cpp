@@ -173,8 +173,8 @@ struct Wirings {
     }
 };
 
-/// The terminal window's role, where a window shows a view's area.
-const std::string kWindowRole = std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
+/// The TUI window's role, where a window shows a view's area.
+const std::string kWindowRole = std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
 
 /// Stands in for the graphics window that shows one view's area: holds the window's role, admits
 /// each drawing by the window's own judge and keeps it as the window keeps it (graphics/window/
@@ -320,7 +320,7 @@ struct Rig {
     /// pixel, setting text in a face 8 by 16, or a terminal's cells.
     void room_px(const std::string& role, std::int64_t width, std::int64_t height, bool terminal = false) {
         const gfx::window::WinArea* held = window_for(role).find(role);
-        gfx::AreaRoom r{area_of(role), gfx::kTerminalWindow, 1, width, height, {},
+        gfx::AreaRoom r{area_of(role), gfx::kTuiWindow, 1, width, height, {},
                         held == nullptr || held->nodes.empty()};
         if (!terminal) {
             r.cell_px = gfx::kCellPx;
@@ -410,7 +410,7 @@ struct Shown {
     WeaveId id{};
 };
 
-/// The window that shows the area of the view named `view`, holding the terminal window's role:
+/// The window that shows the area of the view named `view`, holding the TUI window's role:
 /// the rig's own, mounted if none is.
 Shown mount_window(Rig& rig, const std::string& view) {
     Window& w = rig.window_for(view);
@@ -428,7 +428,7 @@ void window_says(Rig& rig, const Shown& w, const std::string& view, const T& val
 
 /// The room the window gives a view's area, in pixels: `columns` by `rows` of its cells.
 gfx::AreaRoom area_room(const std::string& view, std::int64_t columns, std::int64_t rows, std::int64_t epoch = 1) {
-    return gfx::AreaRoom{area_of(view), gfx::kTerminalWindow, epoch, columns * gfx::kCellPx,
+    return gfx::AreaRoom{area_of(view), gfx::kTuiWindow, epoch, columns * gfx::kCellPx,
                          rows * gfx::kCellPx, {}};
 }
 } // namespace

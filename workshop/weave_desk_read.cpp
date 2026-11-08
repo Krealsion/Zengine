@@ -320,7 +320,7 @@ std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out,
 }
 
 // EVERY POINT IN THE SPACE THE MEDIUM READS, as Workshop's own words say theirs: the window's
-// pixel, or the terminal window's cell; a part's where the window's own judge lands a press on it.
+// pixel, or the TUI window's cell; a part's where the window's own judge lands a press on it.
 void WorkshopWeave::shown_words_and_parts(const graphics::AreaShown& shown, const PixelRect& rect,
                                           std::vector<PaneWord>& words,
                                           std::vector<PanePart>& parts) const {

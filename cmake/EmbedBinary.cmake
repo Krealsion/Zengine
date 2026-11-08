@@ -1,4 +1,4 @@
-# A file's bytes as a C++ translation unit -- run with `cmake -P`, never included. The OS window
+# A file's bytes as a C++ translation unit -- run with `cmake -P`, never included. The GUI window
 # carries its typeface rather than finding one on the host or staging one beside the binary, so
 # it has its face or does not; the script is generic, so anything carried goes through it.
 #   cmake -DZEN_EMBED_INPUT=<file> -DZEN_EMBED_OUTPUT=<file.cpp> -DZEN_EMBED_NAME=<identifier>

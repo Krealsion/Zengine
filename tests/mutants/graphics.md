@@ -64,7 +64,7 @@ Red in `zengine-graphics-tests`:
 
 ## shaped-by-any-role
 
-An OS window takes its title and size from any role.
+A GUI window takes its title and size from any role.
 
 In `graphics/window/window.hpp`:
 
@@ -75,7 +75,7 @@ In `graphics/window/window.hpp`:
 
 Red in `zengine-graphics-tests`:
 
-- an OS window takes its title and its size from a role that arranges an area in it, and from no
+- a GUI window takes its title and its size from a role that arranges an area in it, and from no
   other; a shaped window is not grown back by what it held before
 
 ## drawing-rest-from-a-drag

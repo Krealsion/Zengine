@@ -427,7 +427,7 @@ TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the colu
     const ExternalPane* pane = t.r.session().panes.external_pane(t.guard_kind);
     REQUIRE(pane != nullptr);
     REQUIRE(held_caret(*pane).column == 2);
-    // THE TERMINAL WINDOW'S OWN ROW (`abcdef`), the caret standing on `c` and moving no character.
+    // THE TUI WINDOW'S OWN ROW (`abcdef`), the caret standing on `c` and moving no character.
     const std::int64_t y = body_y(t.r, t.guard_kind, 0);
     const std::int64_t x0 = body_x(t.r, t.guard_kind, 0);
     REQUIRE(held_reading(t.guard_kind).rows.at(0) == "abcdef");
@@ -976,7 +976,7 @@ TEST_CASE("WL-CTX-09: with no window showing the desk a pane's menu is refused i
     namespace pw = zengine::testing::pane_window;
     PaneRig r;
     r.in_window = false;
-    pw::Window window(r.bus, gfx::kTerminalWindow);
+    pw::Window window(r.bus, gfx::kTuiWindow);
     (void)pw::mount_directory(r.bus);
     r.mount_workshop();
     window.offer(kWorkshopProvider, cells_px(140), cells_px(60));

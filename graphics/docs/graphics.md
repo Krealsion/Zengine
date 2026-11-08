@@ -3,7 +3,7 @@
 A participant that shows something draws it into the window that shows its area. It draws **nodes**
 -- the one primitive -- or says an **element** once and then sends only that element's changes.
 The window keeps what was drawn, paints it in the colours of the palette its area wears, and shows
-only what changed: the cells that changed on a terminal, the picture once a beat in an OS window. A
+only what changed: the cells that changed on a terminal, the picture once a beat in a GUI window. A
 **directory** introduces each area to its window and tells each owner its room; nothing a picture
 is made of passes through it.
 
@@ -11,8 +11,8 @@ A program spells the vocabulary with `#include "graphics/vocabulary.hpp"` and li
 `zengine::graphics`. This page is for whoever draws: the vocabulary, colours by name, the canvas, a
 drawing weave, an element of your own, and the seam an element's code is written against; and what
 a window answers for its platform, on the bus and to C++ in its own process. The
-package ships three weaves, each with its manual: the terminal window,
-[`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`; the OS
+package ships three weaves, each with its manual: the TUI window,
+[`zengine.window.tui`](zengine.window.tui.md), built as `zengine-window-tui`; the OS
 window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
 has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
 Three themes come with them as palettes, `night`, `day` and `block`, generated from the JSON they
@@ -20,7 +20,7 @@ are written in (`graphics/themes/`); `classic`, in a setting or an `app.json`, i
 `night`. The snake (`examples/snake/`) is the worked example:
 it draws its frame as nodes and its board as an element of its own.
 
-![The snake in a terminal window wearing the night palette, its pilot flying and the game paused after step 120: the operator's status line, the world's score, board and buttons, and the score weave's own area beside it](images/snake-night.png)
+![The snake in a TUI window wearing the night palette, its pilot flying and the game paused after step 120: the operator's status line, the world's score, board and buttons, and the score weave's own area beside it](images/snake-night.png)
 
 ![The same window after 1 chose the block palette: the window painted what it keeps in the other palette, and nothing was drawn again on the bus](images/snake-block.png)
 
@@ -54,7 +54,7 @@ anyone -> a window           ClipboardCopy, PumpSurface, SurfacePlacementRemembe
 asker -> a window            ClipboardTextRequested, SurfaceCaptureRequested,
                              SurfaceCaptureChunkRequested
 window -> the asker          ClipboardText, SurfaceCaptured, SurfaceCaptureChunk, zen.Refused
-OS window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own role)
+GUI window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own role)
 ```
 
 The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator;
@@ -85,7 +85,7 @@ pointer takes only the points where what it drew names an action or presents an 
 the pointer through to the areas behind it everywhere else. Each time the window shows, it tells the
 arranger following an area, unasked, when the area's version moved (`AreaSettled`); of an area its
 arranger does not follow, it tells the arranger none of this. Either window, terminal or OS, routes
-them alike ([`zengine.window.terminal`](zengine.window.terminal.md#use)).
+them alike ([`zengine.window.tui`](zengine.window.tui.md#use)).
 
 A window also answers for its platform, in shapes spelled here (`graphics/vocabulary.hpp`): a
 copy, a paste's read of the clipboard, its place on the desktop and a place offered back, a close
@@ -225,7 +225,7 @@ its ink. Every font is monospaced, so an owner places text by columns: each char
 columns the text core gives it (`component::character_columns`), 0, 1 or 2 by Unicode's width
 classes, the rule both painters and a terminal draw by.
 
-The OS window ([`zengine.window.sdl`](zengine.window.sdl.md)) sets text in the embedded JetBrains
+The GUI window ([`zengine.window.sdl`](zengine.window.sdl.md)) sets text in the embedded JetBrains
 Mono, regular and bold, each size measured as it is first asked. A character that face lacks is
 drawn from the platform's own fonts -- the Windows font folder, the folders fontconfig reads,
 macOS's, at most `window::kMaxPlatformFaces` files, looked in once a character -- and else from GNU
@@ -234,7 +234,7 @@ a glyph sits centred in its own columns, scaled down where it would not fit them
 `ZENGINE_SDL_EMBEDDED_FACES=1` the window draws from its embedded faces alone, so a picture never
 moves with the fonts of the machine it is taken on; the suites and the pictures of these pages are
 taken so. A face that will not open says why on standard error, and the window sets its text in
-SDL's debug face. A terminal ([`zengine.window.terminal`](zengine.window.terminal.md)) writes every
+SDL's debug face. A terminal ([`zengine.window.tui`](zengine.window.tui.md)) writes every
 character its encoding carries, a wide one over two cells, and `?` for each character past ASCII
 where its encoding carries none, one column each.
 
@@ -252,7 +252,7 @@ the window says the area is empty. The window tells the room (`AreaRoom`): its n
 incarnation, its width and height (`width()`, `height()`), the references of the owner's elements
 it still presents there, whether it holds none of the owner's drawing there (`empty`): an area
 shown afresh, or given to this owner; and how it sets text (`text()`, a `TextMeasure`: a column's
-advance and a line's height in pixels at `body`, the OS window's face or a terminal's cell, every
+advance and a line's height in pixels at `body`, the GUI window's face or a terminal's cell, every
 other size's in `measures`, and `cell_px()`, its device pixels in a cell). An owner places its text
 by that measure, a row a line and a column an advance, and paints its area's ground: what it leaves
 unpainted shows what stands behind it. `room` answers whether the window, its incarnation, its size or its measure
@@ -395,7 +395,7 @@ read through the one gate. Ours and a stranger's are opened and judged alike.
 
 Which library holds an element's code is the load plan's word, through the arranger and the
 directory, never a pane's. What a window says of a library it cannot open or read is
-[the window's manual](zengine.window.terminal.md#files).
+[the window's manual](zengine.window.tui.md#files).
 
 The window paints with its own painter, one of each medium -- the character painter
 (`graphics/term_paint.hpp`) and the painter for light (`graphics/light_paint.hpp`) -- handing it each
@@ -408,7 +408,7 @@ C++ in a window's own process -- a host's, beside the window it loaded -- may as
 (`Window<Medium>`, `graphics/window/window.hpp`) directly for what its messages carry, and each
 medium answers for its platform:
 
-| ask | the terminal window | the OS window |
+| ask | the TUI window | the GUI window |
 |---|---|---|
 | `clipboard_copy(text)` | the text written to the terminal as OSC 52 (`window::terminal_clipboard_sequence`), which no terminal confirms | the text put on the platform's clipboard |
 | `clipboard_text()` | none: no terminal route reads a clipboard | the clipboard's text, read only when asked and never on the window's beat; empty when it holds no text, none with no window |
@@ -418,9 +418,9 @@ medium answers for its platform:
 
 `capture()` answers none before the window has shown anything, and never shows what a drawing
 saying `more` still holds back. A close its desktop asked for is published, not kept: the beat that
-reads it publishes `SurfaceCloseRequested` as the window's role, once. The OS window opens
+reads it publishes `SurfaceCloseRequested` as the window's role, once. The GUI window opens
 centred on its display's usable area, and an area placed past its edge grows it, as far as that
 display holds it, once for each new reach: a window a weaver made smaller is not grown back while
 its areas stay where they are. A role that arranges an area in a window names it and sizes it
-(`WindowShaped`): the OS window keeps the size within its display and, as after a weaver's
+(`WindowShaped`): the GUI window keeps the size within its display and, as after a weaver's
 resize, is not grown back while its areas reach no further; the terminal keeps its own.

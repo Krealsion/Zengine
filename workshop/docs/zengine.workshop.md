@@ -760,7 +760,7 @@ and `zengine.workshop.overlay` in front, deaf. It asks its rooms.
 
 ### `WindowOffered`
 
-`WindowOffered` v3, from the terminal or OS window as its own role (`zengine.window.terminal`,
+`WindowOffered` v3, from the terminal or GUI window as its own role (`zengine.window.tui`,
 `zengine.window.sdl`): its pixels, unit and text; Workshop's areas go on it. The first offer
 starts the desk: `PaneCatalogRequested`, the keymap and preferences, the floor painted, the last
 session and the startup notes. The panes are laid out in the window's room, again at each new
@@ -885,7 +885,7 @@ says `PaneKeys` when the keys come or go, and after each primary press in its ar
   comes back on its own](workshop-panes.md#the-desk-comes-back-on-its-own)).
 - **The window file**, beside the session file, its name the session's with `.window` before the
   extension (`workshop-session.window.json`): the window's room, its place on the desktop and the
-  OS window's own room. Workshop alone writes it, at an orderly quit; while none exists, an older
+  GUI window's own room. Workshop alone writes it, at an orderly quit; while none exists, an older
   session's are read once.
 - **The keymap file**, `--keymap <path>`, by default `workshop-keymap.json` in the per-user config
   folder: read when the desk starts, written by an accepted `KeymapEditRequested`

@@ -4,7 +4,7 @@
 // zengine-snake, the playable host: it owns the boot list and its loop's rest, and nothing else --
 // it draws nothing of the game, knows no snake rules, reads no keys and keeps no time: between
 // turns it rests as long as the Timer's beat allows (timer/rest.hpp). The world keeps its own
-// rules, keys and beat; the terminal window reads the terminal and shows what owners draw;
+// rules, keys and beat; the TUI window reads the terminal and shows what owners draw;
 // the directory introduces the two; and the operator weave arranges the window, chooses its
 // palette, speaks the status line and sends every lifecycle command (examples/snake/README.md).
 
@@ -76,7 +76,7 @@ namespace timer = zengine::timer;
 /// The operator's role, the owner of the status line's area.
 constexpr const char* kOperatorRole = "snake.operator";
 constexpr const char* kStatusArea = "snake.operator";
-constexpr const char* kWindowRole = "zengine.window.terminal";
+constexpr const char* kWindowRole = "zengine.window.tui";
 
 /// The palettes the operator offers and chooses between: two of the shipped themes, made unlike
 /// each other so a choice mid-game is unmistakable.
@@ -215,7 +215,7 @@ public:
         switch (k.scancode) {
         case scan::k1: flip_palette(mail); break;
         case scan::k4:
-            status("no window weave draws an OS window: this one is the terminal");
+            status("no window weave draws a GUI window: this one is the terminal");
             break;
         case scan::k2: load_score(mail); break;
         case scan::k3: grow_world(mail); break;
@@ -362,9 +362,9 @@ private:
         to_directory(gfx::ElementCodeOffered{"SnakeBoardData", ctx_->so("snake-board")});
         choose_palette(mail); // before the places, so each area is introduced once, wearing it
         const std::int64_t c = gfx::kCellPx;
-        to_directory(gfx::AreaPlaced{kStatusArea, gfx::kTerminalWindow, kOperatorRole, 0,
+        to_directory(gfx::AreaPlaced{kStatusArea, gfx::kTuiWindow, kOperatorRole, 0,
                                      0, 200 * c, 2 * c, 1, true});
-        to_directory(gfx::AreaPlaced{kWorldArea, gfx::kTerminalWindow, kWorldRole, 0, 2 * c,
+        to_directory(gfx::AreaPlaced{kWorldArea, gfx::kTuiWindow, kWorldRole, 0, 2 * c,
                                      50 * c, 28 * c, 0, true});
         if (ctx_->score_loaded) {
             place_score(mail);
@@ -375,7 +375,7 @@ private:
         const std::int64_t c = gfx::kCellPx;
         (void)mail.as_role(kOperatorRole)
             .send_to_role(gfx::kGraphicsRole,
-                          gfx::AreaPlaced{kScoreRole, gfx::kTerminalWindow, kScoreRole,
+                          gfx::AreaPlaced{kScoreRole, gfx::kTuiWindow, kScoreRole,
                                           52 * c, 2 * c, 50 * c, c, 0, false});
     }
 
@@ -616,8 +616,8 @@ int main(int argc, char** argv) {
     // own beat on its own activation, so the pilot hears the first game from its first step.
     boot("load directory", loom::LoadWeave{"zengine-graphics", ctx.so("zengine-graphics"),
                                            gfx::kGraphicsRole});
-    boot("load terminal window", loom::LoadWeave{"zengine-window-terminal",
-                                                 ctx.so("zengine-window-terminal"), kWindowRole});
+    boot("load TUI window", loom::LoadWeave{"zengine-window-tui",
+                                                 ctx.so("zengine-window-tui"), kWindowRole});
     boot("load world v1", loom::LoadWeave{"snake-world-v1", ctx.so("snake-world-v1"), kWorldRole},
          kWorldLoaded);
     if (fly_at_birth) {

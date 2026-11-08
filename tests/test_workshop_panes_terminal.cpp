@@ -1415,7 +1415,7 @@ TEST_CASE("clipboard text lands in the draft that asked for it, or nowhere") {
     // the different command a weaver typed after abandoning it.
     TerminalRig t;
     t.open();
-    t.r.on_os_window();
+    t.r.on_gui_window();
     t.r.windows.set_clipboard("OLD");
     t.focus();
     t.type("abc");
@@ -1450,7 +1450,7 @@ TEST_CASE("an edit is not a new draft, and a submit is") {
     // and they are what a paste is bound to.
     TerminalRig t;
     t.open();
-    t.r.on_os_window();
+    t.r.on_gui_window();
     t.r.windows.set_clipboard("OLD");
     t.focus();
     t.type("ab");
@@ -1485,7 +1485,7 @@ TEST_CASE("a paste is one gesture, and undo gives back the line it landed in") {
     // burst before it, so one undo would take the paste and the typed word together.
     TerminalRig t;
     t.open();
-    t.r.on_os_window();
+    t.r.on_gui_window();
     t.r.windows.set_clipboard("OLD");
     t.focus();
     t.type("keep");
@@ -1514,7 +1514,7 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     // normalization; this case owns the pane's door spending it.
     TerminalRig t;
     t.open();
-    t.r.on_os_window();
+    t.r.on_gui_window();
     t.focus();
 
     t.r.windows.set_clipboard("two\r\nlines");
@@ -1825,7 +1825,7 @@ TEST_CASE("after a lock the recalled line is an ordinary draft whose undo stops 
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
-    t.r.on_os_window();
+    t.r.on_gui_window();
     run(t, "beta");
     t.r.key(input::scan::kUp);
     t.r.key(input::scan::kTab);
@@ -1845,7 +1845,7 @@ TEST_CASE("a paste asked for before a recall does not land in the recalled line"
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
-    t.r.on_os_window();
+    t.r.on_gui_window();
     run(t, "beta");
     t.r.windows.set_clipboard("OLD");
     t.enqueue_key(input::scan::kV, input::mod::kCtrl);

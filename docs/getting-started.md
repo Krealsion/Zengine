@@ -501,7 +501,7 @@ all. The package names the physical things, because one list holds both kinds:
 |---|---|
 | `zengine-timer` | weave — the Timer service you loaded above |
 | `zengine-input` | weave — the sole producer of key, text and pointer moments |
-| `zengine-graphics`, `zengine-window-terminal` | weave — the graphics directory, and the window over the process's own terminal that shows what each area's owner draws, in the palette the area wears |
+| `zengine-graphics`, `zengine-window-tui` | weave — the graphics directory, and the window over the process's own terminal that shows what each area's owner draws, in the palette the area wears |
 | `zengine-operators-basic` | **provider** — typed operator definitions, mounted by a host, never loaded onto the bus |
 | `zengine-inventory` | weave — stored typed values ([inventory](../inventory/README.md)) |
 | `zengine-neovim-editor` | weave — the Editor's role held with a Neovim, found at run time ([Neovim](../editor/docs/neovim.md)) |

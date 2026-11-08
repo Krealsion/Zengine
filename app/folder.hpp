@@ -47,7 +47,7 @@ inline constexpr const char* kExportSkin = "day";
 inline constexpr std::size_t kMaxAppName = 64;
 
 /// THE PLAN AN EXPORTED APP LOADS: the operators its flow folds with, the app's own weave, the
-/// graphics directory, the OS window and the timer, in that order.
+/// graphics directory, the GUI window and the timer, in that order.
 inline workshop::load::LoadPlan export_plan() {
     namespace load = workshop::load;
     const auto provider = load::ProviderIntent{op::MountMode::Ordinary};

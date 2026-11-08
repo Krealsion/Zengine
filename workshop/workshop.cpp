@@ -192,7 +192,7 @@ struct Arguments {
     /// Empty means the plan shipped beside this executable, resolved by `main()`: a bare name would
     /// resolve against wherever the weaver happened to launch.
     std::string load_plan;
-    /// `--tui`: the terminal window, of the windows the plan in force offers, and no other tried.
+    /// `--tui`: the TUI window, of the windows the plan in force offers, and no other tried.
     bool tui = false;
     /// The authored build recipes, whose file may be absent; empty means the one beside this
     /// executable.
@@ -332,8 +332,8 @@ int main(int argc, char** argv) {
                     "                        [--log <path>] [--log-refusals] [--dump <path>] [--demo-history]\n"
                     "                        [--guests <file>]\n"
                     "       zengine-workshop --read-log <path>\n"
-                    "the desk opens in the OS window, else in the terminal window; --tui opens it\n"
-                    "in the terminal window\n",
+                    "the desk opens in the GUI window, else in the TUI window; --tui opens it\n"
+                    "in the TUI window\n",
                     args.complaint.c_str());
         return 2;
     }
@@ -390,7 +390,7 @@ int main(int argc, char** argv) {
     const std::string state_root = user_paths::state_root(env);
     host.keymap_path = user_paths::resolve_durable_path(
         args.keymap, args.isolated, config_root, keymap_persist::kDefaultKeymapFileName);
-    // The terminal window reads a POSIX terminal everywhere but Windows, whose console delivers
+    // The TUI window reads a POSIX terminal everywhere but Windows, whose console delivers
     // every chord (`input/terminal_reader.hpp`).
 #if !defined(_WIN32)
     host.posix_terminal = true;
@@ -507,16 +507,16 @@ int main(int argc, char** argv) {
                 read_plan.plan.artifacts.size());
     std::fflush(stdout);
     // ...AND THE WINDOW THIS LAUNCH OPENS: the plan's windows tried in order, or, with `--tui`, its
-    // terminal window alone. Only the plan confers participation, so a plan offering no terminal
+    // TUI window alone. Only the plan confers participation, so a plan offering no terminal
     // window is refused here, with its fix, before anything is mounted.
     load::LoadPlan launched = read_plan.plan;
     if (args.tui) {
         const std::string terminal =
-            std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
+            std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
         if (const Written taken = load::take_role(launched, terminal); !taken.accepted) {
-            return refuse_plan("--tui opens the terminal window, and " + plan_path +
+            return refuse_plan("--tui opens the TUI window, and " + plan_path +
                                " offers none (" + taken.refusal +
-                               "): add zengine-window-terminal under its window row's "
+                               "): add zengine-window-tui under its window row's "
                                "`otherwise`, or start without --tui (workshop/docs/load-plans.md)");
         }
     }
@@ -988,7 +988,7 @@ int main(int argc, char** argv) {
                 said += "zengine-workshop - " + text + "\n";
             };
             // What a row could not load and gave way from stands too, for the run (the desk said
-            // it once as it came up): the OS window that could not open here, and why.
+            // it once as it came up): the GUI window that could not open here, and why.
             for (const load::PassedOver& gone : done.passed_over) {
                 if (say) {
                     line(gone.sentence());

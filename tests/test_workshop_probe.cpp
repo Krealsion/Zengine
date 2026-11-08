@@ -656,14 +656,14 @@ std::vector<std::string> asked_of(const Rig& r, const char* shape) {
 
 } // namespace
 
-TEST_CASE("probe: a picture is asked of the OS window, then the terminal window, and fetched from the role that described it") {
-    // ⚔ MUTATION (tests/mutants/workshop_probe.md#capture-of-the-os-window-alone): the capture
-    // asked of the OS window alone -- every terminal plan would stop at capture.
-    // ⚔ MUTATION (tests/mutants/workshop_probe.md#chunks-of-the-os-window): the chunks asked of the
-    // OS window after the terminal window described the picture.
-    for (const char* holder : {"zengine.window.sdl", "zengine.window.terminal"}) {
+TEST_CASE("probe: a picture is asked of the GUI window, then the TUI window, and fetched from the role that described it") {
+    // ⚔ MUTATION (tests/mutants/workshop_probe.md#capture-of-the-gui-window-alone): the capture
+    // asked of the GUI window alone -- every terminal plan would stop at capture.
+    // ⚔ MUTATION (tests/mutants/workshop_probe.md#chunks-of-the-gui-window): the chunks asked of the
+    // GUI window after the TUI window described the picture.
+    for (const char* holder : {"zengine.window.sdl", "zengine.window.tui"}) {
         CAPTURE(holder);
-        const bool terminal = std::string(holder) == "zengine.window.terminal";
+        const bool terminal = std::string(holder) == "zengine.window.tui";
         Rig r;
         RemoveOnExit tidy{Rig::default_run().picture};
         picture_held_by(r, holder);
@@ -671,7 +671,7 @@ TEST_CASE("probe: a picture is asked of the OS window, then the terminal window,
         INFO("the run: " << said);
         REQUIRE(starts(said, "PASS"));
         CHECK(has(said, "zengine.window.sdl was not reached (NoRoleHolder: zengine.window.sdl); "
-                        "asking zengine.window.terminal") == terminal);
+                        "asking zengine.window.tui") == terminal);
         CHECK(has(said, "capture 1 at frame 5: 3x1 text/cells, 4 bytes"));
         CHECK(has(said, "(4 of 4 bytes, text/cells, read back whole)"));
         std::vector<std::string> captures = {"zengine.window.sdl"};
@@ -681,7 +681,7 @@ TEST_CASE("probe: a picture is asked of the OS window, then the terminal window,
         CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name) == captures);
         CHECK(asked_of(r, gfx::SurfaceCaptureChunkRequested::zen_name) ==
               std::vector<std::string>{holder, holder});
-        // THE NEXT RUN ASKS THE OS WINDOW FIRST AGAIN: which role answered is this run's to learn.
+        // THE NEXT RUN ASKS THE GUI WINDOW FIRST AGAIN: which role answered is this run's to learn.
         const std::string again = r.run();
         CHECK(starts(again, "PASS"));
         CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name).at(captures.size()) ==

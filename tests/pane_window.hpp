@@ -56,7 +56,7 @@ struct PaneWindowDo {
 /// THE STAND-IN ITSELF: the areas it keeps, every drawing its areas' owners sent it, the refusals
 /// it answered, and the drawings it heard from anyone but an area's owner, which it ignores. It
 /// holds the platform's clipboard as the real windows do, and answers a paste with what that
-/// holds, counting each read. Asked what an area shows, it says it as the terminal window reads
+/// holds, counting each read. Asked what an area shows, it says it as the TUI window reads
 /// its cells (`gw::read_area`), to the role that owns the area or placed it.
 class PaneWindow
     : public loom::WeaveBase<PaneWindow, PaneWindowState,
@@ -576,7 +576,7 @@ public:
     }
 
     /// THIS WINDOW OFFERS ITSELF to `to`, as its role: its room in canvas pixels, its
-    /// incarnation, and the cell its text is set in, as the terminal window offers itself.
+    /// incarnation, and the cell its text is set in, as the TUI window offers itself.
     void offer(const std::string& to, std::int64_t width_px, std::int64_t height_px,
                std::int64_t epoch = 1) {
         say(to, gfx::WindowOffered{w_->window(), width_px, height_px, epoch, 0, gfx::kCellPx,
@@ -620,7 +620,7 @@ private:
         return out;
     }
 
-    /// WHAT `a` SHOWS, as the terminal window reads its cells, with nothing in front of it: its
+    /// WHAT `a` SHOWS, as the TUI window reads its cells, with nothing in front of it: its
     /// words and parts in the area's pixels, by this window's face.
     std::string read_area(const gw::WinArea& a, gfx::AreaShown& s) const {
         const gfx::TextMeasure face = face_;

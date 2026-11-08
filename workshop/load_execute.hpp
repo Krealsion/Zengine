@@ -149,7 +149,7 @@ struct Executed {
     explicit operator bool() const noexcept { return ok; }
 };
 
-/// Whether a realized project's medium -- `zengine.window.terminal` -- holds the process's measured
+/// Whether a realized project's medium -- `zengine.window.tui` -- holds the process's measured
 /// terminal, so the host does not print the settled banner over it. A refused project's medium
 /// holds it too until it is unloaded, and its host says why it is leaving then.
 inline bool medium_holds_terminal(const Executed& done, bool terminal_measured) {
@@ -157,7 +157,7 @@ inline bool medium_holds_terminal(const Executed& done, bool terminal_measured) 
         return false;
     }
     const std::string window =
-        std::string(zengine::graphics::kWindowRolePrefix) + zengine::graphics::kTerminalWindow;
+        std::string(zengine::graphics::kWindowRolePrefix) + zengine::graphics::kTuiWindow;
     for (const ResolvedArtifact& row : done.resolved) {
         if (row.weave_loaded && row.role == window) {
             return true;
@@ -175,13 +175,13 @@ struct RetiredArtifact {
 inline constexpr RetiredArtifact kRetiredArtifacts[] = {
     {"zengine-skin-tui-classic",
      "put the default plan's zengine-graphics row and its window row, zengine-window-sdl "
-     "otherwise zengine-window-terminal, where it stands"},
+     "otherwise zengine-window-tui, where it stands"},
     {"zengine-skin-tui-block",
      "put the default plan's zengine-graphics row and its window row, zengine-window-sdl "
-     "otherwise zengine-window-terminal, where it stands"},
+     "otherwise zengine-window-tui, where it stands"},
     {"zengine-skin-sdl",
      "put the default plan's zengine-graphics row and its window row, zengine-window-sdl "
-     "otherwise zengine-window-terminal, where it stands"},
+     "otherwise zengine-window-tui, where it stands"},
     {"zengine-input-sdl", "put zengine-input where it stands"},
 };
 

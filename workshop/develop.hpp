@@ -40,7 +40,7 @@ struct Facts {
     std::string runtime; ///< the runtime directory when none is named
     std::string project; ///< the project directory when none is named
     std::string host;    ///< the host executable's file name
-    std::string plan;    ///< the runtime's load plan's file name; empty without the OS window
+    std::string plan;    ///< the runtime's load plan's file name; empty without the GUI window
     std::string catalog; ///< the development catalog's file name
 };
 
@@ -378,7 +378,7 @@ inline int launch(const Facts& facts, const Choice& choice, const World& world) 
         return 2;
     }
     if (facts.plan.empty()) {
-        world.say("the build tree " + facts.build + " has no OS window to open Workshop in (it "
+        world.say("the build tree " + facts.build + " has no GUI window to open Workshop in (it "
                   "was configured with ZENGINE_TUI_ONLY) -- nothing was prepared or launched");
         return 1;
     }

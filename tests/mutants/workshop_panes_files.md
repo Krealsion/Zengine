@@ -101,7 +101,7 @@ In `files/files.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- the authoring line asks the window that shows Files for a paste, the OS window or the terminal's
+- the authoring line asks the window that shows Files for a paste, the GUI window or the terminal's
 
 ## centring-window
 

@@ -2126,16 +2126,16 @@ TEST_CASE("the authoring line's caret is the medium's, where the line's is, and 
     CHECK(held_caret(*pane).row == kNoCaret);
 }
 
-TEST_CASE("the authoring line asks the window that shows Files for a paste, the OS window or the terminal's") {
+TEST_CASE("the authoring line asks the window that shows Files for a paste, the GUI window or the terminal's") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_files.md#paste-asked-elsewhere): Files' paste asked
     // of another role than the window showing its area.
     namespace gfx = zengine::graphics;
-    for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+    for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
         CAPTURE(window);
         const bool os = std::string(window) == gfx::kSdlWindow;
         FilesRig f("files-paste-window");
         put_file(f.root / "oven.cpp", "// a weaver's weave\n");
-        if (os) f.r.on_os_window();
+        if (os) f.r.on_gui_window();
         f.open();
         std::int64_t asks = 0;
         const loom::ObserverId tap =

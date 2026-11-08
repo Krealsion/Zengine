@@ -7,7 +7,7 @@ the role `zengine.graphics` (a role is the name a weave answers to) and is built
 `zengine-graphics`, a file a host loads beside its windows. It introduces each area to the window
 that shows it, and the window then tells the area's owner its room. Nothing a picture is made of
 passes through it: an owner draws into its window directly, as
-[the terminal window](zengine.window.terminal.md) says.
+[the TUI window](zengine.window.tui.md) says.
 
 ## About
 
@@ -141,7 +141,7 @@ and a terminal's outline characters.
 
 `WindowOffered` v3, from a window as its own role, `zengine.window.<name>`, on each activation,
 after `GraphicsReady`, and on a resize: its name, its pixels (none with nothing to measure), its
-incarnation, its device pixels in a cell (`kCellPx` for the OS window, none for the terminal's) and
+incarnation, its device pixels in a cell (`kCellPx` for the GUI window, none for the terminal's) and
 its text's advance and line. The directory keeps it, then tells the window every element code and
 every palette and introduces each of its areas. One from any other
 role is ignored.
@@ -159,7 +159,7 @@ answers its senders; an owner learns its area is shown when its window tells it 
 
 ## See also
 
-- [`zengine.window.terminal`](zengine.window.terminal.md), the window it introduces areas to.
+- [`zengine.window.tui`](zengine.window.tui.md), the window it introduces areas to.
 - [The Graphics package](graphics.md), for drawing into a window: the canvas, a drawing weave, an
   element of your own, and who says what.
 - [The snake](../../examples/snake/README.md), whose host loads the directory and arranges the

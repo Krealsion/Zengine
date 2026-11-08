@@ -1,7 +1,7 @@
-# zengine.window.sdl -- the OS window
+# zengine.window.sdl -- the GUI window
 
 **Manual.** A window on the desktop, drawn in light through SDL3: the weave that does the whole
-job of showing what its areas' owners draw, as the terminal window does on a terminal. It answers
+job of showing what its areas' owners draw, as the TUI window does on a terminal. It answers
 to the role `zengine.window.sdl` (a window's role is `zengine.window.` and its name, `sdl`)
 and is built as `zengine-window-sdl`, a file a host loads, where the build has SDL. It keeps what
 each owner drew, paints it in pixels in the colours of the palette its area wears, draws the whole
@@ -21,7 +21,7 @@ state -- and every palette offered it. A reload keeps all of it and draws nothin
 once. A window replaced starts empty, with a new incarnation: each owner draws whole once when it
 hears its room, and says each element once.
 
-Made, it opens a resizable OS window of `window::kDefaultWidth` by `window::kDefaultHeight`
+Made, it opens a resizable GUI window of `window::kDefaultWidth` by `window::kDefaultHeight`
 pixels (`graphics/window/window_sdl.hpp`), centred on its display's usable area, and closes it
 when it goes; reloaded, it leaves it to the instance after it. An area placed past its edge grows
 it, as far as its display holds it. With `ZENGINE_SDL_NOT_FOCUSABLE=1` it never takes the
@@ -41,7 +41,7 @@ holds it back. Uncovered or resized, it draws again.
 
 **Keys and the pointer.** It empties SDL's queue on its own beat, the Timer's
 `zengine.window.pump` every `window::kPumpBeatMs` milliseconds, and sends what it read on in order.
-A pointer moment lands as on a terminal ([`zengine.window.terminal`](zengine.window.terminal.md#about)),
+A pointer moment lands as on a terminal ([`zengine.window.tui`](zengine.window.tui.md#about)),
 a node holding the pixels its primitives hold, within a pixel of a line.
 
 ## Use
@@ -196,7 +196,7 @@ judged against the displays there are now.
 
 - **Takes:** nothing.
 - **Answers:** nothing; the window does what its beat does ([`TimerFired`](#timerfired)): it says
-  its place when it changed, measures the OS window, empties SDL's queue and sends it on, and
+  its place when it changed, measures the GUI window, empties SDL's queue and sends it on, and
   publishes a close its desktop asked for.
 - **Refuses:** nothing.
 - **Example:** a suite, or a host with no Timer, pumps the window after a move or a close.
@@ -236,7 +236,7 @@ judged against the displays there are now.
 - **Takes:** `window`, `sdl`; `title`, at most `kMaxWindowTitleBytes` bytes, a longer one cut
   where a character begins and each control character made a space, an empty one keeping the
   window's own; `width` and `height` in pixels, a side of 0 keeping the window's own.
-- **Answers:** nothing to the sender; the OS window takes the title and the size, kept within its
+- **Answers:** nothing to the sender; the GUI window takes the title and the size, kept within its
   display's usable area with its frame, and a size it changed is the next `WindowOffered`. What its
   areas reached before does not grow it back; an area placed further out still does. A maximized
   window takes the title and keeps its size.
@@ -283,7 +283,7 @@ nothing; past `kMaxPalettes` palettes one is not held, and `WindowShown` reports
 ### `TimerFired`
 
 `TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It says its place when
-it changed (`SurfacePlacement`), then measures the OS window: at another size it draws its picture
+it changed (`SurfacePlacement`), then measures the GUI window: at another size it draws its picture
 again and offers itself again (`WindowOffered`), the same incarnation.
 Then it empties SDL's queue, sends the keys, their releases, their text and the pointer on, and
 publishes a close its desktop asked for (`SurfaceCloseRequested`).
@@ -354,7 +354,7 @@ placed to hear each. To an arranger following an area not its own: `AreaPressed`
 
 ## See also
 
-- [`zengine.window.terminal`](zengine.window.terminal.md), the same window on a terminal.
+- [`zengine.window.tui`](zengine.window.tui.md), the same window on a terminal.
 - [`zengine.graphics`](zengine.graphics.md), the directory that introduces areas to it.
 - [The Graphics package](graphics.md): the node and the operators, colours by name, drawing with a
   canvas, a drawing weave, an element of your own, and the element seam.

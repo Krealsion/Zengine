@@ -5,9 +5,9 @@ Each entry is a mutant that a comment in
 naming the entry by its path and heading. [The corpus's front page](README.md) says how an entry
 reads and how `tests/mutants/run.py` runs it.
 
-## capture-of-the-os-window-alone
+## capture-of-the-gui-window-alone
 
-The probe asks the OS window alone for a picture.
+The probe asks the GUI window alone for a picture.
 
 In `examples/workshop-probe/probe.hpp`:
 
@@ -18,12 +18,12 @@ In `examples/workshop-probe/probe.hpp`:
 
 Red in `zengine-workshop-probe-tests`:
 
-- probe: a picture is asked of the OS window, then the terminal window, and fetched from the role
+- probe: a picture is asked of the GUI window, then the TUI window, and fetched from the role
   that described it
 
-## chunks-of-the-os-window
+## chunks-of-the-gui-window
 
-The probe asks the OS window for each chunk, whichever role described the picture.
+The probe asks the GUI window for each chunk, whichever role described the picture.
 
 In `examples/workshop-probe/probe.hpp`:
 
@@ -36,7 +36,7 @@ In `examples/workshop-probe/probe.hpp`:
 
 Red in `zengine-workshop-probe-tests`:
 
-- probe: a picture is asked of the OS window, then the terminal window, and fetched from the role
+- probe: a picture is asked of the GUI window, then the TUI window, and fetched from the role
   that described it
 
 ## stopped-on-the-last-refusal

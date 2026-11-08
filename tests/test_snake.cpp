@@ -634,7 +634,7 @@ TEST_CASE("moment 1: another skin is chosen while the game continues, and nothin
     namespace rig = zengine::testing::graphics_rig;
     rig::Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, zengine::graphics::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, rig::window_role()).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, rig::window_role()).valid());
     REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
     r.arrange(SNAKE_SO_BOARD, kWorldArea, kWorldRole, "night");
 
@@ -899,7 +899,7 @@ TEST_CASE("snake draws into its window, never onto the terminal: with no termina
         namespace rig = zengine::testing::graphics_rig;
         rig::Rig r;
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, zengine::graphics::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, rig::window_role()).valid());
+        REQUIRE(r.load("zengine-window-tui", WINDOW_SO, rig::window_role()).valid());
         const loom::WeaveId score = r.load("snake-score", SNAKE_SO_SCORE, kScoreRole);
         REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
         r.arrange(SNAKE_SO_BOARD, kWorldArea, kWorldRole,
@@ -1021,7 +1021,7 @@ TEST_CASE("the world draws its new-game button as a part: a ButtonFace at new-ga
     namespace gfx = zengine::graphics;
     rig::Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, rig::window_role()).valid());
+    REQUIRE(r.load("zengine-window-tui", WINDOW_SO, rig::window_role()).valid());
     REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
     r.arrange(SNAKE_SO_BOARD, kWorldArea, kWorldRole, "night");
     r.tick();

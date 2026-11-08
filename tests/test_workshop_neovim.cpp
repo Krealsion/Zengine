@@ -949,7 +949,7 @@ TEST_CASE("Neovim ended from inside leaves the role held with no document, said 
 TEST_CASE("a copy in Neovim reaches its medium, and a paste in Neovim asks it") {
     SwitchRig s("nvim-clipboard");
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
-    s.r.on_os_window(); // the medium whose platform clipboard a paste reads
+    s.r.on_gui_window(); // the medium whose platform clipboard a paste reads
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
     REQUIRE(open_through_role(s, "clip.txt", "copy me\n").accepted);

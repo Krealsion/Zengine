@@ -249,9 +249,9 @@ terminal cannot produce is joined as it stands, and its gap is kept once" "WL-KE
 terminal cannot produce is admitted, acts, and is said once, whichever path brought it into force"
 "WL-KEY-08: a row's POSIX key stands in place of its default in the POSIX layer alone; it covers the
 default's gap, must itself arrive, collides in either layer, and yields to the weaver's file"
-"WL-KEY-08: shown in a POSIX terminal's terminal window, a row's POSIX key is in force and the band
+"WL-KEY-08: shown in a POSIX terminal's TUI window, a row's POSIX key is in force and the band
 spells it, and the Hotkeys pane spells the POSIX key beside the default" "WL-KEY-08: shown anywhere
-but a POSIX terminal's terminal window, a row's default is in force and the band spells it, and the
+but a POSIX terminal's TUI window, a row's default is in force and the band spells it, and the
 Hotkeys pane spells the POSIX key beside the default"
 `tests/test_workshop_panes_builder.cpp` "every shipped action has a default key, or a POSIX key beside
 it, a POSIX terminal delivers"

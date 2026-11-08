@@ -169,7 +169,7 @@ struct Run {
 
     std::string waiting_on() const { return host->executor().waiting_on(); }
 
-    /// The OS window over the suite's pixel backend, at its role, activated as Loom's control
+    /// The GUI window over the suite's pixel backend, at its role, activated as Loom's control
     /// door activates a loaded weave: it offers itself.
     void mount_window() {
         auto w = std::make_unique<FakeSdlWindow>(FakeSdlBackend{&light});

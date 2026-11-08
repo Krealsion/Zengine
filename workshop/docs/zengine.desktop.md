@@ -135,7 +135,7 @@ everything you can do by name, run by Workshop as your key would run it.
 ### `desktop.palette-shift`
 
 Shows or hides the [Command Palette](zengine.palette.md), as
-[`desktop.palette`](#desktoppalette) does, on Shift tapped twice: the OS window's second key for it.
+[`desktop.palette`](#desktoppalette) does, on Shift tapped twice: the GUI window's second key for it.
 
 - **Takes:** nothing. Default key <!-- key desktop.palette-shift -->`double-shift`<!-- /key -->:
   Shift pressed alone and let go, twice, within a double-click's time, with nothing between; a
@@ -144,7 +144,7 @@ Shows or hides the [Command Palette](zengine.palette.md), as
   ([`PaneToggleRequested`](zengine.workshop.md#panetogglerequested)).
 - **Refuses:** nothing; a held Shift, a key between the taps, a slow pair and another hand's tap
   are no double Shift.
-- **Example:** in the OS window, tap Shift twice.
+- **Example:** in the GUI window, tap Shift twice.
 
 ## Commands in the Pane Manager
 

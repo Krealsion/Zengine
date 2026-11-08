@@ -568,12 +568,12 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
 
     row.may = {guests::kPowerCapture};
     const loom::Grant cap = guests::grant_for(row);
-    // THE PICTURE, of whichever window shows the desk: the OS window or the terminal window -- and
+    // THE PICTURE, of whichever window shows the desk: the GUI window or the TUI window -- and
     // of no other window.
     const std::string window_role = zengine::graphics::kWindowRolePrefix;
     for (const std::string& medium :
          {window_role + zengine::graphics::kSdlWindow,
-          window_role + zengine::graphics::kTerminalWindow}) {
+          window_role + zengine::graphics::kTuiWindow}) {
         CAPTURE(medium);
         CHECK(cap.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, medium));
         CHECK(cap.permits_role(gfx::SurfaceCaptureChunkRequested::zen_name, 1, medium));
@@ -623,7 +623,7 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK_FALSE(stow.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
     CHECK_FALSE(stow.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     CHECK_FALSE(stow.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1,
-                                  std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow));
+                                  std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow));
     // ...and whatever its powers, a row may ask for its own, and where the plan is.
     for (const loom::Grant& any : {none, in, cap, look, stow}) {
         CHECK(any.permits_role(ws::GuestRowDescribedRequested::zen_name,
@@ -854,7 +854,7 @@ struct DeskPaint {
     ZEN_SHAPE(DeskPaint, 1, ZEN_FIELD(width));
 };
 inline const std::string kSeatRole =
-    std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
+    std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
 
 class WindowSeat : public loom::WeaveBase<WindowSeat, EarsState,
                                           loom::Accept<DeskPaint, gfx::SurfaceCaptureRequested>,
@@ -1466,7 +1466,7 @@ TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keym
     CHECK(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.desktop"));
     CHECK_FALSE(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
     // ...AND NOT WHAT CARRIES EVERY PANE: the picture.
-    const std::string terminal = std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
+    const std::string terminal = std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
     CHECK_FALSE(g.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, terminal));
     // A ROW THAT READS EVERY PANE keeps the whole desk, the picture, and every pane's manual.
     row.capture = {"*"};
@@ -1479,8 +1479,8 @@ TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keym
 }
 
 namespace {
-/// The terminal window's role, which gives the weaver's keys to the owners of its key areas.
-const char* const kWindowTerminalRole = "zengine.window.terminal";
+/// The TUI window's role, which gives the weaver's keys to the owners of its key areas.
+const char* const kWindowTuiRole = "zengine.window.tui";
 } // namespace
 
 TEST_CASE("observation: the weaver's input, a window's keys among it, is heard only with keystrokes, no guest observes the connections, and a row that reads by pane is refused what carries every pane") {
@@ -1505,7 +1505,7 @@ TEST_CASE("observation: the weaver's input, a window's keys among it, is heard o
         }
         for (const char* shape : {gfx::AreaKeyPressed::zen_name, gfx::AreaKeyReleased::zen_name,
                                   gfx::AreaTextEntered::zen_name}) {
-            row->observe.push_back({kWindowTerminalRole, shape, 1});
+            row->observe.push_back({kWindowTuiRole, shape, 1});
         }
         for (const char* shape : {gfx::WindowShown::zen_name, ws::KeymapShown::zen_name,
                                   ws::StandingConditions::zen_name, ws::DeskStamps::zen_name}) {
@@ -1536,7 +1536,7 @@ TEST_CASE("observation: the weaver's input, a window's keys among it, is heard o
     for (const char* shape : {gfx::AreaKeyPressed::zen_name, gfx::AreaKeyReleased::zen_name,
                               gfx::AreaTextEntered::zen_name}) {
         CAPTURE(shape);
-        const auto said = ask(0, kWindowTerminalRole, shape, 1);
+        const auto said = ask(0, kWindowTuiRole, shape, 1);
         CHECK_FALSE(said.allowed);
         CHECK(said.reason.find("which a row hears only with `keystrokes`") != std::string::npos);
     }
@@ -1547,7 +1547,7 @@ TEST_CASE("observation: the weaver's input, a window's keys among it, is heard o
     CHECK(heard(loom::observe::ObserveRequest{loom::WeaveId{5}, input::kInputRole,
                                               {{input::AttributedInput::zen_name, 1}}, "suite"})
               .allowed);
-    CHECK(heard(loom::observe::ObserveRequest{loom::WeaveId{5}, kWindowTerminalRole,
+    CHECK(heard(loom::observe::ObserveRequest{loom::WeaveId{5}, kWindowTuiRole,
                                               {{gfx::AreaKeyPressed::zen_name, 1}}, "suite"})
               .allowed);
     // THE CONNECTIONS, at every version, to no guest.

@@ -256,8 +256,8 @@ struct RuntimePane {
     std::int64_t preferred_height = 0;
     std::int64_t preferred_text_rows = 0;
     /// WHAT THE PANE ASKS FOR NOW, which `fit` reads while `default` keeps the first offer above:
-    /// the latest offer's body, which the terminal window follows, and the one `fit` stands on in
-    /// the OS window -- the latest, unless that is within one pixel of it on every axis.
+    /// the latest offer's body, which the TUI window follows, and the one `fit` stands on in
+    /// the GUI window -- the latest, unless that is within one pixel of it on every axis.
     // WL-PANE-17 -- agents/workshop/panes-and-windows.md
     PaneOfferedBody latest = {};
     PaneOfferedBody standing = {};

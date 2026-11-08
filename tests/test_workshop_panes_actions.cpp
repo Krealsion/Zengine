@@ -2702,7 +2702,7 @@ void posix_key_shown(bool posix_terminal) {
     const std::int64_t kCtrlShift = input::mod::kCtrl | input::mod::kShift;
     CAPTURE(posix_terminal);
     PaneRig r;
-    r.host.posix_terminal = posix_terminal; // the rig shows the desk in the terminal window
+    r.host.posix_terminal = posix_terminal; // the rig shows the desk in the TUI window
     r.mount_workshop();
     r.ready();
     r.extent(200, 60);
@@ -2762,12 +2762,12 @@ void posix_key_shown(bool posix_terminal) {
 
 } // namespace
 
-TEST_CASE("WL-KEY-08: shown in a POSIX terminal's terminal window, a row's POSIX key is in force and "
+TEST_CASE("WL-KEY-08: shown in a POSIX terminal's TUI window, a row's POSIX key is in force and "
           "the band spells it, and the Hotkeys pane spells the POSIX key beside the default") {
     posix_key_shown(true);
 }
 
-TEST_CASE("WL-KEY-08: shown anywhere but a POSIX terminal's terminal window, a row's default is in "
+TEST_CASE("WL-KEY-08: shown anywhere but a POSIX terminal's TUI window, a row's default is in "
           "force and the band spells it, and the Hotkeys pane spells the POSIX key beside the "
           "default") {
     posix_key_shown(false);

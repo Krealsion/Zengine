@@ -9,24 +9,24 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - A window weave does the whole job of showing: it keeps every area's nodes, records and presented
   elements in its STATE (a reload keeps them and draws nothing again), paints a node only when it
   changes, keeps what it painted in its MEMORY (a reload paints it again from the state, once),
-  composes the areas front to back by their order, and shows only what changed: a terminal window
-  writes the cells whose picture changed, as runs; an OS window draws its whole picture once a
+  composes the areas front to back by their order, and shows only what changed: a TUI window
+  writes the cells whose picture changed, as runs; a GUI window draws its whole picture once a
   showing. It judges a press against what it painted and routes it, and gives keys, their releases
   and the text they type to the owners of the areas placed to hear each (`AreaKeyPressed`,
   `AreaKeyReleased`, `AreaTextEntered`), naming the area.
 - **One window, many media.** The store, the judge, the element seam, the directory's words, keys
   and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
-  painted, how it shows it and what it reads are the medium's alone (`window_terminal.hpp`,
+  painted, how it shows it and what it reads are the medium's alone (`window_tui.hpp`,
   `window_sdl.hpp`). A medium never holds a node, a record or an element the store does not.
 - **A window answers for its platform, on the bus and to C++ in its own process**: a copy, a
   paste's read of the clipboard (`ClipboardText`), its place on the desktop and a place offered
   back, a close its desktop asked for, the beat on request (`PumpSurface`), and the picture it last
   presented, read back -- never one a drawing saying `more` holds back. The clipboard is read when a
-  paste asks, never on the beat. The OS window publishes its place when it changed, before its
+  paste asks, never on the beat. The GUI window publishes its place when it changed, before its
   offer when both did, and each close once, as its role; a terminal publishes neither. A
   window's title and size are said by a role that arranges an area in it (`WindowShaped`),
   judged by the window from the arrangers its areas were introduced with, and from no other; the
-  OS window keeps the size within its display (`window::shaped_within`) and, as after a weaver's
+  GUI window keeps the size within its display (`window::shaped_within`) and, as after a weaver's
   resize, grows again only for an area reaching further than its areas did; the terminal keeps its
   emulator's. One
   picture is retained and fetched by chunk, one capture waits for its showing at a time, and a
@@ -51,7 +51,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   `Canvas::room`).
 - **The window says how it sets text, and every owner places its text by it.** A window that shows
   every pixel offers its room in pixels and the face it draws with, measured: a character's advance
-  and a line's height (`WindowOffered`, `AreaRoom`, `PaintTask`); a terminal window's text is the
+  and a line's height (`WindowOffered`, `AreaRoom`, `PaintTask`); a TUI window's text is the
   cell. Nothing in a window that shows every pixel is set a character a cell. Each owner paints its
   area's ground, so nothing behind a pane shows through what it leaves blank; no window paints an
   area's ground for its owner.
@@ -177,8 +177,8 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - The terminal's claim (`graphics/window/terminal_io.hpp`) and its input edge
   (`input/terminal_reader.hpp`) are shared: whichever participant owns the terminal in a process
   takes both, for exactly its life. Two owners of one terminal in one process is not a supported
-  arrangement. The terminal window claims the terminal's input for its life
-  (`input/window_claim.hpp`), and the Input reader beside it reads none of it. The OS window reads
+  arrangement. The TUI window claims the terminal's input for its life
+  (`input/window_claim.hpp`), and the Input reader beside it reads none of it. The GUI window reads
   SDL's one queue itself and claims the process's input for its life: the Input reader beside it
   leaves the console the run started from as it found it, read by nobody, its echo and its Ctrl+C
   the person's.

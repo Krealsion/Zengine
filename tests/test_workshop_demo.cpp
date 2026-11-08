@@ -794,8 +794,8 @@ TEST_CASE("pane comfort survives offer refresh and rejects malformed preferences
 }
 
 namespace {
-/// The OS window's room, its device unit one canvas pixel; `screen_of` alone is the terminal's.
-Screen os_window_of(std::int64_t w, std::int64_t h) {
+/// The GUI window's room, its device unit one canvas pixel; `screen_of` alone is the terminal's.
+Screen gui_window_of(std::int64_t w, std::int64_t h) {
     Screen sc = screen_of(w, h);
     sc.cell_px = zengine::graphics::kCellPx;
     sc.text_advance_px = 8;
@@ -830,7 +830,7 @@ TEST_CASE("pane comfort: `fit` follows a pane switching between two sizes each t
     }
     REQUIRE(check_setup(setup).accepted);
     reconcile(p, setup);
-    const Screen windows[] = {os_window_of(cells_px(140), cells_px(44)),
+    const Screen windows[] = {gui_window_of(cells_px(140), cells_px(44)),
                               screen_of(cells_px(140), cells_px(44))};
     REQUIRE(stack_capacity(windows[0]).grain == 1);
     REQUIRE(stack_capacity(windows[1]).grain == zengine::graphics::kCellPx);
@@ -864,9 +864,9 @@ TEST_CASE("pane comfort: `fit` follows a pane switching between two sizes each t
     }
 }
 
-TEST_CASE("pane comfort: a re-offer within one pixel of what `fit` stands on is held in the OS window alone, and the terminal window follows it") {
-    // ⚔ MUTATION (tests/mutants/workshop_demo.md#no-hold): no hold -- the OS window's pane follows a one-pixel wobble.
-    // ⚔ MUTATION (tests/mutants/workshop_demo.md#terminal-holds-too): the terminal window holding
+TEST_CASE("pane comfort: a re-offer within one pixel of what `fit` stands on is held in the GUI window alone, and the TUI window follows it") {
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#no-hold): no hold -- the GUI window's pane follows a one-pixel wobble.
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#terminal-holds-too): the TUI window holding
     // too -- it stays where the wobble began.
     // ⚔ MUTATION (tests/mutants/workshop_demo.md#two-pixel-hold): a hold of two pixels -- an offer two pixels off is held.
     Panes p;
@@ -884,7 +884,7 @@ TEST_CASE("pane comfort: a re-offer within one pixel of what `fit` stands on is 
     setup.panes.push_back(row);
     REQUIRE(check_setup(setup).accepted);
     reconcile(p, setup);
-    const Screen os = os_window_of(cells_px(140), cells_px(44));
+    const Screen os = gui_window_of(cells_px(140), cells_px(44));
     const Screen terminal = screen_of(cells_px(140), cells_px(44));
     const auto size = [&](const Screen& sc) { return bounds_of(p, setup, fits.kind, sc).resolved; };
     const auto offer = [&](std::int64_t w, std::int64_t h) {
@@ -894,7 +894,7 @@ TEST_CASE("pane comfort: a re-offer within one pixel of what `fit` stands on is 
     };
     const PixelRect os_at = size(os);
     const PixelRect terminal_at = size(terminal);
-    // A PIXEL TALLER, then a pixel narrower and a pixel shorter: the OS window stands where it
+    // A PIXEL TALLER, then a pixel narrower and a pixel shorter: the GUI window stands where it
     // was; the terminal follows each offer, rounded up to the cells that hold it -- 204 pixels
     // are whole cells, 205 are not.
     offer(320, 205);
@@ -946,7 +946,7 @@ TEST_CASE("pane comfort: a `fit` axis says what it stands on where that is not t
         fit_extent(s.panes.runtime.find("test.pane", "fits"), stack_capacity(screen_of(s)));
     bool projected = false;
     CHECK(held.find(geometry_amount_text(now.height, s.cell_px, projected)) != std::string::npos);
-    // THE TERMINAL WINDOW HOLDS NOTHING, so it has nothing to say.
+    // THE TUI WINDOW HOLDS NOTHING, so it has nothing to say.
     s.cell_px = 0;
     s.text_advance_px = 0;
     s.text_line_px = 0;

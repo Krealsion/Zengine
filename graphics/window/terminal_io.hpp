@@ -11,7 +11,7 @@
 // window, which asks the size each time it looks. On POSIX a resize also writes a pipe
 // (`ResizeWatch`) that a host's one wait holds, so a resize wakes the painter that asks; on Windows
 // a resize is a console input record, which wakes it the same way. Reference:
-// graphics/docs/zengine.window.terminal.md.
+// graphics/docs/zengine.window.tui.md.
 
 #include <array>
 #include <cstdlib>

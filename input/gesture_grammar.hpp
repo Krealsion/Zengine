@@ -330,7 +330,7 @@ inline constexpr bool is_posix_editing_scan(std::int64_t sc) noexcept {
 // WL-KEY-08 -- agents/workshop/keyboard.md
 inline const char* posix_gap(const Gesture& g) noexcept {
     if (g.scancode == kDoubleShift) {
-        return "a terminal reports no Shift alone; double-shift is the OS window's";
+        return "a terminal reports no Shift alone; double-shift is the GUI window's";
     }
     if ((g.modifiers & mod::kSuper) != 0) {
         return "super never arrives from a POSIX terminal";

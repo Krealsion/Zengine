@@ -11,14 +11,14 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(graphics::ClipboardCopy::zen_name, graphics::ClipboardCopy::zen_version);
     // A paste and the place remembered, to the window that holds the platform.
     for (const std::string& medium :
-         {std::string(graphics::kWindowRolePrefix) + graphics::kTerminalWindow,
+         {std::string(graphics::kWindowRolePrefix) + graphics::kTuiWindow,
           std::string(graphics::kWindowRolePrefix) + graphics::kSdlWindow}) {
         speak.allow_to_role(graphics::ClipboardTextRequested::zen_name,
                             graphics::ClipboardTextRequested::zen_version, medium);
         speak.allow_to_role(graphics::SurfacePlacementRemembered::zen_name,
                             graphics::SurfacePlacementRemembered::zen_version, medium);
     }
-    // ...and the OS window shaped to the room a restore brings back, as the role arranging there.
+    // ...and the GUI window shaped to the room a restore brings back, as the role arranging there.
     speak.allow_to_role(graphics::WindowShaped::zen_name, graphics::WindowShaped::zen_version,
                         std::string(graphics::kWindowRolePrefix) + graphics::kSdlWindow);
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
@@ -45,7 +45,7 @@ loom::Grant workshop_grant() {
     // among them, which holds no role.
     speak.allow_to_any(DeskStamps::zen_name, DeskStamps::zen_version);
     // ...and what each pane's area shows, asked of the window that shows the desk.
-    for (const char* window : {graphics::kTerminalWindow, graphics::kSdlWindow}) {
+    for (const char* window : {graphics::kTuiWindow, graphics::kSdlWindow}) {
         speak.allow_to_role(graphics::AreaShowAsked::zen_name, graphics::AreaShowAsked::zen_version,
                             std::string(graphics::kWindowRolePrefix) + window);
     }

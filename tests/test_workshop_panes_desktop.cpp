@@ -1477,7 +1477,7 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name as written,
     // character as written; a spelling is the keymap file's grammar, plain ASCII, so text outside
     // it is never typed.
     Keys k("hotkeys-undrawable");
-    k.r.on_os_window(); // the medium a paste asks
+    k.r.on_gui_window(); // the medium a paste asks
     ProviderSeat* tools = k.r.mount_provider("zengine.test.tools");
     k.r.drive(tools, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"cafe", "Caf\xC3\xA9", "a fixture"});
@@ -1555,9 +1555,9 @@ TEST_CASE("the Hotkeys pane asks the window that shows it for a paste into a spe
     // ⚔ MUTATION (tests/mutants/workshop_panes_desktop.md#hotkeys-paste-asked-elsewhere): the
     // Hotkeys pane's paste asked of another role than the window showing it.
     // THE WINDOW SHOWING THE DESK SHOWS THE PANE, so the pane has a room to compose its spelling
-    // in, and the paste is that window's: the OS window's platform clipboard.
+    // in, and the paste is that window's: the GUI window's platform clipboard.
     Keys k("hotkeys-paste-window");
-    k.r.on_os_window();
+    k.r.on_gui_window();
     k.r.windows.set_clipboard("ctrl+q");
     const std::int64_t quit = k.row_of("workshop.quit");
     REQUIRE(quit >= 0);

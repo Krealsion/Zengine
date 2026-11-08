@@ -10,7 +10,7 @@ words, and kept in the app's folder.
 - [Running an app on its own](docs/app.md): an app's folder, making one in Workshop, `app.json`,
   starting it, its console, and what runs the view and the flow.
 
-![The tally app in its own OS window, typed into and counting](docs/images/tally-app.png)
+![The tally app in its own GUI window, typed into and counting](docs/images/tally-app.png)
 
 ## What is in this folder
 

@@ -108,7 +108,7 @@ and `view::ViewWiring`.
 - In a [graphics window](../../graphics/docs/graphics.md) whose area bears the view's name, it
   draws the same picture. It asks its area's room when it starts (`graphics::RoomAsked`) and
   draws in the room a window gives (`graphics::AreaRoom`), in the window's unit and its text: the
-  OS window's face, a character an advance of it, or a terminal's cell (`view::sketch`): each
+  GUI window's face, a character an advance of it, or a terminal's cell (`view::sketch`): each
   rectangle and run of text a node named by what drew it -- `ground`, `box:<id>`, `text:<id>`,
   and `notice` for the notice's lines -- and each button's nodes asking its id. A focused number
   field's caret is drawn there as Workshop's panes draw theirs: `caret`, a bar in the accent role

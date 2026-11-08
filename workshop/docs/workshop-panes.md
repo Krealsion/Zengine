@@ -1182,7 +1182,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   switch (the Editor's `standard` or `neovim`). The file is a header line holding everything but
   the layouts, with their count, then one line for each layout; each line is a value read on its
   own, so no one read holds the whole run. [`zengine.layouts`](zengine.layouts.md) alone writes
-  it. The room, the desktop placement and the OS window's own room are Workshop's **window
+  it. The room, the desktop placement and the GUI window's own room are Workshop's **window
   file** beside it, which Workshop alone writes; while none stands, a session before version 12
   is read for them once. Older versions do **not** load through
   roads this reader carries — it admits one shape and nothing else. What reads them is a
@@ -1193,7 +1193,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   file; a desk before version 6 gains the Layouts pane its layout surface always was; and a room
   and desks before version 7, kept in cells and sub-units, land on the pixels the window painted
   them at; a desk before version 8 holds no settings; a session before version 9 remembers no choice;
-  and one before version 10 keeps no OS window's room; a session before version 11 was one value,
+  and one before version 10 keeps no GUI window's room; a session before version 11 was one value,
   and comes back whole; and one before version 12 numbers its layouts in order. Without the provider such a file is refused
   by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->13<!-- /value -->.
 - **The viewport is the window file's, not the session's**, and that is the whole reason it is
@@ -1205,10 +1205,10 @@ directory they happened to be browsing when they quit is deliberately not rememb
 - **Pixels, because the room crosses the seam in pixels.** The window is its own weave; the only
   thing it says about its room is its offer (`WindowOffered`), in canvas pixels, and Workshop lays
   its desk out in an area of that room. So the durable number is the one that crosses that seam:
-  the OS window grows to the room the desk is laid out in, so a restored window is the weaver's
+  the GUI window grows to the room the desk is laid out in, so a restored window is the weaver's
   chosen size, to the pixel, where the display holds it; it never shrinks to a smaller one, and a
   terminal keeps its own. The restore's notice says the room in the unit the window names —
-  pixels in the OS window, cells in a terminal — and since a window names its unit when it
+  pixels in the GUI window, cells in a terminal — and since a window names its unit when it
   offers itself a room, the notice waits for the first window that does, and is said once.
 - **Position and maximized state ARE persisted, opaquely, and the medium is the
   judge.** The graphics vocabulary's placement pair closed the old deliberate omission: the

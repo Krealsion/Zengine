@@ -16,10 +16,10 @@ artifacts they need — see [using Zengine from another
 project](../../docs/getting-started.md#using-zengine-from-another-project). Three things are
 deliberately outside it, and each is a real limit rather than an oversight:
 
-- **The OS window (`zengine-window-sdl`) is not in the developer package.** When no SDL3 is
+- **The GUI window (`zengine-window-sdl`) is not in the developer package.** When no SDL3 is
   present the build fetches one and links it out of its own build tree, so installing the window
   without it would ship an image that cannot load. The package a stranger downloads (below)
-  carries the SDL it built, with the OS window.
+  carries the SDL it built, with the GUI window.
 - **Workshop is not in the developer package.** A build's executable compiles the path of the
   CMake that configured it into itself, for the Builder tool it mounts, so an installed copy
   would carry a stranger's directory layout. The package a stranger downloads carries Workshop

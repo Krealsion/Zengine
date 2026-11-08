@@ -22,13 +22,13 @@ NAMED.update(dict(("f%d" % (i + 1), 58 + i) for i in range(12)))
 NAMED.update({"-": 45, "minus": 45, "=": 46, "equals": 46, "[": 47, "]": 48, ";": 51, "'": 52,
               "`": 53, ",": 54, "comma": 54, ".": 55, "period": 55, "/": 56, "slash": 56})
 MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
-# zengine/input/vocabulary.hpp space::: the terminal window reports cells, the OS window pixels.
+# zengine/input/vocabulary.hpp space::: the TUI window reports cells, the GUI window pixels.
 SPACE_CELLS = 1
 SPACE_PIXELS = 2
-# The roles that hold Workshop's picture, in the order a first picture asks them: the OS window
-# and the terminal window (graphics/vocabulary.hpp kWindowRolePrefix). A far Workshop loads one
+# The roles that hold Workshop's picture, in the order a first picture asks them: the GUI window
+# and the TUI window (graphics/vocabulary.hpp kWindowRolePrefix). A far Workshop loads one
 # of them; the other is no role there.
-CAPTURE_ROLES = ("zengine.window.sdl", "zengine.window.terminal")
+CAPTURE_ROLES = ("zengine.window.sdl", "zengine.window.tui")
 
 
 def capture_role(ctx):
@@ -132,7 +132,7 @@ def clear_moments(ctx):
 
 
 # A terminal cell, spelled as the terminal's console counts it or as a pane's place and the desk
-# count it: the terminal window draws canvas row 0 on the console's row 0, so the two are one cell.
+# count it: the TUI window draws canvas row 0 on the console's row 0, so the two are one cell.
 CELLS = ("console", "canvas")
 
 
@@ -142,10 +142,10 @@ def cells_point(ctx, link, spelling):
 
 
 def point(spelling):
-    """``(x, y, space)`` for a point spelled ``"126,42"`` (the OS window's pixels) or a terminal
+    """``(x, y, space)`` for a point spelled ``"126,42"`` (the GUI window's pixels) or a terminal
     cell that says which cells it means: ``"10,3@console"`` (the terminal's own cell, counted as
     its console counts rows) or ``"10,3@canvas"`` (a canvas cell, as a pane's place and the desk
-    count it), the same cell in the terminal window. A bare ``"10,3c"`` names neither and is
+    count it), the same cell in the TUI window. A bare ``"10,3c"`` names neither and is
     refused. Empty means an empty point, for callers that make one optional."""
     if not spelling:
         raise ValueError("an empty point")
@@ -307,7 +307,7 @@ def check_picture(ctx, captured, data, role=None):
 
 
 #: The window role that answers for each input space the desk names (DeskView `space`).
-ROLE_OF_SPACE = {SPACE_CELLS: "zengine.window.terminal", SPACE_PIXELS: "zengine.window.sdl"}
+ROLE_OF_SPACE = {SPACE_CELLS: "zengine.window.tui", SPACE_PIXELS: "zengine.window.sdl"}
 
 
 def name_capture_role(ctx, link, row):
@@ -369,7 +369,7 @@ def picture(ctx, link, name, after_frame=-1, pending=None):
 
 
 def png_of(bmp, crop=None):
-    """A PNG of an uncompressed 24/32-bit BMP picture (what the OS window hands back), standard
+    """A PNG of an uncompressed 24/32-bit BMP picture (what the GUI window hands back), standard
     library only, optionally cropped to [x0, y0, x1, y1] in the picture's pixels: small enough to
     keep as evidence or put in a document, where the BMP is megabytes."""
     import struct

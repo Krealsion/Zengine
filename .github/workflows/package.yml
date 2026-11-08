@@ -398,20 +398,20 @@ jobs:
           grep -q "^zengine tree   clean\$" "$pkg/BUILD-INFO.txt"
           python3 -I $J/elf_judge.py "$pkg" --allow libstdc++.so.6 --allow libgcc_s.so.1
           python3 -I $J/private_scan.py "$pkg" /__w/ /home/runner/ /usr/src/ snapshot.ubuntu.com
-          # Started as a weaver starts it, each in the window it means: no flag, the OS window;
-          # --tui, the terminal window; no display (a driver SDL lacks), the terminal window in the
-          # OS window's place, said. A fallback never passes for the OS window.
+          # Started as a weaver starts it, each in the window it means: no flag, the GUI window;
+          # --tui, the TUI window; no display (a driver SDL lacks), the TUI window in the
+          # GUI window's place, said. A fallback never passes for the GUI window.
           start() {
             python3 -I $J/first_start.py "$pkg" "$pkg/bin/zengine-workshop" --seconds 15 \
               --home "$RUNNER_TEMP/home-$1" --needle /__w/ "${@:2}"
           }
           start window --env SDL_VIDEO_DRIVER=offscreen --expect "loaded: zengine-window-sdl" \
             --needle "did not load, so"
-          start tui --env SDL_VIDEO_DRIVER=offscreen --expect "loaded: zengine-window-terminal" \
+          start tui --env SDL_VIDEO_DRIVER=offscreen --expect "loaded: zengine-window-tui" \
             --needle "zengine-window-sdl" -- --tui
           start no-display --env SDL_VIDEO_DRIVER=zengine-no-such-driver \
-            --expect "loaded: zengine-window-terminal" \
-            --expect "\`zengine-window-sdl\` did not load, so \`zengine-window-terminal\` stands in its row"
+            --expect "loaded: zengine-window-tui" \
+            --expect "\`zengine-window-sdl\` did not load, so \`zengine-window-tui\` stands in its row"
 
       - name: Walk the story
         run: |
@@ -477,11 +477,11 @@ jobs:
           $starts = @(
             @('window', @('--env', 'SDL_VIDEO_DRIVER=offscreen', '--expect', 'loaded: zengine-window-sdl',
                           '--needle', 'did not load, so')),
-            @('tui', @('--env', 'SDL_VIDEO_DRIVER=offscreen', '--expect', 'loaded: zengine-window-terminal',
+            @('tui', @('--env', 'SDL_VIDEO_DRIVER=offscreen', '--expect', 'loaded: zengine-window-tui',
                        '--needle', 'zengine-window-sdl', '--', '--tui')),
             @('no-display', @('--env', 'SDL_VIDEO_DRIVER=zengine-no-such-driver',
-                              '--expect', 'loaded: zengine-window-terminal', '--expect',
-                              ('`zengine-window-sdl` did not load, so `zengine-window-terminal` ' +
+                              '--expect', 'loaded: zengine-window-tui', '--expect',
+                              ('`zengine-window-sdl` did not load, so `zengine-window-tui` ' +
                                'stands in its row')))
           )
           foreach ($start in $starts) {

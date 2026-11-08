@@ -9,7 +9,7 @@
 // code it loads, has what changed painted in the palette the area wears, routes the pointer, gives
 // keys and their text to the areas that hear them, and tells each owner its room. What it keeps
 // painted, how it shows it and what it reads are its Medium's: characters on a terminal
-// (graphics/window/window_terminal.hpp), light in an OS window (graphics/window/window_sdl.hpp).
+// (graphics/window/window_tui.hpp), light in a GUI window (graphics/window/window_sdl.hpp).
 
 #include "graphics/painting.hpp"
 #include "timer/held_beat.hpp"
@@ -92,7 +92,7 @@ struct WindowPlacementValue {
 };
 
 /// A picture read back from what the window last presented: `text/cells` on a terminal (`cell_px`
-/// 0, `width` and `height` in cells, a row of `width` bytes a line) or `image/bmp` on an OS window
+/// 0, `width` and `height` in cells, a row of `width` bytes a line) or `image/bmp` on a GUI window
 /// (`cell_px` the light cell pitch, `width` and `height` in pixels).
 struct CapturedWindowPicture {
     std::int64_t width = 0;
@@ -549,13 +549,13 @@ public:
         (void)mail.answer(chunk);
     }
 
-    /// Text copied to the platform's clipboard: an OS window's, or a terminal's by its copy
+    /// Text copied to the platform's clipboard: a GUI window's, or a terminal's by its copy
     /// sequence, which no terminal confirms.
     void clipboard_copy(std::string_view text) { medium_.clipboard_copy(text); }
     /// The platform clipboard's text now, read only when asked: empty when it holds none, and none
-    /// where no read exists (a terminal, or an OS window with no window).
+    /// where no read exists (a terminal, or a GUI window with no window).
     std::optional<std::string> clipboard_text() { return medium_.clipboard_text(); }
-    /// Where the window sits on its desktop: none on a terminal, or for an OS window with no window
+    /// Where the window sits on its desktop: none on a terminal, or for a GUI window with no window
     /// or one never seen unmaximized.
     std::optional<WindowPlacementValue> placement() { return medium_.placement(); }
     /// A remembered placement offered back: kept whole on a display; a terminal takes none.

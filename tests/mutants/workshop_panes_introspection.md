@@ -48,7 +48,7 @@ In `introspection/seats.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- Powers asks the window that shows it for a paste into its query, the OS window or the terminal's
+- Powers asks the window that shows it for a paste into its query, the GUI window or the terminal's
 
 ## project-hears-no-wheel
 

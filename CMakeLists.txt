@@ -12,8 +12,8 @@ if(DEFINED ZENGINE_SDL_SKIN)
     endif()
     message(FATAL_ERROR
         "zengine: ZENGINE_SDL_SKIN is retired (${zengine_old_switch}, as "
-        "'${ZENGINE_SDL_SKIN}'). SDL and the OS window are built by default; a build with no SDL, "
-        "the terminal window alone, is -DZENGINE_TUI_ONLY=ON. Configure again with "
+        "'${ZENGINE_SDL_SKIN}'). SDL and the GUI window are built by default; a build with no SDL, "
+        "the TUI window alone, is -DZENGINE_TUI_ONLY=ON. Configure again with "
         "-UZENGINE_SDL_SKIN, adding -DZENGINE_TUI_ONLY=ON where it was OFF.")
 endif()
 
@@ -45,7 +45,7 @@ option(ZEN_LOOM_DEV
 if(ZEN_LOOM_DEV)
     message(STATUS "zengine: Loom from sibling source ../Loom  [DEV OVERRIDE]")
     # A dependency's proof rides its version: Zengine's lane does not re-run the Loom's suite,
-    # so the sibling build contributes its libraries and nothing else. Zengine's OS window lives in
+    # so the sibling build contributes its libraries and nothing else. Zengine's GUI window lives in
     # graphics/ and fetches its own SDL3; the Loom declares no SDL option of its own.
     set(ZEN_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
     set(ZEN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -234,7 +234,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineNames.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineManual.cmake)
 
 # ---- the SDL dependency, acquired once for every package that needs it -----------------
-# The OS window and the tests that pin SDL's constants share one SDL: cmake/ZengineSdl.cmake owns
+# The GUI window and the tests that pin SDL's constants share one SDL: cmake/ZengineSdl.cmake owns
 # that and refuses a static SDL out loud. Included before any package, since each asks it for the
 # same target.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineSdl.cmake)

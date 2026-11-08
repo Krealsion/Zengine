@@ -115,7 +115,7 @@ TEST_CASE("the View Builder makes a view from its kinds: number fields, a button
 }
 
 namespace {
-/// A ROOM AS A WINDOW GIVES ONE, and the incarnation it gives it under: an OS window's, in
+/// A ROOM AS A WINDOW GIVES ONE, and the incarnation it gives it under: a GUI window's, in
 /// pixels with its measured text, or a terminal's, in cells.
 struct Room : ws::CanvasRoom {
     std::int64_t grant = 1;

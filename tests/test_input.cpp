@@ -5,7 +5,7 @@
 // content id, and scan:: as SDL's scancode values; the native translations as pure math, both
 // backends on every lane; the weave through a real bus with an injected reader; the real libraries
 // through the real Kernel, down to a published KeyPressed steering the world; and, on POSIX, a
-// pseudo-terminal on standard input, which a reader reads or leaves to a terminal window holding
+// pseudo-terminal on standard input, which a reader reads or leaves to a TUI window holding
 // it. A real console, and a real terminal through the real host, are the live pty run's to drive.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
@@ -1198,7 +1198,7 @@ TEST_CASE("terminal SGR: malformed reports fail explicitly and leak no keys") {
 // Tier 2e — SDL, as pure translation
 // ============================================================================
 // No SDL headers here, as for the Win32 paths, so the WSL lane and the Windows stranger (which
-// builds no SDL) both pin the SDL translation. The local constants ARE SDL's: the OS window's
+// builds no SDL) both pin the SDL translation. The local constants ARE SDL's: the GUI window's
 // backend, where both spellings exist, static_asserts them against the real headers.
 
 namespace {
@@ -1932,7 +1932,7 @@ TEST_CASE("the clipboard event class is IGNORED, and the reader's sources are cl
         CHECK(code.find("SDL_HasClipboardText") == std::string::npos);
         CHECK(code.find("ClipboardChanged") == std::string::npos);
     }
-    // The OS window reads the clipboard when a paste asks it, and only then: nothing SDL's queue
+    // The GUI window reads the clipboard when a paste asks it, and only then: nothing SDL's queue
     // says of the clipboard is read, and the beat that empties the queue names no clipboard.
     const std::string window = code_of(WINDOW_SDL_BACKEND_HPP);
     CHECK(window.find("SDL_EVENT_CLIPBOARD_UPDATE") == std::string::npos);
@@ -2642,7 +2642,7 @@ std::string own_pid() {
 }
 
 /// The variable as another hand leaves it -- a parent's claim, garbage -- or gone (nullptr).
-void put_claim_text(const char* text, const char* variable = kWindowTerminalInputVariable) {
+void put_claim_text(const char* text, const char* variable = kWindowTuiInputVariable) {
 #if defined(_WIN32)
     ::SetEnvironmentVariableA(variable, text);
 #else
@@ -2655,7 +2655,7 @@ void put_claim_text(const char* text, const char* variable = kWindowTerminalInpu
 }
 
 /// The variable's text as a child process would inherit it, or "(unset)".
-std::string claim_text(const char* variable = kWindowTerminalInputVariable) {
+std::string claim_text(const char* variable = kWindowTuiInputVariable) {
 #if defined(_WIN32)
     char buf[64];
     ::SetLastError(ERROR_SUCCESS);
@@ -2676,40 +2676,40 @@ struct ClaimClearedAtEnd {
     ClaimClearedAtEnd(const ClaimClearedAtEnd&) = delete;
     ClaimClearedAtEnd& operator=(const ClaimClearedAtEnd&) = delete;
     ~ClaimClearedAtEnd() {
-        put_claim_text(nullptr, kWindowTerminalInputVariable);
+        put_claim_text(nullptr, kWindowTuiInputVariable);
         put_claim_text(nullptr, kWindowSdlInputVariable);
     }
 };
 
 } // namespace
 
-TEST_CASE("a terminal window's claim on the terminal input is counted under this process's pid") {
+TEST_CASE("a TUI window's claim on the terminal input is counted under this process's pid") {
     ClaimClearedAtEnd cleared;
     const std::string pid = own_pid();
     CHECK_FALSE(window_holds_terminal_input());
-    CHECK(window_terminal_input_claims() == 0);
+    CHECK(window_tui_input_claims() == 0);
 
-    claim_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 1);
+    claim_window_tui_input();
+    CHECK(window_tui_input_claims() == 1);
     CHECK(window_holds_terminal_input());
     CHECK(claim_text() == pid + ":1");
 
     // A reload in place makes the new window before it destroys the old one.
-    claim_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 2);
+    claim_window_tui_input();
+    CHECK(window_tui_input_claims() == 2);
     CHECK(claim_text() == pid + ":2");
 
-    release_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 1);
+    release_window_tui_input();
+    CHECK(window_tui_input_claims() == 1);
     CHECK(window_holds_terminal_input());
 
-    release_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 0);
+    release_window_tui_input();
+    CHECK(window_tui_input_claims() == 0);
     CHECK_FALSE(window_holds_terminal_input());
     CHECK(claim_text() == "(unset)"); // a child started now inherits nothing
 
-    release_window_terminal_input();
-    CHECK(window_terminal_input_claims() == 0);
+    release_window_tui_input();
+    CHECK(window_tui_input_claims() == 0);
     CHECK(claim_text() == "(unset)");
 }
 
@@ -2722,23 +2722,23 @@ TEST_CASE("a claim under another pid, or one that is not a count, holds nothing,
           pid + ":0", pid + ":-2", pid + ":2x", pid + ": 2", pid, std::string(":3")}) {
         CAPTURE(text);
         put_claim_text(text.c_str());
-        CHECK(window_terminal_input_claims() == 0);
+        CHECK(window_tui_input_claims() == 0);
         CHECK_FALSE(window_holds_terminal_input());
     }
     put_claim_text((pid + ":7").c_str());
-    CHECK(window_terminal_input_claims() == 7);
+    CHECK(window_tui_input_claims() == 7);
 
     // The parent's claim a child inherited: the child's own window counts from one, and its last
     // release leaves nothing.
     put_claim_text("0:3");
-    claim_window_terminal_input();
+    claim_window_tui_input();
     CHECK(claim_text() == pid + ":1");
-    release_window_terminal_input();
+    release_window_tui_input();
     CHECK(claim_text() == "(unset)");
 }
 
-TEST_CASE("a reader touches the terminal as the terminal window's own, or while no window holds "
-          "input: neither a terminal window nor an OS window") {
+TEST_CASE("a reader touches the terminal as the TUI window's own, or while no window holds "
+          "input: neither a TUI window nor a GUI window") {
     CHECK(terminal_reader_may_use_terminal(false, false, false));
     CHECK_FALSE(terminal_reader_may_use_terminal(false, true, false));
     CHECK_FALSE(terminal_reader_may_use_terminal(false, false, true));
@@ -2750,7 +2750,7 @@ TEST_CASE("a reader touches the terminal as the terminal window's own, or while 
     }
 }
 
-TEST_CASE("an OS window's claim on SDL's queue is counted under this process's pid, apart from the "
+TEST_CASE("a GUI window's claim on SDL's queue is counted under this process's pid, apart from the "
           "terminal's, and the SDL reader drains the queue only while no window holds it") {
     ClaimClearedAtEnd cleared;
     const std::string pid = own_pid();
@@ -2764,10 +2764,10 @@ TEST_CASE("an OS window's claim on SDL's queue is counted under this process's p
     CHECK_FALSE(sdl_reader_may_use_sdl());
     CHECK(claim_text(kWindowSdlInputVariable) == pid + ":1");
     // The terminal's claim is another: neither counts the other's.
-    CHECK(window_terminal_input_claims() == 0);
-    claim_window_terminal_input();
+    CHECK(window_tui_input_claims() == 0);
+    claim_window_tui_input();
     CHECK(window_sdl_input_claims() == 1);
-    release_window_terminal_input();
+    release_window_tui_input();
 
     // A reload in place makes the new window before it destroys the old one.
     claim_window_sdl_input();
@@ -2866,7 +2866,7 @@ bool reads_text(PlatformReader& reader, const std::string& text) {
 
 } // namespace
 
-TEST_CASE("a reader beside a terminal window takes nothing, reads nothing and gives nothing back "
+TEST_CASE("a reader beside a TUI window takes nothing, reads nothing and gives nothing back "
           "while the window holds the terminal") {
     ClaimClearedAtEnd cleared;
     PtyOnStdin pty;
@@ -2874,32 +2874,32 @@ TEST_CASE("a reader beside a terminal window takes nothing, reads nothing and gi
     REQUIRE(pty.cooked());
 
     // Made while a window holds the terminal, it never takes it.
-    claim_window_terminal_input();
+    claim_window_tui_input();
     {
         const PlatformReader late;
         CHECK(pty.cooked());
     }
     CHECK(pty.cooked());
-    release_window_terminal_input();
+    release_window_tui_input();
 
     // Made before the window, it took the terminal: while the window holds it, it reads nothing of
     // what is typed, which it reads once the window gives the terminal back.
     {
         PlatformReader early;
         REQUIRE_FALSE(pty.cooked());
-        claim_window_terminal_input();
+        claim_window_tui_input();
         REQUIRE(pty.type("a"));
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         CHECK(early.poll().empty());
-        release_window_terminal_input();
+        release_window_tui_input();
         CHECK(reads_text(early, "a"));
-        claim_window_terminal_input(); // and it goes while a window holds the terminal again
+        claim_window_tui_input(); // and it goes while a window holds the terminal again
     }
     CHECK_FALSE(pty.cooked()); // the window's mode, untouched
-    release_window_terminal_input();
+    release_window_tui_input();
 }
 
-TEST_CASE("a reader beside an OS window leaves the terminal as it found it and reads nothing typed "
+TEST_CASE("a reader beside a GUI window leaves the terminal as it found it and reads nothing typed "
           "there; one that took it first gives it back when the window comes, and takes it again "
           "once no window holds input") {
     ClaimClearedAtEnd cleared;
@@ -2907,7 +2907,7 @@ TEST_CASE("a reader beside an OS window leaves the terminal as it found it and r
     REQUIRE(pty.ok);
     REQUIRE(pty.as_found());
 
-    // MADE BESIDE AN OS WINDOW, it never takes the terminal, and what is typed there is not its.
+    // MADE BESIDE AN GUI WINDOW, it never takes the terminal, and what is typed there is not its.
     claim_window_sdl_input();
     {
         PlatformReader beside;
@@ -2937,12 +2937,12 @@ TEST_CASE("a reader beside an OS window leaves the terminal as it found it and r
     CHECK(pty.as_found());
 }
 
-TEST_CASE("the terminal window's own reader takes, reads and gives back the terminal it holds") {
+TEST_CASE("the TUI window's own reader takes, reads and gives back the terminal it holds") {
     ClaimClearedAtEnd cleared;
     PtyOnStdin pty;
     REQUIRE(pty.ok);
     REQUIRE(pty.cooked());
-    claim_window_terminal_input();
+    claim_window_tui_input();
     {
         PlatformReader own(true);
         CHECK_FALSE(pty.cooked());
@@ -2950,7 +2950,7 @@ TEST_CASE("the terminal window's own reader takes, reads and gives back the term
         CHECK(reads_text(own, "b"));
     }
     CHECK(pty.cooked());
-    release_window_terminal_input();
+    release_window_tui_input();
 }
 
 #endif

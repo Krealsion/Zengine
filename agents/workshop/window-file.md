@@ -1,7 +1,7 @@
 # Workshop law — the window file
 
 Register `WL-SESSION`, its third file: the window's own facts -- the viewport, the desktop
-placement, the normal room, the OS window's room -- in Workshop's window file beside the session,
+placement, the normal room, the GUI window's room -- in Workshop's window file beside the session,
 which Workshop alone reads and writes. One law per heading; cite by ID. The files and their
 domains are in [`session.md`](session.md). Router: [`../workshop.md`](../workshop.md).
 
@@ -47,13 +47,13 @@ LAW — `Session::normal_w/h` tracks the screen except while this run's medium s
 
 MEANS
 - a maximized flag merely restored from the file never gates a placement-less run's tracking;
-- the OS window says a maximize or a restore-down before the room it brings, though its desktop sizes it first.
+- the GUI window says a maximize or a restore-down before the room it brings, though its desktop sizes it first.
 
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
-## WL-SESSION-20 — The OS window comes back shaped to its own room
+## WL-SESSION-20 — The GUI window comes back shaped to its own room
 
-LAW — The window file keeps the OS window's normal room beside its placement; a restore in it shapes it to that room (`WindowShaped`), a smaller one taken, then places it.
+LAW — The window file keeps the GUI window's normal room beside its placement; a restore in it shapes it to that room (`WindowShaped`), a smaller one taken, then places it.
 
 MEANS
 - a maximized one is shaped first and maximized after, so restoring it down returns that room;
@@ -95,7 +95,7 @@ Session::place_maximized
 byte-identically" "the placement's words are judged; its coordinates are not" "the desk remembers
 where its window sat, and offers it back" "a run whose medium reports no placement RETAINS the
 remembered one"
-`tests/test_graphics.cpp` "the OS window's clipboard and its place on the desktop are its backend's: a
+`tests/test_graphics.cpp` "the GUI window's clipboard and its place on the desktop are its backend's: a
 copy handed on, the clipboard read only when asked, its placement read, and a remembered place"
 
 ### WL-SESSION-09
@@ -103,7 +103,7 @@ copy handed on, the clipboard read only when asked, its placement read, and a re
 `workshop/weave_handlers.cpp` normal_w on(SurfacePlacement)
 `workshop/weave.hpp` WorkshopWeave::medium_placed_
 `graphics/window/window.hpp` service_pump
-`tests/test_graphics.cpp` "the OS window's clipboard and its place on the desktop are its backend's: a
+`tests/test_graphics.cpp` "the GUI window's clipboard and its place on the desktop are its backend's: a
 copy handed on, the clipboard read only when asked, its placement read, and a remembered place"
 `tests/test_workshop_persistence.cpp` "a maximized close remembers the NORMAL room beside the
 maximized state" "unmaximizing reopens the gate, and the normal room tracks again" "a restored
@@ -116,7 +116,7 @@ maximized flag alone does not gate this run's viewport"
 `workshop/weave_session.cpp` restore_window shape_restored_window save_last_session
 `workshop/grant.cpp` workshop_grant
 `graphics/window/window_sdl_backend.hpp` ProcessSdlBackend::shape
-`tests/test_workshop_persistence.cpp` "the window file keeps the OS window's own room beside its
-placement, and a run in the terminal window writes it back as it read it, as it does the placement"
-"a restore in the OS window shapes it to its own room, a smaller one taken, then places it; a
-maximized one is shaped before it is maximized; the terminal window keeps its own"
+`tests/test_workshop_persistence.cpp` "the window file keeps the GUI window's own room beside its
+placement, and a run in the TUI window writes it back as it read it, as it does the placement"
+"a restore in the GUI window shapes it to its own room, a smaller one taken, then places it; a
+maximized one is shaped before it is maximized; the TUI window keeps its own"

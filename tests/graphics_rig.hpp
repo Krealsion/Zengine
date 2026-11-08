@@ -91,7 +91,7 @@ private:
 };
 
 inline std::string window_role() {
-    return std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
+    return std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
 }
 
 struct Rig {
@@ -152,7 +152,7 @@ struct Rig {
         bus.send_to_role(role, loom::Message(loom::to_value(msg)));
     }
 
-    /// The arranger's gestures for one area of the terminal window: the classic and block palettes
+    /// The arranger's gestures for one area of the TUI window: the classic and block palettes
     /// and the board's code offered, the area's palette chosen, the area placed.
     void arrange(const char* board, const std::string& area, const std::string& owner,
                  const std::string& palette, std::int64_t x = 0, std::int64_t y = 0) {
@@ -160,7 +160,7 @@ struct Rig {
         to_role(gfx::kGraphicsRole, gfx::themes::block());
         to_role(gfx::kGraphicsRole, gfx::ElementCodeOffered{"SnakeBoardData", board});
         to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, palette});
-        to_role(gfx::kGraphicsRole, gfx::AreaPlaced{area, gfx::kTerminalWindow, owner, x, y,
+        to_role(gfx::kGraphicsRole, gfx::AreaPlaced{area, gfx::kTuiWindow, owner, x, y,
                                                     50 * gfx::kCellPx, 22 * gfx::kCellPx, 0,
                                                     true});
         drain();

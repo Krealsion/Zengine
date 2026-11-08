@@ -501,7 +501,7 @@ TEST_CASE("a drop aimed at a picture the text has since left is refused and chan
     const RuntimePane* row = s.r.session().panes.runtime.of_kind(s.editor);
     REQUIRE(row != nullptr);
     const std::string area = pane_window_area(s.r.session().panes, *row);
-    const std::string role = std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
+    const std::string role = std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
     const loom::WeaveId window = s.r.bus.role_holder(role);
     REQUIRE(window.valid());
     bool wheeled = false;

@@ -151,9 +151,9 @@ TEST_CASE("an old object document is left exactly as it is: a launch names it on
 TEST_CASE("what the plan could not load and gave way from is said on the desk as it comes up, and "
           "nothing is said of it where every row loaded its own") {
     // ⚔ MUTATION (tests/mutants/workshop_persistence.md#passed-over-unsaid): the startup notes
-    // leaving out `HostContext::passed_over` -- the desk comes up in the terminal window and never
-    // says the OS window could not open.
-    const std::string said = "`zengine-window-sdl` did not load, so `zengine-window-terminal` "
+    // leaving out `HostContext::passed_over` -- the desk comes up in the TUI window and never
+    // says the GUI window could not open.
+    const std::string said = "`zengine-window-sdl` did not load, so `zengine-window-tui` "
                              "stands in its row -- it would not start here: zengine-window-sdl: "
                              "SDL_Init(SDL_INIT_VIDEO) failed: No available video device";
     Live t;
@@ -161,13 +161,13 @@ TEST_CASE("what the plan could not load and gave way from is said on the desk as
     // ...AND IT STANDS FOR THE RUN, as the host keeps it (`gave_way`), so a sentence said
     // after the note leaves it where a weaver reads it.
     t.host.standing_conditions.push_back(
-        gave_way("zengine-window-sdl", "zengine-window-terminal", "it would not start"));
+        gave_way("zengine-window-sdl", "zengine-window-tui", "it would not start"));
     t.ready();
     CHECK(t.notice().find(said) != std::string::npos);
     const Condition* stands = t.session().conditions.find("load.gave-way/zengine-window-sdl");
     REQUIRE(stands != nullptr);
     CHECK(stands->compact ==
-          "zengine-window-sdl did not load; zengine-window-terminal stands in its row");
+          "zengine-window-sdl did not load; zengine-window-tui stands in its row");
 
     Live quiet;
     quiet.host.passed_over = [] { return std::vector<std::string>{}; };
@@ -2018,7 +2018,7 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
     back.host.session_path = session;
     back.host.setup_path = dir.file("somewhere-else.json");
     REQUIRE((back.pictures == 0));
-    back.on_os_window(); // the medium that grows to the room restored
+    back.on_gui_window(); // the medium that grows to the room restored
     back.ready();
     back.window_settles();
     INFO(back.notice());
@@ -2027,7 +2027,7 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
     CHECK(back.session().setup.active == desk);
     CHECK(back.session().panes.has(second::kKind));
     CHECK(back.session().panes.has(stock::kKind));
-    // THE ROOM, which the OS window grows to.
+    // THE ROOM, which the GUI window grows to.
     CHECK(back.session().screen_w == cells_px(120));
     CHECK(back.session().screen_h == cells_px(44));
     // AND NOT ONE KEY WAS PRESSED. `r` is still there and still does what it did;
@@ -2052,7 +2052,7 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
     {
         Live w;
         w.host.session_path = session;
-        w.on_os_window();
+        w.on_gui_window();
         w.ready();
         w.extent_px(cells_px(120), cells_px(75), 8, 18, gfx::kCellPx);
         CHECK(w.notice() == "reopened your last desk \"Default\" -- 1440x900 px");
@@ -2076,7 +2076,7 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
         k.key(input::scan::kT);
         k.text("t");
         REQUIRE(k.notice().rfind("pane titles hidden", 0) == 0);
-        k.on_os_window();
+        k.on_gui_window();
         k.bus.drain_until_idle();
         CHECK(k.notice() == "reopened your last desk \"Default\" -- 1440x900 px");
     }
@@ -2118,7 +2118,7 @@ TEST_CASE("the second session replaces the first, room and desk both") {
         Live t;
         t.host.session_path = session;
         t.host.setup_path = dir.file("second-setup.json");
-        t.on_os_window(); // the medium that grows to the room restored
+        t.on_gui_window(); // the medium that grows to the room restored
         t.ready();
         t.window_settles();
         REQUIRE(t.session().setup.active.name == "First");
@@ -2141,7 +2141,7 @@ TEST_CASE("the second session replaces the first, room and desk both") {
 
     Live back;
     back.host.session_path = session;
-    back.on_os_window(); // the medium that grows to the room restored
+    back.on_gui_window(); // the medium that grows to the room restored
     back.ready();
     back.window_settles();
     CHECK(back.session().setup.active == second);
@@ -2660,7 +2660,7 @@ TEST_CASE("a restored desk opens every pane it names, in the room it restored") 
     // either way round.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
 
-    r.on_os_window(); // the medium that grows to the room restored
+    r.on_gui_window(); // the medium that grows to the room restored
     r.ready();
     r.window_settles();
     CHECK(r.w->session().screen_w == cells_px(120));
@@ -3423,7 +3423,7 @@ TEST_CASE("the desk remembers where its window sat, and offers it back") {
     // role, exactly once, before any medium has said anything.
     Live t;
     t.host.session_path = session;
-    t.on_os_window();
+    t.on_gui_window();
     t.ready();
     REQUIRE(t.windows.placed().size() == 1);
     CHECK(t.windows.placed()[0].x == 240);
@@ -3433,17 +3433,17 @@ TEST_CASE("the desk remembers where its window sat, and offers it back") {
     CHECK(t.session().placement_known);
 }
 
-TEST_CASE("the window file keeps the OS window's own room beside its placement, and a run in the "
-          "terminal window writes it back as it read it, as it does the placement") {
+TEST_CASE("the window file keeps the GUI window's own room beside its placement, and a run in the "
+          "TUI window writes it back as it read it, as it does the placement") {
     // ⚔ MUTATION (tests/mutants/workshop_persistence.md#room-saved-whatever-the-window): the save
-    // writing this run's room as the OS window's whatever the window -- a run in the terminal
-    // window leaves its own room where the OS window's was.
+    // writing this run's room as the GUI window's whatever the window -- a run in the terminal
+    // window leaves its own room where the GUI window's was.
     TempDir dir("os-room-kept");
     const std::string session = dir.file("session.json");
     {
         Live t;
         t.host.session_path = session;
-        t.on_os_window();
+        t.on_gui_window();
         t.ready();
         t.publish(loom::to_value(gfx::SurfacePlacement{240, 180, false}));
         t.extent_px(1180, 760, 8, 18);
@@ -3457,21 +3457,21 @@ TEST_CASE("the window file keeps the OS window's own room beside its placement, 
     {
         Live t;
         t.host.session_path = session;
-        t.ready(); // the terminal window
+        t.ready(); // the TUI window
         t.extent(100, 34);
         t.key(input::scan::kQ);
     }
     read = window_persist::load_file(window_persist::path_beside(session));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.viewport_w == cells_px(100)); // the desk's room is the terminal's...
-    CHECK(read.placement.room_w == 1180);    // ...and the OS window's is its own, as it was
+    CHECK(read.placement.room_w == 1180);    // ...and the GUI window's is its own, as it was
     CHECK(read.placement.room_h == 760);
     CHECK(read.placement.known);
     CHECK(read.placement.x == 240);
 }
 
-TEST_CASE("a restore in the OS window shapes it to its own room, a smaller one taken, then places "
-          "it; a maximized one is shaped before it is maximized; the terminal window keeps its own") {
+TEST_CASE("a restore in the GUI window shapes it to its own room, a smaller one taken, then places "
+          "it; a maximized one is shaped before it is maximized; the TUI window keeps its own") {
     // ⚔ MUTATION (tests/mutants/workshop_persistence.md#placed-before-shaped): the restore placing
     // the window as soon as it reads the file -- a maximize lands before the shaping, and restoring
     // the window down returns the room it opened at.
@@ -3482,7 +3482,7 @@ TEST_CASE("a restore in the OS window shapes it to its own room, a smaller one t
     place.x = 64;
     place.y = 48;
     place.maximized = true;
-    place.room_w = 1280; // smaller than the 1600 by 900 the OS window opens at
+    place.room_w = 1280; // smaller than the 1600 by 900 the GUI window opens at
     place.room_h = 720;
     REQUIRE(save_last_run(session, one_layout(arranged_desk("D")), 0, cells_px(120), cells_px(40),
                           place)
@@ -3490,7 +3490,7 @@ TEST_CASE("a restore in the OS window shapes it to its own room, a smaller one t
     {
         Live t;
         t.host.session_path = session;
-        t.on_os_window();
+        t.on_gui_window();
         t.ready();
         REQUIRE(t.windows.shaped().size() == 1);
         CHECK(t.windows.shaped()[0] == std::pair<std::int64_t, std::int64_t>{1280, 720});
@@ -3502,7 +3502,7 @@ TEST_CASE("a restore in the OS window shapes it to its own room, a smaller one t
         CHECK(t.session().normal_w == 1280);
         CHECK(t.session().normal_h == 720);
     }
-    // THE TERMINAL WINDOW KEEPS ITS OWN: nothing is shaped, and its room is the terminal's.
+    // THE TUI WINDOW KEEPS ITS OWN: nothing is shaped, and its room is the terminal's.
     Live term;
     term.host.session_path = session;
     term.ready();
@@ -3516,7 +3516,7 @@ TEST_CASE("a restore in the OS window shapes it to its own room, a smaller one t
                 .accepted);
     Live small;
     small.host.session_path = session;
-    small.on_os_window();
+    small.on_gui_window();
     small.ready();
     CHECK(small.windows.shaped().empty());
     CHECK(small.notice().find("the saved window size 4x3 pixels is not one this Workshop opens at") !=
@@ -3531,7 +3531,7 @@ TEST_CASE("a session with no placement offers nothing") {
                 .accepted);
     Live t;
     t.host.session_path = session;
-    t.on_os_window();
+    t.on_gui_window();
     t.ready();
     CHECK(t.windows.placed().empty());
     CHECK_FALSE(t.session().placement_known);
@@ -3761,7 +3761,7 @@ TEST_CASE("the medium's device unit reaches no durable file") {
     // reading and leave a weaver on a window reading cells.
     Live t;
     t.host.session_path = path;
-    t.on_os_window(); // the medium that grows to the room restored
+    t.on_gui_window(); // the medium that grows to the room restored
     t.ready();
     t.window_settles();
     CHECK(t.session().screen_w == cells_px(140));                      // the restore DID land...
@@ -4326,7 +4326,7 @@ TEST_CASE("with the conversion mounted, the desk comes back through the weave") 
     Live t;
     t.host.session_path = path;
     t.host.conversions = &history.catalog;
-    t.on_os_window(); // the medium that grows to the room restored
+    t.on_gui_window(); // the medium that grows to the room restored
     t.ready();
     t.window_settles();
 
@@ -4362,7 +4362,7 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
         Live t;
         t.host.session_path = path;
         t.host.conversions = &history.catalog;
-        t.on_os_window(); // the medium that grows to the room restored
+        t.on_gui_window(); // the medium that grows to the room restored
         t.ready();
         t.window_settles();
         REQUIRE(t.session().setup.active.name == "Yesterday");
@@ -4382,7 +4382,7 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
     Live back;
     back.host.session_path = path;
     REQUIRE(back.host.conversions == nullptr);
-    back.on_os_window(); // the medium that grows to the room restored
+    back.on_gui_window(); // the medium that grows to the room restored
     back.ready();
     back.window_settles();
     CHECK_FALSE(back.session().notice_is_bad);
@@ -7119,10 +7119,10 @@ TEST_CASE("a version-8 session converts with every field kept and no choice reme
     CHECK(read.choices.empty());
 }
 
-TEST_CASE("a version-9 session converts with every field kept and no OS window's room") {
+TEST_CASE("a version-9 session converts with every field kept and no GUI window's room") {
     // ⚔ MUTATION (tests/mutants/workshop_persistence.md#v9-viewport-as-the-room): the import
-    // taking the viewport as the OS window's room -- a version-9 file a terminal run wrote would
-    // shape the OS window to the terminal's room.
+    // taking the viewport as the GUI window's room -- a version-9 file a terminal run wrote would
+    // shape the GUI window to the terminal's room.
     MountedHistory history;
     REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
     const Setup desk = arranged_desk("Kept");
@@ -7152,7 +7152,7 @@ TEST_CASE("a version-9 session converts with every field kept and no OS window's
     CHECK(room_read.placement.x == 30);
     REQUIRE(read.choices.size() == 1);
     CHECK(read.choices[0].choice == "neovim");
-    // A SESSION BEFORE 10 KEEPS NO OS WINDOW'S ROOM, so its window opens and grows as it did.
+    // A SESSION BEFORE 10 KEEPS NO GUI WINDOW'S ROOM, so its window opens and grows as it did.
     CHECK(room_read.placement.room_w == 0);
     CHECK(room_read.placement.room_h == 0);
 }
@@ -7255,7 +7255,7 @@ TEST_CASE("an older session's room is Workshop's window file's once: read while 
         Live t;
         t.host.session_path = path;
         t.host.conversions = &history.catalog;
-        t.on_os_window(); // the medium that grows to the room restored
+        t.on_gui_window(); // the medium that grows to the room restored
         t.ready();
         t.window_settles();
         REQUIRE(t.session().setup.active.name == "Before");
@@ -7278,7 +7278,7 @@ TEST_CASE("an older session's room is Workshop's window file's once: read while 
     Live back;
     back.host.session_path = path;
     back.host.conversions = &history.catalog;
-    back.on_os_window();
+    back.on_gui_window();
     back.ready();
     back.window_settles();
     REQUIRE(back.session().setup.active.name == "Before");

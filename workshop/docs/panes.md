@@ -179,7 +179,7 @@ the pane, and the stack closes up under a stacked one.
 
 ![Info shut to its title at the room's top-right, its arrow pointing right and its edge one row tall, with titles shown; Notices open at the bottom-left, its title's arrow pointing down -- in a window](images/folds-shut-window.png)
 
-![Info shut to its title at the room's top-right, its arrow pointing right and its edge one row tall, with titles shown; Notices open at the bottom-left, its title's arrow pointing down -- in a terminal window, 120 by 30 cells, in characters](images/folds-shut-terminal.png)
+![Info shut to its title at the room's top-right, its arrow pointing right and its edge one row tall, with titles shown; Notices open at the bottom-left, its title's arrow pointing down -- in a TUI window, 120 by 30 cells, in characters](images/folds-shut-terminal.png)
 
 **Hide** a pane (`x` in the Pane Manager, `hide pane` in its menu, or
 <!-- key manage.hide -->`h`<!-- /key --> while arranging) and the desk shows nothing of it, but
@@ -190,11 +190,11 @@ and the next show is a first open.
 
 ![A desk whose layout keeps Info hidden: Notices alone at the bottom-left, and nothing of Info on the desk -- in a window](images/folds-hidden-window.png)
 
-![A desk whose layout keeps Info hidden: Notices alone at the bottom-left, and nothing of Info on the desk -- in a terminal window, 120 by 30 cells, in characters](images/folds-hidden-terminal.png)
+![A desk whose layout keeps Info hidden: Notices alone at the bottom-left, and nothing of Info on the desk -- in a TUI window, 120 by 30 cells, in characters](images/folds-hidden-terminal.png)
 
 ![Info shown again from the Pane Manager, back at the room's top-left where its hidden row kept it, 420 by 216 pixels, with the Pane Manager beside it -- in a window](images/folds-returned-window.png)
 
-![Info shown again from the Pane Manager, back at the room's top-left where its hidden row kept it, 420 by 216 pixels, with the Pane Manager beside it -- in a terminal window, 120 by 30 cells, in characters](images/folds-returned-terminal.png)
+![Info shown again from the Pane Manager, back at the room's top-left where its hidden row kept it, 420 by 216 pixels, with the Pane Manager beside it -- in a TUI window, 120 by 30 cells, in characters](images/folds-returned-terminal.png)
 
 **Dock** a pane on an edge from its menu, `Dock >` `left`, `right`, `top` or `bottom`. The edge
 keeps a thin strip its whole length -- a column of cells on a left or right edge, a row on a top
@@ -210,11 +210,11 @@ with the setup and the session, and an older file opens with every pane open and
 
 ![Notices and Info docked on the right edge: a strip the room's whole height, its arrow at the centre pointing out of the room, the two names as tags down it; Notices open against the strip, the room's height, over the room -- in a window](images/docks-open-window.png)
 
-![Notices and Info docked on the right edge: a strip the room's whole height, its arrow at the centre pointing out of the room, the two names as tags down it; Notices open against the strip, the room's height, over the room -- in a terminal window, 120 by 30 cells, in characters](images/docks-open-terminal.png)
+![Notices and Info docked on the right edge: a strip the room's whole height, its arrow at the centre pointing out of the room, the two names as tags down it; Notices open against the strip, the room's height, over the room -- in a TUI window, 120 by 30 cells, in characters](images/docks-open-terminal.png)
 
 ![Notices and Info docked on the right edge, both shut: the strip alone, its arrow pointing into the room and the two tags down it, and the room as narrow as when the dock is open -- in a window](images/docks-shut-window.png)
 
-![Notices and Info docked on the right edge, both shut: the strip alone, its arrow pointing into the room and the two tags down it, and the room as narrow as when the dock is open -- in a terminal window, 120 by 30 cells, in characters](images/docks-shut-terminal.png)
+![Notices and Info docked on the right edge, both shut: the strip alone, its arrow pointing into the room and the two tags down it, and the room as narrow as when the dock is open -- in a TUI window, 120 by 30 cells, in characters](images/docks-shut-terminal.png)
 
 ## Moving, resizing and ordering — Arrange
 

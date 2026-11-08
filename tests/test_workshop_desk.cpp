@@ -528,7 +528,7 @@ std::string shown_word(PaneRig& r, const DeskRect& place) {
     return out;
 }
 
-/// The character the window shows at a point in the terminal window's cells.
+/// The character the window shows at a point in the TUI window's cells.
 char shown_glyph(PaneRig& r, std::int64_t x, std::int64_t y) {
     const DeskShown shown = r.shown();
     const std::string at = shown.text_at_px(x * shown.advance, y * shown.line, 1);
@@ -1041,7 +1041,7 @@ TEST_CASE("a pane's words are covered while a menu is open or arranging, no poin
 namespace {
 
 /// A pane's frame where the window draws it: one rectangle of Workshop's planes exactly the
-/// place, in the chrome's voice, which the OS window hands its device as one quad exactly there.
+/// place, in the chrome's voice, which the GUI window hands its device as one quad exactly there.
 bool frame_drawn(PaneRig& r, const ScreenCanvas& c, const DeskRect& p, bool window) {
     for (const ScreenPlane& layer : c.layers) {
         for (const ScreenRect& rect : layer.rects) {
@@ -1162,7 +1162,7 @@ TEST_CASE("a character's point is the cell showing it, a caret moving none, and 
                 CHECK(at.x >= view.words[0].place.x + column * body.fit.advance_px);
                 CHECK(at.x < view.words[0].place.x + (column + 1) * body.fit.advance_px);
             } else {
-                // THE TERMINAL WINDOW'S OWN CELLS: the cell the point names shows that character.
+                // THE TUI WINDOW'S OWN CELLS: the cell the point names shows that character.
                 CHECK(shown_glyph(d.r, at.x, at.y) == text[static_cast<std::size_t>(column)]);
             }
             // ...and a press there reaches the pane as that column.
@@ -1583,7 +1583,7 @@ TEST_CASE("a canvas pane's named parts are said where its body shows them, with 
         const PanePart* edge = part_named(view.parts, "edge");
         REQUIRE(edge != nullptr);
         CHECK(edge->text.empty());
-        // ...as far as the medium shows it: half a cell in the OS window, the cell a terminal
+        // ...as far as the medium shows it: half a cell in the GUI window, the cell a terminal
         // paints it on.
         CHECK(edge->place.w == (window ? u / 2 : u));
         CHECK(edge->place.x + edge->place.w == pane.placed_x + pane.placed_w);
@@ -2254,7 +2254,7 @@ TEST_CASE("the conversation of reading the desk, a pane's words and a character'
     say_rows(d);
     zengine::tests::Timeline heard(d.r.bus);
     heard.varies("epoch"); // the window's incarnation, drawn afresh each run
-    for (const char* role : {gfx::kGraphicsRole, "zengine.window.terminal", "zengine.window.sdl"}) {
+    for (const char* role : {gfx::kGraphicsRole, "zengine.window.tui", "zengine.window.sdl"}) {
         heard.without(role);
     }
     heard.name(d.asker_id, "asker");
@@ -2275,7 +2275,7 @@ TEST_CASE("the conversation of a press on a word is kept") {
     PaneView view;
     REQUIRE(d.words(kAlphaRole, "alpha", view).empty());
     zengine::tests::Timeline heard(d.r.bus);
-    for (const char* role : {gfx::kGraphicsRole, "zengine.window.terminal", "zengine.window.sdl"}) {
+    for (const char* role : {gfx::kGraphicsRole, "zengine.window.tui", "zengine.window.sdl"}) {
         heard.without(role);
     }
     heard.name(d.asker_id, "asker");
@@ -2291,7 +2291,7 @@ TEST_CASE("the conversation of opening a pane is kept") {
     DeskRig d;
     ProviderSeat* gamma = d.r.mount_provider("zengine.test.desk-gamma");
     zengine::tests::Timeline heard(d.r.bus);
-    for (const char* role : {gfx::kGraphicsRole, "zengine.window.terminal", "zengine.window.sdl"}) {
+    for (const char* role : {gfx::kGraphicsRole, "zengine.window.tui", "zengine.window.sdl"}) {
         heard.without(role);
     }
     heard.name(d.asker_id, "asker");
@@ -2707,7 +2707,7 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
         CHECK(p.place.y == layouts->words[0].place.y);
         CHECK(p.space == input::space::kCells);
         if (!printable(p.text)) continue;
-        // ...over the cells the terminal window shows its characters on.
+        // ...over the cells the TUI window shows its characters on.
         std::string cells = shown_word(d.r, p.place);
         while (!cells.empty() && cells.back() == ' ') cells.pop_back();
         CHECK(cells == p.text);
@@ -3014,7 +3014,7 @@ struct DeskWindowState {
 /// delivered and every one refused.
 struct WindowDesk {
     PaneRig r;
-    /// The terminal window the desk is shown in: the case's own, offered at 100 by 40 cells.
+    /// The TUI window the desk is shown in: the case's own, offered at 100 by 40 cells.
     std::unique_ptr<pw::Window> window;
     std::uint64_t press_ = 0; ///< the window's number for the button held
     ArrangedDirectory* directory = nullptr;
@@ -3030,7 +3030,7 @@ struct WindowDesk {
         // THE DIRECTORY IS THIS CASE'S STAND-IN, or none, and so is the window: the rig's own
         // never comes up.
         r.in_window = false;
-        window = std::make_unique<pw::Window>(r.bus, gfx::kTerminalWindow);
+        window = std::make_unique<pw::Window>(r.bus, gfx::kTuiWindow);
         // ...counting the weaver's clicks by the rig's clock, as the rig's own windows do.
         window->clock = [this] { return r.clock.read(); };
         r.host.dir = folder ? "/zen/window-desk" : "";
@@ -3174,7 +3174,7 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
 
     // WORKSHOP'S OWN AREA, the whole screen, behind every pane's; it hears the window's keys, since
     // no pane's own area takes them, and a press nothing drawn there takes.
-    CHECK(desk().window == gfx::kTerminalWindow);
+    CHECK(desk().window == gfx::kTuiWindow);
     CHECK(desk().owner == kWorkshopProvider);
     CHECK((desk().x == 0 && desk().y == 0 && desk().w == sc.w && desk().h == sc.h));
     CHECK(desk().order == 0);
@@ -3183,7 +3183,7 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     // THE PANE'S, over the body its role draws, by its role's name, above in the desk's order.
     const PixelRect body = d.pane_body();
     REQUIRE_FALSE(body.empty());
-    CHECK(pane().window == gfx::kTerminalWindow);
+    CHECK(pane().window == gfx::kTuiWindow);
     CHECK(pane().owner == apane::kAttentionPaneRole);
     CHECK((pane().x == body.x && pane().y == body.y && pane().w == body.w &&
            pane().h == body.h));
@@ -3521,7 +3521,7 @@ TEST_CASE("a pane placed off the cell grid has its body under its title row: at 
     s.screen_w = cells_px(120);
     s.screen_h = cells_px(60);
     const PixelRect pane{cells_px(10) + 5, 503, cells_px(40), cells_px(12)};
-    // THE OS WINDOW'S UNIT, ITS PIXEL: the title row is drawn from the region's top a cell tall,
+    // THE GUI WINDOW'S UNIT, ITS PIXEL: the title row is drawn from the region's top a cell tall,
     // and the body stands where it ends, at the title's column.
     s.cell_px = gfx::kCellPx;
     Screen sc = screen_of(s);
@@ -3795,7 +3795,7 @@ TEST_CASE("Workshop draws its desk in the window that shows its areas -- the ban
                           window.weave().heard[i].whole);
     }
     CHECK(again);
-    CHECK(d.directory->areas.at(kAttentionArea).window == gfx::kTerminalWindow);
+    CHECK(d.directory->areas.at(kAttentionArea).window == gfx::kTuiWindow);
     (void)framed(d.kind);
     CHECK(window.actions(frame).count("focus:" + k) == 1);
 
@@ -3894,7 +3894,7 @@ TEST_CASE("a press the graphics window gives Workshop's own area is the press it
         d.directory_does([&area, down](loom::Mail& m) {
             (void)m.as_role(gfx::kGraphicsRole)
                 .send_to_role(kWorkshopProvider,
-                              gfx::AreaPressed{gfx::kTerminalWindow, area, 1, down, 0, 0}, 7);
+                              gfx::AreaPressed{gfx::kTuiWindow, area, 1, down, 0, 0}, 7);
         });
     }
     window.click("zengine.test.elsewhere", 0, 0, 1, kWorkshopProvider);
@@ -4029,7 +4029,7 @@ TEST_CASE("a pane whose role draws in no graphics window has no area there, and 
     REQUIRE(kind != kNoPaneKind);
     REQUIRE(s.panes.has(kind));
     REQUIRE(d.directory->areas.count(pane_area(kAreaSeatRole, "seat")) == 1);
-    CHECK(d.directory->areas.at(pane_area(kAreaSeatRole, "seat")).window == gfx::kTerminalWindow);
+    CHECK(d.directory->areas.at(pane_area(kAreaSeatRole, "seat")).window == gfx::kTuiWindow);
     // ...and a title, but no `?` or gear: its role answers no manual.
     (void)frames();
     const std::set<std::string> parts =
@@ -4094,15 +4094,15 @@ struct Sayer {
     }
 };
 
-std::string terminal_window_role() {
-    return std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
+std::string tui_window_role() {
+    return std::string(gfx::kWindowRolePrefix) + gfx::kTuiWindow;
 }
 
 std::string sdl_window_role() {
     return std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow;
 }
 
-/// THE OS WINDOW AS WORKSHOP MEETS IT, in `zengine.window.sdl`: it says what a case hands it as
+/// THE GUI WINDOW AS WORKSHOP MEETS IT, in `zengine.window.sdl`: it says what a case hands it as
 /// its role, keeps every drawing and place offered back, and answers a paste with what its
 /// platform holds, counting each read.
 class SdlWindowSeat
@@ -4133,7 +4133,7 @@ public:
 
 } // namespace
 
-TEST_CASE("the terminal window offered brings Workshop up in it, the last session restored first, "
+TEST_CASE("the TUI window offered brings Workshop up in it, the last session restored first, "
           "and lays the desk out in the window's room") {
     TempDir dir("window-offered");
     PaneRig r;
@@ -4143,9 +4143,9 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
                 .accepted);
     ProviderSeat* seat = r.mount_provider("zengine.test.offered-seat");
     r.mount_workshop();
-    Sayer<gfx::WindowOffered> window(r, terminal_window_role());
+    Sayer<gfx::WindowOffered> window(r, tui_window_role());
     const auto offer = [&window](std::int64_t cols, std::int64_t rows,
-                                 std::string name = gfx::kTerminalWindow) {
+                                 std::string name = gfx::kTuiWindow) {
         window.publish(gfx::WindowOffered{name, cells_px(cols), cells_px(rows), 7, 0, gfx::kCellPx,
                                           gfx::kCellPx, {}});
     };
@@ -4186,12 +4186,12 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
     offer(80, 24, "desk");
     Sayer<gfx::WindowOffered> desk_window(r, "zengine.window.desk");
     desk_window.publish(gfx::WindowOffered{"desk", cells_px(80), cells_px(24), 7});
-    desk_window.publish(gfx::WindowOffered{gfx::kTerminalWindow, cells_px(80), cells_px(24), 7});
+    desk_window.publish(gfx::WindowOffered{gfx::kTuiWindow, cells_px(80), cells_px(24), 7});
     CHECK(r.session().screen_w == cells_px(120));
     CHECK(r.session().screen_h == cells_px(40));
     CHECK(seat->asks.size() == 1);
 
-    SUBCASE("a terminal window with no terminal to measure offers no size, and Workshop comes up "
+    SUBCASE("a TUI window with no terminal to measure offers no size, and Workshop comes up "
             "in it in the room the last session restored") {
         TempDir none_dir("window-offered-none");
         PaneRig n;
@@ -4200,15 +4200,15 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
                               cells_px(150), cells_px(60), window_persist::Placement{})
                     .accepted);
         n.mount_workshop();
-        Sayer<gfx::WindowOffered> unmeasured(n, terminal_window_role());
-        unmeasured.publish(gfx::WindowOffered{gfx::kTerminalWindow, 0, 0, 7});
+        Sayer<gfx::WindowOffered> unmeasured(n, tui_window_role());
+        unmeasured.publish(gfx::WindowOffered{gfx::kTuiWindow, 0, 0, 7});
         CHECK(n.session().setup.active.name == "Measured");
         CHECK(n.session().screen_w == cells_px(150));
         CHECK(n.session().screen_h == cells_px(60));
     }
-    SUBCASE("the OS window offered the same way brings Workshop up in it: the palettes offered, the "
+    SUBCASE("the GUI window offered the same way brings Workshop up in it: the palettes offered, the "
             "areas placed on it, the place remembered and a paste asked of it") {
-        // ⚔ MUTATION (tests/mutants/workshop_desk.md#only-the-terminal-window): the offer of any
+        // ⚔ MUTATION (tests/mutants/workshop_desk.md#only-the-tui-window): the offer of any
         // window but the terminal's ignored -- nothing comes up.
         TempDir os_dir("sdl-window-offered");
         PaneRig o;
@@ -4257,7 +4257,7 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         CHECK(os->offered[0].x == 40);
         CHECK(os->offered[0].y == 60);
         CHECK_FALSE(os->offered[0].maximized);
-        // ...EVERY PALETTE OFFERED THE DIRECTORY, and Workshop's area placed on the OS window.
+        // ...EVERY PALETTE OFFERED THE DIRECTORY, and Workshop's area placed on the GUI window.
         std::vector<std::string> offered;
         for (const gfx::PaletteOffered& s : directory->offered) {
             offered.push_back(s.palette);
@@ -4353,12 +4353,12 @@ bool window_overlaid(pw::Window& window) {
 
 } // namespace
 
-TEST_CASE("in the terminal window a point in cells is the window's own cell, with no console row "
+TEST_CASE("in the TUI window a point in cells is the window's own cell, with no console row "
           "above the canvas, and the menu's press measurer reads each line's there") {
     PaneRig r;
     r.mount_workshop();
-    Sayer<gfx::WindowOffered> window(r, terminal_window_role());
-    window.publish(gfx::WindowOffered{gfx::kTerminalWindow, cells_px(120), cells_px(40), 7, 0,
+    Sayer<gfx::WindowOffered> window(r, tui_window_role());
+    window.publish(gfx::WindowOffered{gfx::kTuiWindow, cells_px(120), cells_px(40), 7, 0,
                                       gfx::kCellPx, gfx::kCellPx, {}});
     const Session& s = r.session();
     r.key(input::scan::kA);
@@ -4384,11 +4384,11 @@ TEST_CASE("in the terminal window a point in cells is the window's own cell, wit
     }
 }
 
-TEST_CASE("in the terminal window a row's point is the cell the window shows it on, and a press in "
+TEST_CASE("in the TUI window a row's point is the cell the window shows it on, and a press in "
           "cells there reaches the pane as that row and column") {
     DeskRig d;
-    // THE TERMINAL WINDOW SHOWS WORKSHOP'S AREA, so its own rows are the cells a point names.
-    REQUIRE(d.r.windows.window() == gfx::kTerminalWindow);
+    // THE TUI WINDOW SHOWS WORKSHOP'S AREA, so its own rows are the cells a point names.
+    REQUIRE(d.r.windows.window() == gfx::kTuiWindow);
     const std::string text = "abcdef";
     d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
         s.say(m, SeatRows{"alpha", {TextRow{text, gfx::colors::text},
@@ -4412,12 +4412,12 @@ TEST_CASE("in the terminal window a row's point is the cell the window shows it 
     }
 }
 
-TEST_CASE("in the terminal window a canvas part's point is the window's own cell, inside the "
+TEST_CASE("in the TUI window a canvas part's point is the window's own cell, inside the "
           "part") {
     SketchRig d;
     d.medium(false);
-    // THE TERMINAL WINDOW SHOWS WORKSHOP'S AREA.
-    REQUIRE(d.r.windows.window() == gfx::kTerminalWindow);
+    // THE TUI WINDOW SHOWS WORKSHOP'S AREA.
+    REQUIRE(d.r.windows.window() == gfx::kTuiWindow);
     const std::int64_t u = kPaneCanvasUnit;
     d.draw_named(
         {CanvasPart{"top", 0, 0, 4 * u, u}, CanvasPart{"low", 0, 2 * u, 4 * u, u}});
@@ -4724,7 +4724,7 @@ private:
 
 constexpr const char* kWindowSeatRole = "zengine.test.desk-window-seat";
 
-/// THE DESK OF `WindowDesk`, the stand-in terminal window telling Workshop its two rooms, and a
+/// THE DESK OF `WindowDesk`, the stand-in TUI window telling Workshop its two rooms, and a
 /// pane beside Attention whose role hears the window's pointer and draws its row in its area, the
 /// area shown there too.
 struct PointerDesk {
@@ -5042,7 +5042,7 @@ TEST_CASE("Workshop's own area of the window answers each button as itself: a pr
     // while Workshop's menu holds the desk in front re-asks the menu about it, and sends it
     // nothing.
     REQUIRE(p.window.click(p.frame(pane_kind::kLayouts), "layout:1"));
-    REQUIRE(p.d.directory->areas.at(p.area).window == gfx::kTerminalWindow);
+    REQUIRE(p.d.directory->areas.at(p.area).window == gfx::kTuiWindow);
     p.window.click(desk, rc, rr, 3);
     REQUIRE(s.context.open);
     std::size_t relayed = 0;

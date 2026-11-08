@@ -469,7 +469,7 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
 // WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 void WorkshopWeave::restore_window(const window_persist::LoadedWindow& window, loom::Mail& mail) {
     const window_persist::Placement& placement = window.placement;
-    // ---- The OS window's own room, kept whichever window this is ------------
+    // ---- The GUI window's own room, kept whichever window this is ------------
     // A run in another window writes it back as it read it, as it does the placement.
     session_.window_room_w = placement.room_w;
     session_.window_room_h = placement.room_h;
@@ -583,16 +583,16 @@ bool WorkshopWeave::say_restore_notice(std::int64_t cell_px) {
 bool WorkshopWeave::save_last_session(loom::Mail& mail) {
     // The viewport written is the normal window's, so a maximized close remembers the room the
     // weaver chose, with the maximized state beside it. The placement rides along as last reported,
-    // or as the file carried it; and the OS window's own room is this run's where the desk is in
-    // the OS window, else the one the file carried.
+    // or as the file carried it; and the GUI window's own room is this run's where the desk is in
+    // the GUI window, else the one the file carried.
     window_persist::Placement place;
     place.known = session_.placement_known;
     place.x = session_.place_x;
     place.y = session_.place_y;
     place.maximized = session_.place_maximized;
-    const bool os_window = window_name_ == graphics::kSdlWindow;
-    place.room_w = os_window ? session_.normal_w : session_.window_room_w;
-    place.room_h = os_window ? session_.normal_h : session_.window_room_h;
+    const bool gui_window = window_name_ == graphics::kSdlWindow;
+    place.room_w = gui_window ? session_.normal_w : session_.window_room_w;
+    place.room_h = gui_window ? session_.normal_h : session_.window_room_h;
     // THE WINDOW FILE FIRST, Workshop's own; then the owner is asked to save the run. Neither is
     // written where the session could not be read: the window's facts belong to that session.
     const std::string window_path = window_persist::path_beside(host_->session_path);

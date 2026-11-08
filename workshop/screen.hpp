@@ -810,7 +810,7 @@ struct Session {
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
     bool place_maximized = false;
-    /// THE OS WINDOW'S OWN NORMAL ROOM, as the session file kept it: what a run in another window
+    /// THE GUI WINDOW'S OWN NORMAL ROOM, as the session file kept it: what a run in another window
     /// writes back; 0 by 0 where none was kept.
     // WL-SESSION-20 -- agents/workshop/window-file.md
     std::int64_t window_room_w = 0;
@@ -1335,7 +1335,7 @@ std::string pane_window_text(const SetupPane* row, std::int64_t cell_px);
 bool pane_window_reads_words(const SetupPane* row);
 
 /// WHAT A `fit` AXIS STANDS ON, where it is not the pane's latest offer: a pane that offered
-/// nothing, or, in the OS window, an offer its latest is within a pixel of; empty otherwise.
+/// nothing, or, in the GUI window, an offer its latest is within a pixel of; empty otherwise.
 std::string pane_fit_note(const Session& s, const PaneRef& ref);
 
 
