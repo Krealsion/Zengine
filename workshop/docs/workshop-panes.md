@@ -282,7 +282,7 @@ Setup
 - **The provider key is a route, not a credential.** It says which namespace to read a pane key
   in. It does not say which package author created the pane, which binary is running, that the
   same author returned after a restart, or that anything claiming the string is authentic. The
-  setup by itself adds no role, role, discovery message or registry; the external pane
+  setup by itself adds no role, discovery message or registry; the external pane
   protocol adds a *live* role and a discovery message and **changes none of those non-claims** — a Loom role is a replacement-stable service
   route on this bus in this process, and never an author identity across a restart.
 - **Authored intent and resolved presentation have one path between them.** `setup.active.panes`

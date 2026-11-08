@@ -120,7 +120,7 @@ like.
 
 ## Words
 
-- Loom's words, weave, shape, role, role, grant, Sense and the rest:
+- Loom's words, weave, shape, role, grant, Sense and the rest:
   [Loom's terminology](https://github.com/Krealsion/Loom/blob/main/docs/terminology.md).
 - Artifact, weave and provider, three words and not synonyms:
   [run it](docs/getting-started.md#run-it).

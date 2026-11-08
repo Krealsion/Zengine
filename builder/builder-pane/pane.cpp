@@ -978,13 +978,13 @@ private:
         this->template facet<Actions>().declare(
             mail, rows_of(in), in,
             ws::causes_elsewhere(
-                {pane::kModeBrowse, pane::kModeRecipes, pane::kModeOutput, pane::kModeRole}, in,
+                {pane::kModeBrowse, pane::kModeRecipes, pane::kModeOutput, pane::kModeRoleLine}, in,
                 [](const std::string& m) { return rows_of(m); }));
     }
 
     /// THE MODE THIS PANE IS IN: the role line, the output reader, the recipe list, or browsing.
     const char* mode() const {
-        return role_.open      ? pane::kModeRole
+        return role_.open      ? pane::kModeRoleLine
                : output_.open  ? pane::kModeOutput
                : choosing_.open ? pane::kModeRecipes
                                 : pane::kModeBrowse;
@@ -1012,7 +1012,7 @@ private:
         const std::vector<ws::ActionCause> page{ws::cause_of<BuildOutputRequested>()};
         const std::vector<ws::ActionCause> source{ws::cause_of<RecipeSourceRequested>(),
                                                   ws::cause_of<OpenSourceRequested>()};
-        if (in == pane::kModeRole) {
+        if (in == pane::kModeRoleLine) {
             row(pane::kActionCommit, "load it", input::scan::kReturn, input::mod::kNone,
                 {ws::cause_of<PlanRowRequested>(), ws::cause_of<BuildRequested>(),
                  ws::cause_of<ProjectFrontierRequested>()},
@@ -1067,7 +1067,7 @@ private:
         row(pane::kActionRevert, "revert image", input::scan::kR, input::mod::kShift,
             {ws::cause_of<builder::RevertArtifact>()});
         row(pane::kActionLoadIt, "load it", input::scan::kO, input::mod::kNone,
-            {ws::cause_of<PlanNamesRequested>()}, pane::kModeRole);
+            {ws::cause_of<PlanNamesRequested>()}, pane::kModeRoleLine);
         row(pane::kActionRecipeNext, "recipe", input::scan::kC);
         row(pane::kActionRecipeBack, "recipe back", input::scan::kC, input::mod::kShift);
         row(pane::kActionFrontier, "frontier", input::scan::kF, input::mod::kNone,

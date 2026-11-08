@@ -3297,7 +3297,7 @@ void builder_in(BuilderRig& b, const std::string& mode, Standing standing) {
         b.r.key(input::scan::kReturn);
     } else if (mode == pane::kModeOutput) {
         b.letter(input::scan::kL, "l");
-    } else if (mode == pane::kModeRole) {
+    } else if (mode == pane::kModeRoleLine) {
         b.letter(input::scan::kO, "o");
         b.r.text("example.tally");
     }
@@ -3334,7 +3334,7 @@ const PressDriverOf kBuilderPresses{pane::kBuilderPaneRole, [](PressWitness& w) 
                             {pane::kModeBrowse, Standing::kRealized},
                             {pane::kModeRecipes, Standing::kRealized},
                             {pane::kModeOutput, Standing::kRealized},
-                            {pane::kModeRole, Standing::kRealized}};
+                            {pane::kModeRoleLine, Standing::kRealized}};
     for (const Drive& drive : drives) {
         std::size_t rows = 0;
         {

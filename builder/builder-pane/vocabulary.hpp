@@ -121,7 +121,7 @@ inline constexpr const char* kActionMenu = "builder.menu";
 inline constexpr const char* kModeBrowse = "browse";
 inline constexpr const char* kModeRecipes = "recipes";
 inline constexpr const char* kModeOutput = "output";
-inline constexpr const char* kModeRole = "role";
+inline constexpr const char* kModeRoleLine = "role";
 
 // ---- The ids the pane's own menu rows carry ---------------------------------------------
 //

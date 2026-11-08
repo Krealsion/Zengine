@@ -14,7 +14,7 @@ through the opening role and refuses every other answer in words; after the open
 only while the code is unchanged, it publishes a reading the Builder pane follows by name.
 
 **Alternatives considered.**
-- *Joining the role to a plan row's authored role* — rejected: that role is copied forward,
+- *Joining the held role to a plan row's authored role* — rejected: that role is copied forward,
   never observed; pinned by case `"the code behind a role is found by the weave holding it,
   never by a plan row's authored role"`.
 - *Taking the first recipe when several produce the artifact* — rejected: catalog order is

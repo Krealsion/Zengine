@@ -3066,7 +3066,7 @@ public:
     int cancels = 0;
 };
 
-/// The role in its role over a waitable reader, ears, the stand-in Timer, and its activation.
+/// The weave in its role over a waitable reader, ears, the stand-in Timer, and its activation.
 struct HeldRig {
     loom::Switchboard bus;
     Signal signal;

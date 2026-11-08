@@ -242,7 +242,6 @@ loom::WeaveId mount_button_seat(PaneRig& r, ButtonSeat*& seat, const char* role,
     // ...AND ITS ROOM ASKED, as a holder started afresh asks it, so the window showing its area
     // tells it the room.
     const std::string area = held_area_of(kind_of(r, role, pane));
-    const std::string role = role;
     seat->next = [area, role](ButtonSeat&, loom::Mail& m) {
         (void)m.as_role(role).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{area});
     };

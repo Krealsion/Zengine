@@ -312,7 +312,7 @@ public:
 struct ScriptedViews : Views {
     ScriptedInventory* inventory = nullptr;
     loom::WeaveId id;
-    std::unique_ptr<loom::Weave> parked; ///< the scripted owner while a doorless role holds the role
+    std::unique_ptr<loom::Weave> parked; ///< the scripted owner while a doorless weave holds the role
     loom::WeaveId doorless_id;
     static loom::Grant scripted_grant() {
         loom::Grant grant;
@@ -345,7 +345,7 @@ struct ScriptedViews : Views {
         doorless_id = r.bus.register_weave(std::move(owned), grant, inv::kInventoryRole);
         raw->zen_set_self(doorless_id);
     }
-    /// ...and the doorless role says something changed, as the role's holder.
+    /// ...and the doorless weave says something changed, as the role's holder.
     void doorless_changed() {
         r.bus.send(doorless_id, loom::Message(loom::to_value(InventoryHandDo{})));
         r.bus.drain_until_idle();

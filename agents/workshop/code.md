@@ -12,7 +12,7 @@ is [`contextual.md`](contextual.md); the recipes and the Builder's choice are
 LAW — The host reads the role's holder from the bus, the realized row with that WeaveId, and every recipe producing its artifact, at the ask; it chooses nothing, opens nothing and stores nothing.
 
 MEANS
-- an authored role that equals the role joins nothing: only the holder's minted WeaveId does;
+- an authored role that equals the held role joins nothing: only the holder's minted WeaveId does;
 - nobody holding, no realized row and no recipe are three absences, each its own sentence;
 - a `cmake_target` recipe carries its editing entry or no source; the reload refusal rides beside.
 

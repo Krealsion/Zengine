@@ -105,7 +105,8 @@ press, and the carry ends the press's canvas hold as lost (WL-CANVAS-05).
 
 `PaneObservationRequested` retains that one approval, narrowly, for repeated reads: the same
 current-gesture and actor check (`approve_gesture`) spends the gesture and records a lease of
-holder, role, pane, role, shape, version, subject and actor, one per pane and sixteen in all.
+holder, the holder's role, pane, the observed role, shape, version, subject and actor, one per pane and
+sixteen in all.
 Each `PaneObservationContinued` is judged again -- role holder, desk presence, subject, and an
 injected actor's live authority -- and any lapse refuses and forgets it; only the holder's own
 continuation or `PaneObservationEnded` touches a lease, and a request first forgets leases whose

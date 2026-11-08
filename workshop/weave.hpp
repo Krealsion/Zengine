@@ -1836,7 +1836,7 @@ private:
     struct ObservationLease {
         std::int64_t id = 0;
         loom::WeaveId holder{};
-        std::string role, pane, role, shape, subject;
+        std::string holder_role, pane, role, shape, subject; ///< the holder's role; the one observed
         std::int64_t version = 0;
         InputActor actor;
     };

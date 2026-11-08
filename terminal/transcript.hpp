@@ -40,7 +40,7 @@ inline const char* entry_kind(loom::TranscriptKind kind) noexcept {
 inline const char* entry_addressing(loom::Addressing addressing) noexcept {
     switch (addressing) {
     case loom::Addressing::Weave: return kAddressWeave;
-    case loom::Addressing::Role: return kAddressRole;
+    case loom::Addressing::Role: return kAddressRoleHolder;
     case loom::Addressing::Publish: return kAddressPublish;
     }
     return kAddressWeave;

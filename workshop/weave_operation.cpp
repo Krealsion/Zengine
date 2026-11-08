@@ -451,8 +451,8 @@ void WorkshopWeave::on(const PaneObservationRequested& asked, loom::Mail& mail) 
         // A LEASE WHOSE HOLDER NO LONGER HOLDS ITS ROLE can never be continued: forget it
         // before counting, so a departed provider's approvals cannot fill the book.
         std::erase_if(leases_, [&](const ObservationLease& l) {
-            return (l.role == role && l.pane == asked.pane) ||
-                   !host_->role_holder || host_->role_holder(l.role) != l.holder;
+            return (l.holder_role == role && l.pane == asked.pane) ||
+                   !host_->role_holder || host_->role_holder(l.holder_role) != l.holder;
         });
         if (leases_.size() >= kMaxObservationLeases)
             reason = "too many observations are active; pause one first";
@@ -469,7 +469,8 @@ void WorkshopWeave::on(const PaneObservationRequested& asked, loom::Mail& mail) 
 void WorkshopWeave::on(const PaneObservationContinued& asked, loom::Mail& mail) {
     const std::string role(mail.authored_role());
     const auto it = std::find_if(leases_.begin(), leases_.end(), [&](const ObservationLease& l) {
-        return l.id == asked.lease && l.role == role && l.pane == asked.pane && l.holder == mail.sender();
+        return l.id == asked.lease && l.holder_role == role && l.pane == asked.pane &&
+               l.holder == mail.sender();
     });
     if (role.empty() || it == leases_.end()) {
         (void)mail.answer(PaneObservationAnswered{false, "this observation is not current; start it again with a gesture", 0});
@@ -504,7 +505,7 @@ void WorkshopWeave::on(const PaneObservationContinued& asked, loom::Mail& mail) 
 void WorkshopWeave::on(const PaneObservationEnded& asked, loom::Mail& mail) {
     const std::string role(mail.authored_role());
     std::erase_if(leases_, [&](const ObservationLease& l) {
-        return (asked.lease == 0 || l.id == asked.lease) && l.role == role && l.pane == asked.pane &&
+        return (asked.lease == 0 || l.id == asked.lease) && l.holder_role == role && l.pane == asked.pane &&
                l.holder == mail.sender();
     });
 }

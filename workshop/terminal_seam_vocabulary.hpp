@@ -32,7 +32,7 @@ inline constexpr const char* kEntryAnswer = "answer";       ///< ...and answers 
 
 /// How a submitted entry was addressed, spelled for the same reason.
 inline constexpr const char* kAddressWeave = "weave";     ///< `#12`
-inline constexpr const char* kAddressRole = "role";       ///< `@role`
+inline constexpr const char* kAddressRoleHolder = "role"; ///< `@role`, whoever holds it
 inline constexpr const char* kAddressPublish = "publish"; ///< `*`
 
 /// One displayed observation. The instance plus observation identify an acquisition subject;
