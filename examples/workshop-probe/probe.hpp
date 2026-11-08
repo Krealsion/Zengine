@@ -48,7 +48,7 @@ struct RunProbe {
     std::string text;                ///< text to type after the chord, if any
     std::int64_t scancode = zengine::input::scan::kP;      ///< the chord's key (Ctrl+P)
     std::int64_t modifiers = zengine::input::mod::kCtrl;
-    std::string inspect = "zengine.guests";       ///< the role asked for the inventory
+    std::string inspect = zengine::workshop::kGuestsRole; ///< the role asked for the inventory
     std::string picture = "workshop-probe.bmp";   ///< where the fetched picture is written
     ZEN_SHAPE(RunProbe, 1, ZEN_FIELD(link), ZEN_FIELD(text), ZEN_FIELD(scancode),
               ZEN_FIELD(modifiers), ZEN_FIELD(inspect), ZEN_FIELD(picture));
