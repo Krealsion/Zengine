@@ -149,11 +149,11 @@ chose the short spelling ([how keys are spelled](#how-keys-are-spelled)), what i
 a file names it by. A `*` marks a key your own file moved or switched off. In the window, and in a
 Windows console, resting the pointer on a shut section's header shows its keys over the rows below
 until the pointer moves away. Which sections are open lasts while the desktop is reloaded.
-Beneath the list it names the keymap file this run reads and what reading it came to; a character
-the pane cannot draw there -- an `é` in your profile's folder, say -- is shown as `?`.
+Beneath the list it names the keymap file this run reads and what reading it came to, the name as
+it is spelled -- an `é` in your profile's folder too.
 `↑` `↓` `Home` `End` scroll it.
 
-![The Hotkeys pane in a window, the keymap file Renée-keymap.json it reads named as Ren?e-keymap.json beneath the list](images/hotkeys-keymap-path-window.png)
+![The Hotkeys pane in a window, the keymap file Renée-keymap.json it reads named beneath the list](images/hotkeys-keymap-path-window.png)
 
 ![The same Hotkeys pane in a terminal, the file named the same way](images/hotkeys-keymap-path-terminal.png)
 
@@ -313,9 +313,9 @@ The file and its folder may be named in any language. Below, Workshop was launch
 per-user folders, and the file its `--keymap` names, in a folder named `Zoë Ж`, then quit and
 launched again: the desk, the hidden titles and the keymap came back from there. The keymap gives
 the Pane Manager `alt+up` beside `ctrl+p`; Workshop's notice in the Notices pane and the Hotkeys
-pane both spell what they cannot draw as `?`.
+pane both draw the folder's name as it is spelled.
 
-![Workshop launched again from a folder named Zoë Ж: the desk saved there restored with its titles hidden, the legend offering ctrl+p and alt+up for panes, the Hotkeys pane naming the keymap file Zo? ?/keymap.json, and Notices saying it was applied with 2 overrides](images/hotkeys-keymap-folder-window.png)
+![Workshop launched again from a folder named Zoë Ж: the desk saved there restored with its titles hidden, the legend offering ctrl+p and alt+up for panes, the Hotkeys pane naming the keymap file Zoë Ж/keymap.json, and Notices saying it was applied with 2 overrides](images/hotkeys-keymap-folder-window.png)
 
 **What is refused, by name:**
 
