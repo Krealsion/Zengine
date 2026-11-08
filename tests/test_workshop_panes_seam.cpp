@@ -63,7 +63,7 @@ TEST_CASE("a pane's offer round-trips through the wire with its semantics intact
 // ---- The role's manual -------------------------------------------------------
 
 TEST_CASE("Workshop's role answers every shape it accepts from its manual, and the page names no other") {
-    // Asked as any weave asks a role (manual/docs/manual.md#an-role-answers-for-a-shape):
+    // Asked as any weave asks a role (manual/docs/manual.md#a-role-answers-for-a-shape):
     // every version Workshop's gate accepts is answered from a section under Commands or Hears,
     // and every such section is about a shape the gate lets in.
     PaneRig r;

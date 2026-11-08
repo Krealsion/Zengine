@@ -7,7 +7,7 @@
 // The role witness, shared by the suites of the roles that carry a manual: asked as any weave
 // asks it, a role answers `ShapeDocumentRequested` for every shape its gate accepts from its
 // page's Commands or Hears, and refuses a shape it does not accept. Reference:
-// manual/docs/manual.md#an-role-answers-for-a-shape.
+// manual/docs/manual.md#a-role-answers-for-a-shape.
 
 #include "manual/manual.hpp"
 #include "manual/vocabulary.hpp"
