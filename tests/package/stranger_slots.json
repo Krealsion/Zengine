@@ -1,6 +1,6 @@
 {
   "format": "zengine-slots",
-  "format_version": 1,
+  "format_version": 2,
   "about": "A stranger's pane's own colours, generated from the installed package as Zengine's are.",
   "role": "kitchen.plate",
   "colors": [

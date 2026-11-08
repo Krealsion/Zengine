@@ -20,7 +20,7 @@ shown -- it draws it in that area and hears your presses there -- and how long i
 and answers the pane exactly once for each menu: chosen, dismissed, withdrawn by Workshop, or
 refused. It performs nothing a row means, reads no pane's subject and holds no pane's authority.
 
-The menu it has open is its state, `HeldMenu` v3: the menu's number, who asked, the rows, the
+The menu it has open is its state, `HeldMenu` v4: the menu's number, who asked, the rows, the
 cursor, the room, the standard rows and the area it stands in. A reload keeps it, so a reloaded
 presenter shows the open menu again and answers it under the same number. How it laid the lines out
 is not state: a new image lays them out afresh. The seam between Workshop and whatever holds this
@@ -49,7 +49,7 @@ choose is spent by Workshop on the pane, and the pane is told nothing was chosen
 
 ### `MenuGranted`
 
-`MenuGranted` v3 asks the presenter to present one pane's menu, as menu number `menu`.
+`MenuGranted` v4 asks the presenter to present one pane's menu, as menu number `menu`.
 
 - **Takes:** `menu`, Workshop's number for this menu; `role` and `pane`, the pane that asked, as
   Loom authenticated it; `subject`, the pane's own word, echoed back; `rows`, the pane's rows;

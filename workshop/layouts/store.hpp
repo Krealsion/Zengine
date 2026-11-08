@@ -126,7 +126,7 @@ public:
     const std::vector<v2::PaneSettingRow>* counted(const PaneRef& ref) const;
     /// ...and the same rows as v1 says them.
     const std::vector<PaneSettingRow>* counted_v1(const PaneRef& ref) const;
-    /// AN ROLE'S ROLE-WIDE DECLARATION, the same way. Empty when kept, else the refusal.
+    /// A ROLE'S ROLE-WIDE DECLARATION, the same way. Empty when kept, else the refusal.
     std::string declare_role(const std::string& role, const std::vector<v2::PaneSettingRow>& rows,
                                loom::WeaveId from);
     /// What a role's declaration gives: Workshop's own, declared in code, or the counted
@@ -139,7 +139,7 @@ public:
     /// moved -- the desk put live, the row's settings or the counted declaration; 0 when the live
     /// layout has no such row.
     std::int64_t row_revision(const PaneRef& ref);
-    /// THE REVISION AN ROLE'S SETTINGS STAND AT, the same way; 0 when nothing declares.
+    /// THE REVISION A ROLE'S SETTINGS STAND AT, the same way; 0 when nothing declares.
     std::int64_t role_revision(const std::string& role);
     /// The revision every layout's settings stand at, minted afresh whenever the reading moved.
     std::int64_t layout_settings_revision();

@@ -31,7 +31,7 @@ namespace {
 namespace dp = zengine::desktop_pane;
 namespace pal = zengine::palette;
 
-/// A STAND-IN IN AN ROLE OF A CASE'S CHOOSING -- the palette's, or a stranger's -- that records
+/// A STAND-IN IN A ROLE OF A CASE'S CHOOSING -- the palette's, or a stranger's -- that records
 /// the numbers its rows came under and Workshop's answers, and asks a command run under whatever
 /// number a case gives it.
 class CommandAsker
@@ -186,7 +186,7 @@ TEST_CASE("the palette lists every action and pane a hand can reach, filters by 
     KeymapShown keys;
     keys.rows.push_back(row("above every mode -- the application's", kDesktopRole, "",
                             "desktop.terminal", "terminal", "ctrl+t"));
-    keys.rows.back().causes.push_back({"PaneLaunchRequested", 1, "to zengine.terminal/terminal"});
+    keys.rows.back().causes.push_back({"PaneLaunchRequested", 3, "to zengine.terminal/terminal"});
     keys.rows.push_back(row("above every mode -- the application's", kDesktopRole, "",
                             "desktop.palette", "palette", "ctrl+space"));
     keys.rows.push_back(row("last, where nothing more specific took the key -- the application's",

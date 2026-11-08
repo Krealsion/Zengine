@@ -30,7 +30,7 @@ struct CommandRunRequested {
     std::string role;
     std::string pane;
     std::string id;
-    ZEN_SHAPE(CommandRunRequested, 1, ZEN_FIELD(kind), ZEN_FIELD(role), ZEN_FIELD(pane),
+    ZEN_SHAPE(CommandRunRequested, 2, ZEN_FIELD(kind), ZEN_FIELD(role), ZEN_FIELD(pane),
               ZEN_FIELD(id));
 };
 

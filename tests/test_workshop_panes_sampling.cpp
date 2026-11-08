@@ -332,7 +332,7 @@ TEST_CASE("a role may ask the sample door; anonymous speech may not") {
     SampleBook book;
     const loom::WeaveId asker = seat_asker(r, book);
 
-    // AN ROLE ASKS AND IS ANSWERED. The rule names nobody -- there is no allow-list
+    // A ROLE ASKS AND IS ANSWERED. The rule names nobody -- there is no allow-list
     // and no `zengine.introspection` anywhere in the door -- so a tool added tomorrow
     // asks with no edit there.
     const std::uint64_t before = op::invocations();

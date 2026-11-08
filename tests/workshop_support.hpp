@@ -628,7 +628,9 @@ inline constexpr bool kLayoutsDoor =
     std::is_same_v<Shape, RoleSettingCommitRequested> ||
     std::is_same_v<Shape, PaneSettingPinRequested> || std::is_same_v<Shape, PaneSettingLockRequested> ||
     std::is_same_v<Shape, LayoutSettingsRequested> || std::is_same_v<Shape, SettingsWriteRequested> ||
-    std::is_same_v<Shape, SetupApplyRequested>;
+    std::is_same_v<Shape, SetupApplyRequested> || std::is_same_v<Shape, OfficeSettingsDeclared> ||
+    std::is_same_v<Shape, OfficeSettingsRequested> ||
+    std::is_same_v<Shape, OfficeSettingCommitRequested>;
 template <class Shape> inline const char* door_of() {
     return kLayoutsDoor<Shape> ? kLayoutsRole : kWorkshopProvider;
 }
@@ -2272,7 +2274,7 @@ struct SeatDo {
 /// A TOOL THAT ASKS THIS HOST'S DOORS, in a role of its own: what the Files weave is, reduced
 /// to the sentences a case needs. It asks `zengine.project` where this run began and to install or
 /// author a catalog, and asks `zengine.workshop` to open one source in the Editor, recording every
-/// answer -- the party each door was built for. It authors AS AN ROLE, because both doors
+/// answer -- the party each door was built for. It authors AS A ROLE, because both doors
 /// refuse anonymous speech; a rig that asked personally would be proving the refusal rather than
 /// the answer.
 struct DoorAskerState {
@@ -4130,7 +4132,7 @@ struct PaneRig {
         return plan_->outcome();
     }
 
-    /// WIRE WHAT STANDS BEHIND AN ROLE'S CODE the way `workshop.cpp` wires it: the bus's holder,
+    /// WIRE WHAT STANDS BEHIND A ROLE'S CODE the way `workshop.cpp` wires it: the bus's holder,
     /// this rig's realization owner's rows (none before `run_plan`), and the catalog it holds --
     /// each read at the moment a pane's Edit Code asks.
     void wire_code_source() {
@@ -5136,9 +5138,13 @@ inline PaneRef composer_ref() { return PaneRef{kComposerRole, kComposePane}; }
 class DesktopSeat
     : public loom::WeaveBase<DesktopSeat, SeatState,
                              loom::Accept<AppActionRequested, ActionsJudged, ActionsWithdrawn,
-                                          PaneLaunchAnswered, PaneCloseAnswered, SeatDo>,
+                                          PaneLaunchAnswered, PaneCloseAnswered,
+                                          v1::PaneLaunchAnswered, v2::PaneCloseAnswered,
+                                          v1::PaneToggleAnswered, SeatDo>,
                              loom::Emit<AppActions, DeselectRequested, PaneLaunchRequested,
-                                        PaneCloseRequested>> {
+                                        PaneCloseRequested, v1::PaneLaunchRequested,
+                                        v2::PaneLaunchRequested, v1::PaneCloseRequested,
+                                        v1::PaneToggleRequested>> {
 public:
     void on(const AppActionRequested& asked, loom::Mail& mail) {
         asked_.push_back(asked.id);
@@ -5167,6 +5173,10 @@ public:
     /// WHAT ITS LAUNCHES AND CLOSES CAME TO, kept in arrival order.
     void on(const PaneLaunchAnswered& said, loom::Mail&) { launched_.push_back(said); }
     void on(const PaneCloseAnswered& said, loom::Mail&) { closed_.push_back(said); }
+    /// ...AND AS A PANE BUILT ON AN EARLIER VOCABULARY HEARS THEM, the role named `office`.
+    void on(const v1::PaneLaunchAnswered& said, loom::Mail&) { launched_v1_.push_back(said); }
+    void on(const v2::PaneCloseAnswered& said, loom::Mail&) { closed_v2_.push_back(said); }
+    void on(const v1::PaneToggleAnswered& said, loom::Mail&) { toggled_v1_.push_back(said); }
 
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -5192,6 +5202,23 @@ public:
         (void)mail.as_role(kDesktopRole)
             .send_to_role(kLayoutsRole, PaneCloseRequested{role, pane});
     }
+    /// The same asks in an earlier vocabulary's versions.
+    void launch_v1(loom::Mail& mail, const std::string& office, const std::string& pane) {
+        (void)mail.as_role(kDesktopRole)
+            .send_to_role(kWorkshopProvider, v1::PaneLaunchRequested{office, pane});
+    }
+    void launch_v2(loom::Mail& mail, const std::string& office, const std::string& pane, bool keys) {
+        (void)mail.as_role(kDesktopRole)
+            .send_to_role(kWorkshopProvider, v2::PaneLaunchRequested{office, pane, keys});
+    }
+    void close_v1(loom::Mail& mail, const std::string& office, const std::string& pane) {
+        (void)mail.as_role(kDesktopRole)
+            .send_to_role(kLayoutsRole, v1::PaneCloseRequested{office, pane});
+    }
+    void toggle_v1(loom::Mail& mail, const std::string& office, const std::string& pane) {
+        (void)mail.as_role(kDesktopRole)
+            .send_to_role(kWorkshopProvider, v1::PaneToggleRequested{office, pane});
+    }
     /// A DESELECT ANSWER THAT ECHOES A NUMBER OF ITS OWN CHOOSING -- for the cases about an
     /// answer to an ask that is over, and about one that echoes nothing at all.
     void deselect_answering(loom::Mail& mail, std::uint64_t answering) {
@@ -5212,6 +5239,9 @@ public:
     const std::vector<ActionsWithdrawn>& withdrawals() const { return withdrawals_; }
     const std::vector<PaneLaunchAnswered>& launched() const { return launched_; }
     const std::vector<PaneCloseAnswered>& closed() const { return closed_; }
+    const std::vector<v1::PaneLaunchAnswered>& launched_v1() const { return launched_v1_; }
+    const std::vector<v2::PaneCloseAnswered>& closed_v2() const { return closed_v2_; }
+    const std::vector<v1::PaneToggleAnswered>& toggled_v1() const { return toggled_v1_; }
     /// THE NUMBER THE LAST ASK ARRIVED UNDER -- what an honest answer echoes, and what a case
     /// about a DISHONEST one has to be able to miss on purpose.
     std::uint64_t last_ask() const { return last_ask_; }
@@ -5236,6 +5266,9 @@ private:
     std::vector<ActionsWithdrawn> withdrawals_;
     std::vector<PaneLaunchAnswered> launched_;
     std::vector<PaneCloseAnswered> closed_;
+    std::vector<v1::PaneLaunchAnswered> launched_v1_;
+    std::vector<v2::PaneCloseAnswered> closed_v2_;
+    std::vector<v1::PaneToggleAnswered> toggled_v1_;
     std::uint64_t last_ask_ = 0;
 };
 

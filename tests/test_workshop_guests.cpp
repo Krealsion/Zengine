@@ -1384,7 +1384,7 @@ TEST_CASE("guests file: a door names a pane, a guide door lies within a capture 
     f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture"],"capture":["*"],"guide":["*"]}]})");
     CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
     CHECK_MESSAGE(why.find("names `guide` doors but may not guide") != std::string::npos, why);
-    // AN ROLE-WIDE DOOR THAT HOLDS A WEAVER-ONLY PANE stands: Workshop withholds that pane itself.
+    // A ROLE-WIDE DOOR THAT HOLDS A WEAVER-ONLY PANE stands: Workshop withholds that pane itself.
     f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture","guide"],)"
             R"("capture":["zengine.desktop/)" R"(*"],"guide":["zengine.desktop/launcher"]}]})");
     CHECK_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
@@ -1865,7 +1865,7 @@ TEST_CASE("door: version 2's inventory tells a guest its own row's powers and lo
 
 namespace {
 
-/// AN ROLE IN WORKSHOP'S NAME, as the door's suite needs one: it answers the desk read, counting
+/// A ROLE IN WORKSHOP'S NAME, as the door's suite needs one: it answers the desk read, counting
 /// each ask it hears, and declares the picture, so that a guest may ask to observe it.
 class DeskRole
     : public loom::WeaveBase<DeskRole, EarsState, loom::Accept<ws::DeskReadRequested>,
@@ -2143,7 +2143,7 @@ TEST_CASE("door: asked in an owner's role -- the Inventory pane's, Workshop's --
     judged = ask(gone, {zengine::workshop::scope::kBuild});
     CHECK_FALSE(judged.allowed);
     CHECK(judged.refusal.find("has no `build`") != std::string::npos);
-    // ONLY AN ROLE IS ANSWERED: the same question in no role's name hears nothing.
+    // ONLY A ROLE IS ANSWERED: the same question in no role's name hears nothing.
     asker->anonymous = true;
     asker->question = ws::ActorScopeRequested{session_of(builder), "inventory", {"build"}, "InventoryToolboxSave"};
     const std::size_t before = told.size();
@@ -2376,7 +2376,7 @@ struct NoticeTurn {
     ZEN_SHAPE(NoticeTurn, 1, ZEN_FIELD(desk));
 };
 
-/// AN ROLE IN WORKSHOP'S NAME THAT SAYS THE DESK MOVED, as Workshop does: on each turn a case
+/// A ROLE IN WORKSHOP'S NAME THAT SAYS THE DESK MOVED, as Workshop does: on each turn a case
 /// gives it, it publishes the notice with the desk number it is handed.
 class NoticeRole
     : public loom::WeaveBase<NoticeRole, EarsState, loom::Accept<NoticeTurn>,

@@ -5,6 +5,22 @@ Each entry is a mutant that a comment in
 the comment naming the entry by its path and heading. [The corpus's front page](README.md) says how
 an entry reads and how `tests/mutants/run.py` runs it.
 
+## version-four-unread
+
+The settings file's reader takes version 4 for a foreign version and refuses it.
+
+In `workshop/prefs_persist.hpp`:
+
+```diff
+-    if (ours && version != WorkshopPrefs::zen_version && version != v4::WorkshopPrefs::zen_version &&
++    if (ours && version != WorkshopPrefs::zen_version &&
+```
+
+Red in `zengine-workshop-persistence-tests`:
+
+- the settings file round-trips what it keeps: Workshop's own settings, another role's, pin lists
+  and locks
+
 ## passed-over-unsaid
 
 The desk comes up saying nothing of what the plan gave way from.

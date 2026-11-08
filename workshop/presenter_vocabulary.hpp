@@ -62,7 +62,7 @@ struct MenuGranted {
     std::vector<PaneMenuRow> standard;
     std::string pane_name;
     std::string area;
-    ZEN_SHAPE(MenuGranted, 3, ZEN_FIELD(menu), ZEN_FIELD(role), ZEN_FIELD(pane),
+    ZEN_SHAPE(MenuGranted, 4, ZEN_FIELD(menu), ZEN_FIELD(role), ZEN_FIELD(pane),
               ZEN_FIELD(subject), ZEN_FIELD(rows), ZEN_FIELD(room_rows), ZEN_FIELD(room_columns),
               ZEN_FIELD(standard), ZEN_FIELD(pane_name), ZEN_FIELD(area));
 };
@@ -175,7 +175,7 @@ struct HeldMenu {
     std::vector<PaneMenuRow> standard;
     std::string pane_name;
     std::string area;
-    ZEN_SHAPE(HeldMenu, 3, ZEN_FIELD(menu), ZEN_FIELD(correlation), ZEN_FIELD(role),
+    ZEN_SHAPE(HeldMenu, 4, ZEN_FIELD(menu), ZEN_FIELD(correlation), ZEN_FIELD(role),
               ZEN_FIELD(pane), ZEN_FIELD(subject), ZEN_FIELD(rows), ZEN_FIELD(cursor),
               ZEN_FIELD(room_rows), ZEN_FIELD(room_columns), ZEN_FIELD(standard),
               ZEN_FIELD(pane_name), ZEN_FIELD(area));

@@ -90,7 +90,7 @@ class FirstRun
                        gfx::AreaButtonChanged>,
           loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::RoleSettingsDeclared,
                      ws::RoleSettingsRequested, ws::RoleSettingCommitRequested,
-                     ws::PaneLaunchRequested, ws::v2::PaneLaunchRequested, ws::PaneCloseRequested,
+                     ws::PaneLaunchRequested, ws::PaneCloseRequested,
                      ws::PaneInventoryRequested, ws::v2::PaneOperationRequested,
                      ws::EditorSwitchRequested, ws::EditorSwitchConfirmed,
                      ws::EditorSwitchQuietStatusRequested, launcher::LaunchCatalogRequested,
@@ -628,7 +628,7 @@ private:
                 kWorkshop, ws::PaneLaunchRequested{kRole, kStory}, story_launch_ask_);
         } else {
             (void)mail.as_role(kRole).send_to_role(
-                kWorkshop, ws::v2::PaneLaunchRequested{kRole, kStory, false}, story_launch_ask_);
+                kWorkshop, ws::PaneLaunchRequested{kRole, kStory, false}, story_launch_ask_);
         }
     }
 

@@ -444,6 +444,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneKeyboardRequested,
                                           zengine::workshop::PaneMenuRequested,
                                           zengine::workshop::PaneManageRequested,
+                                          zengine::workshop::v1::PaneManageRequested,
                                           zengine::workshop::PaneQuitAnswered,
                                           zengine::workshop::QuitDeliveryRefusalNoted,
                                           // an inspector's pane subject: which pane, the
@@ -457,8 +458,12 @@ class WorkshopWeave
                                           zengine::workshop::AppActions,
                                           zengine::workshop::v2::AppActions,
                                           zengine::workshop::PaneLaunchRequested,
-                                          zengine::workshop::v2::PaneLaunchRequested,
                                           zengine::workshop::PaneToggleRequested,
+                                          // ...and as a pane built on an earlier vocabulary
+                                          // asks them, the role named `office`
+                                          zengine::workshop::v1::PaneLaunchRequested,
+                                          zengine::workshop::v2::PaneLaunchRequested,
+                                          zengine::workshop::v1::PaneToggleRequested,
                                           zengine::workshop::KeymapEditRequested,
                                           zengine::workshop::DeselectRequested,
                                           zengine::workshop::PaneInventoryRequested,
@@ -530,6 +535,8 @@ class WorkshopWeave
                                         zengine::workshop::ActionsWithdrawn,
                                         zengine::workshop::PaneLaunchAnswered,
                                         zengine::workshop::PaneToggleAnswered,
+                                        zengine::workshop::v1::PaneLaunchAnswered,
+                                        zengine::workshop::v1::PaneToggleAnswered,
                                         zengine::workshop::KeymapEditAnswered,
                                         zengine::workshop::PaneInventory,
                                         zengine::workshop::KeymapShown,
@@ -890,7 +897,7 @@ public:
     // the holder, registers nothing (Loom MSG-07). A role is a live service route, not an author's
     // identity.
 
-    /// AN ROLE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
+    /// A ROLE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
     /// is bounded before a byte is retained.
     void on(const PaneOffered& offer, loom::Mail& mail);
     void on(const v2::PaneOffered& offer, loom::Mail& mail);
@@ -1016,16 +1023,23 @@ public:
 
     /// OPEN THIS PANE, OR PUT THE WEAVER IN IT. Resolved against the ONE inventory, seated
     /// through the same door the launcher and a restore share, and answered either way.
+    /// An earlier vocabulary's launch is read as the current one and answered in its version.
     void on(const PaneLaunchRequested& asked, loom::Mail& mail);
+    void on(const v1::PaneLaunchRequested& asked, loom::Mail& mail);
     void on(const v2::PaneLaunchRequested& asked, loom::Mail& mail);
-    void launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail);
+    void launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail,
+                      std::uint32_t answer_version = PaneLaunchAnswered::zen_version);
 
     /// SHOW IT IF HIDDEN, HIDE IT IF SHOWN -- judged against the desk as it is NOW, through the
     /// launch above or this desk's own unseat, so a presenter's stale reading cannot make a toggle
     /// mean the other thing.
     void on(const PaneToggleRequested& asked, loom::Mail& mail);
+    void on(const v1::PaneToggleRequested& asked, loom::Mail& mail);
+    void toggle_asked(const PaneToggleRequested& asked, loom::Mail& mail,
+                      std::uint32_t answer_version);
     void judge_toggle(const PaneToggleRequested& asked,
-                      const std::shared_ptr<loom::DeferredAnswer>& held, loom::Mail& mail);
+                      const std::shared_ptr<loom::DeferredAnswer>& held, loom::Mail& mail,
+                      std::uint32_t answer_version);
 
     /// CHANGE HOW ONE ACTION IS REQUESTED: the candidate map judged whole, applied live, then
     /// written -- or refused with nothing changed. Answered on the delivery that asked.
@@ -1104,6 +1118,7 @@ public:
     /// route to a pane that is covered, closed or consumes every right press; judged against
     /// the menu answer it continues.
     void on(const PaneManageRequested& asked, loom::Mail& mail);
+    void on(const v1::PaneManageRequested& asked, loom::Mail& mail) { on(current(asked), mail); }
 
     /// ONE PANE'S ANSWER TO THE QUIT ASK. Counted against the fan-out `quit` recorded; the
     /// last answer decides -- every permission ends the process, any refusal keeps it open,

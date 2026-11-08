@@ -41,7 +41,7 @@ public:
     /// A weave with no role, said by the name a case gives it.
     void name(loom::WeaveId id, std::string label) { labels_[id.value] = std::move(label); }
 
-    /// AN ROLE LEFT OUT: nothing it says or is said is kept -- a window and its directory, which
+    /// A ROLE LEFT OUT: nothing it says or is said is kept -- a window and its directory, which
     /// every repaint speaks to, in a conversation about something else.
     void without(std::string role) { left_out_.push_back(std::move(role)); }
 

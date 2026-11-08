@@ -618,25 +618,24 @@ What a person meets on this route:
 
 ### Giving Workshop's input session back
 
-Workshop holds one input session at a time and it is the LINK's far session that holds it, so a
+Workshop holds one input session at a time and it is the LINK's far Loom session that holds it, so a
 run that ends without closing one leaves every later run on that link refused `busy: ... held by
 this connection, opened for "loom session run <name>"` — for as long as the link lives, which is
 as long as the session host does. What gives it
-back is the tool's cleanup (`ctx.on_cleanup`, registered the moment the session is opened), and
+back is the tool's cleanup (`ctx.on_cleanup`, registered the moment the input session is opened), and
 the three ways a run can end are not the same here:
 
 | how the run ended | what happens to Workshop's input session |
 |---|---|
 | it finished, failed, or the tool raised | the cleanup closes it, and the run records the Input owner's own answer |
-| `loom-session cancel` | the cleanup still runs — a cancellation ends the tool's work, not its giving back — and the next run on the same link opens a session normally |
-| `loom-session cancel --force` | nothing of the tool runs: the session stays held, and the run says so rather than claiming a close |
-| the worker itself died (the run is `crashed`) | nothing of the tool runs either -- there is nobody left to ask -- so the session stays held exactly as after `--force`. `cancel` on such a run stops what the worker left running; it does not give anything back |
-| the link is lost | nothing can be closed from here; Workshop's guest door closes a lost guest's session, which is the only thing that does |
+| `loom-session cancel` | the cleanup still runs — a cancellation ends the tool's work, not its giving back — and the next run on the same link opens an input session normally |
+| `loom-session cancel --force` | nothing of the tool runs: the input session stays held, and the run says so rather than claiming a close |
+| the worker itself died (the run is `crashed`) | nothing of the tool runs either -- there is nobody left to ask -- so the input session stays held exactly as after `--force`. `cancel` on such a run stops what the worker left running; it does not give anything back |
+| the link is lost | nothing can be closed from here; Workshop's guest door closes a lost guest's input session, which is the only thing that does |
 
 A cleanup line reading `cleanup close input session <n>: done` is the Input owner's answer, not
 an attempt; anything else names what actually happened. If a `--force` left one held, ending the
-link — stop the session host, or let Workshop drop the guest — is what releases it, because the
-holder Workshop knows is the far session and not the run.
+link — stop the session host, or let Workshop drop the guest — is what releases it, because the holder Workshop knows is the far Loom session and not the run.
 
 ### Following what an owner says, instead of reading its pane
 

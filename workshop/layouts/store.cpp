@@ -988,7 +988,7 @@ RoleSettingCommitAnswered LayoutStore::commit_role(const std::string& refused,
     const std::string handed =
         applied + (not_written.empty() ? "; written" : "; not written: " + not_written);
     const bool failed = !not_written.empty() && !host_->prefs_path.empty();
-    // AN ROLE'S OWN SETTING, KEPT AS ASKED, IS ITS BOOKKEEPING: said only when it was not handed
+    // A ROLE'S OWN SETTING, KEPT AS ASKED, IS ITS BOOKKEEPING: said only when it was not handed
     // or not written; anyone else's commit is said as it landed (WL-NOTE-06).
     if (!for_itself || failed || applied.rfind("kept; not handed", 0) == 0) {
         say((asked.clear ? "cleared " + asked.key
@@ -1179,7 +1179,7 @@ PaneSettingLockAnswered LayoutStore::lock(const std::string& refused,
     std::vector<std::string> written;
     std::string done;
     if (target.find('/') == std::string::npos) {
-        // AN ROLE-WIDE SETTING HAS ONE VALUE, so a lock on it holds everywhere and pins nothing.
+        // A ROLE-WIDE SETTING HAS ONE VALUE, so a lock on it holds everywhere and pins nothing.
         const std::vector<v2::PaneSettingRow>* rows = role_rows(target);
         if (rows == nullptr) {
             return refuse("nothing declares role-wide settings for `" + target + "` here");

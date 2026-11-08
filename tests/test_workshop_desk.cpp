@@ -4015,7 +4015,7 @@ TEST_CASE("a pane whose role draws in no graphics window has no area there, and 
         return false;
     };
 
-    // AN ROLE THAT TAKES NO WINDOW'S ROOM: no area, and its frame says it draws in no window.
+    // A ROLE THAT TAKES NO WINDOW'S ROOM: no area, and its frame says it draws in no window.
     AreaSeat<false>* rows_seat = nullptr;
     const std::int64_t rows_kind = open_area_seat(d.r, kRowSeatRole, "rows", &rows_seat);
     REQUIRE(rows_kind != kNoPaneKind);
@@ -4023,7 +4023,7 @@ TEST_CASE("a pane whose role draws in no graphics window has no area there, and 
     CHECK(d.directory->areas.count(pane_area(kRowSeatRole, "rows")) == 0);
     CHECK(shows(std::string("Seat") + kExternalNoWindow));
 
-    // AN ROLE THAT TAKES ONE: its area, placed in the window.
+    // A ROLE THAT TAKES ONE: its area, placed in the window.
     AreaSeat<true>* seat = nullptr;
     const std::int64_t kind = open_area_seat(d.r, kAreaSeatRole, "seat", &seat);
     REQUIRE(kind != kNoPaneKind);

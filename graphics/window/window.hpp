@@ -61,7 +61,7 @@ struct WindowState {
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
     std::vector<PaletteOffered> palettes;
-    ZEN_SHAPE(WindowState, 10, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 11, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals), ZEN_FIELD(palettes));
 };
 
@@ -447,7 +447,7 @@ public:
         }
     }
 
-    /// SHAPED BY AN ROLE THAT ARRANGES IN IT: its title and its size, the medium's to set. A
+    /// SHAPED BY A ROLE THAT ARRANGES IN IT: its title and its size, the medium's to set. A
     /// shaping from any other role, or naming another window, changes nothing. A size that
     /// changed offers the window again, so its arrangers place for it.
     void on(const WindowShaped& s, loom::Mail& mail) {

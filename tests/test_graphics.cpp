@@ -34,6 +34,7 @@
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/palette.hpp"
 #include "graphics_suite/colors.hpp" // generated from tests/graphics_slots.json
+#include "graphics_suite/colors_v1.hpp" // ...and from a version-1 file, tests/graphics_slots_v1.json
 #include "graphics/window/terminal_io.hpp"
 #include "graphics/window/window_sdl.hpp"
 #include "graphics/window/window_tui.hpp"
@@ -4369,7 +4370,7 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
     CHECK(row_says(r.shown().rows, 0, "turn 2"));
 }
 
-/// AN ROLE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
+/// A ROLE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
 class RowForger
     : public loom::WeaveBase<RowForger, GraphicsTestOwner, loom::Accept<>,
                              loom::Emit<ws::v2::PaneSettings>> {};
@@ -5591,10 +5592,18 @@ TEST_CASE("a slot paints the palette's colour for the role that exposes it, else
     CHECK(painted(cells, gfx::themes::night())[0] == "  OO");
 }
 
+TEST_CASE("a version-1 slots file, which names its role office, generates its pane's colours as a "
+          "version-2 file does") {
+    const gfx::SlotColor plate = graphics_suite_v1::colors::plate;
+    CHECK(std::string(plate.name) == "plate");
+    CHECK(plate.rgba == 0x3a4b62ffu);
+    CHECK(std::string(plate.like) == "background");
+}
+
 namespace {
 
 /// Operands as a drawer built against a vocabulary before colours were named drew them: a colour
-/// a role beside an exact value (`Color` version 1).
+/// a palette role beside an exact value (`Color` version 1).
 struct V1Paint {
     std::int64_t role = -1;
     std::int64_t rgb = -1;
@@ -6504,7 +6513,7 @@ TEST_CASE("an area's arranger reads what the TUI window shows of it: its text by
     CHECK_FALSE(d.read("test.nowhere").has_value());
     REQUIRE(d.heard.refused.size() == 2);
     CHECK(d.heard.refused[0] == "area 'test.mine' is read only by the role that placed it");
-    CHECK(d.heard.refused[1] == "window 'terminal' shows no area 'test.nowhere'");
+    CHECK(d.heard.refused[1] == "window 'tui' shows no area 'test.nowhere'");
 }
 
 TEST_CASE("an area whose owner was told a room it must draw whole reads waiting until the owner "
@@ -7268,7 +7277,7 @@ TEST_CASE("a GUI window takes its title and its size from a role that arranges a
     REQUIRE(t.light.grown.empty());
     const std::size_t offers = t.platform.heard.offers.size();
 
-    // AN ROLE THAT ARRANGES NOTHING HERE, and a shaping naming another window: nothing changes.
+    // A ROLE THAT ARRANGES NOTHING HERE, and a shaping naming another window: nothing changes.
     auto made = std::make_unique<Arranger>();
     Arranger* raw = made.get();
     loom::Grant g = loom::emit_default_grant(*raw);

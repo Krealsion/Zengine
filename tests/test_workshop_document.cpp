@@ -263,7 +263,7 @@ struct CloserState {
     ZEN_SHAPE(CloserState, 1, ZEN_FIELD(closes));
 };
 
-/// A WEAVE IN AN ROLE OF ITS OWN that can say a close, as that role.
+/// A WEAVE IN A ROLE OF ITS OWN that can say a close, as that role.
 class Closer : public loom::WeaveBase<Closer, CloserState, loom::Accept<>,
                                       loom::Emit<gfx::SurfaceCloseRequested>> {};
 

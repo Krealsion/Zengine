@@ -400,7 +400,7 @@ public:
         settle(mail);
     }
 
-    /// AN ROLE ASKS THIS PANE TO INSPECT A PANE -- the Pane Manager's `inspect in Info` row --
+    /// A ROLE ASKS THIS PANE TO INSPECT A PANE -- the Pane Manager's `inspect in Info` row --
     /// and the ask is the property view's own inspect (`PropertyView::inspect_asked`).
     void on(const InspectPaneRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {

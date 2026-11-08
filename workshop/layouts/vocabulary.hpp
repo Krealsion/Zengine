@@ -169,7 +169,7 @@ struct SessionSaveAnswered {
 struct WeaversActRequested {
     std::int64_t gesture = 0;
     std::string role;
-    ZEN_SHAPE(WeaversActRequested, 1, ZEN_FIELD(gesture), ZEN_FIELD(role));
+    ZEN_SHAPE(WeaversActRequested, 2, ZEN_FIELD(gesture), ZEN_FIELD(role));
 };
 
 /// ...ANSWERED: whether it is.

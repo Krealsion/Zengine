@@ -400,7 +400,7 @@ TEST_CASE("the manual the Terminal answers names exactly the commands it declare
     check_answered_manual(reader, pane::kTerminalPane, declared);
 }
 
-/// AN ROLE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
+/// A ROLE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
 struct ForgerState {
     ZEN_SHAPE(ForgerState, 1);
 };

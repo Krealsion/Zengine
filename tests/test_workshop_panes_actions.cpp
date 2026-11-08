@@ -874,7 +874,7 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
 
 namespace {
 
-/// AN ROLE THAT EDITS A BINDING THROUGH THE HOST'S DOOR, as the Pane Manager's keys table does:
+/// A ROLE THAT EDITS A BINDING THROUGH THE HOST'S DOOR, as the Pane Manager's keys table does:
 /// it asks `asked` when driven, and keeps each answer.
 class KeymapEditSeat : public loom::WeaveBase<KeymapEditSeat, SeatState,
                                               loom::Accept<SeatDo, KeymapEditAnswered>,
@@ -2364,6 +2364,54 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     REQUIRE_FALSE(desk->launched().empty());
     CHECK(desk->launched().back().opened);
     CHECK(r.session().panes.has(kind));
+}
+
+TEST_CASE("a pane built on an earlier vocabulary closes, launches and toggles as it says, the role "
+          "named office, and is answered in the version it asked in") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#earlier-close-answered-now): the owner
+    // answering an earlier close in the current version -- the asker never hears it.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    DesktopSeat* desk = mount_desktop(r);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
+    const PaneRef hello{kHelloRole, kHelloPane};
+    REQUIRE(r.session().panes.has(kind));
+
+    desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
+        d.close_v1(m, kHelloRole, kHelloPane);
+    });
+    REQUIRE(desk->closed_v2().size() == 1);
+    CHECK(desk->closed_v2().back().closed);
+    CHECK(desk->closed_v2().back().office == kHelloRole);
+    CHECK(desk->closed().empty());
+    CHECK_FALSE(has_pane(r.session().setup.active, hello));
+
+    desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
+        d.launch_v1(m, kHelloRole, kHelloPane);
+    });
+    REQUIRE(desk->launched_v1().size() == 1);
+    CHECK(desk->launched_v1().back().opened);
+    CHECK(desk->launched_v1().back().office == kHelloRole);
+    CHECK(desk->launched().empty());
+    CHECK(r.session().panes.has(kind));
+
+    // A VERSION-2 LAUNCH OF A PANE ALREADY HERE, without the keys: answered at version 1, focus
+    // left where it was.
+    desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
+        d.launch_v2(m, kHelloRole, kHelloPane, false);
+    });
+    REQUIRE(desk->launched_v1().size() == 2);
+    CHECK_FALSE(desk->launched_v1().back().focused);
+    CHECK(desk->launched().empty());
+
+    desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
+        d.toggle_v1(m, kHelloRole, kHelloPane);
+    });
+    REQUIRE(desk->toggled_v1().size() == 1);
+    CHECK(desk->toggled_v1().back().office == kHelloRole);
+    CHECK(desk->toggled_v1().back().refusal.empty());
 }
 
 TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row stays in the live layout, hidden, "

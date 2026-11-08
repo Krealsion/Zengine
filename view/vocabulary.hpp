@@ -60,7 +60,7 @@ struct ViewAnswer {
     std::string reason;
     std::string role;
     bool fresh = false;
-    ZEN_SHAPE(ViewAnswer, 1, ZEN_FIELD(session), ZEN_FIELD(action), ZEN_FIELD(ok),
+    ZEN_SHAPE(ViewAnswer, 2, ZEN_FIELD(session), ZEN_FIELD(action), ZEN_FIELD(ok),
               ZEN_FIELD(reason), ZEN_FIELD(role), ZEN_FIELD(fresh));
 };
 

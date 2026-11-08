@@ -15,8 +15,8 @@ lands a press, its availability its record's. Workshop keeps its doors, its rate
 authority, its own words and parts (the band, Layouts, menus, a pane it draws itself), and the
 covers by its own order: in the window's answer, an area the asking arranger owns hides nothing. A
 stamp names a pane by a fingerprint of the window's answer, the window's incarnation beside it. One
-version of each shape stands: `DeskRead` v3, `PaneView` v7, `PanePoint` v3, `DeskStamps` v3,
-`PaneStamp` v3, `DeskView` v4; the older ones go.
+version of each shape stands: `DeskRead` v4, `PaneView` v7, `PanePoint` v3, `DeskStamps` v3,
+`PaneStamp` v3, `DeskView` v5; the older ones go.
 
 **Alternatives considered.**
 - *The window publishing what each area shows after every showing* -- argued against: a message an

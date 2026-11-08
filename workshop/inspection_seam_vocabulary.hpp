@@ -33,7 +33,7 @@ struct ShownProperty {
 struct InspectPaneRequested {
     std::string role;
     std::string pane;
-    ZEN_SHAPE(InspectPaneRequested, 1, ZEN_FIELD(role), ZEN_FIELD(pane));
+    ZEN_SHAPE(InspectPaneRequested, 2, ZEN_FIELD(role), ZEN_FIELD(pane));
 };
 
 /// Ask for the subject as it is now, answered to the asking incarnation alone.
@@ -49,7 +49,7 @@ struct PaneSubjectShown {
     std::string name;         ///< the inventory's name for it, or its key when nothing offers it
     std::int64_t subject = 0; ///< what `properties` address, named by the host; 0 is none
     std::vector<ShownProperty> properties;
-    ZEN_SHAPE(PaneSubjectShown, 1, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
+    ZEN_SHAPE(PaneSubjectShown, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
               ZEN_FIELD(subject), ZEN_FIELD(properties));
 };
 

@@ -265,7 +265,7 @@ while a switch holds them still.
 
 ### `KeymapShown`
 
-`KeymapShown` v4 ([`workshop/desktop_seam_vocabulary.hpp`](../../workshop/desktop_seam_vocabulary.hpp)), from `zengine.workshop`, its account of the keys in force. The standard Editor asks for it as it starts and hears it
+`KeymapShown` v5 ([`workshop/desktop_seam_vocabulary.hpp`](../../workshop/desktop_seam_vocabulary.hpp)), from `zengine.workshop`, its account of the keys in force. The standard Editor asks for it as it starts and hears it
 again whenever it changes: the keys its right-press menu shows beside its rows.
 
 ### `NeovimStartRequested`

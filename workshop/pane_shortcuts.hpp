@@ -35,7 +35,7 @@ struct PaneShortcutsWithdrawn {
 struct PaneShortcutInvoked {
     std::string role, pane, action;
     std::int64_t holder = 0;
-    ZEN_SHAPE(PaneShortcutInvoked, 1, ZEN_FIELD(role), ZEN_FIELD(pane),
+    ZEN_SHAPE(PaneShortcutInvoked, 2, ZEN_FIELD(role), ZEN_FIELD(pane),
               ZEN_FIELD(action), ZEN_FIELD(holder));
 };
 } // namespace zengine::workshop

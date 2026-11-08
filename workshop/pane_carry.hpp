@@ -70,7 +70,7 @@ struct PaneCanvasValueDrop {
     std::string under{};
     std::string part{};
     std::int64_t drawing = 0;
-    ZEN_SHAPE(PaneCanvasValueDrop, 4, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x),
+    ZEN_SHAPE(PaneCanvasValueDrop, 5, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(data), ZEN_FIELD(source_role), ZEN_FIELD(source_pane),
               ZEN_FIELD(token), ZEN_FIELD(under), ZEN_FIELD(part), ZEN_FIELD(drawing));
 };

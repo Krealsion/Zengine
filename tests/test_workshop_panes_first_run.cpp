@@ -857,7 +857,7 @@ TEST_CASE("WL-FIRST-02: the quick setup lists the setups the launcher lists, and
                                v2::PaneOperationRequested::zen_version, kWorkshopProvider));
     CHECK_FALSE(v.grant.permits_role(v2::PaneOperationRequested::zen_name,
                                      v2::PaneOperationRequested::zen_version, la::kLauncherRole));
-    CHECK(v.grant.permits_role(v2::PaneLaunchRequested::zen_name, v2::PaneLaunchRequested::zen_version,
+    CHECK(v.grant.permits_role(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version,
                                kWorkshopProvider));
     CHECK(v.grant.permits_role(zengine::view::ViewWiringRequested::zen_name,
                                zengine::view::ViewWiringRequested::zen_version, kTallyPanel));

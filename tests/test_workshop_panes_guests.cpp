@@ -1032,7 +1032,7 @@ struct DeafDoorTurn {
     ZEN_SHAPE(DeafDoorTurn, 1);
 };
 
-/// AN ROLE HOLDING `zengine.guests` THAT TAKES NOT THE QUESTION: there is a door's role, so
+/// A ROLE HOLDING `zengine.guests` THAT TAKES NOT THE QUESTION: there is a door's role, so
 /// the ask is refused rather than told no one holds it.
 class DeafDoor : public loom::WeaveBase<DeafDoor, DeafDoorState, loom::Accept<DeafDoorTurn>> {
 public:

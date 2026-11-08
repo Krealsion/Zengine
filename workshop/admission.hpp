@@ -31,7 +31,7 @@ inline loom::Grant inventory_role_grant() {
 }
 
 // THE QUICK SETUP'S SPEECH, and nothing more: its two panes, its two settings, a launch of a pane
-// to Workshop -- either version -- and its close to the layouts' owner; the room asked of the
+// to Workshop and its close to the layouts' owner; the room asked of the
 // graphics directory and its drawing to the two windows; the editor switch's four asks, its
 // status the quiet one, to the switch's role alone; Workshop asked to approve a start for the
 // hand, and the launcher asked for its listing and a start; and every running view asked what its
@@ -51,7 +51,6 @@ inline loom::Grant first_run_role_grant() {
     to(RoleSettingsRequested::zen_name, RoleSettingsRequested::zen_version, layouts);
     to(RoleSettingCommitRequested::zen_name, RoleSettingCommitRequested::zen_version, layouts);
     to(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version, workshop);
-    to(v2::PaneLaunchRequested::zen_name, v2::PaneLaunchRequested::zen_version, workshop);
     to(v2::PaneOperationRequested::zen_name, v2::PaneOperationRequested::zen_version, workshop);
     to(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version, layouts);
     to(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version, workshop);

@@ -1,6 +1,6 @@
 {
   "format": "zengine-slots",
-  "format_version": 1,
+  "format_version": 2,
   "about": "The graphics suite's own slots: a pane's colours, generated as a stranger's are.",
   "role": "test.slotted",
   "colors": [

@@ -463,7 +463,7 @@ struct PaletteSlots {
     std::string role;
     std::vector<PaletteColor> colors;
     std::vector<PaletteSize> sizes{};
-    ZEN_SHAPE(PaletteSlots, 2, ZEN_FIELD(role), ZEN_FIELD(colors), ZEN_FIELD(sizes));
+    ZEN_SHAPE(PaletteSlots, 3, ZEN_FIELD(role), ZEN_FIELD(colors), ZEN_FIELD(sizes));
     friend bool operator==(const PaletteSlots&, const PaletteSlots&) = default;
 };
 
@@ -479,7 +479,7 @@ struct PaletteOffered {
     std::vector<PaletteSize> sizes{};
     std::vector<PaletteSlots> slots;
     std::string outline = "+-|";
-    ZEN_SHAPE(PaletteOffered, 2, ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(colors),
+    ZEN_SHAPE(PaletteOffered, 3, ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(colors),
               ZEN_FIELD(fonts), ZEN_FIELD(sizes), ZEN_FIELD(slots), ZEN_FIELD(outline));
     friend bool operator==(const PaletteOffered&, const PaletteOffered&) = default;
 };

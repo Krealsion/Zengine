@@ -3007,18 +3007,33 @@ TEST_CASE("the settings file round-trips what it keeps: Workshop's own settings,
     REQUIRE(all.roles.size() == 2);
     CHECK(all.roles[0].role == "test.skin");
     CHECK(all.roles[1].role == prefs_persist::kWorkshopRole);
-    // ...AND A VALUE PUT BACK AT ITS DEFAULT TAKES ITS KEY, AND AN ROLE KEEPING NOTHING, AWAY.
+    // ...AND A VALUE PUT BACK AT ITS DEFAULT TAKES ITS KEY, AND A ROLE KEEPING NOTHING, AWAY.
     REQUIRE(prefs_persist::put_role_value(all, "test.skin", "window.face", std::nullopt));
     CHECK(prefs_persist::role_kept(all, "test.skin") == nullptr);
 
     // A FOREIGN VERSION IS REFUSED BY ITS NUMBER, on the claim.
     std::string future = prefs_persist::to_text(hidden);
-    const std::size_t at = future.find("\"version\":4");
+    const std::size_t at = future.find("\"version\":5");
     REQUIRE(at != std::string::npos);
     future.replace(at, 11, "\"version\":9");
     read = prefs_persist::from_text(future);
     CHECK_FALSE(read.outcome.accepted);
-    CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads versions 1 to 4");
+    CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads versions 1 to 5");
+
+    // A VERSION-4 FILE NAMES EACH ROLE'S ENTRY BY `office`: read, each as the role it names.
+    // ⚔ MUTATION (tests/mutants/workshop_persistence.md#version-four-unread): the reader taking
+    // version 4 as a foreign version -- the file is refused.
+    const prefs_persist::v4::WorkshopPrefs four{
+        prefs_persist::kFormat, prefs_persist::kOfficeEntriesVersion,
+        {prefs_persist::v4::OfficeSettingsKept{
+            "test.skin", {PaneSetting{"window.face", std::nullopt, std::nullopt, std::string("mono")}}}},
+        {}, {}};
+    read = prefs_persist::from_text(loom::compat::serialize(loom::to_value(four)));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.read_version == prefs_persist::kOfficeEntriesVersion);
+    const prefs_persist::RoleSettingsKept* kept = prefs_persist::role_kept(read.kept, "test.skin");
+    REQUIRE(kept != nullptr);
+    CHECK(kept->settings.size() == 1);
     // The family's format identity: the other files' bytes are refused by name.
     CHECK_FALSE(prefs_persist::from_text(keymap_persist::to_text(Keymap{})).outcome.accepted);
 }
@@ -3091,11 +3106,11 @@ TEST_CASE("a version-2 prefs file is read as Workshop's own three settings, and 
     CHECK_FALSE(read.prefs.titles_shown);
     CHECK(read.prefs.band_keys == KeySpelling::kFull);
     CHECK(read.prefs.hotkeys_keys == KeySpelling::kShort);
-    // ...KEPT AS WORKSHOP'S OWN KEYS, so the next write is version 4.
+    // ...KEPT AS WORKSHOP'S OWN KEYS, so the next write is version 5.
     CHECK(prefs_persist::role_value(read.kept, prefs_persist::kWorkshopRole,
                                       prefs_persist::kPaneTitlesKey)
               ->flag == false);
-    CHECK(prefs_persist::to_text(read.kept).find("\"version\":4") != std::string::npos);
+    CHECK(prefs_persist::to_text(read.kept).find("\"version\":5") != std::string::npos);
     // `default` is the hand-author's word for the code's answer, for each word.
     read = prefs_persist::from_text(words("default", "default", "default"));
     REQUIRE(read.outcome.accepted);
@@ -7365,8 +7380,8 @@ TEST_CASE("the settings file keeps its layouts' entries until a session holds th
     CHECK(slurp(path) == shared_run_session());
     // ...AND THE NEXT FINDS EVERY ENTRY STILL THERE, and folds it again.
     run_once(true);
-    // ONCE A SESSION HOLDS THEM, the settings file goes without: version 4.
-    CHECK(prefs_persist::load_file(prefs).read_version == 4);
+    // ONCE A SESSION HOLDS THEM, the settings file goes without: version 5.
+    CHECK(prefs_persist::load_file(prefs).read_version == 5);
     CHECK_FALSE(prefs_persist::has_layout_entries(prefs_persist::load_file(prefs).kept));
     const session_persist::LoadedSession held = session_persist::load_file(path);
     REQUIRE_MESSAGE(held.outcome.accepted, held.outcome.refusal);

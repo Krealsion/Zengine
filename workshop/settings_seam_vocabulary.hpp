@@ -171,7 +171,7 @@ struct RoleSettingCommitRequested {
               ZEN_FIELD(clear));
 };
 
-/// WHAT AN ROLE-WIDE COMMIT CAME TO: accepted, or refused in words; the role's revision after
+/// WHAT A ROLE-WIDE COMMIT CAME TO: accepted, or refused in words; the role's revision after
 /// it, or as it stood; and `handed`, saying applied or handed and written apart.
 struct RoleSettingCommitAnswered {
     bool accepted = false;
@@ -181,6 +181,66 @@ struct RoleSettingCommitAnswered {
     ZEN_SHAPE(RoleSettingCommitAnswered, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal),
               ZEN_FIELD(revision), ZEN_FIELD(handed));
 };
+
+// ---- The role-wide settings a pane built on an earlier vocabulary says ----------------------
+//
+// The same declaration and asks under their earlier names, the role named `office`: the layouts'
+// owner reads each as its current form and answers an asker in the name it asked by.
+
+struct OfficeSettingsDeclared {
+    std::vector<v2::PaneSettingRow> rows;
+    ZEN_SHAPE(OfficeSettingsDeclared, 1, ZEN_FIELD(rows));
+};
+struct OfficeSettingsRequested {
+    std::string office;
+    ZEN_SHAPE(OfficeSettingsRequested, 1, ZEN_FIELD(office));
+};
+struct OfficeSettingsAnswered {
+    std::string office;
+    std::int64_t revision = 0;
+    std::vector<v2::PaneSettingRow> rows = {};
+    std::vector<PaneSetting> settings = {};
+    std::vector<SettingLockShown> locks = {};
+    std::string written;
+    ZEN_SHAPE(OfficeSettingsAnswered, 1, ZEN_FIELD(office), ZEN_FIELD(revision), ZEN_FIELD(rows),
+              ZEN_FIELD(settings), ZEN_FIELD(locks), ZEN_FIELD(written));
+};
+struct OfficeSettingCommitRequested {
+    std::string office;
+    std::int64_t revision = 0;
+    std::string key;
+    std::optional<bool> flag = std::nullopt;
+    std::optional<std::int64_t> number = std::nullopt;
+    std::optional<std::string> text = std::nullopt;
+    bool clear = false;
+    ZEN_SHAPE(OfficeSettingCommitRequested, 1, ZEN_FIELD(office), ZEN_FIELD(revision),
+              ZEN_FIELD(key), ZEN_FIELD(flag), ZEN_FIELD(number), ZEN_FIELD(text),
+              ZEN_FIELD(clear));
+};
+struct OfficeSettingCommitAnswered {
+    bool accepted = false;
+    std::string refusal;
+    std::int64_t revision = 0;
+    std::string handed;
+    ZEN_SHAPE(OfficeSettingCommitAnswered, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal),
+              ZEN_FIELD(revision), ZEN_FIELD(handed));
+};
+
+inline RoleSettingsDeclared current(const OfficeSettingsDeclared& a) {
+    return RoleSettingsDeclared{a.rows};
+}
+inline RoleSettingsRequested current(const OfficeSettingsRequested& a) {
+    return RoleSettingsRequested{a.office};
+}
+inline RoleSettingCommitRequested current(const OfficeSettingCommitRequested& a) {
+    return RoleSettingCommitRequested{a.office, a.revision, a.key, a.flag, a.number, a.text, a.clear};
+}
+inline OfficeSettingsAnswered as_office(const RoleSettingsAnswered& a) {
+    return OfficeSettingsAnswered{a.role, a.revision, a.rows, a.settings, a.locks, a.written};
+}
+inline OfficeSettingCommitAnswered as_office(const RoleSettingCommitAnswered& a) {
+    return OfficeSettingCommitAnswered{a.accepted, a.refusal, a.revision, a.handed};
+}
 
 // ---- Pins ---------------------------------------------------------------------------------
 
@@ -299,7 +359,7 @@ struct LayoutSettings {
     friend bool operator==(const LayoutSettings&, const LayoutSettings&) = default;
 };
 
-/// WHAT A PANE OR AN ROLE TAKES: a pane's counted declaration with `workshop.skin` first, or, with
+/// WHAT A PANE OR A ROLE TAKES: a pane's counted declaration with `workshop.skin` first, or, with
 /// `pane` empty, a role's role-wide rows.
 struct DeclaredSettings {
     std::string provider;

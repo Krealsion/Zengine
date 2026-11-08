@@ -82,7 +82,7 @@ public:
     /// `self`, the weave composing this door, repaints its desk so the picture follows the answer.
     template <class Self>
     void on(Self& self, const TerminalActRequested& asked, loom::Mail& mail) {
-        // AN ROLE MAY ASK; ANONYMOUS SPEECH MAY NOT -- `on(DocumentActRequested)`'s rule, and
+        // A ROLE MAY ASK; ANONYMOUS SPEECH MAY NOT -- `on(DocumentActRequested)`'s rule, and
         // the reason it names nobody: a second presentation of this participant asks with no
         // edit here.
         if (mail.authored_role().empty()) {

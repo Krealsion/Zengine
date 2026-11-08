@@ -390,7 +390,7 @@ struct OpeningRig {
 
     void mount_asker() { asker = mount_requester(kDoorAskerRole); }
 
-    /// A REQUESTER IN AN ROLE OF ITS OWN, granted the one ask -- how a case tells who asked.
+    /// A REQUESTER IN A ROLE OF ITS OWN, granted the one ask -- how a case tells who asked.
     DoorAsker* mount_requester(const char* role) {
         auto held = std::make_unique<DoorAsker>(std::string(role));
         DoorAsker* raw = held.get();

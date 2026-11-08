@@ -7,12 +7,12 @@ reads and how `tests/mutants/run.py` runs it.
 
 ## inventory-kept-at-version-one
 
-`PaneInventory` stays at version 1 while the `InventoryPane` it carries is at version 2.
+`PaneInventory` stays at version 1 while the `InventoryPane` it carries is at version 3.
 
 In `workshop/desktop_seam_vocabulary.hpp`:
 
 ```diff
--    ZEN_SHAPE(PaneInventory, 2, ZEN_FIELD(panes));
+-    ZEN_SHAPE(PaneInventory, 3, ZEN_FIELD(panes));
 +    ZEN_SHAPE(PaneInventory, 1, ZEN_FIELD(panes));
 ```
 

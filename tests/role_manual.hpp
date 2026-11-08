@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-/// A READER OF AN ROLE'S PAGE: it asks what a shape does and keeps each answer with Loom's word
+/// A READER OF A ROLE'S PAGE: it asks what a shape does and keeps each answer with Loom's word
 /// on whether it answered this asker.
 struct ShapeDocumentAskerState {
     std::int64_t heard = 0;
@@ -77,7 +77,7 @@ struct ShapeDocumentReader {
     }
 };
 
-/// THE NAMES OF THE SHAPES AN ROLE'S HOLDER ACCEPTS that its page is held to describe: its gate,
+/// THE NAMES OF THE SHAPES A ROLE'S HOLDER ACCEPTS that its page is held to describe: its gate,
 /// Loom's own doors and the document door aside, each name once.
 inline std::vector<std::string> described_shapes_of(loom::Switchboard& bus, loom::WeaveId holder) {
     std::vector<std::string> out;

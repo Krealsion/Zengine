@@ -223,7 +223,7 @@ weaver sees them ([`pane_view.hpp`](../pane_view.hpp)).
 `DeskReadRequested` v3 asks for the whole desk in one turn.
 
 - **Takes:** nothing.
-- **Answers:** `DeskRead` v3, to the asker alone: the desk as Workshop holds it -- its number, the
+- **Answers:** `DeskRead` v4, to the asker alone: the desk as Workshop holds it -- its number, the
   extent, the unit and input space, the room, every pane the desk names with its state word, rank
   and places, arranging, the menu with its named lines, and the band's words -- then every
   presented pane's stamp from the front back, and as many of their readings as one decoded value
@@ -337,7 +337,7 @@ one role, about one subject.
   false waits for a click. v2 adds `token`, the source's own, which Workshop stamps into
   `PaneCanvasValueDrop` with the source role and pane.
 - **Answers:** `PaneCarryAnswered`, to the asker alone, as
-  [`PaneCarryRequested`](#panecarryrequested); the drop is `PaneCanvasValueDrop` v4, a point of the
+  [`PaneCarryRequested`](#panecarryrequested); the drop is `PaneCanvasValueDrop` v5, a point of the
   area it lands in, with what the window drew under the hand there. A value drag starts at the source's
   primary press, becomes a drag once the hand moves, and ends at that same hand's release, or its
   next key, text or press; a wheel turned while it is held turns the pane under the hand, and the

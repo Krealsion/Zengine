@@ -186,7 +186,7 @@
         "InventoryRename v1",
         "InventoryEntry v1",
         "DeskReadRequested v3",
-        "DeskRead v3",
+        "DeskRead v4",
         "PaneViewRequested v7",
         "PaneView v7",
         "PanePointRequested v4",

@@ -3129,7 +3129,7 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, with w
             check_elsewhere(role, said, pinned);
         }
     }
-    // ...AND NO PINNED ROW IS ABOUT AN ROLE NO SUITE DRIVES, nor sits in another role's file.
+    // ...AND NO PINNED ROW IS ABOUT A ROLE NO SUITE DRIVES, nor sits in another role's file.
     for (const std::string& line : pinned) {
         CHECK_MESSAGE(driven.count(census_role(line)) == 1,
                       "in the census, and no suite drives its role: `" << line << "`");

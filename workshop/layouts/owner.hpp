@@ -66,13 +66,17 @@ class LayoutsOwner
                        PaneSettingCommitRequested, RoleSettingsRequested,
                        RoleSettingCommitRequested, PaneSettingPinRequested,
                        PaneSettingLockRequested, LayoutSettingsRequested, SettingsWriteRequested,
-                       PaneInventory, WeaversActAnswered, PaneCloseRequested>,
+                       PaneInventory, WeaversActAnswered, PaneCloseRequested,
+                       // ...and as a pane built on an earlier vocabulary says them
+                       v1::PaneCloseRequested, OfficeSettingsDeclared, OfficeSettingsRequested,
+                       OfficeSettingCommitRequested>,
           loom::Emit<LiveLayout, LayoutEditAnswered, SessionSaveAnswered, loom::Ack, loom::Refused,
                      PaneSettings, v2::PaneSettings, PaneSettingsAnswered,
                      PaneSettingCommitAnswered, RoleSettings, RoleSettingsAnswered,
                      RoleSettingCommitAnswered, PaneSettingPinAnswered, PaneSettingLockAnswered,
                      LayoutSettingsAnswered, SettingsWriteAnswered, WeaversActRequested,
-                     PaneInventoryRequested, PaneCloseAnswered>> {
+                     PaneInventoryRequested, PaneCloseAnswered, v2::PaneCloseAnswered,
+                     OfficeSettingsAnswered, OfficeSettingCommitAnswered>> {
 public:
     explicit LayoutsOwner(LayoutsOwnerHost host) : host_(std::move(host)), store_(readings_) {}
 
@@ -87,11 +91,14 @@ public:
 
     // ---- A pane's row taken off the live layout ---------------------------------------------
     void on(const PaneCloseRequested& asked, loom::Mail& mail);
+    void on(const v1::PaneCloseRequested& asked, loom::Mail& mail);
+    PaneCloseAnswered close_asked(const PaneCloseRequested& asked, loom::Mail& mail);
 
     // ---- What each pane and role takes ----------------------------------------------------
     void on(const PaneSettingsDeclared& declared, loom::Mail& mail);
     void on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail);
     void on(const RoleSettingsDeclared& declared, loom::Mail& mail);
+    void on(const OfficeSettingsDeclared& declared, loom::Mail& mail) { on(current(declared), mail); }
 
     // ---- A row's settings, handed to its pane -----------------------------------------------
     void on(const PaneSettingsAsked& asked, loom::Mail& mail);
@@ -102,6 +109,12 @@ public:
     void on(const PaneSettingCommitRequested& asked, loom::Mail& mail);
     void on(const RoleSettingsRequested& asked, loom::Mail& mail);
     void on(const RoleSettingCommitRequested& asked, loom::Mail& mail);
+    // An earlier vocabulary's asks, read as the current ones and answered in their own names.
+    void on(const OfficeSettingsRequested& asked, loom::Mail& mail);
+    void on(const OfficeSettingCommitRequested& asked, loom::Mail& mail);
+    RoleSettingsAnswered read_asked(const RoleSettingsRequested& asked, loom::Mail& mail);
+    RoleSettingCommitAnswered commit_asked(const RoleSettingCommitRequested& asked,
+                                           loom::Mail& mail);
     void on(const PaneSettingPinRequested& asked, loom::Mail& mail);
     void on(const PaneSettingLockRequested& asked, loom::Mail& mail);
     void on(const LayoutSettingsRequested& asked, loom::Mail& mail);

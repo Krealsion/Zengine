@@ -41,9 +41,9 @@ def binding(role, pane, ident, key, causes=(), enters=""):
 
 APP_ROWS = [
     binding("zengine.desktop", "", "desktop.panes", "ctrl+p",
-            [cause("PaneToggleRequested", 1, "to zengine.desktop/launcher")]),
+            [cause("PaneToggleRequested", 2, "to zengine.desktop/launcher")]),
     binding("zengine.desktop", "", "desktop.hotkeys", "ctrl+k",
-            [cause("PaneLaunchRequested", 1, "to zengine.desktop/hotkeys")]),
+            [cause("PaneLaunchRequested", 3, "to zengine.desktop/hotkeys")]),
 ]
 BROWSE = [
     binding(*BUILDER, ident="builder.build", key="b", causes=[cause("BuildRequested", 2)]),
@@ -53,7 +53,7 @@ BROWSE = [
 OUTPUT = [binding(*BUILDER, ident="builder.output-close", key="escape", enters="browse")]
 LAUNCHER_ROWS = [
     binding(*LAUNCHER, ident="launcher.open", key="return",
-            causes=[cause("PaneLaunchRequested", 1, "on pane:")]),
+            causes=[cause("PaneLaunchRequested", 3, "on pane:")]),
 ]
 HOTKEYS_ROWS = [binding(*HOTKEYS, ident="hotkeys.commit", key="return",
                         causes=[cause("BuildRequested", 2)])]
@@ -201,7 +201,7 @@ def make_checks(resolve):
             s = Scripted()
             s.row = {"name": "tutor", "by_door": True, "capture": ["zengine.builder-pane/*"]}
             s.rows = APP_ROWS + BROWSE  # the Pane Manager's rows are withheld: outside the read
-            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 1, "zengine.builder-pane/builder")
+            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 3, "zengine.builder-pane/builder")
             self.assertFalse(r["nowhere"])
             self.assertTrue(any("zengine.desktop/launcher" in o for o in r["outside"]))
 
@@ -240,7 +240,7 @@ def make_checks(resolve):
             s.on_desk = [LAUNCHER]
             s.rows = APP_ROWS + BROWSE + LAUNCHER_ROWS + [
                 binding(*LAUNCHER, ident="launcher.show", key="space",
-                        causes=[cause("PaneLaunchRequested", 1, "on pane:")])]
+                        causes=[cause("PaneLaunchRequested", 3, "on pane:")])]
             s.parts[LAUNCHER] = [part("pane:zengine.builder-pane/builder")]
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
             line, address = resolve.mark(FakeAsker({"shown": True}), r, "")
@@ -265,15 +265,15 @@ def make_checks(resolve):
             s.on_desk = [info]
             s.offered = [BUILDER, LAUNCHER, HOTKEYS, info]
             s.rows = APP_ROWS + BROWSE + [
-                binding(*info, ident="info.view.new", key="n", causes=[cause("PaneLaunchRequested", 1)]),
-                binding(*info, ident="info.view.fork", key="f", causes=[cause("PaneLaunchRequested", 1)])]
+                binding(*info, ident="info.view.new", key="n", causes=[cause("PaneLaunchRequested", 3)]),
+                binding(*info, ident="info.view.fork", key="f", causes=[cause("PaneLaunchRequested", 3)])]
             s.parts[info] = [part("control:info.view.new"), part("control:info.view.fork")]
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
             routes = [c["address"] for st in resolve.flatten(r["steps"]) for c in st["by"]]
             self.assertNotIn("zengine.info/view:info.view.new", routes)
             self.assertNotIn("zengine.info/view:info.view.fork", routes)
             # Asked with no subject, the same causes still answer.
-            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 1, "")
+            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 3, "")
             self.assertIn("zengine.info/view:info.view.new", [c["address"] for c in r["found"]])
 
         def test_version_and_mark_are_typed_and_the_whole_resolution_is_written(self):
@@ -302,7 +302,7 @@ def make_checks(resolve):
             s.parts[HOTKEYS] = [part("control:hotkeys.commit")]
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
             self.assertEqual(r["found"], [])
-            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 1, "zengine.desktop/hotkeys")
+            r = resolve.resolve(s.desk(resolve), "PaneLaunchRequested", 3, "zengine.desktop/hotkeys")
             self.assertEqual(r["found"], [])
 
     return ResolveChecks

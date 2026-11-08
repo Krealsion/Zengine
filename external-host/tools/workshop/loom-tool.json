@@ -194,7 +194,7 @@
         "InputInjected v1",
         "InputSessionClosed v1",
         "DeskReadRequested v3",
-        "DeskRead v3"
+        "DeskRead v4"
       ],
       "terms": [
         "capture",
@@ -1141,7 +1141,7 @@
         "PanePointRequested v4",
         "PanePoint v3",
         "DeskReadRequested v3",
-        "DeskRead v3",
+        "DeskRead v4",
         "SurfaceCaptureRequested v1",
         "SurfaceCaptured v1",
         "SurfaceCaptureChunkRequested v1",
@@ -1217,7 +1217,7 @@
         "PanePointRequested v4",
         "PanePoint v3",
         "DeskReadRequested v3",
-        "DeskRead v3"
+        "DeskRead v4"
       ],
       "terms": [
         "place",

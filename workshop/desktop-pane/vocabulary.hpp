@@ -171,7 +171,7 @@ struct DesktopState {
     std::string cursor_role; ///< the pane chosen, by its two durable keys -- kept when it leaves
     std::string cursor_pane;   ///< the list; both empty until the first row is held
     std::vector<std::string> hotkeys_open = {}; ///< the Hotkeys pane's open sections, by identity
-    ZEN_SHAPE(DesktopState, 3, ZEN_FIELD(cursor), ZEN_FIELD(cursor_role),
+    ZEN_SHAPE(DesktopState, 4, ZEN_FIELD(cursor), ZEN_FIELD(cursor_role),
               ZEN_FIELD(cursor_pane), ZEN_FIELD(hotkeys_open));
 };
 

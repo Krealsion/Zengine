@@ -30,7 +30,7 @@ on the bus. Another weave cannot reach a session by guessing its name. One host 
 The View Builder, `zengine.view.builder`, or any weave granted `view::allow_view_requests`, sends
 [`ViewRun`](#viewrun) to start a view, [`ViewResume`](#viewresume) to bring one back after a
 relaunch, [`ViewApply`](#viewapply) to change it and [`ViewStop`](#viewstop) to end it. Each ask is
-answered once, to the asker alone, with `ViewAnswer` v1 `{session, action, ok, reason, role,
+answered once, to the asker alone, with `ViewAnswer` v2 `{session, action, ok, reason, role,
 fresh}`: `role` is the view's name, `fresh` whether this ask registered a participant afresh, and
 `reason` what happened, or why nothing did. Any weave granted `ShapeDocumentRequested` to this
 role may ask what a shape it accepts does, and is answered from this page.

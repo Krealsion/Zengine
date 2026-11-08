@@ -39,7 +39,7 @@ namespace vb = zengine::view_builder;
 namespace published {
 
 struct InventoryPane {
-    std::string role;
+    std::string office;
     std::string pane;
     std::string name;
     std::string summary;
@@ -47,7 +47,7 @@ struct InventoryPane {
     bool available = false;
     bool waiting = false;
     bool pending = false;
-    ZEN_SHAPE(InventoryPane, 1, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
+    ZEN_SHAPE(InventoryPane, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(name),
               ZEN_FIELD(summary), ZEN_FIELD(open), ZEN_FIELD(available), ZEN_FIELD(waiting),
               ZEN_FIELD(pending));
 };

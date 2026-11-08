@@ -70,6 +70,8 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(ActionsWithdrawn::zen_name, ActionsWithdrawn::zen_version);
     speak.allow_to_any(PaneLaunchAnswered::zen_name, PaneLaunchAnswered::zen_version);
     speak.allow_to_any(PaneToggleAnswered::zen_name, PaneToggleAnswered::zen_version);
+    speak.allow_to_any(v1::PaneLaunchAnswered::zen_name, v1::PaneLaunchAnswered::zen_version);
+    speak.allow_to_any(v1::PaneToggleAnswered::zen_name, v1::PaneToggleAnswered::zen_version);
     speak.allow_to_any(KeymapEditAnswered::zen_name, KeymapEditAnswered::zen_version);
     speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
     speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);

@@ -42,11 +42,12 @@ namespace zengine::workshop::prefs_persist {
 /// handing Workshop the wrong one of its own files is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-prefs";
 
-/// The format version this build writes. It reads this one and the three before it: version 3
-/// kept layouts' entries beside the rest, version 2 held three preferences as words, version 1 the
-/// titles alone.
+/// The format version this build writes. It reads this one and the four before it: version 4 named
+/// each role's entry by `office`, version 3 also kept layouts' entries beside the rest, version 2
+/// held three preferences as words, version 1 the titles alone.
 // WL-SETTING-11 -- agents/workshop/settings.md
-inline constexpr std::int64_t kFormatVersion = 4;
+inline constexpr std::int64_t kFormatVersion = 5;
+inline constexpr std::int64_t kOfficeEntriesVersion = 4;
 inline constexpr std::int64_t kLayoutEntriesVersion = 3;
 inline constexpr std::int64_t kWordsVersion = 2;
 inline constexpr std::int64_t kTitlesOnlyVersion = 1;
@@ -216,7 +217,7 @@ struct PinList {
 /// A lock as the file keeps it (`settings_seam_vocabulary.hpp`), the shape the doors carry.
 using workshop::SettingLock;
 
-/// THE FILE AT VERSION 3 KEPT A LAYOUT'S BASELINE AS AN ROLE OF ITS OWN, `@<layout>`, holding the
+/// THE FILE AT VERSION 3 KEPT A LAYOUT'S BASELINE AS A ROLE OF ITS OWN, `@<layout>`, holding the
 /// theme's name and its fingerprint under these two keys.
 inline constexpr char kLayoutThemeRoleMark = '@';
 inline constexpr const char* kLayoutThemeNameKey = "theme";
@@ -231,9 +232,47 @@ struct WorkshopPrefs {
     std::vector<PinList> pins;
     std::vector<SettingLock> locks;
 
-    ZEN_SHAPE(WorkshopPrefs, 4, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    ZEN_SHAPE(WorkshopPrefs, 5, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(roles), ZEN_FIELD(pins), ZEN_FIELD(locks));
 };
+
+/// THE FILE AS VERSION 4 WROTE IT: version 5's fields, each role's entry named by `office`. Read,
+/// each entry as the role it names.
+namespace v4 {
+struct OfficeSettingsKept {
+    std::string office;
+    std::vector<PaneSetting> settings;
+    ZEN_SHAPE(OfficeSettingsKept, 1, ZEN_FIELD(office), ZEN_FIELD(settings));
+};
+struct WorkshopPrefs {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::vector<OfficeSettingsKept> offices;
+    std::vector<PinList> pins;
+    std::vector<SettingLock> locks;
+
+    ZEN_SHAPE(WorkshopPrefs, 4, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(offices), ZEN_FIELD(pins), ZEN_FIELD(locks));
+};
+} // namespace v4
+
+/// Each role's entry as version 4 and 3 name it, and back.
+inline std::vector<RoleSettingsKept> roles_of(const std::vector<v4::OfficeSettingsKept>& kept) {
+    std::vector<RoleSettingsKept> out;
+    out.reserve(kept.size());
+    for (const v4::OfficeSettingsKept& k : kept) {
+        out.push_back(RoleSettingsKept{k.office, k.settings});
+    }
+    return out;
+}
+inline std::vector<v4::OfficeSettingsKept> offices_of(const std::vector<RoleSettingsKept>& kept) {
+    std::vector<v4::OfficeSettingsKept> out;
+    out.reserve(kept.size());
+    for (const RoleSettingsKept& k : kept) {
+        out.push_back(v4::OfficeSettingsKept{k.role, k.settings});
+    }
+    return out;
+}
 
 /// THE FILE AS VERSION 3 WROTE IT: version 4's fields, a layout's entries among them by its name.
 /// Read, and written while what it keeps for layouts is not yet held by a session.
@@ -241,12 +280,12 @@ namespace v3 {
 struct WorkshopPrefs {
     std::string format;
     std::int64_t format_version = 0;
-    std::vector<RoleSettingsKept> roles;
+    std::vector<v4::OfficeSettingsKept> offices;
     std::vector<PinList> pins;
     std::vector<SettingLock> locks;
 
     ZEN_SHAPE(WorkshopPrefs, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(roles), ZEN_FIELD(pins), ZEN_FIELD(locks));
+              ZEN_FIELD(offices), ZEN_FIELD(pins), ZEN_FIELD(locks));
 };
 } // namespace v3
 
@@ -284,6 +323,8 @@ static_assert(WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kFormatVe
               "the prefs file's format version and its envelope's shape version are one "
               "number: a foreign version must be refused by ITS number, before its fields "
               "are judged against this shape");
+static_assert(v4::WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kOfficeEntriesVersion),
+              "the file of entries named by office is read by its own number");
 static_assert(v3::WorkshopPrefs::zen_version ==
                   static_cast<std::uint32_t>(kLayoutEntriesVersion),
               "the file of layouts' entries is read by its own number");
@@ -314,7 +355,7 @@ inline const RoleSettingsKept* role_kept(const Prefs& p, std::string_view role) 
     return nullptr;
 }
 
-/// THE VALUE AN ROLE KEEPS UNDER `key`, or nullptr for its default.
+/// THE VALUE A ROLE KEEPS UNDER `key`, or nullptr for its default.
 inline const PaneSetting* role_value(const Prefs& p, std::string_view role,
                                        std::string_view key) noexcept {
     const RoleSettingsKept* o = role_kept(p, role);
@@ -579,13 +620,13 @@ inline WorkshopPrefs to_prefs(const Prefs& kept) {
     return out;
 }
 
-/// THE FILE'S TEXT: version 4, or -- while it still carries layouts' entries a session does not
-/// yet hold -- version 3, those entries unchanged.
+/// THE FILE'S TEXT: version 5, or -- while it still carries layouts' entries a session does not
+/// yet hold -- version 3, those entries unchanged and each role's entry named as version 3 names it.
 // WL-SETTING-11 -- agents/workshop/settings.md
 inline std::string to_text(const Prefs& kept) {
     if (has_layout_entries(kept)) {
         return loom::compat::serialize(loom::to_value(v3::WorkshopPrefs{
-            kFormat, kLayoutEntriesVersion, kept.roles, kept.pins, kept.locks}));
+            kFormat, kLayoutEntriesVersion, offices_of(kept.roles), kept.pins, kept.locks}));
     }
     return loom::compat::serialize(loom::to_value(to_prefs(kept)));
 }
@@ -649,7 +690,7 @@ inline bool keys_in(const std::string& word, KeySpelling fallback, KeySpelling& 
     return false;
 }
 
-/// WHAT IS WRONG WITH A TARGET OR AN ROLE NAME, or empty: 1 to `kMaxSettingTargetLen` bytes of
+/// WHAT IS WRONG WITH A TARGET OR A ROLE NAME, or empty: 1 to `kMaxSettingTargetLen` bytes of
 /// printable ASCII with no space.
 inline std::string target_problem(std::string_view target, const char* what) {
     if (target.empty() || target.size() > kMaxSettingTargetLen) {
@@ -850,7 +891,7 @@ inline LoadedPrefs from_text(std::string_view bytes) {
     }
     const bool ours = claim.claimed_name() == std::string(WorkshopPrefs::zen_name);
     const std::uint32_t version = claim.claimed_version();
-    if (ours && version != WorkshopPrefs::zen_version &&
+    if (ours && version != WorkshopPrefs::zen_version && version != v4::WorkshopPrefs::zen_version &&
         version != v3::WorkshopPrefs::zen_version && version != v2::WorkshopPrefs::zen_version &&
         version != v1::WorkshopPrefs::zen_version) {
         return LoadedPrefs::no(wrong_version(static_cast<std::int64_t>(version)));
@@ -859,7 +900,19 @@ inline LoadedPrefs from_text(std::string_view bytes) {
     std::int64_t format_version = 0;
     std::int64_t expected = kFormatVersion;
     LoadedPrefs loaded;
-    if (ours && version == v3::WorkshopPrefs::zen_version) {
+    if (ours && version == v4::WorkshopPrefs::zen_version) {
+        // VERSION 4: version 5's fields, each role's entry named by `office`.
+        const loom::Admission admitted =
+            loom::admit(claim, loom::schema_of<v4::WorkshopPrefs>(), loom::Report::FirstError);
+        if (!admitted.ok()) {
+            return LoadedPrefs::no(admitted.first_error().message());
+        }
+        const v4::WorkshopPrefs file = loom::from_value<v4::WorkshopPrefs>(admitted.value());
+        format = file.format;
+        format_version = file.format_version;
+        expected = kOfficeEntriesVersion;
+        loaded.kept = Prefs{roles_of(file.offices), file.pins, file.locks};
+    } else if (ours && version == v3::WorkshopPrefs::zen_version) {
         // VERSION 3: version 4's fields, read with what it kept for layouts by name.
         const loom::Admission admitted =
             loom::admit(claim, loom::schema_of<v3::WorkshopPrefs>(), loom::Report::FirstError);
@@ -870,7 +923,7 @@ inline LoadedPrefs from_text(std::string_view bytes) {
         format = file.format;
         format_version = file.format_version;
         expected = kLayoutEntriesVersion;
-        loaded.kept = Prefs{file.roles, file.pins, file.locks};
+        loaded.kept = Prefs{roles_of(file.offices), file.pins, file.locks};
     } else if (ours && version != WorkshopPrefs::zen_version) {
         // AN EARLIER FILE HELD THREE WORDS, OR THE TITLES ALONE: admitted against its own shape,
         // and read as Workshop's own settings, a word left out or `default` as the default.

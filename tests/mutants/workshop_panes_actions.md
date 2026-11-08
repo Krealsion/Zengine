@@ -269,6 +269,23 @@ Red in `zengine-workshop-panes-tests`:
 - WL-DESK-12: a close takes a pane off the desk and leaves its provider holding; a close of a pane
   that is not there is refused and opens nothing
 
+## earlier-close-answered-now
+
+The owner answers a close an earlier vocabulary asked in the current version, which its asker does
+not hear.
+
+In `workshop/layouts/owner.cpp`:
+
+```diff
+-    (void)mail.answer(as_v2(close_asked(current(asked), mail)));
++    (void)mail.answer(close_asked(current(asked), mail));
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- a pane built on an earlier vocabulary closes, launches and toggles as it says, the role named
+  office, and is answered in the version it asked in
+
 ## close-falls-through-to-a-seat
 
 A close of a pane that is not on the desk seats it, as the launch door does, before it refuses.
@@ -302,9 +319,9 @@ In `workshop/layouts/owner.cpp`:
 
 ```diff
 -    if (mail.authored_role().empty()) {
--        // AN ROLE, AND ONLY AN ROLE, changes who is on the desk -- the seam's rule -- and the
+-        // A ROLE, AND ONLY A ROLE, changes who is on the desk -- the seam's rule -- and the
 +    if (false) {
-+        // AN ROLE, AND ONLY AN ROLE, changes who is on the desk -- the seam's rule -- and the
++        // A ROLE, AND ONLY A ROLE, changes who is on the desk -- the seam's rule -- and the
 ```
 
 Red in `zengine-workshop-panes-tests`:

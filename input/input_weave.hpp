@@ -204,7 +204,7 @@ public:
     }
 
     void on(const InputSessionClosed& closed, loom::Mail& mail) {
-        // THE HOLDER, PERSONALLY; OR AN ROLE, DELIBERATELY, ON THE HOLDER'S BEHALF. A
+        // THE HOLDER, PERSONALLY; OR A ROLE, DELIBERATELY, ON THE HOLDER'S BEHALF. A
         // stranger's personal word naming the holder is refused: role speech is the one
         // fact Loom verified at authorship, and a guest's proxy holds no role. A role
         // may say session 0 -- "whatever this holder holds" -- because the door that closes

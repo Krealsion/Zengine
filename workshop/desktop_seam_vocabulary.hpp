@@ -92,18 +92,21 @@ struct AppActionRequested {
     std::string id; ///< one of the ids this role declared, as it declared it
     std::string role;
     std::string pane;
-    ZEN_SHAPE(AppActionRequested, 2, ZEN_FIELD(id), ZEN_FIELD(role), ZEN_FIELD(pane));
+    ZEN_SHAPE(AppActionRequested, 3, ZEN_FIELD(id), ZEN_FIELD(role), ZEN_FIELD(pane));
 };
 
 // ---- Launching -----------------------------------------------------------------------------
 
 /// Open this pane, or focus it if it is already on the desk (WL-DESK-03). `role` and `pane` are
 /// a `PaneRef`'s two halves. A launch never toggles and never loads: a pane no provider offers
-/// is refused, saying which of the two reasons applies.
+/// is refused, saying which of the two reasons applies. With `keys` false a closed pane is seated
+/// in front and the keys and the selection stay where they are, and a pane already on the desk is
+/// left as it is (answered `focused` false).
 struct PaneLaunchRequested {
     std::string role;
     std::string pane;
-    ZEN_SHAPE(PaneLaunchRequested, 1, ZEN_FIELD(role), ZEN_FIELD(pane));
+    bool keys = true;
+    ZEN_SHAPE(PaneLaunchRequested, 3, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(keys));
 };
 
 /// What the launch came to: `opened` and `focused` are two facts; a refusal is neither.
@@ -113,21 +116,9 @@ struct PaneLaunchAnswered {
     bool opened = false;  ///< it was not participating, and now is
     bool focused = false; ///< the keyboard and the selection are on it now
     std::string refusal;  ///< empty iff the request was performed
-    ZEN_SHAPE(PaneLaunchAnswered, 1, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(opened),
+    ZEN_SHAPE(PaneLaunchAnswered, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(opened),
               ZEN_FIELD(focused), ZEN_FIELD(refusal));
 };
-
-namespace v2 {
-/// v1's launch, and whether it brings the keys: with `keys` false a closed pane is seated in front
-/// and the keys and the selection stay where they are, and a pane already on the desk is left as
-/// it is. Answered `PaneLaunchAnswered`, `focused` false.
-struct PaneLaunchRequested {
-    std::string role;
-    std::string pane;
-    bool keys = true;
-    ZEN_SHAPE(PaneLaunchRequested, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(keys));
-};
-} // namespace v2
 
 /// Take this pane's row off the live layout, asked of the layouts' owner (WL-DESK-12). Closing
 /// unloads nothing: the provider keeps all it holds, so a launch finds it as it was. A row the
@@ -135,7 +126,7 @@ struct PaneLaunchRequested {
 struct PaneCloseRequested {
     std::string role;
     std::string pane;
-    ZEN_SHAPE(PaneCloseRequested, 1, ZEN_FIELD(role), ZEN_FIELD(pane));
+    ZEN_SHAPE(PaneCloseRequested, 2, ZEN_FIELD(role), ZEN_FIELD(pane));
 };
 
 /// WHAT THE CLOSE CAME TO -- addressed back to whoever asked, naming what left with the row.
@@ -147,7 +138,7 @@ struct PaneCloseAnswered {
     std::vector<PaneSetting> settings = {}; ///< the settings the row kept, gone with it
     std::vector<std::string> locks = {};    ///< the keys this layout locked on the row, gone too
     /// Version 2: what left with the row is named.
-    ZEN_SHAPE(PaneCloseAnswered, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(closed),
+    ZEN_SHAPE(PaneCloseAnswered, 3, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(closed),
               ZEN_FIELD(refusal), ZEN_FIELD(settings), ZEN_FIELD(locks));
 };
 
@@ -156,7 +147,7 @@ struct PaneCloseAnswered {
 struct PaneToggleRequested {
     std::string role;
     std::string pane;
-    ZEN_SHAPE(PaneToggleRequested, 1, ZEN_FIELD(role), ZEN_FIELD(pane));
+    ZEN_SHAPE(PaneToggleRequested, 2, ZEN_FIELD(role), ZEN_FIELD(pane));
 };
 
 /// WHAT THE TOGGLE CAME TO: exactly one of `opened` (and then focused) or `closed`, or a refusal
@@ -167,9 +158,92 @@ struct PaneToggleAnswered {
     bool opened = false;
     bool closed = false;
     std::string refusal;
-    ZEN_SHAPE(PaneToggleAnswered, 1, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(opened),
+    ZEN_SHAPE(PaneToggleAnswered, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(opened),
               ZEN_FIELD(closed), ZEN_FIELD(refusal));
 };
+
+// ---- The launch, close and toggle a pane built on an earlier vocabulary says ----------------
+//
+// The same asks, the role named `office`. Workshop reads each as its current form and answers an
+// asker in the version it asked in.
+
+namespace v1 {
+struct PaneLaunchRequested {
+    std::string office;
+    std::string pane;
+    ZEN_SHAPE(PaneLaunchRequested, 1, ZEN_FIELD(office), ZEN_FIELD(pane));
+};
+struct PaneLaunchAnswered {
+    std::string office;
+    std::string pane;
+    bool opened = false;
+    bool focused = false;
+    std::string refusal;
+    ZEN_SHAPE(PaneLaunchAnswered, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(opened),
+              ZEN_FIELD(focused), ZEN_FIELD(refusal));
+};
+struct PaneCloseRequested {
+    std::string office;
+    std::string pane;
+    ZEN_SHAPE(PaneCloseRequested, 1, ZEN_FIELD(office), ZEN_FIELD(pane));
+};
+struct PaneToggleRequested {
+    std::string office;
+    std::string pane;
+    ZEN_SHAPE(PaneToggleRequested, 1, ZEN_FIELD(office), ZEN_FIELD(pane));
+};
+struct PaneToggleAnswered {
+    std::string office;
+    std::string pane;
+    bool opened = false;
+    bool closed = false;
+    std::string refusal;
+    ZEN_SHAPE(PaneToggleAnswered, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(opened),
+              ZEN_FIELD(closed), ZEN_FIELD(refusal));
+};
+} // namespace v1
+
+namespace v2 {
+struct PaneLaunchRequested {
+    std::string office;
+    std::string pane;
+    bool keys = true;
+    ZEN_SHAPE(PaneLaunchRequested, 2, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(keys));
+};
+struct PaneCloseAnswered {
+    std::string office;
+    std::string pane;
+    bool closed = false;
+    std::string refusal;
+    std::vector<PaneSetting> settings = {};
+    std::vector<std::string> locks = {};
+    ZEN_SHAPE(PaneCloseAnswered, 2, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(closed),
+              ZEN_FIELD(refusal), ZEN_FIELD(settings), ZEN_FIELD(locks));
+};
+} // namespace v2
+
+/// Each earlier ask as its current form, and each current answer as the earlier version says it.
+inline PaneLaunchRequested current(const v1::PaneLaunchRequested& a) {
+    return PaneLaunchRequested{a.office, a.pane, true};
+}
+inline PaneLaunchRequested current(const v2::PaneLaunchRequested& a) {
+    return PaneLaunchRequested{a.office, a.pane, a.keys};
+}
+inline PaneCloseRequested current(const v1::PaneCloseRequested& a) {
+    return PaneCloseRequested{a.office, a.pane};
+}
+inline PaneToggleRequested current(const v1::PaneToggleRequested& a) {
+    return PaneToggleRequested{a.office, a.pane};
+}
+inline v1::PaneLaunchAnswered as_v1(const PaneLaunchAnswered& a) {
+    return v1::PaneLaunchAnswered{a.role, a.pane, a.opened, a.focused, a.refusal};
+}
+inline v1::PaneToggleAnswered as_v1(const PaneToggleAnswered& a) {
+    return v1::PaneToggleAnswered{a.role, a.pane, a.opened, a.closed, a.refusal};
+}
+inline v2::PaneCloseAnswered as_v2(const PaneCloseAnswered& a) {
+    return v2::PaneCloseAnswered{a.role, a.pane, a.closed, a.refusal, a.settings, a.locks};
+}
 
 // ---- Editing a binding ----------------------------------------------------------------------
 
@@ -235,7 +309,7 @@ struct InventoryPane {
     bool open = false;      ///< participating in the live desk
     bool available = false; ///< some holder of `role` currently offers this pane
     bool pending = false;   ///< not offered YET: the plan row loading `role` has not settled
-    ZEN_SHAPE(InventoryPane, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
+    ZEN_SHAPE(InventoryPane, 3, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
               ZEN_FIELD(summary), ZEN_FIELD(open), ZEN_FIELD(available), ZEN_FIELD(pending));
 };
 
@@ -245,7 +319,7 @@ struct InventoryPane {
 /// content id it carries.
 struct PaneInventory {
     std::vector<InventoryPane> panes;
-    ZEN_SHAPE(PaneInventory, 2, ZEN_FIELD(panes));
+    ZEN_SHAPE(PaneInventory, 3, ZEN_FIELD(panes));
 };
 
 /// Ask for the inventory as it is now, answered to the asking incarnation alone -- for a presenter
@@ -280,7 +354,7 @@ struct ShownBinding {
     std::string default_shown = {};
     std::string posix_gesture = {};
     std::string posix_shown = {};
-    ZEN_SHAPE(ShownBinding, 4, ZEN_FIELD(group), ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(id),
+    ZEN_SHAPE(ShownBinding, 5, ZEN_FIELD(group), ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(id),
               ZEN_FIELD(label), ZEN_FIELD(gesture), ZEN_FIELD(shown), ZEN_FIELD(authored),
               ZEN_FIELD(remappable), ZEN_FIELD(causes), ZEN_FIELD(enters),
               ZEN_FIELD(default_gesture), ZEN_FIELD(default_shown), ZEN_FIELD(posix_gesture),
@@ -294,7 +368,7 @@ struct ShownModes {
     std::string pane;
     std::string mode;
     std::vector<ModeCauses> elsewhere;
-    ZEN_SHAPE(ShownModes, 1, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(mode),
+    ZEN_SHAPE(ShownModes, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(mode),
               ZEN_FIELD(elsewhere));
 };
 
@@ -311,7 +385,7 @@ struct KeymapShown {
     std::vector<ShownBinding> moved;
     std::string spelling;
     std::vector<ShownModes> modes = {};
-    ZEN_SHAPE(KeymapShown, 4, ZEN_FIELD(rows), ZEN_FIELD(file), ZEN_FIELD(word),
+    ZEN_SHAPE(KeymapShown, 5, ZEN_FIELD(rows), ZEN_FIELD(file), ZEN_FIELD(word),
               ZEN_FIELD(moved), ZEN_FIELD(spelling), ZEN_FIELD(modes));
 };
 

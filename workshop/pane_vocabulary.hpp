@@ -422,8 +422,21 @@ struct PaneManageRequested {
     std::string pane;
     std::string role;
     std::string target;
-    ZEN_SHAPE(PaneManageRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(role), ZEN_FIELD(target));
+    ZEN_SHAPE(PaneManageRequested, 2, ZEN_FIELD(pane), ZEN_FIELD(role), ZEN_FIELD(target));
 };
+/// The same ask from a pane built on an earlier vocabulary, the role named `office`; read as the
+/// current one.
+namespace v1 {
+struct PaneManageRequested {
+    std::string pane;
+    std::string office;
+    std::string target;
+    ZEN_SHAPE(PaneManageRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(office), ZEN_FIELD(target));
+};
+} // namespace v1
+inline PaneManageRequested current(const v1::PaneManageRequested& a) {
+    return PaneManageRequested{a.pane, a.office, a.target};
+}
 
 // ---- The parts a pane names --------------------------------------------------------------
 //

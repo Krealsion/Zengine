@@ -306,8 +306,19 @@ function(zengine_names target)
         _zengine_names_keys("${json}" "${file}" "the pool" format format_version about outline
                             colors sizes fonts)
     else()
-        _zengine_names_keys("${json}" "${file}" "the slots" format format_version about role
-                            colors sizes)
+        # Version 2 names its role `role`; a version-1 file named it `office`, read as the same.
+        string(JSON slots_version ERROR_VARIABLE slots_err GET "${json}" format_version)
+        if(slots_version EQUAL 2)
+            _zengine_names_keys("${json}" "${file}" "the slots" format format_version about role
+                                colors sizes)
+        elseif(slots_version EQUAL 1)
+            _zengine_names_keys("${json}" "${file}" "the slots" format format_version about office
+                                colors sizes)
+        else()
+            _zengine_names_fail("${file}" "it is slots version ${slots_version}; slots are read at "
+                                          "version 2, which names the role `role`, and at 1, "
+                                          "which named it `office`")
+        endif()
     endif()
     _zengine_names_colors(c "${json}" "${file}" TRUE)
     _zengine_names_sizes(c "${json}" "${file}")

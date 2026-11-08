@@ -1802,6 +1802,9 @@ target_include_directories(zengine-graphics-tests PRIVATE
 # The suite's own slots, generated as a stranger's pane generates its own (cmake/ZengineNames.cmake).
 zengine_names(zengine-graphics-tests JSON ${CMAKE_CURRENT_SOURCE_DIR}/graphics_slots.json
               NAMESPACE graphics_suite::colors HEADER graphics_suite/colors.hpp)
+# ...and a version-1 file, which names its role `office`, read the same way.
+zengine_names(zengine-graphics-tests JSON ${CMAKE_CURRENT_SOURCE_DIR}/graphics_slots_v1.json
+              NAMESPACE graphics_suite_v1::colors HEADER graphics_suite/colors_v1.hpp)
 zengine_test_definitions(zengine-graphics-tests
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
     "WINDOW_SO=\"$<TARGET_FILE:zengine-window-tui>\""

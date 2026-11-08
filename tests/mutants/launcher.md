@@ -126,9 +126,9 @@ The launcher takes a start from the View Builder and Files alone.
 In `launcher/weave.cpp`:
 
 ```diff
--constexpr const char* kAskers[] = {"zengine.view.builder", "zengine.files", "zengine.palette",
--                                   "zengine.first-run"};
-+constexpr const char* kAskers[] = {"zengine.view.builder", "zengine.files"};
+-constexpr const char* kAskers[] = {zengine::view_builder::kRole, zengine::files::kFilesRole,
+-                                   ws::kPaletteRole, zengine::first_run::kFirstRunRole};
++constexpr const char* kAskers[] = {zengine::view_builder::kRole, zengine::files::kFilesRole};
 ```
 
 Red in `zengine-launcher-tests`:

@@ -182,7 +182,7 @@ public:
         }
     }
 
-    /// AN ROLE ASKS THIS PANE TO INSPECT A PANE -- the Pane Manager's `inspect in Info` row --
+    /// A ROLE ASKS THIS PANE TO INSPECT A PANE -- the Pane Manager's `inspect in Info` row --
     /// and the ask is this pane's own inspect (`ask_inspect`): held back while a draft is live,
     /// since another subject would take the draft's rows away, and the host's answer passed back
     /// whole. It is the weaver's act on this view, so it spends the notice before it asks. The

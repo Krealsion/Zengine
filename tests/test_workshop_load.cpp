@@ -504,7 +504,7 @@ struct PlanRig {
             });
     }
 
-    /// MOUNT AN ASKER IN AN ROLE OF ITS OWN, granted exactly the arrangement's question and the
+    /// MOUNT AN ASKER IN A ROLE OF ITS OWN, granted exactly the arrangement's question and the
     /// discovery door's two.
     loom::WeaveId mount_asker() {
         auto seat = std::make_unique<Asker>(projected);
@@ -2995,7 +2995,7 @@ TEST_CASE("the arrangement door answers an ROLE, and answers anonymous speech no
     rig.mount_door("plan.json");
     rig.mount_asker();
 
-    // PERSONAL SPEECH FROM A WEAVE THAT HOLDS AN ROLE. Holding is not speaking-for,
+    // PERSONAL SPEECH FROM A WEAVE THAT HOLDS A ROLE. Holding is not speaking-for,
     // and the door has nobody nameable to be answerable to.
     rig.ask_arrangement_personally();
     CHECK(rig.projected.arrangements.empty());
@@ -3020,7 +3020,7 @@ TEST_CASE("the discovery door answers whoever asked -- a role, or one speaking f
     const loom::WeaveId finder = rig.mount_finder();
     rig.mount_asker();
 
-    // AN ROLE, AND A PARTICIPANT SPEAKING FOR ITSELF AS THE TERMINAL DOES: both are somebody
+    // A ROLE, AND A PARTICIPANT SPEAKING FOR ITSELF AS THE TERMINAL DOES: both are somebody
     // an answer can go to, and both get the same rows -- one question, one answer.
     workshop::FindPowers asked;
     asked.text = "larger";

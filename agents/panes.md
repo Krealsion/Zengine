@@ -286,7 +286,7 @@ area from the window):
 
 A secondary press reaches the pane from the window as any press does (`AreaButtonChanged`, its
 button 2 or 3), and Workshop, the area's arranger, as `AreaPressed`. `PanePassRequested v1` `{pane}`, `PaneMenuRequested v1` `{pane, subject, row, column, rows}`,
-`PaneKeyboardRequested v1` `{pane}` and `PaneManageRequested v1` `{pane, role, target}`,
+`PaneKeyboardRequested v1` `{pane}` and `PaneManageRequested v2` `{pane, role, target}`,
 provider → Workshop as the role that offered the pane; `PaneMenuAnswered v1`
 `{pane, subject, chosen, id, refusal}`, the presenter (or, for an ask it refused or one no
 presenter can answer, Workshop) → provider. Between Workshop
@@ -294,7 +294,7 @@ and the participant holding `zengine.presenter`, `workshop/presenter_vocabulary.
 `MenuGranted`, `MenuInput` and `MenuWithdrawn` Workshop → presenter, `MenuShown`, `MenuClosed`
 and `PresenterReady` presenter → Workshop, and `HeldMenu`, the reload state the shipped
 presenters share. The pane shapes ADDED
-to the protocol and revised nothing. `MenuGranted v3` and `HeldMenu v3` carry the host's standard
+to the protocol and revised nothing. `MenuGranted v4` and `HeldMenu v4` carry the host's standard
 rows (`standard`, below), the name of the pane they act on (`pane_name`) and the area the menu
 stands in (`area`), and `MenuClosed v2` the standard row chosen; `MenuShown v3` names that area
 and how much of it the menu takes, and carries no lines. A holder that accepts only an older
@@ -779,7 +779,7 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   a row of `arrangement` and is ABSENT from `loaded`, because no Kernel loads a provider. Do
   not "fix" that. Three questions, three owners, three currencies; one merged table would need
   a row kind that is none of them.
-- **THE SEAM IS AN ROLE, NOT AN INJECTION.** The host mounts two read-only participants holding
+- **THE SEAM IS A ROLE, NOT AN INJECTION.** The host mounts two read-only participants holding
   `const` references into `main`: `ArrangementDoor` (`workshop/arrangement.hpp`, role
   `zengine.arrangement`) over the realization owner, and `PowersDoor`
   (`workshop/powers_door.hpp`, role `zengine.powers`) over the catalog; the loaded tool ASKS
@@ -795,7 +795,7 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   in the next one with nobody notified. A copied provider map answered from the door's
   constructor turns the overlay witness and the keeps-nothing witness RED and leaves every
   derivation-tier case green.
-- **AT THE ARRANGEMENT DOOR AN ROLE MAY ASK; ANONYMOUS SPEECH MAY NOT.** The rule names
+- **AT THE ARRANGEMENT DOOR A ROLE MAY ASK; ANONYMOUS SPEECH MAY NOT.** The rule names
   nobody — no allow-list — so a tool added tomorrow asks with no edit here. It is NOT
   containment and is not reported as one: the loader binds `allow_any()` to every library. What
   keeps these facts from becoming ambient is that the door PUBLISHES NOTHING; every answer goes

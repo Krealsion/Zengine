@@ -474,7 +474,7 @@ struct PressCaseOf {
 /// ONE SHARE OF ONE ROLE'S PRESS WITNESS, RUN (the Builder's suite holds it).
 void witness_presses(const std::string& role, std::size_t share);
 
-/// AN ROLE'S PRESS WITNESS CASE: share `share` of the role's rows, pressed; `who` names the
+/// A ROLE'S PRESS WITNESS CASE: share `share` of the role's rows, pressed; `who` names the
 /// rows in the case's name.
 #define ZEN_PRESS_WITNESS_CASE(role, share, who)                                                 \
     static const PressCaseOf DOCTEST_ANONYMOUS(zen_press_case_){role, share};                    \

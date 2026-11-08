@@ -405,12 +405,12 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
     // the panes it presents, answered; and the double-click time, asked of the input role.
     const std::vector<std::string> allowed{"AreaPlaced",           "AreaShowAsked",
                                            "Drawn",                "LayoutEditRequested",
-                                           "RoleSettingsDeclared",
                                            "PaletteChosen",        "PaletteOffered",
                                            "PaneCatalogRequested", "PaneInventory",
                                            "PaneKeys",             "PaneLaunchAnswered",
-                                           "PointerTimingAsked",   "RoomAsked",
-                                           "StandingConditions",   "TranscriptShown"};
+                                           "PointerTimingAsked",   "RoleSettingsDeclared",
+                                           "RoomAsked",            "StandingConditions",
+                                           "TranscriptShown"};
     std::string heard;
     for (const std::string& one : distinct) {
         heard += one + " ";

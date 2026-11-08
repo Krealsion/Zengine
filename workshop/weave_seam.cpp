@@ -264,7 +264,7 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, std::string& gaps,
 
 // WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md
 void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
-    // AN ROLE, AND ONLY AN ROLE -- the seam's rule for every sentence that changes the
+    // A ROLE, AND ONLY A ROLE -- the seam's rule for every sentence that changes the
     // desk. And the role must have offered the pane it names: a reveal of a pane this
     // session never admitted has no catalog row, no name for the refusal and no kind to
     // seat, and is dropped as the stray it is.

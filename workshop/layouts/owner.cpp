@@ -231,23 +231,28 @@ void LayoutsOwner::on(const SetupApplyRequested& asked, loom::Mail& mail) {
 
 // WL-DESK-12 -- agents/workshop/desktop.md
 void LayoutsOwner::on(const PaneCloseRequested& asked, loom::Mail& mail) {
+    (void)mail.answer(close_asked(asked, mail));
+}
+void LayoutsOwner::on(const v1::PaneCloseRequested& asked, loom::Mail& mail) {
+    (void)mail.answer(as_v2(close_asked(current(asked), mail)));
+}
+PaneCloseAnswered LayoutsOwner::close_asked(const PaneCloseRequested& asked, loom::Mail& mail) {
     read_host();
     if (mail.authored_role().empty()) {
-        // AN ROLE, AND ONLY AN ROLE, changes who is on the desk -- the seam's rule -- and the
+        // A ROLE, AND ONLY A ROLE, changes who is on the desk -- the seam's rule -- and the
         // asker is told so.
         ++state_.refused;
         PaneCloseAnswered out;
         out.role = asked.role;
         out.pane = asked.pane;
         out.refusal = "a pane is taken off the desk by a role -- personal speech closes nothing";
-        (void)mail.answer(std::move(out));
-        return;
+        return out;
     }
     PaneCloseAnswered out = store_.close(PaneRef{asked.role, asked.pane});
     // THE PICTURE GOES FIRST, with the close's sentence for the presenter's band, so the asker's
     // answer follows a live layout that no longer seats the row.
     settle(mail);
-    (void)mail.answer(std::move(out));
+    return out;
 }
 
 // ---- What each pane and role takes ------------------------------------------------------------
@@ -364,23 +369,37 @@ void LayoutsOwner::on(const PaneSettingCommitRequested& asked, loom::Mail& mail)
 
 // WL-SETTING-10 -- agents/workshop/settings.md
 void LayoutsOwner::on(const RoleSettingsRequested& asked, loom::Mail& mail) {
+    (void)mail.answer(read_asked(asked, mail));
+}
+void LayoutsOwner::on(const OfficeSettingsRequested& asked, loom::Mail& mail) {
+    (void)mail.answer(as_office(read_asked(current(asked), mail)));
+}
+RoleSettingsAnswered LayoutsOwner::read_asked(const RoleSettingsRequested& asked,
+                                              loom::Mail& mail) {
     read_host();
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     RoleSettingsAnswered shown = store_.read_role(refused, asked);
     settle(mail);
-    (void)mail.answer(std::move(shown));
+    return shown;
 }
 
 // WL-SETTING-10 -- agents/workshop/settings.md
 void LayoutsOwner::on(const RoleSettingCommitRequested& asked, loom::Mail& mail) {
+    (void)mail.answer(commit_asked(asked, mail));
+}
+void LayoutsOwner::on(const OfficeSettingCommitRequested& asked, loom::Mail& mail) {
+    (void)mail.answer(as_office(commit_asked(current(asked), mail)));
+}
+RoleSettingCommitAnswered LayoutsOwner::commit_asked(const RoleSettingCommitRequested& asked,
+                                                     loom::Mail& mail) {
     read_host();
     const std::string refused = asker_refused(mail);
     state_.withheld += refused.empty() ? 0 : 1;
     RoleSettingCommitAnswered acted =
         store_.commit_role(refused, asked, mail.authored_from_role(asked.role));
     settle(mail);
-    (void)mail.answer(std::move(acted));
+    return acted;
 }
 
 // WL-SETTING-12 -- agents/workshop/settings.md
@@ -462,6 +481,10 @@ loom::Grant layouts_grant() {
     grant.allow_to_any(LayoutSettingsAnswered::zen_name, LayoutSettingsAnswered::zen_version);
     grant.allow_to_any(SettingsWriteAnswered::zen_name, SettingsWriteAnswered::zen_version);
     grant.allow_to_any(PaneCloseAnswered::zen_name, PaneCloseAnswered::zen_version);
+    grant.allow_to_any(v2::PaneCloseAnswered::zen_name, v2::PaneCloseAnswered::zen_version);
+    grant.allow_to_any(OfficeSettingsAnswered::zen_name, OfficeSettingsAnswered::zen_version);
+    grant.allow_to_any(OfficeSettingCommitAnswered::zen_name,
+                       OfficeSettingCommitAnswered::zen_version);
     grant.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     // ...EACH PANE ITS ROW, AND EACH DECLARING ROLE ITS SETTINGS...
     grant.allow_to_any(PaneSettings::zen_name, PaneSettings::zen_version);

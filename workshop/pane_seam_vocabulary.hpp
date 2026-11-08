@@ -127,7 +127,7 @@ struct PaneSourceOpened {
     std::string artifact; ///< the artifact the role's running code was realized from
     std::string recipe;   ///< the one authored recipe that produces it
     std::string source;   ///< the file now open: that recipe's single source
-    ZEN_SHAPE(PaneSourceOpened, 1, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
+    ZEN_SHAPE(PaneSourceOpened, 2, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
               ZEN_FIELD(artifact), ZEN_FIELD(recipe), ZEN_FIELD(source));
 };
 

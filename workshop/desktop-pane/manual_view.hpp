@@ -127,7 +127,7 @@ public:
         say_manual(keys_heard, keymap, mail);
     }
 
-    /// ...AND A MANUAL ASKED OF AN ROLE THAT COULD NOT BE REACHED: said, not waited on. True
+    /// ...AND A MANUAL ASKED OF A ROLE THAT COULD NOT BE REACHED: said, not waited on. True
     /// when the refusal named that ask.
     bool ask_refused(const loom::DispatchRefused& refused, bool keys_heard,
                      const ws::KeymapShown& keymap, loom::Mail& mail) {

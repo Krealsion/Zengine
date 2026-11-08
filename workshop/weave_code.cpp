@@ -104,7 +104,7 @@ void WorkshopWeave::edit_code(const PaneRef& ref, loom::Mail& mail) {
     next.code = code;
     next.recipe = recipe.id;
     next.source = recipe.source;
-    // THE MANAGED OPENING, AS AN ROLE, WITH ITS TICKET KEPT (WL-OPEN-01, WL-OPEN-07): the
+    // THE MANAGED OPENING, AS A ROLE, WITH ITS TICKET KEPT (WL-OPEN-01, WL-OPEN-07): the
     // manager arranges the document and the desk together, a dirty document refuses, and
     // Loom's later word that exactly this attempt was refused reaches `on(DispatchRefused)`.
     // Nothing is selected, focused or seated here; an accepted open seats the Editor's pane.

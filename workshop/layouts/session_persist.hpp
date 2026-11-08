@@ -87,7 +87,7 @@ struct WorkshopLayout {
     ZEN_SHAPE(WorkshopLayout, 5, ZEN_FIELD(id), ZEN_FIELD(desk), ZEN_FIELD(link));
 };
 
-/// WHICH AUTHORED CHOICE HELD AN ROLE AT QUIT, by the role and the choice's name: what the
+/// WHICH AUTHORED CHOICE HELD A ROLE AT QUIT, by the role and the choice's name: what the
 /// next start loads in place of the plan's row while the plan still authors it.
 // WL-SWITCH-08 -- agents/workshop/editor-switch.md
 struct WorkshopChoice {

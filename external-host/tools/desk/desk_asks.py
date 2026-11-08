@@ -3,7 +3,7 @@
 """The asks desk-machine/read makes of a running Workshop, through the link, under the guest's own row --
 and what each came to, as values the readings are written from.
 
-THE DESK IN ONE TURN. `DeskReadRequested` v3 answers the desk (`DeskView` v4), every presented
+THE DESK IN ONE TURN. `DeskReadRequested` v3 answers the desk (`DeskView` v5), every presented
 pane's stamp front to back, and as many panes' readings (`PaneView` v7) as one decoded value and
 one reply's bytes hold. A stamp past the last reading names a pane this reader asks alone, by
 `PaneViewRequested` v7: from item 0 under an empty stamp, then page after page from the next item

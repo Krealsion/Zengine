@@ -1589,7 +1589,7 @@ TEST_CASE("a view's intent that nothing accepts is said unheard, a refusal of an
     CHECK(Wirings(*hearer).count("tally.panel") == before_late);
     CHECK(Wirings(*hearer).last("tally.panel").intents[0].accepted);
 
-    // AN ROLE THAT ARRIVES LATER asks, and every running view answers it alone, as its role,
+    // A ROLE THAT ARRIVES LATER asks, and every running view answers it alone, as its role,
     // under the ask's correlation, with what it would say now; the hearer hears nothing more.
     auto other = panel();
     other.name = "other.panel";
@@ -1871,7 +1871,7 @@ TEST_CASE("the view host answers a shape's section from its own page, and its pa
         CHECK(run.text == std::string(section->text));
         CHECK(reader.ask(view::detail::ViewRetire::zen_name, view::detail::ViewRetire::zen_version).group == "Hears");
         CHECK(reader.ask(view::ViewAnswer::zen_name, view::ViewAnswer::zen_version).refusal ==
-              "zengine.view.host does not accept `ViewAnswer` v1");
+              "zengine.view.host does not accept `ViewAnswer` v2");
     }
     // Four asks and the host's note to itself, each described; the page names no other.
     CHECK(check_role_manual(rig.bus, view::kViewHostRole) >= 5);

@@ -370,13 +370,18 @@ void WorkshopWeave::launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail&
 
 // WL-DESK-03 -- agents/workshop/desktop.md
 void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
-    launch_asked(PaneRef{asked.role, asked.pane}, true, mail);
-}
-// ...and as v2 asks it, bringing the keys or not.
-void WorkshopWeave::on(const v2::PaneLaunchRequested& asked, loom::Mail& mail) {
     launch_asked(PaneRef{asked.role, asked.pane}, asked.keys, mail);
 }
-void WorkshopWeave::launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail) {
+void WorkshopWeave::on(const v1::PaneLaunchRequested& asked, loom::Mail& mail) {
+    const PaneLaunchRequested now = current(asked);
+    launch_asked(PaneRef{now.role, now.pane}, now.keys, mail, v1::PaneLaunchAnswered::zen_version);
+}
+void WorkshopWeave::on(const v2::PaneLaunchRequested& asked, loom::Mail& mail) {
+    const PaneLaunchRequested now = current(asked);
+    launch_asked(PaneRef{now.role, now.pane}, now.keys, mail, v1::PaneLaunchAnswered::zen_version);
+}
+void WorkshopWeave::launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail,
+                                 std::uint32_t answer_version) {
     const std::string_view role = mail.authored_role();
     if (role.empty()) {
         return; // a role, and only a role -- the seam's rule for changing the desk
@@ -389,7 +394,7 @@ void WorkshopWeave::launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail
             : std::nullopt;
     launch_pane(
         ref,
-        [this, held, ref](const PaneLaunchAnswered& answer, loom::Mail& m) {
+        [this, held, ref, answer_version](const PaneLaunchAnswered& answer, loom::Mail& m) {
             // SAID ON THE BAND FOR THE WEAVER, AND ANSWERED TO THE ASKER. The two say the same
             // thing for the two readers, and both are said before the repaint, so the picture a
             // weaver sees is the one the sentence is about. A pane whose own place stands off
@@ -405,7 +410,11 @@ void WorkshopWeave::launch_asked(const PaneRef& ref, bool keys, loom::Mail& mail
             } else if (answer.opened) {
                 say("showed " + inventory_name(ref), false);
             }
-            (void)loom::answer_deferred(*held, m, answer);
+            if (answer_version == v1::PaneLaunchAnswered::zen_version) {
+                (void)loom::answer_deferred(*held, m, as_v1(answer));
+            } else {
+                (void)loom::answer_deferred(*held, m, answer);
+            }
             repaint(m);
         },
         mail, keys, window);
@@ -743,6 +752,13 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
 
 // WL-DESK-13 -- agents/workshop/desktop.md
 void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
+    toggle_asked(asked, mail, PaneToggleAnswered::zen_version);
+}
+void WorkshopWeave::on(const v1::PaneToggleRequested& asked, loom::Mail& mail) {
+    toggle_asked(current(asked), mail, v1::PaneToggleAnswered::zen_version);
+}
+void WorkshopWeave::toggle_asked(const PaneToggleRequested& asked, loom::Mail& mail,
+                                 std::uint32_t answer_version) {
     if (mail.authored_role().empty()) {
         return; // a role, and only a role -- the seam's rule for changing the desk
     }
@@ -757,28 +773,37 @@ void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
             refused.role = asked.role;
             refused.pane = asked.pane;
             refused.refusal = "too many toggles at once -- this one was not judged; press again";
-            (void)loom::answer_deferred(*held, mail, refused);
+            if (answer_version == v1::PaneToggleAnswered::zen_version) {
+                (void)loom::answer_deferred(*held, mail, as_v1(refused));
+            } else {
+                (void)loom::answer_deferred(*held, mail, refused);
+            }
             return;
         }
-        settle_waiters_.push_back(
-            [this, asked, held](loom::Mail& m) { judge_toggle(asked, held, m); });
+        settle_waiters_.push_back([this, asked, held, answer_version](loom::Mail& m) {
+            judge_toggle(asked, held, m, answer_version);
+        });
         return;
     }
-    judge_toggle(asked, held, mail);
+    judge_toggle(asked, held, mail, answer_version);
 }
 
 void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
                                  const std::shared_ptr<loom::DeferredAnswer>& held,
-                                 loom::Mail& mail) {
+                                 loom::Mail& mail, std::uint32_t answer_version) {
     const PaneRef ref{asked.role, asked.pane};
     PaneToggleAnswered answer;
     answer.role = asked.role;
     answer.pane = asked.pane;
-    const auto finish = [this, held](PaneToggleAnswered& toggled, loom::Mail& m) {
+    const auto finish = [this, held, answer_version](PaneToggleAnswered& toggled, loom::Mail& m) {
         if (!toggled.refusal.empty()) {
             say(toggled.refusal, true);
         }
-        (void)loom::answer_deferred(*held, m, toggled);
+        if (answer_version == v1::PaneToggleAnswered::zen_version) {
+            (void)loom::answer_deferred(*held, m, as_v1(toggled));
+        } else {
+            (void)loom::answer_deferred(*held, m, toggled);
+        }
         repaint(m);
     };
     // ON THE DESK BUT COVERED, it is brought forward and given the keys, as a launch of a pane on

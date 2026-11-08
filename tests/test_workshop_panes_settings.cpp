@@ -718,13 +718,17 @@ class RevisionSeat
                                           RoleSettingsAnswered, RoleSettingCommitAnswered,
                                           PaneSettingPinAnswered,
                                           PaneSettingLockAnswered, LayoutSettingsAnswered,
-                                          SettingsWriteAnswered, gfx::AreaButtonChanged, SeatDo>,
+                                          SettingsWriteAnswered, gfx::AreaButtonChanged,
+                                          OfficeSettingsAnswered, OfficeSettingCommitAnswered,
+                                          SeatDo>,
                              loom::Emit<PaneOffered, v2::PaneSettingsDeclared,
                                         PaneSettingsRequested, PaneSettingCommitRequested,
                                         PaneSettingUnused, RoleSettingsDeclared,
                                         RoleSettingsRequested, RoleSettingCommitRequested,
                                         PaneSettingPinRequested, PaneSettingLockRequested,
-                                        LayoutSettingsRequested, SettingsWriteRequested>> {
+                                        LayoutSettingsRequested, SettingsWriteRequested,
+                                        OfficeSettingsDeclared, OfficeSettingsRequested,
+                                        OfficeSettingCommitRequested>> {
 public:
     explicit RevisionSeat(std::string role) : role_(std::move(role)) {}
 
@@ -747,6 +751,12 @@ public:
     }
     void on(const RoleSettingsAnswered& s, loom::Mail& mail) {
         if (mail.answers_ask()) role_shown.push_back(s);
+    }
+    void on(const OfficeSettingsAnswered& s, loom::Mail& mail) {
+        if (mail.answers_ask()) office_shown.push_back(s);
+    }
+    void on(const OfficeSettingCommitAnswered& a, loom::Mail& mail) {
+        if (mail.answers_ask()) office_acted.push_back(a);
     }
     void on(const RoleSettingCommitAnswered& a, loom::Mail& mail) {
         if (mail.answers_ask()) role_acted.push_back(a);
@@ -794,6 +804,8 @@ public:
     std::vector<RoleSettingCommitAnswered> role_acted;
     std::vector<RoleSettings> role_handed;
     std::vector<RoleSettingsAnswered> role_shown;
+    std::vector<OfficeSettingsAnswered> office_shown; ///< as an earlier vocabulary hears them
+    std::vector<OfficeSettingCommitAnswered> office_acted;
     std::vector<PaneSettingPinAnswered> pin_acted;
     std::vector<PaneSettingLockAnswered> lock_acted;
     std::vector<LayoutSettingsAnswered> layouts_shown;
@@ -1511,10 +1523,37 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
     CHECK(shown.settings.empty());
     CHECK(shown.locks.empty());
     CHECK(shown.written == "isolated run -- no settings file");
-    // READING AGAIN MOVES NOTHING; AN ROLE NOTHING DECLARES FOR STANDS AT 0.
+    // READING AGAIN MOVES NOTHING; A ROLE NOTHING DECLARES FOR STANDS AT 0.
     CHECK(t.read_role(kWorkshopProvider).revision == shown.revision);
     CHECK(t.read_role("test.nobody").revision == 0);
     CHECK(t.read_role("test.nobody").rows.empty());
+}
+
+TEST_CASE("a pane built on an earlier vocabulary reads and commits a role's settings by the earlier "
+          "names, the role named office, and is answered by them") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#earlier-read-answered-now): the owner
+    // answering an earlier read by the current name -- the asker never hears it.
+    RevisionRig t;
+    t.open();
+    const RoleSettingsAnswered now = t.read_role(kWorkshopProvider);
+    drive(t.r, t.editor_id, t.editor, [](RevisionSeat& s, loom::Mail& m) {
+        s.say(m, OfficeSettingsRequested{kWorkshopProvider});
+    });
+    REQUIRE(t.editor->office_shown.size() == 1);
+    CHECK(t.editor->office_shown.back().office == kWorkshopProvider);
+    CHECK(t.editor->office_shown.back().revision == now.revision);
+    CHECK(t.editor->office_shown.back().rows.size() == now.rows.size());
+
+    OfficeSettingCommitRequested titles;
+    titles.office = kWorkshopProvider;
+    titles.revision = now.revision;
+    titles.key = "workshop.pane-titles";
+    titles.flag = false;
+    drive(t.r, t.editor_id, t.editor, [titles](RevisionSeat& s, loom::Mail& m) { s.say(m, titles); });
+    REQUIRE(t.editor->office_acted.size() == 1);
+    REQUIRE_MESSAGE(t.editor->office_acted.back().accepted, t.editor->office_acted.back().refusal);
+    CHECK_FALSE(t.r.session().pane_titles);
+    CHECK(t.read_role(kWorkshopProvider).revision == t.editor->office_acted.back().revision);
 }
 
 TEST_CASE("a commit of Workshop's own setting applies it, keeps it in the settings file, and says both") {
@@ -2128,7 +2167,7 @@ TEST_CASE("only the weaver unlocks: a pane on the weaver's current act does, and
     RevisionRig t;
     t.open();
     REQUIRE(t.lock(dial_lock("legend", "lock", "everywhere")).accepted);
-    // AN ROLE ASKING ON NO ACT OF THE WEAVER'S.
+    // A ROLE ASKING ON NO ACT OF THE WEAVER'S.
     PaneSettingLockAnswered a = t.lock(dial_lock("legend", "unlock", "everywhere"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal == kWeavers);
@@ -2257,7 +2296,7 @@ TEST_CASE("a version-3 settings file keeps layouts' locks, pins and baselines by
         PaneSetting{"theme", std::nullopt, std::nullopt, std::string("evening")}));
     CHECK(prefs_persist::has_layout_entries(p));
     CHECK(prefs_persist::kept_problem(p, true).empty());
-    // VERSION 4 KEEPS WHAT HOLDS IN EVERY LAYOUT: a layout's own are its desk's.
+    // VERSION 5 KEEPS WHAT HOLDS IN EVERY LAYOUT: a layout's own are its desk's.
     CHECK(prefs_persist::kept_problem(p).find("a layout's pins, locks and baseline are its own") !=
           std::string::npos);
     TempDir dir("prefs-layout-entries");
@@ -2265,13 +2304,15 @@ TEST_CASE("a version-3 settings file keeps layouts' locks, pins and baselines by
     REQUIRE(prefs_persist::save_file(path, p).accepted);
     // CARRIED UNCHANGED, IN THE VERSION THAT KEEPS THEM, until a session holds them.
     CHECK(slurp(path).find("\"version\":3") != std::string::npos);
+    // ...each role's entry named as version 3 names it, by `office`.
+    CHECK(slurp(path).find("\"offices\":[{\"office\":") != std::string::npos);
     const prefs_persist::LoadedPrefs read = prefs_persist::load_file(path);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.read_version == 3);
     CHECK(read.kept == p);
     CHECK(prefs_persist::layout_theme_of(read.kept, "Layout 2") == LayoutTheme{"evening", 42});
     CHECK(prefs_persist::layout_theme_of(read.kept, "Layout 3").name.empty());
-    // A BASELINE IS NOT AN ROLE: it counts toward neither role bound.
+    // A BASELINE IS NOT A ROLE: it counts toward neither role bound.
     CHECK(prefs_persist::role_count(p) == 0);
     CHECK(prefs_persist::kept_count(p) == 0);
     // EACH FORM IS JUDGED: a layout's lock holds no value and names a pane; a layout's name is one a
@@ -2296,9 +2337,9 @@ TEST_CASE("a version-3 settings file keeps layouts' locks, pins and baselines by
                                                         std::string("Evening!")}));
     CHECK(prefs_persist::kept_problem(bad, true).find("a baseline's theme name") !=
           std::string::npos);
-    // WITHOUT THEM THE FILE IS VERSION 4: what holds in every layout, alone.
+    // WITHOUT THEM THE FILE IS VERSION 5: what holds in every layout, alone.
     const prefs_persist::Prefs wide = prefs_persist::without_layout_entries(p);
-    CHECK(prefs_persist::to_text(wide).find("\"version\":4") != std::string::npos);
+    CHECK(prefs_persist::to_text(wide).find("\"version\":5") != std::string::npos);
     CHECK(wide.locks.size() == 1);
     CHECK(wide.pins.empty());
     CHECK(wide.roles.empty());

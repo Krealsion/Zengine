@@ -109,7 +109,7 @@ struct InfoRig {
         return -1;
     }
 
-    /// AN ROLE ASKS THIS PANE TO INSPECT `ref`, as the Pane Manager's `inspect in Info` row
+    /// A ROLE ASKS THIS PANE TO INSPECT `ref`, as the Pane Manager's `inspect in Info` row
     /// does, and is answered what came of it.
     PaneSubjectActed ask_inspect(const PaneRef& ref) { return hand_inspect_in_info(r, ref); }
 
@@ -701,7 +701,7 @@ TEST_CASE("the heading and the subject's properties are the pane's rows, over th
     author_test_pane_room(f.r, f.kind, 35, 58);
     f.r.extent(161, 48);
 
-    // NOTHING IS INSPECTED UNTIL AN ROLE NAMES SOMETHING, and the rows say so, first row first.
+    // NOTHING IS INSPECTED UNTIL A ROLE NAMES SOMETHING, and the rows say so, first row first.
     std::string all = f.text();
     CHECK(f.row_of("PROPERTIES") == 0);
     CHECK(all.find("(no subject") != std::string::npos);
@@ -809,7 +809,7 @@ TEST_CASE("what the body cannot show, it counts -- on the side it left it out") 
 
 TEST_CASE("a role's ask inspects a pane through the host's own door, and the role is answered "
           "what the host said") {
-    // THE PANE MANAGER'S `inspect in Info` ROW, AS AN ROLE: it asks Info, and Info asks the host.
+    // THE PANE MANAGER'S `inspect in Info` ROW, AS A ROLE: it asks Info, and Info asks the host.
     InfoRig f;
     f.open();
     REQUIRE_FALSE(f.r.session().inspected.addressed());
@@ -2263,7 +2263,7 @@ inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
     return out;
 }
 
-/// AN ROLE HOLDING `zengine.workshop` WITH NO SUBJECT DOOR. It hears a pane's offer and its
+/// A ROLE HOLDING `zengine.workshop` WITH NO SUBJECT DOOR. It hears a pane's offer and its
 /// declared actions the way Workshop does, and says Workshop's resolved commit id to the Info pane
 /// under that role; the pane's rows are what the window holds of its area. A commit sent to it is
 /// queued (the Info pane declares the shape, so it resolves) and refused at dispatch as
@@ -2628,7 +2628,7 @@ TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, ans
 TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this desk is refused in "
           "words with nothing moved, and an inspector that arrives is answered the picture as it "
           "is now") {
-    // THE HOST'S TWO SUBJECT DOORS, ASKED BY AN ROLE OF ITS OWN: a reference nobody has, which
+    // THE HOST'S TWO SUBJECT DOORS, ASKED BY A ROLE OF ITS OWN: a reference nobody has, which
     // no row of the Pane Manager can name, and the question an arriving inspector asks.
     InfoRig f;
     f.open();

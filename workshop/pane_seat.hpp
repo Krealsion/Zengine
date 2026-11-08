@@ -31,7 +31,7 @@
 
 namespace zengine::workshop {
 
-/// ONE PANE'S AREA, AS AN ROLE OF SEVERAL PANES KEEPS IT: the graphics window that shows it, the
+/// ONE PANE'S AREA, AS A ROLE OF SEVERAL PANES KEEPS IT: the graphics window that shows it, the
 /// rows and columns the pane composes for there -- a row a line of the window's text and a
 /// character an advance of it -- and the rows last drawn there with their parts and caret. Named
 /// by its pane and the role it speaks as. Transient, as every room is.

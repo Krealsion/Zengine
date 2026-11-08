@@ -60,7 +60,7 @@ inline std::string content_id_text(loom::ContentId id) {
     return std::string(out);
 }
 
-/// THE ANSWER TO `ask` FROM AN ROLE whose gate is `accepted` and whose page is `page`: the
+/// THE ANSWER TO `ask` FROM A ROLE whose gate is `accepted` and whose page is `page`: the
 /// section for a shape the role accepts under that name and version, said against the content
 /// id the caller named. A shape outside `zen.` that the role accepts and its page does not
 /// describe is refused naming the page, as is one it does not accept.
