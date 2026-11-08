@@ -838,7 +838,7 @@ In `workshop/weave_pointer.cpp`:
 -            repaint(mail);
 -            return;
 -        }
-+        if (layouts_press(b, mail)) {
++        if (layouts_press(b, clicks, mail)) {
 +            repaint(mail);
 +            return;
 +        }
