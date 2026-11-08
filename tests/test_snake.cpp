@@ -203,7 +203,7 @@ struct Rig {
         return loom::mount_granted<Probe>(bus, std::move(reach), rec);
     }
 
-    /// Land whoever holds `role` as the playable host's operator does: by its role, at the
+    /// Land whoever holds `role` as the playable host's console does: by its role, at the
     /// kernel's door.
     Recorded::Answer unload_role(const char* role) {
         const std::uint64_t corr = next_corr++;
@@ -706,7 +706,7 @@ TEST_CASE("moment 3: the world grows - graceful swap, the letter, the migration"
     REQUIRE(before.snake.size() == 4);
 
     // The ceremony: ask the incumbent for its letter, replace it, let the heir
-    // claim. One command from the operator's seat.
+    // claim. One command from the console's seat.
     const Recorded::Answer grown = r.command(
         loom::SwapWeave{kWorldRole, "snake-world-v2", SNAKE_SO_WORLD_V2, /*graceful=*/true});
     REQUIRE(grown.kind == 0);
@@ -1354,7 +1354,7 @@ TEST_CASE("while the pilot flies the world's keys steer nothing, and once it lan
         REQUIRE(same_visual(r.rec.visuals.back(), visual_of(local)));
     }
 
-    // Landed by its role, as the operator lands it. Loom tells no weave it is unloaded, so the
+    // Landed by its role, as the console lands it. Loom tells no weave it is unloaded, so the
     // keys stay off until the hand that landed the pilot gives them back.
     CHECK(r.unload_role(kPilotRole).kind == 1);
     CHECK(r.command(loom::ListLoaded{}).text.find("snake-pilot") == std::string::npos);

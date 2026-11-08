@@ -35,7 +35,7 @@ again draws nothing.
 
 ## Use
 
-Whoever arranges the window -- the *arranger*, in the snake's host its operator weave, in Workshop
+Whoever arranges the window -- the *arranger*, in the snake's host its console weave, in Workshop
 Workshop's own -- offers the palettes and the element code, chooses each area's palette and places
 it. Once the window has offered itself, each area placed is introduced, and its owner hears its
 room from the window. An area wearing a palette no one offered, or none, is painted in the
@@ -43,7 +43,7 @@ window's own until one is offered. An owner that starts again asks its room with
 [`RoomAsked`](#roomasked).
 
 Who may send: whoever the host's grant lets reach `zengine.graphics`. The snake's host grants its
-operator [`AreaPlaced`](#areaplaced), [`PaletteOffered`](#paletteoffered),
+console [`AreaPlaced`](#areaplaced), [`PaletteOffered`](#paletteoffered),
 [`PaletteChosen`](#palettechosen),
 [`ElementCodeOffered`](#elementcodeoffered) and [`RoomAsked`](#roomasked); Workshop's grant gives
 it all but `ElementCodeOffered`. The directory itself takes [`WindowOffered`](#windowoffered) only
@@ -74,7 +74,7 @@ from the window's own role, and `RoomAsked` only from the area's owner.
   area given another owner starts empty in its window.
 - **Refuses:** nothing; an area whose window is not known yet waits, and is introduced when it
   is.
-- **Example:** the snake's operator places the world beneath its own status line,
+- **Example:** the snake's console places the world beneath its own status line,
   `send_to_role("zengine.graphics", AreaPlaced{"snake.world", "terminal", "snake.world", 0, c, 50 * c, 28 * c, 0, true})`,
   `c` being a terminal cell's pixels.
 
@@ -95,7 +95,7 @@ and a terminal's outline characters.
 - **Refuses:** nothing; a revision no higher than the one kept changes nothing, and a palette past
   the most the directory holds (`kMaxPalettes`) is not kept.
 - **Example:** `PaletteOffered` from `graphics::themes::block()`, the block theme as the build
-  generated it, as the snake's operator offers each palette it can choose.
+  generated it, as the snake's console offers each palette it can choose.
 
 ### `PaletteChosen`
 
@@ -108,7 +108,7 @@ and a terminal's outline characters.
   choice, and is introduced wearing it once placed.
 - **Refuses:** nothing; the palette an area already wears changes nothing, and one not offered yet
   is painted in the window's own until it is.
-- **Example:** the snake's `1` key, through its operator: `PaletteChosen{"snake.world", "block"}`.
+- **Example:** the snake's `1` key, through its console: `PaletteChosen{"snake.world", "block"}`.
 
 ### `ElementCodeOffered`
 

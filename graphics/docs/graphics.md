@@ -20,7 +20,7 @@ are written in (`graphics/themes/`); `classic`, in a setting or an `app.json`, i
 `night`. The snake (`examples/snake/`) is the worked example:
 it draws its frame as nodes and its board as an element of its own.
 
-![The snake in a TUI window wearing the night palette, its pilot flying and the game paused after step 120: the operator's status line, the world's score, board and buttons, and the score weave's own area beside it](images/snake-night.png)
+![The snake in a TUI window wearing the night palette, its pilot flying and the game paused after step 120: the console's status line, the world's score, board and buttons, and the score weave's own area beside it](images/snake-night.png)
 
 ![The same window after 1 chose the block palette: the window painted what it keeps in the other palette, and nothing was drawn again on the bus](images/snake-block.png)
 
@@ -57,7 +57,7 @@ window -> the asker          ClipboardText, SurfaceCaptured, SurfaceCaptureChunk
 GUI window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own role)
 ```
 
-The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator;
+The **arranger** is whoever a host lets reach the directory: in the snake's host, its console;
 in Workshop, its own weave, which places each pane's area and its own
 ([`zengine.workshop`](../../workshop/docs/zengine.workshop.md#graphicsready)), and lays its desk
 out in the window's room, in its unit and its text
