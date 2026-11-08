@@ -374,8 +374,8 @@ int main(int argc, char** argv) {
         host.retired_document = args.document;
     } else if (!host.project_dir.empty()) {
         std::error_code ec;
-        const std::string old = zengine::workshop::persist::resolved_against(
-            host.project_dir, zengine::workshop::persist::kRetiredDocumentName);
+        const std::string old = zengine::persist::resolved_against(
+            host.project_dir, zengine::workshop::kRetiredDocumentName);
         if (std::filesystem::is_regular_file(old, ec)) {
             host.retired_document = old;
         }

@@ -191,7 +191,7 @@ answers the owner's anchor, absence included"
 complete_recipes
 `workshop/recipes.hpp` complete_recipes install_recipes
 `workshop/weave.hpp` RecipeSource HostContext::recipe_source
-`workshop/persist.hpp` resolved_against
+`persist/file.hpp` resolved_against
 `tests/test_workshop_files.cpp` "a relative recipe source is the PROJECT's file, in the editor and
 in the build" "the project door names the file that recipe's build would compile" "a catalog's own
 directory is not a source base"

@@ -14,7 +14,8 @@
 
 #include "keymap.hpp"
 #include "pane_settings.hpp"
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 #include "screen.hpp" // the arrangement's measures: each setting's default and bounds
 #include "settings_seam_vocabulary.hpp"
 

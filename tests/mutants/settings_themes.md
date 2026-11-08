@@ -117,8 +117,8 @@ A theme file is read from disk with a ceiling a thousand times its own.
 In `settings/theme_persist.hpp`:
 
 ```diff
--        workshop::persist::read_file(path, kMaxThemeBytes, "a theme file");
-+        workshop::persist::read_file(path, kMaxThemeBytes * 1000, "a theme file");
+-        persist::read_file(path, kMaxThemeBytes, "a theme file");
++        persist::read_file(path, kMaxThemeBytes * 1000, "a theme file");
 ```
 
 Red in `zengine-settings-themes-tests`:

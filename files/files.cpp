@@ -25,7 +25,8 @@
 #include "files/marks_persist.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/path_admission.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_escape.hpp"
@@ -1334,7 +1335,7 @@ private:
         }
         if (row->directory) {
             const std::string into = ws::admit_location(
-                ws::persist::resolved_against(state_.current_dir, row->name));
+                zengine::persist::resolved_against(state_.current_dir, row->name));
             if (into.empty()) {
                 notice_ = "`" + ws::shown_name(row->name) + "` cannot be reached from here";
                 say(mail);
@@ -1351,7 +1352,7 @@ private:
         FilesAsk next;
         next.kind = FilesAsk::Kind::kOpen;
         next.subject = row->name;
-        next.path = ws::persist::resolved_against(state_.current_dir, row->name);
+        next.path = zengine::persist::resolved_against(state_.current_dir, row->name);
         const std::string path = next.path;
         ask_approval(std::move(next), ws::scope::kOpen, path, mail);
     }
@@ -1576,7 +1577,7 @@ private:
         FilesAsk next;
         next.kind = FilesAsk::Kind::kUseRecipes;
         next.subject = row->name;
-        next.path = ws::persist::resolved_against(state_.current_dir, row->name);
+        next.path = zengine::persist::resolved_against(state_.current_dir, row->name);
         ask_approval(std::move(next), ws::scope::kWrite, std::string(), mail);
     }
 

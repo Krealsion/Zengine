@@ -8,7 +8,8 @@
 // Workshop law: agents/workshop/keyboard.md (+1 registers; agents/workshop.md routes)
 
 #include "keymap.hpp"
-#include "persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>

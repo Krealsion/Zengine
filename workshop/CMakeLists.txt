@@ -16,6 +16,7 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-voc
                                                             zengine-builder-vocabulary
                                                             zengine-manual
                                                             zengine-operator
+                                                            zengine-persist
                                                             loom::core
                                                             loom::terminal)
 # ...and the manuals of the host's own offices compiled into it, each office answering a shape's

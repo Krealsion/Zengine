@@ -16,7 +16,7 @@
 #include "rig_windows.hpp"
 
 #include "info/settings_rows.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
 #include "workshop/property.hpp"
 #include "workshop/screen.hpp"
 #include "workshop/setup.hpp"

@@ -62,7 +62,7 @@ map, not the file, not the rows"
 `workshop/weave_handlers.cpp` load_keymap
 `workshop/weave_desktop.cpp` on(KeymapEditRequested)
 `workshop/screen.hpp` kKeymapUnwrittenKey
-`workshop/persist.hpp` write_file read_file
+`persist/file.hpp` write_file read_file
 `workshop/keymap_persist.hpp` to_text
 `tests/test_workshop_panes_desktop.cpp` "WL-KEY-18: persistence -- an isolated run applies live and
 says nothing was written; a file changed by another hand is not overwritten; a file refused at

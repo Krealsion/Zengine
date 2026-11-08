@@ -24,7 +24,8 @@
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_seat.hpp"
 #include "workshop/pane_vocabulary.hpp"
-#include "workshop/persist.hpp"
+#include "persist/file.hpp"
+#include "workshop/property.hpp" // `Written`
 
 #include <zen/weave.hpp>
 
@@ -340,7 +341,7 @@ void ask_location(const st::Material& m, loom::Mail& mail, const char* office, c
                   std::uint64_t& asked_seq, LocateOf<SnapshotT>& locate, NoticeFn&& notice) {
     locate.stage = LocateOf<SnapshotT>::Stage::Permission;
     locate.loc = m.location;
-    locate.loc.path = ws::persist::resolved_against(std::string(), m.location.path);
+    locate.loc.path = zengine::persist::resolved_against(std::string(), m.location.path);
     locate.ctx = m.location_context;
     locate.ask = ++asked_seq;
     locate.ticket = mail.as_role(office).send_to_role(
