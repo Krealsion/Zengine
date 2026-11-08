@@ -70,7 +70,7 @@ setups, each feature's tutorials (`<feature>/docs/tutorials/<name>/`) among them
 `share/zengine/loom-tools/desk`, the agent's desk guide and resolver; and beside each its
 `-machine` package (`workshop-machine`, `desk-machine`), the tools that also reach this machine;
 and `share/zengine/loom-tools/accounts-machine`, a checkout's Git and pull requests, which reach the
-session user's accounts. An operator approves a package whole, so a package's name says how far
+session user's accounts. A weaver approves a package whole, so a package's name says how far
 its tools reach. The generic
 `zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs, and so
 does `zengine-app`, the host an app runs in with no Workshop (`app/docs/app.md`): it opens the

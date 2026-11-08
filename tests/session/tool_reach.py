@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Joshua DeMoss
 """WHAT A SHIPPED TOOL REACHES, BY ITS IMPORTS: a package's name says how far its tools reach.
 
-An operator approves a tool package whole (Loom's sessions guide, section 2), so a package is the
+A weaver approves a tool package whole (Loom's sessions guide, section 2), so a package is the
 unit of reach. A package whose name ends in ``-machine`` may reach the machine; one whose name ends
 in ``accounts-machine`` may reach, through it, the session user's accounts as well: GitHub's client
 and Git's push. Every other package is a MESSAGE package, and each of its tools reaches nothing but

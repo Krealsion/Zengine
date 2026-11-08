@@ -262,7 +262,7 @@ endif()
 # Python tools another Loom host's session runs against Workshop: `workshop`, and `desk`, the desk
 # guided and resolved, by message alone; each one's `-machine` package, which builds on it and
 # reaches this machine as well; and `accounts-machine`, whose Git pushes and opens pull requests as
-# the session's user. An operator approves a package whole, so its name says its reach. DATA, not a
+# the session's user. A weaver approves a package whole, so its name says its reach. DATA, not a
 # target, riding the condition of the vocabulary weave they need (a Loom that hosts loadable weaves).
 if(TARGET zengine-guest-vocabulary)
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/external-host/tools/workshop

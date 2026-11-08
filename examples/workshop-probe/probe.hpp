@@ -7,7 +7,7 @@
 // The Workshop probe: one reusable testing journey across two real Loom hosts, as a loadable weave
 // a supplied host boots (probe.cpp exports this header's weave, so a suite drives the same code).
 // It is a participant, not a host: the link holds the socket and the bus. What it may say to the
-// link is one rule the operator grants (`authority allow probe loom.link.Ask v1 -> role
+// link is one rule the weaver grants (`authority allow probe loom.link.Ask v1 -> role
 // loom.link.workshop`, and the same for `loom.link.StatusRequested`), and what the link's session
 // may say to Workshop is Workshop's guests file. Built against the installed packages alone.
 
@@ -40,7 +40,7 @@ inline constexpr std::array<const char*, 2> kCaptureRoles = {
     "zengine.window.terminal",
 };
 
-/// RUN THE JOURNEY. Sent by the operator (the console's `send <probe> RunProbe 1 ...`), and
+/// RUN THE JOURNEY. Sent by the weaver (the console's `send <probe> RunProbe 1 ...`), and
 /// answered when the journey settles or stops. Every parameter has a default a first run can
 /// take: the link name, the chord, the far roles, the file the picture lands in.
 struct RunProbe {

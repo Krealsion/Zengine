@@ -25,7 +25,7 @@ LIFE-03, LIFE-04). The Timer's activation law, TIMER-01, is in
 
 No CTest entry of its own; the entries that exercise it are the Timer's (`timer/AGENTS.md`).
 Its cases in shared suites: `timer` (`tests/test_timer.cpp`: forged, unactivated, duplicate,
-replayed, newer and second-operator activations, through the Timer and its binding) and
+replayed, newer and second-initiator activations, through the Timer and its binding) and
 `timer_cursor_bypass_refused` (`tests/compile_negative/activation_collision.cpp`, case 4). The
 suites activate a weave as the Loom's control door does, through `tests/lifecycle_door.hpp`.
 Outside CTest, the installed-package witness (`tests/package/run.cmake`) compiles it from

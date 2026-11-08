@@ -257,7 +257,7 @@ struct FakeRig {
     loom::WeaveId service{};
     loom::WeaveId ear{};
     loom::WeaveId door{};
-    loom::WeaveId other_door{}; ///< a SECOND lifecycle operator: a different lineage
+    loom::WeaveId other_door{}; ///< a SECOND lifecycle initiator: a different lineage
     loom::WeaveId impostor{};   ///< an ordinary weave that merely knows the shape
     loom::WeaveId steward{};    ///< mounted only where a test wants one
     std::int64_t next_sequence = 1;
@@ -1022,7 +1022,7 @@ TEST_CASE("a newer activation replaces the chain; a different sender begins a ne
     CHECK(r.heard.ready == 2);
     CHECK(r.bus.pending() == 1);
 
-    // A DIFFERENT SENDER — a second lifecycle operator — is a new lineage. It
+    // A DIFFERENT SENDER — a second lifecycle initiator — is a new lineage. It
     // is accepted (the Loom attested it; activation/docs/activation.md says why
     // an attested sender is a lineage), and note its sequence is 1: LOWER than
     // the current one, which is exactly the point. Sequences are only comparable

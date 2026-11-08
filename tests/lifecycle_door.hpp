@@ -37,7 +37,7 @@ struct DoorState {
     ZEN_SHAPE(DoorState, 1, ZEN_FIELD(announced));
 };
 
-/// A lifecycle operator: it holds a real authority because the test, standing in
+/// A lifecycle initiator: it holds a real authority because the test, standing in
 /// for the host, gave it one.
 class TestDoor : public loom::WeaveBase<TestDoor, DoorState, loom::Accept<ActivateOrder>,
                                         loom::Emit<loom::Activated>> {

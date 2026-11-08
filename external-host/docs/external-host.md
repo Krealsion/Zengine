@@ -380,7 +380,7 @@ session needs to speak to Workshop, and nothing of the session itself:
   `desk-machine/watch`, which follows the desk as it moves and writes each change beside them
   ([the desk written as text](#the-desk-written-as-text-for-an-agent)).
 
-**A package's name says how far its tools reach**, because a session's operator approves a
+**A package's name says how far its tools reach**, because a session's weaver approves a
 package whole. Every tool of `workshop`, of `desk` and of the tower-defense example's
 `tower-defense` reaches nothing but the bus and a clock -- no process, no file and no socket of
 its own -- so approving those gives an agent Workshop's doors under its own row and nothing on

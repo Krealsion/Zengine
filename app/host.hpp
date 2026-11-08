@@ -6,7 +6,7 @@
 
 // The app host (app/docs/app.md): what `zengine-app` composes over one bus, and nothing a weave
 // could hold: one operator catalog, the Kernel asking Loom's authority store in the app's folder,
-// Loom's warden adopting each load, the operator seat, the plan's booter and executor (its barrier
+// Loom's warden adopting each load, the weaver seat, the plan's booter and executor (its barrier
 // asking the store before each row), the Flow host and the view host, the place door, the close,
 // and the console's words a line at a time, so a program and a suite drive it alike.
 
@@ -57,7 +57,7 @@ namespace load_persist = zengine::workshop::load_persist;
 /// The most turns of the bus the seat gives the warden to answer one question.
 inline constexpr int kSeatTurns = 64;
 
-// ---- the operator seat ---------------------------------------------------------------------
+// ---- the weaver seat ---------------------------------------------------------------------
 
 /// The seat's own nudge: a turn in which it sends the question it holds.
 struct AppSeatTurn {
@@ -69,7 +69,7 @@ struct AppSeatState {
     ZEN_SHAPE(AppSeatState, 1, ZEN_FIELD(answers));
 };
 
-/// THE OPERATOR SEAT, the one participant the warden obeys. A question it sends from inside its
+/// THE WEAVER SEAT, the one participant the warden obeys. A question it sends from inside its
 /// own delivery is a participant's send, gated and stamped with its id, and an answer counts only
 /// when Loom attributes it to that question (`loom::AskBook`).
 class Seat final

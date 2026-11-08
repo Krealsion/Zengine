@@ -2,7 +2,7 @@
 # part is under this pixel". It owns one distinction: what a weaver authored (vocabulary.hpp,
 # which holds no solved number) versus what a room makes of it (layout.hpp). Not a relocation of
 # the Loom's `loom::Widget` / px_layout, a different model (relational stack layout for an
-# operator console) that fences out the authored placement this package needs.
+# weaver's console) that fences out the authored placement this package needs.
 # Reference: ui/docs/ui.md.
 
 # No kernel dependency and no weave: vocabulary and pure functions, present in every

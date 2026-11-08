@@ -98,7 +98,7 @@ WHY — `agents/decisions/document-and-desk-publish-together.md`
 
 ## WL-OPEN-08 — The authority is the host's, minted for the manager's exact incarnation
 
-LAW — The host mints `JointAuthority` for the mounted manager over the two roles; it names that incarnation, a replaced manager's retained copy is refused `NotOperator`, and only the host re-mints.
+LAW — The host mints `JointAuthority` for the mounted manager over the two roles; it names that incarnation, a replaced manager's retained copy is refused `NotInitiator`, and only the host re-mints.
 
 MEANS
 - no operation id, role spelling, correlation or payload is authority;

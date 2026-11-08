@@ -1601,7 +1601,7 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
     std::vector<BeatAsk> asks;
     (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
     // A first breath is Loom's to grant. The suite activates through a real
-    // lifecycle operator holding a real authority, because that is the only way a
+    // lifecycle initiator holding a real authority, because that is the only way a
     // weave can be activated at all — hand-posting the public shape is exactly
     // the forgery the attestation refuses.
     const loom::WeaveId door = zengine::testing::mount_door(bus);

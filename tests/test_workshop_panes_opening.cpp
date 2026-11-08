@@ -536,7 +536,7 @@ TEST_CASE("the manager's authority names its exact incarnation -- a swapped mana
     REQUIRE(o.r.bus.swap_state(o.r.opening_id, bytes).revived);
     const SourceOpened stale = o.open_and_serve("/x/b.cpp");
     CHECK_FALSE(stale.accepted);
-    CHECK(stale.refusal.find("NotOperator") != std::string::npos);
+    CHECK(stale.refusal.find("NotInitiator") != std::string::npos);
     CHECK(o.opening().last_outcome == "refused");
     CHECK(o.opening().stage == "idle");
     CHECK(o.r.bus.joint_pending() == 0);
