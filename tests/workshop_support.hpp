@@ -5314,6 +5314,15 @@ inline DesktopSeat* mount_desktop(Rig& t, AppActions rows = shipped_app_actions(
                         kWorkshopProvider);
     grant.allow_to_role(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version,
                         kLayoutsRole);
+    // ...AND THE SAME ASKS IN AN EARLIER VOCABULARY'S VERSIONS, as a pane built on one says them.
+    grant.allow_to_role(v1::PaneLaunchRequested::zen_name, v1::PaneLaunchRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(v2::PaneLaunchRequested::zen_name, v2::PaneLaunchRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(v1::PaneToggleRequested::zen_name, v1::PaneToggleRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(v1::PaneCloseRequested::zen_name, v1::PaneCloseRequested::zen_version,
+                        kLayoutsRole);
     const loom::WeaveId id =
         t.bus.register_weave(std::move(seat), std::move(grant), std::string(kDesktopRole));
     raw->zen_set_self(id);

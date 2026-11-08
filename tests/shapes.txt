@@ -77,6 +77,7 @@ ComposerCommandContext v1 0x50d30a1f2e258fc9
 ComposerFieldState v1 0xb308cce02ecc3dad
 ComposerState v2 0xa220f1db53259959
 ConnectionsPaneState v1 0x62852853b8c3881f
+ConsoleState v1 0x66a70b7595842b50
 DeclaredSettings v1 0xc74a475a81bcd779
 DemoReadyRequested v1 0x03fff41d95cc66d6
 DemoResetRequested v1 0xe46fbaa5eb051d22
@@ -316,7 +317,6 @@ OfficeSettingsRequested v1 0xc72ad63d323aef9a
 OpenSourceRequested v1 0x7202b83683b28f3b
 OpeningRoom v1 0x3028e7c9b444ab5d
 OpeningState v1 0x7bed74362789d96d
-OperatorState v1 0x5a9910fc3c9efdce
 PaintInk v1 0x89d64272a39df0f9
 PaintNode v3 0xff8f37b8d60fc59d
 PaintResult v1 0xf6f28b0522c96a8b

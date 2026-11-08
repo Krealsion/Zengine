@@ -2397,7 +2397,7 @@ TEST_CASE("a pane built on an earlier vocabulary closes, launches and toggles as
     CHECK(desk->launched().empty());
     CHECK(r.session().panes.has(kind));
 
-    // A VERSION-2 LAUNCH OF A PANE ALREADY HERE, without the keys: answered at version 1, focus
+    // A LAUNCH AT VERSION 2 OF A PANE ALREADY HERE, without the keys: answered at version 1, focus
     // left where it was.
     desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
         d.launch_v2(m, kHelloRole, kHelloPane, false);

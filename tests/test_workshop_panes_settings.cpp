@@ -835,6 +835,11 @@ RevisionSeat* mount_revision_seat(PaneRig& r, const std::string& role, loom::Wea
     grant.allow_to_any(PaneSettingLockRequested::zen_name, PaneSettingLockRequested::zen_version);
     grant.allow_to_any(LayoutSettingsRequested::zen_name, LayoutSettingsRequested::zen_version);
     grant.allow_to_any(SettingsWriteRequested::zen_name, SettingsWriteRequested::zen_version);
+    // ...and a role's settings in an earlier vocabulary's names, as a pane built on one asks.
+    grant.allow_to_any(OfficeSettingsDeclared::zen_name, OfficeSettingsDeclared::zen_version);
+    grant.allow_to_any(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version);
+    grant.allow_to_any(OfficeSettingCommitRequested::zen_name,
+                       OfficeSettingCommitRequested::zen_version);
     *id = r.bus.register_weave(std::move(seat), std::move(grant), role);
     raw->zen_set_self(*id);
     return raw;

@@ -3020,7 +3020,7 @@ TEST_CASE("the settings file round-trips what it keeps: Workshop's own settings,
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads versions 1 to 5");
 
-    // A VERSION-4 FILE NAMES EACH ROLE'S ENTRY BY `office`: read, each as the role it names.
+    // A FILE AT VERSION 4 NAMES EACH ROLE'S ENTRY BY `office`: read, each as the role it names.
     // ⚔ MUTATION (tests/mutants/workshop_persistence.md#version-four-unread): the reader taking
     // version 4 as a foreign version -- the file is refused.
     const prefs_persist::v4::WorkshopPrefs four{
