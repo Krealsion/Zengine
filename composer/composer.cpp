@@ -25,6 +25,7 @@
 #include "manual/vocabulary.hpp"
 #include "message-draft/library.hpp"
 #include "manuals/zengine.composer.hpp" // this pane's manual, compiled in from its page
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/registry.hpp>
@@ -68,7 +69,7 @@ using zengine::workshop::PaneTextInput;
 namespace stage = zengine::composer::stage;
 namespace meaning = zengine::composer::meaning;
 
-constexpr const char* kWorkshopRole = "zengine.workshop";
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 using zengine::composer::ComposerCommandContext;
 using AcceptedShapes = zengine::RawValueDoor<&loom::accepted_shapes_schema>;

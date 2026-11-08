@@ -90,9 +90,9 @@ using ws::RecipeOutcome;
 using ws::RecipeUseRequested;
 using ws::SourceOpened;
 
-/// The role Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
-/// provider is a stranger to Workshop's internals.
-constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
+/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// How many rows the wheel is worth per notch in a cursor-windowed list, unless a layout keeps
 /// another, and the fewest and most it may keep.

@@ -26,6 +26,7 @@
 #include "input/vocabulary.hpp"
 
 #include "manuals/zengine.attention.hpp" // this pane's manual, compiled in from its page
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -51,10 +52,9 @@ using ws::v2::PaneOffered;
 using ws::StandingCondition;
 using ws::StandingConditions;
 
-/// WHO THIS PANE IS TALKING TO. The host's role, spelled as a literal exactly as
-/// `files.cpp` and `builder/builder-pane/pane.cpp` spell it: a provider is a stranger to Workshop's
-/// internals and says who it is talking to the way a third party would.
-constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
+/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 // ---- The text helpers the composition spends ------------------------------------------
 //

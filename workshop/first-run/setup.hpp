@@ -10,6 +10,9 @@
 // Reference: workshop/docs/zengine.first-run.md; law: agents/workshop/first-run.md.
 
 #include "workshop/pane_text.hpp"
+#include "workshop/pane_menu.hpp"
+#include "info/vocabulary.hpp"
+#include "notices/notices-pane/vocabulary.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -34,9 +37,9 @@ inline constexpr const char* kAnsweredKey = "answered";
 // WL-FIRST-01 -- agents/workshop/first-run.md
 inline bool fresh_desk(const std::vector<std::pair<std::string, std::string>>& open) {
     for (const auto& [role, pane] : open) {
-        const bool layouts = role == "zengine.workshop" && pane == "layouts";
-        const bool info = role == "zengine.info" && pane == "info";
-        const bool notices = role == "zengine.notices-pane" && pane == "notices";
+        const bool layouts = role == zengine::workshop::pane_menu::kWorkshopRole && pane == "layouts";
+        const bool info = role == zengine::info_pane::kInfoPaneRole && pane == "info";
+        const bool notices = role == zengine::notices_pane::kNoticesPaneRole && pane == "notices";
         if (!layouts && !info && !notices) {
             return false;
         }

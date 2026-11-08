@@ -10,6 +10,8 @@
 // not an alias (one name per pane, WL-CAT-03), and not a general mechanism: a hand-written table.
 
 #include "setup.hpp"
+#include "workshop/desktop_seam_vocabulary.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -51,7 +53,7 @@ inline constexpr const char* kInfoPane = "info";
 /// The source editor's old role and its role now, for `kFilesProvider`'s reasons
 /// (`editor/editor-pane/vocabulary.hpp`).
 inline constexpr const char* kRetiredEditorProvider = "zengine.workshop";
-inline constexpr const char* kEditorProvider = "zengine.editor";
+inline constexpr const char* kEditorProvider = kEditorRole;
 
 /// THE PANE KEY, WHICH DID NOT MOVE. Its place is the overlay stack on both sides, so the
 /// row's `default` goes on meaning what it always meant and nothing is written.
@@ -62,7 +64,7 @@ inline constexpr const char* kEditorPane = "editor";
 /// checked against `workshop/desktop-pane/vocabulary.hpp` by a case.
 inline constexpr const char* kRetiredManagerProvider = "zengine.workshop";
 inline constexpr const char* kRetiredManagerPane = "pane-editor";
-inline constexpr const char* kManagerProvider = "zengine.desktop";
+inline constexpr const char* kManagerProvider = kDesktopRole;
 inline constexpr const char* kManagerPane = "launcher";
 
 // ---- The table -------------------------------------------------------------------------

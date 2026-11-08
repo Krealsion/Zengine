@@ -11,6 +11,8 @@
 // replaceable in place. A Workshop whose desktop refused to load has no application defaults.
 // Workshop law: agents/workshop/desktop.md
 
+#include "workshop/desktop_seam_vocabulary.hpp"
+
 #include <zen/weave/shape.hpp>
 
 #include <cstdint>
@@ -22,7 +24,7 @@ namespace zengine::desktop_pane {
 /// THE ROLE THIS WEAVE HOLDS. It is spelled in the host too
 /// (`workshop/desktop_seam_vocabulary.hpp`'s `kDesktopRole`), because the host must know which
 /// role to ask for a declared row -- and a suite pins the two spellings against each other.
-inline constexpr const char* kDesktopRole = "zengine.desktop";
+using zengine::workshop::kDesktopRole;
 
 /// The Pane Manager: every pane this Workshop knows about, whether it is open, and whether
 /// anything offers it -- Return opens or focuses a row, `x` closes it, and `n` shows the View

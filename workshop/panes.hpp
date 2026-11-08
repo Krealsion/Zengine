@@ -14,6 +14,7 @@
 
 #include "builder/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -54,7 +55,7 @@ inline constexpr std::int64_t kTopBand = 2;
 /// WHOSE PANES THE BUILT-INS ARE — the provider/service key every catalog row
 /// below carries, and the first half of a durable `PaneRef`.
 // WL-SETUP-01 -- agents/workshop/setup-file.md
-inline constexpr const char* kWorkshopProvider = "zengine.workshop";
+inline constexpr const char* kWorkshopProvider = pane_menu::kWorkshopRole;
 
 /// The Info pane's role, spelled for `default_setup`'s desk and not a catalog row. A literal:
 /// this host does not link the weave, and a case checks the two spellings agree.

@@ -21,6 +21,7 @@
 #include "maker/files.hpp"
 #include "view/description.hpp"
 #include "workshop/load_persist.hpp"
+#include "timer/vocabulary.hpp"
 
 #include <zen/serialize.hpp>
 
@@ -55,9 +56,9 @@ inline workshop::load::LoadPlan export_plan() {
     load::LoadPlan plan;
     plan.artifacts = {{"zengine-operators-basic", provider, std::nullopt},
                       {"zengine-app-weave", std::nullopt, weave(kAppRole)},
-                      {"zengine-graphics", std::nullopt, weave("zengine.graphics")},
+                      {"zengine-graphics", std::nullopt, weave(zengine::graphics::kGraphicsRole)},
                       {"zengine-window-sdl", std::nullopt, weave("zengine.window.sdl")},
-                      {"zengine-timer", provider, weave("zengine.timer")}};
+                      {"zengine-timer", provider, weave(zengine::timer::kTimerRole)}};
     return plan;
 }
 

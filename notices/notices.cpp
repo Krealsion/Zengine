@@ -17,6 +17,7 @@
 #include "manual/vocabulary.hpp"
 
 #include "manuals/zengine.notices.hpp" // this role's manual, compiled in from its page
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -34,8 +35,8 @@ namespace {
 namespace ws = zengine::workshop;
 namespace nt = zengine::notices;
 
-/// WHO SAYS THE NOTICES: Workshop's role, spelled as a stranger spells it.
-constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO SAYS THE NOTICES: Workshop's role, read from the installed pane protocol.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// THE WORDS AS KEPT: cut at `kMaxNoticeBytes`, never inside a character, ending `...`.
 std::string kept_text(std::string text) {

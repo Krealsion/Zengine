@@ -14,6 +14,8 @@
 // `zen.Result` or `zen.Refused`.
 // Reference: editor/docs/zengine.editor.md.
 
+#include "editor/editor-pane/vocabulary.hpp"
+
 #include <zen/weave/shape.hpp>
 
 #include <cstdint>
@@ -22,7 +24,7 @@
 namespace zengine::neovim_editor {
 
 /// THE EDITOR'S ROLE AND PANE KEY -- the standard Editor's own spellings (see above).
-inline constexpr const char* kEditorRole = "zengine.editor";
+inline constexpr const char* kEditorRole = zengine::editor_pane::kEditorPaneRole;
 inline constexpr const char* kEditorPane = "editor";
 
 /// WHAT THE PANE MANAGER, INFO AND THE PANE HEADER SAY while this implementation holds the

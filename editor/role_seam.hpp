@@ -26,6 +26,7 @@
 #include "workshop/pane_vocabulary.hpp"
 #include "persist/file.hpp"
 #include "workshop/property.hpp" // `Written`
+#include "workshop/pane_menu.hpp"
 
 #include <zen/weave.hpp>
 
@@ -44,9 +45,9 @@ namespace zengine::editor_role {
 namespace st = zengine::source_transfer;
 namespace ws = zengine::workshop;
 
-/// The role Workshop holds, named as a string rather than through `workshop/panes.hpp`: an
-/// Editor is a stranger to Workshop's internals.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// The role Workshop holds, read from the installed pane protocol (`workshop/pane_menu.hpp`) as
+/// a stranger's pane reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// One column of every document row the text may not use: the caret's own, so a caret after the
 /// end of a full row stays inside the room (WL-EDIT-08).

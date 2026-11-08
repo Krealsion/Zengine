@@ -28,6 +28,7 @@
 #include "graphics/colors.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -47,7 +48,7 @@ namespace gfx = zengine::graphics;
 namespace input = zengine::input;
 namespace pal = zengine::palette;
 
-constexpr const char* kWorkshop = "zengine.workshop";
+constexpr const char* kWorkshop = zengine::workshop::pane_menu::kWorkshopRole;
 constexpr const char* kRole = ws::kPaletteRole;
 constexpr const char* kPane = ws::kPalettePane;
 

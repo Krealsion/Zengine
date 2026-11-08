@@ -11,6 +11,7 @@
 #include "vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/weave/role_request.hpp>
 #include <zen/weave/standard_shapes.hpp>
@@ -68,7 +69,7 @@ public:
         watch_.reference = entry;
         watch_.subject = entry.owner + ":" + entry.entry;
         const auto correlation = ++c.asks;
-        const bool queued = watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), "zengine.workshop",
+        const bool queued = watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::workshop::pane_menu::kWorkshopRole,
             workshop::PaneObservationRequested{pane, inventory::kInventoryRole, inventory::InventoryRead::zen_name,
                 inventory::InventoryRead::zen_version, static_cast<std::int64_t>(c.mail.correlation()), watch_.subject},
             correlation);
@@ -92,7 +93,7 @@ public:
         if (watch_.state == Watch::State::off && !watch_.ask.pending()) return {};
         if (watch_.state == Watch::State::requesting && watch_.ask.pending()) ending_ = watch_.ask;
         else if (tell && watch_.lease)
-            (void)c.mail.as_role(kInfoPaneRole).send_to_role("zengine.workshop",
+            (void)c.mail.as_role(kInfoPaneRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
                 workshop::PaneObservationEnded{pane, watch_.lease});
         const auto kept_good = watch_.last_good, kept_failure = watch_.last_failure;
         watch_ = Watch{};
@@ -117,7 +118,7 @@ public:
             // nothing here starts watching again.
             ending_.forget();
             if (answer.allowed && answer.lease)
-                (void)c.mail.as_role(kInfoPaneRole).send_to_role("zengine.workshop",
+                (void)c.mail.as_role(kInfoPaneRole).send_to_role(zengine::workshop::pane_menu::kWorkshopRole,
                     workshop::PaneObservationEnded{pane, answer.lease});
             return {true, {}};
         }
@@ -202,7 +203,7 @@ private:
 
     std::string cycle(const std::string& pane, ViewContext& c) {
         const auto correlation = ++c.asks;
-        if (!watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), "zengine.workshop",
+        if (!watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), zengine::workshop::pane_menu::kWorkshopRole,
                 workshop::PaneObservationContinued{pane, watch_.lease, watch_.subject}, correlation))
             return stop(pane, c, "Watch ended: its observation could not be queued", true);
         return {};

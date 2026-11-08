@@ -4,6 +4,7 @@
 #define ZENGINE_INVENTORY_PANE_CLIENT_HPP
 #include "inventory/vocabulary.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_menu.hpp"
 #include <zen/weave.hpp>
 #include <zen/weave/role_request.hpp>
 #include <zen/weave/dispatch_refusal.hpp>
@@ -38,7 +39,7 @@ public:
         result.reset(); folder_result.reset();
         notice = "Checking this operation's authority";
         phase = Phase::authorizing;
-        const bool queued = pending_.send_to_role(mail.as_role(role), "zengine.workshop",
+        const bool queued = pending_.send_to_role(mail.as_role(role), zengine::workshop::pane_menu::kWorkshopRole,
             workshop::PaneOperationRequested{
             std::move(pane), kInventoryRole, RequestType::zen_name, RequestType::zen_version, static_cast<std::int64_t>(gesture)},
             permission_correlation);

@@ -17,6 +17,7 @@
 #include "workshop/pane_text.hpp"
 
 #include "component/list_window.hpp"
+#include "workshop/pane_seam_vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -35,16 +36,15 @@ using ws::pane_text::fit;
 using ws::pane_text::pad;
 using ws::pane_text::printable;
 
-/// WHO THIS WEAVE IS TALKING TO -- the host's role, spelled as a literal exactly as every
-/// other provider spells it. A provider is a stranger to Workshop's internals and says who it
-/// is talking to the way a third party would.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO THIS WEAVE IS TALKING TO -- the host's role, read from the installed pane protocol as
+/// every other provider reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// THE TOOL THE TERMINAL LAUNCH POINTS AT, as a `PaneRef`'s two durable halves. (!) THESE ARE
 /// SPELLED HERE, IN THE DESKTOP, AND THAT IS THE POINT: which tool `Ctrl+t` opens is an
 /// application's choice, so it is written in the weave a weaver replaces rather than in the host
 /// they cannot. A desktop that pointed it at a different terminal would change one line here.
-inline constexpr const char* kTerminalRole = "zengine.terminal";
+using zengine::workshop::kTerminalRole;
 inline constexpr const char* kTerminalPane = "terminal";
 
 /// ...AND THE TOOL `n` POINTS AT, on the same terms: a pane of the weaver's own is a described

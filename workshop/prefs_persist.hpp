@@ -18,6 +18,7 @@
 #include "workshop/property.hpp" // `Written`
 #include "screen.hpp" // the arrangement's measures: each setting's default and bounds
 #include "settings_seam_vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -66,8 +67,8 @@ inline constexpr const char* kDefaultPrefsFileName = "workshop-prefs.json";
 
 // ---- Workshop's own settings ----------------------------------------------------------
 
-/// The role Workshop's own settings are kept under.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// The role Workshop's own settings are kept under: its own.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// Workshop's own keys: whether the arrangeable panes wear their titles, how the band and the
 /// Hotkeys view spell a key, which pin list an editor edits, how the keyboard's selection is

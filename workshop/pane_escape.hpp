@@ -19,6 +19,7 @@
 
 #include "input/vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/weave.hpp>
 
@@ -35,7 +36,7 @@ inline bool bare(const PaneKey& key) noexcept {
 /// Hand the Escape this delivery carried back to Workshop unspent, echoing its number, from
 /// `role`, which offered `pane` (WL-ARR-15).
 inline void unspent(loom::Mail& mail, std::string_view role, const std::string& pane) {
-    (void)mail.as_role(role).send_to_role("zengine.workshop", PaneEscapeUnspent{pane},
+    (void)mail.as_role(role).send_to_role(zengine::workshop::pane_menu::kWorkshopRole, PaneEscapeUnspent{pane},
                                             mail.correlation());
 }
 

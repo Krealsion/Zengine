@@ -28,6 +28,8 @@
 #include "inventory/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
 #include "notices/vocabulary.hpp"
+#include "info/vocabulary.hpp"
+#include "composer/vocabulary.hpp"
 
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>
@@ -475,15 +477,15 @@ loom::Grant grant_for(const GuestRow& row) {
             // THE DESK SAID WHOLE: the desk and its panes in one turn, a pane's page and a point in
             // it, the inventory of panes and the keymap, each asked of Workshop's role.
             g.allow_to_role(DeskReadRequested::zen_name, DeskReadRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             g.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             g.allow_to_role(PanePointRequested::zen_name, PanePointRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             g.allow_to_role(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version,
-                            "zengine.workshop");
+                            pane_menu::kWorkshopRole);
             // THE PICTURE, read from the window that shows the desk.
             for (const std::string& medium :
                  {std::string(graphics::kWindowRolePrefix) + graphics::kTuiWindow,
@@ -508,8 +510,9 @@ loom::Grant grant_for(const GuestRow& row) {
                                       "DemoWorkFinished", "DemoResetRequested", "DemoStatusRequested", "DemoReadyRequested"})
                 g.allow_to_role(shape, 1, zengine::demo::kRole);
             g.allow_to_role(SetupApplyRequested::zen_name, 1, kLayoutsRole);
-            g.allow_to_role(WorkshopQuitRequested::zen_name, 1, "zengine.workshop");
-            for (const char* role : {"zengine.info", "zengine.composer", "zengine.inventory-pane"})
+            g.allow_to_role(WorkshopQuitRequested::zen_name, 1, pane_menu::kWorkshopRole);
+            for (const char* role : {zengine::info_pane::kInfoPaneRole, zengine::composer::kComposerRole,
+                                      zengine::inventory_pane::kRole})
                 g.allow_to_role(PaneResetRequested::zen_name, 1, role);
         } else if (power == kPowerOpen) {
             // THE MANAGED OPENING, and nothing beside it: no document door, no save, no build.
@@ -556,8 +559,8 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxSave::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory_pane::InventoryToolboxRestore::zen_name, 1, zengine::inventory_pane::kRole);
         } else if (power == kPowerInventory) {
-            g.allow_to_role(TerminalValueRequested::zen_name, 1, "zengine.workshop");
-            g.allow_to_role(PaneValueCarryRequested::zen_name, 1, "zengine.workshop");
+            g.allow_to_role(TerminalValueRequested::zen_name, 1, pane_menu::kWorkshopRole);
+            g.allow_to_role(PaneValueCarryRequested::zen_name, 1, pane_menu::kWorkshopRole);
             g.allow_to_role(zengine::inventory_pane::InventoryViewEdit::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory_pane::InventoryViewsRequested::zen_name, 1, zengine::inventory_pane::kRole);
             g.allow_to_role(zengine::inventory::InventoryAdd::zen_name, 1, zengine::inventory::kInventoryRole);

@@ -27,6 +27,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "manuals/zengine.view.builder.hpp" // this pane's manual, compiled in from its page
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/kernel/schema_codec.hpp>
@@ -53,7 +54,7 @@ namespace view = zengine::view;
 namespace ws = zengine::workshop;
 namespace input = zengine::input;
 namespace gfx = zengine::graphics;
-constexpr const char* workshop_role = "zengine.workshop";
+constexpr const char* workshop_role = ws::pane_menu::kWorkshopRole;
 
 /// The shape a carried value names, and the field when the carry was one field: a description's
 /// shape, decoded with the shapes it carries; a field's root shape and its top-level name; or a

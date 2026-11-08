@@ -30,6 +30,7 @@
 #include "graphics/colors.hpp"
 #include "input/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/weave.hpp>
 
@@ -43,9 +44,9 @@
 
 namespace zengine::info_pane {
 
-/// WHO THIS PANE IS TALKING TO -- the host's role, spelled as a literal exactly as the
-/// other pane weaves spell it.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
+/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 class PropertyView {
 public:

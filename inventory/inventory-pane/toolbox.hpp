@@ -7,6 +7,7 @@
 #include "workshop/actor_scope.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 #include <zen/weave/role_request.hpp>
 
 namespace zengine::inventory_pane {
@@ -37,10 +38,10 @@ public:
             stage_ = Stage::permission;
             const auto gesture = static_cast<std::int64_t>(mail.correlation());
             const bool queued = restore
-                ? pending_.send_to_role(mail.as_role(kRole), "zengine.workshop",
+                ? pending_.send_to_role(mail.as_role(kRole), zengine::workshop::pane_menu::kWorkshopRole,
                       workshop::PaneOperationRequested{pane, kRole, InventoryToolboxRestore::zen_name, 1,
                                                        gesture}, ++asks)
-                : pending_.send_to_role(mail.as_role(kRole), "zengine.workshop",
+                : pending_.send_to_role(mail.as_role(kRole), zengine::workshop::pane_menu::kWorkshopRole,
                       workshop::v2::PaneOperationRequested{pane, kRole, InventoryToolboxSave::zen_name, 1,
                                                            gesture, {workshop::scope::kWrite}, {}}, ++asks);
             if (!queued) fail("Toolbox permission request could not be queued", mail);

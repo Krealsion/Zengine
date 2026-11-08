@@ -50,6 +50,7 @@
 
 #include <zen/bridge/channel.hpp>
 #include "workshop/grant.hpp"
+#include "workshop/pane_menu.hpp"
 #include <iostream>
 #include <zen/history/dump.hpp>
 #include <zen/history/logger.hpp>
@@ -618,7 +619,7 @@ int main(int argc, char** argv) {
         } else {
             std::printf("zengine-workshop - log: %s (durable, selected facts only)\n",
                         args.log.c_str());
-            journal.info("zengine.workshop", "session started: setup " + args.setup +
+            journal.info(zengine::workshop::pane_menu::kWorkshopRole, "session started: setup " + args.setup +
                                                  ", load plan " + plan_path);
         }
     } else {
@@ -1288,7 +1289,7 @@ int main(int argc, char** argv) {
     while (!host.quit) {
         const ServedTurn served =
             serve_turn(bus, host.showings, [&journal](const std::string& said) {
-                journal.info("zengine.workshop", said);
+                journal.info(zengine::workshop::pane_menu::kWorkshopRole, said);
                 std::printf("zengine-workshop - %s\n", said.c_str());
                 std::fflush(stdout);
             });

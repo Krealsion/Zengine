@@ -17,6 +17,10 @@
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.launcher.hpp" // this role's manual, compiled in from its page
 #include "workshop/pane_seam_vocabulary.hpp"
+#include "view/view-builder/vocabulary.hpp"
+#include "files/vocabulary.hpp"
+#include "workshop/command_vocabulary.hpp"
+#include "workshop/first-run/setup.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -33,8 +37,8 @@ namespace launcher = zengine::launcher;
 namespace ws = zengine::workshop;
 
 /// The roles that may ask for a start: each asks Workshop first for the hand that pressed.
-constexpr const char* kAskers[] = {"zengine.view.builder", "zengine.files", "zengine.palette",
-                                   "zengine.first-run"};
+constexpr const char* kAskers[] = {zengine::view_builder::kRole, zengine::files::kFilesRole,
+                                   ws::kPaletteRole, zengine::first_run::kFirstRunRole};
 
 struct LauncherState {
     ZEN_SHAPE(LauncherState, 1);

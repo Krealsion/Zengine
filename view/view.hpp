@@ -25,6 +25,7 @@
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/serialize.hpp>
 #include <zen/switchboard/bus.hpp>
@@ -54,8 +55,8 @@ namespace zengine::view {
 namespace ws = zengine::workshop;
 namespace ink = zengine::graphics::colors;
 
-/// The role every pane answers.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// The role every pane answers, read from the installed pane protocol.
+using zengine::workshop::pane_menu::kWorkshopRole;
 /// The sends of its intents a view remembers, to know a refusal answered to one of them.
 inline constexpr std::size_t kRememberedIntents = 16;
 

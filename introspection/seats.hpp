@@ -33,6 +33,7 @@
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/manager.hpp>
 #include <zen/weave.hpp>
@@ -49,9 +50,9 @@
 
 namespace zengine::introspection {
 
-/// The role Workshop holds, spelled as a string: a provider is a stranger to Workshop's
-/// internals and names who it talks to as a third party would.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO THIS PANE IS TALKING TO: Workshop's role, read from the installed pane protocol
+/// (`workshop/pane_menu.hpp`) as a stranger's pane reads it.
+using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// WHAT A SEAT SPEAKS WITH ON ONE DELIVERY: the mail it answers, the weave's own id (the sender a
 /// value sent as a message names), and the one counter every question this role asks is

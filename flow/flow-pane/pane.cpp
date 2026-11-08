@@ -42,7 +42,7 @@ namespace fh = zengine::flow_host;
 namespace ws = zengine::workshop;
 namespace input = zengine::input;
 namespace gfx = zengine::graphics;
-constexpr const char *workshop_role = "zengine.workshop";
+constexpr const char *workshop_role = ws::pane_menu::kWorkshopRole;
 
 /// WHAT THE FLOW HOST'S YES SAYS IN THE PANE'S LINE, in the weaver's words; an inspection says
 /// nothing of itself, its events and state being the pane's to show.

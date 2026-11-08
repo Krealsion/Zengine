@@ -27,6 +27,7 @@
 #include "input/vocabulary.hpp"
 #include "launcher/vocabulary.hpp"
 #include "view/vocabulary.hpp"
+#include "workshop/pane_menu.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -49,7 +50,7 @@ namespace fr = zengine::first_run;
 namespace launcher = zengine::launcher;
 namespace view = zengine::view;
 
-constexpr const char* kWorkshop = "zengine.workshop";
+constexpr const char* kWorkshop = zengine::workshop::pane_menu::kWorkshopRole;
 constexpr const char* kRole = fr::kFirstRunRole;
 constexpr const char* kPane = fr::kSetupPane;
 constexpr const char* kStory = fr::kStoryPane;
