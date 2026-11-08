@@ -2066,7 +2066,7 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
         CHECK(t.notice() == "reopened your last desk \"Default\" -- 120x75 cells");
     }
     // A NOTICE SAID BEFORE THE ROOM: a terminal that offered itself before it had a room named no
-    // unit, so the restore's sentence waits for the first room a window offers -- here the OS
+    // unit, so the restore's sentence waits for the first room a window offers -- here the GUI
     // window's -- and is said then, after the other, in that window's unit.
     {
         Live k;
@@ -3436,7 +3436,7 @@ TEST_CASE("the desk remembers where its window sat, and offers it back") {
 TEST_CASE("the window file keeps the GUI window's own room beside its placement, and a run in the "
           "TUI window writes it back as it read it, as it does the placement") {
     // ⚔ MUTATION (tests/mutants/workshop_persistence.md#room-saved-whatever-the-window): the save
-    // writing this run's room as the GUI window's whatever the window -- a run in the terminal
+    // writing this run's room as the GUI window's whatever the window -- a run in the TUI
     // window leaves its own room where the GUI window's was.
     TempDir dir("os-room-kept");
     const std::string session = dir.file("session.json");

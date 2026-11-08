@@ -12,7 +12,7 @@ A program spells the vocabulary with `#include "graphics/vocabulary.hpp"` and li
 drawing weave, an element of your own, and the seam an element's code is written against; and what
 a window answers for its platform, on the bus and to C++ in its own process. The
 package ships three weaves, each with its manual: the TUI window,
-[`zengine.window.tui`](zengine.window.tui.md), built as `zengine-window-tui`; the OS
+[`zengine.window.tui`](zengine.window.tui.md), built as `zengine-window-tui`; the GUI
 window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
 has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
 Three themes come with them as palettes, `night`, `day` and `block`, generated from the JSON they

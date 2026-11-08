@@ -7,7 +7,7 @@ waiting for, and what it believes about the Workshop and Loom host it started.
                      --loom-host <loom-host> --loom-runs <loom-runs> --loom-runtime <loom_session dir>
                      --vocabulary <zengine-guest-vocabulary> --work <dir> [--evidence <file.json>]
 
-Each root is launched by the story's own `launch` (this build tree's Workshop in the terminal
+Each root is launched by the story's own `launch` (this build tree's Workshop in the TUI
 window, `--tui`, the installed Loom's session host) and its commands run as a weaver runs them, one process each. A
 run whose wait ran out keeps its handle until it is seen to settle: through `status` when its result
 arrives late, through `cancel` when it is cancelled -- and after cancellation the SAME link gets

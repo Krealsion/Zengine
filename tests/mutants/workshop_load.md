@@ -42,7 +42,7 @@ In `graphics/window/window_sdl_backend.hpp`:
 Red in `zengine-workshop-load-tests`:
 
 - the shipped window row in the GUI window's absence: told a driver it lacks, the GUI window gives way
-  to the TUI window, said once, and leaves nothing loaded; in a build without it, the terminal
+  to the TUI window, said once, and leaves nothing loaded; in a build without it, the TUI
   window loads unsaid
 
 ## retired-row-opened

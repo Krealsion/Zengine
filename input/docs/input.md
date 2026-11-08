@@ -48,7 +48,7 @@ keys are named too: the arrows, Home, End and Delete in their bare, tilde-number
 bitmask; the Meta bit is deliberately not claimed). A control byte is Ctrl with its letter, and byte
 0 is Ctrl+Space, which Ctrl+@ and Ctrl+2 send too. The **Win32 console** reads `INPUT_RECORD`s:
 `uChar.UnicodeChar` is the text, `dwControlKeyState` the modifiers, `dwMousePosition` the position —
-all present on the record and all preserved — and its VK table names Home, End and Delete. The OS
+all present on the record and all preserved — and its VK table names Home, End and Delete. The GUI
 window reads SDL's one process-global event queue itself, with this package's translation
 (`input/translate_sdl_core.hpp`): SDL scancodes pass through as the wire identity they already are.
 The platform's clipboard events are ignored there deliberately, not from disinterest: clipboard read

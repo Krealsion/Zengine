@@ -228,7 +228,7 @@ press a key is refused at Workshop's door.
 
 **Launch it again.** After `stop`, `story.py again --root DIR` launches a new Workshop and a new
 Loom session on the kept game. In the window, Workshop starts in the game directory with no plan
-named, so the project's own plan loads the promoted image. With `--tui` it is the terminal
+named, so the project's own plan loads the promoted image. With `--tui` it is the TUI
 window instead: Workshop's own `--tui` over the runtime's plan, in a project of its own
 (`DIR/again-N/project`) with the story's recipes, and the Builder's `o` loads the game.
 Either way the game's pane is opened, its rules check must pass and a wave runs under its keys;

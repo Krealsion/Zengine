@@ -8,7 +8,7 @@ real Workshop, and the tower-defense story's stop over the unsaved work Neovim h
                       --loom-runtime <loom_session dir> --vocabulary <zengine-guest-vocabulary>
                       --work <dir> [--evidence <file.json>]
 
-A story root is launched by the story's own `launch` (this build tree's Workshop in the terminal
+A story root is launched by the story's own `launch` (this build tree's Workshop in the TUI
 window, `--tui`, isolated, with the named Neovim under its clean profile) and the Editor is switched to
 Neovim from Workshop's Terminal, as the story does. Every claim about an edit is read three ways:
 the tool's verdict, the buffer as the Neovim pane paints it, and the file on disk. A new empty

@@ -215,7 +215,7 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if (!desk_started_) {
         start_desk(mail);
     }
-    // THE WINDOW'S ROOM: its pixels, the device unit it says -- the GUI window's pixel, the terminal
+    // THE WINDOW'S ROOM: its pixels, the device unit it says -- the GUI window's pixel, the TUI
     // window's cell -- and its text: the face the GUI window measured, a cell where the window's
     // unit is the cell. A window that offers another size is laid out in again.
     if (w.width <= 0 || w.height <= 0) {

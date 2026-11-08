@@ -808,7 +808,7 @@ TEST_CASE("pane comfort: `fit` follows a pane switching between two sizes each t
     // ⚔ MUTATION (tests/mutants/workshop_demo.md#fit-reads-first-offer): `pane_measure` reading the
     // first offer for `fit` -- the fitted pane stays as tall as its first offer asked, whatever it
     // asks now.
-    // ⚔ MUTATION (tests/mutants/workshop_demo.md#every-reoffer-held): every re-offer held in the OS
+    // ⚔ MUTATION (tests/mutants/workshop_demo.md#every-reoffer-held): every re-offer held in the GUI
     // window -- the accordion shut there stays open.
     Panes p;
     Setup setup;

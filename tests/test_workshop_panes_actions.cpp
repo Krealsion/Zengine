@@ -2694,7 +2694,7 @@ std::string desktop_spelling(const std::string& text) {
     return out;
 }
 
-/// A ROW WITH A POSIX KEY BESIDE ITS DEFAULT, on a desk shown in a POSIX terminal's terminal
+/// A ROW WITH A POSIX KEY BESIDE ITS DEFAULT, on a desk shown in a POSIX terminal's TUI
 /// window or anywhere else: the key in force acts and the band spells it, the other acts on nothing
 /// declared and is never spelt, and the Hotkeys pane spells the POSIX key beside the default.
 void posix_key_shown(bool posix_terminal) {

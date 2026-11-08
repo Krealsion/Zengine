@@ -109,7 +109,7 @@ struct PassedOver {
 };
 
 /// WHY AN ARTIFACT A ROW NAMES ANOTHER IN PLACE OF DID NOT LOAD, in a weaver's words, the
-/// refusing layer's beside them: one that refused to be made, in the words it refused in (an OS
+/// refusing layer's beside them: one that refused to be made, in the words it refused in (a GUI
 /// window with no display it can open on says SDL's), one whose file would not open, or another
 /// refusal.
 inline std::string passed_over_words(const std::string& refused) {

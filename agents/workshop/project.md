@@ -321,7 +321,7 @@ PlanExecutor::passed_over
 `tests/test_workshop_load.cpp` "the shipped plan's window row is the GUI window, otherwise the
 TUI window, and no other row names anything in its place" "a row's artifact whose load is
 refused gives way to the next it names, said once in Loom's words; one this installation lacks
-gives way unsaid; the first that loads stands in the row" "the shipped window row in the OS
+gives way unsaid; the first that loads stands in the row" "the shipped window row in the GUI
 window's absence: told a driver it lacks, the GUI window gives way to the TUI window, said
 once, and leaves nothing loaded; in a build without it, the TUI window loads unsaid" "the
 TUI window taken alone: the row loading it keeps it, a row naming it in its place loads it and

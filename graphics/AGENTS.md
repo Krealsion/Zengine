@@ -72,7 +72,7 @@ rows; it shares the rig.
   window, and its operator weave is the arranger, offering two of the shipped palettes.
   `workshop/CMakeLists.txt` stages the window and the directory beside `zengine-workshop` (and the
   GUI window where the build has SDL), whose weave arranges when they are loaded and offers the three
-  shipped palettes, and `cmake/ZengineInstall.cmake` installs them as artifacts, all but the OS
+  shipped palettes, and `cmake/ZengineInstall.cmake` installs them as artifacts, all but the GUI
   window, whose SDL the install does not own, with the generator and the pool's and themes' JSON.
 - Grants: the snake host grants its operator `AreaPlaced`, `PaletteOffered`, `PaletteChosen`,
   `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's role.

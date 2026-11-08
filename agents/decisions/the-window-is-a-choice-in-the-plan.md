@@ -9,7 +9,7 @@ by the window launchers. A project's plan copies the plan in force, so a project
 window never tried the other, and a GUI window that could not open stayed loaded with no window,
 composing a picture nothing showed while the desk waited for it.
 
-**Decision.** One shipped plan, whose window row loads the GUI window, `otherwise` the terminal
+**Decision.** One shipped plan, whose window row loads the GUI window, `otherwise` the TUI
 window (load-plan format version 4). A row's artifact whose load is refused gives way to the next
 it names, said once on the desk; one the installation does not hold gives way unsaid, so a build
 without the GUI window starts in the TUI window and says nothing. The GUI window that cannot

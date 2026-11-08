@@ -1,5 +1,5 @@
 # The Graphics package: the vocabulary an owner draws with (a node, an element record, seven
-# operators, a canvas, a colour by name), the windows that show what owners draw -- the terminal
+# operators, a canvas, a colour by name), the windows that show what owners draw -- the TUI
 # window and the GUI window -- and the directory that introduces an area to its window and passes it
 # the palettes offered. The pool's names and the shipped themes are JSON, generated into C++ here.
 

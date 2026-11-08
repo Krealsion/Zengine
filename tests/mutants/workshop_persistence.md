@@ -105,7 +105,7 @@ In `workshop/weave_session.cpp`:
 
 Red in `zengine-workshop-persistence-tests`:
 
-- the window file keeps the GUI window's own room beside its placement, and a run in the terminal
+- the window file keeps the GUI window's own room beside its placement, and a run in the TUI
   window writes it back as it read it, as it does the placement
 
 ## placed-before-shaped

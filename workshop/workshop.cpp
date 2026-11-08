@@ -508,7 +508,7 @@ int main(int argc, char** argv) {
                 read_plan.plan.artifacts.size());
     std::fflush(stdout);
     // ...AND THE WINDOW THIS LAUNCH OPENS: the plan's windows tried in order, or, with `--tui`, its
-    // TUI window alone. Only the plan confers participation, so a plan offering no terminal
+    // TUI window alone. Only the plan confers participation, so a plan offering no TUI
     // window is refused here, with its fix, before anything is mounted.
     load::LoadPlan launched = read_plan.plan;
     if (args.tui) {

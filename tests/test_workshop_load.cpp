@@ -1467,7 +1467,7 @@ TEST_CASE("a row's artifact whose load is refused gives way to the next it names
     CHECK(refused.passed_over[0].stem == "zengine-operators-basic");
 }
 
-TEST_CASE("the shipped window row in the GUI window's absence: told a driver it lacks, the OS "
+TEST_CASE("the shipped window row in the GUI window's absence: told a driver it lacks, the GUI "
           "window gives way to the TUI window, said once, and leaves nothing loaded; in a "
           "build without it, the TUI window loads unsaid") {
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));

@@ -10,7 +10,7 @@
 
 // The moments are keys, which the window gives the world and the operator alike, and the
 // operator's buttons beneath its status line, each making its key's gesture: 1 the other palette,
-// 2 the score weave, 3 the world grown (a graceful swap: v1's letter, v2's migration), 4 no OS
+// 2 the score weave, 3 the world grown (a graceful swap: v1's letter, v2's migration), 4 no GUI
 // window, 5 the pilot flown or landed; r reloads the world, n starts afresh, l lists, q quits.
 // `--pilot` flies the pilot from birth and `--pause-at <step>` pauses the first game after that
 // step: the same game every run, held still on the same step.

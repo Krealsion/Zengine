@@ -853,7 +853,7 @@ inline setup_persist::v6::WorkshopSetup absent_v6_desk() {
 
 /// A SESSION OF VERSION 11 AS ONE OF VERSION 12: the run, each layout given an id in run order and
 /// the next id after them, every desk and remembered Setup value at setup version 6 by its words
-/// with no baseline, locks or pins; the choices as they were. The room, the placement and the OS
+/// with no baseline, locks or pins; the choices as they were. The room, the placement and the GUI
 /// window's room are the window file's now, and are not carried.
 // WL-MIG-02 -- agents/workshop/migration.md
 inline v12::WorkshopSession session_v11_to_v12(const v11::WorkshopSession& old) {

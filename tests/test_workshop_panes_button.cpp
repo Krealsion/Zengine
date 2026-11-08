@@ -263,7 +263,7 @@ std::int64_t kind_of(PaneRig& r, const char* role, const char* pane) {
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
-/// A button transition at a canvas cell, through the window that shows the desk, as the terminal
+/// A button transition at a canvas cell, through the window that shows the desk, as the TUI
 /// window reports one.
 void button_cell(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy) {
     r.hand_moment(input::PointerButton{button, pressed, cx, cy, input::space::kCells,

@@ -42,7 +42,7 @@ inline constexpr std::int64_t kFormatVersionV3 = 3;
 
 /// The plan Workshop ships, staged beside the executable, where the artifacts it names are: the
 /// desk in the GUI window, else the TUI window (the window row, `zengine-window-sdl` and
-/// what it loads in its place, `zengine-window-tui`), which `--tui` narrows to the terminal
+/// what it loads in its place, `zengine-window-tui`), which `--tui` narrows to the TUI
 /// window. Any other arrangement is a copy passed with `--load-plan`, or a project's own plan.
 inline constexpr const char* kDefaultLoadPlanName = "default-load-plan.json";
 

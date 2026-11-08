@@ -59,7 +59,7 @@ target is internal, and that difference is the boundary made visible.
 own weave, which `zengine-app` runs), `zengine-timer`, `zengine-input`, `zengine-inventory`,
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
 starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by another
-Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and terminal
+Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and TUI
 window (`zengine-graphics`, `zengine-window-tui`), which paints with its own painter. They
 install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would

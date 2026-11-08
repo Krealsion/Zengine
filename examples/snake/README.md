@@ -47,7 +47,7 @@ Source: [`examples/snake/`](world.cpp) — world, board, score, pilot, host.
   It never steps the world: the world's beat is the game's time. Activated, it takes the wheel,
   writing the world's `keys` false; Loom tells no weave it is unloaded, so whoever lands it gives
   the keys back -- the operator does, once the kernel's door says the pilot has gone.
-- **Host** (`zengine-snake`) owns the boot list and nothing else: the directory, the terminal
+- **Host** (`zengine-snake`) owns the boot list and nothing else: the directory, the TUI
   window, the world, the pilot when it flies from birth, and the Timer service, whose loading is
   what starts time. Its operator weave is the window's arranger -- it offers two of the shipped
   palettes, night and block, and the board's code from the host's own build, chooses each area's

@@ -4,7 +4,7 @@
 #ifndef ZENGINE_TESTS_RIG_WINDOWS_HPP
 #define ZENGINE_TESTS_RIG_WINDOWS_HPP
 
-// The windows a Workshop rig shows its desk in, compiled once (`rig_windows.cpp`): the terminal
+// The windows a Workshop rig shows its desk in, compiled once (`rig_windows.cpp`): the TUI
 // window over the suites' terminal (`window_backends.hpp`) for a case in cells, the GUI window over
 // their pixel backend for a case on a face, and the directory beside them. Mounted and activated
 // as Loom's control door activates, a window offers itself and Workshop starts on that offer; it
@@ -102,7 +102,7 @@ public:
     /// The window's own beat, asked for now (`PumpSurface`).
     void pump();
     /// THE WEAVER'S OWN HAND ON THE WINDOW UP: `moments` its platform gives it, read on the beat
-    /// this asks for, as the weaver's and no participant's -- a terminal's in cells, the OS
+    /// this asks for, as the weaver's and no participant's -- a terminal's in cells, the GUI
     /// window's in pixels or cells. None up: nothing.
     void hand(const std::vector<zengine::input::InputEvent>& moments);
     /// ...queued and not read: the window's next beat (`pump`) reads every moment queued since,
@@ -128,7 +128,7 @@ public:
 
     /// THE PLATFORM, as the GUI window's backend holds it: the clipboard's text (none: no read
     /// exists), which a copy replaces as a platform's does, each copy offered it, and how often it
-    /// was read; the place its desktop reports, and each place it was asked to take. The terminal
+    /// was read; the place its desktop reports, and each place it was asked to take. The TUI
     /// window reads no clipboard and has no place.
     void set_clipboard(std::optional<std::string> text);
     std::optional<std::string> clipboard() const;

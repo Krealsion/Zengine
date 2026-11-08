@@ -61,7 +61,7 @@ witness, `tests/package/run.cmake` (not a CTest entry), builds `workshop-probe/`
 - `external-host/demo.py` reads `tower-defense/setup.json` (`workshop/docs/demo-setups.md`).
 - `tally-app/` is built by the root `CMakeLists.txt`, after `app/`, and staged beside `zengine-app`
   with its launchers; the `app_host` suite (`tests/test_app_host.cpp`, `app/`'s router) reads it.
-- The snake draws through `graphics/`: `snake/play.cpp` loads the directory and the terminal
+- The snake draws through `graphics/`: `snake/play.cpp` loads the directory and the TUI
   window and arranges them; `cmake/ZengineInstall.cmake` installs nothing from here.
 
 ## Pages

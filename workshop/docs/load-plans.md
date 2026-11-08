@@ -44,7 +44,7 @@ one that draws your screen.
 ## The shipped plan
 
 [`workshop/default-load-plan.json`](../default-load-plan.json) is the one plan Workshop ships:
-the desk drawn through the [graphics directory](../../graphics/docs/zengine.graphics.md), in the OS
+the desk drawn through the [graphics directory](../../graphics/docs/zengine.graphics.md), in the GUI
 window where one can open, else in the TUI window. Its third, fourth and fifth rows are the
 medium and the input beside it:
 

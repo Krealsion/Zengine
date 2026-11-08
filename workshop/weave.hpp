@@ -275,7 +275,7 @@ struct HostContext {
     std::string transition_note;
 
     /// WHAT A ROW OF THE PLAN COULD NOT LOAD AND GAVE WAY FROM, a sentence each, read when the
-    /// desk comes up and said once there: a GUI window that could not open, so the terminal
+    /// desk comes up and said once there: a GUI window that could not open, so the TUI
     /// window holds the desk. Empty, or none, when every row loaded its own artifact.
     std::function<std::vector<std::string>()> passed_over;
 
