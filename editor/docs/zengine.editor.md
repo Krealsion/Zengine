@@ -315,7 +315,7 @@ only `status`.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v3, from that window: a button pressed or let go in the pane's area, at a point
+`AreaButtonChanged` v4, from that window: a button pressed or let go in the pane's area, at a point
 of its rows, with what the window drew there: the first button places the caret and arms the sweep,
 or holds the highlight or status row to carry out; the third offers them or is handed back; the
 release ends the sweep. A press on a line since left is refused in words. Its moves and release

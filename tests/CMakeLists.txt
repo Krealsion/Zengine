@@ -504,7 +504,7 @@ zengine_compile_test(timer_cursor_bypass_refused zengine-cn-cursor
 add_executable(zengine-input-tests test_input.cpp doctest_main.cpp)
 target_link_libraries(zengine-input-tests
     PRIVATE loom::kernel loom::switchboard loom::core loom::host-policy zengine-input-vocabulary
-            zengine-timer-vocabulary zengine-warnings zengine-sanitize)
+            zengine-timer-vocabulary zengine-workshop-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-input-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/examples/snake)

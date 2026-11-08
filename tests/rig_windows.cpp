@@ -545,6 +545,11 @@ void Windows::hand(const std::vector<zengine::input::InputEvent>& moments) {
     impl_->pump(impl_->up);
 }
 
+void Windows::clock(std::function<std::int64_t()> read) {
+    impl_->term.clock = read;
+    impl_->light.clock = std::move(read);
+}
+
 void Windows::queue(const std::vector<zengine::input::InputEvent>& moments) {
     Impl& m = *impl_;
     for (const zengine::input::InputEvent& e : moments) {

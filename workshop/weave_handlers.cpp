@@ -167,6 +167,9 @@ void WorkshopWeave::start_desk(loom::Mail& mail) {
     load_keymap(mail);
     // WORKSHOP'S OWN SETTINGS, declared to the office that keeps them, which hands them back.
     declare_own_settings(mail);
+    // ...and the double-click time asked of the input office, which says it again when it changes.
+    (void)mail.as_role(kWorkshopProvider)
+        .send_to_role(input::kInputRole, input::PointerTimingAsked{});
     // ...and whatever the host already knew was standing, so the first picture
     // of the run already carries every condition this launch is going to have.
     take_host_conditions();
@@ -333,7 +336,7 @@ void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
     window_under_ = WindowUnder{b.under, b.part, b.drawing};
     pointer_button(input::PointerButton{b.button, b.pressed, x, y, input::space::kPixels,
                                         b.modifiers},
-                   mail);
+                   b.clicks, mail);
     window_under_ = WindowUnder{};
 }
 

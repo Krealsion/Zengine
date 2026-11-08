@@ -621,6 +621,8 @@ struct WindowPointer {
     /// The window said what it drew under the hand in this area, and that drawing's number.
     bool told = false;
     std::int64_t drawing = 0;
+    /// A press: the clicks the window counted it, 2 for a double click's second; else 0.
+    std::int64_t clicks = 0;
 };
 
 /// THE AREA A PANE DRAWS IN: `<office>.<pane>`, for every pane, whatever else its office offers.
@@ -698,6 +700,7 @@ public:
         p.moved = b.pressed && moved(b.under, b.part, b.drawing, b.x, b.y);
         p.told = !b.under.empty() && b.under == area();
         p.drawing = b.drawing;
+        p.clicks = b.clicks;
         return p;
     }
     std::optional<WindowPointer> pointer(const graphics::AreaPointerMoved& m,

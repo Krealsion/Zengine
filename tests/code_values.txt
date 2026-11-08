@@ -64,7 +64,6 @@ marks_persist::kFormatVersion   files/marks_persist.hpp                   kForma
 claim   marks_persist::kFormatVersion  marks file is its own format, version {}
 
 # ---- the Workshop screen and its panes
-kDoubleClickMs                  workshop/screen.hpp                       kDoubleClickMs
 kTopRows                        workshop/screen.hpp                       kTopRows
 kBottomRows                     workshop/screen.hpp                       kBottomRows
 kCoarseStepCells                workshop/screen.hpp                       kCoarseStepCells
@@ -96,6 +95,9 @@ kPixelGrainPx                   graphics/pixels.hpp                       kPixel
 kTextInsetPx                    workshop/pane_text_fit.hpp                kTextInsetPx
 kMaxScancode                    input/vocabulary.hpp                      kMaxScancode
 kMaxHeldKeys                    input/vocabulary.hpp                      kMaxHeldKeys
+kDefaultDoubleClickMs           input/vocabulary.hpp                      kDefaultDoubleClickMs
+kLeastDoubleClickMs             input/vocabulary.hpp                      kLeastDoubleClickMs
+kMostDoubleClickMs              input/vocabulary.hpp                      kMostDoubleClickMs
 kRootContext                    ui/vocabulary.hpp                         kRootContext
 view_builder::kSnapReach        view/view-builder/picture.hpp                  kSnapReach
 view_builder::kMaxGrid          view/view-builder/picture.hpp                  kMaxGrid

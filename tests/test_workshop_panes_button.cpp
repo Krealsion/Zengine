@@ -1890,7 +1890,7 @@ TEST_CASE("WL-CTX-10: a withdrawal that queues nothing is answered at once, and 
                                      input::mod::kNone};
     const loom::Message in(loom::to_value(press));
     loom::Mail mail(door, in, t.r.workshop_id);
-    t.r.w->pointer_button(press, mail);
+    t.r.w->pointer_button(press, 1, mail);
     CHECK(door.refused == 1);
     CHECK_FALSE(t.r.session().presented.open);
     CHECK(t.r.w->withdrawn_menus().empty()); // no attempt, so nothing for Loom to say

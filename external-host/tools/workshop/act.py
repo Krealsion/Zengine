@@ -69,6 +69,12 @@ VERBS = ("press", "type", "open", "select", "into", "click", "part", "carry", "a
          "settings")
 GESTURES = ("press", "type", "open", "select", "into", "click", "part", "carry", "at", "rest",
             "wheel", "control", "menu")
+#: The steps a press may double: `clicks` 2 presses there twice through the run's own input
+#: session, a press and its release, then again a frame later, which the window counts as it
+#: counts a weaver's double click, for this run's own hand.
+CLICKED = ("click", "at", "part")
+#: The frame between a double click's two clicks, in seconds: well inside any double-click time.
+CLICK_FRAME = 1 / 60
 #: How long a carry's move takes by default, in milliseconds: the Input owner's timed motion.
 CARRY_MS = 600
 MANAGER = ("zengine.desktop", "launcher")
@@ -190,6 +196,9 @@ def run(ctx):
             settings_of(step["settings"])  # ...and a setting named by anything but key=value
         if named == ["picture"]:
             ctx.check("save" not in step, "step %d %s" % (i, SAVE_REFUSED))  # ...and a picture kept elsewhere
+        if "clicks" in step:  # ...and a count of clicks no press takes, or a step that presses none
+            ctx.check(named[0] in CLICKED, "step %d: clicks belongs to a %s step" % (i, ", ".join(CLICKED)))
+            ctx.check(step["clicks"] in (1, 2), "step %d: clicks is 1 or 2" % i)
     pace = max(0, int(ctx.inputs.get("pace_ms", 0))) / 1000.0
     presses = any(v in GESTURES for step in steps for v in step)
     # FOLLOWED BEFORE THE FIRST PRESS: whatever a press makes Workshop say is heard.
@@ -420,9 +429,15 @@ def aimed(ctx, hand, verb, provider, pane, read, aim, seconds):
         raise
 
 
-def press_at(ctx, hand, where, button="left"):
-    hand.inject([moment(ctx, "PointerButton", button=BUTTONS[button], pressed=p, x=where["x"],
-                        y=where["y"], space=where["space"]) for p in (True, False)])
+def press_at(ctx, hand, where, button="left", clicks=1):
+    """A press and its release at `where`; `clicks` 2 is a double click: the click again, a frame
+    later, through the same session, so the window counts the two as a double click of this run's
+    hand, as it counts the weaver's."""
+    for n in range(clicks):
+        if n:
+            time.sleep(CLICK_FRAME)
+        hand.inject([moment(ctx, "PointerButton", button=BUTTONS[button], pressed=p, x=where["x"],
+                            y=where["y"], space=where["space"]) for p in (True, False)])
 
 
 def act(ctx, hand, verb, step):
@@ -466,7 +481,7 @@ def act(ctx, hand, verb, step):
                 provider, pane, at["word"], max(0, at["text"].find(text)), view["fingerprint"])
 
         (_, at), where = aimed(ctx, hand, verb, provider, pane, read, aim, seconds)
-        press_at(ctx, hand, where, step.get("button", "left"))
+        press_at(ctx, hand, where, step.get("button", "left"), step.get("clicks", 1))
         return {"word": at["text"], "x": where["x"], "y": where["y"]}
     if verb == "part":
         # A PART BY ITS PANE AND ITS NAME, pressed at the point Workshop gives it now: wherever the
@@ -481,7 +496,7 @@ def act(ctx, hand, verb, step):
         no_press_yet(ctx, view, verb, provider, pane, seconds)
         ctx.check(not unreached(part), "part: no press reaches %r in %s/%s on its own: the parts "
                   "over it take every place of it" % (name, provider, pane))
-        press_at(ctx, hand, part, step.get("button", "left"))
+        press_at(ctx, hand, part, step.get("button", "left"), step.get("clicks", 1))
         return {"part": name, "text": part["text"], "x": part["x"], "y": part["y"]}
     if verb == "carry":
         return carry(ctx, hand, step)
@@ -508,7 +523,7 @@ def act(ctx, hand, verb, step):
             ctx, hand, verb, provider, pane,
             lambda: press_view(ctx, hand, verb, provider, pane, seconds),
             lambda view: hand.point(view, row, column), seconds)
-        press_at(ctx, hand, where, step.get("button", "left"))
+        press_at(ctx, hand, where, step.get("button", "left"), step.get("clicks", 1))
         return {"x": where["x"], "y": where["y"]}
     if verb == "control":
         provider, pane, label = spelled(arg, verb, 3)[:3]

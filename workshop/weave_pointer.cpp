@@ -320,11 +320,13 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures(loom::Mail& mail) 
 
 // WL-FOCUS-03 -- agents/workshop/focus.md; WL-PRESS-04 -- agents/workshop/press-chain.md
 // WL-GUEST-06 -- agents/workshop/guests.md
-void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom::Mail& mail) {
+void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, std::int64_t clicks,
+                                   loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;
         held.kind = HeldInput::Kind::kButton;
         held.button = b;
+        held.clicks = clicks;
         (void)hold_input(std::move(held));
         return;
     }
@@ -532,7 +534,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
             repaint(mail);
             return;
         }
-        if (here.occupied && here.kind == pane_kind::kLayouts && layouts_press(b, mail)) {
+        if (here.occupied && here.kind == pane_kind::kLayouts && layouts_press(b, clicks, mail)) {
             // ...and the Layouts pane's own inverse (tabs, `+`, the rename press, the reorder
             // drag), asked only once the walk says this point is that pane's.
             repaint(mail);
@@ -649,7 +651,8 @@ void WorkshopWeave::pointer_wheel(const zengine::input::PointerWheel& w, loom::M
 }
 
 // WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-09 -- agents/workshop/tab-run.md
-bool WorkshopWeave::layouts_press(const zengine::input::PointerButton& b, loom::Mail& mail) {
+bool WorkshopWeave::layouts_press(const zengine::input::PointerButton& b, std::int64_t clicks,
+                                  loom::Mail& mail) {
     const LayoutTabPress tab =
         band_tab_at(session_, screen_of(session_), b.space, b.x, b.y);
     if (!tab.hit) {
@@ -663,15 +666,15 @@ bool WorkshopWeave::layouts_press(const zengine::input::PointerButton& b, loom::
         new_layout(mail);
         return true;
     }
-    // A second press on the same tab renames it; the first already made it live, so the editor's
-    // subject and the switch agree. The completing press spends the arming: no triple-click.
-    const std::int64_t now = interaction_now();
-    if (doubles_a_tab_click(session_.tab_click, tab.at, now)) {
+    // A second press on the same tab, counted a double click's by the window, renames it; the
+    // first already made it live, so the editor's subject and the switch agree. The completing
+    // press spends the arming: no triple-click.
+    if (doubles_a_tab_click(session_.tab_click, tab.at, clicks)) {
         session_.tab_click = TabClickMemory{};
         open_layout_rename(tab.at);
         return true;
     }
-    session_.tab_click = TabClickMemory{true, tab.at, now};
+    session_.tab_click = TabClickMemory{true, tab.at};
     // And the press takes hold of the tab: a press that never moves is the plain switch. The record
     // holds no position; what is carried is always `setup.active_at`.
     session_.tab_drag.active = true;

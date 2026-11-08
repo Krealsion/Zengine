@@ -38,7 +38,9 @@ window -> an area's arranger AreaHandRefused (an injected hand refused in an are
                              AreaShown (what the area shows, asked by AreaShowAsked)
 window -> its follower       AreaPressed (where a press in an area another office owns landed),
                              AreaSettled (unasked: what the area shows settled, by its version)
-input office -> a window     AttributedInput (a participant's moment, landed as that hand's)
+input office -> a window     AttributedInput (a participant's moment, landed as that hand's),
+                             PointerTimingSaid (the double-click time, asked and when it changes)
+window -> the input office   PointerTimingAsked (at each activation)
 window -> owner, follower    AreaHoldEnded, AreaPointerLeft (to the follower when another office)
 window -> the keys' owners   AreaKeyPressed, AreaKeyReleased, AreaTextEntered (naming the area
                              and the hand)
@@ -90,6 +92,22 @@ copy, a paste's read of the clipboard, its place on the desktop and a place offe
 its desktop asked for, the beat's work on request, and the picture it last presented, retained one
 at a time and fetched by chunk. What each window does with them is its manual's; a terminal reads
 no clipboard and has no place or close box, so it says none.
+
+## How a window counts clicks
+
+A press says its `clicks` (`AreaButtonChanged::clicks`, `AreaPressed::clicks`), and a release 0. The
+window counts the weaver's own presses by the double-click time the input office says
+(`zengine::input::PointerTimingSaid`, [`zengine.input`](../../input/docs/zengine.input.md#pointertimingasked)),
+on its own clock as it reads its platform: a press of one button within that time after the last
+press of it counts one more than that press, wherever either landed, else 1 -- so 2 for a double
+click's second press. The platform's own word is not read: not SDL's count, which follows the
+desktop's time, and not a console's double-click record, so the console's records and a POSIX
+terminal's reports count alike. Where a press landed is the owner's to judge: a reader takes a
+count of 2 or more as a double click with its own place rule, and never times a press. Each hand
+counts on its own: a participant's presses, injected through its input session, are counted by the
+same rule as the weaver's, so an agent double clicks by clicking twice, and its click beside the
+weaver's is two single clicks. A window asks the time at each activation and is told again when it changes; until it is told, it
+counts by `zengine::input::kDefaultDoubleClickMs`.
 
 ## A node, and an element's record beside it
 

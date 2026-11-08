@@ -6244,10 +6244,12 @@ private:
     std::vector<gfx::AreaButtonChanged>* buttons_;
 };
 
-/// The input office as the suite speaks it: a participant's moment published under its hand.
+/// The input office as the suite speaks it: a participant's moment published under its hand, and
+/// the double-click time.
 class InputOffice
     : public loom::WeaveBase<InputOffice, GraphicsTestOwner, loom::Accept<>,
-                             loom::Emit<zengine::input::AttributedInput>> {};
+                             loom::Emit<zengine::input::AttributedInput,
+                                        zengine::input::PointerTimingSaid>> {};
 
 /// A window of either medium with an arranger that reads it, owners that draw sketches, and the
 /// input office, all the suite's.
@@ -6342,6 +6344,13 @@ struct ReadDesk {
         r.bus.office_publish_as(
             input, zengine::input::kInputRole,
             loom::Message(loom::to_value(zengine::input::AttributedInput{local, actor, e})));
+        r.drain();
+    }
+    /// The double-click time, published by the input office as it publishes a change.
+    void time(std::int64_t ms) {
+        r.bus.office_publish_as(
+            input, zengine::input::kInputRole,
+            loom::Message(loom::to_value(zengine::input::PointerTimingSaid{ms})));
         r.drain();
     }
     static zengine::input::InjectedEvent button(std::int64_t x, std::int64_t y, bool down,
@@ -6621,6 +6630,166 @@ TEST_CASE("a participant's press the input office injects lands in the window as
         loom::WeaveId{}, loom::WeaveId{}, 0));
     t.r.drain();
     CHECK(owner.size() == 4);
+}
+
+TEST_CASE("the window counts the weaver's clicks by the input office's time: two presses 300 ms "
+          "apart are a double click at 400 ms and not at 200, and at 800 a 600 ms pair is one") {
+    TypedWindow t;
+    ReadDesk d(t.r, gfx::kTerminalWindow);
+    constexpr std::int64_t c = gfx::kCellPx;
+    std::int64_t now = 0;
+    t.term.clock = [&now] { return now; };
+    std::vector<gfx::AreaButtonChanged>& owner =
+        d.own("test.clicks", std::nullopt, 0, 0, 20 * c, 5 * c, 1, /*pointer=*/true);
+    // A PRESS AND ITS RELEASE at a cell, at `at` on the terminal's clock; the press's clicks.
+    const auto click = [&](std::int64_t at) {
+        now = at;
+        const std::size_t before = owner.size();
+        t.type(sgr(0, 3, 2, true));
+        t.type(sgr(0, 3, 2, false));
+        REQUIRE(owner.size() == before + 2);
+        CHECK(owner.back().clicks == 0); // a release counts none
+        return owner[before].clicks;
+    };
+    // ⚔ MUTATION (tests/mutants/graphics.md#clicks-never-two): every press counts 1.
+    // ⚔ MUTATION (tests/mutants/graphics.md#clicks-at-a-fixed-time): the said time is not heard.
+
+    // UNTIL THE OFFICE SAYS ONE, the default: 300 ms apart is one double click, told the owner and
+    // the arranger alike.
+    CHECK(t.instance->double_click_ms() == zengine::input::kDefaultDoubleClickMs);
+    CHECK(click(1000) == 1);
+    CHECK(click(1300) == 2);
+    REQUIRE(d.heard.pressed.size() == 4);
+    CHECK(d.heard.pressed[0].first.clicks == 1);
+    CHECK(d.heard.pressed[2].first.clicks == 2);
+    // ...and a third within the time counts on.
+    CHECK(click(1400) == 3);
+
+    // AT 200, the same pair is two presses.
+    d.time(200);
+    CHECK(click(5000) == 1);
+    CHECK(click(5300) == 1);
+
+    // AT 800, a 600 ms pair is one double click; past it, two presses.
+    d.time(800);
+    CHECK(click(9000) == 1);
+    CHECK(click(9600) == 2);
+    CHECK(click(20000) == 1);
+    CHECK(click(20801) == 1);
+
+    // A TIME OUTSIDE WHAT THE OFFICE TAKES is held to it: 100 counts as 200.
+    d.time(100);
+    CHECK(t.instance->double_click_ms() == zengine::input::kLeastDoubleClickMs);
+    CHECK(click(30000) == 1);
+    CHECK(click(30150) == 2);
+
+    // A TIME SAID BY ANYONE BUT THE INPUT OFFICE is nothing.
+    (void)t.r.bus.publish(loom::Message(loom::to_value(zengine::input::PointerTimingSaid{2000})));
+    t.r.drain();
+    CHECK(t.instance->double_click_ms() == zengine::input::kLeastDoubleClickMs);
+}
+
+TEST_CASE("a console's records and a POSIX terminal's reports count clicks alike, by the input "
+          "office's time and never the console's own double click") {
+    TypedWindow t;
+    ReadDesk d(t.r, gfx::kTerminalWindow);
+    constexpr std::int64_t c = gfx::kCellPx;
+    std::int64_t now = 0;
+    t.term.clock = [&now] { return now; };
+    std::vector<gfx::AreaButtonChanged>& owner =
+        d.own("test.media", std::nullopt, 0, 0, 20 * c, 5 * c, 1, /*pointer=*/true);
+    // THE SAME HAND, AT THE SAME TIMES, as a POSIX terminal reports it...
+    const auto posix = [&](std::int64_t at, bool down) {
+        now = at;
+        t.type(sgr(0, 3, 2, down));
+    };
+    // ...and as the console's records say it: the left button's bit, and on a press the console
+    // itself took for a double click, its DOUBLE_CLICK flag (0x0002), which the window does not read.
+    zengine::input::PointerTrack track;
+    const auto console = [&](std::int64_t at, bool down, std::uint32_t flags) {
+        now = at;
+        for (zengine::input::InputEvent& e : zengine::input::win32_mouse_to_events(
+                 track, 3, 2, down ? zengine::input::win32::kButtonLeft : 0u, flags, 0u)) {
+            t.term.moments.push_back(std::move(e));
+        }
+        t.pump();
+    };
+    constexpr std::uint32_t kConsoleDoubleClick = 0x0002;
+    const auto presses = [&](std::size_t from) {
+        std::vector<std::int64_t> clicks;
+        for (std::size_t i = from; i < owner.size(); ++i) {
+            if (owner[i].pressed) {
+                clicks.push_back(owner[i].clicks);
+            }
+        }
+        return clicks;
+    };
+    // ⚔ MUTATION (tests/mutants/graphics.md#clicks-never-two): every press counts 1.
+
+    // A PRESS, ANOTHER 300 MS LATER, AND A THIRD 700 MS AFTER THAT: 1, 2, 1, from either.
+    posix(1000, true);
+    posix(1010, false);
+    posix(1300, true);
+    posix(1310, false);
+    posix(2000, true);
+    posix(2010, false);
+    const std::vector<std::int64_t> from_posix = presses(0);
+    CHECK(from_posix == std::vector<std::int64_t>{1, 2, 1});
+    const std::size_t mark = owner.size();
+    console(11000, true, 0);
+    console(11010, false, 0);
+    console(11300, true, kConsoleDoubleClick);
+    console(11310, false, 0);
+    console(12000, true, kConsoleDoubleClick); // the console's own time is longer: still one
+    console(12010, false, 0);
+    CHECK(presses(mark) == from_posix);
+}
+
+TEST_CASE("a participant's clicks are counted as the weaver's are, for its own hand: its double "
+          "click reaches the owner as one, named as its own, and its click beside the weaver's "
+          "stays two single clicks") {
+    TypedWindow t;
+    ReadDesk d(t.r, gfx::kTerminalWindow);
+    constexpr std::int64_t c = gfx::kCellPx;
+    std::int64_t now = 0;
+    t.term.clock = [&now] { return now; };
+    std::vector<gfx::AreaButtonChanged>& owner =
+        d.own("test.hands", std::nullopt, 0, 0, 20 * c, 5 * c, 1, /*pointer=*/true);
+    const auto guest = [&](std::int64_t at) {
+        now = at;
+        d.inject(5, ReadDesk::button(3 * c, 2 * c, true));
+        d.inject(5, ReadDesk::button(3 * c, 2 * c, false));
+        return owner[owner.size() - 2];
+    };
+    const auto weaver = [&](std::int64_t at) {
+        now = at;
+        t.type(sgr(0, 3, 2, true));
+        t.type(sgr(0, 3, 2, false));
+        return owner[owner.size() - 2];
+    };
+    // ⚔ MUTATION (tests/mutants/graphics.md#hands-share-a-count): every hand counts on one counter.
+
+    // THE GUEST'S DOUBLE CLICK: two real presses within the time, counted by the window, and told
+    // as the guest's, to the owner and the arranger alike.
+    CHECK(guest(1000).clicks == 1);
+    const gfx::AreaButtonChanged second = guest(1100);
+    CHECK(second.clicks == 2);
+    CHECK_FALSE(second.local);
+    CHECK(second.actor == 5);
+    REQUIRE(d.heard.pressed.size() == 4);
+    CHECK(d.heard.pressed[2].first.clicks == 2);
+    CHECK(d.heard.pressed[2].first.actor == 5);
+    // ...and past the time, two clicks, as the weaver's are.
+    CHECK(guest(5000).clicks == 1);
+    CHECK(guest(5500).clicks == 1);
+
+    // A GUEST'S CLICK BESIDE THE WEAVER'S, within the time either way: two single clicks.
+    CHECK(weaver(9000).clicks == 1);
+    CHECK(guest(9100).clicks == 1);
+    CHECK(guest(20000).clicks == 1);
+    const gfx::AreaButtonChanged own = weaver(20100);
+    CHECK(own.clicks == 1);
+    CHECK(own.local);
 }
 
 TEST_CASE("an area placed for the weaver's hand alone refuses a participant's press and wheel, its "

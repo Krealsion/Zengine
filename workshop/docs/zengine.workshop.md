@@ -698,7 +698,7 @@ a current attributed input gesture`).
 
 `KeyReleased`, from input: heard for Shift alone, per hand, to tell a tap from a hold. Shift pressed
 alone and released with no repeat is a tap, and a second lone Shift press within the double-click
-time is the key `double-shift`, resolved as `KeyPressed` is where a row in force answers to it
+time ([`PointerTimingSaid`](#pointertimingsaid)) is the key `double-shift`, resolved as `KeyPressed` is where a row in force answers to it
 ([`desktop.palette-shift`](zengine.desktop.md#desktoppalette-shift)). Any other release is passed
 over.
 
@@ -781,7 +781,7 @@ a refused change is drawn again whole at once.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v3, from the window that shows `zengine.workshop` or a frame: a button pressed
+`AreaButtonChanged` v4, from the window that shows `zengine.workshop` or a frame: a button pressed
 or let go in one of Workshop's areas, at the screen's pixel there, by the hand it names. It is that
 moment as `PointerButton` takes one, that hand's, the press held to its own release, a drop
 carrying what the window drew under it: a tab, the chrome, the room, a menu, an arrangement, a body
@@ -827,7 +827,7 @@ that it left. A pane's area it left is the pane's to answer.
 
 ### `AreaPressed`
 
-`AreaPressed` v3, from the window, to a pane area's arranger: a button pressed or let go
+`AreaPressed` v4, from the window, to a pane area's arranger: a button pressed or let go
 there, at the window's pixel, under the window's number, by the hand it names, with what the window
 drew under it, for a drop released there. Workshop counts the gesture on that hand and
 keeps the number, which the pane's carry, pass-back or menu cites. The weaver's own primary
@@ -853,6 +853,13 @@ reading moved. A refusal is kept as the pane's, and said to its readers.
 follows -- each pane's, and the menu's -- shows settled at a version. For a presented pane's area or
 the menu's, past the version Workshop took of it, Workshop asks it again (`AreaShowAsked`), one ask
 an area at a time; a late or repeated one asks nothing.
+
+### `PointerTimingSaid`
+
+`PointerTimingSaid` v1, from `zengine.input` alone: the double-click time, which two Shift taps of
+one hand are a double Shift within. Workshop asks it when the desk starts (`PointerTimingAsked`)
+and is told again when it changes; until it is told, it times taps by
+<!-- value kDefaultDoubleClickMs -->400<!-- /value --> ms. From anyone else it is nothing.
 
 ## Follow
 

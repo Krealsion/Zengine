@@ -3031,6 +3031,8 @@ struct WindowDesk {
         // never comes up.
         r.in_window = false;
         window = std::make_unique<pw::Window>(r.bus, gfx::kTerminalWindow);
+        // ...counting the weaver's clicks by the rig's clock, as the rig's own windows do.
+        window->clock = [this] { return r.clock.read(); };
         r.host.dir = folder ? "/zen/window-desk" : "";
         if (with_directory) {
             mount_directory();
@@ -4283,16 +4285,17 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         });
         CHECK(os->drawn() > 0);
         // ...AND A PASTE INTO THE NAME EDITOR IS ASKED OF IT, its answer landing in the line; the
-        // press that opens the editor lands in Workshop's area through the window.
-        o.own_hand = [&os_does](const input::PointerButton& b) {
+        // press that opens the editor lands in Workshop's area through the window, counted as the
+        // window counts the weaver's clicks, by the rig's clock.
+        gfx::window::ClickCounter counted;
+        o.own_hand = [&os_does, &counted, &o](const input::PointerButton& b) {
             const bool cells = b.space == input::space::kCells;
             const std::int64_t x = cells ? gfx::px_of_cells(b.x) : b.x;
             const std::int64_t y = cells ? gfx::px_of_cells(b.y) : b.y;
-            os_does([b, x, y](loom::Mail& m) {
-                (void)m.as_role(sdl_window_office())
-                    .send_to_role(kWorkshopProvider,
-                                  gfx::AreaButtonChanged{kWorkshopProvider, b.button, b.pressed, x,
-                                                         y, b.modifiers});
+            gfx::AreaButtonChanged told{kWorkshopProvider, b.button, b.pressed, x, y, b.modifiers};
+            told.clicks = b.pressed ? counted.press(b.button, o.clock.read()) : 0;
+            os_does([told](loom::Mail& m) {
+                (void)m.as_role(sdl_window_office()).send_to_role(kWorkshopProvider, told);
             });
         };
         open_rename_on_live_tab(o);

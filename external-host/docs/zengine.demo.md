@@ -127,7 +127,7 @@ Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v3, from that window: a button pressed in the pane's area, at its point, with
+`AreaButtonChanged` v4, from that window: a button pressed in the pane's area, at its point, with
 what the window drew there. The first button on the reset button asks `reset`, which is
 [`reset`](#reset); the third is handed back, so Workshop's own pane menu opens there. One the window
 landed on another control than the drawing shows there now is refused in words. A release, or a

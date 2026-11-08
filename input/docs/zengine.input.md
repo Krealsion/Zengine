@@ -26,6 +26,10 @@ OS window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), w
 events, it serves input sessions alone and leaves the console the run was started from as it was:
 not read, what is typed there echoed, and a Ctrl+C there ending the run as it ends any program.
 
+The office owns the double-click time, a setting a weaver sets
+([`OfficeSettings`](#officesettings)): a window counts each hand's clicks by it, a session's as
+the weaver's.
+
 A reload in place keeps the open session, which its holder goes on using and whose held keys are
 released when it closes; the last session number, so none is given twice; and the counters a poke
 reads, `pumped` (polls) and `emitted` (moments the platform gave). A timed pointer move in flight is
@@ -128,7 +132,8 @@ behalf.
   TextEntered carries text`; `moment 2: pressing scancode <n> would hold <k> keys down at once; a
   session holds at most <kMaxHeldKeys> -- release one first`.
 - **Example:** two moments, `{kind: "KeyPressed", scancode: scan::kA, modifiers: mod::kCtrl}` and
-  its `KeyReleased`, type Ctrl+A.
+  its `KeyReleased`, type Ctrl+A. A press and release at one point, sent again within the
+  double-click time, is a double click the window counts for your hand, never the weaver's.
 
 ### `PointerMotionRequested`
 
@@ -148,7 +153,30 @@ behalf.
 - **Example:** after a `PointerMoved` to cell (10, 5), `{session: 1, x: 40, y: 12, duration_ms:
   300, bend: 0}` glides to (40, 12) in about a third of a second.
 
+### `PointerTimingAsked`
+
+`PointerTimingAsked` v1 asks the double-click time: how close in time two presses of one button
+are one double click, which a window counts the weaver's clicks by. It is the office's one
+office-wide setting, `input.double-click-ms`, which a weaver sets in the Settings pane
+([`OfficeSettings`](#officesettings)).
+
+- **Takes:** nothing.
+- **Answers:** `PointerTimingSaid` v1, to you alone, as `zengine.input`: `double_click_ms`, the time
+  two presses of one button are one double click within. Believe it from the office alone
+  (`mail.authored_from_role("zengine.input")`).
+- **Refuses:** nothing.
+- **Example:** a window sends `PointerTimingAsked{}` to `zengine.input` each time it is activated.
+
 ## Hears
+
+### `OfficeSettings`
+
+`OfficeSettings` v1, from `zengine.layouts` alone: `input.double-click-ms` as Workshop keeps it, a
+default kept as its absence, which the weave declares to that office
+([`OfficeSettingsDeclared`](../../workshop/docs/zengine.layouts.md#officesettingsdeclared)) each
+time it is activated. A time other than the one it holds is held to 200..2000 ms, taken and
+published ([Follow](#follow)); until one is handed it, it holds
+<!-- value kDefaultDoubleClickMs -->400<!-- /value --> ms.
 
 ### `TimerReady`
 
@@ -177,7 +205,8 @@ The weave publishes each moment as it happens, in the platform's order: `KeyPres
 `KeyReleased` v2, `TextEntered` v1, `PointerMoved` v1, `PointerButton` v1 and `PointerWheel` v1,
 in its own name. Just before each, it publishes `AttributedInput` v1 as `zengine.input`, carrying the
 same moment: `local` true and `actor` 0 for the platform's, `local` false and `actor` the holder's
-weave id for a session's. Follow one of the two, not both, or you hear each moment twice. Nothing
+weave id for a session's. Follow one of the two, not both, or you hear each moment twice. When the
+double-click time it holds changes, it publishes `PointerTimingSaid` v1 as `zengine.input`. Nothing
 else is said unasked, and there is no state to read but its two counters, by poke.
 
 ## See also

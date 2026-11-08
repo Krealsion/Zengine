@@ -29,6 +29,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -2627,6 +2628,31 @@ TEST_CASE("a double click adds: an operator row as Add to the rule adds it, empt
                       rig.menus, {}, menu->correlation)).valid());
     rig.pump();
     CHECK(rig.shows_part("Say a message after the change"));
+}
+
+TEST_CASE("a double click is the window's count: two presses on an operator row add it however "
+          "long the runner took between them, and two presses it counted one each add nothing") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto steps = [&rig]() { return rig.workspace().graph.project.definition.on.front().body.nodes; };
+    const auto row = w.at("found:" + std::string(ws::kOperatorKind) + ":math.add");
+    // A RUNNER SLOWER BETWEEN THE TWO PRESSES THAN ANY DOUBLE-CLICK TIME A READER COULD KEEP: the
+    // window's clock stands still, so it counted the second press a double click's, and Flow reads
+    // that count, not its own clock.
+    // ⚔ MUTATION (tests/mutants/flow_pane.md#a-double-click-timed-by-flow): Flow times the pair.
+    w.click(row);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
+    w.click(row);
+    REQUIRE(steps().size() == 2);
+    CHECK(steps().back().identity == "math.add");
+
+    // THE WINDOW COUNTED EACH PRESS ONE, however quickly they came: nothing is added.
+    std::int64_t now = 0;
+    w.window.clock = [&now] { return now += 10 * 1000; };
+    w.click(row);
+    w.click(row);
+    CHECK(steps().size() == 2);
 }
 
 namespace {

@@ -1513,6 +1513,29 @@ def run_checks(tools, runtime):
             self.assertEqual(json.loads(ctx.kept["failed-step-parts.json"]), self.INFO_NAMES["info"])
             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
 
+        def test_a_double_click_is_one_call_sending_the_actual_clicks_and_misspelled_counts_cost_nothing(self):
+            ctx = ActWorkshop(steps, [{"part": ["zengine.info", "info", "property:Height"], "clicks": 2}],
+                              self.INFO_ROWS, named=self.INFO_NAMES)
+            self.act(ctx)
+            presses = [e for e in ctx.events if e["kind"] == "PointerButton"]
+            self.assertEqual([(e["x"], e["y"], e["pressed"]) for e in presses],
+                             [(50, 18, True), (50, 18, False), (50, 18, True), (50, 18, False)])
+            # TWO CLICKS, a frame apart, each through the run's own session; no press says a count.
+            self.assertEqual(ctx.contacts.count("InjectInput"), 2)
+            self.assertFalse([e for e in presses if "clicks" in e])
+            # A PLAIN PRESS is one click.
+            ctx = ActWorkshop(steps, [{"part": ["zengine.info", "info", "property:Height"]}],
+                              self.INFO_ROWS, named=self.INFO_NAMES)
+            self.act(ctx)
+            self.assertEqual(ctx.contacts.count("InjectInput"), 1)
+            # A COUNT NO PRESS TAKES, or one on a step that presses nothing, is refused before contact.
+            for step in ({"part": ["zengine.info", "info", "property:Height"], "clicks": 3},
+                         {"press": "ctrl+p", "clicks": 2}):
+                ctx = ActWorkshop(steps, [step], self.INFO_ROWS, named=self.INFO_NAMES)
+                with self.assertRaisesRegex(CheckFailed, "clicks"):
+                    self.act(ctx)
+                self.assertFalse(ctx.contacts)
+
         def test_a_part_workshop_gives_no_point_is_never_pressed_and_the_step_says_why(self):
             ctx = ActWorkshop(steps, [{"part": ["zengine.info", "info", "property:Height"]}],
                               self.INFO_ROWS, named=self.INFO_NAMES, unreached={"property:Height"})

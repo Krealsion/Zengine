@@ -1,7 +1,11 @@
 # Time is an argument
 
 **Decision record.** One decision, its alternatives, and why this one. Not a how-to — the law it
-supports is in [pointer](../workshop/pointer.md).
+supported is in [pointer](../../../agents/workshop/pointer.md).
+
+**Superseded.** The double-click time became input's office-wide setting, which the window counts
+clicks by: [the-double-click-time-is-inputs](../../../agents/decisions/the-double-click-time-is-inputs.md).
+What follows is the decision as it was made.
 
 **Context.** `input::PointerButton` carries no click count and no timestamp on either backend,
 so a double-click is Workshop's own interpretation and not a platform's — which is what keeps a
@@ -12,7 +16,7 @@ the pane, a double-click choose the word, and a pointer read what a row cut").
 steady monotonic clock that is never persisted and never on a wire. `Session::click` records
 what the last press on an editable line named: which line, which draft of it, which word, and
 when. `doubles_a_click` is pure and total — armed, same line, same draft, same word, within
-`kDoubleClickMs` (<!-- value kDoubleClickMs -->400<!-- /value -->) — and time is its argument.
+`kDoubleClickMs` (400) — and time is its argument.
 One seam, `press_selects_word`, serves both editable lines. The record arms on the way out and the
 completing press spends it.
 
@@ -32,7 +36,7 @@ completing press spends it.
 
 **Consequences.** A modifier-bearing press neither doubles nor arms. The tab run got a second
 click record of its own, sharing the interval and the arming discipline, because a tab is not a
-line, a draft or a word ([the-layouts-pane](the-layouts-pane.md)).
+line, a draft or a word ([the-layouts-pane](../../../agents/decisions/the-layouts-pane.md)).
 
 **Since.** The two editable lines this record served were the host's own drafts — Info's
 property row and the Pane Manager's — and both left the host: Info is a loaded pane, and the
@@ -43,4 +47,5 @@ record (`Session::tab_click`, `doubles_a_tab_click`) keeps time as an argument, 
 interval and arming discipline, and that is WL-PTR-01 now. Flow's pane reads its own double
 clicks the same way (`flow_pane::doubles`), on an interval a case keeps equal to this one.
 
-**Laws supported.** [WL-PTR-01](../workshop/pointer.md).
+**Laws supported.** [WL-PTR-01](../../../agents/workshop/pointer.md) until input's double-click
+time; it stands on [the-double-click-time-is-inputs](../../../agents/decisions/the-double-click-time-is-inputs.md) now.

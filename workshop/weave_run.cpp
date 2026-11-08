@@ -639,7 +639,7 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
         switch (held.kind) {
         case HeldInput::Kind::kKey: on(held.key, mail); break;
         case HeldInput::Kind::kText: on(held.text, mail); break;
-        case HeldInput::Kind::kButton: pointer_button(held.button, mail); break;
+        case HeldInput::Kind::kButton: pointer_button(held.button, held.clicks, mail); break;
         case HeldInput::Kind::kMoved: pointer_moved(held.moved, mail); break;
         case HeldInput::Kind::kWheel: pointer_wheel(held.wheel, mail); break;
         case HeldInput::Kind::kAreaPress: area_pressed(held.area_press, held.press, mail); break;

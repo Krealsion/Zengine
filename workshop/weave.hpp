@@ -505,7 +505,9 @@ class WorkshopWeave
                                           zengine::graphics::AreaShown, loom::Refused,
                                           loom::DispatchRefused,
                                           // that what an area shows settled, unasked
-                                          zengine::graphics::AreaSettled>,
+                                          zengine::graphics::AreaSettled,
+                                          // the double-click time the input office says
+                                          zengine::input::PointerTimingSaid>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneCanvasValueDrop, PaneCanvasDrop,
                                         zengine::workshop::PaneCanvasHover,
                                         zengine::graphics::ClipboardCopy,
@@ -550,7 +552,8 @@ class WorkshopWeave
                                         zengine::graphics::PaletteChosen,
                                         zengine::graphics::RoomAsked,
                                         zengine::graphics::Drawn,
-                                        zengine::workshop::PaneKeys>,
+                                        zengine::workshop::PaneKeys,
+                                        zengine::input::PointerTimingAsked>,
                              loom::WeaveBase,
                              // the one latest claim
                              // this host makes -- the managed pane's presentation.
@@ -718,6 +721,9 @@ public:
     void run_command(const CommandRunRequested& asked, const InputActor& actor,
                      std::uint64_t gesture, const std::shared_ptr<loom::DeferredAnswer>& held,
                      loom::Mail& mail);
+    /// THE DOUBLE-CLICK TIME, from the input office alone: two Shift taps of one hand are a double
+    /// Shift within it.
+    void on(const zengine::input::PointerTimingSaid& said, loom::Mail& mail);
     /// SHIFT LET GO: half of a tap toward a double Shift (`shift_tapped`); every other release
     /// is no act.
     void on(const zengine::input::KeyReleased& k, loom::Mail& mail);
@@ -865,8 +871,10 @@ public:
     GesturesEnded end_held_gestures(loom::Mail& mail);
 
     /// A pointer button changed in Workshop's own area, AND the position it changed at, in the
-    /// desk's pixels: the window's moment (`on(AreaButtonChanged)`), or one held and replayed.
-    void pointer_button(const zengine::input::PointerButton& b, loom::Mail& mail);
+    /// desk's pixels, with the clicks the window counted a press: the window's moment
+    /// (`on(AreaButtonChanged)`), or one held and replayed.
+    void pointer_button(const zengine::input::PointerButton& b, std::int64_t clicks,
+                        loom::Mail& mail);
 
     /// The pointer moved there; outside a drag this weave has nothing to do with it.
     void pointer_moved(const zengine::input::PointerMoved& m, loom::Mail& mail);
@@ -1535,7 +1543,8 @@ private:
 
     /// A PRESS INSIDE THE LAYOUTS PANE -- the tab run's own inverse, and the whole
     /// of what the top band's two global pointer arms became.
-    bool layouts_press(const zengine::input::PointerButton& b, loom::Mail& mail);
+    bool layouts_press(const zengine::input::PointerButton& b, std::int64_t clicks,
+                       loom::Mail& mail);
 
     /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW.
     void refresh_setup_name();
@@ -1765,6 +1774,9 @@ private:
     std::map<std::string, std::string> palettes_chosen_;
     /// The directory placed with -- its holder and incarnation -- and whether one is known.
     bool graphics_known_ = false;
+    /// The double-click time the input office last said, which two Shift taps are one double
+    /// Shift within.
+    std::int64_t double_click_ms_ = zengine::input::kDefaultDoubleClickMs;
     std::uint64_t graphics_holder_ = 0;
     std::int64_t graphics_incarnation_ = 0;
     /// Workshop's own room was asked of this directory.
@@ -1871,6 +1883,7 @@ private:
         zengine::input::KeyPressed key;
         zengine::input::TextEntered text;
         zengine::input::PointerButton button;
+        std::int64_t clicks = 0; ///< the clicks the window counted the button's press
         zengine::input::PointerMoved moved;
         zengine::input::PointerWheel wheel;
         graphics::AreaPressed area_press; ///< a press a window landed on a pane's area...

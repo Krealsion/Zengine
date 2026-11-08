@@ -16,6 +16,7 @@
 #include "graphics/painting.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
+#include "graphics/window/clicks.hpp"
 #include "graphics/window/compose.hpp"
 #include "graphics/window/palette.hpp"
 #include "graphics/window/store.hpp"
@@ -428,11 +429,17 @@ public:
     /// A NUMBER FOR A PRESS, as the window gives one: the press, its moves and its release carry it.
     std::uint64_t next_press() { return ++presses_; }
 
+    /// THE CLOCK THIS WINDOW COUNTS CLICKS BY, as the real window counts the weaver's: the case's
+    /// reading. None stands still, so two presses of one button are a double click.
+    std::function<std::int64_t()> clock;
+    /// THE DOUBLE-CLICK TIME it counts by, as the input office would say it.
+    void double_click_ms(std::int64_t ms) { clicks_.time(ms); }
+
     /// A BUTTON PRESSED (`down`) OR LET GO AT A CELL OF `area`, as the real window gives an area
     /// placed to hear the pointer: `AreaButtonChanged` at the cell's centre in the area's pixels,
-    /// with what this window drew under the hand there (`said_under`), told the area's owner under
-    /// `press` as this window's office -- and, given an `arranger`, `AreaPressed` at the window's
-    /// pixel, told it under the same number.
+    /// with what this window drew under the hand there (`said_under`) and, for a press, its clicks
+    /// counted by `clock`, told the area's owner under `press` as this window's office -- and,
+    /// given an `arranger`, `AreaPressed` at the window's pixel, told it under the same number.
     void button(const std::string& area, std::int64_t col, std::int64_t row, bool down,
                 std::uint64_t press, std::int64_t which = 1, const std::string& arranger = {}) {
         const gw::WinArea* a = w_->find(area);
@@ -441,13 +448,14 @@ public:
         const std::int64_t y = row * face_.line + face_.line / 2;
         gfx::AreaButtonChanged told{area, which, down, x, y, 0};
         said_under(told, col, row);
+        told.clicks = down ? clicks_.press(which, clock ? clock() : 0) : 0;
         say(owner, told, press);
         if (!arranger.empty()) {
             const std::int64_t ox = a == nullptr ? 0 : a->x;
             const std::int64_t oy = a == nullptr ? 0 : a->y;
             say(arranger,
                 gfx::AreaPressed{w_->window(), area, which, down, ox + x, oy + y, true, 0,
-                                 told.under, told.part, told.drawing},
+                                 told.under, told.part, told.drawing, told.clicks},
                 press);
         }
     }
@@ -709,6 +717,7 @@ private:
     loom::WeaveId id_{};
     std::map<std::string, std::int64_t> epochs_;
     std::uint64_t presses_ = std::uint64_t{1} << 40; ///< a press's number, past any a desk mints
+    gw::ClickCounter clicks_; ///< the presses counted, as the real window counts the weaver's
     gfx::TextMeasure face_;   ///< how it sets text: the cell, or a face's measure
     std::int64_t cell_px_ = 0; ///< its device pixels in a cell: none while text is the cell
 };

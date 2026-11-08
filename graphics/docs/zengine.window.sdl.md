@@ -58,11 +58,12 @@ hear the pointer is given each pointer moment in its area as it was, in the area
 (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A
 press holds its button for its area until its release, under one number; its arranger hears where it
 landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Every moment names its
-hand ([`AttributedInput`](#attributedinput)).
+hand ([`AttributedInput`](#attributedinput)), a press its clicks
+([`PointerTimingSaid`](#pointertimingsaid)).
 
 Who may send: whoever the host's grant lets reach the window. It takes a drawing
-or an element only from the area's owner, as that office, and refuses anyone else's; it takes the
-directory's words only from `zengine.graphics`, and ignores them from anyone else. Every bound is
+or an element only from the area's owner, as that office, and the directory's words only from
+`zengine.graphics`. Every bound is
 judged before anything changes, and a drawing past one is refused whole, in words, to its drawer
 (`DrawnRefused`), what the window shows unchanged. The bounds are
 `graphics/vocabulary.hpp`'s: `kMaxNodesPerArea`, `kMaxElementsPerArea`, `kMaxPathBytes`,
@@ -318,6 +319,13 @@ holding its own presses; a key, text or a `local` moment is not taken. In an are
 weaver's hand alone (`weaver_only`) its press or wheel reaches nobody, its arranger is told
 (`AreaHandRefused`), and the moves and release after are dropped.
 
+### `PointerTimingSaid`
+
+`PointerTimingSaid` v1, from `zengine.input` alone: the double-click time, held to 200..2000 ms,
+which the weaver's presses count by from then on ([how](graphics.md#how-a-window-counts-clicks)).
+The window asks it at each activation (`PointerTimingAsked`); until told, it counts by
+<!-- value kDefaultDoubleClickMs -->400<!-- /value --> ms. From anyone else it is nothing.
+
 ## Follow
 
 As its own office the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
@@ -325,9 +333,9 @@ and at each new size: its name, its pixels, its incarnation, `kCellPx` pixels in
 face's measure; the directory keeps it. It publishes `SurfacePlacement` v1 when its place changed,
 before `WindowOffered` when both did; and `SurfaceCloseRequested` v1 for each close asked. To an
 area's owner: `AreaRoom` v4 (with its face); `DrawnRefused` v1; `ActionRequested` v1;
-`AreaButtonChanged` v3, `AreaPointerMoved`, `AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft`
+`AreaButtonChanged` v4, `AreaPointerMoved`, `AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft`
 v1 when placed to hear the pointer; `AreaKeyPressed`, `AreaKeyReleased`, `AreaTextEntered` v1 as
-placed to hear each. To an arranger following an area not its own: `AreaPressed` v3,
+placed to hear each. To an arranger following an area not its own: `AreaPressed` v4,
 `AreaHoldEnded`, `AreaPointerLeft` v1; following one, `AreaSettled` v1; to any arranger,
 `AreaHandRefused`. To an asker: `WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`,
 `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.

@@ -79,12 +79,8 @@ std::int64_t pane_edge_at(const PixelRect& r, std::int64_t sx, std::int64_t sy,
 
 // WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
 bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
-                         std::int64_t now_ms) noexcept {
-    if (!prior.armed || prior.at != at) {
-        return false;
-    }
-    const std::int64_t since = now_ms - prior.at_ms;
-    return since >= 0 && since <= kDoubleClickMs;
+                         std::int64_t clicks) noexcept {
+    return clicks >= 2 && prior.armed && prior.at == at;
 }
 
 // WL-KEY-03 -- agents/workshop/keyboard.md; WL-FOCUS-06 -- agents/workshop/focus.md
