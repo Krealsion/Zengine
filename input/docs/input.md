@@ -28,6 +28,16 @@ OS window reads SDL's events) so a terminal cell can never be mistaken for a win
 controls are keys, never text: Backspace, Enter and Escape arrive as transitions, and what they
 *mean* is the application's.
 
+**A double click is counted by the window, by the office's time.** `PointerButton` carries no count
+and no time on any backend: SDL's own count and the console's double-click record follow the
+desktop's time, and a POSIX terminal reports none. The office owns the double-click time,
+`kSettingDoubleClickMs` (`kDefaultDoubleClickMs`, held to `kLeastDoubleClickMs`..
+`kMostDoubleClickMs`), and says it in `PointerTimingSaid`; a window counts the weaver's presses by
+it and says the count with each press (`graphics::AreaButtonChanged::clicks`), so the console's
+records and a terminal's reports count alike. A session's presses are counted the same way, for
+the session's own hand: an agent double clicks by clicking twice, and its click and the weaver's
+never make one double click.
+
 The backends are the ones snake and Workshop run on. The **POSIX terminal** parses raw-mode bytes
 with a *stateful, incremental* parser — an OS read boundary is not an event boundary, so a mouse
 report split across reads is rejoined rather than translated into the keystrokes its bytes happen to

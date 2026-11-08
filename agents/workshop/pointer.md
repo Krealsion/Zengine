@@ -5,16 +5,19 @@ Router: [`../workshop.md`](../workshop.md).
 
 Retired: WL-PTR-02, WL-PTR-03, WL-PTR-04, WL-PTR-05, WL-PTR-06, WL-PTR-08.
 
-## WL-PTR-01 — Two presses are one gesture, and time is an argument
+## WL-PTR-01 — Two presses are one gesture by the window's count
 
-LAW — A double-click is Workshop's own interpretation: `doubles_a_tab_click` is pure and total — armed, same tab, within `kDoubleClickMs` — and time is its argument.
+LAW — A double-click is the window's count, which a reader reads: `doubles_a_tab_click` is pure and total — the press counted 2 or more, the last press armed on the same tab — and no reader times a press.
 
 MEANS
-- `input::PointerButton` carries no click count or timestamp on either backend;
-- `HostContext::interaction_now` is the one clock reading: steady, never persisted, never wired;
-- the interval is a product constant, not a preference: one gesture means one thing everywhere.
+- the window counts each hand's presses by input's `input.double-click-ms`, said in `PointerTimingSaid`; two hands' presses never make one;
+- Flow reads the same count (`flow_pane::doubles`); Double Shift is keys, timed by that same said time (WL-KEY-19);
+- `HostContext::interaction_now` is the host's steady reading for what it still times: Shift's taps, the desk reads' rate.
 
-WHY — `agents/decisions/time-is-an-argument.md`
+DOES NOT MEAN
+- that the time is a constant of Workshop's: it is input's office-wide setting, 200 to 2000 ms.
+
+WHY — `agents/decisions/the-double-click-time-is-inputs.md`
 
 ## WL-PTR-09 — A POSIX terminal cannot report a hover
 
@@ -48,9 +51,11 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ### WL-PTR-01
 `workshop/interaction_time.hpp` interaction_now_ms
-`workshop/screen.hpp` kDoubleClickMs TabClickMemory Session::tab_click
+`workshop/screen.hpp` TabClickMemory Session::tab_click
 `workshop/screen_arrange.cpp` doubles_a_tab_click
 `workshop/weave.hpp` HostContext::interaction_now
+`graphics/window/clicks.hpp` clicks_of ClickCounter
+`flow/flow-pane/gesture.hpp` doubles
 `tests/test_workshop_screen.cpp` "what makes two presses on a tab one double-click, and what does
 not"
 

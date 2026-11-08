@@ -231,7 +231,7 @@ row.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v3, from that window: a button pressed in Compose's area, at its point, with
+`AreaButtonChanged` v4, from that window: a button pressed in Compose's area, at its point, with
 what the window drew there. The first button on a row presses that row, read against whether the
 keys were already Compose's as Workshop last said; the third is handed back, under the window's
 number for the press, so Workshop's own pane menu opens there. One the window landed on another row

@@ -208,7 +208,10 @@ struct ActionRequested {
 /// the area that showed it -- this one, or where this one shows nothing there the first area
 /// behind it that does, "" for none -- `part` the part named there (the action of the record over
 /// the top node, "" for none) and `drawing` that area's drawer's number for its drawing
-/// (`Drawn::number`).
+/// (`Drawn::number`). A press says its `clicks`: one more than the press of its button before it
+/// when it came within the double-click time the input office says
+/// (`zengine::input::PointerTimingSaid`), else 1 -- 2 for a double click's second press -- or what
+/// an agent's press asked; a release says 0.
 struct AreaButtonChanged {
     std::string area;
     std::int64_t button = 0;
@@ -220,9 +223,11 @@ struct AreaButtonChanged {
     std::string under{};
     std::string part{};
     std::int64_t drawing = 0;
-    ZEN_SHAPE(AreaButtonChanged, 3, ZEN_FIELD(area), ZEN_FIELD(button), ZEN_FIELD(pressed),
+    std::int64_t clicks = 0;
+    ZEN_SHAPE(AreaButtonChanged, 4, ZEN_FIELD(area), ZEN_FIELD(button), ZEN_FIELD(pressed),
               ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(modifiers), ZEN_FIELD(local),
-              ZEN_FIELD(actor), ZEN_FIELD(under), ZEN_FIELD(part), ZEN_FIELD(drawing));
+              ZEN_FIELD(actor), ZEN_FIELD(under), ZEN_FIELD(part), ZEN_FIELD(drawing),
+              ZEN_FIELD(clicks));
 };
 
 /// Window -> the owner of an area placed to hear the pointer: the pointer moved there, or moved
@@ -254,9 +259,9 @@ struct AreaWheelTurned {
 
 /// Window -> the arranger following an area placed to hear the pointer (`AreaPlaced::followed`),
 /// when another office owns it: a button pressed or let go in that area, at the window's own point
-/// in pixels, under the press's number, whose hand pressed it, and what the window drew under the
-/// hand, as the owner is told it (`AreaButtonChanged`). Where presses land is the arranger's to
-/// know, as a desktop raises what was clicked; the moment itself is the owner's.
+/// in pixels, under the press's number, whose hand pressed it, what the window drew under the hand
+/// and its clicks, as the owner is told them (`AreaButtonChanged`). Where presses land is the
+/// arranger's to know, as a desktop raises what was clicked; the moment itself is the owner's.
 struct AreaPressed {
     std::string window;
     std::string area;
@@ -268,9 +273,10 @@ struct AreaPressed {
     std::string under{};
     std::string part{};
     std::int64_t drawing = 0;
-    ZEN_SHAPE(AreaPressed, 3, ZEN_FIELD(window), ZEN_FIELD(area), ZEN_FIELD(button),
+    std::int64_t clicks = 0;
+    ZEN_SHAPE(AreaPressed, 4, ZEN_FIELD(window), ZEN_FIELD(area), ZEN_FIELD(button),
               ZEN_FIELD(pressed), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(local), ZEN_FIELD(actor),
-              ZEN_FIELD(under), ZEN_FIELD(part), ZEN_FIELD(drawing));
+              ZEN_FIELD(under), ZEN_FIELD(part), ZEN_FIELD(drawing), ZEN_FIELD(clicks));
 };
 
 /// Window -> the arranger of an area placed for the weaver's hand alone (`AreaPlaced::weaver_only`):

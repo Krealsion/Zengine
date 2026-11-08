@@ -140,7 +140,7 @@ WHY — `agents/decisions/a-pane-declares-its-actions.md`
 
 ## WL-KEY-19 — Double Shift is Workshop's gesture, read per hand from Shift's press, release and press
 
-LAW — Two Shift taps of one hand, alone, within a double-click's time, are the key `double-shift` where a row in force answers to it; otherwise the second press goes on as any Shift press
+LAW — Two Shift taps of one hand, alone, within input's double-click time, are the key `double-shift` where a row in force answers to it; otherwise the second press goes on as any Shift press
 
 MEANS
 - a tap is Shift pressed with nothing else held and let go: a held Shift repeats with no release;
@@ -310,7 +310,7 @@ action's key"
 
 ### WL-KEY-19
 `workshop/gesture_grammar.hpp` kDoubleShift is_shift_scan
-`workshop/weave_shift.cpp` shift_tapped on(KeyReleased)
+`workshop/weave_shift.cpp` shift_tapped on(KeyReleased) on(PointerTimingSaid)
 `workshop/weave_operation.cpp` count_gesture
 `tests/test_workshop_panes_palette.cpp` "WL-KEY-19: two Shift taps of one hand open the palette; a
 held Shift, a key between, a slow pair and another hand's tap do not"

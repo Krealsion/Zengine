@@ -24,6 +24,7 @@
 #include <zen/weave.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -80,13 +81,13 @@ template <class V>
 struct EmitsOf;
 template <class... Ts>
 struct EmitsOf<std::variant<Ts...>> {
-    using type = loom::Emit<Ts..., InputSessionOpened, InputInjected, AttributedInput, loom::Ack,
-                            loom::Refused>;
+    using type = loom::Emit<Ts..., InputSessionOpened, InputInjected, AttributedInput,
+                            PointerTimingSaid, loom::Ack, loom::Refused>;
 };
 
 /// The doors every Input weave accepts.
 using Accepts = loom::Accept<PumpInput, InputSessionRequested, InputSessionClosed, InjectInput,
-                             PointerMotionRequested, loom::host::Waited>;
+                             PointerMotionRequested, PointerTimingAsked, loom::host::Waited>;
 
 } // namespace detail
 
@@ -299,6 +300,26 @@ public:
         motion_.started = now_();
         motion_.duration = request.duration_ms;
         motion_.first = session_.seq + 1;
+    }
+
+    /// THE DOUBLE-CLICK TIME, to the asker alone, as the office.
+    void on(const PointerTimingAsked&, loom::Mail& mail) {
+        (void)mail.as_role(kInputRole).send(mail.sender(), PointerTimingSaid{double_click_ms_},
+                                            mail.correlation());
+    }
+
+    /// THE DOUBLE-CLICK TIME THE OFFICE HOLDS NOW, `kDefaultDoubleClickMs` until it is set.
+    std::int64_t double_click_ms() const noexcept { return double_click_ms_; }
+
+    /// THE DOUBLE-CLICK TIME SET, held to `kLeastDoubleClickMs`..`kMostDoubleClickMs`, and
+    /// published as the office when it changed.
+    void set_double_click_ms(std::int64_t ms, loom::Mail& mail) {
+        ms = std::clamp(ms, kLeastDoubleClickMs, kMostDoubleClickMs);
+        if (ms == double_click_ms_) {
+            return;
+        }
+        double_click_ms_ = ms;
+        (void)mail.as_role(kInputRole).publish(PointerTimingSaid{double_click_ms_});
     }
 
     /// The open session, for a host presenting it. 0 when none is open.
@@ -541,6 +562,7 @@ private:
     Session session_;
     Now now_ = [] { return Clock::now(); };
     Motion motion_;
+    std::int64_t double_click_ms_ = kDefaultDoubleClickMs;
 };
 
 } // namespace zengine::input

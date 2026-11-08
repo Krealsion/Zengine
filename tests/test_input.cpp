@@ -13,6 +13,7 @@
 #include "doctest.h"
 
 #include "component/text_box.hpp" // the one TU that pins its key spellings to scan::
+#include "input/double_click_setting.hpp"
 #include "input/input_weave.hpp"
 #include "input/terminal_reader.hpp"
 #include "input/translate.hpp"
@@ -54,6 +55,7 @@
 #include <fstream>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -2099,6 +2101,142 @@ InjectedEvent button(std::int64_t b, bool down, std::int64_t x, std::int64_t y,
 }
 
 } // namespace
+
+namespace {
+
+/// THE OFFICES AROUND THE DOUBLE-CLICK TIME, as the suite speaks them: what the layouts' owner was
+/// declared, and what a window asking the time heard, from the input office alone.
+struct TimingHeard {
+    std::vector<zengine::workshop::OfficeSettingsDeclared> declared;
+    std::vector<std::int64_t> said;
+};
+
+class LayoutsStandIn
+    : public loom::WeaveBase<LayoutsStandIn, AgentState,
+                             loom::Accept<zengine::workshop::OfficeSettingsDeclared>,
+                             loom::Emit<zengine::workshop::OfficeSettings>> {
+public:
+    explicit LayoutsStandIn(TimingHeard& heard) : heard_(&heard) {}
+    void on(const zengine::workshop::OfficeSettingsDeclared& d, loom::Mail& mail) {
+        if (mail.authored_from_role(kInputRole)) {
+            heard_->declared.push_back(d);
+        }
+    }
+
+private:
+    TimingHeard* heard_;
+};
+
+class TimingWindow
+    : public loom::WeaveBase<TimingWindow, AgentState,
+                             loom::Accept<PointerTimingSaid>,
+                             loom::Emit<PointerTimingAsked>> {
+public:
+    explicit TimingWindow(TimingHeard& heard) : heard_(&heard) {}
+    void on(const PointerTimingSaid& s, loom::Mail& mail) {
+        if (mail.authored_from_role(kInputRole)) {
+            heard_->said.push_back(s.double_click_ms);
+        }
+    }
+
+private:
+    TimingHeard* heard_;
+};
+
+} // namespace
+
+TEST_CASE("the input office keeps the double-click time: declared to the layouts' owner at each "
+          "activation, said to an asker, set from what the owner hands it, and published when it "
+          "changes") {
+    namespace ws = zengine::workshop;
+    loom::Switchboard bus;
+    TimingHeard heard;
+    std::vector<std::vector<InputEvent>> feed;
+    auto w = std::make_unique<InputWeaveT<FakeReader, DoubleClickSetting>>(FakeReader{&feed});
+    InputWeaveT<FakeReader, DoubleClickSetting>* office = w.get();
+    loom::Grant grant = loom::emit_default_grant(*office);
+    const loom::WeaveId input = bus.register_weave(std::move(w), std::move(grant), kInputRole);
+    office->zen_set_self(input);
+    auto l = std::make_unique<LayoutsStandIn>(heard);
+    LayoutsStandIn* l_raw = l.get();
+    loom::Grant lg = loom::emit_default_grant(*l_raw);
+    const loom::WeaveId layouts = bus.register_weave(std::move(l), std::move(lg), ws::kLayoutsRole);
+    l_raw->zen_set_self(layouts);
+    auto t = std::make_unique<TimingWindow>(heard);
+    TimingWindow* t_raw = t.get();
+    loom::Grant tg = loom::emit_default_grant(*t_raw);
+    const loom::WeaveId window = bus.register_weave(std::move(t), std::move(tg));
+    t_raw->zen_set_self(window);
+    const auto hand_back = [&](std::optional<std::int64_t> ms) {
+        ws::OfficeSettings kept;
+        kept.revision = 1;
+        if (ms) {
+            ws::PaneSetting s;
+            s.key = kSettingDoubleClickMs;
+            s.number = *ms;
+            kept.settings.push_back(s);
+        }
+        (void)bus.office_send_to_role_as(layouts, ws::kLayoutsRole, kInputRole,
+                                         loom::Message(loom::to_value(kept)));
+        bus.drain_until_idle();
+    };
+    const auto ask = [&] {
+        (void)bus.send_as(window, input, loom::Message(loom::to_value(PointerTimingAsked{}), window,
+                                                       window, 7));
+        bus.drain_until_idle();
+    };
+    // ⚔ MUTATION (tests/mutants/input.md#the-time-never-set): the handed setting is not taken.
+
+    // EACH ACTIVATION DECLARES THE ONE SETTING, with what it takes.
+    const loom::WeaveId door = zengine::testing::mount_door(bus);
+    zengine::testing::order_activation(bus, door, input, 1);
+    bus.drain_until_idle();
+    REQUIRE(heard.declared.size() == 1);
+    REQUIRE(heard.declared[0].rows.size() == 1);
+    const ws::v2::PaneSettingRow& row = heard.declared[0].rows[0];
+    CHECK(row.key == "input.double-click-ms");
+    CHECK(row.number == kDefaultDoubleClickMs);
+    CHECK(row.low == kLeastDoubleClickMs);
+    CHECK(row.high == kMostDoubleClickMs);
+
+    // UNTIL IT IS HANDED ONE, the default, to the asker alone and as the office.
+    ask();
+    REQUIRE(heard.said.size() == 1);
+    CHECK(heard.said[0] == kDefaultDoubleClickMs);
+
+    // HANDED 800: taken, and published once; the same again publishes nothing.
+    hand_back(800);
+    CHECK(office->double_click_ms() == 800);
+    REQUIRE(heard.said.size() == 2);
+    CHECK(heard.said[1] == 800);
+    hand_back(800);
+    CHECK(heard.said.size() == 2);
+    ask();
+    REQUIRE(heard.said.size() == 3);
+    CHECK(heard.said[2] == 800);
+
+    // HELD TO WHAT IT TAKES; and a default kept as its absence is the default again.
+    hand_back(5000);
+    CHECK(office->double_click_ms() == kMostDoubleClickMs);
+    hand_back(std::nullopt);
+    CHECK(office->double_click_ms() == kDefaultDoubleClickMs);
+    CHECK(heard.said.back() == kDefaultDoubleClickMs);
+
+    // FROM ANYONE BUT THE LAYOUTS' OWNER it is nothing.
+    ws::OfficeSettings forged;
+    ws::PaneSetting s;
+    s.key = kSettingDoubleClickMs;
+    s.number = 1500;
+    forged.settings.push_back(s);
+    (void)bus.send_to_role(kInputRole, loom::Message(loom::to_value(forged)));
+    bus.drain_until_idle();
+    CHECK(office->double_click_ms() == kDefaultDoubleClickMs);
+
+    // ACTIVATED AGAIN, it declares again.
+    zengine::testing::order_activation(bus, door, input, 2);
+    bus.drain_until_idle();
+    CHECK(heard.declared.size() == 2);
+}
 
 TEST_CASE("session: an agent opens one, injects a batch, and a consumer hears the same shapes in order") {
     SessionRig r;

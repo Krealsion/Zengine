@@ -82,7 +82,7 @@ WHY — `agents/decisions/the-layouts-pane.md`
 
 ## WL-TAB-10 — A second press on the same tab renames it
 
-LAW — A second press on the same tab within `kDoubleClickMs` renames it: the first press arms a record on the way out and the completing press spends it, so there is no triple-click.
+LAW — A second press on the same tab that the window counted a double click's renames it: the first press arms a record on the way out and the completing press spends it, so there is no triple-click.
 
 MEANS
 - the first press already made the tab live, so the editor's subject and the live layout agree.
@@ -176,7 +176,7 @@ whole population, painted or not"
 `tests/test_workshop_screen.cpp` "a pane in front of the Layouts pane takes the press"
 
 ### WL-TAB-10
-`workshop/screen.hpp` TabClickMemory Session::tab_click kDoubleClickMs
+`workshop/screen.hpp` TabClickMemory Session::tab_click
 `workshop/screen_arrange.cpp` doubles_a_tab_click
 `tests/test_workshop_host.cpp` "a double-click on a tab renames THAT layout, and writes no file"
 `tests/test_workshop_persistence.cpp` "the rename editor opens on the tab's own name and writes

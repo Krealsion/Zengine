@@ -150,7 +150,8 @@ and if it was the answer, nothing gives the kept field its value until another s
 wired into it. A **When** or **Then** card's head selects it, and dragging the head moves the card up
 or down its own lane, where it stays.
 
-Two presses on one place within a double click's time are one gesture there:
+Two presses on one place within the double-click time, which you set in Settings as
+`input.double-click-ms`, are one gesture there:
 
 - **An operator in the rail** is added to **Do**, as **Add to the rule** adds it.
 - **Empty Do room** opens a search where it was clicked, `A step here -- what is it for?`: type to

@@ -870,14 +870,15 @@ inline const Condition* condition_by_key(const std::vector<Condition>& all, cons
     return nullptr;
 }
 
-/// THE MONOTONIC READING A CASE OWNS -- what a rig wires into `HostContext::interaction_now`, so
-/// "how long ago was the last press" is a thing a case STATES rather than outruns. It advances on
-/// every reading, by default past `kDoubleClickMs`, so every press a rig publishes is an ordinary
-/// press: two presses in a case are two deliberate aims. A case that wants a DOUBLE-click says so
-/// (`together`), and the pace is the only thing it has to say.
+/// THE MONOTONIC READING A CASE OWNS -- what a rig wires into `HostContext::interaction_now` and
+/// into the windows that count the weaver's clicks, so "how long ago was the last press" is a thing
+/// a case STATES rather than outruns. It advances on every reading, by default past the longest
+/// double-click time input takes, so every press a rig publishes is an ordinary press: two presses
+/// in a case are two deliberate aims. A case that wants a DOUBLE-click says so (`together`), and
+/// the pace is the only thing it has to say.
 struct InteractionClock {
     std::int64_t now = 0;
-    std::int64_t step = kDoubleClickMs + 1;
+    std::int64_t step = input::kMostDoubleClickMs + 1;
     std::int64_t read() {
         const std::int64_t at = now;
         now += step;
@@ -886,7 +887,7 @@ struct InteractionClock {
     /// PRESSES FROM HERE ON ARE CLOSE ENOUGH TO BE ONE GESTURE...
     void together() { step = 1; }
     /// ...and far enough apart to be two again.
-    void apart() { step = kDoubleClickMs + 1; }
+    void apart() { step = input::kMostDoubleClickMs + 1; }
     /// ...or exactly this far apart, for the two cases that pin the boundary itself.
     void spaced(std::int64_t ms) { step = ms; }
 };
@@ -1015,6 +1016,8 @@ struct Live {
 
     Live() {
         host.interaction_now = [this] { return clock.read(); };
+        // ...and the windows' clock, which they count the weaver's clicks by, the same reading.
+        windows.clock([this] { return clock.read(); });
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
         host.dir = WORKSHOP_SKINS_DIR;
         // THE HOST'S VERSION ANSWER, as workshop.cpp wires it (the grant is the Emit set's) --
@@ -3381,6 +3384,8 @@ struct PaneRig {
 
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
+        // ...and the windows' clock, which they count the weaver's clicks by, the same reading.
+        windows.clock([this] { return clock.read(); });
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
         host.dir = WORKSHOP_SKINS_DIR;
         painter_id = loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);

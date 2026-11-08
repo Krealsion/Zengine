@@ -19,7 +19,7 @@ AppPlaceSaid v1 0x98559a8e12d914fd
 AppSeatState v1 0x67a2c2548c13a19f
 AppSeatTurn v1 0x36399baf25a3a238
 AppWeaveState v1 0xc02ad7e96a18cc59
-AreaButtonChanged v3 0xcdf7f513e55e6201
+AreaButtonChanged v4 0x496519ebebbc48c7
 AreaHandRefused v1 0x4a892f6ac6208c2d
 AreaHoldEnded v1 0xa4f07cf674bfae98
 AreaIntroduced v9 0x91424815bbf4c006
@@ -29,7 +29,7 @@ AreaPart v1 0xf04db60362845b87
 AreaPlaced v7 0x3c847073ebea4d30
 AreaPointerLeft v1 0x65e599b7bfc67495
 AreaPointerMoved v2 0xeb5037becbb47151
-AreaPressed v3 0x04702ecdf447a382
+AreaPressed v4 0x24c9ce216af3933c
 AreaRoom v5 0x2e5a64ebb95602c9
 AreaSettled v1 0xb25da339d2656089
 AreaShowAsked v1 0xd54947d2e93c2fed
@@ -432,6 +432,8 @@ PlanRowWritten v1 0x6ac55bca11649b23
 PointerButton v1 0xbe960269f29b99bd
 PointerMotionRequested v1 0x3c1db413720af1e1
 PointerMoved v1 0xa35d16a49acba4d8
+PointerTimingAsked v1 0x5e997c6bb6b3ef09
+PointerTimingSaid v1 0xde48d9fc2dfdff6f
 PointerWheel v1 0xa0ba7a1a5d62bb34
 Pos v1 0x2bead5df850cbe32
 PowerDescribed v1 0xb983589f8365107d

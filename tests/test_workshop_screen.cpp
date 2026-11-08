@@ -14,7 +14,6 @@
 // because this suite owns the whole-cell-to-fine-lattice claim.
 #include "workshop/layouts/session_history.hpp"
 #include "workshop/screen_canvas.hpp"
-#include "flow/flow-pane/gesture.hpp" // Flow's double click, on this host's interval
 
 // ============================================================================
 // Tier 3 — the whole screen, as a value
@@ -4644,40 +4643,31 @@ TEST_CASE("a content-sized surface reserves the coarsest boundary, once") {
 
 // ---- two presses, one gesture ------------------------------------------------------------
 
-TEST_CASE("Flow reads a double click on the interval this host reads one on") {
-    // ⚔ MUTATION (tests/mutants/workshop_screen.md#flow-doubles-on-its-own-interval): one moves.
-    CHECK(zengine::flow_pane::kDoublePressMs == kDoubleClickMs);
-}
-
 TEST_CASE("what makes two presses on a tab one double-click, and what does not") {
     // THE QUALIFICATION IS PURE AND TOTAL, so every one of its conditions is stated here as an
-    // ordinary comparison rather than raced against a stopwatch. ⚔ MUTATION
+    // ordinary comparison: the window's count, and the tab the last press armed. ⚔ MUTATION
     // (tests/mutants/workshop_screen.md#double-click-on-any-tab): dropping any one of them reddens
-    // exactly the subcase that names it. A tab's double-click is the one this host reads.
-    const TabClickMemory armed{true, 2, 1000};
+    // exactly the subcase that names it.
+    const TabClickMemory armed{true, 2};
     REQUIRE(armed.armed);
 
-    SUBCASE("the ordinary case: same tab, soon enough") {
-        CHECK(doubles_a_tab_click(armed, 2, 1000));
-        CHECK(doubles_a_tab_click(armed, 2, 1399));
-        CHECK(doubles_a_tab_click(armed, 2, 1000 + kDoubleClickMs)); // the boundary doubles
+    SUBCASE("the ordinary case: same tab, the window's double click") {
+        CHECK(doubles_a_tab_click(armed, 2, 2));
+        CHECK(doubles_a_tab_click(armed, 2, 3)); // a third within the time, on an armed tab
     }
-    SUBCASE("too long apart is two presses") {
-        CHECK_FALSE(doubles_a_tab_click(armed, 2, 1001 + kDoubleClickMs));
-        CHECK_FALSE(doubles_a_tab_click(armed, 2, 99999));
+    SUBCASE("a press the window counted one is two presses") {
+        CHECK_FALSE(doubles_a_tab_click(armed, 2, 1));
+        CHECK_FALSE(doubles_a_tab_click(armed, 2, 0));
     }
     SUBCASE("a different tab is an ordinary click") {
-        CHECK_FALSE(doubles_a_tab_click(armed, 1, 1000));
-        CHECK_FALSE(doubles_a_tab_click(armed, 3, 1000));
+        CHECK_FALSE(doubles_a_tab_click(armed, 1, 2));
+        CHECK_FALSE(doubles_a_tab_click(armed, 3, 2));
     }
     SUBCASE("nothing armed is nothing to double") {
-        CHECK_FALSE(doubles_a_tab_click(TabClickMemory{}, 0, 0));
+        CHECK_FALSE(doubles_a_tab_click(TabClickMemory{}, 0, 2));
         TabClickMemory disarmed = armed;
         disarmed.armed = false;
-        CHECK_FALSE(doubles_a_tab_click(disarmed, 2, 1000));
-    }
-    SUBCASE("a reading that went backwards is not a fast hand") {
-        CHECK_FALSE(doubles_a_tab_click(armed, 2, 999));
+        CHECK_FALSE(doubles_a_tab_click(disarmed, 2, 2));
     }
     SUBCASE("a fresh session has armed nothing") {
         Session fresh;

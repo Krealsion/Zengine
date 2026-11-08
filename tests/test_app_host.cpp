@@ -593,9 +593,11 @@ TEST_CASE("the app's window tells the app's weave and its views nothing they do 
     REQUIRE(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
     std::vector<std::string> refused;
     const loom::ObserverId tap = run.bus.add_observer([&](const loom::BusEvent& ev) {
-        // The suite loads no Timer, so the window's ask for its beat finds no taker there.
+        // The suite loads no Timer and no input office, so the window's ask for its beat and for
+        // the double-click time find no taker there.
         if (ev.kind == loom::EventKind::Refused && run.window.valid() && ev.sender == run.window &&
-            ev.addressed_role != zengine::timer::kTimerRole)
+            ev.addressed_role != zengine::timer::kTimerRole &&
+            ev.addressed_role != zengine::input::kInputRole)
             refused.push_back(ev.addressed_role + " " + ev.schema_name);
     });
     run.mount_window();

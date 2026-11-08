@@ -89,7 +89,7 @@ text. The presenter draws the menu there whole whenever the window holds none of
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v3, from that window: a button pressed or let go in the menu's area, under the
+`AreaButtonChanged` v4, from that window: a button pressed or let go in the menu's area, under the
 press's number. A primary press on a row's line chooses the row, said under that number; one the
 window landed on another line than the menu shows there now, or in another menu's area, means
 nothing here.

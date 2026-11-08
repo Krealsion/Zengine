@@ -402,15 +402,15 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
     // ...AND TO THE LAYOUTS' OWNER, the desk's changes it asks, its own settings it declares, and
-    // the panes it presents, answered.
+    // the panes it presents, answered; and the double-click time, asked of the input office.
     const std::vector<std::string> allowed{"AreaPlaced",           "AreaShowAsked",
                                            "Drawn",                "LayoutEditRequested",
                                            "OfficeSettingsDeclared",
                                            "PaletteChosen",        "PaletteOffered",
                                            "PaneCatalogRequested", "PaneInventory",
                                            "PaneKeys",             "PaneLaunchAnswered",
-                                           "RoomAsked",            "StandingConditions",
-                                           "TranscriptShown"};
+                                           "PointerTimingAsked",   "RoomAsked",
+                                           "StandingConditions",   "TranscriptShown"};
     std::string heard;
     for (const std::string& one : distinct) {
         heard += one + " ";

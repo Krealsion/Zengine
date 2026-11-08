@@ -200,6 +200,32 @@ Red in `zengine-flow-pane-tests`:
 - a double click adds: an operator row as Add to the rule adds it, empty Do room a step found where
   it was clicked, empty When room a new message, empty Then room keep or say
 
+## a-double-click-timed-by-flow
+
+Flow times two presses on its own clock against the default time, and reads no count.
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+ #include <algorithm>
++#include <chrono>
+```
+
+In `flow/flow-pane/pane.cpp`:
+
+```diff
+-    event.clicks = p->clicks;
++    static auto last = std::chrono::steady_clock::now() - std::chrono::hours(1);
++    const auto at = std::chrono::steady_clock::now();
++    event.clicks = at - last <= std::chrono::milliseconds(400) ? 2 : 1;
++    if (p->phase == ws::canvas_pointer::kPress) last = at;
+```
+
+Red in `zengine-flow-pane-tests`:
+
+- a double click is the window's count: two presses on an operator row add it however long the
+  runner took between them, and two presses it counted one each add nothing
+
 ## port-box-offers-nothing
 
 The box at a chosen port lists nothing in scope of its type.

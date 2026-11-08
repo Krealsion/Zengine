@@ -14,6 +14,7 @@
 #include "graphics/painting.hpp"
 #include "timer/held_beat.hpp"
 #include "graphics/vocabulary.hpp"
+#include "graphics/window/clicks.hpp"
 #include "graphics/window/compose.hpp"
 #include "graphics/window/palette.hpp"
 #include "graphics/window/seams.hpp"
@@ -112,13 +113,14 @@ using WindowBase = typename zengine::With<
                  ElementCodeOffered, PaletteOffered, GraphicsReady, WindowShowAsked, AreaShowAsked,
                  zengine::input::AttributedInput, ClipboardCopy, ClipboardTextRequested,
                  SurfacePlacementRemembered, PumpSurface, SurfaceCaptureRequested,
-                 SurfaceCaptureChunkRequested, WindowShaped, loom::host::Waited>,
+                 SurfaceCaptureChunkRequested, WindowShaped, zengine::input::PointerTimingSaid,
+                 loom::host::Waited>,
     loom::Emit<DrawnRefused, WindowOffered, AreaRoom, AreaKeyPressed, AreaKeyReleased,
                AreaTextEntered, ActionRequested, AreaButtonChanged, AreaPointerMoved,
                AreaWheelTurned, AreaPressed, AreaHoldEnded, AreaPointerLeft, AreaHandRefused,
                WindowShown, AreaShown, AreaSettled,
                SurfaceCloseRequested, SurfacePlacement, ClipboardText, SurfaceCaptured,
-               SurfaceCaptureChunk, loom::Refused>,
+               SurfaceCaptureChunk, zengine::input::PointerTimingAsked, loom::Refused>,
     zengine::timer::TimedWeave, loom::Claims<loom::host::WaitSet>>;
 
 /// The window over `Medium`, which names it (`kWindow`), carries its manual (`kManual`), and
@@ -410,6 +412,18 @@ public:
         settle(mail, false);
     }
 
+    /// THE DOUBLE-CLICK TIME, from the input office alone: every hand's presses count by it from
+    /// here on.
+    void on(const zengine::input::PointerTimingSaid& said, loom::Mail& mail) {
+        if (mail.authored_from_role(zengine::input::kInputRole)) {
+            double_click_ms_ = std::clamp(said.double_click_ms, zengine::input::kLeastDoubleClickMs,
+                                          zengine::input::kMostDoubleClickMs);
+        }
+    }
+
+    /// The double-click time this window counts clicks by.
+    std::int64_t double_click_ms() const noexcept { return double_click_ms_; }
+
     // ---- what the window answers for its platform ----------------------------------------------
 
     /// A weaver copied text: handed to the medium, which sets the platform's clipboard as far as it
@@ -565,6 +579,9 @@ public:
         touch_all();
         settle(mail, false);
         offer(mail);
+        // The double-click time asked of the input office, which says it again when it changes.
+        (void)mail.as_role(office()).send_to_role(zengine::input::kInputRole,
+                                                  zengine::input::PointerTimingAsked{});
     }
 
 private:
@@ -684,8 +701,8 @@ private:
     /// left press; else, in an area not placed to hear the pointer, the action its record names, to
     /// the owner; else the press itself, held for that area and told to its arranger. A release goes
     /// to the area that hand's press is held for; one whose area went while it was held, to nobody;
-    /// one no hold names, where it lands. A guest's press
-    /// in an area placed for the weaver's hand alone reaches nobody, and the arranger is told.
+    /// one no hold names, where it lands. A guest's press in an area placed for the weaver's hand
+    /// alone reaches nobody, and the arranger is told. Every press is counted for its hand.
     void button(loom::Mail& mail, const zengine::input::PointerButton& b, const Hand& hand) {
         const Point at = point_of(b.x, b.y, b.space);
         const HoldKey key{hand.key(), b.button};
@@ -697,7 +714,7 @@ private:
                 const WinArea* a = find(hold.area);
                 if (a != nullptr && a->pointer && !a->owner.empty()) {
                     tell(mail, *a, b, at, hold.press, hand,
-                         medium_.land(this->state_.areas, b.x, b.y, b.space, false, b.button));
+                         medium_.land(this->state_.areas, b.x, b.y, b.space, false, b.button), 0);
                 }
                 return;
             }
@@ -714,6 +731,7 @@ private:
             }
             return;
         }
+        const std::int64_t clicks = count_click(hand, b.button);
         if (holds_.count(key) != 0) {
             end_hold(mail, key); // its release was never read
         }
@@ -746,7 +764,26 @@ private:
         }
         const std::uint64_t press = next_press_++;
         holds_[key] = Hold{a->area, at.x, at.y, press};
-        tell(mail, *a, b, at, press, hand, l);
+        tell(mail, *a, b, at, press, hand, l, clicks);
+    }
+
+    /// A PRESS OF `button` COUNTED FOR ITS HAND, now, by the time the input office said. Past
+    /// `kMaxCountedHands` hands, a new participant's takes the place of the lowest-numbered other
+    /// participant's, which counts from 1 again; the weaver's own is always kept.
+    std::int64_t count_click(const Hand& hand, std::int64_t button) {
+        auto it = clicks_.find(hand.key());
+        if (it == clicks_.end()) {
+            if (clicks_.size() >= kMaxCountedHands) {
+                auto gone = clicks_.begin();
+                if (gone->first == 0) {
+                    ++gone; // the weaver's hand, key 0, sorts first and stays
+                }
+                clicks_.erase(gone);
+            }
+            it = clicks_.emplace(hand.key(), ClickCounter{}).first;
+        }
+        it->second.time(double_click_ms_);
+        return it->second.press(button, medium_.now_ms());
     }
 
     /// WHAT THE WINDOW DREW UNDER THE HAND, said with a button's moment: the area that shows it,
@@ -780,19 +817,22 @@ private:
 
     /// A button's moment, to the owner of the area its press is held for or landed in at the
     /// area's point, with what the window drew under the hand (`l`), and to the area's arranger
-    /// following it, when another office, at the window's: both under the press's number, and both
-    /// naming the hand.
+    /// following it, when another office, at the window's: both under the press's number, both
+    /// naming the hand, and both saying the press's clicks (0 for a release).
     void tell(loom::Mail& mail, const WinArea& a, const zengine::input::PointerButton& b,
-              const Point& at, std::uint64_t press, const Hand& hand, const Landed& l) {
+              const Point& at, std::uint64_t press, const Hand& hand, const Landed& l,
+              std::int64_t clicks) {
         AreaButtonChanged told{a.area, b.button, b.pressed, sum(at.x, -a.x), sum(at.y, -a.y),
                                b.modifiers, hand.local, hand.actor};
         say_under(told, l);
+        told.clicks = clicks;
         to_owner(mail, a, told, press);
         if (followed(a) && a.arranger != a.owner) {
             (void)mail.as_role(office()).send_to_role(
                 a.arranger,
                 AreaPressed{std::string(Medium::kWindow), a.area, b.button, b.pressed, at.x, at.y,
-                            hand.local, hand.actor, told.under, told.part, told.drawing},
+                            hand.local, hand.actor, told.under, told.part, told.drawing,
+                            clicks},
                 press);
         }
     }
@@ -1460,6 +1500,10 @@ private:
     /// it reaches nobody. A hold an area in front ended is released where it lands.
     std::set<HoldKey> ended_;
     std::uint64_t next_press_; ///< from a random start, so a reload names no press again
+    /// Each hand's presses counted, by the input office's time; at most `kMaxCountedHands` hands.
+    std::map<std::int64_t, ClickCounter> clicks_;
+    static constexpr std::size_t kMaxCountedHands = 64;
+    std::int64_t double_click_ms_ = zengine::input::kDefaultDoubleClickMs;
     /// Each hand's area hearing the pointer that its last unheld move landed in.
     std::map<std::int64_t, std::string> hovered_;
     /// Each area's version, from a random start, so a reload or a fresh window names no version

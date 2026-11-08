@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -42,6 +43,8 @@ struct TermLog {
     zengine::graphics::window::TerminalSize size{80, 30};  ///< its size in cells, the suite's to change
     bool keeps = true; ///< false: what the window writes is taken and not kept
     bool utf8 = true;  ///< whether its encoding carries UTF-8, the suite's to change
+    /// The clock the window counts clicks by, the suite's to state: none stands still at 0.
+    std::function<std::int64_t()> clock;
 };
 
 class FakeTerminal {
@@ -49,6 +52,7 @@ public:
     FakeTerminal() = default;
     explicit FakeTerminal(TermLog* log) : log_(log) {}
     void claim() {}
+    std::int64_t now_ms() const { return log_ != nullptr && log_->clock ? log_->clock() : 0; }
     bool utf8() const { return log_ == nullptr || log_->utf8; }
     zengine::graphics::window::TerminalSize size() const {
         return log_ != nullptr ? log_->size : TermLog{}.size;
@@ -116,6 +120,8 @@ struct LightLog {
     /// at once, its maximized state only with the queue.
     std::optional<gw::WindowPlacementValue> placement_at_poll;
     std::vector<gw::WindowPlacementValue> placed;
+    /// The clock the window counts clicks by, the suite's to state: none stands still at 0.
+    std::function<std::int64_t()> clock;
     std::vector<gw::PixelSize> grown;         ///< each size it was asked to grow toward
     bool grows = false; ///< true: a growth asked takes its size, as a platform with room does
     /// Each title and size it was shaped to; a side asked it takes, as a platform with room does.
@@ -166,6 +172,7 @@ public:
     FakeSdlBackend() = default;
     explicit FakeSdlBackend(LightLog* log) : log_(log) {}
     void claim() { ++log_->claims; }
+    std::int64_t now_ms() const { return log_->clock ? log_->clock() : 0; }
     gw::PixelSize size() const { return log_->size; }
     gfx::TextMeasure text() const { return log_->face; }
     bool present(const gw::ComposedLightFrame& frame) {

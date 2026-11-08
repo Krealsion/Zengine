@@ -18,6 +18,7 @@
 #include <zen/weave.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -107,6 +108,9 @@ public:
     /// ...queued and not read: the window's next beat (`pump`) reads every moment queued since,
     /// in order, together.
     void queue(const std::vector<zengine::input::InputEvent>& moments);
+    /// THE CLOCK BOTH WINDOWS' DEVICES KEEP, which each counts the weaver's clicks by: the case's
+    /// reading. None stands still at 0, so two presses of one button are a double click.
+    void clock(std::function<std::int64_t()> read);
     /// THE WINDOW UP OFFERS ANOTHER ROOM, `width_px` by `height_px`, queued and not delivered, as
     /// its beat publishes an offer: its last offer at that room, its platform holding it from now.
     void queue_offer(std::int64_t width_px, std::int64_t height_px);

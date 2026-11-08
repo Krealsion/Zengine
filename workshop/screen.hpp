@@ -764,22 +764,18 @@ struct PaneGesture {
     std::optional<std::int64_t> met_y;
 };
 
-/// HOW LONG A DOUBLE-CLICK MAY TAKE.
-// WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
-inline constexpr std::int64_t kDoubleClickMs = 400;
-
 /// WHAT THE LAST PRESS ON A LAYOUT TAB NAMED, so the next one can be a double.
 // WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
 struct TabClickMemory {
     bool armed = false;
     std::size_t at = 0;      ///< the position the press landed on
-    std::int64_t at_ms = 0;  ///< `interaction_now_ms()` when it landed
 };
 
 /// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK ON THE SAME TAB? Pure, total, and the ONE
-/// place the question is decided.
+/// place the question is decided: the window counted it 2 or more (`clicks`),
+/// and the last press armed on the same tab.
 bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
-                                std::int64_t now_ms) noexcept;
+                         std::int64_t clicks) noexcept;
 
 /// WHICH LAYOUT TAB A REORDER DRAG IS CARRYING -- the third gesture record.
 // WL-TAB-11 -- agents/workshop/tab-run.md

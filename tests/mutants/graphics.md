@@ -94,3 +94,64 @@ Red in `zengine-graphics-tests`:
 
 - a pane on the drawing facet is handed the part the pointer rests on, once each time that part
   changes, and its leave once a rest; a move a held press carries is no rest
+
+## clicks-never-two
+
+The window counts every press of the weaver's one click, however soon after the last.
+
+In `graphics/window/clicks.hpp`:
+
+```diff
+-    return last.clicks < std::numeric_limits<std::int64_t>::max() ? last.clicks + 1 : last.clicks;
++    return 1;
+```
+
+Red in `zengine-graphics-tests`:
+
+- the window counts the weaver's clicks by the input office's time: two presses 300 ms apart are a
+  double click at 400 ms and not at 200, and at 800 a 600 ms pair is one
+- a console's records and a POSIX terminal's reports count clicks alike, by the input office's time
+  and never the console's own double click
+
+## clicks-at-a-fixed-time
+
+The window counts by its default time and never by the time the input office says.
+
+In `graphics/window/window.hpp`:
+
+```diff
+     void on(const zengine::input::PointerTimingSaid& said, loom::Mail& mail) {
+-        if (mail.authored_from_role(zengine::input::kInputRole)) {
++        if (false && mail.authored_from_role(zengine::input::kInputRole)) {
+```
+
+Red in `zengine-graphics-tests`:
+
+- the window counts the weaver's clicks by the input office's time: two presses 300 ms apart are a
+  double click at 400 ms and not at 200, and at 800 a 600 ms pair is one
+
+## hands-share-a-count
+
+The window counts every hand's presses on one counter, so a guest's press and the weaver's make one
+double click.
+
+In `graphics/window/window.hpp`:
+
+```diff
+     std::int64_t count_click(const Hand& hand, std::int64_t button) {
+-        auto it = clicks_.find(hand.key());
++        auto it = clicks_.find(hand.key() * 0);
+```
+
+In `graphics/window/window.hpp`:
+
+```diff
+-            it = clicks_.emplace(hand.key(), ClickCounter{}).first;
++            it = clicks_.emplace(hand.key() * 0, ClickCounter{}).first;
+```
+
+Red in `zengine-graphics-tests`:
+
+- a participant's clicks are counted as the weaver's are, for its own hand: its double click
+  reaches the owner as one, named as its own, and its click beside the weaver's stays two single
+  clicks

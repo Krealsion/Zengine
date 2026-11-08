@@ -86,10 +86,10 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   own head, and the Delete key or the x on the chosen step's corner takes it away. A When or Then
   card is chosen by its head and moved by a drag from there up and down its own column, where it
   stays; an empty press or Escape lets it go. A wire let go on the write card's head lands on the
-  write, and a say card is carried out by its row of values. Two presses on one place within
-  `flow_pane::kDoublePressMs` are one gesture there, Flow's own reading with time its argument
-  (`flow_pane::doubles`, as WL-PTR-01 reads Workshop's, on an interval `tests/test_workshop_screen.cpp`
-  keeps equal): an operator row is added; empty Do room opens the wire's search with no wire there,
+  write, and a say card is carried out by its row of values. Two presses on one place, the second
+  counted a double click's by the window, are one gesture there, Flow reading the window's count
+  with its own target and slack (`flow_pane::doubles`, as WL-PTR-01 reads Workshop's tab): an
+  operator row is added; empty Do room opens the wire's search with no wire there,
   at its second release, so a click and then a drag pans; empty When room asks for a new message;
   empty Then room offers to keep a field or say a message. A right press means nothing on the
   graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane menu

@@ -24,7 +24,6 @@
 #include "view/vocabulary.hpp" // the running views it asks what their wiring names
 #include "manuals/zengine.flow.hpp" // this pane's manual, compiled in from its page
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <deque>
 #include <map>
@@ -390,9 +389,7 @@ public:
                  p->moved || other_dialog};
     event.named = !p->part.empty();
     event.modifiers = p->modifiers;
-    event.at_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      std::chrono::steady_clock::now().time_since_epoch())
-                      .count();
+    event.clicks = p->clicks;
     pointer(event, window_shown_ ? &*window_shown_ : nullptr, window_room_, mail);
   }
   /// ONE MOMENT OF THE POINTER IN FLOW'S AREA: its press's number, its phase
@@ -404,8 +401,8 @@ public:
     bool moved = false;
     /// The window named a part under the hand: a press on nothing named is `named` false.
     bool named = false;
-    /// The modifiers held, and when the pane read the moment: a steady clock's milliseconds.
-    std::int64_t modifiers = 0, at_ms = 0;
+    /// The modifiers held, and a press's clicks as the window counted them (2: a double click's).
+    std::int64_t modifiers = 0, clicks = 0;
   };
   /// ...about `pictured`, the picture last drawn there (none before one is), in `room`.
   void pointer(const Moment &event, const pane::Picture *pictured,
@@ -578,13 +575,13 @@ public:
         return;
       }
       const auto *hit = it->hit(event.x, event.y);
-      // TWO PRESSES ON ONE PLACE within a double click's time are one gesture there; a press with a
-      // modifier neither completes one nor begins one.
+      // TWO PRESSES ON ONE PLACE, the second counted a double click's by the window, are one
+      // gesture there; a press with a modifier neither completes one nor begins one.
       if (event.button == 1) {
         const auto target = event.modifiers == 0 ? double_target(hit, *it, event) : std::string();
         const bool twice = pane::doubles(click_, target, event.x, event.y,
-                                         pane::GridProjection(room).advance, event.at_ms);
-        click_ = pane::ClickMemory{!target.empty() && !twice, target, event.x, event.y, event.at_ms};
+                                         pane::GridProjection(room).advance, event.clicks);
+        click_ = pane::ClickMemory{!target.empty() && !twice, target, event.x, event.y};
         // On a row it is done at once; on empty space at its release, unless the hand moved.
         if (twice && target.rfind("column:", 0) != 0) {
           double_click(target, hit, *it, event, mail);

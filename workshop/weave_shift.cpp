@@ -8,7 +8,17 @@
 
 #include "weave.hpp"
 
+#include <algorithm>
+
 namespace zengine::workshop {
+
+// WL-KEY-19 -- agents/workshop/keyboard.md
+void WorkshopWeave::on(const input::PointerTimingSaid& said, loom::Mail& mail) {
+    if (mail.authored_from_role(input::kInputRole)) {
+        double_click_ms_ = std::clamp(said.double_click_ms, input::kLeastDoubleClickMs,
+                                      input::kMostDoubleClickMs);
+    }
+}
 
 // WL-KEY-19 -- agents/workshop/keyboard.md
 bool WorkshopWeave::shift_tapped(const input::KeyPressed& k, loom::Mail& mail) {
@@ -24,7 +34,7 @@ bool WorkshopWeave::shift_tapped(const input::KeyPressed& k, loom::Mail& mail) {
     }
     const bool alone = (k.modifiers & ~input::mod::kShift) == 0;
     const bool second = h.shift_tap.tapped && alone && now >= h.shift_tap.first_ms &&
-                        now - h.shift_tap.first_ms <= kDoubleClickMs;
+                        now - h.shift_tap.first_ms <= double_click_ms_;
     h.shift_tap = {};
     if (!second) {
         if (alone) {

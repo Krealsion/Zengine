@@ -205,6 +205,32 @@ struct PumpInput {
     ZEN_SHAPE(PumpInput, 1);
 };
 
+// ---- The double-click time: input's, said to whoever counts clicks ------------------------
+//
+// How close in time two presses of one button are one double click is an office-wide setting of
+// `kInputRole`, `kSettingDoubleClickMs`, which a window counts clicks by. The office says it: to
+// whoever asks, and to every weave that accepts it whenever it changes.
+
+/// The office-wide setting that holds the double-click time, in milliseconds.
+inline constexpr const char* kSettingDoubleClickMs = "input.double-click-ms";
+/// The double-click time while nothing sets it, and the least and most it takes.
+inline constexpr std::int64_t kDefaultDoubleClickMs = 400;
+inline constexpr std::int64_t kLeastDoubleClickMs = 200;
+inline constexpr std::int64_t kMostDoubleClickMs = 2000;
+
+/// ASK THE DOUBLE-CLICK TIME: anyone -> `kInputRole`, answered `PointerTimingSaid` to the asker.
+struct PointerTimingAsked {
+    ZEN_SHAPE(PointerTimingAsked, 1);
+};
+
+/// THE DOUBLE-CLICK TIME, said as `kInputRole`: to an asker, and published whenever it changes. Two
+/// presses of one button by one hand, the second within `double_click_ms` after the first, are one
+/// double click. A reader believes it only from the office (`mail.authored_from_role`).
+struct PointerTimingSaid {
+    std::int64_t double_click_ms = kDefaultDoubleClickMs;
+    ZEN_SHAPE(PointerTimingSaid, 1, ZEN_FIELD(double_click_ms));
+};
+
 // ---- An input session: an agent's ordered queue into the same producer ------------------
 //
 // A second source of moments for the one Input weave: a participant (a guest's proxy, a test
