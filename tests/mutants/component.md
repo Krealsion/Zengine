@@ -8,7 +8,7 @@ page](README.md) says how an entry reads and how `tests/mutants/run.py` runs it.
 
 `word_at` scans a word of its own: letters, digits and `_`, as an identifier is.
 
-In `component/text_box.hpp`:
+In `component/text.hpp`:
 
 ```diff
 -inline WordSpan word_at(const std::string& line, std::size_t at) noexcept {
@@ -36,7 +36,7 @@ Red in `zengine-component-tests`:
 
 `word_at` scans a word of its own, ending at punctuation as at a space.
 
-In `component/text_box.hpp`:
+In `component/text.hpp`:
 
 ```diff
 -inline WordSpan word_at(const std::string& line, std::size_t at) noexcept {
@@ -64,7 +64,7 @@ Red in `zengine-component-tests`:
 
 `word_at` runs from its word to the next boundary, the spaces after the word with it.
 
-In `component/text_box.hpp`:
+In `component/text.hpp`:
 
 ```diff
 -    return WordSpan{word_run_begin(line, at), word_run_end(line, at)};
@@ -79,7 +79,7 @@ Red in `zengine-component-tests`:
 
 A position with a space on both sides takes the word before it.
 
-In `component/text_box.hpp`:
+In `component/text.hpp`:
 
 ```diff
 -    return WordSpan{word_run_begin(line, at), word_run_end(line, at)};
@@ -96,7 +96,7 @@ Red in `zengine-component-tests`:
 
 `word_before` spells its run's walk inline, and stops a byte short of the run's start.
 
-In `component/text_box.hpp`:
+In `component/text.hpp`:
 
 ```diff
 -        --i;

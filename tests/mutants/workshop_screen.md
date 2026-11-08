@@ -432,8 +432,8 @@ Red in `zengine-workshop-screen-tests`:
 In `workshop/screen_compose.cpp`:
 
 ```diff
--        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
-+        const std::int64_t chrome = p.kind == lifted && false ? kPaneChromeSelected : kPaneChrome;
+-        const graphics::Color chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
++        const graphics::Color chrome = p.kind == lifted && false ? kPaneChromeSelected : kPaneChrome;
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -561,8 +561,8 @@ A pane's frame is drawn a pixel outside the pane's own rectangle.
 In `workshop/screen_pane_state.cpp`:
 
 ```diff
--    layer.rects.push_back(wire_rect_of(b, role));
-+    layer.rects.push_back(wire_rect_of(PixelRect{b.x - 1, b.y - 1, b.w + 2, b.h + 2}, role));
+-    layer.rects.push_back(wire_rect_of(b, ink));
++    layer.rects.push_back(wire_rect_of(PixelRect{b.x - 1, b.y - 1, b.w + 2, b.h + 2}, ink));
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -626,9 +626,9 @@ The frame's painter strokes a border line of its own over the pane's top edge.
 In `workshop/screen_pane_state.cpp`:
 
 ```diff
--    layer.rects.push_back(wire_rect_of(b, role));
-+    layer.rects.push_back(wire_rect_of(b, role));
-+    layer.rects.push_back(wire_rect_of(PixelRect{b.x, b.y, b.w, 1}, role));
+-    layer.rects.push_back(wire_rect_of(b, ink));
++    layer.rects.push_back(wire_rect_of(b, ink));
++    layer.rects.push_back(wire_rect_of(PixelRect{b.x, b.y, b.w, 1}, ink));
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -646,7 +646,7 @@ In `workshop/screen_compose.cpp`:
 -        if (b.w <= 0 || b.h <= 0) {
 -            continue;
 -        }
--        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
+-        const graphics::Color chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
 +        PixelRect b = bounds_of(panes, s.setup.active, p.kind, sc).rect;
 +        if (p.kind == lifted) {
 +            b = pane_interior(b, chrome_grain(sc));
@@ -654,7 +654,7 @@ In `workshop/screen_compose.cpp`:
 +        if (b.w <= 0 || b.h <= 0) {
 +            continue;
 +        }
-+        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
++        const graphics::Color chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
 ```
 
 Red in `zengine-workshop-screen-tests`:
@@ -854,19 +854,21 @@ Red in `zengine-workshop-screen-tests`:
 
 ## reservation-follows-the-layouts-pane
 
-`screen_of` gives the room the top band's rows when the Layouts pane is not on the desk.
+`screen_of` gives the room the top band's rows when the Layouts pane does not take part.
 
 In `workshop/screen.hpp`:
 
 ```diff
--inline constexpr Screen screen_of(const Session& s) noexcept {
--    return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px,
--                     s.stack_rows);
+-inline Screen screen_of(const Session& s) noexcept {
+-    return with_strips(screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px,
+-                                 s.cell_px, s.stack_rows),
+-                       s.setup.active);
 -}
 +inline Screen screen_of(const Session& s) noexcept {
-+    const bool layouts = pane_of(s.setup.active, pane_ref_of(pane_kind::kLayouts)) != nullptr;
-+    return screen_of(s.screen_w, s.screen_h + (layouts ? 0 : graphics::px_of_cells(kTopRows)),
-+                     s.text_advance_px, s.text_line_px, s.cell_px, s.stack_rows);
++    const bool layouts = s.panes.has(pane_kind::kLayouts);
++    return with_strips(screen_of(s.screen_w, s.screen_h + (layouts ? 0 : graphics::px_of_cells(kTopRows)),
++                                 s.text_advance_px, s.text_line_px, s.cell_px, s.stack_rows),
++                       s.setup.active);
 +}
 ```
 

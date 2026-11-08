@@ -189,7 +189,7 @@ In `workshop/layouts/session_history.hpp`:
 -    edges.push_back(op::make_migration(
 -        loom::schema_of<v5::WorkshopSession>(), current, [](const loom::Value& old) {
 -            return loom::Cell::message(
--                loom::to_value(session_v5_to_v12(loom::from_value<v5::WorkshopSession>(old))));
+-                loom::to_value(session_v5_to_v13(loom::from_value<v5::WorkshopSession>(old))));
 -        }));
 ```
 

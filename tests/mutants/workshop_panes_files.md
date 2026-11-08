@@ -232,7 +232,8 @@ The active field's prompt is its whole label, whatever the room.
 In `files/recipe_authoring.hpp`:
 
 ```diff
--    return fitted_label(authoring_.prompt, columns(), kMinFieldValueColumns);
+-    return fitted_label(authoring_.prompt, columns(),
+-                        kMinFieldValueColumns + 2 * zengine::graphics::kTextBoxInset);
 +    return authoring_.prompt;
 ```
 

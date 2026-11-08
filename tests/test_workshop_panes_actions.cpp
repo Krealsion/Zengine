@@ -2368,10 +2368,8 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
 
 TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row stays in the live layout, hidden, "
           "its settings and this layout's locks kept, and the presenter takes no close") {
-    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#close-names-no-lock): the owner's close
-    // answering without the locks the row took -- the answer names none. ⚔ MUTATION
-    // (tests/mutants/workshop_panes_actions.md#personal-speech-closes): the owner answering
-    // personal speech's close by taking the row off.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_actions.md#personal-speech-closes): the owner
+    // answering personal speech's close by taking the row off.
     PaneRig r;
     r.mount_workshop();
     r.ready();
