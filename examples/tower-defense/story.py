@@ -937,8 +937,8 @@ def start_elh(sdir, tools, env, endpoint, identity, credential, started, kept, c
     approvals = ["authority trust runs --rebuilds", "authority trust vocab --rebuilds"]
     approvals += ["authority allow runs %s v1 -> role loom.session" % s
                   for s in ("loom.session.ExpectRun", "loom.session.ForgetRun")]
-    approvals += ["authority allow runs loom.runs.%s v1 -> any target" % s
-                  for s in ("Tools", "ToolDescription", "Run", "RunList", "Directive")]
+    approvals += ["authority allow runs loom.runs.%s v%d -> any target" % s
+                  for s in (("Tools", 1), ("ToolDescription", 1), ("Run", 2), ("RunList", 2), ("Directive", 1))]
     approvals += ["authority allow runs loom.link.%s v1 -> role loom.link.workshop" % s
                   for s in ("Ask", "StatusRequested")]
     approvals += ["start vocab %s" % tools["vocabulary"], "start runs %s loom.runs" % tools["loom_runs"]]

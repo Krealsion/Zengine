@@ -228,9 +228,9 @@ def main():
     approvals = ["authority trust runs --rebuilds", "authority trust vocab --rebuilds"]
     for shape in ("loom.session.ExpectRun", "loom.session.ForgetRun"):
         approvals.append("authority allow runs %s v1 -> role loom.session" % shape)
-    for shape in ("loom.runs.Tools", "loom.runs.ToolDescription", "loom.runs.Run", "loom.runs.RunList",
-                  "loom.runs.Directive"):
-        approvals.append("authority allow runs %s v1 -> any target" % shape)
+    for shape, version in (("loom.runs.Tools", 1), ("loom.runs.ToolDescription", 1), ("loom.runs.Run", 2),
+                           ("loom.runs.RunList", 2), ("loom.runs.Directive", 1)):
+        approvals.append("authority allow runs %s v%d -> any target" % (shape, version))
     for n, _ in links:
         approvals.append("authority allow runs loom.link.Ask v1 -> role loom.link.%s" % n)
         approvals.append("authority allow runs loom.link.StatusRequested v1 -> role loom.link.%s" % n)
