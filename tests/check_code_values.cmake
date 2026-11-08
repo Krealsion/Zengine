@@ -2,10 +2,8 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The `code_values` entry (docs/contributing/repository-conventions.md#values-the-code-owns): each
-# value tests/code_values.txt registers is read from its owner; a marker that differs, an owner
-# gone, an unmarked copy of a known value and a test count naming no commit and command are reds,
-# and so is a part's code spelling a registered name (a role's) past its home and its registered
-# copies.
+# value tests/code_values.txt registers is read from its owner; a marker that differs, an owner gone,
+# an unmarked copy, a role's name spelled past its home, and a test count with no command are reds.
 #   cmake [-DZEN_VALUES_WRITE=ON] -P tests/check_code_values.cmake   (from the root, or -DZEN_REPO=)
 # ZEN_VALUES_WRITE=ON first rewrites every marker to its owner's value, and touches nothing else.
 
@@ -1048,12 +1046,9 @@ foreach(rel IN LISTS documents sources)
 endforeach()
 
 # ---- the names: a role's name has one home --------------------------------------------
-# `name <id> <owner> <symbol>` registers a name the code owns (a role a weave holds) as a string
-# constant in its vocabulary header; `copy <id> <file> <symbol>` registers a part's copy where the
-# part must not include that header; `fact <id> <file> <symbol>` registers a constant that says the
-# same name as a fact of its own (what files already written say), which a rename leaves as it
-# is. A copy that says another name, an owner or a fact gone, and a part's code spelling a
-# registered name anywhere but its owner, its registered copies and its facts are reds.
+# `name`, `copy` and `fact` rows (tests/code_values.txt says each): a copy that says another name,
+# an owner or a fact gone, and a part's code spelling a registered name anywhere but its owner,
+# its copies and its facts are reds.
 
 # C/C++ comments out, the way the owners' are read.
 function(zen_values_strip_cpp code out)

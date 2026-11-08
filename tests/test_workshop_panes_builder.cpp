@@ -3398,7 +3398,7 @@ TEST_CASE("the press witness: each row the desktop declares, pressed, sends noth
     witness_presses(kDesktopRole, 0);
 }
 
-TEST_CASE("the press witness: every role in the census has one press driver, every driver an "
+TEST_CASE("the press witness: every role in the census has one press driver, every driver a "
           "role the census holds, and each share of a role's rows one case that presses it") {
     CHECK_MESSAGE(press_registered_twice().empty(),
                   "a role's presses are registered twice: " << press_registered_twice().front());
