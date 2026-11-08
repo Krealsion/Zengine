@@ -9,7 +9,7 @@
 // applications interpret gestures (a drag, a selection, a click on a panel), which are not
 // spoken here. `scancode` carries SDL scancode values (USB HID usage ids, `scan::`), the wire
 // identity of a key; `name` is a courtesy, never authoritative.
-// Reference: input/docs/input.md; the office that publishes them, input/docs/zengine.input.md.
+// Reference: input/docs/input.md; the role that publishes them, input/docs/zengine.input.md.
 
 // A key transition says which key changed state; `TextEntered` says what the platform's layout
 // produced, and a consumer never derives one from the other. Editing controls (Backspace,
@@ -207,11 +207,11 @@ struct PumpInput {
 
 // ---- The double-click time: input's, said to whoever counts clicks ------------------------
 //
-// How close in time two presses of one button are one double click is an office-wide setting of
-// `kInputRole`, `kSettingDoubleClickMs`, which a window counts clicks by. The office says it: to
+// How close in time two presses of one button are one double click is a role-wide setting of
+// `kInputRole`, `kSettingDoubleClickMs`, which a window counts clicks by. The role says it: to
 // whoever asks, and to every weave that accepts it whenever it changes.
 
-/// The office-wide setting that holds the double-click time, in milliseconds.
+/// The role-wide setting that holds the double-click time, in milliseconds.
 inline constexpr const char* kSettingDoubleClickMs = "input.double-click-ms";
 /// The double-click time while nothing sets it, and the least and most it takes.
 inline constexpr std::int64_t kDefaultDoubleClickMs = 400;
@@ -225,7 +225,7 @@ struct PointerTimingAsked {
 
 /// THE DOUBLE-CLICK TIME, said as `kInputRole`: to an asker, and published whenever it changes. Two
 /// presses of one button by one hand, the second within `double_click_ms` after the first, are one
-/// double click. A reader believes it only from the office (`mail.authored_from_role`).
+/// double click. A reader believes it only from the role (`mail.authored_from_role`).
 struct PointerTimingSaid {
     std::int64_t double_click_ms = kDefaultDoubleClickMs;
     ZEN_SHAPE(PointerTimingSaid, 1, ZEN_FIELD(double_click_ms));
@@ -237,7 +237,7 @@ struct PointerTimingSaid {
 // weave) hands it moments, and the weave publishes them as the same shapes, in order, to the
 // same consumers -- so injection tests everything from the bus onward, not the platform edge.
 // One session at a time, owned by the bus-stamped sender that opened it; closed by its holder
-// or by an office on its behalf, which releases every key and button it still held.
+// or by a role on its behalf, which releases every key and button it still held.
 //
 // A key moment names a scancode in 1..`kMaxScancode`, and a session holds at most
 // `kMaxHeldKeys` keys down: each batch is judged against the held state it would leave, moment
@@ -256,9 +256,9 @@ struct InputSessionOpened {
     ZEN_SHAPE(InputSessionOpened, 1, ZEN_FIELD(session));
 };
 
-/// CLOSE A SESSION. By its holder, personally; or by an OFFICE speaking deliberately, naming
+/// CLOSE A SESSION. By its holder, personally; or by an ROLE speaking deliberately, naming
 /// the holder it closes on behalf of (`holder` is that holder's WeaveId as a number, read only
-/// when the closer is not the holder). An office may say `session` 0 for "whatever that holder
+/// when the closer is not the holder). A role may say `session` 0 for "whatever that holder
 /// holds" -- the door closing a dead guest's session knows the guest, not the number. Answered
 /// `zen.Ack`, or `zen.Refused`. Every key and button the session still held is released, as
 /// ordinary published moments, before the Ack.
@@ -314,7 +314,7 @@ struct PointerMotionRequested {
               ZEN_FIELD(duration_ms), ZEN_FIELD(bend));
 };
 
-/// The input office's attributed companion to the legacy event. Consumers that authorize
+/// The input role's attributed companion to the legacy event. Consumers that authorize
 /// UI operations use this statement only with authenticated zengine.input authorship.
 /// Local platform input has local=true and actor=0; injected input names its actual holder.
 struct AttributedInput {

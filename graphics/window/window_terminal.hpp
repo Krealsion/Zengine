@@ -16,7 +16,7 @@
 #include "graphics/window/window.hpp"
 
 #include "input/translate.hpp"
-#include "manuals/zengine.window.terminal.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.window.terminal.hpp" // this role's manual, compiled in from its page
 
 #include <algorithm>
 #include <cstdint>

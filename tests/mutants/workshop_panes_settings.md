@@ -7,7 +7,7 @@ says how an entry reads and how `tests/mutants/run.py` runs it.
 
 ## hand-off-as-workshop
 
-The layouts' owner hands a pane its row as Workshop's office.
+The layouts' owner hands a pane its row as Workshop's role.
 
 In `workshop/layouts/owner.cpp`:
 

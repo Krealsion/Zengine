@@ -3,7 +3,7 @@
 **Manual.** The directory: the weave that knows which windows exist, where each area stands and
 who draws in it, which palette it wears, the palettes offered, and which code presents each element
 type. It answers to
-the office `zengine.graphics` (an office is the name a weave answers to) and is built as
+the role `zengine.graphics` (a role is the name a weave answers to) and is built as
 `zengine-graphics`, a file a host loads beside its windows. It introduces each area to the window
 that shows it, and the window then tells the area's owner its room. Nothing a picture is made of
 passes through it: an owner draws into its window directly, as
@@ -12,7 +12,7 @@ passes through it: an owner draws into its window directly, as
 ## About
 
 An *area* is a rectangle of a window that one participant, its *owner*, draws in. A *palette* is
-a set of colours by name -- the shared pool's and each office's slots -- which a window turns the
+a set of colours by name -- the shared pool's and each role's slots -- which a window turns the
 names a drawing carries into when it paints (see [The Graphics package](graphics.md), "Colours by
 name"). The directory keeps four lists: the windows that have offered themselves, the areas placed
 and the palette chosen for each, the palettes offered, each at its latest revision, and the element
@@ -47,7 +47,7 @@ operator [`AreaPlaced`](#areaplaced), [`PaletteOffered`](#paletteoffered),
 [`PaletteChosen`](#palettechosen),
 [`ElementCodeOffered`](#elementcodeoffered) and [`RoomAsked`](#roomasked); Workshop's grant gives
 it all but `ElementCodeOffered`. The directory itself takes [`WindowOffered`](#windowoffered) only
-from the window's own office, and `RoomAsked` only from the area's owner.
+from the window's own role, and `RoomAsked` only from the area's owner.
 
 ## Commands
 
@@ -56,7 +56,7 @@ from the window's own office, and `RoomAsked` only from the area's owner.
 `AreaPlaced` v7 says where an area stands, in which window, and who draws in it.
 
 - **Takes:** `area`, the area's name; `window`, the window's name (`terminal`); `owner`, the
-  office that draws in it; `x`, `y`, `w`, `h`, its place and size in the window's pixels; `order`,
+  role that draws in it; `x`, `y`, `w`, `h`, its place and size in the window's pixels; `order`,
   its place among the window's areas, a higher order in front; `keys`, `releases` and `text`, true
   for the window to give the owner each key, its release and the text it types, as the owner takes
   them; `pointer`, true for the window to give the owner every pointer moment in the area, the area
@@ -64,12 +64,12 @@ from the window's own office, and `RoomAsked` only from the area's owner.
   that action); `weaver_only`, true for the window to land no injected hand there, only the
   weaver's own; `wheel` and `right`, false for an area hearing the pointer to let the wheel and the
   third button through to the area behind it; `followed`, true for the arranger to follow the
-  area. The office the placing is authored as is kept as the area's arranger; following an area,
-  it is told where presses land there while another office owns it, that a hold there ended or the
+  area. The role the placing is authored as is kept as the area's arranger; following an area,
+  it is told where presses land there while another role owns it, that a hold there ended or the
   pointer left, and each time what it shows settled. An arranger that takes none of these places
   its areas without `followed`. A placing spoken personally names no arranger.
 - **Answers:** nothing to the sender. Once the window has offered itself, `AreaIntroduced` goes to
-  the window's office, wearing the palette chosen for the area, and the window tells the owner its
+  the window's role, wearing the palette chosen for the area, and the window tells the owner its
   room. An area already placed in another window is first withdrawn from it (`AreaWithdrawn`). An
   area given another owner starts empty in its window.
 - **Refuses:** nothing; an area whose window is not known yet waits, and is introduced when it
@@ -80,13 +80,13 @@ from the window's own office, and `RoomAsked` only from the area's owner.
 
 ### `PaletteOffered`
 
-`PaletteOffered` v1 offers a palette, whole, at a revision: its pool colours, each office's slots
+`PaletteOffered` v1 offers a palette, whole, at a revision: its pool colours, each role's slots
 and a terminal's outline characters.
 
 - **Takes:** `palette`, its name; `revision`, which a later offer of the same palette raises;
   `colors`, each a `PaletteColor` -- a pool colour's `name`, its `rgba` (0xRRGGBBAA), `cells`, what
   a terminal shows where it cannot show the colour ("" its nearest), and `fill`, the character a
-  terminal fills a shape with in it; `slots`, each office's colours for the slots it exposes; and
+  terminal fills a shape with in it; `slots`, each role's colours for the slots it exposes; and
   `outline`, a terminal's corner, across and down.
 - **Answers:** nothing to the sender. The palette is kept and passed on to every window that has
   offered itself, as `PaletteOffered` from `zengine.graphics`, and each window paints every area
@@ -126,7 +126,7 @@ and a terminal's outline characters.
 
 `RoomAsked` v1 asks for an owner's room again: an owner that started again sends it.
 
-- **Takes:** `area`, the owner's area. It is taken only from the area's owner, as its office.
+- **Takes:** `area`, the owner's area. It is taken only from the area's owner, as its role.
 - **Answers:** the area is introduced to its window again, and the window answers the owner with
   its room (`AreaRoom`): its window, the window's incarnation, its size, the elements the window
   still presents there, and how the window sets text.
@@ -139,17 +139,17 @@ and a terminal's outline characters.
 
 ### `WindowOffered`
 
-`WindowOffered` v3, from a window as its own office, `zengine.window.<name>`, on each activation,
+`WindowOffered` v3, from a window as its own role, `zengine.window.<name>`, on each activation,
 after `GraphicsReady`, and on a resize: its name, its pixels (none with nothing to measure), its
 incarnation, its device pixels in a cell (`kCellPx` for the OS window, none for the terminal's) and
 its text's advance and line. The directory keeps it, then tells the window every element code and
 every palette and introduces each of its areas. One from any other
-office is ignored.
+role is ignored.
 
 ## Follow
 
 The directory publishes `GraphicsReady` v1 as `zengine.graphics` each time it starts: everyone
-offers, places and chooses again. Everything else it says goes to one window's office alone:
+offers, places and chooses again. Everything else it says goes to one window's role alone:
 `AreaIntroduced` v9 (an area, its owner, its arranger, place, order, the key moments and pointer it
 hears, whether it is the weaver's hand's alone, the wheel and third button it hears, whether its
 arranger follows it, and the palette it wears),

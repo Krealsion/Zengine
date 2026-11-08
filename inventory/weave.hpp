@@ -16,7 +16,7 @@
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 
-#include "manuals/zengine.inventory.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.inventory.hpp" // this role's manual, compiled in from its page
 
 #include <zen/weave.hpp>
 #include <zen/weave/ask_book.hpp>

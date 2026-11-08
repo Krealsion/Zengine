@@ -68,18 +68,18 @@ struct DeskPane {
               ZEN_FIELD(keys));
 };
 
-/// The menu on the screen, if one is: Workshop's own (`office` is Workshop's) or a pane's, shown by
+/// The menu on the screen, if one is: Workshop's own (`role` is Workshop's) or a pane's, shown by
 /// its presenter, the lines it shows, and the lines it names -- a pane's by its row's id, as its
 /// presenter said it, Workshop's own by the action or group each shows. `picture` is the
 /// presenter's number for those lines.
 struct DeskMenu {
     bool open = false;
-    std::string office, pane;
+    std::string role, pane;
     std::int64_t picture = 0;
     DeskRect place;
     std::vector<PaneWord> lines;
     std::vector<PanePart> parts;
-    ZEN_SHAPE(DeskMenu, 3, ZEN_FIELD(open), ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(picture),
+    ZEN_SHAPE(DeskMenu, 3, ZEN_FIELD(open), ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(picture),
               ZEN_FIELD(place), ZEN_FIELD(lines), ZEN_FIELD(parts));
 };
 
@@ -113,7 +113,7 @@ struct DeskView {
 
 // ---- A PANE'S READING, AND WHAT IT STANDS ON ------------------------------------------------------
 
-/// WHAT ONE PANE'S READING STANDS ON: its office's holder (a `WeaveId`) and that holder's
+/// WHAT ONE PANE'S READING STANDS ON: its role's holder (a `WeaveId`) and that holder's
 /// incarnation, the incarnation of the window that shows it (`epoch`), and the fingerprint of what
 /// it shows there -- the window's reading of the pane's area, or Workshop's of what it draws for a
 /// pane that draws in no window. A reading is stale when any of them moved.

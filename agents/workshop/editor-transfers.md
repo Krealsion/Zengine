@@ -62,7 +62,7 @@ WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
 ## WL-EDIT-21 — A dropped location reopens through the managed opening, never around it
 
-LAW — A dropped location opens its exact absolute path through the opening office once Workshop approves the dropping actor; the caret moves only in that unmoved document, on a line still as saved.
+LAW — A dropped location opens its exact absolute path through the opening role once Workshop approves the dropping actor; the caret moves only in that unmoved document, on a line still as saved.
 
 MEANS
 - `ctrl+l` or the status row carries it; the unsaved-work floor stands, refused in words;

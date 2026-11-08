@@ -594,7 +594,7 @@ TEST_CASE("a closed pane occupies nothing, and neither does a screen with none o
     // nothing, and the whole canvas is therefore the workspace's again.
     Live t;
     // Remove the one pane a fresh session opens with, the Layouts pane: it is not furniture,
-    // so it goes through the close door. Info is a weave with no office here, so the desk names
+    // so it goes through the close door. Info is a weave with no role here, so the desk names
     // it and opens nothing.
     pick(t, pane_kind::kLayouts);
     REQUIRE(t.session().panes.open.empty());
@@ -1283,7 +1283,7 @@ TEST_CASE("the opening gestures are claimed by the band's own truth") {
     CHECK(top.find("terminal") == std::string::npos);
     CHECK(top.find("WORKSPACE") == std::string::npos);
     // AND INFO'S HEADING IS NOT IN THIS PICTURE: it is the Info pane's, and this session opens
-    // no office. The case is about what the BAND claims, and the four assertions above are all
+    // no role. The case is about what the BAND claims, and the four assertions above are all
     // of it.
 }
 
@@ -1455,14 +1455,14 @@ TEST_CASE("a long name is cut with a mark rather than silently") {
 
 // ---- Tier two: the real library, through the real load path -----------------------
 
-TEST_CASE("loading the real tool puts its pane in the catalog, offered by its office") {
+TEST_CASE("loading the real tool puts its pane in the catalog, offered by its role") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
     REQUIRE(r.session().panes.runtime.entries.empty());
 
     const loom::WeaveId id =
-        r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+        r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(r.load_refusals.empty());
     REQUIRE(id.valid());
     // WORKSHOP LEARNED THESE PANES FROM LIVE OFFERS and from nowhere else: no
@@ -1472,19 +1472,19 @@ TEST_CASE("loading the real tool puts its pane in the catalog, offered by its of
     const RuntimePane* found = intro_row(r, kIntroPane);
     REQUIRE(found != nullptr);
     const RuntimePane& row = *found;
-    CHECK(row.provider == std::string(kIntroOffice)); // Loom's stamp, not a payload field
+    CHECK(row.provider == std::string(kIntroRole)); // Loom's stamp, not a payload field
     CHECK(row.pane == std::string(kIntroPane));
     CHECK(row.name == std::string(intro::kLoadedPaneName));
     CHECK(row.summary == std::string(intro::kLoadedPaneSummary));
     CHECK(is_runtime_kind(row.kind));
 
-    // ...AND SO DID THE OTHER TWO. Three panes, one office, three distinct runtime handles --
-    // `PaneOffered`'s own claim that a provider is not a pane, measured on the first office in
+    // ...AND SO DID THE OTHER TWO. Three panes, one role, three distinct runtime handles --
+    // `PaneOffered`'s own claim that a provider is not a pane, measured on the first role in
     // this repository with more than one.
     for (const char* pane : {intro::kArrangementPane, intro::kPowersPane}) {
         const RuntimePane* more = intro_row(r, pane);
         REQUIRE(more != nullptr);
-        CHECK(more->provider == std::string(kIntroOffice));
+        CHECK(more->provider == std::string(kIntroRole));
         CHECK(is_runtime_kind(more->kind));
         CHECK(more->kind != row.kind);
         // A NAME AND A SUMMARY A WEAVER CAN READ WHOLE: admission allows thirty-two cells, so a
@@ -1499,7 +1499,7 @@ TEST_CASE("loading the real tool puts its pane in the catalog, offered by its of
 TEST_CASE("the opened pane names what this Loom actually loaded, itself included") {
     PaneRig r;
     r.mount_workshop();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(r.session().panes.runtime.entries.size() == kIntroPaneCount);
     r.pick(intro_ref());
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
@@ -1513,7 +1513,7 @@ TEST_CASE("the opened pane names what this Loom actually loaded, itself included
     REQUIRE_FALSE(shown.empty());
     CHECK(shown[0] == loaded_heading("2"));
     CHECK(any_row(shown, std::string("zengine-graphics @") + gfx::kGraphicsRole));
-    CHECK(any_row(shown, std::string(intro::kIntrospectionStem) + " @" + kIntroOffice));
+    CHECK(any_row(shown, std::string(intro::kIntrospectionStem) + " @" + kIntroRole));
     // AND THE FACT IS BOUNDED WHERE A WEAVER READS IT.
     CHECK(any_row(shown, intro::kNotInProcess));
     CHECK(any_row(shown, intro::kSnapshotSource));
@@ -1524,13 +1524,13 @@ TEST_CASE("the count is the kernel's and moves when the kernel's map does") {
     // door, and the same pane -- re-granted its room by an extent change -- says two.
     PaneRig r;
     r.mount_workshop();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     r.pick(intro_ref());
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
     const std::int64_t kind = intro_row(r, kIntroPane)->kind;
     REQUIRE(loaded_rows(r, kind)[0] == loaded_heading("2"));
 
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole);
     // The Hello provider's own offer arrives too; that is the catalog's business and
     // not this pane's, and the pane's rows are unmoved until it is re-granted room.
     REQUIRE(r.session().panes.runtime.entries.size() == kIntroPaneCount + 1);
@@ -1545,7 +1545,7 @@ TEST_CASE("the count is the kernel's and moves when the kernel's map does") {
         loaded_rows(r, kind);
     REQUIRE_FALSE(after.empty());
     CHECK(after[0] == loaded_heading("3"));
-    CHECK(any_row(after, "zengine-workshop-hello @" + std::string(kHelloOffice)));
+    CHECK(any_row(after, "zengine-workshop-hello @" + std::string(kHelloRole)));
 }
 
 TEST_CASE("the graphical medium grants a different budget and the view spends it") {
@@ -1556,7 +1556,7 @@ TEST_CASE("the graphical medium grants a different budget and the view spends it
     // with no font engine.
     PaneRig r;
     r.mount_workshop();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
 
@@ -1592,12 +1592,12 @@ TEST_CASE("the graphical medium grants a different budget and the view spends it
 
 TEST_CASE("an in-process weave is absent from the list and the pane says why") {
     // THE ABSENCE THAT MATTERS. Workshop itself is a live participant holding a live
-    // office in this very rig, and it is not in the kernel's map -- so a pane that
+    // role in this very rig, and it is not in the kernel's map -- so a pane that
     // printed the count without the boundary would leave a weaver with a false picture
     // of their own system.
     PaneRig r;
     REQUIRE(r.mount_workshop() != nullptr);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const std::vector<std::string> shown =
@@ -1610,12 +1610,12 @@ TEST_CASE("an in-process weave is absent from the list and the pane says why") {
 TEST_CASE("the pane header says whose facts these are") {
     PaneRig r;
     r.mount_workshop();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     r.pick(intro_ref());
     // WORKSHOP'S OWN ROW, over rows written by a party this build never compiled into
-    // itself: the office is the only thing about that party Workshop actually knows.
+    // itself: the role is the only thing about that party Workshop actually knows.
     CHECK(stack_text(r.shown())
-              .find(std::string(intro::kLoadedPaneName) + " @" + kIntroOffice) !=
+              .find(std::string(intro::kLoadedPaneName) + " @" + kIntroRole) !=
           std::string::npos);
 }
 
@@ -1623,7 +1623,7 @@ TEST_CASE("the tool answers Workshop and refuses everybody else") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(r.session().panes.runtime.entries.size() == kIntroPaneCount);
 
     // AN UNAUTHENTICATED CATALOG REQUEST -- a root publication carrying no authored
@@ -1640,24 +1640,24 @@ TEST_CASE("the tool answers Workshop and refuses everybody else") {
 }
 
 TEST_CASE("a forged room produces no content at all") {
-    // MEASURED FROM THE OTHER SIDE: a room no window's office authored draws nothing, and the
+    // MEASURED FROM THE OTHER SIDE: a room no window's role authored draws nothing, and the
     // room a window gives the pane's area is drawn there.
     PaneRig r;
     PaneWatcher* watch = r.mount_watcher();
-    const loom::WeaveId id = r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    const loom::WeaveId id = r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(id.valid());
     REQUIRE(watch->offers.size() == kIntroPaneCount);
     zengine::testing::pane_window::Window window(r.bus);
-    const std::string area = std::string(kIntroOffice) + "." + kIntroPane;
+    const std::string area = std::string(kIntroRole) + "." + kIntroPane;
     const std::size_t before = window.weave().heard.size();
 
     r.bus.send(id, loom::Message(loom::to_value(gfx::AreaRoom{area, window.name(), 1, 40 * gfx::kCellPx,
                                                               6 * gfx::kCellPx, {}, true}),
                                  loom::WeaveId{}, loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
-    CHECK(window.weave().heard.size() == before); // holding no window's office is giving no room
+    CHECK(window.weave().heard.size() == before); // holding no window's role is giving no room
 
-    window.room(area, kIntroOffice, 40, 6);
+    window.room(area, kIntroRole, 40, 6);
     r.bus.drain_until_idle();
     const std::vector<std::string> rows = window.rows(area);
     REQUIRE_FALSE(rows.empty());
@@ -1679,7 +1679,7 @@ TEST_CASE("adding this tool widens nothing -- it says three shapes and no more")
         }
     });
     r.mount_workshop();
-    who = r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    who = r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(who.valid());
     r.ready();
     r.pick(intro_ref());
@@ -1709,7 +1709,7 @@ TEST_CASE("adding this tool widens nothing -- it says three shapes and no more")
 TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view") {
     PaneRig r;
     r.mount_workshop();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     r.pick(intro_ref());
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
     const std::int64_t kind = intro_row(r, kIntroPane)->kind;
@@ -1726,7 +1726,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
                   intro::kIntrospectionStem));
 
     // ...and Workshop's next look is the moment the silence becomes visible: no participant holds
-    // the office, so the pane's area goes and its frame says, in the window, that it WAITS --
+    // the role, so the pane's area goes and its frame says, in the window, that it WAITS --
     // never `unavailable`, which is a fate nothing here has observed.
     r.key(input::scan::kUnknown);
     const std::vector<std::string> gone =
@@ -1737,7 +1737,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
     // THE PROVIDER COMES BACK. Its attested activation offers the same `PaneRef`, which
     // refreshes the descriptor in place -- so the area is placed again, the window gives it a
     // room, and the view returns with no gesture from the weaver.
-    REQUIRE(r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice).valid());
+    REQUIRE(r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole).valid());
     // identity de-duplicated all three
     CHECK(r.session().panes.runtime.entries.size() == kIntroPaneCount);
     const std::vector<std::string> back =
@@ -1750,7 +1750,7 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
 TEST_CASE("the pane composes as an ordinary saved setup row") {
     PaneRig r;
     r.mount_workshop();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     r.pick(intro_ref());
     REQUIRE(has_pane(r.session().setup.active, intro_ref()));
 
@@ -1759,7 +1759,7 @@ TEST_CASE("the pane composes as an ordinary saved setup row") {
     Setup authored = r.session().setup.active;
     authored.name = "Inspect";
     const std::string text = setup_persist::to_text(authored);
-    CHECK(text.find(std::string("\"provider\":\"") + kIntroOffice + "\"") != std::string::npos);
+    CHECK(text.find(std::string("\"provider\":\"") + kIntroRole + "\"") != std::string::npos);
     CHECK(text.find(std::string("\"pane\":\"") + kIntroPane + "\"") != std::string::npos);
     CHECK(text.find("loaded weaves") == std::string::npos);
     const setup_persist::LoadedSetup back = setup_persist::from_text(text);
@@ -6246,7 +6246,7 @@ TEST_CASE("removing the Layouts pane strands nobody") {
 namespace {
 
 /// A DESK OF STAND-IN PANES AT AUTHORED RECTANGLES, as a value: each offered under the stand-ins'
-/// office, opened, and placed at its rectangle in room pixels, on a graphical medium with room for
+/// role, opened, and placed at its rectangle in room pixels, on a graphical medium with room for
 /// every one. The selection walks what `bounds_of` answers, so no bus is needed.
 struct PlacedDesk {
     Session s = screen_session(cells_px(160), cells_px(44), 8, 18);
@@ -6256,11 +6256,11 @@ struct PlacedDesk {
         for (std::size_t i = 0; i < rects.size(); ++i) {
             const std::string pane = "placed" + std::to_string(i);
             const Admission took = admit_pane_offer(
-                s.panes.runtime, stock::kOffice,
+                s.panes.runtime, stock::kRole,
                 PaneOffered{pane, "Placed " + std::to_string(i), "a pane at a known place"});
             REQUIRE_MESSAGE(took.written.accepted, took.written.refusal);
             REQUIRE(open_kind(s.panes, took.kind));
-            const PaneRef ref{stock::kOffice, pane};
+            const PaneRef ref{stock::kRole, pane};
             REQUIRE(add_pane(s.setup.active, ref));
             REQUIRE(author_pane_place(s.setup.active, ref, rects[i].x, rects[i].y).accepted);
             REQUIRE(author_pane_size(s.setup.active, ref, PaneSize{pane_unit::kPixels, rects[i].w},
@@ -7123,7 +7123,7 @@ TEST_CASE("the chrome paints the frame, frame_selected and frame_transient its p
     CHECK(desk.count(0x0a0b0c7f) == 0);
     // THE VEIL, over every pane but the one a weaver arranges.
     d.s.arrange.open = true;
-    d.s.arrange.pane = PaneRef{stock::kOffice, "placed1"};
+    d.s.arrange.pane = PaneRef{stock::kRole, "placed1"};
     CHECK(painted_in(mine, d.s).count(0x0a0b0c7f) == 1);
 
     // TRANSIENT: a pane's menu, over it.
@@ -7149,7 +7149,7 @@ TEST_CASE("WL-ARR-18: where faded panes overlap the veil falls once, and on all 
                   PixelRect{300, 100, 400, 120}});
     Session& s = d.s;
     s.arrange.open = true;
-    s.arrange.pane = PaneRef{stock::kOffice, "placed2"};
+    s.arrange.pane = PaneRef{stock::kRole, "placed2"};
     const Screen sc = screen_of(s);
     const PixelRect held = d.rect(2);
     std::vector<PixelRect> faded; // every pane but the arranged one, the Layouts row too

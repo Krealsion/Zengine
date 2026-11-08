@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_ARRANGEMENT_VOCABULARY_HPP
 
 // Asking a host what its authored project resolved: `ArrangementRequested` ->
-// `ResolvedArrangement`, answered by one office (introspection/docs/zengine.arrangement.md); which
+// `ResolvedArrangement`, answered by one role (introspection/docs/zengine.arrangement.md); which
 // powers resolve is the discovery door's (powers_vocabulary.hpp). Values only: a picture of the
 // owner's facts, which confers no authority over them.
 
@@ -17,7 +17,7 @@
 
 namespace zengine::workshop {
 
-/// The office the host's observation door holds. A host that mounts no door holds none, and an
+/// The role the host's observation door holds. A host that mounts no door holds none, and an
 /// ask then reaches nobody.
 inline constexpr const char* kArrangementRole = "zengine.arrangement";
 
@@ -48,7 +48,7 @@ inline constexpr const char* kRefusedToken = "refused";
 /// A resolved row whose reload-in-place conversation is open. It keeps its resolved fields: the
 /// weave is live while the kernel decides.
 inline constexpr const char* kReloadingToken = "reloading";
-/// The row resolved, and a switch moved its office to another choice, which is a row of its own.
+/// The row resolved, and a switch moved its role to another choice, which is a row of its own.
 inline constexpr const char* kSwitchedToken = "switched";
 /// An optional row that refused and that realization stepped over. Only `v2::ResolvedArrangement`
 /// carries it; version 1 says `refused`.
@@ -56,7 +56,7 @@ inline constexpr const char* kUnavailableToken = "unavailable";
 
 /// One authored project participant, and what this run made of it: one row per artifact whatever
 /// it participates as. `artifact`, `authored_provider` and `authored_role` are authored; the rest
-/// are resolved, carried only by a `resolved` row. No resolved role: the office the Kernel bound is
+/// are resolved, carried only by a `resolved` row. No resolved role: the role the Kernel bound is
 /// `zen.ListLoaded`'s answer.
 struct ArtifactParticipation {
     std::string artifact;
@@ -107,7 +107,7 @@ struct ArtifactParticipation {
 } // namespace v3
 
 namespace v2 {
-/// The same answer with version 3 rows, answered to an asker whose office accepts it; any other
+/// The same answer with version 3 rows, answered to an asker whose role accepts it; any other
 /// asker is answered version 1.
 struct ResolvedArrangement {
     std::string plan;

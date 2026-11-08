@@ -12,7 +12,7 @@
 
 namespace zengine::workshop {
 
-// ---- THE EXTERNAL PANE SEAM: an office offers, Workshop seats, the pane draws
+// ---- THE EXTERNAL PANE SEAM: a role offers, Workshop seats, the pane draws
 
 void WorkshopWeave::on(const PaneOffered& offer, loom::Mail& mail) {
     accept_pane_offer(offer, mail, 0, 0);
@@ -33,14 +33,14 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
     // Read as a view and kept as one: `admit_pane_offer` is the one place that judges these
     // bytes, so no owned copy precedes it.
     // The view borrows this delivery's stamp, valid for this handler only: never store it.
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
+    const std::string_view role = mail.authored_role();
+    if (role.empty()) {
         // Personal speech: no error for the weaver and no catalog change. `mail.sender()` is not
         // consulted: a WeaveId would make a reloaded provider a different pane.
         return;
     }
     const Admission admitted =
-        admit_pane_offer(session_.panes.runtime, office, offer, rows, columns, body);
+        admit_pane_offer(session_.panes.runtime, role, offer, rows, columns, body);
     if (!admitted.written.accepted) {
         // Workshop's sentence about its own law: `admit_pane_offer` names a `PaneRef` only after
         // both halves passed `check_pane_key`.
@@ -55,7 +55,7 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
         // reloaded requester arrives, and what its predecessor asked about is no longer anything
         // the requester holds -- the presenter answers it unchosen, and the successor, which never
         // asked, settles nothing on it (`pane_menu::Asked`).
-        if (session_.presented.open && session_.presented.office == office &&
+        if (session_.presented.open && session_.presented.role == role &&
             session_.presented.pane == offer.pane) {
             withdraw_menu("the pane was offered again", mail);
         }
@@ -71,7 +71,7 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
     subject_published_ = false;   // ...and the inspector's subject (WL-INFO-14)
     // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
     // one path -- the same `apply_setup` the doors and a restore go through -- so a
-    // setup naming `third.party/hello` opens the moment that office offers it, without
+    // setup naming `third.party/hello` opens the moment that role offers it, without
     // the file having been touched and without a second way to open a pane existing.
     apply_setup(mail);
     repaint(mail);
@@ -121,19 +121,19 @@ void WorkshopWeave::on(const v4::PaneActions& actions, loom::Mail& mail) {
 void WorkshopWeave::declare_pane_actions(const v4::PaneActions& declared, loom::Mail& mail) {
     const std::string& pane = declared.pane;
     const std::vector<v4::PaneActionRow>& rows = declared.rows;
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
+    const std::string_view role = mail.authored_role();
+    if (role.empty()) {
         return; // personal speech: no rows, no notice, no catalog change (the offer's rule)
     }
-    // THE SHAPE'S HALF FIRST: whose pane, and is it one this office offered. Then the
+    // THE SHAPE'S HALF FIRST: whose pane, and is it one this role offered. Then the
     // rows' half and the collision law, into a COPY of the effective keymap -- so a
     // refusal anywhere leaves the keymap in force, and the pane's retained declaration,
     // exactly what they were.
-    const Admission admitted = admit_pane_actions(session_.panes.runtime, office, pane);
+    const Admission admitted = admit_pane_actions(session_.panes.runtime, role, pane);
     if (!admitted.written.accepted) {
         // And the declarer is answered: the band tells the weaver, and the verdict, as the answer
         // to this declaration, tells the provider, which can act on it. Both say the same words.
-        answer_declaration(std::string(office),
+        answer_declaration(std::string(role),
                            ActionsJudged{pane, false, 0, admitted.written.refusal}, mail);
         repaint(mail);
         return;
@@ -149,7 +149,7 @@ void WorkshopWeave::declare_pane_actions(const v4::PaneActions& declared, loom::
     }
     if (!joined.accepted) {
         const RuntimePane* row = session_.panes.runtime.of_kind(admitted.kind);
-        answer_declaration(std::string(office),
+        answer_declaration(std::string(role),
                            ActionsJudged{pane, false, 0,
                                          (row != nullptr ? row->name + " @" + row->provider + ": "
                                                          : std::string()) +
@@ -171,7 +171,7 @@ void WorkshopWeave::declare_pane_actions(const v4::PaneActions& declared, loom::
         }
     }
     session_.keymap = std::move(candidate);
-    answer_declaration(std::string(office), ActionsJudged{pane, true, declaration, std::string()},
+    answer_declaration(std::string(role), ActionsJudged{pane, true, declaration, std::string()},
                        mail);
     // ...AND A ROW THE TERMINAL CANNOT PRODUCE STANDS, BOUND, AND IS SAID (WL-KEY-08).
     if (const std::string gaps = unsaid_gaps(admitted.kind); !gaps.empty()) {
@@ -224,7 +224,7 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, std::string& gaps,
     // provider inside this walk would let a re-declaration arriving in that delivery mutate
     // `entries` while the loop still holds its place in it.
     struct Dropped {
-        std::string office;
+        std::string role;
         std::string pane;
         std::int64_t declaration = 0;
         std::string refusal;
@@ -258,21 +258,21 @@ void WorkshopWeave::rejoin_pane_rows(std::string& refusals, std::string& gaps,
     // A re-join that drops a pane's rows is a withdrawal the provider cannot see coming. It is not
     // an answer (that delivery is over), so it names the declaration by its verdict's number.
     for (const Dropped& d : told) {
-        say_withdrawn(d.office, ActionsWithdrawn{d.pane, d.declaration, d.refusal}, mail);
+        say_withdrawn(d.role, ActionsWithdrawn{d.pane, d.declaration, d.refusal}, mail);
     }
 }
 
 // WL-EDIT-13 -- agents/workshop/editor.md; WL-FRONT-04 -- agents/workshop/planes.md
 void WorkshopWeave::on(const PaneRevealRequested& asked, loom::Mail& mail) {
-    // AN OFFICE, AND ONLY AN OFFICE -- the seam's rule for every sentence that changes the
-    // desk. And the office must have offered the pane it names: a reveal of a pane this
+    // AN ROLE, AND ONLY AN ROLE -- the seam's rule for every sentence that changes the
+    // desk. And the role must have offered the pane it names: a reveal of a pane this
     // session never admitted has no catalog row, no name for the refusal and no kind to
     // seat, and is dropped as the stray it is.
-    const std::string_view office = mail.authored_role();
-    if (office.empty()) {
+    const std::string_view role = mail.authored_role();
+    if (role.empty()) {
         return;
     }
-    const RuntimePane* row = session_.panes.runtime.find(office, asked.pane);
+    const RuntimePane* row = session_.panes.runtime.find(role, asked.pane);
     if (row == nullptr) {
         return;
     }
@@ -387,21 +387,21 @@ void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
         break;
     }
     }
-    // ASKED OF THE OFFICE HOLDING THE PLATFORM -- the window showing the desk -- and settled only
-    // by that office's answer. With no window there is no clipboard to read.
-    const std::string office = medium_office();
-    if (office.empty()) {
+    // ASKED OF THE ROLE HOLDING THE PLATFORM -- the window showing the desk -- and settled only
+    // by that role's answer. With no window there is no clipboard to read.
+    const std::string role = medium_role();
+    if (role.empty()) {
         return;
     }
     const loom::AskOpened opened = paste_asks_.open_to_role(
-        office, zengine::graphics::ClipboardTextRequested::zen_name,
+        role, zengine::graphics::ClipboardTextRequested::zen_name,
         zengine::graphics::ClipboardTextRequested::zen_version);
     if (!opened) {
         return; // the book is full: this paste is dropped, the outstanding ones stand
     }
     p.ask = opened.id;
     pending_pastes_.push_back(std::move(p));
-    (void)mail.send_to_role(office, zengine::graphics::ClipboardTextRequested{},
+    (void)mail.send_to_role(role, zengine::graphics::ClipboardTextRequested{},
                             opened.correlation);
 }
 

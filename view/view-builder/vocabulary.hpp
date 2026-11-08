@@ -40,7 +40,7 @@ struct ViewEdited {
 
 /// The draft; the name in its File box, which a weaver may have typed and not saved, and the file
 /// it was saved to or opened from; whether it is saved; whether the view host ran it for this
-/// office, which the successor of a reload in place asks the host again; and whether the project
+/// role, which the successor of a reload in place asks the host again; and whether the project
 /// file is kept as a launch found it, naming a view file the builder could not open. Never a
 /// dialog, a grant or a gesture.
 struct ViewBuilderState {
@@ -53,7 +53,7 @@ struct ViewBuilderState {
 
 /// THE VIEW BUILDER'S OWN PROJECT FILE, beside the views it saves: the view file it has open -- a
 /// file inside the project named relative to it -- and whether the view host runs it for this
-/// office, in Zen's JSON text as Workshop's project files are. A launch reads it and runs that
+/// role, in Zen's JSON text as Workshop's project files are. A launch reads it and runs that
 /// view again, its pane seated by the desk the weaver left.
 inline constexpr const char* kRunFileName = "view-builder.json";
 inline constexpr const char* kRunFormat = "zengine-view-builder";

@@ -4,11 +4,11 @@
 #ifndef ZENGINE_FILES_VOCABULARY_HPP
 #define ZENGINE_FILES_VOCABULARY_HPP
 
-// The Files tool's durable names: the office it holds, the one pane it offers, the action ids
+// The Files tool's durable names: the role it holds, the one pane it offers, the action ids
 // its keys answer to, and the state a same-shape reload keeps. A `PaneRef` is what a saved
 // setup names, so `zengine.files/project-files` is a promise to a weaver's file that one
 // constant keeps for the host, the suite and the weave. The pane key stays `project-files`, so
-// a desk saved with `zengine.workshop/project-files` converts at load by moving the office
+// a desk saved with `zengine.workshop/project-files` converts at load by moving the role
 // only; the action ids are the ones weavers' keymaps already name.
 // Files law: agents/workshop/files.md
 
@@ -18,25 +18,25 @@
 
 namespace zengine::files {
 
-/// THE OFFICE THIS TOOL HOLDS -- the durable half of its `PaneRef`, and the only address
+/// THE ROLE THIS TOOL HOLDS -- the durable half of its `PaneRef`, and the only address
 /// anything reaches it by. A ROLE, so the window and Workshop find whoever holds it rather
 /// than the incarnation that offered first: a reloaded provider is a different `WeaveId`
-/// and the same office.
+/// and the same role.
 inline constexpr const char* kFilesRole = "zengine.files";
 
-/// THE PANE KEY, in this office's namespace. The built-in it replaces carried this same
-/// key under `zengine.workshop`; the conversion moves the office and keeps the key.
+/// THE PANE KEY, in this role's namespace. The built-in it replaces carried this same
+/// key under `zengine.workshop`; the conversion moves the role and keeps the key.
 inline constexpr const char* kProjectFilesPane = "project-files";
 
 /// THE TWO LINES A WEAVER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
-/// summary in Info -- and what Workshop's pane header says after the office.
+/// summary in Info -- and what Workshop's pane header says after the role.
 /// Bounded by Workshop's admission law before a byte is retained: a name at 32 bytes, a
 /// summary at 64.
 inline constexpr const char* kProjectFilesName = "Files";
 inline constexpr const char* kProjectFilesSummary = "browse and open files";
 
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable the way the
-/// office is -- it is a file name, here because the host's boot plan and the suite's loader
+/// role is -- it is a file name, here because the host's boot plan and the suite's loader
 /// must agree on it.
 inline constexpr const char* kFilesStem = "zengine-files";
 

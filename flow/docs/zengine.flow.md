@@ -4,7 +4,7 @@
 already has: the messages it accepts, the state it keeps, the steps a message runs and the messages
 it sends. You run it without compiling anything, change it while it runs and keep its state, and
 write it out as C++. It is a *weave*: a piece of Workshop that is loaded, replaced and spoken to by
-messages, built as `zengine-flow-pane`. Other weaves reach it by its *office*, the name it answers
+messages, built as `zengine-flow-pane`. Other weaves reach it by its *role*, the name it answers
 to, `zengine.flow`. New to it? Start with [Author a running graph in Workshop](flow.md).
 
 ## About
@@ -15,7 +15,7 @@ messages it emits after that write. The pane keeps the definition you are editin
 with its layout, your examples and your unfinished forms, in one *workspace*.
 
 The pane runs nothing itself. A run, an apply, a send, a stop, an inspection and a catalog read
-are each asked of the Flow host, the office [`zengine.flow.host`](zengine.flow.host.md), as one
+are each asked of the Flow host, the role [`zengine.flow.host`](zengine.flow.host.md), as one
 request answered once ([its vocabulary](../flow-host/vocabulary.hpp),
 [the Flow host](flow-runtime.md)); the pane shows what it answered. The pane always names one
 session there, `workshop`. The operators you can add are found through the host's discovery door, `zengine.powers`
@@ -645,14 +645,14 @@ again ([`inspect`](#inspect)) unless an inspection is already asked.
 
 ### `ViewWiring`
 
-`ViewWiring` v1, from a running view, as its own office ([the view
+`ViewWiring` v1, from a running view, as its own role ([the view
 vocabulary](../../view/vocabulary.hpp)): the messages its buttons say and its labels show. The pane
 keeps the names each view said last, and offers them as a message is named; it asks every view
 afresh, `ViewWiringRequested` v1, as [`ask-message`](#ask-message) or [`ask-say`](#ask-say) opens.
 
 ### `AreaRoom`
 
-`AreaRoom` v4, from the graphics window that shows the area `zengine.flow`, as that window's office
+`AreaRoom` v4, from the graphics window that shows the area `zengine.flow`, as that window's role
 ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room there, in the
 window's unit and text. It draws its picture for that room on its ground, whole in a new window,
 incarnation, size or measure, or an empty area, then only what changed; one more than a window

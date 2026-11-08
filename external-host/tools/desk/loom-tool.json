@@ -7,13 +7,13 @@
       "name": "guide",
       "script": "guide.py",
       "summary": "Mark one control of a running Workshop's desk for the weaver to see, by the address a press names; an empty control clears this session's mark.",
-      "description": "Asks Workshop (zengine.workshop), through the link, GuideRequested version 1: the pane as <office>/<pane>, the control by its action id (the pane draws it as the part control:<id>) or part:<name> for a subject part, and at most 60 bytes of printable ASCII shown beside the guest's own row name. Workshop judges the row's `guide` and `capture` doors first, then whether the part shows now in a settled picture; it draws one mark a session, inside the pane's body, in the guide colour, and says whether its label found a free row. A control with no part is answered not shown, with the weaver's key. The weaver's own press inside the mark ends it, and so do its part leaving the picture, its pane's holder changing, a newer mark of this session and the session's end. Never on Connections, the Hotkeys pane, or a part whose press opens either. Presses nothing and changes nothing else.",
+      "description": "Asks Workshop (zengine.workshop), through the link, GuideRequested version 1: the pane as <role>/<pane>, the control by its action id (the pane draws it as the part control:<id>) or part:<name> for a subject part, and at most 60 bytes of printable ASCII shown beside the guest's own row name. Workshop judges the row's `guide` and `capture` doors first, then whether the part shows now in a settled picture; it draws one mark a session, inside the pane's body, in the guide colour, and says whether its label found a free row. A control with no part is answered not shown, with the weaver's key. The weaver's own press inside the mark ends it, and so do its part leaving the picture, its pane's holder changing, a newer mark of this session and the session's end. Never on Connections, the Hotkeys pane, or a part whose press opens either. Presses nothing and changes nothing else.",
       "inputs": [
         {
           "name": "pane",
           "type": "text",
           "default": "",
-          "help": "the pane, <office>/<pane>, as a reading names it"
+          "help": "the pane, <role>/<pane>, as a reading names it"
         },
         {
           "name": "control",
@@ -83,7 +83,7 @@
           "name": "subject",
           "type": "text",
           "default": "",
-          "help": "what it is about, <office>/<pane>, for a message about a subject"
+          "help": "what it is about, <role>/<pane>, for a message about a subject"
         },
         {
           "name": "mark",
@@ -104,10 +104,10 @@
           "help": "for the case for a tool: the lesson's sentence saying why the weaver needs it"
         },
         {
-          "name": "office",
+          "name": "role",
           "type": "text",
           "default": "",
-          "help": "for the case for a tool: the office that would take the message"
+          "help": "for the case for a tool: the role that would take the message"
         },
         {
           "name": "pane",

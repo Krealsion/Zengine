@@ -3,13 +3,13 @@
 **Manual.** The pane you write a message in. Select a weave in the Loaded pane, and Compose asks it
 which messages it accepts; choose one, fill in its fields and submit it, and the message goes to
 that weave. It is a *weave*: a piece of Workshop that is loaded, replaced and spoken to by messages,
-built as `zengine-composer`. Other weaves reach it by its *office*, the name it answers to,
+built as `zengine-composer`. Other weaves reach it by its *role*, the name it answers to,
 `zengine.composer`, and it offers one pane, `compose`. New to it? Start with
 [reuse a stored command through Compose](../../inventory/docs/inventory-compose.md).
 
 ## About
 
-Compose holds no form of its own. When you select a weave, it asks that weave's office what it
+Compose holds no form of its own. When you select a weave, it asks that weave's role what it
 accepts (`zen.DescribeAccepted`, Loom's own question) and lists every message shape in the answer by
 name and version, `StartTimer v1`. Choosing one opens a form built from the shape itself: one row
 per field, in the order the shape declares them, each with the type the shape spells (`Int`, `Text`,
@@ -17,8 +17,8 @@ per field, in the order the shape declares them, each with the type the shape sp
 not the same as absent. A field of a message, a list or bytes cannot be typed: it takes a value
 dropped onto it.
 
-Submitting sends the message to the office the selection named, from `zengine.composer`, once
-Workshop has said the gesture's actor may send that shape to that office. Compose says
+Submitting sends the message to the role the selection named, from `zengine.composer`, once
+Workshop has said the gesture's actor may send that shape to that role. Compose says
 `SUBMITTED -- queued; outcome belongs to the receiver` and nothing stronger: what the message does
 is the receiving weave's to say. A finished command, or an unfinished preset, can be kept in
 Inventory and dropped back onto Compose; a drop fills the form, and only Submit sends it.
@@ -75,13 +75,13 @@ Acts on the row under the cursor: in the list, opens the form on that message; i
 
 ### `compose.submit`
 
-Sends the message the form composes to the office it is addressed to. Every required field must be
+Sends the message the form composes to the role it is addressed to. Every required field must be
 present and every value must fit its field's type; an optional field left absent is left out.
 
 - **Takes:** the open form. Default key <!-- key compose.submit -->`ctrl+return`<!-- /key -->
   (`ctrl+e` from a POSIX terminal); a press on `[ Submit ]`.
 - **Answers:** first `Checking submission authority`, while Workshop judges whether your gesture's
-  actor may send that shape to that office. Then the message goes, sent as `zengine.composer`, and
+  actor may send that shape to that role. Then the message goes, sent as `zengine.composer`, and
   the notice is `SUBMITTED -- queued; outcome belongs to the receiver`. The message is the shape you
   chose, whatever the target accepts; Compose waits for no answer to it, and shows only a refusal.
 - **Refuses:** before anything is sent: `still needed: id, delay_ms`, naming each required field
@@ -94,7 +94,7 @@ present and every value must fit its field's type; an optional field left absent
 
 ### `compose.store`
 
-Keeps the finished command in Inventory, labelled with the shape's name, beside a note of the office
+Keeps the finished command in Inventory, labelled with the shape's name, beside a note of the role
 it was written for. Nothing is sent to the target.
 
 - **Takes:** the open form, complete. Default key <!-- key compose.store -->`ctrl+s`<!-- /key -->.
@@ -192,7 +192,7 @@ asked about one, Compose answers that its page has no section for it.
 `LoadedSelected` v1, from `zengine.introspection`
 ([`introspection/vocabulary.hpp`](../../introspection/vocabulary.hpp)): the weave you pressed in the
 Loaded pane. Compose drops the last target's list and form and asks the new one what it accepts.
-From any other office it is ignored.
+From any other role it is ignored.
 
 ### `ClipboardCopy`
 
@@ -212,7 +212,7 @@ lands in the field that asked, and nowhere once that form or field has changed.
 ### `AreaRoom`
 
 `AreaRoom` v4, from the graphics window that shows the area `zengine.composer`, as that window's
-office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): Compose's room there and the
+role ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): Compose's room there and the
 window's text. Compose draws its rows in it over the room's ground, a line of that text each, its
 caret a bar, whole in a new window, incarnation, size or measure, or an empty area, then only what
 changed.
@@ -250,8 +250,8 @@ Workshop's canvas.
 ## Follow
 
 Compose publishes one thing: `ClipboardCopy` when you copy or cut inside a field, so the rest of
-Workshop can paste it. Everything else it says goes to Workshop, as its rows, or to one office as a
-question. What a submitted message did is its receiver's to say: follow that office. Compose's own
+Workshop can paste it. Everything else it says goes to Workshop, as its rows, or to one role as a
+question. What a submitted message did is its receiver's to say: follow that role. Compose's own
 state, `ComposerState`, is its counters -- how often it offered its pane, was given room, took a
 target, asked, heard an answer, refused a sender, and handed a message to the bus (`submitted`
 counts messages queued, not delivered) -- and what a reload in place keeps: the target, the form
@@ -261,8 +261,8 @@ open on it, and what the reload ended before it was answered.
 
 ### `to`
 
-The office a message is addressed to, `to @zengine.timer`. With nothing selected the pane reads
-`no weave selected` and `press a row in the Loaded pane`; for a weave with no office, `selected
+The role a message is addressed to, `to @zengine.timer`. With nothing selected the pane reads
+`no weave selected` and `press a row in the Loaded pane`; for a weave with no role, `selected
 <library>` and `(no messaging role observed -- nothing to address)`.
 
 ### `accepted`
@@ -313,4 +313,4 @@ Compose reads and writes no file. What it stores lives in Inventory, with the no
   message, fill it, store it, bring it back and send it, step by step.
 - [Reusable message and value drafts](../../message-draft/docs/message-drafts.md): the values and
   presets a form is made of.
-- [`composer/vocabulary.hpp`](../vocabulary.hpp): the office, the pane and the names a weaver reads.
+- [`composer/vocabulary.hpp`](../vocabulary.hpp): the role, the pane and the names a weaver reads.

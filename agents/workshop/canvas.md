@@ -16,7 +16,7 @@ WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-02 — A room is the window's, given to the area's holder
 
-LAW — A pane's room is what the window that shows its area gives that area's owner office (`AreaRoom`); a holder arriving with nothing asks it (`RoomAsked`), and keeps no room across a reload.
+LAW — A pane's room is what the window that shows its area gives that area's owner role (`AreaRoom`); a holder arriving with nothing asks it (`RoomAsked`), and keeps no room across a reload.
 
 MEANS
 - a new room or a new window starts a drawing afresh: what the pane drew for another room is not shown in it;
@@ -118,7 +118,7 @@ under the names its rows had, and each is pressed where the picture draws it"
 `editor/editor-pane/transfers.hpp` on_window
 `tests/test_graphics.cpp` "a press held for an area ends with no release when the area is
 withdrawn, handed to another owner, or covered where it was made by an area placed to hear the
-pointer in front of it, and the window tells the area's owner, and its arranger when another office,
+pointer in front of it, and the window tells the area's owner, and its arranger when another role,
 that it ended -- and no one else"
 `tests/test_workshop_panes_editor.cpp` "in a graphics window that gives the Editor its pointer, a
 press there, its moves under its number and its release sweep a selection as on Workshop's canvas,

@@ -63,8 +63,8 @@ tally in …/build-recipes.json`.
 **2. Put it in the project, and build it.** `Ctrl`+`p` again — it works while Files has your
 keys — move to `Builder` and press `Return`. `c` steps the recipe row to
 `tally -> tally`. Press **`o`** (*load it*) and type the role **`example.tally`**, then `Return`.
-The role must be the office `tally.cpp` speaks as (`kOffice` in the source): a weave can speak
-only as the office its plan row gives it, and a pane whose source names another office never
+The role must be the role `tally.cpp` speaks as (`kRole` in the source): a weave can speak
+only as the role its plan row gives it, and a pane whose source names another role never
 appears in the Pane Manager.
 
 Nothing is built yet, so the Builder says the project is waiting on `tally`. Press **`f`**: it

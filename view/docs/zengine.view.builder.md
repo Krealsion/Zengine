@@ -3,7 +3,7 @@
 **Manual.** The pane where you make a *view* by hand: a small panel of number fields, buttons and
 labels, placed in whole pixels on a design canvas, then run in a pane of its own. It is a *weave*: a
 piece of Workshop that is loaded, replaced and spoken to by messages, built as
-`zengine-view-builder`. Other weaves reach it by its *office*, the name it answers to,
+`zengine-view-builder`. Other weaves reach it by its *role*, the name it answers to,
 `zengine.view.builder`; its pane is `view-builder`. New to it? Start with
 [Make a small panel by hand in the View Builder](view-builder.md).
 
@@ -11,7 +11,7 @@ piece of Workshop that is loaded, replaced and spoken to by messages, built as
 
 A view is data, not C++: its name, its size, its elements, the field each label shows and the
 message each button says, its *intent* ([the description](view.md#the-description)). The view's name
-is the office it runs under and the namespace of what it says.
+is the role it runs under and the namespace of what it says.
 
 The pane draws the view you are making with the view's own picture code, at its own pixels, on the
 design canvas in its middle, so what you see there is what runs. Along the top is the bar, `[New]`
@@ -236,7 +236,7 @@ only a hand's save asks Workshop.
 ### `AreaRoom`
 
 `AreaRoom` v4, from the graphics window that shows the area `zengine.view.builder`, as that
-window's office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room
+window's role ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room
 there, in the window's unit and text. It draws its picture for that room on its ground, whole in a
 new window, incarnation, size or measure, or an empty area, then only what changed. Each time it
 starts it asks the graphics directory, `zengine.graphics`, for this room (`RoomAsked` v1).

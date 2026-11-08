@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
-"""workshop/observe -- follow what one office of a running Workshop publishes, for a while, and
+"""workshop/observe -- follow what one role of a running Workshop publishes, for a while, and
 keep every word: what an agent reads to learn what an owner says before writing a policy about it,
 and the plainest proof of what a subscription promises.
 
-It subscribes through the link to the office's shapes (the guest's row must list them under
+It subscribes through the link to the role's shapes (the guest's row must list them under
 `observe`), takes words until `seconds` pass, `count` observations arrived or the subscription
 ends, releases it, and keeps them all in observed.json with the subscription's own account. It
 presses nothing and holds no input session, so it may run beside a run that does.
@@ -21,7 +21,7 @@ from loom_session.tool import Refused
 def run(ctx):
     link = ctx.inputs.get("link", "workshop")
     producer = ctx.inputs["producer"]
-    ctx.check(producer, "producer names the office whose publications to follow")
+    ctx.check(producer, "producer names the role whose publications to follow")
     shapes = [s.strip() for s in ctx.inputs.get("shapes", "").split(",") if s.strip()]
     ctx.check(shapes, "shapes names one or more Name@version, comma-separated")
     latest = [s for s in ctx.inputs.get("latest", "").split(",") if s]

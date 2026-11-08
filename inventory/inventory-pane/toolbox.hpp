@@ -47,7 +47,7 @@ public:
             else notice = "Checking authority for the toolbox file";
         } else start(mail, asks);
     }
-    // A SAVE SENT STRAIGHT TO THIS OFFICE crossed no gesture: before anything is read or written,
+    // A SAVE SENT STRAIGHT TO THIS ROLE crossed no gesture: before anything is read or written,
     // the guest door judges its sender's class `write`, and a refusal answers that sender in words.
     void begin_sent_save(std::string path, const InventoryViews& layout, loom::Mail& mail,
                          std::uint64_t& asks, loom::DeferredAnswer due, const std::string& pane) {
@@ -119,7 +119,7 @@ public:
     }
     bool hear(const loom::DispatchRefused& answer, loom::Mail& mail, std::uint64_t& asks) {
         if (!busy() || !pending_.matches_refusal(answer, mail)) return false;
-        // NO ONE HOLDS THE GUEST DOOR'S OFFICE: there is no door, so the sender is no guest.
+        // NO ONE HOLDS THE GUEST DOOR'S ROLE: there is no door, so the sender is no guest.
         if (stage_ == Stage::scope && answer.reason == loom::name_of(loom::RefusalReason::NoSuchTarget)) {
             pending_.forget();
             start(mail, asks);

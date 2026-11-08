@@ -47,13 +47,13 @@ void check(bool ok, const char* what) {
 constexpr const char* kWorkshop = "zengine.workshop";
 constexpr const char* kRequester = "stranger.requester";
 constexpr const char* kForger = "stranger.forger";
-constexpr const char* kWindowOffice = "zengine.window.w1";
+constexpr const char* kWindowRole = "zengine.window.w1";
 constexpr const char* kPane = "list";
 /// The window's text, in its pixels: a row a line, a column an advance.
 constexpr std::int64_t kLinePx = 16, kAdvancePx = 8;
 
 /// WHAT THIS PROGRAM ASKS A PARTICIPANT TO DO NEXT -- the only way to make a weave speak as its
-/// office is from inside one of its own deliveries.
+/// role is from inside one of its own deliveries.
 struct Poke {
     std::int64_t what = 0;
     std::int64_t number = 0;
@@ -74,7 +74,7 @@ public:
     /// A RIGHT PRESS IN ITS AREA, from the window that shows it: offer two actions about the row
     /// under it, continuing THIS press.
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWindowOffice) || b.area != kRequester || !b.pressed ||
+        if (!mail.authored_from_role(kWindowRole) || b.area != kRequester || !b.pressed ||
             b.button != 3) {
             return;
         }
@@ -114,7 +114,7 @@ public:
             return;
         }
         state_ = ws::HeldMenu{g.menu,  static_cast<std::int64_t>(mail.correlation()),
-                              g.office, g.pane, g.subject, g.rows, 0, g.room_rows, g.room_columns,
+                              g.role, g.pane, g.subject, g.rows, 0, g.room_rows, g.room_columns,
                               g.standard, g.pane_name, g.area};
         standard_held = state_.standard.size();
         pane_name_held = state_.pane_name;
@@ -164,7 +164,7 @@ public:
         state_ = ws::HeldMenu{};
     }
     /// A PRESENTER WITH A BUG: it says its last answer again (1), or answers late, under a number
-    /// and about a subject it is told (2) -- its own office's word either way.
+    /// and about a subject it is told (2) -- its own role's word either way.
     void on(const Poke& p, loom::Mail& mail) {
         if (p.what == 1 && last_.menu != 0) {
             const ws::HeldMenu now = state_;
@@ -172,7 +172,7 @@ public:
             answer(mail, true, last_.rows[0].id);
             state_ = now;
         } else if (p.what == 3) {
-            // A HOLDER THAT CARRIES NO MENU: what the office looks like from the outside when one
+            // A HOLDER THAT CARRIES NO MENU: what the role looks like from the outside when one
             // image replaces another in the middle of an interaction.
             state_ = ws::HeldMenu{};
         } else if (p.what == 2) {
@@ -189,7 +189,7 @@ private:
     }
     void answer(loom::Mail& mail, bool chosen, const std::string& id) {
         (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(state_.office,
+            .send_to_role(state_.role,
                           ws::PaneMenuAnswered{state_.pane, state_.subject, chosen, id, ""},
                           static_cast<std::uint64_t>(state_.correlation));
     }
@@ -310,7 +310,7 @@ class Window : public loom::WeaveBase<Window, Nothing, loom::Accept<Poke>,
                                       loom::Emit<gfx::AreaButtonChanged>> {
 public:
     void on(const Poke& p, loom::Mail& mail) {
-        (void)mail.as_role(kWindowOffice)
+        (void)mail.as_role(kWindowRole)
             .send_to_role(kRequester,
                           gfx::AreaButtonChanged{kRequester, 3, true, 2 * kAdvancePx,
                                                  p.number * kLinePx, 0, true, 0},
@@ -329,10 +329,10 @@ public:
 };
 
 template <class T>
-T* seat(loom::Switchboard& bus, loom::WeaveId& id, loom::Grant grant, const char* office) {
+T* seat(loom::Switchboard& bus, loom::WeaveId& id, loom::Grant grant, const char* role) {
     auto owned = std::make_unique<T>();
     T* raw = owned.get();
-    id = bus.register_weave(std::move(owned), std::move(grant), std::string(office));
+    id = bus.register_weave(std::move(owned), std::move(grant), std::string(role));
     raw->zen_set_self(id);
     return raw;
 }
@@ -364,7 +364,7 @@ void live_menu() {
     loom::Grant window_speaks;
     window_speaks.allow_to_role(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version,
                                 kRequester);
-    (void)seat<Window>(bus, window_id, std::move(window_speaks), kWindowOffice);
+    (void)seat<Window>(bus, window_id, std::move(window_speaks), kWindowRole);
 
     loom::Grant presenter_speaks;
     presenter_speaks.allow_to_role(ws::MenuShown::zen_name, ws::MenuShown::zen_version, kWorkshop);
@@ -396,10 +396,10 @@ void live_menu() {
     check(presenter->standard_held == 1, "...and holds the host's standard row the grant carried");
     check(presenter->pane_name_held == "Requester", "...and the name of the pane it acts on");
 
-    // A FORGED CHOICE: an office that is not the presenter answers under the ask's number.
+    // A FORGED CHOICE: a role that is not the presenter answers under the ask's number.
     poke(bus, forger_id, Poke{0, 47, "row-7"});
     check(requester->taken.size() == 1 && requester->taken[0].empty(),
-          "a choice from an office that is not the presenter is taken as nothing");
+          "a choice from a role that is not the presenter is taken as nothing");
     check(requester->asked.pending(), "...and it settles nothing: the ask is still pending");
 
     // THE WEAVER CHOOSES: the presenter's own answer to the requester's own ask acts, once.
@@ -447,12 +447,12 @@ void live_menu() {
 
     // AN INTERACTION THE PRESENTER CANNOT CARRY, GIVEN BACK ACROSS THE INSTALLED SEAM. One image
     // of a presenter is replaced by another in the middle of a menu -- here, this presenter
-    // forgetting what it held, which is what the office looks like from outside when that
+    // forgetting what it held, which is what the role looks like from outside when that
     // happens. The host's cancellation then reaches a holder that carries no such menu, so it
     // hands the interaction back (`MenuReturned`) rather than saying it closed a menu it never
     // answered; the host, which kept who asked, answers that requester itself.
     poke(bus, window_id, Poke{1, 6, ""}); // ask under 46, granted and shown
-    check(requester->asked.pending(), "the ask is pending before the office changes hands");
+    check(requester->asked.pending(), "the ask is pending before the role changes hands");
     poke(bus, presenter_id, Poke{3, 0, ""}); // a holder that carries no menu
     poke(bus, host_id, Poke{3, 0, ""});      // ...and the host ends the menu
     check(requester->taken.back().empty(), "a given-back interaction is taken as nothing chosen");
@@ -530,7 +530,7 @@ int main() {
           "pane_escape::bare leaves a modified Escape to the pane");
     if (failures == 0) {
         std::printf("pane-menu consumer: ok -- a live menu asked, presented and answered across "
-                    "four offices; forged, host-chosen, duplicate and replaced answers took "
+                    "four roles; forged, host-chosen, duplicate and replaced answers took "
                     "nothing; the list helpers held, numbered, windowed and tabled\n");
     }
     return failures == 0 ? 0 : 1;

@@ -125,7 +125,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-15 — A pane declares its actions, and the host joins them at admission
 
-LAW — A pane declares rows beside its offer, in either published version; Workshop judges them whole under the office stamp, joins them under the collision law, and dispatches the resolved id.
+LAW — A pane declares rows beside its offer, in either published version; Workshop judges them whole under the role stamp, joins them under the collision law, and dispatches the resolved id.
 
 MEANS
 - input's OWNER is the pane's handle only while the resolved context is that pane's;

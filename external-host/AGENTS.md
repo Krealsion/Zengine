@@ -8,12 +8,12 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | path | what it is |
 |---|---|
 | `CMakeLists.txt` | `zengine-guest-vocabulary`, a loadable weave, built without the sanitizer |
-| `vocabulary_weave.hpp` | the shapes another Loom host declares to reach Workshop; no office |
+| `vocabulary_weave.hpp` | the shapes another Loom host declares to reach Workshop; no role |
 | `vocabulary_weave.cpp` | exports that weave; a `loom-boot.json` row boots it |
 | `connections-pane/` | `zengine-connections-pane`, loadable weave: the Connections pane |
-| `connections-pane/vocabulary.hpp` | office `zengine.connections`, pane key, stem, state |
+| `connections-pane/vocabulary.hpp` | role `zengine.connections`, pane key, stem, state |
 | `demo-control/` | `zengine-demo-control`, loadable weave: a setup's Demo pane and Reset |
-| `demo-control/control.hpp` | the weave, office `zengine.demo`; `vocabulary.hpp`: `Demo*` shapes |
+| `demo-control/control.hpp` | the weave, role `zengine.demo`; `vocabulary.hpp`: `Demo*` shapes |
 | `demo.py` | the setup launcher: list, describe, start, status, walk, reset, stop, export |
 | `tools/workshop/` | the `workshop` tool package, by message alone: `loom-tool.json` and helper modules |
 | `tools/workshop/setups/` | the described setups, each a folder: `setup.json`, `desk.json`, `README.md` |

@@ -29,7 +29,7 @@ a grapheme or a cell.
   BYTES, and the refusal says bytes"`.
 - *Tried: an owned string as the key checker's argument* — it made the copy the precondition of
   the check that decides whether the copy is allowed; the checker takes a view, pinned by case
-  `"an office longer than the key bound is delivered whole and admitted by nobody"`.
+  `"a role longer than the key bound is delivered whole and admitted by nobody"`.
 - *Argued: rendering a control character safe* — refused in the checker's own words: refusing
   names the field and leaves the live setup untouched, which is strictly more useful than a
   substitution a weaver would have to discover.

@@ -1,10 +1,10 @@
 # zengine.input -- Input
 
 **Manual.** Input: the weave that turns the keyboard and the pointer into messages, answering to the
-office `zengine.input` (an office is the name a weave answers to). `zengine-input` holds it: it
+role `zengine.input` (a role is the name a weave answers to). `zengine-input` holds it: it
 reads the terminal, or the console on Windows. Workshop's plan loads it beside either window
 ([the shipped plan](../../workshop/docs/load-plans.md#the-shipped-plan)); a program of your own
-loads it in that office. Your weave hears a person by accepting what it publishes; an
+loads it in that role. Your weave hears a person by accepting what it publishes; an
 agent or a test speaks for one through an input session, by the messages below.
 
 ## About
@@ -26,8 +26,8 @@ OS window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), w
 events, it serves input sessions alone and leaves the console the run was started from as it was:
 not read, what is typed there echoed, and a Ctrl+C there ending the run as it ends any program.
 
-The office owns the double-click time, a setting a weaver sets
-([`OfficeSettings`](#officesettings)): a window counts each hand's clicks by it, a session's as
+The role owns the double-click time, a setting a weaver sets
+([`RoleSettings`](#rolesettings)): a window counts each hand's clicks by it, a session's as
 the weaver's.
 
 A reload in place keeps the open session, which its holder goes on using and whose held keys are
@@ -55,9 +55,9 @@ power may send the four session shapes, and Workshop closes a gone guest's sessi
 
 The weave keeps its own beat. When it is activated, and whenever the Timer says it is ready, it asks
 the Timer for a repeating beat, `zengine.input.pump`, every `kPumpBeatMs` milliseconds
-(`EnsureRoleTimer`, addressed to its office, so a successor inherits it), and each beat polls the
+(`EnsureRoleTimer`, addressed to its role, so a successor inherits it), and each beat polls the
 platform once ([the Timer binding](../../timer/docs/timer-binding.md)). After every look it claims,
-as its office, what its reader waits on (`loom.host.WaitSet` v1): the terminal's input while it
+as its role, what its reader waits on (`loom.host.WaitSet` v1): the terminal's input while it
 reads it, nothing while a window holds it. Where a host's one wait holds that claim it reads when
 the wait says the terminal is ready, and lets its beat go, keeping it only while a timed motion
 plays or a lone `ESC` waits to be released ([`Waited`](#loomhostwaited)).
@@ -95,17 +95,17 @@ a name in the message.
 
 ### `InputSessionClosed`
 
-`InputSessionClosed` v1 closes the session: by its holder, or by an office speaking on the holder's
+`InputSessionClosed` v1 closes the session: by its holder, or by a role speaking on the holder's
 behalf.
 
-- **Takes:** `session`; `holder`, the holder's weave id, read only when an office closes it. An office
+- **Takes:** `session`; `holder`, the holder's weave id, read only when a role closes it. A role
   may say `session` 0 for whatever that holder holds.
 - **Answers:** first every key and button the session still holds comes up, published as ordinary
   `KeyReleased` and `PointerButton` moments at its last pointer position, still the holder's; a
   timed motion still running is refused to its asker, `pointer motion cancelled: session closed`;
   then `zen.Ack`. The releases may finish a gesture half made; nothing is undone.
 - **Refuses:** in `zen.Refused`: `no open input session numbered 3`; to anyone else, even one naming
-  the holder, `input session 1 is closed by its holder, or by an office closing it on the holder's
+  the holder, `input session 1 is closed by its holder, or by a role closing it on the holder's
   behalf`.
 - **Example:** when a guest's connection is gone, Workshop's guest door sends
   `{session: 0, holder: <the guest's id>}` as `zengine.guests`.
@@ -156,24 +156,24 @@ behalf.
 ### `PointerTimingAsked`
 
 `PointerTimingAsked` v1 asks the double-click time: how close in time two presses of one button
-are one double click, which a window counts the weaver's clicks by. It is the office's one
-office-wide setting, `input.double-click-ms`, which a weaver sets in the Settings pane
-([`OfficeSettings`](#officesettings)).
+are one double click, which a window counts the weaver's clicks by. It is the role's one
+role-wide setting, `input.double-click-ms`, which a weaver sets in the Settings pane
+([`RoleSettings`](#rolesettings)).
 
 - **Takes:** nothing.
 - **Answers:** `PointerTimingSaid` v1, to you alone, as `zengine.input`: `double_click_ms`, the time
-  two presses of one button are one double click within. Believe it from the office alone
+  two presses of one button are one double click within. Believe it from the role alone
   (`mail.authored_from_role("zengine.input")`).
 - **Refuses:** nothing.
 - **Example:** a window sends `PointerTimingAsked{}` to `zengine.input` each time it is activated.
 
 ## Hears
 
-### `OfficeSettings`
+### `RoleSettings`
 
-`OfficeSettings` v1, from `zengine.layouts` alone: `input.double-click-ms` as Workshop keeps it, a
-default kept as its absence, which the weave declares to that office
-([`OfficeSettingsDeclared`](../../workshop/docs/zengine.layouts.md#officesettingsdeclared)) each
+`RoleSettings` v1, from `zengine.layouts` alone: `input.double-click-ms` as Workshop keeps it, a
+default kept as its absence, which the weave declares to that role
+([`RoleSettingsDeclared`](../../workshop/docs/zengine.layouts.md#rolesettingsdeclared)) each
 time it is activated. A time other than the one it holds is held to 200..2000 ms, taken and
 published ([Follow](#follow)); until one is handed it, it holds
 <!-- value kDefaultDoubleClickMs -->400<!-- /value --> ms.
@@ -186,7 +186,7 @@ beat again, which keeps the one beat it has rather than adding a second.
 ### `TimerFired`
 
 `TimerFired` v1, from the Timer: a beat. Its own, `zengine.input.pump`, polls the platform once, as
-`PumpInput` does; another timer's firing aimed at the office polls nothing.
+`PumpInput` does; another timer's firing aimed at the role polls nothing.
 
 ### `TimerResolution`
 
@@ -195,7 +195,7 @@ binding and answered with nothing.
 
 ### `loom.host.Waited`
 
-`loom.host.Waited` v1, from the host alone: its one wait holds the office's claim, so the beat
+`loom.host.Waited` v1, from the host alone: its one wait holds the role's claim, so the beat
 stops; holds it no longer, so the beat runs again; or the terminal is ready, and the weave polls
 it once, as a beat does. From any participant it is nothing.
 

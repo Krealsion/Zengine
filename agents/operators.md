@@ -360,11 +360,11 @@ Source     zero unbound weaver inputs          evaluated on its own subject
   authored kind, a `SourceDef`, a Source registry or a second store has added a second answer,
   and the second answer is the one that can lie
   ([panes.md](panes.md#the-powers-pane-became-a-browser-and-the-seam-did-not-move)).
-- **AND ONE OFFICE MAY SPEND `sample`, WHICH IS A DIFFERENT KIND OF DOOR FROM THE ONES THAT
+- **AND ONE ROLE MAY SPEND `sample`, WHICH IS A DIFFERENT KIND OF DOOR FROM THE ONES THAT
   DESCRIBE.** `workshop/arrangement.hpp` and `workshop/powers_door.hpp` describe and cannot
   evaluate; the Powers pane's `workshop/sample_door.hpp` holds `zengine.sources`, calls
   `op::sample` at the spend, renders the admitted value host-side and answers with LINES. A door
-  of its own rather than another Accept on a describing one, deliberately: *which office can
+  of its own rather than another Accept on a describing one, deliberately: *which role can
   cause evaluation* is worth a one-word answer. The door holds a `const op::Catalog&` and retains
   no provider, definition, callable or
   answer — so a repeated sample resolves current truth again, which is exactly the property

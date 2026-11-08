@@ -16,7 +16,7 @@
 #include "builder/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
 
-#include "manuals/zengine.builder.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.builder.hpp" // this role's manual, compiled in from its page
 
 #include <zen/weave.hpp>
 

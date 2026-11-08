@@ -938,8 +938,8 @@ TEST_CASE("the value's room is one answer, spent by the painter and by the windo
     }
 }
 
-TEST_CASE("the two identities are shown apart -- the office addressed, the library pressed") {
-    // `send_to_role` addresses the OFFICE at delivery; the library name is diagnostic and
+TEST_CASE("the two identities are shown apart -- the role addressed, the library pressed") {
+    // `send_to_role` addresses the ROLE at delivery; the library name is diagnostic and
     // addresses nothing. A pane showing only one of them would invite a weaver to believe a send
     // is pinned to the incarnation whose row they pressed.
     cmp::Composing c;

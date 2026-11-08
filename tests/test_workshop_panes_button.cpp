@@ -26,9 +26,9 @@
 
 namespace {
 
-constexpr const char* kGuardOffice = "zengine.test.guard";
+constexpr const char* kGuardRole = "zengine.test.guard";
 constexpr const char* kGuardPane = "guard";
-constexpr const char* kGuardTwoOffice = "zengine.test.guard-two";
+constexpr const char* kGuardTwoRole = "zengine.test.guard-two";
 constexpr const char* kGuardTwoPane = "guard2";
 constexpr const char* kSeatMenuId = "seat.menu";
 
@@ -48,9 +48,9 @@ class ButtonSeat
                                         PaneMenuRequested, PaneManageRequested,
                                         PaneKeyboardRequested, PaneRevealRequested>> {
 public:
-    ButtonSeat(std::string office, std::string pane)
-        : office_(std::move(office)), pane_(std::move(pane)),
-          window_(office_, pane_area(office_, pane_)) {}
+    ButtonSeat(std::string role, std::string pane)
+        : role_(std::move(role)), pane_(std::move(pane)),
+          window_(role_, pane_area(role_, pane_)) {}
 
     struct Heard {
         std::int64_t button = 0;
@@ -79,13 +79,13 @@ public:
         buttons.push_back(Heard{b.button, b.pressed, p->at.row, p->at.column, false,
                                 mail.correlation(), std::string(mail.authored_role())});
         if (b.pressed && pass_on_press) {
-            (void)pane_menu::pass_back(mail, office_, pane_);
+            (void)pane_menu::pass_back(mail, role_, pane_);
         }
         if (b.pressed && menu_on_press) {
-            asked = offer(p->at.row, p->at.column).send(mail, office_);
+            asked = offer(p->at.row, p->at.column).send(mail, role_);
         }
         if (b.pressed && reveal_on_press) {
-            (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneRevealRequested{pane_});
+            (void)mail.as_role(role_).send_to_role(kWorkshopProvider, PaneRevealRequested{pane_});
         }
     }
     /// ...OR A HOLD OF ONE THE WINDOW ENDED with no release.
@@ -109,11 +109,11 @@ public:
         taken.push_back(asked.take(mail, a));
         pending_after.push_back(asked.pending());
         if (a.chosen && manage_on_choice) {
-            (void)pane_menu::manage(mail, office_, pane_, manage_office, manage_pane);
+            (void)pane_menu::manage(mail, role_, pane_, manage_role, manage_pane);
         }
         // A CHOSEN ROW THAT BEGINS AN EDIT ASKS FOR THE KEYS THE MENU LEFT WHERE THEY WERE.
         if (a.chosen && keys_on_choice) {
-            (void)pane_menu::take_keyboard(mail, office_, pane_);
+            (void)pane_menu::take_keyboard(mail, role_, pane_);
         }
     }
     void on(const PaneKey& k, loom::Mail&) { keys.push_back(k); }
@@ -122,7 +122,7 @@ public:
         actions.push_back(a);
         action_correlations.push_back(mail.correlation());
         if (a.id == kSeatMenuId && menu_on_action) {
-            asked = offer(0, 0).send(mail, office_);
+            asked = offer(0, 0).send(mail, role_);
         }
     }
     void on(const SeatDo&, loom::Mail& mail) {
@@ -143,33 +143,33 @@ public:
     }
 
     void offer_pane(loom::Mail& mail) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider,
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider,
                                                  PaneOffered{pane_, "Guard", "blocks on a button"});
         PaneActions actions_declared;
         actions_declared.pane = pane_;
         actions_declared.rows.push_back(
             PaneActionRow{kSeatMenuId, "menu", input::scan::kM, input::mod::kNone});
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, actions_declared);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, actions_declared);
     }
     /// HAND A PRESS BACK DELIBERATELY, under whatever correlation the case chooses.
     void pass(loom::Mail& mail, std::uint64_t correlation) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PanePassRequested{pane_},
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, PanePassRequested{pane_},
                                                  correlation);
     }
-    /// ...NAMING SOMEBODY ELSE'S PANE: the sentence an office that never offered it must not
+    /// ...NAMING SOMEBODY ELSE'S PANE: the sentence a role that never offered it must not
     /// be able to spend.
     void pass_naming(loom::Mail& mail, const char* pane, std::uint64_t correlation) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PanePassRequested{pane},
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, PanePassRequested{pane},
                                                  correlation);
     }
     /// ASK FOR A MENU under a chosen number, from a later delivery.
     void ask_menu(loom::Mail& mail, std::uint64_t correlation) {
-        asked = offer(0, 0).continuing(mail, office_, correlation);
+        asked = offer(0, 0).continuing(mail, role_, correlation);
     }
     /// ASK FOR THE KEYS under a chosen number, from a later delivery -- the form a pane whose
     /// edit opens only after a door has answered must use (`take_keyboard_continuing`).
     void ask_keys(loom::Mail& mail, std::uint64_t correlation) {
-        (void)pane_menu::take_keyboard_continuing(mail, office_, pane_, correlation);
+        (void)pane_menu::take_keyboard_continuing(mail, role_, pane_, correlation);
     }
 
     bool pass_on_press = false;
@@ -178,7 +178,7 @@ public:
     bool reveal_on_press = false;
     bool manage_on_choice = false;
     bool keys_on_choice = false;
-    std::string manage_office;
+    std::string manage_role;
     std::string manage_pane;
     std::string subject = "subject-1";
     std::vector<std::pair<std::string, std::string>> rows = {{"seat.first", "First row"},
@@ -187,7 +187,7 @@ public:
     std::vector<PaneRevealAnswered> reveals;
     std::vector<PaneMenuAnswered> answers;
     std::vector<std::uint64_t> answer_correlations;
-    std::vector<std::string> answer_authors; ///< the office each answer was authored as
+    std::vector<std::string> answer_authors; ///< the role each answer was authored as
     pane_menu::Asked asked;                  ///< this seat's one outstanding menu
     std::vector<std::string> taken;          ///< what `asked.take` returned for each answer
     std::vector<bool> pending_after;         ///< ...and whether the ask was still pending after
@@ -203,19 +203,19 @@ private:
         window_.draw(rows_drawing(shown_, std::vector<RowPart>{}, room, room.columns(), caret_).sketch,
                      mail);
     }
-    std::string office_;
+    std::string role_;
     std::string pane_;
     WindowDrawing window_;
     std::vector<TextRow> shown_;
     RowsCaret caret_;
 };
 
-/// Mount a button seat in `office`, have it offer `pane` as that office, open the pane, and
+/// Mount a button seat in `role`, have it offer `pane` as that role, open the pane, and
 /// return the weave id; the pane's runtime handle is read from the desk afterwards.
-std::int64_t kind_of(PaneRig& r, const char* office, const char* pane);
+std::int64_t kind_of(PaneRig& r, const char* role, const char* pane);
 
-loom::WeaveId mount_button_seat(PaneRig& r, ButtonSeat*& seat, const char* office, const char* pane) {
-    auto held = std::make_unique<ButtonSeat>(office, pane);
+loom::WeaveId mount_button_seat(PaneRig& r, ButtonSeat*& seat, const char* role, const char* pane) {
+    auto held = std::make_unique<ButtonSeat>(role, pane);
     seat = held.get();
     loom::Grant grant;
     grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
@@ -226,23 +226,23 @@ loom::WeaveId mount_button_seat(PaneRig& r, ButtonSeat*& seat, const char* offic
     grant.allow_to_any(PaneManageRequested::zen_name, PaneManageRequested::zen_version);
     grant.allow_to_any(PaneKeyboardRequested::zen_name, PaneKeyboardRequested::zen_version);
     grant.allow_to_any(PaneRevealRequested::zen_name, PaneRevealRequested::zen_version);
-    // ...and a menu's answer, which no seat says on its own: a case forges one as this office to
-    // show that an answer from an office that is not the presenter settles nothing.
+    // ...and a menu's answer, which no seat says on its own: a case forges one as this role to
+    // show that an answer from a role that is not the presenter settles nothing.
     grant.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
     grant.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
     const loom::WeaveId id =
-        r.bus.register_weave(std::move(held), std::move(grant), std::string(office));
+        r.bus.register_weave(std::move(held), std::move(grant), std::string(role));
     seat->zen_set_self(id);
     seat->next = [](ButtonSeat& s, loom::Mail& m) { s.offer_pane(m); };
     (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
-    if (!has_pane(r.session().setup.active, PaneRef{office, pane})) {
-        r.pick(PaneRef{office, pane});
+    if (!has_pane(r.session().setup.active, PaneRef{role, pane})) {
+        r.pick(PaneRef{role, pane});
     }
     // ...AND ITS ROOM ASKED, as a holder started afresh asks it, so the window showing its area
     // tells it the room.
-    const std::string area = held_area_of(kind_of(r, office, pane));
-    const std::string role = office;
+    const std::string area = held_area_of(kind_of(r, role, pane));
+    const std::string role = role;
     seat->next = [area, role](ButtonSeat&, loom::Mail& m) {
         (void)m.as_role(role).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{area});
     };
@@ -259,8 +259,8 @@ void drive_seat(PaneRig& r, loom::WeaveId id, ButtonSeat* seat,
     r.bus.drain_until_idle();
 }
 
-std::int64_t kind_of(PaneRig& r, const char* office, const char* pane) {
-    const RuntimePane* row = r.session().panes.runtime.find(office, pane);
+std::int64_t kind_of(PaneRig& r, const char* role, const char* pane) {
+    const RuntimePane* row = r.session().panes.runtime.find(role, pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
@@ -319,13 +319,13 @@ struct Rigged {
         r.mount_workshop();
         r.ready();
         r.extent(140, 60);
-        hello = r.mount_provider(kHelloOffice);
+        hello = r.mount_provider(kHelloRole);
         r.drive(hello, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
         r.pick(hello_ref());
         hello_kind = r.session().panes.runtime.entries[0].kind;
-        guard_id = mount_button_seat(r, guard, kGuardOffice, kGuardPane);
-        guard_kind = kind_of(r, kGuardOffice, kGuardPane);
-        // THE SHIPPED PRESENTER, loaded into its office the way a plan row loads it: every menu
+        guard_id = mount_button_seat(r, guard, kGuardRole, kGuardPane);
+        guard_kind = kind_of(r, kGuardRole, kGuardPane);
+        // THE SHIPPED PRESENTER, loaded into its role the way a plan row loads it: every menu
         // the seats ask for is presented and answered by that image, never by a stand-in.
         presenter = r.load_presenter(presenter_image);
     }
@@ -389,7 +389,7 @@ TEST_CASE("text inside a picture: rows drawn into a free picture at a place of i
 TEST_CASE("WL-PRESS-06: a right press over a pane whose holder hears the window is delivered, consumed and opens no menu; the chrome stays the host's") {
     Rigged t;
     REQUIRE(is_runtime_kind(t.guard_kind));
-    REQUIRE(holder_accepts_on(t.r.bus, kGuardOffice, *loom::schema_of<gfx::AreaButtonChanged>()));
+    REQUIRE(holder_accepts_on(t.r.bus, kGuardRole, *loom::schema_of<gfx::AreaButtonChanged>()));
     const std::int64_t keyboard_before = t.r.session().panes.keyboard;
     const std::int64_t selected_before = t.r.session().panes.selected;
 
@@ -401,7 +401,7 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder hears the window 
     CHECK(t.guard->buttons[0].column == 2);
     CHECK_FALSE(t.guard->buttons[0].lost);
     CHECK(t.guard->buttons[0].correlation != 0);
-    CHECK(t.guard->buttons[0].author == t.r.windows.office());
+    CHECK(t.guard->buttons[0].author == t.r.windows.role());
     // DELIVERY IS CONSUMPTION: no surface opened, and pointing changed no selection or keys.
     CHECK_FALSE(t.menu_open());
     CHECK(t.r.session().panes.keyboard == keyboard_before);
@@ -415,7 +415,7 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder hears the window 
     CHECK(t.menu_open());
     CHECK_FALSE(t.foreign_open());
     CHECK(t.r.session().context.subject == context_subject::kPane);
-    CHECK(t.r.session().context.pane == PaneRef{kGuardOffice, kGuardPane});
+    CHECK(t.r.session().context.pane == PaneRef{kGuardRole, kGuardPane});
     CHECK(t.guard->buttons.size() == 2); // the press and its release; nothing for the chrome
 }
 
@@ -450,7 +450,7 @@ TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the colu
 
 TEST_CASE("WL-PRESS-06: a right press in a doorless pane's body opens the host's pane menu at the press, sends the provider nothing and takes no keys; its chrome opens the same menu") {
     Rigged t;
-    REQUIRE_FALSE(holder_accepts_on(t.r.bus, kHelloOffice, *loom::schema_of<PanePassRequested>()));
+    REQUIRE_FALSE(holder_accepts_on(t.r.bus, kHelloRole, *loom::schema_of<PanePassRequested>()));
     const std::int64_t keyboard_before = t.r.session().panes.keyboard;
     const std::int64_t selected_before = t.r.session().panes.selected;
     const CellRect body = external_body_rect(t.r.session(), t.hello_kind);
@@ -541,7 +541,7 @@ TEST_CASE("WL-CTX-08: a pass-back after a clean click opens the host's menu for 
     drive_seat(t.r, t.guard_id, t.guard, [correlation](ButtonSeat& s, loom::Mail& m) { s.pass(m, correlation); });
     CHECK(t.menu_open());
     CHECK(t.r.session().context.subject == context_subject::kPane);
-    CHECK(t.r.session().context.pane == PaneRef{kGuardOffice, kGuardPane});
+    CHECK(t.r.session().context.pane == PaneRef{kGuardRole, kGuardPane});
     // ONCE: closed, a duplicate pass-back reopens nothing.
     t.r.key(input::scan::kEscape);
     REQUIRE_FALSE(t.menu_open());
@@ -555,7 +555,7 @@ TEST_CASE("WL-CTX-08: a pass-back on the press's own turn opens the menu, and th
     t.right_in_guard();
     REQUIRE(t.guard->buttons.size() == 1);
     CHECK(t.menu_open());
-    CHECK(t.r.session().context.pane == PaneRef{kGuardOffice, kGuardPane});
+    CHECK(t.r.session().context.pane == PaneRef{kGuardRole, kGuardPane});
     t.right_in_guard(false);
     REQUIRE(t.guard->buttons.size() == 2);
     CHECK_FALSE(t.guard->buttons[1].pressed);
@@ -584,10 +584,10 @@ TEST_CASE("WL-PRESS-06: the review's interleaving -- press, an intervening key, 
     CHECK_FALSE(t.menu_open());
 }
 
-TEST_CASE("WL-CTX-08: a stale correlation, a zero one, and a pass-back from an office that did not offer the pane all move nothing") {
+TEST_CASE("WL-CTX-08: a stale correlation, a zero one, and a pass-back from a role that did not offer the pane all move nothing") {
     Rigged t;
     ButtonSeat* stranger = nullptr;
-    const loom::WeaveId stranger_id = mount_button_seat(t.r, stranger, kGuardTwoOffice, kGuardTwoPane);
+    const loom::WeaveId stranger_id = mount_button_seat(t.r, stranger, kGuardTwoRole, kGuardTwoPane);
     t.right_in_guard();
     t.right_in_guard(false);
     const std::uint64_t first = t.guard->buttons[0].correlation;
@@ -608,8 +608,8 @@ TEST_CASE("WL-CTX-08: a stale correlation, a zero one, and a pass-back from an o
 TEST_CASE("WL-PRESS-06: holding right on one pane and pressing middle on another keeps both holds, and each release reaches its own pane") {
     Rigged t;
     ButtonSeat* other = nullptr;
-    (void)mount_button_seat(t.r, other, kGuardTwoOffice, kGuardTwoPane);
-    const std::int64_t other_kind = kind_of(t.r, kGuardTwoOffice, kGuardTwoPane);
+    (void)mount_button_seat(t.r, other, kGuardTwoRole, kGuardTwoPane);
+    const std::int64_t other_kind = kind_of(t.r, kGuardTwoRole, kGuardTwoPane);
     REQUIRE(is_runtime_kind(other_kind));
     REQUIRE(body_of(t.r, other_kind).y != body_of(t.r, t.guard_kind).y);
     t.right_in_guard();
@@ -636,8 +636,8 @@ TEST_CASE("WL-PRESS-06: a pane closed while the button is down is owed one `lost
     t.right_in_guard();
     REQUIRE(t.guard->buttons.size() == 1);
     const std::uint64_t correlation = t.guard->buttons[0].correlation;
-    t.r.pick(PaneRef{kGuardOffice, kGuardPane}); // the host's close door: the pane leaves the desk
-    REQUIRE_FALSE(has_pane(t.r.session().setup.active, PaneRef{kGuardOffice, kGuardPane}));
+    t.r.pick(PaneRef{kGuardRole, kGuardPane}); // the host's close door: the pane leaves the desk
+    REQUIRE_FALSE(has_pane(t.r.session().setup.active, PaneRef{kGuardRole, kGuardPane}));
     REQUIRE(t.guard->buttons.size() == 2);
     CHECK_FALSE(t.guard->buttons[1].pressed);
     CHECK(t.guard->buttons[1].lost);
@@ -653,10 +653,10 @@ TEST_CASE("WL-PRESS-06: closing the pane AFTER the release invalidates the conti
     t.right_in_guard(false);
     REQUIRE(t.guard->buttons.size() == 2);
     const std::uint64_t correlation = t.guard->buttons[0].correlation;
-    // THE OFFICE-AUTHORED CLOSE DOOR, with no gesture between: the hold is long over, and only
+    // THE ROLE-AUTHORED CLOSE DOOR, with no gesture between: the hold is long over, and only
     // the continuation could still open a menu for a pane that is no longer on the desk.
-    t.r.pick(PaneRef{kGuardOffice, kGuardPane});
-    REQUIRE_FALSE(has_pane(t.r.session().setup.active, PaneRef{kGuardOffice, kGuardPane}));
+    t.r.pick(PaneRef{kGuardRole, kGuardPane});
+    REQUIRE_FALSE(has_pane(t.r.session().setup.active, PaneRef{kGuardRole, kGuardPane}));
     CHECK(t.guard->buttons.size() == 2); // nothing was owed: no hold was active
     drive_seat(t.r, t.guard_id, t.guard, [correlation](ButtonSeat& s, loom::Mail& m) { s.pass(m, correlation); });
     CHECK_FALSE(t.menu_open());
@@ -688,9 +688,9 @@ TEST_CASE("WL-PRESS-06: a holder replaced while the button is down -- the releas
     REQUIRE(removed != nullptr);
     ButtonSeat* old = t.guard;
     ButtonSeat* successor = nullptr;
-    const loom::WeaveId successor_id = mount_button_seat(t.r, successor, kGuardOffice, kGuardPane);
-    REQUIRE(t.r.bus.role_holder(kGuardOffice) == successor_id);
-    CHECK(kind_of(t.r, kGuardOffice, kGuardPane) == t.guard_kind);
+    const loom::WeaveId successor_id = mount_button_seat(t.r, successor, kGuardRole, kGuardPane);
+    REQUIRE(t.r.bus.role_holder(kGuardRole) == successor_id);
+    CHECK(kind_of(t.r, kGuardRole, kGuardPane) == t.guard_kind);
     REQUIRE(successor->buttons.empty());
     t.right_in_guard(false);
     REQUIRE(successor->buttons.size() == 1);
@@ -698,7 +698,7 @@ TEST_CASE("WL-PRESS-06: a holder replaced while the button is down -- the releas
     CHECK(old->buttons.size() == 1);
     const std::uint64_t correlation = old->buttons[0].correlation;
     drive_seat(t.r, successor_id, successor, [correlation](ButtonSeat& s, loom::Mail& m) { s.pass(m, correlation); });
-    CHECK(t.menu_open()); // the office is the same, the pane is the same, the record stands
+    CHECK(t.menu_open()); // the role is the same, the pane is the same, the record stands
 }
 
 // =============================================================================
@@ -719,7 +719,7 @@ TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the
     CHECK(menu.anchored);
     CHECK(gfx::cell_of_pixel(menu.anchor_x) == body_x(t.r, t.guard_kind, 3));
     CHECK(gfx::cell_of_pixel(menu.anchor_y) == body_y(t.r, t.guard_kind, 1));
-    CHECK(menu.office == kGuardOffice);
+    CHECK(menu.role == kGuardRole);
     CHECK(menu.pane == kGuardPane);
     CHECK(menu.subject == "subject-1");
     // PRESENTED: the rows the pane wrote first, as the presenter lays them out, then the host's.
@@ -730,8 +730,8 @@ TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the
     // NOTHING MOVED: the keys stay with Hello, the selection where it was.
     CHECK(t.r.session().panes.keyboard == t.hello_kind);
     CHECK(t.r.session().panes.selected == t.hello_kind);
-    // RETURN RETURNS: the choice goes to the office under the request's number, subject-bound,
-    // and it is the PRESENTER'S word -- the office a requester authenticates a choice from.
+    // RETURN RETURNS: the choice goes to the role under the request's number, subject-bound,
+    // and it is the PRESENTER'S word -- the role a requester authenticates a choice from.
     t.r.key(input::scan::kReturn);
     CHECK_FALSE(t.menu_open());
     REQUIRE(t.guard->answers.size() == 1);
@@ -833,8 +833,8 @@ TEST_CASE("WL-CTX-09: a press the window landed on a menu line where another row
             told.pressed = down;
             told.y -= gfx::kCellPx;
             told.part = part;
-            REQUIRE(t.r.bus.office_send_to_role_as(
-                            t.r.windows.id(), t.r.windows.office(), kPresenterRole,
+            REQUIRE(t.r.bus.role_send_to_role_as(
+                            t.r.windows.id(), t.r.windows.role(), kPresenterRole,
                             loom::Message(loom::to_value(told), t.r.windows.id(),
                                           t.r.windows.id(), press))
                         .valid());
@@ -981,8 +981,8 @@ TEST_CASE("WL-CTX-09: with no window showing the desk a pane's menu is refused i
     r.mount_workshop();
     window.offer(kWorkshopProvider, cells_px(140), cells_px(60));
     ButtonSeat* guard = nullptr;
-    (void)mount_button_seat(r, guard, kGuardOffice, kGuardPane);
-    const std::int64_t kind = kind_of(r, kGuardOffice, kGuardPane);
+    (void)mount_button_seat(r, guard, kGuardRole, kGuardPane);
+    const std::int64_t kind = kind_of(r, kGuardRole, kGuardPane);
     REQUIRE(r.session().panes.has(kind));
     (void)r.load_presenter(WORKSHOP_SO_MENU_PRESENTER);
     const_cast<Session&>(r.session()).panes.keyboard = kind;
@@ -1012,7 +1012,7 @@ TEST_CASE("WL-CTX-09: a presenter that shows its menu in an area it was not gran
             said.area = "zengine.presenter.elsewhere";
             said.columns = 10;
         }
-        REQUIRE(t.r.bus.office_send_to_role_as(
+        REQUIRE(t.r.bus.role_send_to_role_as(
             t.presenter, kPresenterRole, kWorkshopProvider,
             loom::Message(loom::to_value(said), t.presenter, t.presenter, 0)).valid());
         t.r.bus.drain_until_idle();
@@ -1065,7 +1065,7 @@ TEST_CASE("WL-CTX-10: the shipped presenter reloaded in its own place while a me
 TEST_CASE("WL-CTX-09: a standard row chosen on a pane's menu is spent by the host on that pane, and the pane is answered unchosen and performs nothing") {
     Rigged t;
     t.guard->menu_on_press = true;
-    const PaneRef guard{kGuardOffice, kGuardPane};
+    const PaneRef guard{kGuardRole, kGuardPane};
     const std::size_t arrange = 3; // the line under the pane's two rows and the rule
     // ARRANGE: the host's own act on the pane the menu was about.
     t.right_in_guard();
@@ -1169,12 +1169,12 @@ TEST_CASE("WL-CTX-09: a late request is refused where the menu opens -- a newer 
     CHECK(t.guard->keys.empty());
 }
 
-TEST_CASE("WL-CTX-09: an offer echoing no gesture and one from an office that never offered the pane are refused or dropped by the host; an empty offer is the presenter's to refuse, and it spends the gesture") {
+TEST_CASE("WL-CTX-09: an offer echoing no gesture and one from a role that never offered the pane are refused or dropped by the host; an empty offer is the presenter's to refuse, and it spends the gesture") {
     Rigged t;
-    // A STRANGER OFFICE with the door and its own pane, mounted before any click so that its
+    // A STRANGER ROLE with the door and its own pane, mounted before any click so that its
     // arrival (the rig seats it with a key) is not a gesture between the click and the requests.
     ButtonSeat* stranger = nullptr;
-    const loom::WeaveId stranger_id = mount_button_seat(t.r, stranger, kGuardTwoOffice, kGuardTwoPane);
+    const loom::WeaveId stranger_id = mount_button_seat(t.r, stranger, kGuardTwoRole, kGuardTwoPane);
     t.right_in_guard();
     t.right_in_guard(false);
     const std::uint64_t correlation = t.guard->buttons[0].correlation;
@@ -1184,9 +1184,9 @@ TEST_CASE("WL-CTX-09: an offer echoing no gesture and one from an office that ne
     REQUIRE(t.guard->answers.size() == 1);
     CHECK(t.guard->answers[0].refusal.find("echoes none") != std::string::npos);
     CHECK(t.guard->answer_authors[0] == kWorkshopProvider);
-    // THE STRANGER OFFICE naming the guard's pane: no pane of its own, nothing answered.
+    // THE STRANGER ROLE naming the guard's pane: no pane of its own, nothing answered.
     drive_seat(t.r, stranger_id, stranger, [correlation](ButtonSeat&, loom::Mail& m) {
-        (void)m.as_role(kGuardTwoOffice)
+        (void)m.as_role(kGuardTwoRole)
             .send_to_role(kWorkshopProvider,
                           PaneMenuRequested{kGuardPane, "x", 0, 0, {PaneMenuRow{"a", "A"}}},
                           correlation);
@@ -1213,15 +1213,15 @@ TEST_CASE("WL-CTX-09: an offer echoing no gesture and one from an office that ne
 TEST_CASE("WL-CTX-09: a newer menu replaces an open one, which its presenter answers unchosen in the host's words; one menu at a time") {
     Rigged t;
     ButtonSeat* other = nullptr;
-    (void)mount_button_seat(t.r, other, kGuardTwoOffice, kGuardTwoPane);
-    const std::int64_t other_kind = kind_of(t.r, kGuardTwoOffice, kGuardTwoPane);
+    (void)mount_button_seat(t.r, other, kGuardTwoRole, kGuardTwoPane);
+    const std::int64_t other_kind = kind_of(t.r, kGuardTwoRole, kGuardTwoPane);
     t.guard->menu_on_press = true;
     other->menu_on_press = true;
     other->rows = {{"other.only", "The other pane's row"}};
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    REQUIRE(t.r.session().presented.office == kGuardOffice);
+    REQUIRE(t.r.session().presented.role == kGuardRole);
     // A RIGHT PRESS INTO THE OTHER PANE while the guard's menu is open: the older is withdrawn and
     // answered unchosen by its presenter, the press is offered to the other pane, and its menu
     // takes the popup.
@@ -1231,7 +1231,7 @@ TEST_CASE("WL-CTX-09: a newer menu replaces an open one, which its presenter ans
     CHECK(t.guard->answers[0].refusal == "a newer press");
     CHECK(t.guard->answer_authors[0] == kPresenterRole);
     REQUIRE(t.foreign_open());
-    CHECK(t.r.session().presented.office == kGuardTwoOffice);
+    CHECK(t.r.session().presented.role == kGuardTwoRole);
     const std::vector<std::string> painted = context_rows_on(t.r.shown(), t.r.session());
     REQUIRE(painted.size() == 2 + kStandardLines.size());
     CHECK(painted[0] == "> The other pane's row");
@@ -1247,14 +1247,14 @@ TEST_CASE("WL-CTX-09: a pane that leaves the desk while its menu is open has it 
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    t.r.pick(PaneRef{kGuardOffice, kGuardPane});
+    t.r.pick(PaneRef{kGuardRole, kGuardPane});
     CHECK_FALSE(t.menu_open());
     REQUIRE(t.guard->answers.size() == 1);
     CHECK_FALSE(t.guard->answers[0].chosen);
     CHECK(t.guard->answers[0].refusal == "the pane left the desk");
     // EMPTY BY DEFAULT: the same press on a pane that asks for nothing opens nothing, and the
     // reveal door, distinct from the menu, is untouched by a request.
-    t.r.pick(PaneRef{kGuardOffice, kGuardPane});
+    t.r.pick(PaneRef{kGuardRole, kGuardPane});
     t.guard->menu_on_press = false;
     t.right_in_guard();
     t.right_in_guard(false);
@@ -1331,7 +1331,7 @@ TEST_CASE("WL-CTX-09: a chosen row may continue into the host's own pane menu on
     Rigged t;
     t.guard->menu_on_press = true;
     t.guard->manage_on_choice = true;
-    t.guard->manage_office = kHelloOffice;
+    t.guard->manage_role = kHelloRole;
     t.guard->manage_pane = "hello";
     t.right_in_guard();
     t.right_in_guard(false);
@@ -1347,8 +1347,8 @@ TEST_CASE("WL-CTX-09: a chosen row may continue into the host's own pane menu on
     // ONCE: a second continuation of the same choice is stale.
     const std::uint64_t number = t.guard->answer_correlations[0];
     drive_seat(t.r, t.guard_id, t.guard, [number](ButtonSeat&, loom::Mail& m) {
-        (void)m.as_role(kGuardOffice)
-            .send_to_role(kWorkshopProvider, PaneManageRequested{kGuardPane, kHelloOffice, "hello"}, number);
+        (void)m.as_role(kGuardRole)
+            .send_to_role(kWorkshopProvider, PaneManageRequested{kGuardPane, kHelloRole, "hello"}, number);
     });
     CHECK_FALSE(t.menu_open());
     // A PANE NOBODY OFFERED: nothing opens, and the band says so.
@@ -1537,10 +1537,10 @@ TEST_CASE("WL-CTX-11: a menu's key column keeps a row's key and cuts its words f
     CHECK(menu_row_text(rows[0], none) == "Save source");
 }
 
-TEST_CASE("WL-CTX-10: a requester's record of its ask settles on the presenter's answer or the host's refusal -- once, and on nothing another office says under its number") {
+TEST_CASE("WL-CTX-10: a requester's record of its ask settles on the presenter's answer or the host's refusal -- once, and on nothing another role says under its number") {
     Rigged t;
     ButtonSeat* stranger = nullptr;
-    const loom::WeaveId stranger_id = mount_button_seat(t.r, stranger, kGuardTwoOffice, kGuardTwoPane);
+    const loom::WeaveId stranger_id = mount_button_seat(t.r, stranger, kGuardTwoRole, kGuardTwoPane);
     t.guard->menu_on_press = true;
     // THE HOST'S REFUSAL SETTLES THE ASK: a request made late is answered by the host, unchosen.
     const CellRect hello = t.hello_body();
@@ -1553,20 +1553,20 @@ TEST_CASE("WL-CTX-10: a requester's record of its ask settles on the presenter's
     CHECK(t.guard->taken[0].empty());
     CHECK_FALSE(t.guard->pending_after[0]);
     button_cell(t.r, 3, false, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0));
-    // A MENU OPEN, and ANOTHER OFFICE answering it under the ask's own number, chosen: the seat
+    // A MENU OPEN, and ANOTHER ROLE answering it under the ask's own number, chosen: the seat
     // hears it, and its record settles nothing -- the ask is still pending.
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
     const std::uint64_t number = t.guard->asked.correlation();
     REQUIRE(number != 0);
-    REQUIRE(t.r.bus.office_send_to_role_as(
-        stranger_id, kGuardTwoOffice, kGuardOffice,
+    REQUIRE(t.r.bus.role_send_to_role_as(
+        stranger_id, kGuardTwoRole, kGuardRole,
         loom::Message(loom::to_value(PaneMenuAnswered{kGuardPane, "subject-1", true, "seat.first", ""}),
                       stranger_id, stranger_id, number)).valid());
     t.r.bus.drain_until_idle();
     REQUIRE(t.guard->answers.size() == 2);
-    CHECK(t.guard->answer_authors[1] == kGuardTwoOffice);
+    CHECK(t.guard->answer_authors[1] == kGuardTwoRole);
     CHECK(t.guard->taken[1].empty());
     CHECK(t.guard->pending_after[1]);
     // THE PRESENTER'S ANSWER, the genuine one: settles, with the row.
@@ -1575,9 +1575,9 @@ TEST_CASE("WL-CTX-10: a requester's record of its ask settles on the presenter's
     CHECK(t.guard->answer_authors[2] == kPresenterRole);
     CHECK(t.guard->taken[2] == "seat.first");
     CHECK_FALSE(t.guard->pending_after[2]);
-    // ONCE: the presenter's office saying it again finds nothing pending.
-    REQUIRE(t.r.bus.office_send_to_role_as(
-        t.presenter, kPresenterRole, kGuardOffice,
+    // ONCE: the presenter's role saying it again finds nothing pending.
+    REQUIRE(t.r.bus.role_send_to_role_as(
+        t.presenter, kPresenterRole, kGuardRole,
         loom::Message(loom::to_value(PaneMenuAnswered{kGuardPane, "subject-1", true, "seat.first", ""}),
                       t.presenter, t.presenter, number)).valid());
     t.r.bus.drain_until_idle();
@@ -1623,9 +1623,9 @@ private:
 };
 
 /// WORKSHOP'S VIEW OF THE BUS, WITH ONE SENTENCE THAT QUEUES NOTHING. Everything goes through the
-/// Switchboard's own gated doors as Workshop -- its grant, its office authorship, every delivery
+/// Switchboard's own gated doors as Workshop -- its grant, its role authorship, every delivery
 /// law -- except a `MenuWithdrawn`, which this door refuses at the enqueue with the invalid ticket a
-/// Loom returns when nothing was queued (an office's authorship lost, its sequence exhausted). Only
+/// Loom returns when nothing was queued (a role's authorship lost, its sequence exhausted). Only
 /// that ticket is made here; the answer that follows travels Loom's real path to the real seat.
 class WithdrawalQueuesNothing : public loom::Bus {
 public:
@@ -1637,20 +1637,20 @@ public:
     loom::Ticket send_to_role(std::string_view role, loom::Message msg) override {
         return sb_.send_as_to_role(self_, role, std::move(msg));
     }
-    loom::Ticket office_send(std::string_view as_role, loom::WeaveId target,
+    loom::Ticket role_send(std::string_view as_role, loom::WeaveId target,
                              loom::Message msg) override {
-        return sb_.office_send_as(self_, as_role, target, std::move(msg));
+        return sb_.role_send_as(self_, as_role, target, std::move(msg));
     }
-    loom::Ticket office_send_to_role(std::string_view as_role, std::string_view to_role,
+    loom::Ticket role_send_to_role(std::string_view as_role, std::string_view to_role,
                                      loom::Message msg) override {
         if (msg.payload.schema().name() == MenuWithdrawn::zen_name) {
             ++refused;
             return loom::Ticket{};
         }
-        return sb_.office_send_to_role_as(self_, as_role, to_role, std::move(msg));
+        return sb_.role_send_to_role_as(self_, as_role, to_role, std::move(msg));
     }
-    loom::OfficePublication office_publish(std::string_view as_role, loom::Message msg) override {
-        return sb_.office_publish_as(self_, as_role, std::move(msg));
+    loom::RolePublication role_publish(std::string_view as_role, loom::Message msg) override {
+        return sb_.role_publish_as(self_, as_role, std::move(msg));
     }
 
     std::size_t refused = 0; ///< the withdrawals this door queued nothing for
@@ -1684,7 +1684,7 @@ TEST_CASE("WL-CTX-10: a withdrawal the presenter cannot receive is answered by t
     RefusalTap tap(t.r.bus);
     // THE PANE LEAVES THE DESK -- an ordinary withdrawal, and the requesting weave stays alive to
     // hear how its ask ended.
-    t.r.pick(PaneRef{kGuardOffice, kGuardPane});
+    t.r.pick(PaneRef{kGuardRole, kGuardPane});
     CHECK_FALSE(t.menu_open());
     REQUIRE(t.guard->answers.size() == 1);
     CHECK_FALSE(t.guard->answers[0].chosen);
@@ -1694,7 +1694,7 @@ TEST_CASE("WL-CTX-10: a withdrawal the presenter cannot receive is answered by t
     CHECK_FALSE(t.guard->asked.pending());
     if (presenter_left) {
         // LOOM'S OWN WORD, by the withdrawal's attempt: it reached nobody -- so the host answered,
-        // as its office, saying why the menu ended and what Loom said.
+        // as its role, saying why the menu ended and what Loom said.
         CHECK(tap.count(MenuWithdrawn::zen_name, "NoSuchTarget") == 1);
         CHECK(t.guard->answer_authors[0] == kWorkshopProvider);
         CHECK(t.guard->answers[0].refusal ==
@@ -1711,8 +1711,8 @@ TEST_CASE("WL-CTX-10: a withdrawal the presenter cannot receive is answered by t
 TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withdrawal reaches a fresh presenter that cannot answer it") {
     // THE MENU IS ITS WHOLE SPAN OF SENTENCES, not its withdrawal alone. The presenter is swapped
     // by an unload and a fresh load while a key and a click are in flight: the key reaches an
-    // empty office and is refused, the click withdraws the menu, and by the time the withdrawal
-    // is dispatched the fresh presenter holds the office -- it receives it, carries no such menu,
+    // empty role and is refused, the click withdraws the menu, and by the time the withdrawal
+    // is dispatched the fresh presenter holds the role -- it receives it, carries no such menu,
     // and says nothing. Loom's refusal of the key is the only word that this ask is orphaned.
     Rigged t;
     t.guard->menu_on_press = true;
@@ -1751,15 +1751,15 @@ TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withd
         const std::int64_t x = gfx::px_of_cells(hello.x + 1) + gfx::kCellPx / 2;
         const std::int64_t y = gfx::px_of_cells(hello.y + 1) + gfx::kCellPx / 2;
         const std::uint64_t press = 9001;
-        REQUIRE(t.r.bus.office_send_to_role_as(
-                            t.r.windows.id(), t.r.windows.office(), row->provider,
+        REQUIRE(t.r.bus.role_send_to_role_as(
+                            t.r.windows.id(), t.r.windows.role(), row->provider,
                             loom::Message(loom::to_value(gfx::AreaButtonChanged{
                                               area, 3, true, x - placed->placed_x,
                                               y - placed->placed_y, 0}),
                                           t.r.windows.id(), t.r.windows.id(), press))
                     .valid());
-        REQUIRE(t.r.bus.office_send_to_role_as(
-                            t.r.windows.id(), t.r.windows.office(), kWorkshopProvider,
+        REQUIRE(t.r.bus.role_send_to_role_as(
+                            t.r.windows.id(), t.r.windows.role(), kWorkshopProvider,
                             loom::Message(loom::to_value(gfx::AreaPressed{
                                               t.r.windows.window(), area, 3, true, x, y}),
                                           t.r.windows.id(), t.r.windows.id(), press))
@@ -1805,8 +1805,8 @@ TEST_CASE("WL-CTX-10: an older menu's refused withdrawal ends and answers nothin
     // crash-revival door -- around the older withdrawal's dispatch.
     Rigged t;
     ButtonSeat* other = nullptr;
-    const loom::WeaveId other_id = mount_button_seat(t.r, other, kGuardTwoOffice, kGuardTwoPane);
-    const std::int64_t other_kind = kind_of(t.r, kGuardTwoOffice, kGuardTwoPane);
+    const loom::WeaveId other_id = mount_button_seat(t.r, other, kGuardTwoRole, kGuardTwoPane);
+    const std::int64_t other_kind = kind_of(t.r, kGuardTwoRole, kGuardTwoPane);
     other->rows = {{"other.first", "Other first"}, {"other.second", "Other second"}};
     t.guard->menu_on_press = true;
     t.right_in_guard();
@@ -1845,7 +1845,7 @@ TEST_CASE("WL-CTX-10: an older menu's refused withdrawal ends and answers nothin
     // THE NEWER MENU STANDS: the other pane's, shown, and its requester still waiting.
     REQUIRE(t.foreign_open());
     CHECK(t.r.session().presented.menu == newer_menu);
-    CHECK(t.r.session().presented.office == kGuardTwoOffice);
+    CHECK(t.r.session().presented.role == kGuardTwoRole);
     CHECK(other->answers.empty());
     CHECK(other->asked.pending());
     // THE OLDER ASK IS SETTLED under its own number, unchosen, whoever said it first; a second
@@ -1985,7 +1985,7 @@ TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence come
         REQUIRE(t.r.w->withdrawn_menus().size() == 1);
         const WithdrawnMenu kept = t.r.w->withdrawn_menus()[0];
         CHECK(kept.menu == menu);
-        CHECK(kept.office == kGuardOffice);
+        CHECK(kept.role == kGuardRole);
         CHECK(kept.pane == kGuardPane);
         CHECK(kept.correlation == number);
         CHECK(kept.why == "a newer press");
@@ -2006,14 +2006,14 @@ TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence come
 }
 
 // =============================================================================
-// An interaction the holder of the office cannot carry, given back
+// An interaction the holder of the role cannot carry, given back
 // =============================================================================
 
 namespace {
 
 /// A FRESH PRESENTER LOAD, QUEUED AND NOT DRAINED: the manager's own work takes its turns in FIFO
 /// order beside whatever else a case has queued, so a weaver's act can land inside the arrival --
-/// after the image holds the office, before it has said what it carries.
+/// after the image holds the role, before it has said what it carries.
 void enqueue_presenter_load(PaneRig& r, const char* image) {
     loom::Grant reach;
     reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, r.manager);
@@ -2062,7 +2062,7 @@ TEST_CASE("WL-CTX-10: a withdrawal a fresh holder does not carry is given back, 
         CHECK(t.r.w->withdrawn_menus().empty());
     } else {
         // THE OVERLAP: the load and the weaver's press are pending together. The image holds the
-        // office before the press withdraws the menu, so the withdrawal is DELIVERED -- to an
+        // role before the press withdraws the menu, so the withdrawal is DELIVERED -- to an
         // image carrying no such menu, which Loom has nothing to refuse and nothing to say about.
         enqueue_presenter_load(t.r, image);
         queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
@@ -2106,7 +2106,7 @@ TEST_CASE("WL-CTX-10: a withdrawal a fresh holder does not carry is given back, 
           (ready_first ? std::string("the presenter was replaced")
                        : std::string("a newer press -- the presenter could not answer it "
                                      "(this image does not hold that menu)")));
-    // ...AND THE OFFICE STILL WORKS: the next menu is presented and chosen by the fresh image.
+    // ...AND THE ROLE STILL WORKS: the next menu is presented and chosen by the fresh image.
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
@@ -2213,7 +2213,7 @@ TEST_CASE("a release in a menu's area carries its own press's number when anothe
     CHECK(t.guard->answers[0].id == "seat.first");
 }
 
-TEST_CASE("WL-CTX-10: a give-back is one office's word about one menu, and settles no other") {
+TEST_CASE("WL-CTX-10: a give-back is one role's word about one menu, and settles no other") {
     Rigged t;
     t.guard->menu_on_press = true;
     t.right_in_guard();
@@ -2221,17 +2221,17 @@ TEST_CASE("WL-CTX-10: a give-back is one office's word about one menu, and settl
     REQUIRE(t.foreign_open());
     const std::int64_t menu = t.r.session().presented.menu;
     const std::uint64_t number = t.r.session().presented.correlation;
-    /// THE SHAPE ITSELF, AUTHORED AS THE PRESENTER'S OFFICE -- what an image says when it is
-    /// handed an interaction it cannot carry. Sent from the image that holds the office, so Loom
-    /// authenticates the office the way it does every other sentence of this seam.
+    /// THE SHAPE ITSELF, AUTHORED AS THE PRESENTER'S ROLE -- what an image says when it is
+    /// handed an interaction it cannot carry. Sent from the image that holds the role, so Loom
+    /// authenticates the role the way it does every other sentence of this seam.
     const auto give_back = [&t](std::int64_t which) {
         return t.r.bus
-            .office_send_to_role_as(t.presenter, kPresenterRole, kWorkshopProvider,
+            .role_send_to_role_as(t.presenter, kPresenterRole, kWorkshopProvider,
                                     loom::Message(loom::to_value(
                                         MenuReturned{which, "this image does not hold that menu"})))
             .valid();
     };
-    // NOT ANYBODY'S: the same sentence through the host's root door carries no office of Loom's.
+    // NOT ANYBODY'S: the same sentence through the host's root door carries no role of Loom's.
     (void)t.r.bus.send(t.r.workshop_id,
                        loom::Message(loom::to_value(MenuReturned{menu, "forged"})));
     t.r.bus.drain_until_idle();
@@ -2242,7 +2242,7 @@ TEST_CASE("WL-CTX-10: a give-back is one office's word about one menu, and settl
     t.r.bus.drain_until_idle();
     CHECK(t.foreign_open());
     CHECK(t.guard->answers.empty());
-    // THE OPEN MENU, GIVEN BACK BY THE OFFICE THAT HOLDS IT: nobody is left to answer it, so the
+    // THE OPEN MENU, GIVEN BACK BY THE ROLE THAT HOLDS IT: nobody is left to answer it, so the
     // host ends it and settles the requester itself, unchosen, under the ask's own number.
     REQUIRE(give_back(menu));
     t.r.bus.drain_until_idle();
@@ -2259,11 +2259,11 @@ TEST_CASE("WL-CTX-10: a give-back is one office's word about one menu, and settl
     // about and still holds, and answers when the newer grant arrives -- stays under the older
     // number and cannot be mistaken for the newer requester's.
     ButtonSeat* other = nullptr;
-    const loom::WeaveId other_id = mount_button_seat(t.r, other, kGuardTwoOffice, kGuardTwoPane);
+    const loom::WeaveId other_id = mount_button_seat(t.r, other, kGuardTwoRole, kGuardTwoPane);
     (void)other_id;
     other->rows = {{"other.first", "Other first"}, {"other.second", "Other second"}};
     other->menu_on_press = true;
-    const std::int64_t other_kind = kind_of(t.r, kGuardTwoOffice, kGuardTwoPane);
+    const std::int64_t other_kind = kind_of(t.r, kGuardTwoRole, kGuardTwoPane);
     button_cell(t.r, 3, true, body_x(t.r, other_kind, 1), body_y(t.r, other_kind, 0));
     button_cell(t.r, 3, false, body_x(t.r, other_kind, 1), body_y(t.r, other_kind, 0));
     REQUIRE(t.foreign_open());
@@ -2301,7 +2301,7 @@ TEST_CASE("the guard example blocks while the right button is held, lowers on th
     r.mount_workshop();
     r.ready();
     r.extent(140, 60);
-    ProviderSeat* hello = r.mount_provider(kHelloOffice);
+    ProviderSeat* hello = r.mount_provider(kHelloRole);
     r.drive(hello, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t hello_kind = r.session().panes.runtime.entries[0].kind;

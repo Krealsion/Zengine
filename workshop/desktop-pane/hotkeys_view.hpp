@@ -86,7 +86,7 @@ inline std::string binding_key(const ws::ShownBinding& b) {
 /// ONE SECTION OF THE TABLE: a pane's keys, or one of the places Workshop answers a key; its
 /// identity, what its header says, whether its pane is off the desk, and its bindings.
 struct KeysSection {
-    std::string key;     ///< `pane:<office>/<pane>`, or `group:<words>` for Workshop's own
+    std::string key;     ///< `pane:<role>/<pane>`, or `group:<words>` for Workshop's own
     std::string title;   ///< where its keys answer, made drawable
     bool absent = false; ///< a pane the desk does not hold now: grey, at the foot
     std::vector<std::size_t> bindings; ///< indices into the keymap's rows, in its order
@@ -95,7 +95,7 @@ struct KeysSection {
 /// A SECTION'S IDENTITY, from one of its bindings: a pane's by the pane it belongs to, so it is
 /// the same section whatever the pane is called; Workshop's own by the words of its group.
 inline std::string section_key(const ws::ShownBinding& b) {
-    return b.pane.empty() ? "group:" + b.group : "pane:" + b.office + "/" + b.pane;
+    return b.pane.empty() ? "group:" + b.group : "pane:" + b.role + "/" + b.pane;
 }
 
 /// THE CURSOR'S IDENTITY FOR A SECTION'S HEADER, apart from every binding's.
@@ -157,7 +157,7 @@ public:
 
 
     const PaneCanvas& canvas() const { return keys_canvas_; }
-    /// ...for the office to hand the room a graphics window gives the pane.
+    /// ...for the role to hand the room a graphics window gives the pane.
     PaneCanvas& canvas() { return keys_canvas_; }
 
 
@@ -252,7 +252,7 @@ public:
                      loom::Mail& mail) {
         if (refused_ask(paste_.awaiting, paste_.attempt, paste_.pending, refused, mail,
                         graphics::ClipboardTextRequested::zen_name,
-                        graphics::ClipboardTextRequested::zen_version, paste_.office.c_str())) {
+                        graphics::ClipboardTextRequested::zen_version, paste_.role.c_str())) {
             paste_.awaiting = false;
             return true;
         }
@@ -408,9 +408,9 @@ public:
         std::set<std::string> desk;
         std::vector<std::string> known;
         for (const ws::InventoryPane& p : panes) {
-            known.push_back("pane:" + p.office + "/" + p.pane);
+            known.push_back("pane:" + p.role + "/" + p.pane);
             if (p.open) {
-                desk.insert(p.office + "/" + p.pane);
+                desk.insert(p.role + "/" + p.pane);
             }
         }
         const bool moved = !inventory_heard_ || desk != on_desk_;
@@ -728,14 +728,14 @@ private:
 
     /// A PASTE IS AN ASK, ON ITS OWN RECORD, OF THE WINDOW THAT SHOWS THE PANE, ELSE THE SKIN:
     /// nothing queued means nothing is on its way into the line, and neither that nor Loom's
-    /// refusal of it touches the edit asked. The record keeps the office asked, which a refusal
+    /// refusal of it touches the edit asked. The record keeps the role asked, which a refusal
     /// names.
     void begin_paste(loom::Mail& mail, const zengine::component::TextBox& line) {
         paste_.pending = ++asks_;
         paste_.epoch = line.draft_epoch();
-        paste_.office = keys_canvas_.clipboard_office();
+        paste_.role = keys_canvas_.clipboard_role();
         paste_.attempt = mail.as_role(kDesktopRole)
-                             .send_to_role(paste_.office, graphics::ClipboardTextRequested{},
+                             .send_to_role(paste_.role, graphics::ClipboardTextRequested{},
                                            paste_.pending);
         paste_.awaiting = paste_.attempt.valid();
     }
@@ -757,7 +757,7 @@ private:
             if (fresh) {
                 sections_.push_back(KeysSection{key, printable(b.group),
                                                 !b.pane.empty() && inventory_heard_ &&
-                                                    on_desk_.count(b.office + "/" + b.pane) == 0,
+                                                    on_desk_.count(b.role + "/" + b.pane) == 0,
                                                 {}});
             }
             sections_[found->second].bindings.push_back(i);
@@ -1068,7 +1068,7 @@ private:
         loom::Ticket attempt{};
         std::uint64_t epoch = 0;
         bool awaiting = false;
-        std::string office;
+        std::string role;
     };
     Paste paste_;
 };

@@ -4,7 +4,7 @@
 // The score weave, the late-load demonstration and nothing more: it counts the `FoodEaten` it
 // witnesses, independent of the world's own score, so loaded after two meals it reads 0 while the
 // world reads 2 -- which is what "began participating" means. It draws its tally in an area of its
-// own, as the office `snake.score`, and draws it whole again in a window started afresh.
+// own, as the role `snake.score`, and draws it whole again in a window started afresh.
 // Reference: examples/snake/README.md.
 
 #include "vocabulary.hpp"

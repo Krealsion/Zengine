@@ -46,7 +46,7 @@ namespace pw = zengine::testing::pane_window;
 constexpr const char* workshop_role = "zengine.workshop";
 constexpr auto unit = ws::kPaneCanvasUnit;
 
-// A real office on the real bus, standing in for Workshop: it keeps what Flow tells it and approves
+// A real role on the real bus, standing in for Workshop: it keeps what Flow tells it and approves
 // an acquisition that continues a press. What Flow shows, it draws in its area, and a case reads
 // that from the window showing the area, never a copy of the pane's own hit map.
 class Presenter final : public loom::Weave {
@@ -195,14 +195,14 @@ struct Rig {
         pump();
     }
     template<class T> void host(const T& value, std::uint64_t corr = 0) {
-        const auto ticket = bus.office_send_to_role_as(workshop, workshop_role, fp::kRole,
+        const auto ticket = bus.role_send_to_role_as(workshop, workshop_role, fp::kRole,
             loom::Message(loom::to_value(value), workshop, {}, corr));
         REQUIRE(ticket.valid());
         pump();
     }
     /// The same delivery, queued and not yet pumped, to order it among answers in flight.
     template<class T> void post(const T& value, std::uint64_t corr = 0) {
-        REQUIRE(bus.office_send_to_role_as(workshop, workshop_role, fp::kRole,
+        REQUIRE(bus.role_send_to_role_as(workshop, workshop_role, fp::kRole,
             loom::Message(loom::to_value(value), workshop, {}, corr)).valid());
     }
     /// THE ROOM OF FLOW'S AREA in the rig's window, `cols` by `rows` cells, under the rig's `grant`:
@@ -334,7 +334,7 @@ struct Rig {
         const std::string opener = which == "file" ? "[File v]" : which == "view" ? "[View v]" : "[More]";
         const Moment at = press_for(opener);
         click(at);
-        REQUIRE(bus.office_send_to_role_as(menus, ws::kPresenterRole, fp::kRole,
+        REQUIRE(bus.role_send_to_role_as(menus, ws::kPresenterRole, fp::kRole,
             loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, which, true, id, ""}), menus, {},
                           at.gesture)).valid());
         pump();
@@ -745,7 +745,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
     }
 }
 
-TEST_CASE("loaded Flow pane reload retains unfinished forms layout and its live office session") {
+TEST_CASE("loaded Flow pane reload retains unfinished forms layout and its live role session") {
     Rig rig;
     rig.graph_semantically();
     rig.edit_ok("message-open", {"0"});
@@ -802,7 +802,7 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
     // The run is the pane's next request, so it takes the next correlation. Deliver the forged
     // answer after the edit queues that ask, but before the actual manager sees it.
     const auto run_correlation = rig.asked + 1;
-    rig.bus.office_send_to_role_as(rig.workshop, workshop_role, fp::kRole,
+    rig.bus.role_send_to_role_as(rig.workshop, workshop_role, fp::kRole,
         loom::Message(loom::to_value(fp::FlowEdit{"run", {}}), rig.workshop, {}, 900));
     auto fabricated = rig.workspace().graph.project;
     fabricated.state.set("value", loom::Cell::integer(999));
@@ -858,7 +858,7 @@ TEST_CASE("a right press on a declared message offers to carry its shape, and th
     REQUIRE(asked.rows.size() == 1);
     CHECK(asked.rows[0].label == "Carry tally.Total");
 
-    REQUIRE(rig.bus.office_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
+    REQUIRE(rig.bus.role_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
         loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, "tally.Total", true, "carry", ""}),
                       rig.menus, {}, 91)).valid());
     rig.pump();
@@ -1113,7 +1113,7 @@ TEST_CASE("loaded Flow pane retains unconfirmed field text and selection on relo
     rig.key(in::scan::kA, in::mod::kCtrl);
     (void)rig.label("> Value: 42", true);
     auto quit = [&](std::uint64_t correlation) {
-        const auto asked = rig.bus.office_publish_as(rig.workshop, workshop_role,
+        const auto asked = rig.bus.role_publish_as(rig.workshop, workshop_role,
             loom::Message(loom::to_value(ws::PaneQuitRequested{}), rig.workshop, {}, correlation));
         REQUIRE(asked.authored);
         REQUIRE(asked.recipients == 1);
@@ -1149,12 +1149,12 @@ TEST_CASE("loaded Flow pane retains unconfirmed field text and selection on relo
     rig.edit_ok("save", {files.file()});
     REQUIRE_FALSE(rig.state().dirty);
     auto queue_edit = [&](const std::string& action, std::vector<std::string> args, std::uint64_t correlation) {
-        const auto ticket = rig.bus.office_send_to_role_as(rig.workshop, workshop_role, fp::kRole,
+        const auto ticket = rig.bus.role_send_to_role_as(rig.workshop, workshop_role, fp::kRole,
             loom::Message(loom::to_value(fp::FlowEdit{action, std::move(args)}), rig.workshop, {}, correlation));
         REQUIRE(ticket.valid());
     };
     auto queue_quit = [&](std::uint64_t correlation) {
-        const auto asked = rig.bus.office_publish_as(rig.workshop, workshop_role,
+        const auto asked = rig.bus.role_publish_as(rig.workshop, workshop_role,
             loom::Message(loom::to_value(ws::PaneQuitRequested{}), rig.workshop, {}, correlation));
         REQUIRE(asked.authored);
         REQUIRE(asked.recipients == 1);
@@ -2420,7 +2420,7 @@ TEST_CASE("a right press on the graph opens what can be done to what it landed o
         const auto row = std::find_if(menu.first->rows.begin(), menu.first->rows.end(),
                                       [&](const auto& r) { return r.label == label; });
         REQUIRE(row != menu.first->rows.end());
-        REQUIRE(rig.bus.office_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
+        REQUIRE(rig.bus.role_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
             loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, menu.first->subject, true, row->id, ""}),
                           rig.menus, {}, menu.second)).valid());
         rig.pump();
@@ -2623,7 +2623,7 @@ TEST_CASE("a double click adds: an operator row as Add to the rule adds it, empt
     REQUIRE(asked.rows.size() == 2);
     CHECK(asked.rows[0].id == "ask-keep");
     CHECK(asked.rows[1].id == "ask-say");
-    REQUIRE(rig.bus.office_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
+    REQUIRE(rig.bus.role_send_to_role_as(rig.menus, ws::kPresenterRole, fp::kRole,
         loom::Message(loom::to_value(ws::PaneMenuAnswered{fp::kPane, "then", true, "ask-say", ""}),
                       rig.menus, {}, menu->correlation)).valid());
     rig.pump();
@@ -2937,7 +2937,7 @@ TEST_CASE("Keep a field, Say a message and New message edit in place beside what
 
 namespace {
 /// A RUNNING VIEW standing in for one the View Builder made: asked what its wiring names, it
-/// answers the asker alone, as its own office, that its Count button says tally.Set and its Total
+/// answers the asker alone, as its own role, that its Count button says tally.Set and its Total
 /// label shows tally.Shown.
 class FakeView final : public loom::Weave {
 public:
@@ -2953,7 +2953,7 @@ public:
         zengine::view::ViewWiring said;
         said.intents.push_back({"Count", "tally.Set", 1, false, 0, 0, "", false});
         said.fields.push_back({"Total", "tally.Shown", 1, "total", false});
-        (void)bus.office_send("tally.panel", in.sender,
+        (void)bus.role_send("tally.panel", in.sender,
                               loom::Message(loom::to_value(said), self, {}, in.correlation));
     }
     loom::Value snapshot() const override { return loom::Value(loom::make_schema("flowtest.FakeView", 1, {})); }

@@ -10,7 +10,7 @@ the pane, with the keys they have now, in a terminal and in a window.
 **Decision.** Workshop draws a `?` and a gear at the right of a pane's header while the pane's
 holder takes the ask and the application declares the row that shows a manual; it reads both before
 each paint, and keeps nothing. A press on the `?` performs that row on the pane. The desktop answers
-it with a pane of its own, the Manual, beside Hotkeys: it asks the pane's office for its whole
+it with a pane of its own, the Manual, beside Hotkeys: it asks the pane's role for its whole
 manual, joins it with the keymap the host already says, and lets the words go when its pane leaves
 the desk. A key marker's place comes from the build, so nothing reads the page in C++. The gear
 opens Workshop's own menu of its settings, a population of its own.
@@ -27,7 +27,7 @@ opens Workshop's own menu of its settings, a population of its own.
   row was never asked over the Builder; `Ctrl+f`, above every mode, reaches past it.
 
 **Consequences.** With no desktop there is no `?`. A reloaded desktop shows no words until asked
-again. An office offering several panes answers for one; that is the page's to grow.
+again. A role offering several panes answers for one; that is the page's to grow.
 
 **Laws supported.** [WL-CHROME-09](../workshop/chrome.md),
 [WL-DESK-17](../workshop/desktop-presenting.md).

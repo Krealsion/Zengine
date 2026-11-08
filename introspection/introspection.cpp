@@ -68,25 +68,25 @@ struct IntrospectionState {
     std::int64_t offers = 0;
     std::int64_t rooms = 0;
     std::int64_t readings = 0;   ///< answers that became content, from any of the three owners
-    std::int64_t refused = 0;    ///< asks, rooms and presses not authored by the Workshop office
+    std::int64_t refused = 0;    ///< asks, rooms and presses not authored by the Workshop role
     std::int64_t selections = 0; ///< weaver selections published as `LoadedSelected`
-    std::int64_t samples = 0;    ///< explicit weaver sample gestures this office asked for
+    std::int64_t samples = 0;    ///< explicit weaver sample gestures this role asked for
     ZEN_EXPOSE();
     ZEN_SHAPE(IntrospectionState, 3, ZEN_FIELD(offers), ZEN_FIELD(rooms), ZEN_FIELD(readings),
               ZEN_FIELD(refused), ZEN_FIELD(selections), ZEN_FIELD(samples));
 };
 
-/// THE OFFICE OF THE THREE PANES. First breath only if Loom says so: `ActivationCursor` requires
+/// THE ROLE OF THE THREE PANES. First breath only if Loom says so: `ActivationCursor` requires
 /// Loom's attestation and a sequence not yet acted on, so no weave can make a pane appear by
 /// sending `zen.Activated`. The manual is the one page this weave carries, for any of its three
 /// pane keys; any other key is refused.
-using Office = ws::MultiPaneFacet<kIntrospectionRole, kLoadedPane,
+using Role = ws::MultiPaneFacet<kIntrospectionRole, kLoadedPane,
                                   zengine::manual::pages::zengine_introspection::kManual>;
 /// Powers' row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
 using Settings = ws::PaneSettingsFacet<kPowersPane, kIntrospectionRole>;
 
 class IntrospectionWeave
-    : public zengine::With<Office, Settings>::Weave<
+    : public zengine::With<Role, Settings>::Weave<
           IntrospectionWeave, IntrospectionState,
           loom::Accept<ws::PaneKey,
                        ws::PaneTextInput, ws::PaneActionRequested, loom::Result,
@@ -100,9 +100,9 @@ class IntrospectionWeave
                      ws::PaneValueCarryRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
                      gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared>> {
 public:
-    // ---- What its office calls --------------------------------------------------------------
+    // ---- What its role calls --------------------------------------------------------------
 
-    /// THE THREE PANE KEYS THIS OFFICE OFFERS.
+    /// THE THREE PANE KEYS THIS ROLE OFFERS.
     bool known_pane(std::string_view pane) { return seat_of(pane) != nullptr; }
 
     /// Is this Workshop's own word? `authored_from_role`, not `sender()`: a catalog request is a
@@ -116,7 +116,7 @@ public:
         return false;
     }
 
-    /// Every pane this office has, offered directly to Workshop, one offer per pane, so an offer
+    /// Every pane this role has, offered directly to Workshop, one offer per pane, so an offer
     /// this build gets wrong costs one pane; then the actions the Powers and Project panes answer
     /// to.
     void announce(loom::Mail& mail) {
@@ -173,7 +173,7 @@ public:
 
     // ---- Its panes ----------------------------------------------------------------------------
 
-    // ---- Its panes in graphics windows (its office's `MultiPaneFacet` calls these) ------------
+    // ---- Its panes in graphics windows (its role's `MultiPaneFacet` calls these) ------------
 
     /// EACH PANE'S SEAT, where a window that shows the pane's area finds it.
     template <class F>
@@ -239,7 +239,7 @@ public:
 
     void on(const ws::SourceSampled& said, loom::Mail& mail) { powers_.on_sampled(said, mail); }
 
-    /// A key, the pane checked before any state moves since this office offers three. Escape
+    /// A key, the pane checked before any state moves since this role offers three. Escape
     /// lets go of a pane's selection; anything else is Powers' query field's or Loaded's search's.
     void on(const ws::PaneKey& key, loom::Mail& mail) {
         if (!workshop_said(mail) ||

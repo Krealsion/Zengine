@@ -79,7 +79,7 @@ with the decision it was written for is not a rule.
 |---|---|---|---|
 | *recoverability* — what do the weaver's edits survive as? | nothing; the text was only here | nothing either. Reopening the property gives its COMMITTED value back, never the uncommitted edits | **no** — what differs is how far back a weaver lands, not whether their work survives |
 | *user effort* | minutes: address, shape, version, named arguments, assembled with the completer | usually one value, typed in one go | **yes**, by degree |
-| *target identity* — does it name something that can change under it? | yes. `#12` and `@office` are targets, resolved at SUBMIT | yes: an object and a label, resolved at commit | **no** — both name targets |
+| *target identity* — does it name something that can change under it? | yes. `#12` and `@role` are targets, resolved at SUBMIT | yes: an object and a label, resolved at commit | **no** — both name targets |
 | *replacement semantics* — what does keeping it risk? | nothing until an explicit submit: inert text on a row the weaver reads | a commit writes into a live document | **yes**, and it carries the decision |
 
 **What the terminal line's execution-time behaviour actually guarantees**, read rather than
@@ -110,7 +110,7 @@ the line and the caret it asks about (WL-TERM-11); a paste records the draft tha
 same finding: a call across the pane seam is a round trip, and a weaver keeps typing across it.
 
 **Consequences.** The participant's rules are narrower than Workshop's: it may say only what
-the host's one call grants it, each to the office it asks. Measured on the minimum window when
+the host's one call grants it, each to the role it asks. Measured on the minimum window when
 the region gained real type: 83 columns where the cell grid held 56, 8 rows where it held 13, and
 a plan sixteen times cheaper. `SurfaceTextRow` gained `background` for the selected row. Opening
 the pane mid-drag no longer strands a gesture; clicking a completion row selects it and Tab

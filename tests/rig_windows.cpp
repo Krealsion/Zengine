@@ -62,8 +62,8 @@ public:
     std::vector<gfx::WindowShown> shown;
 };
 
-std::string office_of(const std::string& window) {
-    return std::string(gfx::kWindowOfficePrefix) + window;
+std::string role_of(const std::string& window) {
+    return std::string(gfx::kWindowRolePrefix) + window;
 }
 
 /// The pool's colours, each a number here: a reading keeps the number, and says the colour.
@@ -208,15 +208,15 @@ struct Windows::Impl {
         REQUIRE(directory.valid());
     }
 
-    /// Mount a window at its office, over its device.
+    /// Mount a window at its role, over its device.
     template <class W, class Device>
     loom::WeaveId mount(const std::string& window, Device device) {
         auto made = std::make_unique<W>(std::move(device));
         W* raw = made.get();
         loom::Grant grant = loom::emit_default_grant(*raw);
         const loom::WeaveId id = bus.register_weave(std::move(made), std::move(grant),
-                                                    office_of(window));
-        REQUIRE_MESSAGE(id.valid(), "the rig's window could not hold " << office_of(window));
+                                                    role_of(window));
+        REQUIRE_MESSAGE(id.valid(), "the rig's window could not hold " << role_of(window));
         raw->zen_set_self(id);
         return id;
     }
@@ -231,7 +231,7 @@ struct Windows::Impl {
     }
 
     void pump(const std::string& window) {
-        bus.send_as_to_role(ears_id, office_of(window),
+        bus.send_as_to_role(ears_id, role_of(window),
                             loom::Message(loom::to_value(gfx::PumpSurface{}), ears_id, ears_id, 0));
         bus.drain_until_idle();
     }
@@ -376,7 +376,7 @@ struct Windows::Impl {
     /// What the window answers `WindowShowAsked`, its rows.
     std::vector<std::string> answered() {
         const std::size_t before = ears->shown.size();
-        bus.send_as_to_role(ears_id, office_of(up),
+        bus.send_as_to_role(ears_id, role_of(up),
                             loom::Message(loom::to_value(gfx::WindowShowAsked{}), ears_id, ears_id,
                                           asks++));
         bus.drain_until_idle();
@@ -480,7 +480,7 @@ void Windows::queue_offer(std::int64_t width_px, std::int64_t height_px) {
         offer.width = width_px;
         offer.height = height_px;
     }
-    (void)m.bus.office_publish_as(id(), office(), loom::Message(loom::to_value(offer)));
+    (void)m.bus.role_publish_as(id(), role(), loom::Message(loom::to_value(offer)));
 }
 
 void Windows::restart() {
@@ -497,7 +497,7 @@ bool Windows::up() const { return !impl_->up.empty(); }
 
 std::string Windows::window() const { return impl_->up; }
 
-std::string Windows::office() const { return up() ? office_of(impl_->up) : std::string(); }
+std::string Windows::role() const { return up() ? role_of(impl_->up) : std::string(); }
 
 loom::WeaveId Windows::id() const {
     if (impl_->up == gfx::kTerminalWindow) {

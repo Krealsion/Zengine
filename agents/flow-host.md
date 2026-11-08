@@ -8,14 +8,14 @@ Routed for `flow/flow-host/`; read [Flow](flow.md), [maker](maker.md), and
 - `Manager` owns session custody and command policy. Its adapter owns native registration,
   snapshots, behavior editing, bounded input injection, observation and teardown. Bootstrap
   composes those owners; it does not implement Flow behavior.
-- Personal session keys use stamped sender identity. Office keys require deliberate office
-  authorship and the current holder at dispatch. A guessed name or personal speech by an office
-  holder does not acquire office custody.
+- Personal session keys use stamped sender identity. Role keys require deliberate role
+  authorship and the current holder at dispatch. A guessed name or personal speech by a role
+  holder does not acquire role custody.
 - Saved bytes are values only. Each send uses the session's current participant and concrete,
   shape-scoped grant; no saved sender, target, grant or answer provenance is restored.
 - `FlowAnswer.ok` on Send proves queueing. Direct delivery, handler failure, application refusal,
   output and current state remain distinct observations. Correlations identify; they do not
-  authenticate. Answers use the answer door; change notices carry the manager's authored office.
+  authenticate. Answers use the answer door; change notices carry the manager's authored role.
 - No private pumping or waiting. Existing Timer bindings drive `poll`; bare hosts may call it
   between turns. Input fences cover synchronous dispatch ancestry only, never future application
   completion. Keep this limit in Apply/Stop and UI language.

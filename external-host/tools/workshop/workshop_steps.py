@@ -25,15 +25,15 @@ MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
 # zengine/input/vocabulary.hpp space::: the terminal window reports cells, the OS window pixels.
 SPACE_CELLS = 1
 SPACE_PIXELS = 2
-# The offices that hold Workshop's picture, in the order a first picture asks them: the OS window
-# and the terminal window (graphics/vocabulary.hpp kWindowOfficePrefix). A far Workshop loads one
-# of them; the other is no office there.
-CAPTURE_OFFICES = ("zengine.window.sdl", "zengine.window.terminal")
+# The roles that hold Workshop's picture, in the order a first picture asks them: the OS window
+# and the terminal window (graphics/vocabulary.hpp kWindowRolePrefix). A far Workshop loads one
+# of them; the other is no role there.
+CAPTURE_ROLES = ("zengine.window.sdl", "zengine.window.terminal")
 
 
-def capture_office(ctx):
-    """The office that answered this run's first picture, or the first asked before one has."""
-    return getattr(ctx, "_capture_office", CAPTURE_OFFICES[0])
+def capture_role(ctx):
+    """The role that answered this run's first picture, or the first asked before one has."""
+    return getattr(ctx, "_capture_role", CAPTURE_ROLES[0])
 
 
 def chord(spelling):
@@ -271,30 +271,30 @@ def plan_at_rest(ctx, link, seconds=600.0):
     return said
 
 
-def fetch_picture(ctx, link, captured, office=None):
-    """Every byte of one retained picture, each chunk checked to continue it, asked of the office
+def fetch_picture(ctx, link, captured, role=None):
+    """Every byte of one retained picture, each chunk checked to continue it, asked of the role
     that took the picture."""
-    office = office or capture_office(ctx)
+    role = role or capture_role(ctx)
     total = captured["bytes"]
     data = bytearray()
     while len(data) < total:
-        c = ctx.ask(office, "SurfaceCaptureChunkRequested",
+        c = ctx.ask(role, "SurfaceCaptureChunkRequested",
                     {"capture": captured["capture"], "offset": len(data)}, via=link)
         piece = c["data"]
         ctx.check(c["capture"] == captured["capture"] and c["offset"] == len(data) and
                   c["total"] == total and piece and len(data) + len(piece) <= total,
                   "%s sent a chunk of capture %d at %d (%d of %d bytes) where capture "
-                  "%d at %d of %d was asked for" % (office, c["capture"], c["offset"], len(piece),
+                  "%d at %d of %d was asked for" % (role, c["capture"], c["offset"], len(piece),
                                                     c["total"], captured["capture"], len(data),
                                                     total))
         data += piece
     return bytes(data)
 
 
-def check_picture(ctx, captured, data, office=None):
+def check_picture(ctx, captured, data, role=None):
     """A picture is what its format says it is, whole."""
     ctx.check(captured["ok"], "%s refused the picture: %s"
-              % (office or capture_office(ctx), captured.get("refusal")))
+              % (role or capture_role(ctx), captured.get("refusal")))
     ctx.check(len(data) == captured["bytes"], "the picture is %d bytes, not the %d described"
               % (len(data), captured["bytes"]))
     if captured["format"] == "image/bmp":
@@ -306,15 +306,15 @@ def check_picture(ctx, captured, data, office=None):
     return "cells.txt"
 
 
-#: The window office that answers for each input space the desk names (DeskView `space`).
-OFFICE_OF_SPACE = {SPACE_CELLS: "zengine.window.terminal", SPACE_PIXELS: "zengine.window.sdl"}
+#: The window role that answers for each input space the desk names (DeskView `space`).
+ROLE_OF_SPACE = {SPACE_CELLS: "zengine.window.terminal", SPACE_PIXELS: "zengine.window.sdl"}
 
 
-def name_capture_office(ctx, link, row):
-    """The window office this run's pictures are asked of first, as the desk names it by its input
+def name_capture_role(ctx, link, row):
+    """The window role this run's pictures are asked of first, as the desk names it by its input
     space, for a row that may `capture`: one desk read (DeskRead version 3). Neither the guest
     door's inventory nor the guest row names it. A row that may not read the desk, or a desk read
-    refused or naming no space this knows, names none, and each office is tried in turn."""
+    refused or naming no space this knows, names none, and each role is tried in turn."""
     if "capture" not in (row or {}).get("powers", []):
         return None
     from loom_session.tool import DispatchRefused, LinkOutcome, Refused
@@ -322,34 +322,34 @@ def name_capture_office(ctx, link, row):
         read = ctx.ask("zengine.workshop", "DeskReadRequested", {}, via=link, version=3)
     except (Refused, DispatchRefused, LinkOutcome):
         return None
-    office = OFFICE_OF_SPACE.get(((read or {}).get("desk") or {}).get("space"))
-    if office is not None:
-        ctx._capture_office = office
-    return office
+    role = ROLE_OF_SPACE.get(((read or {}).get("desk") or {}).get("space"))
+    if role is not None:
+        ctx._capture_role = role
+    return role
 
 
 def ask_picture(ctx, link, after_frame):
-    """``(office, captured)``: the picture asked of the office that answered this run's first one,
-    or, before one has, of each of ``CAPTURE_OFFICES`` in turn until one holds its office on the far
-    Workshop -- an office no weave holds there is the far bus's refusal, and the next is asked. When
-    none holds one, the first office's refusal is raised."""
+    """``(role, captured)``: the picture asked of the role that answered this run's first one,
+    or, before one has, of each of ``CAPTURE_ROLES`` in turn until one holds its role on the far
+    Workshop -- a role no weave holds there is the far bus's refusal, and the next is asked. When
+    none holds one, the first role's refusal is raised."""
     from loom_session.tool import LinkOutcome  # the session runtime's; a step that asks needs it
-    known = getattr(ctx, "_capture_office", None)
+    known = getattr(ctx, "_capture_role", None)
     if known is not None:
         return known, ctx.ask(known, "SurfaceCaptureRequested", {"after_frame": after_frame},
                               via=link)
     first = None
-    for office in CAPTURE_OFFICES:
+    for role in CAPTURE_ROLES:
         try:
-            captured = ctx.ask(office, "SurfaceCaptureRequested", {"after_frame": after_frame},
+            captured = ctx.ask(role, "SurfaceCaptureRequested", {"after_frame": after_frame},
                                via=link)
         except LinkOutcome as out:
             if out.state != "dispatch-refused":
                 raise
             first = first or out
             continue
-        ctx._capture_office = office
-        return office, captured
+        ctx._capture_role = role
+        return role, captured
     raise first
 
 
@@ -357,13 +357,13 @@ def picture(ctx, link, name, after_frame=-1, pending=None):
     """Ask for a picture (or collect one already asked for), fetch it whole and keep it as
     ``<name>.<bmp|cells.txt>``. Returns ``(captured, bytes)``."""
     if pending is not None:
-        office = pending.office
-        ctx._capture_office = office
+        role = pending.role
+        ctx._capture_role = role
         captured = pending.wait(60.0)
     else:
-        office, captured = ask_picture(ctx, link, after_frame)
-    data = fetch_picture(ctx, link, captured, office) if captured["ok"] else b""
-    ext = check_picture(ctx, captured, data, office)
+        role, captured = ask_picture(ctx, link, after_frame)
+    data = fetch_picture(ctx, link, captured, role) if captured["ok"] else b""
+    ext = check_picture(ctx, captured, data, role)
     ctx.produce("%s.%s" % (name, ext), data)
     return captured, data
 

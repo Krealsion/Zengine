@@ -38,7 +38,7 @@
 #include "activation/activation.hpp" // zengine::With, which composes the facets below
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.workshop.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.workshop.hpp" // this role's manual, compiled in from its page
 #include "pane_operation.hpp"
 #include "pane_shortcuts.hpp"
 #include "command_vocabulary.hpp" // a command run by name, from the palette
@@ -87,7 +87,7 @@ inline constexpr std::size_t kMaxAreaAsks = 256;
 /// suite can build one without linking the host.
 struct HostContext {
     bool quit = false;
-    /// WHICH AUTHORED CHOICE HOLDS EACH SWITCHABLE OFFICE NOW, read at quit for the session file;
+    /// WHICH AUTHORED CHOICE HOLDS EACH SWITCHABLE ROLE NOW, read at quit for the session file;
     /// and what the start said of a remembered choice the plan no longer authors, said once.
     // WL-SWITCH-08 -- agents/workshop/editor-switch.md
     std::function<std::vector<session_persist::WorkshopChoice>()> chosen;
@@ -109,10 +109,10 @@ struct HostContext {
     // WL-ATTN-04 -- agents/workshop/attention.md
     std::function<ProjectFrontier()> frontier;
 
-    /// Is this office still to come? Read from the realization owner's rows at the ask: pending,
+    /// Is this role still to come? Read from the realization owner's rows at the ask: pending,
     /// never unavailable. Empty answers no.
     // WL-DESK-04 -- agents/workshop/desktop.md
-    std::function<bool(std::string_view office)> office_pending;
+    std::function<bool(std::string_view role)> role_pending;
 
     /// WHAT MONOTONIC TIME IT IS, ANSWERED BY THE HOST -- `frontier`'s seam exactly.
     // WL-PTR-01 -- agents/workshop/pointer.md
@@ -150,7 +150,7 @@ struct HostContext {
     std::function<std::vector<Destination>()> destinations;
 
     /// What the recipe catalog says about one recipe's source, answered by the host through the
-    /// read-only project office.
+    /// read-only project role.
     // WL-PROJ-02 -- agents/workshop/project.md
     struct RecipeSource {
         bool known = false; ///< the id names an authored recipe of this project
@@ -162,8 +162,8 @@ struct HostContext {
     // WL-PROJ-02 -- agents/workshop/project.md
     std::function<RecipeSource(const std::string&)> recipe_source;
 
-    /// What stands behind one office's running code, read at the ask from the three owners of its
-    /// edges: the bus (office -> weave), the realization owner (weave -> artifact) and the catalog
+    /// What stands behind one role's running code, read at the ask from the three owners of its
+    /// edges: the bus (role -> weave), the realization owner (weave -> artifact) and the catalog
     /// in force (artifact -> recipes). Empty fields are absences a sentence names; choosing a
     /// recipe and opening anything are not this answer's.
     // WL-CODE-01 -- agents/workshop/code.md
@@ -176,14 +176,14 @@ struct HostContext {
             std::string kind;   ///< `single_source` or `cmake_target`, the recipe file's words
             std::string source; ///< empty when the kind names no single source
         };
-        std::string office;          ///< the office asked about
+        std::string role;          ///< the role asked about
         std::int64_t weave = 0;      ///< its holder at the ask; 0 when nobody holds it
         std::string artifact;        ///< the stem that weave was realized from; empty if none
         std::string reload;          ///< why a rebuilt image cannot reload in place; empty if it can
         std::vector<Recipe> recipes; ///< every authored recipe producing `artifact`, catalog order
     };
     // WL-CODE-01 -- agents/workshop/code.md
-    std::function<CodeSource(const std::string& office)> code_source;
+    std::function<CodeSource(const std::string& role)> code_source;
 
     /// WHAT A WEAVER'S CHOICE OF AUTHORED CATALOG ANSWERED.
     // WL-PROJ-05, WL-PROJ-09 -- agents/workshop/project.md
@@ -363,7 +363,7 @@ bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
 bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
                      const loom::Schema& shape);
 
-/// What a terminal participant may ask of settings and hear back: a pane's row and an office's
+/// What a terminal participant may ask of settings and hear back: a pane's row and a role's
 /// settings, each read and committed, a pane's pin list edited, a setting locked or unlocked, and
 /// every layout's rows read and written in one batch -- known and granted to the layouts' owner
 /// alone, and their answers accepted. The host widens the terminal it mounts with exactly this, so
@@ -372,20 +372,20 @@ bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
 inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Grant& grant) {
     vocab.knows(loom::schema_of<PaneSettingsRequested>())
         .knows(loom::schema_of<PaneSettingCommitRequested>())
-        .knows(loom::schema_of<OfficeSettingsRequested>())
-        .knows(loom::schema_of<OfficeSettingCommitRequested>())
+        .knows(loom::schema_of<RoleSettingsRequested>())
+        .knows(loom::schema_of<RoleSettingCommitRequested>())
         .knows(loom::schema_of<PaneSettingPinRequested>())
         .knows(loom::schema_of<PaneSettingLockRequested>())
         .knows(loom::schema_of<LayoutSettingsRequested>())
         .knows(loom::schema_of<SettingsWriteRequested>())
         .accepts(loom::schema_of<PaneSettingsAnswered>())
         .accepts(loom::schema_of<PaneSettingCommitAnswered>())
-        .accepts(loom::schema_of<OfficeSettingsAnswered>())
+        .accepts(loom::schema_of<RoleSettingsAnswered>())
         .accepts(loom::schema_of<PaneSettingPinAnswered>())
         .accepts(loom::schema_of<PaneSettingLockAnswered>())
         .accepts(loom::schema_of<LayoutSettingsAnswered>())
         .accepts(loom::schema_of<SettingsWriteAnswered>())
-        .accepts(loom::schema_of<OfficeSettingCommitAnswered>());
+        .accepts(loom::schema_of<RoleSettingCommitAnswered>());
     grant.allow_to_role(PaneSettingLockRequested::zen_name, PaneSettingLockRequested::zen_version,
                         kLayoutsRole);
     grant.allow_to_role(LayoutSettingsRequested::zen_name, LayoutSettingsRequested::zen_version,
@@ -396,10 +396,10 @@ inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Gr
                         kLayoutsRole);
     grant.allow_to_role(PaneSettingCommitRequested::zen_name,
                         PaneSettingCommitRequested::zen_version, kLayoutsRole);
-    grant.allow_to_role(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version,
+    grant.allow_to_role(RoleSettingsRequested::zen_name, RoleSettingsRequested::zen_version,
                         kLayoutsRole);
-    grant.allow_to_role(OfficeSettingCommitRequested::zen_name,
-                        OfficeSettingCommitRequested::zen_version, kLayoutsRole);
+    grant.allow_to_role(RoleSettingCommitRequested::zen_name,
+                        RoleSettingCommitRequested::zen_version, kLayoutsRole);
     grant.allow_to_role(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version,
                         kLayoutsRole);
 }
@@ -431,8 +431,8 @@ class WorkshopWeave
                                           // one question of the judge
                                           zengine::workshop::LiveLayout,
                                           zengine::workshop::LayoutEditAnswered,
-                                          zengine::workshop::OfficeSettings,
-                                          zengine::workshop::OfficeSettingCommitAnswered,
+                                          zengine::workshop::RoleSettings,
+                                          zengine::workshop::RoleSettingCommitAnswered,
                                           zengine::workshop::SessionSaveAnswered,
                                           zengine::workshop::WeaversActRequested,
                                           zengine::workshop::PaneRevealRequested,
@@ -507,7 +507,7 @@ class WorkshopWeave
                                           loom::DispatchRefused,
                                           // that what an area shows settled, unasked
                                           zengine::graphics::AreaSettled,
-                                          // the double-click time the input office says
+                                          // the double-click time the input role says
                                           zengine::input::PointerTimingSaid>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneCanvasValueDrop, PaneCanvasDrop,
                                         zengine::workshop::PaneCanvasHover,
@@ -517,8 +517,8 @@ class WorkshopWeave
                                         zengine::graphics::WindowShaped,
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::LayoutEditRequested,
-                                        zengine::workshop::OfficeSettingsDeclared,
-                                        zengine::workshop::OfficeSettingCommitRequested,
+                                        zengine::workshop::RoleSettingsDeclared,
+                                        zengine::workshop::RoleSettingCommitRequested,
                                         zengine::workshop::SessionSaveRequested,
                                         zengine::workshop::WeaversActAnswered,
                                         zengine::workshop::PaneMenuAnswered,
@@ -593,7 +593,7 @@ public:
     void say_conditions(const ProjectFrontier& frontier, loom::Mail& mail);
 
     /// THE DESK COMES UP, on the first window's offer: the room asked who has panes,
-    /// office-published as `zengine.workshop` so a provider can verify it, the keymap, the
+    /// role-published as `zengine.workshop` so a provider can verify it, the keymap, the
     /// preferences and the host's conditions taken, the floor painted, the last session restored
     /// and the startup notes said.
     void start_desk(loom::Mail& mail);
@@ -603,7 +603,7 @@ public:
 
     /// THE WINDOW THAT SHOWS THE DESK WAS ASKED TO CLOSE -- by the window manager, the close box,
     /// the platform. Workshop applies the quit policy it already has; a close said by any other
-    /// office ends nothing.
+    /// role ends nothing.
     void on(const zengine::graphics::SurfaceCloseRequested&, loom::Mail&);
 
     void on(const input::AttributedInput& event, loom::Mail& mail);
@@ -703,12 +703,12 @@ public:
     /// Whether `asker` is a guest whose row reads by pane: its reads are judged pane by pane against
     /// its `capture` doors, and the desk is said to it without the words that move with every pane.
     bool reads_by_pane(loom::WeaveId asker) const;
-    /// Whether `asker` may read the words of `office`/`pane`: empty when it may, else why not --
+    /// Whether `asker` may read the words of `role`/`pane`: empty when it may, else why not --
     /// a pane only the weaver's hand reads, an editor showing the guests file, or a pane outside a
     /// by-pane row's `capture` doors, asked of Loom now. Never whether the pane shows anything.
-    std::string read_withheld(loom::Mail& mail, loom::WeaveId asker, const std::string& office,
+    std::string read_withheld(loom::Mail& mail, loom::WeaveId asker, const std::string& role,
                               const std::string& pane) const;
-    /// A pane the asker may not read, as a stamp: its office, pane and holder, nothing that moves.
+    /// A pane the asker may not read, as a stamp: its role, pane and holder, nothing that moves.
     PaneStamp withheld_stamp(const PaneRef& ref) const;
     /// The desk said to a row that reads by pane: no band or desk number.
     void withhold_desk(DeskView& desk) const;
@@ -722,7 +722,7 @@ public:
     void run_command(const CommandRunRequested& asked, const InputActor& actor,
                      std::uint64_t gesture, const std::shared_ptr<loom::DeferredAnswer>& held,
                      loom::Mail& mail);
-    /// THE DOUBLE-CLICK TIME, from the input office alone: two Shift taps of one hand are a double
+    /// THE DOUBLE-CLICK TIME, from the input role alone: two Shift taps of one hand are a double
     /// Shift within it.
     void on(const zengine::input::PointerTimingSaid& said, loom::Mail& mail);
     /// SHIFT LET GO: half of a tap toward a double Shift (`shift_tapped`); every other release
@@ -757,7 +757,7 @@ public:
                               const std::string& subject) const;
     /// The admitted row of `actor` when the guest door admitted it; not admitted otherwise.
     scope::GuestRowFacts guest_of(const InputActor& actor) const;
-    /// ON A WEAVER'S HOST A GUEST'S HAND REACHES NEITHER THE EDITOR OFFICE, THE TERMINAL NOR THE
+    /// ON A WEAVER'S HOST A GUEST'S HAND REACHES NEITHER THE EDITOR ROLE, THE TERMINAL NOR THE
     /// HOTKEYS PANE: the refusal in words for `actor` toward the pane `kind`, or empty.
     std::string refused_toward(const InputActor& actor, std::int64_t kind) const;
     /// ...AND SO A WINDOW IS TOLD: whether the pane's area is placed for the weaver's hand alone.
@@ -883,14 +883,14 @@ public:
     /// THE WHEEL TURNED there.
     void pointer_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail);
 
-    // ---- The external pane seam: an office offers, Workshop seats, the pane draws ----------
+    // ---- The external pane seam: a role offers, Workshop seats, the pane draws ----------
     // Discovery adds a row a weaver may choose -- a provider can put a pane in the list, never on
     // the screen -- and a pane seated draws in its own area of the window. An offer is
-    // authenticated by `mail.authored_role()`, the office Loom verified: personal speech, even from
+    // authenticated by `mail.authored_role()`, the role Loom verified: personal speech, even from
     // the holder, registers nothing (Loom MSG-07). A role is a live service route, not an author's
     // identity.
 
-    /// AN OFFICE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
+    /// AN ROLE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
     /// is bounded before a byte is retained.
     void on(const PaneOffered& offer, loom::Mail& mail);
     void on(const v2::PaneOffered& offer, loom::Mail& mail);
@@ -898,7 +898,7 @@ public:
     void accept_pane_offer(const PaneOffered& offer, loom::Mail& mail,
                            std::int64_t rows, std::int64_t columns, PaneBody body = {});
 
-    /// An office declares what one of its panes can do, judged whole under the offer's stamp
+    /// A role declares what one of its panes can do, judged whole under the offer's stamp
     /// (`admit_pane_actions`, then `join_pane_rows` and the collision law) and retained only when
     /// both pass; a refusal changes nothing.
     // WL-KEY-15 -- agents/workshop/keyboard.md
@@ -937,25 +937,25 @@ public:
 
     // ---- Workshop's own settings, kept by the layouts' owner (WL-SETTING) ---------------------
 
-    /// WORKSHOP'S OWN OFFICE-WIDE SETTINGS DECLARED, as any office declares its own: once, to the
-    /// office that keeps them.
+    /// WORKSHOP'S OWN ROLE-WIDE SETTINGS DECLARED, as any role declares its own: once, to the
+    /// role that keeps them.
     void declare_own_settings(loom::Mail& mail);
     /// ...AS THE OWNER HANDS THEM, at each revision: applied.
-    void on(const OfficeSettings& settings, loom::Mail& mail);
+    void on(const RoleSettings& settings, loom::Mail& mail);
     /// What the session spends of Workshop's own settings, read from what the owner keeps.
     void apply_workshop_settings(const std::vector<PaneSetting>& settings);
     /// A TOGGLE'S VALUE, written through the owner at the revision this desk holds -- or, before it
     /// holds one, when the owner first hands it; `note` is the toggle's sentence.
-    void commit_own_setting(OfficeSettingCommitRequested commit, std::string note,
+    void commit_own_setting(RoleSettingCommitRequested commit, std::string note,
                             loom::Mail& mail);
     /// ...AND WHAT THAT WRITE CAME TO, said after the toggle's sentence.
-    void on(const OfficeSettingCommitAnswered& acted, loom::Mail& mail);
+    void on(const RoleSettingCommitAnswered& acted, loom::Mail& mail);
     /// THE OWNER ASKS THE JUDGE whether a gesture is the weaver's current act.
     void on(const WeaversActRequested& asked, loom::Mail& mail);
 
-    /// WHETHER `gesture` IS THE WEAVER'S CURRENT ACT sent to a pane of `office`: the correlation of
+    /// WHETHER `gesture` IS THE WEAVER'S CURRENT ACT sent to a pane of `role`: the correlation of
     /// the weaver's hand's latest act, which a guest's hand never holds.
-    bool weavers_act(std::int64_t gesture, std::string_view office) const;
+    bool weavers_act(std::int64_t gesture, std::string_view role) const;
 
     // ---- The layouts' owner, `zengine.layouts` (WL-LAYOUT) -----------------------------------
 
@@ -1065,17 +1065,17 @@ public:
     void publish_inventory(loom::Mail& mail);
 
     /// IS ANYBODY THERE TO FILL THIS PANE NOW? A built-in or the weaver's pane always is; a
-    /// runtime pane is when its office's current holder accepts a room. Presence, not health.
+    /// runtime pane is when its role's current holder accepts a room. Presence, not health.
     bool provider_present(std::int64_t kind, const PaneRef& ref) const;
 
-    /// Answer one declaration with Workshop's verdict, when the declaring office's holder accepts
+    /// Answer one declaration with Workshop's verdict, when the declaring role's holder accepts
     /// the shape; a refusal is said on the band too. The fact is Workshop's, the recovery the
     /// pane's.
-    void answer_declaration(const std::string& office, ActionsJudged verdict, loom::Mail& mail);
+    void answer_declaration(const std::string& role, ActionsJudged verdict, loom::Mail& mail);
 
-    /// TELL A DECLARING OFFICE THAT A DECLARATION IT HAD IN FORCE LEFT THE KEYMAP, naming the
-    /// number the verdict gave it, when that office's holder accepts the shape.
-    void say_withdrawn(const std::string& office, ActionsWithdrawn withdrawn, loom::Mail& mail);
+    /// TELL A DECLARING ROLE THAT A DECLARATION IT HAD IN FORCE LEFT THE KEYMAP, naming the
+    /// number the verdict gave it, when that role's holder accepts the shape.
+    void say_withdrawn(const std::string& role, ActionsWithdrawn withdrawn, loom::Mail& mail);
 
     /// JOIN THE APPLICATION ROWS IN FORCE AGAIN, under the keymap now in force -- what a keymap
     /// file's load owes them, before the panes are joined again. A declaration the file's rows now
@@ -1118,7 +1118,7 @@ public:
 
     // ---- A pane as an inspector's subject (WL-INFO-14, WL-INFO-15) -------------------------
 
-    /// MAKE A PANE THE INSPECTOR'S SUBJECT -- the one writer of `Session::inspected`. An office
+    /// MAKE A PANE THE INSPECTOR'S SUBJECT -- the one writer of `Session::inspected`. A role
     /// asks; a reference in neither this build's vocabulary nor the live desk is refused in words
     /// with nothing moved. Asking for the pane already inspected keeps its name.
     void on(const InspectPaneRequested& asked, loom::Mail& mail);
@@ -1160,7 +1160,7 @@ public:
     /// THE PRESENTER GAVE AN INTERACTION BACK -- it holds no such menu, so that requester has no
     /// answer coming: this host settles it, open or withdrawn, and nothing newer is touched.
     void on(const MenuReturned& returned, loom::Mail& mail);
-    /// A HOLDER OF THE PRESENTER'S OFFICE ARRIVED: it carries the open menu (a handoff across a
+    /// A HOLDER OF THE PRESENTER'S ROLE ARRIVED: it carries the open menu (a handoff across a
     /// reload), or it does not and the menu ends, answered by this host.
     void on(const PresenterReady& ready, loom::Mail& mail);
     /// THE HOST'S OWN FENCE BEHIND A WITHDRAWAL, COMING ROUND: the first hop sends it round once
@@ -1188,7 +1188,7 @@ public:
     /// A GRAPHICS DIRECTORY STARTED AFRESH: the palettes offered, every area placed and its palette
     /// chosen again, and Workshop's own room asked.
     void on(const graphics::GraphicsReady&, loom::Mail& mail);
-    /// THE TERMINAL WINDOW OFFERED ITSELF, as its own office: Workshop comes up in it while no
+    /// THE TERMINAL WINDOW OFFERED ITSELF, as its own role: Workshop comes up in it while no
     /// surface has, and lays its screen out in the window's room while no medium has named its
     /// unit.
     void on(const graphics::WindowOffered& w, loom::Mail& mail);
@@ -1320,15 +1320,15 @@ private:
     /// OPEN THE CLIPBOARD CONVERSATION A CONSUMED PASTE REQUEST ASKED FOR.
     void begin_clipboard_paste(loom::Mail& mail);
 
-    /// THE OFFICE THAT HOLDS THE PLATFORM -- its clipboard and the window's place on the desktop:
+    /// THE ROLE THAT HOLDS THE PLATFORM -- its clipboard and the window's place on the desktop:
     /// the window that shows Workshop's area; before it shows it, the window that offered itself;
     /// empty while none has.
-    std::string medium_office() const {
+    std::string medium_role() const {
         if (window_.shown()) {
-            return window_.window_office();
+            return window_.window_role();
         }
         if (window_offered_) {
-            return std::string(graphics::kWindowOfficePrefix) + window_name_;
+            return std::string(graphics::kWindowRolePrefix) + window_name_;
         }
         return {};
     }
@@ -1561,8 +1561,8 @@ private:
     /// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind`.
     std::int64_t keyboard_pane() const;
 
-    /// Tell a provider a key went down while its pane held the keyboard, as the office, to the
-    /// office. Workshop never reads the pane's rows to decide what a key means. A gesture the pane
+    /// Tell a provider a key went down while its pane held the keyboard, as the role, to the
+    /// role. Workshop never reads the pane's rows to decide what a key means. A gesture the pane
     /// declared a row for crosses as its resolved id (WL-KEY-15); a bare Escape to a holder that
     /// can spend no key crosses as nothing. Answers whether a sentence crossed.
     bool external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
@@ -1590,9 +1590,9 @@ private:
     /// withdrawal that queues nothing is answered here at once. Nothing when no menu is open.
     void withdraw_menu(const std::string& why, loom::Mail& mail);
     /// END THE PRESENTED MENU WHEN NO PRESENTER CAN ANSWER IT -- it left, or the holder that
-    /// replaced it does not carry the menu -- and answer the requester unchosen, as this office.
+    /// replaced it does not carry the menu -- and answer the requester unchosen, as this role.
     void end_menu_unanswered(const std::string& why, loom::Mail& mail);
-    /// ANSWER A WITHDRAWN MENU'S REQUESTER, unchosen, as this office, under the ask's number: the
+    /// ANSWER A WITHDRAWN MENU'S REQUESTER, unchosen, as this role, under the ask's number: the
     /// presenter could not be told. The menu is already off the screen, so nothing is repainted.
     void answer_withdrawn(const WithdrawnMenu& menu, const std::string& why, loom::Mail& mail);
     /// STOP KEEPING WHO ASKED FOR A WITHDRAWN MENU, if this host still is: nothing more is owed
@@ -1618,7 +1618,7 @@ private:
     void menu_pressed(const graphics::AreaPressed& p, std::uint64_t press, loom::Mail& mail);
     /// THE ACT A PRESS IN A PRESENTED MENU'S AREA WAS, by the window's number for it; 0 for none.
     std::uint64_t act_of_menu_press(const PresentedMenu& menu, std::uint64_t press) const;
-    /// IS THIS THE PRESENTER'S WORD ABOUT THE MENU THAT IS OPEN? Authored from its office, about
+    /// IS THIS THE PRESENTER'S WORD ABOUT THE MENU THAT IS OPEN? Authored from its role, about
     /// the number this host granted.
     bool about_open_menu(std::int64_t menu, const loom::Mail& mail) const;
     /// THE ANCHOR CELL for a place in a pane's area -- a row and a column of the window's text there
@@ -1696,7 +1696,7 @@ private:
     /// words and the guest's row name, the pane's holder and incarnation when it was made, and
     /// where it was last drawn (empty while its part shows nowhere).
     struct GuideMark {
-        std::string office, pane, part, words, who;
+        std::string role, pane, part, words, who;
         std::int64_t holder = 0;
         std::int64_t incarnation = 0;
         PixelRect drawn{};
@@ -1727,7 +1727,7 @@ private:
 
     void repaint(loom::Mail& mail);
 
-    /// WHETHER A GRAPHICS DIRECTORY IS THERE TO PLACE AREAS WITH: its office's holder takes
+    /// WHETHER A GRAPHICS DIRECTORY IS THERE TO PLACE AREAS WITH: its role's holder takes
     /// `AreaPlaced`. With none, nothing is said to `zengine.graphics`.
     bool graphics_present() const;
     /// PLACE EACH OPEN PANE'S AREA AND WORKSHOP'S OWN with the directory, saying only what moved,
@@ -1740,7 +1740,7 @@ private:
     /// gestures need land in it.
     bool desk_in_front_of_panes() const;
     /// TELL EACH PANE A WINDOW SHOWS IN AN AREA OF ITS OWN WHETHER THE KEYS REACH IT, when that
-    /// changed or its office has a new holder (`PaneKeys`).
+    /// changed or its role has a new holder (`PaneKeys`).
     void tell_keys(loom::Mail& mail);
     /// The window that shows Workshop's own area, and what was last drawn there.
     WindowDrawing window_{kWorkshopProvider, kWorkshopProvider};
@@ -1759,7 +1759,7 @@ private:
     /// THE FRAME AREA `area` NAMES, or none.
     FrameDrawing* frame_of(const std::string& area);
     /// WHETHER `area` IS ONE OF WORKSHOP'S OWN THAT HEARS THE POINTER -- its desk or a pane's frame
-    /// -- said by the window that shows it as that window's office.
+    /// -- said by the window that shows it as that window's role.
     bool own_pointer_area(const std::string& area, const loom::Mail& mail);
     /// Where an area of Workshop's own stands in the window: what its points are offset by.
     std::pair<std::int64_t, std::int64_t> area_origin(const std::string& area) const;
@@ -1775,7 +1775,7 @@ private:
     std::map<std::string, std::string> palettes_chosen_;
     /// The directory placed with -- its holder and incarnation -- and whether one is known.
     bool graphics_known_ = false;
-    /// The double-click time the input office last said, which two Shift taps are one double
+    /// The double-click time the input role last said, which two Shift taps are one double
     /// Shift within.
     std::int64_t double_click_ms_ = zengine::input::kDefaultDoubleClickMs;
     std::uint64_t graphics_holder_ = 0;
@@ -1794,7 +1794,7 @@ private:
         std::uint64_t press = 0;
     };
     std::array<WindowHold, 3> pane_holds_{};
-    /// What each pane a window shows was last told about the keys, and its office's holder then.
+    /// What each pane a window shows was last told about the keys, and its role's holder then.
     std::map<std::int64_t, std::pair<std::uint64_t, bool>> keys_told_;
     /// The panes a primary press in their area was made in since the keys were last told: each is
     /// told them again, whether or not they moved.
@@ -1836,7 +1836,7 @@ private:
     struct ObservationLease {
         std::int64_t id = 0;
         loom::WeaveId holder{};
-        std::string office, pane, role, shape, subject;
+        std::string role, pane, role, shape, subject;
         std::int64_t version = 0;
         InputActor actor;
     };
@@ -1849,7 +1849,7 @@ private:
         InputActor actor;
         bool value = false;
         bool drag = false;
-        std::string source_office, source_pane, token;
+        std::string source_role, source_pane, token;
     };
     CarriedData carried_;
     /// THE WINDOW'S WORD OF WHAT IT DREW UNDER THE HAND, for the button moment being answered
@@ -2099,7 +2099,7 @@ private:
     std::optional<std::int64_t> first_unit_;
 
     /// THE OS WINDOW'S OWN ROOM, TO SHAPE IT TO AT RESTORE, AND THE PLACE AFTER IT: held until the
-    /// desk's area is in that window, since a window takes a shaping only from an office arranging
+    /// desk's area is in that window, since a window takes a shaping only from a role arranging
     /// in it, and sent shape first, so a maximize lands on the room a restore-down returns to.
     // WL-SESSION-20 -- agents/workshop/window-file.md
     struct RestoredWindow {
@@ -2162,7 +2162,7 @@ private:
     /// toggle's commit waiting for one, and each toggle's sentence waiting for its write's answer.
     std::int64_t own_revision_ = 0;
     bool own_declared_ = false;
-    std::optional<std::pair<OfficeSettingCommitRequested, std::string>> own_owed_;
+    std::optional<std::pair<RoleSettingCommitRequested, std::string>> own_owed_;
     std::map<std::uint64_t, std::string> own_said_;
     /// WHAT THE OWNER SAID IT COULD NOT READ: the session (said once, and nothing written over it)
     /// and the settings file (a toggle's write is said against it).

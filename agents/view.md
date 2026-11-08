@@ -20,9 +20,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
 - A view's intent sits inside the view's own name, as a definition's emits do (MW-DEF-08): a
   description is pure data and its participant publishes, so a name outside its namespace could
   speak for another participant. A label may show any scalar field of any shape: a view listens.
-- `view::Host` registers each view as its own participant, holding the view's name as its office,
+- `view::Host` registers each view as its own participant, holding the view's name as its role,
   granted `view::view_grant` alone: its intents and its wiring to any accepter, the pane conversation to
-  Workshop's office, its drawing to any window (a window takes an area's drawing only from the
+  Workshop's role, its drawing to any window (a window takes an area's drawing only from the
   area's owner) and the ask for its room to the graphics directory. Never `trust_every_artifact`,
   an allow-any, or the builder's grant.
 - Loom fixes a participant's accept-set and emit-set at registration. A change at the same name
@@ -31,11 +31,11 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
 - A successor registers while the view it replaces still runs, so a registration Loom refuses
   (`loom::SchemaConflict`, a held name) leaves that view and its session as they were, and the
   answer says why. At the same name the successor is registered unbound, sealed to the host's
-  office and given the office by `commit_candidate`, with no delivery between; then the old view
+  role and given the role by `commit_candidate`, with no delivery between; then the old view
   is removed, and the successor asks nothing of the desk: its pane stands where it stood and the
   keys stay where they are. Renamed, the old view stops and the successor asks to be shown, as a
   run does. The bound counts the pair as one view.
-- A stop queues the view's last picture as its office while it still holds it, to Workshop and,
+- A stop queues the view's last picture as its role while it still holds it, to Workshop and,
   drawn whole, to the window that shows its area, then retires the participant behind that
   delivery: the pane says the view stopped until Workshop sees the provider gone and shows it
   waiting for one (WL-CANVAS-02). No such picture has a control.
@@ -44,7 +44,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   told says `waiting`. An intent is published as the participant, by shape: whoever accepts it
   hears it, and the view claims no exclusive audience. A refusal is shown only when Loom attests
   it answers the view's own delivery (`answers_ask()`); the correlation then says which intent.
-- A view says what its wiring has done (`view::ViewWiring`, `view::wiring_of`) as its office, by
+- A view says what its wiring has done (`view::ViewWiring`, `view::wiring_of`) as its role, by
   publication: when it starts and whenever a row changes, never when none did; and, to an asker of
   `view::ViewWiringRequested` alone, as it is then. A row per intent says its last send's count of
   accepters from Loom's publication and the refusals Loom attests answer that send, counted only
@@ -72,7 +72,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
 - A graphics window is sent that picture too: `view::sketch` sets it, drawn in the window's room in
   its unit and its text (`ws::canvas_window_room`), as nodes named by what drew them (`box:<id>`, `text:<id>`) with no `/`, so
   none waits for a parent, each button's nodes recorded with its id as their action. The view's
-  area is its name, its room is the window's word alone (`AreaRoom`, as that window's office), and
+  area is its name, its room is the window's word alone (`AreaRoom`, as that window's role), and
   what changed goes as a change through `graphics::Canvas`. A refused change goes whole at once; a
   refused whole drawing is said on the notice row and draws nothing more until the next change, so
   a window that keeps refusing starts no loop. A window's press uses a button only when the
@@ -84,12 +84,12 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   view that runs. It holds code, so it never crosses a participant boundary: a loadable weave
   reaches a view by its shapes and intents, or keeps a presenter of its own description and draws
   it into its own `graphics::Canvas` (`Presenter::sketch`, `Presenter::act`).
-- A view takes `AreaKeyPressed` and `AreaTextEntered` naming its area, from the office of the window
+- A view takes `AreaKeyPressed` and `AreaTextEntered` naming its area, from the role of the window
   that shows it, which gives keys only to an area placed to hear them, onto the handlers `PaneKey`
-  and `PaneTextInput` reach; from any other office they change nothing. Workshop places no pane's
+  and `PaneTextInput` reach; from any other role they change nothing. Workshop places no pane's
   area to hear keys, so in Workshop a view's keys are Workshop's alone. It hears that window's
   pointer too (`AreaButtonChanged`), read against the picture it last sent there by the handler a
-  canvas press reaches. Workshop places a pane's area to hear the pointer where its office accepts
+  canvas press reaches. Workshop places a pane's area to hear the pointer where its role accepts
   it, so in Workshop's window a press reaches the view there, once, and Workshop, the area's
   arranger, only selects the pane; an area deaf to the pointer gives it `ActionRequested` on a
   button.
@@ -97,7 +97,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   and an app's own host ([app](app.md)), where the app's own weave asks it. The View Builder
   is an ordinary pane in `zengine.view.builder`: it edits a description through
   `view_builder::Model`, every edit whole or refused whole, and asks the host to run, apply and
-  stop one session of its office. By hand: a kind dragged from its palette is made where it is
+  stop one session of its role. By hand: a kind dragged from its palette is made where it is
   let go (`add` at a place); an element dragged moves, a side's handle moves that side alone and
   a corner's the two it joins (`place`). The view's size is set by the handles on its right and
   bottom edges or typed into its boxes (`size`). Each place by hand snaps (`view_builder::snap`,
@@ -126,7 +126,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   in a description. A reload in place keeps the draft, the name in its File box and, apart from
   it, the file the view was saved to or opened from (`view_builder::ViewBuilderState::file`), and
   whether its view ran, which the successor asks the view host again by `view::ViewResume`:
-  refused because this office's session runs a view, it runs; resumed, it runs again. So does a
+  refused because this role's session runs a view, it runs; resumed, it runs again. So does a
   relaunch: the builder writes that file (inside the project,
   named relative to it, so a project moved whole still finds it) and whether its view runs to the
   project's `view-builder.json` (`view_builder::ViewBuilderRun`) when either differs from what the

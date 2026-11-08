@@ -95,8 +95,8 @@ Files asks the graphics directory for a paste, not the window showing its area.
 In `files/files.cpp`:
 
 ```diff
--        const std::string office = room().clipboard_office();
-+        const std::string office = "zengine.graphics";
+-        const std::string role = room().clipboard_role();
++        const std::string role = "zengine.graphics";
 ```
 
 Red in `zengine-workshop-panes-tests`:

@@ -17,8 +17,8 @@
 
 namespace zengine::workshop {
 
-/// The office the guest door holds. A pane asks it for the inventory; the Input weave accepts a
-/// session closed on a guest's behalf only from an office speaking deliberately.
+/// The role the guest door holds. A pane asks it for the inventory; the Input weave accepts a
+/// session closed on a guest's behalf only from a role speaking deliberately.
 inline constexpr const char* kGuestsRole = "zengine.guests";
 
 /// ONE CONNECTION AS THE DOOR SEES IT.

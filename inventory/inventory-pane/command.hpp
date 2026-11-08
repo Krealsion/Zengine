@@ -30,7 +30,7 @@ public:
                 value = admitted.value();
             }
             target_ = binding.target; shape_ = value.schema().name(); version_ = value.schema().version();
-            if (target_.empty()) throw std::invalid_argument("Choose an explicit target office first");
+            if (target_.empty()) throw std::invalid_argument("Choose an explicit target role first");
             value_ = std::move(value); correlation_ = ++asks; authorizing_ = true;
             ticket_ = mail.as_role(kRole).send_to_role("zengine.workshop", workshop::PaneOperationRequested{
                 pane, target_, shape_, version_, static_cast<std::int64_t>(gesture)}, correlation_);
@@ -44,7 +44,7 @@ public:
         if (!answer.allowed) { fail(answer.reason); return true; }
         // The destination gate admits against its current schema, at delivery. A stored
         // description or permission to configure a binding never substitutes for this gate.
-        ticket_ = mail.bus().office_send_to_role(kRole, target_, loom::Message(std::move(*value_), {}, {}, correlation_));
+        ticket_ = mail.bus().role_send_to_role(kRole, target_, loom::Message(std::move(*value_), {}, {}, correlation_));
         value_.reset();
         notice = ticket_.valid() ? "Queued " + shape_ + " to " + target_ + "; delivery is not completion"
                                  : "Command could not be queued";

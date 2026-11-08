@@ -1,12 +1,12 @@
 # Settings
 
 **A theme is a named set of settings and keys kept in a file of its own, to be kept, shared and
-built on: one theme may include others, and a setting may name every pane, an office or one pane.**
+built on: one theme may include others, and a setting may name every pane, a role or one pane.**
 
 Each theme is one file, `<name>.json` in a folder of themes, format `zengine-theme`. It holds:
 
-- **settings**, each with a target: `*` (every pane that takes the key), an office such as
-  `zengine.workshop` (an office-wide setting), or one pane, `<office>/<pane>`. A setting holds one
+- **settings**, each with a target: `*` (every pane that takes the key), a role such as
+  `zengine.workshop` (a role-wide setting), or one pane, `<role>/<pane>`. A setting holds one
   value, a flag, a number or a text, or is a clear, which clears what an earlier theme set;
 - **keys**, each an action and the gesture that asks for it, in the keymap's own spelling (`none`
   included);
@@ -32,15 +32,15 @@ A theme is written only by the safe write every durable file here shares. A them
 disk is overwritten only when asked to and, when the bytes it was read from are given, only while
 it still holds them.
 
-The `zengine.settings` office's messages are declared in `vocabulary.hpp`; no weave holds the
-office, so nothing answers them.
+The `zengine.settings` role's messages are declared in `vocabulary.hpp`; no weave holds the
+role, so nothing answers them.
 
 ## What is in this folder
 
 | | |
 |---|---|
 | `theme_persist.hpp` | the theme file: its shapes, its form, reading and writing it, resolving a theme with its includes, and listing a folder of themes |
-| `vocabulary.hpp` | the `zengine.settings` office's messages: apply, save, snapshot, promote, list, resolve and provenance |
+| `vocabulary.hpp` | the `zengine.settings` role's messages: apply, save, snapshot, promote, list, resolve and provenance |
 | `CMakeLists.txt` | the build: `zengine-settings-vocabulary`, header-only |
 
 Working on it: [AGENTS.md](AGENTS.md).

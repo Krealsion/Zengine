@@ -9,8 +9,8 @@ arrived, on an interval a case kept equal to Workshop's. A press carried neither
 count, so a reader that was slow to hear the second press -- a sanitizer's run, a busy machine --
 saw two presses where the weaver made one double click.
 
-**Decision.** The time is an office-wide setting of `zengine.input`, `input.double-click-ms`
-(200 to 2000, 400 by default), which the input office says to whoever asks and publishes when it
+**Decision.** The time is a role-wide setting of `zengine.input`, `input.double-click-ms`
+(200 to 2000, 400 by default), which the input role says to whoever asks and publishes when it
 changes (`PointerTimingSaid`). The window counts each hand's presses by it on the medium's own
 clock, as it reads them, and says the count with each press (`AreaButtonChanged::clicks`,
 `AreaPressed::clicks`): one more than the press of that button before it when within the time,
@@ -19,7 +19,7 @@ place rule -- the tab the last press armed, Flow's target and slack -- and never
 agent's input is real input from its own hand: a tool sends the actual clicks through its input
 session, and the window counts them by the same rule, for that hand, so an agent's click and the
 weaver's never make one double click. Double Shift is keys, which the window does not count; Workshop times Shift's
-taps by the time the input office says.
+taps by the time the input role says.
 
 **Alternatives considered.**
 - *Tried: a reader's own constant, kept equal by a case* — Flow's case went red when its two
@@ -31,7 +31,7 @@ taps by the time the input office says.
   input never takes, where an agent's input goes through what the weaver's does.
 - *Argued: the platform's own count* — SDL counts by the desktop's time and a console reports a
   double click of its own, so the two media would disagree, and a terminal reports none.
-- *Argued: the time read as a sense* — reading another office's claim takes an observe rule each
+- *Argued: the time read as a sense* — reading another role's claim takes an observe rule each
   host grants, where a published word reaches every window the host already loads.
 
 **Consequences.** One gesture means one thing in every medium and at any runner's speed: a case

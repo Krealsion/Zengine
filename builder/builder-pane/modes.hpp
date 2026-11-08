@@ -236,7 +236,7 @@ inline void BuilderPaneWeave::commit_role(loom::Mail& mail) {
     ask_approval(mail, std::move(a), mail.correlation());
 }
 
-/// THE COMMIT, APPROVED: the row captured at the gesture is asked of the project office, and
+/// THE COMMIT, APPROVED: the row captured at the gesture is asked of the project role, and
 /// its ask carries the approval to the build its answer may finish with
 /// (`on(PlanRowWritten)`). A line closed while Workshop was asked is no commit any more, and
 /// writes nothing.

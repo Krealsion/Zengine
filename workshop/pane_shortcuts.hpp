@@ -33,9 +33,9 @@ struct PaneShortcutsWithdrawn {
 // The captured WeaveId excludes a different holder. Same-id code reload is distinct:
 // a provider owns re-registration and must not treat a saved id as an invocation grant.
 struct PaneShortcutInvoked {
-    std::string office, pane, action;
+    std::string role, pane, action;
     std::int64_t holder = 0;
-    ZEN_SHAPE(PaneShortcutInvoked, 1, ZEN_FIELD(office), ZEN_FIELD(pane),
+    ZEN_SHAPE(PaneShortcutInvoked, 1, ZEN_FIELD(role), ZEN_FIELD(pane),
               ZEN_FIELD(action), ZEN_FIELD(holder));
 };
 } // namespace zengine::workshop

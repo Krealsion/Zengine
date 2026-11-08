@@ -93,7 +93,7 @@ class Scripted:
     def on_cleanup(self, callback, label):
         pass
 
-    def ask(self, office, shape, fields, **options):
+    def ask(self, role, shape, fields, **options):
         if shape == "InputSessionRequested":
             self.session_open = True
             return {"session": 1}
@@ -215,7 +215,7 @@ def run_checks(tools, runtime):
         return ("other", word)
 
     def by(word, producer):
-        """A word said by another holder of the office: a replaced owner, counting afresh."""
+        """A word said by another holder of the role: a replaced owner, counting afresh."""
         return ("by", word, producer)
 
     GAP, LOST = ("gap", 3), ("ended", "lost")
@@ -308,7 +308,7 @@ def run_checks(tools, runtime):
             self.subscribed_before_keys = not self.keys()
             return self.said
 
-        def ask(self, office, shape, fields, **options):
+        def ask(self, role, shape, fields, **options):
             self.asked_shapes.append(shape)
             if shape == "BuildStatusRequested":
                 for spec in self.meanwhile:  # published before the answer: already arrived
@@ -319,7 +319,7 @@ def run_checks(tools, runtime):
                     raise Refused("gate refused: BuildStatusRequested v1 is not granted")
                 return SimpleNamespace(shape="BuildStatus", fields=dict(self.baseline[1]),
                                        correlation=900)
-            said = Scripted.ask(self, office, shape, fields, **options)
+            said = Scripted.ask(self, role, shape, fields, **options)
             if shape == "InjectInput":
                 self.presses += 1
                 answer = PressAnswer(said)

@@ -35,7 +35,7 @@ const RuntimePane* load_view_builder(PaneRig& r) {
 
 /// THE VIEW BUILDER'S CENSUS: its rows, in the one mode it has, which declares none.
 const CensusDriverOf kViewBuilderCensus{vb::kRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     PaneRig r;
     const RuntimePane* held = load_view_builder(r);
     CHECK(held->mode.empty());

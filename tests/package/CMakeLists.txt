@@ -52,7 +52,7 @@ add_executable(witness-pane-menu pane_menu_consumer.cpp)
 target_link_libraries(witness-pane-menu PRIVATE zengine::pane zengine::component loom::switchboard)
 
 # ---- a stranger's pane declares its settings and takes its row, live ----------------------
-# pane_settings_consumer.cpp declares through the installed judge, asks a stand-in layouts' office
+# pane_settings_consumer.cpp declares through the installed judge, asks a stand-in layouts' role
 # for its row on the installed settings facet and reads what it is handed, from `zengine::pane`,
 # `zengine::activation` and the Loom bus alone, out of tree.
 add_executable(witness-pane-settings pane_settings_consumer.cpp)

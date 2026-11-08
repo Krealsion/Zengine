@@ -4,9 +4,9 @@
 #ifndef ZENGINE_SETTINGS_VOCABULARY_HPP
 #define ZENGINE_SETTINGS_VOCABULARY_HPP
 
-// THE SETTINGS OFFICE'S DOORS, `zengine.settings`: apply a theme to layouts, save one, snapshot a
+// THE SETTINGS ROLE'S DOORS, `zengine.settings`: apply a theme to layouts, save one, snapshot a
 // layout or promote its entries as one, list the themes, resolve one, and say where each of a
-// layout's settings came from. No weave holds the office, so nothing answers them. The theme file
+// layout's settings came from. No weave holds the role, so nothing answers them. The theme file
 // and its resolution are `theme_persist.hpp`.
 
 #include "settings/theme_persist.hpp"
@@ -19,7 +19,7 @@
 
 namespace zengine::settings {
 
-/// The office every door here is addressed to.
+/// The role every door here is addressed to.
 inline constexpr const char* kSettingsRole = "zengine.settings";
 
 /// The words `ThemeApplyRequested::mode` takes.

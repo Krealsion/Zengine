@@ -58,14 +58,14 @@ struct GuestRowFacts {
 /// THE PANES ONLY THE WEAVER'S HAND READS OR POINTS AT, on every host: Connections, which says
 /// every row's powers and waiting asks, and the Hotkeys pane, which edits the keymap. Empty when a
 /// guest may; else what the pane is, for the refusal.
-inline std::string weaver_only_pane(std::string_view office, std::string_view pane) {
-    if (office == kConnectionsRole) return "Connections says who is connected and what each may do";
-    if (office == kDesktopRole && pane == kHotkeysPane) return "the Hotkeys pane edits the weaver's keymap";
+inline std::string weaver_only_pane(std::string_view role, std::string_view pane) {
+    if (role == kConnectionsRole) return "Connections says who is connected and what each may do";
+    if (role == kDesktopRole && pane == kHotkeysPane) return "the Hotkeys pane edits the weaver's keymap";
     return {};
 }
 
 /// WHOSE HOST THIS IS, the guests file's `host`: on a weaver's host a guest writes no file, types
-/// into no pane and reaches none of the editor office, the Terminal, the Hotkeys pane and the quick
+/// into no pane and reaches none of the editor role, the Terminal, the Hotkeys pane and the quick
 /// setup; on a development host, the agent's own, a guest with `input` reaches them.
 struct HostFact {
     bool development = false;
@@ -117,7 +117,7 @@ inline std::string judge_all(const GuestRowFacts& row, const HostFact& host,
 
 /// THE CLASSES A SEND IS, by the shape it names: each shape a guest's grant names whose owner
 /// treats it as an act that writes or opens. A relay -- the Composer, a stored command -- sends as
-/// its own office, so its owner's question about the sender meets no guest; the send is judged at
+/// its own role, so its owner's question about the sender meets no guest; the send is judged at
 /// its approval instead, for the hand that asked it (`judge_send`).
 inline std::vector<std::string> classes_of_send(std::string_view shape) {
     if (shape == "InventoryToolboxSave" || shape == "WorkshopQuitRequested") return {kWrite};

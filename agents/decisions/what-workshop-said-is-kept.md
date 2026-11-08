@@ -7,7 +7,7 @@ supports is in [notices](../workshop/notices.md).
 thing said: a weaver who looked away lost it, and the band spent a row of the room on it.
 
 **Decision.** Workshop publishes each thing it says once, numbered (`NoticeSaid`). A small weave,
-`zengine.notices`, keeps them for the run up to its office-wide `keep` (100 by default), loaded
+`zengine.notices`, keeps them for the run up to its role-wide `keep` (100 by default), loaded
 before Workshop speaks so the launch's own notes are kept, and answers a page to whoever asks. The
 Notices pane walks it, a sister to Attention: rows, no selector, `up`, `down` and the wheel one
 action. The band is the legend alone, and the room takes the row.
@@ -18,13 +18,13 @@ action. The band is the legend alone, and the room takes the row.
 - *The record inside the pane's weave* — argued: closing or reloading what shows the notices would
   be what keeps them, and a desk without the pane would keep none.
 - *`keep` as the pane's per-layout setting* — argued: one record serves every layout, so its bound
-  is the office's.
+  is the role's.
 - *The whole record published at each notice* — argued: up to `kMostKept` notices re-said for one;
   a page asked by the reader is bounded by its room.
 - *A notification: a toast, an unread count, an expiry* — refused: a notice is a moment that passed.
 
 **Consequences.** What is kept is history a weaver reads, so each owner says only what helps them
-understand what just happened: an office's own bookkeeping and a motion under way go unsaid, and
+understand what just happened: a role's own bookkeeping and a motion under way go unsaid, and
 every refusal and failure is said. The reserved chrome is five rows. A notice is no longer the desk's words, so
 saying one moves no desk stamp; the pane's rows are. A guest reads notices with `capture`.
 

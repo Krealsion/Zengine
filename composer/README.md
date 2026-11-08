@@ -31,7 +31,7 @@ the form, and only Submit sends it.
 | `composer.cpp` | the Compose pane itself, a weave Workshop loads |
 | `draft.hpp` | a message being written: its fields and what they add up to |
 | `view.hpp` | what the pane shows, row by row, and what each row stands for |
-| `vocabulary.hpp` | the pane's lasting names: its office `zengine.composer` and pane `compose` |
+| `vocabulary.hpp` | the pane's lasting names: its role `zengine.composer` and pane `compose` |
 | `command_context.hpp` | the note kept beside a stored command: which weave it was written for |
 | `docs/` | its manual, `zengine.composer.md`, which the pane carries and answers |
 | `CMakeLists.txt` | how it is built |

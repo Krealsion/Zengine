@@ -37,7 +37,7 @@ row in both media, and the grounded strip is exactly the pixel partition `prose_
 inverts; the text inset margin names no control. Every composition number was unmoved across
 seven extents when the ground arrived.
 
-**Since.** The footer retired with the object document it asked: Info inspects the pane an office
+**Since.** The footer retired with the object document it asked: Info inspects the pane a role
 names, and a pane is listed, launched and closed from the Pane Manager. WL-CTRL-01 to WL-CTRL-05 say
 what Info's view is without it; the two ground laws hold over the subject's heading.
 

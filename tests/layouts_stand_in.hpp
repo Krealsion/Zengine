@@ -3,7 +3,7 @@
 #ifndef ZENGINE_TESTS_LAYOUTS_STAND_IN_HPP
 #define ZENGINE_TESTS_LAYOUTS_STAND_IN_HPP
 
-// THE LAYOUTS' OFFICE BESIDE A STAND-IN WORKSHOP, which seats no pane: a pane that asks for its row
+// THE LAYOUTS' ROLE BESIDE A STAND-IN WORKSHOP, which seats no pane: a pane that asks for its row
 // is handed every setting at its default, as the layouts' owner hands a pane the live layout seats
 // nowhere -- at once, or, while it holds, when a case releases it; its declarations and its words
 // about its row are heard and kept nowhere. For the rigs that load a pane image with no Workshop, so
@@ -33,24 +33,24 @@ class LayoutsStandIn
           loom::Emit<workshop::v2::PaneSettings>> {
 public:
     void on(const workshop::PaneSettingsAsked& asked, loom::Mail& mail) {
-        const std::string office(mail.authored_role());
-        if (office.empty()) {
+        const std::string role(mail.authored_role());
+        if (role.empty()) {
             return;
         }
         ++asks;
         if (hold) {
-            held.emplace_back(office, asked.pane);
+            held.emplace_back(role, asked.pane);
             return;
         }
         (void)mail.as_role(workshop::kLayoutsRole)
-            .send_to_role(office, workshop::v2::PaneSettings{asked.pane, 0, {}});
+            .send_to_role(role, workshop::v2::PaneSettings{asked.pane, 0, {}});
     }
-    /// THE ROWS HELD, HANDED NOW: every default, to each office that asked.
+    /// THE ROWS HELD, HANDED NOW: every default, to each role that asked.
     void release(loom::Switchboard& bus) {
         hold = false;
-        for (const auto& [office, pane] : held) {
-            (void)bus.office_send_to_role_as(
-                self, workshop::kLayoutsRole, office,
+        for (const auto& [role, pane] : held) {
+            (void)bus.role_send_to_role_as(
+                self, workshop::kLayoutsRole, role,
                 loom::Message(loom::to_value(workshop::v2::PaneSettings{pane, 0, {}}), self, {}, 0));
         }
         held.clear();

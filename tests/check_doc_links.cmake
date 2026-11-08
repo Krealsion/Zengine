@@ -395,8 +395,8 @@ endif()
 # The C/C++ reader: a `/*` in a line comment, and one in a string literal, opens no block comment,
 # with no `*/` after it in the file and with one later and code between; a string's path is not
 # a comment's, and its unbalanced bracket hides no comment after it.
-set(cxx_line "int a = 1 // yes/one.md, a door: <office>/*\nint b = no/two.md\n")
-set(cxx_literal "const char* const kProbe = \"[ no/three.md <office>/*\"\nint c = no/four.md\n")
+set(cxx_line "int a = 1 // yes/one.md, a door: <role>/*\nint b = no/two.md\n")
+set(cxx_literal "const char* const kProbe = \"[ no/three.md <role>/*\"\nint c = no/four.md\n")
 set(cxx_later "/* yes/five.md */ int d = no/six.md\n")
 set(cxx_none "")
 foreach(cxx_case "line;none;yes/one.md" "line;later;yes/one.md,yes/five.md"

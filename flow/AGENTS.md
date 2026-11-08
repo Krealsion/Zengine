@@ -9,7 +9,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `CMakeLists.txt` | `zengine-flow` (`zengine::flow`): header-only, no weave; `zengine-flow-tool` |
 | `flow-host/` | the session host, headers only: `runtime.hpp` (`RuntimeHost`), `vocabulary.hpp` |
-| `flow-pane/` | `zengine-flow-pane`, a loadable weave in office `zengine.flow`: `pane.cpp` |
+| `flow-pane/` | `zengine-flow-pane`, a loadable weave in role `zengine.flow`: `pane.cpp` |
 | `flow-pane/*.hpp` | `model.hpp` edits, `view.hpp` picture, `find.hpp` door ask, `vocabulary.hpp` |
 | | `look.hpp` colours, marks and the window's sketch; `next.hpp` the sentence and the Next line |
 | | `observed.hpp` the host's journal read as one line a message |
@@ -48,7 +48,7 @@ against the installed package.
 ## Host side
 
 - `workshop/workshop.cpp` constructs and mounts `flow_host::RuntimeHost` over Workshop's own bus
-  and operator catalog, in the office `zengine.flow.host`; an app's host does too, over its own
+  and operator catalog, in the role `zengine.flow.host`; an app's host does too, over its own
   (`app/host.hpp`), its flows run by `zengine-app-weave` (`app/weave.cpp`).
 - `workshop/default-load-plan.json` loads `zengine-flow-pane` as optional role `zengine.flow`; `workshop/CMakeLists.txt` stages it and
   lists it among the recipe catalog's pane weaves.
@@ -67,7 +67,7 @@ against the installed package.
   `tests/actions/zengine.flow.txt`
 - [`zengine.flow.host`](docs/zengine.flow.host.md) -- the Flow host's manual, carried by
   `zengine-workshop-vocabulary` (`zengine_manual` in `workshop/CMakeLists.txt`, since `zengine-flow`
-  is exported and `runtime.hpp` is not) and answered by the host's office
+  is exported and `runtime.hpp` is not) and answered by the host's role
 - [Make and run a Flow definition](docs/flow-guide.md)
 - [Flow authoring and native generation](docs/flow-reference.md)
 - [Flow in an existing host](docs/flow-runtime.md)

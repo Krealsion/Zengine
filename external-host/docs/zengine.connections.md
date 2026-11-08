@@ -2,7 +2,7 @@
 
 **Manual.** The pane that shows the other Loom hosts connected to this Workshop, as the guest door
 reports them. It is a *weave*: a piece of Workshop that is loaded, replaced and spoken to by
-messages, built as `zengine-connections-pane`. Other weaves reach it by its *office*, the name it
+messages, built as `zengine-connections-pane`. Other weaves reach it by its *role*, the name it
 answers to, `zengine.connections`, and it offers one pane, `connections`. The connections themselves
 are the guest door's, [`zengine.guests`](zengine.guests.md).
 

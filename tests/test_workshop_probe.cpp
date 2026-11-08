@@ -93,8 +93,8 @@ struct Asked {
     std::uint64_t correlation = 0;
 };
 
-/// THE SCRIPTED LINK: office `loom.link.workshop`, one answer per ask with Loom's answer
-/// authority, the Input office relayed to the real Input weave and everything else scripted.
+/// THE SCRIPTED LINK: role `loom.link.workshop`, one answer per ask with Loom's answer
+/// authority, the Input role relayed to the real Input weave and everything else scripted.
 class LoopLink
     : public loom::WeaveBase<
           LoopLink, RigState,
@@ -623,13 +623,13 @@ TEST_CASE("probe: a refused capture, and a chunk that does not continue the pict
 }
 
 // =============================================================================
-// Which office holds the picture
+// Which role holds the picture
 // =============================================================================
 
 namespace {
 
 /// The far Workshop holds its picture in `holder` alone: a capture or chunk asked of any other
-/// office is the far bus's refusal, as an office no weave holds there is.
+/// role is the far bus's refusal, as a role no weave holds there is.
 void picture_held_by(Rig& r, const std::string& holder) {
     auto base = r.link->script;
     r.link->script = [base, holder](const std::string& role, const loom::Value& asked) {
@@ -643,7 +643,7 @@ void picture_held_by(Rig& r, const std::string& holder) {
     };
 }
 
-/// The offices each ask of `shape` went to, in order.
+/// The roles each ask of `shape` went to, in order.
 std::vector<std::string> asked_of(const Rig& r, const char* shape) {
     std::vector<std::string> roles;
     for (const Asked& a : r.link->asked) {
@@ -656,7 +656,7 @@ std::vector<std::string> asked_of(const Rig& r, const char* shape) {
 
 } // namespace
 
-TEST_CASE("probe: a picture is asked of the OS window, then the terminal window, and fetched from the office that described it") {
+TEST_CASE("probe: a picture is asked of the OS window, then the terminal window, and fetched from the role that described it") {
     // ⚔ MUTATION (tests/mutants/workshop_probe.md#capture-of-the-os-window-alone): the capture
     // asked of the OS window alone -- every terminal plan would stop at capture.
     // ⚔ MUTATION (tests/mutants/workshop_probe.md#chunks-of-the-os-window): the chunks asked of the
@@ -681,7 +681,7 @@ TEST_CASE("probe: a picture is asked of the OS window, then the terminal window,
         CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name) == captures);
         CHECK(asked_of(r, gfx::SurfaceCaptureChunkRequested::zen_name) ==
               std::vector<std::string>{holder, holder});
-        // THE NEXT RUN ASKS THE OS WINDOW FIRST AGAIN: which office answered is this run's to learn.
+        // THE NEXT RUN ASKS THE OS WINDOW FIRST AGAIN: which role answered is this run's to learn.
         const std::string again = r.run();
         CHECK(starts(again, "PASS"));
         CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name).at(captures.size()) ==
@@ -689,9 +689,9 @@ TEST_CASE("probe: a picture is asked of the OS window, then the terminal window,
     }
 }
 
-TEST_CASE("probe: when no office holds the picture the run stops on the first refusal, and a refusal while fetching asks no other office") {
+TEST_CASE("probe: when no role holds the picture the run stops on the first refusal, and a refusal while fetching asks no other role") {
     // ⚔ MUTATION (tests/mutants/workshop_probe.md#stopped-on-the-last-refusal): the run stopped on
-    // the last office's refusal, which names the last window asked rather than the first.
+    // the last role's refusal, which names the last window asked rather than the first.
     Rig r;
     picture_held_by(r, "nobody");
     const std::string said = r.run();
@@ -700,13 +700,13 @@ TEST_CASE("probe: when no office holds the picture the run stops on the first re
     CHECK(has(said, "link: dispatch-refused at capture (SurfaceCaptureRequested): NoRoleHolder: "
                     "zengine.window.sdl; session 1 closed in cleanup"));
     CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name) ==
-          std::vector<std::string>(zengine::workshop_probe::kCaptureOffices.begin(),
-                                   zengine::workshop_probe::kCaptureOffices.end()));
+          std::vector<std::string>(zengine::workshop_probe::kCaptureRoles.begin(),
+                                   zengine::workshop_probe::kCaptureRoles.end()));
     CHECK(r.asks_of(gfx::SurfaceCaptureChunkRequested::zen_name) == 0);
-    // A CHUNK REFUSED MID-PICTURE: the office that described the picture is the only one that
-    // holds it, so the run stops there and asks no other office for a capture.
+    // A CHUNK REFUSED MID-PICTURE: the role that described the picture is the only one that
+    // holds it, so the run stops there and asks no other role for a capture.
     // ⚔ MUTATION (tests/mutants/workshop_probe.md#falls-back-mid-fetch): a dispatch refusal while
-    // fetching sent the run on to the next office.
+    // fetching sent the run on to the next role.
     Rig s;
     s.answer_with(gfx::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value&) {
         return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: zengine.window.sdl");

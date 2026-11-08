@@ -20,12 +20,12 @@ by the pane's number for its composition. A drop carries the window's word from 
 **Alternatives considered.**
 - *One area a picture* -- argued against: an area a drawing multiplies the window's areas, and a
   press is still read after the next drawing lands.
-- *A fence through the window* -- argued against: a press waits on a drawing, and two offices'
+- *A fence through the window* -- argued against: a press waits on a drawing, and two roles'
   messages must arrive in one order.
 - *A drawing's number alone* -- argued against: a press refused whenever the picture moved, a
   colour or a caret included.
 
-**Consequences.** A press needs no wait and no order between offices: each fact carries its own
+**Consequences.** A press needs no wait and no order between roles: each fact carries its own
 number, and a late one is read by it. A pane names what a press may act on, or numbers what its rows
 mean; one that does neither reads a press against its newest drawing.
 

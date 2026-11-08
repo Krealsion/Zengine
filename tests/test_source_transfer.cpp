@@ -183,7 +183,7 @@ TEST_CASE("a dropped pair is read as text, a location, a command with the addres
     CHECK(loc.location.line == 12);
     REQUIRE(loc.location_context.has_value());
     CHECK(loc.location_context->relative == "src/main.cpp");
-    // A Terminal capture: submitted to an office, published, sent to a weave, received.
+    // A Terminal capture: submitted to a role, published, sent to a weave, received.
     zengine::workshop::TerminalCaptureFacts facts;
     facts.kind = "submitted";
     facts.addressing = "role";

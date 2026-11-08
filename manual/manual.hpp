@@ -55,10 +55,10 @@ struct Section {
     std::size_t mark_count = 0;
 };
 
-/// A PAGE AS A WEAVE CARRIES IT: the office its title names, the name a weaver sees, the page's
+/// A PAGE AS A WEAVE CARRIES IT: the role its title names, the name a weaver sees, the page's
 /// content id (the SHA-256 of its bytes, line endings as LF) and its sections in page order.
 struct Manual {
-    std::string_view office;
+    std::string_view role;
     std::string_view name;
     std::string_view content_id;
     const Section* sections = nullptr;
@@ -82,7 +82,7 @@ constexpr bool is_command_group(std::string_view group) noexcept {
            group.substr(0, 12) == "Commands on ";
 }
 
-/// Is this the group of a section describing a shape an office hears without being commanded?
+/// Is this the group of a section describing a shape a role hears without being commanded?
 constexpr bool is_heard_group(std::string_view group) noexcept { return group == "Hears"; }
 
 } // namespace zengine::manual

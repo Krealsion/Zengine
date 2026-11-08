@@ -73,7 +73,7 @@ open it in Info ([above](#dragging-a-command-or-reply-into-inventory)).
 
 ![The Terminal's FindPowers answer opened in Info, beside the same row in Powers](images/terminal-find.png)
 
-Asking describes and does nothing else. The Terminal is granted these two asks to the door's office
+Asking describes and does nothing else. The Terminal is granted these two asks to the door's role
 and nothing more: knowing a power is not leave to send it anything, mount it or open it.
 
 ## Taking a completion, or running the line as typed

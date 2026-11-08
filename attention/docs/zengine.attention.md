@@ -3,7 +3,7 @@
 **Manual.** The pane that shows what is true right now and worth your attention: a keymap file
 Workshop could not read, an update a pane sent that Workshop could not keep, a pane of yours that is
 off the screen. It is a *weave*: a piece of Workshop that is loaded, replaced and spoken to by
-messages, built as `zengine-attention-pane`. Other weaves reach it by its *office*, the name it
+messages, built as `zengine-attention-pane`. Other weaves reach it by its *role*, the name it
 answers to, `zengine.attention`. What is true is Workshop's to say; the pane shows it, and keeps only
 which of it you have chosen to hide.
 
@@ -138,5 +138,5 @@ until your next command here, or your next press on a condition's row.
 - [What earns attention](conditions.md): every condition Workshop says, and how loud it is.
 - [`zengine.builder-pane`](../../builder/docs/zengine.builder-pane.md#builderfrontier): its
   `builder.frontier` builds what the project is waiting on.
-- [`attention/vocabulary.hpp`](../vocabulary.hpp): the office, the pane and the ids its keys answer
+- [`attention/vocabulary.hpp`](../vocabulary.hpp): the role, the pane and the ids its keys answer
   to.

@@ -141,7 +141,7 @@ counts balanced, the sentence said "repointed rather than deleted", the protecti
 ## VM-POP-22 — One program may serve several entries, each its own sources' cases
 
 METHOD — One doctest program may run as several entries, each its sources' cases by one `--source-file`, a source in one part, their counts summing to its; a long part runs as pieces, each case in one.
-BECAUSE — the panes program as one entry ran alone for twenty minutes under ASan while three workers waited; separate programs cannot hold it, since the action census needs every office's
+BECAUSE — the panes program as one entry ran alone for twenty minutes under ASan while three workers waited; separate programs cannot hold it, since the action census needs every role's
 drivers in one process, and parts with floors alone let a case fall between them. A piece is a process of its own over `--first`/`--last`; `--count` leaves a range out, so a piece is
 counted from its listing, and a run is empty when it starts no case: a range past a part's end passes every filter and runs nothing.
 

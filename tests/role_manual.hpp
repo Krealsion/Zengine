@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_TESTS_OFFICE_MANUAL_HPP
-#define ZENGINE_TESTS_OFFICE_MANUAL_HPP
+#ifndef ZENGINE_TESTS_ROLE_MANUAL_HPP
+#define ZENGINE_TESTS_ROLE_MANUAL_HPP
 
-// The office witness, shared by the suites of the offices that carry a manual: asked as any weave
-// asks it, an office answers `ShapeDocumentRequested` for every shape its gate accepts from its
+// The role witness, shared by the suites of the roles that carry a manual: asked as any weave
+// asks it, a role answers `ShapeDocumentRequested` for every shape its gate accepts from its
 // page's Commands or Hears, and refuses a shape it does not accept. Reference:
-// manual/docs/manual.md#an-office-answers-for-a-shape.
+// manual/docs/manual.md#an-role-answers-for-a-shape.
 
 #include "manual/manual.hpp"
 #include "manual/vocabulary.hpp"
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-/// A READER OF AN OFFICE'S PAGE: it asks what a shape does and keeps each answer with Loom's word
+/// A READER OF AN ROLE'S PAGE: it asks what a shape does and keeps each answer with Loom's word
 /// on whether it answered this asker.
 struct ShapeDocumentAskerState {
     std::int64_t heard = 0;
@@ -41,19 +41,19 @@ public:
     std::vector<bool> answers;
 };
 
-/// ASK ONE OFFICE WHAT A SHAPE DOES, as a weave would, and return its one answer.
+/// ASK ONE ROLE WHAT A SHAPE DOES, as a weave would, and return its one answer.
 struct ShapeDocumentReader {
     loom::Switchboard& bus;
-    std::string office;
+    std::string role;
     ShapeDocumentAsker* asker = nullptr;
     loom::WeaveId id{};
-    ShapeDocumentReader(loom::Switchboard& on, std::string office_of)
-        : bus(on), office(std::move(office_of)) {
+    ShapeDocumentReader(loom::Switchboard& on, std::string role_of)
+        : bus(on), role(std::move(role_of)) {
         auto held = std::make_unique<ShapeDocumentAsker>();
         asker = held.get();
         loom::Grant grant;
         grant.allow_to_role(zengine::manual::ShapeDocumentRequested::zen_name,
-                            zengine::manual::ShapeDocumentRequested::zen_version, office);
+                            zengine::manual::ShapeDocumentRequested::zen_version, role);
         id = bus.register_weave(std::move(held), std::move(grant));
         asker->zen_set_self(id);
     }
@@ -66,7 +66,7 @@ struct ShapeDocumentReader {
         asker->heard.clear();
         asker->answers.clear();
         (void)bus.send_as_to_role(
-            id, office,
+            id, role,
             loom::Message(loom::to_value(zengine::manual::ShapeDocumentRequested{shape, version,
                                                                                  content_id}),
                           id, loom::WeaveId{}, 7));
@@ -77,7 +77,7 @@ struct ShapeDocumentReader {
     }
 };
 
-/// THE NAMES OF THE SHAPES AN OFFICE'S HOLDER ACCEPTS that its page is held to describe: its gate,
+/// THE NAMES OF THE SHAPES AN ROLE'S HOLDER ACCEPTS that its page is held to describe: its gate,
 /// Loom's own doors and the document door aside, each name once.
 inline std::vector<std::string> described_shapes_of(loom::Switchboard& bus, loom::WeaveId holder) {
     std::vector<std::string> out;
@@ -92,13 +92,13 @@ inline std::vector<std::string> described_shapes_of(loom::Switchboard& bus, loom
     return out;
 }
 
-/// THE PAGE COVERS THE GATE: every shape the office's holder accepts, in every version it accepts,
+/// THE PAGE COVERS THE GATE: every shape the role's holder accepts, in every version it accepts,
 /// is answered from a section under Commands or Hears, with words and no refusal; a shape it does
 /// not accept is refused with none. Returns how many shapes it asked about.
-inline std::size_t check_office_manual(loom::Switchboard& bus, const std::string& office) {
-    const loom::WeaveId holder = bus.role_holder(office);
-    REQUIRE_MESSAGE(holder.valid(), "nobody holds " << office);
-    ShapeDocumentReader reader(bus, office);
+inline std::size_t check_role_manual(loom::Switchboard& bus, const std::string& role) {
+    const loom::WeaveId holder = bus.role_holder(role);
+    REQUIRE_MESSAGE(holder.valid(), "nobody holds " << role);
+    ShapeDocumentReader reader(bus, role);
     std::size_t asked = 0;
     for (const auto& schema : bus.accepted_schemas(holder)) {
         const std::string& name = schema->name();
@@ -106,7 +106,7 @@ inline std::size_t check_office_manual(loom::Switchboard& bus, const std::string
             name == zengine::manual::ShapeDocumentRequested::zen_name) {
             continue;
         }
-        INFO(office, " accepts ", name, " v", schema->version());
+        INFO(role, " accepts ", name, " v", schema->version());
         const zengine::manual::ShapeDocumentShown said =
             reader.ask(name, static_cast<std::int64_t>(schema->version()));
         CHECK(said.refusal.empty());
@@ -124,7 +124,7 @@ inline std::size_t check_office_manual(loom::Switchboard& bus, const std::string
 }
 
 /// ...AND THE PAGE NAMES NO OTHER: every section under Commands or Hears, but a group's opening
-/// words, is about a shape the office accepts.
+/// words, is about a shape the role accepts.
 inline void check_page_names_accepted(const zengine::manual::Manual& page,
                                       const std::vector<std::string>& accepted) {
     for (std::size_t i = 0; i < page.count; ++i) {
@@ -135,9 +135,9 @@ inline void check_page_names_accepted(const zengine::manual::Manual& page,
             s.key.substr(0, 9) == "commands-") {
             continue;
         }
-        INFO(std::string(page.office), " describes ", std::string(s.key));
+        INFO(std::string(page.role), " describes ", std::string(s.key));
         CHECK(std::find(accepted.begin(), accepted.end(), std::string(s.key)) != accepted.end());
     }
 }
 
-#endif // ZENGINE_TESTS_OFFICE_MANUAL_HPP
+#endif // ZENGINE_TESTS_ROLE_MANUAL_HPP

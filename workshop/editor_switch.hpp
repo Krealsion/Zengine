@@ -17,7 +17,7 @@
 #include "manual/vocabulary.hpp"
 #include "timer/binding.hpp"
 
-#include "manuals/zengine.editor-switch.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.editor-switch.hpp" // this role's manual, compiled in from its page
 
 #include <zen/host/prepared_replacement.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -40,16 +40,16 @@ namespace zengine::workshop {
 struct EditorSwitchHost {
     loom::Switchboard* bus = nullptr;
     loom::Kernel* kernel = nullptr;
-    /// THE OFFICE A SWITCH MOVES: the office of the one pane the host manages, spelled where the
+    /// THE ROLE A SWITCH MOVES: the role of the one pane the host manages, spelled where the
     /// host spells it, and never here.
-    std::string office;
+    std::string role;
     /// The plan's authored choices for `zengine.editor`, read at the moment of the ask.
     std::function<std::vector<load::ChoiceIntent>()> choices;
-    /// The artifact holding the office now, as realization recorded it (empty: none).
+    /// The artifact holding the role now, as realization recorded it (empty: none).
     std::function<std::string()> holder;
     /// The image a choice's artifact runs from when a switch loads it.
     std::function<std::string(const std::string& stem)> image_of;
-    /// Record that the office is held by `weave`, loaded from `image`, for choice `stem`. Empty
+    /// Record that the role is held by `weave`, loaded from `image`, for choice `stem`. Empty
     /// on success, else the owner's refusal.
     std::function<std::string(const std::string& stem, loom::WeaveId weave, const std::string& image)>
         record;
@@ -69,7 +69,7 @@ struct EditorSwitchState {
 /// What the coordinator may say, as the host grants it. The candidate's and the retired editor's
 /// asks go to ids known only at runtime; nothing loads, unloads or admits by message -- those are
 /// the host-tier calls it was handed.
-inline loom::Grant editor_switch_grant(const std::string& office) {
+inline loom::Grant editor_switch_grant(const std::string& role) {
     loom::Grant g;
     g.allow_to_any(EditorSwitchAnswered::zen_name, EditorSwitchAnswered::zen_version);
     g.allow_to_any(EditorSwitchProgress::zen_name, EditorSwitchProgress::zen_version);
@@ -77,11 +77,11 @@ inline loom::Grant editor_switch_grant(const std::string& office) {
     g.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
                    zengine::manual::ShapeDocumentShown::zen_version);
     g.allow_to_role(EditorHandoffJudgeRequested::zen_name, EditorHandoffJudgeRequested::zen_version,
-                    office);
+                    role);
     g.allow_to_role(EditorHandoffRequested::zen_name, EditorHandoffRequested::zen_version,
-                    office);
-    g.allow_to_role(EditorHandoffEnded::zen_name, EditorHandoffEnded::zen_version, office);
-    g.allow_to_role(EditorLiveRequested::zen_name, EditorLiveRequested::zen_version, office);
+                    role);
+    g.allow_to_role(EditorHandoffEnded::zen_name, EditorHandoffEnded::zen_version, role);
+    g.allow_to_role(EditorLiveRequested::zen_name, EditorLiveRequested::zen_version, role);
     g.allow_to_any(EditorWarmRequested::zen_name, EditorWarmRequested::zen_version);
     g.allow_to_any(EditorPreparationTick::zen_name, EditorPreparationTick::zen_version);
     g.allow_to_any(EditorAdoptRequested::zen_name, EditorAdoptRequested::zen_version);
@@ -166,9 +166,9 @@ public:
     // ---- the four doors a weaver's asker uses -------------------------------------------------
 
     void on(const EditorSwitchRequested& asked, loom::Mail& mail) {
-        if (host_.office.empty()) {
+        if (host_.role.empty()) {
             answer_now(mail, refused_answer(0, asked.destination,
-                                            "this host manages no editor office to switch"));
+                                            "this host manages no editor role to switch"));
             return;
         }
         const std::vector<load::ChoiceIntent> choices = authored();
@@ -184,13 +184,13 @@ public:
         const std::string holding = host_.holder ? host_.holder() : std::string();
         if (holding.empty()) {
             answer_now(mail, refused_answer(0, destination->name,
-                                            "nobody holds " + host_.office +
+                                            "nobody holds " + host_.role +
                                                 " -- there is no editor to switch from"));
             return;
         }
         if (holding == destination->stem) {
             EditorSwitchAnswered same = base_answer(0, switch_outcome::kAlreadyActive, destination->name);
-            same.detail = "`" + destination->name + "` already holds " + host_.office +
+            same.detail = "`" + destination->name + "` already holds " + host_.role +
                           "; nothing was loaded";
             answer_now(mail, same);
             return;
@@ -277,7 +277,7 @@ public:
     /// is published, so Workshop says nothing of it.
     void on(const EditorSwitchQuietStatusRequested&, loom::Mail& mail) { (void)mail.answer(status_answer()); }
 
-    /// WHICH CHOICE HOLDS THE OFFICE, WHICH ARE AUTHORED AND WHAT IS UNDER WAY, as a status answer.
+    /// WHICH CHOICE HOLDS THE ROLE, WHICH ARE AUTHORED AND WHAT IS UNDER WAY, as a status answer.
     EditorSwitchAnswered status_answer() {
         EditorSwitchAnswered said = base_answer(op_.id, switch_outcome::kStatus, op_.destination);
         std::string authored;
@@ -285,7 +285,7 @@ public:
             authored += (authored.empty() ? "" : ", ") + name;
         }
         const std::string holds = (said.active.empty() ? std::string("no authored choice") : "`" + said.active + "`") +
-                                  " holds " + host_.office + " (choices: " + authored + "); ";
+                                  " holds " + host_.role + " (choices: " + authored + "); ";
         if (op_.stage != Stage::Idle) {
             said.detail = holds + "switch " + std::to_string(op_.id) + " to `" + op_.destination + "` is " +
                           stage_word(op_.stage);
@@ -306,7 +306,7 @@ public:
             return;
         }
         if (!judged.ok) {
-            finish_refused(mail, "the editor in office refused: " + judged.refusal, false);
+            finish_refused(mail, "the editor in role refused: " + judged.refusal, false);
             return;
         }
         op_.rows = judged.rows;
@@ -338,7 +338,7 @@ public:
         if (!offered.ok) {
             // It refused, so it did not hold still: nothing to end on its side.
             abort_transaction();
-            finish_refused(mail, "the editor in office refused at the boundary: " + offered.refusal, false);
+            finish_refused(mail, "the editor in role refused at the boundary: " + offered.refusal, false);
             return;
         }
         op_.holding = true;
@@ -397,9 +397,9 @@ public:
             op_.notes.push_back("started " + warmed.detail);
         }
         op_.stage = Stage::Boundary;
-        progress(mail, host_.office);
+        progress(mail, host_.role);
         op_.awaiting = mail.as_role(kEditorSwitchRole)
-                           .send_to_role(host_.office, EditorHandoffRequested{op_.id},
+                           .send_to_role(host_.role, EditorHandoffRequested{op_.id},
                                          correlation());
     }
 
@@ -436,12 +436,12 @@ public:
         }
         // THE ADMISSION IS SCHEDULED AHEAD OF THE FIRST QUEUED TRAFFIC THAT COULD REACH THE
         // CANDIDATE, and this role-addressed question is such traffic: by the time it is
-        // delivered the office has moved, or the admission was revoked and it reaches the
+        // delivered the role has moved, or the admission was revoked and it reaches the
         // incumbent -- and the answer's sender tells the two apart.
         op_.stage = Stage::Proving;
         progress(mail, op_.destination_stem);
         op_.awaiting = mail.as_role(kEditorSwitchRole)
-                           .send_to_role(host_.office, EditorLiveRequested{op_.id}, correlation());
+                           .send_to_role(host_.role, EditorLiveRequested{op_.id}, correlation());
     }
 
     // ---- the successor's answer ------------------------------------------------------------------
@@ -463,7 +463,7 @@ public:
                            false);
             return;
         }
-        // THE OFFICE MOVED: realization records who holds it, whatever the successor says next.
+        // THE ROLE MOVED: realization records who holds it, whatever the successor says next.
         const std::string recorded =
             host_.record ? host_.record(op_.destination_stem, op_.candidate, op_.image) : std::string();
         if (!recorded.empty()) {
@@ -473,7 +473,7 @@ public:
             retained_ = op_.from_stem;
             ++state_.refused;
             EditorSwitchAnswered failed = base_answer(op_.id, switch_outcome::kFailedAfterCommit, op_.destination);
-            failed.detail = "`" + op_.destination + "` holds " + host_.office +
+            failed.detail = "`" + op_.destination + "` holds " + host_.role +
                             " and did not prove it serves: " +
                             (live.detail.empty() ? std::string("no word") : live.detail) +
                             " -- the retired `" + op_.from + "` was kept";
@@ -518,11 +518,11 @@ public:
             return;
         }
         if (op_.stage == Stage::Judging) {
-            finish_refused(mail, "the editor in office does not take part in switches: " + why, false);
+            finish_refused(mail, "the editor in role does not take part in switches: " + why, false);
             return;
         }
         if (op_.stage == Stage::Proving) {
-            // The office moved or did not; the outcome says which, and the successor never heard.
+            // The role moved or did not; the outcome says which, and the successor never heard.
             const std::optional<loom::TxnOutcome> outcome =
                 op_.txn.has_value() ? op_.txn->take_outcome() : std::nullopt;
             op_.txn.reset();
@@ -533,7 +533,7 @@ public:
                 retained_ = op_.from_stem;
                 EditorSwitchAnswered failed =
                     base_answer(op_.id, switch_outcome::kFailedAfterCommit, op_.destination);
-                failed.detail = "`" + op_.destination + "` holds " + host_.office +
+                failed.detail = "`" + op_.destination + "` holds " + host_.role +
                                 " and could not be asked whether it serves: " + why;
                 spend(mail, failed);
                 finish(mail);
@@ -578,7 +578,7 @@ private:
         release_retired();
         ++state_.switched;
         EditorSwitchAnswered done = base_answer(op_.id, switch_outcome::kSwitched, op_.destination);
-        done.detail = "switched " + host_.office + " from `" + op_.from + "` to `" +
+        done.detail = "switched " + host_.role + " from `" + op_.from + "` to `" +
                       op_.destination + "`";
         // WHAT DID NOT CROSS EXACTLY, in the words too: a Terminal shows an answer's shape and not
         // its `resets` or `notes`.
@@ -611,9 +611,9 @@ private:
 
     void judge(loom::Mail& mail) {
         op_.stage = Stage::Judging;
-        progress(mail, host_.office);
+        progress(mail, host_.role);
         op_.awaiting = mail.as_role(kEditorSwitchRole)
-                           .send_to_role(host_.office, EditorHandoffJudgeRequested{op_.id},
+                           .send_to_role(host_.role, EditorHandoffJudgeRequested{op_.id},
                                          correlation());
     }
 
@@ -621,10 +621,10 @@ private:
     /// in the loader's own words, with nothing moved.
     void load_and_warm(loom::Mail& mail) {
         if (host_.bus == nullptr || host_.kernel == nullptr) {
-            finish_refused(mail, "this host gave the switch no Loom to replace an office with", false);
+            finish_refused(mail, "this host gave the switch no Loom to replace a role with", false);
             return;
         }
-        // A RETIRED EDITOR KEPT AFTER A FAILURE is released first: the office's holder carries the
+        // A RETIRED EDITOR KEPT AFTER A FAILURE is released first: the role's holder carries the
         // document now, and the retained weave would hold the name the destination loads under.
         release_retained();
         op_.image = host_.image_of ? host_.image_of(op_.destination_stem) : std::string();
@@ -632,7 +632,7 @@ private:
         loom::PreparedReplacement::Start start;
         start.operator_id = self();
         start.coordinator = self();
-        start.role = host_.office;
+        start.role = host_.role;
         start.candidate_name = op_.destination_stem;
         start.candidate_path = op_.image;
         start.budget = 1;
@@ -644,7 +644,7 @@ private:
                 why = "`" + op_.destination + "` did not load: " + started.error;
                 break;
             case loom::PreparedReplacement::StartStage::NoRoleHolder:
-                why = std::string("nobody holds ") + host_.office;
+                why = std::string("nobody holds ") + host_.role;
                 break;
             case loom::PreparedReplacement::StartStage::BeginTransaction:
                 why = std::string("the replacement could not begin (Loom: ") +
@@ -708,7 +708,7 @@ private:
         }
         op_.holding = false;
         (void)mail.as_role(kEditorSwitchRole)
-            .send_to_role(host_.office, EditorHandoffEnded{op_.id, why});
+            .send_to_role(host_.role, EditorHandoffEnded{op_.id, why});
     }
 
     /// A PENDING SWITCH ABANDONED BY THE WEAVER (cancel): the transaction, the hold, the beat.
@@ -791,7 +791,7 @@ private:
         mirror();
     }
 
-    /// WHAT AN ANSWER SAID, PUBLISHED AS THE OFFICE: a switch that is over retracts its condition
+    /// WHAT AN ANSWER SAID, PUBLISHED AS THE ROLE: a switch that is over retracts its condition
     /// and its outcome is said where the weaver reads; a question awaiting confirmation stands with
     /// the consent it asks for; a status answer is said and retracts nothing. A quiet status is not
     /// published.
@@ -811,8 +811,8 @@ private:
         (void)mail.as_role(kEditorSwitchRole).publish(now);
     }
 
-    /// WHAT THE SWITCH WAITS ON, SAID AS THE OFFICE: a desk keeps it as a standing condition only
-    /// when the switch's office said it.
+    /// WHAT THE SWITCH WAITS ON, SAID AS THE ROLE: a desk keeps it as a standing condition only
+    /// when the switch's role said it.
     void progress(loom::Mail& mail, const std::string& awaiting) {
         EditorSwitchProgress now;
         now.op = op_.id;
@@ -859,7 +859,7 @@ private:
             return out;
         }
         for (const load::ChoiceIntent& c : host_.choices()) {
-            if (c.role == host_.office) {
+            if (c.role == host_.role) {
                 out.push_back(c);
             }
         }

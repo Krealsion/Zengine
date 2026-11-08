@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
 """workshop/inventory-controls -- make a portable Inventory view of named commands and give each a
-target office and a key, through the Inventory pane's own configuration door (InventoryViewEdit),
+target role and a key, through the Inventory pane's own configuration door (InventoryViewEdit),
 with no input session. loom-tool.json describes the controls.
 
 CONFIGURATION, NOT EXECUTION. Creating a view, moving entries into it, binding a key and enabling an
 item run nothing. A key pressed later runs its command only while the item and the view's context
-are both on, and only with the pressing actor's own permission for that office and shape: a
+are both on, and only with the pressing actor's own permission for that role and shape: a
 guest's injected key is judged by the guest's grant, a weaver's hand by the weaver's.
 
 FINDING THE ENTRIES. Each control names an entry by its label inside `folder` (Root when empty);

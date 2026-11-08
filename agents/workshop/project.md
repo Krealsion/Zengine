@@ -253,7 +253,7 @@ Editor buffer"
 `tests/test_workshop_panes_builder.cpp` "the pane asks the tool what it is on its own room grant,
 and shows it" "after a plain build that worked, `B` is the button" "closing the pane forgets its
 copy; the TOOL keeps its own count" "a build-and-load is said twice: the build's ending, then the
-load's answer" "a build-and-load refused at dispatch is said with the office and Loom's reason, and
+load's answer" "a build-and-load refused at dispatch is said with the role and Loom's reason, and
 nothing stays armed"
 
 ### WL-PROJ-12
@@ -276,7 +276,7 @@ for nothing" "`B` before a build is the toggle, and `b` reads it"
 `tests/test_workshop_panes_builder.cpp` "the frontier row comes from the host's read-only door" "`f`
 builds and realizes the one recipe that makes the frontier" "`f` refuses in words, and never chooses
 between recipes" "the recipe `f` took as the one producer carries no pick of another recipe" "`o`
-and the frontier action asked of a project office nobody holds are each refused at dispatch, in
+and the frontier action asked of a project role nobody holds are each refused at dispatch, in
 words"
 
 ### WL-PROJ-15
@@ -326,7 +326,7 @@ window's absence: told a driver it lacks, the OS window gives way to the termina
 once, and leaves nothing loaded; in a build without it, the terminal window loads unsaid" "the
 terminal window taken alone: the row loading it keeps it, a row naming it in its place loads it and
 tries nothing else, and a plan offering none is refused, unchanged" "what a row loads in its place
-is a weave, named once, into an office no other row and no choice holds" "a plan naming a row's
+is a weave, named once, into a role no other row and no choice holds" "a plan naming a row's
 alternatives is written as version 4 and read back the plan it is; one naming none is written as
 before, and a version-4 file naming none is refused" "a launch naming the retired graphical plan
 where it is gone is told the fix; a file of that name that is there, and every other path, is a
@@ -334,6 +334,6 @@ plan like any other"
 `tests/test_workshop_persistence.cpp` "what the plan could not load and gave way from is said on
 the desk as it comes up, and nothing is said of it where every row loaded its own"
 `tests/test_graphics.cpp` "the OS window SDL cannot open, told a video driver it lacks, is refused
-at its load and leaves no window, no SDL, no office held and no claim on SDL's queue" "the OS window
+at its load and leaves no window, no SDL, no role held and no claim on SDL's queue" "the OS window
 over SDL that cannot open is refused at its making, in SDL's words, holding no window, no SDL and
 no claim on SDL's queue"

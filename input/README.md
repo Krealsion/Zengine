@@ -10,7 +10,7 @@ and links `zengine::input`.
 
 ## Manuals
 
-- [Input](docs/zengine.input.md), `zengine.input`: the office the Input weave holds, what it
+- [Input](docs/zengine.input.md), `zengine.input`: the role the Input weave holds, what it
   publishes, how it reads beside each window, and the input session through which an agent or a
   test speaks for a person
 
@@ -29,7 +29,7 @@ and links `zengine::input`.
 | `input_weave.hpp` | the Input weave itself, over any reader |
 | `terminal_reader.hpp` | the terminal and console readers |
 | `window_claim.hpp` | a window's claim on the terminal, which the reader leaves to it, or SDL's queue |
-| `office_page.hpp` | the office's manual, as the shipped weave answers from it |
+| `role_page.hpp` | the role's manual, as the shipped weave answers from it |
 | `input.cpp` | the terminal and console reader, built as the `zengine-input` weave |
 | `CMakeLists.txt` | the build |
 | `docs/` | these pages |

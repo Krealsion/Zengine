@@ -17,7 +17,7 @@
 
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
-#include "manuals/zengine.window.sdl.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.window.sdl.hpp" // this role's manual, compiled in from its page
 
 #include <algorithm>
 #include <cstddef>
@@ -838,7 +838,7 @@ public:
         maximize_ = want.maximized ? Maximize::kWaitingForRoom : Maximize::kNone;
     }
 
-    /// SHAPED by an office that arranges in it: the backend sets the title and the size, kept
+    /// SHAPED by a role that arranges in it: the backend sets the title and the size, kept
     /// within its display. As after a weaver's resize, the areas grow it again only once they reach
     /// further than they did (`fit`).
     void shape(const std::string& title, const PixelSize& want) {

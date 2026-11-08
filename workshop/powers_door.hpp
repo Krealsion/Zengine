@@ -6,7 +6,7 @@
 
 // The host's discovery door (its manual, which it carries and answers:
 // introspection/docs/zengine.powers.md): two derivations, pure over the live `op::Catalog` they
-// read, and the participant that answers them in the office `zengine.powers`. It derives every
+// read, and the participant that answers them in the role `zengine.powers`. It derives every
 // answer at the ask and keeps nothing between asks, describes and cannot evaluate (sampling is
 // `zengine.sources`'), answers only whoever asked, publishes nothing, and refuses in words an ask
 // past its bounds.
@@ -15,7 +15,7 @@
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.powers.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.powers.hpp" // this role's manual, compiled in from its page
 #include "operator/catalog.hpp"
 #include "operator/fold.hpp"      // the fold, the one form a row describes beside the catalog
 #include "operator/migration.hpp" // `declares_migration`, the one spelling of a conversion
@@ -389,7 +389,7 @@ ZENGINE_VALUE_DOOR(::zengine::workshop::FindPowersV1Asked)
 namespace zengine::workshop {
 
 /// The host's discovery participant. It holds the catalog as `const` and owns nothing: a copy
-/// would be a mirror, a non-const reference a controller. Any participant may ask, an office or
+/// would be a mirror, a non-const reference a controller. Any participant may ask, a role or
 /// one speaking for itself as the Terminal does, and the answer goes to it alone; only a find or a
 /// describe with no sender is left unanswered, and counted.
 class PowersDoor final
@@ -428,7 +428,7 @@ private:
 };
 
 /// What a terminal participant may ask the door and hear back: the two asks, known and granted to
-/// the door's office alone, and the two answers accepted. The host widens the terminal it mounts
+/// the door's role alone, and the two answers accepted. The host widens the terminal it mounts
 /// with exactly this, so what a case typing the documented line proves is what the host grants.
 // WL-TERM-18 -- agents/workshop/terminal.md
 inline void let_terminal_find_powers(loom::TerminalVocabulary& vocab, loom::Grant& grant) {

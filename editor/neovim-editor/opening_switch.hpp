@@ -18,7 +18,7 @@
 #include "editor/neovim/host.hpp"
 #include "editor/neovim/launch.hpp"
 #include "editor/neovim/lua.hpp"
-#include "editor/office_seam.hpp"
+#include "editor/role_seam.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -43,26 +43,26 @@ namespace {
 // ---- THE TWO OPEN DOORS (WL-OPEN) -----------------------------------------------------------
 
 /// THE OLD DOOR, RELAYED to the opening manager with the requester's right kept -- the standard
-/// Editor's promise, kept the same way (`office::relay_open_source`).
+/// Editor's promise, kept the same way (`role::relay_open_source`).
 inline void NeovimEditorWeave::on(const OpenSourceRequested& asked, loom::Mail& mail) {
-    office::relay_open_source(asked, mail, nve::kEditorOffice, holding_, relays_, asked_);
+    role::relay_open_source(asked, mail, nve::kEditorRole, holding_, relays_, asked_);
 }
 
 /// The manager's answer: to a dropped location's own open, settled here; otherwise to a relay,
-/// spent into its requester's kept right (`office::settle_relay`).
+/// spent into its requester's kept right (`role::settle_relay`).
 inline void NeovimEditorWeave::on(const SourceOpened& said, loom::Mail& mail) {
     if (mail.answers_ask() && locate_.stage == Locate::Stage::Opening && mail.correlation() == locate_.ask) {
         settle_location(said);
         resay_ = true;
         return;
     }
-    office::settle_relay(said, mail, relays_);
+    role::settle_relay(said, mail, relays_);
 }
 
 /// The bus's word that an ask never arrived, matched by exact attempt: a relay's requester is told
-/// in words, and a pickup's or a dropped location's failure is said (`office::settle_dispatch_refused`).
+/// in words, and a pickup's or a dropped location's failure is said (`role::settle_dispatch_refused`).
 inline void NeovimEditorWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-    if (office::settle_dispatch_refused(refused, mail, relays_, pickup_, locate_, noticing())) {
+    if (role::settle_dispatch_refused(refused, mail, relays_, pickup_, locate_, noticing())) {
         resay_ = true;
     }
 }
@@ -78,7 +78,7 @@ inline void NeovimEditorWeave::on(const ws::v3::PrepareSourceRequested& asked, l
     if (!mail.authored_from_role(ws::kOpeningRole)) {
         return;
     }
-    const ws::RowsRoom room = office::EditorWindow::room_of(asked.room);
+    const ws::RowsRoom room = role::EditorWindow::room_of(asked.room);
     const auto due = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
     prepare(asked.op, asked.path, room.rows(), room.columns(), mail,
             [due](ws::v3::SourcePrepared prepared, loom::Mail& later) {

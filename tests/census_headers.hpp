@@ -187,9 +187,9 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::prefs_persist::v3::WorkshopPrefs>(), // WorkshopPrefs v3
         shape<::zengine::workshop::prefs_persist::v2::WorkshopPrefs>(), // WorkshopPrefs v2
         shape<::zengine::workshop::prefs_persist::v1::WorkshopPrefs>(), // WorkshopPrefs v1
-        shape<::zengine::workshop::OfficeSettings>(), // OfficeSettings v1
-        shape<::zengine::workshop::OfficeSettingCommitAnswered>(), // OfficeSettingCommitAnswered v1
-        shape<::zengine::workshop::OfficeSettingsDeclared>(), // OfficeSettingsDeclared v1
+        shape<::zengine::workshop::RoleSettings>(), // RoleSettings v1
+        shape<::zengine::workshop::RoleSettingCommitAnswered>(), // RoleSettingCommitAnswered v1
+        shape<::zengine::workshop::RoleSettingsDeclared>(), // RoleSettingsDeclared v1
         shape<::zengine::workshop::QuitDeliveryRefusalNoted>(), // QuitDeliveryRefusalNoted v1
         shape<::zengine::workshop::recipe_persist::v1::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v1
         shape<::zengine::workshop::recipe_persist::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v2
@@ -304,7 +304,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::snake::SnakeStep>(), // SnakeStep v1
         shape<::zengine::snake::SnakeNewGame>(), // SnakeNewGame v1
         shape<::zengine::snake::SnakeBoardState>(), // SnakeBoardState v1
-        // The theme file and the settings office's doors, which no weave declares.
+        // The theme file and the settings role's doors, which no weave declares.
         shape<::zengine::settings::ThemeSetting>(), // ThemeSetting v1
         shape<::zengine::settings::ThemeKey>(), // ThemeKey v1
         shape<::zengine::settings::ThemeFile>(), // ThemeFile v1

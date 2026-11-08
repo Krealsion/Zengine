@@ -5,7 +5,7 @@
 // loaded beside Workshop, shown once at a start that keeps settings and never where none are kept;
 // Done writing `answered` and putting the pane down; the Neovim box asking a stand-in editor switch
 // and following its answers; the lines it draws and the item each press chooses; the grant
-// Workshop admits the office with; and on a weaver's host, the weaver's hand alone reaching it. One
+// Workshop admits the role with; and on a weaver's host, the weaver's hand alone reaching it. One
 // source of the panes program, run in `workshop_panes_hand`.
 
 #include "doctest.h"
@@ -33,7 +33,7 @@ namespace {
 
 namespace fr = zengine::first_run;
 
-/// A STAND-IN FOR THE EDITOR SWITCH, in its office: it records each ask and answers it as a case
+/// A STAND-IN FOR THE EDITOR SWITCH, in its role: it records each ask and answers it as a case
 /// says -- the status, asked quietly, with the choice it holds, a switch with what `on_switch`
 /// returns.
 class SwitchStandIn
@@ -99,7 +99,7 @@ bool on_desk(PaneRig& r) {
 }
 
 /// A START: Workshop keeping its settings at `prefs` (none: an isolated run), the switch's
-/// stand-in holding the office with `active`, and the real quick setup loaded.
+/// stand-in holding the role with `active`, and the real quick setup loaded.
 SwitchStandIn* start(PaneRig& r, const std::string& prefs,
                      const std::string& active = fr::kStandardChoice) {
     r.host.prefs_path = prefs;
@@ -145,7 +145,7 @@ std::pair<std::int64_t, std::int64_t> free_room_cell(PaneRig& r) {
 
 /// THE QUICK SETUP'S CENSUS: the three rows of each of its two panes, in no mode.
 const CensusDriverOf kFirstRunCensus{fr::kFirstRunRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     TempDir dir("first-run-census");
     PaneRig r;
     (void)start(r, dir.file("prefs.json"));
@@ -297,7 +297,7 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
     act(r, fr::kActionChoose);
     CHECK(sw->asked.back() == "request neovim");
 
-    // THE BOX IS READ FROM THE SWITCH AT ACTIVATION: a start where Neovim already holds the office
+    // THE BOX IS READ FROM THE SWITCH AT ACTIVATION: a start where Neovim already holds the role
     // (the session remembered it) shows the box checked, so choosing it asks for the standard one.
     {
         TempDir again_dir("first-run-switch-neovim");
@@ -307,8 +307,8 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
         CHECK(held->asked == std::vector<std::string>{"request standard"});
     }
 
-    // AND THE OFFICE IS ADMITTED WITH THE SWITCH'S FOUR ASKS, ITS STATUS THE QUIET ONE, TO THE
-    // SWITCH'S OFFICE ALONE.
+    // AND THE ROLE IS ADMITTED WITH THE SWITCH'S FOUR ASKS, ITS STATUS THE QUIET ONE, TO THE
+    // SWITCH'S ROLE ALONE.
     loom::AdmissionRequest speak;
     speak.stage = loom::AdmissionStage::Speak;
     speak.role = fr::kFirstRunRole;
@@ -330,7 +330,7 @@ TEST_CASE("WL-FIRST-03: the Neovim box asks the editor switch, shows its answer 
     CHECK_FALSE(v.grant.permits_role(zengine::graphics::Drawn::zen_name, zengine::graphics::Drawn::zen_version,
                                      kWorkshopProvider));
     CHECK(v.grant.permits_role(zengine::graphics::Drawn::zen_name, zengine::graphics::Drawn::zen_version,
-                               std::string(zengine::graphics::kWindowOfficePrefix) + zengine::graphics::kSdlWindow));
+                               std::string(zengine::graphics::kWindowRolePrefix) + zengine::graphics::kSdlWindow));
     CHECK_FALSE(v.grant.permits_role(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version,
                                      "zen.manager"));
 }
@@ -477,7 +477,7 @@ TEST_CASE("WL-GUEST-06: on a weaver's host a guest's key and press toward the qu
 
 namespace {
 
-/// A STAND-IN FOR THE LAUNCHER, in its office: it answers a listing with `entries`, records each
+/// A STAND-IN FOR THE LAUNCHER, in its role: it answers a listing with `entries`, records each
 /// start it is asked for and answers it started, and says a start to any when a case drives it.
 class LauncherStandIn
     : public loom::WeaveBase<LauncherStandIn, SeatState,
@@ -508,7 +508,7 @@ public:
     }
 };
 
-/// A STAND-IN FOR A RUNNING VIEW, in an office of its own (a view's office is its name): it offers
+/// A STAND-IN FOR A RUNNING VIEW, in a role of its own (a view's role is its name): it offers
 /// its pane `view` when a case drives it, and answers what its wiring has done with `wiring`, or
 /// says it to any when driven.
 class ViewStandIn
@@ -522,12 +522,12 @@ public:
     std::function<void(ViewStandIn&, loom::Mail&)> next;
 
     void on(const PaneCatalogRequested&, loom::Mail&) {}
-    /// ...as a running view answers it: an ordinary send back to the asker, as its own office.
+    /// ...as a running view answers it: an ordinary send back to the asker, as its own role.
     void on(const zengine::view::ViewWiringRequested&, loom::Mail& mail) {
         ++asked;
-        (void)mail.as_role(office).send(mail.sender(), wiring, mail.correlation());
+        (void)mail.as_role(role).send(mail.sender(), wiring, mail.correlation());
     }
-    std::string office;
+    std::string role;
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(ViewStandIn&, loom::Mail&)> once;
@@ -538,10 +538,10 @@ public:
 };
 
 template <class Seat>
-Seat* mount_any(PaneRig& r, const std::string& office, loom::WeaveId* id_out = nullptr) {
+Seat* mount_any(PaneRig& r, const std::string& role, loom::WeaveId* id_out = nullptr) {
     auto weave = std::make_unique<Seat>();
     Seat* raw = weave.get();
-    const loom::WeaveId id = r.bus.register_weave(std::move(weave), loom::Grant{}.allow_any(), office);
+    const loom::WeaveId id = r.bus.register_weave(std::move(weave), loom::Grant{}.allow_any(), role);
     raw->zen_set_self(id);
     if (id_out != nullptr) *id_out = id;
     return raw;
@@ -554,14 +554,14 @@ void drive_any(PaneRig& r, loom::WeaveId id, Seat* seat, std::function<void(Seat
     r.bus.drain_until_idle();
 }
 
-/// A RUNNING VIEW'S OFFICE, as the view host names one.
+/// A RUNNING VIEW'S ROLE, as the view host names one.
 constexpr const char* kTallyPanel = "tally.panel";
 
 bool story_on_desk(PaneRig& r) {
     return has_pane(r.session().setup.active, PaneRef{fr::kFirstRunRole, fr::kStoryPane});
 }
-std::int64_t kind_in(PaneRig& r, const char* office, const char* pane) {
-    const RuntimePane* held = r.session().panes.runtime.find(office, pane);
+std::int64_t kind_in(PaneRig& r, const char* role, const char* pane) {
+    const RuntimePane* held = r.session().panes.runtime.find(role, pane);
     REQUIRE(held != nullptr);
     return held->kind;
 }
@@ -572,7 +572,7 @@ bool rows_say(PaneRig& r, std::int64_t kind, const std::string& words) {
     return false;
 }
 
-/// A START as `start` makes one, the launcher's stand-in in its office first, so the quick setup's
+/// A START as `start` makes one, the launcher's stand-in in its role first, so the quick setup's
 /// listing is answered.
 struct StoryStart {
     SwitchStandIn* sw = nullptr;
@@ -613,9 +613,9 @@ std::string story_kept(const std::string& prefs) {
 
 TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the inventory, a running "
           "view's wiring, the launcher's listing and its start -- and kept; a view's wiring said "
-          "by an office no running view holds ticks nothing") {
-    // MUTATION (tests/mutants/workshop_panes_first_run.md#wiring-from-any-office): the wiring
-    // believed from any office -- a stranger's ViewWiring ticks steps 2 and 3.
+          "by a role no running view holds ticks nothing") {
+    // MUTATION (tests/mutants/workshop_panes_first_run.md#wiring-from-any-role): the wiring
+    // believed from any role -- a stranger's ViewWiring ticks steps 2 and 3.
     TempDir dir("first-run-facts");
     const std::string prefs = dir.file("prefs.json");
     PaneRig r;
@@ -628,7 +628,7 @@ TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the in
     zengine::view::ViewWiring wired;
     wired.intents.push_back({"count", "Tally", 1, true, 1, 0, "", true});
     wired.fields.push_back({"total", "TallyTotal", 1, "total", true});
-    // A STRANGER SAYS A WIRING: no running view holds its office, so nothing is ticked.
+    // A STRANGER SAYS A WIRING: no running view holds its role, so nothing is ticked.
     loom::WeaveId stranger_id{};
     ViewStandIn* stranger = mount_any<ViewStandIn>(r, "zengine.stranger", &stranger_id);
     drive_any<ViewStandIn>(r, stranger_id, stranger, [&wired](ViewStandIn&, loom::Mail& m) {
@@ -641,7 +641,7 @@ TEST_CASE("WL-FIRST-04: each step is ticked by the fact its owner says -- the in
     s.launcher->entries = {{"app", "tally", "tally", "an app", false}};
     loom::WeaveId view_id{};
     ViewStandIn* tally = mount_any<ViewStandIn>(r, kTallyPanel, &view_id);
-    tally->office = kTallyPanel;
+    tally->role = kTallyPanel;
     tally->wiring = wired;
     drive_any<ViewStandIn>(r, view_id, tally, [](ViewStandIn&, loom::Mail& m) {
         (void)m.as_role(kTallyPanel).send_to_role(kWorkshopProvider,
@@ -768,7 +768,7 @@ TEST_CASE("WL-FIRST-04: a box ticked by the weaver's hand says so and is undone 
     // THE INVENTORY SAYS A VIEW RUNS: the box is the owner's now, and a press leaves it.
     loom::WeaveId view_id{};
     ViewStandIn* tally = mount_any<ViewStandIn>(r, kTallyPanel, &view_id);
-    tally->office = kTallyPanel;
+    tally->role = kTallyPanel;
     drive_any<ViewStandIn>(r, view_id, tally, [](ViewStandIn&, loom::Mail& m) {
         (void)m.as_role(kTallyPanel).send_to_role(kWorkshopProvider,
                                                   v2::PaneOffered{"view", "Tally", "the panel", 10, 30});

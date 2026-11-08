@@ -46,7 +46,7 @@ struct PaneDocumentSection {
     friend bool operator==(const PaneDocumentSection&, const PaneDocumentSection&) = default;
 };
 
-/// Anyone -> a pane's office: the manual of one pane it offers, the section under `section`, or
+/// Anyone -> a pane's role: the manual of one pane it offers, the section under `section`, or
 /// the whole page when `section` is empty. Answered to the asker alone.
 struct PaneDocumentRequested {
     std::string pane;
@@ -54,7 +54,7 @@ struct PaneDocumentRequested {
     ZEN_SHAPE(PaneDocumentRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(section));
 };
 
-/// A pane's office -> the asker: the sections asked for, in page order, and the content id of the
+/// A pane's role -> the asker: the sections asked for, in page order, and the content id of the
 /// page they come from; or a refusal naming what is missing, with no sections.
 struct PaneDocumentShown {
     std::string pane;
@@ -74,7 +74,7 @@ inline PaneDocumentShown pane_document(const PaneDocumentRequested& ask, std::st
     out.pane = ask.pane;
     out.section = ask.section;
     if (ask.pane != pane) {
-        out.refusal = std::string(page.office) + " offers no pane `" + ask.pane + "`";
+        out.refusal = std::string(page.role) + " offers no pane `" + ask.pane + "`";
         return out;
     }
     out.content_id = std::string(page.content_id);
@@ -94,7 +94,7 @@ inline PaneDocumentShown pane_document(const PaneDocumentRequested& ask, std::st
         }
     }
     if (out.sections.empty()) {
-        out.refusal = "the manual of " + std::string(page.office) + " has no section `" +
+        out.refusal = "the manual of " + std::string(page.role) + " has no section `" +
                       ask.section + "`";
     }
     return out;

@@ -2,7 +2,7 @@
 
 **Reference.** The vocabulary a weave includes to hear a person, and the pieces the Input weaves
 are made of: what each shape preserves, the key, modifier and space numbers, how each platform's
-events become those shapes, and the weave a reader is wrapped in. The office that publishes them,
+events become those shapes, and the weave a reader is wrapped in. The role that publishes them,
 its input sessions and its timed pointer motion are [its manual, `zengine.input`](zengine.input.md).
 
 Source: [`input/vocabulary.hpp`](../vocabulary.hpp) ·
@@ -28,9 +28,9 @@ OS window reads SDL's events) so a terminal cell can never be mistaken for a win
 controls are keys, never text: Backspace, Enter and Escape arrive as transitions, and what they
 *mean* is the application's.
 
-**A double click is counted by the window, by the office's time.** `PointerButton` carries no count
+**A double click is counted by the window, by the role's time.** `PointerButton` carries no count
 and no time on any backend: SDL's own count and the console's double-click record follow the
-desktop's time, and a POSIX terminal reports none. The office owns the double-click time,
+desktop's time, and a POSIX terminal reports none. The role owns the double-click time,
 `kSettingDoubleClickMs` (`kDefaultDoubleClickMs`, held to `kLeastDoubleClickMs`..
 `kMostDoubleClickMs`), and says it in `PointerTimingSaid`; a window counts the weaver's presses by
 it and says the count with each press (`graphics::AreaButtonChanged::clicks`), so the console's
@@ -78,7 +78,7 @@ backend's honest reach is written.
 `InputWeaveT<Reader, Facets...>` (`input/input_weave.hpp`) is the whole Input weave around a
 reader: anything with `poll()` returning a vector of a variant of the shapes it publishes. Its Emit
 set is derived from that variant, so a reader that can hand it a further shape declares it and no
-other weave does. It keeps the office's beat, its sessions and its timed motion, as
-[the manual](zengine.input.md) says. `Facets` compose onto it: the shipped weave names its office's
-page, `OfficePage`, a `manual::ManualFacet` that adds the door answering what each accepted shape
+other weave does. It keeps the role's beat, its sessions and its timed motion, as
+[the manual](zengine.input.md) says. `Facets` compose onto it: the shipped weave names its role's
+page, `RolePage`, a `manual::ManualFacet` that adds the door answering what each accepted shape
 does; with none there is no such door, as a suite's weave over a scripted reader is built.

@@ -13,7 +13,7 @@ the collision law over the effective map — stopped at the seam.
 
 **Decision.** A pane declares rows of that same catalog — id, label, default gesture as
 `PaneKey`'s two numbers — in one shape beside its offer (`PaneActions`), judged whole under the
-office stamp exactly as the offer is. The host joins them at admission: the weaver's authored
+role stamp exactly as the offer is. The host joins them at admission: the weaver's authored
 overrides are applied to the ids through the file's own grammar, and the collision law runs over
 the effective map in the words the file meets. A pane's context is its runtime handle: its rows
 are active exactly while `keyboard_pane` resolves to it, meet the globals and the no-editor rows

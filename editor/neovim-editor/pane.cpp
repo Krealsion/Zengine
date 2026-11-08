@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Neovim-backed Editor: a loadable weave that holds the Editor's office with a Neovim it
+// The Neovim-backed Editor: a loadable weave that holds the Editor's role with a Neovim it
 // runs. It holds `zengine.editor`, offers the Editor's pane key and answers every door the
 // standard Editor answers -- a managed opening's preparation and publication, the old door's
 // relay, the orderly quit, the clipboard, the project root and both halves of an editor switch's
-// handoff -- so Files, the Builder and Edit Code reach it by reaching the office (WL-NVIM-01).
+// handoff -- so Files, the Builder and Edit Code reach it by reaching the role (WL-NVIM-01).
 // Workshop law: agents/workshop/neovim.md
 
 // Neovim owns the buffers, their bytes, the modes, undo, registers and the screen. This weave
 // owns the process (`neovim::Host`), the translation between the pane protocol and Neovim
-// (`editor/neovim/projection.hpp`), and the Editor's facts as the office needs them: the identity it
+// (`editor/neovim/projection.hpp`), and the Editor's facts as the role needs them: the identity it
 // claims (path, changedtick, modified), the generation its rows carry, the transfer at a switch.
 
 // Neovim is never waited on (WL-NVIM-05): keys and text go as notifications, a question is sent
 // with Neovim's fast mode beside it (`Host::ask_later`), and what follows its answer runs in the
-// delivery that hears it -- the next beat (the Timer's while this weave holds the office, the
+// delivery that hears it -- the next beat (the Timer's while this weave holds the role, the
 // coordinator's tick while it warms) -- answering a bus ask then (`defer_answer`). A slow or stuck
 // Neovim holds no handler: its question is outstanding at its bound, a start at `kStartWaitMs`.
 
@@ -24,7 +24,7 @@
 // target travels with it to be checked when it runs, and its outcome is said once.
 
 // Hiding the pane ends nothing; a switch away ends Neovim once the successor serves; `:qa` leaves
-// the office held with no document; the orderly quit is refused while a buffer is unsaved; and a
+// the role held with no document; the orderly quit is refused while a buffer is unsaved; and a
 // reload is refused while Neovim runs (`snapshot`), since the process is its incarnation's.
 
 // The class is declared here with its lifecycle, its beat and pump, its keys, its quit, its
@@ -126,7 +126,7 @@ using zengine::workshop::pane_text::fit;
 using namespace zengine::neovim_editor::detail;
 
 /// Its row's settings, asked of the layouts' owner when it arrives; no room is drawn before.
-using Settings = ws::PaneSettingsFacet<nve::kEditorPane, nve::kEditorOffice>;
+using Settings = ws::PaneSettingsFacet<nve::kEditorPane, nve::kEditorRole>;
 
 using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
     nve::kEditorPane, zengine::manual::pages::zengine_editor::kManual>, Settings>::Weave<
@@ -184,7 +184,7 @@ public:
         epoch_ = state_.doc_epoch;
     }
 
-    // ---- Being the office ----------------------------------------------------------------------
+    // ---- Being the role ----------------------------------------------------------------------
 
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -198,7 +198,7 @@ public:
         }
         announce(mail);
         ask_project_root(mail);
-        // THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, asked for its room once each life; a
+        // THE GRAPHICS WINDOW THAT SHOWS THE ROLE'S AREA, asked for its room once each life; a
         // room it said before this activation is taken now.
         window_.ask_room(mail);
         if (window_.in_window()) {
@@ -220,7 +220,7 @@ public:
         pump(mail);
     }
 
-    /// What the host's one wait said about this office: Neovim is ready to be read, so the pane
+    /// What the host's one wait said about this role: Neovim is ready to be read, so the pane
     /// pumps now; or the wait holds the pane's claim, or no longer does, so the beat stops or runs
     /// (timer/held_beat.hpp).
     void on(const loom::host::Waited& w, loom::Mail& mail) {
@@ -289,7 +289,7 @@ public:
     /// NEOVIM'S SCREEN IN THE ROOM COMPOSED FOR, under those rows.
     std::int64_t screen_rows() const { return ui_rows(rows_, chrome_rows()); }
 
-    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA GIVES, from that window's office:
+    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE ROLE'S AREA GIVES, from that window's role:
     /// Neovim is sized to it, or started in it.
     void on(const graphics::AreaRoom& r, loom::Mail& mail) {
         if (!window_.room(r, mail) || !activation_.activated()) {
@@ -304,7 +304,7 @@ public:
         (void)window_.refused(refused, mail);
     }
 
-    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office and read
+    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its role and read
     /// onto the rows drawn there: Neovim's own mouse (`pointer`), its press, moves and release under
     /// the window's number for the press, a hold the window ended a loss.
     void on(const graphics::AreaButtonChanged& b, loom::Mail& mail) { on_window(window_.pointer(b, mail), mail); }
@@ -867,7 +867,7 @@ private:
         hear(mail);
     }
 
-    /// What Neovim's pipes wait on claimed as this office after every delivery, and the beat run as
+    /// What Neovim's pipes wait on claimed as this role after every delivery, and the beat run as
     /// the host's wait leaves it: stopped while the wait holds the claim, running while it does not
     /// and while the pane must pump on time -- output a read left, a question waiting out its
     /// bound, bytes the pipe has not taken, a Neovim not yet ready by its bound.
@@ -877,7 +877,7 @@ private:
             host_ != nullptr ? host_->wait_set(&now) : loom::host::WaitSet{};
         const bool on_time =
             now || !readies_.empty() || (host_ != nullptr && host_->on_time());
-        const bool beats = waited_.settle(mail, nve::kEditorOffice, set, on_time);
+        const bool beats = waited_.settle(mail, nve::kEditorRole, set, on_time);
         if (beats && !beating_) {
             ensure_beat(mail);
         } else if (!beats && beating_) {
@@ -908,8 +908,8 @@ private:
         }
         for (const std::uint32_t id : seen.paste_requests) {
             const std::uint64_t correlation = ++asked_;
-            const loom::Ticket asked = mail.as_role(nve::kEditorOffice)
-                                           .send_to_role(window_.clipboard_office(),
+            const loom::Ticket asked = mail.as_role(nve::kEditorRole)
+                                           .send_to_role(window_.clipboard_role(),
                                                          graphics::ClipboardTextRequested{},
                                                          correlation);
             if (asked.valid()) {
@@ -978,10 +978,10 @@ private:
     }
 
     void announce(loom::Mail& mail) {
-        (void)mail.as_role(nve::kEditorOffice)
+        (void)mail.as_role(nve::kEditorRole)
             .send_to_role(kWorkshopRole, PaneOffered{nve::kEditorPane, nve::kPaneName, nve::kPaneSummary, 20, 84});
         declare(mail);
-        (void)mail.as_role(nve::kEditorOffice)
+        (void)mail.as_role(nve::kEditorRole)
             .send_to_role(ws::kLayoutsRole, ws::v2::PaneSettingsDeclared{nve::kEditorPane, setting_rows()});
     }
 
@@ -1015,7 +1015,7 @@ private:
                                                          zengine::input::scan::kR, zengine::input::mod::kCtrl, "",
                                                          carried});
         }
-        (void)mail.as_role(nve::kEditorOffice).send_to_role(kWorkshopRole, actions);
+        (void)mail.as_role(nve::kEditorRole).send_to_role(kWorkshopRole, actions);
     }
 
     /// DOES `ctrl+r` CARRY THE SELECTION IN NEOVIM'S MODE NOW? Only while Visual or Select holds one.
@@ -1024,7 +1024,7 @@ private:
     void ask_project_root(loom::Mail& mail) {
         root_asked_ = true;
         root_pending_ = ++asked_;
-        (void)mail.as_role(nve::kEditorOffice).send_to_role(ws::kProjectRole, ProjectRootRequested{}, root_pending_);
+        (void)mail.as_role(nve::kEditorRole).send_to_role(ws::kProjectRole, ProjectRootRequested{}, root_pending_);
     }
 
     void notice(std::string text, bool bad) {
@@ -1032,7 +1032,7 @@ private:
         notice_bad_ = bad;
     }
 
-    /// `notice`, as the office's shared steps say one (`editor/office_seam.hpp`).
+    /// `notice`, as the role's shared steps say one (`editor/role_seam.hpp`).
     auto noticing() {
         return [this](std::string text, bool bad) { notice(std::move(text), bad); };
     }
@@ -1234,7 +1234,7 @@ private:
     std::size_t asking_ = 0;
     bool hearing_ = false;
     bool beating_ = false;          ///< the beat is asked of the Timer
-    zengine::timer::HeldBeat waited_; ///< whether a host's one wait holds this office's claim
+    zengine::timer::HeldBeat waited_; ///< whether a host's one wait holds this role's claim
     /// What waits for a starting Neovim, and until when.
     std::vector<Ready> readies_;
     std::chrono::steady_clock::time_point ready_by_{};
@@ -1315,8 +1315,8 @@ private:
     std::int64_t pressed_ = 0;
     Preview preview_;
 
-    /// THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, and the rows drawn there. Not reload state.
-    office::EditorWindow window_{nve::kEditorOffice, nve::kEditorPane};
+    /// THE GRAPHICS WINDOW THAT SHOWS THE ROLE'S AREA, and the rows drawn there. Not reload state.
+    role::EditorWindow window_{nve::kEditorRole, nve::kEditorPane};
 };
 
 } // namespace

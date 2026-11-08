@@ -12,7 +12,7 @@ feature's router, [`editor/AGENTS.md`](../AGENTS.md).
 | `common.hpp` | what the three files share: the bounds and names (`kAskMs`, `kChromeRows`, the menu rows), the arithmetic of paths, rows, pictures and the clipboard, and the records of its conversations (`Candidate`, `Snapshot`, `Held`, `Judgement`, `Preview`) |
 | `transfers.hpp` | the pointer on Neovim's screen, the selection and this file's location carried out, material dropped in, a dropped location opened, and a change Neovim holds until it answers |
 | `opening_switch.hpp` | the managed opening and the old door's relay, both halves of an editor switch, and Neovim started headless from a Loom with no Workshop |
-| `vocabulary.hpp` | the installed names: the office, the pane key, the action ids, `NeovimEditorState`, and `NeovimStartRequested`, `NeovimStopRequested` and `NeovimStatusRequested` |
+| `vocabulary.hpp` | the installed names: the role, the pane key, the action ids, `NeovimEditorState`, and `NeovimStartRequested`, `NeovimStopRequested` and `NeovimStatusRequested` |
 | `CMakeLists.txt` | the loadable weave `zengine-neovim-editor`, and `zengine::neovim`, its vocabulary |
 
 ## How the pieces meet
@@ -22,7 +22,7 @@ feature's router, [`editor/AGENTS.md`](../AGENTS.md).
   after the class, so neither compiles alone.
 - `common.hpp` stands alone, in `zengine::neovim_editor::detail`; `pane.cpp` reads it whole.
 - What the standard Editor keeps and says alike -- the relayed open, the hold, the carry and the
-  dropped location's steps -- is `editor/office_seam.hpp` (`zengine::editor_office`), which
-  `common.hpp` names into `detail` and the other files call as `office::`.
+  dropped location's steps -- is `editor/role_seam.hpp` (`zengine::editor_role`), which
+  `common.hpp` names into `detail` and the other files call as `role::`.
 - Neovim itself is `editor/neovim/` (`zengine-neovim`): its process, its RPC, its screen and the
   Lua module every question and change is asked through.

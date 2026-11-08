@@ -95,10 +95,10 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-10 — A medium that cannot be read falls back to the mirror
 
-LAW — On a medium that answers `readable=false` the paste falls back to the in-process mirror; an ask with nobody at the medium's office stays open, bounded by the book, and inserts nothing.
+LAW — On a medium that answers `readable=false` the paste falls back to the in-process mirror; an ask with nobody at the medium's role stays open, bounded by the book, and inserts nothing.
 
 MEANS
-- the medium's office is the graphics window that shows the area, else the one that offered itself (`medium_office`).
+- the medium's role is the graphics window that shows the area, else the one that offered itself (`medium_role`).
 
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
@@ -217,7 +217,7 @@ lands in no later draft, and one asked for by the draft still standing lands in 
 nothing and breaks nothing"
 `tests/test_graphics.cpp` "the terminal window copies by OSC 52, reads no clipboard, has no placement to
 say or take, and reads back the cells it last showed, at the size it showed them, none before"
-`workshop/weave.hpp` WorkshopWeave::medium_office
+`workshop/weave.hpp` WorkshopWeave::medium_role
 
 ### WL-TEXT-11
 `component/CMakeLists.txt` zengine-component

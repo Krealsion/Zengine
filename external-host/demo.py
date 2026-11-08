@@ -280,7 +280,7 @@ def launch(args, source, root):
         return row
     plan["fields"]["artifacts"].append(weave_row("zengine-demo-control", "zengine.demo"))
     if args.neovim:
-        # THE PLAN'S OWN SECOND CHOICE for the Editor's office holds it from the start.
+        # THE PLAN'S OWN SECOND CHOICE for the Editor's role holds it from the start.
         for row in plan["fields"]["artifacts"]:
             if row["artifact"] == "zengine-editor-pane":
                 row["artifact"] = "zengine-neovim-editor"
@@ -459,7 +459,7 @@ def main():
     parser.add_argument("--toolchain-bin", help="a directory put first on PATH for Workshop and the Loom host")
     parser.add_argument("--tui", action="store_true",
                         help="Workshop in the terminal window (its own --tui), not the OS window")
-    parser.add_argument("--neovim", help="a Neovim program: the Neovim-backed Editor holds the Editor's office from the start")
+    parser.add_argument("--neovim", help="a Neovim program: the Neovim-backed Editor holds the Editor's role from the start")
     parser.add_argument("--wait", type=float, default=900, help="seconds start/status wait for readiness, or walk for its run, before answering")
     parser.add_argument("--pictures", type=Path, help="walk: a new or empty folder for the walk's pictures, rows and steps.json")
     parser.add_argument("--json", action="store_true", help="list/describe: the machine-readable description")

@@ -47,7 +47,7 @@ struct Material {
     std::string text;                   ///< Text: the text
     std::optional<loom::Value> command; ///< Command: the message, or a preset's draft of it
     bool preset = false;                ///< Command: from an unfinished preset (StoredDraft)
-    std::string address;                ///< Command: `@office` or `*` the capture supplied, else ""
+    std::string address;                ///< Command: `@role` or `*` the capture supplied, else ""
     std::string address_note;           ///< Command: why a supplied address was not used
     SourceLocation location;            ///< Location
     std::optional<SourceLocationContext> location_context;

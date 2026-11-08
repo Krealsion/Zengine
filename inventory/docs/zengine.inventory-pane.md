@@ -3,19 +3,19 @@
 **Manual.** The pane you keep values in. It lists what Inventory holds, folder by folder, lets you
 drag an entry into another pane, pops entries out into boxes, rows and columns, puts a stored
 command on a hotkey, and saves the whole collection to a toolbox file. It is a *weave*, built as
-`zengine-inventory-pane`, answering to the office `zengine.inventory-pane`. It offers one pane for
+`zengine-inventory-pane`, answering to the role `zengine.inventory-pane`. It offers one pane for
 main Inventory, `inventory`, and one for each portable view it made. The entries themselves are
-the Inventory office's, [`zengine.inventory`](zengine.inventory.md).
+the Inventory role's, [`zengine.inventory`](zengine.inventory.md).
 
 ## About
 
-The pane keeps no value. Every entry, name and folder is the Inventory office's, and the pane asks
-it for each: a list when the office says the collection changed, a read before a value leaves, an
+The pane keeps no value. Every entry, name and folder is the Inventory role's, and the pane asks
+it for each: a list when the role says the collection changed, a read before a value leaves, an
 add, a rename, a filing, a removal. What the pane keeps is how you arranged it: the portable views
 and which entries each holds, each entry's hotkey, and whether each view's hotkeys are on. That
 arrangement survives a reload of the pane, and a toolbox file keeps it with the entries.
 
-An entry is in one *folder*, the office's fact, and in one *place*: main Inventory or one portable
+An entry is in one *folder*, the role's fact, and in one *place*: main Inventory or one portable
 view, the pane's fact. One gesture changes one of them. Main Inventory lists the entries placed
 there in the folder it shows; the location row counts the folder's entries placed in views.
 
@@ -24,7 +24,7 @@ A *portable view* is a *single* box, a *row* or a *column* of tiles, each a pane
 runs the command an entry stores: the item's switch and its view's switch must both be on, and
 Workshop's Desktop must admit the chord; a restored or duplicated hotkey starts off. Running reads
 the entry again, refuses a command that is not complete, and asks Workshop for your authority to
-send that shape to that office; `Queued ... to ...; delivery is not completion` means it was sent.
+send that shape to that role; `Queued ... to ...; delivery is not completion` means it was sent.
 
 ## Use
 
@@ -291,7 +291,7 @@ Commits the line.
 
 - **Takes:** the text typed. Default key <!-- key inventory.name.save -->`return`<!-- /key -->.
 - **Answers:** what the command that opened the line does with it. A hotkey's line, `Target Key: `,
-  takes an office and a chord, `zengine.inventory alt+1`, and asks Workshop to change the
+  takes a role and a chord, `zengine.inventory alt+1`, and asks Workshop to change the
   arrangement: `Inventory arrangement saved`, its shortcuts said to the desk
   ([`PaneShortcuts`](../../workshop/docs/zengine.desktop.md#paneshortcuts)). A duplicate's name
   reads the entry ([`InventoryRead`](zengine.inventory.md#inventoryread)) and stores the copy
@@ -304,7 +304,7 @@ Commits the line.
   ([`InventorySnapshotRequested`](zengine.inventory.md#inventorysnapshotrequested)) and, to restore,
   replaces it ([`InventoryRestore`](zengine.inventory.md#inventoryrestore)), clearing the desk's
   shortcuts ([`PaneShortcuts`](../../workshop/docs/zengine.desktop.md#paneshortcuts)).
-- **Refuses:** for a hotkey, `Use: target-office alt+1`, `Choose a bound key`, the keymap's word on
+- **Refuses:** for a hotkey, `Use: target-role alt+1`, `Choose a bound key`, the keymap's word on
   the chord, `Choose a key and modifiers the Workshop keymap can name`; otherwise the opening
   command's refusals. A line refused before anything is asked stays open.
 - **Example:** type `zengine.inventory alt+1`, press
@@ -325,7 +325,7 @@ Closes the line; nothing is asked. For a new copy's name, the stored copy keeps 
 
 `InventoryViewEdit` v1 changes the arrangement: `create` a view (`text` single, row or column,
 optional `entry`), `move` an entry to `view` (before `before`), `context` a view's hotkeys on or off,
-`bind` an entry to a target office in `text` and a key, `enable` its hotkey. Answers `zen.Ack`;
+`bind` an entry to a target role in `text` and a key, `enable` its hotkey. Answers `zen.Ack`;
 it never runs a command. Refuses `Finish the current inventory operation or editor first`, `Choose
 single, row or column`, `That inventory view is unavailable`, and a chord Desktop refuses.
 
@@ -393,7 +393,7 @@ The last row: what the last act said, or a hint.
 
 **A toolbox file** is one native-serialized `InventoryToolbox` v2: the owner's archive (each
 entry's key, name, pair, slot flag and folder key, and each folder's key, name and parent key),
-each view's identity, kind and entry keys, and each hotkey's entry key, target office and chord.
+each view's identity, kind and entry keys, and each hotkey's entry key, target role and chord.
 It holds no grant, owner identity, revision, switch, pending act or screen position. A file of
 version 1 has no folders and restores at Root; another version is refused. Reading checks the
 whole file before anything is replaced: `kMaxToolboxFileBytes`
@@ -404,7 +404,7 @@ One writer per path: it is a snapshot, not a database or a journal.
 
 ## See also
 
-- [`zengine.inventory`](zengine.inventory.md), the office that keeps the entries.
+- [`zengine.inventory`](zengine.inventory.md), the role that keeps the entries.
 - [Save a toolbox for another session](toolboxes.md),
   [organize Inventory in named folders](inventory-folders.md),
   [portable inventory toolboxes](inventory-slots.md) and

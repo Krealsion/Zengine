@@ -72,7 +72,7 @@ them is, the pane inventory and the keymap --
 [the desk, read by message](#the-desk-a-panes-words-and-timed-drag-stories)), `inspect` (ask any participant what it accepts or to
 describe its exposed structure again, `zen.PokeDescribe`, and the guest door for the connection inventory) and
 `inventory` (list, add, capture, rename and remove entries, read them, and save against their
-revisions, plus acquiring retained Terminal values and picking up typed fields through Info; the legacy capture slot remains available — [the Inventory office](../../inventory/docs/zengine.inventory.md)).
+revisions, plus acquiring retained Terminal values and picking up typed fields through Info; the legacy capture slot remains available — [the Inventory role](../../inventory/docs/zengine.inventory.md)).
 The optional `demo` power reaches the demo service, Workshop setup application and the Info/Compose/Inventory view reset doors; see [demo setups](../../workshop/docs/demo-setups.md). It grants no input, capture or inventory access by itself.
 The separate `open` power lets a guest's own gesture reopen a saved file location dropped on the
 Editor: the Editor asks Workshop to approve opening a source through the managed opening
@@ -125,7 +125,7 @@ weaver's files, put its words where the weaver commits them, or reach a shell:
   press or a drag -- is refused before it begins, so nothing it drops rests on the Composer, Info
   or any other pane for the weaver's own Submit, commit or save;
 - **its keys, text, presses, wheels and drops toward the editor** (the standard Editor or
-  Neovim's, whichever holds the office), **the Terminal** and **the Hotkeys pane**, which edits the
+  Neovim's, whichever holds the role), **the Terminal** and **the Hotkeys pane**, which edits the
   keymap file;
 - **opening the guests file**, through Files, the Builder's edit-source or Edit Code, and any
   open a pane relays on its behalf -- the Composer's Submit, a stored command -- whose path
@@ -208,11 +208,11 @@ lesson is about and point at the control the weaver should press -- without read
 set a pane's settings by message:
 
 - **`capture`**, a field of the row beside the power: the panes the row reads, each
-  `<office>/<pane>` or `<office>/*` (every pane that office offers), or `*` alone for every pane.
+  `<role>/<pane>` or `<role>/*` (every pane that role offers), or `*` alone for every pane.
   From version 3 a row reads no pane its field does not name, and `"capture": ["*"]` is written,
   never assumed. A row that reads by pane is answered the desk read, each of its panes' pages, the
   pane inventory, the keymap rows of its own panes and the rows above every pane, and the manual of
-  each office its doors name; any other pane is said by its place, its name and its holder, with no
+  each role its doors name; any other pane is said by its place, its name and its holder, with no
   word, part or fingerprint, and the desk is said to it with no band, status or desk number, which
   move with every pane's words. It is refused the window's picture, the publications that carry
   every pane at once, and `DeskStamps`, which names every pane's picture:
@@ -225,12 +225,12 @@ set a pane's settings by message:
   the Hotkeys pane or a part whose press opens either.
 - **`keystrokes`**, a power: hearing the weaver's input as it happens. An `observe` entry naming
   `AttributedInput`, `KeyPressed`, `KeyReleased` or `TextEntered`, or a window's `AreaKeyPressed`,
-  `AreaKeyReleased` or `AreaTextEntered`, from any office, needs it; a row of an earlier
+  `AreaKeyReleased` or `AreaTextEntered`, from any role, needs it; a row of an earlier
   version cannot hold it, so such an entry there is refused.
 - **`settings`**, a power: reading one pane's row of the live layout and writing one of its
   settings at the revision read, by message (`PaneSettingsRequested`, `PaneSettingCommitRequested`,
   [`zengine.layouts`](../../workshop/docs/zengine.layouts.md#panesettingsrequested)); the same for
-  one office's office-wide settings (`OfficeSettingsRequested`, `OfficeSettingCommitRequested`), a
+  one role's role-wide settings (`RoleSettingsRequested`, `RoleSettingCommitRequested`), a
   pane's pin list (`PaneSettingPinRequested`), a lock (`PaneSettingLockRequested`; an unlock is the
   weaver's and the layouts' owner refuses a guest's), and every layout's rows read and written in one batch
   (`LayoutSettingsRequested`, `SettingsWriteRequested`). `workshop/act`'s `settings` step asks a
@@ -275,7 +275,7 @@ Both paths below need this step and nothing more from each other — pick one:
 |---|---|
 | **Start or return to work** | § 1 above (admission, done once), then [§ 3](#3-from-a-loom-session-journeys-as-python-tools) for the session path's own setup, or [§ 4](#4-link-a-host-to-it) for the probe's |
 | **Find an existing capability** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools) — `loom-session tools`/`describe` reads the `workshop`, `desk` and `-machine` packages' own tools from their manifests, never by running one |
-| **Act on Workshop** | Either path uses the owner doors (`zengine.input`, the window's office, `zengine.guests`, `zengine.inventory`) admitted by § 1's file; [§ 3](#3-from-a-loom-session-journeys-as-python-tools) speaks them as a tool's `ctx.ask`, [§ 5](#5-run-the-journey) as console `send` |
+| **Act on Workshop** | Either path uses the owner doors (`zengine.input`, the window's role, `zengine.guests`, `zengine.inventory`) admitted by § 1's file; [§ 3](#3-from-a-loom-session-journeys-as-python-tools) speaks them as a tool's `ctx.ask`, [§ 5](#5-run-the-journey) as console `send` |
 | **Understand the result** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools)'s own run/crossings account (a session's general answer, [Loom's session guide](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md)), or [§ 6](#6-read-what-happened-from-the-agents-side) for the probe's `history`/`log` console commands |
 | **Recover or finish** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools)'s "What a person meets on this route" and "Giving Workshop's input session back", or [§ 7](#7-refusals-and-the-connections-end) for the probe's own refusal words |
 | **Extend the harness** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools) — a small editable Python tool, its own `loom-tool.json` manifest, and [Loom's own generic map of this](https://github.com/Krealsion/Loom/blob/main/docs/guides/session-tools-map.md) for the mechanics a new tool shares with every other session's |
@@ -526,7 +526,7 @@ later detached `loom-session start`) — the trust grant is what a boot needs to
 once, not the boot itself. **An admitted link is not proof the vocabulary booted or can encode a
 tool's asks, only that the loopback connection itself succeeded.** Loom's own host mounts links
 *before* it runs the boot walk (`host_main.cpp`, "LINKS BEFORE THE BOOT WALK, so a boot row's
-weave finds its link's office already held when it is told it is live") — the two happen in that
+weave finds its link's role already held when it is told it is live") — the two happen in that
 order regardless of whether `vocab` goes on to boot cleanly, so `loom-session status work`'s
 `link workshop -> ...: admitted as '<name>' (far session N)` line, by itself, says only that
 Workshop accepted the connection. The confirmation that `vocab` is actually live and can encode a
@@ -584,9 +584,9 @@ run look: worker session 15; 75 remembered deliveries to it -- 8 answered its as
 ```
 
 (Trimmed: the directory, the inputs and the worker's notes.) A row that may `capture` also reads
-the desk once after the inventory, and asks its pictures first of the window office the desk's
+the desk once after the inventory, and asks its pictures first of the window role the desk's
 input space names (`zengine.window.terminal` for cells, `zengine.window.sdl` for pixels); another
-row asks each office in turn. The run names no chord by default: it presses only the `chord` and
+row asks each role in turn. The run names no chord by default: it presses only the `chord` and
 `click` it is given, and one given neither is refused before anything is pressed. A batch after
 which nothing repainted fails naming `arm=true` and `changed=false`. The pictures are in the run's
 `out/` directory, checked whole by the tool and verified on disk by the run manager. `crossings`
@@ -645,7 +645,7 @@ says only what shows of it, and a closed one nothing at all. Workshop lets a gue
 publications through Loom's observation relay ([Loom's observation
 reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/observation.md)), which it
 mounts at `loom.observe` beside the guest door. A row may observe exactly what its `observe` list
-names — one entry per office, shape and version, the version written as Zen's JSON writes an Int:
+names — one entry per role, shape and version, the version written as Zen's JSON writes an Int:
 
 ```json
 { "name": "agent", "credential": "...", "may": ["input", "capture", "inspect"],
@@ -670,7 +670,7 @@ names — one entry per office, shape and version, the version written as Zen's 
 - **What carries the desk's words needs `capture` too.** A publication carrying a pane's or
   Workshop's words or the picture -- `TranscriptShown`,
   `PaneSubjectShown`, `PaneInventory`, `KeymapShown`, `StandingConditions`, Workshop's
-  `NoticeSaid` and the record's `NoticesShown`, from whichever office publishes it -- is refused, in words, to a row without `capture`, whatever its `observe`
+  `NoticeSaid` and the record's `NoticesShown`, from whichever role publishes it -- is refused, in words, to a row without `capture`, whatever its `observe`
   list names; a row with `capture` still observes only what that list names. So is `DeskStamps`,
   Workshop's notice that the desk moved (below), which says no word but follows what `capture`
   reads: a row follows it by naming `zengine.workshop` `DeskStamps` `3` beside `capture`; and so
@@ -782,7 +782,7 @@ at once), drives `workshop-machine/nvim-edit` against a real Neovim.
 $ loom-host
 loom-host 0.1.0   containment: ...
   history: durable stream probe-run.log
-  link workshop -> 127.0.0.1:7654: admitted as 'agent' (session 20; office loom.link.workshop, weave 5)
+  link workshop -> 127.0.0.1:7654: admitted as 'agent' (session 20; role loom.link.workshop, weave 5)
   refused  probe
               admission refused at open: no standing decision for 'probe' (...); approve it at the console with:  authority trust probe
   0 started, 1 refused by policy  -- boot INCOMPLETE
@@ -800,7 +800,7 @@ loom> authority allow probe loom.link.StatusRequested v1 -> role loom.link.works
 loom> start probe /abs/path/to/build/probe/zengine-workshop-probe.so
 ```
 
-The two allow lines let the probe query its link and send requests through that one office.
+The two allow lines let the probe query its link and send requests through that one role.
 The authenticated Status answer establishes which link answers it and which far session belongs
 to it. What that *session* may say to Workshop is Workshop's guests file; neither grant widens it.
 
@@ -980,7 +980,7 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   wait.
 - **A pane's reading, paged under its stamp.** `PaneViewRequested` version 7,
   `{provider,pane,from,stamp}`, is answered by `PaneView` version 7: the stamp the reading stands on
-  -- the holder of the pane's office, that holder's incarnation, the `epoch` of the window showing
+  -- the holder of the pane's role, that holder's incarnation, the `epoch` of the window showing
   the desk, and a `fingerprint` of what the pane shows and where: whatever it shows changing moves
   it, a caret or a colour too, and so does the pane's place, while the same picture sent again keeps
   it -- the place its text stands on
@@ -1005,7 +1005,7 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   the menu, or is refused -- so nothing said beside it has a point. A pane whose drawing is still
   in flight -- the window not yet having said what its area shows, or waiting for its drawing --
   says `in_flight` and no word, at any page: its settling moves its stamp, and so the desk's
-  notice. A pane whose office's holder no longer holds it gives no word or part a point. A closed
+  notice. A pane whose role's holder no longer holds it gives no word or part a point. A closed
   pane, one not presented, one no window shows and one waiting for its provider are refused in
   words. Layouts reads here too, as
   `zengine.workshop` `layouts`, its tabs parts Workshop names (the table below).
@@ -1024,7 +1024,7 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   own change by its answer, not by the notice. A holder leaving between Workshop's deliveries is
   said at its next repaint, Workshop's notice or desk read, not at any delivery.
 - **The pane inventory and the keymap.** `PaneInventoryRequested` and `KeymapRequested`, answered
-  to an office, are answered to a guest session whose row holds `capture` too, to it alone:
+  to a role, are answered to a guest session whose row holds `capture` too, to it alone:
   `PaneInventory`, the panes the Pane Manager lists with each one's state, and `KeymapShown`, the
   bindings in force.
 
@@ -1053,7 +1053,7 @@ pane's lines by where they stand, a blank row a canvas draws as no word among th
 reckons where one cell of a pane's text lattice stands in a reading, by its row and column, from the
 reading's place and text measure -- a blank row's and the one after a line's last character too --
 so a tool presses a canvas pane's cell as it presses a text pane's; `hand.lattice_point` chooses
-the cell from the pane's words. A pane whose office nobody holds says its words and parts with
+the cell from the pane's words. A pane whose role nobody holds says its words and parts with
 no point, and every helper that presses reads the pane again until one does (`hand.pressing`), for
 at most ten seconds. **A helper waiting for a pane waits for the desk to move** (`hand.wait`): it
 follows Workshop's notice from its first wait and reads the pane again when that pane's stamp or
@@ -1092,9 +1092,9 @@ performs, which the pane declares beside its picture, so a part pressed by its n
 asked by its id are the same control. A place a pane names nothing is still pressed as the pane
 reads a press there, and is never said.
 
-| Pane | Office and pane | Its parts | It names nothing on |
+| Pane | Role and pane | Its parts | It names nothing on |
 |---|---|---|---|
-| Pane Manager | `zengine.desktop` `launcher` | `pane:<office>/<pane>`, a pane's row, and `mark:<office>/<pane>`, the mark inside it (`[open]`, `[    ]`, `[load]`, `[gone]`) | the heading, the more-above and more-below markers, the notes |
+| Pane Manager | `zengine.desktop` `launcher` | `pane:<role>/<pane>`, a pane's row, and `mark:<role>/<pane>`, the mark inside it (`[open]`, `[    ]`, `[load]`, `[gone]`) | the heading, the more-above and more-below markers, the notes |
 | Hotkeys | `zengine.desktop` `hotkeys` | `binding:<group>/<id>/<key>`, a binding's row (`binding:<group>/<id>` where it has no key), and `line`, the spelling line while one is open | the heading, a group's heading, the markers, the footer, a binding's key cell |
 | Loaded | `zengine.introspection` `loaded` | `weave:<library>`, a loaded weave's row | the heading, the omission marker, the caveat, the source line |
 | Project | `zengine.introspection` `arrangement` | none: nothing in it is acted on | everything |
@@ -1103,7 +1103,7 @@ reads a press there, and is never said.
 | Notices | `zengine.notices-pane` `notices` | `notice:<number>`, a notice's first row | a notice's later rows, the markers above and below |
 | Connections | `zengine.connections` `connections` | none: nothing in it is acted on | everything |
 | Demo | `zengine.demo` `controls` | `control:reset`, the reset row, and `status`, the state beneath it | the setup's name |
-| Info | `zengine.info` `info` | `pane:<office>/<pane>`, a pane's row, and `property:<label>`, a property's row; while it shows a value, an Info view's `control:<id>` and `field:<path>` | the rows naming neither; while it shows a value, what an Info view names nothing on |
+| Info | `zengine.info` `info` | `pane:<role>/<pane>`, a pane's row, and `property:<label>`, a property's row; while it shows a value, an Info view's `control:<id>` and `field:<path>` | the rows naming neither; while it shows a value, what an Info view names nothing on |
 | An Info view | `zengine.info` `info.2` to `info.4` | `control:<id>`, a control, and `field:<path>`, a field (`field:meta[<n>].<path>` for a capture's metadata) | the title, the state and detail rows, a notice, the markers, a hint, the line being typed and its label |
 | Files | `zengine.files` `project-files` | `entry:<name>`, `candidate:<name>`, `field:<name>`, `control:<id>` | the headers, a notice, the markers and the `more fields` row, an empty listing or its refusal, a strip's gaps and `+N in menu` |
 | Builder | `zengine.builder-pane` `builder` | `recipe:<name>`, `control:<id>`, `line` | the header, a notice, the facts it reports but the recipe row, the list's heading and markers, the `loads` row, the reader's header and every output line, a strip's gaps and `+N in menu` |
@@ -1113,7 +1113,7 @@ reads a press there, and is never said.
 | Composer | `zengine.composer` `compose` | `message:<name> v<version>`, `field:<name>`, `control:compose.submit`, `control:compose.back` | the rows naming nothing |
 | Editor | `zengine.editor` `editor` | `status`, and `line:<n>`, a document line | |
 | Neovim's Editor | `zengine.editor` `editor` | `status` | Neovim's own screen |
-| A running view | its own office, `view` | `element:<id>` | |
+| A running view | its own role, `view` | `element:<id>` | |
 | View Builder | `zengine.view.builder` `view-builder` | `control:<action>`, `kind:<kind>`, `box:<field>`, `box:<id>.<field>`, `list:<id>`, `canvas`, `element:<id>`, `size:<sx>,<sy>`, `handle:<id>.<sx>,<sy>`, `show:<id>.<field>`, `<action>:<id>` | a place whose name repeats or is refused |
 | Flow | `zengine.flow` `flow` | `node:<id>`, `port:<id>.<n>`, `control:<action>`, and every other place by its action and arguments, `<action>:<argument>:...` (`found:<kind>:<identity>`, `source-field:<name>`, `emitted-row:<n>`) | a place whose name repeats or is refused |
 | A pane's menu | its presenter's | each line by its row's id | |
@@ -1181,11 +1181,11 @@ loom-session run work desk-machine/read --name desk-1 --input out=/home/me/agent
   run fails.
 - **`AGENTS.md` first.** Before any ask, it writes the reader's own fixed words -- the files, the
   coordinates, the stamps, how to press a part, the tools, best practice, and a link to
-  `guide.md` -- and nothing any pane, office or guest said. The run's result names its path first,
+  `guide.md` -- and nothing any pane, role or guest said. The run's result names its path first,
   so it is the agent's first read.
 - **Then it asks**, through the link: the guest door for your own row, Workshop for the desk in
   one turn, each pane past it alone and page by page under its stamp, then the pane inventory and
-  the keymap, then each offered pane's office for its manual (`PaneDocumentRequested`, the whole
+  the keymap, then each offered pane's role for its manual (`PaneDocumentRequested`, the whole
   page), at most <!-- value desk_asks.MAX_DOCUMENTS -->64<!-- /value --> panes a read.
 - **Then the readings, beside `AGENTS.md`.** `guide.md`, the guide in sections by purpose, every
   text the desk said quoted in a block after a line naming who said it, as data; `desk.txt`, the
@@ -1195,9 +1195,9 @@ loom-session run work desk-machine/read --name desk-1 --input out=/home/me/agent
   the pane, or why it was not read; `glance.txt`, the desk drawn at the medium's own text cell, for
   where things are, paged by row band past
   <!-- value desk_render.DENSE_CELLS grouped -->262,144<!-- /value --> cells; and
-  `panes/<office>.<pane>.txt`, each pane's own lines beneath the desk's first line -- `~2` and on
+  `panes/<role>.<pane>.txt`, each pane's own lines beneath the desk's first line -- `~2` and on
   before `.txt` where two references would name one file, and every page opening with its pane's
-  header line; beside it, `panes/<office>.<pane>.manual.md`, the pane's manual as its office
+  header line; beside it, `panes/<role>.<pane>.manual.md`, the pane's manual as its role
   answered it, quoted as data. The guide's section 4 says which panes answered, each with its
   file, and which refused, in their words; a manual no longer answered leaves at the next read.
 - **Each read replaces the last.** Every reading file is replaced whole, so a reader of it sees the
@@ -1259,7 +1259,7 @@ loom-session run work desk-machine/watch --name watch-1 --input out=/home/me/age
   change, and its result counts each write refused.
 - **A line that reads as a change's opening** -- a pane named `change 3` -- is written one space in,
   so only a change opens with `== change N`.
-- **`panes`**, a JSON list of `["<office>", "<pane>"]`, watches those panes alone: their changes
+- **`panes`**, a JSON list of `["<role>", "<pane>"]`, watches those panes alone: their changes
   and their files, and the guide. It is watching them, not the desk, so it removes `desk.txt` and
   `glance.txt` rather than leave them stale beside what it keeps current.
 - **It ends** when its `seconds` pass, after `changes` changes are written, or when its
@@ -1277,9 +1277,9 @@ loom-session run work desk/guide --name guide-1 --input pane=zengine.builder-pan
 - **What they need.** `guide` and `capture`, a row of version 3
   ([above](#reading-and-pointing-by-pane-version-3)); a mark stands only within the row's `guide`
   doors, and `desk/resolve` reads only within its `capture` doors.
-- **`desk/guide` names what a press names**: the pane as `<office>/<pane>` and the control by its
+- **`desk/guide` names what a press names**: the pane as `<role>/<pane>` and the control by its
   action id, which the pane draws as the part `control:<id>`, or `part:<name>` for a subject part (a
-  Pane Manager row is `part:pane:<office>/<pane>`); an empty `control` clears the mark. Its result is
+  Pane Manager row is `part:pane:<role>/<pane>`); an empty `control` clears the mark. Its result is
   Workshop's answer, written as `guide.json`: where the mark stands and whether its label found room,
   the weaver's key for a control drawn as no part, or why not. A mark refused or not shown fails the
   run in Workshop's words, a refusal for want of the row's `guide` power saying so; a clear passes

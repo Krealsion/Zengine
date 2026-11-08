@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// The loadable weave `zengine-launcher`, office `zengine.launcher`: starts an app or a demo from
+// The loadable weave `zengine-launcher`, role `zengine.launcher`: starts an app or a demo from
 // a catalog the configuration fixed, detached, and keeps nothing of it. Asked for a start only by
 // the View Builder, Files, the palette and the quick setup, each of which asks Workshop first
 // whether the hand that pressed may; asked what it can start by anyone.
@@ -15,7 +15,7 @@
 #include "activation/activation.hpp"
 #include "app/program.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.launcher.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.launcher.hpp" // this role's manual, compiled in from its page
 #include "workshop/pane_seam_vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -32,7 +32,7 @@ namespace {
 namespace launcher = zengine::launcher;
 namespace ws = zengine::workshop;
 
-/// The offices that may ask for a start: each asks Workshop first for the hand that pressed.
+/// The roles that may ask for a start: each asks Workshop first for the hand that pressed.
 constexpr const char* kAskers[] = {"zengine.view.builder", "zengine.files", "zengine.palette",
                                    "zengine.first-run"};
 
@@ -111,13 +111,13 @@ public:
     }
 
     /// A START ASKED: judged against the catalog, then started detached and kept by nobody; the
-    /// answer names its process, or why nothing started. What started is also said to any, so an
-    /// office that did not ask hears it.
+    /// answer names its process, or why nothing started. What started is also said to any, so a
+    /// role that did not ask hears it.
     void on(const launcher::Launch& asked, loom::Mail& mail) {
         launcher::Launched answer{false, asked.kind, asked.name, 0, {}};
         const bool asker = std::any_of(std::begin(kAskers), std::end(kAskers),
-                                       [&mail](const char* office) {
-                                           return mail.authored_from_role(office);
+                                       [&mail](const char* role) {
+                                           return mail.authored_from_role(role);
                                        });
         if (!asker) {
             answer.reason = "only the View Builder, Files, the palette and the quick setup ask the "

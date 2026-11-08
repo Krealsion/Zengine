@@ -16,7 +16,7 @@
 #include "inventory/inventory-pane/toolbox_file.hpp"
 #include "message-draft/transfer.hpp"
 #include "workshop/admission.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 
 #include "manuals/zengine.inventory.hpp"
 
@@ -248,7 +248,7 @@ struct Rig {
             auto w = std::make_unique<inv::InventoryWeave>();
             inventory = w.get();
             inventory_id =
-                bus.register_weave(std::move(w), zengine::workshop::inventory_office_grant(),
+                bus.register_weave(std::move(w), zengine::workshop::inventory_role_grant(),
                                    std::string(inv::kInventoryRole));
             inventory->zen_set_self(inventory_id);
         }
@@ -293,12 +293,12 @@ struct Rig {
 
 } // namespace
 
-TEST_CASE("weave: the office answers what each shape it accepts does, from its own page, and its "
+TEST_CASE("weave: the role answers what each shape it accepts does, from its own page, and its "
           "page describes no other") {
     Rig r;
     const auto described = described_shapes_of(r.bus, r.bus.role_holder(inv::kInventoryRole));
     REQUIRE_FALSE(described.empty());
-    CHECK(check_office_manual(r.bus, inv::kInventoryRole) >= described.size());
+    CHECK(check_role_manual(r.bus, inv::kInventoryRole) >= described.size());
     check_page_names_accepted(zengine::manual::pages::zengine_inventory::kManual, described);
 }
 
@@ -894,7 +894,7 @@ TEST_CASE("Inventory keeps its bound of hotkeys configured, every one on at once
     };
     for (std::size_t i = 0; i < slots::kMaxConfiguredHotkeys; ++i) {
         slots::InventoryViewEdit op;
-        op.operation = "bind"; op.entry = entry(i); op.text = "target.office";
+        op.operation = "bind"; op.entry = entry(i); op.text = "target.role";
         op.scancode = static_cast<std::int64_t>(1 + i % 400);
         op.modifiers = static_cast<std::int64_t>(i / 400 + 1);
         state = slots::edited(state, op);
@@ -905,7 +905,7 @@ TEST_CASE("Inventory keeps its bound of hotkeys configured, every one on at once
     CHECK(slots::shortcuts(state).size() == slots::kMaxConfiguredHotkeys);
     slots::InventoryViewEdit more;
     more.operation = "bind"; more.entry = entry(slots::kMaxConfiguredHotkeys);
-    more.text = "target.office"; more.scancode = 4;
+    more.text = "target.role"; more.scancode = 4;
     CHECK_THROWS_WITH(slots::edited(state, more), "At most 512 configured command hotkeys");
     // A toolbox file holds no more of them than Inventory keeps.
     slots::v2::InventoryToolbox file;
@@ -968,7 +968,7 @@ TEST_CASE("toolbox files round trip nested typed data partial commands and inact
         {a, "Nested", as_bytes(inv::encode_pair(make_sample(17, "child", {"x", "y"}), {metadata})), false, {}},
         {b, "Partial command", as_bytes(inv::encode_pair(draft::store_draft("Incomplete", partial), {})), true, {}}};
     file.views = {{"inventory.1", "row", {a, b}}};
-    file.bindings = {{a, "source.current.office", zengine::input::scan::kA, zengine::input::mod::kAlt}};
+    file.bindings = {{a, "source.current.role", zengine::input::scan::kA, zengine::input::mod::kAlt}};
     slots::write_toolbox(path, file);
     const auto read = slots::read_toolbox(path);
     CHECK(loom::serialize(loom::to_value(read)) == loom::serialize(loom::to_value(file)));
@@ -992,7 +992,7 @@ TEST_CASE("toolbox files round trip nested typed data partial commands and inact
     CHECK_FALSE(layout.views.back().active);
     REQUIRE(layout.bindings.size() == 1);
     CHECK_FALSE(layout.bindings.front().enabled);
-    CHECK(layout.bindings.front().target == "source.current.office");
+    CHECK(layout.bindings.front().target == "source.current.role");
     CHECK(slots::shortcuts(layout).empty());
     for (int i = 0; i < 30; ++i) layout = slots::toolbox_layout(read, layout);
     CHECK(layout.views.size() == 2);

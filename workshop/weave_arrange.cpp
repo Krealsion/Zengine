@@ -812,7 +812,7 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool sn
         return;
     }
     // THE TARGET MAY HAVE LEFT THE SETUP UNDER THE HAND -- no other mode can be open while
-    // this one is, but a restore, an office's close or a provider going away can -- so the gesture ends
+    // this one is, but a restore, a role's close or a provider going away can -- so the gesture ends
     // safely rather than writing to a row that is no longer there.
     if (!has_pane(session_.setup.active, g.pane)) {
         g = PaneGesture{};

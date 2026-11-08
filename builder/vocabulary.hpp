@@ -4,7 +4,7 @@
 #ifndef ZENGINE_BUILDER_VOCABULARY_HPP
 #define ZENGINE_BUILDER_VOCABULARY_HPP
 
-// The Builder's vocabulary: the shapes of one build conversation, across two offices. The tool
+// The Builder's vocabulary: the shapes of one build conversation, across two roles. The tool
 // (`kBuilderRole`) holds recipe names and the artifact each makes and follows a build; it holds
 // no command and starts nothing. The runner (`kBuildRunnerRole`) holds the recipes and the
 // processes it starts. Workshop may only ask the tool. No shape carries a program, an argument,
@@ -40,20 +40,20 @@ inline bool names_module(std::string_view stem) {
            stem.substr(stem.size() - kModuleSuffix.size()) == kModuleSuffix;
 }
 
-/// The office the TOOL holds. Workshop's grant names this role rather than a
+/// The role the TOOL holds. Workshop's grant names this role rather than a
 /// WeaveId, so who answers for it can change without Workshop's authority being
 /// rewritten -- the same reason `zengine.input` is a role.
 inline constexpr const char* kBuilderRole = "zengine.builder";
 
-/// The office the RUNNER holds -- the only holder of process authority in this
+/// The role the RUNNER holds -- the only holder of process authority in this
 /// program. It is a separate role from the tool's precisely so that a grant can
 /// name one without naming the other: the tool may reach the runner, and nothing
 /// else may.
 inline constexpr const char* kBuildRunnerRole = "zengine.build-runner";
 
-/// The office the REALIZATION OWNER'S voice holds: the participant that hears `OfferArtifact`,
+/// The role the REALIZATION OWNER'S voice holds: the participant that hears `OfferArtifact`,
 /// `PromoteArtifact` and `RevertArtifact` and says what came of each (Workshop's `PlanBooter`).
-/// An office so that its words can be followed by name -- an observer names the office it
+/// A role so that its words can be followed by name -- an observer names the role it
 /// follows, never a WeaveId -- and it grants nobody anything to say to it.
 inline constexpr const char* kRealizationRole = "zengine.realization";
 

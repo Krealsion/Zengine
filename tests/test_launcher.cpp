@@ -381,8 +381,8 @@ private:
     std::string dir_;
 };
 
-/// An office that asks the launcher and keeps its answers apart from what the launcher says to
-/// any, each with the office it was authored as.
+/// A role that asks the launcher and keeps its answers apart from what the launcher says to
+/// any, each with the role it was authored as.
 class Asker final : public loom::Weave {
 public:
     std::vector<launcher::Launched> heard;
@@ -410,7 +410,7 @@ public:
 };
 } // namespace
 
-TEST_CASE("the launcher weave starts nothing for an office that is not the View Builder or Files, and answers those two from the catalog") {
+TEST_CASE("the launcher weave starts nothing for a role that is not the View Builder or Files, and answers those two from the catalog") {
     Project p;
     loom::Switchboard bus;
     loom::Kernel kernel{bus, loom::trust_every_artifact("the suite loads the launcher")};
@@ -427,17 +427,17 @@ TEST_CASE("the launcher weave starts nothing for an office that is not the View 
     };
     pump();
     std::uint64_t corr = 0;
-    const auto ask = [&](const char* office, const launcher::Launch& l) {
+    const auto ask = [&](const char* role, const launcher::Launch& l) {
         auto a = std::make_unique<Asker>();
         Asker* heard = a.get();
-        const loom::WeaveId id = bus.register_weave(std::move(a), loom::Grant{}.allow_any(), office);
-        REQUIRE(bus.office_send_to_role_as(id, office, launcher::kLauncherRole,
+        const loom::WeaveId id = bus.register_weave(std::move(a), loom::Grant{}.allow_any(), role);
+        REQUIRE(bus.role_send_to_role_as(id, role, launcher::kLauncherRole,
                                            loom::Message(loom::to_value(l), id, {}, ++corr)).valid());
         pump();
         REQUIRE(heard->heard.size() == 1);
         return heard->heard.back();
     };
-    // ANOTHER OFFICE: refused, nothing started, though the app is there.
+    // ANOTHER ROLE: refused, nothing started, though the app is there.
     const auto stranger = ask("zengine.stranger", {"app", "tally"});
     CHECK_FALSE(stranger.ok);
     CHECK(has(stranger.reason, "only the View Builder, Files, the palette and the quick setup"));
@@ -450,7 +450,7 @@ TEST_CASE("the launcher weave starts nothing for an office that is not the View 
 }
 
 namespace {
-/// The launcher loaded over a bus, beside the project office, with offices registered to ask it.
+/// The launcher loaded over a bus, beside the project role, with roles registered to ask it.
 struct LauncherRig {
     Project p;
     loom::Switchboard bus;
@@ -471,15 +471,15 @@ struct LauncherRig {
     void pump() {
         for (int n = 0; n < 64 && bus.pending() != 0; ++n) bus.pump_pending();
     }
-    /// An office of `office`, registered to hear the launcher.
-    std::pair<loom::WeaveId, Asker*> office(const char* office) {
+    /// A role of `role`, registered to hear the launcher.
+    std::pair<loom::WeaveId, Asker*> role(const char* role) {
         auto a = std::make_unique<Asker>();
         Asker* raw = a.get();
-        return {bus.register_weave(std::move(a), loom::Grant{}.allow_any(), office), raw};
+        return {bus.register_weave(std::move(a), loom::Grant{}.allow_any(), role), raw};
     }
     template <class Shape>
-    void send(std::pair<loom::WeaveId, Asker*> from, const char* office, const Shape& s) {
-        REQUIRE(bus.office_send_to_role_as(from.first, office, launcher::kLauncherRole,
+    void send(std::pair<loom::WeaveId, Asker*> from, const char* role, const Shape& s) {
+        REQUIRE(bus.role_send_to_role_as(from.first, role, launcher::kLauncherRole,
                                            loom::Message(loom::to_value(s), from.first, {}, ++corr))
                     .valid());
         pump();
@@ -546,11 +546,11 @@ TEST_CASE("an app is listed running only while its session file stands and names
     CHECK_FALSE(running(self));
 }
 
-TEST_CASE("the launcher answers a listing to any office, and takes a start from the palette and the quick setup as from the View Builder and Files") {
+TEST_CASE("the launcher answers a listing to any role, and takes a start from the palette and the quick setup as from the View Builder and Files") {
     // MUTATION (tests/mutants/launcher.md#askers-as-before): the askers left as they were -- the
     // palette's start is refused as a stranger's.
     LauncherRig rig;
-    const auto stranger = rig.office("zengine.stranger");
+    const auto stranger = rig.role("zengine.stranger");
     rig.send(stranger, "zengine.stranger", launcher::LaunchCatalogRequested{});
     REQUIRE(stranger.second->listings.size() == 1);
     const launcher::LaunchCatalog& listed = stranger.second->listings.back();
@@ -558,20 +558,20 @@ TEST_CASE("the launcher answers a listing to any office, and takes a start from 
     CHECK(listed.entries.back().kind == "app");
     CHECK(listed.entries.back().name == "tally");
     CHECK(listed.note.empty());
-    for (const char* office : {"zengine.palette", "zengine.first-run"}) {
-        const auto asker = rig.office(office);
-        rig.send(asker, office, launcher::Launch{"app", "missing"});
+    for (const char* role : {"zengine.palette", "zengine.first-run"}) {
+        const auto asker = rig.role(role);
+        rig.send(asker, role, launcher::Launch{"app", "missing"});
         REQUIRE(asker.second->heard.size() == 1);
-        CHECK_MESSAGE(has(asker.second->heard.back().reason, "no app 'missing'"), office);
+        CHECK_MESSAGE(has(asker.second->heard.back().reason, "no app 'missing'"), role);
     }
 }
 
-TEST_CASE("each start is said to any as it is answered, as the launcher's office, so an office that did not ask hears it; a refusal is answered to its asker alone") {
+TEST_CASE("each start is said to any as it is answered, as the launcher's role, so a role that did not ask hears it; a refusal is answered to its asker alone") {
     // MUTATION (tests/mutants/launcher.md#start-not-published): the start answered and not
     // published -- the listener hears nothing.
     LauncherRig rig;
-    const auto listener = rig.office("zengine.listener");
-    const auto files = rig.office("zengine.files");
+    const auto listener = rig.role("zengine.listener");
+    const auto files = rig.role("zengine.files");
     rig.send(files, "zengine.files", launcher::Launch{"app", "missing"});
     REQUIRE(files.second->heard.size() == 1);
     CHECK_FALSE(files.second->heard.back().ok);

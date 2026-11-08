@@ -6,7 +6,7 @@
 
 // The host's read-only observation door, `zengine.arrangement` (its manual, which it carries and
 // answers: introspection/docs/zengine.arrangement.md): a derivation, pure over the live realization
-// owner it reads, and the weave that answers an office that asks. It keeps no store, publishes
+// owner it reads, and the weave that answers a role that asks. It keeps no store, publishes
 // nothing, and cannot mount,
 // unmount, overlay, evaluate, load, unload, reload or replace anything. Which powers resolve
 // is the discovery door's (workshop/powers_door.hpp).
@@ -18,7 +18,7 @@
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.arrangement.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.arrangement.hpp" // this role's manual, compiled in from its page
 #include "operator/host_surface.hpp"         // `op::OfferOutcome`, the handoff a row reports
 
 #include <zen/weave.hpp>
@@ -123,7 +123,7 @@ inline v2::ResolvedArrangement describe_resolved(const load::PlanExecutor& reali
         }
         out.artifacts.push_back(std::move(row));
     }
-    // THEN THE CHOICES THAT RAN WITHOUT BEING ARTIFACT ROWS, in authored order: an office a
+    // THEN THE CHOICES THAT RAN WITHOUT BEING ARTIFACT ROWS, in authored order: a role a
     // switch moved is held by one of these, and it is authored intent as much as a row is.
     for (const load::ChoiceIntent& choice : authored.choices) {
         bool is_row = false;
@@ -181,21 +181,21 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
 /// What this door has done: counters only. No answer is kept between asks.
 struct ArrangementDoorState {
     std::int64_t arrangements = 0;
-    std::int64_t refused = 0; ///< asks that were not authored as any office
+    std::int64_t refused = 0; ///< asks that were not authored as any role
     ZEN_EXPOSE();
     ZEN_SHAPE(ArrangementDoorState, 2, ZEN_FIELD(arrangements), ZEN_FIELD(refused));
 };
 
 /// The host's read-only observation participant. It holds a `const` reference to the host's
 /// realization owner and a copy of the plan's path, owning neither: a copy would be a mirror, a
-/// non-const reference a controller. It reads a live owner, so it answers mid-realization. Only an
-/// office may ask; that rule names nobody and is not containment.
+/// non-const reference a controller. It reads a live owner, so it answers mid-realization. Only a
+/// role may ask; that rule names nobody and is not containment.
 class ArrangementDoor
     : public zengine::With<manual::ManualFacet<manual::pages::zengine_arrangement::kManual>>::Weave<
           ArrangementDoor, ArrangementDoorState, loom::Accept<ArrangementRequested>,
           loom::Emit<ResolvedArrangement, v2::ResolvedArrangement>> {
 public:
-    /// DOES THE OFFICE THAT ASKED ACCEPT THIS SHAPE NOW? The host's `holder_accepts_on`, wired
+    /// DOES THE ROLE THAT ASKED ACCEPT THIS SHAPE NOW? The host's `holder_accepts_on`, wired
     /// by whoever mounts the door. Empty answers no, and every answer crosses in version 1.
     using Accepts = std::function<bool(std::string_view role, const loom::Schema& shape)>;
 
@@ -210,7 +210,7 @@ public:
         }
         ++state_.arrangements;
         // Answered, not sent: the recipient and correlation are Loom's. One ask, one answer, in
-        // the version the asking office's holder reads.
+        // the version the asking role's holder reads.
         v2::ResolvedArrangement said = describe_resolved(*realization_, plan_);
         if (accepts_ &&
             accepts_(mail.authored_role(), *loom::schema_of<v2::ResolvedArrangement>())) {

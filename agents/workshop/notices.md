@@ -21,7 +21,7 @@ WHY — `agents/decisions/what-workshop-said-is-kept.md`
 
 ## WL-NOTE-02 — The notices record keeps what Workshop said, at most its `keep`, the oldest let go
 
-LAW — `zengine.notices` keeps each `NoticeSaid` from `zengine.workshop` alone, at most its office-wide `keep`, `kDefaultKept` to `kMostKept`, the oldest let go and counted, and says `NoticesMoved`.
+LAW — `zengine.notices` keeps each `NoticeSaid` from `zengine.workshop` alone, at most its role-wide `keep`, `kDefaultKept` to `kMostKept`, the oldest let go and counted, and says `NoticesMoved`.
 
 MEANS
 - each notice is kept as heard, after the newest, its words cut at `kMaxNoticeBytes`;
@@ -69,7 +69,7 @@ WHY — `agents/decisions/what-workshop-said-is-kept.md`
 LAW — A notice says what changed for the weaver, in the weaver's words; a step an owner took for itself, or a motion still under way, is not said, and every refusal and every failure is.
 
 MEANS
-- a setting an office commits for itself is said only when it was not handed or not written; one another office commits for it is said as it landed;
+- a setting a role commits for itself is said only when it was not handed or not written; one another role commits for it is said as it landed;
 - a hide says what was hidden and what went with it;
 - a drag says its before and its after alone, its size too when that changed; a drop says what it carried, from where `->` to where, and nothing is said while it moves.
 
@@ -120,7 +120,7 @@ and a page of the record it observes"
 
 ### WL-NOTE-06
 `workshop/weave_operation.cpp` move_value_drag drop_carry
-`workshop/layouts/store.cpp` commit_office close
+`workshop/layouts/store.cpp` commit_role close
 `workshop/layouts/owner.cpp` LayoutsOwner
 `workshop/weave_desktop.cpp` judge_toggle
 `tests/test_workshop_panes_first_run.cpp` "WL-NOTE-06: what the quick setup keeps for itself is kept

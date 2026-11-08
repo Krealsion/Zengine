@@ -41,7 +41,7 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-03 — The record crosses as a picture, said only when the reading changed
 
-LAW — This host derives `TranscriptShown` on the repaint, compares it against the last utterance, and publishes it `to_any` as its own office only when it changed.
+LAW — This host derives `TranscriptShown` on the repaint, compares it against the last utterance, and publishes it `to_any` as its own role only when it changed.
 
 MEANS
 - the picture is the WHOLE record (its owner bounds it); `dropped` is what that owner evicted;
@@ -140,16 +140,16 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-16 — Where a line can go is read off the bus at the ask, and kept by nobody
 
-LAW — At the line's address, the host reads each weave on the bus that is not a sealed candidate -- id, office now, accepted shapes, whether alive -- and hands that to the completer for one answer.
+LAW — At the line's address, the host reads each weave on the bus that is not a sealed candidate -- id, role now, accepted shapes, whether alive -- and hands that to the completer for one answer.
 
 MEANS
-- offices are listed by name and weaves by id, each with what it is; the participant is marked;
+- roles are listed by name and weaves by id, each with what it is; the participant is marked;
 - a weave loaded, removed or replaced shows on the next ask: nothing kept the last reading;
 - it observes no traffic and holds nothing between asks: a reading, not a tap or a registry.
 
 DOES NOT MEAN
 - permission to send: a grant is per shape, and a listed weave may refuse or be refused;
-- that it is there at send: a removed id is Loom's refusal, an office reaches its holder then.
+- that it is there at send: a removed id is Loom's refusal, a role reaches its holder then.
 
 WHY — `agents/decisions/destinations-are-read-off-the-bus.md`
 
@@ -171,13 +171,13 @@ LAW — The host widens its Terminal with `let_terminal_find_powers`: it knows `
 MEANS
 - the documented lines are typed against the host's own widening, as the switch's are;
 - the door answers this participant's personal speech, refusals included, in the door's words;
-- the same ask aimed at another office is `CapabilityDenied`: asking grants nothing more.
+- the same ask aimed at another role is `CapabilityDenied`: asking grants nothing more.
 
 WHY — `agents/decisions/powers-are-found-through-one-door.md`
 
 ## WL-TERM-20 — What the Terminal may say is the host's one call, and none of it reaches a medium
 
-LAW — The host mounts its Terminal with `let_terminal_speak`: the discovery door's find, its ordinary verb, the editor switch's questions and a pane's settings, each to its own office alone.
+LAW — The host mounts its Terminal with `let_terminal_speak`: the discovery door's find, its ordinary verb, the editor switch's questions and a pane's settings, each to its own role alone.
 
 MEANS
 - no rule reaches a window, a medium or everyone: being a terminal confers nothing else;
@@ -195,8 +195,8 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 `terminal/vocabulary.hpp` kTerminalPaneRole kTerminalPane kActionSubmit kActionBack kActionUp
 kActionDown kActionComplete
 `workshop/default-load-plan.json`
-`tests/test_workshop_panes_terminal.cpp` "the Terminal is an ordinary arranged pane, offered by an
-office" "the five keys are the pane's rows, on the built-in's own spellings" "nothing global opens
+`tests/test_workshop_panes_terminal.cpp` "the Terminal is an ordinary arranged pane, offered by a
+role" "the five keys are the pane's rows, on the built-in's own spellings" "nothing global opens
 it, and no key acts on it from anywhere else" "a weaver presses in, types a line, and the
 participant runs it"
 
@@ -281,12 +281,12 @@ shown nor taken" "an answer for a caret that has since moved does not reopen the
 `terminal/complete.hpp` Destination destination_detail complete_line CandidateKind
 `terminal/door.hpp` bus_destinations on(TerminalCompletionRequested)
 `workshop/weave.hpp` HostContext::destinations
-`tests/test_workshop_host.cpp` "with the bus read the address offers everyone then each office held
+`tests/test_workshop_host.cpp` "with the bus read the address offers everyone then each role held
 now then each weave registered now with what it is"
-`tests/test_workshop_panes_terminal.cpp` "the address lists the offices and weaves on the bus now
+`tests/test_workshop_panes_terminal.cpp` "the address lists the roles and weaves on the bus now
 with what each is and every ask reads the bus again" "an id chosen from the list and gone before the
-line is sent leaves the participant's refusal and reaches no other weave" "an office chosen from the
-list reaches whoever holds it at delivery and a vacated office is refused not retargeted"
+line is sent leaves the participant's refusal and reaches no other weave" "a role chosen from the
+list reaches whoever holds it at delivery and a vacated role is refused not retargeted"
 
 ### WL-TERM-17
 `workshop/weave_operation.cpp` on(TerminalValueRequested) authorize_pane_operation
@@ -307,4 +307,4 @@ nothing more"
 `workshop/terminal_speech.hpp` let_terminal_speak
 `workshop/workshop.cpp` let_terminal_speak
 `tests/test_workshop_panes_powers.cpp` "the host's Terminal finds powers as its ordinary verb, speaks
-only to the offices that widen it, and draws in no window"
+only to the roles that widen it, and draws in no window"

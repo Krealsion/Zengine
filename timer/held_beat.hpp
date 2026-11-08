@@ -5,7 +5,7 @@
 #define ZENGINE_TIMER_HELD_BEAT_HPP
 
 // A SOURCE'S BEAT, LET GO WHILE A HOST'S WAIT HOLDS IT. A weave that reads the outside world claims
-// what it waits on as its office (`loom::host::WaitSet`) after every delivery, and its beat stops
+// what it waits on as its role (`loom::host::WaitSet`) after every delivery, and its beat stops
 // once the host's one wait (Loom's `zen/host/reactor.hpp`) says it holds that claim; what it waits
 // on then wakes it. The beat runs while no wait holds it, while it cannot be waited on, and while
 // it has a reason of its own to look on time. A host without the wait never says so: every beat
@@ -33,20 +33,20 @@ public:
         return w.held && w.ready;
     }
 
-    /// AFTER THE SOURCE LOOKED: claim what it waits on now as `office` -- `set`, or nothing when it
+    /// AFTER THE SOURCE LOOKED: claim what it waits on now as `role` -- `set`, or nothing when it
     /// cannot be waited on -- and say whether its beat runs: while no wait holds it, while it
     /// cannot be waited on, and while it must look `on_time`.
-    bool settle(loom::Mail& mail, std::string_view office,
+    bool settle(loom::Mail& mail, std::string_view role,
                 const std::optional<loom::host::WaitSet>& set, bool on_time) {
-        (void)mail.as_role(office).claim(set.value_or(loom::host::WaitSet{}));
+        (void)mail.as_role(role).claim(set.value_or(loom::host::WaitSet{}));
         return !held_ || !set.has_value() || on_time;
     }
 
     /// The same, running or stopping a `TimerHandle` as that says.
     template <class Handle>
-    void settle(loom::Mail& mail, std::string_view office,
+    void settle(loom::Mail& mail, std::string_view role,
                 const std::optional<loom::host::WaitSet>& set, bool on_time, Handle& beat) {
-        const bool beats = settle(mail, office, set, on_time);
+        const bool beats = settle(mail, role, set, on_time);
         if (beats && beat.canceled()) {
             beat.restart(mail);
         } else if (!beats && !beat.canceled()) {

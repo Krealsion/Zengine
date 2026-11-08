@@ -170,7 +170,7 @@ and `fit` follows what the pane asks for. Detail in [pane geometry](panes.md#pan
 <!-- value kStackRows -->9<!-- /value --> rows and the <!-- value kCoarseStepCells -->4<!-- /value -->-cell
 step are Workshop's settings
 `workshop.stack-rows` and `workshop.arrange-step`, one value for every layout
-([Workshop's own settings](zengine.layouts.md#officesettingsrequested)).
+([Workshop's own settings](zengine.layouts.md#rolesettingsrequested)).
 
 The outermost part of that rectangle is the pane's visible edge. On a terminal that is one
 cell on each side, so the default pane shows 46 columns by 7 rows; in a window it is one
@@ -291,7 +291,7 @@ and no single-line pane does, so in a line a range is selected by `Shift` and th
 
 ### Neovim in the Editor pane draws plain text, one range, and no colours
 
-The Editor's office can be held by Neovim instead ([Neovim in Workshop](../../editor/docs/neovim.md)), and a switch
+The Editor's role can be held by Neovim instead ([Neovim in Workshop](../../editor/docs/neovim.md)), and a switch
 carries your document both ways. The honest bounds today:
 
 | question | answer |
@@ -324,10 +324,10 @@ both live in the participant, and the participant lives as long as the run.
 | Are the reading keys remappable? | **yes** — they are the pane's declared rows (`terminal.scroll-up`, `terminal.scroll-down`, `terminal.oldest`, `terminal.newest`), so the [keymap file](hotkeys.md) moves them |
 
 **Where a line can go is read when you ask, and promises nothing.** At the address, `Tab` lists the
-offices held and the weaves registered **at that moment**, each with what it is. It is not
+roles held and the weaves registered **at that moment**, each with what it is. It is not
 permission — authority is per shape and per target — and not a promise the destination is still
 there when you send: a weave that is gone refuses the delivery, on your own record, and is never
-quietly replaced by another. An `@office` reaches whoever holds that office at delivery, which the
+quietly replaced by another. An `@role` reaches whoever holds that role at delivery, which the
 list says beside it.
 
 **`Esc` from a pane that types is the pane's until it has nothing left.** The Terminal sheds its

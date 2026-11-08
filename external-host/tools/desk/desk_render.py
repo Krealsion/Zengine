@@ -3,7 +3,7 @@
 """desk-machine/read's readings, written from what desk_asks read: pure functions of those values, no
 asks and no files.
 
-  sparse  (`desk.txt`, `panes/<office>.<pane>.txt`) -- the grid encoded by runs, no blank
+  sparse  (`desk.txt`, `panes/<role>.<pane>.txt`) -- the grid encoded by runs, no blank
           written: the desk's first lines; Workshop's own words, each `x,y text`; the menu when
           one is open; then each pane
           front to back, a header line, each word `x,y text` at its middle row (place.y +
@@ -208,7 +208,7 @@ def menu_lines(desk):
     menu = desk.get("menu") or {}
     if not menu.get("open"):
         return []
-    who = clean(menu.get("office")) + ("/" + clean(menu.get("pane")) if menu.get("pane") else "")
+    who = clean(menu.get("role")) + ("/" + clean(menu.get("pane")) if menu.get("pane") else "")
     lines = ["== menu %s at %s" % (who or "-", rect(menu.get("place")))]
     body = runs(menu.get("lines"), menu.get("parts"), desk.get("space", 0))
     return lines + (body if body else ["(no lines)"])
@@ -248,7 +248,7 @@ def sparse(reading):
 
 
 def pane_file(reading, dp, read):
-    """`panes/<office>.<pane>.txt`: one pane's section, beneath the desk's first line."""
+    """`panes/<role>.<pane>.txt`: one pane's section, beneath the desk's first line."""
     lines = [PANE_HEAD, desk_line(reading)] + desk_notes(reading)
     lines += pane_lines(reading["desk"], dp, read)
     return "\n".join(lines) + "\n"
@@ -259,7 +259,7 @@ NAME_CHARS = 160
 
 
 def pane_file_name(provider, pane):
-    """`<office>.<pane>.txt`, its characters kept to a portable file name's and its length to
+    """`<role>.<pane>.txt`, its characters kept to a portable file name's and its length to
     NAME_CHARS; a name two panes would share is told apart where the files are written."""
     safe = "".join(c if c.isascii() and (c.isalnum() or c in "._-") else "_"
                    for c in "%s.%s" % (provider, pane))
@@ -453,13 +453,13 @@ def on_the_desk(reading):
         for p in inv.get("panes") or []:
             facts = [f for f, on in (("open", p.get("open")), ("available", p.get("available")),
                                      ("pending", p.get("pending"))) if on]
-            rows.append("%s/%s -- %s" % (p.get("office", ""), p.get("pane", ""),
+            rows.append("%s/%s -- %s" % (p.get("role", ""), p.get("pane", ""),
                                          ", ".join(facts) or "closed, unavailable"))
             rows.append("  name: " + (p.get("name") or ""))
             rows.append("  summary: " + (p.get("summary") or ""))
-        lines += ["The pane inventory: each pane's name and summary are its office's own words; "
+        lines += ["The pane inventory: each pane's name and summary are its role's own words; "
                   "open, available and pending are Workshop's.", ""]
-        lines += data("zengine.workshop", "PaneInventory; names and summaries as each office "
+        lines += data("zengine.workshop", "PaneInventory; names and summaries as each role "
                       "wrote them", rows)
     if reading.get("desk") is None:
         lines += absent("Workshop (zengine.workshop)", "DeskReadRequested", reading.get("refused"))
@@ -519,19 +519,19 @@ def experiment(reading):
 
 
 def document_file_name(provider, pane):
-    """`<office>.<pane>.manual.md`, beside the pane's own file and named as it is."""
+    """`<role>.<pane>.manual.md`, beside the pane's own file and named as it is."""
     return pane_file_name(provider, pane)[:-len(".txt")] + ".manual.md"
 
 
 def document_files(reading):
     """Each answered manual's file, `[(path relative to out, text)]`, in the inventory's order: the
-    page's sections quoted whole as data said by the pane's office. Two panes whose names would be
+    page's sections quoted whole as data said by the pane's role. Two panes whose names would be
     one file are told apart. Each entry of `reading["documents"]` is given its file's path."""
     files, taken = [], set()
     for d in reading.get("documents") or []:
         if d.get("refused"):
             continue
-        name = document_file_name(d["office"], d["pane"])
+        name = document_file_name(d["role"], d["pane"])
         stem, n = name[:-len(".manual.md")], 2
         while name.lower() in taken:
             name, n = "%s~%d.manual.md" % (stem, n), n + 1
@@ -543,8 +543,8 @@ def document_files(reading):
             rows.append("## %s%s" % (sec.get("group", ""), key))
             rows += (sec.get("text") or "").splitlines() or [""]
         head = "== %s/%s: its manual, as %s answered it (content %s)" % (
-            d["office"], d["pane"], d["office"], d.get("content_id") or "-")
-        quoted = data(d["office"], "PaneDocumentShown; the pane's manual as its office wrote it", rows)
+            d["role"], d["pane"], d["role"], d.get("content_id") or "-")
+        quoted = data(d["role"], "PaneDocumentShown; the pane's manual as its role wrote it", rows)
         text = "\n".join([head, ""] + quoted)
         files += [("panes/" + page, page_text) for page, page_text in pages(text, name, again=head)]
     return files
@@ -555,15 +555,15 @@ def each_pane(reading):
     documents = reading.get("documents")
     if documents is None:
         return [words.EACH_PANE]
-    answered = ["%s/%s -- %s" % (d["office"], d["pane"], d.get("file", "")) for d in documents
+    answered = ["%s/%s -- %s" % (d["role"], d["pane"], d.get("file", "")) for d in documents
                 if not d.get("refused")]
     lines = [words.MANUALS, ""]
-    lines += data("each pane's office (PaneDocumentShown)", "the panes whose manual was answered, "
+    lines += data("each pane's role (PaneDocumentShown)", "the panes whose manual was answered, "
                   "each with its file", answered)
     for d in documents:
         if d.get("refused"):
-            lines += ["A pane's manual was not answered; its office said:", ""]
-            lines += data(d["office"], "its refusal for %s/%s, in its words" % (d["office"], d["pane"]),
+            lines += ["A pane's manual was not answered; its role said:", ""]
+            lines += data(d["role"], "its refusal for %s/%s, in its words" % (d["role"], d["pane"]),
                           [d["refused"]])
     if reading.get("documents_not_asked"):
         lines += ["%d offered pane(s) past the first %d were not asked for their manual." % (

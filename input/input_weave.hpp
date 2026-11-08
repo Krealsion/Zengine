@@ -10,7 +10,7 @@
 // is derived from V. It declares a repeating beat on `kPumpTimerId`, addressed to `kInputRole`
 // so a successor inherits it, and the timer binding keeps it established; `PumpInput` is the
 // same hands on direct request, for suites and timer-less hosts. Facets compose onto it: the
-// office's page (office_page.hpp) adds the door that answers what each accepted shape does; with
+// role's page (role_page.hpp) adds the door that answers what each accepted shape does; with
 // none the weave has no such door. Reference: input/docs/zengine.input.md.
 
 #include "component/motion.hpp"
@@ -119,8 +119,8 @@ public:
     /// timer-less hosts.
     void on(const PumpInput&, loom::Mail& mail) { pump(mail); }
 
-    /// What the host's one wait said about this office: ready, so it reads now; or that it holds
-    /// the office's claim, or no longer does, so the beat stops or runs (timer/held_beat.hpp).
+    /// What the host's one wait said about this role: ready, so it reads now; or that it holds
+    /// the role's claim, or no longer does, so the beat stops or runs (timer/held_beat.hpp).
     void on(const loom::host::Waited& w, loom::Mail& mail) {
         if (held_.hear(w, mail)) {
             pump(mail);
@@ -204,24 +204,24 @@ public:
     }
 
     void on(const InputSessionClosed& closed, loom::Mail& mail) {
-        // THE HOLDER, PERSONALLY; OR AN OFFICE, DELIBERATELY, ON THE HOLDER'S BEHALF. A
-        // stranger's personal word naming the holder is refused: office speech is the one
-        // fact Loom verified at authorship, and a guest's proxy holds no office. An office
+        // THE HOLDER, PERSONALLY; OR AN ROLE, DELIBERATELY, ON THE HOLDER'S BEHALF. A
+        // stranger's personal word naming the holder is refused: role speech is the one
+        // fact Loom verified at authorship, and a guest's proxy holds no role. A role
         // may say session 0 -- "whatever this holder holds" -- because the door that closes
         // a dead guest's session knows the guest, not the number.
-        const bool by_office = !mail.authored_role().empty() && session_.open &&
+        const bool by_role = !mail.authored_role().empty() && session_.open &&
                                closed.holder == static_cast<std::int64_t>(session_.holder.value);
-        const bool names_it = closed.session == session_.id || (by_office && closed.session == 0);
+        const bool names_it = closed.session == session_.id || (by_role && closed.session == 0);
         if (!session_.open || !names_it) {
             (void)mail.answer(loom::Refused{"no open input session numbered " +
                                             std::to_string(closed.session)});
             return;
         }
         const bool by_holder = mail.sender() == session_.holder;
-        if (!by_holder && !by_office) {
+        if (!by_holder && !by_role) {
             (void)mail.answer(loom::Refused{
                 "input session " + std::to_string(session_.id) +
-                " is closed by its holder, or by an office closing it on the holder's behalf"});
+                " is closed by its holder, or by a role closing it on the holder's behalf"});
             return;
         }
         if (motion_.answer.valid()) {
@@ -302,17 +302,17 @@ public:
         motion_.first = session_.seq + 1;
     }
 
-    /// THE DOUBLE-CLICK TIME, to the asker alone, as the office.
+    /// THE DOUBLE-CLICK TIME, to the asker alone, as the role.
     void on(const PointerTimingAsked&, loom::Mail& mail) {
         (void)mail.as_role(kInputRole).send(mail.sender(), PointerTimingSaid{double_click_ms_},
                                             mail.correlation());
     }
 
-    /// THE DOUBLE-CLICK TIME THE OFFICE HOLDS NOW, `kDefaultDoubleClickMs` until it is set.
+    /// THE DOUBLE-CLICK TIME THE ROLE HOLDS NOW, `kDefaultDoubleClickMs` until it is set.
     std::int64_t double_click_ms() const noexcept { return double_click_ms_; }
 
     /// THE DOUBLE-CLICK TIME SET, held to `kLeastDoubleClickMs`..`kMostDoubleClickMs`, and
-    /// published as the office when it changed.
+    /// published as the role when it changed.
     void set_double_click_ms(std::int64_t ms, loom::Mail& mail) {
         ms = std::clamp(ms, kLeastDoubleClickMs, kMostDoubleClickMs);
         if (ms == double_click_ms_) {
@@ -540,7 +540,7 @@ private:
         }
     }
 
-    /// What the reader waits on claimed as this office after every delivery, and the beat run as
+    /// What the reader waits on claimed as this role after every delivery, and the beat run as
     /// the host's wait leaves it: stopped while the wait holds the claim, running while it does
     /// not, while the reader cannot say what it waits on, while it holds part of a sequence, and
     /// while a motion plays.
@@ -557,7 +557,7 @@ private:
     }
 
     typename InputWeaveBase<Reader, Facets...>::Handle pump_;
-    zengine::timer::HeldBeat held_; ///< whether a host's one wait holds this office's claim
+    zengine::timer::HeldBeat held_; ///< whether a host's one wait holds this role's claim
     Reader reader_;
     Session session_;
     Now now_ = [] { return Clock::now(); };

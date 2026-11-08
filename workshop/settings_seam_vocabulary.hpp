@@ -5,8 +5,8 @@
 #define ZENGINE_WORKSHOP_SETTINGS_SEAM_VOCABULARY_HPP
 
 // The settings seam, the layouts' owner's doors: one pane's row of the live layout, read and
-// written by message at its revision, `provider` and `pane` addressing it and never authority; an
-// office's office-wide settings, kept in the settings file; a pane's pin list, never handed to the
+// written by message at its revision, `provider` and `pane` addressing it and never authority; a
+// role's role-wide settings, kept in the settings file; a pane's pin list, never handed to the
 // pane; a lock in one layout or everywhere; and every layout's rows read at once and written in one
 // batch judged whole. A layout is named by its id, 0 the live one. What a pane asks of its own row
 // and says it cannot use is the pane's side of the hand-off (workshop/pane_settings.hpp).
@@ -43,9 +43,9 @@ struct SettingLockShown {
     ZEN_SHAPE(SettingLockShown, 1, ZEN_FIELD(key), ZEN_FIELD(scope));
 };
 
-/// A LOCK AS WORKSHOP'S SETTINGS FILE KEEPS IT. Everywhere: a pane target (`<office>/<pane>`) pins
-/// its value, or `clear` pins its default; an office target freezes the office's one value and
-/// carries none. In one layout: `<office>/<pane>@<layout>` freezes the value that layout's row
+/// A LOCK AS WORKSHOP'S SETTINGS FILE KEEPS IT. Everywhere: a pane target (`<role>/<pane>`) pins
+/// its value, or `clear` pins its default; a role target freezes the role's one value and
+/// carries none. In one layout: `<role>/<pane>@<layout>` freezes the value that layout's row
 /// holds, and carries none.
 struct SettingLock {
     std::string target;
@@ -112,73 +112,73 @@ struct PaneSettingCommitAnswered {
               ZEN_FIELD(revision), ZEN_FIELD(handed));
 };
 
-// ---- Office-wide settings -----------------------------------------------------------------
+// ---- Role-wide settings -----------------------------------------------------------------
 
-/// The most offices that declare office-wide settings, the most settings one office declares, and
+/// The most roles that declare role-wide settings, the most settings one role declares, and
 /// the most kept between them all.
-inline constexpr std::size_t kMaxSettingOffices = 16;
-inline constexpr std::size_t kMaxOfficeSettings = kMaxPaneSettingsPerRow;
-inline constexpr std::size_t kMaxOfficeSettingsKept = 256;
+inline constexpr std::size_t kMaxSettingRoles = 16;
+inline constexpr std::size_t kMaxRoleSettings = kMaxPaneSettingsPerRow;
+inline constexpr std::size_t kMaxRoleSettingsKept = 256;
 
-/// An office -> Workshop, stamped: the office-wide settings it takes, judged whole by a pane
+/// A role -> Workshop, stamped: the role-wide settings it takes, judged whole by a pane
 /// declaration's rules; a later declaration replaces it. It counts while the weave that sent it
-/// holds the office.
-struct OfficeSettingsDeclared {
+/// holds the role.
+struct RoleSettingsDeclared {
     std::vector<v2::PaneSettingRow> rows;
-    ZEN_SHAPE(OfficeSettingsDeclared, 1, ZEN_FIELD(rows));
+    ZEN_SHAPE(RoleSettingsDeclared, 1, ZEN_FIELD(rows));
 };
 
-/// Workshop -> the office's holder, when it accepts this: the settings Workshop keeps for the
-/// office, in key order, a default kept as its absence, and the revision they stand at.
-struct OfficeSettings {
+/// Workshop -> the role's holder, when it accepts this: the settings Workshop keeps for the
+/// role, in key order, a default kept as its absence, and the revision they stand at.
+struct RoleSettings {
     std::int64_t revision = 0;
     std::vector<PaneSetting> settings;
-    ZEN_SHAPE(OfficeSettings, 1, ZEN_FIELD(revision), ZEN_FIELD(settings));
+    ZEN_SHAPE(RoleSettings, 1, ZEN_FIELD(revision), ZEN_FIELD(settings));
 };
 
-/// Read one office's settings, answered to the asker alone.
-struct OfficeSettingsRequested {
-    std::string office;
-    ZEN_SHAPE(OfficeSettingsRequested, 1, ZEN_FIELD(office));
+/// Read one role's settings, answered to the asker alone.
+struct RoleSettingsRequested {
+    std::string role;
+    ZEN_SHAPE(RoleSettingsRequested, 1, ZEN_FIELD(role));
 };
 
-/// THE OFFICE'S SETTINGS AS WORKSHOP KEEPS THEM: the revision they stand at (0 when nothing
-/// declares for the office), what its declaration takes, what is kept, the keys locked, and
+/// THE ROLE'S SETTINGS AS WORKSHOP KEEPS THEM: the revision they stand at (0 when nothing
+/// declares for the role), what its declaration takes, what is kept, the keys locked, and
 /// whether the settings file holds what is kept -- `written`, or why not.
-struct OfficeSettingsAnswered {
-    std::string office;
+struct RoleSettingsAnswered {
+    std::string role;
     std::int64_t revision = 0;
     std::vector<v2::PaneSettingRow> rows = {};
     std::vector<PaneSetting> settings = {};
     std::vector<SettingLockShown> locks = {};
     std::string written;
-    ZEN_SHAPE(OfficeSettingsAnswered, 1, ZEN_FIELD(office), ZEN_FIELD(revision), ZEN_FIELD(rows),
+    ZEN_SHAPE(RoleSettingsAnswered, 1, ZEN_FIELD(role), ZEN_FIELD(revision), ZEN_FIELD(rows),
               ZEN_FIELD(settings), ZEN_FIELD(locks), ZEN_FIELD(written));
 };
 
-/// WRITE ONE OFFICE-WIDE SETTING at the revision it was read at: a value in its kind's one field,
-/// or `clear` and no field for the default. Answered `OfficeSettingCommitAnswered`.
-struct OfficeSettingCommitRequested {
-    std::string office;
+/// WRITE ONE ROLE-WIDE SETTING at the revision it was read at: a value in its kind's one field,
+/// or `clear` and no field for the default. Answered `RoleSettingCommitAnswered`.
+struct RoleSettingCommitRequested {
+    std::string role;
     std::int64_t revision = 0;
     std::string key;
     std::optional<bool> flag = std::nullopt;
     std::optional<std::int64_t> number = std::nullopt;
     std::optional<std::string> text = std::nullopt;
     bool clear = false;
-    ZEN_SHAPE(OfficeSettingCommitRequested, 1, ZEN_FIELD(office), ZEN_FIELD(revision),
+    ZEN_SHAPE(RoleSettingCommitRequested, 1, ZEN_FIELD(role), ZEN_FIELD(revision),
               ZEN_FIELD(key), ZEN_FIELD(flag), ZEN_FIELD(number), ZEN_FIELD(text),
               ZEN_FIELD(clear));
 };
 
-/// WHAT AN OFFICE-WIDE COMMIT CAME TO: accepted, or refused in words; the office's revision after
+/// WHAT AN ROLE-WIDE COMMIT CAME TO: accepted, or refused in words; the role's revision after
 /// it, or as it stood; and `handed`, saying applied or handed and written apart.
-struct OfficeSettingCommitAnswered {
+struct RoleSettingCommitAnswered {
     bool accepted = false;
     std::string refusal;
     std::int64_t revision = 0;
     std::string handed;
-    ZEN_SHAPE(OfficeSettingCommitAnswered, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal),
+    ZEN_SHAPE(RoleSettingCommitAnswered, 1, ZEN_FIELD(accepted), ZEN_FIELD(refusal),
               ZEN_FIELD(revision), ZEN_FIELD(handed));
 };
 
@@ -230,11 +230,11 @@ struct PaneSettingPinAnswered {
 inline constexpr const char* kLockAct = "lock";
 inline constexpr const char* kUnlockAct = "unlock";
 
-/// LOCK OR UNLOCK ONE SETTING: `target` is `<office>/<pane>`, or `<office>` for an office-wide
+/// LOCK OR UNLOCK ONE SETTING: `target` is `<role>/<pane>`, or `<role>` for a role-wide
 /// setting; `act` is `kLockAct` or `kUnlockAct`; `scope` is `kLockScopeLayout` (a pane's row in the
 /// layout whose id is `layout`, 0 the live one) or `kLockScopeEverywhere`, which pins the value
 /// that layout holds into every layout. An unlock is the weaver's: from the Terminal, or naming in
-/// `gesture` the correlation of the weaver's current act sent to the asking office.
+/// `gesture` the correlation of the weaver's current act sent to the asking role.
 struct PaneSettingLockRequested {
     std::string target;
     std::string key;
@@ -299,8 +299,8 @@ struct LayoutSettings {
     friend bool operator==(const LayoutSettings&, const LayoutSettings&) = default;
 };
 
-/// WHAT A PANE OR AN OFFICE TAKES: a pane's counted declaration with `workshop.skin` first, or, with
-/// `pane` empty, an office's office-wide rows.
+/// WHAT A PANE OR AN ROLE TAKES: a pane's counted declaration with `workshop.skin` first, or, with
+/// `pane` empty, a role's role-wide rows.
 struct DeclaredSettings {
     std::string provider;
     std::string pane;
@@ -309,7 +309,7 @@ struct DeclaredSettings {
     friend bool operator==(const DeclaredSettings&, const DeclaredSettings&) = default;
 };
 
-/// EVERY LAYOUT'S ROWS, what each pane and office takes, the everywhere locks, which layout is
+/// EVERY LAYOUT'S ROWS, what each pane and role takes, the everywhere locks, which layout is
 /// live (its place), and the revision all of it stands at (0 when withheld).
 struct LayoutSettingsAnswered {
     std::int64_t revision = 0;
@@ -323,7 +323,7 @@ struct LayoutSettingsAnswered {
 };
 
 /// ONE WRITE OF A BATCH: a value in its kind's one field, or `clear`, under `key` of `target` --
-/// `<office>/<pane>` in the layout whose id is `layout` (0 the live one), or `<office>`, for which
+/// `<role>/<pane>` in the layout whose id is `layout` (0 the live one), or `<role>`, for which
 /// `layout` is not read.
 struct SettingWrite {
     std::int64_t layout = 0;
@@ -375,7 +375,7 @@ struct SettingWriteResult {
 };
 
 /// WHAT A BATCH CAME TO: accepted with each write's outcome, or refused whole with nothing written;
-/// the revision the layouts stand at after it; and the panes and offices it handed or applied.
+/// the revision the layouts stand at after it; and the panes and roles it handed or applied.
 struct SettingsWriteAnswered {
     bool accepted = false;
     std::string refusal;

@@ -59,7 +59,7 @@ The Terminal asks the graphics directory for a paste, not the window showing it.
 In `terminal/pane.cpp`:
 
 ```diff
--            .send_to_role(room().clipboard_office(), gfx::ClipboardTextRequested{},
+-            .send_to_role(room().clipboard_role(), gfx::ClipboardTextRequested{},
 +            .send_to_role(std::string("zengine.graphics"), gfx::ClipboardTextRequested{},
 ```
 

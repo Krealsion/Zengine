@@ -87,14 +87,14 @@ TEST_CASE("a half-typed line says which part of it the weaver is standing in") {
 
     // WHAT HAS ALREADY BEEN SAID, as far as it parses -- and `has_version` is a real
     // question rather than a formality: the fourth word is a `std::uint32_t` on the wire.
-    const CommandLine done = read_command_line("send @office Ping 2 ");
+    const CommandLine done = read_command_line("send @role Ping 2 ");
     CHECK(done.verb == "send");
     CHECK(done.shape == "Ping");
     CHECK(done.has_version);
     CHECK(done.version == 2);
-    CHECK_FALSE(read_command_line("send @office Ping x ").has_version);
-    CHECK_FALSE(read_command_line("send @office Ping -1 ").has_version);
-    CHECK_FALSE(read_command_line("send @office Ping 4294967296 ").has_version);
+    CHECK_FALSE(read_command_line("send @role Ping x ").has_version);
+    CHECK_FALSE(read_command_line("send @role Ping -1 ").has_version);
+    CHECK_FALSE(read_command_line("send @role Ping 4294967296 ").has_version);
 }
 
 TEST_CASE("the verbs a weaver is offered are the verbs the submitter runs") {
@@ -130,9 +130,9 @@ TEST_CASE("an address offers the three forms and never pretends to know the valu
 
     // THE THREE FORMS, and the two of them that are FORMS say so. This participant holds
     // no weave directory and no role directory -- deliberately, session.hpp -- so `#12`
-    // and `@office` are shapes of an answer and never a list of answers.
+    // and `@role` are shapes of an answer and never a list of answers.
     const Completion at = complete_line(me, "send ");
-    CHECK(displays(at) == std::vector<std::string>{"*", "#<id>", "@<office>"});
+    CHECK(displays(at) == std::vector<std::string>{"*", "#<id>", "@<role>"});
     CHECK(at.candidates[0].insert == "* ");
     CHECK(at.candidates[1].insert == "#"); // no separator: an id follows immediately
     CHECK(at.candidates[2].insert == "@");
@@ -152,13 +152,13 @@ TEST_CASE("an address offers the three forms and never pretends to know the valu
     // refusal -- `12` is not an address, because the sigil is what says which kind it is.
     const Completion bare = complete_line(me, "send 12");
     CHECK(bare.candidates.empty());
-    CHECK(bare.heading.find("#12, @office or *") != std::string::npos);
+    CHECK(bare.heading.find("#12, @role or *") != std::string::npos);
 }
 
-TEST_CASE("with the bus read the address offers everyone then each office held now then each weave registered now with what it is") {
+TEST_CASE("with the bus read the address offers everyone then each role held now then each weave registered now with what it is") {
     // REAL DESTINATIONS, BY IDENTITY. The host reads the bus at the ask and hands the completer
-    // a value; the completer orders it (offices by name, weaves by id) and says what each one is,
-    // so a weaver chooses `#7` because it is the timer's office and not because 7 looked right.
+    // a value; the completer orders it (roles by name, weaves by id) and says what each one is,
+    // so a weaver chooses `#7` because it is the timer's role and not because 7 looked right.
     loom::TerminalSession me("t", workshop_vocab());
     const std::vector<Destination> reachable{
         Destination{7, "zengine.timer", {"TimerRequested", "TimerCancelled", "Drive", "Hello"}, true, false},
@@ -171,7 +171,7 @@ TEST_CASE("with the bus read the address offers everyone then each office held n
     CHECK(at.candidates[1].insert == "@zengine.test.board ");
     CHECK(at.candidates[3].insert == "#3 ");
     CHECK(at.candidates[1].detail == "held by #12 now; reaches whoever holds it when sent");
-    CHECK(at.candidates[3].detail == "no office; accepts Ack, Refused (this terminal)");
+    CHECK(at.candidates[3].detail == "no role; accepts Ack, Refused (this terminal)");
     CHECK(at.candidates[4].detail == "@zengine.timer; accepts TimerRequested, TimerCancelled, Drive +1");
     CHECK(at.candidates[5].detail == "@zengine.test.board; accepts RigNote (dead now)");
     // KNOWING ONE IS NEITHER PERMISSION NOR A PROMISE, and the list says so.
@@ -187,7 +187,7 @@ TEST_CASE("with the bus read the address offers everyone then each office held n
     CHECK(nobody.candidates.empty());
     CHECK(nobody.heading == "'#99' is an address; nothing on this bus answers to it now");
     CHECK(complete_line(me, "send @", &reachable).heading.find("where it goes") != std::string::npos);
-    CHECK(complete_line(me, "send 12", &reachable).heading.find("#12, @office or *") !=
+    CHECK(complete_line(me, "send 12", &reachable).heading.find("#12, @role or *") !=
           std::string::npos);
 
     // AN EMPTY BUS IS STILL A READING: everyone, and nothing else.
@@ -392,8 +392,8 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     CHECK(t.pictures == clamped);
 
     // An absurd one is bounded before any arithmetic touches it.
-    (void)t.bus.office_publish_as(
-        t.windows.id(), t.windows.office(),
+    (void)t.bus.role_publish_as(
+        t.windows.id(), t.windows.role(),
         loom::Message(loom::to_value(gfx::WindowOffered{
             t.windows.window(), (std::numeric_limits<std::int64_t>::max)(),
             (std::numeric_limits<std::int64_t>::max)(), t.w->session().screen_w > 0 ? 1 : 0})));
@@ -802,11 +802,11 @@ TEST_CASE("the half-share pays at the bottom of the range too, and buys no slot"
 // ============================================================================
 // Tier 9 -- a pane that is nobody's weave
 // ============================================================================
-// A built-in needs no weave, and opening one speaks to no office; Layouts is the one
+// A built-in needs no weave, and opening one speaks to no role; Layouts is the one
 // built-in, a presentation with no state of its own, removed and reopened whole.
 
-TEST_CASE("a built-in pane needs no weave, and opening one speaks to no office") {
-    // NOTHING IS MOUNTED IN THE BUILDER OFFICE, and nothing else is either: if being a pane
+TEST_CASE("a built-in pane needs no weave, and opening one speaks to no role") {
+    // NOTHING IS MOUNTED IN THE BUILDER ROLE, and nothing else is either: if being a pane
     // required a tool behind it, this case could not pass. A BUILT-IN needs none, which is
     // why the catalog and the runtime catalog are two lists (`combined_catalog`), not one.
     Live t;
@@ -818,7 +818,7 @@ TEST_CASE("a built-in pane needs no weave, and opening one speaks to no office")
     CHECK(pane_shown(t.shown(), t.session(), pane_kind::kLayouts).find("Default") !=
           std::string::npos);
 
-    // AND NO MESSAGE WENT TO THE ONE OFFICE WORKSHOP KNOWS ABOUT. With the
+    // AND NO MESSAGE WENT TO THE ONE ROLE WORKSHOP KNOWS ABOUT. With the
     // stand-in mounted, closing and opening the pane leaves its counters at zero.
     Live u;
     ToolSeat* tool = mount_tool(u, "zengine-snake");
@@ -2552,7 +2552,7 @@ TEST_CASE("at the minimum width the `+` yields to the tab and the status") {
 }
 
 // ---- a pane's rows, written through their owners --------------------------------------
-// A subject is named by an inspector office (`hand_inspect`) and each write is a
+// A subject is named by an inspector role (`hand_inspect`) and each write is a
 // `PaneCommitRequested` judged by the row's own setter -- the gesture door, a reset door, a
 // definition's region door (`hand_commit`). Info's own subject is witnessed in
 // `test_workshop_panes_info.cpp`.
@@ -2802,7 +2802,7 @@ TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") 
     CHECK(t.session().inspected.ref == closed);
     CHECK(subject_value(t.session(), "State") == "closed -- show it from the Pane Manager");
 
-    // AN AUTHORED REFERENCE NO OFFICE RESOLVES keeps its identity and its geometry.
+    // AN AUTHORED REFERENCE NO ROLE RESOLVES keeps its identity and its geometry.
     stage_desk(t, [&](Setup& desk) {
         REQUIRE(add_pane(desk, stranger()));
     });
@@ -2818,7 +2818,7 @@ TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") 
     CHECK(subject_value(t.session(), "Name") == "history");
     CHECK(subject_value(t.session(), "Identity") == "third.party.tools/history");
     CHECK(subject_value(t.session(), "Provider") ==
-          "third.party.tools (unresolved -- no office here offers it)");
+          "third.party.tools (unresolved -- no role here offers it)");
     CHECK(subject_value(t.session(), "State").find("unresolved") == 0);
     CHECK(subject_value(t.session(), "X") == "7 cells");
     CHECK(subject_value(t.session(), "Y") == "9 cells");

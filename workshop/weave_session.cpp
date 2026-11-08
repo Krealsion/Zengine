@@ -95,7 +95,7 @@ void WorkshopWeave::install_live(const LiveLayout& live, loom::Mail& mail) {
     // THE PANES FOLLOW THE DESK: whatever it seats is opened, whatever it no longer seats closes.
     // Each seated pane's settings are the owner's to hand it.
     apply_setup(mail);
-    // THE PALETTE PUT DOWN, by whichever close took its row -- this desk's own or an office's,
+    // THE PALETTE PUT DOWN, by whichever close took its row -- this desk's own or a role's,
     // which the owner took: the keys go back to the pane it opened over.
     if (palette_seated && !has_pane(d.active, palette)) {
         palette_closed(palette);
@@ -507,8 +507,8 @@ void WorkshopWeave::restore_window(const window_persist::LoadedWindow& window, l
                                                                   placement.maximized};
         if (restored_window_) {
             restored_window_->place = place; // after the shaping, which waits for the desk's area
-        } else if (const std::string office = medium_office(); !office.empty()) {
-            mail.send_to_role(office, place);
+        } else if (const std::string role = medium_role(); !role.empty()) {
+            mail.send_to_role(role, place);
         }
     }
     // THE ROOM IS ASKED OF THE WINDOW NOW, before the window's own offer is taken: the desk comes
@@ -546,13 +546,13 @@ void WorkshopWeave::shape_restored_window(loom::Mail& mail) {
     }
     const RestoredWindow held = std::move(*restored_window_);
     restored_window_.reset();
-    const std::string office = medium_office();
+    const std::string role = medium_role();
     // An empty title keeps the window's own: the room is the restore's, the title is not.
     mail.as_role(kWorkshopProvider)
-        .send_to_role(office, zengine::graphics::WindowShaped{graphics::kSdlWindow, std::string(),
+        .send_to_role(role, zengine::graphics::WindowShaped{graphics::kSdlWindow, std::string(),
                                                               held.w, held.h});
     if (held.place) {
-        mail.send_to_role(office, *held.place);
+        mail.send_to_role(role, *held.place);
     }
 }
 

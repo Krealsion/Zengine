@@ -306,7 +306,7 @@ back what they have nothing for.
 **A pane's own menu** opens beside your pointer with the rows the pane offered first and
 Workshop's own rows for the pane beneath them — `arrange`, `Order >`, `Reset >`, `Dock >`, `edit code`, `shut or open`, `hide pane`, `remove from the setup` — in one menu, under a rule that names the pane they act on. Choosing one of Workshop's rows is Workshop's to carry out, exactly as
 from its own menu; choosing a pane's row is the pane's. The menu is shown by the
-**menu presenter** — an ordinary weave in the `zengine.presenter` office, loaded by a plan row
+**menu presenter** — an ordinary weave in the `zengine.presenter` role, loaded by a plan row
 like any tool. The shipped one works like Workshop's own menu: `↑` `↓` and `Enter`, a click on a
 row, `Esc` or a click outside to dismiss; the rule sets Workshop's rows off from the pane's. It
 takes no keys away from anything and gives none back
@@ -610,7 +610,7 @@ around it or not, gives the setting back to the pane's default, and typing the d
 same thing — nothing is stored. A value the setting does not take is refused, naming what it
 takes, and the draft keeps your text. A row whose value reads `kept` holds a setting this
 layout keeps for a pane that does not take it here — another build, or another tool in the
-same office — and takes only `-`, which clears it. The band says whether the pane was handed
+same role — and takes only `-`, which clears it. The band says whether the pane was handed
 the value; what it does with it is the pane's.
 
 `INTERIOR` says what is **inside** the subject, honestly: a pane is code, or a loaded weave's
@@ -725,7 +725,7 @@ The two spellings are chosen apart: changing one never changes the other
 If you want a pane of labels, fields and buttons of your own, that is [a
 view](#a-pane-of-your-own--a-view) above: no code, no weave, a project file.
 If you want to *add* a pane that does something, that is [Making a Workshop
-tool](make-a-workshop-tool.md): start with a loaded, office-authored pane built against
+tool](make-a-workshop-tool.md): start with a loaded, role-authored pane built against
 the installed package. It receives a bounded room, presses, keys, text, the wheel and declared
 actions. Workshop's remaining native Layouts pane is a host implementation detail.
 

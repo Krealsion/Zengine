@@ -65,7 +65,7 @@
 #include "workshop/powers_door.hpp"
 #include "workshop/load_execute.hpp"
 #include "workshop/load_plan.hpp"
-#include "workshop/provenance.hpp" // what stands behind an office's code, wired as the host wires it
+#include "workshop/provenance.hpp" // what stands behind a role's code, wired as the host wires it
 #include "workshop/recipes.hpp"
 #include "workshop/sample_door.hpp"
 #include "workshop/sample_presentation.hpp"
@@ -127,7 +127,7 @@ namespace load = zengine::workshop::load;
 using DeskShown = zengine::testing::rig_windows::Shown;
 
 /// THE DRAWINGS THE WINDOWS ON A RIG'S BUS TOOK, mirrored off its tap: each `Drawn` delivered to a
-/// `zengine.window.*` office applied to its area as the window's store applies one
+/// `zengine.window.*` role applied to its area as the window's store applies one
 /// (graphics/window/store.hpp), and the room the window last gave each area. What a case reads of
 /// a pane's rows, parts, caret and selection is read from these -- what the pane drew, in the room
 /// the window gave it -- never from Workshop, which holds none of it.
@@ -154,7 +154,7 @@ public:
 private:
     void take(const loom::BusEvent& ev) {
         if (ev.kind != loom::EventKind::Delivered || ev.payload == nullptr) return;
-        const std::string_view prefix = gfx::kWindowOfficePrefix;
+        const std::string_view prefix = gfx::kWindowRolePrefix;
         if (ev.schema_name == gfx::Drawn::zen_name) {
             if (bus_.role_of(ev.target).rfind(prefix, 0) != 0) return;
             const gfx::Drawn d = loom::from_value<gfx::Drawn>(*ev.payload);
@@ -615,17 +615,17 @@ inline std::string layout_tab_text(const SetupState& run, std::size_t at) {
     return layout_tab_text(live_copy_of(run), at);
 }
 
-/// WHICH OFFICE A SHAPE IS ASKED OF: the layouts' owner for every door it keeps -- a declaration,
+/// WHICH ROLE A SHAPE IS ASKED OF: the layouts' owner for every door it keeps -- a declaration,
 /// a pane's row asked and what it cannot use, a settings door, a desk put live -- and Workshop for
 /// every other.
 template <class Shape>
 inline constexpr bool kLayoutsDoor =
     std::is_same_v<Shape, PaneSettingsDeclared> || std::is_same_v<Shape, v2::PaneSettingsDeclared> ||
     std::is_same_v<Shape, PaneSettingsAsked> || std::is_same_v<Shape, PaneSettingUnused> ||
-    std::is_same_v<Shape, OfficeSettingsDeclared> || std::is_same_v<Shape, PaneSettingsRequested> ||
+    std::is_same_v<Shape, RoleSettingsDeclared> || std::is_same_v<Shape, PaneSettingsRequested> ||
     std::is_same_v<Shape, PaneSettingCommitRequested> ||
-    std::is_same_v<Shape, OfficeSettingsRequested> ||
-    std::is_same_v<Shape, OfficeSettingCommitRequested> ||
+    std::is_same_v<Shape, RoleSettingsRequested> ||
+    std::is_same_v<Shape, RoleSettingCommitRequested> ||
     std::is_same_v<Shape, PaneSettingPinRequested> || std::is_same_v<Shape, PaneSettingLockRequested> ||
     std::is_same_v<Shape, LayoutSettingsRequested> || std::is_same_v<Shape, SettingsWriteRequested> ||
     std::is_same_v<Shape, SetupApplyRequested>;
@@ -633,8 +633,8 @@ template <class Shape> inline const char* door_of() {
     return kLayoutsDoor<Shape> ? kLayoutsRole : kWorkshopProvider;
 }
 
-/// THE OFFICE OF THE RIG'S STAGE HAND, and what the rig tells it: ask the layouts' owner something.
-inline constexpr const char* kStageOffice = "zengine.test.stage";
+/// THE ROLE OF THE RIG'S STAGE HAND, and what the rig tells it: ask the layouts' owner something.
+inline constexpr const char* kStageRole = "zengine.test.stage";
 struct StageNudge {
     ZEN_SHAPE(StageNudge, 1);
 };
@@ -649,7 +649,7 @@ class StageHand
                              loom::Emit<LayoutSettingsRequested>> {
 public:
     void on(const StageNudge&, loom::Mail& mail) {
-        (void)mail.as_role(kStageOffice).send_to_role(kLayoutsRole, LayoutSettingsRequested{});
+        (void)mail.as_role(kStageRole).send_to_role(kLayoutsRole, LayoutSettingsRequested{});
     }
     void on(const LayoutSettingsAnswered&, loom::Mail&) {}
 };
@@ -780,9 +780,9 @@ struct RigNote {
 };
 inline constexpr const char* kRigBoard = "zengine.test.board";
 
-/// THE ROOMS ASKED OF THE DIRECTORY on `bus`, by area and by the office that asked, counted from
+/// THE ROOMS ASKED OF THE DIRECTORY on `bus`, by area and by the role that asked, counted from
 /// each ask's fate on the bus: delivered to the rig's own directory, or refused while none holds
-/// its office yet.
+/// its role yet.
 struct RoomAsks {
     explicit RoomAsks(loom::Switchboard& bus) : bus_(bus) {
         tap_ = bus_.add_observer([this](const loom::BusEvent& ev) {
@@ -797,11 +797,11 @@ struct RoomAsks {
     ~RoomAsks() { bus_.remove_observer(tap_); }
     RoomAsks(const RoomAsks&) = delete;
     RoomAsks& operator=(const RoomAsks&) = delete;
-    /// How many times `office` asked the room of `area`.
-    std::size_t times(const std::string& area, const std::string& office) const {
+    /// How many times `role` asked the room of `area`.
+    std::size_t times(const std::string& area, const std::string& role) const {
         std::size_t n = 0;
         for (const auto& [a, o] : asked_) {
-            n += a == area && o == office ? std::size_t{1} : std::size_t{0};
+            n += a == area && o == role ? std::size_t{1} : std::size_t{0};
         }
         return n;
     }
@@ -812,7 +812,7 @@ private:
     std::vector<std::pair<std::string, std::string>> asked_;
 };
 
-/// HOW MANY PASTES WERE ASKED of the office `window` names, counted on `bus` from the delivery of
+/// HOW MANY PASTES WERE ASKED of the role `window` names, counted on `bus` from the delivery of
 /// each to its holder: the terminal window reads no clipboard and keeps no count of its own.
 inline loom::ObserverId count_paste_asks(loom::Switchboard& bus, std::string window,
                                          std::int64_t& asks) {
@@ -894,23 +894,23 @@ struct InteractionClock {
 
 // ---- The stack's stand-in: a runtime pane every `Live` admits first --------------------------
 // An ordinary overlay-stack pane to seat, arrange, occlude, persist and remove: offered under a
-// test office and admitted through the seam handler's own `admit_pane_offer`, with no provider
+// test role and admitted through the seam handler's own `admit_pane_offer`, with no provider
 // behind it. `Live` admits it before anything else, so its handle is `kFirstRuntimeKind` by the
 // mint's law; a case building its own `Panes` admits it first too (`admit_stock`). `PaneRig`
 // does not: the seam suites mint their own handles and count on the order.
 namespace stock {
-// Nobody holds this office: the room Workshop grants the pane is refused on the tap, and its body
+// Nobody holds this role: the room Workshop grants the pane is refused on the tap, and its body
 // shows the host's own waiting sentence.
-inline constexpr const char* kOffice = "zengine.test.stack";
+inline constexpr const char* kRole = "zengine.test.stack";
 inline constexpr const char* kPane = "stack";
 inline constexpr const char* kName = "Stack";
 inline constexpr const char* kSummary = "a stack pane with nobody behind it";
 inline constexpr std::int64_t kKind = kFirstRuntimeKind;
 } // namespace stock
 
-inline PaneRef stock_ref() { return PaneRef{stock::kOffice, stock::kPane}; }
+inline PaneRef stock_ref() { return PaneRef{stock::kRole, stock::kPane}; }
 
-/// THE SECOND STAND-IN, admitted right after the first under the same office: the other ordinary
+/// THE SECOND STAND-IN, admitted right after the first under the same role: the other ordinary
 /// stack pane a case seats, overlaps, orders and persists.
 namespace second {
 inline constexpr const char* kPane = "second";
@@ -919,15 +919,15 @@ inline constexpr const char* kSummary = "a second stack pane with nobody behind 
 inline constexpr std::int64_t kKind = kFirstRuntimeKind + 1;
 } // namespace second
 
-inline PaneRef second_ref() { return PaneRef{stock::kOffice, second::kPane}; }
+inline PaneRef second_ref() { return PaneRef{stock::kRole, second::kPane}; }
 
 /// ADMIT THE STAND-IN INTO A CATALOG, first -- and prove it took the handle every case
 /// spells. Idempotent: a refreshed offer keeps the handle it already had.
 inline void admit_stock(Panes& panes) {
-    const Admission took = admit_pane_offer(panes.runtime, stock::kOffice,
+    const Admission took = admit_pane_offer(panes.runtime, stock::kRole,
                                             PaneOffered{stock::kPane, stock::kName, stock::kSummary});
     REQUIRE_MESSAGE(took.written.accepted, took.written.refusal);
-    const RuntimePane* row = panes.runtime.find(stock::kOffice, stock::kPane);
+    const RuntimePane* row = panes.runtime.find(stock::kRole, stock::kPane);
     REQUIRE(row != nullptr);
     REQUIRE_MESSAGE(row->kind == stock::kKind,
                     "the stand-in must be the first pane this catalog admits");
@@ -936,9 +936,9 @@ inline void admit_stock(Panes& panes) {
 /// ...AND THE SECOND, right after it, proving it took the handle every case spells.
 inline void admit_second(Panes& panes) {
     const Admission took = admit_pane_offer(
-        panes.runtime, stock::kOffice, PaneOffered{second::kPane, second::kName, second::kSummary});
+        panes.runtime, stock::kRole, PaneOffered{second::kPane, second::kName, second::kSummary});
     REQUIRE_MESSAGE(took.written.accepted, took.written.refusal);
-    const RuntimePane* row = panes.runtime.find(stock::kOffice, second::kPane);
+    const RuntimePane* row = panes.runtime.find(stock::kRole, second::kPane);
     REQUIRE(row != nullptr);
     REQUIRE_MESSAGE(row->kind == second::kKind,
                     "the second stand-in must be the second pane this catalog admits");
@@ -988,7 +988,7 @@ struct Live {
     /// writes, so it is removed first.
     std::unique_ptr<QuitDeliveryWatch> quit_watch;
 
-    /// THE LAYOUTS' OWNER, mounted in its own office before Workshop, as the host mounts it, and the
+    /// THE LAYOUTS' OWNER, mounted in its own role before Workshop, as the host mounts it, and the
     /// rig's stage hand, mounted when a case first stages a run past the doors.
     LayoutsOwner* owner = nullptr;
     loom::WeaveId owner_id{};
@@ -1007,7 +1007,7 @@ struct Live {
             loom::Grant grant;
             grant.allow_to_role(LayoutSettingsRequested::zen_name,
                                 LayoutSettingsRequested::zen_version, kLayoutsRole);
-            stage_id = bus.register_weave(std::move(stage), std::move(grant), std::string(kStageOffice));
+            stage_id = bus.register_weave(std::move(stage), std::move(grant), std::string(kStageRole));
             raw->zen_set_self(stage_id);
         }
         (void)bus.send(stage_id,
@@ -1023,10 +1023,10 @@ struct Live {
         // THE HOST'S VERSION ANSWER, as workshop.cpp wires it (the grant is the Emit set's) --
         // with ONE fixture statement: the stack's stand-in (`stock`) is answered as present for
         // a ROOM, so the launch door (which asks exactly that) seats it as it seats any offered
-        // pane. Nothing holds its office, so everything actually sent to it is still refused on
+        // pane. Nothing holds its role, so everything actually sent to it is still refused on
         // the tap; the statement is about the one question and nothing else.
         host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
-            if (role == stock::kOffice && shape.name() == gfx::AreaRoom::zen_name) {
+            if (role == stock::kRole && shape.name() == gfx::AreaRoom::zen_name) {
                 return true;
             }
             return holder_accepts_on(bus, role, shape);
@@ -1047,10 +1047,10 @@ struct Live {
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
         loom::allow_poke_answers(grant);
-        // IN THE OFFICE, AS THE HOST MOUNTS IT. Workshop's weave holds `zengine.workshop`, because
-        // the pane protocol is authored AS that office: mounted anonymously, its asks and room
+        // IN THE ROLE, AS THE HOST MOUNTS IT. Workshop's weave holds `zengine.workshop`, because
+        // the pane protocol is authored AS that role: mounted anonymously, its asks and room
         // grants would be refused at the bus. The three-argument `register_weave` is the Loom's
-        // own way to bind one, which is what `mount_in_office` spells in the host.
+        // own way to bind one, which is what `mount_in_role` spells in the host.
         const loom::WeaveId id =
             bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
@@ -1190,14 +1190,14 @@ struct Live {
         return {adv, line};
     }
 
-    /// WHETHER THIS CASE SEATED A MEDIUM OF ITS OWN -- a directory or a window in its office --
+    /// WHETHER THIS CASE SEATED A MEDIUM OF ITS OWN -- a directory or a window in its role --
     /// before the rig's came up: then the rig's never does, and the case's own window offers the
     /// room and starts the desk.
     bool own_medium() {
         if (in_window && !windows.up() &&
             (bus.role_holder(gfx::kGraphicsRole).valid() ||
-             bus.role_holder(std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow).valid() ||
-             bus.role_holder(std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow).valid())) {
+             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow).valid() ||
+             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow).valid())) {
             in_window = false;
         }
         return !in_window;
@@ -1352,11 +1352,11 @@ struct Live {
             }
         }
     }
-    /// THE WEAVER CLOSED THE WINDOW THAT SHOWS THE DESK: its close, said as that window's office.
+    /// THE WEAVER CLOSED THE WINDOW THAT SHOWS THE DESK: its close, said as that window's role.
     void close_requested() {
         come_up();
         REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        (void)bus.office_publish_as(windows.id(), windows.office(),
+        (void)bus.role_publish_as(windows.id(), windows.role(),
                                     loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
         bus.drain_until_idle();
     }
@@ -1540,7 +1540,7 @@ inline void spillout(const std::string& path, const std::string& text) {
 inline constexpr const char* kRetiredObjectDocument =
     R"({"zen":1,"schema":"WorkshopDocument","version":2,"content_id":"0xbfde7d02abe39177","fields":{"format":"zengine-workshop","format_version":"1","next_id":"3","objects":[{"id":"1","name":"panel","context":"0","x":"3","y":"2","width":{"mode":"percent","amount":"60"},"height":{"mode":"cells","amount":"6"}},{"id":"2","name":"panel","context":"0","x":"6","y":"10","width":{"mode":"cells","amount":"14"},"height":{"mode":"cells","amount":"4"}}]}})";
 
-/// A stand-in for the Builder tool: it holds the office, records what it was
+/// A stand-in for the Builder tool: it holds the role, records what it was
 /// asked, and answers with whatever status the case has set up.
 ///
 /// It is not a mock of the real tool's LOGIC (that has its own suite); it is the
@@ -1575,7 +1575,7 @@ public:
     zengine::builder::RecipeCatalog catalog{};
     /// WHETHER EACH ASK WAS A BUILD OR A BUILD-AND-REALIZE. Recorded rather than
     /// asserted from the pane, because "the weaver's second intention crossed the
-    /// office boundary" is a fact about what was SAID and not about what was shown.
+    /// role boundary" is a fact about what was SAID and not about what was shown.
     std::vector<bool> realize_asked;
     /// ...and whether it answers a build at all. A real build takes seconds and
     /// answers when the process exits; a stand-in that always answers instantly
@@ -1585,7 +1585,7 @@ public:
     std::vector<std::string> asked;
 };
 
-/// Mount the stand-in into the Builder office on this Workshop's bus.
+/// Mount the stand-in into the Builder role on this Workshop's bus.
 inline ToolSeat* mount_tool(Live& t, const std::string& recipe) {
     auto seat = std::make_unique<ToolSeat>();
     ToolSeat* raw = seat.get();
@@ -2253,13 +2253,13 @@ inline DeskShown first_frame(Live& t) {
 /// The Hello fixture's identity, spelled as a STRANGER would have to spell it --
 /// by string. Nothing here includes the fixture's source, because a provider is a
 /// stranger to Workshop and the whole claim is that two strings are enough.
-inline constexpr const char* kHelloOffice = "zengine.test.workshop-hello";
+inline constexpr const char* kHelloRole = "zengine.test.workshop-hello";
 inline constexpr const char* kHelloPane = "hello";
 
-inline PaneRef hello_ref() { return PaneRef{kHelloOffice, kHelloPane}; }
+inline PaneRef hello_ref() { return PaneRef{kHelloRole, kHelloPane}; }
 
-/// A SECOND OFFICE, for the cases about two providers and one pane key.
-inline constexpr const char* kOtherOffice = "zengine.test.other-provider";
+/// A SECOND ROLE, for the cases about two providers and one pane key.
+inline constexpr const char* kOtherRole = "zengine.test.other-provider";
 
 /// The nudge that makes a native seat speak at an instant a case chooses. It is
 /// the seat's own private shape and no part of the pane protocol -- a case must
@@ -2269,10 +2269,10 @@ struct SeatDo {
     ZEN_SHAPE(SeatDo, 1);
 };
 
-/// A TOOL THAT ASKS THIS HOST'S DOORS, in an office of its own: what the Files weave is, reduced
+/// A TOOL THAT ASKS THIS HOST'S DOORS, in a role of its own: what the Files weave is, reduced
 /// to the sentences a case needs. It asks `zengine.project` where this run began and to install or
 /// author a catalog, and asks `zengine.workshop` to open one source in the Editor, recording every
-/// answer -- the party each door was built for. It authors AS AN OFFICE, because both doors
+/// answer -- the party each door was built for. It authors AS AN ROLE, because both doors
 /// refuse anonymous speech; a rig that asked personally would be proving the refusal rather than
 /// the answer.
 struct DoorAskerState {
@@ -2299,7 +2299,7 @@ class DoorAsker
                                         ManagedOpenSettled, v3::SourcePrepared, PresentationAdmitted,
                                         loom::DispatchRefused>> {
 public:
-    explicit DoorAsker(std::string office) : office_(std::move(office)) {}
+    explicit DoorAsker(std::string role) : role_(std::move(role)) {}
 
     /// What this asker should say next, run INSIDE its own delivery so `as_role` has a real
     /// authorship moment for Loom to verify.
@@ -2314,7 +2314,7 @@ public:
     std::vector<SourceOpened> opens;
     std::vector<bool> opens_authentic; ///< beside `opens`: Loom's word that it answered our ask
     std::vector<RecipeSourceSaid> sources;
-    /// Whether the last ask was authored as an office at all -- the canary lever for the
+    /// Whether the last ask was authored as a role at all -- the canary lever for the
     /// rule every door keeps.
     bool personally = false;
     /// This asker's own id on the bus, so a case can nudge it the way `drive` nudges a seat.
@@ -2371,29 +2371,29 @@ public:
     }
 
     template <class Shape>
-    void ask(loom::Mail& mail, const char* office, const Shape& shape) {
+    void ask(loom::Mail& mail, const char* role, const Shape& shape) {
         ++state_.asks;
         if (personally) {
-            (void)mail.send_to_role(office, shape);
+            (void)mail.send_to_role(role, shape);
             return;
         }
-        (void)mail.as_role(office_).send_to_role(office, shape);
+        (void)mail.as_role(role_).send_to_role(role, shape);
     }
 
 private:
-    std::string office_;
+    std::string role_;
 };
 
-/// The office an asker holds unless a case says otherwise. It is a TEST office and nothing
-/// in the host names it: what the doors require is that an asker holds SOME office, so the
+/// The role an asker holds unless a case says otherwise. It is a TEST role and nothing
+/// in the host names it: what the doors require is that an asker holds SOME role, so the
 /// spelling is the case's to choose and the door's answer must not depend on it.
-inline constexpr const char* kDoorAskerOffice = "zengine.test.door-asker";
+inline constexpr const char* kDoorAskerRole = "zengine.test.door-asker";
 
 /// Seat an asker on this bus, granted exactly the eight asks and nothing else. It hears the
 /// three answers the way any weave does -- through Loom's own answer route -- so nothing
 /// here has to be granted for it to be told.
-inline DoorAsker* mount_door_asker(Live& t, const char* office = kDoorAskerOffice) {
-    auto asker = std::make_unique<DoorAsker>(std::string(office));
+inline DoorAsker* mount_door_asker(Live& t, const char* role = kDoorAskerRole) {
+    auto asker = std::make_unique<DoorAsker>(std::string(role));
     DoorAsker* raw = asker.get();
     loom::Grant grant;
     grant.allow_to_any(ProjectRootRequested::zen_name, ProjectRootRequested::zen_version);
@@ -2406,7 +2406,7 @@ inline DoorAsker* mount_door_asker(Live& t, const char* office = kDoorAskerOffic
     grant.allow_to_any(PlanRowRequested::zen_name, PlanRowRequested::zen_version);
     grant.allow_to_any(RecipeSourceRequested::zen_name, RecipeSourceRequested::zen_version);
     const loom::WeaveId id =
-        t.bus.register_weave(std::move(asker), std::move(grant), std::string(office));
+        t.bus.register_weave(std::move(asker), std::move(grant), std::string(role));
     raw->zen_set_self(id);
     raw->id = id;
     return raw;
@@ -2438,7 +2438,7 @@ inline SourceOpened open_through_door(Live& t, DoorAsker* asker, const std::stri
 
 /// ASK THE PROJECT DOOR WHICH FILE A RECIPE NAMES, and hand back what it answered. This is
 /// the first of the two doors the Builder pane's `builder.edit-source` walks: the pane holds a
-/// recipe name and never a path, the host's read-only office resolves it against the catalog
+/// recipe name and never a path, the host's read-only role resolves it against the catalog
 /// IT owns (`RecipeSourceSaid`), and the pane then asks the Editor's own door to open it.
 inline RecipeSourceSaid edit_source_through_door(Live& t, DoorAsker* asker,
                                                  const std::string& recipe) {
@@ -2458,8 +2458,8 @@ struct SeatState {
 /// A PARTY THAT PUTS A PANE ON THE DESK, OR TAKES ONE OFF, THROUGH THE TWO DOORS -- the host's
 /// `PaneLaunchRequested` and the layouts' owner's `PaneCloseRequested` -- what the desktop's Pane
 /// Manager does, for the many cases that need a pane open or closed and are not about who asked or
-/// with which key. It holds an office of its own, because the doors answer an office and only an
-/// office; the cases about the Pane Manager itself drive the shipped desktop image.
+/// with which key. It holds a role of its own, because the doors answer a role and only a
+/// role; the cases about the Pane Manager itself drive the shipped desktop image.
 class DoorHand
     : public loom::WeaveBase<DoorHand, SeatState,
                              loom::Accept<PaneLaunchAnswered, PaneCloseAnswered,
@@ -2485,10 +2485,10 @@ public:
     std::vector<PaneToggleAnswered> toggled;
     std::vector<PaneSubjectActed> acted;
     std::function<void(DoorHand&, loom::Mail&)> next;
-    static constexpr const char* kOffice = "zengine.test.hand";
+    static constexpr const char* kRole = "zengine.test.hand";
 };
 
-/// THE RIG'S HAND, mounted on first use in its own office.
+/// THE RIG'S HAND, mounted on first use in its own role.
 template <class Rig>
 inline DoorHand& door_hand(Rig& t) {
     if (t.hand == nullptr) {
@@ -2511,7 +2511,7 @@ inline DoorHand& door_hand(Rig& t) {
         grant.allow_to_role(PaneSettingCommitRequested::zen_name,
                             PaneSettingCommitRequested::zen_version, kLayoutsRole);
         t.hand_id =
-            t.bus.register_weave(std::move(seat), std::move(grant), std::string(DoorHand::kOffice));
+            t.bus.register_weave(std::move(seat), std::move(grant), std::string(DoorHand::kRole));
         raw->zen_set_self(t.hand_id);
         t.hand = raw;
     }
@@ -2532,13 +2532,13 @@ inline void left_in_column(Rig& t, const PaneRef& ref) {
     });
 }
 
-/// ASK THE HOST TO OPEN OR FOCUS THIS PANE, as an office, inside the hand's own delivery.
+/// ASK THE HOST TO OPEN OR FOCUS THIS PANE, as a role, inside the hand's own delivery.
 template <class Rig>
 inline PaneLaunchAnswered hand_launch(Rig& t, const PaneRef& ref) {
     DoorHand& h = door_hand(t);
     const std::size_t before = h.launched.size();
     h.next = [ref](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
+        (void)m.as_role(DoorHand::kRole)
             .send_to_role(kWorkshopProvider, PaneLaunchRequested{ref.provider, ref.pane});
     };
     (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
@@ -2554,7 +2554,7 @@ inline PaneCloseAnswered hand_close(Rig& t, const PaneRef& ref) {
     DoorHand& h = door_hand(t);
     const std::size_t before = h.closed.size();
     h.next = [ref](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
+        (void)m.as_role(DoorHand::kRole)
             .send_to_role(kLayoutsRole, PaneCloseRequested{ref.provider, ref.pane});
     };
     (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
@@ -2570,7 +2570,7 @@ inline PaneToggleAnswered hand_toggle(Rig& t, const PaneRef& ref) {
     DoorHand& h = door_hand(t);
     const std::size_t before = h.toggled.size();
     h.next = [ref](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
+        (void)m.as_role(DoorHand::kRole)
             .send_to_role(kWorkshopProvider, PaneToggleRequested{ref.provider, ref.pane});
     };
     (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
@@ -2580,14 +2580,14 @@ inline PaneToggleAnswered hand_toggle(Rig& t, const PaneRef& ref) {
     return h.toggled.back();
 }
 
-/// NAME A PANE AS THE INSPECTED SUBJECT THROUGH THE HOST'S DOOR, as an inspector office asks it
+/// NAME A PANE AS THE INSPECTED SUBJECT THROUGH THE HOST'S DOOR, as an inspector role asks it
 /// (Info's own path, WL-INFO-14), and answer what the door said.
 template <class Rig>
 inline PaneSubjectActed hand_inspect(Rig& t, const PaneRef& ref) {
     DoorHand& h = door_hand(t);
     const std::size_t before = h.acted.size();
     h.next = [ref](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
+        (void)m.as_role(DoorHand::kRole)
             .send_to_role(kWorkshopProvider, InspectPaneRequested{ref.provider, ref.pane});
     };
     (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
@@ -2604,7 +2604,7 @@ inline PaneSubjectActed hand_inspect_in_info(Rig& t, const PaneRef& ref) {
     DoorHand& h = door_hand(t);
     const std::size_t before = h.acted.size();
     h.next = [ref](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
+        (void)m.as_role(DoorHand::kRole)
             .send_to_role(kInfoPaneProvider, InspectPaneRequested{ref.provider, ref.pane});
     };
     (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
@@ -2663,7 +2663,7 @@ inline PaneSubjectActed hand_commit(Rig& t, const std::string& label, const std:
     DoorHand& h = door_hand(t);
     const std::size_t before = h.acted.size();
     h.next = [subject, at, text](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
+        (void)m.as_role(DoorHand::kRole)
             .send_to_role(kWorkshopProvider,
                           PaneCommitRequested{subject, static_cast<std::int64_t>(at), text});
     };
@@ -2773,7 +2773,7 @@ inline std::vector<std::string> unused_settings(Rig& t, const PaneRef& ref) {
     return out;
 }
 
-/// ...OR QUEUE THE CLOSE WITHOUT DELIVERING ANYTHING -- office-authored as the hand, behind
+/// ...OR QUEUE THE CLOSE WITHOUT DELIVERING ANYTHING -- role-authored as the hand, behind
 /// whatever the bus already holds -- for the cases about what a removal in the same poll does to
 /// a flight already under way. The next pump delivers it in order.
 template <class Rig>
@@ -2781,8 +2781,8 @@ inline void enqueue_close(Rig& t, const PaneRef& ref) {
     (void)door_hand(t);
     // ROLE-ADDRESSED, as the hand's grant is: a send to the weave's id would be refused at
     // delivery, silently to this case.
-    const loom::Ticket queued = t.bus.office_send_to_role_as(
-        t.hand_id, DoorHand::kOffice, kLayoutsRole,
+    const loom::Ticket queued = t.bus.role_send_to_role_as(
+        t.hand_id, DoorHand::kRole, kLayoutsRole,
         loom::Message(loom::to_value(PaneCloseRequested{ref.provider, ref.pane}), t.hand_id,
                       t.hand_id, 0));
     REQUIRE(queued.valid());
@@ -2861,9 +2861,9 @@ struct SeatWheel {
     double dy = 0;
 };
 
-/// A NATIVE PROVIDER SEAT: a weave that holds an office, can be made to say anything, deliberately
+/// A NATIVE PROVIDER SEAT: a weave that holds a role, can be made to say anything, deliberately
 /// or personally, and draws its rows in each pane's area in the window that shows it,
-/// `<office>.<pane>`. The `.so` fixture proves
+/// `<role>.<pane>`. The `.so` fixture proves
 /// the real ABI and load path; this proves the AUTHORITY cases, which need the exact wrong sentence
 /// at the exact wrong moment, as no shipped fixture could be talked into.
 class ProviderSeat
@@ -2877,7 +2877,7 @@ class ProviderSeat
                                         gfx::Drawn,
                                         gfx::AreaButtonChanged>> {
 public:
-    explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
+    explicit ProviderSeat(std::string role) : role_(std::move(role)) {}
 
     /// A RESOLVED ACTION THIS SEAT WAS ASKED FOR (WL-KEY-15), recorded and never
     /// interpreted, for the key's reason exactly: a case asserts what WORKSHOP resolved.
@@ -2894,7 +2894,7 @@ public:
         asks.push_back(std::string(mail.authored_role()));
     }
     /// THE ROOM A WINDOW GIVES ONE OF ITS AREAS, recorded with its author, and the rows last said
-    /// for that pane drawn there whole. A room another office gives draws nothing.
+    /// for that pane drawn there whole. A room another role gives draws nothing.
     void on(const gfx::AreaRoom& r, loom::Mail& mail) {
         ++state_.said;
         ++said;
@@ -2931,7 +2931,7 @@ public:
         any_presses.push_back(press);
         if (p->button == 1 && p->at.shown) presses.push_back(press);
         if (p->button == 3 && pass_right) {
-            (void)pane_menu::pass_back(mail, office_.c_str(), pane);
+            (void)pane_menu::pass_back(mail, role_.c_str(), pane);
         }
     }
     void on(const gfx::AreaWheelTurned& w, loom::Mail& mail) {
@@ -2975,16 +2975,16 @@ public:
         }
     }
 
-    /// Offer, deliberately AS this office -- the ordinary, correct spelling.
+    /// Offer, deliberately AS this role -- the ordinary, correct spelling.
     void offer(loom::Mail& mail, const PaneOffered& o) {
         offered(o.pane);
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, o);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, o);
     }
     void offer(loom::Mail& mail, const v2::PaneOffered& o) {
         offered(o.pane);
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, o);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, o);
     }
-    /// Offer PERSONALLY, from the very weave that holds the office. Holding is not
+    /// Offer PERSONALLY, from the very weave that holds the role. Holding is not
     /// speaking-for (MSG-07), and this is the sentence that says so.
     void offer_personally(loom::Mail& mail, const PaneOffered& o) {
         (void)mail.send_to_role(kWorkshopProvider, o);
@@ -3000,7 +3000,7 @@ public:
         carets_[pane] = c;
         draw(mail, pane);
     }
-    /// THE ESCAPE THIS SEAT WAS SENT WAS UNSPENT HERE -- said as the office, and personally for
+    /// THE ESCAPE THIS SEAT WAS SENT WAS UNSPENT HERE -- said as the role, and personally for
     /// the case about authorship rather than about the gesture. Echoed under the number the
     /// LATEST Escape arrived on, which is what a pane answering the key it was just handed
     /// does; `unspent_answering` is for a case that answers an older one on purpose, and
@@ -3009,11 +3009,11 @@ public:
         unspent_answering(mail, pane, latest_escape_ask());
     }
     void unspent_answering(loom::Mail& mail, const std::string& pane, std::uint64_t answering) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane},
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane},
                                                  answering);
     }
     void unspent_anonymously(loom::Mail& mail, const std::string& pane) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane}, 0);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane}, 0);
     }
     void unspent_personally(loom::Mail& mail, const std::string& pane) {
         (void)mail.send_to_role(kWorkshopProvider, PaneEscapeUnspent{pane}, latest_escape_ask());
@@ -3027,10 +3027,10 @@ public:
         }
         return 0;
     }
-    /// Declare a pane's actions, deliberately AS this office -- and personally, from the
+    /// Declare a pane's actions, deliberately AS this role -- and personally, from the
     /// very weave that holds it, which Workshop must drop for the offer's reason.
     void declare(loom::Mail& mail, const PaneActions& a) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
     }
     void declare_personally(loom::Mail& mail, const PaneActions& a) {
         (void)mail.send_to_role(kWorkshopProvider, a);
@@ -3038,25 +3038,25 @@ public:
     /// The SECOND published version of the declaration -- the one that can name an action this
     /// pane owns. A provider built before it existed sends the shape above.
     void declare_v2(loom::Mail& mail, const v2::PaneActions& a) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
     }
     /// ...and the THIRD, which says what each press may cause and the modes.
     void declare_v3(loom::Mail& mail, const v3::PaneActions& a) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
     }
     /// ...and the FOURTH, whose rows may name a key for a POSIX terminal.
     void declare_v4(loom::Mail& mail, const v4::PaneActions& a) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
     }
-    /// FORGE A PRESS AT SOMEBODY ELSE'S AREA -- deliberately authored, and deliberately by an
-    /// office that is no window's: the sentence a pane must refuse, a stranger telling it a weaver
+    /// FORGE A PRESS AT SOMEBODY ELSE'S AREA -- deliberately authored, and deliberately by a
+    /// role that is no window's: the sentence a pane must refuse, a stranger telling it a weaver
     /// clicked in its area.
-    void press_at(loom::Mail& mail, const char* office, const gfx::AreaButtonChanged& b) {
-        (void)mail.as_role(office_).send_to_role(office, b);
+    void press_at(loom::Mail& mail, const char* role, const gfx::AreaButtonChanged& b) {
+        (void)mail.as_role(role_).send_to_role(role, b);
     }
 
     /// The area one of its panes draws in.
-    std::string area_for(const std::string& pane) const { return pane_area(office_, pane); }
+    std::string area_for(const std::string& pane) const { return pane_area(role_, pane); }
     /// The face the window last set that pane's area in, a cell before one.
     gfx::TextMeasure room_text(const std::string& pane) const {
         const auto d = drawings_.find(area_for(pane));
@@ -3104,13 +3104,13 @@ private:
             offered_.push_back(pane);
         }
     }
-    /// The pane an area of its own shows: `<office>.<pane>`.
+    /// The pane an area of its own shows: `<role>.<pane>`.
     std::string pane_of(const std::string& area) const {
-        const std::string prefix = office_ + ".";
+        const std::string prefix = role_ + ".";
         return area.rfind(prefix, 0) == 0 ? area.substr(prefix.size()) : std::string();
     }
     WindowDrawing& drawing_of(const std::string& area) {
-        return drawings_.try_emplace(area, office_, area).first->second;
+        return drawings_.try_emplace(area, role_, area).first->second;
     }
     std::int64_t columns_of(const std::string& area) const {
         const auto d = drawings_.find(area);
@@ -3139,7 +3139,7 @@ private:
         drawing.draw(drawn.sketch, mail);
     }
 
-    std::string office_;
+    std::string role_;
     std::vector<std::string> offered_;
     std::map<std::string, WindowDrawing> drawings_;
     std::map<std::string, SeatRows> said_rows_;
@@ -3148,9 +3148,9 @@ private:
     bool keys_here_ = false;
 };
 
-/// A NATIVE SEAT THAT TAKES ITS SETTINGS: it holds an office, offers and declares as it is told,
+/// A NATIVE SEAT THAT TAKES ITS SETTINGS: it holds a role, offers and declares as it is told,
 /// asks the layouts' owner for its row whenever it offers, as an image that arrives does, and
-/// records in order every room a window gives its area and every hand-off sent it, with the office
+/// records in order every room a window gives its area and every hand-off sent it, with the role
 /// each was authored as. Apart from `ProviderSeat`, whose cases count every delivery and are owed
 /// no hand-off.
 class SettingsSeat
@@ -3159,7 +3159,7 @@ class SettingsSeat
                              loom::Emit<PaneOffered, PaneSettingsDeclared, PaneSettingsAsked,
                                         PaneSettingUnused, gfx::RoomAsked>> {
 public:
-    explicit SettingsSeat(std::string office) : office_(std::move(office)) {}
+    explicit SettingsSeat(std::string role) : role_(std::move(role)) {}
 
     void on(const PaneCatalogRequested&, loom::Mail&) { ++asks; }
     void on(const gfx::AreaRoom& r, loom::Mail& mail) {
@@ -3185,21 +3185,21 @@ public:
     /// THE OFFER, its row asked of the layouts' owner, and the room of an area it was given before
     /// asked again, as an image that arrives holding nothing asks them.
     void offer(loom::Mail& mail, const PaneOffered& o) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, o);
-        (void)mail.as_role(office_).send_to_role(kLayoutsRole, PaneSettingsAsked{o.pane});
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, o);
+        (void)mail.as_role(role_).send_to_role(kLayoutsRole, PaneSettingsAsked{o.pane});
         if (!rooms.empty()) {
-            (void)mail.as_role(office_).send_to_role(gfx::kGraphicsRole,
+            (void)mail.as_role(role_).send_to_role(gfx::kGraphicsRole,
                                                     gfx::RoomAsked{rooms.back().area});
         }
     }
     void declare(loom::Mail& mail, const PaneSettingsDeclared& d) {
-        (void)mail.as_role(office_).send_to_role(kLayoutsRole, d);
+        (void)mail.as_role(role_).send_to_role(kLayoutsRole, d);
     }
-    /// A SETTING IT WAS HANDED AND CANNOT USE, said to the layouts' owner as its office.
+    /// A SETTING IT WAS HANDED AND CANNOT USE, said to the layouts' owner as its role.
     void unused(loom::Mail& mail, const PaneSettingUnused& u) {
-        (void)mail.as_role(office_).send_to_role(kLayoutsRole, u);
+        (void)mail.as_role(role_).send_to_role(kLayoutsRole, u);
     }
-    /// ...and PERSONALLY, from the weave that holds the office, which declares nothing.
+    /// ...and PERSONALLY, from the weave that holds the role, which declares nothing.
     void declare_personally(loom::Mail& mail, const PaneSettingsDeclared& d) {
         (void)mail.send_to_role(kLayoutsRole, d);
     }
@@ -3208,17 +3208,17 @@ public:
     std::vector<std::string> heard;    ///< "room" or "settings", in the order they arrived
     std::vector<SeatRoom> rooms;
     std::vector<PaneSettings> handed;
-    std::vector<std::string> authors;  ///< the office each was authored as, in the same order
+    std::vector<std::string> authors;  ///< the role each was authored as, in the same order
     int asks = 0;
 
 private:
-    std::string office_;
+    std::string role_;
 };
 
 /// A WEAVE THAT HOLDS `zengine.workshop` AND IS NOT WORKSHOP -- the instrument for a PROVIDER's
 /// own checks on what it offers and on who asks for its catalog, whose refusals are invisible from
-/// Workshop's side. Holding the office lets this ask for the catalog as Workshop, and also
-/// PERSONALLY -- the sentence a weave that merely held the office would produce with
+/// Workshop's side. Holding the role lets this ask for the catalog as Workshop, and also
+/// PERSONALLY -- the sentence a weave that merely held the role would produce with
 /// `send_to_role`. Two spellings, one holder, opposite outcomes.
 class PaneWatcher
     : public loom::WeaveBase<PaneWatcher, SeatState,
@@ -3356,7 +3356,7 @@ struct PaneRig {
     /// The rig's ears on what Workshop publishes (`Painter`).
     loom::WeaveId painter_id{};
 
-    /// THE LAYOUTS' OWNER, mounted in its own office before Workshop, as the host mounts it, and the
+    /// THE LAYOUTS' OWNER, mounted in its own role before Workshop, as the host mounts it, and the
     /// rig's stage hand, mounted when a case first stages a run past the doors.
     LayoutsOwner* owner = nullptr;
     loom::WeaveId owner_id{};
@@ -3375,7 +3375,7 @@ struct PaneRig {
             loom::Grant grant;
             grant.allow_to_role(LayoutSettingsRequested::zen_name,
                                 LayoutSettingsRequested::zen_version, kLayoutsRole);
-            stage_id = bus.register_weave(std::move(stage), std::move(grant), std::string(kStageOffice));
+            stage_id = bus.register_weave(std::move(stage), std::move(grant), std::string(kStageRole));
             raw->zen_set_self(stage_id);
         }
         (void)bus.send(stage_id,
@@ -3393,20 +3393,20 @@ struct PaneRig {
     }
 
 
-    /// MOUNT WORKSHOP THE WAY THE HOST DOES: in the `zengine.workshop` office, with the host's own
+    /// MOUNT WORKSHOP THE WAY THE HOST DOES: in the `zengine.workshop` role, with the host's own
     /// compiled grant, not one minted from the Emit set -- `emit_default_grant` gives `to_any` for
     /// everything declared, wider than the host writes, and the two Builder sentences are
     /// ROLE-SCOPED. Independent denial witnesses check the policy acquires no unintended authority.
     WorkshopWeave* mount_workshop() {
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
-        // The press's second version is chosen by the host's answer about the office's holder,
+        // The press's second version is chosen by the host's answer about the role's holder,
         // wired as workshop.cpp wires it; a case that wants an OLDER host -- one that answers
         // nothing, so every press crosses as v1 -- empties `host.holder_accepts`. With `Live`'s
         // one fixture statement: the stack's stand-in, if a case admits it, is answered present
         // for a ROOM, so the launch door seats it; a case that never admits it gets the host's.
         host.holder_accepts = [this](std::string_view role, const loom::Schema& shape) {
-            if (role == stock::kOffice && shape.name() == gfx::AreaRoom::zen_name) {
+            if (role == stock::kRole && shape.name() == gfx::AreaRoom::zen_name) {
                 return true;
             }
             return holder_accepts_on(bus, role, shape);
@@ -3432,7 +3432,7 @@ struct PaneRig {
     /// Use the native host's policy; policy denials are also exercised independently.
     static loom::Grant workshop_grant() { return zengine::workshop::workshop_grant(); }
 
-    /// REGISTER WORKSHOP'S WEAVE IN ITS OFFICE, with the production grant and the quit's watch.
+    /// REGISTER WORKSHOP'S WEAVE IN ITS ROLE, with the production grant and the quit's watch.
     void register_workshop(std::unique_ptr<loom::Weave> weave) {
         workshop_id =
             bus.register_weave(std::move(weave), workshop_grant(), std::string(kWorkshopProvider));
@@ -3442,9 +3442,9 @@ struct PaneRig {
 
     /// TAKE WORKSHOP'S WEAVE OFF THIS BUS FOR AN INTERVAL, AND PUT IT BACK. The weave itself --
     /// its document, its session, the panes it seated -- is the same object throughout; what leaves
-    /// with its record is its office and the accept-set that declared its doors, so for the interval
+    /// with its record is its role and the accept-set that declared its doors, so for the interval
     /// a shape only Workshop accepts is one this bus has never heard of. Put back, it holds the
-    /// office again under a new id (`workshop_id`), with the grant it was mounted with. Host root
+    /// role again under a new id (`workshop_id`), with the grant it was mounted with. Host root
     /// authority, for an interval no gesture can make.
     std::unique_ptr<loom::Weave> take_workshop_off() {
         quit_watch.reset();
@@ -3461,7 +3461,7 @@ struct PaneRig {
     /// THE OPENING MANAGER, MOUNTED THE WAY THE HOST MOUNTS IT -- its production grant spelled by
     /// hand, since one minted from the Emit set could not notice the host widening it, and the
     /// authority to commit a joint publication minted by this rig's bus for the manager's own id,
-    /// over exactly the two offices the host names. A case that wants the managed door mounts
+    /// over exactly the two roles the host names. A case that wants the managed door mounts
     /// this beside Workshop; one that wants the direct door alone does not.
     OpeningManager* opening = nullptr;
     loom::WeaveId opening_id{};
@@ -3534,12 +3534,12 @@ struct PaneRig {
     loom::WeaveId terminal_id{};
     bool terminal_edits_settings = false;
 
-    /// A native provider in an office of its own, granted the pane sentences a provider says --
+    /// A native provider in a role of its own, granted the pane sentences a provider says --
     /// offer, both declarations, unspent Escape, a press handed back -- its drawing to the window
-    /// that shows its area, and a press to forge. The office is a view, so a case can seat a weave
-    /// in an office longer than Workshop's own key bound.
-    ProviderSeat* mount_provider(std::string_view office) {
-        auto seat = std::make_unique<ProviderSeat>(std::string(office));
+    /// that shows its area, and a press to forge. The role is a view, so a case can seat a weave
+    /// in a role longer than Workshop's own key bound.
+    ProviderSeat* mount_provider(std::string_view role) {
+        auto seat = std::make_unique<ProviderSeat>(std::string(role));
         ProviderSeat* raw = seat.get();
         loom::Grant grant;
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
@@ -3559,16 +3559,16 @@ struct PaneRig {
         // unreachable proves nothing.
         grant.allow_to_any(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version);
         const loom::WeaveId id =
-            bus.register_weave(std::move(seat), std::move(grant), std::string(office));
+            bus.register_weave(std::move(seat), std::move(grant), std::string(role));
         raw->zen_set_self(id);
         seat_ids.push_back(id);
         seats_.push_back(raw);
         return raw;
     }
 
-    /// A SEAT THAT TAKES ITS SETTINGS in `office`, granted only what it says.
-    SettingsSeat* mount_settings_seat(std::string_view office) {
-        auto seat = std::make_unique<SettingsSeat>(std::string(office));
+    /// A SEAT THAT TAKES ITS SETTINGS in `role`, granted only what it says.
+    SettingsSeat* mount_settings_seat(std::string_view role) {
+        auto seat = std::make_unique<SettingsSeat>(std::string(role));
         SettingsSeat* raw = seat.get();
         loom::Grant grant;
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
@@ -3579,12 +3579,12 @@ struct PaneRig {
                             kLayoutsRole);
         grant.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
         const loom::WeaveId id =
-            bus.register_weave(std::move(seat), std::move(grant), std::string(office));
+            bus.register_weave(std::move(seat), std::move(grant), std::string(role));
         raw->zen_set_self(id);
         settings_seats_.emplace_back(raw, id);
         return raw;
     }
-    /// ...AND TAKE IT OFF THE BUS, office and all, so another weave may hold that office.
+    /// ...AND TAKE IT OFF THE BUS, role and all, so another weave may hold that role.
     void unmount_settings_seat(SettingsSeat* seat) {
         for (std::size_t i = 0; i < settings_seats_.size(); ++i) {
             if (settings_seats_[i].first == seat) {
@@ -3692,7 +3692,7 @@ struct PaneRig {
     }
 
 
-    /// A watcher in the `zengine.workshop` office, INSTEAD of Workshop. Only one weave
+    /// A watcher in the `zengine.workshop` role, INSTEAD of Workshop. Only one weave
     /// may hold a role, so a case uses this OR `mount_workshop`, never both.
     PaneWatcher* mount_watcher() {
         auto seat = std::make_unique<PaneWatcher>();
@@ -3705,7 +3705,7 @@ struct PaneRig {
             bus.register_weave(std::move(seat), std::move(grant), std::string(kWorkshopProvider));
         raw->zen_set_self(id);
         watcher_id = id;
-        // ...AND THE LAYOUTS' OFFICE BESIDE IT, so a pane that asks for its row holds one.
+        // ...AND THE LAYOUTS' ROLE BESIDE IT, so a pane that asks for its row holds one.
         (void)zengine::testing::mount_layouts_stand_in(bus);
         return raw;
     }
@@ -3719,23 +3719,23 @@ struct PaneRig {
 
     loom::WeaveId watcher_id{};
 
-    /// WHAT BECAME OF ONE ID SAID AS WORKSHOP'S OFFICE (`workshop_action`), read off the tap.
-    struct OfficeAction {
-        bool authored = false;  ///< Loom took the authorship: Workshop held the office named
-        bool delivered = false; ///< ...and the office's holder ran its handler on the delivery
-        std::string author;     ///< the office that delivery carried
+    /// WHAT BECAME OF ONE ID SAID AS WORKSHOP'S ROLE (`workshop_action`), read off the tap.
+    struct RoleAction {
+        bool authored = false;  ///< Loom took the authorship: Workshop held the role named
+        bool delivered = false; ///< ...and the role's holder ran its handler on the delivery
+        std::string author;     ///< the role that delivery carried
     };
 
-    /// A RESOLVED ACTION ID SAID AS WORKSHOP'S OWN OFFICE, WITH NO KEY BEHIND IT -- through the
-    /// host's verified office door (`office_send_to_role_as`): Workshop's weave is the stamped
+    /// A RESOLVED ACTION ID SAID AS WORKSHOP'S OWN ROLE, WITH NO KEY BEHIND IT -- through the
+    /// host's verified role door (`role_send_to_role_as`): Workshop's weave is the stamped
     /// sender, `zengine.workshop` is verified at authorship, and Workshop's grant gates it. It
     /// hands a pane an id the keymap would never resolve for it, under provenance the pane
     /// accepts; a case pairs it with a declared id through the same door to show provenance was
     /// never the reason. Drained.
-    OfficeAction workshop_action(std::string_view office, const std::string& pane,
+    RoleAction workshop_action(std::string_view role, const std::string& pane,
                                  const std::string& id) {
-        OfficeAction said;
-        const loom::WeaveId holder = bus.role_holder(office);
+        RoleAction said;
+        const loom::WeaveId holder = bus.role_holder(role);
         const loom::ObserverId tap = bus.add_observer([&said, holder](const loom::BusEvent& ev) {
             if (ev.kind == loom::EventKind::Delivered && ev.target == holder &&
                 ev.schema_name == PaneActionRequested::zen_name) {
@@ -3743,8 +3743,8 @@ struct PaneRig {
                 said.author = ev.authored_role;
             }
         });
-        const loom::Ticket sent = bus.office_send_to_role_as(
-            workshop_id, kWorkshopProvider, office,
+        const loom::Ticket sent = bus.role_send_to_role_as(
+            workshop_id, kWorkshopProvider, role,
             loom::Message(loom::to_value(PaneActionRequested{pane, id}), workshop_id, workshop_id,
                           0));
         said.authored = sent.valid();
@@ -3864,14 +3864,14 @@ struct PaneRig {
         return {adv, line};
     }
 
-    /// WHETHER THIS CASE SEATED A MEDIUM OF ITS OWN -- a directory or a window in its office --
+    /// WHETHER THIS CASE SEATED A MEDIUM OF ITS OWN -- a directory or a window in its role --
     /// before the rig's came up: then the rig's never does, and the case's own window offers the
     /// room and starts the desk.
     bool own_medium() {
         if (in_window && !windows.up() &&
             (bus.role_holder(gfx::kGraphicsRole).valid() ||
-             bus.role_holder(std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow).valid() ||
-             bus.role_holder(std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow).valid())) {
+             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow).valid() ||
+             bus.role_holder(std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow).valid())) {
             in_window = false;
         }
         return !in_window;
@@ -3929,11 +3929,11 @@ struct PaneRig {
             }
         }
     }
-    /// THE WEAVER CLOSED THE WINDOW THAT SHOWS THE DESK: its close, said as that window's office.
+    /// THE WEAVER CLOSED THE WINDOW THAT SHOWS THE DESK: its close, said as that window's role.
     void close_requested() {
         come_up();
         REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
-        (void)bus.office_publish_as(windows.id(), windows.office(),
+        (void)bus.role_publish_as(windows.id(), windows.role(),
                                     loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
         bus.drain_until_idle();
     }
@@ -4130,15 +4130,15 @@ struct PaneRig {
         return plan_->outcome();
     }
 
-    /// WIRE WHAT STANDS BEHIND AN OFFICE'S CODE the way `workshop.cpp` wires it: the bus's holder,
+    /// WIRE WHAT STANDS BEHIND AN ROLE'S CODE the way `workshop.cpp` wires it: the bus's holder,
     /// this rig's realization owner's rows (none before `run_plan`), and the catalog it holds --
     /// each read at the moment a pane's Edit Code asks.
     void wire_code_source() {
-        host.code_source = [this](const std::string& office) {
+        host.code_source = [this](const std::string& role) {
             if (plan_ != nullptr) {
-                return provenance::code_source_of(office, bus, *plan_, host_recipes);
+                return provenance::code_source_of(role, bus, *plan_, host_recipes);
             }
-            return provenance::code_source_of(office, bus.role_holder(office), {},
+            return provenance::code_source_of(role, bus.role_holder(role), {},
                                               host_recipes.all());
         };
     }
@@ -4449,7 +4449,7 @@ inline void open_pane(Live& t, const PaneRef& ref) {
 
 /// OPEN A PANE AND STAND IT IN THE STRIP AT THE ROOM'S RIGHT EDGE: `top-right` at no offset,
 /// `kStripCols` cells wide and the room's height (`fill`), written as a desk row says it, so a case
-/// can have a pane there without an office behind it. A key or a hand could reach the same row;
+/// can have a pane there without a role behind it. A key or a hand could reach the same row;
 /// writing it says the words exactly.
 inline void open_at_top_right(Live& t, std::int64_t kind) {
     pick(t, kind);
@@ -4495,21 +4495,21 @@ inline void enter_arrange_desk(Live& t) {
 
 namespace intro = zengine::introspection;
 
-inline constexpr const char* kIntroOffice = intro::kIntrospectionRole;
+inline constexpr const char* kIntroRole = intro::kIntrospectionRole;
 inline constexpr const char* kIntroPane = intro::kLoadedPane;
 
-inline PaneRef intro_ref() { return PaneRef{kIntroOffice, kIntroPane}; }
+inline PaneRef intro_ref() { return PaneRef{kIntroRole, kIntroPane}; }
 
-/// HOW MANY PANES THIS ONE OFFICE OFFERS. Cases say the number rather than assume it: "one
+/// HOW MANY PANES THIS ONE ROLE OFFERS. Cases say the number rather than assume it: "one
 /// provider is not one pane" is what `PaneOffered` was shaped for, and a case that indexed
 /// `entries[0]` would quietly assert the opposite.
 inline constexpr std::size_t kIntroPaneCount = 3;
 
-/// THE RUNTIME HANDLE WORKSHOP MINTED FOR ONE OF THIS OFFICE'S PANES -- BY `PaneRef`
+/// THE RUNTIME HANDLE WORKSHOP MINTED FOR ONE OF THIS ROLE'S PANES -- BY `PaneRef`
 /// AND NEVER BY INDEX. Catalog order is first-accepted-offer order, which is a fact
 /// about a boot sequence and not an identity; a case that meant `loaded` says so.
 inline const RuntimePane* intro_row(PaneRig& r, const char* pane) {
-    return r.session().panes.runtime.find(kIntroOffice, pane);
+    return r.session().panes.runtime.find(kIntroRole, pane);
 }
 
 /// Does any row of this projection contain `needle`?
@@ -4580,7 +4580,7 @@ inline PixelRect external_pane_rect(const Session& s, std::int64_t kind) {
     return bounds_of(s.panes, s.setup.active, kind, screen_of(s)).rect;
 }
 
-/// WHETHER A PANE DRAWS IN AN AREA OF ITS OWN: a participant holds its office, and draws in a
+/// WHETHER A PANE DRAWS IN AN AREA OF ITS OWN: a participant holds its role, and draws in a
 /// graphics window.
 inline bool shows_canvas(const ExternalPane& pane) { return pane.held && pane.in_window; }
 
@@ -4839,7 +4839,7 @@ inline std::vector<HeldLitRow> held_lit_rows(std::int64_t kind) {
     return out;
 }
 
-/// A PRESS AND ITS RELEASE AT A ROW AND COLUMN OF A PANE'S AREA, told its office as the window
+/// A PRESS AND ITS RELEASE AT A ROW AND COLUMN OF A PANE'S AREA, told its role as the window
 /// showing the desk tells one, queued and not drained: the press a weaver's hand makes there once
 /// the bus is idle.
 template <class Rig>
@@ -4854,7 +4854,7 @@ inline void enqueue_window_press(Rig& r, std::int64_t kind, std::int64_t row, st
     const std::int64_t x = column * lattice.advance + lattice.advance / 2;
     const std::int64_t y = row * lattice.line + lattice.line / 2;
     for (const bool down : {true, false}) {
-        REQUIRE(r.bus.office_send_to_role_as(r.windows.id(), r.windows.office(), entry->provider,
+        REQUIRE(r.bus.role_send_to_role_as(r.windows.id(), r.windows.role(), entry->provider,
                                              loom::Message(loom::to_value(gfx::AreaButtonChanged{
                                                  area, 1, down, x, y, 0}),
                                                            r.windows.id(), r.windows.id(), 0))
@@ -4862,14 +4862,14 @@ inline void enqueue_window_press(Rig& r, std::int64_t kind, std::int64_t row, st
     }
 }
 
-/// A POINTER MOMENT FOR A PANE'S AREA, said to its office as the window showing the desk says
+/// A POINTER MOMENT FOR A PANE'S AREA, said to its role as the window showing the desk says
 /// one under the window's number for its press, its point in the area's pixels, and the bus
 /// settled.
 template <class Rig, class Moment>
 inline void as_window(Rig& r, std::int64_t kind, const Moment& moment, std::uint64_t press = 0) {
     const RuntimePane* entry = r.session().panes.runtime.of_kind(kind);
     REQUIRE(entry != nullptr);
-    REQUIRE(r.bus.office_send_to_role_as(r.windows.id(), r.windows.office(), entry->provider,
+    REQUIRE(r.bus.role_send_to_role_as(r.windows.id(), r.windows.role(), entry->provider,
                                          loom::Message(loom::to_value(moment), r.windows.id(),
                                                        r.windows.id(), press))
                 .valid());
@@ -5056,7 +5056,7 @@ struct Ears {
 
 /// AN INDEPENDENT LISTENER, and the point is that it is a STRANGER: it compiles
 /// `introspection/vocabulary.hpp` and nothing else of the tool, registers no callback, is handed
-/// no pointer, and is not Workshop, a provider or in any office. What it hears, it hears because
+/// no pointer, and is not Workshop, a provider or in any role. What it hears, it hears because
 /// a weave published an ordinary Loom message -- the whole claim `LoadedSelected` makes good on.
 class SelectionListener
     : public loom::WeaveBase<SelectionListener, SeenState, loom::Accept<intro::LoadedSelected>,
@@ -5121,11 +5121,11 @@ inline bool is_entry_row(const std::string& row) {
            row.find(intro::kElided) == std::string::npos;
 }
 
-inline constexpr const char* kComposerOffice = zengine::composer::kComposerRole;
+inline constexpr const char* kComposerRole = zengine::composer::kComposerRole;
 inline constexpr const char* kComposePane = zengine::composer::kComposePane;
-inline constexpr const char* kTimerOffice = zengine::timer::kTimerRole;
+inline constexpr const char* kTimerRole = zengine::timer::kTimerRole;
 
-inline PaneRef composer_ref() { return PaneRef{kComposerOffice, kComposePane}; }
+inline PaneRef composer_ref() { return PaneRef{kComposerRole, kComposePane}; }
 
 // ---- A stand-in desktop: the participating owner of the application's defaults ------------
 // Escape-to-deselect is a DECLARED application row (WL-DESK-02), so a Workshop with no desktop
@@ -5179,18 +5179,18 @@ public:
     void declare(loom::Mail& mail, const AppActions& a, std::uint64_t attempt = 0) {
         (void)mail.as_role(kDesktopRole).send_to_role(kWorkshopProvider, a, attempt);
     }
-    /// Declared PERSONALLY, from the very weave holding the office. Holding is not
+    /// Declared PERSONALLY, from the very weave holding the role. Holding is not
     /// speaking-for (MSG-07), and Workshop drops it for the offer's reason.
     void declare_personally(loom::Mail& mail, const AppActions& a) {
         (void)mail.send_to_role(kWorkshopProvider, a);
     }
-    void launch(loom::Mail& mail, const std::string& office, const std::string& pane) {
+    void launch(loom::Mail& mail, const std::string& role, const std::string& pane) {
         (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopProvider, PaneLaunchRequested{office, pane});
+            .send_to_role(kWorkshopProvider, PaneLaunchRequested{role, pane});
     }
-    void close(loom::Mail& mail, const std::string& office, const std::string& pane) {
+    void close(loom::Mail& mail, const std::string& role, const std::string& pane) {
         (void)mail.as_role(kDesktopRole)
-            .send_to_role(kLayoutsRole, PaneCloseRequested{office, pane});
+            .send_to_role(kLayoutsRole, PaneCloseRequested{role, pane});
     }
     /// A DESELECT ANSWER THAT ECHOES A NUMBER OF ITS OWN CHOOSING -- for the cases about an
     /// answer to an ask that is over, and about one that echoes nothing at all.
@@ -5304,10 +5304,10 @@ inline void desktop_does(Rig& t, DesktopSeat* seat,
 /// SEAT A RECORDING PROVIDER ON A `Live` RIG, and make it offer one pane -- answering with the
 /// kind Workshop minted, or `kNoPaneKind`. `PaneRig` has its own for the seam's cases; a `Live`
 /// case uses this when it needs another entry in a pane population, which comes from where every
-/// pane comes from: an office that offered one.
-inline std::int64_t live_offer_pane(Live& t, const char* office, const char* pane,
+/// pane comes from: a role that offered one.
+inline std::int64_t live_offer_pane(Live& t, const char* role, const char* pane,
                                     const char* name) {
-    auto seat = std::make_unique<ProviderSeat>(std::string(office));
+    auto seat = std::make_unique<ProviderSeat>(std::string(role));
     ProviderSeat* raw = seat.get();
     loom::Grant grant;
     grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
@@ -5315,7 +5315,7 @@ inline std::int64_t live_offer_pane(Live& t, const char* office, const char* pan
     grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
     grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
     const loom::WeaveId id =
-        t.bus.register_weave(std::move(seat), std::move(grant), std::string(office));
+        t.bus.register_weave(std::move(seat), std::move(grant), std::string(role));
     raw->zen_set_self(id);
     raw->next = [pane, name](ProviderSeat& p, loom::Mail& m) {
         p.offer(m, PaneOffered{pane, name, "a seated provider"});
@@ -5324,24 +5324,24 @@ inline std::int64_t live_offer_pane(Live& t, const char* office, const char* pan
                                        loom::WeaveId{}, 0));
     t.bus.drain_until_idle();
     for (const RuntimePane& row : t.w->session().panes.runtime.entries) {
-        if (row.provider == std::string(office) && row.pane == std::string(pane)) {
+        if (row.provider == std::string(role) && row.pane == std::string(pane)) {
             return row.kind;
         }
     }
     return kNoPaneKind;
 }
 
-/// Open an external pane belonging to a seat in `office`, and answer with its kind: the seat
+/// Open an external pane belonging to a seat in `role`, and answer with its kind: the seat
 /// offers, Workshop admits, the launch door opens it and the room is granted -- four beats a case
 /// would otherwise spell every time.
-inline std::int64_t seat_pane_open(PaneRig& r, ProviderSeat* seat, const char* office,
+inline std::int64_t seat_pane_open(PaneRig& r, ProviderSeat* seat, const char* role,
                                    const char* pane) {
     r.drive(seat, [pane](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{pane, "Seat", "a recording provider"});
     });
-    r.pick(PaneRef{office, pane});
+    r.pick(PaneRef{role, pane});
     for (const RuntimePane& row : r.session().panes.runtime.entries) {
-        if (row.provider == std::string(office) && row.pane == std::string(pane)) {
+        if (row.provider == std::string(role) && row.pane == std::string(pane)) {
             return row.kind;
         }
     }
@@ -5555,7 +5555,7 @@ inline load::LoadPlan pane_plan() {
     plan.artifacts.push_back(hello);
     load::ArtifactIntent tool;
     tool.stem = intro::kIntrospectionStem;
-    tool.weave = load::WeaveIntent{kIntroOffice};
+    tool.weave = load::WeaveIntent{kIntroRole};
     plan.artifacts.push_back(tool);
     return plan;
 }
@@ -5571,7 +5571,7 @@ inline std::int64_t open_intro_pane(PaneRig& r, const char* pane) {
     r.ready();
     r.extent(160, 48);
     REQUIRE(intro_row(r, pane) != nullptr);
-    r.pick(PaneRef{kIntroOffice, pane});
+    r.pick(PaneRef{kIntroRole, pane});
     return intro_row(r, pane)->kind;
 }
 
@@ -5590,7 +5590,7 @@ inline std::int64_t open_powers(PaneRig& r) {
     r.ready();
     r.extent(160, 48);
     REQUIRE(intro_row(r, intro::kPowersPane) != nullptr);
-    r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    r.pick(PaneRef{kIntroRole, intro::kPowersPane});
     return intro_row(r, intro::kPowersPane)->kind;
 }
 
@@ -5605,8 +5605,8 @@ inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
     // takes a pane's drawing from the rig's window once it tells the pane a room, so the rig's
     // shows that pane no longer: its rows are read as Workshop holds them.
     const bool drawn_elsewhere =
-        r.bus.role_holder(std::string(gfx::kWindowOfficePrefix) + "panes").valid() ||
-        r.bus.role_holder(std::string(gfx::kWindowOfficePrefix) + "other").valid();
+        r.bus.role_holder(std::string(gfx::kWindowRolePrefix) + "panes").valid() ||
+        r.bus.role_holder(std::string(gfx::kWindowRolePrefix) + "other").valid();
     // ...AND A MENU OPEN STANDS OVER THE PANE IT NAMES, so the window shows its lines there: what
     // the pane says under it is read as Workshop holds it.
     const bool covered = r.session().context.open || r.session().presented.open;
@@ -5728,7 +5728,7 @@ struct DrawnNumbers {
 };
 
 /// A PRESS AND ITS RELEASE THE WINDOW LANDED ON AN EARLIER DRAWING of a pane's area, told the
-/// pane's office as the window that shows the desk tells it: at the cell `row`, `column` of the
+/// pane's role as the window that shows the desk tells it: at the cell `row`, `column` of the
 /// pane's rows in a window of cells, `part` the part drawn under the hand then and `drawing` that
 /// drawing's number. What a case says here is what the window said when the press landed.
 inline void press_as_drawn(PaneRig& r, std::int64_t kind, std::int64_t row, std::int64_t column,
@@ -5746,14 +5746,14 @@ inline void press_as_drawn(PaneRig& r, std::int64_t kind, std::int64_t row, std:
     const std::uint64_t press = ++presses;
     for (const bool pressed : {true, false}) {
         b.pressed = pressed;
-        REQUIRE(r.bus.office_send_to_role_as(r.windows.id(), r.windows.office(), pane->provider,
+        REQUIRE(r.bus.role_send_to_role_as(r.windows.id(), r.windows.role(), pane->provider,
                                              loom::Message(loom::to_value(b), {}, {}, press))
                     .valid());
         const gfx::AreaPressed told{std::string(gfx::kTerminalWindow), area, button, pressed,
                                     body.x * gfx::kCellPx + b.x,
                                     (body.y + kExternalHeaderRows) * gfx::kCellPx + b.y, true, 0,
                                     area, part, drawing};
-        REQUIRE(r.bus.office_send_to_role_as(r.windows.id(), r.windows.office(), kWorkshopProvider,
+        REQUIRE(r.bus.role_send_to_role_as(r.windows.id(), r.windows.role(), kWorkshopProvider,
                                              loom::Message(loom::to_value(told), {}, {}, press))
                     .valid());
     }
@@ -5793,7 +5793,7 @@ inline std::int64_t chrome_column(PaneRig& r, std::int64_t kind, const std::stri
 /// could not show and gives the weaver a pane that grows.
 inline void make_taller(PaneRig& r, const char* pane, std::int64_t cells) {
     const Written wrote =
-        staged_author_pane_size(r, PaneRef{kIntroOffice, pane}, PaneSize{},
+        staged_author_pane_size(r, PaneRef{kIntroRole, pane}, PaneSize{},
                          PaneSize{pane_unit::kPixels, cells_px(cells)});
     REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
     // A REPAINT, WHICH IS A ROOM GRANT, WHICH IS THIS TOOL'S ONE BEAT.

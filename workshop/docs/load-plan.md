@@ -344,8 +344,8 @@ something hand-written. One codec; no JSON is read anywhere else in Workshop's s
 }
 ```
 
-**Version 2 adds `choices`**, and nothing else: the artifacts an office may be switched between,
-each under a name a weaver switches to it by. Exactly one row of `artifacts` loads the office and is
+**Version 2 adds `choices`**, and nothing else: the artifacts a role may be switched between,
+each under a name a weaver switches to it by. Exactly one row of `artifacts` loads the role and is
 one of its choices; every other choice is loaded only when a switch asks for it. The shipped plan
 authors `standard` and `neovim` for `zengine.editor` (and is version 4, below). The choices' law, the
 switch and what crosses it are [editor/docs/editor-switch.md](../../editor/docs/editor-switch.md).
@@ -386,14 +386,14 @@ written as version 1 or 2, byte for byte, and those files are read exactly as be
 
 **Version 4 adds a row's `otherwise`** — on every artifact row, empty where the row names nothing
 in its place: the artifacts loaded where the row's own cannot be, in the order tried, each a weave
-named once (`"weave": [ { "role": ... } ]`) in an office of its own. An artifact whose load is
+named once (`"weave": [ { "role": ... } ]`) in a role of its own. An artifact whose load is
 refused gives way to the next, said once (its weaver's words beside the refusing layer's); one
 this installation does not hold gives way unsaid; the first that loads stands in the row for the
 run, and is the row the projection, a reload and a promotion name. Where none loads, the row
 refuses as any row does, naming the last tried. A row with `otherwise` loads a weave and supplies
 no operators; an alternative names no artifact another row or alternative names, loads into no
-office another row or another row's alternative may load into, and none is a choice or in an
-office with choices. The shipped plan is version 4, its window row the one with an `otherwise`
+role another row or another row's alternative may load into, and none is a choice or in a
+role with choices. The shipped plan is version 4, its window row the one with an `otherwise`
 ([load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window)). A plan naming no
 row's alternatives is still written as version 1, 2 or 3, byte for byte, and a version-4 file
 naming none is refused.

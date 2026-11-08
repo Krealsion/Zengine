@@ -52,7 +52,7 @@ constexpr std::int64_t kNote = 5;
 struct LauncherMeaning {
     std::int64_t kind = launcher_row::kHeading;
     std::size_t index = 0; ///< the inventory row, for a mark or a name
-    /// THE ROW'S STABLE SUBJECT (`office\x1fpane`), for a name or a mark; empty otherwise. It is
+    /// THE ROW'S STABLE SUBJECT (`role\x1fpane`), for a name or a mark; empty otherwise. It is
     /// part of the meaning so the PICTURE NUMBER moves when the subject behind a slot changes,
     /// even though the slot's kind, index and geometry did not: an inventory update that swaps two
     /// same-length names leaves the row where it was but makes it MEAN a different pane, and a
@@ -66,9 +66,9 @@ struct LauncherMeaning {
 
 /// THE ROW THE MARKER HOLDS, by its two durable keys.
 struct RefKey {
-    std::string office;
+    std::string role;
     std::string pane;
-    bool operator==(const RefKey& o) const { return office == o.office && pane == o.pane; }
+    bool operator==(const RefKey& o) const { return role == o.role && pane == o.pane; }
 };
 
 /// WHERE THE MARK CONTROL SITS ON A LIST ROW: after the two-column marker, six wide.
@@ -80,7 +80,7 @@ public:
     /// The Pane Manager's own rows, bare keys all. `x` closes, and is not Return's second meaning:
     /// Return only opens or focuses. `m` offers the row's menu. `n` shows the View Builder, where a
     /// pane of the weaver's own is made.
-    /// Return and `x` act on the row a press lands on, `pane:<office>/<pane>` (`launcher_part`).
+    /// Return and `x` act on the row a press lands on, `pane:<role>/<pane>` (`launcher_part`).
     static std::vector<ws::v3::PaneActionRow> pane_rows() {
         using ws::v3::PaneActionRow;
         const std::string row = ws::on_part(kLauncherRowPrefix);
@@ -93,7 +93,7 @@ public:
                 PaneActionRow{kActionMenu, "row menu", input::scan::kM, input::mod::kNone},
                 PaneActionRow{kActionNew, "new pane", input::scan::kN, input::mod::kNone, {},
                               {ws::cause_of<ws::PaneLaunchRequested>(
-                                  ws::to_pane(kViewBuilderOffice, kViewBuilderPane))}}};
+                                  ws::to_pane(kViewBuilderRole, kViewBuilderPane))}}};
     }
 
     // ---- Its rooms ----------------------------------------------------------------------------
@@ -105,7 +105,7 @@ public:
 
 
     const PaneCanvas& canvas() const { return launcher_canvas_; }
-    /// ...for the office to hand the room a graphics window gives the pane.
+    /// ...for the role to hand the room a graphics window gives the pane.
     PaneCanvas& canvas() { return launcher_canvas_; }
 
 
@@ -183,7 +183,7 @@ public:
         } else if (id == kActionNew) {
             // A PANE OF THE WEAVER'S OWN IS MADE IN THE VIEW BUILDER, shown through the host's
             // launch door like any tool: this weave holds no definition and makes nothing itself.
-            launch(mail, kViewBuilderOffice, kViewBuilderPane, launches);
+            launch(mail, kViewBuilderRole, kViewBuilderPane, launches);
         } else {
             return;
         }
@@ -216,9 +216,9 @@ public:
                                     : p.name + " is not available -- its provider is not in this "
                                                "Workshop";
             } else if (p.open) {
-                close(mail, p.office, p.pane, launches);
+                close(mail, p.role, p.pane, launches);
             } else {
-                launch(mail, p.office, p.pane, launches);
+                launch(mail, p.role, p.pane, launches);
             }
             say(state, pane_rows_decl, app, mail);
             return;
@@ -229,7 +229,7 @@ public:
         const bool marked_here = choice_.actionable() && choice_.at == m->index;
         if (press.keys_went_here && marked_here) {
             notice_.clear();
-            launch(mail, p.office, p.pane, launches);
+            launch(mail, p.role, p.pane, launches);
         } else {
             hold(static_cast<std::int64_t>(m->index), state);
             notice_.clear();
@@ -277,7 +277,7 @@ public:
     }
 
     /// What a menu came to, if it answers this image's own ask (`Asked::take`: from the
-    /// presenter's office, under the unanswered ask's number, about the pane and subject asked,
+    /// presenter's role, under the unanswered ask's number, about the pane and subject asked,
     /// once). A reloaded desktop asked nothing, so its predecessor's menus act on nothing.
     void menu_answered(const ws::PaneMenuAnswered& a, DesktopState& state,
                        const Declared& pane_rows_decl, const Declared& app, loom::Mail& mail,
@@ -327,7 +327,7 @@ public:
                                " left the list -- choose a row before Return shows anything"
                          : std::string();
         // (!) A ROW MARKED GONE IS EXPLAINED FOR AS LONG AS ONE IS, on the same terms: the host
-        // supplied the fact (`InventoryPane::available`, asked of the office's holder now), and
+        // supplied the fact (`InventoryPane::available`, asked of the role's holder now), and
         // what brings the tool back is the weaver's. Still to come is not missing.
         bool any_gone = false;
         for (const ws::InventoryPane& p : known_) {
@@ -394,13 +394,13 @@ public:
         publish_launcher(mail, std::move(out));
     }
 
-    /// WHAT A PANE MANAGER PART IS CALLED: a row by the pane it lists, `pane:<office>/<pane>`, and
-    /// its mark `mark:<office>/<pane>` -- the reference a setup file and Info's Identity say.
+    /// WHAT A PANE MANAGER PART IS CALLED: a row by the pane it lists, `pane:<role>/<pane>`, and
+    /// its mark `mark:<role>/<pane>` -- the reference a setup file and Info's Identity say.
     std::string launcher_part(const LauncherMeaning& m) const {
         if (m.index >= known_.size()) {
             return std::string();
         }
-        const std::string ref = known_[m.index].office + "/" + known_[m.index].pane;
+        const std::string ref = known_[m.index].role + "/" + known_[m.index].pane;
         if (m.kind == launcher_row::kName) {
             return kLauncherRowPrefix + ref;
         }
@@ -418,14 +418,14 @@ private:
     void find_cursor(DesktopState& state) {
         // A MARKER THE WEAVER HAS NOT MOVED STANDS ON THE TOP ROW of each reading: the list is kept
         // by name, so the row the first reading put first is not the top once more panes arrive.
-        if (by_default_ || (state.cursor_office.empty() && state.cursor_pane.empty())) {
+        if (by_default_ || (state.cursor_role.empty() && state.cursor_pane.empty())) {
             state.cursor = 0;
-            state.cursor_office.clear();
+            state.cursor_role.clear();
             state.cursor_pane.clear();
             by_default_ = true;
         }
-        choice_.key = RefKey{state.cursor_office, state.cursor_pane};
-        choice_.chosen = !state.cursor_office.empty() || !state.cursor_pane.empty();
+        choice_.key = RefKey{state.cursor_role, state.cursor_pane};
+        choice_.chosen = !state.cursor_role.empty() || !state.cursor_pane.empty();
         choice_.at = state.cursor < 0 ? 0 : static_cast<std::size_t>(state.cursor);
         choice_.find(known_, key_of_pane);
         if (!choice_.lost && choice_.at < known_.size()) {
@@ -434,9 +434,9 @@ private:
         write_choice(state);
     }
 
-    static RefKey key_of_pane(const ws::InventoryPane& p) { return RefKey{p.office, p.pane}; }
+    static RefKey key_of_pane(const ws::InventoryPane& p) { return RefKey{p.role, p.pane}; }
 
-    /// THE LIST'S ORDER: by name, letters compared without their case, then by office and pane, so
+    /// THE LIST'S ORDER: by name, letters compared without their case, then by role and pane, so
     /// two panes of one name keep one order.
     static bool by_name(const ws::InventoryPane& a, const ws::InventoryPane& b) {
         const auto lower = [](unsigned char c) {
@@ -453,7 +453,7 @@ private:
         if (a.name.size() != b.name.size()) {
             return a.name.size() < b.name.size();
         }
-        return a.office != b.office ? a.office < b.office : a.pane < b.pane;
+        return a.role != b.role ? a.role < b.role : a.pane < b.pane;
     }
 
     /// THE WINDOW THE LIST SHOWS: the wheel's scroll while it shows the marker, else the least
@@ -494,7 +494,7 @@ private:
     /// THE CHOICE, WRITTEN TO THE RELOAD SHAPE: where the marker stands and which pane it holds.
     void write_choice(DesktopState& state) {
         state.cursor = static_cast<std::int64_t>(choice_.at);
-        state.cursor_office = choice_.chosen ? choice_.key.office : std::string();
+        state.cursor_role = choice_.chosen ? choice_.key.role : std::string();
         state.cursor_pane = choice_.chosen ? choice_.key.pane : std::string();
     }
 
@@ -529,7 +529,7 @@ private:
         }
         notice_.clear();
         // THE IDENTITY THE MARKER HOLDS, not the index: what the weaver sees is what opens.
-        launch(mail, choice_.key.office, choice_.key.pane, launches);
+        launch(mail, choice_.key.role, choice_.key.pane, launches);
     }
 
     void close_cursor(loom::Mail& mail, std::uint64_t& launches) {
@@ -541,7 +541,7 @@ private:
             return;
         }
         notice_.clear();
-        close(mail, choice_.key.office, choice_.key.pane, launches);
+        close(mail, choice_.key.role, choice_.key.pane, launches);
     }
 
     // ---- Its menu -----------------------------------------------------------------------------
@@ -549,7 +549,7 @@ private:
     /// THE STABLE SUBJECT OF A PANE MANAGER ROW, built the one way so the picture's spans and the
     /// menu-key's row lookup agree on what a row MEANS. Empty for an index off the end.
     std::string launcher_ref(std::size_t index) const {
-        return index < known_.size() ? join_subject({known_[index].office, known_[index].pane})
+        return index < known_.size() ? join_subject({known_[index].role, known_[index].pane})
                                      : std::string();
     }
 
@@ -559,7 +559,7 @@ private:
     void offer_launcher_row(std::size_t index, std::int64_t row, std::int64_t column,
                             loom::Mail& mail, std::uint64_t correlation) {
         const ws::InventoryPane& p = known_[index];
-        pane_menu::Offer offer(kLauncherPane, join_subject({p.office, p.pane}));
+        pane_menu::Offer offer(kLauncherPane, join_subject({p.role, p.pane}));
         offer.at(row, column);
         if (p.open) {
             offer.row(kMenuFocus, "focus " + p.name);
@@ -595,7 +595,7 @@ private:
         }
         const ws::InventoryPane* p = nullptr;
         for (const ws::InventoryPane& each : known_) {
-            if (each.office == parts[0] && each.pane == parts[1]) {
+            if (each.role == parts[0] && each.pane == parts[1]) {
                 p = &each;
                 break;
             }
@@ -607,20 +607,20 @@ private:
         }
         notice_.clear();
         if (a.id == kMenuOpen || a.id == kMenuFocus) {
-            launch(mail, p->office, p->pane, launches);
+            launch(mail, p->role, p->pane, launches);
         } else if (a.id == kMenuClose) {
-            close(mail, p->office, p->pane, launches);
+            close(mail, p->role, p->pane, launches);
         } else if (a.id == kMenuManage) {
             // THE HOST'S OWN PANE MENU ON THAT PANE -- covered, closed or consuming every right
             // press -- continuing this choice (its number is on the envelope).
-            (void)pane_menu::manage(mail, kDesktopRole, kLauncherPane, p->office, p->pane);
+            (void)pane_menu::manage(mail, kDesktopRole, kLauncherPane, p->role, p->pane);
         } else if (a.id == kMenuInspect) {
             // INSPECTION THROUGH ITS OWNER: Info takes the ask as its own inspect and answers what
             // came of it, and only the newest ask is waited on.
             const std::uint64_t asked = ++inspect_asks_;
             const loom::Ticket sent =
                 mail.as_role(kDesktopRole)
-                    .send_to_role(kInfoRole, ws::InspectPaneRequested{p->office, p->pane}, asked);
+                    .send_to_role(kInfoRole, ws::InspectPaneRequested{p->role, p->pane}, asked);
             inspecting_ = Inspecting{};
             if (sent.valid()) {
                 inspecting_ = Inspecting{asked, sent, p->name};

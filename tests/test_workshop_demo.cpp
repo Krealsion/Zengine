@@ -6,7 +6,7 @@
 
 #include "workshop_support.hpp"
 #include "census.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "pane_window.hpp"
 #include "external-host/demo-control/control.hpp"
 
@@ -85,7 +85,7 @@ struct DemoRig {
     }
 };
 
-/// THE DEMO CONTROLS ON A DESK: the weave in its office in a real Workshop, offered when Workshop
+/// THE DEMO CONTROLS ON A DESK: the weave in its role in a real Workshop, offered when Workshop
 /// asks for its panes, and picked onto the desk.
 struct DemoDesk {
     PaneRig r;
@@ -103,7 +103,7 @@ struct DemoDesk {
 
 /// THE DEMO CONTROLS' CENSUS: their one row, in the one mode they have.
 const CensusDriverOf kDemoCensus{demo::kRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     DemoDesk d;
     const RuntimePane* held = d.held();
     REQUIRE(held != nullptr);
@@ -137,13 +137,13 @@ TEST_CASE("the manual the Demo controls answer is the page their build embedded,
     CHECK(reader.ask("elsewhere", "").refusal == "zengine.demo offers no pane `elsewhere`");
 }
 
-TEST_CASE("the Demo office says what each shape it accepts does from its page, and its page hears no other") {
+TEST_CASE("the Demo role says what each shape it accepts does from its page, and its page hears no other") {
     namespace manual = zengine::manual;
     const manual::Manual& page = manual::pages::zengine_demo::kManual;
     DemoRig r;
     const std::vector<std::string> described =
         described_shapes_of(r.bus, r.bus.role_holder(demo::kRole));
-    CHECK(check_office_manual(r.bus, demo::kRole) >= described.size());
+    CHECK(check_role_manual(r.bus, demo::kRole) >= described.size());
     // ...AND EVERY SHAPE IT HEARS IS ONE ITS GATE ACCEPTS. Its Commands are its pane's action ids,
     // which the pane witness holds to what it declares, so only Hears is held to the gate here.
     std::size_t heard = 0;
@@ -721,7 +721,7 @@ public:
 };
 }
 
-TEST_CASE("a reloaded demo office never stands working with no service: it says the service must "
+TEST_CASE("a reloaded demo role never stands working with no service: it says the service must "
           "start again, and the next one carries the generations on") {
     loom::Switchboard bus;
     loom::Kernel kernel{bus, loom::trust_every_artifact(

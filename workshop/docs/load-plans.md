@@ -63,7 +63,7 @@ guest's or a session tool's keys.
 
 The plan also carries `zengine-operators-basic` (a provider only), `zengine-timer` (a provider
 **and** a weave), `zengine-introspection` and `zengine-composer`. And it authors two **choices**
-for the Editor's office: `standard`, the row that loads, and `neovim`, loaded only when you switch
+for the Editor's role: `standard`, the row that loads, and `neovim`, loaded only when you switch
 to it ([Neovim in Workshop](../../editor/docs/neovim.md)).
 
 ## The window: the OS window, else the terminal window
@@ -158,14 +158,14 @@ Copy a shipped plan and change rows. Two things to know:
 - **Adding a native artifact to a plan is an execution-authority decision, not configuration.**
   A plan row causes code to be loaded into this process. Treat editing one the way you would
   treat editing a list of shared libraries a program will `dlopen` — because that is what it is.
-- **What a row loads in its place is `otherwise`** (plan format version 4): weaves, each in an
-  office of its own, tried in order when the row's own artifact cannot load. An office with
+- **What a row loads in its place is `otherwise`** (plan format version 4): weaves, each in a
+  role of its own, tried in order when the row's own artifact cannot load. A role with
   choices takes no row's alternatives.
-- **Alternatives for an office are `choices`** (plan format version 2): each names an artifact that
-  may hold the office and the word a weaver switches to it by, and exactly one of them is also the
+- **Alternatives for a role are `choices`** (plan format version 2): each names an artifact that
+  may hold the role and the word a weaver switches to it by, and exactly one of them is also the
   row that loads it. Keep both of a shipped plan's Editor choices if you want to switch editors;
   the format is [the reference's](load-plan.md#the-file-format), the law
-  [editor-switch.md](../../editor/docs/editor-switch.md). The choice holding an office at quit is
+  [editor-switch.md](../../editor/docs/editor-switch.md). The choice holding a role at quit is
   remembered in your session, not in the plan, and the next start loads it while the plan still
   authors it ([Neovim in Workshop](../../editor/docs/neovim.md#switch-while-you-work)).
 

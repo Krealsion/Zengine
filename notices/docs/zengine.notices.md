@@ -1,7 +1,7 @@
 # zengine.notices -- the notices record
 
 **Manual.** The notices record: the weave that keeps what Workshop said during this run, answering
-to the office `zengine.notices` (an office is the name a weave answers to). It is the loadable weave
+to the role `zengine.notices` (a role is the name a weave answers to). It is the loadable weave
 `zengine-notices`, which Workshop's plan loads before anything is said; it offers no pane, and the
 [Notices pane](zengine.notices-pane.md) walks it. Other weaves reach it by the messages below.
 
@@ -24,11 +24,11 @@ weave in place keeps it, and a fresh Workshop begins it empty. No file holds it.
 Ask for a page with [`NoticesRequested`](#noticesrequested), and ask again when
 [`NoticesMoved`](#follow) says the record moved.
 
-The record keeps one office-wide setting, `keep`: how many notices it keeps, from
+The record keeps one role-wide setting, `keep`: how many notices it keeps, from
 `kDefaultKept`, its default, to `kMostKept`. It is kept in Workshop's settings file and written by
 message, at the revision read
-([`OfficeSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#officesettingcommitrequested),
-office `zengine.notices`); a value under what the record holds lets the oldest go at once.
+([`RoleSettingCommitRequested`](../../workshop/docs/zengine.layouts.md#rolesettingcommitrequested),
+role `zengine.notices`); a value under what the record holds lets the oldest go at once.
 
 ## Commands
 
@@ -55,9 +55,9 @@ office `zengine.notices`); a value under what the record holds lets the oldest g
 ([`workshop/notice_seam_vocabulary.hpp`](../../workshop/notice_seam_vocabulary.hpp)): each is kept as
 heard, after the newest, since Workshop says each notice once.
 
-### `OfficeSettings`
+### `RoleSettings`
 
-`OfficeSettings` v1, from `zengine.layouts` alone: the record's `keep`, a default kept as its
+`RoleSettings` v1, from `zengine.layouts` alone: the record's `keep`, a default kept as its
 absence. The record declares the setting each time it is activated, and until it is handed back
 in that life it lets nothing go below `kMostKept`.
 
@@ -72,4 +72,4 @@ follows it with `capture`, and observing it lets the guest ask for a page
 ## See also
 
 - [The Notices pane](zengine.notices-pane.md), which shows the record.
-- [`notices/vocabulary.hpp`](../vocabulary.hpp): the office, the setting, the bounds and the shapes.
+- [`notices/vocabulary.hpp`](../vocabulary.hpp): the role, the setting, the bounds and the shapes.

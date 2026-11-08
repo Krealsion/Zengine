@@ -13,7 +13,7 @@
 
 #include "workshop/actor_scope.hpp" // the action classes each act asks Workshop about
 #include "workshop/builder_seam_vocabulary.hpp"
-#include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
+#include "workshop/open_seam_vocabulary.hpp" // the opening role the open is asked of
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_facets.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -74,7 +74,7 @@ using ws::RecipeSourceRequested;
 using ws::RecipeSourceSaid;
 using ws::SourceOpened;
 
-/// The office Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
+/// The role Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
 /// provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
@@ -145,7 +145,7 @@ inline std::string product_words(const zengine::builder::RecipeSummary& row) {
 // ---- What the pane asked and still waits on (`AskFacet`) -----------------------------------
 
 /// WHAT A GESTURE ASKS WORKSHOP ABOUT, and goes on to do once Workshop says its actor may; and
-/// what the pane asks an office: the frontier its row paints and the frontier action's own, the
+/// what the pane asks a role: the frontier its row paints and the frontier action's own, the
 /// plan's names, a plan row, a recipe's source, its opening, a build sent, and the reader's page.
 enum class Act {
     kBuild, kLoadBuilt, kPromote, kRevert, kFrontier, kRow, kOpen,
@@ -595,7 +595,7 @@ public:
         } else if (!said.product.empty()) {
             // THE INTENT FINISHES: the row is the frontier and its product is already built,
             // so this is the button's own act -- the finished build's recipe asked for again
-            // with the second intention aboard, to the same office, under the same grant.
+            // with the second intention aboard, to the same role, under the same grant.
             // No new route: the tool confirms the build, offers, and the owner decides.
             // Workshop approved the commit as a build and a write before the row was asked
             // for, and the row's ask carries that approval here: this send asks nothing more.
@@ -620,7 +620,7 @@ public:
 
     /// The host's answer to "which file does this recipe name": the first of the two doors `e`
     /// walks. A refusal is the owner's own words; an accepted answer carries one absolute path,
-    /// spent at the opening office once Workshop approves it, and held no longer. It is read
+    /// spent at the opening role once Workshop approves it, and held no longer. It is read
     /// against the recipe it asked about, which the notice names, even if the choice has moved.
     void on(const RecipeSourceSaid& said, loom::Mail& mail) {
         const std::optional<BuilderAsk> source = asks().answered(mail, of_kind(Act::kSource));
@@ -660,7 +660,7 @@ public:
 
     /// The bus's word that one of this pane's attempts was refused before any handler ran
     /// (WL-OPEN-07), matched by `AskFacet` to the exact ask it ended -- `e`'s lookup, `o`'s plan
-    /// names and the frontier action's ask at the project office, `e`'s open, the role line's
+    /// names and the frontier action's ask at the project role, `e`'s open, the role line's
     /// row, the build, the reader's page and each ask for Workshop's word on a gesture -- which
     /// is named. A paint ask's refusal is no act's and says nothing; delivered silence is not a
     /// refusal.
@@ -711,7 +711,7 @@ public:
         say(mail);
     }
 
-    /// The opening office's answer -- the second door. An accepted open says nothing here: the
+    /// The opening role's answer -- the second door. An accepted open says nothing here: the
     /// document and its pane are shown together, and that is what a weaver reads. A refusal (a
     /// missing file, bytes the editor cannot carry, a dirty buffer) belongs beside its row.
     void on(const SourceOpened& said, loom::Mail& mail) {
@@ -726,7 +726,7 @@ public:
 
     /// A weaver reached the source behind a pane and it is open: Workshop's reading, published once
     /// the open its Edit Code asked for took (WL-CODE-03). The choice moves visibly to that
-    /// source's recipe; nothing is built, armed or realized. The office is read before a word
+    /// source's recipe; nothing is built, armed or realized. The role is read before a word
     /// is. No pick follows the choice (`picked` is what `c` named, WL-PROJ-14), and no reload is
     /// promised: that is the realization owner's to say, so the sentence says only whether the
     /// next build will be offered for loading.
@@ -845,7 +845,7 @@ public:
     }
 
     /// WHAT A MENU CAME TO -- one of THIS image's own asks, settled by `PaneMenuFacet`: a choice
-    /// counts only from the presenter's office, under the number of an ask this image sent and
+    /// counts only from the presenter's role, under the number of an ask this image sent and
     /// has not heard answered, about the pane and subject it asked about, once. What the row
     /// MEANS is judged here, against what this pane holds now -- the catalog may have been
     /// republished while the menu was open.
@@ -1123,7 +1123,7 @@ private:
 
     /// ASK WORKSHOP WHETHER THIS GESTURE'S ACTOR MAY DO THE ACT, and hold the act until it
     /// answers. The ask names the act's classes and no send: the pane sends the act as its own
-    /// office, so the actor is judged by the classes alone. `gesture` is the delivery that
+    /// role, so the actor is judged by the classes alone. `gesture` is the delivery that
     /// brought the act -- a key's action, a press, a menu choice -- and this one ask spends it,
     /// so an act of several beats asks once and carries the approval to its later sends.
     void ask_approval(loom::Mail& mail, BuilderAsk a, std::uint64_t gesture) {
@@ -1203,7 +1203,7 @@ private:
         }
     }
 
-    /// THE BUILD, ASKED OF THE TOOL AS THIS PANE'S OFFICE. It asks Workshop nothing: every caller
+    /// THE BUILD, ASKED OF THE TOOL AS THIS PANE'S ROLE. It asks Workshop nothing: every caller
     /// already holds its act's approval -- a one-beat act's on Workshop's word, the frontier
     /// action's and the role line's carried from their first beat. Its ticket is kept for Loom's
     /// word that exactly this send was refused (WL-OPEN-07); a send that queued nothing arms
@@ -1529,8 +1529,8 @@ private:
     void commit_approved(const BuilderAsk& a, loom::Mail& mail);
 
     /// Edit the source the chosen recipe names: two doors, walked in order. The pane holds a
-    /// recipe's name and never its procedure, so it asks the project office which one file that
-    /// name means (`RecipeSourceRequested` -> `RecipeSourceSaid`), then asks the opening office
+    /// recipe's name and never its procedure, so it asks the project role which one file that
+    /// name means (`RecipeSourceRequested` -> `RecipeSourceSaid`), then asks the opening role
     /// to open it (`OpenSourceRequested` -> `SourceOpened`), once Workshop approves the open for
     /// the gesture's actor. Every refusal comes back as its owner's own sentence and lands in
     /// this pane's row.
@@ -1561,7 +1561,7 @@ private:
         }
     }
 
-    /// THE SECOND DOOR, APPROVED: the opening office, which arranges the document and the desk
+    /// THE SECOND DOOR, APPROVED: the opening role, which arranges the document and the desk
     /// together (WL-OPEN-01). The ticket is kept for the bus's later word that exactly this
     /// attempt was refused (WL-OPEN-07); nothing queued is refused now, in words.
     void open_approved(const BuilderAsk& a, loom::Mail& mail) {
@@ -1571,16 +1571,16 @@ private:
         if (asks().ask(mail, ws::kOpeningRole, OpenSourceRequested{a.path}, std::move(opening)) !=
             Asks::Asked::kHeld) {
             notice_ = "`" + a.subject + "`: the source was not opened -- nothing was queued to "
-                      "the opening office";
+                      "the opening role";
             say(mail);
         }
     }
 
     /// A paste is asked of the window that shows the pane's area, and of nobody while none does.
     void begin_paste(loom::Mail& mail) {
-        const std::string office = room().clipboard_office();
+        const std::string role = room().clipboard_role();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            office, gfx::ClipboardTextRequested::zen_name,
+            role, gfx::ClipboardTextRequested::zen_name,
             gfx::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
@@ -1589,7 +1589,7 @@ private:
         paste_epoch_ = role_.line.draft_epoch();
         pasting_ = true;
         (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(office, gfx::ClipboardTextRequested{}, opened.correlation);
+            .send_to_role(role, gfx::ClipboardTextRequested{}, opened.correlation);
     }
 
     // ---- The output reader (WL-OUT-04), defined in `output_reader.hpp` ----------------------

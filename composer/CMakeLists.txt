@@ -1,5 +1,5 @@
 # The Composer package: the tool in which a weaver writes a message, from a target's own
-# accepted vocabulary, to that target's own office. `zengine-composer-vocabulary` is the durable
+# accepted vocabulary, to that target's own role. `zengine-composer-vocabulary` is the durable
 # pane identity and links nothing; `zengine-composer-draft` is the draft model and projection
 # (draft.hpp, view.hpp), with no bus, so the suite can ask what a draft composes to and what a
 # weaver would see; `zengine-composer` is the weave.
@@ -9,7 +9,7 @@
 # Loom's reloadable-weave contract sweep walks Loom's build graph, not Zengine's, so it does not
 # see this link.
 
-# The durable names link nothing at all: a host's boot list needs the stem and the office and
+# The durable names link nothing at all: a host's boot list needs the stem and the role and
 # must not thereby acquire the typed composer, the Schema vocabulary or a text editor.
 add_library(zengine-composer-vocabulary INTERFACE)
 target_include_directories(zengine-composer-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})

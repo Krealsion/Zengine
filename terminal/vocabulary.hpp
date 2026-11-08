@@ -4,8 +4,8 @@
 #ifndef ZENGINE_TERMINAL_PANE_VOCABULARY_HPP
 #define ZENGINE_TERMINAL_PANE_VOCABULARY_HPP
 
-// The Terminal pane's durable names: the office it holds, the one pane it offers, the action
-// ids its keys answer to, and the state a same-shape reload keeps. The office is neither the
+// The Terminal pane's durable names: the role it holds, the one pane it offers, the action
+// ids its keys answer to, and the state a same-shape reload keeps. The role is neither the
 // host's `zengine.workshop` (admission refuses a pane offered by its holder, WL-CAT-03) nor the
 // participant's: a weaver types here and the participant speaks there, two identities that stay
 // two. No retired `PaneRef` converts: the Terminal was never a built-in pane a saved desk could
@@ -21,21 +21,21 @@
 
 namespace zengine::terminal_pane {
 
-/// THE OFFICE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
+/// THE ROLE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
 /// anything reaches it by. A ROLE, so the window and Workshop find whoever holds it rather
 /// than the incarnation that offered first.
 inline constexpr const char* kTerminalPaneRole = "zengine.terminal";
 
-/// THE PANE KEY, in this office's namespace.
+/// THE PANE KEY, in this role's namespace.
 inline constexpr const char* kTerminalPane = "terminal";
 
 /// THE TWO LINES A WEAVER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
-/// summary in Info -- and what Workshop's pane header says after the office.
+/// summary in Info -- and what Workshop's pane header says after the role.
 inline constexpr const char* kTerminalPaneName = "Terminal";
 inline constexpr const char* kTerminalPaneSummary = "talk to the weaves on this bus";
 
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable the way the
-/// office is -- it is a file name, here because the host's boot plan and the suite's loader
+/// role is -- it is a file name, here because the host's boot plan and the suite's loader
 /// must agree on it.
 inline constexpr const char* kTerminalPaneStem = "zengine-terminal-pane";
 

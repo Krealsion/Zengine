@@ -27,12 +27,12 @@ WHY — `agents/decisions/a-name-is-judged-in-bytes.md`
 
 ## WL-CAT-03 — Admission is atomic both ways, and a built-in cannot be shadowed
 
-LAW — An offer is judged whole under its stamped office. Invalid offers change nothing; a valid refresh keeps the handle and first accepted size preference.
+LAW — An offer is judged whole under its stamped role. Invalid offers change nothing; a valid refresh keeps the handle and first accepted size preference.
 
 MEANS
 - a built-in offered by whoever holds `zengine.workshop` is refused as a forgery, by name;
-- two offices offering one pane key are two panes and two handles, and neither can move the other;
-- an offer with no stamped office is refused and retains nothing.
+- two roles offering one pane key are two panes and two handles, and neither can move the other;
+- an offer with no stamped role is refused and retains nothing.
 
 WHY — `agents/decisions/the-catalog-is-one-list.md`
 
@@ -70,9 +70,9 @@ keeps nothing"
 
 ### WL-CAT-03
 `workshop/setup_reconcile.hpp` admit_pane_offer Admission
-`tests/test_workshop_panes_seam.cpp` "a valid offer is admitted under the office that stamped it"
-"an offer with no stamped office is refused, and retains nothing" "a runtime offer cannot shadow a
-built-in pane" "re-offering one reference refreshes it in place and grows nothing" "two offices
+`tests/test_workshop_panes_seam.cpp` "a valid offer is admitted under the role that stamped it"
+"an offer with no stamped role is refused, and retains nothing" "a runtime offer cannot shadow a
+built-in pane" "re-offering one reference refreshes it in place and grows nothing" "two roles
 offering one pane key stay two panes, and neither can move the other"
 
 ### WL-CAT-04

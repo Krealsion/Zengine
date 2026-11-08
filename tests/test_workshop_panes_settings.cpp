@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop panes suite -- a pane's settings across the seam: the declaration a pane sends
-// beside its offer, judged whole under its office's stamp, and the settings the live layout keeps
+// beside its offer, judged whole under its role's stamp, and the settings the live layout keeps
 // for a seated pane, handed by the layouts' owner to a holder that takes them, when it asks and
 // whenever they move. A native seat stands in for a pane here, so a case can say the exact sentence
 // at the exact moment; that a pane draws no room before it holds its row is proven through real
@@ -19,10 +19,10 @@
 
 namespace {
 
-constexpr const char* kDialOffice = "test.dial";
+constexpr const char* kDialRole = "test.dial";
 constexpr const char* kDial = "dial";
 
-PaneRef dial_ref() { return PaneRef{kDialOffice, kDial}; }
+PaneRef dial_ref() { return PaneRef{kDialRole, kDial}; }
 
 PaneOffered dial_offer() { return PaneOffered{kDial, "Dial", "a pane that takes its settings"}; }
 
@@ -68,7 +68,7 @@ struct DialRig {
         stage_desk(r, [&](Setup& desk) {
             pane_of(desk, dial_ref())->settings = settings;
         });
-        seat = r.mount_settings_seat(kDialOffice);
+        seat = r.mount_settings_seat(kDialRole);
     }
     void offer() {
         r.drive(seat, [](SettingsSeat& s, loom::Mail& m) { s.offer(m, dial_offer()); });
@@ -76,7 +76,7 @@ struct DialRig {
     void declare(const PaneSettingsDeclared& d) {
         r.drive(seat, [d](SettingsSeat& s, loom::Mail& m) { s.declare(m, d); });
     }
-    const RuntimePane* row() { return r.session().panes.runtime.find(kDialOffice, kDial); }
+    const RuntimePane* row() { return r.session().panes.runtime.find(kDialRole, kDial); }
     bool seated() { return row() != nullptr && r.session().panes.has(row()->kind); }
 };
 
@@ -84,7 +84,7 @@ struct DialRig {
 
 TEST_CASE("the layouts' owner hands a seated pane its row's settings, whether or not it declared") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#hand-off-as-workshop): the owner's
-    // hand-off sent as Workshop's office -- a pane takes a row from the layouts' owner alone.
+    // hand-off sent as Workshop's role -- a pane takes a row from the layouts' owner alone.
     DialRig t;
     t.open({legend_off()});
     t.offer();
@@ -98,7 +98,7 @@ TEST_CASE("the layouts' owner hands a seated pane its row's settings, whether or
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{legend_off()});
     // ...the settings the layouts' owner's, the room the window's that shows the desk.
     for (std::size_t i = 0; i < t.seat->authors.size(); ++i) {
-        CHECK(t.seat->authors[i] == (t.seat->heard[i] == "room" ? t.r.windows.office()
+        CHECK(t.seat->authors[i] == (t.seat->heard[i] == "room" ? t.r.windows.role()
                                                                 : std::string(kLayoutsRole)));
     }
 
@@ -126,9 +126,9 @@ TEST_CASE("a holder that takes no settings is handed none") {
             ++handed;
         }
     });
-    ProviderSeat* plain = r.mount_provider(kDialOffice);
+    ProviderSeat* plain = r.mount_provider(kDialRole);
     r.drive(plain, [](ProviderSeat& p, loom::Mail& m) { p.offer(m, dial_offer()); });
-    const RuntimePane* row = r.session().panes.runtime.find(kDialOffice, kDial);
+    const RuntimePane* row = r.session().panes.runtime.find(kDialRole, kDial);
     REQUIRE(row != nullptr);
     REQUIRE(r.session().panes.has(row->kind));
     CHECK(plain->rooms.size() == 1);
@@ -225,7 +225,7 @@ TEST_CASE("a pane that asks for its row and a reopened row are handed their sett
     }
 }
 
-TEST_CASE("a declaration is judged whole under the office stamp, refused aloud, and replaced") {
+TEST_CASE("a declaration is judged whole under the role stamp, refused aloud, and replaced") {
     DialRig t;
     t.open({});
     t.offer();
@@ -329,17 +329,17 @@ TEST_CASE("a declaration is judged whole under the office stamp, refused aloud, 
     CHECK(t.r.last_notice() == before);
 }
 
-TEST_CASE("a declaration counts only while the weave that sent it holds the office") {
+TEST_CASE("a declaration counts only while the weave that sent it holds the role") {
     DialRig t;
     t.open({});
     t.offer();
     t.declare(dial_declared());
     REQUIRE(t.r.owner->layouts().counted_v1(dial_ref()) != nullptr);
 
-    // ANOTHER WEAVE TAKES THE OFFICE: the declaration stays where it was admitted and counts for
+    // ANOTHER WEAVE TAKES THE ROLE: the declaration stays where it was admitted and counts for
     // nothing, until the new holder declares its own.
     t.r.unmount_settings_seat(t.seat);
-    SettingsSeat* successor = t.r.mount_settings_seat(kDialOffice);
+    SettingsSeat* successor = t.r.mount_settings_seat(kDialRole);
     CHECK(t.r.owner->layouts().counted_v1(dial_ref()) == nullptr);
     PaneSettingsDeclared own;
     own.pane = kDial;
@@ -541,8 +541,8 @@ TEST_CASE("a settings write says it was stored and handed, or why it was not han
     CHECK(t.seat->heard.back() == "settings");
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{PaneSetting{"legend", false, {}, {}}});
 
-    // NOTHING HOLDING THE OFFICE: the declared row is a kept one now, and `-` clears it; stored,
-    // and the sentence says nobody holds the office.
+    // NOTHING HOLDING THE ROLE: the declared row is a kept one now, and `-` clears it; stored,
+    // and the sentence says nobody holds the role.
     t.r.unmount_settings_seat(t.seat);
     t.r.key(input::scan::kUnknown);
     const PaneSubjectActed cleared = info_commit(t.r, dial_ref(), "legend", "-");
@@ -554,7 +554,7 @@ TEST_CASE("a settings write says it was stored and handed, or why it was not han
     stage_desk(t.r, [](Setup& desk) {
         pane_of(desk, dial_ref())->settings = {PaneSetting{"legend", false, {}, {}}};
     });
-    ProviderSeat* plain = t.r.mount_provider(kDialOffice);
+    ProviderSeat* plain = t.r.mount_provider(kDialRole);
     t.r.drive(plain, [](ProviderSeat& p, loom::Mail& m) { p.offer(m, dial_offer()); });
     REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
     REQUIRE(info_commit(t.r, dial_ref(), "legend", "-").accepted);
@@ -599,7 +599,7 @@ TEST_CASE("the row Info reads moves with what it is built from: a declaration, a
 
     // ...AND A COMMIT JUDGED AT THE OLD ONE IS REFUSED WITH NOTHING WRITTEN.
     PaneSettingCommitRequested stale;
-    stale.provider = kDialOffice;
+    stale.provider = kDialRole;
     stale.pane = kDial;
     stale.revision = bare;
     stale.key = "legend";
@@ -611,7 +611,7 @@ TEST_CASE("the row Info reads moves with what it is built from: a declaration, a
     // A NEW HOLDER: the declaration stops counting, and its rows become kept ones.
     REQUIRE(info_commit(t.r, dial_ref(), "legend", "off").accepted);
     t.r.unmount_settings_seat(t.seat);
-    (void)t.r.mount_settings_seat(kDialOffice);
+    (void)t.r.mount_settings_seat(kDialRole);
     t.r.key(input::scan::kUnknown);
     CHECK(info_read(t.r, dial_ref()).revision != declared);
     CHECK(info_value(t.r, dial_ref(), "legend") ==
@@ -634,7 +634,7 @@ TEST_CASE("the subject is named anew when its pane's row leaves the desk, and ag
     DoorHand& h = door_hand(t.r);
     const std::size_t asked = h.acted.size();
     h.next = [before, at](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice)
+        (void)m.as_role(DoorHand::kRole)
             .send_to_role(kWorkshopProvider,
                           PaneCommitRequested{before, static_cast<std::int64_t>(at), "off"});
     };
@@ -708,25 +708,25 @@ TEST_CASE("a pane's settings are part of what makes a linked layout modified") {
 
 namespace {
 
-/// A NATIVE SEAT THAT TAKES v2's SETTINGS: it holds an office, offers and declares as it is told,
-/// and records in order every room and every hand-off with its revision; as an office it also asks
+/// A NATIVE SEAT THAT TAKES v2's SETTINGS: it holds a role, offers and declares as it is told,
+/// and records in order every room and every hand-off with its revision; as a role it also asks
 /// the settings doors and keeps their answers. Apart from `SettingsSeat`, which takes v1.
 class RevisionSeat
     : public loom::WeaveBase<RevisionSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, gfx::AreaRoom, v2::PaneSettings,
-                                          PaneSettingsAnswered, PaneSettingCommitAnswered, OfficeSettings,
-                                          OfficeSettingsAnswered, OfficeSettingCommitAnswered,
+                                          PaneSettingsAnswered, PaneSettingCommitAnswered, RoleSettings,
+                                          RoleSettingsAnswered, RoleSettingCommitAnswered,
                                           PaneSettingPinAnswered,
                                           PaneSettingLockAnswered, LayoutSettingsAnswered,
                                           SettingsWriteAnswered, gfx::AreaButtonChanged, SeatDo>,
                              loom::Emit<PaneOffered, v2::PaneSettingsDeclared,
                                         PaneSettingsRequested, PaneSettingCommitRequested,
-                                        PaneSettingUnused, OfficeSettingsDeclared,
-                                        OfficeSettingsRequested, OfficeSettingCommitRequested,
+                                        PaneSettingUnused, RoleSettingsDeclared,
+                                        RoleSettingsRequested, RoleSettingCommitRequested,
                                         PaneSettingPinRequested, PaneSettingLockRequested,
                                         LayoutSettingsRequested, SettingsWriteRequested>> {
 public:
-    explicit RevisionSeat(std::string office) : office_(std::move(office)) {}
+    explicit RevisionSeat(std::string role) : role_(std::move(role)) {}
 
     void on(const PaneCatalogRequested&, loom::Mail&) {}
     void on(const gfx::AreaRoom&, loom::Mail&) { heard.push_back("room"); }
@@ -741,15 +741,15 @@ public:
     void on(const PaneSettingCommitAnswered& a, loom::Mail& mail) {
         if (mail.answers_ask()) acted.push_back(a);
     }
-    void on(const OfficeSettings& s, loom::Mail& mail) {
-        office_handed.push_back(s);
+    void on(const RoleSettings& s, loom::Mail& mail) {
+        role_handed.push_back(s);
         authors.push_back(std::string(mail.authored_role()));
     }
-    void on(const OfficeSettingsAnswered& s, loom::Mail& mail) {
-        if (mail.answers_ask()) office_shown.push_back(s);
+    void on(const RoleSettingsAnswered& s, loom::Mail& mail) {
+        if (mail.answers_ask()) role_shown.push_back(s);
     }
-    void on(const OfficeSettingCommitAnswered& a, loom::Mail& mail) {
-        if (mail.answers_ask()) office_acted.push_back(a);
+    void on(const RoleSettingCommitAnswered& a, loom::Mail& mail) {
+        if (mail.answers_ask()) role_acted.push_back(a);
     }
     void on(const PaneSettingPinAnswered& a, loom::Mail& mail) {
         if (mail.answers_ask()) pin_acted.push_back(a);
@@ -776,12 +776,12 @@ public:
         }
     }
 
-    /// As the office it holds, or -- `personally` -- as the weave alone, which holds no office.
+    /// As the role it holds, or -- `personally` -- as the weave alone, which holds no role.
     template <class Shape> void say(loom::Mail& mail, const Shape& s, bool personally = false) {
         if (personally) {
             (void)mail.send_to_role(door_of<Shape>(), s);
         } else {
-            (void)mail.as_role(office_).send_to_role(door_of<Shape>(), s);
+            (void)mail.as_role(role_).send_to_role(door_of<Shape>(), s);
         }
     }
 
@@ -791,9 +791,9 @@ public:
     std::vector<std::string> authors;
     std::vector<PaneSettingsAnswered> shown;
     std::vector<PaneSettingCommitAnswered> acted;
-    std::vector<OfficeSettingCommitAnswered> office_acted;
-    std::vector<OfficeSettings> office_handed;
-    std::vector<OfficeSettingsAnswered> office_shown;
+    std::vector<RoleSettingCommitAnswered> role_acted;
+    std::vector<RoleSettings> role_handed;
+    std::vector<RoleSettingsAnswered> role_shown;
     std::vector<PaneSettingPinAnswered> pin_acted;
     std::vector<PaneSettingLockAnswered> lock_acted;
     std::vector<LayoutSettingsAnswered> layouts_shown;
@@ -801,12 +801,12 @@ public:
     std::vector<std::uint64_t> press_asks;
 
 private:
-    std::string office_;
+    std::string role_;
 };
 
-/// MOUNT ONE IN `office` (or in none), granted what it says.
-RevisionSeat* mount_revision_seat(PaneRig& r, const std::string& office, loom::WeaveId* id) {
-    auto seat = std::make_unique<RevisionSeat>(office);
+/// MOUNT ONE IN `role` (or in none), granted what it says.
+RevisionSeat* mount_revision_seat(PaneRig& r, const std::string& role, loom::WeaveId* id) {
+    auto seat = std::make_unique<RevisionSeat>(role);
     RevisionSeat* raw = seat.get();
     loom::Grant grant;
     grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
@@ -815,15 +815,15 @@ RevisionSeat* mount_revision_seat(PaneRig& r, const std::string& office, loom::W
     grant.allow_to_any(PaneSettingCommitRequested::zen_name,
                        PaneSettingCommitRequested::zen_version);
     grant.allow_to_any(PaneSettingUnused::zen_name, PaneSettingUnused::zen_version);
-    grant.allow_to_any(OfficeSettingsDeclared::zen_name, OfficeSettingsDeclared::zen_version);
-    grant.allow_to_any(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version);
-    grant.allow_to_any(OfficeSettingCommitRequested::zen_name,
-                       OfficeSettingCommitRequested::zen_version);
+    grant.allow_to_any(RoleSettingsDeclared::zen_name, RoleSettingsDeclared::zen_version);
+    grant.allow_to_any(RoleSettingsRequested::zen_name, RoleSettingsRequested::zen_version);
+    grant.allow_to_any(RoleSettingCommitRequested::zen_name,
+                       RoleSettingCommitRequested::zen_version);
     grant.allow_to_any(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version);
     grant.allow_to_any(PaneSettingLockRequested::zen_name, PaneSettingLockRequested::zen_version);
     grant.allow_to_any(LayoutSettingsRequested::zen_name, LayoutSettingsRequested::zen_version);
     grant.allow_to_any(SettingsWriteRequested::zen_name, SettingsWriteRequested::zen_version);
-    *id = r.bus.register_weave(std::move(seat), std::move(grant), office);
+    *id = r.bus.register_weave(std::move(seat), std::move(grant), role);
     raw->zen_set_self(*id);
     return raw;
 }
@@ -855,7 +855,7 @@ v2::PaneSettingsDeclared dial_declared_v2() {
          v2_row(v1.rows[2], {"input"}, false, "how far one turn moves")}};
 }
 
-/// A LIVE WORKSHOP WHOSE DESK NAMES THE DIAL, the dial a v2 holder, and an editor's office that
+/// A LIVE WORKSHOP WHOSE DESK NAMES THE DIAL, the dial a v2 holder, and an editor's role that
 /// asks the settings doors about it.
 struct RevisionRig {
     PaneRig r;
@@ -874,7 +874,7 @@ struct RevisionRig {
         stage_desk(r, [&](Setup& desk) {
             pane_of(desk, dial_ref())->settings = settings;
         });
-        seat = mount_revision_seat(r, kDialOffice, &seat_id);
+        seat = mount_revision_seat(r, kDialRole, &seat_id);
         editor = mount_revision_seat(r, "test.editor", &editor_id);
         offer();
         if (declared) {
@@ -890,13 +890,13 @@ struct RevisionRig {
     PaneSettingsAnswered read(bool personally = false) {
         const std::size_t before = editor->shown.size();
         drive(r, editor_id, editor, [personally](RevisionSeat& s, loom::Mail& m) {
-            s.say(m, PaneSettingsRequested{kDialOffice, kDial}, personally);
+            s.say(m, PaneSettingsRequested{kDialRole, kDial}, personally);
         });
         REQUIRE(editor->shown.size() == before + 1);
         return editor->shown.back();
     }
     PaneSettingCommitAnswered commit(PaneSettingCommitRequested asked, bool personally = false) {
-        asked.provider = kDialOffice;
+        asked.provider = kDialRole;
         asked.pane = kDial;
         const std::size_t before = editor->acted.size();
         drive(r, editor_id, editor, [asked, personally](RevisionSeat& s, loom::Mail& m) {
@@ -910,33 +910,33 @@ struct RevisionRig {
         REQUIRE(row != nullptr);
         return row->settings;
     }
-    const RuntimePane* row() { return r.session().panes.runtime.find(kDialOffice, kDial); }
+    const RuntimePane* row() { return r.session().panes.runtime.find(kDialRole, kDial); }
 
-    /// ONE OFFICE'S SETTINGS READ, AND ONE OF THEM WRITTEN, by the editor.
-    OfficeSettingsAnswered read_office(const std::string& office) {
-        const std::size_t before = editor->office_shown.size();
-        drive(r, editor_id, editor, [office](RevisionSeat& s, loom::Mail& m) {
-            s.say(m, OfficeSettingsRequested{office});
+    /// ONE ROLE'S SETTINGS READ, AND ONE OF THEM WRITTEN, by the editor.
+    RoleSettingsAnswered read_role(const std::string& role) {
+        const std::size_t before = editor->role_shown.size();
+        drive(r, editor_id, editor, [role](RevisionSeat& s, loom::Mail& m) {
+            s.say(m, RoleSettingsRequested{role});
         });
-        REQUIRE(editor->office_shown.size() == before + 1);
-        return editor->office_shown.back();
+        REQUIRE(editor->role_shown.size() == before + 1);
+        return editor->role_shown.back();
     }
-    OfficeSettingCommitAnswered commit_office(OfficeSettingCommitRequested asked) {
-        const std::size_t before = editor->office_acted.size();
+    RoleSettingCommitAnswered commit_role(RoleSettingCommitRequested asked) {
+        const std::size_t before = editor->role_acted.size();
         drive(r, editor_id, editor, [asked](RevisionSeat& s, loom::Mail& m) { s.say(m, asked); });
-        REQUIRE(editor->office_acted.size() == before + 1);
-        return editor->office_acted.back();
+        REQUIRE(editor->role_acted.size() == before + 1);
+        return editor->role_acted.back();
     }
     /// ...AND ONE PIN ACT ON THE DIAL.
     PaneSettingPinAnswered pin(const std::string& key, const char* act, std::int64_t layout = 0) {
         const std::size_t before = editor->pin_acted.size();
         drive(r, editor_id, editor, [key, act, layout](RevisionSeat& s, loom::Mail& m) {
-            s.say(m, PaneSettingPinRequested{kDialOffice, kDial, key, act, layout});
+            s.say(m, PaneSettingPinRequested{kDialRole, kDial, key, act, layout});
         });
         REQUIRE(editor->pin_acted.size() == before + 1);
         return editor->pin_acted.back();
     }
-    /// ...AND ONE LOCK ACT, asked by the editor or -- `by_dial` -- by the dial's own office.
+    /// ...AND ONE LOCK ACT, asked by the editor or -- `by_dial` -- by the dial's own role.
     PaneSettingLockAnswered lock(PaneSettingLockRequested asked, bool by_dial = false) {
         RevisionSeat* who = by_dial ? seat : editor;
         const loom::WeaveId id = by_dial ? seat_id : editor_id;
@@ -945,7 +945,7 @@ struct RevisionRig {
         REQUIRE(who->lock_acted.size() == before + 1);
         return who->lock_acted.back();
     }
-    /// ...AND EVERY LAYOUT READ, AND A BATCH WRITTEN, by the editor (or as no office).
+    /// ...AND EVERY LAYOUT READ, AND A BATCH WRITTEN, by the editor (or as no role).
     LayoutSettingsAnswered layouts(bool personally = false) {
         const std::size_t before = editor->layouts_shown.size();
         drive(r, editor_id, editor, [personally](RevisionSeat& s, loom::Mail& m) {
@@ -1006,9 +1006,9 @@ std::vector<PaneSetting> dial_settings_at(PaneRig& r, std::size_t at) {
 }
 
 /// A commit of Workshop's own text setting `key`, at the revision read now.
-OfficeSettingCommitRequested workshop_text(std::int64_t revision, const char* key, const char* text) {
-    OfficeSettingCommitRequested c;
-    c.office = kWorkshopProvider;
+RoleSettingCommitRequested workshop_text(std::int64_t revision, const char* key, const char* text) {
+    RoleSettingCommitRequested c;
+    c.role = kWorkshopProvider;
     c.revision = revision;
     c.key = key;
     c.text = std::string(text);
@@ -1016,9 +1016,9 @@ OfficeSettingCommitRequested workshop_text(std::int64_t revision, const char* ke
 }
 
 /// ...and of its own number setting `key`.
-OfficeSettingCommitRequested workshop_number(std::int64_t revision, const char* key, std::int64_t n) {
-    OfficeSettingCommitRequested c;
-    c.office = kWorkshopProvider;
+RoleSettingCommitRequested workshop_number(std::int64_t revision, const char* key, std::int64_t n) {
+    RoleSettingCommitRequested c;
+    c.role = kWorkshopProvider;
     c.revision = revision;
     c.key = key;
     c.number = n;
@@ -1207,7 +1207,7 @@ TEST_CASE("a pane's row is read by message: its revision, what its declaration t
     RevisionRig t;
     t.open({PaneSetting{"step", {}, 4, {}}});
     const PaneSettingsAnswered shown = t.read();
-    CHECK(shown.provider == kDialOffice);
+    CHECK(shown.provider == kDialRole);
     CHECK(shown.pane == kDial);
     CHECK(shown.revision == t.seat->handed.back().revision);
     CHECK(shown.rows == dial_declared_v2().rows);
@@ -1384,13 +1384,13 @@ TEST_CASE("an asker the settings doors do not serve is answered that it was with
     RevisionRig t;
     t.open({PaneSetting{"step", {}, 4, {}}});
     const std::int64_t now = t.read().revision;
-    // PERSONAL SPEECH: no office, not the Terminal this host mounted, no guest row.
+    // PERSONAL SPEECH: no role, not the Terminal this host mounted, no guest row.
     const PaneSettingsAnswered read = t.read(/*personally=*/true);
     CHECK(read.revision == 0);
     CHECK(read.rows.empty());
     CHECK(read.settings.empty());
     CHECK(read.said ==
-          "settings withheld: a pane's settings are read and written by an office, this "
+          "settings withheld: a pane's settings are read and written by a role, this "
           "Workshop's Terminal or a guest with `settings`");
     const PaneSettingCommitAnswered wrote = t.commit(number_at(now, "step", 2), /*personally=*/true);
     CHECK_FALSE(wrote.accepted);
@@ -1449,13 +1449,13 @@ TEST_CASE("a pane's word that it cannot use a setting is kept against its revisi
     CHECK_FALSE(standing().has_value());
 }
 
-// ---- Office-wide settings -----------------------------------------------------------------
+// ---- Role-wide settings -----------------------------------------------------------------
 
 TEST_CASE("Workshop's own settings are read by message: what each takes, what is kept, the revision, and whether the file holds it") {
     RevisionRig t;
     t.open();
-    const OfficeSettingsAnswered shown = t.read_office(kWorkshopProvider);
-    CHECK(shown.office == kWorkshopProvider);
+    const RoleSettingsAnswered shown = t.read_role(kWorkshopProvider);
+    CHECK(shown.role == kWorkshopProvider);
     CHECK(shown.revision > 0);
     std::vector<std::string> keys;
     for (const v2::PaneSettingRow& row : shown.rows) {
@@ -1466,7 +1466,7 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
                       "workshop.pinned-scope", "workshop.focus.ring", "workshop.skin",
                       "workshop.completion-order", "workshop.arrange-step", "workshop.snap-reach",
                       "workshop.stack-rows", "workshop.open-at"});
-    CHECK(shown.rows == prefs_persist::workshop_office_rows());
+    CHECK(shown.rows == prefs_persist::workshop_role_rows());
     // THREE PINNED BY DEFAULT, the most a declaration pins, and every row sound by a pane
     // declaration's rules but its `workshop.` key.
     std::vector<std::string> pinned;
@@ -1511,25 +1511,25 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
     CHECK(shown.settings.empty());
     CHECK(shown.locks.empty());
     CHECK(shown.written == "isolated run -- no settings file");
-    // READING AGAIN MOVES NOTHING; AN OFFICE NOTHING DECLARES FOR STANDS AT 0.
-    CHECK(t.read_office(kWorkshopProvider).revision == shown.revision);
-    CHECK(t.read_office("test.nobody").revision == 0);
-    CHECK(t.read_office("test.nobody").rows.empty());
+    // READING AGAIN MOVES NOTHING; AN ROLE NOTHING DECLARES FOR STANDS AT 0.
+    CHECK(t.read_role(kWorkshopProvider).revision == shown.revision);
+    CHECK(t.read_role("test.nobody").revision == 0);
+    CHECK(t.read_role("test.nobody").rows.empty());
 }
 
 TEST_CASE("a commit of Workshop's own setting applies it, keeps it in the settings file, and says both") {
-    TempDir dir("office-settings-workshop");
+    TempDir dir("role-settings-workshop");
     RevisionRig t;
     t.r.host.prefs_path = dir.file("workshop-prefs.json");
     t.open();
     REQUIRE(t.r.session().pane_titles);
     // THE TITLES, A FLAG.
-    OfficeSettingCommitRequested titles;
-    titles.office = kWorkshopProvider;
-    titles.revision = t.read_office(kWorkshopProvider).revision;
+    RoleSettingCommitRequested titles;
+    titles.role = kWorkshopProvider;
+    titles.revision = t.read_role(kWorkshopProvider).revision;
     titles.key = "workshop.pane-titles";
     titles.flag = false;
-    const OfficeSettingCommitAnswered hidden = t.commit_office(titles);
+    const RoleSettingCommitAnswered hidden = t.commit_role(titles);
     REQUIRE_MESSAGE(hidden.accepted, hidden.refusal);
     CHECK(hidden.handed == "applied; written");
     CHECK(hidden.revision > titles.revision);
@@ -1538,14 +1538,14 @@ TEST_CASE("a commit of Workshop's own setting applies it, keeps it in the settin
     prefs_persist::LoadedPrefs read = prefs_persist::load_file(t.r.host.prefs_path);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK_FALSE(read.prefs.titles_shown);
-    CHECK(t.read_office(kWorkshopProvider).written == "written");
+    CHECK(t.read_role(kWorkshopProvider).written == "written");
     // THE RING: plain draws one ring in the chrome's ink.
-    const OfficeSettingCommitAnswered plain = t.commit_office(
+    const RoleSettingCommitAnswered plain = t.commit_role(
         workshop_text(hidden.revision, "workshop.focus.ring", "plain"));
     REQUIRE_MESSAGE(plain.accepted, plain.refusal);
     CHECK(t.r.session().selection_ring_plain);
     // THE PIN SCOPE.
-    const OfficeSettingCommitAnswered scope = t.commit_office(
+    const RoleSettingCommitAnswered scope = t.commit_role(
         workshop_text(plain.revision, "workshop.pinned-scope", "per-layout"));
     REQUIRE_MESSAGE(scope.accepted, scope.refusal);
     read = prefs_persist::load_file(t.r.host.prefs_path);
@@ -1553,27 +1553,27 @@ TEST_CASE("a commit of Workshop's own setting applies it, keeps it in the settin
     CHECK(read.prefs.pins_per_layout);
     CHECK(read.prefs.ring_plain);
     // ...AND A CLEAR PUTS ONE BACK, kept as its absence.
-    OfficeSettingCommitRequested back;
-    back.office = kWorkshopProvider;
+    RoleSettingCommitRequested back;
+    back.role = kWorkshopProvider;
     back.revision = scope.revision;
     back.key = "workshop.pane-titles";
     back.clear = true;
-    const OfficeSettingCommitAnswered cleared = t.commit_office(back);
+    const RoleSettingCommitAnswered cleared = t.commit_role(back);
     REQUIRE_MESSAGE(cleared.accepted, cleared.refusal);
     CHECK(t.r.session().pane_titles);
-    CHECK(prefs_persist::office_value(prefs_persist::load_file(t.r.host.prefs_path).kept,
+    CHECK(prefs_persist::role_value(prefs_persist::load_file(t.r.host.prefs_path).kept,
                                       kWorkshopProvider, "workshop.pane-titles") == nullptr);
     // A VALUE ALREADY KEPT MINTS NOTHING.
-    const OfficeSettingCommitAnswered same = t.commit_office(
+    const RoleSettingCommitAnswered same = t.commit_role(
         workshop_text(cleared.revision, "workshop.focus.ring", "plain"));
     CHECK(same.accepted);
     CHECK(same.handed == "unchanged");
     CHECK(same.revision == cleared.revision);
 }
 
-TEST_CASE("an office commit is refused in words with nothing written: a stale revision, an office nothing declares for, a value not taken, a key not declared, a lock") {
+TEST_CASE("a role commit is refused in words with nothing written: a stale revision, a role nothing declares for, a value not taken, a key not declared, a lock") {
     // AN EVERYWHERE LOCK ON THE RING, written in the settings file before the launch.
-    TempDir dir("office-settings-refused");
+    TempDir dir("role-settings-refused");
     prefs_persist::Prefs locked;
     locked.locks = {prefs_persist::SettingLock{kWorkshopProvider, "workshop.focus.ring"}};
     const std::string path = dir.file("workshop-prefs.json");
@@ -1581,38 +1581,38 @@ TEST_CASE("an office commit is refused in words with nothing written: a stale re
     RevisionRig t;
     t.r.host.prefs_path = path;
     t.open();
-    const std::int64_t rev = t.read_office(kWorkshopProvider).revision;
-    OfficeSettingCommitAnswered a = t.commit_office(workshop_text(rev - 1, "workshop.focus.ring", "plain"));
+    const std::int64_t rev = t.read_role(kWorkshopProvider).revision;
+    RoleSettingCommitAnswered a = t.commit_role(workshop_text(rev - 1, "workshop.focus.ring", "plain"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal == "stale revision " + std::to_string(rev - 1) +
                            " -- the settings of zengine.workshop stand at " + std::to_string(rev) +
                            "; read them again");
-    a = t.commit_office(workshop_text(rev, "workshop.band-keys", "tiny"));
+    a = t.commit_role(workshop_text(rev, "workshop.band-keys", "tiny"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal == "workshop.band-keys takes one of short, full, not a text `tiny`");
-    a = t.commit_office(workshop_text(rev, "workshop.nothing", "x"));
+    a = t.commit_role(workshop_text(rev, "workshop.nothing", "x"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal == "zengine.workshop declares no setting `workshop.nothing` -- a key no "
                        "declaration takes is only cleared");
-    OfficeSettingCommitRequested nobody = workshop_text(0, "x", "y");
-    nobody.office = "test.nobody";
-    a = t.commit_office(nobody);
+    RoleSettingCommitRequested nobody = workshop_text(0, "x", "y");
+    nobody.role = "test.nobody";
+    a = t.commit_role(nobody);
     CHECK_FALSE(a.accepted);
-    CHECK(a.refusal == "nothing declares office-wide settings for `test.nobody` here");
+    CHECK(a.refusal == "nothing declares role-wide settings for `test.nobody` here");
     CHECK_FALSE(t.r.session().selection_ring_plain);
     // THE LOCK HOLDS ITS KEY, and the file is as it was.
-    a = t.commit_office(workshop_text(rev, "workshop.focus.ring", "plain"));
+    a = t.commit_role(workshop_text(rev, "workshop.focus.ring", "plain"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal == locked_setting_refusal("workshop.focus.ring"));
     CHECK_FALSE(t.r.session().selection_ring_plain);
-    const std::vector<SettingLockShown> locks = t.read_office(kWorkshopProvider).locks;
+    const std::vector<SettingLockShown> locks = t.read_role(kWorkshopProvider).locks;
     REQUIRE(locks.size() == 1);
     CHECK(locks[0].key == "workshop.focus.ring");
     CHECK(locks[0].scope == "everywhere");
     CHECK(prefs_persist::load_file(path).kept == locked);
 }
 
-TEST_CASE("an office declares the office-wide settings it takes, is handed what is kept, and its settings are written by message") {
+TEST_CASE("a role declares the role-wide settings it takes, is handed what is kept, and its settings are written by message") {
     RevisionRig t;
     t.open();
     v2::PaneSettingRow face;
@@ -1623,41 +1623,41 @@ TEST_CASE("an office declares the office-wide settings it takes, is handed what 
     face.tags = {"text"};
     face.summary = "the face size";
     drive(t.r, t.seat_id, t.seat,
-          [face](RevisionSeat& s, loom::Mail& m) { s.say(m, OfficeSettingsDeclared{{face}}); });
-    // HANDED AT ONCE, NOTHING KEPT, BY WORKSHOP'S OFFICE.
-    REQUIRE(t.seat->office_handed.size() == 1);
-    CHECK(t.seat->office_handed.back().settings.empty());
+          [face](RevisionSeat& s, loom::Mail& m) { s.say(m, RoleSettingsDeclared{{face}}); });
+    // HANDED AT ONCE, NOTHING KEPT, BY WORKSHOP'S ROLE.
+    REQUIRE(t.seat->role_handed.size() == 1);
+    CHECK(t.seat->role_handed.back().settings.empty());
     CHECK(t.seat->authors.back() == kLayoutsRole);
-    const OfficeSettingsAnswered shown = t.read_office(kDialOffice);
+    const RoleSettingsAnswered shown = t.read_role(kDialRole);
     CHECK(shown.rows == std::vector<v2::PaneSettingRow>{face});
-    CHECK(shown.revision == t.seat->office_handed.back().revision);
-    OfficeSettingCommitRequested bigger;
-    bigger.office = kDialOffice;
+    CHECK(shown.revision == t.seat->role_handed.back().revision);
+    RoleSettingCommitRequested bigger;
+    bigger.role = kDialRole;
     bigger.revision = shown.revision;
     bigger.key = "face";
     bigger.number = 15;
-    const OfficeSettingCommitAnswered wrote = t.commit_office(bigger);
+    const RoleSettingCommitAnswered wrote = t.commit_role(bigger);
     REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
     CHECK(wrote.handed == "handed; not written: isolated run -- no settings file; the change "
                           "stands for this run");
-    REQUIRE(t.seat->office_handed.size() == 2);
-    CHECK(t.seat->office_handed.back().revision == wrote.revision);
-    CHECK(t.seat->office_handed.back().settings ==
+    REQUIRE(t.seat->role_handed.size() == 2);
+    CHECK(t.seat->role_handed.back().revision == wrote.revision);
+    CHECK(t.seat->role_handed.back().settings ==
           std::vector<PaneSetting>{PaneSetting{"face", {}, 15, {}}});
     // A VALUE OUT OF ITS RANGE IS REFUSED BY THE DECLARATION'S OWN WORDS.
     bigger.revision = wrote.revision;
     bigger.number = 99;
-    const OfficeSettingCommitAnswered big = t.commit_office(bigger);
+    const RoleSettingCommitAnswered big = t.commit_role(bigger);
     CHECK_FALSE(big.accepted);
     CHECK(big.refusal == "face takes a whole number from 8 to 32, not a number `99`");
     // A DECLARATION REFUSED BY A PANE'S RULES IS SAID, AND THE ONE IN FORCE STANDS.
     v2::PaneSettingRow own = face;
     own.key = "workshop.face";
     drive(t.r, t.seat_id, t.seat,
-          [own](RevisionSeat& s, loom::Mail& m) { s.say(m, OfficeSettingsDeclared{{own}}); });
-    CHECK(t.r.last_notice().rfind("office-wide settings of test.dial: refused -- setting "
+          [own](RevisionSeat& s, loom::Mail& m) { s.say(m, RoleSettingsDeclared{{own}}); });
+    CHECK(t.r.last_notice().rfind("role-wide settings of test.dial: refused -- setting "
                                   "`workshop.face` is Workshop's own", 0) == 0);
-    CHECK(t.read_office(kDialOffice).rows == std::vector<v2::PaneSettingRow>{face});
+    CHECK(t.read_role(kDialRole).rows == std::vector<v2::PaneSettingRow>{face});
 }
 
 // ---- Pins ---------------------------------------------------------------------------------
@@ -1716,7 +1716,7 @@ TEST_CASE("a pin act is refused in words with nothing written: a key not declare
     // A GUEST WITHOUT `settings`, OR PERSONAL SPEECH, IS WITHHELD.
     const std::size_t before = t.editor->pin_acted.size();
     drive(t.r, t.editor_id, t.editor, [](RevisionSeat& s, loom::Mail& m) {
-        s.say(m, PaneSettingPinRequested{kDialOffice, kDial, "step", "pin", 0}, true);
+        s.say(m, PaneSettingPinRequested{kDialRole, kDial, "step", "pin", 0}, true);
     });
     REQUIRE(t.editor->pin_acted.size() == before + 1);
     CHECK(t.editor->pin_acted.back().refusal.rfind("pins withheld: ", 0) == 0);
@@ -1726,8 +1726,8 @@ TEST_CASE("per-layout pins keep each layout's own list, a layout with none readi
     RevisionRig t;
     t.open();
     REQUIRE(t.pin("step", "pin").accepted); // Workshop-wide: legend, step
-    const std::int64_t rev = t.read_office(kWorkshopProvider).revision;
-    REQUIRE(t.commit_office(workshop_text(rev, "workshop.pinned-scope", "per-layout")).accepted);
+    const std::int64_t rev = t.read_role(kWorkshopProvider).revision;
+    REQUIRE(t.commit_role(workshop_text(rev, "workshop.pinned-scope", "per-layout")).accepted);
     // THIS LAYOUT HAS NO LIST OF ITS OWN: it reads the Workshop-wide one, and its first act copies it.
     CHECK(t.read().pins == std::vector<std::string>{"legend", "step"});
     PaneSettingPinAnswered a = t.pin("legend", "unpin");
@@ -1790,7 +1790,7 @@ TEST_CASE("an everywhere lock on a pane's setting refuses the message commit and
 }
 
 TEST_CASE("Workshop's measures and its completion order apply when committed, are kept in the settings file, and a value outside what each takes is refused") {
-    TempDir dir("office-settings-measures");
+    TempDir dir("role-settings-measures");
     RevisionRig t;
     const std::string path = dir.file("workshop-prefs.json");
     t.r.host.prefs_path = path;
@@ -1800,7 +1800,7 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     REQUIRE(s.snap_reach_px == kPaneSnapReachPx);
     REQUIRE(s.stack_rows == kStackRows);
     REQUIRE_FALSE(s.completion_required_first);
-    std::int64_t rev = t.read_office(kWorkshopProvider).revision;
+    std::int64_t rev = t.read_role(kWorkshopProvider).revision;
 
     // EACH MEASURE, APPLIED THE MOMENT IT IS COMMITTED, and kept in the file.
     struct Set {
@@ -1810,7 +1810,7 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     for (const Set& c : {Set{"workshop.arrange-step", 8}, Set{"workshop.snap-reach", 11},
                          Set{"workshop.stack-rows", 20}}) {
         CAPTURE(c.key);
-        const OfficeSettingCommitAnswered a = t.commit_office(workshop_number(rev, c.key, c.value));
+        const RoleSettingCommitAnswered a = t.commit_role(workshop_number(rev, c.key, c.value));
         REQUIRE_MESSAGE(a.accepted, a.refusal);
         CHECK(a.handed == "applied; written");
         rev = a.revision;
@@ -1824,8 +1824,8 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     CHECK(placement_bounds(placement::kOverlayStack, 1, sc).y == sc.room_y + cells_px(21));
     CHECK(stack_capacity(sc).fallback_height == cells_px(20));
     // THE COMPLETION'S ORDER, a choice.
-    const OfficeSettingCommitAnswered order =
-        t.commit_office(workshop_text(rev, "workshop.completion-order", "required-first"));
+    const RoleSettingCommitAnswered order =
+        t.commit_role(workshop_text(rev, "workshop.completion-order", "required-first"));
     REQUIRE_MESSAGE(order.accepted, order.refusal);
     CHECK(s.completion_required_first);
     rev = order.revision;
@@ -1841,7 +1841,7 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
 
     // A VALUE OUTSIDE WHAT EACH TAKES IS REFUSED IN ITS WORDS, nothing applied or written.
     struct Bad {
-        OfficeSettingCommitRequested asked;
+        RoleSettingCommitRequested asked;
         std::string said;
     };
     const auto number = [rev](const char* key, std::int64_t n) {
@@ -1868,7 +1868,7 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     };
     for (const Bad& b : bad) {
         CAPTURE(b.said);
-        const OfficeSettingCommitAnswered a = t.commit_office(b.asked);
+        const RoleSettingCommitAnswered a = t.commit_role(b.asked);
         CHECK_FALSE(a.accepted);
         CHECK(a.refusal == b.said);
         CHECK(a.revision == rev);
@@ -1879,7 +1879,7 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
 
     // ...AND A FILE HOLDING ONE IS REFUSED WHOLE when it is read.
     prefs_persist::Prefs wrong;
-    wrong.offices = {prefs_persist::OfficeSettingsKept{
+    wrong.roles = {prefs_persist::RoleSettingsKept{
         kWorkshopProvider, {PaneSetting{"workshop.stack-rows", std::nullopt, 41, std::nullopt}}}};
     const prefs_persist::LoadedPrefs refused =
         prefs_persist::from_text(prefs_persist::to_text(wrong));
@@ -1891,11 +1891,11 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     // and a file still keeping it reads, the key carried and read by nothing.
     // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#side-columns-still-declared): a
     // declaration that still lists `workshop.side-columns` -- the commit is taken.
-    const OfficeSettingCommitAnswered retired = t.commit_office(number("workshop.side-columns", 40));
+    const RoleSettingCommitAnswered retired = t.commit_role(number("workshop.side-columns", 40));
     CHECK_FALSE(retired.accepted);
     CHECK(retired.revision == rev);
     prefs_persist::Prefs old_file;
-    old_file.offices = {prefs_persist::OfficeSettingsKept{
+    old_file.roles = {prefs_persist::RoleSettingsKept{
         kWorkshopProvider, {PaneSetting{"workshop.side-columns", std::nullopt, 40, std::nullopt}}}};
     const prefs_persist::LoadedPrefs carried =
         prefs_persist::from_text(prefs_persist::to_text(old_file));
@@ -1998,7 +1998,7 @@ void rename_live(PaneRig& r, const std::string& name) {
 /// The dial's row in one layout of a reading of every layout.
 const LayoutPaneSettings* dial_in(const LayoutSettings& layout) {
     for (const LayoutPaneSettings& p : layout.panes) {
-        if (p.provider == kDialOffice && p.pane == kDial) {
+        if (p.provider == kDialRole && p.pane == kDial) {
             return &p;
         }
     }
@@ -2124,11 +2124,11 @@ TEST_CASE("an everywhere lock pins the value its layout holds into every layout 
     }
 }
 
-TEST_CASE("only the weaver unlocks: a pane on the weaver's current act does, and an office's ask, a forged number and a stale act are refused") {
+TEST_CASE("only the weaver unlocks: a pane on the weaver's current act does, and a role's ask, a forged number and a stale act are refused") {
     RevisionRig t;
     t.open();
     REQUIRE(t.lock(dial_lock("legend", "lock", "everywhere")).accepted);
-    // AN OFFICE ASKING ON NO ACT OF THE WEAVER'S.
+    // AN ROLE ASKING ON NO ACT OF THE WEAVER'S.
     PaneSettingLockAnswered a = t.lock(dial_lock("legend", "unlock", "everywhere"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal == kWeavers);
@@ -2138,7 +2138,7 @@ TEST_CASE("only the weaver unlocks: a pane on the weaver's current act does, and
     REQUIRE_FALSE(t.seat->press_asks.empty());
     const auto act = static_cast<std::int64_t>(t.seat->press_asks.back());
     REQUIRE(act != 0);
-    // A NUMBER THE WEAVER'S HAND NEVER SENT, AND ANOTHER OFFICE NAMING THE DIAL'S ACT, ARE REFUSED.
+    // A NUMBER THE WEAVER'S HAND NEVER SENT, AND ANOTHER ROLE NAMING THE DIAL'S ACT, ARE REFUSED.
     CHECK(t.lock(dial_lock("legend", "unlock", "everywhere", 0, act + 7), true).refusal == kWeavers);
     CHECK(t.lock(dial_lock("legend", "unlock", "everywhere", 0, act)).refusal == kWeavers);
     REQUIRE(prefs_persist::lock_on(t.r.owner->layouts().prefs(), "test.dial/dial", "legend") != nullptr);
@@ -2204,23 +2204,23 @@ TEST_CASE("a lock act is refused in words with nothing changed: an act or a scop
     CHECK(t.r.owner->layouts().prefs().locks.empty());
 }
 
-TEST_CASE("an office-wide setting is locked everywhere alone, and its lock freezes the office's commit") {
-    TempDir dir("office-setting-lock");
+TEST_CASE("a role-wide setting is locked everywhere alone, and its lock freezes the role's commit") {
+    TempDir dir("role-setting-lock");
     RevisionRig t;
     t.r.host.prefs_path = dir.file("workshop-prefs.json");
     t.open();
     PaneSettingLockRequested ring{kWorkshopProvider, "workshop.focus.ring", "lock", "layout", 0, 0};
     CHECK(t.lock(ring).refusal ==
-          "an office-wide setting has one value in every layout -- lock it everywhere");
+          "a role-wide setting has one value in every layout -- lock it everywhere");
     ring.scope = "everywhere";
     PaneSettingLockAnswered a = t.lock(ring);
     REQUIRE_MESSAGE(a.accepted, a.refusal);
     CHECK(a.written.empty());
-    const OfficeSettingsAnswered shown = t.read_office(kWorkshopProvider);
+    const RoleSettingsAnswered shown = t.read_role(kWorkshopProvider);
     REQUIRE(shown.locks.size() == 1);
     CHECK(shown.locks[0].key == "workshop.focus.ring");
-    const OfficeSettingCommitAnswered refused =
-        t.commit_office(workshop_text(shown.revision, "workshop.focus.ring", "plain"));
+    const RoleSettingCommitAnswered refused =
+        t.commit_role(workshop_text(shown.revision, "workshop.focus.ring", "plain"));
     CHECK_FALSE(refused.accepted);
     CHECK(refused.refusal == locked_setting_refusal("workshop.focus.ring"));
     CHECK_FALSE(t.r.session().selection_ring_plain);
@@ -2228,7 +2228,7 @@ TEST_CASE("an office-wide setting is locked everywhere alone, and its lock freez
     ring.key = "workshop.nothing";
     CHECK(t.lock(ring).refusal == "zengine.workshop declares no setting `workshop.nothing` to lock");
     PaneSettingLockRequested nobody{"test.nobody", "anything", "lock", "everywhere", 0, 0};
-    CHECK(t.lock(nobody).refusal == "nothing declares office-wide settings for `test.nobody` here");
+    CHECK(t.lock(nobody).refusal == "nothing declares role-wide settings for `test.nobody` here");
     const prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
     REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
     REQUIRE(file.kept.locks.size() == 1);
@@ -2250,9 +2250,9 @@ TEST_CASE("a version-3 settings file keeps layouts' locks, pins and baselines by
     p.pins = {prefs_persist::PinList{"test.dial/dial@Layout 2", {"step"}}};
     prefs_persist::put_lock(p, SettingLock{"test.dial/dial@Layout 2", "legend"});
     prefs_persist::put_lock(p, SettingLock{"test.dial/dial", "step", std::nullopt, 4});
-    REQUIRE(prefs_persist::put_office_value(
+    REQUIRE(prefs_persist::put_role_value(
         p, "@Layout 2", "fingerprint", PaneSetting{"fingerprint", std::nullopt, 42, std::nullopt}));
-    REQUIRE(prefs_persist::put_office_value(
+    REQUIRE(prefs_persist::put_role_value(
         p, "@Layout 2", "theme",
         PaneSetting{"theme", std::nullopt, std::nullopt, std::string("evening")}));
     CHECK(prefs_persist::has_layout_entries(p));
@@ -2271,8 +2271,8 @@ TEST_CASE("a version-3 settings file keeps layouts' locks, pins and baselines by
     CHECK(read.kept == p);
     CHECK(prefs_persist::layout_theme_of(read.kept, "Layout 2") == LayoutTheme{"evening", 42});
     CHECK(prefs_persist::layout_theme_of(read.kept, "Layout 3").name.empty());
-    // A BASELINE IS NOT AN OFFICE: it counts toward neither office bound.
-    CHECK(prefs_persist::office_count(p) == 0);
+    // A BASELINE IS NOT AN ROLE: it counts toward neither role bound.
+    CHECK(prefs_persist::role_count(p) == 0);
     CHECK(prefs_persist::kept_count(p) == 0);
     // EACH FORM IS JUDGED: a layout's lock holds no value and names a pane; a layout's name is one a
     // layout takes; a baseline keeps a theme's name and its fingerprint alone.
@@ -2291,7 +2291,7 @@ TEST_CASE("a version-3 settings file keeps layouts' locks, pins and baselines by
     CHECK(prefs_persist::kept_problem(bad, true).find("names its layout wrongly") !=
           std::string::npos);
     bad = p;
-    REQUIRE(prefs_persist::put_office_value(bad, "@Layout 2", "theme",
+    REQUIRE(prefs_persist::put_role_value(bad, "@Layout 2", "theme",
                                             PaneSetting{"theme", std::nullopt, std::nullopt,
                                                         std::string("Evening!")}));
     CHECK(prefs_persist::kept_problem(bad, true).find("a baseline's theme name") !=
@@ -2301,7 +2301,7 @@ TEST_CASE("a version-3 settings file keeps layouts' locks, pins and baselines by
     CHECK(prefs_persist::to_text(wide).find("\"version\":4") != std::string::npos);
     CHECK(wide.locks.size() == 1);
     CHECK(wide.pins.empty());
-    CHECK(wide.offices.empty());
+    CHECK(wide.roles.empty());
 }
 
 TEST_CASE("what a layout keeps for itself is its desk's: a rename keeps it, a copy takes its own, a removal takes it away") {
@@ -2340,7 +2340,7 @@ TEST_CASE("what a layout keeps for itself is its desk's: a rename keeps it, a co
     CHECK(locked == 1);
 }
 
-TEST_CASE("every layout is read at once: each row with its locks, what each pane and office takes, the everywhere locks, the live one and one revision") {
+TEST_CASE("every layout is read at once: each row with its locks, what each pane and role takes, the everywhere locks, the live one and one revision") {
     RevisionRig t;
     t.open({legend_off()});
     duplicate_live_layout(t.r);
@@ -2360,11 +2360,11 @@ TEST_CASE("every layout is read at once: each row with its locks, what each pane
     CHECK(dial_in(s.layouts[0])->settings == std::vector<PaneSetting>{legend_off()});
     CHECK(dial_in(s.layouts[0])->locked == std::vector<std::string>{"mode"});
     CHECK(dial_in(s.layouts[1])->locked == std::vector<std::string>{"mode", "step"});
-    // WHAT EACH PANE TAKES, WORKSHOP'S WORD FOR ITS AREA FIRST, AND WHAT EACH OFFICE TAKES.
+    // WHAT EACH PANE TAKES, WORKSHOP'S WORD FOR ITS AREA FIRST, AND WHAT EACH ROLE TAKES.
     const DeclaredSettings* dial = nullptr;
     const DeclaredSettings* workshop = nullptr;
     for (const DeclaredSettings& d : s.declared) {
-        dial = d.provider == kDialOffice && d.pane == kDial ? &d : dial;
+        dial = d.provider == kDialRole && d.pane == kDial ? &d : dial;
         workshop = d.provider == kWorkshopProvider && d.pane.empty() ? &d : workshop;
     }
     REQUIRE(dial != nullptr);
@@ -2372,7 +2372,7 @@ TEST_CASE("every layout is read at once: each row with its locks, what each pane
     CHECK(dial->rows[0].key == kWorkshopSkinKey);
     CHECK(dial->rows[1].key == "legend");
     REQUIRE(workshop != nullptr);
-    CHECK(workshop->rows == prefs_persist::workshop_office_rows());
+    CHECK(workshop->rows == prefs_persist::workshop_role_rows());
     REQUIRE(s.everywhere.size() == 1);
     CHECK(s.everywhere[0].key == "mode");
     CHECK(s.everywhere[0].clear);
@@ -2447,8 +2447,8 @@ TEST_CASE("a batch is judged whole at its revision: a stale one, a value not tak
     CHECK_FALSE(w.accepted);
     CHECK(w.refusal.rfind("settings writes withheld: ", 0) == 0);
     CHECK(w.revision == 0);
-    // A SETTINGS FILE ANOTHER HAND WROTE SINCE IS NEVER WRITTEN OVER: a batch writing an
-    // office-wide setting is refused whole, and the layout's baseline beside it is not written.
+    // A SETTINGS FILE ANOTHER HAND WROTE SINCE IS NEVER WRITTEN OVER: a batch writing a
+    // role-wide setting is refused whole, and the layout's baseline beside it is not written.
     REQUIRE(prefs_persist::save_file(t.r.host.prefs_path, prefs_persist::Prefs{}).accepted);
     b.writes = {text_write(0, kWorkshopProvider, "workshop.focus.ring", "plain")};
     b.baselines = {LayoutThemeWrite{1, LayoutTheme{"evening", 3}}};
@@ -2459,7 +2459,7 @@ TEST_CASE("a batch is judged whole at its revision: a stale one, a value not tak
     CHECK(t.r.owner->layouts().prefs() == kept);
 }
 
-TEST_CASE("a batch writes what it can across layouts, says each write's outcome, keeps baselines, and hands the live rows and offices it moved") {
+TEST_CASE("a batch writes what it can across layouts, says each write's outcome, keeps baselines, and hands the live rows and roles it moved") {
     TempDir dir("batch-written");
     RevisionRig t;
     t.r.host.prefs_path = dir.file("workshop-prefs.json");

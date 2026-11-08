@@ -6,7 +6,7 @@
 // graphics window that shows it and hears the pointer there. Walkthrough: workshop/docs/panes.md
 // ("The second button"). One source file: a single-source recipe links zengine::pane,
 // zengine::graphics, zengine::activation, zengine::input and loom::switchboard, and a load-plan
-// row loads it under the role "example.guard" (kOffice, below).
+// row loads it under the role "example.guard" (kRole, below).
 
 #include "workshop/pane_drawing.hpp"
 #include "workshop/pane_menu.hpp" // Workshop's role
@@ -31,10 +31,10 @@ namespace {
 namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
 
-// The office this weave speaks as. It must be the role its load-plan row gives it: Workshop
-// knows a pane by the office that offered it, and a weave can only speak as an office it holds.
-// Its one pane, kPane, draws in the area `<office>.<pane>`: "example.guard.guard".
-constexpr const char* kOffice = "example.guard";
+// The role this weave speaks as. It must be the role its load-plan row gives it: Workshop
+// knows a pane by the role that offered it, and a weave can only speak as a role it holds.
+// Its one pane, kPane, draws in the area `<role>.<pane>`: "example.guard.guard".
+constexpr const char* kRole = "example.guard";
 constexpr const char* kPane = "guard";
 
 // THE HOLD: the right press this image heard go down, by the window's number for it, and
@@ -63,7 +63,7 @@ std::vector<ws::TextRow> rows_for(const Hold& guard, std::int64_t blocks) {
 // What a reload in place carries across: how many times the guard went up. THE HOLD ITSELF IS
 // NOT HERE, deliberately -- a hold is a fact about a hand and a button this image heard about,
 // and a successor that inherited one would claim a hand it never saw. A reloaded image starts
-// with the guard down; the release that follows, if any, reaches whoever holds the office then
+// with the guard down; the release that follows, if any, reaches whoever holds the role then
 // and is the release of a press this image never heard, so it is ignored.
 struct GuardState {
     std::int64_t blocks = 0;
@@ -139,14 +139,14 @@ public:
     void after_delivery(loom::Mail& mail) {
         if (!asked_ && !window_.shown()) {
             asked_ = true;
-            (void)mail.as_role(kOffice).send_to_role(gfx::kGraphicsRole,
+            (void)mail.as_role(kRole).send_to_role(gfx::kGraphicsRole,
                                                      gfx::RoomAsked{window_.area()});
         }
     }
 
 private:
     void offer(loom::Mail& mail) {
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             ws::pane_menu::kWorkshopRole,
             ws::PaneOffered{kPane, "Guard", "blocks while the right button is held"});
     }
@@ -168,7 +168,7 @@ private:
         window_.draw(drawn.sketch, mail);
     }
 
-    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)}; // told its room afresh
+    ws::WindowDrawing window_{kRole, ws::pane_area(kRole, kPane)}; // told its room afresh
     Hold guard_;                                 // not state either: see GuardState
     bool asked_ = false;
     zengine::ActivationCursor activation_;

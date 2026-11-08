@@ -326,7 +326,7 @@ Its law, pages and suites: [`introspection/AGENTS.md`](../../introspection/AGENT
   [The system can show what it is](../../agents/panes.md#the-system-can-show-what-it-is)
 - **Each ask derives its answer anew, and nothing is kept between asks.**
   [The system can show what it is](../../agents/panes.md#the-system-can-show-what-it-is)
-- **One office offers three panes, so every key is judged by its pane before any state moves.**
+- **One role offers three panes, so every key is judged by its pane before any state moves.**
   [The Powers pane](../../agents/panes.md#the-powers-pane-became-a-browser-and-the-seam-did-not-move)
 
 ### Compose (`composer/`, `message-draft/`)

@@ -7,7 +7,7 @@ In order: `out` is judged (never inside a source checkout, never a file, never a
 reader did not write); `AGENTS.md` is written first, the reader's fixed words and nothing the
 desk said; then the asks (desk_asks): the asker's own row from the guest door, the desk in one
 turn with every pane past it paged, the pane inventory and the keymap; then the readings
-(desk_render) beside it: `guide.md`, `desk.txt`, `glance.txt` and `panes/<office>.<pane>.txt`,
+(desk_render) beside it: `guide.md`, `desk.txt`, `glance.txt` and `panes/<role>.<pane>.txt`,
 each overwritten, each paged past 64 KiB. A reading file this read did not write again -- a pane
 gone from the desk, a page a shorter reading no longer needs -- is removed, so the directory holds
 the last reading only.
@@ -108,7 +108,7 @@ def write(path, text):
 
 def readings(reading, only=None):
     """Every reading file but AGENTS.md, as `[(path relative to out, text)]`, in the order they
-    are written: the guide, the desk, the glance, then each pane. `only`, a set of (office, pane):
+    are written: the guide, the desk, the glance, then each pane. `only`, a set of (role, pane):
     those panes' files and nothing else, as a watch of some panes writes them."""
     panes = pane_files(reading)
     if only is not None:
@@ -125,7 +125,7 @@ def readings(reading, only=None):
 
 
 def pane_files(reading):
-    """Each pane's file pages, `[((office, pane), path relative to out, text)]`, front to back."""
+    """Each pane's file pages, `[((role, pane), path relative to out, text)]`, front to back."""
     files = []
     if reading.get("desk") is not None:
         taken = set()

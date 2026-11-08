@@ -9,7 +9,7 @@ about a subject, the subject (`zengine.builder-pane/builder`). It reads its own 
 reads), the keymap (every row in force with its address, the weaver's key and what a press of it
 may cause, and each pane's other modes), the desk, the pane inventory, and the parts of each pane a
 candidate stands in (`PaneView` v6, each part with whether its operation applies now). It answers
-every control that may cause the message: its address (`<office>/<pane>:<id>`, or `<office>:<id>`
+every control that may cause the message: its address (`<role>/<pane>:<id>`, or `<role>:<id>`
 for a row above every pane), the part that draws it, whether that part shows and is usable now, the
 weaver's key, and where its pane is. When none is shown and usable it resolves the steps that would
 bring one: a row in force that enters the pane's other mode where one is declared, and showing the
@@ -35,23 +35,23 @@ DEPTH = 3
 WEAVER_ONLY = (("zengine.connections", "*"), ("zengine.desktop", "hotkeys"))
 
 
-def weaver_only(office, pane):
-    return any(office == o and (p == "*" or pane == p) for o, p in WEAVER_ONLY)
+def weaver_only(role, pane):
+    return any(role == o and (p == "*" or pane == p) for o, p in WEAVER_ONLY)
 
 
-def door_contains(door, office, pane):
-    """Whether a `capture` door holds the pane `office`/`pane`, segment by segment."""
+def door_contains(door, role, pane):
+    """Whether a `capture` door holds the pane `role`/`pane`, segment by segment."""
     if door == "*":
         return True
     head, _, rest = door.partition("/")
-    return head == office and (rest == "*" or rest == pane)
+    return head == role and (rest == "*" or rest == pane)
 
 
-def in_read(row, office, pane):
-    """Whether the row reads `office`/`pane`: every pane for a row that reads the desk whole."""
+def in_read(row, role, pane):
+    """Whether the row reads `role`/`pane`: every pane for a row that reads the desk whole."""
     if not row or not row.get("by_door"):
         return True
-    return any(door_contains(d, office, pane) for d in row.get("capture") or [])
+    return any(door_contains(d, role, pane) for d in row.get("capture") or [])
 
 
 def cause_text(c):
@@ -76,31 +76,31 @@ class Desk(object):
     def modes(self):
         return self.keymap.get("modes") or []
 
-    def name_of(self, office, pane):
+    def name_of(self, role, pane):
         for p in self.inventory:
-            if p.get("office") == office and p.get("pane") == pane:
+            if p.get("role") == role and p.get("pane") == pane:
                 return p.get("name", "").split("\n")[0]
-        return (self.on_desk.get((office, pane)) or {}).get("name", "") or pane
+        return (self.on_desk.get((role, pane)) or {}).get("name", "") or pane
 
-    def place(self, office, pane):
+    def place(self, role, pane):
         """`open`, `covered`, `off-room`, `unresolved` from the desk; `hidden` for a pane offered
         and not on it; `not offered` for none; `outside this row's read` for a pane it may not read."""
-        if not in_read(self.row, office, pane):
+        if not in_read(self.row, role, pane):
             return "outside this row's read"
-        d = self.on_desk.get((office, pane))
+        d = self.on_desk.get((role, pane))
         if d is not None:
             return d.get("state", "")
         for p in self.inventory:
-            if p.get("office") == office and p.get("pane") == pane:
+            if p.get("role") == role and p.get("pane") == pane:
                 return "hidden" if p.get("available") else "not available"
         return "not offered"
 
-    def part(self, office, pane, name):
+    def part(self, role, pane, name):
         """The part as the asker's read of the pane says it, or None."""
-        k = (office, pane)
+        k = (role, pane)
         if k not in self.views:
-            self.views[k] = self.read_view(office, pane) if (k in self.on_desk and
-                                                             in_read(self.row, office, pane)) else None
+            self.views[k] = self.read_view(role, pane) if (k in self.on_desk and
+                                                             in_read(self.row, role, pane)) else None
         view = self.views[k] or {}
         for p in view.get("parts") or []:
             if p.get("name") == name:
@@ -109,9 +109,9 @@ class Desk(object):
 
     def outside(self):
         """Every offered pane this row does not read, by name."""
-        return ["%s (%s/%s)" % (self.name_of(p.get("office", ""), p.get("pane", "")), p.get("office", ""),
+        return ["%s (%s/%s)" % (self.name_of(p.get("role", ""), p.get("pane", "")), p.get("role", ""),
                                 p.get("pane", ""))
-                for p in self.inventory if not in_read(self.row, p.get("office", ""), p.get("pane", ""))]
+                for p in self.inventory if not in_read(self.row, p.get("role", ""), p.get("pane", ""))]
 
 
 def matches(c, shape, version, subject):
@@ -135,17 +135,17 @@ def declared(desk, shape, version):
 
 
 def candidate(desk, b, c, subject):
-    office, pane, action = b.get("office", ""), b.get("pane", ""), b.get("id", "")
-    out = {"address": "%s/%s:%s" % (office, pane, action) if pane else "%s:%s" % (office, action),
-           "office": office, "pane": pane, "id": action, "cause": cause_text(c) if c else "enters",
+    role, pane, action = b.get("role", ""), b.get("pane", ""), b.get("id", "")
+    out = {"address": "%s/%s:%s" % (role, pane, action) if pane else "%s:%s" % (role, action),
+           "role": role, "pane": pane, "id": action, "cause": cause_text(c) if c else "enters",
            "key": b.get("shown") or b.get("gesture") or "no key", "label": b.get("label", "")}
     if not pane:  # a row above every pane: a key, no part, wherever the weaver stands
         out.update(place="the whole desk", part=None, control=None, shown=False, at=None, usable=None)
         return out
     s = (c or {}).get("subject") or ""
     part_name = s[3:] + subject if s.startswith("on ") else "control:" + action
-    part = desk.part(office, pane, part_name)
-    out.update(place=desk.place(office, pane), part=part_name,
+    part = desk.part(role, pane, part_name)
+    out.update(place=desk.place(role, pane), part=part_name,
                control=("part:" + part_name) if s.startswith("on ") else action,
                shown=part is not None and part.get("space", 0) != 0,
                at=None if part is None or not part.get("space", 0) else (part.get("x", 0), part.get("y", 0)),
@@ -156,7 +156,7 @@ def candidate(desk, b, c, subject):
 def candidates(desk, shape, version, subject):
     out = []
     for b in desk.bindings():
-        if weaver_only(b.get("office", ""), b.get("pane", "")):
+        if weaver_only(b.get("role", ""), b.get("pane", "")):
             continue
         for c in b.get("causes") or []:
             if not matches(c, shape, version, subject):
@@ -169,19 +169,19 @@ def candidates(desk, shape, version, subject):
     return out
 
 
-def entering(desk, office, pane, mode):
-    """The rows in force of `office`/`pane` whose press enters `mode`, as candidates."""
+def entering(desk, role, pane, mode):
+    """The rows in force of `role`/`pane` whose press enters `mode`, as candidates."""
     return [candidate(desk, b, None, "") for b in desk.bindings()
-            if b.get("office") == office and b.get("pane") == pane and b.get("enters") == mode]
+            if b.get("role") == role and b.get("pane") == pane and b.get("enters") == mode]
 
 
 def other_modes(desk, shape, version, subject):
-    """`(office, pane, mode)` for each pane whose other mode may cause the message."""
+    """`(role, pane, mode)` for each pane whose other mode may cause the message."""
     out = []
     for m in desk.modes():
         for e in m.get("elsewhere") or []:
             if any(matches(c, shape, version, subject) for c in e.get("causes") or []):
-                out.append((m.get("office", ""), m.get("pane", ""), e.get("mode", "")))
+                out.append((m.get("role", ""), m.get("pane", ""), e.get("mode", "")))
     return out
 
 
@@ -197,20 +197,20 @@ def route(desk, shape, version, subject, depth, seen):
         return found, []
     steps = []
     if not found:
-        for office, pane, mode in other_modes(desk, shape, version, subject):
-            by = entering(desk, office, pane, mode)
-            steps.append({"to show": "%s/%s in its mode %s" % (office, pane, mode), "for": shape,
+        for role, pane, mode in other_modes(desk, shape, version, subject):
+            by = entering(desk, role, pane, mode)
+            steps.append({"to show": "%s/%s in its mode %s" % (role, pane, mode), "for": shape,
                           "by": by, "then": []})
     for c in found:
-        if not c["pane"] or c["place"] == "open" or (c["office"], c["pane"]) in seen:
+        if not c["pane"] or c["place"] == "open" or (c["role"], c["pane"]) in seen:
             continue
-        seen.add((c["office"], c["pane"]))
-        target = "%s/%s" % (c["office"], c["pane"])
+        seen.add((c["role"], c["pane"]))
+        target = "%s/%s" % (c["role"], c["pane"])
         more, deeper = [], []
         for showing in SHOWING:
             here, below = route(desk, showing, 0, target, depth + 1, seen)
             # A control inside the pane being shown cannot show it.
-            more += [m for m in here if (m["office"], m["pane"]) != (c["office"], c["pane"])]
+            more += [m for m in here if (m["role"], m["pane"]) != (c["role"], c["pane"])]
             deeper += below
         if more or deeper:
             steps.append({"to show": target, "for": c["address"], "by": more, "then": deeper})
@@ -232,19 +232,19 @@ def flatten(steps):
     return out
 
 
-def case_for_a_tool(desk, shape, version, office, why, pane):
+def case_for_a_tool(desk, shape, version, role, why, pane):
     """The four claims, each with its evidence, as a draft the agent files only under its own
     account, unlabelled, and on a weaver's desk only after the weaver says yes."""
     rows = len(desk.bindings())
     modes = sum(len(m.get("elsewhere") or []) for m in desk.modes())
     return [
         "1. the operation exists: not checked here -- a row with `inspect` asks %s what it accepts"
-        % (office or "the office that would take it"),
+        % (role or "the role that would take it"),
         "2. no control causes it: none of the %d rows in force, nor the %d other modes they declare, "
         "names %s%s" % (rows, modes, shape, " v%d" % version if version else ""),
         "3. the weaver needs it: %s" % (why or "the lesson's sentence is owed (`why`)"),
-        "4. it belongs in %s" % (pane or "the pane that already speaks for %s to the weaver" % (office or
-                                                                                         "its office")),
+        "4. it belongs in %s" % (pane or "the pane that already speaks for %s to the weaver" % (role or
+                                                                                         "its role")),
         "filed nowhere: an issue is the agent's own, unlabelled, and on a weaver's desk opened only "
         "after the weaver says yes",
     ]
@@ -298,7 +298,7 @@ def mark(asker, desk_resolution, words):
     if choice is None:
         return unmarked(r), None
     answer, refused = asker.ask(WORKSHOP, "GuideRequested", 1, {
-        "pane": "%s/%s" % (choice["office"], choice["pane"]), "control": choice["control"],
+        "pane": "%s/%s" % (choice["role"], choice["pane"]), "control": choice["control"],
         "words": words})
     if refused is not None:
         return "not marked %s%s: %s" % (choice["address"], why, refused), None
@@ -317,8 +317,8 @@ def read(ctx, asker):
     inventory, _ = asker.ask(WORKSHOP, "PaneInventoryRequested", 1, {})
     pager = desk_asks.Asker(ctx, asker.link)
 
-    def read_view(office, pane):
-        got = desk_asks.read_pane(pager, office, pane)
+    def read_view(role, pane):
+        got = desk_asks.read_pane(pager, role, pane)
         asker.asks += pager.asks
         pager.asks = 0
         return got.get("view")
@@ -379,7 +379,7 @@ def lines(desk, r, shape, version, subject, inputs):
         out.append("  no control on this desk may cause it, in any mode: a case for a tool, the weaver's "
                    "to take --")
         out += ["    " + c for c in case_for_a_tool(desk, shape, version,
-                                                     (inputs.get("office") or "").strip(),
+                                                     (inputs.get("role") or "").strip(),
                                                      (inputs.get("why") or "").strip(),
                                                      (inputs.get("pane") or "").strip())]
     return out

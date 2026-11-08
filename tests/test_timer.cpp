@@ -30,7 +30,7 @@ using zengine::testing::kVirtualStepMs;
 #include "timer/normalize.hpp"
 
 #include "input/vocabulary.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "probe_vocabulary.hpp"
 #include "lifecycle_door.hpp"
 #include "examples/snake/vocabulary.hpp"
@@ -928,7 +928,7 @@ TEST_CASE("contract: the handover's preparation conversation is frozen too, and 
 // Tier 2 — the service over a fake clock, through a real bus
 // ============================================================================
 
-// ---- the office's manual ----------------------------------------------------
+// ---- the role's manual ----------------------------------------------------
 
 TEST_CASE("the Timer answers a shape's section from its own page, and its page covers every shape "
           "it accepts") {
@@ -937,7 +937,7 @@ TEST_CASE("the Timer answers a shape's section from its own page, and its page c
     FakeRig r;
     const std::vector<std::string> described = described_shapes_of(r.bus, r.service);
     REQUIRE_FALSE(described.empty());
-    CHECK(check_office_manual(r.bus, kTimerRole) >= described.size());
+    CHECK(check_role_manual(r.bus, kTimerRole) >= described.size());
     check_page_names_accepted(zengine::manual::pages::zengine_timer::kManual, described);
 
     // A request is answered from Commands, the Timer's own beat from Hears.
@@ -1796,7 +1796,7 @@ TEST_CASE("world time comes from the timer path: ticks with nobody sending Snake
 namespace {
 
 /// THE WINDOW'S OWN BEAT, counted off the bus: each delivery of its pump's firing, to whichever
-/// weave holds the window's office then.
+/// weave holds the window's role then.
 struct WindowBeats {
     std::int64_t fired = 0;
     loom::Switchboard& bus;
@@ -1816,7 +1816,7 @@ struct WindowBeats {
     WindowBeats& operator=(const WindowBeats&) = delete;
 };
 
-constexpr const char* kTerminalWindowOffice = "zengine.window.terminal";
+constexpr const char* kTerminalWindowRole = "zengine.window.terminal";
 
 } // namespace
 
@@ -1826,7 +1826,7 @@ TEST_CASE("consumer BEFORE the timer: its declared beat waits, and TimerReady "
     WindowBeats beats(r.bus);
     // The terminal window is loaded into a world with NO timer service: it declares its pump
     // beat, and nothing serves it. It could not retry alone, which is why TimerReady matters.
-    (void)r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowOffice);
+    (void)r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowRole);
     r.bus.drain_until_idle(); // nothing is alive; this drains
     CHECK(r.bus.pending() == 0);
     // Measured, not assumed: it is being beaten by nothing.
@@ -1844,7 +1844,7 @@ TEST_CASE("a window reloaded in place asks from its own activation and does NOT 
     Rig r;
     WindowBeats beats(r.bus);
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    const loom::WeaveId first = r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowOffice);
+    const loom::WeaveId first = r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowRole);
     r.pump_for(timer_so, 60);
     const std::int64_t standing_before =
         std::stoll(r.poke_timed(timer_so, timer_so, loom::PokeRead{"active"}).text);
@@ -1860,7 +1860,7 @@ TEST_CASE("a window reloaded in place asks from its own activation and does NOT 
     // then give the successor beats of its own.
     const Seen::Answer reloaded = r.wait_answer(timer_so, corr, "window reload");
     REQUIRE_MESSAGE(reloaded.kind != 2, "window reload refused: ", reloaded.text);
-    const loom::WeaveId successor = r.bus.role_holder(kTerminalWindowOffice);
+    const loom::WeaveId successor = r.bus.role_holder(kTerminalWindowRole);
     REQUIRE(successor.valid());
     CHECK(successor == first); // a reload in place keeps the weave's id; its incarnation is new
     const std::int64_t fired_before = beats.fired;
@@ -1898,7 +1898,7 @@ TEST_CASE("the window keeps itself served: beats with nobody pumping") {
     Rig r;
     WindowBeats beats(r.bus);
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    (void)r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowOffice);
+    (void)r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowRole);
 
     r.pump_for(timer_so, 80);
 

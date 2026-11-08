@@ -73,7 +73,7 @@ before the next begins.
 
 Two facts of the runtime shape such cases. A reload through `PaneRig::enqueue_reload` revives
 the new image at the same `WeaveId`, so a check that compares holder ids cannot see it. For
-Loom's own dispatch refusal, hold the owner's role for an interval with an office that lacks the
+Loom's own dispatch refusal, hold the owner's role for an interval with a role that lacks the
 door (`ScriptedViews::doorless` in the Info views suite); the send is queued and refused as
 `NotAccepted`. `PaneRig::load` and `unload` mount a seat whose state a realized plan has already
 published, so beside `run_plan` use `enqueue_reload`, or a seat with a state of its own

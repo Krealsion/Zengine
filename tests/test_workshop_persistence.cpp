@@ -478,7 +478,7 @@ TEST_CASE("the unresolved panes are reported in the setup's own order") {
     CHECK(waiting[1] == PaneRef{"other.tools", "graph"});
     // AND THE SHIPPED DESK HAS TWO OF ITS OWN, WHICH IS NOT A DEFECT. `default_setup` names
     // the Info and Notices panes and each is a weave: with no provider in the room its row is
-    // unresolved, exactly as a weaver's desk naming a pane whose office has not spoken yet.
+    // unresolved, exactly as a weaver's desk naming a pane whose role has not spoken yet.
     const std::vector<PaneRef> fresh = unresolved_panes(default_setup(), no_providers());
     REQUIRE(fresh.size() == 2);
     CHECK(fresh[0] == info_ref());
@@ -2654,7 +2654,7 @@ TEST_CASE("a restored desk opens every pane it names, in the room it restored") 
     r.host.session_path = session;
     r.mount_workshop();
     admit_stock(r.session().panes); // the stand-in, first, as a `Live` would have it
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     // The provider announces itself before the surface does, so the reference in the
     // session resolves at the moment the desk is applied -- a load order that must work
     // either way round.
@@ -2968,7 +2968,7 @@ TEST_CASE("the host resolves the weaver's files through the one precedence") {
 
 // ---- The prefs file ------------------------------------------------------------------
 
-TEST_CASE("the settings file round-trips what it keeps: Workshop's own settings, another office's, pin lists and locks") {
+TEST_CASE("the settings file round-trips what it keeps: Workshop's own settings, another role's, pin lists and locks") {
     using prefs_persist::Presentation;
     using prefs_persist::Prefs;
     // WORKSHOP'S OWN, KEPT AS ITS ABSENCE AT THE DEFAULT: the shown titles and the shipped
@@ -2989,8 +2989,8 @@ TEST_CASE("the settings file round-trips what it keeps: Workshop's own settings,
         all, prefs_persist::kPinnedScopeKey, PaneSetting{"", {}, {}, std::string(kPinsPerLayout)}));
     REQUIRE(prefs_persist::put_workshop_value(
         all, prefs_persist::kFocusRingKey, PaneSetting{"", {}, {}, std::string("plain")}));
-    // ...ANOTHER OFFICE'S, KEPT BY FORM; A PIN LIST; AN EVERYWHERE LOCK.
-    REQUIRE(prefs_persist::put_office_value(all, "test.skin", "window.face",
+    // ...ANOTHER ROLE'S, KEPT BY FORM; A PIN LIST; AN EVERYWHERE LOCK.
+    REQUIRE(prefs_persist::put_role_value(all, "test.skin", "window.face",
                                             PaneSetting{"", {}, 15, {}}));
     prefs_persist::put_pin_list(all, prefs_persist::PinList{"zengine.terminal/terminal",
                                                             {"wheel-rows", "legend"}});
@@ -3003,13 +3003,13 @@ TEST_CASE("the settings file round-trips what it keeps: Workshop's own settings,
     CHECK(read.prefs.hotkeys_keys == KeySpelling::kShort);
     CHECK(read.prefs.pins_per_layout);
     CHECK(read.prefs.ring_plain);
-    // KEPT IN ORDER: offices by name, an office's settings by key.
-    REQUIRE(all.offices.size() == 2);
-    CHECK(all.offices[0].office == "test.skin");
-    CHECK(all.offices[1].office == prefs_persist::kWorkshopOffice);
-    // ...AND A VALUE PUT BACK AT ITS DEFAULT TAKES ITS KEY, AND AN OFFICE KEEPING NOTHING, AWAY.
-    REQUIRE(prefs_persist::put_office_value(all, "test.skin", "window.face", std::nullopt));
-    CHECK(prefs_persist::office_kept(all, "test.skin") == nullptr);
+    // KEPT IN ORDER: roles by name, a role's settings by key.
+    REQUIRE(all.roles.size() == 2);
+    CHECK(all.roles[0].role == "test.skin");
+    CHECK(all.roles[1].role == prefs_persist::kWorkshopRole);
+    // ...AND A VALUE PUT BACK AT ITS DEFAULT TAKES ITS KEY, AND AN ROLE KEEPING NOTHING, AWAY.
+    REQUIRE(prefs_persist::put_role_value(all, "test.skin", "window.face", std::nullopt));
+    CHECK(prefs_persist::role_kept(all, "test.skin") == nullptr);
 
     // A FOREIGN VERSION IS REFUSED BY ITS NUMBER, on the claim.
     std::string future = prefs_persist::to_text(hidden);
@@ -3033,22 +3033,22 @@ TEST_CASE("a version-3 settings file is judged whole: a value Workshop's setting
     const std::vector<Case> cases = {
         {"a value Workshop's setting does not take",
          [](Prefs& p) {
-             p.offices = {prefs_persist::OfficeSettingsKept{
-                 prefs_persist::kWorkshopOffice,
+             p.roles = {prefs_persist::RoleSettingsKept{
+                 prefs_persist::kWorkshopRole,
                  {PaneSetting{prefs_persist::kFocusRingKey, {}, {}, std::string("dotted")}}}};
          },
          "workshop.focus.ring takes one of accent, plain, not a text `dotted`"},
-        {"offices out of order",
+        {"roles out of order",
          [](Prefs& p) {
-             p.offices = {prefs_persist::OfficeSettingsKept{"z.office", {PaneSetting{"a", true, {}, {}}}},
-                          prefs_persist::OfficeSettingsKept{"a.office", {PaneSetting{"a", true, {}, {}}}}};
+             p.roles = {prefs_persist::RoleSettingsKept{"z.role", {PaneSetting{"a", true, {}, {}}}},
+                          prefs_persist::RoleSettingsKept{"a.role", {PaneSetting{"a", true, {}, {}}}}};
          },
-         "office `a.office` is listed twice or out of order"},
+         "role `a.role` is listed twice or out of order"},
         {"a setting with two values",
          [](Prefs& p) {
-             p.offices = {prefs_persist::OfficeSettingsKept{"a.office", {PaneSetting{"a", true, 1, {}}}}};
+             p.roles = {prefs_persist::RoleSettingsKept{"a.role", {PaneSetting{"a", true, 1, {}}}}};
          },
-         "office `a.office`: setting `a` holds more than one value -- a setting holds exactly one "
+         "role `a.role`: setting `a` holds more than one value -- a setting holds exactly one "
          "of a flag, a number or a text"},
         {"a pin twice",
          [](Prefs& p) { p.pins = {prefs_persist::PinList{"a/b", {"x", "x"}}}; },
@@ -3072,10 +3072,10 @@ TEST_CASE("a version-3 settings file is judged whole: a value Workshop's setting
         CHECK_FALSE(read.outcome.accepted);
         CHECK(read.outcome.refusal == c.said);
     }
-    // A KEY OF WORKSHOP'S OFFICE THIS BUILD DOES NOT DECLARE IS KEPT AS IT IS: a newer file's.
+    // A KEY OF WORKSHOP'S ROLE THIS BUILD DOES NOT DECLARE IS KEPT AS IT IS: a newer file's.
     Prefs newer;
-    newer.offices = {prefs_persist::OfficeSettingsKept{
-        prefs_persist::kWorkshopOffice, {PaneSetting{"workshop.later", true, {}, {}}}}};
+    newer.roles = {prefs_persist::RoleSettingsKept{
+        prefs_persist::kWorkshopRole, {PaneSetting{"workshop.later", true, {}, {}}}}};
     const prefs_persist::LoadedPrefs read = prefs_persist::from_text(prefs_persist::to_text(newer));
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.kept == newer);
@@ -3092,7 +3092,7 @@ TEST_CASE("a version-2 prefs file is read as Workshop's own three settings, and 
     CHECK(read.prefs.band_keys == KeySpelling::kFull);
     CHECK(read.prefs.hotkeys_keys == KeySpelling::kShort);
     // ...KEPT AS WORKSHOP'S OWN KEYS, so the next write is version 4.
-    CHECK(prefs_persist::office_value(read.kept, prefs_persist::kWorkshopOffice,
+    CHECK(prefs_persist::role_value(read.kept, prefs_persist::kWorkshopRole,
                                       prefs_persist::kPaneTitlesKey)
               ->flag == false);
     CHECK(prefs_persist::to_text(read.kept).find("\"version\":4") != std::string::npos);
@@ -3209,8 +3209,8 @@ TEST_CASE("a restored hidden-titles preference still shows which pane holds the 
     r.ready();
     r.extent(100, 44);
     REQUIRE_FALSE(r.session().pane_titles); // restored, not toggled
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     REQUIRE(kind != kNoPaneKind);
     const auto shown_rows = [&](std::int64_t k) {
         return external_region_rows(r.shown(), external_body_rect(r.session(), k));
@@ -3261,8 +3261,8 @@ TEST_CASE("a prefs file version 3 cannot read is refused whole, and its bytes st
     TempDir dir("prefs-bad-value");
     const std::string prefs = dir.file("workshop-prefs.json");
     prefs_persist::Prefs bad;
-    bad.offices = {prefs_persist::OfficeSettingsKept{
-        prefs_persist::kWorkshopOffice,
+    bad.roles = {prefs_persist::RoleSettingsKept{
+        prefs_persist::kWorkshopRole,
         {PaneSetting{prefs_persist::kBandKeysKey, {}, {}, std::string("tiny")}}}};
     const std::string text = prefs_persist::to_text(bad);
     spillout(prefs, text);
@@ -4183,9 +4183,9 @@ TEST_CASE("a version-1 session means EXACTLY what its own reader meant") {
     CHECK(live_layout(read).panes[0].width.amount == cells_px(28));
     CHECK(live_layout(read).panes[0].width.mode == pane_unit::kPixels);
     CHECK(live_layout(read).panes[0].height.mode == pane_unit::kDefault);
-    // AND THE BUILDER ROW COMES BACK UNDER THE WEAVE'S OFFICE. The version-1 file names
+    // AND THE BUILDER ROW COMES BACK UNDER THE WEAVE'S ROLE. The version-1 file names
     // `zengine.workshop/builder`, and the reference is rewritten at read
-    // (`pane_migration.hpp`). What moved is the OFFICE -- the pane key, the place, the two
+    // (`pane_migration.hpp`). What moved is the ROLE -- the pane key, the place, the two
     // sizes and the front order are the file's, untouched.
     CHECK(live_layout(read).panes[1].ref == PaneRef{"zengine.builder-pane", "builder"});
     CHECK(live_layout(read).panes[1].place.mode == pane_unit::kDefault);
@@ -4340,8 +4340,8 @@ TEST_CASE("with the conversion mounted, the desk comes back through the weave") 
     CHECK(t.session().panes.has(pane_kind::kLayouts));
     // AND THE BUILDER ROW RESOLVES TO THE WEAVE'S PANE: the vintage file says
     // `zengine.workshop/builder`, the conversion at read makes it
-    // `zengine.builder-pane/builder`, a RUNTIME kind that resolves only once that office has
-    // offered. With no such office in this rig the row is retained and unresolved, as a saved
+    // `zengine.builder-pane/builder`, a RUNTIME kind that resolves only once that role has
+    // offered. With no such role in this rig the row is retained and unresolved, as a saved
     // reference to an absent provider always is; the desk is otherwise the file's.
     CHECK_FALSE(t.session().panes.has(stock::kKind));
     CHECK(has_pane(t.session().setup.active,
@@ -5903,7 +5903,7 @@ TEST_CASE("a session's file is refused whole where a line is refused or the line
 
 TEST_CASE("a maximal session decodes a line at a time, each line with room for a field on every row") {
     // EVERY BOUND AT ONCE: `kMaxLayouts` layouts, each desk and each remembered value full, and
-    // every choice a session remembers with its office's name at its bound, spelled in the
+    // every choice a session remembers with its role's name at its bound, spelled in the
     // characters JSON spells longest.
     std::vector<Layout> run;
     for (std::size_t i = 0; i < kMaxLayouts; ++i) {
@@ -6365,7 +6365,7 @@ inline Setup desk_with_the_browser() {
 } // namespace
 
 TEST_CASE("a saved setup naming the built-in browser opens as the loaded pane") {
-    // THE WHOLE CLAIM, AND IT IS ABOUT ONE ROW. The office moved; the pane key, the
+    // THE WHOLE CLAIM, AND IT IS ABOUT ONE ROW. The role moved; the pane key, the
     // place, both sizes and the front order did not, because none of them changed hands.
 
     // ⚔ MUTATION (tests/mutants/workshop_persistence.md#setup-in-without-the-rewrite): dropping the
@@ -6417,7 +6417,7 @@ TEST_CASE("a setup that names no retired pane is not touched, and says so") {
     CHECK(setup_persist::to_text(read.setup) == wrote);
 
     // ...AND NEITHER IS A THIRD PARTY'S PANE THAT MERELY SHARES ONE HALF OF THE NAME.
-    // The rewrite is one named pair and not a pattern: an office match alone is not it,
+    // The rewrite is one named pair and not a pattern: a role match alone is not it,
     // and a key match alone is not it either.
     // ⚠ NOT `near`, which is a Win32 macro: `<windows.h>` defines it, and a case named for
     // what it is about would not compile on one of the two supported toolchains.
@@ -6558,23 +6558,23 @@ TEST_CASE("the weaver is told once, in the pane's own durable names") {
     // is said once per RUN however many rows carried the reference. (`is now` is one clause
     // per PAIR that moved, so counting that would count pairs rather than sentences.)
     std::size_t times = 0;
-    for (std::size_t at = said.find("panes moved to their own offices"); at != std::string::npos;
-         at = said.find("panes moved to their own offices", at + 1)) {
+    for (std::size_t at = said.find("panes moved to their own roles"); at != std::string::npos;
+         at = said.find("panes moved to their own roles", at + 1)) {
         ++times;
     }
     CHECK(times == 1u);
     // ...AND IT NAMES ONLY WHAT THIS FILE HELD. These desks hold the browser and no Builder
     // row, so the weaver is not told about a pane they would not find if they went and looked.
     CHECK(said.find("zengine.builder-pane") == std::string::npos);
-    // ...AND THE DESKS THEMSELVES CAME BACK NAMING THE NEW OFFICE.
+    // ...AND THE DESKS THEMSELVES CAME BACK NAMING THE NEW ROLE.
     REQUIRE(layout_count(t.session().setup) == 2);
     CHECK(pane_row(t.session().setup.active, new_files_ref()) != kNoPaneRow);
 }
 
-TEST_CASE("Info's PLACE moves with its office, and an authored one does not") {
-    // THE CLAIM THE TABLE EXISTS FOR: Info's place moved with its office. A saved desk wrote
+TEST_CASE("Info's PLACE moves with its role, and an authored one does not") {
+    // THE CLAIM THE TABLE EXISTS FOR: Info's place moved with its role. A saved desk wrote
     // `zengine.workshop/info` with a `default` place, which meant the right column because the
-    // catalog put it there; this build's catalog does not, so moving only the office would
+    // catalog put it there; this build's catalog does not, so moving only the role would
     // drop a weaver's Info into the overlay stack. The safe half: a row whose place the weaver
     // AUTHORED keeps it -- the place is written only over a `kDefault` -- and both are asserted.
     Setup desk;
@@ -6592,7 +6592,7 @@ TEST_CASE("Info's PLACE moves with its office, and an authored one does not") {
     const pane_migration::Converted moved = pane_migration::convert_retired_panes(live);
     CHECK(moved.total() == 2);
 
-    // THE OFFICE MOVED...
+    // THE ROLE MOVED...
     const std::size_t info_at = pane_row(live, info_ref());
     REQUIRE(info_at != kNoPaneRow);
     CHECK(pane_row(live, PaneRef{"zengine.workshop", "info"}) == kNoPaneRow);
@@ -6603,7 +6603,7 @@ TEST_CASE("Info's PLACE moves with its office, and an authored one does not") {
     // ...and the resulting desk is one this host would accept from a file.
     CHECK(check_setup(live).accepted);
 
-    // THE AUTHORED ROW KEPT ITS OWN COORDINATES, office moved and place untouched.
+    // THE AUTHORED ROW KEPT ITS OWN COORDINATES, role moved and place untouched.
     const std::size_t builder_at = pane_row(live, PaneRef{"zengine.builder-pane", "builder"});
     REQUIRE(builder_at != kNoPaneRow);
     CHECK(live.panes[builder_at].place.mode == pane_unit::kPixels);
@@ -7115,7 +7115,7 @@ TEST_CASE("a version-8 session converts with every field kept and no choice reme
     CHECK(read.layouts[0].desk == desk);
     CHECK(room_read.viewport_w == cells_px(128));
     CHECK(room_read.viewport_h == cells_px(40));
-    // A SESSION BEFORE 9 REMEMBERS NO CHOICE, so the next start loads each office's own row.
+    // A SESSION BEFORE 9 REMEMBERS NO CHOICE, so the next start loads each role's own row.
     CHECK(read.choices.empty());
 }
 
@@ -7157,7 +7157,7 @@ TEST_CASE("a version-9 session converts with every field kept and no OS window's
     CHECK(room_read.placement.room_h == 0);
 }
 
-TEST_CASE("a session keeps the choices it was given, and refuses more than an office's worth") {
+TEST_CASE("a session keeps the choices it was given, and refuses more than a role's worth") {
     const std::vector<Layout> run = one_layout(arranged_desk("D"));
     const std::vector<session_persist::WorkshopChoice> chosen = {
         {"zengine.editor", "neovim"}, {"zengine.viewer", "plain"}};
@@ -7168,18 +7168,18 @@ TEST_CASE("a session keeps the choices it was given, and refuses more than an of
     CHECK(read.choices[0].role == "zengine.editor");
     CHECK(read.choices[0].choice == "neovim");
     CHECK(read.choices[1].role == "zengine.viewer");
-    // ...and one more office than the bound is a file this build will not read.
+    // ...and one more role than the bound is a file this build will not read.
     std::vector<session_persist::WorkshopChoice> many;
     for (std::size_t i = 0; i <= session_persist::kMaxRememberedChoices; ++i) {
-        many.push_back({"office." + std::to_string(i), "choice"});
+        many.push_back({"role." + std::to_string(i), "choice"});
     }
     const session_persist::LoadedSession refused = session_persist::from_text(
         session_text(run, 0, many));
     CHECK_FALSE(refused.outcome.accepted);
-    CHECK(refused.outcome.refusal.find("at most 16 offices' choices") != std::string::npos);
+    CHECK(refused.outcome.refusal.find("at most 16 roles' choices") != std::string::npos);
 }
 
-TEST_CASE("a start loads the remembered choice in its office's row, while the plan authors it") {
+TEST_CASE("a start loads the remembered choice in its role's row, while the plan authors it") {
     const auto plan_of = [] {
         load::LoadPlan plan;
         load::ArtifactIntent editor;
@@ -7193,7 +7193,7 @@ TEST_CASE("a start loads the remembered choice in its office's row, while the pl
                         load::ChoiceIntent{"zengine.editor", "neovim", "zengine-neovim-pane"}};
         return plan;
     };
-    // THE REMEMBERED CHOICE LOADS IN THE OFFICE'S ROW, and no other row moves.
+    // THE REMEMBERED CHOICE LOADS IN THE ROLE'S ROW, and no other row moves.
     load::LoadPlan plan = plan_of();
     CHECK(load::remember_choices(plan, {{"zengine.editor", "neovim"}}).empty());
     CHECK(plan.artifacts[0].stem == "zengine-neovim-pane");
@@ -7210,7 +7210,7 @@ TEST_CASE("a start loads the remembered choice in its office's row, while the pl
     CHECK(gone.artifacts[0].stem == "zengine-editor-pane");
 }
 
-TEST_CASE("a quit saves which choice holds each office, and a start says a choice no longer authored") {
+TEST_CASE("a quit saves which choice holds each role, and a start says a choice no longer authored") {
     TempDir dir("switch-remembered");
     const std::string session = dir.file("session.json");
     {

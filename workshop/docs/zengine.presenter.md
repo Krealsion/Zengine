@@ -1,11 +1,11 @@
 # zengine.presenter -- the menu presenter
 
-**Manual.** The menu presenter shows a pane's menu. It is the weave in the office
-`zengine.presenter` (an office is the name a weave answers to), built as `zengine-menu-presenter`
+**Manual.** The menu presenter shows a pane's menu. It is the weave in the role
+`zengine.presenter` (a role is the name a weave answers to), built as `zengine-menu-presenter`
 and loaded by a row of the load plan like any weave. It has no pane of its own: when a pane asks
 Workshop for a menu, Workshop hands the menu here, and this presenter draws its lines in an area
 of its own of the window, moves the cursor and tells the pane which row you chose. You can reload
-it in place, or load another presenter in its office
+it in place, or load another presenter in its role
 ([replacing it](panes.md#replacing-the-menu-presenter)).
 
 ## About
@@ -24,7 +24,7 @@ The menu it has open is its state, `HeldMenu` v3: the menu's number, who asked, 
 cursor, the room, the standard rows and the area it stands in. A reload keeps it, so a reloaded
 presenter shows the open menu again and answers it under the same number. How it laid the lines out
 is not state: a new image lays them out afresh. The seam between Workshop and whatever holds this
-office is [`workshop/presenter_vocabulary.hpp`](../presenter_vocabulary.hpp), installed with the
+role is [`workshop/presenter_vocabulary.hpp`](../presenter_vocabulary.hpp), installed with the
 pane protocol.
 
 ## Use
@@ -51,7 +51,7 @@ choose is spent by Workshop on the pane, and the pane is told nothing was chosen
 
 `MenuGranted` v3 asks the presenter to present one pane's menu, as menu number `menu`.
 
-- **Takes:** `menu`, Workshop's number for this menu; `office` and `pane`, the pane that asked, as
+- **Takes:** `menu`, Workshop's number for this menu; `role` and `pane`, the pane that asked, as
   Loom authenticated it; `subject`, the pane's own word, echoed back; `rows`, the pane's rows;
   `room_rows` and `room_columns`, the most the popup can show now; `standard`, Workshop's standard
   rows for that pane; `pane_name`, the pane's name as you know it, for the rule; `area`, the area
@@ -71,7 +71,7 @@ choose is spent by Workshop on the pane, and the pane is told nothing was chosen
 
 ## Hears
 
-On every activation, Loom's `zen.Activated`, it tells Workshop it holds the office and which menu
+On every activation, Loom's `zen.Activated`, it tells Workshop it holds the role and which menu
 it carries (`PresenterReady`), and shows that menu again if it carries one. Every other word it
 heeds comes from Workshop, `zengine.workshop`, about a menu with a number; anyone else's is
 ignored.

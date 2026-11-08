@@ -12,7 +12,7 @@
 // Reference: workshop/docs/workshop-panes.md#escape-in-a-pane-that-holds-the-keys
 //
 //     void on(const PaneKey& key, loom::Mail& mail) {
-//         if (pane_escape::answer(key, mail, kOffice, [&] { return drop_selection(mail); }))
+//         if (pane_escape::answer(key, mail, kRole, [&] { return drop_selection(mail); }))
 //             return;                                   // dropped, or handed back unspent
 //         ...                                           // the pane's own keys
 //     }
@@ -33,9 +33,9 @@ inline bool bare(const PaneKey& key) noexcept {
 }
 
 /// Hand the Escape this delivery carried back to Workshop unspent, echoing its number, from
-/// `office`, which offered `pane` (WL-ARR-15).
-inline void unspent(loom::Mail& mail, std::string_view office, const std::string& pane) {
-    (void)mail.as_role(office).send_to_role("zengine.workshop", PaneEscapeUnspent{pane},
+/// `role`, which offered `pane` (WL-ARR-15).
+inline void unspent(loom::Mail& mail, std::string_view role, const std::string& pane) {
+    (void)mail.as_role(role).send_to_role("zengine.workshop", PaneEscapeUnspent{pane},
                                             mail.correlation());
 }
 
@@ -43,12 +43,12 @@ inline void unspent(loom::Mail& mail, std::string_view office, const std::string
 /// before; true once a bare Escape is answered: `drop` lets go of what the pane has selected and
 /// says whether there was anything, and when there was not the Escape goes back unspent.
 template <class Drop>
-bool answer(const PaneKey& key, loom::Mail& mail, std::string_view office, Drop&& drop) {
+bool answer(const PaneKey& key, loom::Mail& mail, std::string_view role, Drop&& drop) {
     if (!bare(key)) {
         return false;
     }
     if (!drop()) {
-        unspent(mail, office, key.pane);
+        unspent(mail, role, key.pane);
     }
     return true;
 }

@@ -53,7 +53,7 @@ const std::string kDiagnostic =
     "ninja: build stopped: subcommand failed.\n";
 
 /// THE RUNNER'S SEAT: it takes the tool's orders and, when a case says so, says a build's
-/// observations to the Builder office as the runner does -- the start, the bytes in pieces, the
+/// observations to the Builder role as the runner does -- the start, the bytes in pieces, the
 /// ending.
 struct RunnerSeatState {
     std::int64_t orders = 0;
@@ -162,7 +162,7 @@ struct OutputRig {
 
     /// `with_presenter` PUTS THE SHIPPED PRESENTER IN THE PLAN, as a host's own plan row does: a
     /// menu this pane offers is granted to whoever holds `zengine.presenter`, and the reader's
-    /// overflow route is exactly what that office presents.
+    /// overflow route is exactly what that role presents.
     void open(std::int64_t width = 200, std::int64_t height = 56, bool with_presenter = false) {
         r.mount_workshop();
         r.host.frontier = [this] { return frontier; };

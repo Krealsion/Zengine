@@ -180,7 +180,7 @@ struct WorkshopLoadArtifact {
               ZEN_FIELD(weave), ZEN_FIELD(optional), ZEN_FIELD(otherwise));
 };
 
-/// ONE AUTHORED CHOICE AS WRITTEN: the office, the weaver's name for the choice, and the artifact.
+/// ONE AUTHORED CHOICE AS WRITTEN: the role, the weaver's name for the choice, and the artifact.
 struct WorkshopLoadChoice {
     std::string role;
     std::string name;
@@ -190,7 +190,7 @@ struct WorkshopLoadChoice {
 };
 
 /// A WHOLE SAVED LOAD PLAN: what it is, which version of that it is, the artifacts it means to
-/// run IN AUTHORED ORDER, and the choices an office may be switched between.
+/// run IN AUTHORED ORDER, and the choices a role may be switched between.
 struct WorkshopLoadFile {
     std::string format;
     std::int64_t format_version = 0;

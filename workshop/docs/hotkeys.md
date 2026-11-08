@@ -304,7 +304,7 @@ Notices pane, with the override count — that happened, once, at this launch. A
 **refused** is a standing condition instead: the defaults stand for the whole run and for
 every run until you change the file, so it goes to attention with the loader's own reason and
 stays there until it is no longer true ([the Attention pane](../../attention/docs/zengine.attention.md)). Workshop
-never trims or "fixes" it; what writes it is an edit an office asked for -- the Hotkeys pane's,
+never trims or "fixes" it; what writes it is an edit a role asked for -- the Hotkeys pane's,
 when you change a binding there -- judged whole and applied before it is written, and an edit
 never touches a file that was refused or that changed under it
 ([editing a binding](#editing-a-binding)).

@@ -3,7 +3,7 @@
 
 // The Neovim-backed Editor in Workshop's typed carry (suite `workshop_neovim`, behind the
 // `neovim` gate): the standard Editor's transfer rig (`editor_transfer_story.hpp`) with the
-// Neovim-backed Editor holding the office and a real Neovim under the case's directory --
+// Neovim-backed Editor holding the role and a real Neovim under the case's directory --
 // out, in, back, and a change held while Neovim waits for input. THE REAL DESKTOP IS LOADED,
 // so its application rows meet the Neovim pane's declarations here rather than on a weaver's
 // desk; the beat is given by hand, as no Timer is mounted.

@@ -56,7 +56,7 @@ character, never a key.
 **A command in.** Any other typed message dropped on an Editor — a Terminal capture, a preset
 saved in Info — becomes its Workshop Terminal line, `send <address> <Shape> <version> field=value
 …`: the fields present, in declaration order, Text always quoted, proved by Loom's own lexer to
-read back as the same values. The destination is the capture's role (`@office`) or publish (`*`)
+read back as the same values. The destination is the capture's role (`@role`) or publish (`*`)
 address when its `TerminalCaptureFacts` recorded one; otherwise the line reads `<address>`, which
 the Terminal refuses until it is replaced. A missing required field stays missing and is named. A
 Text value holding `"` or a control byte, a non-finite Float, Bytes, a List or a nested Message

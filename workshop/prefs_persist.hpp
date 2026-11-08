@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PREFS_PERSIST_HPP
 
 // WORKSHOP'S SETTINGS FILE -- a seventh durable artifact, and the second file of the
-// weaver-configuration kind: what holds in every layout -- every office's office-wide settings
+// weaver-configuration kind: what holds in every layout -- every role's role-wide settings
 // (Workshop's own among them), the Workshop-wide pin lists and the everywhere locks. What one
 // layout keeps for itself is its desk's. A version-3 file also kept layouts' entries by name, read
 // and carried until a session holds them; a version-1 or version-2 file, which held three
@@ -66,8 +66,8 @@ inline constexpr const char* kDefaultPrefsFileName = "workshop-prefs.json";
 
 // ---- Workshop's own settings ----------------------------------------------------------
 
-/// The office Workshop's own settings are kept under.
-inline constexpr const char* kWorkshopOffice = "zengine.workshop";
+/// The role Workshop's own settings are kept under.
+inline constexpr const char* kWorkshopRole = "zengine.workshop";
 
 /// Workshop's own keys: whether the arrangeable panes wear their titles, how the band and the
 /// Hotkeys view spell a key, which pin list an editor edits, how the keyboard's selection is
@@ -119,9 +119,9 @@ inline constexpr const char* kKeysWords = "default, short or full";
 inline constexpr KeySpelling kBandKeysDefaultValue = KeySpelling::kFull;
 inline constexpr KeySpelling kHotkeysKeysDefaultValue = KeySpelling::kFull;
 
-/// WORKSHOP'S OWN OFFICE-WIDE SETTINGS, declared in code: what each takes, its default, the tags
+/// WORKSHOP'S OWN ROLE-WIDE SETTINGS, declared in code: what each takes, its default, the tags
 /// it is listed under, whether it is pinned by default, and what it does.
-inline std::vector<workshop::v2::PaneSettingRow> workshop_office_rows() {
+inline std::vector<workshop::v2::PaneSettingRow> workshop_role_rows() {
     const auto text = [](const char* key, const char* fallback, std::vector<std::string> choices,
                          std::vector<std::string> tags, bool pinned, const char* summary) {
         workshop::v2::PaneSettingRow row;
@@ -195,16 +195,16 @@ struct Presentation {
 
 // ---- The file's own shape --------------------------------------------------------------
 
-/// ONE OFFICE'S KEPT SETTINGS, in key order, a default kept as its absence.
-struct OfficeSettingsKept {
-    std::string office;
+/// ONE ROLE'S KEPT SETTINGS, in key order, a default kept as its absence.
+struct RoleSettingsKept {
+    std::string role;
     std::vector<PaneSetting> settings;
-    ZEN_SHAPE(OfficeSettingsKept, 1, ZEN_FIELD(office), ZEN_FIELD(settings));
-    friend bool operator==(const OfficeSettingsKept&, const OfficeSettingsKept&) = default;
+    ZEN_SHAPE(RoleSettingsKept, 1, ZEN_FIELD(role), ZEN_FIELD(settings));
+    friend bool operator==(const RoleSettingsKept&, const RoleSettingsKept&) = default;
 };
 
-/// ONE PANE'S PIN LIST, in pin order: `<office>/<pane>` for the Workshop-wide list; a version-3
-/// file also kept `<office>/<pane>@<layout>` for one layout's.
+/// ONE PANE'S PIN LIST, in pin order: `<role>/<pane>` for the Workshop-wide list; a version-3
+/// file also kept `<role>/<pane>@<layout>` for one layout's.
 struct PinList {
     std::string target;
     std::vector<std::string> keys;
@@ -215,9 +215,9 @@ struct PinList {
 /// A lock as the file keeps it (`settings_seam_vocabulary.hpp`), the shape the doors carry.
 using workshop::SettingLock;
 
-/// THE FILE AT VERSION 3 KEPT A LAYOUT'S BASELINE AS AN OFFICE OF ITS OWN, `@<layout>`, holding the
+/// THE FILE AT VERSION 3 KEPT A LAYOUT'S BASELINE AS AN ROLE OF ITS OWN, `@<layout>`, holding the
 /// theme's name and its fingerprint under these two keys.
-inline constexpr char kLayoutThemeOfficeMark = '@';
+inline constexpr char kLayoutThemeRoleMark = '@';
 inline constexpr const char* kLayoutThemeNameKey = "theme";
 inline constexpr const char* kLayoutThemeFingerprintKey = "fingerprint";
 
@@ -226,12 +226,12 @@ inline constexpr const char* kLayoutThemeFingerprintKey = "fingerprint";
 struct WorkshopPrefs {
     std::string format;
     std::int64_t format_version = 0;
-    std::vector<OfficeSettingsKept> offices;
+    std::vector<RoleSettingsKept> roles;
     std::vector<PinList> pins;
     std::vector<SettingLock> locks;
 
     ZEN_SHAPE(WorkshopPrefs, 4, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(offices), ZEN_FIELD(pins), ZEN_FIELD(locks));
+              ZEN_FIELD(roles), ZEN_FIELD(pins), ZEN_FIELD(locks));
 };
 
 /// THE FILE AS VERSION 3 WROTE IT: version 4's fields, a layout's entries among them by its name.
@@ -240,12 +240,12 @@ namespace v3 {
 struct WorkshopPrefs {
     std::string format;
     std::int64_t format_version = 0;
-    std::vector<OfficeSettingsKept> offices;
+    std::vector<RoleSettingsKept> roles;
     std::vector<PinList> pins;
     std::vector<SettingLock> locks;
 
     ZEN_SHAPE(WorkshopPrefs, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(offices), ZEN_FIELD(pins), ZEN_FIELD(locks));
+              ZEN_FIELD(roles), ZEN_FIELD(pins), ZEN_FIELD(locks));
 };
 } // namespace v3
 
@@ -293,56 +293,56 @@ static_assert(v1::WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kTitl
 
 // ---- What the file keeps, as values ----------------------------------------------------
 
-/// THE SETTINGS FILE'S CONTENT: offices by name, each office's settings by key; pin lists by
-/// target; locks by target and key. A default is kept as its absence, and an office keeping
+/// THE SETTINGS FILE'S CONTENT: roles by name, each role's settings by key; pin lists by
+/// target; locks by target and key. A default is kept as its absence, and a role keeping
 /// nothing is not listed. Read from a version-3 file, it may also hold layouts' entries, by name.
 struct Prefs {
-    std::vector<OfficeSettingsKept> offices;
+    std::vector<RoleSettingsKept> roles;
     std::vector<PinList> pins;
     std::vector<SettingLock> locks;
     friend bool operator==(const Prefs&, const Prefs&) = default;
 };
 
-/// The settings an office keeps, or none.
-inline const OfficeSettingsKept* office_kept(const Prefs& p, std::string_view office) noexcept {
-    for (const OfficeSettingsKept& o : p.offices) {
-        if (o.office == office) {
+/// The settings a role keeps, or none.
+inline const RoleSettingsKept* role_kept(const Prefs& p, std::string_view role) noexcept {
+    for (const RoleSettingsKept& o : p.roles) {
+        if (o.role == role) {
             return &o;
         }
     }
     return nullptr;
 }
 
-/// THE VALUE AN OFFICE KEEPS UNDER `key`, or nullptr for its default.
-inline const PaneSetting* office_value(const Prefs& p, std::string_view office,
+/// THE VALUE AN ROLE KEEPS UNDER `key`, or nullptr for its default.
+inline const PaneSetting* role_value(const Prefs& p, std::string_view role,
                                        std::string_view key) noexcept {
-    const OfficeSettingsKept* o = office_kept(p, office);
+    const RoleSettingsKept* o = role_kept(p, role);
     return o == nullptr ? nullptr : find_pane_setting(o->settings, key);
 }
 
-/// KEEP `value` UNDER `key` FOR THE OFFICE, or clear it with none: in key order, the office
+/// KEEP `value` UNDER `key` FOR THE ROLE, or clear it with none: in key order, the role
 /// listed only while it keeps something. Says whether anything changed.
-inline bool put_office_value(Prefs& p, const std::string& office, const std::string& key,
+inline bool put_role_value(Prefs& p, const std::string& role, const std::string& key,
                              const std::optional<PaneSetting>& value) {
-    auto at = std::find_if(p.offices.begin(), p.offices.end(),
-                           [&](const OfficeSettingsKept& o) { return o.office == office; });
+    auto at = std::find_if(p.roles.begin(), p.roles.end(),
+                           [&](const RoleSettingsKept& o) { return o.role == role; });
     if (!value) {
-        if (at == p.offices.end()) {
+        if (at == p.roles.end()) {
             return false;
         }
         const std::size_t was = at->settings.size();
         std::erase_if(at->settings, [&](const PaneSetting& s) { return s.key == key; });
         const bool moved = at->settings.size() != was;
         if (at->settings.empty()) {
-            p.offices.erase(at);
+            p.roles.erase(at);
         }
         return moved;
     }
-    if (at == p.offices.end()) {
-        at = p.offices.insert(
-            std::find_if(p.offices.begin(), p.offices.end(),
-                         [&](const OfficeSettingsKept& o) { return o.office > office; }),
-            OfficeSettingsKept{office, {}});
+    if (at == p.roles.end()) {
+        at = p.roles.insert(
+            std::find_if(p.roles.begin(), p.roles.end(),
+                         [&](const RoleSettingsKept& o) { return o.role > role; }),
+            RoleSettingsKept{role, {}});
     }
     PaneSetting kept = *value;
     kept.key = key;
@@ -359,22 +359,22 @@ inline bool put_office_value(Prefs& p, const std::string& office, const std::str
     return true;
 }
 
-/// Whether an office entry is a layout's baseline (`@<layout>`) rather than an office.
-inline bool is_layout_theme_entry(std::string_view office) noexcept {
-    return !office.empty() && office.front() == kLayoutThemeOfficeMark;
+/// Whether a role entry is a layout's baseline (`@<layout>`) rather than a role.
+inline bool is_layout_theme_entry(std::string_view role) noexcept {
+    return !role.empty() && role.front() == kLayoutThemeRoleMark;
 }
 
-/// How many offices the file keeps settings for, and how many settings, every office's together;
+/// How many roles the file keeps settings for, and how many settings, every role's together;
 /// a layout's baseline is neither.
-inline std::size_t office_count(const Prefs& p) noexcept {
+inline std::size_t role_count(const Prefs& p) noexcept {
     return static_cast<std::size_t>(std::count_if(
-        p.offices.begin(), p.offices.end(),
-        [](const OfficeSettingsKept& o) { return !is_layout_theme_entry(o.office); }));
+        p.roles.begin(), p.roles.end(),
+        [](const RoleSettingsKept& o) { return !is_layout_theme_entry(o.role); }));
 }
 inline std::size_t kept_count(const Prefs& p) noexcept {
     std::size_t n = 0;
-    for (const OfficeSettingsKept& o : p.offices) {
-        n += is_layout_theme_entry(o.office) ? 0 : o.settings.size();
+    for (const RoleSettingsKept& o : p.roles) {
+        n += is_layout_theme_entry(o.role) ? 0 : o.settings.size();
     }
     return n;
 }
@@ -413,7 +413,7 @@ inline const SettingLock* lock_on(const Prefs& p, std::string_view target,
     return nullptr;
 }
 
-/// A pane target's name for one layout's list or lock: `<office>/<pane>@<layout>`.
+/// A pane target's name for one layout's list or lock: `<role>/<pane>@<layout>`.
 inline std::string layout_target(std::string_view target, std::string_view layout) {
     return std::string(target) + "@" + std::string(layout);
 }
@@ -442,11 +442,11 @@ inline bool drop_lock(Prefs& p, std::string_view target, std::string_view key) {
 /// A LAYOUT'S BASELINE, or a name of "" when the file keeps none for it.
 inline LayoutTheme layout_theme_of(const Prefs& p, std::string_view layout) {
     LayoutTheme out;
-    const std::string office = std::string(1, kLayoutThemeOfficeMark) + std::string(layout);
-    if (const PaneSetting* name = office_value(p, office, kLayoutThemeNameKey)) {
+    const std::string role = std::string(1, kLayoutThemeRoleMark) + std::string(layout);
+    if (const PaneSetting* name = role_value(p, role, kLayoutThemeNameKey)) {
         out.name = name->text.value_or(std::string());
     }
-    if (const PaneSetting* fingerprint = office_value(p, office, kLayoutThemeFingerprintKey)) {
+    if (const PaneSetting* fingerprint = role_value(p, role, kLayoutThemeFingerprintKey)) {
         out.fingerprint = fingerprint->number.value_or(0);
     }
     return out;
@@ -459,9 +459,9 @@ inline bool has_layout_entries(const Prefs& p) noexcept {
     const auto named = [](const std::string& target) {
         return target.find('@') != std::string::npos;
     };
-    return std::any_of(p.offices.begin(), p.offices.end(),
-                       [](const OfficeSettingsKept& o) {
-                           return is_layout_theme_entry(o.office);
+    return std::any_of(p.roles.begin(), p.roles.end(),
+                       [](const RoleSettingsKept& o) {
+                           return is_layout_theme_entry(o.role);
                        }) ||
            std::any_of(p.pins.begin(), p.pins.end(),
                        [&](const PinList& l) { return named(l.target); }) ||
@@ -471,8 +471,8 @@ inline bool has_layout_entries(const Prefs& p) noexcept {
 
 /// ...AND THE FILE WITHOUT THEM: what holds in every layout, alone.
 inline Prefs without_layout_entries(Prefs p) {
-    std::erase_if(p.offices,
-                  [](const OfficeSettingsKept& o) { return is_layout_theme_entry(o.office); });
+    std::erase_if(p.roles,
+                  [](const RoleSettingsKept& o) { return is_layout_theme_entry(o.role); });
     std::erase_if(p.pins,
                   [](const PinList& l) { return l.target.find('@') != std::string::npos; });
     std::erase_if(p.locks,
@@ -482,12 +482,12 @@ inline Prefs without_layout_entries(Prefs p) {
 
 // ---- Workshop's own settings, read and written as values --------------------------------
 
-/// The value Workshop's office keeps under `key`, or the declared default.
+/// The value Workshop's role keeps under `key`, or the declared default.
 inline PaneSetting workshop_value(const Prefs& p, std::string_view key) {
-    if (const PaneSetting* kept = office_value(p, kWorkshopOffice, key)) {
+    if (const PaneSetting* kept = role_value(p, kWorkshopRole, key)) {
         return *kept;
     }
-    for (const workshop::v2::PaneSettingRow& row : workshop_office_rows()) {
+    for (const workshop::v2::PaneSettingRow& row : workshop_role_rows()) {
         if (row.key == key) {
             return PaneSetting{row.key, row.flag, row.number, row.text};
         }
@@ -541,9 +541,9 @@ inline Presentation presentation_of(const Prefs& p) {
 inline bool put_workshop_value(Prefs& p, const std::string& key, PaneSetting value) {
     value.key = key;
     if (value == workshop_value(Prefs{}, key)) {
-        return put_office_value(p, kWorkshopOffice, key, std::nullopt);
+        return put_role_value(p, kWorkshopRole, key, std::nullopt);
     }
-    return put_office_value(p, kWorkshopOffice, key, value);
+    return put_role_value(p, kWorkshopRole, key, value);
 }
 
 /// ...AND THE THREE A TOGGLE STATES, as the session holds them.
@@ -572,7 +572,7 @@ inline WorkshopPrefs to_prefs(const Prefs& kept) {
     WorkshopPrefs out;
     out.format = kFormat;
     out.format_version = kFormatVersion;
-    out.offices = kept.offices;
+    out.roles = kept.roles;
     out.pins = kept.pins;
     out.locks = kept.locks;
     return out;
@@ -584,7 +584,7 @@ inline WorkshopPrefs to_prefs(const Prefs& kept) {
 inline std::string to_text(const Prefs& kept) {
     if (has_layout_entries(kept)) {
         return loom::compat::serialize(loom::to_value(v3::WorkshopPrefs{
-            kFormat, kLayoutEntriesVersion, kept.offices, kept.pins, kept.locks}));
+            kFormat, kLayoutEntriesVersion, kept.roles, kept.pins, kept.locks}));
     }
     return loom::compat::serialize(loom::to_value(to_prefs(kept)));
 }
@@ -648,7 +648,7 @@ inline bool keys_in(const std::string& word, KeySpelling fallback, KeySpelling& 
     return false;
 }
 
-/// WHAT IS WRONG WITH A TARGET OR AN OFFICE NAME, or empty: 1 to `kMaxSettingTargetLen` bytes of
+/// WHAT IS WRONG WITH A TARGET OR AN ROLE NAME, or empty: 1 to `kMaxSettingTargetLen` bytes of
 /// printable ASCII with no space.
 inline std::string target_problem(std::string_view target, const char* what) {
     if (target.empty() || target.size() > kMaxSettingTargetLen) {
@@ -683,7 +683,7 @@ inline std::string layout_target_problem(std::string_view target, const char* wh
 
 /// WHAT IS WRONG WITH WHAT THE FILE KEEPS, or empty: each list within its bound and in
 /// its order, nothing twice, every setting sound, and Workshop's own values ones its settings
-/// take. A key of Workshop's office this build does not declare is kept as it is. A layout's entry
+/// take. A key of Workshop's role this build does not declare is kept as it is. A layout's entry
 /// is refused unless `layout_entries`: a version-3 file's.
 // WL-SETTING-11 -- agents/workshop/settings.md
 inline std::string kept_problem(const Prefs& p, bool layout_entries = false) {
@@ -692,30 +692,30 @@ inline std::string kept_problem(const Prefs& p, bool layout_entries = false) {
                " settings file keeps what holds in every layout -- a layout's pins, locks and "
                "baseline are its own, in the session";
     }
-    if (office_count(p) > kMaxSettingOffices) {
-        return "the file keeps settings for at most " + std::to_string(kMaxSettingOffices) +
-               " offices -- it lists " + std::to_string(office_count(p));
+    if (role_count(p) > kMaxSettingRoles) {
+        return "the file keeps settings for at most " + std::to_string(kMaxSettingRoles) +
+               " roles -- it lists " + std::to_string(role_count(p));
     }
-    if (p.offices.size() - office_count(p) > kMaxLayoutThemes) {
+    if (p.roles.size() - role_count(p) > kMaxLayoutThemes) {
         return "the file keeps at most " + std::to_string(kMaxLayoutThemes) +
                " layout baselines -- it keeps " +
-               std::to_string(p.offices.size() - office_count(p));
+               std::to_string(p.roles.size() - role_count(p));
     }
-    if (kept_count(p) > kMaxOfficeSettingsKept) {
-        return "the file keeps at most " + std::to_string(kMaxOfficeSettingsKept) +
-               " office-wide settings -- it keeps " + std::to_string(kept_count(p));
+    if (kept_count(p) > kMaxRoleSettingsKept) {
+        return "the file keeps at most " + std::to_string(kMaxRoleSettingsKept) +
+               " role-wide settings -- it keeps " + std::to_string(kept_count(p));
     }
-    const std::vector<workshop::v2::PaneSettingRow> own = workshop_office_rows();
-    for (std::size_t i = 0; i < p.offices.size(); ++i) {
-        const OfficeSettingsKept& o = p.offices[i];
-        if (i > 0 && !(p.offices[i - 1].office < o.office)) {
-            return "office `" + o.office + "` is listed twice or out of order";
+    const std::vector<workshop::v2::PaneSettingRow> own = workshop_role_rows();
+    for (std::size_t i = 0; i < p.roles.size(); ++i) {
+        const RoleSettingsKept& o = p.roles[i];
+        if (i > 0 && !(p.roles[i - 1].role < o.role)) {
+            return "role `" + o.role + "` is listed twice or out of order";
         }
-        if (is_layout_theme_entry(o.office)) {
+        if (is_layout_theme_entry(o.role)) {
             // A LAYOUT'S BASELINE: the layout's name, then its theme's name and fingerprint alone.
-            const std::string layout = o.office.substr(1);
+            const std::string layout = o.role.substr(1);
             if (const Written named = check_setup_name(layout); !named.accepted) {
-                return "the baseline of `" + o.office + "` names its layout wrongly: " +
+                return "the baseline of `" + o.role + "` names its layout wrongly: " +
                        named.refusal;
             }
             const PaneSetting* name = find_pane_setting(o.settings, kLayoutThemeNameKey);
@@ -734,22 +734,22 @@ inline std::string kept_problem(const Prefs& p, bool layout_entries = false) {
             }
             continue;
         }
-        if (std::string wrong = target_problem(o.office, "an office"); !wrong.empty()) {
+        if (std::string wrong = target_problem(o.role, "a role"); !wrong.empty()) {
             return wrong;
         }
-        if (o.settings.size() > kMaxOfficeSettings) {
-            return "office `" + o.office + "` keeps more than " +
-                   std::to_string(kMaxOfficeSettings) + " settings";
+        if (o.settings.size() > kMaxRoleSettings) {
+            return "role `" + o.role + "` keeps more than " +
+                   std::to_string(kMaxRoleSettings) + " settings";
         }
         for (std::size_t j = 0; j < o.settings.size(); ++j) {
             const PaneSetting& s = o.settings[j];
             if (std::string wrong = pane_setting_problem(s); !wrong.empty()) {
-                return "office `" + o.office + "`: " + wrong;
+                return "role `" + o.role + "`: " + wrong;
             }
             if (j > 0 && !(o.settings[j - 1].key < s.key)) {
-                return "office `" + o.office + "` keeps `" + s.key + "` twice or out of order";
+                return "role `" + o.role + "` keeps `" + s.key + "` twice or out of order";
             }
-            if (o.office != kWorkshopOffice) {
+            if (o.role != kWorkshopRole) {
                 continue;
             }
             for (const workshop::v2::PaneSettingRow& row : own) {
@@ -825,7 +825,7 @@ inline std::string kept_problem(const Prefs& p, bool layout_entries = false) {
             if (slash == std::string::npos || slash > at) {
                 return "the lock on `" + l.key + "` of `" + l.target +
                        "` names a layout but no pane -- a layout's lock is on " +
-                       "`<office>/<pane>@<layout>`";
+                       "`<role>/<pane>@<layout>`";
             }
             if (kind != SettingKind::kNone || l.clear) {
                 return "the lock on `" + l.key + "` of `" + l.target +
@@ -869,7 +869,7 @@ inline LoadedPrefs from_text(std::string_view bytes) {
         format = file.format;
         format_version = file.format_version;
         expected = kLayoutEntriesVersion;
-        loaded.kept = Prefs{file.offices, file.pins, file.locks};
+        loaded.kept = Prefs{file.roles, file.pins, file.locks};
     } else if (ours && version != WorkshopPrefs::zen_version) {
         // AN EARLIER FILE HELD THREE WORDS, OR THE TITLES ALONE: admitted against its own shape,
         // and read as Workshop's own settings, a word left out or `default` as the default.
@@ -919,7 +919,7 @@ inline LoadedPrefs from_text(std::string_view bytes) {
         const WorkshopPrefs file = loom::from_value<WorkshopPrefs>(admitted.value());
         format = file.format;
         format_version = file.format_version;
-        loaded.kept = Prefs{file.offices, file.pins, file.locks};
+        loaded.kept = Prefs{file.roles, file.pins, file.locks};
     }
     if (format != kFormat) {
         return LoadedPrefs::no("not a Workshop prefs file: it says it is `" + format + "`");

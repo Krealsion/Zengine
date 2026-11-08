@@ -3,9 +3,9 @@
 """desk/guide -- mark one control of a running Workshop's desk for the weaver to see, under the
 guest's own row and its `guide` power, and change nothing else.
 
-It asks Workshop `GuideRequested` v1 by the address a press names: the pane, `<office>/<pane>`, and
+It asks Workshop `GuideRequested` v1 by the address a press names: the pane, `<role>/<pane>`, and
 the control's action id, which the pane draws as the part `control:<id>`, or `part:<name>` for a
-subject part (a Pane Manager row is `part:pane:<office>/<pane>`). An empty `control` clears this
+subject part (a Pane Manager row is `part:pane:<role>/<pane>`). An empty `control` clears this
 session's mark. The result is Workshop's own answer -- shown, where, and whether its label stands --
 written as `guide.json`. A mark Workshop refuses or does not show fails the run in Workshop's
 words, a refusal for want of the row's `guide` power saying so; a clear passes whenever Workshop

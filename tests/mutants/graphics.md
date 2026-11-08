@@ -46,9 +46,9 @@ Red in `zengine-graphics-tests`:
 - the Attention pane draws nothing in its room before it holds its row, takes a row from the
   layouts' owner alone, and draws whole once it holds one
 
-## row-from-any-office
+## row-from-any-role
 
-A pane takes the row any office hands it as its own.
+A pane takes the row any role hands it as its own.
 
 In `workshop/pane_settings_taken.hpp`:
 
@@ -62,9 +62,9 @@ Red in `zengine-graphics-tests`:
 - the Attention pane draws nothing in its room before it holds its row, takes a row from the
   layouts' owner alone, and draws whole once it holds one
 
-## shaped-by-any-office
+## shaped-by-any-role
 
-An OS window takes its title and size from any office.
+An OS window takes its title and size from any role.
 
 In `graphics/window/window.hpp`:
 
@@ -75,7 +75,7 @@ In `graphics/window/window.hpp`:
 
 Red in `zengine-graphics-tests`:
 
-- an OS window takes its title and its size from an office that arranges an area in it, and from no
+- an OS window takes its title and its size from a role that arranges an area in it, and from no
   other; a shaped window is not grown back by what it held before
 
 ## drawing-rest-from-a-drag
@@ -108,14 +108,14 @@ In `graphics/window/clicks.hpp`:
 
 Red in `zengine-graphics-tests`:
 
-- the window counts the weaver's clicks by the input office's time: two presses 300 ms apart are a
+- the window counts the weaver's clicks by the input role's time: two presses 300 ms apart are a
   double click at 400 ms and not at 200, and at 800 a 600 ms pair is one
-- a console's records and a POSIX terminal's reports count clicks alike, by the input office's time
+- a console's records and a POSIX terminal's reports count clicks alike, by the input role's time
   and never the console's own double click
 
 ## clicks-at-a-fixed-time
 
-The window counts by its default time and never by the time the input office says.
+The window counts by its default time and never by the time the input role says.
 
 In `graphics/window/window.hpp`:
 
@@ -127,7 +127,7 @@ In `graphics/window/window.hpp`:
 
 Red in `zengine-graphics-tests`:
 
-- the window counts the weaver's clicks by the input office's time: two presses 300 ms apart are a
+- the window counts the weaver's clicks by the input role's time: two presses 300 ms apart are a
   double click at 400 ms and not at 200, and at 800 a 600 ms pair is one
 
 ## hands-share-a-count

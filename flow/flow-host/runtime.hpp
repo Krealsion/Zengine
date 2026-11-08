@@ -5,7 +5,7 @@
 
 // The Flow host: interpreted Flow projects run as ordinary maker participants on the host's own
 // bus and catalog, each in a session of its asker's. Reference: flow/docs/flow-runtime.md; its
-// office's manual is flow/docs/zengine.flow.host.md.
+// role's manual is flow/docs/zengine.flow.host.md.
 
 #include "activation/activation.hpp"
 #include "flow/flow-host/vocabulary.hpp"
@@ -15,7 +15,7 @@
 #include "operator/host.hpp"
 #include "timer/binding.hpp"
 
-#include "manuals/zengine.flow.host.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.flow.host.hpp" // this role's manual, compiled in from its page
 
 #include <algorithm>
 #include <deque>
@@ -43,7 +43,7 @@ struct FlowHostPulse {
     std::string subject;
     ZEN_SHAPE(FlowHostPulse, 1, ZEN_FIELD(subject));
 };
-/// The state of the host's own weaves, its office and its clock: none. Their sessions and beat
+/// The state of the host's own weaves, its role and its clock: none. Their sessions and beat
 /// are the host's, never reload-kept state.
 struct FlowHostClockState { ZEN_SHAPE(FlowHostClockState, 1); };
 /// The host's word to its clock: beat again.
@@ -356,7 +356,7 @@ private:
     }
 };
 
-// The office `zengine.flow.host`: each request for the asker's own session, the catalog, and the
+// The role `zengine.flow.host`: each request for the asker's own session, the catalog, and the
 // host's own pulse; what a shape it accepts does is answered from its page.
 class Manager final
     : public zengine::With<manual::ManualFacet<manual::pages::zengine_flow_host::kManual>>::Weave<
@@ -368,12 +368,12 @@ public:
     explicit Manager(RuntimeHost& host) : host_(host) {}
 
     void on(const FlowRun& run, loom::Mail& mail) {
-        serve(mail, run.session, "run", [&](FlowAnswer& answer, const Key& key, const std::string& office) {
+        serve(mail, run.session, "run", [&](FlowAnswer& answer, const Key& key, const std::string& role) {
             if (owned_.find(key) != owned_.end()) throw std::invalid_argument("session already runs; apply behavior or explicitly stop it before running a fresh project");
             if (owned_.size() >= kMaxSessions) throw std::invalid_argument("Flow already owns eight running sessions");
             if (run.project.size() > maker::kMaxFileBytes) throw std::invalid_argument("project exceeds 1 MiB");
             const auto id = host_.create(flow::read_project(view(run.project)));
-            owned_.emplace(key, Owned{id, mail.sender(), office});
+            owned_.emplace(key, Owned{id, mail.sender(), role});
             host_.fill(answer, id);
         });
     }
@@ -419,19 +419,19 @@ public:
         catch (const std::exception& error) { answer.reason = error.what(); }
         mail.answer(answer);
     }
-    // The host's own beat: each session that moved tells its owner, as this office. A pulse from
+    // The host's own beat: each session that moved tells its owner, as this role. A pulse from
     // any other sender is ignored.
     void on(const detail::FlowHostPulse& pulse, loom::Mail& mail) {
         if (mail.sender() != self_) return;
         for (const auto& [key, record] : owned_) {
             if (std::to_string(record.subject) != pulse.subject) continue;
             const FlowChanged changed{key.second};
-            if (record.office.empty()) mail.as_role(kFlowHostRole).send(record.owner, changed);
-            else mail.as_role(kFlowHostRole).send_to_role(record.office, changed);
+            if (record.role.empty()) mail.as_role(kFlowHostRole).send(record.owner, changed);
+            else mail.as_role(kFlowHostRole).send_to_role(record.role, changed);
         }
     }
 
-    // No crash revival and no fall back to a last good state: the office is the host's own,
+    // No crash revival and no fall back to a last good state: the role is the host's own,
     // mounted once, and its sessions are the host's to keep.
     loom::LifecyclePolicy policy_config() const { return {0, false}; }
     void revive(const loom::Value&) override {}
@@ -441,12 +441,12 @@ private:
     struct Owned {
         std::uint64_t subject = 0;
         loom::WeaveId owner{};
-        std::string office;
+        std::string role;
     };
 
     // ONE REQUEST FOR THE ASKER'S OWN SESSION, answered once, to the asker alone. The asker and
     // the session's name are judged here, in this order, and the rest by `act`; a refusal is the
-    // answer's reason. A session is keyed by the office the ask was authored as, while its holder
+    // answer's reason. A session is keyed by the role the ask was authored as, while its holder
     // asks, or else by the asker's own identity.
     template <class Act>
     void serve(loom::Mail& mail, const std::string& session, const char* action, Act&& act) {
@@ -456,13 +456,13 @@ private:
             answer.session = session;
             if (answer.session.empty() || answer.session.size() > 128)
                 throw std::invalid_argument("session name must be between 1 and 128 bytes");
-            const std::string office(mail.authored_role());
-            if (!office.empty() && host_.bus_.role_holder(office) != mail.sender())
-                throw std::invalid_argument("the request's authored office has moved to another participant");
-            const Key key{office.empty() ? "id/" + std::to_string(mail.sender().value) : "office/" + office,
+            const std::string role(mail.authored_role());
+            if (!role.empty() && host_.bus_.role_holder(role) != mail.sender())
+                throw std::invalid_argument("the request's authored role has moved to another participant");
+            const Key key{role.empty() ? "id/" + std::to_string(mail.sender().value) : "role/" + role,
                           answer.session};
             answer.action = action;
-            act(answer, key, office);
+            act(answer, key, role);
             answer.ok = true;
         } catch (const std::exception& error) { answer.reason = error.what(); }
         mail.answer(answer);

@@ -14,7 +14,7 @@ start, ask after and stop the Neovim-backed Editor with
 
 ## Pages
 
-- [`zengine.editor`](docs/zengine.editor.md): the Editor's manual, both holders of its office: every
+- [`zengine.editor`](docs/zengine.editor.md): the Editor's manual, both holders of its role: every
   command, what it answers and refuses, what the pane shows and the files it touches
 - [`zengine.editor-switch`](docs/zengine.editor-switch.md): the editor switch's manual: the four
   messages a weaver sends, what each answers, and how a switch is followed

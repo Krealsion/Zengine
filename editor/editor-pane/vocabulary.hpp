@@ -4,8 +4,8 @@
 #ifndef ZENGINE_EDITOR_PANE_VOCABULARY_HPP
 #define ZENGINE_EDITOR_PANE_VOCABULARY_HPP
 
-// The Editor pane's durable names: the office it holds, the one pane it offers, the action ids
-// its keys answer to, and the state a same-shape reload keeps. The office is `zengine.editor`,
+// The Editor pane's durable names: the role it holds, the one pane it offers, the action ids
+// its keys answer to, and the state a same-shape reload keeps. The role is `zengine.editor`,
 // not the host's `zengine.workshop`, whose holder admission refuses as a pane's offerer
 // (WL-CAT-03); `workshop/pane_seam_vocabulary.hpp` spells the same `kEditorRole` for askers. A
 // desk saved as `zengine.workshop/editor` is converted at load (`workshop/pane_migration.hpp`).
@@ -25,22 +25,22 @@
 
 namespace zengine::editor_pane {
 
-/// The office this pane holds: the durable half of its `PaneRef`, the address every source
-/// request reaches it by, and the office the host asks before it quits. A role, so a reloaded
+/// The role this pane holds: the durable half of its `PaneRef`, the address every source
+/// request reaches it by, and the role the host asks before it quits. A role, so a reloaded
 /// incarnation is still the party a saved desk names.
 inline constexpr const char* kEditorPaneRole = "zengine.editor";
 
-/// The pane key, in this office's namespace, unchanged by the conversion that moves a weaver's
-/// desk to this office.
+/// The pane key, in this role's namespace, unchanged by the conversion that moves a weaver's
+/// desk to this role.
 inline constexpr const char* kEditorPane = "editor";
 
 /// The two lines a weaver reads about this pane: its name in the Pane Manager's list and its
-/// summary in Info, also what Workshop's pane header says after the office.
+/// summary in Info, also what Workshop's pane header says after the role.
 inline constexpr const char* kEditorPaneName = "Editor";
 inline constexpr const char* kEditorPaneSummary = "edit a source file";
 
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable the way the
-/// office is -- it is a file name, here because the host's boot plan and the suite's loader
+/// role is -- it is a file name, here because the host's boot plan and the suite's loader
 /// must agree on it.
 inline constexpr const char* kEditorPaneStem = "zengine-editor-pane";
 

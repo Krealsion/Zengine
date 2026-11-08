@@ -267,7 +267,7 @@ inline std::vector<Suggestion> suggestions(const Model& m) {
     };
     if (said)
         for (const auto& shape : def.emits) offer(shape->name(), "this rule says it");
-    for (const auto& [office, names] : m.known)
+    for (const auto& [role, names] : m.known)
         for (const auto& k : names) offer(k.name, k.shown ? "a label shows it" : "a button says it");
     return out;
 }

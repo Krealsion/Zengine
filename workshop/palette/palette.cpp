@@ -48,7 +48,7 @@ namespace input = zengine::input;
 namespace pal = zengine::palette;
 
 constexpr const char* kWorkshop = "zengine.workshop";
-constexpr const char* kOffice = ws::kPaletteRole;
+constexpr const char* kRole = ws::kPaletteRole;
 constexpr const char* kPane = ws::kPalettePane;
 
 /// The palette's own rows: the list's cursor, the run and putting it down.
@@ -88,7 +88,7 @@ public:
         offer(mail);
         ask_lists(mail);
         if (!window_.shown()) {
-            (void)mail.as_role(kOffice).send_to_role(gfx::kGraphicsRole,
+            (void)mail.as_role(kRole).send_to_role(gfx::kGraphicsRole,
                                                      gfx::RoomAsked{window_.area()});
         }
     }
@@ -183,7 +183,7 @@ public:
             start(mail, e);
             return;
         }
-        run(mail, ws::CommandRunRequested{e.kind, e.office, e.pane, e.id}, e.address());
+        run(mail, ws::CommandRunRequested{e.kind, e.role, e.pane, e.id}, e.address());
     }
 
     /// THE LAYOUTS ON THE SHELF, the answer to this weave's own ask.
@@ -220,7 +220,7 @@ public:
             return;
         }
         launch_ask_ = ++asks_;
-        if (!mail.as_role(kOffice)
+        if (!mail.as_role(kRole)
                  .send_to_role(zengine::launcher::kLauncherRole, starting_, launch_ask_)
                  .valid()) {
             launch_ask_ = 0;
@@ -355,7 +355,7 @@ private:
     static gfx::Color cursor_bar() { return gfx::rgb(0x2C4A6E, gfx::colors::ground); }
 
     void offer(loom::Mail& mail) {
-        (void)mail.as_role(kOffice).send_to_role(
+        (void)mail.as_role(kRole).send_to_role(
             kWorkshop, ws::v2::PaneOffered{kPane, "Palette", "every action and pane, found by name",
                                            18, 64});
         ws::v3::PaneActions actions;
@@ -371,17 +371,17 @@ private:
         actions.rows.push_back(ws::v3::PaneActionRow{kClose, "put the palette down",
                                                      input::scan::kEscape, input::mod::kNone, "",
                                                      runs});
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, actions);
+        (void)mail.as_role(kRole).send_to_role(kWorkshop, actions);
     }
 
     void ask_lists(loom::Mail& mail) {
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::KeymapRequested{});
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::PaneInventoryRequested{});
+        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::KeymapRequested{});
+        (void)mail.as_role(kRole).send_to_role(kWorkshop, ws::PaneInventoryRequested{});
         layouts_ask_ = ++asks_;
-        (void)mail.as_role(kOffice).send_to_role(ws::kLayoutsRole, ws::LayoutSettingsRequested{},
+        (void)mail.as_role(kRole).send_to_role(ws::kLayoutsRole, ws::LayoutSettingsRequested{},
                                                  layouts_ask_);
         listing_ask_ = ++asks_;
-        (void)mail.as_role(kOffice).send_to_role(zengine::launcher::kLauncherRole,
+        (void)mail.as_role(kRole).send_to_role(zengine::launcher::kLauncherRole,
                                                  zengine::launcher::LaunchCatalogRequested{},
                                                  listing_ask_);
     }
@@ -405,7 +405,7 @@ private:
         asked.gesture = static_cast<std::int64_t>(mail.correlation());
         asked.classes = {ws::scope::kBuild, ws::scope::kWrite};
         approval_ask_ = ++asks_;
-        if (!mail.as_role(kOffice).send_to_role(kWorkshop, asked, approval_ask_).valid()) {
+        if (!mail.as_role(kRole).send_to_role(kWorkshop, asked, approval_ask_).valid()) {
             approval_ask_ = 0;
             notice_ = "nothing was started -- Workshop could not be asked";
             show(mail);
@@ -428,7 +428,7 @@ private:
             return;
         }
         const loom::Ticket sent =
-            mail.as_role(kOffice).send_to_role(kWorkshop, asked, mail.correlation());
+            mail.as_role(kRole).send_to_role(kWorkshop, asked, mail.correlation());
         if (!sent.valid()) {
             notice_ = "Workshop could not be asked to run it";
             show(mail);
@@ -560,7 +560,7 @@ private:
     bool in_flight_ = false;
     std::uint64_t asked_ = 0;
     std::string running_;
-    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)};
+    ws::WindowDrawing window_{kRole, ws::pane_area(kRole, kPane)};
     zengine::ActivationCursor activation_;
 };
 

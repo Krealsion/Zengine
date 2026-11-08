@@ -18,7 +18,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `panes.hpp` | the pane catalog |
 | `keymap.hpp`, with its part `keymap_join.hpp` | the action catalog and the keymap, spelled by `input/gesture_grammar.hpp`; override admission and the joins of a pane's and an application's rows |
 | `setup.hpp`, with its part `setup_reconcile.hpp` | the setup: its value, its checks and its edits; what the live panes make of it |
-| `layouts/` | the desk's owner, `zengine.layouts`, mounted in-process: the run of layouts and its store (`run.hpp`, `store.hpp`), the office (`owner.hpp`), its vocabulary, and the session it alone writes (`session_persist.hpp`, `session_history.hpp`); its law: layouts, tab-run, session-restore, settings, setting-locks |
+| `layouts/` | the desk's owner, `zengine.layouts`, mounted in-process: the run of layouts and its store (`run.hpp`, `store.hpp`), the role (`owner.hpp`), its vocabulary, and the session it alone writes (`session_persist.hpp`, `session_history.hpp`); its law: layouts, tab-run, session-restore, settings, setting-locks |
 | `pane_vocabulary.hpp` | the pane protocol, installed: `zengine-pane-vocabulary`, `zengine::pane` |
 | `*_seam_vocabulary.hpp`, `pane_doors.hpp` | the seams to loaded panes and guests; the doors |
 | `*_persist.hpp` | the files: setup, keymap, preferences, recipes, load plan, and Workshop's window file |
@@ -94,7 +94,7 @@ program with its files); the subjects are in the
 - `workshop_guests` — the guest door and guests file on loopback; `tests/test_workshop_guests.cpp`
 - `workshop_host` — what Workshop presents around the panes; `tests/test_workshop_host.cpp`
 - `workshop_load` — the load plan, its codec and its executor; `tests/test_workshop_load.cpp`
-- `workshop_panes_seam` — what an office may offer and who speaks for it, the room, a pane's
+- `workshop_panes_seam` — what a role may offer and who speaks for it, the room, a pane's
   canvas, the second button and the menu presenter, the demo controls;
   `tests/test_workshop_demo.cpp`, `tests/test_workshop_panes_{seam,window,canvas,button}.cpp`
 - `workshop_panes_hand` — the weaver's hand crossing the seam: presses and keys, declared

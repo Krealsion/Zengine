@@ -4,8 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_LAYOUTS_STORE_HPP
 #define ZENGINE_WORKSHOP_LAYOUTS_STORE_HPP
 
-// The layouts' store, as a value: every layout of the run and what each keeps, every office's
-// office-wide settings, the locks and the pins; what each pane and office declares it takes; the
+// The layouts' store, as a value: every layout of the run and what each keeps, every role's
+// role-wide settings, the locks and the pins; what each pane and role declares it takes; the
 // revisions every reading stands at; what each pane was handed of its row and said it cannot use;
 // and the files all of it is kept in: their one writer and judge. What an ask said and moved is
 // taken after it (`take_effects`), for the holder to say and hand.
@@ -36,7 +36,7 @@
 namespace zengine::workshop {
 
 /// WHAT THE STORE IS HANDED by whoever holds it: the paths of its files, the conversions this run
-/// has, and the readings of the bus it spends -- whose office it is now, at which incarnation,
+/// has, and the readings of the bus it spends -- whose role it is now, at which incarnation,
 /// and whether its holder takes a shape -- each read at the ask and kept nowhere.
 struct LayoutsHost {
     std::string setup_path;
@@ -46,7 +46,7 @@ struct LayoutsHost {
     std::function<loom::WeaveId(std::string_view)> role_holder;
     std::function<std::int64_t(loom::WeaveId)> incarnation_of;
     std::function<bool(std::string_view role, const loom::Schema& shape)> holder_accepts;
-    /// Which authored choice holds each switchable office now, written into the session.
+    /// Which authored choice holds each switchable role now, written into the session.
     // WL-SWITCH-08 -- agents/workshop/editor-switch.md
     std::function<std::vector<session_persist::WorkshopChoice>()> chosen;
 };
@@ -61,7 +61,7 @@ struct CatalogName {
 
 /// WHAT ONE ASK OF THE STORE SAID AND MOVED: its sentence for the notice, whether that is a
 /// refusal, whether the run or the live layout moved, what a live row's pane cannot use moved,
-/// and the offices whose settings moved.
+/// and the roles whose settings moved.
 struct StoreEffects {
     std::string said;
     bool bad = false;
@@ -69,10 +69,10 @@ struct StoreEffects {
     std::string said_pane;
     bool live_moved = false;
     bool unused_moved = false;
-    std::vector<std::string> offices;
+    std::vector<std::string> roles;
 };
 
-/// ONE HAND-OFF OWED: the row's pane, the weave that holds its office, whether that holder takes
+/// ONE HAND-OFF OWED: the row's pane, the weave that holds its role, whether that holder takes
 /// v2, and the row's settings without Workshop's own keys at the revision they stand at.
 struct PaneHandOff {
     PaneRef ref;
@@ -108,7 +108,7 @@ public:
     /// THE RUN PUT IN PLACE WHOLE, its live desk settled and presented again.
     void put_run(SetupState run);
 
-    // ---- The catalog and what each pane and office takes -----------------------------------
+    // ---- The catalog and what each pane and role takes -----------------------------------
 
     /// The panes the presenter's catalog lists now: names for sentences, and what it can present.
     void set_catalog(std::vector<CatalogName> names) { catalog_ = std::move(names); }
@@ -117,21 +117,21 @@ public:
     /// Whether the presenter can present the pane `ref` names.
     bool presentable(const PaneRef& ref) const;
 
-    /// A PANE'S DECLARATION, from `office` by the weave `from`: judged whole, then kept in place of
-    /// the last one, counting while `from` holds the office at the incarnation it has now. Empty
+    /// A PANE'S DECLARATION, from `role` by the weave `from`: judged whole, then kept in place of
+    /// the last one, counting while `from` holds the role at the incarnation it has now. Empty
     /// when kept, else the refusal.
-    std::string declare_pane(std::string_view office, const std::string& pane,
+    std::string declare_pane(std::string_view role, const std::string& pane,
                              std::vector<v2::PaneSettingRow> rows, loom::WeaveId from);
     /// The settings `ref`'s declaration gives while it counts, or nullptr.
     const std::vector<v2::PaneSettingRow>* counted(const PaneRef& ref) const;
     /// ...and the same rows as v1 says them.
     const std::vector<PaneSettingRow>* counted_v1(const PaneRef& ref) const;
-    /// AN OFFICE'S OFFICE-WIDE DECLARATION, the same way. Empty when kept, else the refusal.
-    std::string declare_office(const std::string& office, const std::vector<v2::PaneSettingRow>& rows,
+    /// AN ROLE'S ROLE-WIDE DECLARATION, the same way. Empty when kept, else the refusal.
+    std::string declare_role(const std::string& role, const std::vector<v2::PaneSettingRow>& rows,
                                loom::WeaveId from);
-    /// What an office's declaration gives: Workshop's own, declared in code, or the counted
-    /// declaration of an office that sent one; nullptr when none counts.
-    const std::vector<v2::PaneSettingRow>* office_rows(std::string_view office) const;
+    /// What a role's declaration gives: Workshop's own, declared in code, or the counted
+    /// declaration of a role that sent one; nullptr when none counts.
+    const std::vector<v2::PaneSettingRow>* role_rows(std::string_view role) const;
 
     // ---- Revisions -------------------------------------------------------------------------
 
@@ -139,8 +139,8 @@ public:
     /// moved -- the desk put live, the row's settings or the counted declaration; 0 when the live
     /// layout has no such row.
     std::int64_t row_revision(const PaneRef& ref);
-    /// THE REVISION AN OFFICE'S SETTINGS STAND AT, the same way; 0 when nothing declares.
-    std::int64_t office_revision(const std::string& office);
+    /// THE REVISION AN ROLE'S SETTINGS STAND AT, the same way; 0 when nothing declares.
+    std::int64_t role_revision(const std::string& role);
     /// The revision every layout's settings stand at, minted afresh whenever the reading moved.
     std::int64_t layout_settings_revision();
 
@@ -150,11 +150,11 @@ public:
 
     PaneSettingsAnswered read_pane(const std::string& refused, const PaneSettingsRequested& asked);
     PaneSettingCommitAnswered commit_pane(const std::string& refused, const PaneSettingCommitRequested& asked);
-    OfficeSettingsAnswered read_office(const std::string& refused, const OfficeSettingsRequested& asked);
-    /// `for_itself`: the asker is the office whose setting it is, so a commit kept and written
+    RoleSettingsAnswered read_role(const std::string& refused, const RoleSettingsRequested& asked);
+    /// `for_itself`: the asker is the role whose setting it is, so a commit kept and written
     /// whole is its own bookkeeping and is not said.
-    OfficeSettingCommitAnswered commit_office(const std::string& refused,
-                                              const OfficeSettingCommitRequested& asked,
+    RoleSettingCommitAnswered commit_role(const std::string& refused,
+                                              const RoleSettingCommitRequested& asked,
                                               bool for_itself = false);
     PaneSettingPinAnswered pin(const std::string& refused, const PaneSettingPinRequested& asked);
     /// `weavers_hand`: the unlock comes from the weaver's own hand, as the holder judged it.
@@ -172,29 +172,29 @@ public:
     /// locks on it named, and said; a row the live layout does not seat refused.
     PaneCloseAnswered close(const PaneRef& ref);
 
-    /// What an office's holder is handed now, for each declaring office whose holder takes
-    /// `OfficeSettings` and was not handed these: the office and the value.
-    std::vector<std::pair<std::string, OfficeSettings>> office_hand_offs();
+    /// What a role's holder is handed now, for each declaring role whose holder takes
+    /// `RoleSettings` and was not handed these: the role and the value.
+    std::vector<std::pair<std::string, RoleSettings>> role_hand_offs();
     /// ...and that one of them was handed.
-    void office_handed(const std::string& office, std::int64_t revision);
+    void role_handed(const std::string& role, std::int64_t revision);
 
     // ---- A row's settings, handed to its pane ----------------------------------------------
 
     /// WHAT EACH PANE OF THE LIVE LAYOUT IS HANDED NOW: every row whose pane some holder offers
-    /// and whose office's holder takes `PaneSettings`, in the newest version it takes, when what
+    /// and whose role's holder takes `PaneSettings`, in the newest version it takes, when what
     /// that holder was last handed differs -- another holder, another revision for v2, other
     /// settings; and each pane that asked while the live layout seats it nowhere, its settings at
     /// their defaults, at revision 0.
     std::vector<PaneHandOff> pane_hand_offs();
     /// ...and that one of them was handed: what its holder holds now.
     void pane_handed(const PaneHandOff& handed);
-    /// A PANE ASKED FOR ITS ROW: the life that holds its office holds nothing it was handed, and
+    /// A PANE ASKED FOR ITS ROW: the life that holds its role holds nothing it was handed, and
     /// is handed its row now -- or, while the live layout seats it nowhere, every setting at its
     /// default.
     void pane_asked(const PaneRef& ref);
-    /// WHAT A PANE SAYS IT CANNOT USE, from `from` as `office`: kept for the revision its holder
+    /// WHAT A PANE SAYS IT CANNOT USE, from `from` as `role`: kept for the revision its holder
     /// was last handed, from that holder alone, and refused aloud when it cannot have meant it.
-    void keep_unused(std::string_view office, loom::WeaveId from, const PaneSettingUnused& unused);
+    void keep_unused(std::string_view role, loom::WeaveId from, const PaneSettingUnused& unused);
     /// What the pane of `ref` said it cannot use of what its holder was last handed.
     std::vector<RowSettingUnused> unused_of(const PaneRef& ref) const;
     /// HOW FAR THE HAND-OFF OF THE LIVE ROW FOR `ref` GOT, in the band's words: stored and handed,
@@ -233,8 +233,8 @@ private:
         loom::WeaveId from{};
         std::int64_t incarnation = 0;
     };
-    struct OfficeDeclaration {
-        std::string office;
+    struct RoleDeclaration {
+        std::string role;
         std::vector<v2::PaneSettingRow> rows;
         loom::WeaveId from{};
         std::int64_t incarnation = 0;
@@ -247,8 +247,8 @@ private:
         std::vector<PaneSetting> settings;
         std::vector<v2::PaneSettingRow> rows;
     };
-    struct OfficeRevision {
-        std::string office;
+    struct RoleRevision {
+        std::string role;
         std::int64_t revision = 0;
         std::vector<v2::PaneSettingRow> rows;
         std::vector<PaneSetting> settings;
@@ -268,9 +268,9 @@ private:
 
     void say(std::string said, bool bad);
     void moved();
-    void office_moved(const std::string& office);
+    void role_moved(const std::string& role);
     std::string write_prefs();
-    bool counts(loom::WeaveId from, std::int64_t incarnation, std::string_view office) const;
+    bool counts(loom::WeaveId from, std::int64_t incarnation, std::string_view role) const;
     const v2::PaneSettingRow* declared_row(const PaneRef& ref, const std::string& key) const;
 
     // The live desk settled after any change of its membership: every everywhere lock pinned on
@@ -306,9 +306,9 @@ private:
     std::int64_t revision_ = 1;
     std::vector<CatalogName> catalog_;
     std::vector<PaneDeclaration> pane_declarations_;
-    std::vector<OfficeDeclaration> office_declarations_;
+    std::vector<RoleDeclaration> role_declarations_;
     std::vector<SettingsRevision> settings_revisions_;
-    std::vector<OfficeRevision> office_revisions_;
+    std::vector<RoleRevision> role_revisions_;
     std::vector<RowHanded> handed_;
     std::vector<PaneRef> asked_unseated_;
     std::int64_t settings_revision_ = 0;

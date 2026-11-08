@@ -26,17 +26,17 @@ bool WorkshopWeave::reads_by_pane(loom::WeaveId asker) const {
 
 // WL-GUIDE-02 -- agents/workshop/guide.md; WL-GUIDE-03 -- agents/workshop/guide.md
 std::string WorkshopWeave::read_withheld(loom::Mail& mail, loom::WeaveId asker,
-                                         const std::string& office, const std::string& pane) const {
+                                         const std::string& role, const std::string& pane) const {
     if (!host_->guest_row) return {};
     const scope::GuestRowFacts row = host_->guest_row(asker);
     if (!row.admitted) return {};
-    const std::string named = office + "/" + pane;
+    const std::string named = role + "/" + pane;
     // THE WEAVER'S OWN, ON EVERY HOST, whatever the row reads.
-    if (const std::string only = scope::weaver_only_pane(office, pane); !only.empty()) {
+    if (const std::string only = scope::weaver_only_pane(role, pane); !only.empty()) {
         return "pane " + named + " is read only by the weaver's hand: " + only;
     }
-    if (office == kEditorRole && !host_->host_fact.guests_file.empty() && host_->role_holder) {
-        // THE EDITOR'S DOCUMENT, as its office's holder last claimed it.
+    if (role == kEditorRole && !host_->host_fact.guests_file.empty() && host_->role_holder) {
+        // THE EDITOR'S DOCUMENT, as its role's holder last claimed it.
         const loom::WeaveId holder = host_->role_holder(kEditorRole);
         const loom::SenseReading doc =
             holder.valid() ? mail.latest<EditorDocument>(holder) : loom::SenseReading{};
@@ -49,7 +49,7 @@ std::string WorkshopWeave::read_withheld(loom::Mail& mail, loom::WeaveId asker,
     }
     if (!row.reads_by_pane) return {};
     // ATTENTION SAYS WHAT STANDS ACROSS EVERY PANE, so a row that reads by pane does not read it.
-    if (office == attention_pane::kAttentionPaneRole) {
+    if (role == attention_pane::kAttentionPaneRole) {
         return "pane " + named + " says what stands across every pane, and guest '" + row.name +
                "' reads only the panes its `capture` names";
     }
@@ -65,7 +65,7 @@ std::string WorkshopWeave::read_withheld(loom::Mail& mail, loom::WeaveId asker,
     return "pane " + named + " is outside guest '" + row.name + "''s `capture` doors";
 }
 
-// A PANE THE ASKER MAY NOT READ, SAID AS A STAMP: its place in the order, its office, pane and
+// A PANE THE ASKER MAY NOT READ, SAID AS A STAMP: its place in the order, its role, pane and
 // holder, and nothing that moves with what it shows.
 PaneStamp WorkshopWeave::withheld_stamp(const PaneRef& ref) const {
     const PaneStamp of = stamp_of(ref.provider, ref.pane);

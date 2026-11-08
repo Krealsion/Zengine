@@ -11,12 +11,12 @@ remain available separately ([Flow reference](flow-reference.md)).
 
 ## Conversation
 
-The manager holds the office [`zengine.flow.host`](zengine.flow.host.md), whose manual says each
+The manager holds the role [`zengine.flow.host`](zengine.flow.host.md), whose manual says each
 request, its answer and its refusals. Its message definitions live in
 `flow/flow-host/vocabulary.hpp`, installed through `zengine::flow` alongside the graphical pane
 control shapes in `flow/flow-pane/vocabulary.hpp`. These headers let another participant speak
 the protocols. The manager implementation and pane model/view remain Workshop internals.
-Each request receives one authenticated, correlated answer. `FlowChanged` is an office-authored
+Each request receives one authenticated, correlated answer. `FlowChanged` is a role-authored
 notification to inspect again, not an acknowledgement that an application operation succeeded.
 
 | Request | Meaning |
@@ -31,7 +31,7 @@ notification to inspect again, not an acknowledgement that an application operat
 `FlowAnswer` carries the request's action and session, `ok`, a reason, the subject identity,
 project bytes, events, retention bounds and pending count. `FlowCatalogAnswer` carries complete
 operator descriptors or an explicit refusal. Clients must check answer provenance and their
-request correlation. They must check `FlowChanged`'s authored office before treating it as a
+request correlation. They must check `FlowChanged`'s authored role before treating it as a
 manager notification.
 
 A successful send answer means **queued**, not delivered or successfully evaluated. Events
@@ -43,9 +43,9 @@ is another observation, not a promise that all future consequences have finished
 ## Custody and authority
 
 Personal requests scope session names to the bus-stamped requesting participant. Deliberately
-office-authored requests scope them to that office, and the manager checks that the requesting
-participant still holds it when the request arrives. A successor can continue an office's
-sessions by speaking as that office. Merely holding an office while speaking personally does
+role-authored requests scope them to that role, and the manager checks that the requesting
+participant still holds it when the request arrives. A successor can continue a role's
+sessions by speaking as that role. Merely holding a role while speaking personally does
 not acquire its sessions. Other participants cannot inspect, edit, send into or stop a session
 by guessing its name.
 

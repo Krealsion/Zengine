@@ -4,7 +4,7 @@
 // The Workshop panes suite -- what is true right now, as a loaded weave: the Info pane's
 // pane-property view, driven through the real `zengine-info-pane` image over the real pane
 // protocol against the host's real publications. The desk already names this pane, so its offer
-// resolves a row that was there. An office asks it to inspect a pane, as the Pane Manager does; it
+// resolves a row that was there. A role asks it to inspect a pane, as the Pane Manager does; it
 // is shown the host's rows over that pane and asks back through two shapes, so cases drive the HOST
 // and read what the PANE made of it; most edit the Layouts pane's Width, whose room is not Info's.
 
@@ -27,7 +27,7 @@ namespace {
 
 namespace pane = zengine::info_pane;
 
-/// The office and pane a saved setup names, spelled through the package's own header --
+/// The role and pane a saved setup names, spelled through the package's own header --
 /// the durable names, not literals, so a case cannot agree with a typo.
 inline PaneRef pane_info_ref() { return PaneRef{pane::kInfoPaneRole, pane::kInfoPane}; }
 
@@ -109,7 +109,7 @@ struct InfoRig {
         return -1;
     }
 
-    /// AN OFFICE ASKS THIS PANE TO INSPECT `ref`, as the Pane Manager's `inspect in Info` row
+    /// AN ROLE ASKS THIS PANE TO INSPECT `ref`, as the Pane Manager's `inspect in Info` row
     /// does, and is answered what came of it.
     PaneSubjectActed ask_inspect(const PaneRef& ref) { return hand_inspect_in_info(r, ref); }
 
@@ -123,11 +123,11 @@ struct InfoRig {
     }
 
     /// ...QUEUED AND NOT DRAINED, so a case places the ask in a burst as `enqueue_action` places a
-    /// key; the office's answer reaches the rig's hand.
+    /// key; the role's answer reaches the rig's hand.
     void enqueue_inspect(const PaneRef& ref) {
         (void)door_hand(r);
-        const loom::Ticket sent = r.bus.office_send_to_role_as(
-            r.hand_id, DoorHand::kOffice, pane::kInfoPaneRole,
+        const loom::Ticket sent = r.bus.role_send_to_role_as(
+            r.hand_id, DoorHand::kRole, pane::kInfoPaneRole,
             loom::Message(loom::to_value(InspectPaneRequested{ref.provider, ref.pane}), r.hand_id,
                           r.hand_id, ++inspects_));
         REQUIRE(sent.valid());
@@ -274,12 +274,12 @@ struct InfoRig {
     void beat() { (void)r.bus.send(r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{}))); }
     void settle() { r.bus.drain_until_idle(); }
 
-    /// A SENTENCE SAID AS WORKSHOP'S OWN OFFICE, QUEUED AND NOT DRAINED -- `PaneRig::workshop_action`'s
+    /// A SENTENCE SAID AS WORKSHOP'S OWN ROLE, QUEUED AND NOT DRAINED -- `PaneRig::workshop_action`'s
     /// verified door, so a case can place several deliveries to the pane in one burst, in the
     /// order Workshop would send them, where a key could not: a key resolves against the rows
     /// Workshop holds, and those trail the pane's own re-declaration by a delivery.
     void enqueue_as_workshop(const loom::Value& said) {
-        const loom::Ticket sent = r.bus.office_send_to_role_as(
+        const loom::Ticket sent = r.bus.role_send_to_role_as(
             r.workshop_id, kWorkshopProvider, pane::kInfoPaneRole,
             loom::Message(said, r.workshop_id, r.workshop_id, 0));
         REQUIRE(sent.valid());
@@ -435,8 +435,8 @@ TEST_CASE("the pane arrives by a plan row and resolves a row the desk already ha
         CHECK(std::string(built_in.pane) != std::string(pane::kInfoPane));
     }
 
-    // THE DESK NAMED IT BEFORE THE OFFICE EXISTED: the row was authored by `default_setup`,
-    // and the office's arrival RESOLVED it rather than adding it.
+    // THE DESK NAMED IT BEFORE THE ROLE EXISTED: the row was authored by `default_setup`,
+    // and the role's arrival RESOLVED it rather than adding it.
     CHECK(has_pane(f.r.session().setup.active, pane_info_ref()));
     // ...and the one row left waiting is the Notices pane's, which this rig does not load.
     const std::vector<PaneRef> left =
@@ -446,7 +446,7 @@ TEST_CASE("the pane arrives by a plan row and resolves a row the desk already ha
 }
 
 TEST_CASE("the shipped desk puts it at the room's top-right, by word and not by number") {
-    // THE PLACE MOVED WITH THE OFFICE AND IS SAID AS A WORD. No pair of coordinates can mean
+    // THE PLACE MOVED WITH THE ROLE AND IS SAID AS A WORD. No pair of coordinates can mean
     // "the right edge, at a comfortable size" on a screen the desk does not know, so the row
     // spells `top-right` at no offset and leaves its sizes the pane's own.
     // ⚔ MUTATION (tests/mutants/workshop_panes_info.md#info-seated-by-default): `default_setup`
@@ -641,7 +641,7 @@ TEST_CASE("a pane its words leave too small to see, or off the room, is still li
     }
 }
 
-TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
+TEST_CASE("a Workshop with no Info ROLE keeps the row and says so") {
     // ⚠ A RUN IN WHICH NOTHING HOLDS `zengine.info` has a desk row it cannot present -- authored
     // intent, kept, explained, like every unresolved row, rather than a Workshop that quietly
     // has no Info. This rig loads no plan at all, the state of a saved layout naming a pane the
@@ -701,7 +701,7 @@ TEST_CASE("the heading and the subject's properties are the pane's rows, over th
     author_test_pane_room(f.r, f.kind, 35, 58);
     f.r.extent(161, 48);
 
-    // NOTHING IS INSPECTED UNTIL AN OFFICE NAMES SOMETHING, and the rows say so, first row first.
+    // NOTHING IS INSPECTED UNTIL AN ROLE NAMES SOMETHING, and the rows say so, first row first.
     std::string all = f.text();
     CHECK(f.row_of("PROPERTIES") == 0);
     CHECK(all.find("(no subject") != std::string::npos);
@@ -720,7 +720,7 @@ TEST_CASE("the heading and the subject's properties are the pane's rows, over th
     // THE PROPERTIES ARE THE SUBJECT'S, in the host's own row order and with the host's own
     // values -- read back off the seam rather than composed here.
     const PaneSubjectShown said = f.picture();
-    CHECK(said.office == layouts_ref().provider);
+    CHECK(said.role == layouts_ref().provider);
     CHECK(said.pane == layouts_ref().pane);
     REQUIRE_FALSE(said.properties.empty());
     for (const ShownProperty& p : said.properties) {
@@ -807,9 +807,9 @@ TEST_CASE("what the body cannot show, it counts -- on the side it left it out") 
 // INFO-WEAVE — the gestures, through the real seam
 // ============================================================================
 
-TEST_CASE("an office's ask inspects a pane through the host's own door, and the office is answered "
+TEST_CASE("a role's ask inspects a pane through the host's own door, and the role is answered "
           "what the host said") {
-    // THE PANE MANAGER'S `inspect in Info` ROW, AS AN OFFICE: it asks Info, and Info asks the host.
+    // THE PANE MANAGER'S `inspect in Info` ROW, AS AN ROLE: it asks Info, and Info asks the host.
     InfoRig f;
     f.open();
     REQUIRE_FALSE(f.r.session().inspected.addressed());
@@ -830,7 +830,7 @@ TEST_CASE("an office's ask inspects a pane through the host's own door, and the 
     CHECK(f.picture().subject != first);
     CHECK(f.row_of("PANE Info") == 0);
 
-    // ...AND A PANE THE HOST WILL NOT INSPECT IS REFUSED IN ITS WORDS, TO THE OFFICE AND IN THE
+    // ...AND A PANE THE HOST WILL NOT INSPECT IS REFUSED IN ITS WORDS, TO THE ROLE AND IN THE
     // ROWS, with the subject where it was.
     const PaneSubjectActed ghost = f.ask_inspect(PaneRef{"zengine.nowhere", "ghost"});
     CHECK_FALSE(ghost.accepted);
@@ -839,9 +839,9 @@ TEST_CASE("an office's ask inspects a pane through the host's own door, and the 
     CHECK(f.r.session().inspected.ref == pane_info_ref());
 }
 
-TEST_CASE("two inspects asked in one burst: the older office is told a newer took its place, the "
+TEST_CASE("two inspects asked in one burst: the older role is told a newer took its place, the "
           "newer is answered what the host said, and the subject is the newer's") {
-    // WHICH ANSWER IS THIS. Info holds one inspect, the newest; the office whose ask it replaced
+    // WHICH ANSWER IS THIS. Info holds one inspect, the newest; the role whose ask it replaced
     // is answered at once, and the host's answer to the replaced ask names a correlation nothing
     // waits on.
     InfoRig f;
@@ -931,10 +931,10 @@ TEST_CASE("WL-HAND-06: Info names its panes by reference and its properties by l
         CHECK(w.rows(info) == trimmed(f.shown()));
         // A VIEW WORKSHOP SEATS NOWHERE is composed for the window's room, and Workshop is shown
         // none of it.
-        const loom::WeaveId office = f.r.bus.role_holder(pane::kInfoPaneRole);
+        const loom::WeaveId role = f.r.bus.role_holder(pane::kInfoPaneRole);
         std::size_t shown_to_workshop = 0;
         const loom::ObserverId tap = f.r.bus.add_observer([&](const loom::BusEvent& e) {
-            if (e.kind == loom::EventKind::Delivered && e.sender == office &&
+            if (e.kind == loom::EventKind::Delivered && e.sender == role &&
                 e.target == f.r.workshop_id && e.schema_name == gfx::Drawn::zen_name) {
                 ++shown_to_workshop;
             }
@@ -1093,7 +1093,7 @@ TEST_CASE("a live draft holds another subject back, and the reason is the weaver
     const std::int64_t named = f.picture().subject;
     SubjectAskTap asks(f.r.bus, f.r.workshop_id);
     const PaneSubjectActed said = f.ask_inspect(pane_info_ref());
-    // THE OFFICE THAT ASKED IS TOLD WHY, IN THE PANE'S WORDS, and so is the weaver, in the rows.
+    // THE ROLE THAT ASKED IS TOLD WHY, IN THE PANE'S WORDS, and so is the weaver, in the rows.
     CHECK_FALSE(said.accepted);
     CHECK(said.refusal == "finish the edit first -- commit it or cancel it");
     CHECK(f.row_of("finish the edit first") == 0);
@@ -1131,7 +1131,7 @@ TEST_CASE("Info may inspect itself, and an edit to its own place is written by t
     InfoRig f;
     f.open();
     f.inspect(pane_info_ref());
-    CHECK(f.picture().office == pane::kInfoPaneRole);
+    CHECK(f.picture().role == pane::kInfoPaneRole);
     CHECK(f.row_of("PANE Info") == 0);
     const std::int64_t named = f.picture().subject;
     const std::string window = f.picture().properties[f.property_index("Window")].value;
@@ -1251,11 +1251,11 @@ TEST_CASE("an id the Info pane does not answer to in its mode is no act: a commi
     f.regrant();
     CHECK(f.row_of("edit cancelled") == 0);
 
-    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN OFFICE, is the same non-act.
+    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN ROLE, is the same non-act.
     f.r.key(input::scan::kReturn);
     f.r.key(input::scan::kEscape);
     REQUIRE(f.row_of("edit cancelled") == 0);
-    const PaneRig::OfficeAction unknown =
+    const PaneRig::RoleAction unknown =
         f.r.workshop_action(pane::kInfoPaneRole, pane::kInfoPane, "info.no-such-action");
     REQUIRE(unknown.authored);
     REQUIRE(unknown.delivered);
@@ -1276,7 +1276,7 @@ TEST_CASE("an id the Info pane does not answer to in its mode is no act: a commi
     };
     const std::string cursor_was = cursor_row();
     REQUIRE_FALSE(cursor_was.empty());
-    const PaneRig::OfficeAction down =
+    const PaneRig::RoleAction down =
         f.r.workshop_action(pane::kInfoPaneRole, pane::kInfoPane, pane::kActionDown);
     REQUIRE(down.delivered);
     CHECK(f.row_of("edit cancelled") == -1);
@@ -1484,7 +1484,7 @@ TEST_CASE("a commit and a cancel resolved in one poll: the cancel says the commi
 TEST_CASE("an Info commit answered after a newer draft opened on the same field closes, alters and "
           "marks nothing on that draft, and a sentence a later act said stands") {
     // AN OLD ANSWER IS NOT THE NEW DRAFT'S. A commit, a cancel and a new edit delivered in one
-    // burst, then an office asking to inspect another pane: the host answers the first draft's
+    // burst, then a role asking to inspect another pane: the host answers the first draft's
     // commit while the second draft is open on the same property.
     const auto late_answer = [](const std::string& typed, const std::string& expected) {
         InfoRig f;
@@ -1531,7 +1531,7 @@ TEST_CASE("an Info draft ended while an earlier draft's commit is still unanswer
           "was already sent, even when an act between them asked the host something else, and "
           "that commit's account replaces the sentence") {
     // WHETHER A COMMIT IS UNANSWERED IS WHAT DECIDES WHAT ENDING A DRAFT MAY SAY. A commit and its
-    // cancel, an office's ask to inspect the pane already inspected (an inspect of Info's own), a
+    // cancel, a role's ask to inspect the pane already inspected (an inspect of Info's own), a
     // new draft and its cancel, delivered in one burst.
     InfoRig f;
     f.open();
@@ -1595,7 +1595,7 @@ TEST_CASE("a picture that names other rows abandons the Info draft and says so, 
     CHECK(layouts_width_default_on_every_desk(f));
 
     // A COMMIT CANNOT FOLLOW IT THERE: the pane no longer answers to one, and neither desk moves.
-    const PaneRig::OfficeAction commit =
+    const PaneRig::RoleAction commit =
         f.r.workshop_action(pane::kInfoPaneRole, pane::kInfoPane, pane::kActionCommit);
     REQUIRE(commit.delivered);
     CHECK(layouts_width_default_on_every_desk(f));
@@ -1864,7 +1864,7 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
 TEST_CASE("an Info commit's answer settles the sentence that said a second commit was not sent, "
           "and leaves a sentence a later act said standing") {
     // A SENTENCE ABOUT A PENDING COMMIT BELONGS TO THAT COMMIT, AND ONLY THAT ONE. Two commits and
-    // an office's ask to inspect another pane in one burst: the second commit is declined and the
+    // a role's ask to inspect another pane in one burst: the second commit is declined and the
     // ask is told the draft comes first.
     const auto burst = [](InfoRig& f, bool typed_between) {
         f.enqueue_action(pane::kActionCommit);
@@ -2263,13 +2263,13 @@ inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
     return out;
 }
 
-/// AN OFFICE HOLDING `zengine.workshop` WITH NO SUBJECT DOOR. It hears a pane's offer and its
+/// AN ROLE HOLDING `zengine.workshop` WITH NO SUBJECT DOOR. It hears a pane's offer and its
 /// declared actions the way Workshop does, and says Workshop's resolved commit id to the Info pane
-/// under that office; the pane's rows are what the window holds of its area. A commit sent to it is
+/// under that role; the pane's rows are what the window holds of its area. A commit sent to it is
 /// queued (the Info pane declares the shape, so it resolves) and refused at dispatch as
 /// NotAccepted, and Loom's own notice names the attempt.
-class DoorlessOffice
-    : public loom::WeaveBase<DoorlessOffice, SeatState,
+class DoorlessRole
+    : public loom::WeaveBase<DoorlessRole, SeatState,
                              loom::Accept<PaneOffered, PaneActions, SeatDo>,
                              loom::Emit<PaneActionRequested>> {
 public:
@@ -2291,7 +2291,7 @@ public:
     void on(const SeatDo&, loom::Mail&) { ++state_.said; }
 };
 
-/// AN INSPECTOR OF ITS OWN, IN ITS OWN OFFICE -- so a case can ask the host's subject doors what no
+/// AN INSPECTOR OF ITS OWN, IN ITS OWN ROLE -- so a case can ask the host's subject doors what no
 /// weaver's hand on the Info pane can make it ask: a pane nobody has, or the picture on arrival.
 class Inspector
     : public loom::WeaveBase<Inspector, SeatState,
@@ -2313,7 +2313,7 @@ public:
     std::vector<PaneSubjectShown> pictures;
 };
 
-inline constexpr const char* kInspectorOffice = "zengine.test.inspector";
+inline constexpr const char* kInspectorRole = "zengine.test.inspector";
 
 } // namespace
 
@@ -2374,10 +2374,10 @@ TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and it
     }
 }
 
-TEST_CASE("an Info commit a doorless office refuses at dispatch: the draft stands, the next "
+TEST_CASE("an Info commit a doorless role refuses at dispatch: the draft stands, the next "
           "commit tries again, and it is written once the door is back") {
     // THE DOOR LEAVES FOR AN INTERVAL: Workshop's weave comes off the bus, its session untouched,
-    // and an office with no subject door holds `zengine.workshop`. The pane DECLARES
+    // and a role with no subject door holds `zengine.workshop`. The pane DECLARES
     // `PaneCommitRequested` in its `Emit<...>` and a declared shape is registered by its emitter
     // at load, so the commit is queued, refused at dispatch as NotAccepted, and Loom's notice
     // releases the record (the other half of WL-INFO-13). The ticket-not-valid branch is
@@ -2391,14 +2391,14 @@ TEST_CASE("an Info commit a doorless office refuses at dispatch: the draft stand
     std::unique_ptr<loom::Weave> workshop = f.r.take_workshop_off();
     REQUIRE(f.r.bus.resolve_schema(PaneCommitRequested::zen_name,
                                    PaneCommitRequested::zen_version) != nullptr);
-    auto held = std::make_unique<DoorlessOffice>();
-    DoorlessOffice* office = held.get();
+    auto held = std::make_unique<DoorlessRole>();
+    DoorlessRole* role = held.get();
     loom::Grant say;
     say.allow_to_role(PaneActionRequested::zen_name, PaneActionRequested::zen_version,
                       pane::kInfoPaneRole);
-    const loom::WeaveId office_id =
+    const loom::WeaveId role_id =
         f.r.bus.register_weave(std::move(held), std::move(say), std::string(kWorkshopProvider));
-    office->zen_set_self(office_id);
+    role->zen_set_self(role_id);
 
     int seam_refusals = 0;
     int queued = 0;
@@ -2414,14 +2414,14 @@ TEST_CASE("an Info commit a doorless office refuses at dispatch: the draft stand
             ++queued;
         }
     });
-    const auto commit_id_said = [&f, office_id] {
-        (void)f.r.bus.send(office_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+    const auto commit_id_said = [&f, role_id] {
+        (void)f.r.bus.send(role_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
         f.r.bus.drain_until_idle();
     };
     commit_id_said();
     CHECK(seam_refusals == 1);
-    CHECK(reason == "NotAccepted"); // queued to the doorless office, refused at dispatch
+    CHECK(reason == "NotAccepted"); // queued to the doorless role, refused at dispatch
     CHECK(queued == 0);
     REQUIRE_FALSE(held_reading(f.kind).rows.empty());
     CHECK_MESSAGE(held_reading(f.kind).rows.front().rfind("commit not delivered --", 0) == 0,
@@ -2434,8 +2434,8 @@ TEST_CASE("an Info commit a doorless office refuses at dispatch: the draft stand
     CHECK(held_reading(f.kind).rows.front().rfind("commit not delivered --", 0) == 0);
     f.r.bus.remove_observer(tap);
 
-    // THE DOOR COMES BACK: the office leaves, and the same Workshop weave holds it again.
-    REQUIRE(f.r.bus.unregister_weave(office_id) != nullptr);
+    // THE DOOR COMES BACK: the role leaves, and the same Workshop weave holds it again.
+    REQUIRE(f.r.bus.unregister_weave(role_id) != nullptr);
     f.r.put_workshop_back(std::move(workshop));
     f.regrant();
     CHECK_MESSAGE(f.admitted_leads("commit not delivered --"), f.text());
@@ -2453,7 +2453,7 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
           "settles nothing") {
     // THE PROVENANCE IS THE FACT; THE SHAPE IS SPEECH. A stranger says `zen.DispatchRefused` naming
     // every half the pane matches -- the attempt, the correlation, the shape, its version, the
-    // office -- and queues it where it reaches the pane before the owner's answer does.
+    // role -- and queues it where it reaches the pane before the owner's answer does.
     InfoRig f;
     f.open();
     auto held = std::make_unique<Stranger>();
@@ -2565,10 +2565,10 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     CHECK(f.row_of("commit not sent") == -1);
 }
 
-TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, answers the office "
+TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, answers the role "
           "that asked, and the next ask inspects") {
-    // THE SAME ACCOUNTING FOR THE OTHER ASK. An office asks Info to inspect a pane and Info asks
-    // the host; the turn stops where Info has heard the office -- its inspect queued, not
+    // THE SAME ACCOUNTING FOR THE OTHER ASK. A role asks Info to inspect a pane and Info asks
+    // the host; the turn stops where Info has heard the role -- its inspect queued, not
     // delivered -- and Workshop's weave is killed before that delivery and revived afterwards.
     InfoRig f;
     f.open();
@@ -2615,7 +2615,7 @@ TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, ans
     CHECK(notices == 1);
     CHECK_FALSE(f.r.session().inspected.addressed());
     CHECK_MESSAGE(f.admitted_leads("inspect not delivered -"), f.text());
-    // THE OFFICE THAT ASKED IS ANSWERED ONCE, in the same words.
+    // THE ROLE THAT ASKED IS ANSWERED ONCE, in the same words.
     REQUIRE(hand.acted.size() == answered_before + 1);
     CHECK_FALSE(hand.acted.back().accepted);
     CHECK(hand.acted.back().refusal.rfind("inspect not delivered -- nothing changed (", 0) == 0);
@@ -2628,7 +2628,7 @@ TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, ans
 TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this desk is refused in "
           "words with nothing moved, and an inspector that arrives is answered the picture as it "
           "is now") {
-    // THE HOST'S TWO SUBJECT DOORS, ASKED BY AN OFFICE OF ITS OWN: a reference nobody has, which
+    // THE HOST'S TWO SUBJECT DOORS, ASKED BY AN ROLE OF ITS OWN: a reference nobody has, which
     // no row of the Pane Manager can name, and the question an arriving inspector asks.
     InfoRig f;
     f.open();
@@ -2642,11 +2642,11 @@ TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this d
                         kWorkshopProvider);
     grant.allow_to_any(PaneSubjectRequested::zen_name, PaneSubjectRequested::zen_version);
     const loom::WeaveId id =
-        f.r.bus.register_weave(std::move(held), std::move(grant), std::string(kInspectorOffice));
+        f.r.bus.register_weave(std::move(held), std::move(grant), std::string(kInspectorRole));
     inspector->zen_set_self(id);
 
-    (void)f.r.bus.office_send_to_role_as(
-        id, kInspectorOffice, kWorkshopProvider,
+    (void)f.r.bus.role_send_to_role_as(
+        id, kInspectorRole, kWorkshopProvider,
         loom::Message(loom::to_value(InspectPaneRequested{"zengine.nowhere", "ghost"}), id, id, 1));
     f.settle();
     REQUIRE(inspector->answers.size() == 1);
@@ -2656,8 +2656,8 @@ TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this d
     CHECK(f.r.session().inspected.ref == layouts_ref());
     CHECK(f.picture().subject == named);
 
-    (void)f.r.bus.office_send_to_role_as(
-        id, kInspectorOffice, kWorkshopProvider,
+    (void)f.r.bus.role_send_to_role_as(
+        id, kInspectorRole, kWorkshopProvider,
         loom::Message(loom::to_value(PaneSubjectRequested{}), id, id, 2));
     f.settle();
     REQUIRE(inspector->pictures.size() == 1);

@@ -10,7 +10,7 @@ in [its manual](zengine.view.builder.md); the contract beneath this page is the
 [view reference](view.md).
 
 Open the Pane Manager and press `n`, or choose **View Builder**. The shipped plans include the
-optional `zengine-view-builder` artifact in the `zengine.view.builder` office. The builder takes
+optional `zengine-view-builder` artifact in the `zengine.view.builder` role. The builder takes
 its place in the column down the room's left like any pane you show, and a view you run opens in
 front, with the keys: where the column has no room left for it, at the column's top.
 
@@ -82,7 +82,7 @@ pane the selected element's values sit in boxes on the right; in a narrow one, b
 The panel counts from a start toward a limit by a step, and shows the total a Flow definition
 named `tally` works out.
 
-1. Click **View**, type `tally.panel` and press `Return`. The name is the view's office, the name
+1. Click **View**, type `tally.panel` and press `Return`. The name is the view's role, the name
    its pane is listed under, and the namespace of what it says.
 2. Drag **Number** onto the canvas three times, then a **Button** and a **Label** beneath them.
 3. Select each and type its values: number fields `start`, `limit` and `step` (give `step` the

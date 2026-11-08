@@ -19,7 +19,7 @@
 #include "editor/neovim-editor/vocabulary.hpp"
 
 #include "editor/neovim/lua.hpp"
-#include "editor/office_seam.hpp"
+#include "editor/role_seam.hpp"
 #include "editor/source-transfer/cpp.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -90,7 +90,7 @@ inline void NeovimEditorWeave::pointer(std::int64_t phase, std::int64_t button,
         }
     } else if (press && button == 3) {
         if (!at.shown) {
-            (void)ws::pane_menu::pass_back(mail, nve::kEditorOffice, nve::kEditorPane);
+            (void)ws::pane_menu::pass_back(mail, nve::kEditorRole, nve::kEditorPane);
             return;
         }
         right_press(at.row, at.column, aimed, mail);
@@ -217,7 +217,7 @@ inline void NeovimEditorWeave::right_press(std::int64_t row, std::int64_t column
             menu_ = ws::pane_menu::Offer(nve::kEditorPane, "location")
                         .at(row, column)
                         .row(kLocationRow, "Carry this file's location")
-                        .send(mail, nve::kEditorOffice);
+                        .send(mail, nve::kEditorRole);
         }
         return; // otherwise a focus statement that moves nothing
     }
@@ -247,7 +247,7 @@ inline void NeovimEditorWeave::right_press(std::int64_t row, std::int64_t column
                         .at(row, column)
                         .row(kExtractRow, "Extract selection to Inventory")
                         .row(kNeovimMenuRow, "Neovim's own menu")
-                        .continuing(later, nve::kEditorOffice, gesture);
+                        .continuing(later, nve::kEditorRole, gesture);
         });
         return;
     }
@@ -347,14 +347,14 @@ inline void NeovimEditorWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail
 }
 
 /// WORKSHOP'S WORD ON WHETHER THIS GESTURE'S ACTOR MAY DO WHAT THIS PANE ASKED: carry a copy, or
-/// open a dropped location (`office::answer_operation`), settled against whether it names the
+/// open a dropped location (`role::answer_operation`), settled against whether it names the
 /// buffer Neovim holds and that buffer's changedtick now.
 inline void NeovimEditorWeave::on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
     const auto stamp = [this](Locate& l) {
         l.same_path = doc_path() == l.loc.path;
         l.snapshot = doc_.tick;
     };
-    if (office::answer_operation(answer, mail, nve::kEditorOffice, nve::kEditorPane, asked_, pickup_, locate_, stamp,
+    if (role::answer_operation(answer, mail, nve::kEditorRole, nve::kEditorPane, asked_, pickup_, locate_, stamp,
                                  noticing())) {
         resay_ = true;
     }
@@ -362,7 +362,7 @@ inline void NeovimEditorWeave::on(const ws::PaneOperationAnswered& answer, loom:
 
 /// WORKSHOP TOOK THE COPY, OR SAID WHY NOT. Neovim's buffer was never touched either way.
 inline void NeovimEditorWeave::on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
-    if (office::settle_carry(answer, mail, pickup_, "Neovim's buffer is unchanged", noticing())) {
+    if (role::settle_carry(answer, mail, pickup_, "Neovim's buffer is unchanged", noticing())) {
         resay_ = true;
     }
 }
@@ -511,10 +511,10 @@ inline std::string NeovimEditorWeave::project_root() const {
 }
 
 /// ASK WORKSHOP TO APPROVE A CARRY OF THIS PAIR FOR THE GESTURE THAT CAUSED IT; the carry
-/// follows the approval (`office::begin_pickup`).
+/// follows the approval (`role::begin_pickup`).
 inline void NeovimEditorWeave::begin_pickup(const st::Pair& pair, bool drag, std::uint64_t gesture,
                                             std::string label, std::string what, loom::Mail& mail) {
-    office::begin_pickup(pair, drag, gesture, label, std::move(what), mail, nve::kEditorOffice, nve::kEditorPane, asked_,
+    role::begin_pickup(pair, drag, gesture, label, std::move(what), mail, nve::kEditorRole, nve::kEditorPane, asked_,
                          pickup_, noticing());
 }
 
@@ -659,7 +659,7 @@ inline void NeovimEditorWeave::receive_into(st::Material m, Aim aim, const ws::R
                      .row(kInsertLine, "Insert its Terminal line")
                      .row(kInsertCpp, cpp == st::CppDocument::Yes ? "Generate C++ that builds it"
                                                                   : "Generate C++ (this .h is C++)")
-                     .continuing(mail, nve::kEditorOffice, gesture);
+                     .continuing(mail, nve::kEditorRole, gesture);
     if (!drop_.menu.pending()) {
         drop_ = Dropped{};
         notice("nothing was inserted -- the choice for the dropped command could not be offered", true);
@@ -726,7 +726,7 @@ inline void NeovimEditorWeave::insert_command(const st::Material& m, const Aim& 
     }
     Insertion said;
     said.amount = "the Terminal line for " + m.what;
-    said.after = office::terminal_line_after(t, m);
+    said.after = role::terminal_line_after(t, m);
     said.alert = !t.missing.empty();
     insert_lines(t.line, aim, std::move(said));
 }
@@ -754,7 +754,7 @@ inline void NeovimEditorWeave::insert_cpp_from(const st::Material& m, const Aim&
     }
     Insertion said;
     said.amount = "C++ for " + m.what;
-    said.instead = office::generated_cpp_words(g, m.what, "") + " -- u removes it; nothing was sent, written or built";
+    said.instead = role::generated_cpp_words(g, m.what, "") + " -- u removes it; nothing was sent, written or built";
     said.alert = !g.holes.empty();
     // GENERATED CODE IS WHOLE LINES, before the line the drop landed on, joining no text.
     insert_lines(st::join_lf(g.lines), aim, std::move(said), true);
@@ -763,7 +763,7 @@ inline void NeovimEditorWeave::insert_cpp_from(const st::Material& m, const Aim&
 /// A DROPPED LOCATION (WL-NVIM-12): Workshop approves the gesture, then the managed open.
 // WL-NVIM-12 -- agents/workshop/neovim-transfers.md
 inline void NeovimEditorWeave::open_location(const st::Material& m, loom::Mail& mail) {
-    const std::string refused = office::location_refusal(m.location, locate_);
+    const std::string refused = role::location_refusal(m.location, locate_);
     if (!refused.empty()) {
         notice(refused, true);
         return;
@@ -780,7 +780,7 @@ inline void NeovimEditorWeave::open_location(const st::Material& m, loom::Mail& 
     std::error_code ec;
     const std::string path = spelled(m.location.path);
     if (!std::filesystem::is_regular_file(std::filesystem::path(path), ec)) {
-        const office::Roots roots = office::roots_of(m.location_context, project_root());
+        const role::Roots roots = role::roots_of(m.location_context, project_root());
         std::string why =
             "nothing was opened -- " + path + " is not there, and a location reopens a file rather than creating one";
         if (roots.elsewhere) {
@@ -790,7 +790,7 @@ inline void NeovimEditorWeave::open_location(const st::Material& m, loom::Mail& 
         notice(why, true);
         return;
     }
-    office::ask_location(m, mail, nve::kEditorOffice, nve::kEditorPane, asked_, locate_, noticing());
+    role::ask_location(m, mail, nve::kEditorRole, nve::kEditorPane, asked_, locate_, noticing());
 }
 
 inline void NeovimEditorWeave::settle_location(const SourceOpened& said) {
@@ -801,16 +801,16 @@ inline void NeovimEditorWeave::settle_location(const SourceOpened& said) {
     }
     Locate l = std::move(locate_);
     locate_ = Locate{};
-    const office::Roots roots = office::roots_of(l.ctx, project_root());
+    const role::Roots roots = role::roots_of(l.ctx, project_root());
     if (!said.accepted) {
-        notice(office::open_refused_words(l.loc.path, said.refusal, roots), true);
+        notice(role::open_refused_words(l.loc.path, said.refusal, roots), true);
         return;
     }
     if (doc_path() != l.loc.path) {
         notice("the location's file was shown, but Neovim holds another buffer now -- the cursor was not moved", false);
         return;
     }
-    const std::string opened = office::opened_words(shown_path(l.loc.path), roots);
+    const std::string opened = role::opened_words(shown_path(l.loc.path), roots);
     if (l.loc.line <= 0) {
         notice(opened, false);
         return;

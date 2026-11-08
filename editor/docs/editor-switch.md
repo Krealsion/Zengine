@@ -1,6 +1,6 @@
 # What crosses a switch
 
-**Reference.** The handoff every Editor speaks when the editor switch moves the Editor's office
+**Reference.** The handoff every Editor speaks when the editor switch moves the Editor's role
 from one editor to another, and exactly what of the document crosses each way: what is adjusted,
 what is reset, what needs your consent and what is refused. It is a conversation between the switch
 and both Editors, so no one manual holds it: the switch's commands are
@@ -12,13 +12,13 @@ is `WL-SWITCH` and `WL-NVIM` (`agents/workshop/editor-switch.md`, `agents/worksh
 
 ## The handoff
 
-A switch replaces the weave holding the office through Loom's prepared replacement, and carries the
+A switch replaces the weave holding the role through Loom's prepared replacement, and carries the
 document through an authored handoff every editor speaks, as incumbent and as candidate:
 
 | step | who | what |
 |---|---|---|
 | judge | incumbent | what a switch away would lose (for consent), reset and refuse; nothing is held or loaded |
-| load | the office | the destination's artifact, sealed: it may speak only to the coordinator |
+| load | the role | the destination's artifact, sealed: it may speak only to the coordinator |
 | warm | candidate | start what it needs, in the incumbent's room; the coordinator relays a beat while it starts |
 | boundary | incumbent | author the exact document and hold still: no input is applied until the outcome, and what is refused is counted |
 | adopt | candidate | Loom's preparation ask: adopt the document, or refuse it in words |

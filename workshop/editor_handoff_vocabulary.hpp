@@ -74,7 +74,7 @@ struct EditorHandoffJudged {
 
 // ---- the candidate, sealed -----------------------------------------------------------------
 
-/// Become able to hold the office, in the room the incumbent had. A candidate that waits on
+/// Become able to hold the role, in the room the incumbent had. A candidate that waits on
 /// something external defers its answer and spends it from a later `EditorPreparationTick`.
 struct EditorWarmRequested {
     std::int64_t op = 0;

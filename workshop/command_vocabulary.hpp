@@ -9,7 +9,7 @@
 #include <string>
 namespace zengine::workshop {
 
-/// THE ONE OFFICE WHOSE PANE MAY ASK A COMMAND RUN, and that pane: the palette.
+/// THE ONE ROLE WHOSE PANE MAY ASK A COMMAND RUN, and that pane: the palette.
 inline constexpr const char* kPaletteRole = "zengine.palette";
 inline constexpr const char* kPalettePane = "palette";
 
@@ -22,15 +22,15 @@ inline constexpr const char* kCommandManual = "manual";
 inline constexpr const char* kCommandClose = "close";
 
 /// Palette -> Workshop, under the correlation of the palette's own row Workshop sent it: run the
-/// command. An action names its declarer's office, its pane for a pane's row, and its id; a pane
-/// and a manual name the pane's office and pane; a layout its id, in decimal. Answered on the
+/// command. An action names its declarer's role, its pane for a pane's row, and its id; a pane
+/// and a manual name the pane's role and pane; a layout its id, in decimal. Answered on the
 /// asking delivery.
 struct CommandRunRequested {
     std::string kind;
-    std::string office;
+    std::string role;
     std::string pane;
     std::string id;
-    ZEN_SHAPE(CommandRunRequested, 1, ZEN_FIELD(kind), ZEN_FIELD(office), ZEN_FIELD(pane),
+    ZEN_SHAPE(CommandRunRequested, 1, ZEN_FIELD(kind), ZEN_FIELD(role), ZEN_FIELD(pane),
               ZEN_FIELD(id));
 };
 

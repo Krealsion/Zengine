@@ -27,7 +27,7 @@ is and the program that runs it). Public contract: [the manual](../launcher/docs
   asks `zengine.project` where the project is at its start, and refuses a start before the answer.
 - Each start it answered `ok` is published to any, as `zengine.launcher`, beside its answer; a
   refusal is answered alone. Nothing else of a start is kept or said.
-- A listing (`LaunchCatalogRequested`, from any office) is `launcher::listing`: the configured
+- A listing (`LaunchCatalogRequested`, from any role) is `launcher::listing`: the configured
   setups with the title and line each one's `setup.json` gives at configure, then each folder in
   `apps/` that `judge_launch` would start, at most `kMaxListed`, the rest counted. An app runs when
   its session file names a process the system says still runs the catalog's app host

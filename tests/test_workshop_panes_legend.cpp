@@ -29,7 +29,7 @@ PaneRef terminal_ref() { return PaneRef{tp::kTerminalPaneRole, tp::kTerminalPane
 PaneSetting legend_off() { return PaneSetting{tp::kSettingLegend, false, {}, {}}; }
 
 /// WHAT CROSSED TO AND FROM THE TERMINAL, in order, read off the bus: each hand-off, each room and
-/// each picture, and whether that picture drew the legend. The Terminal is found by its office at
+/// each picture, and whether that picture drew the legend. The Terminal is found by its role at
 /// each event, so the tap holds before its image loads and across a reload.
 struct TerminalTap {
     loom::Switchboard& bus;
@@ -442,7 +442,7 @@ TEST_CASE("a press aimed at the Terminal's picture from before its legend hid is
     off.flag = false;
     DoorHand& h = door_hand(t.r);
     h.next = [off](DoorHand&, loom::Mail& m) {
-        (void)m.as_role(DoorHand::kOffice).send_to_role(kLayoutsRole, off);
+        (void)m.as_role(DoorHand::kRole).send_to_role(kLayoutsRole, off);
     };
     (void)t.r.bus.send(t.r.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                   loom::WeaveId{}, 0));

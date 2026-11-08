@@ -1,8 +1,8 @@
 # zengine.demo -- the Demo pane
 
-**Manual.** The Demo pane a ready-to-use setup shows, with its Reset demo button, and the office the
+**Manual.** The Demo pane a ready-to-use setup shows, with its Reset demo button, and the role the
 setup's demo service attaches to. It is a *weave*: a piece of Workshop that is loaded, replaced and
-spoken to by messages, built as `zengine-demo-control`. Other weaves reach it by its *office*, the
+spoken to by messages, built as `zengine-demo-control`. Other weaves reach it by its *role*, the
 name it answers to, `zengine.demo`, and it offers one pane, `controls`. `demo.py` puts it in a
 setup's plan; [ready-to-use setups](../../workshop/docs/demo-setups.md) says how to start one.
 
@@ -20,7 +20,7 @@ setup itself: what a reset does is the service's.
 
 A reload in place keeps the name, where the demo stood and its generation, but no service: the one
 attached before belongs to the image that was replaced, and its waits and its work end with it.
-The demo stands `unavailable: The demo's office was reloaded; start the demo's ELH service again`,
+The demo stands `unavailable: The demo's role was reloaded; start the demo's ELH service again`,
 the old service's next word is refused, and a service started again attaches, its work numbered
 after the last generation. A program waiting on the replaced image is never answered.
 
@@ -105,7 +105,7 @@ Shape: [`workshop/pane_document.hpp`](../../workshop/pane_document.hpp).
 
 ### `AreaRoom`
 
-`AreaRoom` v4, from the graphics window that shows the area `zengine.demo`, as that window's office:
+`AreaRoom` v4, from the graphics window that shows the area `zengine.demo`, as that window's role:
 the pane's room there and the window's text. In a new window, incarnation, size or measure, or an
 empty area, the pane draws the lines the room holds there whole (`Drawn`), a line of that text
 each, the reset button the part `control:reset`, then only what changed. Shape:
@@ -165,5 +165,5 @@ service` before a service attaches.
 
 - [Ready-to-use setups](../../workshop/docs/demo-setups.md), where the Demo pane is met.
 - [Drive Workshop from another host](external-host.md): the guests file, whose `demo` power reaches
-  this office.
+  this role.
 - The shapes: [`external-host/demo-control/vocabulary.hpp`](../demo-control/vocabulary.hpp).

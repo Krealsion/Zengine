@@ -54,7 +54,7 @@ namespace zengine::view {
 namespace ws = zengine::workshop;
 namespace ink = zengine::graphics::colors;
 
-/// The office every pane answers.
+/// The role every pane answers.
 inline constexpr const char* kWorkshopRole = "zengine.workshop";
 /// The sends of its intents a view remembers, to know a refusal answered to one of them.
 inline constexpr std::size_t kRememberedIntents = 16;
@@ -418,7 +418,7 @@ inline ViewWiring wiring_of(const Description& d, const std::map<std::string, La
 }
 
 /// The grant a description implies: each intent it says to any accepter, what its wiring has done
-/// to any accepter, the pane conversation to Workshop's office alone, and its drawing to a graphics
+/// to any accepter, the pane conversation to Workshop's role alone, and its drawing to a graphics
 /// window, which takes an area's drawing only from its owner, with the ask for its room to the
 /// graphics directory. Nothing else.
 inline loom::Grant view_grant(const Description& d) {
@@ -502,8 +502,8 @@ private:
 /// ONE VIEW, registered by the view host. Its accept-set is the shapes it is told, the pane
 /// conversation, a window's and the ask for its wiring; its emit-set is its intents, those
 /// conversations and its wiring. It speaks to Workshop and to the window that shows its area as its
-/// office, the view's name; its area is its pane's, `<name>.view`. It says its intents by
-/// publication, whoever accepts one hearing it, and what its wiring has done as its office.
+/// role, the view's name; its area is its pane's, `<name>.view`. It says its intents by
+/// publication, whoever accepts one hearing it, and what its wiring has done as its role.
 class View final : public loom::Weave {
 public:
     explicit View(Description description, std::shared_ptr<Presenter> presenter = {})
@@ -561,7 +561,7 @@ public:
     }
 
     /// HOST AUTHORITY: the picture this view leaves when it stops, for the window that shows its
-    /// area, drawn whole with no action, and that window's office; none when no window shows it.
+    /// area, drawn whole with no action, and that window's role; none when no window shows it.
     std::optional<std::pair<std::string, graphics::Drawn>> window_farewell(const std::string& why) const {
         if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return std::nullopt;
         const auto room =
@@ -571,7 +571,7 @@ public:
         last.rects_by.resize(last.content.rects.size());
         last.texts_by.resize(last.content.texts.size());
         const auto drawn = sketch(description_, last, room);
-        return std::pair{window_.window_office(),
+        return std::pair{window_.window_role(),
                          graphics::Drawn{window_.area(), true, drawn.nodes(), {}, drawn.records(), {}, false}};
     }
 
@@ -615,13 +615,13 @@ public:
             // ...and asks its area's room once a life: a view started again draws in its window again.
             if (!room_asked_ && !window_.shown()) {
                 room_asked_ = true;
-                (void)bus.office_send_to_role(description_.name, graphics::kGraphicsRole,
+                (void)bus.role_send_to_role(description_.name, graphics::kGraphicsRole,
                                               loom::Message(loom::to_value(graphics::RoomAsked{window_.area()}), self_));
             }
             return;
         }
         if (is(loom::schema_of<graphics::AreaRoom>())) {
-            // THE ROOM, from the window that shows its area, as that window's office: a window, an
+            // THE ROOM, from the window that shows its area, as that window's role: a window, an
             // incarnation or a size it has not drawn in holds none of its drawing, so it goes whole.
             loom::Mail mail(bus, in, self_);
             if (window_.room(loom::from_value<graphics::AreaRoom>(in.payload), mail)) show(bus);
@@ -641,7 +641,7 @@ public:
         }
         if (is(loom::schema_of<graphics::ActionRequested>())) {
             // A PRESS ON A BUTTON the picture last drawn in the window names, asked by that
-            // window's office for an area placed deaf to the pointer, is used as a press on it is.
+            // window's role for an area placed deaf to the pointer, is used as a press on it is.
             const auto asked = loom::from_value<graphics::ActionRequested>(in.payload);
             const loom::Mail mail(bus, in, self_);
             if (!window_.from_window(asked.area, mail) || window_actions_.count(asked.action) == 0)
@@ -653,7 +653,7 @@ public:
             return;
         }
         if (is(loom::schema_of<graphics::AreaButtonChanged>())) {
-            // A PRESS IN THE WINDOW THAT SHOWS ITS AREA, as that window's office, read against the
+            // A PRESS IN THE WINDOW THAT SHOWS ITS AREA, as that window's role, read against the
             // picture last drawn there; one the window drew on another element than that picture
             // shows there uses nothing, and is said.
             const auto b = loom::from_value<graphics::AreaButtonChanged>(in.payload);
@@ -681,18 +681,18 @@ public:
             return;
         }
         if (is(loom::schema_of<ViewWiringRequested>())) {
-            // WHAT ITS WIRING HAS DONE, asked by an office that arrived after it was said: answered
-            // to the asker alone, as this view's office, under the ask's correlation.
+            // WHAT ITS WIRING HAS DONE, asked by a role that arrived after it was said: answered
+            // to the asker alone, as this view's role, under the ask's correlation.
             if (!in.sender.valid()) return;
-            (void)bus.office_send(description_.name, in.sender,
+            (void)bus.role_send(description_.name, in.sender,
                                   loom::Message(loom::to_value(wiring()), self_, {}, in.correlation));
             return;
         }
         if (is(loom::schema_of<graphics::AreaKeyPressed>()) ||
             is(loom::schema_of<graphics::AreaTextEntered>())) {
-            // A KEY OR ITS TEXT FROM THE WINDOW THAT SHOWS ITS AREA, as that window's office, which
+            // A KEY OR ITS TEXT FROM THE WINDOW THAT SHOWS ITS AREA, as that window's role, which
             // gives its keys only to an area placed to hear them: taken as Workshop's are.
-            if (!window_.shown() || in.provenance.authored_role() != window_.window_office()) return;
+            if (!window_.shown() || in.provenance.authored_role() != window_.window_role()) return;
             if (is(loom::schema_of<graphics::AreaKeyPressed>())) {
                 const auto k = loom::from_value<graphics::AreaKeyPressed>(in.payload);
                 if (k.area != window_.area()) return;
@@ -779,7 +779,7 @@ public:
 private:
     template <class T>
     void say(loom::Bus& bus, const T& value, std::uint64_t correlation = 0) {
-        (void)bus.office_send_to_role(description_.name, kWorkshopRole,
+        (void)bus.role_send_to_role(description_.name, kWorkshopRole,
                                       loom::Message(loom::to_value(value), self_, {}, correlation));
     }
 
@@ -808,7 +808,7 @@ private:
         const auto drawn = sketch(description_, *window_picture_, room);
         window_actions_.clear();
         for (const auto& record : drawn.records()) window_actions_.insert(record.action);
-        // The mail only carries this view's statements as its office; it answers nothing.
+        // The mail only carries this view's statements as its role; it answers nothing.
         static const loom::Message quiet(loom::to_value(detail::ViewRedraw{}));
         loom::Mail mail(bus, quiet, self_);
         window_.draw(drawn, mail);
@@ -938,13 +938,13 @@ private:
 
     ViewWiring wiring() const { return wiring_of(description_, last_, told_); }
 
-    /// WHAT ITS WIRING HAS DONE, published as its office to every accepter when it differs from
+    /// WHAT ITS WIRING HAS DONE, published as its role to every accepter when it differs from
     /// what it last said, or nothing has been said yet.
     void say_wiring(loom::Bus& bus) {
         auto now = loom::to_value(wiring());
         auto bytes = loom::serialize(now);
         if (wiring_said_ && *wiring_said_ == bytes) return;
-        if (bus.office_publish(description_.name, loom::Message(std::move(now), self_)).authored)
+        if (bus.role_publish(description_.name, loom::Message(std::move(now), self_)).authored)
             wiring_said_ = std::move(bytes);
     }
 

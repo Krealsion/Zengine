@@ -31,7 +31,7 @@ namespace zengine::testing::graphics_rig {
 
 namespace gfx = zengine::graphics;
 
-/// One delivery the tap saw: its shape, who sent it as which office, where it was addressed, and
+/// One delivery the tap saw: its shape, who sent it as which role, where it was addressed, and
 /// its canonical bytes.
 struct Delivery {
     std::string shape;
@@ -90,8 +90,8 @@ private:
     Heard* heard_;
 };
 
-inline std::string window_office() {
-    return std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+inline std::string window_role() {
+    return std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
 }
 
 struct Rig {
@@ -146,7 +146,7 @@ struct Rig {
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(a.text))};
     }
 
-    /// Root sends to an office, as a host's arranger would speak.
+    /// Root sends to a role, as a host's arranger would speak.
     template <class T>
     void to_role(const std::string& role, const T& msg) {
         bus.send_to_role(role, loom::Message(loom::to_value(msg)));
@@ -168,7 +168,7 @@ struct Rig {
 
     /// What the window shows now, and what it has spent.
     gfx::WindowShown shown() {
-        bus.send_as_to_role(ears, window_office(),
+        bus.send_as_to_role(ears, window_role(),
                             loom::Message(loom::to_value(gfx::WindowShowAsked{}), ears, ears,
                                           next_corr++));
         drain();
@@ -188,12 +188,12 @@ struct Rig {
         drain();
     }
 
-    /// How many deliveries of `shape` since `from`, authored as `office` ("" for any).
+    /// How many deliveries of `shape` since `from`, authored as `role` ("" for any).
     std::size_t count(std::size_t from, const std::string& shape,
-                      const std::string& office = {}) const {
+                      const std::string& role = {}) const {
         std::size_t n = 0;
         for (std::size_t i = from; i < log.size(); ++i) {
-            if (log[i].shape == shape && (office.empty() || log[i].authored_role == office)) {
+            if (log[i].shape == shape && (role.empty() || log[i].authored_role == role)) {
                 ++n;
             }
         }
@@ -202,11 +202,11 @@ struct Rig {
 
     /// The deliveries of `shape` since `from`, read back as T.
     template <class T>
-    std::vector<T> read(std::size_t from, const std::string& office = {}) const {
+    std::vector<T> read(std::size_t from, const std::string& role = {}) const {
         std::vector<T> out;
         const std::string name = loom::schema_of<T>()->name();
         for (std::size_t i = from; i < log.size(); ++i) {
-            if (log[i].shape == name && (office.empty() || log[i].authored_role == office)) {
+            if (log[i].shape == name && (role.empty() || log[i].authored_role == role)) {
                 if (auto v = loom::claim_item<T>(loom::Bytes(log[i].bytes.begin(),
                                                              log[i].bytes.end()))) {
                     out.push_back(*v);

@@ -5,7 +5,7 @@
 // orders it, read from Workshop's own sayings; the real palette image opened by the desktop's key
 // over a pane, each kind of entry run by Workshop's door as the hand that chose it, and put down
 // with the keys given back; and the door refusing a run under any number but the palette's own row
-// and from any office but the palette's. One source of the panes program, run in
+// and from any role but the palette's. One source of the panes program, run in
 // `workshop_panes_hand`.
 
 #include "doctest.h"
@@ -31,7 +31,7 @@ namespace {
 namespace dp = zengine::desktop_pane;
 namespace pal = zengine::palette;
 
-/// A STAND-IN IN AN OFFICE OF A CASE'S CHOOSING -- the palette's, or a stranger's -- that records
+/// A STAND-IN IN AN ROLE OF A CASE'S CHOOSING -- the palette's, or a stranger's -- that records
 /// the numbers its rows came under and Workshop's answers, and asks a command run under whatever
 /// number a case gives it.
 class CommandAsker
@@ -40,7 +40,7 @@ class CommandAsker
                                           CommandRunAnswered, SeatDo>,
                              loom::Emit<v2::PaneOffered, v3::PaneActions, CommandRunRequested>> {
 public:
-    explicit CommandAsker(std::string office) : office_(std::move(office)) {}
+    explicit CommandAsker(std::string role) : role_(std::move(role)) {}
     std::vector<std::uint64_t> asks;
     std::vector<CommandRunAnswered> answers;
     std::function<void(CommandAsker&, loom::Mail&)> next;
@@ -56,12 +56,12 @@ public:
         }
     }
     void say(loom::Mail& mail, const CommandRunRequested& asked, std::uint64_t correlation) {
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, asked, correlation);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, asked, correlation);
     }
-    const std::string& office() const { return office_; }
+    const std::string& role() const { return role_; }
 
 private:
-    std::string office_;
+    std::string role_;
 };
 
 struct Asker {
@@ -69,14 +69,14 @@ struct Asker {
     loom::WeaveId id{};
 };
 
-Asker mount_asker(PaneRig& r, const std::string& office) {
-    auto weave = std::make_unique<CommandAsker>(office);
+Asker mount_asker(PaneRig& r, const std::string& role) {
+    auto weave = std::make_unique<CommandAsker>(role);
     CommandAsker* raw = weave.get();
     loom::Grant grant;
     grant.allow_to_any(v2::PaneOffered::zen_name, v2::PaneOffered::zen_version);
     grant.allow_to_any(v3::PaneActions::zen_name, v3::PaneActions::zen_version);
     grant.allow_to_any(CommandRunRequested::zen_name, CommandRunRequested::zen_version);
-    const loom::WeaveId id = r.bus.register_weave(std::move(weave), std::move(grant), office);
+    const loom::WeaveId id = r.bus.register_weave(std::move(weave), std::move(grant), role);
     raw->zen_set_self(id);
     return Asker{raw, id};
 }
@@ -88,20 +88,20 @@ void drive(PaneRig& r, const Asker& a, std::function<void(CommandAsker&, loom::M
     r.bus.drain_until_idle();
 }
 
-std::int64_t kind_of(PaneRig& r, const char* office, const char* pane) {
-    const RuntimePane* row = r.session().panes.runtime.find(office, pane);
+std::int64_t kind_of(PaneRig& r, const char* role, const char* pane) {
+    const RuntimePane* row = r.session().panes.runtime.find(role, pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
 /// A PRESS INTO A PANE'S BODY, which gives it the keys.
-void focus(PaneRig& r, const char* office, const char* pane) {
-    r.pick(PaneRef{office, pane});
-    const CellRect body = external_body_rect(r.session(), kind_of(r, office, pane));
+void focus(PaneRig& r, const char* role, const char* pane) {
+    r.pick(PaneRef{role, pane});
+    const CellRect body = external_body_rect(r.session(), kind_of(r, role, pane));
     r.press_cell(body.x + 1, body.y);
 }
 
-bool on_desk(PaneRig& r, const char* office, const char* pane) {
-    return has_pane(r.session().setup.active, PaneRef{office, pane});
+bool on_desk(PaneRig& r, const char* role, const char* pane) {
+    return has_pane(r.session().setup.active, PaneRef{role, pane});
 }
 
 constexpr const char* kTools = "zengine.test.tools";
@@ -140,7 +140,7 @@ const RuntimePane& palette_held(PaneRig& r, ProviderSeat*& tools) {
 
 /// THE PALETTE'S CENSUS: its four rows, in no mode.
 const CensusDriverOf kPaletteCensus{kPaletteRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     PaneRig r;
     ProviderSeat* tools = nullptr;
     census_take(census, kPaletteRole, palette_held(r, tools));
@@ -165,11 +165,11 @@ const PressDriverOf kPalettePresses{kPaletteRole, [](PressWitness& w) {
 
 ZEN_PRESS_WITNESS_CASE(kPaletteRole, 0, "the palette's rows")
 
-ShownBinding row(std::string group, std::string office, std::string pane, std::string id,
+ShownBinding row(std::string group, std::string role, std::string pane, std::string id,
                            std::string label, std::string gesture, bool authored = false) {
     ShownBinding b;
     b.group = std::move(group);
-    b.office = std::move(office);
+    b.role = std::move(role);
     b.pane = std::move(pane);
     b.id = std::move(id);
     b.label = std::move(label);
@@ -347,10 +347,10 @@ TEST_CASE("WL-DESK-18: ctrl+space shows the palette over the pane holding the ke
     CHECK(on_desk(r, kDesktopRole, kHotkeysPane));
 }
 
-TEST_CASE("WL-DESK-18: the palette closed by an office, through the layouts' owner, is put down "
+TEST_CASE("WL-DESK-18: the palette closed by a role, through the layouts' owner, is put down "
           "with the keys given back, as its own Escape puts it down") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_palette.md#keys-back-on-own-closes-only): the
-    // presenter giving the keys back only on its own closes -- an office's close leaves them
+    // presenter giving the keys back only on its own closes -- a role's close leaves them
     // nowhere.
     PaneRig r;
     ProviderSeat* tools = nullptr;
@@ -439,20 +439,20 @@ TEST_CASE("#393: a relist that leaves an entry where it stood renames none of it
 }
 
 TEST_CASE("WL-DESK-18: a run is refused under any number but the palette's own unspent row and "
-          "from any office but the palette's, and nothing is run") {
+          "from any role but the palette's, and nothing is run") {
     PaneRig r;
     ProviderSeat* tools = nullptr;
     start(r, tools);
     const Asker own = mount_asker(r, kPaletteRole);
     const Asker stranger = mount_asker(r, "zengine.test.stranger");
     drive(r, own, [](CommandAsker& a, loom::Mail& m) {
-        (void)m.as_role(a.office()).send_to_role(
+        (void)m.as_role(a.role()).send_to_role(
             kWorkshopProvider, v2::PaneOffered{kPalettePane, "Palette", "a stand-in", 10, 40});
         v3::PaneActions rows;
         rows.pane = kPalettePane;
         rows.rows.push_back(v3::PaneActionRow{"palette.run", "run", input::scan::kReturn,
                                               input::mod::kNone, "", {}});
-        (void)m.as_role(a.office()).send_to_role(kWorkshopProvider, rows);
+        (void)m.as_role(a.role()).send_to_role(kWorkshopProvider, rows);
     });
     focus(r, kPaletteRole, kPalettePane);
     REQUIRE(r.session().panes.keyboard == kind_of(r, kPaletteRole, kPalettePane));
@@ -467,7 +467,7 @@ TEST_CASE("WL-DESK-18: a run is refused under any number but the palette's own u
     CHECK_FALSE(own.seat->answers.back().ran);
     CHECK(own.seat->answers.back().refusal.find("palette's own row") != std::string::npos);
     CHECK_FALSE(on_desk(r, kTools, "beta"));
-    // ANOTHER OFFICE, under the palette's own number: not even answered, and the number unspent.
+    // ANOTHER ROLE, under the palette's own number: not even answered, and the number unspent.
     drive(r, stranger, [&](CommandAsker& a, loom::Mail& m) { a.say(m, beta, row); });
     CHECK(stranger.seat->answers.empty());
     CHECK_FALSE(on_desk(r, kTools, "beta"));
@@ -487,8 +487,8 @@ TEST_CASE("WL-DESK-18: a run is refused under any number but the palette's own u
 
 namespace {
 
-/// THE INPUT OFFICE, as a case's hand on it: a participant's moments, attributed to `actor`.
-class InputOffice : public loom::WeaveBase<InputOffice, SeatState, loom::Accept<SeatDo>,
+/// THE INPUT ROLE, as a case's hand on it: a participant's moments, attributed to `actor`.
+class InputRole : public loom::WeaveBase<InputRole, SeatState, loom::Accept<SeatDo>,
                                            loom::Emit<input::AttributedInput>> {
 public:
     std::function<void(loom::Mail&)> next;
@@ -503,10 +503,10 @@ public:
 
 struct Hands {
     PaneRig& r;
-    InputOffice* seat = nullptr;
+    InputRole* seat = nullptr;
     loom::WeaveId id{};
     explicit Hands(PaneRig& rig) : r(rig) {
-        auto made = std::make_unique<InputOffice>();
+        auto made = std::make_unique<InputRole>();
         seat = made.get();
         loom::Grant grant;
         grant.allow_to_any(input::AttributedInput::zen_name, input::AttributedInput::zen_version);
@@ -613,10 +613,10 @@ TEST_CASE("WL-DESK-18: the space a window types with Ctrl+Space types nowhere --
     start(r, tools);
     REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
     REQUIRE(r.load_refusals.empty());
-    const auto texts_to = [](const zengine::tests::Timeline& heard, const std::string& office) {
+    const auto texts_to = [](const zengine::tests::Timeline& heard, const std::string& role) {
         std::vector<std::string> out;
         for (const std::string& line : heard.lines()) {
-            if (line.find("-> " + office) != std::string::npos &&
+            if (line.find("-> " + role) != std::string::npos &&
                 line.find("PaneTextInput") != std::string::npos) {
                 out.push_back(line);
             }
@@ -646,7 +646,7 @@ TEST_CASE("WL-DESK-18: the space a window types with Ctrl+Space types nowhere --
 
 namespace {
 
-/// A STAND-IN FOR THE LAUNCHER, in its office: it answers a listing with `entries` and records each
+/// A STAND-IN FOR THE LAUNCHER, in its role: it answers a listing with `entries` and records each
 /// start it is asked for, answering it started.
 class PaletteLauncher
     : public loom::WeaveBase<PaletteLauncher, SeatState,

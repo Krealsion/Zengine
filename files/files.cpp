@@ -14,7 +14,7 @@
 #include "files/files.hpp"
 #include "files/filesystem_roots.hpp"
 #include "workshop/actor_scope.hpp" // the class an act that opens or writes is judged as
-#include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
+#include "workshop/open_seam_vocabulary.hpp" // the opening role the open is asked of
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_facets.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
@@ -90,7 +90,7 @@ using ws::RecipeOutcome;
 using ws::RecipeUseRequested;
 using ws::SourceOpened;
 
-/// The office Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
+/// The role Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
 /// provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
@@ -176,7 +176,7 @@ struct FilesMeaning {
 
 /// ONE THING THE PANE ASKED AND STILL WAITS ON (`AskFacet`): an act waiting on Workshop's word,
 /// with everything it acts on captured at the ask, so the answer does exactly what the gesture
-/// asked for wherever the browser has walked since; or an ask of an office, with what its answer
+/// asked for wherever the browser has walked since; or an ask of a role, with what its answer
 /// is read against.
 struct FilesAsk {
     enum class Kind {
@@ -425,7 +425,7 @@ public:
     }
 
     /// WHAT A MENU CAME TO -- one of THIS image's own asks, settled by `PaneMenuFacet`: a choice
-    /// counts only from the presenter's office, under the number of an ask this image sent and
+    /// counts only from the presenter's role, under the number of an ask this image sent and
     /// has not heard answered, about the pane and subject it asked about, once. What the row
     /// MEANS is judged here, against what this pane holds now -- the listing may have been walked
     /// again while the menu was open.
@@ -566,7 +566,7 @@ public:
         // `subject_of` names, so a remapped key and the button beside it cannot mean two things.
         // THE LAST ACT'S ANSWER IS SPENT, and gone from the rows Workshop holds: an act whose
         // answer is still on its way (Workshop's word on an act that opens or writes, then the
-        // opening or project office's), or that meant nothing, says no picture, and the rows are
+        // opening or project role's), or that meant nothing, says no picture, and the rows are
         // said once without the notice.
         room().spend_notice(
             notice_,
@@ -935,7 +935,7 @@ public:
         // Both halves in one sentence, in the order that survives the cut: what went wrong and
         // what is still in force are both owed, and the notice row is cut at the band's width, so
         // the short fixed statements go first and the owner's sentence and the path take the
-        // tail. `said.path` is the office's answer about what is in force after the attempt.
+        // tail. `said.path` is the role's answer about what is in force after the attempt.
         if (!said.accepted) {
             notice_ = recipes.was_author
                           ? ws::authoring_refused_words(said.refusal, said.path)
@@ -954,7 +954,7 @@ public:
         say(mail);
     }
 
-    /// The opening office answered (`zengine.opening`). A refused open is said in the pane's own
+    /// The opening role answered (`zengine.opening`). A refused open is said in the pane's own
     /// row; an accepted one moved the keyboard to the Editor and needs no word here.
     void on(const SourceOpened& said, loom::Mail& mail) {
         if (!asks().answered(mail, of_kind(FilesAsk::Kind::kOpening))) {
@@ -1194,7 +1194,7 @@ private:
         return "nothing was done";
     }
 
-    /// WHERE THIS RUN BEGAN, asked of the project office; a newer ask replaces one unanswered.
+    /// WHERE THIS RUN BEGAN, asked of the project role; a newer ask replaces one unanswered.
     void ask_project_root(loom::Mail& mail) {
         (void)asks().forget(of_kind(FilesAsk::Kind::kRoot));
         (void)asks().ask(mail, ws::kProjectRole, ProjectRootRequested{},
@@ -1357,7 +1357,7 @@ private:
         ask_approval(std::move(next), ws::scope::kOpen, path, mail);
     }
 
-    /// THE APPROVED OPEN, asked of the opening office, which arranges the document and the desk
+    /// THE APPROVED OPEN, asked of the opening role, which arranges the document and the desk
     /// together (WL-OPEN-01); every refusal lands in this pane's own row. The ticket is kept
     /// (WL-OPEN-07): a valid one says only that the send was queued, and the bus's later word
     /// that exactly this attempt was refused reaches `on_refused`. An invalid
@@ -1369,7 +1369,7 @@ private:
         if (asks().ask(mail, ws::kOpeningRole, OpenSourceRequested{approved.path},
                        std::move(opening)) != Asks::Asked::kHeld) {
             notice_ = "`" + ws::shown_name(approved.subject) +
-                      "` was not opened -- nothing was queued to the opening office";
+                      "` was not opened -- nothing was queued to the opening role";
             say(mail);
         }
     }
@@ -1581,7 +1581,7 @@ private:
         ask_approval(std::move(next), ws::scope::kWrite, std::string(), mail);
     }
 
-    /// THE APPROVED CATALOG, asked of the project office, which installs it or says why not.
+    /// THE APPROVED CATALOG, asked of the project role, which installs it or says why not.
     void take_recipes(const FilesAsk& approved, loom::Mail& mail) {
         (void)asks().forget(of_kind(FilesAsk::Kind::kRecipes));
         (void)asks().ask(mail, ws::kProjectRole, RecipeUseRequested{approved.path},
@@ -1596,9 +1596,9 @@ private:
 
     /// A paste is asked of the window that shows the pane's area, and of nobody while none does.
     void begin_paste(loom::Mail& mail) {
-        const std::string office = room().clipboard_office();
+        const std::string role = room().clipboard_role();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            office, gfx::ClipboardTextRequested::zen_name,
+            role, gfx::ClipboardTextRequested::zen_name,
             gfx::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
@@ -1607,7 +1607,7 @@ private:
         paste_epoch_ = authoring_.line.draft_epoch();
         pasting_ = true;
         (void)mail.as_role(files::kFilesRole)
-            .send_to_role(office, gfx::ClipboardTextRequested{}, opened.correlation);
+            .send_to_role(role, gfx::ClipboardTextRequested{}, opened.correlation);
     }
 
     // ---- Saying what the pane shows -----------------------------------------------------

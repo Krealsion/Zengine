@@ -36,17 +36,17 @@ window -> pointer's owners   AreaButtonChanged, AreaPointerMoved, AreaWheelTurne
                              button's with what the window drew under the hand)
 window -> an area's arranger AreaHandRefused (an injected hand refused in an area the weaver's alone),
                              AreaShown (what the area shows, asked by AreaShowAsked)
-window -> its follower       AreaPressed (where a press in an area another office owns landed),
+window -> its follower       AreaPressed (where a press in an area another role owns landed),
                              AreaSettled (unasked: what the area shows settled, by its version)
-input office -> a window     AttributedInput (a participant's moment, landed as that hand's),
+input role -> a window     AttributedInput (a participant's moment, landed as that hand's),
                              PointerTimingSaid (the double-click time, asked and when it changes)
-window -> the input office   PointerTimingAsked (at each activation)
-window -> owner, follower    AreaHoldEnded, AreaPointerLeft (to the follower when another office)
+window -> the input role   PointerTimingAsked (at each activation)
+window -> owner, follower    AreaHoldEnded, AreaPointerLeft (to the follower when another role)
 window -> the keys' owners   AreaKeyPressed, AreaKeyReleased, AreaTextEntered (naming the area
                              and the hand)
 arranger -> directory        PaletteOffered, PaletteChosen, AreaPlaced, ElementCodeOffered
-arranger -> its window       WindowShaped (its title and size, from an office arranging there)
-window -> everyone           WindowOffered (as its own office: its pixels, incarnation and text)
+arranger -> its window       WindowShaped (its title and size, from a role arranging there)
+window -> everyone           WindowOffered (as its own role: its pixels, incarnation and text)
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered, PaletteOffered
 owner -> directory           RoomAsked (an owner that started again)
 directory -> everyone        GraphicsReady (a directory that started afresh)
@@ -54,7 +54,7 @@ anyone -> a window           ClipboardCopy, PumpSurface, SurfacePlacementRemembe
 asker -> a window            ClipboardTextRequested, SurfaceCaptureRequested,
                              SurfaceCaptureChunkRequested
 window -> the asker          ClipboardText, SurfaceCaptured, SurfaceCaptureChunk, zen.Refused
-OS window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own office)
+OS window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own role)
 ```
 
 The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator;
@@ -62,19 +62,19 @@ in Workshop, its own weave, which places each pane's area and its own
 ([`zengine.workshop`](../../workshop/docs/zengine.workshop.md#graphicsready)), and lays its desk
 out in the window's room, in its unit and its text
 ([`WindowOffered`](../../workshop/docs/zengine.workshop.md#windowoffered)).
-What each message does is the manual of the office that takes it: the window's for what an owner
+What each message does is the manual of the role that takes it: the window's for what an owner
 sends it, the directory's for what the arranger and a window send it.
 
 An area placed with `keys` hears every key (`AreaKeyPressed`), with `releases` its release
 (`AreaKeyReleased`), with `text` the text it types (`AreaTextEntered`): an owner places its areas
 for the moments it takes, and is given no other. Each names the area and whose hand made it, as
-every pointer moment does: `local`, the weaver's own, or the participant the input office named. One
+every pointer moment does: `local`, the weaver's own, or the participant the input role named. One
 placed with `pointer`
 holds every point inside it, painted or not, and hears, at its own point in pixels, every pointer
 moment there as the moment it was: a button pressed or let go, a part's or not
 (`AreaButtonChanged`), a move (`AreaPointerMoved`), the wheel (`AreaWheelTurned`). A press holds its
 button for the area until its release, so its moves and its release reach the area wherever the
-pointer goes, all three under the press's number; the area's arranger, when another office that
+pointer goes, all three under the press's number; the area's arranger, when another role that
 follows the area (`AreaPlaced::followed`), hears where each press and release landed
 (`AreaPressed`), as a desktop raises what was clicked. A button's moment says what the window drew
 under the hand when it landed: the area that showed it, the part named there, and that area's
@@ -96,7 +96,7 @@ no clipboard and has no place or close box, so it says none.
 ## How a window counts clicks
 
 A press says its `clicks` (`AreaButtonChanged::clicks`, `AreaPressed::clicks`), and a release 0. The
-window counts the weaver's own presses by the double-click time the input office says
+window counts the weaver's own presses by the double-click time the input role says
 (`zengine::input::PointerTimingSaid`, [`zengine.input`](../../input/docs/zengine.input.md#pointertimingasked)),
 on its own clock as it reads its platform: a press of one button within that time after the last
 press of it counts one more than that press, wherever either landed, else 1 -- so 2 for a double
@@ -170,7 +170,7 @@ A pane's own slots are a JSON file of its own, generated by the package's `zengi
 (installed with it; CMake 3.22 or newer):
 
 ```json
-{ "format": "zengine-slots", "format_version": 1, "office": "example.counter",
+{ "format": "zengine-slots", "format_version": 1, "role": "example.counter",
   "colors": [ { "name": "badge", "color": "#f2a541", "like": "accent",
                 "about": "the count's badge" } ] }
 ```
@@ -179,7 +179,7 @@ A pane's own slots are a JSON file of its own, generated by the package's `zengi
 zengine_names(my-pane JSON slots.json NAMESPACE counter::colors HEADER counter/colors.hpp)
 ```
 
-`counter::colors::badge` then paints the palette's `badge` for the office `example.counter` where a
+`counter::colors::badge` then paints the palette's `badge` for the role `example.counter` where a
 palette sets one, else its own `#f2a541`. `like` names the pool colour a medium that cannot show a
 colour shows in its place: a terminal writes that colour's word and fills a shape with its
 character. Without it, a terminal shows the nearest of its sixteen inks.
@@ -187,7 +187,7 @@ character. Without it, a terminal shows the nearest of its sixteen inks.
 A **palette** (`PaletteOffered`) is a theme resolved for the window: each pool colour's
 `0xRRGGBBAA`, what a terminal shows where it cannot show it (`cells`: `terminal default`, the
 terminal's default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its nearest) and the
-character it fills a shape with (`fill`); each office's slots; and a terminal's outline, a corner,
+character it fills a shape with (`fill`); each role's slots; and a terminal's outline, a corner,
 across and down. Whoever arranges the window offers palettes and chooses the one each area wears
 (`PaletteChosen`) through the directory; an area wearing none, or one nobody offered, wears the
 window's own, the pool's defaults, which are night's. The three shipped themes are
@@ -289,7 +289,7 @@ class ScoreWeave
                                                            loom::Accept<FoodEaten>> {
 public:
     using Weave::on;
-    ScoreWeave() : Weave("snake.score") {} // the office it draws as; its area by default
+    ScoreWeave() : Weave("snake.score") {} // the role it draws as; its area by default
     void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
     void picture(graphics::Sketch& f) const {
         f.text("eaten", 0, 0, std::to_string(state_.eaten), graphics::colors::text);
@@ -308,7 +308,7 @@ A drawer that presents elements emits `ElementPut` and `ElementChange` itself an
 presses it wants. A drawer whose parts name actions composes `graphics::ActionFacet` in place of
 `DrawingFacet`: the same facet, also taking `ActionRequested`, which is the drawer's
 `on_action(action, mail)` only when the window that shows the drawer's area asks it, as that
-window's office, about that area; a drawer without actions keeps `DrawingFacet` and accepts no
+window's role, about that area; a drawer without actions keeps `DrawingFacet` and accepts no
 `ActionRequested`:
 
 ```cpp
@@ -333,7 +333,7 @@ A pane Workshop seats draws the same way. `workshop::PaneDrawingFacet`
 ([`workshop/pane_facets.hpp`](../../workshop/pane_facets.hpp)) holds the pane's room in Workshop
 and in a window alike: the weave writes one `picture(graphics::Sketch&)` and one
 `on_action(action, mail)`, and calls the facet's `show` where its state changed. The window that
-shows the area named by the pane's office is sent what changed; Workshop is sent the same picture
+shows the area named by the pane's role is sent what changed; Workshop is sent the same picture
 as the pane's rows, each record a part named by its path. A press on a part, in the window or on
 Workshop's canvas, reaches `on_action` as the action its record names, so the owner never reads a
 place ([The pane facets](../../workshop/docs/workshop-panes.md#the-pane-facets)).
@@ -418,9 +418,9 @@ medium answers for its platform:
 
 `capture()` answers none before the window has shown anything, and never shows what a drawing
 saying `more` still holds back. A close its desktop asked for is published, not kept: the beat that
-reads it publishes `SurfaceCloseRequested` as the window's office, once. The OS window opens
+reads it publishes `SurfaceCloseRequested` as the window's role, once. The OS window opens
 centred on its display's usable area, and an area placed past its edge grows it, as far as that
 display holds it, once for each new reach: a window a weaver made smaller is not grown back while
-its areas stay where they are. An office that arranges an area in a window names it and sizes it
+its areas stay where they are. A role that arranges an area in a window names it and sizes it
 (`WindowShaped`): the OS window keeps the size within its display and, as after a weaver's
 resize, is not grown back while its areas reach no further; the terminal keeps its own.

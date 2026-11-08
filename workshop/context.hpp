@@ -80,7 +80,7 @@ inline constexpr std::size_t kMaxMenuPresses = 16;
 struct PresentedMenu {
     bool open = false;
     std::int64_t menu = 0;         ///< the grant's number, this host's
-    std::string office;            ///< the requester: the office Loom authenticated on the ask
+    std::string role;            ///< the requester: the role Loom authenticated on the ask
     std::string pane;
     std::string subject;           ///< the ask's subject, for an answer the host gives itself
     std::uint64_t correlation = 0; ///< the ask's number, which every answer echoes
@@ -97,7 +97,7 @@ struct PresentedMenu {
     std::uint64_t first_input = 0; ///< the weaver's act count when it was granted
     std::uint64_t last_input = 0;  ///< the newest act forwarded to it
     /// THE GRANT'S QUEUED ATTEMPT (Loom's `Ticket::seq`). Every sentence this host queues to the
-    /// presenter's office from the grant until the menu ends is about this menu -- one menu at a
+    /// presenter's role from the grant until the menu ends is about this menu -- one menu at a
     /// time -- and Loom numbers attempts in the order they are queued, so a refusal naming an
     /// attempt at or after this one is about this menu, and one before it about an older one.
     std::uint64_t first_attempt = 0;
@@ -109,7 +109,7 @@ struct PresentedMenu {
 // WL-CTX-10 -- agents/workshop/pane-menu.md
 struct WithdrawnMenu {
     std::int64_t menu = 0;           ///< the grant's number
-    std::string office;              ///< the requester, as Loom authenticated it on the ask
+    std::string role;              ///< the requester, as Loom authenticated it on the ask
     std::string pane;
     std::string subject;
     std::uint64_t correlation = 0;   ///< the ask's number, which the answer echoes

@@ -11,28 +11,28 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(graphics::ClipboardCopy::zen_name, graphics::ClipboardCopy::zen_version);
     // A paste and the place remembered, to the window that holds the platform.
     for (const std::string& medium :
-         {std::string(graphics::kWindowOfficePrefix) + graphics::kTerminalWindow,
-          std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow}) {
+         {std::string(graphics::kWindowRolePrefix) + graphics::kTerminalWindow,
+          std::string(graphics::kWindowRolePrefix) + graphics::kSdlWindow}) {
         speak.allow_to_role(graphics::ClipboardTextRequested::zen_name,
                             graphics::ClipboardTextRequested::zen_version, medium);
         speak.allow_to_role(graphics::SurfacePlacementRemembered::zen_name,
                             graphics::SurfacePlacementRemembered::zen_version, medium);
     }
-    // ...and the OS window shaped to the room a restore brings back, as the office arranging there.
+    // ...and the OS window shaped to the room a restore brings back, as the role arranging there.
     speak.allow_to_role(graphics::WindowShaped::zen_name, graphics::WindowShaped::zen_version,
-                        std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow);
+                        std::string(graphics::kWindowRolePrefix) + graphics::kSdlWindow);
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
-    // ...and the double-click time asked of the input office.
+    // ...and the double-click time asked of the input role.
     speak.allow_to_role(input::PointerTimingAsked::zen_name, input::PointerTimingAsked::zen_version,
                         input::kInputRole);
     // ...and to the layouts' owner: each edit of the live layout, Workshop's own settings declared
     // and written, the session's save asked, and the judge's answer about the weaver's act.
     speak.allow_to_role(LayoutEditRequested::zen_name, LayoutEditRequested::zen_version,
                         kLayoutsRole);
-    speak.allow_to_role(OfficeSettingsDeclared::zen_name, OfficeSettingsDeclared::zen_version,
+    speak.allow_to_role(RoleSettingsDeclared::zen_name, RoleSettingsDeclared::zen_version,
                         kLayoutsRole);
-    speak.allow_to_role(OfficeSettingCommitRequested::zen_name,
-                        OfficeSettingCommitRequested::zen_version, kLayoutsRole);
+    speak.allow_to_role(RoleSettingCommitRequested::zen_name,
+                        RoleSettingCommitRequested::zen_version, kLayoutsRole);
     speak.allow_to_role(SessionSaveRequested::zen_name, SessionSaveRequested::zen_version,
                         kLayoutsRole);
     speak.allow_to_any(WeaversActAnswered::zen_name, WeaversActAnswered::zen_version);
@@ -42,12 +42,12 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PanePoint::zen_name, PanePoint::zen_version);
     speak.allow_to_any(DeskRead::zen_name, DeskRead::zen_version);
     // ...and the notice that the desk moved, published to whoever follows it, a relay's listener
-    // among them, which holds no office.
+    // among them, which holds no role.
     speak.allow_to_any(DeskStamps::zen_name, DeskStamps::zen_version);
     // ...and what each pane's area shows, asked of the window that shows the desk.
     for (const char* window : {graphics::kTerminalWindow, graphics::kSdlWindow}) {
         speak.allow_to_role(graphics::AreaShowAsked::zen_name, graphics::AreaShowAsked::zen_version,
-                            std::string(graphics::kWindowOfficePrefix) + window);
+                            std::string(graphics::kWindowRolePrefix) + window);
     }
     speak.allow_to_any(PaneObservationAnswered::zen_name, PaneObservationAnswered::zen_version);
     speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
@@ -90,7 +90,7 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(TerminalCompletionOffered::zen_name, TerminalCompletionOffered::zen_version);
     // A GUIDE MARK'S ANSWER, to the guest that asked for it, at the ask and when the mark ends.
     speak.allow_to_any(GuideAnswered::zen_name, GuideAnswered::zen_version);
-    // WHAT A SHAPE THIS OFFICE ACCEPTS DOES, from its manual, to whoever asked.
+    // WHAT A SHAPE THIS ROLE ACCEPTS DOES, from its manual, to whoever asked.
     speak.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     // THE EDITOR'S DOCUMENT, read to refuse a guest the words of the guests file.
     speak.allow_observe(EditorDocument::zen_name, EditorDocument::zen_version);

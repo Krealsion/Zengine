@@ -1,8 +1,8 @@
-# The Neovim-backed Editor: the Editor's office held with a Neovim this weave runs, a load plan
+# The Neovim-backed Editor: the Editor's role held with a Neovim this weave runs, a load plan
 # choice beside the standard Editor (`editor/editor-pane/`), reaching Workshop through the external pane
 # protocol and speaking both halves of the editor switch's handoff. One translation unit over
 # `editor/neovim/` (`zengine-neovim`), which holds a Neovim; this weave decides what its facts mean for
-# the office. It does not link the standard Editor, nor the standard Editor it.
+# the role. It does not link the standard Editor, nor the standard Editor it.
 
 # THE ASKS A WEAVER SENDS IT, as this package's one public header: exported as `zengine::neovim`
 # (cmake/ZengineInstall.cmake), so a host or a weave outside this tree can compose
@@ -20,7 +20,7 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-# Its manual is the Editor office's page, the one the standard Editor carries, compiled in and
+# Its manual is the Editor role's page, the one the standard Editor carries, compiled in and
 # answered to whoever asks for it.
 zengine_weave(zengine-neovim-editor pane.cpp MANUAL ../docs/zengine.editor.md)
 target_link_libraries(zengine-neovim-editor PRIVATE zengine-neovim zengine-neovim-editor-vocabulary

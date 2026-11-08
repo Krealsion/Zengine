@@ -4,12 +4,12 @@
 #ifndef ZENGINE_WORKSHOP_LAYOUTS_OWNER_HPP
 #define ZENGINE_WORKSHOP_LAYOUTS_OWNER_HPP
 
-// The layouts' owner, the office `zengine.layouts`: the store as a weave of its own, mounted by the
+// The layouts' owner, the role `zengine.layouts`: the store as a weave of its own, mounted by the
 // host in its own process and never replaced. It sends its presenter each picture of the live
 // layout, answers its edits, writes the session at its orderly close, takes a pane's row off the
-// live layout when an office closes it, hands each seated pane its row's settings and hears what
+// live layout when a role closes it, hands each seated pane its row's settings and hears what
 // the pane cannot use, and is every settings door: one writer and one judge of every layout,
-// office-wide setting, lock and pin.
+// role-wide setting, lock and pin.
 // Workshop law: agents/workshop/layouts.md (+2 registers; agents/workshop.md routes)
 
 #include "workshop/actor_scope.hpp" // a guest's row, which says whether it may touch settings
@@ -21,7 +21,7 @@
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.layouts.hpp" // the office's manual, compiled in from its page
+#include "manuals/zengine.layouts.hpp" // the role's manual, compiled in from its page
 
 #include <zen/weave.hpp>
 
@@ -61,16 +61,16 @@ class LayoutsOwner
     : public zengine::With<manual::ManualFacet<manual::pages::zengine_layouts::kManual>>::Weave<
           LayoutsOwner, LayoutsOwnerState,
           loom::Accept<LayoutEditRequested, SessionSaveRequested, SetupApplyRequested,
-                       PaneSettingsDeclared, v2::PaneSettingsDeclared, OfficeSettingsDeclared,
+                       PaneSettingsDeclared, v2::PaneSettingsDeclared, RoleSettingsDeclared,
                        PaneSettingsAsked, PaneSettingUnused, PaneSettingsRequested,
-                       PaneSettingCommitRequested, OfficeSettingsRequested,
-                       OfficeSettingCommitRequested, PaneSettingPinRequested,
+                       PaneSettingCommitRequested, RoleSettingsRequested,
+                       RoleSettingCommitRequested, PaneSettingPinRequested,
                        PaneSettingLockRequested, LayoutSettingsRequested, SettingsWriteRequested,
                        PaneInventory, WeaversActAnswered, PaneCloseRequested>,
           loom::Emit<LiveLayout, LayoutEditAnswered, SessionSaveAnswered, loom::Ack, loom::Refused,
                      PaneSettings, v2::PaneSettings, PaneSettingsAnswered,
-                     PaneSettingCommitAnswered, OfficeSettings, OfficeSettingsAnswered,
-                     OfficeSettingCommitAnswered, PaneSettingPinAnswered, PaneSettingLockAnswered,
+                     PaneSettingCommitAnswered, RoleSettings, RoleSettingsAnswered,
+                     RoleSettingCommitAnswered, PaneSettingPinAnswered, PaneSettingLockAnswered,
                      LayoutSettingsAnswered, SettingsWriteAnswered, WeaversActRequested,
                      PaneInventoryRequested, PaneCloseAnswered>> {
 public:
@@ -88,10 +88,10 @@ public:
     // ---- A pane's row taken off the live layout ---------------------------------------------
     void on(const PaneCloseRequested& asked, loom::Mail& mail);
 
-    // ---- What each pane and office takes ----------------------------------------------------
+    // ---- What each pane and role takes ----------------------------------------------------
     void on(const PaneSettingsDeclared& declared, loom::Mail& mail);
     void on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail);
-    void on(const OfficeSettingsDeclared& declared, loom::Mail& mail);
+    void on(const RoleSettingsDeclared& declared, loom::Mail& mail);
 
     // ---- A row's settings, handed to its pane -----------------------------------------------
     void on(const PaneSettingsAsked& asked, loom::Mail& mail);
@@ -100,8 +100,8 @@ public:
     // ---- The settings doors -----------------------------------------------------------------
     void on(const PaneSettingsRequested& asked, loom::Mail& mail);
     void on(const PaneSettingCommitRequested& asked, loom::Mail& mail);
-    void on(const OfficeSettingsRequested& asked, loom::Mail& mail);
-    void on(const OfficeSettingCommitRequested& asked, loom::Mail& mail);
+    void on(const RoleSettingsRequested& asked, loom::Mail& mail);
+    void on(const RoleSettingCommitRequested& asked, loom::Mail& mail);
     void on(const PaneSettingPinRequested& asked, loom::Mail& mail);
     void on(const PaneSettingLockRequested& asked, loom::Mail& mail);
     void on(const LayoutSettingsRequested& asked, loom::Mail& mail);
@@ -111,7 +111,7 @@ public:
     const LayoutStore& layouts() const noexcept { return store_; }
     LayoutStore& store() noexcept { return store_; }
     /// WHAT THE STORE MOVED SINCE THE LAST MESSAGE, sent now: each pane's row, then the picture,
-    /// then each office's settings.
+    /// then each role's settings.
     void settle(loom::Mail& mail, bool picture = false);
     /// THE HOST'S READINGS, taken now: for a rig that reads the store between messages.
     void read_host_now() { read_host(); }
@@ -144,8 +144,8 @@ private:
 };
 
 /// What the owner may say, and to whom: each answer to its asker, a close's among them, the
-/// picture and its question to the presenter, each pane's row to its office's holder, and each
-/// office's settings to that office.
+/// picture and its question to the presenter, each pane's row to its role's holder, and each
+/// role's settings to that role.
 loom::Grant layouts_grant();
 
 } // namespace zengine::workshop

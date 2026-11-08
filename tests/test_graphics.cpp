@@ -14,7 +14,7 @@
 #include "graphics_rig.hpp"
 #include "layouts_stand_in.hpp"
 #include "lifecycle_door.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "window_backends.hpp"
 
 #include "board.hpp"
@@ -77,7 +77,7 @@
 namespace gfx = zengine::graphics;
 namespace snake = zengine::snake;
 using zengine::testing::graphics_rig::Rig;
-using zengine::testing::graphics_rig::window_office;
+using zengine::testing::graphics_rig::window_role;
 using zengine::testing::window_backends::FakeSdlBackend;
 using zengine::testing::window_backends::FakeTerminal;
 using zengine::testing::window_backends::LightLog;
@@ -88,7 +88,7 @@ namespace {
 constexpr const char* kArea = "snake.world";
 
 /// A sketch's nodes as a painter's task, every colour resolved in `palette` as a window resolves
-/// them for an area nobody's office owns.
+/// them for an area nobody's role owns.
 gfx::PaintTask task_in(const gfx::Sketch& s, const gfx::PaletteOffered& palette) {
     gfx::PaintTask task;
     gfx::window::dress(task, palette, "");
@@ -558,7 +558,7 @@ struct Snake {
     Rig r;
     Snake() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
         REQUIRE(r.load("snake-world-v1", WORLD_V1_SO, snake::kWorldRole).valid());
         r.arrange(SNAKE_SO_BOARD, kArea, snake::kWorldRole,
                   "night");
@@ -577,7 +577,7 @@ bool any_whole(const std::vector<gfx::Drawn>& drawn) {
 using FakeWindow = gfx::window::WindowT<FakeTerminal>;
 
 /// What a window answered the suite's asker for its platform, by the correlation of the ask each
-/// answers, and what the window published as its office; every shape heard, in order.
+/// answers, and what the window published as its role; every shape heard, in order.
 struct PlatformHeard {
     std::vector<std::string> order;
     std::vector<std::pair<std::uint64_t, gfx::ClipboardText>> texts;
@@ -654,7 +654,7 @@ private:
     std::string window_;
 };
 
-/// The suite as a participant asking a window for its platform: it asks the window's office and
+/// The suite as a participant asking a window for its platform: it asks the window's role and
 /// keeps each answer by its ask, publishes a copy, and hears what the window publishes.
 struct PlatformAsker {
     Rig* r = nullptr;
@@ -662,9 +662,9 @@ struct PlatformAsker {
     loom::WeaveId id;
     PlatformHeard heard;
 
-    void mount(Rig& rig, std::string office) {
+    void mount(Rig& rig, std::string role) {
         r = &rig;
-        window = std::move(office);
+        window = std::move(role);
         auto made = std::make_unique<PlatformEars>(heard, window);
         PlatformEars* raw = made.get();
         loom::Grant g = loom::emit_default_grant(*raw);
@@ -721,7 +721,7 @@ struct PlatformAsker {
 };
 
 /// A window whose terminal is the suite's, beside the directory: the window mounted in process at
-/// its office and activated as Loom's control door activates. Asked to, the suite's asker is
+/// its role and activated as Loom's control door activates. Asked to, the suite's asker is
 /// mounted first, and hears the window from its activation on.
 struct TypedWindow {
     Rig r;
@@ -732,13 +732,13 @@ struct TypedWindow {
     explicit TypedWindow(bool hear = false) {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
         if (hear) {
-            platform.mount(r, window_office());
+            platform.mount(r, window_role());
         }
         auto w = std::make_unique<FakeWindow>(FakeTerminal{&term});
         FakeWindow* raw = w.get();
         instance = raw;
         loom::Grant g = loom::emit_default_grant(*raw);
-        window = r.bus.register_weave(std::move(w), std::move(g), window_office());
+        window = r.bus.register_weave(std::move(w), std::move(g), window_role());
         raw->zen_set_self(window);
         const loom::WeaveId door = zengine::testing::mount_door(r.bus);
         zengine::testing::order_activation(r.bus, door, window, 1);
@@ -768,7 +768,7 @@ struct Typed : TypedWindow {
     }
 };
 
-/// An owner the suite speaks for: it holds its office, and keeps what the window says to it.
+/// An owner the suite speaks for: it holds its role, and keeps what the window says to it.
 struct OwnerHeard {
     std::vector<std::string> refused;
 };
@@ -836,7 +836,7 @@ struct Drawing {
     loom::WeaveId drawer;
     Drawing() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
         auto d = std::make_unique<BeatDrawer>();
         BeatDrawer* raw = d.get();
         loom::Grant g = loom::emit_default_grant(*raw);
@@ -856,7 +856,7 @@ struct Bounded {
     loom::WeaveId owner;
     Bounded() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
         auto o = std::make_unique<Owner>(heard);
         Owner* raw = o.get();
         loom::Grant g = loom::emit_default_grant(*raw);
@@ -866,7 +866,7 @@ struct Bounded {
     }
     template <class T>
     void say(const T& msg) {
-        r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+        r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                      loom::Message(loom::to_value(msg)));
         r.drain();
     }
@@ -993,7 +993,7 @@ TEST_CASE("the directory's page answers for every shape it accepts, and names no
     const std::vector<std::string> described =
         described_shapes_of(r.bus, r.bus.role_holder(gfx::kGraphicsRole));
     REQUIRE_FALSE(described.empty());
-    CHECK(check_office_manual(r.bus, gfx::kGraphicsRole) >= described.size());
+    CHECK(check_role_manual(r.bus, gfx::kGraphicsRole) >= described.size());
     check_page_names_accepted(zengine::manual::pages::zengine_graphics::kManual, described);
 }
 
@@ -1022,7 +1022,7 @@ TEST_CASE("the window replaced: the frame drawn whole once and the board said on
     r.tick();
     const gfx::WindowShown before = r.shown();
     const std::size_t mark = r.log.size();
-    const auto swapped = r.command(loom::SwapWeave{window_office(), "zengine-window-terminal",
+    const auto swapped = r.command(loom::SwapWeave{window_role(), "zengine-window-terminal",
                                                    WINDOW_SO, /*graceful=*/false});
     REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
     const auto drawn = r.read<gfx::Drawn>(mark, snake::kWorldRole);
@@ -1040,7 +1040,7 @@ TEST_CASE("the window holds the process's terminal input while it is loaded, rel
     REQUIRE_FALSE(in::window_holds_terminal_input());
     {
         Rig r;
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
         CHECK(in::window_terminal_input_claims() == 1);
 
         // A reload makes the successor before it destroys its predecessor: one claim, not none.
@@ -1048,7 +1048,7 @@ TEST_CASE("the window holds the process's terminal input while it is loaded, rel
         REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
         CHECK(in::window_terminal_input_claims() == 1);
 
-        const auto swapped = r.command(loom::SwapWeave{window_office(), "zengine-window-terminal",
+        const auto swapped = r.command(loom::SwapWeave{window_role(), "zengine-window-terminal",
                                                        WINDOW_SO, /*graceful=*/false});
         REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
         CHECK(in::window_terminal_input_claims() == 1);
@@ -1058,11 +1058,11 @@ TEST_CASE("the window holds the process's terminal input while it is loaded, rel
 
 TEST_CASE("the window's page answers for every shape it accepts, and names no other") {
     Rig r;
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
     const std::vector<std::string> described =
-        described_shapes_of(r.bus, r.bus.role_holder(window_office()));
+        described_shapes_of(r.bus, r.bus.role_holder(window_role()));
     REQUIRE_FALSE(described.empty());
-    CHECK(check_office_manual(r.bus, window_office()) >= described.size());
+    CHECK(check_role_manual(r.bus, window_role()) >= described.size());
     check_page_names_accepted(zengine::manual::pages::zengine_window_terminal::kManual, described);
 }
 
@@ -1077,7 +1077,7 @@ TEST_CASE("the world reloaded: its room asked, its frame drawn whole once, its b
     REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
     CHECK(r.count(mark, "RoomAsked", snake::kWorldRole) == 1);
     // The window's answer names the board it still presents; the world's state names no window.
-    const auto rooms = r.read<gfx::AreaRoom>(mark, window_office());
+    const auto rooms = r.read<gfx::AreaRoom>(mark, window_role());
     REQUIRE(rooms.size() == 1);
     CHECK(rooms[0].elements == std::vector<std::int64_t>{snake::kBoardRef});
     for (const auto* schema : {loom::schema_of<snake::v1::SnakeWorldState>().get(),
@@ -1270,7 +1270,7 @@ TEST_CASE("a drawer that never calls show still shows once a beat, its nodes bef
 TEST_CASE("a drawing weave takes a room only from the window it names") {
     Drawing d;
     const std::size_t mark = d.r.log.size();
-    // A room from a sender that holds no window's office: not taken.
+    // A room from a sender that holds no window's role: not taken.
     d.r.to_role(kDrawer, gfx::AreaRoom{kDrawer, "elsewhere", 99, 0, 0, {}});
     d.r.drain();
     const std::int64_t showings = d.r.shown().showings;
@@ -1295,7 +1295,7 @@ TEST_CASE("an area given another owner starts empty, its room naming none of the
                 gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, "test.heir", 0, 0,
                                 50 * gfx::kCellPx, 22 * gfx::kCellPx, 0, true});
     b.r.drain();
-    const auto rooms = b.r.read<gfx::AreaRoom>(mark, window_office());
+    const auto rooms = b.r.read<gfx::AreaRoom>(mark, window_role());
     REQUIRE(rooms.size() == 1);
     CHECK(rooms[0].elements.empty());
     CHECK(rooms[0].empty);
@@ -1317,7 +1317,7 @@ TEST_CASE("an area withdrawn and placed again at the same size starts empty, its
     // PLACED AGAIN WHERE IT STANDS, the window keeps the drawing and says so.
     std::size_t mark = d.r.log.size();
     place(gfx::kTerminalWindow);
-    auto rooms = d.r.read<gfx::AreaRoom>(mark, window_office());
+    auto rooms = d.r.read<gfx::AreaRoom>(mark, window_role());
     REQUIRE(rooms.size() == 1);
     CHECK_FALSE(rooms[0].empty);
     CHECK(rooms[0].elements == std::vector<std::int64_t>{1});
@@ -1327,7 +1327,7 @@ TEST_CASE("an area withdrawn and placed again at the same size starts empty, its
     CHECK(d.r.shown().elements == 0);
     mark = d.r.log.size();
     place(gfx::kTerminalWindow);
-    rooms = d.r.read<gfx::AreaRoom>(mark, window_office());
+    rooms = d.r.read<gfx::AreaRoom>(mark, window_role());
     REQUIRE(rooms.size() == 1);
     CHECK(rooms[0].empty);
     CHECK(rooms[0].elements.empty());
@@ -1414,7 +1414,7 @@ TEST_CASE("a press nothing drawn there takes, in an area not placed to hear the 
     }
 }
 
-/// AN OWNER OF AN AREA, as the window's office tells it: every pointer moment it is given, in
+/// AN OWNER OF AN AREA, as the window's role tells it: every pointer moment it is given, in
 /// order, each with the number its delivery carried; the actions it is asked; and what a window
 /// told it of the holds and hover there. Asked to, it draws `words` at its corner,
 /// naming `action` when one is given.
@@ -1430,7 +1430,7 @@ struct MomentsHeard {
 };
 
 bool from_a_window(const loom::Mail& mail) {
-    return mail.authored_role().rfind(gfx::kWindowOfficePrefix, 0) == 0;
+    return mail.authored_role().rfind(gfx::kWindowRolePrefix, 0) == 0;
 }
 
 class MomentsOwner
@@ -1441,9 +1441,9 @@ class MomentsOwner
                                           gfx::ActionRequested>,
                              loom::Emit<gfx::Drawn>> {
 public:
-    MomentsOwner(MomentsHeard& heard, std::string office, std::string words,
+    MomentsOwner(MomentsHeard& heard, std::string role, std::string words,
                  std::string action)
-        : heard_(&heard), office_(std::move(office)), words_(std::move(words)),
+        : heard_(&heard), role_(std::move(role)), words_(std::move(words)),
           action_(std::move(action)) {}
     void on(const gfx::AreaRoom& r, loom::Mail& mail) {
         ++state_.heard;
@@ -1455,8 +1455,8 @@ public:
         if (!action_.empty()) {
             s.action("words", action_);
         }
-        (void)mail.as_role(office_).send_to_role(
-            std::string(gfx::kWindowOfficePrefix) + r.window,
+        (void)mail.as_role(role_).send_to_role(
+            std::string(gfx::kWindowRolePrefix) + r.window,
             gfx::Drawn{r.area, true, s.nodes(), {}, s.records(), {}, false});
     }
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
@@ -1492,10 +1492,10 @@ public:
 
 private:
     MomentsHeard* heard_;
-    std::string office_, words_, action_;
+    std::string role_, words_, action_;
 };
 
-/// AN ARRANGER THE SUITE SPEAKS AS: it places areas under its own office, and keeps where the
+/// AN ARRANGER THE SUITE SPEAKS AS: it places areas under its own role, and keeps where the
 /// window tells it presses landed, each with the number its delivery carried, and what the window
 /// tells it of the holds and hover in the areas it placed.
 struct PressesHeard {
@@ -1538,7 +1538,7 @@ private:
 constexpr const char* kArranger = "test.arranger";
 
 /// THE TERMINAL WINDOW WITH OWNERS OF THE SUITE'S OWN, each area placed by the suite as root, or
-/// by the suite's arranger under its office.
+/// by the suite's arranger under its role.
 struct PointerDesk : TypedWindow {
     PressesHeard presses;
     loom::WeaveId arranger;
@@ -1552,18 +1552,18 @@ struct PointerDesk : TypedWindow {
         raw->zen_set_self(arranger);
         r.drain();
     }
-    /// An owner of `office`, its area placed at cell (`col`, `row`), `w` by `h` cells.
-    MomentsHeard& own(const char* office, std::int64_t col, std::int64_t row, std::int64_t w,
+    /// An owner of `role`, its area placed at cell (`col`, `row`), `w` by `h` cells.
+    MomentsHeard& own(const char* role, std::int64_t col, std::int64_t row, std::int64_t w,
                       std::int64_t h, std::int64_t order, bool pointer, bool by_arranger = false,
                       std::string words = {}, std::string action = {}, bool followed = true) {
         heard.push_back(std::make_unique<MomentsHeard>());
-        auto made = std::make_unique<MomentsOwner>(*heard.back(), office, std::move(words),
+        auto made = std::make_unique<MomentsOwner>(*heard.back(), role, std::move(words),
                                                    std::move(action));
         MomentsOwner* raw = made.get();
         loom::Grant g = loom::emit_default_grant(*raw);
-        raw->zen_set_self(r.bus.register_weave(std::move(made), std::move(g), office));
-        r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{office, "night"});
-        place(office, office, col, row, w, h, order, pointer, by_arranger, followed);
+        raw->zen_set_self(r.bus.register_weave(std::move(made), std::move(g), role));
+        r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{role, "night"});
+        place(role, role, col, row, w, h, order, pointer, by_arranger, followed);
         r.drain();
         return *heard.back();
     }
@@ -1576,7 +1576,7 @@ struct PointerDesk : TypedWindow {
         placed.pointer = pointer;
         placed.followed = followed;
         if (by_arranger) {
-            r.bus.office_send_to_role_as(arranger, kArranger, gfx::kGraphicsRole,
+            r.bus.role_send_to_role_as(arranger, kArranger, gfx::kGraphicsRole,
                                          loom::Message(loom::to_value(placed)));
         } else {
             r.to_role(gfx::kGraphicsRole, placed);
@@ -1620,7 +1620,7 @@ TEST_CASE("the window tells an area's arranger, unasked, each time what the area
     const loom::WeaveId owner = t.r.bus.role_holder("test.settling");
     gfx::Sketch s;
     s.text("words", 0, 0, "other words", gfx::colors::text);
-    REQUIRE(t.r.bus.office_send_to_role_as(owner, "test.settling", window_office(),
+    REQUIRE(t.r.bus.role_send_to_role_as(owner, "test.settling", window_role(),
         loom::Message(loom::to_value(gfx::Drawn{"test.settling", true, s.nodes(), {}, s.records(),
                                                 {}, false, 0}))).valid());
     t.r.drain();
@@ -1633,7 +1633,7 @@ TEST_CASE("the window tells an area's arranger, unasked, each time what the area
     const loom::WeaveId quiet_owner = t.r.bus.role_holder("test.quiet");
     gfx::Sketch q;
     q.text("words", 0, 0, "quiet again", gfx::colors::text);
-    REQUIRE(t.r.bus.office_send_to_role_as(quiet_owner, "test.quiet", window_office(),
+    REQUIRE(t.r.bus.role_send_to_role_as(quiet_owner, "test.quiet", window_role(),
         loom::Message(loom::to_value(gfx::Drawn{"test.quiet", true, q.nodes(), {}, q.records(),
                                                 {}, false, 0}))).valid());
     t.r.drain();
@@ -1677,7 +1677,7 @@ TEST_CASE("a button's moment says what the window drew under the hand when it la
         s.text("words", 0, 0, words, gfx::colors::text);
         if (!action.empty()) s.action("words", action);
         s.number(number);
-        REQUIRE(t.r.bus.office_send_to_role_as(owner, "test.hearing", window_office(),
+        REQUIRE(t.r.bus.role_send_to_role_as(owner, "test.hearing", window_role(),
             loom::Message(loom::to_value(gfx::Drawn{"test.hearing", true, s.nodes(), {},
                                                     s.records(), {}, false, number}))).valid());
         t.r.drain();
@@ -1799,7 +1799,7 @@ TEST_CASE("a press holds its button for the area that took it: every move while 
     CHECK(hearing.moves.size() == 1);
 }
 
-TEST_CASE("the window tells the arranger of an area another office owns where each press there and "
+TEST_CASE("the window tells the arranger of an area another role owns where each press there and "
           "its release landed, under the press's number, and no arranger that owns the area") {
     PointerDesk t;
     MomentsHeard& owned = t.own("test.hearing", 10, 2, 20, 5, 1, true, /*by_arranger=*/true);
@@ -1887,7 +1887,7 @@ TEST_CASE("an area placed to hear the pointer takes every point inside it, paint
 TEST_CASE("a press held for an area ends with no release when the area is withdrawn, handed to "
           "another owner, or covered where it was made by an area placed to hear the pointer in "
           "front of it, and the window tells the area's owner, and its arranger when another "
-          "office, that it ended -- and no one else") {
+          "role, that it ended -- and no one else") {
     PointerDesk t;
     MomentsHeard& hearing = t.own("test.hearing", 10, 2, 20, 5, 1, true);
     MomentsHeard& beside = t.own("test.beside", 40, 2, 10, 5, 2, true);
@@ -1932,10 +1932,10 @@ TEST_CASE("a press held for an area ends with no release when the area is withdr
         CHECK(hearing.buttons.size() == 1);
         CHECK(heir.buttons.size() == 1); // the area's new owner hears the release where it lands
     }
-    SUBCASE("in an area another office placed, its arranger is told too") {
+    SUBCASE("in an area another role placed, its arranger is told too") {
         MomentsHeard& placed = t.own("test.placed", 10, 10, 20, 5, 1, true, /*by_arranger=*/true);
         t.button(0, 12, 12, true);
-        t.r.bus.office_send_to_role_as(
+        t.r.bus.role_send_to_role_as(
             t.arranger, kArranger, gfx::kGraphicsRole,
             loom::Message(loom::to_value(
                 gfx::AreaPlaced{"test.placed", "", "test.placed", 0, 0, 0, 0, 0, false})));
@@ -1950,7 +1950,7 @@ TEST_CASE("a press held for an area ends with no release when the area is withdr
 }
 
 TEST_CASE("the pointer leaving an area placed to hear it, with no button held, is told once, when "
-          "the next move lands elsewhere, to the area's owner and its arranger when another office, "
+          "the next move lands elsewhere, to the area's owner and its arranger when another role, "
           "and to no one else") {
     PointerDesk t;
     MomentsHeard& a = t.own("test.a", 10, 2, 10, 5, 1, true);
@@ -1971,7 +1971,7 @@ TEST_CASE("the pointer leaving an area placed to hear it, with no button held, i
     CHECK(a.order == std::vector<std::string>{"move", "move", "left"});
     CHECK(t.presses.left.empty()); // an area placed personally names no arranger
 
-    SUBCASE("in an area another office placed, its arranger is told too") {
+    SUBCASE("in an area another role placed, its arranger is told too") {
         MomentsHeard& placed = t.own("test.placed", 10, 10, 10, 5, 1, true, /*by_arranger=*/true);
         t.move(12, 12);
         t.move(60, 20);
@@ -1994,7 +1994,7 @@ TEST_CASE("the pointer leaving an area placed to hear it, with no button held, i
     }
 }
 
-TEST_CASE("the directory names the office an area was placed as its arranger, and a placing said "
+TEST_CASE("the directory names the role an area was placed as its arranger, and a placing said "
           "personally names none") {
     PointerDesk t;
     const std::size_t mark = t.r.log.size();
@@ -2017,12 +2017,12 @@ TEST_CASE("the new-game button is the world's action, and a new game reaches the
     // from anyone else, or from the window about another area, is delivered and does nothing.
     const std::size_t asked = t.r.log.size();
     t.r.to_role(snake::kWorldRole, gfx::ActionRequested{kArea, "new-game"});
-    t.r.bus.office_send_to_role_as(
-        t.window, window_office(), snake::kWorldRole,
+    t.r.bus.role_send_to_role_as(
+        t.window, window_role(), snake::kWorldRole,
         loom::Message(loom::to_value(gfx::ActionRequested{"test.elsewhere", "new-game"})));
     t.r.drain();
     REQUIRE(t.r.read<gfx::ActionRequested>(asked).size() == 2);
-    const auto from_window = t.r.read<gfx::ActionRequested>(asked, window_office());
+    const auto from_window = t.r.read<gfx::ActionRequested>(asked, window_role());
     REQUIRE(from_window.size() == 1);
     CHECK(from_window[0].area == "test.elsewhere");
     CHECK(t.r.count(asked, "ElementChange", snake::kWorldRole) == 0);
@@ -2078,7 +2078,7 @@ TEST_CASE("keys go from the window to the owner of each area placed to hear them
 
 namespace {
 
-/// WHAT AN OWNER PLACED IN THE WINDOW WAS GIVEN, in order, as the window's office, and the area
+/// WHAT AN OWNER PLACED IN THE WINDOW WAS GIVEN, in order, as the window's role, and the area
 /// and the hand each moment named.
 struct KeysHeard {
     std::vector<std::string> said;
@@ -2098,7 +2098,7 @@ public:
     explicit KeysOwner(KeysHeard& heard) : heard_(&heard) {}
     void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
     void on(const gfx::AreaKeyPressed& k, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->hear("key " + k.name, k);
+        if (mail.authored_from_role(window_role())) heard_->hear("key " + k.name, k);
     }
 
 private:
@@ -2115,13 +2115,13 @@ public:
     explicit TextOwner(KeysHeard& heard) : heard_(&heard) {}
     void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
     void on(const gfx::AreaKeyPressed& k, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->hear("key " + k.name, k);
+        if (mail.authored_from_role(window_role())) heard_->hear("key " + k.name, k);
     }
     void on(const gfx::AreaKeyReleased& k, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->hear("up " + k.name, k);
+        if (mail.authored_from_role(window_role())) heard_->hear("up " + k.name, k);
     }
     void on(const gfx::AreaTextEntered& e, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->hear("text " + e.text, e);
+        if (mail.authored_from_role(window_role())) heard_->hear("text " + e.text, e);
     }
 
 private:
@@ -2139,16 +2139,16 @@ TEST_CASE("a key, its release and the text it types go from the window to the ow
     TypedWindow t;
     t.r.to_role(gfx::kGraphicsRole, gfx::themes::night());
     t.r.drain();
-    const auto mount = [&t](auto made, const char* office, bool keys, bool more, std::int64_t y) {
+    const auto mount = [&t](auto made, const char* role, bool keys, bool more, std::int64_t y) {
         auto* raw = made.get();
         loom::Grant g = loom::emit_default_grant(*raw);
-        const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), office);
+        const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), role);
         raw->zen_set_self(id);
-        gfx::AreaPlaced placed{office, gfx::kTerminalWindow, office, 0, y, 10 * gfx::kCellPx,
+        gfx::AreaPlaced placed{role, gfx::kTerminalWindow, role, 0, y, 10 * gfx::kCellPx,
                                2 * gfx::kCellPx, 1, keys};
         placed.releases = more;
         placed.text = more;
-        t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{office, "night"});
+        t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{role, "night"});
         t.r.to_role(gfx::kGraphicsRole, placed);
         t.r.drain();
         return id;
@@ -2167,14 +2167,14 @@ TEST_CASE("a key, its release and the text it types go from the window to the ow
     t.type("hi");
     t.r.bus.remove_observer(tap);
     // EACH KEY, THE CHARACTER IT TYPED, AND ITS RELEASE, to the owner placed to hear all three, as
-    // the window's office, to that owner alone...
+    // the window's role, to that owner alone...
     CHECK(typing.said == std::vector<std::string>{"key H", "text h", "up H", "key I", "text i",
                                                   "up I"});
     CHECK(typing.named == std::vector<std::string>(6, "test.typing local"));
     std::size_t text_delivered = 0;
     for (std::size_t i = mark; i < t.r.log.size(); ++i) {
         if (t.r.log[i].shape != gfx::AreaTextEntered::zen_name) continue;
-        CHECK(t.r.log[i].authored_role == window_office());
+        CHECK(t.r.log[i].authored_role == window_role());
         CHECK(t.r.log[i].target == typing_id.value);
         ++text_delivered;
     }
@@ -2190,7 +2190,7 @@ TEST_CASE("a key, its release and the text it types go from the window to the ow
 
 namespace {
 
-/// EVERY WINDOW OFFER AN ARRANGER BESIDE THE DIRECTORY HEARD, and whether the window's office said
+/// EVERY WINDOW OFFER AN ARRANGER BESIDE THE DIRECTORY HEARD, and whether the window's role said
 /// it.
 struct OffersHeard {
     std::vector<gfx::WindowOffered> offers;
@@ -2204,7 +2204,7 @@ public:
     explicit OfferFollower(OffersHeard& heard) : heard_(&heard) {}
     void on(const gfx::WindowOffered& w, loom::Mail& mail) {
         heard_->offers.push_back(w);
-        heard_->from_window.push_back(mail.authored_from_role(window_office()));
+        heard_->from_window.push_back(mail.authored_from_role(window_role()));
     }
 
 private:
@@ -2213,7 +2213,7 @@ private:
 
 } // namespace
 
-TEST_CASE("the window offers itself as its own office to whoever follows it: the directory, which "
+TEST_CASE("the window offers itself as its own role to whoever follows it: the directory, which "
           "introduces its areas, and an arranger beside it, on each activation and new directory") {
     Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
@@ -2225,8 +2225,8 @@ TEST_CASE("the window offers itself as its own office to whoever follows it: the
         r.bus.register_weave(std::move(made), std::move(g), "test.arranger");
     raw->zen_set_self(follower);
     const std::size_t mark = r.log.size();
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
-    // ACTIVATED: one offer, published as the window's office, heard by the directory and the
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
+    // ACTIVATED: one offer, published as the window's role, heard by the directory and the
     // arranger alike.
     REQUIRE(heard.offers.size() == 1);
     CHECK(heard.from_window[0]);
@@ -2241,7 +2241,7 @@ TEST_CASE("the window offers itself as its own office to whoever follows it: the
     std::set<std::uint64_t> to;
     for (std::size_t i = mark; i < r.log.size(); ++i) {
         if (r.log[i].shape != gfx::WindowOffered::zen_name) continue;
-        CHECK(r.log[i].authored_role == window_office());
+        CHECK(r.log[i].authored_role == window_role());
         CHECK(r.log[i].addressed_role.empty());
         to.insert(r.log[i].target);
     }
@@ -2260,21 +2260,21 @@ TEST_CASE("the window offers itself as its own office to whoever follows it: the
     std::size_t rooms = 0;
     for (std::size_t i = placed; i < r.log.size(); ++i) {
         if (r.log[i].shape == gfx::AreaRoom::zen_name && r.log[i].target == owner.value &&
-            r.log[i].authored_role == window_office()) {
+            r.log[i].authored_role == window_role()) {
             ++rooms;
         }
     }
     CHECK(rooms >= 1);
     // A NEW DIRECTORY: the window offers itself again, the same incarnation, to both.
     const std::size_t again = r.log.size();
-    r.bus.office_send_to_role_as(r.bus.role_holder(gfx::kGraphicsRole), gfx::kGraphicsRole,
-                                 window_office(),
+    r.bus.role_send_to_role_as(r.bus.role_holder(gfx::kGraphicsRole), gfx::kGraphicsRole,
+                                 window_role(),
                                  loom::Message(loom::to_value(gfx::GraphicsReady{})));
     r.drain();
     REQUIRE(heard.offers.size() == 2);
     CHECK(heard.from_window[1]);
     CHECK(heard.offers[1].epoch == heard.offers[0].epoch);
-    CHECK(r.count(again, gfx::WindowOffered::zen_name, window_office()) == 2);
+    CHECK(r.count(again, gfx::WindowOffered::zen_name, window_role()) == 2);
 }
 
 namespace {
@@ -2287,7 +2287,7 @@ class RoomArranger
 public:
     explicit RoomArranger(OffersHeard& heard) : heard_(&heard) {}
     void on(const gfx::WindowOffered& w, loom::Mail& mail) {
-        if (!mail.authored_from_role(window_office())) {
+        if (!mail.authored_from_role(window_role())) {
             return;
         }
         heard_->offers.push_back(w);
@@ -2321,7 +2321,7 @@ struct Resized : TypedWindow {
         d.area = kOwner;
         d.whole = true;
         d.put = s.nodes();
-        r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+        r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                      loom::Message(loom::to_value(d)));
         r.drain();
         epoch = r.shown().epoch;
@@ -2334,7 +2334,7 @@ std::vector<gfx::WindowOffered> offers_to_directory(Rig& r, std::size_t from) {
     const std::uint64_t directory = r.bus.role_holder(gfx::kGraphicsRole).value;
     for (std::size_t i = from; i < r.log.size(); ++i) {
         const auto& d = r.log[i];
-        if (d.shape != gfx::WindowOffered::zen_name || d.authored_role != window_office() ||
+        if (d.shape != gfx::WindowOffered::zen_name || d.authored_role != window_role() ||
             d.target != directory) {
             continue;
         }
@@ -2450,7 +2450,7 @@ TEST_CASE("an arranger following the window's offer places its area across the r
     CHECK(introduced.back().w == 100 * gfx::kCellPx);
     CHECK(introduced.back().h == 36 * gfx::kCellPx);
     // ...AND THE WINDOW TOLD THE OWNER ITS NEW ROOM, the incarnation unchanged...
-    const auto rooms = r.read<gfx::AreaRoom>(mark, window_office());
+    const auto rooms = r.read<gfx::AreaRoom>(mark, window_role());
     REQUIRE_FALSE(rooms.empty());
     CHECK(rooms.back().area == kOwner);
     CHECK(rooms.back().w == 100 * gfx::kCellPx);
@@ -2526,7 +2526,7 @@ TEST_CASE("the terminal window copies by OSC 52, reads no clipboard, has no plac
         d.whole = true;
         d.put = sk.nodes();
         d.more = more;
-        r.bus.office_send_to_role_as(t.owner, kOwner, window_office(),
+        r.bus.role_send_to_role_as(t.owner, kOwner, window_role(),
                                      loom::Message(loom::to_value(d)));
         r.drain();
     };
@@ -2855,7 +2855,7 @@ struct FacetedRig {
 
     FacetedRig() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
         auto d = std::make_unique<FacetedDrawer>();
         raw = d.get();
         loom::Grant g = loom::emit_default_grant(*raw);
@@ -2971,7 +2971,7 @@ TEST_CASE("an AreaRoom with the same window and epoch and a changed w or h updat
                 gfx::AreaPlaced{kDrawer, gfx::kTerminalWindow, kDrawer, 0, 0,
                                 40 * gfx::kCellPx, 18 * gfx::kCellPx, 0, true});
     f.r.drain();
-    const auto rooms = f.r.read<gfx::AreaRoom>(mark, window_office());
+    const auto rooms = f.r.read<gfx::AreaRoom>(mark, window_role());
     REQUIRE(rooms.size() == 1);
     CHECK(rooms[0].w == 40 * gfx::kCellPx);
     CHECK(rooms[0].h == 18 * gfx::kCellPx);
@@ -3020,7 +3020,7 @@ TEST_CASE("a facet on Activated composed over TimedWeave deduplicates zen.Activa
           "on_timed_activation and the facet's handler on an accepted activation") {
     Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
     auto d = std::make_unique<TimedActivatedDrawer>();
     TimedActivatedDrawer* raw = d.get();
     loom::Grant g = loom::emit_default_grant(*raw);
@@ -3864,7 +3864,7 @@ public:
     void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
     void on(const gfx::DrawnRefused& r, loom::Mail&) { heard_->refused.push_back(r.reason); }
     void on(const gfx::ActionRequested& a, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->actions.push_back(a.action);
+        if (mail.authored_from_role(window_role())) heard_->actions.push_back(a.action);
     }
 
 private:
@@ -3897,7 +3897,7 @@ struct Parts : TypedWindow {
         d.area = kParts;
         last_ = s;
         drawn_ = true;
-        r.bus.office_send_to_role_as(owner, kParts, window_office(),
+        r.bus.role_send_to_role_as(owner, kParts, window_role(),
                                      loom::Message(loom::to_value(d)));
         r.drain();
     }
@@ -4058,8 +4058,8 @@ namespace ws = zengine::workshop;
 namespace apane = zengine::attention_pane;
 namespace cpane = zengine::connections_pane;
 
-/// THE OFFICES A PANE HEARS ITS READING FROM, as far as the window's suite needs them: each holds
-/// its office and says what the suite gives it, and hears nothing.
+/// THE ROLES A PANE HEARS ITS READING FROM, as far as the window's suite needs them: each holds
+/// its role and says what the suite gives it, and hears nothing.
 class WorkshopSpeaker
     : public loom::WeaveBase<WorkshopSpeaker, GraphicsTestOwner, loom::Accept<>,
                              loom::Emit<ws::StandingConditions>> {};
@@ -4067,22 +4067,22 @@ class DoorSpeaker
     : public loom::WeaveBase<DoorSpeaker, GraphicsTestOwner, loom::Accept<>,
                              loom::Emit<ws::v3::GuestConnections>> {};
 template <class W>
-loom::WeaveId mount_as(Rig& r, const std::string& office) {
+loom::WeaveId mount_as(Rig& r, const std::string& role) {
     auto w = std::make_unique<W>();
     W* raw = w.get();
     loom::Grant g = loom::emit_default_grant(*raw);
-    const loom::WeaveId id = r.bus.register_weave(std::move(w), std::move(g), office);
+    const loom::WeaveId id = r.bus.register_weave(std::move(w), std::move(g), role);
     raw->zen_set_self(id);
     return id;
 }
 
-/// The area of the terminal window for an office's pane, `<office>.<pane>`, at its corner, 62
+/// The area of the terminal window for a role's pane, `<role>.<pane>`, at its corner, 62
 /// cells by 10, wearing the classic palette.
-void place_pane(Rig& r, const std::string& office, const std::string& pane) {
-    const std::string area = ws::pane_area(office, pane);
+void place_pane(Rig& r, const std::string& role, const std::string& pane) {
+    const std::string area = ws::pane_area(role, pane);
     r.to_role(gfx::kGraphicsRole, gfx::themes::night());
     r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{area, "night"});
-    r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{area, gfx::kTerminalWindow, office, 0, 0,
+    r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{area, gfx::kTerminalWindow, role, 0, 0,
                                                   62 * gfx::kCellPx, 10 * gfx::kCellPx, 0});
     r.drain();
 }
@@ -4107,11 +4107,11 @@ ws::StandingCondition condition(const char* key, const char* compact, const char
 }
 
 /// THE ATTENTION PANE, the library Workshop loads, in a window whose terminal is the suite's: its
-/// area placed for its office, and the host's office the suite speaks as.
+/// area placed for its role, and the host's role the suite speaks as.
 struct AttentionWindow : TypedWindow {
     loom::WeaveId workshop;
     zengine::testing::LayoutsStandIn* layouts = nullptr;
-    /// `held`: the layouts' office keeps the pane's ask unanswered until a case releases it.
+    /// `held`: the layouts' role keeps the pane's ask unanswered until a case releases it.
     explicit AttentionWindow(bool held = false) {
         workshop = mount_as<WorkshopSpeaker>(r, "zengine.workshop");
         layouts = zengine::testing::mount_layouts_stand_in(r.bus, held);
@@ -4119,22 +4119,22 @@ struct AttentionWindow : TypedWindow {
                     .valid());
         place_pane(r, apane::kAttentionPaneRole, apane::kAttentionPane);
     }
-    /// The host says what is true, as its own office.
+    /// The host says what is true, as its own role.
     void say(std::vector<ws::StandingCondition> rows) {
-        r.bus.office_send_to_role_as(
+        r.bus.role_send_to_role_as(
             workshop, "zengine.workshop", apane::kAttentionPaneRole,
             loom::Message(loom::to_value(ws::StandingConditions{std::move(rows)})));
         r.drain();
     }
-    /// The window asks the pane's area for an action, as the window's office.
+    /// The window asks the pane's area for an action, as the window's role.
     void ask(const std::string& action) {
-        r.bus.office_send_to_role_as(
-            window, window_office(), apane::kAttentionPaneRole,
+        r.bus.role_send_to_role_as(
+            window, window_role(), apane::kAttentionPaneRole,
             loom::Message(loom::to_value(gfx::ActionRequested{
                 ws::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane), action})));
         r.drain();
     }
-    /// What the pane drew since `mark`, as its office.
+    /// What the pane drew since `mark`, as its role.
     std::vector<gfx::Drawn> drawn(std::size_t mark) const {
         return r.read<gfx::Drawn>(mark, apane::kAttentionPaneRole);
     }
@@ -4246,7 +4246,7 @@ TEST_CASE("a pane on the drawing facet is pressed over a drawn button's whole fa
     // A PRESS THE WINDOW SAYS IT LANDED ON ANOTHER PART THERE: refused, and said.
     gfx::AreaButtonChanged other{area, 1, true, 2 * gfx::kCellPx + 6, gfx::kCellPx + 6, 0,
                                  true, 0, area, "stop", 0};
-    REQUIRE(t.r.bus.office_send_to_role_as(t.window, window_office(), kButtonPane,
+    REQUIRE(t.r.bus.role_send_to_role_as(t.window, window_role(), kButtonPane,
                                            loom::Message(loom::to_value(other))).valid());
     t.r.drain();
     CHECK(button->pressed() == 3);
@@ -4303,9 +4303,9 @@ TEST_CASE("a pane on the drawing facet is handed the part the pointer rests on, 
     t.r.drain();
     constexpr std::int64_t c = gfx::kCellPx;
     const auto tell = [&](const auto& moment, std::uint64_t press, loom::WeaveId from,
-                          const std::string& office) {
+                          const std::string& role) {
         REQUIRE(t.r.bus
-                    .office_send_to_role_as(from, office, kRestPane,
+                    .role_send_to_role_as(from, role, kRestPane,
                                             loom::Message(loom::to_value(moment), loom::WeaveId{},
                                                           loom::WeaveId{}, press))
                     .valid());
@@ -4313,7 +4313,7 @@ TEST_CASE("a pane on the drawing facet is handed the part the pointer rests on, 
     };
     const auto move = [&](std::int64_t x, std::int64_t y, std::uint64_t press = 0) {
         tell(gfx::AreaPointerMoved{area, x, y, 0, 0, 0, true, 0}, press, t.window,
-             window_office());
+             window_role());
     };
     move(3 * c + 2, c + 2); // on the button's face
     CHECK(pane->rests == std::vector<std::string>{"go"});
@@ -4323,14 +4323,14 @@ TEST_CASE("a pane on the drawing facet is handed the part the pointer rests on, 
     CHECK(pane->rests == std::vector<std::string>{"go", ""});
     move(3 * c + 2, c + 2, 41); // a drag a held press carries: no rest
     CHECK(pane->rests.size() == 2);
-    // THE LEAVE, ONCE A REST; a second leave, and one said by another office, are nothing.
-    tell(gfx::AreaPointerLeft{area}, 0, t.window, window_office());
+    // THE LEAVE, ONCE A REST; a second leave, and one said by another role, are nothing.
+    tell(gfx::AreaPointerLeft{area}, 0, t.window, window_role());
     CHECK(pane->leaves == 1);
-    tell(gfx::AreaPointerLeft{area}, 0, t.window, window_office());
+    tell(gfx::AreaPointerLeft{area}, 0, t.window, window_role());
     CHECK(pane->leaves == 1);
     move(3 * c + 2, c + 2);
     CHECK(pane->rests == std::vector<std::string>{"go", "", "go"});
-    tell(gfx::AreaPointerLeft{area}, 0, t.window, window_office());
+    tell(gfx::AreaPointerLeft{area}, 0, t.window, window_role());
     CHECK(pane->leaves == 2);
 }
 
@@ -4338,7 +4338,7 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
           "drawing goes whole, never as a change from a picture the window does not hold") {
     Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
     (void)mount_as<TestPane>(r, kTestPane);
     place_pane(r, kTestPane, kTestPane);
     REQUIRE(r.read<gfx::Drawn>(0, kTestPane).size() == 1);
@@ -4356,7 +4356,7 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
     REQUIRE(drawn.size() == 2);
     CHECK_FALSE(drawn[0].whole);
     CHECK(drawn[1].whole);
-    REQUIRE(r.read<gfx::DrawnRefused>(mark, window_office()).size() == 2);
+    REQUIRE(r.read<gfx::DrawnRefused>(mark, window_role()).size() == 2);
     CHECK(row_says(r.shown().rows, 0, "turn 0")); // what the window showed stays
 
     mark = r.log.size();
@@ -4365,11 +4365,11 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
     REQUIRE(drawn.size() == 1);
     CHECK(drawn[0].whole);
     CHECK(put_paths(drawn[0]) == Paths{"room", "words"});
-    CHECK(r.read<gfx::DrawnRefused>(mark, window_office()).empty());
+    CHECK(r.read<gfx::DrawnRefused>(mark, window_role()).empty());
     CHECK(row_says(r.shown().rows, 0, "turn 2"));
 }
 
-/// AN OFFICE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
+/// AN ROLE THAT IS NOT THE LAYOUTS' OWNER, handing a pane a row.
 class RowForger
     : public loom::WeaveBase<RowForger, GraphicsTestOwner, loom::Accept<>,
                              loom::Emit<ws::v2::PaneSettings>> {};
@@ -4382,10 +4382,10 @@ TEST_CASE("the Attention pane draws nothing in its room before it holds its row,
     REQUIRE(a.layouts != nullptr);
     CHECK(a.layouts->asks == 1); // it asked once, as it arrived
     CHECK(a.drawn(0).empty());
-    // ...A ROW ANOTHER OFFICE HANDS IS NOT ITS ROW, and draws nothing either.
-    // ⚔ MUTATION (tests/mutants/graphics.md#row-from-any-office): a pane that takes a row from any office.
+    // ...A ROW ANOTHER ROLE HANDS IS NOT ITS ROW, and draws nothing either.
+    // ⚔ MUTATION (tests/mutants/graphics.md#row-from-any-role): a pane that takes a row from any role.
     const loom::WeaveId forger = mount_as<RowForger>(a.r, "test.forger");
-    a.r.bus.office_send_to_role_as(
+    a.r.bus.role_send_to_role_as(
         forger, "test.forger", apane::kAttentionPaneRole,
         loom::Message(loom::to_value(ws::v2::PaneSettings{apane::kAttentionPane, 9, {}})));
     a.r.drain();
@@ -4438,7 +4438,7 @@ TEST_CASE("the Attention pane draws in a graphics window: whole on its room, the
     // there, and only the rows that moved are drawn again -- the glance is not.
     mark = a.r.log.size();
     a.press(4, 3);
-    const auto asked = a.r.read<gfx::ActionRequested>(mark, window_office());
+    const auto asked = a.r.read<gfx::ActionRequested>(mark, window_role());
     REQUIRE(asked.size() == 1);
     CHECK(asked[0].area == ws::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane));
     CHECK(asked[0].action == "condition:b.two");
@@ -4503,14 +4503,14 @@ TEST_CASE("the Attention pane draws in a graphics window: whole on its room, the
     three.push_back(condition("load.unavailable/x.y", "a third thing", "why the third"));
     mark = a.r.log.size();
     a.say(three);
-    CHECK(a.r.read<gfx::DrawnRefused>(mark, window_office()).empty());
+    CHECK(a.r.read<gfx::DrawnRefused>(mark, window_role()).empty());
     drawn = a.drawn(mark);
     REQUIRE(drawn.size() == 1);
     CHECK(said_paths(drawn[0]) == Paths{"condition:load.unavailable%2Fx.y"});
     REQUIRE(row_says(a.r.shown().rows, 3, "  a third thing"));
     mark = a.r.log.size();
     a.press(4, 3);
-    const auto third = a.r.read<gfx::ActionRequested>(mark, window_office());
+    const auto third = a.r.read<gfx::ActionRequested>(mark, window_role());
     REQUIRE(third.size() == 1);
     CHECK(third[0].action == "condition:load.unavailable/x.y");
     CHECK(row_says(a.r.shown().rows, 2, "> a third thing"));
@@ -4520,13 +4520,13 @@ TEST_CASE("the Connections pane draws in a graphics window: whole on its room, e
           "as what changed, and nothing named for a press") {
     Rig r;
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_role()).valid());
     const loom::WeaveId door = mount_as<DoorSpeaker>(r, ws::kGuestsRole);
     REQUIRE(r.load(cpane::kConnectionsPaneStem, CONNECTIONS_PANE_SO, cpane::kConnectionsPaneRole)
                 .valid());
     place_pane(r, cpane::kConnectionsPaneRole, cpane::kConnectionsPane);
     const auto say = [&](const ws::v3::GuestConnections& said) {
-        r.bus.office_send_to_role_as(door, ws::kGuestsRole, cpane::kConnectionsPaneRole,
+        r.bus.role_send_to_role_as(door, ws::kGuestsRole, cpane::kConnectionsPaneRole,
                                      loom::Message(loom::to_value(said)));
         r.drain();
     };
@@ -4582,7 +4582,7 @@ namespace {
 namespace light = zengine::graphics::light;
 namespace gw = zengine::graphics::window;
 
-std::string sdl_office() { return std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow; }
+std::string sdl_role() { return std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow; }
 
 /// The primitives each node of a sketch paints for light in `palette`, in the sketch's order.
 std::vector<light::NodePrimitives> lit(const gfx::Sketch& s, const gfx::PaletteOffered& palette) {
@@ -4988,7 +4988,7 @@ namespace {
 
 using FakeSdlWindow = gw::SdlWindowT<FakeSdlBackend>;
 
-/// What an owner in the OS window was told, as the window's office.
+/// What an owner in the OS window was told, as the window's role.
 struct LitHeard {
     std::vector<gfx::AreaRoom> rooms;
     std::vector<std::string> refused;
@@ -5017,44 +5017,44 @@ class LitOwner
 public:
     explicit LitOwner(LitHeard& heard) : heard_(&heard) {}
     void on(const gfx::AreaRoom& r, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->rooms.push_back(r);
+        if (mail.authored_from_role(sdl_role())) heard_->rooms.push_back(r);
     }
     void on(const gfx::DrawnRefused& r, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->refused.push_back(r.reason);
+        if (mail.authored_from_role(sdl_role())) heard_->refused.push_back(r.reason);
     }
     void on(const gfx::AreaKeyPressed& k, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) {
+        if (mail.authored_from_role(sdl_role())) {
             heard_->said.push_back("key " + k.name + said(k));
         }
     }
     void on(const gfx::AreaKeyReleased& k, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) {
+        if (mail.authored_from_role(sdl_role())) {
             heard_->said.push_back("up " + k.name + said(k));
         }
     }
     void on(const gfx::AreaTextEntered& e, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) {
+        if (mail.authored_from_role(sdl_role())) {
             heard_->said.push_back("text " + e.text + said(e));
         }
     }
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) {
+        if (mail.authored_from_role(sdl_role())) {
             heard_->pressed.emplace_back(b, mail.correlation());
         }
     }
     void on(const gfx::AreaPointerMoved& m, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) {
+        if (mail.authored_from_role(sdl_role())) {
             heard_->moves.emplace_back(m, mail.correlation());
         }
     }
     void on(const gfx::AreaWheelTurned& w, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->wheels.push_back(w);
+        if (mail.authored_from_role(sdl_role())) heard_->wheels.push_back(w);
     }
     void on(const gfx::AreaHoldEnded& e, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->ended.push_back(e);
+        if (mail.authored_from_role(sdl_role())) heard_->ended.push_back(e);
     }
     void on(const gfx::ActionRequested& a, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->actions.push_back(a);
+        if (mail.authored_from_role(sdl_role())) heard_->actions.push_back(a);
     }
 
 private:
@@ -5067,7 +5067,7 @@ gfx::Drawn whole(const std::string& area, const gfx::Sketch& s) {
 }
 
 /// The OS window over the suite's backend, beside the directory, its palettes offered: mounted in
-/// process at its office and activated as Loom's control door activates.
+/// process at its role and activated as Loom's control door activates.
 struct LitWindow {
     Rig r;
     LightLog light;
@@ -5087,7 +5087,7 @@ struct LitWindow {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
         light.placement = at;
         if (hear) {
-            platform.mount(r, sdl_office());
+            platform.mount(r, sdl_role());
         }
         auto w = std::make_unique<FakeSdlWindow>(FakeSdlBackend{&light});
         if (kept != nullptr) {
@@ -5096,7 +5096,7 @@ struct LitWindow {
         FakeSdlWindow* raw = w.get();
         instance = raw;
         loom::Grant g = loom::emit_default_grant(*raw);
-        window = r.bus.register_weave(std::move(w), std::move(g), sdl_office());
+        window = r.bus.register_weave(std::move(w), std::move(g), sdl_role());
         raw->zen_set_self(window);
         const loom::WeaveId door = zengine::testing::mount_door(r.bus);
         zengine::testing::order_activation(r.bus, door, window, 1);
@@ -5109,32 +5109,32 @@ struct LitWindow {
 
     /// An owner of an area of the window: placed there, its palette chosen. What it hears is
     /// kept.
-    LitHeard& own(const std::string& office, std::int64_t x, std::int64_t y, std::int64_t w,
+    LitHeard& own(const std::string& role, std::int64_t x, std::int64_t y, std::int64_t w,
                   std::int64_t h, const std::string& palette, std::int64_t order = 0,
                   bool keys = false, bool pointer = false) {
         heard.push_back(std::make_unique<LitHeard>());
         auto made = std::make_unique<LitOwner>(*heard.back());
         LitOwner* raw = made.get();
         loom::Grant g = loom::emit_default_grant(*raw);
-        const loom::WeaveId id = r.bus.register_weave(std::move(made), std::move(g), office);
+        const loom::WeaveId id = r.bus.register_weave(std::move(made), std::move(g), role);
         raw->zen_set_self(id);
-        owners.emplace_back(office, id);
-        gfx::AreaPlaced placed{office, gfx::kSdlWindow, office, x, y, w, h, order, keys};
+        owners.emplace_back(role, id);
+        gfx::AreaPlaced placed{role, gfx::kSdlWindow, role, x, y, w, h, order, keys};
         placed.releases = keys; // the owner takes every key moment
         placed.text = keys;
         placed.pointer = pointer;
-        r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{office, palette});
+        r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{role, palette});
         r.to_role(gfx::kGraphicsRole, placed);
         r.drain();
         return *heard.back();
     }
 
-    /// The owner of `office` says `msg` to the window, as its office.
+    /// The owner of `role` says `msg` to the window, as its role.
     template <class T>
-    void say(const std::string& office, const T& msg) {
+    void say(const std::string& role, const T& msg) {
         for (const auto& [o, id] : owners) {
-            if (o == office) {
-                r.bus.office_send_to_role_as(id, office, sdl_office(),
+            if (o == role) {
+                r.bus.role_send_to_role_as(id, role, sdl_role(),
                                              loom::Message(loom::to_value(msg)));
             }
         }
@@ -5162,7 +5162,7 @@ struct LitWindow {
     }
 
     gfx::WindowShown shown() {
-        r.bus.send_as_to_role(r.ears, sdl_office(),
+        r.bus.send_as_to_role(r.ears, sdl_role(),
                               loom::Message(loom::to_value(gfx::WindowShowAsked{}), r.ears,
                                             r.ears, r.next_corr++));
         r.drain();
@@ -5294,12 +5294,12 @@ TEST_CASE("the OS window paints each area in the palette it wears, painting each
 
 namespace {
 
-/// A drawer of the suite's own, mounted under `office`, that a case speaks for.
-loom::WeaveId mount_owner(Rig& r, OwnerHeard& heard, const char* office) {
+/// A drawer of the suite's own, mounted under `role`, that a case speaks for.
+loom::WeaveId mount_owner(Rig& r, OwnerHeard& heard, const char* role) {
     auto o = std::make_unique<Owner>(heard);
     Owner* raw = o.get();
     loom::Grant g = loom::emit_default_grant(*raw);
-    const loom::WeaveId id = r.bus.register_weave(std::move(o), std::move(g), office);
+    const loom::WeaveId id = r.bus.register_weave(std::move(o), std::move(g), role);
     raw->zen_set_self(id);
     return id;
 }
@@ -5366,7 +5366,7 @@ TEST_CASE("every palette paints in a terminal: a colour with no terminal word sh
     s.text("a", 0, 0, "A", gfx::colors::accent);
     s.text("b", gfx::kCellPx, 0, "B", gfx::colors::alert);
     s.text("c", 2 * gfx::kCellPx, 0, "C", gfx::rgb(0x00ff00));
-    t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+    t.r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                    loom::Message(loom::to_value(whole(kOwner, s))));
     t.r.drain();
     CHECK(heard.refused.empty());
@@ -5416,7 +5416,7 @@ TEST_CASE("in a terminal night and day show their text and grounds in the termin
     s.fill_rect("ground", 0, 0, 20 * gfx::kCellPx, 2 * gfx::kCellPx, gfx::colors::background);
     s.text("a", 0, 0, "A", gfx::colors::accent);
     s.text("t", gfx::kCellPx, 0, "T", gfx::colors::text);
-    t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+    t.r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                    loom::Message(loom::to_value(whole(kOwner, s))));
     t.r.drain();
     CHECK(heard.refused.empty());
@@ -5433,7 +5433,7 @@ TEST_CASE("in a terminal night and day show their text and grounds in the termin
     d.fill_rect("ground", 0, 0, 20 * gfx::kCellPx, 2 * gfx::kCellPx, gfx::colors::background);
     d.text("f", 0, 0, "F", gfx::colors::frame);
     d.text("s", gfx::kCellPx, 0, "S", gfx::colors::frame_selected);
-    t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+    t.r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                    loom::Message(loom::to_value(whole(kOwner, d))));
     t.r.drain();
     CHECK(heard.refused.empty());
@@ -5484,7 +5484,7 @@ TEST_CASE("a host that offers no palette paints in the window's own: the pool's 
     s.fill_rect("r", 0, 0, 3 * gfx::kCellPx, gfx::kCellPx, gfx::colors::text);
     s.fill_rect("q", 3 * gfx::kCellPx, 0, 2 * gfx::kCellPx, gfx::kCellPx, gfx::colors::accent);
     s.text("t", 0, gfx::kCellPx, "own", gfx::colors::text);
-    t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+    t.r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                    loom::Message(loom::to_value(whole(kOwner, s))));
     t.r.drain();
     CHECK(heard.refused.empty());
@@ -5527,8 +5527,8 @@ TEST_CASE("a pane naming a pool colour paints its palette's colour, and a new re
     LitHeard& other = t.own("test.other", 0, 120, 100, 50, "night", 2);
     gfx::Sketch s;
     s.fill_rect("r", 0, 0, 24, 12, gfx::colors::accent);
-    for (const char* office : {"test.first", "test.second", "test.other"}) {
-        t.say(office, whole(office, s));
+    for (const char* role : {"test.first", "test.second", "test.other"}) {
+        t.say(role, whole(role, s));
     }
     CHECK(t.light.area("test.first")->nodes[0].quads[0].rgba == 0x112233ffu);
     CHECK(t.light.area("test.second")->nodes[0].quads[0].rgba == 0x112233ffu);
@@ -5560,7 +5560,7 @@ TEST_CASE("a pane naming a pool colour paints its palette's colour, and a new re
     CHECK(t.shown().painter_calls == calls + 2);
 }
 
-TEST_CASE("a slot paints the palette's colour for the office that exposes it, else the default "
+TEST_CASE("a slot paints the palette's colour for the role that exposes it, else the default "
           "its pane generated, and a terminal shows it as the pool colour it is like") {
     LitWindow t;
     gfx::PaletteOffered slotted = gfx::themes::night();
@@ -5580,8 +5580,8 @@ TEST_CASE("a slot paints the palette's colour for the office that exposes it, el
     const LightLog::Area* plain = t.light.area("test.plain");
     REQUIRE(own != nullptr);
     REQUIRE(plain != nullptr);
-    CHECK(own->nodes[0].quads[0].rgba == 0x010203ffu);   // the palette's, for its office
-    CHECK(own->nodes[1].quads[0].rgba == 0xf2a541ffu);   // another office's setting is not its
+    CHECK(own->nodes[0].quads[0].rgba == 0x010203ffu);   // the palette's, for its role
+    CHECK(own->nodes[1].quads[0].rgba == 0xf2a541ffu);   // another role's setting is not its
     CHECK(plain->nodes[0].quads[0].rgba == 0x24324affu); // the default its pane generated
     // IN A TERMINAL, a slot's default is filled and inked as the pool colour it is like.
     gfx::Sketch cells;
@@ -5623,7 +5623,7 @@ TEST_CASE("a drawing in the operands' first versions, colours by role, is refuse
     gfx::Drawn d = whole(kOwner, s);
     d.put.push_back(gfx::Node{"old", gfx::op::kRect,
                               gfx::body_of(V1RectArgs{0, 0, 24, 12, V1Paint{1, -1}, V1Paint{}})});
-    t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+    t.r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                    loom::Message(loom::to_value(d)));
     t.r.drain();
     REQUIRE(heard.refused.size() == 1);
@@ -5786,7 +5786,7 @@ TEST_CASE("the OS window gives a release, another button, a move and the wheel t
     CHECK(deaf.pressed.empty());
 }
 
-TEST_CASE("the OS window publishes a close its desktop asked for as its office, once for each ask, "
+TEST_CASE("the OS window publishes a close its desktop asked for as its role, once for each ask, "
           "on the beat or a pump; a terminal is never asked") {
     LitWindow t(nullptr, true);
     PlatformAsker& ask = t.platform;
@@ -5795,7 +5795,7 @@ TEST_CASE("the OS window publishes a close its desktop asked for as its office, 
     t.light.queued.close = true;
     t.pump();
     CHECK(ask.heard.closes == 1);
-    CHECK(t.r.count(0, gfx::SurfaceCloseRequested::zen_name, sdl_office()) == 1);
+    CHECK(t.r.count(0, gfx::SurfaceCloseRequested::zen_name, sdl_role()) == 1);
     t.pump(); // a beat that asks nothing publishes nothing
     CHECK(ask.heard.closes == 1);
     SUBCASE("a pump is the beat's work, a close included") {
@@ -5820,7 +5820,7 @@ TEST_CASE("the OS window resized offers itself again in its new size in pixels, 
           "incarnation, and draws its picture again at any new size") {
     LitWindow t;
     t.own("test.lit", 0, 0, 100, 100, "night");
-    const auto offers = t.r.read<gfx::WindowOffered>(0, sdl_office());
+    const auto offers = t.r.read<gfx::WindowOffered>(0, sdl_role());
     REQUIRE_FALSE(offers.empty());
     CHECK(offers.back().width == gw::kDefaultWidth);
     CHECK(offers.back().height == gw::kDefaultHeight);
@@ -5830,7 +5830,7 @@ TEST_CASE("the OS window resized offers itself again in its new size in pixels, 
     std::size_t frames = t.light.frames.size();
     t.light.size = gw::PixelSize{gw::kDefaultWidth + 5, gw::kDefaultHeight + 5}; // in a cell
     t.pump();
-    const auto pixels = t.r.read<gfx::WindowOffered>(mark, sdl_office());
+    const auto pixels = t.r.read<gfx::WindowOffered>(mark, sdl_role());
     REQUIRE(pixels.size() == 1); // every pixel is its room, none floored to a cell
     CHECK(pixels[0].width == gw::kDefaultWidth + 5);
     CHECK(pixels[0].height == gw::kDefaultHeight + 5);
@@ -5840,7 +5840,7 @@ TEST_CASE("the OS window resized offers itself again in its new size in pixels, 
     frames = t.light.frames.size();
     t.light.size = gw::PixelSize{1200, 600};
     t.pump();
-    const auto again = t.r.read<gfx::WindowOffered>(mark, sdl_office());
+    const auto again = t.r.read<gfx::WindowOffered>(mark, sdl_role());
     REQUIRE(again.size() == 1);
     CHECK(again[0].window == gfx::kSdlWindow);
     CHECK(again[0].width == 1200);
@@ -5856,7 +5856,7 @@ TEST_CASE("the OS window resized offers itself again in its new size in pixels, 
 
     mark = t.r.log.size();
     t.pump(); // nothing changed: nothing offered, nothing drawn
-    CHECK(t.r.read<gfx::WindowOffered>(mark, sdl_office()).empty());
+    CHECK(t.r.read<gfx::WindowOffered>(mark, sdl_role()).empty());
 }
 
 TEST_CASE("an element said in the OS window is drawn by its code, and a change of it is painted "
@@ -5911,7 +5911,7 @@ TEST_CASE("the OS window's page answers for every shape it accepts, and names no
     LitWindow t;
     const std::vector<std::string> described = described_shapes_of(t.r.bus, t.window);
     REQUIRE_FALSE(described.empty());
-    CHECK(check_office_manual(t.r.bus, sdl_office()) >= described.size());
+    CHECK(check_role_manual(t.r.bus, sdl_role()) >= described.size());
     check_page_names_accepted(zengine::manual::pages::zengine_window_sdl::kManual, described);
 }
 
@@ -6068,7 +6068,7 @@ TEST_CASE("the OS window's clipboard and its place on the desktop are its backen
         REQUIRE(ask.heard.order.size() >= 2);
         CHECK(ask.heard.order[0] == "SurfacePlacement");
         CHECK(ask.heard.order[1] == "WindowOffered");
-        CHECK(b.r.count(0, gfx::SurfacePlacement::zen_name, sdl_office()) == 1);
+        CHECK(b.r.count(0, gfx::SurfacePlacement::zen_name, sdl_role()) == 1);
 
         b.pump();
         (void)ask.ask(gfx::PumpSurface{});
@@ -6189,7 +6189,7 @@ struct ReaderHeard {
     std::vector<gfx::AreaHandRefused> hands;
 };
 
-/// AN ARRANGER OF ITS OWN OFFICE: it places areas as that office, so a window names it their
+/// AN ARRANGER OF ITS OWN ROLE: it places areas as that role, so a window names it their
 /// arranger, and asks what each shows.
 class ReaderArranger
     : public loom::WeaveBase<ReaderArranger, GraphicsTestOwner,
@@ -6223,15 +6223,15 @@ class SketchOwner
                              loom::Accept<gfx::AreaRoom, gfx::AreaButtonChanged>,
                              loom::Emit<gfx::Drawn>> {
 public:
-    SketchOwner(std::string office, std::optional<gfx::Sketch> sketch,
+    SketchOwner(std::string role, std::optional<gfx::Sketch> sketch,
                 std::vector<gfx::AreaButtonChanged>& buttons)
-        : office_(std::move(office)), sketch_(std::move(sketch)), buttons_(&buttons) {}
+        : role_(std::move(role)), sketch_(std::move(sketch)), buttons_(&buttons) {}
     void on(const gfx::AreaRoom& r, loom::Mail& mail) {
         if (!from_a_window(mail) || !sketch_) {
             return;
         }
-        (void)mail.as_role(office_).send_to_role(
-            std::string(gfx::kWindowOfficePrefix) + r.window,
+        (void)mail.as_role(role_).send_to_role(
+            std::string(gfx::kWindowRolePrefix) + r.window,
             gfx::Drawn{r.area, true, sketch_->nodes(), {}, sketch_->records(), {}, false});
     }
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
@@ -6239,26 +6239,26 @@ public:
     }
 
 private:
-    std::string office_;
+    std::string role_;
     std::optional<gfx::Sketch> sketch_;
     std::vector<gfx::AreaButtonChanged>* buttons_;
 };
 
-/// The input office as the suite speaks it: a participant's moment published under its hand, and
+/// The input role as the suite speaks it: a participant's moment published under its hand, and
 /// the double-click time.
-class InputOffice
-    : public loom::WeaveBase<InputOffice, GraphicsTestOwner, loom::Accept<>,
+class InputRole
+    : public loom::WeaveBase<InputRole, GraphicsTestOwner, loom::Accept<>,
                              loom::Emit<zengine::input::AttributedInput,
                                         zengine::input::PointerTimingSaid>> {};
 
 /// A window of either medium with an arranger that reads it, owners that draw sketches, and the
-/// input office, all the suite's.
+/// input role, all the suite's.
 struct ReadDesk {
     Rig& r;
     std::string window;
     ReaderHeard heard;
     loom::WeaveId arranger, input;
-    /// ANOTHER OFFICE THAT PLACES AREAS in the same window, whose areas the reader did not arrange.
+    /// ANOTHER ROLE THAT PLACES AREAS in the same window, whose areas the reader did not arrange.
     ReaderHeard other_heard;
     loom::WeaveId other;
     std::vector<std::unique_ptr<std::vector<gfx::AreaButtonChanged>>> buttons;
@@ -6273,8 +6273,8 @@ struct ReadDesk {
         loom::Grant g = loom::emit_default_grant(*raw);
         arranger = r.bus.register_weave(std::move(made), std::move(g), kReader);
         raw->zen_set_self(arranger);
-        auto in = std::make_unique<InputOffice>();
-        InputOffice* in_raw = in.get();
+        auto in = std::make_unique<InputRole>();
+        InputRole* in_raw = in.get();
         loom::Grant ig = loom::emit_default_grant(*in_raw);
         input = r.bus.register_weave(std::move(in), std::move(ig), zengine::input::kInputRole);
         in_raw->zen_set_self(input);
@@ -6285,7 +6285,7 @@ struct ReadDesk {
         second_raw->zen_set_self(other);
         r.drain();
     }
-    std::string office() const { return std::string(gfx::kWindowOfficePrefix) + window; }
+    std::string role() const { return std::string(gfx::kWindowRolePrefix) + window; }
 
     /// An owner of `area` drawing `sketch` (or nothing), placed by the reader in pixels.
     std::vector<gfx::AreaButtonChanged>& own(const std::string& area,
@@ -6303,9 +6303,9 @@ struct ReadDesk {
         gfx::AreaPlaced placed{area, window, area, x, y, w, h, order, false, pointer, weaver_only};
         placed.followed = true; // its arranger hears where presses land, as Workshop does
         if (by_other) {
-            r.bus.office_send_to_role_as(other, kOther, gfx::kGraphicsRole,
+            r.bus.role_send_to_role_as(other, kOther, gfx::kGraphicsRole,
                                          loom::Message(loom::to_value(gfx::PaletteChosen{area, "night"})));
-            r.bus.office_send_to_role_as(other, kOther, gfx::kGraphicsRole,
+            r.bus.role_send_to_role_as(other, kOther, gfx::kGraphicsRole,
                                          loom::Message(loom::to_value(placed)));
             r.drain();
         } else {
@@ -6315,7 +6315,7 @@ struct ReadDesk {
         by_other = false;
         return *buttons.back();
     }
-    /// ...placed by the other office, for the next `own` alone.
+    /// ...placed by the other role, for the next `own` alone.
     ReadDesk& placed_by_other() {
         by_other = true;
         return *this;
@@ -6323,14 +6323,14 @@ struct ReadDesk {
     bool by_other = false;
     template <class T>
     void as_reader(const std::string& role, const T& msg) {
-        r.bus.office_send_to_role_as(arranger, kReader, role, loom::Message(loom::to_value(msg)));
+        r.bus.role_send_to_role_as(arranger, kReader, role, loom::Message(loom::to_value(msg)));
         r.drain();
     }
     /// What `area` shows, asked by the reader since `since`; the answer, or none when refused.
     std::optional<gfx::AreaShown> read(const std::string& area, std::int64_t since = 0) {
         const std::size_t before = heard.shown.size();
-        r.bus.office_send_to_role_as(
-            arranger, kReader, office(),
+        r.bus.role_send_to_role_as(
+            arranger, kReader, role(),
             loom::Message(loom::to_value(gfx::AreaShowAsked{area, since}), arranger, arranger,
                           r.next_corr++));
         r.drain();
@@ -6339,16 +6339,16 @@ struct ReadDesk {
         }
         return heard.shown.back();
     }
-    /// A participant's pointer moment, published by the input office under its hand.
+    /// A participant's pointer moment, published by the input role under its hand.
     void inject(std::int64_t actor, zengine::input::InjectedEvent e, bool local = false) {
-        r.bus.office_publish_as(
+        r.bus.role_publish_as(
             input, zengine::input::kInputRole,
             loom::Message(loom::to_value(zengine::input::AttributedInput{local, actor, e})));
         r.drain();
     }
-    /// The double-click time, published by the input office as it publishes a change.
+    /// The double-click time, published by the input role as it publishes a change.
     void time(std::int64_t ms) {
-        r.bus.office_publish_as(
+        r.bus.role_publish_as(
             input, zengine::input::kInputRole,
             loom::Message(loom::to_value(zengine::input::PointerTimingSaid{ms})));
         r.drain();
@@ -6450,7 +6450,7 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
     CHECK(again->words.empty());
     CHECK(again->parts.empty());
 
-    // AN AREA ANOTHER OFFICE ARRANGES IN FRONT, PAINTING OVER FOUR OF ITS CELLS: those cells are
+    // AN AREA ANOTHER ROLE ARRANGES IN FRONT, PAINTING OVER FOUR OF ITS CELLS: those cells are
     // not what it shows.
     gfx::Sketch over;
     over.text("lid", 0, 0, "XXXX", ink);
@@ -6475,7 +6475,7 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
                                                     2 * c, c, 4 * c, c, 3, false, false, false});
     gfx::Sketch mine;
     mine.text("lid", 0, 0, "YYYY", ink);
-    d.as_reader(d.office(), gfx::Drawn{lid, true, mine.nodes(), {}, mine.records(), {}, false});
+    d.as_reader(d.role(), gfx::Drawn{lid, true, mine.nodes(), {}, mine.records(), {}, false});
     const std::optional<gfx::AreaShown> drawn = d.read(lid);
     REQUIRE(drawn.has_value());
     REQUIRE(drawn->words.size() == 1);
@@ -6485,7 +6485,7 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
     REQUIRE(through->words.size() == 3);
     CHECK(same_word(through->words[0], 0, 0, "Pane title"));
 
-    // AN AREA THE ARRANGER PLACES FOR ANOTHER OFFICE, IN FRONT, OVER THE TITLE TOO: where it stands
+    // AN AREA THE ARRANGER PLACES FOR ANOTHER ROLE, IN FRONT, OVER THE TITLE TOO: where it stands
     // is the arranger's own to know and judge, so it hides nothing of the area it reads either.
     gfx::Sketch placed_over;
     placed_over.text("lid", 0, 0, "ZZZZ", ink);
@@ -6503,7 +6503,7 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
     CHECK_FALSE(d.read("test.mine").has_value());
     CHECK_FALSE(d.read("test.nowhere").has_value());
     REQUIRE(d.heard.refused.size() == 2);
-    CHECK(d.heard.refused[0] == "area 'test.mine' is read only by the office that placed it");
+    CHECK(d.heard.refused[0] == "area 'test.mine' is read only by the role that placed it");
     CHECK(d.heard.refused[1] == "window 'terminal' shows no area 'test.nowhere'");
 }
 
@@ -6520,7 +6520,7 @@ TEST_CASE("an area whose owner was told a room it must draw whole reads waiting 
 
     gfx::Sketch s;
     s.text("t", 0, 0, "drawn", gfx::colors::text);
-    t.r.bus.office_send_to_role_as(d.owners["test.blank"], "test.blank", window_office(),
+    t.r.bus.role_send_to_role_as(d.owners["test.blank"], "test.blank", window_role(),
                                    loom::Message(loom::to_value(whole("test.blank", s))));
     t.r.drain();
     const std::optional<gfx::AreaShown> after = d.read("test.blank", before->version);
@@ -6565,7 +6565,7 @@ TEST_CASE("an area's arranger reads what the OS window shows of it: its runs of 
     CHECK(knob.px == 110);
     CHECK(knob.py == 50);
 
-    // AN AREA ANOTHER OFFICE ARRANGES IN FRONT DRAWS OVER "on" AND THE KNOB'S MIDDLE: neither is
+    // AN AREA ANOTHER ROLE ARRANGES IN FRONT DRAWS OVER "on" AND THE KNOB'S MIDDLE: neither is
     // what the area shows there.
     gfx::Sketch over;
     over.fill_rect("lid", 0, 0, 30, 18, gfx::colors::background);
@@ -6582,9 +6582,9 @@ TEST_CASE("an area's arranger reads what the OS window shows of it: its runs of 
     CHECK(covered->parts[0].py == 50);
 }
 
-TEST_CASE("a participant's press the input office injects lands in the window as that hand's: its "
+TEST_CASE("a participant's press the input role injects lands in the window as that hand's: its "
           "owner and its arranger hear the hand, its release ends its own hold, the weaver's press "
-          "beside it holds its own, and a moment the platform gave or another office said is not "
+          "beside it holds its own, and a moment the platform gave or another role said is not "
           "taken") {
     TypedWindow t;
     ReadDesk d(t.r, gfx::kTerminalWindow);
@@ -6622,7 +6622,7 @@ TEST_CASE("a participant's press the input office injects lands in the window as
     CHECK(owner[3].local);
     CHECK(d.heard.pressed[3].second == d.heard.pressed[1].second);
 
-    // A MOMENT THE PLATFORM GAVE is the window's own to read; one another office said is no one's.
+    // A MOMENT THE PLATFORM GAVE is the window's own to read; one another role said is no one's.
     d.inject(0, ReadDesk::button(12 * c, 3 * c, true), /*local=*/true);
     (void)t.r.bus.publish(loom::Message(
         loom::to_value(
@@ -6632,7 +6632,7 @@ TEST_CASE("a participant's press the input office injects lands in the window as
     CHECK(owner.size() == 4);
 }
 
-TEST_CASE("the window counts the weaver's clicks by the input office's time: two presses 300 ms "
+TEST_CASE("the window counts the weaver's clicks by the input role's time: two presses 300 ms "
           "apart are a double click at 400 ms and not at 200, and at 800 a 600 ms pair is one") {
     TypedWindow t;
     ReadDesk d(t.r, gfx::kTerminalWindow);
@@ -6654,7 +6654,7 @@ TEST_CASE("the window counts the weaver's clicks by the input office's time: two
     // ⚔ MUTATION (tests/mutants/graphics.md#clicks-never-two): every press counts 1.
     // ⚔ MUTATION (tests/mutants/graphics.md#clicks-at-a-fixed-time): the said time is not heard.
 
-    // UNTIL THE OFFICE SAYS ONE, the default: 300 ms apart is one double click, told the owner and
+    // UNTIL THE ROLE SAYS ONE, the default: 300 ms apart is one double click, told the owner and
     // the arranger alike.
     CHECK(t.instance->double_click_ms() == zengine::input::kDefaultDoubleClickMs);
     CHECK(click(1000) == 1);
@@ -6677,20 +6677,20 @@ TEST_CASE("the window counts the weaver's clicks by the input office's time: two
     CHECK(click(20000) == 1);
     CHECK(click(20801) == 1);
 
-    // A TIME OUTSIDE WHAT THE OFFICE TAKES is held to it: 100 counts as 200.
+    // A TIME OUTSIDE WHAT THE ROLE TAKES is held to it: 100 counts as 200.
     d.time(100);
     CHECK(t.instance->double_click_ms() == zengine::input::kLeastDoubleClickMs);
     CHECK(click(30000) == 1);
     CHECK(click(30150) == 2);
 
-    // A TIME SAID BY ANYONE BUT THE INPUT OFFICE is nothing.
+    // A TIME SAID BY ANYONE BUT THE INPUT ROLE is nothing.
     (void)t.r.bus.publish(loom::Message(loom::to_value(zengine::input::PointerTimingSaid{2000})));
     t.r.drain();
     CHECK(t.instance->double_click_ms() == zengine::input::kLeastDoubleClickMs);
 }
 
 TEST_CASE("a console's records and a POSIX terminal's reports count clicks alike, by the input "
-          "office's time and never the console's own double click") {
+          "role's time and never the console's own double click") {
     TypedWindow t;
     ReadDesk d(t.r, gfx::kTerminalWindow);
     constexpr std::int64_t c = gfx::kCellPx;
@@ -6859,7 +6859,7 @@ struct SdlWeave {
     loom::WeaveId owner;
     explicit SdlWeave(bool keys = false, bool pointer = false) {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        window = r.load("zengine-window-sdl", WINDOW_SDL_SO, sdl_office());
+        window = r.load("zengine-window-sdl", WINDOW_SDL_SO, sdl_role());
         REQUIRE(window.valid());
         auto made = std::make_unique<LitOwner>(heard);
         LitOwner* raw = made.get();
@@ -6878,12 +6878,12 @@ struct SdlWeave {
         gfx::Sketch s;
         s.fill_rect("plate", 0, 0, 200, 40, gfx::colors::background);
         s.text("t", 0, gfx::kCellPx, "lit", gfx::colors::text);
-        r.bus.office_send_to_role_as(owner, "test.lit", sdl_office(),
+        r.bus.role_send_to_role_as(owner, "test.lit", sdl_role(),
                                      loom::Message(loom::to_value(whole("test.lit", s))));
         r.drain();
     }
     gfx::WindowShown shown() {
-        r.bus.send_as_to_role(r.ears, sdl_office(),
+        r.bus.send_as_to_role(r.ears, sdl_role(),
                               loom::Message(loom::to_value(gfx::WindowShowAsked{}), r.ears,
                                             r.ears, r.next_corr++));
         r.drain();
@@ -6925,7 +6925,7 @@ TEST_CASE("the OS window opens one window on the desktop, draws in it, keeps tha
         CHECK(after.rows == first.rows);
         CHECK(os_windows() == opened); // the same window, handed over, not made again
 
-        const auto swapped = w.r.command(loom::SwapWeave{sdl_office(), "zengine-window-sdl",
+        const auto swapped = w.r.command(loom::SwapWeave{sdl_role(), "zengine-window-sdl",
                                                          WINDOW_SDL_SO, /*graceful=*/false});
         REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
         CHECK(w.shown().epoch != first.epoch);
@@ -6938,15 +6938,15 @@ TEST_CASE("the OS window opens one window on the desktop, draws in it, keeps tha
 }
 
 TEST_CASE("the OS window SDL cannot open, told a video driver it lacks, is refused at its load and "
-          "leaves no window, no SDL, no office held and no claim on SDL's queue") {
+          "leaves no window, no SDL, no role held and no claim on SDL's queue") {
     sdl_video_driver("zengine-no-such-driver");
     {
         Rig r;
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
         const auto loaded =
-            r.command(loom::LoadWeave{"zengine-window-sdl", WINDOW_SDL_SO, sdl_office()});
+            r.command(loom::LoadWeave{"zengine-window-sdl", WINDOW_SDL_SO, sdl_role()});
         CHECK(loaded.kind == 2); // refused: the weave would not be made
-        CHECK_FALSE(r.bus.role_holder(sdl_office()).valid());
+        CHECK_FALSE(r.bus.role_holder(sdl_role()).valid());
         CHECK(os_windows().empty());
         CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
         // With no window to read for, the queue is left to an SDL Input reader beside it.
@@ -6969,7 +6969,7 @@ TEST_CASE("the OS window claims SDL's queue while it is loaded, reloaded or repl
         REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
         CHECK(in::window_sdl_input_claims() == 1);
 
-        const auto swapped = w.r.command(loom::SwapWeave{sdl_office(), "zengine-window-sdl",
+        const auto swapped = w.r.command(loom::SwapWeave{sdl_role(), "zengine-window-sdl",
                                                          WINDOW_SDL_SO, /*graceful=*/false});
         REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
         CHECK(in::window_sdl_input_claims() == 1);
@@ -7034,7 +7034,7 @@ namespace {
 
 using RealSdlWindow = gw::SdlWindowT<gw::ProcessSdlBackend>;
 
-/// The OS window over its own SDL backend, mounted in process at its office beside the directory as
+/// The OS window over its own SDL backend, mounted in process at its role beside the directory as
 /// `LitWindow` mounts it over the suite's, an owner placed in it wearing the day palette: a case may ask
 /// it what only C++ in its own process can, its clipboard, its place and its picture.
 struct RealLit {
@@ -7048,7 +7048,7 @@ struct RealLit {
         auto w = std::make_unique<RealSdlWindow>();
         instance = w.get();
         loom::Grant g = loom::emit_default_grant(*instance);
-        window = r.bus.register_weave(std::move(w), std::move(g), sdl_office());
+        window = r.bus.register_weave(std::move(w), std::move(g), sdl_role());
         instance->zen_set_self(window);
         const loom::WeaveId door = zengine::testing::mount_door(r.bus);
         zengine::testing::order_activation(r.bus, door, window, 1);
@@ -7068,7 +7068,7 @@ struct RealLit {
         r.drain();
     }
     void draw(const gfx::Sketch& s) {
-        r.bus.office_send_to_role_as(owner, "test.lit", sdl_office(),
+        r.bus.role_send_to_role_as(owner, "test.lit", sdl_role(),
                                      loom::Message(loom::to_value(whole("test.lit", s))));
         r.drain();
     }
@@ -7078,7 +7078,7 @@ struct RealLit {
         r.drain();
     }
     gfx::WindowShown shown() {
-        r.bus.send_as_to_role(r.ears, sdl_office(),
+        r.bus.send_as_to_role(r.ears, sdl_role(),
                               loom::Message(loom::to_value(gfx::WindowShowAsked{}), r.ears,
                                             r.ears, r.next_corr++));
         r.drain();
@@ -7217,28 +7217,28 @@ TEST_CASE("the OS window over SDL that cannot open is refused at its making, in 
 #endif // GRAPHICS_HAS_SDL
 
 namespace {
-/// An office that arranges: it places areas and shapes the window, and hears nothing.
+/// A role that arranges: it places areas and shapes the window, and hears nothing.
 class Arranger : public loom::WeaveBase<Arranger, GraphicsTestOwner, loom::Accept<>,
                                         loom::Emit<gfx::AreaPlaced, gfx::WindowShaped>> {};
 
-/// `area` placed again by the office `test.arranger`, which then arranges in the window; its id.
+/// `area` placed again by the role `test.arranger`, which then arranges in the window; its id.
 loom::WeaveId arranged_by(LitWindow& t, const std::string& area, std::int64_t w, std::int64_t h) {
     auto made = std::make_unique<Arranger>();
     Arranger* raw = made.get();
     loom::Grant g = loom::emit_default_grant(*raw);
     const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), "test.arranger");
     raw->zen_set_self(id);
-    t.r.bus.office_send_to_role_as(
+    t.r.bus.role_send_to_role_as(
         id, "test.arranger", gfx::kGraphicsRole,
         loom::Message(loom::to_value(gfx::AreaPlaced{area, gfx::kSdlWindow, area, 0, 0, w, h, 1, false})));
     t.r.drain();
     return id;
 }
 
-/// `said` to the window as the office `office`, by the weave `id`.
+/// `said` to the window as the role `role`, by the weave `id`.
 template <class T>
-void say_as(LitWindow& t, loom::WeaveId id, const std::string& office, const T& said) {
-    t.r.bus.office_send_to_role_as(id, office, sdl_office(), loom::Message(loom::to_value(said)));
+void say_as(LitWindow& t, loom::WeaveId id, const std::string& role, const T& said) {
+    t.r.bus.role_send_to_role_as(id, role, sdl_role(), loom::Message(loom::to_value(said)));
     t.r.drain();
 }
 } // namespace
@@ -7257,9 +7257,9 @@ TEST_CASE("a shaped window is as large as asked, a side of 0 keeping its own, ne
     CHECK(gw::shaped_within({1, 1}, {1600, 900}, 16, 39, display) == gw::PixelSize{1, 1});
 }
 
-TEST_CASE("an OS window takes its title and its size from an office that arranges an area in it, "
+TEST_CASE("an OS window takes its title and its size from a role that arranges an area in it, "
           "and from no other; a shaped window is not grown back by what it held before") {
-    // MUTATION (tests/mutants/graphics.md#shaped-by-any-office): a shaping taken from any office --
+    // MUTATION (tests/mutants/graphics.md#shaped-by-any-role): a shaping taken from any role --
     // the window is shaped by `test.other`.
     LitWindow t(nullptr, true);
     t.own("test.other", 0, 0, 100, 50, "night");
@@ -7268,7 +7268,7 @@ TEST_CASE("an OS window takes its title and its size from an office that arrange
     REQUIRE(t.light.grown.empty());
     const std::size_t offers = t.platform.heard.offers.size();
 
-    // AN OFFICE THAT ARRANGES NOTHING HERE, and a shaping naming another window: nothing changes.
+    // AN ROLE THAT ARRANGES NOTHING HERE, and a shaping naming another window: nothing changes.
     auto made = std::make_unique<Arranger>();
     Arranger* raw = made.get();
     loom::Grant g = loom::emit_default_grant(*raw);
@@ -7759,7 +7759,7 @@ TEST_CASE("a terminal shows every character its encoding carries, a wide one in 
         const std::size_t from = t.term.written.size();
         gfx::Sketch s;
         s.text("line", 0, 0, kLine + "|", gfx::colors::text);
-        t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+        t.r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                        loom::Message(loom::to_value(whole(kOwner, s))));
         t.r.drain();
         CHECK(heard.refused.empty());
@@ -7796,7 +7796,7 @@ TEST_CASE("a terminal shows bold where a text asks it, and says each ink's weigh
     gfx::Sketch s;
     s.text("b", 0, 0, "B", gfx::colors::accent, gfx::sizes::heading, gfx::text_weight::kBold);
     s.text("r", gfx::kCellPx, 0, "R", gfx::colors::accent);
-    t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+    t.r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                    loom::Message(loom::to_value(whole(kOwner, s))));
     t.r.drain();
     CHECK(t.r.shown().rows[0] == "BR"); // one size always: the heading stands in its one cell

@@ -181,7 +181,7 @@ every reply to a request a reading included, ends `Answered` or `Refused` (`Pane
 `DrawnRefused`). A deed, something that happened, is said in the past tense (`BuildFinished`). An
 observation, a state said unasked, is a noun (`DeskStamps`). A new shape is named by its kind. An
 existing name that does not follow this, as a noun answering a request does (`DeskView`,
-`PaneView`), is not changed for it alone: a renamed shape is a new shape to every office that
+`PaneView`), is not changed for it alone: a renamed shape is a new shape to every role that
 sends or reads it.
 
 ## Source comment conventions

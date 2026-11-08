@@ -7,14 +7,14 @@
 // What the Editor pane's weave and its two aspect headers share: the names they speak in, the
 // constants the rows are budgeted by, the records of a candidate, a view, a composition and a
 // transfer in flight, and the pure helpers over them -- beside what both Editors keep alike
-// (`editor/office_seam.hpp`). Private to `zengine-editor-pane`: only `pane.cpp` includes it, and
+// (`editor/role_seam.hpp`). Private to `zengine-editor-pane`: only `pane.cpp` includes it, and
 // what it defines stands in the unnamed namespace that file's weave does.
 // Workshop law: agents/workshop/editor.md
 
 #include "editor/editor-pane/vocabulary.hpp"
 
 #include "editor/editor-pane/editor.hpp"
-#include "editor/office_seam.hpp"
+#include "editor/role_seam.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -78,21 +78,21 @@ using ws::Written;
 using zengine::workshop::pane_text::printable;
 using zengine::workshop::pane_text::fit;
 
-namespace office = zengine::editor_office;
+namespace role = zengine::editor_role;
 
-// What both Editors keep and say alike (`editor/office_seam.hpp`), named as this weave's own.
-using office::file_name;
-using office::Holding;
-using office::kCaretCols;
-using office::kDropSubject;
-using office::kWorkshopRole;
-using office::not_prepared;
-using office::offer_refusal;
-using office::Pickup;
-using office::Relay;
-using office::same_identity;
-using office::tail_of_path;
-using office::Take;
+// What both Editors keep and say alike (`editor/role_seam.hpp`), named as this weave's own.
+using role::file_name;
+using role::Holding;
+using role::kCaretCols;
+using role::kDropSubject;
+using role::kWorkshopRole;
+using role::not_prepared;
+using role::offer_refusal;
+using role::Pickup;
+using role::Relay;
+using role::same_identity;
+using role::tail_of_path;
+using role::Take;
 
 /// The fewest rows in which a refusal gets a row of its own: status, refusal, and one document
 /// row. In a smaller room the refusal replaces the status row, so the document keeps its rows
@@ -223,7 +223,7 @@ struct Dropped {
 };
 
 /// A DROPPED LOCATION, judged against the document's mark when the open was asked.
-using Locate = office::LocateOf<Mark>;
+using Locate = role::LocateOf<Mark>;
 
 /// WHAT THE ROWS DRAWN MEAN (WL-EDIT-18): the document, its bytes, the viewport, the rows above
 /// it, the room and the selection a drop may land on. A caret move alone keeps it.

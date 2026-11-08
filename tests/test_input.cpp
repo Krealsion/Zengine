@@ -21,8 +21,8 @@
 #include "input/vocabulary.hpp"
 
 #include "lifecycle_door.hpp"
-#include "manuals/zengine.input.hpp" // the office's page, as the suite carries it
-#include "office_manual.hpp"
+#include "manuals/zengine.input.hpp" // the role's page, as the suite carries it
+#include "role_manual.hpp"
 
 #include "graphics/vocabulary.hpp" // the one lifecycle fact a reader of SDL's queue could hand on
 #include "timer/vocabulary.hpp" // the weave's own beat is part of its contract
@@ -1676,14 +1676,14 @@ TEST_CASE("the input .so loads into its role and answers its pump, honestly idle
     CHECK(a.text == "0");
 }
 
-TEST_CASE("the input .so answers what each shape it accepts does, from its office's page") {
-    // THE OFFICE WITNESS, on the artifact a plan loads: asked as any weave asks, it answers every
+TEST_CASE("the input .so answers what each shape it accepts does, from its role's page") {
+    // THE ROLE WITNESS, on the artifact a plan loads: asked as any weave asks, it answers every
     // shape its gate accepts from its page's Commands or Hears, and its page names no other.
     Rig r;
     (void)r.load("zengine-input", INPUT_SO, kInputRole);
     const std::vector<std::string> described =
         described_shapes_of(r.bus, r.bus.role_holder(kInputRole));
-    CHECK(check_office_manual(r.bus, kInputRole) >= described.size());
+    CHECK(check_role_manual(r.bus, kInputRole) >= described.size());
     check_page_names_accepted(zengine::manual::pages::zengine_input::kManual, described);
     // ...and the words are this page's, the one the suite carries.
     ShapeDocumentReader reader(r.bus, kInputRole);
@@ -1696,7 +1696,7 @@ TEST_CASE("the input .so answers what each shape it accepts does, from its offic
 }
 
 TEST_CASE("keys become turns: a key its window gives steers the real world through its own keys, "
-          "and nothing the input office publishes reaches it") {
+          "and nothing the input role publishes reaches it") {
     using namespace zengine::snake;
     Rig r;
     const loom::WeaveId world = r.load("snake-world-v1", WORLD_V1_SO, kWorldRole);
@@ -1724,7 +1724,7 @@ TEST_CASE("keys become turns: a key its window gives steers the real world throu
     r.tick();
     CHECK(r.seen.visuals.back().snake.front().y == 6);
 
-    // The doors snake deliberately does not open: the input office's keys, releases, text and
+    // The doors snake deliberately does not open: the input role's keys, releases, text and
     // pointer have ZERO accepters in this game -- published, delivered to nobody, and that is
     // legal (the recipient count is the pin).
     CHECK(r.publish_root(loom::to_value(KeyPressed{scan::kW, "W"})) == 0);
@@ -2027,7 +2027,7 @@ struct SessionRig {
 
     InputWeaveT<FakeReader>::Clock::time_point now{};
     SessionRig() {
-        // IN ITS OFFICE, because a session is asked of `zengine.input`, never of a WeaveId.
+        // IN ITS ROLE, because a session is asked of `zengine.input`, never of a WeaveId.
         auto w = std::make_unique<InputWeaveT<FakeReader>>(FakeReader{&feed}, [this] { return now; });
         InputWeaveT<FakeReader>* raw = w.get();
         loom::Grant grant = loom::emit_default_grant(*raw);
@@ -2104,20 +2104,20 @@ InjectedEvent button(std::int64_t b, bool down, std::int64_t x, std::int64_t y,
 
 namespace {
 
-/// THE OFFICES AROUND THE DOUBLE-CLICK TIME, as the suite speaks them: what the layouts' owner was
-/// declared, and what a window asking the time heard, from the input office alone.
+/// THE ROLES AROUND THE DOUBLE-CLICK TIME, as the suite speaks them: what the layouts' owner was
+/// declared, and what a window asking the time heard, from the input role alone.
 struct TimingHeard {
-    std::vector<zengine::workshop::OfficeSettingsDeclared> declared;
+    std::vector<zengine::workshop::RoleSettingsDeclared> declared;
     std::vector<std::int64_t> said;
 };
 
 class LayoutsStandIn
     : public loom::WeaveBase<LayoutsStandIn, AgentState,
-                             loom::Accept<zengine::workshop::OfficeSettingsDeclared>,
-                             loom::Emit<zengine::workshop::OfficeSettings>> {
+                             loom::Accept<zengine::workshop::RoleSettingsDeclared>,
+                             loom::Emit<zengine::workshop::RoleSettings>> {
 public:
     explicit LayoutsStandIn(TimingHeard& heard) : heard_(&heard) {}
-    void on(const zengine::workshop::OfficeSettingsDeclared& d, loom::Mail& mail) {
+    void on(const zengine::workshop::RoleSettingsDeclared& d, loom::Mail& mail) {
         if (mail.authored_from_role(kInputRole)) {
             heard_->declared.push_back(d);
         }
@@ -2145,7 +2145,7 @@ private:
 
 } // namespace
 
-TEST_CASE("the input office keeps the double-click time: declared to the layouts' owner at each "
+TEST_CASE("the input role keeps the double-click time: declared to the layouts' owner at each "
           "activation, said to an asker, set from what the owner hands it, and published when it "
           "changes") {
     namespace ws = zengine::workshop;
@@ -2153,10 +2153,10 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
     TimingHeard heard;
     std::vector<std::vector<InputEvent>> feed;
     auto w = std::make_unique<InputWeaveT<FakeReader, DoubleClickSetting>>(FakeReader{&feed});
-    InputWeaveT<FakeReader, DoubleClickSetting>* office = w.get();
-    loom::Grant grant = loom::emit_default_grant(*office);
+    InputWeaveT<FakeReader, DoubleClickSetting>* role = w.get();
+    loom::Grant grant = loom::emit_default_grant(*role);
     const loom::WeaveId input = bus.register_weave(std::move(w), std::move(grant), kInputRole);
-    office->zen_set_self(input);
+    role->zen_set_self(input);
     auto l = std::make_unique<LayoutsStandIn>(heard);
     LayoutsStandIn* l_raw = l.get();
     loom::Grant lg = loom::emit_default_grant(*l_raw);
@@ -2168,7 +2168,7 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
     const loom::WeaveId window = bus.register_weave(std::move(t), std::move(tg));
     t_raw->zen_set_self(window);
     const auto hand_back = [&](std::optional<std::int64_t> ms) {
-        ws::OfficeSettings kept;
+        ws::RoleSettings kept;
         kept.revision = 1;
         if (ms) {
             ws::PaneSetting s;
@@ -2176,7 +2176,7 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
             s.number = *ms;
             kept.settings.push_back(s);
         }
-        (void)bus.office_send_to_role_as(layouts, ws::kLayoutsRole, kInputRole,
+        (void)bus.role_send_to_role_as(layouts, ws::kLayoutsRole, kInputRole,
                                          loom::Message(loom::to_value(kept)));
         bus.drain_until_idle();
     };
@@ -2199,14 +2199,14 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
     CHECK(row.low == kLeastDoubleClickMs);
     CHECK(row.high == kMostDoubleClickMs);
 
-    // UNTIL IT IS HANDED ONE, the default, to the asker alone and as the office.
+    // UNTIL IT IS HANDED ONE, the default, to the asker alone and as the role.
     ask();
     REQUIRE(heard.said.size() == 1);
     CHECK(heard.said[0] == kDefaultDoubleClickMs);
 
     // HANDED 800: taken, and published once; the same again publishes nothing.
     hand_back(800);
-    CHECK(office->double_click_ms() == 800);
+    CHECK(role->double_click_ms() == 800);
     REQUIRE(heard.said.size() == 2);
     CHECK(heard.said[1] == 800);
     hand_back(800);
@@ -2217,20 +2217,20 @@ TEST_CASE("the input office keeps the double-click time: declared to the layouts
 
     // HELD TO WHAT IT TAKES; and a default kept as its absence is the default again.
     hand_back(5000);
-    CHECK(office->double_click_ms() == kMostDoubleClickMs);
+    CHECK(role->double_click_ms() == kMostDoubleClickMs);
     hand_back(std::nullopt);
-    CHECK(office->double_click_ms() == kDefaultDoubleClickMs);
+    CHECK(role->double_click_ms() == kDefaultDoubleClickMs);
     CHECK(heard.said.back() == kDefaultDoubleClickMs);
 
     // FROM ANYONE BUT THE LAYOUTS' OWNER it is nothing.
-    ws::OfficeSettings forged;
+    ws::RoleSettings forged;
     ws::PaneSetting s;
     s.key = kSettingDoubleClickMs;
     s.number = 1500;
     forged.settings.push_back(s);
     (void)bus.send_to_role(kInputRole, loom::Message(loom::to_value(forged)));
     bus.drain_until_idle();
-    CHECK(office->double_click_ms() == kDefaultDoubleClickMs);
+    CHECK(role->double_click_ms() == kDefaultDoubleClickMs);
 
     // ACTIVATED AGAIN, it declares again.
     zengine::testing::order_activation(bus, door, input, 2);
@@ -2365,12 +2365,12 @@ TEST_CASE("session: closing releases every key and button still held, from the s
     CHECK(r.last() == "refused: no open input session numbered 1");
 }
 
-TEST_CASE("session: an office may close a session on its holder's behalf, and a stranger may not") {
+TEST_CASE("session: a role may close a session on its holder's behalf, and a stranger may not") {
     SessionRig r;
     r.open();
     r.inject({button(1, true, 3, 3)});
     r.heard.clear();
-    // A custodian holding an office -- the host's guest door -- speaks AS that office.
+    // A custodian holding a role -- the host's guest door -- speaks AS that role.
     class Custodian : public loom::WeaveBase<Custodian, AgentState, loom::Accept<PumpInput, loom::Ack, loom::Refused>,
                                              loom::Emit<InputSessionClosed>> {
     public:
@@ -2956,7 +2956,7 @@ TEST_CASE("the terminal window's own reader takes, reads and gives back the term
 #endif
 
 // ============================================================================
-// A host's one wait (Loom's `zen/host/reactor.hpp`): the office's beat stops only once the host's
+// A host's one wait (Loom's `zen/host/reactor.hpp`): the role's beat stops only once the host's
 // wait holds what its reader waits on, and what it waits on then wakes it; a host with no wait,
 // and a `Waited` from any participant, leave the beat as it was (timer/held_beat.hpp).
 
@@ -3046,7 +3046,7 @@ struct BookState {
     ZEN_SHAPE(BookState, 1, ZEN_FIELD(asks));
 };
 
-/// A stand-in Timer that counts the office's asks for its beat and its cancels of it.
+/// A stand-in Timer that counts the role's asks for its beat and its cancels of it.
 class BeatBook : public loom::WeaveBase<BeatBook, BookState,
                                         loom::Accept<zengine::timer::EnsureRoleTimer,
                                                      zengine::timer::CancelTimer>,
@@ -3066,7 +3066,7 @@ public:
     int cancels = 0;
 };
 
-/// The office in its role over a waitable reader, ears, the stand-in Timer, and its activation.
+/// The role in its role over a waitable reader, ears, the stand-in Timer, and its activation.
 struct HeldRig {
     loom::Switchboard bus;
     Signal signal;
@@ -3091,7 +3091,7 @@ struct HeldRig {
 
 } // namespace
 
-TEST_CASE("held: the office's beat stops once a host's one wait holds its reader, and what the "
+TEST_CASE("held: the role's beat stops once a host's one wait holds its reader, and what the "
           "reader waits on wakes it") {
     HeldRig r;
     REQUIRE(r.book->ensures == 1);
@@ -3105,7 +3105,7 @@ TEST_CASE("held: the office's beat stops once a host's one wait holds its reader
     REQUIRE_FALSE(wait.sources().empty());
     CHECK(wait.sources().front().held);
 
-    // What the reader waits on is ready: the wait ends for it, and the office reads at once.
+    // What the reader waits on is ready: the wait ends for it, and the role reads at once.
     r.feed.push_back({KeyPressed{scan::kD, "D"}});
     r.signal.set();
     const auto t = std::chrono::steady_clock::now();
@@ -3113,7 +3113,7 @@ TEST_CASE("held: the office's beat stops once a host's one wait holds its reader
     const auto took = std::chrono::duration_cast<std::chrono::milliseconds>(
                           std::chrono::steady_clock::now() - t)
                           .count();
-    CHECK(woke.offices == 1);
+    CHECK(woke.roles == 1);
     CHECK(took < 2500);
     r.bus.drain_until_idle();
     REQUIRE(r.heard.size() == 1);
@@ -3126,7 +3126,7 @@ TEST_CASE("held: the office's beat stops once a host's one wait holds its reader
     CHECK(r.book->ensures == 2);
 }
 
-TEST_CASE("held: with no host's wait the office's beat is never let go") {
+TEST_CASE("held: with no host's wait the role's beat is never let go") {
     HeldRig r;
     for (int i = 0; i < 5; ++i) {
         r.bus.send_to_role(kInputRole, loom::Message(loom::to_value(PumpInput{})));
@@ -3136,7 +3136,7 @@ TEST_CASE("held: with no host's wait the office's beat is never let go") {
     CHECK(r.book->cancels == 0);
 }
 
-TEST_CASE("held: a Waited from a participant is nothing, so no weave stops the office's beat") {
+TEST_CASE("held: a Waited from a participant is nothing, so no weave stops the role's beat") {
     HeldRig r;
     loom::Grant may;
     may.allow_to_role(loom::host::Waited::zen_name, loom::host::Waited::zen_version,

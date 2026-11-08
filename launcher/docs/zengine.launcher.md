@@ -1,7 +1,7 @@
 # zengine.launcher -- the launcher
 
 **Manual.** The weave that starts an app made in Workshop, or a demo, as a process of its own that
-goes on after Workshop quits. It answers to the office `zengine.launcher` (an office is the name a
+goes on after Workshop quits. It answers to the role `zengine.launcher` (a role is the name a
 weave answers to) and is built as `zengine-launcher`, a row of Workshop's load plans. What it may
 start is a catalog fixed when Zengine was configured: no message names a program, a path or an
 argument.
@@ -25,7 +25,7 @@ no handle, and leaves Workshop's job where the job allows it; on POSIX it leads 
 own, reads nothing, appends what it writes to `app.log` in an app's folder, or
 `demo-runs/<name>.log` for a demo, and holds no descriptor of Workshop's but those three. The
 launcher keeps nothing of it: its answer is the process's id, which says it started, not that it
-runs. Each start is also said to any office as it is answered, so a pane that did not ask -- a
+runs. Each start is also said to any role as it is answered, so a pane that did not ask -- a
 checklist, say -- hears that something started.
 
 **Whether an app runs** is asked of the system each time a listing is asked, never remembered: an
@@ -43,8 +43,8 @@ The View Builder's **Run app**, Files' **start**, the palette's setups and apps
 ([`zengine.palette`](../../workshop/docs/zengine.palette.md)) and the quick setup's **Start**
 ([`zengine.first-run`](../../workshop/docs/zengine.first-run.md)) ask it, each after Workshop has
 allowed the hand that pressed, as a Save and a Build are judged: classes `build` and `write`, so on
-a weaver's host a guest starts nothing. It takes a start only from those four offices.
-Any office may ask what it can start.
+a weaver's host a guest starts nothing. It takes a start only from those four roles.
+Any role may ask what it can start.
 
 ## Commands
 
@@ -70,7 +70,7 @@ Any office may ask what it can start.
 
 ### `LaunchCatalogRequested`
 
-`LaunchCatalogRequested` v1 asks what the launcher can start now, from any office.
+`LaunchCatalogRequested` v1 asks what the launcher can start now, from any role.
 
 - **Takes:** nothing.
 - **Answers:** `LaunchCatalog` v1: `entries`, each a `LaunchEntry` v1 -- `kind` and `name` as
@@ -88,12 +88,12 @@ Any office may ask what it can start.
 
 ### `ProjectRoot`
 
-`ProjectRoot` v1, the project office's answer to the launcher's own ask at its start: where the
+`ProjectRoot` v1, the project role's answer to the launcher's own ask at its start: where the
 project is. Apps and demo roots are found there.
 
 ## Follow
 
-Each start, as it is answered, is said to any as the launcher's office: the same `Launched` v1,
+Each start, as it is answered, is said to any as the launcher's role: the same `Launched` v1,
 `ok` true. A refused start is answered to its asker alone. What it started says for itself after
 that. On Windows an app opens its console and its window. On POSIX it has no console: a row
 of its plan no console has decided ends it at once, exit 5, said in its `app.log`, so an app's

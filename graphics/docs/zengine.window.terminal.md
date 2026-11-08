@@ -1,8 +1,8 @@
 # zengine.window.terminal -- the terminal window
 
 **Manual.** The window over the process's own terminal: the weave that does the whole job of
-showing what its areas' owners draw. It answers to the office `zengine.window.terminal` (a
-window's office is `zengine.window.` and its name, `terminal`) and is built as
+showing what its areas' owners draw. It answers to the role `zengine.window.terminal` (a
+window's role is `zengine.window.` and its name, `terminal`) and is built as
 `zengine-window-terminal`, a file a host loads. It keeps what each owner drew, paints it in the
 palette its area wears, composes the areas, writes the terminal only the cells that changed, and
 sends the terminal's keys, their text and its pointer to the owners. The directory,
@@ -60,7 +60,7 @@ landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Each 
 ([`PointerTimingSaid`](#pointertimingsaid)).
 
 Who may send: whoever the host's grant lets reach the window. It takes a drawing or an element only
-from the area's owner, as that office, and the directory's words only from `zengine.graphics`.
+from the area's owner, as that role, and the directory's words only from `zengine.graphics`.
 Every bound is judged before anything changes, and a drawing past one is refused whole, in words,
 to its drawer (`DrawnRefused`), leaving what the window shows as it was. The bounds are
 `graphics/vocabulary.hpp`'s: `kMaxNodesPerArea`, `kMaxElementsPerArea`, `kMaxPathBytes`,
@@ -142,7 +142,7 @@ reading the terminal.
 
 ### `AreaShowAsked`
 
-`AreaShowAsked` v1 asks what one area shows, of the office that placed it.
+`AreaShowAsked` v1 asks what one area shows, of the role that placed it.
 
 - **Takes:** `area`; `since`, the `version` of the last answer the asker took, or 0.
 - **Answers:** `AreaShown` v1, to the asker alone: the window's name and incarnation; the area's
@@ -157,7 +157,7 @@ reading the terminal.
   (`px`, `py`); and `available`, as the record says it (`PartFace`), else true. What the window
   holds painted is what it shows at its next showing at the latest.
 - **Refuses:** in `zen.Refused`: `window 'terminal' shows no area '<area>'`; `area '<area>' is read
-  only by the office that placed it`; `area '<area>' shows more than <bound> runs of text`
+  only by the role that placed it`; `area '<area>' shows more than <bound> runs of text`
   (`kMaxAreaWords`).
 - **Example:** Workshop reads the area of a pane it placed, `AreaShowAsked{"zengine.info", 0}`, and
   then asks again since the version it took.
@@ -223,7 +223,7 @@ reading the terminal.
 
 ### `WindowShaped`
 
-`WindowShaped` v1 names a window and sizes it, said by an office that arranges an area in it.
+`WindowShaped` v1 names a window and sizes it, said by a role that arranges an area in it.
 
 - **Takes:** `window`, `title`, `width` and `height`, as an OS window takes them.
 - **Answers:** nothing: the terminal's size and title are its emulator's, so this window keeps them.
@@ -309,7 +309,7 @@ The window asks it at each activation (`PointerTimingAsked`); until told, it cou
 
 ## Follow
 
-As its own office the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
+As its own role the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
 and at each new terminal size: its name, its cells as `kCellPx` pixels (none with no terminal),
 incarnation, its unit the cell and text a cell; the directory keeps it. It never publishes
 `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v4 for each

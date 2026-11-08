@@ -57,24 +57,24 @@ Red in `zengine-workshop-desk-tests`:
 - each graphics area wears the palette its row's `workshop.skin` names, else Workshop's own, and a
   palette is said only when an area's moved
 
-## area-named-by-its-office
+## area-named-by-its-role
 
-A pane's graphics area is named by its office alone.
+A pane's graphics area is named by its role alone.
 
 In `workshop/pane_drawing.hpp`:
 
 ```diff
--    std::string area(office);
+-    std::string area(role);
 -    area += '.';
 -    area += pane;
 -    return area;
 +    (void)pane;
-+    return std::string(office);
++    return std::string(role);
 ```
 
 Red in `zengine-workshop-desk-tests`:
 
-- every pane's graphics area is `<office>.<pane>`, an office's one pane as each of its several
+- every pane's graphics area is `<role>.<pane>`, a role's one pane as each of its several
 
 ## only-the-terminal-window
 

@@ -1,6 +1,6 @@
 # zengine.powers -- the discovery door
 
-**Manual.** The office where a tool finds a power, answering to `zengine.powers` (an office is the
+**Manual.** The role where a tool finds a power, answering to `zengine.powers` (a role is the
 name a weave answers to): which powers this program resolves, what each is for, and whose
 contribution satisfies it. Workshop mounts it in its own process before it performs your project's
 plan; it is not a file you load. The `Powers` pane of
@@ -27,7 +27,7 @@ The fold is a *form*, not in the catalog: the evaluator spends it with an operat
 body. It answers a search with text its name or words match, or one for the kind `form`, after the
 catalog's rows: `fold`, kind `form`, construction `evaluator`, no provider.
 
-Anyone who can be answered may ask: an office, or a participant speaking for itself, as the
+Anyone who can be answered may ask: a role, or a participant speaking for itself, as the
 Terminal does. A search or a description sent with no sender has nobody to answer; the door
 counts it (`unanswered`).
 
@@ -81,4 +81,4 @@ to satisfy it.
 - The shapes and bounds: [`workshop/powers_vocabulary.hpp`](../../workshop/powers_vocabulary.hpp).
 - [Sources and Operators](../../operator/docs/operator-sources.md), and
   [the fold](../../operator/docs/operator-providers.md#the-fold).
-- [`zengine.sources`](zengine.sources.md), the one office that may run a Source.
+- [`zengine.sources`](zengine.sources.md), the one role that may run a Source.

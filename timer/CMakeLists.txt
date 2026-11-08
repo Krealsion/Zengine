@@ -31,7 +31,7 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-# The weave carries the Timer office's manual and answers a shape's section from it
+# The weave carries the Timer role's manual and answers a shape's section from it
 # (`ShapeDocumentRequested`, manual/vocabulary.hpp); every target that builds `TimerServiceT`
 # carries the page too, since timer_weave.hpp answers from it.
 zengine_weave(zengine-timer timer.cpp MANUAL docs/zengine.timer.md)

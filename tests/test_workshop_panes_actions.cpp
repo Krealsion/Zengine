@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop panes suite -- a pane's declared actions (WL-KEY-15): the three shapes, the join
-// under the office stamp and the collision law, the weaver's override in both load orders, the
+// under the role stamp and the collision law, the weaver's override in both load orders, the
 // legend and the hotkey view, the resolved id crossing the seam instead of the key, and the real
 // Powers pane acting on the id. One source of the panes program, run in `workshop_panes_hand`,
 // whose units split by subject where one object cannot hold them all (VM-POP-12); a new case goes
@@ -55,26 +55,26 @@ inline PaneActions actions_for(const char* pane, const std::vector<v2::PaneActio
     return out;
 }
 
-std::int64_t seat_pane_declared(PaneRig& r, ProviderSeat* seat, const char* office,
+std::int64_t seat_pane_declared(PaneRig& r, ProviderSeat* seat, const char* role,
                                 const char* pane, std::vector<v2::PaneActionRow> rows) {
     r.drive(seat, [pane, rows](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{pane, "Seat", "a recording provider"});
         s.declare(m, actions_for(pane, rows));
     });
-    r.pick(PaneRef{office, pane});
-    const RuntimePane* row = r.session().panes.runtime.find(office, pane);
+    r.pick(PaneRef{role, pane});
+    const RuntimePane* row = r.session().panes.runtime.find(role, pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
 /// ...AND THE SECOND VERSION, for a pane that owns one of Workshop's actions.
-std::int64_t seat_pane_declared_v2(PaneRig& r, ProviderSeat* seat, const char* office,
+std::int64_t seat_pane_declared_v2(PaneRig& r, ProviderSeat* seat, const char* role,
                                    const char* pane, std::vector<v2::PaneActionRow> rows) {
     r.drive(seat, [pane, rows](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{pane, "Seat", "a recording provider"});
         s.declare_v2(m, v2::PaneActions{pane, rows});
     });
-    r.pick(PaneRef{office, pane});
-    const RuntimePane* row = r.session().panes.runtime.find(office, pane);
+    r.pick(PaneRef{role, pane});
+    const RuntimePane* row = r.session().panes.runtime.find(role, pane);
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
@@ -256,13 +256,13 @@ TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: Workshop holds a declaration's causes, its 
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     const auto declared = [&](const v3::PaneActions& d) {
         r.drive(seat, [d](ProviderSeat& s, loom::Mail& m) { s.declare_v3(m, d); });
     };
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
-    const RuntimePane* row = r.session().panes.runtime.find(kHelloOffice, kHelloPane);
+    const RuntimePane* row = r.session().panes.runtime.find(kHelloRole, kHelloPane);
     REQUIRE(row != nullptr);
     v3::PaneActions good{kHelloPane, "browse", {},
                          {ModeCauses{"list", {cause_of<PaneCloseRequested>()}}}};
@@ -285,7 +285,7 @@ TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: Workshop holds a declaration's causes, its 
     for (const ShownBinding& b : keys.rows) {
         if (b.id != "hello.go") continue;
         shown = true;
-        CHECK(b.office == kHelloOffice);
+        CHECK(b.role == kHelloRole);
         CHECK(b.pane == kHelloPane);
         CHECK(b.enters == "list");
         REQUIRE(b.causes.size() == 1);
@@ -294,7 +294,7 @@ TEST_CASE("WL-CAUSE-01, WL-CAUSE-02: Workshop holds a declaration's causes, its 
     CHECK(shown);
     bool modes = false;
     for (const ShownModes& m : keys.modes) {
-        if (m.office != kHelloOffice || m.pane != kHelloPane) continue;
+        if (m.role != kHelloRole || m.pane != kHelloPane) continue;
         modes = true;
         CHECK(m.mode == "browse");
         REQUIRE(m.elsewhere.size() == 1);
@@ -518,13 +518,13 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
 // Admission, through the real seam
 // ============================================================================
 
-TEST_CASE("a pane's actions are admitted under the office that offered it, and retained on its row") {
+TEST_CASE("a pane's actions are admitted under the role that offered it, and retained on its row") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     const std::int64_t kind = seat_pane_declared(
-        r, seat, kHelloOffice, kHelloPane,
+        r, seat, kHelloRole, kHelloPane,
         {declared("hello.up", "row up", input::scan::kUp),
          declared("hello.pick", "pick", input::scan::kReturn),
          declared("hello.mark", "mark this", input::scan::kM)});
@@ -545,12 +545,12 @@ TEST_CASE("a pane's actions are admitted under the office that offered it, and r
     CHECK(r.last_notice().find("hello.") == std::string::npos);
 }
 
-TEST_CASE("a declaration with no stamped office is refused, and retains nothing") {
+TEST_CASE("a declaration with no stamped role is refused, and retains nothing") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     REQUIRE(is_runtime_kind(kind));
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
         s.declare_personally(m, actions_for(kHelloPane, {declared("hello.up", "up", input::scan::kUp)}));
@@ -560,25 +560,25 @@ TEST_CASE("a declaration with no stamped office is refused, and retains nothing"
     CHECK(r.last_notice().find("hello") == std::string::npos); // silence, not a refusal notice
 }
 
-TEST_CASE("a declaration for a pane the office never offered is refused by name") {
+TEST_CASE("a declaration for a pane the role never offered is refused by name") {
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     REQUIRE(is_runtime_kind(kind));
     redeclare(r, seat, "ghost", {declared("ghost.up", "up", input::scan::kUp)});
-    CHECK(r.last_notice() == "`" + std::string(kHelloOffice) +
-                                 "/ghost` is not a pane that office has offered -- its "
+    CHECK(r.last_notice() == "`" + std::string(kHelloRole) +
+                                 "/ghost` is not a pane that role has offered -- its "
                                  "actions were not taken");
     CHECK(r.session().keymap.pane_rows(kind) == nullptr);
     CHECK(r.session().keymap.panes.empty());
-    // ...AND ONE OFFICE CANNOT DECLARE FOR ANOTHER'S PANE: the pair is the identity.
-    ProviderSeat* other = r.mount_provider(kOtherOffice);
+    // ...AND ONE ROLE CANNOT DECLARE FOR ANOTHER'S PANE: the pair is the identity.
+    ProviderSeat* other = r.mount_provider(kOtherRole);
     r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
         s.declare(m, actions_for(kHelloPane, {declared("hello.up", "up", input::scan::kUp)}));
     });
-    CHECK(r.last_notice().find(std::string(kOtherOffice) + "/hello` is not a pane") !=
+    CHECK(r.last_notice().find(std::string(kOtherRole) + "/hello` is not a pane") !=
           std::string::npos);
     CHECK(r.session().keymap.pane_rows(kind) == nullptr);
 }
@@ -590,8 +590,8 @@ TEST_CASE("a row colliding with a chord answered above every mode refuses the wh
     r.ready();
     // THE CHORD ABOVE EVERY MODE IS AN APPLICATION ROW: `ctrl+k`, the desktop's key list.
     DesktopSeat* desk = mount_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_declared(r, seat, kHelloOffice, kHelloPane,
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_declared(r, seat, kHelloRole, kHelloPane,
                                                  {declared("hello.up", "row up", input::scan::kUp)});
     REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
 
@@ -600,7 +600,7 @@ TEST_CASE("a row colliding with a chord answered above every mode refuses the wh
               {declared("hello.up", "row up", input::scan::kUp),
                declared("hello.keys", "keys", hotkeys.scancode, hotkeys.modifiers)});
     // THE REFUSAL NAMES THE PANE AND BOTH ACTIONS, in the keymap file's own words.
-    CHECK(r.last_notice() == "Seat @" + std::string(kHelloOffice) + ": " +
+    CHECK(r.last_notice() == "Seat @" + std::string(kHelloRole) + ": " +
                                  collision_sentence(hotkeys, "desktop.hotkeys", "hello.keys"));
     // AND THE PREVIOUS ROWS STAND, on the map and on the catalog row alike.
     REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
@@ -622,8 +622,8 @@ TEST_CASE("a refresh replaces a pane's rows whole, and an empty declaration clea
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_declared(r, seat, kHelloOffice, kHelloPane,
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_declared(r, seat, kHelloRole, kHelloPane,
                                                  {declared("hello.up", "row up", input::scan::kUp)});
     redeclare(r, seat, kHelloPane,
               {declared("hello.down", "row down", input::scan::kDown),
@@ -649,11 +649,11 @@ TEST_CASE("two panes declaring one bare key coexist, and each is asked for its o
     r.mount_workshop();
     r.ready();
     r.extent(160, 60); // room for two overlay slots
-    ProviderSeat* a = r.mount_provider(kHelloOffice);
-    ProviderSeat* b = r.mount_provider(kOtherOffice);
-    const std::int64_t first = seat_pane_declared(r, a, kHelloOffice, kHelloPane,
+    ProviderSeat* a = r.mount_provider(kHelloRole);
+    ProviderSeat* b = r.mount_provider(kOtherRole);
+    const std::int64_t first = seat_pane_declared(r, a, kHelloRole, kHelloPane,
                                                   {declared("a.up", "up", input::scan::kUp)});
-    const std::int64_t second = seat_pane_declared(r, b, kOtherOffice, kHelloPane,
+    const std::int64_t second = seat_pane_declared(r, b, kOtherRole, kHelloPane,
                                                    {declared("b.up", "up", input::scan::kUp)});
     REQUIRE(is_runtime_kind(first));
     REQUIRE(is_runtime_kind(second));
@@ -686,8 +686,8 @@ TEST_CASE("a declared gesture arrives as the resolved id and an undeclared one a
     r.mount_workshop();
     r.ready();
     DesktopSeat* desk = mount_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_declared(r, seat, kHelloOffice, kHelloPane,
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_declared(r, seat, kHelloRole, kHelloPane,
                                                  {declared("hello.up", "row up", input::scan::kUp),
                                                   declared("hello.mark", "mark", input::scan::kM)});
     // BEFORE THE PRESS NOBODY HAS THE KEYBOARD: the declaration pointed nothing at the pane.
@@ -753,9 +753,9 @@ TEST_CASE("an override authored before the pane arrives is applied when it does,
         // Preserved unjudged: nobody has declared `hello.up` yet (WL-KEY-06).
         REQUIRE(r.session().keymap.authored.size() == 1);
         CHECK(r.session().keymap.overrides.empty());
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         const std::int64_t kind = seat_pane_declared(
-            r, seat, kHelloOffice, kHelloPane, {declared("hello.up", "row up", input::scan::kUp)});
+            r, seat, kHelloRole, kHelloPane, {declared("hello.up", "row up", input::scan::kUp)});
         REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
         CHECK(r.session().keymap.pane_rows(kind)->rows[0].gesture ==
               Gesture{input::scan::kU, input::mod::kCtrl});
@@ -773,14 +773,14 @@ TEST_CASE("an override authored before the pane arrives is applied when it does,
         PaneRig r;
         r.host.keymap_path = path;
         r.mount_workshop();
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         // Offered and declared BEFORE any surface exists, as a provider loaded before
         // the window is: joined under the defaults for now.
         r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
             s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kUp)}));
         });
-        const RuntimePane* row = r.session().panes.runtime.find(kHelloOffice, kHelloPane);
+        const RuntimePane* row = r.session().panes.runtime.find(kHelloRole, kHelloPane);
         REQUIRE(row != nullptr);
         const std::int64_t kind = row->kind;
         REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
@@ -791,7 +791,7 @@ TEST_CASE("an override authored before the pane arrives is applied when it does,
         REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
         CHECK(r.session().keymap.pane_rows(kind)->rows[0].gesture ==
               Gesture{input::scan::kU, input::mod::kCtrl});
-        r.pick(PaneRef{kHelloOffice, kHelloPane});
+        r.pick(PaneRef{kHelloRole, kHelloPane});
         press_body(r, kind);
         r.key(input::scan::kU, input::mod::kCtrl);
         REQUIRE(seat->actions.size() == 1);
@@ -813,7 +813,7 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         r.mount_workshop();
         r.ready();
         DesktopSeat* desk = mount_desktop(r); // its key-list row lands where the file put it
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
             s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kU,
@@ -821,14 +821,14 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         });
         // THE REFUSAL IS SAID AT THE DECLARATION, before any later gesture writes over
         // the one notice line.
-        CHECK(r.last_notice() == "Seat @" + std::string(kHelloOffice) + ": " +
+        CHECK(r.last_notice() == "Seat @" + std::string(kHelloRole) + ": " +
                                      collision_sentence(moved, "desktop.hotkeys", "hello.up"));
-        const RuntimePane* row = r.session().panes.runtime.find(kHelloOffice, kHelloPane);
+        const RuntimePane* row = r.session().panes.runtime.find(kHelloRole, kHelloPane);
         REQUIRE(row != nullptr);
         const std::int64_t kind = row->kind;
         CHECK(r.session().keymap.pane_rows(kind) == nullptr);
         CHECK(retained(r, kind).empty());
-        r.pick(PaneRef{kHelloOffice, kHelloPane});
+        r.pick(PaneRef{kHelloRole, kHelloPane});
         press_body(r, kind);
         r.key(input::scan::kU, input::mod::kCtrl);
         REQUIRE_FALSE(desk->asked().empty()); // the weaver's file is what is in force
@@ -840,13 +840,13 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         r.host.keymap_path = path;
         r.mount_workshop();
         DesktopSeat* desk = mount_desktop(r); // declared under the defaults, before the file
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
             s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kU,
                                                            input::mod::kCtrl)}));
         });
-        const RuntimePane* row = r.session().panes.runtime.find(kHelloOffice, kHelloPane);
+        const RuntimePane* row = r.session().panes.runtime.find(kHelloRole, kHelloPane);
         REQUIRE(row != nullptr);
         const std::int64_t kind = row->kind;
         REQUIRE(r.session().keymap.pane_rows(kind) != nullptr); // joined under the defaults
@@ -856,10 +856,10 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
         // re-join without its declarer being told (WL-DESK-06). It may declare again.
         CHECK(retained(r, kind).empty());
         CHECK(r.last_notice().find("1 override") != std::string::npos);
-        CHECK(r.last_notice().find("Seat @" + std::string(kHelloOffice) + ": " +
+        CHECK(r.last_notice().find("Seat @" + std::string(kHelloRole) + ": " +
                                    collision_sentence(moved, "desktop.hotkeys", "hello.up")) !=
               std::string::npos);
-        r.pick(PaneRef{kHelloOffice, kHelloPane});
+        r.pick(PaneRef{kHelloRole, kHelloPane});
         press_body(r, kind);
         r.key(input::scan::kU, input::mod::kCtrl);
         REQUIRE_FALSE(desk->asked().empty());
@@ -874,22 +874,22 @@ TEST_CASE("the keymap file wins: a pane whose rows its bindings collide with is 
 
 namespace {
 
-/// AN OFFICE THAT EDITS A BINDING THROUGH THE HOST'S DOOR, as the Pane Manager's keys table does:
+/// AN ROLE THAT EDITS A BINDING THROUGH THE HOST'S DOOR, as the Pane Manager's keys table does:
 /// it asks `asked` when driven, and keeps each answer.
 class KeymapEditSeat : public loom::WeaveBase<KeymapEditSeat, SeatState,
                                               loom::Accept<SeatDo, KeymapEditAnswered>,
                                               loom::Emit<KeymapEditRequested>> {
 public:
-    static constexpr const char* kOffice = "zengine.test.keymap-editor";
+    static constexpr const char* kRole = "zengine.test.keymap-editor";
     void on(const SeatDo&, loom::Mail& mail) {
-        (void)mail.as_role(kOffice).send_to_role(kWorkshopProvider, asked);
+        (void)mail.as_role(kRole).send_to_role(kWorkshopProvider, asked);
     }
     void on(const KeymapEditAnswered& said, loom::Mail&) { answers.push_back(said); }
     KeymapEditRequested asked;
     std::vector<KeymapEditAnswered> answers;
 };
 
-/// Ask the door once, as `KeymapEditSeat::kOffice`, and drain.
+/// Ask the door once, as `KeymapEditSeat::kRole`, and drain.
 void edit_binding(PaneRig& r, const KeymapEditRequested& asked, KeymapEditSeat*& seat,
                   loom::WeaveId& id) {
     if (seat == nullptr) {
@@ -898,7 +898,7 @@ void edit_binding(PaneRig& r, const KeymapEditRequested& asked, KeymapEditSeat*&
         loom::Grant grant;
         grant.allow_to_role(KeymapEditRequested::zen_name, KeymapEditRequested::zen_version,
                             kWorkshopProvider);
-        id = r.bus.register_weave(std::move(made), std::move(grant), KeymapEditSeat::kOffice);
+        id = r.bus.register_weave(std::move(made), std::move(grant), KeymapEditSeat::kRole);
         seat->zen_set_self(id);
     }
     seat->asked = asked;
@@ -1062,14 +1062,14 @@ TEST_CASE("WL-KEY-08: a pane's row the terminal cannot produce is admitted, acts
           "whichever path brought it into force") {
     const Gesture shift_one{input::scan::k1, input::mod::kShift};
     const std::string said =
-        "Seat @" + std::string(kHelloOffice) + ": " +
+        "Seat @" + std::string(kHelloRole) + ": " +
         gap_sentence("shift+1", "hello.up", posix_gap(shift_one));
 
     SUBCASE("a declaration: said at admission, and not again for the same rows") {
         PaneRig r;
         r.mount_workshop();
         r.ready();
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         const std::vector<v2::PaneActionRow> rows{
             declared("hello.up", "row up", input::scan::k1, input::mod::kShift),
             declared("hello.down", "row down", input::scan::kDown)};
@@ -1079,8 +1079,8 @@ TEST_CASE("WL-KEY-08: a pane's row the terminal cannot produce is admitted, acts
         });
         CHECK(r.last_notice() == said);
         CHECK(r.last_notice().find("hello.down") == std::string::npos);
-        r.pick(PaneRef{kHelloOffice, kHelloPane});
-        const std::int64_t kind = r.session().panes.runtime.find(kHelloOffice, kHelloPane)->kind;
+        r.pick(PaneRef{kHelloRole, kHelloPane});
+        const std::int64_t kind = r.session().panes.runtime.find(kHelloRole, kHelloPane)->kind;
         // BOUND, NOT REWRITTEN: the press is the declared row's.
         press_body(r, kind);
         r.key(input::scan::k1, input::mod::kShift);
@@ -1102,12 +1102,12 @@ TEST_CASE("WL-KEY-08: a pane's row the terminal cannot produce is admitted, acts
         PaneRig r;
         r.host.keymap_path = path;
         r.mount_workshop();
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
             s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kUp)}));
         });
-        const std::int64_t kind = r.session().panes.runtime.find(kHelloOffice, kHelloPane)->kind;
+        const std::int64_t kind = r.session().panes.runtime.find(kHelloRole, kHelloPane)->kind;
         CHECK(r.session().keymap.pane_rows(kind)->gaps.empty());
         r.ready();
         CHECK(r.session().keymap.pane_rows(kind)->rows[0].gesture == shift_one);
@@ -1122,7 +1122,7 @@ TEST_CASE("WL-KEY-08: a pane's row the terminal cannot produce is admitted, acts
         r.host.keymap_path = path;
         r.mount_workshop();
         r.ready();
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
             s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kUp)}));
@@ -1133,9 +1133,9 @@ TEST_CASE("WL-KEY-08: a pane's row the terminal cannot produce is admitted, acts
         PaneRig r;
         r.mount_workshop();
         r.ready();
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         const std::int64_t kind = seat_pane_declared(
-            r, seat, kHelloOffice, kHelloPane, {declared("hello.up", "row up", input::scan::kUp)});
+            r, seat, kHelloRole, kHelloPane, {declared("hello.up", "row up", input::scan::kUp)});
         KeymapEditSeat* editor = nullptr;
         loom::WeaveId editor_id{};
         edit_binding(r, KeymapEditRequested{"hello.up", keymap_edit::kSet, input::scan::k1,
@@ -1151,9 +1151,9 @@ TEST_CASE("WL-KEY-08: a pane's row the terminal cannot produce is admitted, acts
         PaneRig r;
         r.mount_workshop();
         r.ready();
-        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        ProviderSeat* seat = r.mount_provider(kHelloRole);
         const std::int64_t kind = seat_pane_declared(
-            r, seat, kHelloOffice, kHelloPane,
+            r, seat, kHelloRole, kHelloPane,
             {declared("hello.up", "row up", input::scan::k1, input::mod::kShift)});
         redeclare(r, seat, kHelloPane,
                   {declared("hello.up", "row up", input::scan::k1, input::mod::kShift),
@@ -1170,9 +1170,9 @@ TEST_CASE("the band's legend and the effective keymap print the pane's rows whil
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     const std::int64_t kind = seat_pane_declared(
-        r, seat, kHelloOffice, kHelloPane,
+        r, seat, kHelloRole, kHelloPane,
         {declared("hello.up", "row up", input::scan::kUp), declared("hello.mark", "mark", input::scan::kM),
          declared("hello.rename", "rename", input::scan::kUnknown)});
 
@@ -1187,21 +1187,21 @@ TEST_CASE("the band's legend and the effective keymap print the pane's rows whil
     {
         const std::vector<std::string> lines = band_lines(r);
         REQUIRE(lines.size() == 2);
-        CHECK(lines[0].find("typing goes to Seat @" + std::string(kHelloOffice)) !=
+        CHECK(lines[0].find("typing goes to Seat @" + std::string(kHelloRole)) !=
               std::string::npos);
         // THE PANE'S OWN ROWS, then the one host row requestable while a pane holds the keys, the
         // way out: an unbound row teaches no key (WL-KEY-13).
         CHECK(lines[1] == "up row up | m mark | ctrl+q leave pane");
     }
     // THE EFFECTIVE KEYMAP: the pane's rows under its own name, the unbound one with no key.
-    const std::string group = "pane Seat @" + std::string(kHelloOffice);
+    const std::string group = "pane Seat @" + std::string(kHelloRole);
     const std::string view = hotkeys_text(r);
     CHECK(view.find(group + " | up | row up | hello.up") != std::string::npos);
     CHECK(view.find(group + " | m | mark | hello.mark") != std::string::npos);
     CHECK(view.find(group + " |  | rename | hello.rename") != std::string::npos);
 
     // AND AN OVERRIDE IS WHAT BOTH SPELL: the band and the view project the effective map.
-    ProviderSeat* other = r.mount_provider(kOtherOffice);
+    ProviderSeat* other = r.mount_provider(kOtherRole);
     (void)other;
     Keymap moved = r.session().keymap;
     moved.authored.push_back(AuthoredOverride{"hello.mark", "ctrl+u"});
@@ -1217,15 +1217,15 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     r.mount_workshop();
     r.ready();
     (void)mount_desktop(r); // the application's launches: what survives above a pane
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
     press_body(r, kind);
     // The survivors are the way out and the application's, and nothing of the pane's own.
     CHECK(band_lines(r).at(1) ==
           "ctrl+q leave pane | ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys");
     // ...AND THE EFFECTIVE KEYMAP HOLDS NO ROW FOR IT: every key it gets is its own to read.
     const std::string view = hotkeys_text(r);
-    CHECK(view.find("pane Seat @" + std::string(kHelloOffice)) == std::string::npos);
+    CHECK(view.find("pane Seat @" + std::string(kHelloRole)) == std::string::npos);
 }
 
 // ============================================================================
@@ -1338,7 +1338,7 @@ class LegacySeat : public loom::WeaveBase<LegacySeat, SeatState,
                                                        SeatDo>,
                                           loom::Emit<PaneOffered, legacy::PaneActions>> {
 public:
-    explicit LegacySeat(std::string office) : office_(std::move(office)) {}
+    explicit LegacySeat(std::string role) : role_(std::move(role)) {}
 
     std::vector<std::string> said;
     std::function<void(LegacySeat&, loom::Mail&)> next;
@@ -1354,17 +1354,17 @@ public:
     }
 
     void offer_and_declare(loom::Mail& mail) {
-        (void)mail.as_role(office_).send_to_role(
+        (void)mail.as_role(role_).send_to_role(
             kWorkshopProvider, PaneOffered{"old", "Old", "a pane from before ownership"});
         legacy::PaneActions a;
         a.pane = "old";
         a.rows.push_back(legacy::PaneActionRow{"old.up", "row up", input::scan::kUp, 0});
         a.rows.push_back(legacy::PaneActionRow{"old.mark", "mark", input::scan::kM, 0});
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
+        (void)mail.as_role(role_).send_to_role(kWorkshopProvider, a);
     }
 
 private:
-    std::string office_;
+    std::string role_;
 };
 
 TEST_CASE("a pane built against the published version one still registers, declares and dispatches") {
@@ -1384,24 +1384,24 @@ TEST_CASE("a pane built against the published version one still registers, decla
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    auto seat = std::make_unique<LegacySeat>(std::string(kOtherOffice));
+    auto seat = std::make_unique<LegacySeat>(std::string(kOtherRole));
     LegacySeat* old_pane = seat.get();
     loom::Grant say;
     say.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
     say.allow_to_any(legacy::PaneActions::zen_name, legacy::PaneActions::zen_version);
     const loom::WeaveId id =
-        r.bus.register_weave(std::move(seat), std::move(say), std::string(kOtherOffice));
+        r.bus.register_weave(std::move(seat), std::move(say), std::string(kOtherRole));
     old_pane->zen_set_self(id);
     old_pane->next = [](LegacySeat& s, loom::Mail& m) { s.offer_and_declare(m); };
     (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
 
-    const RuntimePane* row = r.session().panes.runtime.find(kOtherOffice, "old");
+    const RuntimePane* row = r.session().panes.runtime.find(kOtherRole, "old");
     REQUIRE_MESSAGE(row != nullptr, "the old provider's offer was not admitted");
     REQUIRE(row->actions.size() == 2); // its rows, widened into the host's own row type
     CHECK(row->actions[0].id == "old.up");
     CHECK(row->actions[0].supersedes.empty()); // version one owns nothing, and says so
-    r.pick(PaneRef{kOtherOffice, "old"});
+    r.pick(PaneRef{kOtherRole, "old"});
     const std::int64_t kind = row->kind;
     REQUIRE(r.session().panes.has(kind));
     press_body(r, kind);
@@ -1423,11 +1423,11 @@ TEST_CASE("a pane built against the published version one still registers, decla
     // admitted standing in for nothing: its row is its own. (This rig's screen holds one stack
     // pane, so the old one steps out.)
     r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1); // the keys back to the desk
-    r.pick(PaneRef{kOtherOffice, "old"});
+    r.pick(PaneRef{kOtherRole, "old"});
     REQUIRE_FALSE(r.session().panes.has(kind));
-    ProviderSeat* modern = r.mount_provider(kHelloOffice);
+    ProviderSeat* modern = r.mount_provider(kHelloRole);
     const std::int64_t owner = seat_pane_declared_v2(
-        r, modern, kHelloOffice, kHelloPane,
+        r, modern, kHelloRole, kHelloPane,
         {declared("hello.save", "save mine", save.scancode, save.modifiers,
                   kOwnableDocumentSave)});
     REQUIRE(owner != kNoPaneKind);
@@ -1848,7 +1848,7 @@ namespace {
 
 namespace dp = zengine::desktop_pane;
 
-/// LOAD THE SHIPPED DESKTOP THROUGH THE REAL KERNEL, in its office.
+/// LOAD THE SHIPPED DESKTOP THROUGH THE REAL KERNEL, in its role.
 loom::WeaveId load_real_desktop(PaneRig& r) {
     const loom::WeaveId id = r.load(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole);
     REQUIRE(id.valid());
@@ -1939,7 +1939,7 @@ public:
     std::vector<PaneInventory> answers;
     std::vector<PaneInventory> publications;
     std::function<void(InventoryEar&, loom::Mail&)> next;
-    static constexpr const char* kOffice = "zengine.test.inventory-ear";
+    static constexpr const char* kRole = "zengine.test.inventory-ear";
 };
 
 InventoryEar* mount_ear(PaneRig& r, loom::WeaveId& id) {
@@ -1948,7 +1948,7 @@ InventoryEar* mount_ear(PaneRig& r, loom::WeaveId& id) {
     loom::Grant grant;
     grant.allow_to_any(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version);
     grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-    id = r.bus.register_weave(std::move(seat), std::move(grant), InventoryEar::kOffice);
+    id = r.bus.register_weave(std::move(seat), std::move(grant), InventoryEar::kRole);
     raw->zen_set_self(id);
     return raw;
 }
@@ -2012,7 +2012,7 @@ TEST_CASE("an arriving presenter is answered the inventory as it is now, to itse
     const std::size_t heard = ear->publications.size();
 
     ear_does(r, id, ear, [](InventoryEar&, loom::Mail& m) {
-        (void)m.as_role(InventoryEar::kOffice)
+        (void)m.as_role(InventoryEar::kRole)
             .send_to_role(kWorkshopProvider, PaneInventoryRequested{});
     });
     REQUIRE(ear->answers.size() == 1);
@@ -2029,7 +2029,7 @@ TEST_CASE("an arriving presenter is answered the inventory as it is now, to itse
     // nothing in it changed. The first offer adds this ear's own row, which changes the reading;
     // the same offer again changes nothing, and is what the record's clearing is for.
     const auto offer = [](InventoryEar&, loom::Mail& m) {
-        (void)m.as_role(InventoryEar::kOffice)
+        (void)m.as_role(InventoryEar::kRole)
             .send_to_role(kWorkshopProvider, PaneOffered{"ear", "Ear", "an inventory listener"});
     };
     ear_does(r, id, ear, offer);
@@ -2042,7 +2042,7 @@ TEST_CASE("an arriving presenter is answered the inventory as it is now, to itse
     const std::vector<InventoryPane>& now = ear->publications.back().panes;
     REQUIRE(now.size() == was.size());
     for (std::size_t i = 0; i < now.size(); ++i) {
-        CHECK(now[i].office == was[i].office);
+        CHECK(now[i].role == was[i].role);
         CHECK(now[i].pane == was[i].pane);
         CHECK(now[i].available == was[i].available);
     }
@@ -2289,9 +2289,9 @@ TEST_CASE("a pane the run is still loading is pending, not unavailable: the laun
     // counting every unavailable row, pending or not.
     PaneRig r;
     bool info_to_come = true; // the host's answer, as `workshop.cpp` wires it over the executor
-    r.host.office_pending = [&info_to_come](std::string_view office) {
+    r.host.role_pending = [&info_to_come](std::string_view role) {
         // ...and the shipped desk's other loaded pane, still to come for the whole case.
-        return office == "zengine.notices-pane" || (info_to_come && office == "zengine.info");
+        return role == "zengine.notices-pane" || (info_to_come && role == "zengine.info");
     };
     r.mount_workshop();
     r.ready();
@@ -2328,13 +2328,13 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     r.mount_workshop();
     r.ready();
     DesktopSeat* desk = mount_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
-    const PaneRef hello{kHelloOffice, kHelloPane};
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
+    const PaneRef hello{kHelloRole, kHelloPane};
     REQUIRE(r.session().panes.has(kind));
 
     desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
-        d.close(m, kHelloOffice, kHelloPane);
+        d.close(m, kHelloRole, kHelloPane);
     });
     REQUIRE(desk->closed().size() == 1);
     CHECK(desk->closed().back().closed);
@@ -2343,13 +2343,13 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     CHECK_FALSE(r.session().panes.has(kind));
     CHECK(r.last_notice().rfind("hid ", 0) == 0);
     CHECK_MESSAGE(r.last_notice().find(" -- ") == std::string::npos, r.last_notice()); // WL-NOTE-06
-    // ⚠ NOTHING WAS UNLOADED: the office is still held, and the catalog still knows the pane.
-    CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<gfx::AreaRoom>()));
-    CHECK(r.session().panes.runtime.find(kHelloOffice, kHelloPane) != nullptr);
+    // ⚠ NOTHING WAS UNLOADED: the role is still held, and the catalog still knows the pane.
+    CHECK(r.host.holder_accepts(kHelloRole, *loom::schema_of<gfx::AreaRoom>()));
+    CHECK(r.session().panes.runtime.find(kHelloRole, kHelloPane) != nullptr);
 
     // A SECOND CLOSE IS REFUSED IN WORDS, and it opens nothing.
     desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
-        d.close(m, kHelloOffice, kHelloPane);
+        d.close(m, kHelloRole, kHelloPane);
     });
     REQUIRE(desk->closed().size() == 2);
     CHECK_FALSE(desk->closed().back().closed);
@@ -2359,7 +2359,7 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
 
     // ...AND A LAUNCH BRINGS IT BACK FROM THE SAME PROVIDER, which never went anywhere.
     desktop_does(r, desk, [](DesktopSeat& d, loom::Mail& m) {
-        d.launch(m, kHelloOffice, kHelloPane);
+        d.launch(m, kHelloRole, kHelloPane);
     });
     REQUIRE_FALSE(desk->launched().empty());
     CHECK(desk->launched().back().opened);
@@ -2373,9 +2373,9 @@ TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row stays in the liv
     PaneRig r;
     r.mount_workshop();
     r.ready();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
-    const PaneRef hello{kHelloOffice, kHelloPane};
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloRole, kHelloPane);
+    const PaneRef hello{kHelloRole, kHelloPane};
     REQUIRE(r.session().panes.has(kind));
     stage_desk(r, [&](Setup& desk) {
         pane_of(desk, hello)->settings = {PaneSetting{"mode", {}, {}, std::string("wide")}};
@@ -2395,7 +2395,7 @@ TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row stays in the liv
     r.bus.drain_until_idle();
     REQUIRE(h.closed.size() == 1);
     CHECK_FALSE(h.closed.back().closed);
-    CHECK(h.closed.back().refusal.find("by an office") != std::string::npos);
+    CHECK(h.closed.back().refusal.find("by a role") != std::string::npos);
     CHECK(has_pane(r.owner->layouts().run().active, hello));
 
     const std::int64_t before = r.session().setup.revision;
@@ -2420,7 +2420,7 @@ TEST_CASE("WL-DESK-12: a close is the layouts' owner's: the row stays in the liv
     // WHAT WAS HIDDEN, and no more: nothing went with it (WL-NOTE-06).
     CHECK_MESSAGE(r.last_notice().rfind("hid ", 0) == 0, r.last_notice());
     CHECK_MESSAGE(r.last_notice().find(" and its ") == std::string::npos, r.last_notice());
-    CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<gfx::AreaRoom>()));
+    CHECK(r.host.holder_accepts(kHelloRole, *loom::schema_of<gfx::AreaRoom>()));
 }
 
 TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return opens it again: "
@@ -2610,7 +2610,7 @@ TEST_CASE("the shipped Pane Manager cuts a long pane name at its room and MARKS 
     load_real_desktop(r);
     const std::string long_name = "a-very-long-provider-pane-name-x";
     REQUIRE(long_name.size() == kMaxPaneNameLen);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [&long_name](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{kHelloPane, long_name, "a pane with a long name"});
     });
@@ -2707,7 +2707,7 @@ void posix_key_shown(bool posix_terminal) {
     r.ready();
     r.extent(200, 60);
     load_real_desktop(r);
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     const v4::PaneActions declared{
         kHelloPane,
         {},
@@ -2722,8 +2722,8 @@ void posix_key_shown(bool posix_terminal) {
     CHECK(r.session().keymap.posix_layer == posix_terminal);
     // NO GAP SAID: the default's is covered by the POSIX key.
     CHECK(r.last_notice().find("hello.copy") == std::string::npos);
-    r.pick(PaneRef{kHelloOffice, kHelloPane});
-    const std::int64_t kind = r.session().panes.runtime.find(kHelloOffice, kHelloPane)->kind;
+    r.pick(PaneRef{kHelloRole, kHelloPane});
+    const std::int64_t kind = r.session().panes.runtime.find(kHelloRole, kHelloPane)->kind;
     press_body(r, kind);
     const Gesture in_force = posix_terminal ? Gesture{sc::kEnd, input::mod::kAlt}
                                             : Gesture{sc::kS, kCtrlShift};
@@ -2951,13 +2951,13 @@ TEST_CASE("the Hotkeys pane's example row names a chord no pane on the desk decl
     PaneRig r;
     r.mount_workshop();
     load::LoadPlan plan;
-    for (const auto& [stem, office] : std::vector<std::pair<std::string, std::string>>{
+    for (const auto& [stem, role] : std::vector<std::pair<std::string, std::string>>{
              {"zengine-desktop-pane", "zengine.desktop"},
              {"zengine-flow-pane", "zengine.flow"},
              {"zengine-info-pane", "zengine.info"}}) {
         load::ArtifactIntent artifact;
         artifact.stem = stem;
-        artifact.weave = load::WeaveIntent{office};
+        artifact.weave = load::WeaveIntent{role};
         plan.artifacts.push_back(artifact);
     }
     const load::Executed loaded = r.run_plan(plan);

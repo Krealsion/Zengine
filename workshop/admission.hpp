@@ -22,9 +22,9 @@
 #include <zen/kernel/admission.hpp>
 
 namespace zengine::workshop {
-// The inventory office's grant here: its bounded speech, and what a shape it accepts does, from
+// The inventory role's grant here: its bounded speech, and what a shape it accepts does, from
 // its own page, to the one who asked.
-inline loom::Grant inventory_office_grant() {
+inline loom::Grant inventory_role_grant() {
     loom::Grant g = inventory::inventory_grant();
     g.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     return g;
@@ -33,23 +33,23 @@ inline loom::Grant inventory_office_grant() {
 // THE QUICK SETUP'S SPEECH, and nothing more: its two panes, its two settings, a launch of a pane
 // to Workshop -- either version -- and its close to the layouts' owner; the room asked of the
 // graphics directory and its drawing to the two windows; the editor switch's four asks, its
-// status the quiet one, to the switch's office alone; Workshop asked to approve a start for the
+// status the quiet one, to the switch's role alone; Workshop asked to approve a start for the
 // hand, and the launcher asked for its listing and a start; and every running view asked what its
-// wiring has done, said to any since a view's office is its own name.
+// wiring has done, said to any since a view's role is its own name.
 // WL-FIRST-03, WL-FIRST-04 -- agents/workshop/first-run.md
-inline loom::Grant first_run_office_grant() {
+inline loom::Grant first_run_role_grant() {
     loom::Grant g;
-    const auto to = [&g](std::string name, std::uint32_t version, const std::string& office) {
-        g.allow_to_role(std::move(name), version, office);
+    const auto to = [&g](std::string name, std::uint32_t version, const std::string& role) {
+        g.allow_to_role(std::move(name), version, role);
     };
     const std::string workshop = kWorkshopProvider;
     to(v2::PaneOffered::zen_name, v2::PaneOffered::zen_version, workshop);
     to(v3::PaneActions::zen_name, v3::PaneActions::zen_version, workshop);
     to(v4::PaneActions::zen_name, v4::PaneActions::zen_version, workshop);
     const std::string layouts = kLayoutsRole;
-    to(OfficeSettingsDeclared::zen_name, OfficeSettingsDeclared::zen_version, layouts);
-    to(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version, layouts);
-    to(OfficeSettingCommitRequested::zen_name, OfficeSettingCommitRequested::zen_version, layouts);
+    to(RoleSettingsDeclared::zen_name, RoleSettingsDeclared::zen_version, layouts);
+    to(RoleSettingsRequested::zen_name, RoleSettingsRequested::zen_version, layouts);
+    to(RoleSettingCommitRequested::zen_name, RoleSettingCommitRequested::zen_version, layouts);
     to(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version, workshop);
     to(v2::PaneLaunchRequested::zen_name, v2::PaneLaunchRequested::zen_version, workshop);
     to(v2::PaneOperationRequested::zen_name, v2::PaneOperationRequested::zen_version, workshop);
@@ -58,7 +58,7 @@ inline loom::Grant first_run_office_grant() {
     to(graphics::RoomAsked::zen_name, graphics::RoomAsked::zen_version, graphics::kGraphicsRole);
     for (const char* window : {graphics::kSdlWindow, graphics::kTerminalWindow}) {
         to(graphics::Drawn::zen_name, graphics::Drawn::zen_version,
-           std::string(graphics::kWindowOfficePrefix) + window);
+           std::string(graphics::kWindowRolePrefix) + window);
     }
     const std::string switcher = kEditorSwitchRole;
     to(EditorSwitchRequested::zen_name, EditorSwitchRequested::zen_version, switcher);
@@ -75,7 +75,7 @@ inline loom::Grant first_run_office_grant() {
 }
 
 // Hosting policy, independent of inventory's implementation or artifact filename.
-// Keep the inventory office's bounded speech when its holder becomes replaceable.
+// Keep the inventory role's bounded speech when its holder becomes replaceable.
 inline loom::AdmissionPolicy artifact_admission() {
     auto existing = loom::trust_every_artifact(
         "Workshop admits its authored plan artifacts; general per-row authority awaits "
@@ -83,12 +83,12 @@ inline loom::AdmissionPolicy artifact_admission() {
     return [existing](const loom::AdmissionRequest& request) {
         if (request.stage == loom::AdmissionStage::Speak &&
             request.role == inventory::kInventoryRole) {
-            return loom::AdmissionVerdict::admit(inventory_office_grant(),
-                "Workshop's inventory office may capture descriptions and answer its protocol");
+            return loom::AdmissionVerdict::admit(inventory_role_grant(),
+                "Workshop's inventory role may capture descriptions and answer its protocol");
         }
         if (request.stage == loom::AdmissionStage::Speak &&
             request.role == first_run::kFirstRunRole) {
-            return loom::AdmissionVerdict::admit(first_run_office_grant(),
+            return loom::AdmissionVerdict::admit(first_run_role_grant(),
                 "the quick setup may keep its settings, show its panes, ask the editor switch and the launcher, "
                 "and ask the running views what their wiring has done");
         }

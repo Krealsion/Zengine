@@ -2,18 +2,18 @@
 
 **Manual.** The pane you edit a source file in: it opens one file, edits it, and saves exactly what
 you meant to save, so the next build reads it. It is a *weave*: a piece of Workshop that is loaded,
-replaced and spoken to by messages. Other weaves reach it by its *office*, the name it answers to,
-`zengine.editor`. Two weaves can hold that office, one at a time: the standard Editor,
+replaced and spoken to by messages. Other weaves reach it by its *role*, the name it answers to,
+`zengine.editor`. Two weaves can hold that role, one at a time: the standard Editor,
 `zengine-editor-pane`, and the Neovim-backed Editor, `zengine-neovim-editor`. This page is both
 holders' manual. New to it? Start with [The source editor](editor.md) or
 [Neovim in Workshop](neovim.md).
 
 ## About
 
-The office has one pane, `editor`, and whichever weave holds the office draws it: in Workshop, and
+The role has one pane, `editor`, and whichever weave holds the role draws it: in Workshop, and
 in a graphics window that shows the area `zengine.editor` (`AreaRoom`, below). The load plan
 names the weave that starts and the choices a weaver may switch to, `standard` and `neovim` in
-both shipped plans; the switch is the office [`zengine.editor-switch`](zengine.editor-switch.md),
+both shipped plans; the switch is the role [`zengine.editor-switch`](zengine.editor-switch.md),
 which moves the document across: its bytes, unsaved edits, caret, selection and scroll. The pane's
 title says which holder you are in, `Editor @zengine.editor` or `Neovim @zengine.editor`.
 
@@ -176,7 +176,7 @@ Closes the document: the Editor holds no source after it, and the file is as you
 
 ## Commands in Neovim
 
-The Neovim-backed Editor's declared rows, while it holds the office. Every other key reaches
+The Neovim-backed Editor's declared rows, while it holds the role. Every other key reaches
 Neovim.
 
 ### `neovim.write`
@@ -251,7 +251,7 @@ Neovim's own (redo, or Insert's register).
 ### `OpenSourceRequested`
 
 `OpenSourceRequested` v1 ([`workshop/pane_seam_vocabulary.hpp`](../../workshop/pane_seam_vocabulary.hpp)):
-open this file. The holder hands it to the opening office, `zengine.opening`, and answers with what
+open this file. The holder hands it to the opening role, `zengine.opening`, and answers with what
 became of it. The standard Editor refuses
 `the Editor holds unsaved changes to <path> -- save source or discard source edits in the Editor
 first; nothing was opened`; Neovim opens the file in a new buffer beside any unsaved one.
@@ -293,7 +293,7 @@ lose them`, unless `discard` is true; answered `Neovim ended (status 0)`.
 ### `AreaRoom`
 
 `AreaRoom` v4, from the graphics window that shows the area `zengine.editor`, as that window's
-office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the Editor's room and text
+role ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the Editor's room and text
 there. The holder draws the pane Workshop is shown on its ground, a row a line, the caret a bar,
 the selection in the accent colour: whole when the room changed, then only what changed. Seated
 nowhere, it composes for this room, Neovim sized to it. A holder asks for it (`RoomAsked`) each

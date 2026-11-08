@@ -31,10 +31,10 @@ using legacy_protocol::PaneContent;
 using legacy_protocol::PaneOffered;
 using legacy_protocol::PaneRoom;
 
-/// THIS PROVIDER'S OFFICE -- the durable half of the `PaneRef` a weaver's setup names it by.
-constexpr const char* kOffice = "zengine.test.legacy";
+/// THIS PROVIDER'S ROLE -- the durable half of the `PaneRef` a weaver's setup names it by.
+constexpr const char* kRole = "zengine.test.legacy";
 
-/// The office Workshop holds, as a string: a provider is a stranger to Workshop's internals.
+/// The role Workshop holds, as a string: a provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
 constexpr const char* kPaneKey = "old";
@@ -95,16 +95,16 @@ public:
     }
 
 private:
-    /// One offer and one version-one declaration, authored as this office.
+    /// One offer and one version-one declaration, authored as this role.
     void announce(loom::Mail& mail) {
         ++state_.offers;
-        (void)mail.as_role(kOffice).send_to_role(kWorkshopRole,
+        (void)mail.as_role(kRole).send_to_role(kWorkshopRole,
                                                  PaneOffered{kPaneKey, kPaneName, kPaneSummary});
         PaneActions actions;
         actions.pane = kPaneKey;
         actions.rows.push_back(PaneActionRow{"old.up", "row up", input::scan::kUp, 0});
         actions.rows.push_back(PaneActionRow{"old.mark", "mark", input::scan::kM, 0});
-        (void)mail.as_role(kOffice).send_to_role(kWorkshopRole, actions);
+        (void)mail.as_role(kRole).send_to_role(kWorkshopRole, actions);
     }
 
     /// Two rows: what this pane is, and what it was last asked to do -- so a case reads the
@@ -125,7 +125,7 @@ private:
                                                state_.last_action),
                 legacy_protocol::kQuietText});
         }
-        (void)mail.as_role(kOffice).send_to_role(kWorkshopRole, said);
+        (void)mail.as_role(kRole).send_to_role(kWorkshopRole, said);
     }
 
     std::string fitted(std::string text) const {

@@ -10,7 +10,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 
 #include "manuals/zengine.sources.hpp"
 
@@ -23,13 +23,13 @@
 
 namespace {
 
-/// The office a second tool would ask the sample door from -- what makes "an office
+/// The role a second tool would ask the sample door from -- what makes "a role
 /// may ask; anonymous speech may not" a claim a case can put either way.
-constexpr const char* kAskerOffice = "zengine.test.sampler";
+constexpr const char* kAskerRole = "zengine.test.sampler";
 
 struct SampleBook {
     std::string identity;
-    bool anonymously = false; ///< speak personally instead of as the office
+    bool anonymously = false; ///< speak personally instead of as the role
     std::vector<SourceSampled> heard;
     std::int64_t refusals = 0;
 };
@@ -46,7 +46,7 @@ public:
             (void)mail.send_to_role(kSampleRole, ask, ++asked_);
             return;
         }
-        (void)mail.as_role(kAskerOffice).send_to_role(kSampleRole, ask, ++asked_);
+        (void)mail.as_role(kAskerRole).send_to_role(kSampleRole, ask, ++asked_);
     }
     void on(const SourceSampled& said, loom::Mail&) { book_->heard.push_back(said); }
     void on(const loom::Refused&, loom::Mail&) { ++book_->refusals; }
@@ -63,7 +63,7 @@ loom::WeaveId seat_asker(PaneRig& r, SampleBook& book) {
     loom::Grant may;
     may.allow_to_role(SampleRequested::zen_name, SampleRequested::zen_version, kSampleRole);
     const loom::WeaveId id =
-        r.bus.register_weave(std::move(weave), std::move(may), std::string(kAskerOffice));
+        r.bus.register_weave(std::move(weave), std::move(may), std::string(kAskerRole));
     raw->zen_set_self(id);
     return id;
 }
@@ -277,7 +277,7 @@ TEST_CASE("in the Operators view Return invokes nothing") {
     CHECK_FALSE(any_row(pane_rows(r, kind), intro::kSampledWhenAsked));
 }
 
-TEST_CASE("the sample crosses one narrow office, and the describing doors stay narrow") {
+TEST_CASE("the sample crosses one narrow role, and the describing doors stay narrow") {
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     make_taller(r, intro::kPowersPane, 18);
@@ -325,14 +325,14 @@ TEST_CASE("the sample crosses one narrow office, and the describing doors stay n
     CHECK(sampler.find("const op::Catalog* catalog_;") != std::string::npos);
 }
 
-TEST_CASE("an office may ask the sample door; anonymous speech may not") {
+TEST_CASE("a role may ask the sample door; anonymous speech may not") {
     PaneRig r;
     const std::int64_t kind = open_powers(r);
     (void)kind;
     SampleBook book;
     const loom::WeaveId asker = seat_asker(r, book);
 
-    // AN OFFICE ASKS AND IS ANSWERED. The rule names nobody -- there is no allow-list
+    // AN ROLE ASKS AND IS ANSWERED. The rule names nobody -- there is no allow-list
     // and no `zengine.introspection` anywhere in the door -- so a tool added tomorrow
     // asks with no edit there.
     const std::uint64_t before = op::invocations();
@@ -354,10 +354,10 @@ TEST_CASE("the sample door answers its page for the shape it accepts, and runs n
     PaneRig r;
     (void)open_powers(r);
     const std::uint64_t before = op::invocations();
-    CHECK(check_office_manual(r.bus, kSampleRole) >= 1);
+    CHECK(check_role_manual(r.bus, kSampleRole) >= 1);
     check_page_names_accepted(zengine::manual::pages::zengine_sources::kManual,
                               described_shapes_of(r.bus, r.bus.role_holder(kSampleRole)));
-    // ASKED BY A WEAVE THAT HOLDS NO OFFICE, and still no Source ran: the words are not a sample.
+    // ASKED BY A WEAVE THAT HOLDS NO ROLE, and still no Source ran: the words are not a sample.
     CHECK(op::invocations() == before);
 }
 
@@ -581,15 +581,15 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
 }
 
 TEST_CASE("keys routed to another pane cannot move the Powers pane") {
-    // WORKSHOP POINTS THE KEYBOARD AT THE PANE A WEAVER LAST PRESSED INTO, and this office offers
+    // WORKSHOP POINTS THE KEYBOARD AT THE PANE A WEAVER LAST PRESSED INTO, and this role offers
     // three. A key meant for `loaded` or `arrangement` must not edit the Powers query, switch its
     // view or move its cursor -- and the guard is the first line of every arm rather than a
     // convention.
     PaneRig r;
     const std::int64_t powers = open_powers(r);
-    // A SECOND PANE FROM THE SAME OFFICE, the sharpest form of the question: one weave, two panes,
+    // A SECOND PANE FROM THE SAME ROLE, the sharpest form of the question: one weave, two panes,
     // and only one of them may be typed into. It is opened BEFORE anything holds the keyboard.
-    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    r.pick(PaneRef{kIntroRole, intro::kArrangementPane});
     REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
     const std::int64_t project = intro_row(r, intro::kArrangementPane)->kind;
 
@@ -643,7 +643,7 @@ TEST_CASE("a cold pane's first press is exactly one act") {
     cold.ready(); // NO arrangement door: the pane is granted room and never answered
     cold.extent(160, 48);
     REQUIRE(intro_row(cold, intro::kPowersPane) != nullptr);
-    cold.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    cold.pick(PaneRef{kIntroRole, intro::kPowersPane});
     const std::int64_t waiting = intro_row(cold, intro::kPowersPane)->kind;
     for (std::int64_t row = 0; row < 6; ++row) {
         press_pane(cold, waiting, row, 0);

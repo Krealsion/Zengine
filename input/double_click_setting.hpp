@@ -4,7 +4,7 @@
 #ifndef ZENGINE_INPUT_DOUBLE_CLICK_SETTING_HPP
 #define ZENGINE_INPUT_DOUBLE_CLICK_SETTING_HPP
 
-// The `zengine.input` office's one office-wide setting, `kSettingDoubleClickMs`, as the loadable
+// The `zengine.input` role's one role-wide setting, `kSettingDoubleClickMs`, as the loadable
 // weave carries it: an `InputWeaveT` composed with `DoubleClickSetting` declares the setting to
 // Workshop's layouts' owner at every activation and sets the time it is handed
 // (`InputWeaveT::set_double_click_ms`). Not installed: it speaks Workshop's settings seam
@@ -21,10 +21,10 @@
 namespace zengine::input {
 
 struct DoubleClickSetting {
-    using Accept = loom::Accept<loom::Activated, workshop::OfficeSettings>;
-    using Emit = loom::Emit<workshop::OfficeSettingsDeclared>;
+    using Accept = loom::Accept<loom::Activated, workshop::RoleSettings>;
+    using Emit = loom::Emit<workshop::RoleSettingsDeclared>;
 
-    /// EVERY ACTIVATION: the setting declared to the office that keeps it, which hands it back.
+    /// EVERY ACTIVATION: the setting declared to the role that keeps it, which hands it back.
     template <class Self>
     void on(Self&, const loom::Activated&, loom::Mail& mail) {
         workshop::v2::PaneSettingRow row;
@@ -35,13 +35,13 @@ struct DoubleClickSetting {
         row.tags = {"pointer"};
         row.summary = "how close in time two presses are one double click, in ms";
         (void)mail.as_role(kInputRole)
-            .send_to_role(workshop::kLayoutsRole, workshop::OfficeSettingsDeclared{{row}});
+            .send_to_role(workshop::kLayoutsRole, workshop::RoleSettingsDeclared{{row}});
     }
 
-    /// THE SETTING AS THE LAYOUTS' OWNER KEEPS IT, from that office alone: a default is kept as
+    /// THE SETTING AS THE LAYOUTS' OWNER KEEPS IT, from that role alone: a default is kept as
     /// its absence, so none is `kDefaultDoubleClickMs`.
     template <class Self>
-    void on(Self& self, const workshop::OfficeSettings& kept, loom::Mail& mail) {
+    void on(Self& self, const workshop::RoleSettings& kept, loom::Mail& mail) {
         if (!mail.authored_from_role(workshop::kLayoutsRole)) {
             return;
         }

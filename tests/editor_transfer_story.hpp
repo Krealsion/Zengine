@@ -3,7 +3,7 @@
 #ifndef ZENGINE_TESTS_EDITOR_TRANSFER_STORY_HPP
 #define ZENGINE_TESTS_EDITOR_TRANSFER_STORY_HPP
 
-// THE EDITOR IN WORKSHOP'S TYPED CARRY, AS A RIG: a real loaded Workshop whose Editor office is
+// THE EDITOR IN WORKSHOP'S TYPED CARRY, AS A RIG: a real loaded Workshop whose Editor role is
 // held by the image a case names, with Inventory, its pane, the menu presenter, the opening manager
 // and an input actor whose Loom authority each case chooses, driven through the real Input weave.
 // Shared by the standard Editor's transfer cases (`panes`) and the Neovim-backed Editor's
@@ -45,7 +45,7 @@ inline constexpr int kEverything = kLocate | kRead | 4 | kStore | 16 | 32 | kCar
 
 inline PaneRef editor_ref() { return PaneRef{ed::kEditorPaneRole, ed::kEditorPane}; }
 
-/// A PARTY THAT HOLDS THE SWITCH'S OFFICE, only to ask the Editor the boundary's first question.
+/// A PARTY THAT HOLDS THE SWITCH'S ROLE, only to ask the Editor the boundary's first question.
 struct SwitchAskerState { ZEN_SHAPE(SwitchAskerState, 1); };
 class SwitchAsker : public loom::WeaveBase<SwitchAsker, SwitchAskerState,
                                            loom::Accept<SeatDo, EditorHandoffJudged>,
@@ -75,7 +75,7 @@ struct TransferStory {
     /// one that answers in the delivery that asks.
     std::function<void()> beat;
 
-    /// `stem` is the image that holds the Editor's office: the standard Editor, or another
+    /// `stem` is the image that holds the Editor's role: the standard Editor, or another
     /// implementation of it (the Neovim-backed Editor's suite passes its own). `desktop` loads the
     /// real desktop too, so its application rows meet the Editor's declarations as on a desk.
     /// `keys` are a weaver's keymap file's rows, `{id, key}`, read as Workshop starts.
@@ -155,11 +155,11 @@ struct TransferStory {
         hand->zen_set_self(hand_id);
         act([](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InputSessionRequested{"editor transfers"}); });
         REQUIRE(hand->session > 0);
-        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerOffice));
+        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerRole));
         asker = held.get();
         loom::Grant ask;
         ask.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
-        asker->id = r.bus.register_weave(std::move(held), std::move(ask), std::string(kDoorAskerOffice));
+        asker->id = r.bus.register_weave(std::move(held), std::move(ask), std::string(kDoorAskerRole));
         asker->zen_set_self(asker->id);
     }
 

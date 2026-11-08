@@ -4,7 +4,7 @@
 // Suite `workshop_editor_switch` -- switching `zengine.editor` between authored choices in a LIVE
 // Workshop, with no Neovim at all: the standard Editor's own image and copies of it built under
 // other stems (`zengine-editor-pane-b`), three of which fail on purpose at exactly one step
-// (`-silent`, `-refusing`, `-not-live`). What crosses, what the desk shows, who holds the office,
+// (`-silent`, `-refusing`, `-not-live`). What crosses, what the desk shows, who holds the role,
 // what realization records, and every way a switch ends -- through the real coordinator, the real
 // prepared replacement and the real handoff conversation.
 
@@ -12,7 +12,7 @@
 
 #include "workshop_switch_rig.hpp"
 
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "pane_window.hpp"
 
 #include "manuals/zengine.editor-switch.hpp"
@@ -55,8 +55,8 @@ NoticeEar* mount_notice_ear(PaneRig& r) {
 
 TEST_SUITE("workshop_editor_switch") {
 
-TEST_CASE("a switch between two authored Editors carries the document, its unsaved edits and its caret, and moves the office") {
-    SUBCASE("the successor asks for the graphics window's room once it holds the office, and is "
+TEST_CASE("a switch between two authored Editors carries the document, its unsaved edits and its caret, and moves the role") {
+    SUBCASE("the successor asks for the graphics window's room once it holds the role, and is "
             "drawn the carried document there whole") {
         namespace gfx = zengine::graphics;
         namespace pw = zengine::testing::pane_window;
@@ -90,7 +90,7 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
         REQUIRE_MESSAGE(away.outcome == switch_outcome::kSwitched, away.detail);
         const loom::WeaveId second = w.holder();
         REQUIRE_FALSE(second == first);
-        // EACH HOLDER ASKED ONCE, AS THE OFFICE IT HELD: the successor, once its admission had
+        // EACH HOLDER ASKED ONCE, AS THE ROLE IT HELD: the successor, once its admission had
         // activated it, and never while it was sealed.
         REQUIRE(asked.size() == 2);
         CHECK(asked[0].sender == first);
@@ -126,7 +126,7 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
     CHECK(away.destination == "twin");
     CHECK(away.op > 0);
     REQUIRE(away.choices.size() == 2);
-    // THE OFFICE MOVED TO ANOTHER WEAVE, LOADED FROM THE OTHER CHOICE'S ARTIFACT, and the retired
+    // THE ROLE MOVED TO ANOTHER WEAVE, LOADED FROM THE OTHER CHOICE'S ARTIFACT, and the retired
     // one is gone.
     const loom::WeaveId second = s.holder();
     CHECK(second.valid());
@@ -140,7 +140,7 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
     CHECK(s.read("saved_text") == "int one;\nint two;\n");
     CHECK(s.read("caret_row") == "1");
     CHECK(s.read("caret_byte") == "5");
-    // THE DESK SHOWS THE SUCCESSOR IN THE SAME SEAT, drawing in the office's area; and the document
+    // THE DESK SHOWS THE SUCCESSOR IN THE SAME SEAT, drawing in the role's area; and the document
     // is a generation past the incumbent's.
     CHECK(s.r.session().panes.has(s.kind));
     CHECK(s.shows("UNSAVED"));
@@ -183,14 +183,14 @@ TEST_CASE("the editor switch answers its page for every shape it accepts, and it
     const manual::ShapeDocumentShown other = reader.ask(EditorSwitchRequested::zen_name, 2);
     CHECK(other.refusal == "zengine.editor-switch does not accept `EditorSwitchRequested` v2");
     CHECK(other.text.empty());
-    // EVERY SHAPE THE OFFICE ACCEPTS IS ON ITS PAGE, AND THE PAGE NAMES NO OTHER.
-    CHECK(check_office_manual(s.r.bus, kEditorSwitchRole) > 0);
+    // EVERY SHAPE THE ROLE ACCEPTS IS ON ITS PAGE, AND THE PAGE NAMES NO OTHER.
+    CHECK(check_role_manual(s.r.bus, kEditorSwitchRole) > 0);
     check_page_names_accepted(page, described_shapes_of(s.r.bus, s.r.bus.role_holder(kEditorSwitchRole)));
     // ASKING CHANGED NOTHING: no switch began.
     CHECK(s.switcher->stage() == EditorSwitchCoordinator::Stage::Idle);
 }
 
-TEST_CASE("asking for the choice that already holds the office is harmless: nothing is loaded") {
+TEST_CASE("asking for the choice that already holds the role is harmless: nothing is loaded") {
     SwitchRig s("switch-same");
     s.open(standard_and_twin());
     const loom::WeaveId first = s.holder();
@@ -262,7 +262,7 @@ TEST_CASE("a switch waiting on a silent candidate is pending, published, refuses
         choices.push_back(load::ChoiceIntent{pane::kEditorPaneRole, "silent", "zengine-editor-pane-silent"});
         const loom::ObserverId tap = w.r.bus.add_observer([&](const loom::BusEvent& ev) {
             if (ev.kind != loom::EventKind::Delivered && ev.kind != loom::EventKind::Refused) return;
-            if (ev.authored_role != pane::kEditorPaneRole) return; // the Editor's office alone
+            if (ev.authored_role != pane::kEditorPaneRole) return; // the Editor's role alone
             if (ev.schema_name == gfx::RoomAsked::zen_name) askers.push_back(ev.sender);
             if (ev.schema_name == gfx::Drawn::zen_name && first.valid() && !(ev.sender == first))
                 ++drawers;
@@ -275,7 +275,7 @@ TEST_CASE("a switch waiting on a silent candidate is pending, published, refuses
         window.room(area, pane::kEditorPaneRole, 40, 10);
         (void)w.open_file("wait.cpp", "wait\n");
         w.enqueue([](SwitchAsker&, loom::Mail& mail) {
-            (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchRequested{"silent"});
+            (void)mail.as_role(kSwitchAskerRole).send_to_role(kEditorSwitchRole, EditorSwitchRequested{"silent"});
         });
         w.r.bus.drain_until_idle();
         REQUIRE(w.switcher->stage() == EditorSwitchCoordinator::Stage::Warming);
@@ -291,7 +291,7 @@ TEST_CASE("a switch waiting on a silent candidate is pending, published, refuses
         CHECK(window.weave().strangers == 0);
         const std::int64_t op = w.switcher->op();
         w.enqueue([op](SwitchAsker&, loom::Mail& mail) {
-            (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchCancelled{op});
+            (void)mail.as_role(kSwitchAskerRole).send_to_role(kEditorSwitchRole, EditorSwitchCancelled{op});
         });
         w.r.bus.drain_until_idle();
         CHECK_FALSE(w.r.kernel.is_loaded("zengine-editor-pane-silent"));
@@ -306,7 +306,7 @@ TEST_CASE("a switch waiting on a silent candidate is pending, published, refuses
     (void)s.open_file("wait.cpp", "wait\n");
     const std::size_t answers = s.asker->answers.size();
     s.enqueue([](SwitchAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchRequested{"silent"});
+        (void)mail.as_role(kSwitchAskerRole).send_to_role(kEditorSwitchRole, EditorSwitchRequested{"silent"});
     });
     s.r.bus.drain_until_idle();
     CHECK(s.asker->answers.size() == answers); // pending: no answer yet
@@ -325,7 +325,7 @@ TEST_CASE("a switch waiting on a silent candidate is pending, published, refuses
     // CANCEL: the candidate is discarded, and both asks are answered -- the cancel's own first,
     // then the pending request's.
     s.enqueue([op](SwitchAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchCancelled{op});
+        (void)mail.as_role(kSwitchAskerRole).send_to_role(kEditorSwitchRole, EditorSwitchCancelled{op});
     });
     s.r.bus.drain_until_idle();
     REQUIRE(s.asker->answers.size() == answers + 3); // busy, the cancel's own answer, and the pending request's
@@ -535,7 +535,7 @@ TEST_CASE("the documented Terminal lines, typed through Workshop's own door, ask
 TEST_CASE("the quick setup's own asks for the switch's status are answered to it and say nothing in Notices, while a status typed at the Terminal is said") {
     namespace fr = zengine::first_run;
     SwitchRig s("switch-quick-setup");
-    // A START THAT KEEPS SETTINGS, so the quick setup shows; Neovim's choice holds the office, so
+    // A START THAT KEEPS SETTINGS, so the quick setup shows; Neovim's choice holds the role, so
     // the box reads checked only once the switch's status has reached the quick setup.
     s.r.host.prefs_path = (s.root / "prefs.json").generic_string();
     NoticeEar* ear = mount_notice_ear(s.r);
@@ -544,7 +544,7 @@ TEST_CASE("the quick setup's own asks for the switch's status are answered to it
            "zengine-editor-pane-b");
     s.mount_terminal();
     // THE DESK A FRESH START OPENS, so the quick setup shows itself: the Editor's pane put down, its
-    // weave still holding the office.
+    // weave still holding the role.
     REQUIRE(hand_close(s.r, editor_ref()).closed);
     REQUIRE_FALSE(has_pane(s.r.session().setup.active, editor_ref()));
     REQUIRE(s.r.load("zengine-first-run", WORKSHOP_SO_FIRST_RUN, fr::kFirstRunRole).valid());
@@ -589,8 +589,8 @@ TEST_CASE("the quick setup's own asks for the switch's status are answered to it
                      "no switch is under way") == 1);
 }
 
-TEST_CASE("a successor that holds the office and does not serve is a failure after the commitment, and the retired Editor is kept") {
-    SUBCASE("with a graphics window showing the office's area, the failure after the commitment and "
+TEST_CASE("a successor that holds the role and does not serve is a failure after the commitment, and the retired Editor is kept") {
+    SUBCASE("with a graphics window showing the role's area, the failure after the commitment and "
             "the switch home end as they do without one, and the plan's own Editor is drawn there "
             "again whole") {
         namespace pw = zengine::testing::pane_window;

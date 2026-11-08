@@ -153,7 +153,7 @@ struct LoadedView {
 /// characters long still reads as a box to type in.
 inline constexpr std::int64_t kSearchBoxLeast = 16;
 
-/// Does this weave's name or office hold the search, ignoring case? An empty search holds every
+/// Does this weave's name or role hold the search, ignoring case? An empty search holds every
 /// weave.
 inline bool matches(const LoadedWeave& w, std::string_view search) {
     if (search.empty()) {

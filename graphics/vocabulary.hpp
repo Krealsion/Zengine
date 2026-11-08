@@ -25,8 +25,8 @@ namespace zengine::graphics {
 /// The directory's role: which windows exist, which areas each shows, who draws in each, which
 /// palette it wears and which code presents each element type.
 inline constexpr const char* kGraphicsRole = "zengine.graphics";
-/// A window's office is this prefix and its name: `zengine.window.terminal`.
-inline constexpr const char* kWindowOfficePrefix = "zengine.window.";
+/// A window's role is this prefix and its name: `zengine.window.terminal`.
+inline constexpr const char* kWindowRolePrefix = "zengine.window.";
 /// The terminal window's name: one terminal to a process, so one terminal window.
 inline constexpr const char* kTerminalWindow = "terminal";
 /// The OS window's name: a window of light on the desktop, drawn through SDL.
@@ -200,7 +200,7 @@ struct ActionRequested {
 // cites it; a release no hold names carries none.
 //
 // Every moment says whose hand made it: `local` for the weaver's own, which the window reads from
-// its platform, and else `actor`, the participant the input office names for an injected moment
+// its platform, and else `actor`, the participant the input role names for an injected moment
 // (`input::AttributedInput`). Each hand holds its own presses.
 
 /// Window -> the owner of an area placed to hear the pointer: a button pressed or let go there,
@@ -209,7 +209,7 @@ struct ActionRequested {
 /// behind it that does, "" for none -- `part` the part named there (the action of the record over
 /// the top node, "" for none) and `drawing` that area's drawer's number for its drawing
 /// (`Drawn::number`). A press says its `clicks`: one more than the press of its button before it
-/// when it came within the double-click time the input office says
+/// when it came within the double-click time the input role says
 /// (`zengine::input::PointerTimingSaid`), else 1 -- 2 for a double click's second press -- or what
 /// an agent's press asked; a release says 0.
 struct AreaButtonChanged {
@@ -258,7 +258,7 @@ struct AreaWheelTurned {
 };
 
 /// Window -> the arranger following an area placed to hear the pointer (`AreaPlaced::followed`),
-/// when another office owns it: a button pressed or let go in that area, at the window's own point
+/// when another role owns it: a button pressed or let go in that area, at the window's own point
 /// in pixels, under the press's number, whose hand pressed it, what the window drew under the hand
 /// and its clicks, as the owner is told them (`AreaButtonChanged`). Where presses land is the
 /// arranger's to know, as a desktop raises what was clicked; the moment itself is the owner's.
@@ -291,18 +291,18 @@ struct AreaHandRefused {
               ZEN_FIELD(x), ZEN_FIELD(y));
 };
 
-/// A window, as its office, to the area's owner and to its arranger when another office following
+/// A window, as its role, to the area's owner and to its arranger when another role following
 /// it: the press held for `area` ended with no release, because the area was withdrawn or handed to
 /// another owner, or an area placed to hear the pointer now stands in front of it where the press
-/// was made. Its button's release, when it comes, goes where it lands. No other office hears it,
-/// and an office that keeps no gesture need not accept it.
+/// was made. Its button's release, when it comes, goes where it lands. No other role hears it,
+/// and a role that keeps no gesture need not accept it.
 struct AreaHoldEnded {
     std::string area;
     std::int64_t button = 0;
     ZEN_SHAPE(AreaHoldEnded, 1, ZEN_FIELD(area), ZEN_FIELD(button));
 };
 
-/// A window, as its office, to the area's owner and to its arranger when another office: the
+/// A window, as its role, to the area's owner and to its arranger when another role: the
 /// pointer, moving with no button held, left `area`, an area placed to hear the pointer that its
 /// last move landed in. Told as `AreaHoldEnded` is.
 struct AreaPointerLeft {
@@ -316,7 +316,7 @@ struct AreaPointerLeft {
 // placed to hear that moment (`AreaPlaced::keys`, `releases`, `text`), front to back, naming that
 // area and the hand, as a pointer moment does:
 // `local` for the weaver's own, which the window reads from its platform. A guest's keys reach no
-// window: the input office says them, attributed (`input::AttributedInput`). `scancode`, `name`,
+// window: the input role says them, attributed (`input::AttributedInput`). `scancode`, `name`,
 // `modifiers` and `text` are the input vocabulary's (`input::KeyPressed`, `input::TextEntered`).
 
 /// Window -> the owner of an area placed to hear keys (`AreaPlaced::keys`): a key went down.
@@ -357,7 +357,7 @@ struct AreaTextEntered {
 
 // ---- the directory ------------------------------------------------------------------------
 
-/// A window, as its own office, to whoever follows it -- the directory, and an arranger laying out
+/// A window, as its own role, to whoever follows it -- the directory, and an arranger laying out
 /// in its room -- on each activation: its name, its room in pixels (a terminal's cells, `kCellPx`
 /// pixels each; none where it has no terminal to measure), its incarnation, its device pixels in
 /// one cell (`cell_px`: `kCellPx` where it shows every pixel, none where its unit is the cell, as a
@@ -379,8 +379,8 @@ struct WindowOffered {
 /// The longest title a window takes, in bytes; a longer one is cut where a character begins.
 inline constexpr std::size_t kMaxWindowTitleBytes = 256;
 
-/// An arranger -> a window's office, as the office that arranges an area in that window: the
-/// window's title, and its size in pixels. The window takes it only from an office that arranges in
+/// An arranger -> a window's role, as the role that arranges an area in that window: the
+/// window's title, and its size in pixels. The window takes it only from a role that arranges in
 /// it and only when it names that window; anything else changes nothing. An OS window sets both,
 /// keeping a size past its display's usable area within it, a side of 0 keeping that side as it is,
 /// and a title cut to `kMaxWindowTitleBytes`, an empty one keeping its own; a terminal keeps its
@@ -394,7 +394,7 @@ struct WindowShaped {
               ZEN_FIELD(height));
 };
 
-/// The arranger -> the directory: where an area stands, in which window, whose office draws in it,
+/// The arranger -> the directory: where an area stands, in which window, whose role draws in it,
 /// its order among the window's areas (a higher order stands in front), whether the window gives
 /// the owner each key pressed (`keys`), each key's release (`releases`) and the text keys type
 /// (`text`) -- an owner places its areas for the moments it takes, and is given no other --
@@ -403,7 +403,7 @@ struct WindowShaped {
 /// that hears the pointer hears the wheel and the third button too: one that does not lets them
 /// through to the area behind it that does, and stands in front of no third-button press held
 /// there, and whether its arranger follows it: told where each press and release there landed while
-/// another office owns it (`AreaPressed`), that a hold ended or the pointer left (`AreaHoldEnded`,
+/// another role owns it (`AreaPressed`), that a hold ended or the pointer left (`AreaHoldEnded`,
 /// `AreaPointerLeft`), and each time what it shows settles (`AreaSettled`). An arranger that takes
 /// none of these places its areas without.
 struct AreaPlaced {
@@ -457,18 +457,18 @@ struct PaletteFont {
     friend bool operator==(const PaletteFont&, const PaletteFont&) = default;
 };
 
-/// One office's slots in a palette: the colours and the text sizes it sets for the slots that
-/// office exposes.
+/// One role's slots in a palette: the colours and the text sizes it sets for the slots that
+/// role exposes.
 struct PaletteSlots {
-    std::string office;
+    std::string role;
     std::vector<PaletteColor> colors;
     std::vector<PaletteSize> sizes{};
-    ZEN_SHAPE(PaletteSlots, 2, ZEN_FIELD(office), ZEN_FIELD(colors), ZEN_FIELD(sizes));
+    ZEN_SHAPE(PaletteSlots, 2, ZEN_FIELD(role), ZEN_FIELD(colors), ZEN_FIELD(sizes));
     friend bool operator==(const PaletteSlots&, const PaletteSlots&) = default;
 };
 
 /// Whoever offers palettes -> the directory, and the directory -> each window: a palette, whole,
-/// at a revision -- its pool colours, each office's slots, and a terminal's outline characters
+/// at a revision -- its pool colours, each role's slots, and a terminal's outline characters
 /// (a corner, across and down). Offered again whole at a higher revision when anything in it
 /// changes: a window repaints every area wearing it from what it keeps, and no owner is told.
 struct PaletteOffered {
@@ -500,7 +500,7 @@ struct ElementCodeOffered {
 };
 
 /// The directory -> a window: this area is yours, drawn by `owner`, here, wearing `palette` ("" or
-/// one the window holds none of: the window's own); `arranger` is the office that placed it, as
+/// one the window holds none of: the window's own); `arranger` is the role that placed it, as
 /// its placing was authored, empty for
 /// personal speech; `weaver_only`, `wheel`, `right`, `followed`, `releases` and `text` as it was
 /// placed. Said again whenever any of it changes, to a window that offers itself again, and when
@@ -533,7 +533,7 @@ struct AreaWithdrawn {
     ZEN_SHAPE(AreaWithdrawn, 1, ZEN_FIELD(area));
 };
 
-/// A window -> the owner of an area it was introduced, as the window's office: draw into this
+/// A window -> the owner of an area it was introduced, as the window's role: draw into this
 /// window, as of this incarnation, in this room; `elements` are the references of the owner's
 /// elements the window still presents there, and `empty` says the window holds none of the
 /// owner's drawing there, as when it shows the area afresh or gives it to this owner. `cell_px`,
@@ -568,7 +568,7 @@ struct AreaRoom {
     }
 };
 
-/// An owner that starts again -> the directory, as its office: my room in this area. Answered by
+/// An owner that starts again -> the directory, as its role: my room in this area. Answered by
 /// the window that shows the area, once one does.
 struct RoomAsked {
     std::string area;
@@ -644,7 +644,7 @@ struct AreaPart {
               ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(pressed), ZEN_FIELD(px), ZEN_FIELD(py));
 };
 
-/// What one area shows after the window's composition, to the office that placed it: its words
+/// What one area shows after the window's composition, to the role that placed it: its words
 /// and its named parts in the area's pixels, as many as the area holds and no more. `version`
 /// moves whenever what the area shows may have moved -- its drawing, its place, or an area that
 /// meets it; `same` answers an ask whose `since` is still the version, saying nothing more.
@@ -665,7 +665,7 @@ struct AreaShown {
               ZEN_FIELD(line), ZEN_FIELD(words), ZEN_FIELD(parts));
 };
 
-/// Window -> the office that placed an area and follows it (`AreaPlaced::followed`), unasked: what
+/// Window -> the role that placed an area and follows it (`AreaPlaced::followed`), unasked: what
 /// the area shows settled at `version` (`AreaShown::version`), told once each time the window shows
 /// with the version moved since it last told. A late or repeated one names a version already read.
 struct AreaSettled {
@@ -678,7 +678,7 @@ struct AreaSettled {
 // ---- what a medium answers for its platform -------------------------------------------------
 //
 // The clipboard, the window's place on its desktop, a close its desktop asked for, and the picture
-// last presented: each window that shows answers them, as its office, as far as its platform can.
+// last presented: each window that shows answers them, as its role, as far as its platform can.
 
 /// Give the medium a turn to service its platform now, such as an OS window's event queue: the
 /// work its own beat does, on request, for suites and for hosts with no Timer.
@@ -688,7 +688,7 @@ struct PumpSurface {
 
 /// The medium was asked to close, as by a window's close box: a lifecycle fact, not an input
 /// moment, so it is never confused with a weaver's quit key. Whoever hears it applies its own quit
-/// policy, which may be to stay. No terminal is asked; an OS window publishes it as its office.
+/// policy, which may be to stay. No terminal is asked; an OS window publishes it as its role.
 struct SurfaceCloseRequested {
     ZEN_SHAPE(SurfaceCloseRequested, 1);
 };

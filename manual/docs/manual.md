@@ -1,9 +1,9 @@
 # A weave's manual
 
 **Reference.** A manual is the primary reference for one weave: one Markdown page, named by the
-weave's office, with one section per command. The weave carries it compiled in, so the words a
+weave's role, with one section per command. The weave carries it compiled in, so the words a
 running weave says are the words of the page at the commit it was built from. A pane answers its
-manual when asked, and an office a shape's section; nothing keeps a copy. The same bytes are what a
+manual when asked, and a role a shape's section; nothing keeps a copy. The same bytes are what a
 reader of the repository reads on GitHub.
 
 Source: [`manual/manual.hpp`](../manual.hpp) · [`manual/vocabulary.hpp`](../vocabulary.hpp) ·
@@ -19,23 +19,23 @@ A command is what a caller names to make a weave act or answer:
 - for a **pane**, an action id it declares (`PaneActions`): what a weaver's keymap file moves, what
   the hotkey view lists, what a menu line performs. A menu line's own id is not a command, and the
   pane protocol's shapes are Workshop's, not the pane's;
-- for an **office**, a request shape it accepts. The rest of what it accepts, what its collaborators
+- for an **role**, a request shape it accepts. The rest of what it accepts, what its collaborators
   tell it, it *hears*; Loom's own doors (`zen.DescribeAccepted`, the pokes) are Loom's to describe.
 
 ## The page
 
-One file per weave, named by its office, in its folder's `docs/`: `builder/docs/zengine.builder-pane.md`
+One file per weave, named by its role, in its folder's `docs/`: `builder/docs/zengine.builder-pane.md`
 is the manual of the weave holding `zengine.builder-pane`. Its form, in this order; a section a weave
 has nothing for is left out, never written empty:
 
 | heading | holds |
 |---|---|
-| `# <office> -- <the name a weaver sees>` | the title, then a short bold-led paragraph: what this weave is and how it is reached |
+| `# <role> -- <the name a weaver sees>` | the title, then a short bold-led paragraph: what this weave is and how it is reached |
 | `## About` | what it is and what it is for |
 | `## Use` | how to use it, in a few sentences |
 | `## Commands` | one `###` section per command of its main mode, in the order the weave declares or lists them |
 | `## Commands in <mode>` (or `on`) | a pane's further modes, each a group of its own |
-| `## Hears` | an office's accepted shapes that are not commands, one short `###` section each |
+| `## Hears` | a role's accepted shapes that are not commands, one short `###` section each |
 | `## Follow` | what it says unasked, and how an observer follows it |
 | `## Shows` | a pane's rows, one short `###` section each, by the row's key |
 | `## Files` | the files it reads or writes |
@@ -75,7 +75,7 @@ beside the panes'.
 
 **A command's Answers line links each shape a press of it may send**, as its rows declare them
 (their `causes`, [the pane protocol](../../workshop/docs/workshop-panes.md#what-a-press-may-cause)):
-a link whose words are the shape's name in backticks, to its office's manual or the header
+a link whose words are the shape's name in backticks, to its role's manual or the header
 declaring it, as the Builder pane's `builder.build` sends
 [`BuildRequested`](../../builder/docs/zengine.builder.md#buildrequested). It links no other
 shape: the words around a link are the page's, and the check reads only which shapes it links.
@@ -87,11 +87,11 @@ the code owns; a fact another page owns, which it links instead.
 
 `zengine_weave(<target> <source> MANUAL <page>)` builds a weave carrying its page;
 `zengine_manual(<target> <PRIVATE|INTERFACE> <page>)` does it for any target, such as the vocabulary
-of an office another program mounts. Both split the page with the one grammar in
+of a role another program mounts. Both split the page with the one grammar in
 [`cmake/ZengineManual.cmake`](../../cmake/ZengineManual.cmake) when the build is configured, refuse
-a page out of form with every reason and its line, and write `manuals/<office>.hpp` beside the
-build, rewritten when the page changes. It defines `zengine::manual::pages::<office>::kManual`
-(`zengine_builder_pane` for `zengine.builder-pane`), a `zengine::manual::Manual`: the office, the
+a page out of form with every reason and its line, and write `manuals/<role>.hpp` beside the
+build, rewritten when the page changes. It defines `zengine::manual::pages::<role>::kManual`
+(`zengine_builder_pane` for `zengine.builder-pane`), a `zengine::manual::Manual`: the role, the
 name, the page's content id (the SHA-256 of its bytes with line endings as LF) and its sections,
 each a key, the `##` heading it stands under, its words, and where each key marker stands in them:
 the one grammar finds the markers when it splits the page, so a reader of the words puts a key in a
@@ -100,12 +100,12 @@ character of the page meets a compiler's source encoding; a page is ASCII, and a
 (UTF-8, such as an em dash) is refused by its line, since a `char` holds none.
 
 An edit to a manual is therefore an edit to the weave that carries it: the documentation lane's
-change check calls a page `<folder>/docs/<office>.md` compiled, by its name and place, and the
+change check calls a page `<folder>/docs/<role>.md` compiled, by its name and place, and the
 official lane verifies it.
 
 ## A pane answers its manual
 
-A pane answers `PaneDocumentRequested` v1 `{pane, section}`, sent to its office, to the asker alone
+A pane answers `PaneDocumentRequested` v1 `{pane, section}`, sent to its role, to the asker alone
 with `PaneDocumentShown` v2: the pane's key and the section asked, the page's content id, and the
 sections, `PaneDocumentSection` v2 `{key, group, text, keys}`, in page order -- the one under
 `section`, or the whole page when `section` is empty. Each of a section's `keys` is a
@@ -115,48 +115,48 @@ length of the whole marker in `text`, and the default written in it.
 
 ```cpp
 void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-    (void)mail.answer(ws::pane_document(ask, kMyPane, manual::pages::my_office::kManual));
+    (void)mail.answer(ws::pane_document(ask, kMyPane, manual::pages::my_role::kManual));
 }
 ```
 
-An office offering one pane composes that line instead: `workshop::PaneManualFacet<Pane, Page>`
+A role offering one pane composes that line instead: `workshop::PaneManualFacet<Pane, Page>`
 (`workshop/pane_document.hpp`, with `zengine::With`) accepts `PaneDocumentRequested`, emits
 `PaneDocumentShown` and answers as above, so the weave lists neither shape and writes no handler:
 
 ```cpp
 class MyPane : public zengine::With<ws::PaneManualFacet<kMyPane,
-                                        manual::pages::my_office::kManual>>::Weave<
+                                        manual::pages::my_role::kManual>>::Weave<
                    MyPane, MyState, loom::Accept<...>, loom::Emit<...>> { ... };
 ```
 
-An office that composes `workshop::PaneFacet`, `workshop::PaneRowsFacet` or
+A role that composes `workshop::PaneFacet`, `workshop::PaneRowsFacet` or
 `workshop::PaneDrawingFacet` (`workshop/pane_facets.hpp`), which hold its offer and its room, is
 answered by them the same way.
 
 A weave that claims, as the Editor claims its document, names its `loom::Claims<...>` after
 `loom::WeaveBase`: `Weave<MyPane, MyState, loom::Accept<...>, loom::Emit<...>, loom::WeaveBase,
-loom::Claims<...>>`. An office offering several panes, and so choosing which one an ask is about,
+loom::Claims<...>>`. A role offering several panes, and so choosing which one an ask is about,
 answers in its own handler.
 
-- A pane the office does not offer, or a section its page does not have, is refused in `refusal`,
+- A pane the role does not offer, or a section its page does not have, is refused in `refusal`,
   naming what is missing, with no sections.
 - Nothing holds the answer: not Workshop, not the host. An image answers from the page it was built
   with, so a pane reloaded in place answers its new words, and none of its predecessor's.
 - The words describe and decide nothing: they are not a grant, and nothing waits on them.
 
-## An office answers for a shape
+## A role answers for a shape
 
-An office that carries its page answers `ShapeDocumentRequested` v1 `{shape, version, content_id}`
+A role that carries its page answers `ShapeDocumentRequested` v1 `{shape, version, content_id}`
 to the asker alone with `ShapeDocumentShown` v1: the page's section for that shape, its group, the
-page's content id, and the shape's content id as the office accepts it (`0x` and sixteen hex
-digits, as `tests/shapes.txt` spells one). `manual::shape_document` answers it from the office's own
+page's content id, and the shape's content id as the role accepts it (`0x` and sixteen hex
+digits, as `tests/shapes.txt` spells one). `manual::shape_document` answers it from the role's own
 accepted list, and `manual::ManualFacet<Page>` (composed with `zengine::With`, from
 `activation/activation.hpp`) contributes the `Accept`/`Emit` pair and answers the request
 automatically, so the page describes exactly the shapes the gate lets in.
 
 - The asker names the content id it holds, or none. Another id is another definition of the shape:
   the words are answered, `current` is false, and `said` says they are out of date for it.
-- A shape the office does not accept under that name and version, or one its page has no section
+- A shape the role does not accept under that name and version, or one its page has no section
   for, is refused in `refusal`, with no words.
 
 ## How a manual is kept true
@@ -164,10 +164,10 @@ automatically, so the page describes exactly the shapes the gate lets in.
 | check | lane | refuses |
 |---|---|---|
 | the build itself | official | a page out of form: the title, the order of its headings, a command without its four lines, a section past its bound, a key twice, a control byte or a byte past 0x7F |
-| `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its office, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its office; a command whose Answers line links a shape its rows do not declare a press causes, or leaves out one they do; a key marker, in any current page, whose key is not a default the census or Workshop's own actions hold for its id |
+| `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its role, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its role; a command whose Answers line links a shape its rows do not declare a press causes, or leaves out one they do; a key marker, in any current page, whose key is not a default the census or Workshop's own actions hold for its id |
 | Workshop's own actions (`tests/workshop_actions.txt`) | official | a row of `kActionCatalog` -- its context, id, default key and label -- that differs from the committed file; the catalog as it stands is written beside the build to diff |
-| the action census (`tests/actions.txt`, and `tests/actions/<office>.txt` for each further office) | official | a shipped pane whose declared rows -- their keys, causes and the mode each enters -- in every mode its suite drives, differ from the committed census, or a mode whose word of the other modes' causes is not theirs there; the census as it stands is written beside the build to diff |
+| the action census (`tests/actions.txt`, and `tests/actions/<role>.txt` for each further role) | official | a shipped pane whose declared rows -- their keys, causes and the mode each enters -- in every mode its suite drives, differ from the committed census, or a mode whose word of the other modes' causes is not theirs there; the census as it stands is written beside the build to diff |
 | the press witness | official | a declared action that, pressed in a mode its suite drives, sends a shape beside the pane protocol its row does not declare; a row the census pins that no press reached; a declared cause no driven state sent is listed beside the build, not refused |
-| the manual witnesses | official | a pane whose answered manual lacks a command it declares; an office whose accepted shapes its page does not describe |
+| the manual witnesses | official | a pane whose answered manual lacks a command it declares; a role whose accepted shapes its page does not describe |
 | `doc_links` | documentation | a broken link or anchor |
 | `tutorial_walks` | official, `session` gate | a tutorial whose `tutorial` walk no longer plays from an installed prefix: a key that moved, a part renamed, a step that no longer leads where the page says, named at its step |

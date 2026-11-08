@@ -12,7 +12,7 @@ LAW — `compose` makes Info’s body: one composition of one pane’s propertie
 
 MEANS
 - one pass composes rows and their press map;
-- the heading is `PANE <name>` for the subject an office named (`InspectPaneRequested`, as the Pane Manager's `inspect in Info` asks it), and `PROPERTIES` before one is named;
+- the heading is `PANE <name>` for the subject a role named (`InspectPaneRequested`, as the Pane Manager's `inspect in Info` asks it), and `PROPERTIES` before one is named;
 - the desk's panes are the Pane Manager's to list: no row here lists them.
 
 WHY — `agents/decisions/one-body-two-lists.md`
@@ -87,12 +87,12 @@ MEANS
 
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-11 — The desk names this pane, and an office that does not offer leaves the row
+## WL-INFO-11 — The desk names this pane, and a role that does not offer leaves the row
 
-LAW — `default_setup` authors this pane's reference, so a run whose plan loads no Info office keeps the row, reads it unresolved and counts it on the band; silence would not tell an absent office from a loss.
+LAW — `default_setup` authors this pane's reference, so a run whose plan loads no Info role keeps the row, reads it unresolved and counts it on the band; silence would not tell an absent role from a loss.
 
 MEANS
-- the desk's row is the INTENT and an office's offer is what resolves it;
+- the desk's row is the INTENT and a role's offer is what resolves it;
 - a plan row whose artifact is missing is the realization's to say (`agents/realization.md`).
 
 WHY — `agents/decisions/one-body-two-lists.md`
@@ -117,7 +117,7 @@ LAW — Info keeps each ask's ticket: nothing queued, or Loom's own `zen.Dispatc
 
 MEANS
 - the draft and its text stand, and the next Return is a fresh commit, not a second one;
-- a notice counts only with Loom's provenance, then the attempt, correlation, shape and office;
+- a notice counts only with Loom's provenance, then the attempt, correlation, shape and role;
 - "nothing queued" is the kept ticket branch, source-traced.
 
 DOES NOT MEAN
@@ -130,12 +130,12 @@ WHY — `agents/decisions/an-undelivered-ask-is-released.md`
 LAW — Info names its pane-property subject; the host holds its rows. Selection, focus, Escape and switching views preserve it. Info may inspect itself.
 
 MEANS
-- an office asks Info to inspect a pane (the Pane Manager's `inspect in Info`); Info asks the host and answers the office, and a live draft holds the ask back, refused in Info's words;
+- a role asks Info to inspect a pane (the Pane Manager's `inspect in Info`); Info asks the host and answers the role, and a live draft holds the ask back, refused in Info's words;
 - row identity covers the pane, the desk, whether it holds the row, and the settings rows; changing any renames the rows;
 - an absent pane is refused without movement; an arriving inspector is answered; nothing is published about a subject until one is named.
 
 DOES NOT MEAN
-- that two inspectors each hold a subject: there is one slot, and an office that asks moves it.
+- that two inspectors each hold a subject: there is one slot, and a role that asks moves it.
 
 WHY — `agents/decisions/an-inspector-names-its-subject.md`
 
@@ -233,7 +233,7 @@ do next"
 `workshop/setup_reconcile.hpp` unresolved_panes
 `workshop/panes.hpp` kInfoPaneProvider kInfoPaneKey
 `workshop/screen_layouts.cpp` setup_rest_text
-`tests/test_workshop_panes_info.cpp` "a Workshop with no Info OFFICE keeps the row and says so"
+`tests/test_workshop_panes_info.cpp` "a Workshop with no Info ROLE keeps the row and says so"
 
 ### WL-INFO-12
 `info/property_view.hpp` acted act answered_commit ask_commit end_draft Asked SentCommit
@@ -256,10 +256,10 @@ Asked::attempt kCommitNotQueued kCommitUndelivered
 `info/pane.cpp` on(DispatchRefused)
 `tests/test_workshop_panes_info.cpp` "an Info commit Loom refuses at dispatch is released: the draft
 and its text stand, the next Return is written, and a cancel's promise is replaced" "an Info commit
-a doorless office refuses at dispatch: the draft stands, the next commit tries again, and it is
+a doorless role refuses at dispatch: the draft stands, the next commit tries again, and it is
 written once the door is back" "a refusal notice anyone could send, naming the Info pane's
 outstanding commit exactly, settles nothing" "an Info inspect Loom refuses at dispatch releases its
-own record, answers the office that asked, and the next ask inspects"
+own record, answers the role that asked, and the next ask inspects"
 
 ### WL-INFO-14
 `info/property_view.hpp` inspect_asked ask_inspect settle_relay relay_ kFinishTheEdit
@@ -271,8 +271,8 @@ own record, answers the office that asked, and the next ask inspects"
 `workshop/weave_inspection.cpp` refresh_inspected on(InspectPaneRequested) on(PaneSubjectRequested)
 publish_pane_subject
 `workshop/live_desk.hpp` put_live
-`tests/test_workshop_panes_info.cpp` "an office's ask inspects a pane through the host's own door,
-and the office is answered what the host said" "two inspects asked in one burst: the older office is
+`tests/test_workshop_panes_info.cpp` "a role's ask inspects a pane through the host's own door,
+and the role is answered what the host said" "two inspects asked in one burst: the older role is
 told a newer took its place, the newer is answered what the host said, and the subject is the
 newer's" "a live draft holds another subject back, and the
 reason is the weaver's" "an inspect asked while an Info draft is live is refused, keeping the

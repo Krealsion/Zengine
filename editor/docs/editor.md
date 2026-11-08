@@ -6,7 +6,7 @@ build-and-realize loop without leaving the application. Every command, refusal a
 Editor's manual, [`zengine.editor`](zengine.editor.md).
 
 **Neovim can be the Editor instead.** Both shipped plans author a second editor for the same
-office, and a weaver switches between them while working, carrying the document: see
+role, and a weaver switches between them while working, carrying the document: see
 [Neovim in Workshop](neovim.md). This page is the standard Editor.
 
 The Editor is a **loaded pane** (`zengine-editor-pane`, named by both shipped load plans), like

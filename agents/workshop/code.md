@@ -7,12 +7,12 @@ the Workshop working on them. One law per heading; cite by ID. Router:
 is [`contextual.md`](contextual.md); the recipes and the Builder's choice are
 [`project.md`](project.md); what a build said is [`build-output.md`](build-output.md).
 
-## WL-CODE-01 — What stands behind an office's code is three owners' answer, read at the ask
+## WL-CODE-01 — What stands behind a role's code is three owners' answer, read at the ask
 
-LAW — The host reads the office's holder from the bus, the realized row with that WeaveId, and every recipe producing its artifact, at the ask; it chooses nothing, opens nothing and stores nothing.
+LAW — The host reads the role's holder from the bus, the realized row with that WeaveId, and every recipe producing its artifact, at the ask; it chooses nothing, opens nothing and stores nothing.
 
 MEANS
-- an authored role that equals the office joins nothing: only the holder's minted WeaveId does;
+- an authored role that equals the role joins nothing: only the holder's minted WeaveId does;
 - nobody holding, no realized row and no recipe are three absences, each its own sentence;
 - a `cmake_target` recipe carries its editing entry or no source; the reload refusal rides beside.
 
@@ -23,7 +23,7 @@ WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
 
 ## WL-CODE-02 — Edit Code spends the pointed pane, and opens exactly one recipe's source
 
-LAW — Through the pane seam, Edit Code asks the host about the captured pane's office and asks the opening office to open only exactly one recipe's single source or editing entry; any other answer is words.
+LAW — Through the pane seam, Edit Code asks the host about the captured pane's role and asks the opening role to open only exactly one recipe's single source or editing entry; any other answer is words.
 
 MEANS
 - the pane seam re-asks the setup first; neither the selection nor the keyboard is read or moved;
@@ -52,7 +52,7 @@ WHY — `agents/decisions/a-pane-reaches-its-code-through-the-host.md`
 
 ## WL-CODE-04 — The Builder pane follows Workshop's reading by recipe name, and nothing more
 
-LAW — Hearing `PaneSourceOpened` as Workshop's office, the Builder pane chooses its recipe and says so with its own load after build; no pick follows, no build is sent, and other offices are ignored.
+LAW — Hearing `PaneSourceOpened` as Workshop's role, the Builder pane chooses its recipe and says so with its own load after build; no pick follows, no build is sent, and other roles are ignored.
 
 MEANS
 - a pick of another recipe stops standing, as the choice left it; a pick of this recipe stands;
@@ -138,7 +138,7 @@ WHY — `agents/decisions/the-development-launch-stands-outside-workshop.md`
 - That a reused runtime has been found undamaged: the digests are read from the build tree's
   files, and the runtime is looked at for the names it copied (WL-CODE-07).
 - That a pane is discovered because its protocol is installed: it arrives by a load-plan row a
-  weaver authors, and the office its source speaks as must be the role that row gives it.
+  weaver authors, and the role its source speaks as must be the role that row gives it.
 
 ## Proven by
 
@@ -147,7 +147,7 @@ WHY — `agents/decisions/the-development-launch-stands-outside-workshop.md`
 `workshop/weave.hpp` HostContext::CodeSource HostContext::code_source
 `workshop/load_execute.hpp` reload_refusal ResolvedArtifact
 `workshop/workshop.cpp` code_source
-`tests/test_workshop_panes_code.cpp` "the code behind an office is found by the weave holding it,
+`tests/test_workshop_panes_code.cpp` "the code behind a role is found by the weave holding it,
 never by a plan row's authored role"
 
 ### WL-CODE-02
@@ -158,12 +158,12 @@ never by a plan row's authored role"
 `workshop/weave_pointer.cpp` spend_context_choice
 `workshop/weave_input.cpp` command
 `tests/test_workshop_panes_code.cpp` "Edit Code opens the pointed pane's one source through the
-opening office, and the Builder follows its recipe" "Edit Code acts on the pane that was pointed at,
+opening role, and the Builder follows its recipe" "Edit Code acts on the pane that was pointed at,
 not the selection, and a later selection redirects nothing" "a pointed pane that left the setup
 before Edit Code was chosen is refused, and nothing is asked" "code that cannot be named is said in
 words -- no recipe, several, a CMake target, a weave the plan did not load -- and nothing is opened"
 "Edit Code bound to a key in command mode names no pane, says where the gesture lives, and opens
-nothing" "Edit Code opens a CMake target recipe's editing entry through the opening office, and the
+nothing" "Edit Code opens a CMake target recipe's editing entry through the opening role, and the
 Builder follows that recipe"
 
 ### WL-CODE-03
@@ -171,7 +171,7 @@ Builder follows that recipe"
 `workshop/weave.hpp` WorkshopWeave::CodeOpen WorkshopWeave::code_open_
 `workshop/pane_seam_vocabulary.hpp` PaneSourceOpened
 `tests/test_workshop_panes_code.cpp` "a dirty Editor refuses the pane's source, the refusal is said,
-and the Builder is not moved" "an open no opening office could take is refused at dispatch by that
+and the Builder is not moved" "an open no opening role could take is refused at dispatch by that
 attempt, and forged answers settle nothing" "an open that is never answered stays pending however
 many turns pass, and a late answer settles it" "code that changed while its source was opening
 leaves the file open and tells the Builder nothing"
@@ -180,8 +180,8 @@ leaves the file open and tells the Builder nothing"
 `builder/builder-pane/pane.cpp` on(PaneSourceOpened) finish_frontier_build build_realize
 `builder/builder-pane/vocabulary.hpp` BuilderPaneState::chosen BuilderPaneState::arm
 `tests/test_workshop_panes_code.cpp` "the Builder pane follows an opened pane source only when
-Workshop's office said so" "Edit Code opens the pointed pane's one source through the opening
-office, and the Builder follows its recipe" "the Builder's choice from Edit Code is not a pick
+Workshop's role said so" "Edit Code opens the pointed pane's one source through the opening
+role, and the Builder follows its recipe" "the Builder's choice from Edit Code is not a pick
 between producers: the frontier action still asks" "a pick of another recipe does not follow Edit
 Code's choice: the frontier action still asks between producers" "a pick of the recipe Edit Code
 chose still stands: the frontier action builds it without another pick" "the Builder's words after

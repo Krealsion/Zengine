@@ -34,7 +34,7 @@ PROVEN BY — `timer/timer_weave.hpp` (activation cursor + serial); suite
 LAW — The host never winds the clock. Loading the service is what starts time:
 the control door activates the fresh incarnation and the service seeds its own
 first beat. No handler sleeps: at every beat the service fires what is due and
-claims, as its office, how long the bus may rest (`TimerRest`); the host rests
+claims, as its role, how long the bus may rest (`TimerRest`); the host rests
 between turns only while that beat is all its bus holds (`timer/rest.hpp`).
 
 MEANS

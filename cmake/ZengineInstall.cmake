@@ -226,7 +226,7 @@ set(zengine_installable_artifacts
     zengine-timer                # weave
     zengine-input                # weave
     zengine-inventory            # weave
-    zengine-neovim-editor        # weave: the Editor's office held with a Neovim, and a Neovim
+    zengine-neovim-editor        # weave: the Editor's role held with a Neovim, and a Neovim
                                  # for a second terminal from a Loom with no Workshop; its one
                                  # runtime need beyond the Loom is a Neovim, found at run time
     zengine-operators-basic      # provider, not a weave

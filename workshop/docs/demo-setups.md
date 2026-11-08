@@ -155,7 +155,7 @@ Restoring a toolbox leaves every binding OFF. A setup that declares hotkeys asks
 configuration door, as its explicit preparation, to place each command in the setup's own view,
 bind the declared chord and target, enable the item and turn that view's context ON; it then reads
 them back and checks that Workshop presents the view on the desk. It turns on no other view.
-`describe` lists each chord, its command, its target office and what it means. A command still
+`describe` lists each chord, its command, its target role and what it means. A command still
 runs only with the pressing actor's permission, checked when the key is pressed: the setup's guest
 is judged by its own grant, a person's hand by theirs.
 
@@ -199,7 +199,7 @@ right-click Extract, `Ctrl`+`l`, a real Terminal command filed and dropped back 
 line, a location refused over unsaved work and then reopened -- and saves the toolbox.
 `phase=retrieve`, in a new root started after the first one stopped, restores that toolbox and
 brings the place and the snippet back. `phase=keyboard` is the terminal medium's route (start
-with `--tui`). Start with `--neovim <program>` and the Neovim-backed Editor holds the office from
+with `--tui`). Start with `--neovim <program>` and the Neovim-backed Editor holds the role from
 the start; `phase=neovim` then carries a Visual selection out and a stored copy back in, and
 shows a change Neovim holds: a command's line chosen while Neovim waits for input is said to
 wait, and goes in when Escape ends the wait ([when Neovim is waiting](../../editor/docs/neovim.md#carrying-text-commands-and-file-places)).
@@ -304,7 +304,7 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
   (how the `folders` story's view is seated);
 - `material` -- `{"capture": {"target_role", "labels"}}` or `{"toolbox": <file>}`: the entries the
   setup owns; a toolbox is restored once, into an empty collection;
-- `hotkeys` -- `key`, `entry` (an owned entry's label), `target` office, `view` (`row`,
+- `hotkeys` -- `key`, `entry` (an owned entry's label), `target` role, `view` (`row`,
   `column` or `single`; hotkeys naming one kind share one view, and each view needs a slot),
   `means`;
 - `project` -- `files` to copy (`{"target": "source"}`; a target is a path inside the project,
@@ -312,8 +312,8 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
   launcher's own `build-recipes.json`), a `recipes` template whose `${zengine_prefix}`,
   `${loom_prefix}`, `${build}` and `${root}` the launcher fills, `plan` rows appended last to the
   load plan, and `runtime: development` to run from a copy of the build;
-- `providers` -- an office the setup builds (`prepare: build`): when Workshop refuses the desk
-  naming that office's pane, preparation arranges the rest, builds the project frontier through
+- `providers` -- a role the setup builds (`prepare: build`): when Workshop refuses the desk
+  naming that role's pane, preparation arranges the rest, builds the project frontier through
   the Builder, and arranges the desk again;
 - `guide_files` -- files or directories the guide shows or links to (its pictures), inside the
   setup's directory beside a guide that is too, so a copy keeps them where the guide points;

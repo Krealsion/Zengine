@@ -2,7 +2,7 @@
   "format": "zengine-slots",
   "format_version": 1,
   "about": "The graphics suite's own slots: a pane's colours, generated as a stranger's are.",
-  "office": "test.slotted",
+  "role": "test.slotted",
   "colors": [
     { "name": "card", "color": "#24324a", "like": "background", "about": "a card's ground" },
     { "name": "badge", "color": "#f2a541", "like": "accent", "about": "a count's badge" }

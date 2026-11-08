@@ -16,7 +16,7 @@
 #include "activation/activation.hpp"
 #include "graphics/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.realization.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.realization.hpp" // this role's manual, compiled in from its page
 
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
@@ -70,7 +70,7 @@ struct ResolvedArtifact {
     /// Is `image` the file a restart loads? When false, a weaver who quits runs the old code next
     /// launch, and the sentence they read says so.
     bool default_image = false;
-    /// The authored choice this row's office moved to, or empty: such a row is not running, and
+    /// The authored choice this row's role moved to, or empty: such a row is not running, and
     /// keeps its images so switching back runs the code the weaver last had.
     std::string switched_to;
 };
@@ -157,7 +157,7 @@ inline bool medium_holds_terminal(const Executed& done, bool terminal_measured) 
         return false;
     }
     const std::string window =
-        std::string(zengine::graphics::kWindowOfficePrefix) + zengine::graphics::kTerminalWindow;
+        std::string(zengine::graphics::kWindowRolePrefix) + zengine::graphics::kTerminalWindow;
     for (const ResolvedArtifact& row : done.resolved) {
         if (row.weave_loaded && row.role == window) {
             return true;
@@ -167,7 +167,7 @@ inline bool medium_holds_terminal(const Executed& done, bool terminal_measured) 
 }
 
 /// AN ARTIFACT NO PLAN MAY NAME NOW, and what a weaver puts where it stood: a Skin, whose medium
-/// a window is, or the SDL Input reader, whose office `zengine-input` holds beside either window.
+/// a window is, or the SDL Input reader, whose role `zengine-input` holds beside either window.
 struct RetiredArtifact {
     const char* stem;
     const char* fix;
@@ -237,7 +237,7 @@ enum class Realization : std::uint8_t {
 
 /// What realization has made of one authored row. `Pending`: reached, and the host said it waits
 /// on the weaver -- the barrier, held by at most the row `cursor_` is on. `Reloading`: resolved,
-/// and a reload conversation is open, so it keeps its resolved fields. `Switched`: its office moved
+/// and a reload conversation is open, so it keeps its resolved fields. `Switched`: its role moved
 /// to another authored choice. `Unavailable`: an optional row that refused and was stepped over.
 enum class RowState : std::uint8_t {
     Authored,
@@ -311,7 +311,7 @@ inline std::string reload_refusal_words(const std::string& stem, const std::stri
 /// reads it to tell a weaver before an edit. One rule, so the two sentences cannot disagree.
 inline std::string reload_refusal(const ResolvedArtifact& done) {
     if (!done.switched_to.empty()) {
-        return "artifact '" + done.stem + "' is not running: its office " + done.role +
+        return "artifact '" + done.stem + "' is not running: its role " + done.role +
                " is held by the authored choice '" + done.switched_to +
                "'; switch back to it before reloading it";
     }
@@ -842,10 +842,10 @@ public:
         return Appended{true, std::string(), said};
     }
 
-    // ---- An office moved between authored choices (the editor switch) ----------------
+    // ---- A role moved between authored choices (the editor switch) ----------------
 
     /// WHAT RECORDING A SWITCH CAME TO: nothing moved and `refusal` says why, or the rows say
-    /// where the office is now.
+    /// where the role is now.
     struct Recorded {
         bool accepted = false;
         std::string refusal;
@@ -862,8 +862,8 @@ public:
         return path_of_(stem);
     }
 
-    /// An office with authored choices is now held by `weave`, loaded from `image` for the choice
-    /// whose artifact is `stem`, recorded after Loom's admission moved the office. The former
+    /// A role with authored choices is now held by `weave`, loaded from `image` for the choice
+    /// whose artifact is `stem`, recorded after Loom's admission moved the role. The former
     /// holder's row becomes `switched`; the choice's row is resolved with the admitted weave.
     /// Refused, changing nothing, for an unauthored choice or while a conversation is open.
     // WL-SWITCH-02 -- agents/workshop/editor-switch.md
@@ -879,7 +879,7 @@ public:
         if (state_ == Realization::Loading || state_ == Realization::Advancing) {
             return Recorded{false, why_not_asked_now()};
         }
-        // Every row not holding the office now names where it went, one an earlier switch left too.
+        // Every row not holding the role now names where it went, one an earlier switch left too.
         for (ResolvedArtifact& done : resolved_) {
             if (done.role == role && done.stem != stem) {
                 done.weave_loaded = false;
@@ -972,12 +972,12 @@ public:
     /// The authored intent this owner is realizing -- empty until `begin`.
     const LoadPlan& plan() const noexcept { return plan_; }
 
-    /// Is `office` still to come -- a plan row loading a weave into it not yet settled? Pending is
+    /// Is `role` still to come -- a plan row loading a weave into it not yet settled? Pending is
     /// not a verdict: such a tool is never said to be unavailable.
     // WL-DESK-04 -- agents/workshop/desktop.md
-    bool office_pending(std::string_view office) const {
+    bool role_pending(std::string_view role) const {
         for (const ArtifactIntent& row : plan_.artifacts) {
-            if (!row.weave.has_value() || row.weave->role != office) {
+            if (!row.weave.has_value() || row.weave->role != role) {
                 continue;
             }
             const RowState now = state_of(row.stem);

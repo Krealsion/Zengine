@@ -164,7 +164,7 @@ public:
     /// area's pixels it came to rest there. Never saved.
     std::optional<std::string> hover;
     std::int64_t hover_x = 0, hover_y = 0;
-    /// What each running view last said its wiring names, by the view's office: replaced whole by
+    /// What each running view last said its wiring names, by the view's role: replaced whole by
     /// its next word, and asked afresh as an editor that names a message opens. Never saved.
     std::map<std::string, std::vector<Known>> known;
     static constexpr std::size_t kMaxKnownViews = 64, kMaxKnownNames = 64, kMaxKnownNameBytes = 128;

@@ -9,11 +9,11 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `CMakeLists.txt` | target `zengine-info-pane`, a loadable weave; needs `loom::kernel` |
 | `pane.cpp` | the weave: its four panes, their canvases and the clipboard, routing each act and answer to the default pane's property view or a value view |
-| `property_view.hpp` | the default pane's pane-property view: the subject an office named, its properties, the cursor, a property draft and its commit, and the inspect it relays |
+| `property_view.hpp` | the default pane's pane-property view: the subject a role named, its properties, the cursor, a property draft and its commit, and the inspect it relays |
 | `value_view.hpp` | one value view, the one entry point for its acts and answers: its draft, field selection, sample, pickup and pending asks |
 | `value_watch.hpp` | a value view's watch: the observation lease on its linked entry, and the requests that ask for, continue and end it |
 | `value_picture.hpp` | a value view's picture: rows, controls and field window laid out from what the view shows, and their press map |
-| `vocabulary.hpp` | office `zengine.info`, pane keys, stem, action ids, `InfoPaneState` |
+| `vocabulary.hpp` | role `zengine.info`, pane keys, stem, action ids, `InfoPaneState` |
 | `docs/zengine.info.md` | the weave's manual, compiled in and answered for each of its panes |
 | `docs/info-views.md` | the workbench story; its pictures are under `docs/images/` |
 
@@ -43,9 +43,9 @@ its stem to `WORKSHOP_SO_INFO_PANE`, and `tests/inventory_story.hpp` loads it be
 
 ## Host side
 
-- Plan row: `workshop/default-load-plan.json` (optional, office `zengine.info`); staged beside the host and listed as a development pane in
+- Plan row: `workshop/default-load-plan.json` (optional, role `zengine.info`); staged beside the host and listed as a development pane in
   `workshop/CMakeLists.txt`.
-- The desk row: `default_setup` in `workshop/setup.hpp` puts it at the room's top-right, its office
+- The desk row: `default_setup` in `workshop/setup.hpp` puts it at the room's top-right, its role
   spelled in `workshop/panes.hpp`; a saved `zengine.workshop/info` converts in
   `workshop/pane_migration.hpp`.
 - The inspection seam: `workshop/inspection_seam_vocabulary.hpp`, answered in
@@ -54,7 +54,7 @@ its stem to `WORKSHOP_SO_INFO_PANE`, and `tests/inventory_story.hpp` loads it be
 - The value views ask Workshop's operation and observation doors (`workshop/pane_operation.hpp`,
   `workshop/weave_operation.cpp`) and Inventory (`inventory/pane_client.hpp`,
   `inventory/observation.hpp`).
-- Who addresses its office: the Pane Manager's inspect row (`kInfoRole` in
+- Who addresses its role: the Pane Manager's inspect row (`kInfoRole` in
   `workshop/desktop-pane/vocabulary.hpp`), an `InspectPaneRequested` Info takes as its own
   inspect and answers with the host's `PaneSubjectActed`; the demo power's reset
   (`PaneResetRequested`, granted in `workshop/guests.cpp`); and any weave asking a pane's manual

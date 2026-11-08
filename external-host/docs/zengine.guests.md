@@ -2,7 +2,7 @@
 
 **Manual.** The guest door: the one participant in Workshop that listens for other Loom hosts,
 admits each by the guests file you wrote, and keeps the inventory of who is connected. It answers to
-the office `zengine.guests` (an office is the name a weave answers to). Workshop mounts it when it
+the role `zengine.guests` (a role is the name a weave answers to). Workshop mounts it when it
 is launched with `--guests <file>`, and only then; it is not a file you load. Its pane is
 [`zengine.connections`](zengine.connections.md). How to write the guests file and link a host to
 it: [Drive Workshop from another host](external-host.md).
@@ -36,7 +36,7 @@ Then any admitted session may ask for its own row
 ([`GuestPlanRequested`](#guestplanrequested)); a row with `inspect` may ask for the inventory
 ([`GuestConnectionsRequested`](#guestconnectionsrequested)), as Workshop's own participants do. A
 guest without the power is refused by the bus, before the door hears it. An owner a session sent a
-message straight to asks, in its office's name, what that session's row lets it do
+message straight to asks, in its role's name, what that session's row lets it do
 ([`ActorScopeRequested`](#actorscoperequested)).
 
 ## Commands
@@ -91,9 +91,9 @@ run never declares is refused in. The answer tells the two apart.
 ### `ActorScopeRequested`
 
 `ActorScopeRequested` v1 asks what one sender may do, for a message an owner received directly,
-past any gesture, judged from the rows this door admitted. The door answers an ask made in an
-office's name -- the Inventory pane's before a toolbox save sent straight to it -- and nothing said
-in no office's name. Where no one holds `zengine.guests` there is no door, so the sender is no
+past any gesture, judged from the rows this door admitted. The door answers an ask made in a
+role's name -- the Inventory pane's before a toolbox save sent straight to it -- and nothing said
+in no role's name. Where no one holds `zengine.guests` there is no door, so the sender is no
 guest: the Inventory pane, refused `NoSuchTarget`, saves.
 
 - **Takes:** `session`, the sender's weave; `pane`; `classes`, the action classes the act is

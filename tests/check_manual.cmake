@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 Joshua DeMoss
 # The `manual` entry (manual/docs/manual.md): every manual in form and carried by a target, a pane's
-# commands exactly its ids in the action census (tests/actions.txt and tests/actions/<office>.txt),
+# commands exactly its ids in the action census (tests/actions.txt and tests/actions/<role>.txt),
 # each command's Answers line linking exactly the shapes its rows declare a press causes, and every
 # key marker in a current page its declared default, Workshop's own (tests/workshop_actions.txt)
 # beside the panes'.
@@ -35,10 +35,10 @@ function(zen_manual_swap text out)
     set(${out} "${text}" PARENT_SCOPE)
 endfunction()
 
-# The census as `office|id|key|shapes` entries, one per row (a key swapped as text is; `shapes` the
+# The census as `role|id|key|shapes` entries, one per row (a key swapped as text is; `shapes` the
 # names of the shapes its press causes, `,`-joined, or empty), from the lines of tests/actions.txt:
-# `<office> <mode> <id> <key> <causes> <enters> <label>`, a cause `<shape>/<version>` and its
-# subject after `@` or `>`, `-` for none. tests/actions/<office>.txt holds a further office's lines
+# `<role> <mode> <id> <key> <causes> <enters> <label>`, a cause `<shape>/<version>` and its
+# subject after `@` or `>`, `-` for none. tests/actions/<role>.txt holds a further role's lines
 # in the same form.
 function(zen_manual_census text out)
     zen_manual_swap("${text}" text)
@@ -183,8 +183,8 @@ function(zen_manual_judge page stem text census compiled out)
     foreach(r IN LISTS m_REFUSALS)
         list(APPEND problems "${page}: ${r}")
     endforeach()
-    if(NOT m_OFFICE STREQUAL "" AND NOT m_OFFICE STREQUAL stem)
-        list(APPEND problems "${page}: its title names `${m_OFFICE}` -- a manual is named by its office")
+    if(NOT m_ROLE STREQUAL "" AND NOT m_ROLE STREQUAL stem)
+        list(APPEND problems "${page}: its title names `${m_ROLE}` -- a manual is named by its role")
     endif()
     if(NOT compiled)
         list(APPEND problems "${page}: no target carries it -- `zengine_weave(... MANUAL <page>)` or `zengine_manual(<target> <scope> <page>)` names a manual")
@@ -364,7 +364,7 @@ if(NOT st_marks MATCHES "the key marker for `layout.rename`")
     message(FATAL_ERROR "manual: SELF-TEST FAILED -- a key on an action with none passed: '${st_marks}'")
 endif()
 string(REPLACE "# t.pane --" "# zengine.workshop --" st_workshop_page "${st_good}")
-zen_manual_judge("ws-office" "zengine.workshop" "${st_workshop_page}" "${st_workshop}" ON st_problems)
+zen_manual_judge("ws-role" "zengine.workshop" "${st_workshop_page}" "${st_workshop}" ON st_problems)
 if(st_problems)
     message(FATAL_ERROR "manual: SELF-TEST FAILED -- Workshop's own actions were asked of a manual: '${st_problems}'")
 endif()
@@ -380,8 +380,8 @@ foreach(case "0|README.md" "0|workshop/docs/hotkeys.md" "0|agents/panes.md" "1|d
 endforeach()
 
 # ---- the tree ---------------------------------------------------------------------------------
-# The census: tests/actions.txt, then each office's own file in tests/actions/, by name, each of
-# whose rows is about that office.
+# The census: tests/actions.txt, then each role's own file in tests/actions/, by name, each of
+# whose rows is about that role.
 set(problems "")
 set(census "")
 file(GLOB census_files RELATIVE "${ZEN_REPO}" "${ZEN_REPO}/tests/actions/*.txt")
@@ -389,13 +389,13 @@ list(SORT census_files)
 foreach(census_file IN ITEMS tests/actions.txt ${census_files})
     file(READ "${ZEN_REPO}/${census_file}" census_text)
     zen_manual_census("${census_text}" file_census)
-    get_filename_component(file_office "${census_file}" NAME_WLE)
+    get_filename_component(file_role "${census_file}" NAME_WLE)
     foreach(entry IN LISTS file_census)
-        string(REGEX REPLACE "[|].*$" "" entry_office "${entry}")
+        string(REGEX REPLACE "[|].*$" "" entry_role "${entry}")
         if(entry MATCHES "^!(.*)$")
-            list(APPEND problems "${census_file}: '${CMAKE_MATCH_1}' is not `office mode id key causes enters label`")
-        elseif(NOT census_file STREQUAL "tests/actions.txt" AND NOT entry_office STREQUAL file_office)
-            list(APPEND problems "${census_file}: a row of ${entry_office}, which is not this file's office")
+            list(APPEND problems "${census_file}: '${CMAKE_MATCH_1}' is not `role mode id key causes enters label`")
+        elseif(NOT census_file STREQUAL "tests/actions.txt" AND NOT entry_role STREQUAL file_role)
+            list(APPEND problems "${census_file}: a row of ${entry_role}, which is not this file's role")
         endif()
     endforeach()
     list(APPEND census ${file_census})
@@ -461,14 +461,14 @@ if(NOT pages)
                         "an empty population is red (VM-POP-01)")
 endif()
 
-set(offices "")
+set(roles "")
 foreach(page IN LISTS pages)
     get_filename_component(name "${page}" NAME)
     string(REGEX REPLACE "\\.md$" "" stem "${name}")
-    if(stem IN_LIST offices)
+    if(stem IN_LIST roles)
         list(APPEND problems "${page}: a second manual for `${stem}`")
     endif()
-    list(APPEND offices "${stem}")
+    list(APPEND roles "${stem}")
     file(READ "${ZEN_REPO}/${page}" text)
     set(compiled OFF)
     if(page IN_LIST compiled_pages)
@@ -506,7 +506,7 @@ foreach(page IN LISTS guides)
     zen_manual_markers("${page}" "${text}" "${census}" found)
     list(APPEND problems ${found})
 endforeach()
-# An office the census holds and no manual names is not refused here: a pane's page is held to its
+# A role the census holds and no manual names is not refused here: a pane's page is held to its
 # declared ids from the day the page exists.
 
 list(LENGTH pages page_count)

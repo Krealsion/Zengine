@@ -224,7 +224,7 @@ inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
     DeskMenu menu;
     if (s.presented.open) {
         menu.open = true;
-        menu.office = s.presented.office;
+        menu.role = s.presented.role;
         menu.pane = s.presented.pane;
         menu.picture = s.presented.picture;
         menu.place = desk_rect(presented_bounds(s, sc));
@@ -234,7 +234,7 @@ inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
         return menu;
     }
     ScreenPlane layer;
-    menu.office = kWorkshopProvider;
+    menu.role = kWorkshopProvider;
     const PixelRect bounds = context_bounds(s, sc);
     paint_context(layer, s, sc);
     menu.open = true;

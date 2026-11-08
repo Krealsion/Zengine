@@ -10,15 +10,15 @@ The root's headers are the INTERFACE library `zengine-inventory-vocabulary`, exp
 
 | Path | What it is |
 |---|---|
-| `vocabulary.hpp` | the wire shapes and the office name `zengine.inventory`; installed |
+| `vocabulary.hpp` | the wire shapes and the role name `zengine.inventory`; installed |
 | `codec.hpp` | the pair envelope: an item plus its metadata list; installed |
-| `grant.hpp` | `inventory_grant()`, the bounded grant a host may give the office; installed |
+| `grant.hpp` | `inventory_grant()`, the bounded grant a host may give the role; installed |
 | `weave.hpp`, `inventory.cpp` | `InventoryWeave`, the collection owner: weave `zengine-inventory` |
 | `folders.hpp`, `archive.hpp` | folder names, bounds and trees; a toolbox archive's checks |
 | `observation.hpp` | a structure observation's record, shared with Info's Sample Source |
 | `pane_client.hpp` | a pane intent, its permission and owner answers; shared with Info, Composer |
 | `read.cpp` | `zengine-inventory-read`, a program that prints a pair file as JSON |
-| `inventory-pane/` | the pane, office `zengine.inventory-pane`: weave `zengine-inventory-pane` |
+| `inventory-pane/` | the pane, role `zengine.inventory-pane`: weave `zengine-inventory-pane` |
 | `inventory-pane/slots.hpp` | portable box/row/column views and command hotkey bindings |
 | `inventory-pane/toolbox.hpp`, `toolbox_file.hpp` | toolbox save and restore; the file format |
 | `inventory-pane/vocabulary.hpp`, `command.hpp` | the pane's shapes (installed); a hotkey's send |
@@ -48,8 +48,8 @@ driven by `kInventoryPaneCensus` in `tests/test_workshop_inventory_info.cpp`.
 
 - `workshop/CMakeLists.txt` stages both weaves; `workshop/default-load-plan.json`
   loads them at `zengine.inventory`, `zengine.inventory-pane`.
-- `workshop/admission.hpp` admits the `zengine.inventory` office with `inventory_grant()` and the
-  answer to `ShapeDocumentRequested` (`inventory_office_grant()`).
+- `workshop/admission.hpp` admits the `zengine.inventory` role with `inventory_grant()` and the
+  answer to `ShapeDocumentRequested` (`inventory_role_grant()`).
 - The pane asks Workshop through `workshop/pane_operation.hpp` (permission, actor scope),
   `workshop/pane_carry.hpp`, `workshop/pane_shortcuts.hpp` (hotkeys, at the Desktop) and
   `workshop/desktop_seam_vocabulary.hpp` (opening a portable view); `workshop/actor_scope.hpp`
@@ -67,7 +67,7 @@ driven by `kInventoryPaneCensus` in `tests/test_workshop_inventory_info.cpp`.
   (`MANUAL` in `inventory-pane/CMakeLists.txt`) and answered on ask (`PaneDocumentRequested`) for
   every pane it offers
 - [Inventory](docs/zengine.inventory.md), a manual, compiled into the weave (`MANUAL` in
-  `CMakeLists.txt`); the office answers a shape's section from it, under the grant
+  `CMakeLists.txt`); the role answers a shape's section from it, under the grant
   `workshop/admission.hpp` adds
 - [The Inventory pair](docs/inventory.md), the format one entry is kept in
 - [Reuse a stored command through Compose](docs/inventory-compose.md)

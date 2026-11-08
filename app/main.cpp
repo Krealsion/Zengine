@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     host.begin();
 
     // The console: a turn of the bus, then one wait on the console's next line and every source
-    // the plan's offices say they wait on, as long as the Timer's beat lets the bus rest
+    // the plan's roles say they wait on, as long as the Timer's beat lets the bus rest
     // (timer/rest.hpp), then a line if one is whole. The bus is never drained, since a live Timer
     // re-arms its beat at every turn (`pump_pending`, MSG-09).
     loom::host::LineInput console;
@@ -93,8 +93,8 @@ int main(int argc, char** argv) {
     zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
     loom::host::Reactor wait(bus);
     namespace load = zengine::workshop::load;
-    for (const std::string& office : load::plan_offices(host.executor().plan())) {
-        wait.trust(office);
+    for (const std::string& role : load::plan_roles(host.executor().plan())) {
+        wait.trust(role);
     }
     bool console_open = true;
     while (!host.ended()) {

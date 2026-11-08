@@ -42,8 +42,8 @@ Powers asks the graphics directory for a paste, not the window showing its area.
 In `introspection/seats.hpp`:
 
 ```diff
--        const std::string office = room().clipboard_office();
-+        const std::string office = "zengine.graphics";
+-        const std::string role = room().clipboard_role();
++        const std::string role = "zengine.graphics";
 ```
 
 Red in `zengine-workshop-panes-tests`:
@@ -117,9 +117,9 @@ Red in `zengine-workshop-panes-tests`:
 - Project scrolls: the wheel over it and its Up and Down bring every artifact into the pane, a whole
   block a step, each step one more reading of the door and nothing else sent
 
-## search-ignores-the-office
+## search-ignores-the-role
 
-Loaded's search reads the weaves' names alone, never their offices.
+Loaded's search reads the weaves' names alone, never their roles.
 
 In `introspection/loaded.hpp`:
 
@@ -131,7 +131,7 @@ In `introspection/loaded.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- Loaded's search: typed text narrows its rows to the weaves whose name or office holds it,
+- Loaded's search: typed text narrows its rows to the weaves whose name or role holds it,
   ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing
   is sent but the Manager's question and the selection
 
@@ -148,7 +148,7 @@ In `introspection/loaded.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- Loaded's search: typed text narrows its rows to the weaves whose name or office holds it,
+- Loaded's search: typed text narrows its rows to the weaves whose name or role holds it,
   ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing
   is sent but the Manager's question and the selection
 
@@ -166,6 +166,6 @@ In `introspection/seats.hpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- Loaded's search: typed text narrows its rows to the weaves whose name or office holds it,
+- Loaded's search: typed text narrows its rows to the weaves whose name or role holds it,
   ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing
   is sent but the Manager's question and the selection

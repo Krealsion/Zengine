@@ -22,7 +22,7 @@ words, and kept in the app's folder.
 | `files.hpp` | reading `app.json` and the app's files |
 | `folder.hpp` | an app's folder written from a saved view and its flow: the View Builder's Export app |
 | `program.hpp` | where the running program stands, and `zengine-app` beside it |
-| `vocabulary.hpp` | the offices, the place door's asks, and `app.json`'s shapes |
+| `vocabulary.hpp` | the roles, the place door's asks, and `app.json`'s shapes |
 | `CMakeLists.txt` | how the folder builds, and the artifacts staged beside the program |
 | `docs/` | the page above and its picture |
 

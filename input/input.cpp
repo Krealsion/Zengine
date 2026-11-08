@@ -13,7 +13,7 @@
 
 #include "double_click_setting.hpp"
 #include "input_weave.hpp"
-#include "office_page.hpp"
+#include "role_page.hpp"
 #include "terminal_reader.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -21,7 +21,7 @@
 namespace {
 
 using InputWeave =
-    zengine::input::InputWeaveT<zengine::input::PlatformReader, zengine::input::OfficePage,
+    zengine::input::InputWeaveT<zengine::input::PlatformReader, zengine::input::RolePage,
                                 zengine::input::DoubleClickSetting>;
 
 } // namespace

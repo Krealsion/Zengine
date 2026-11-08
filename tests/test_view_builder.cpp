@@ -400,7 +400,7 @@ TEST_CASE("a view saves and opens whole, and nothing running is saved") {
 }
 
 namespace {
-/// Workshop's office and its menu presenter, on the real bus: what the builder and its view say,
+/// Workshop's role and its menu presenter, on the real bus: what the builder and its view say,
 /// and the answers the builder needs to carry.
 class Desk final : public loom::Weave {
 public:
@@ -545,7 +545,7 @@ struct Rig {
     }
     /// ...or any row, sent as the layouts' owner sends one.
     void layouts(const ws::v2::PaneSettings& row) {
-        REQUIRE(bus.office_send_to_role_as(owner->self, ws::kLayoutsRole, vb::kRole,
+        REQUIRE(bus.role_send_to_role_as(owner->self, ws::kLayoutsRole, vb::kRole,
                                            loom::Message(loom::to_value(row), owner->self, {}, 0))
                     .valid());
         pump();
@@ -572,7 +572,7 @@ struct Rig {
         pump();
     }
     template <class T> void host(const T& value, std::uint64_t corr = 0, const char* to = vb::kRole) {
-        REQUIRE(bus.office_send_to_role_as(workshop, workshop_role, to,
+        REQUIRE(bus.role_send_to_role_as(workshop, workshop_role, to,
                                            loom::Message(loom::to_value(value), workshop, {}, corr)).valid());
         pump();
     }
@@ -766,9 +766,9 @@ TEST_CASE("a reload in place asks the view host again whether the view it ran st
     CHECK(rig.text("tally.panel / running") != nullptr);
     CHECK(rig.bus.role_holder("tally.panel") == first);
     CHECK(rig.state().running);
-    // STOPPED WHILE THE BUILDER WAS NOT ASKING: the host hears a stop as this office's, and the
+    // STOPPED WHILE THE BUILDER WAS NOT ASKING: the host hears a stop as this role's, and the
     // builder, which asked nothing, still holds that its view runs...
-    REQUIRE(rig.bus.office_send_to_role_as(rig.pane, vb::kRole, view::kViewHostRole,
+    REQUIRE(rig.bus.role_send_to_role_as(rig.pane, vb::kRole, view::kViewHostRole,
                                            loom::Message(loom::to_value(view::ViewStop{"builder"}), rig.pane, {}, 977))
                 .valid());
     rig.pump();
@@ -899,8 +899,8 @@ TEST_CASE("a right press on what a button says offers to carry its intent, and t
     CHECK(asked.rows[0].id == "carry");
     CHECK(asked.subject == "tally.panel.Count");
 
-    // The presenter's answer, as its office, under the menu's number.
-    REQUIRE(rig.bus.office_send_to_role_as(rig.menus, ws::kPresenterRole, vb::kRole,
+    // The presenter's answer, as its role, under the menu's number.
+    REQUIRE(rig.bus.role_send_to_role_as(rig.menus, ws::kPresenterRole, vb::kRole,
         loom::Message(loom::to_value(ws::PaneMenuAnswered{vb::kPane, "tally.panel.Count", true, "carry", ""}),
                       rig.menus, {}, pressed)).valid());
     rig.pump();
@@ -2072,12 +2072,12 @@ TEST_CASE("a press on what a button says asks under that press to drag its inten
 }
 
 namespace {
-/// What a view's office said to Workshop: whether it offered its pane, and whether it asked to be
+/// What a view's role said to Workshop: whether it offered its pane, and whether it asked to be
 /// shown.
-std::pair<bool, bool> offered_and_shown(const Desk& desk, const std::string& office) {
+std::pair<bool, bool> offered_and_shown(const Desk& desk, const std::string& role) {
     bool offered = false, shown = false;
     for (const auto& m : desk.heard) {
-        if (m.provenance.authored_role() != office) continue;
+        if (m.provenance.authored_role() != role) continue;
         offered |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v3::PaneOffered>());
         shown |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
     }

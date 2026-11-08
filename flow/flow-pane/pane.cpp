@@ -361,7 +361,7 @@ public:
       model_.dialog->pick.reset(); // what is offered follows what is typed
     show(mail);
   }
-  /// THE POINTER IN THE WINDOW, given by the window that shows Flow's area as its office, read
+  /// THE POINTER IN THE WINDOW, given by the window that shows Flow's area as its role, read
   /// against the picture last drawn there and the room it was drawn in, a press's moves and release
   /// under the window's number for it, a hold the window ended a loss of the drag.
   void on(const gfx::AreaButtonChanged &b, loom::Mail &mail) { on_window(window_.pointer(b, mail, 0, 0), mail); }
@@ -684,7 +684,7 @@ public:
     model_.hover_y = event.y;
     show(mail);
   }
-  /// THE ROOM, from the graphics window that shows Flow's area, as that window's office: a window,
+  /// THE ROOM, from the graphics window that shows Flow's area, as that window's role: a window,
   /// an incarnation or a size it has not drawn in holds none of its picture, so it goes whole.
   void on(const gfx::AreaRoom &r, loom::Mail &mail) {
     if (window_.room(r, mail)) {
@@ -1136,14 +1136,14 @@ public:
     }
     show(mail);
   }
-  /// WHAT A RUNNING VIEW SAYS ITS WIRING NAMES, as its own office: the messages its buttons say and
-  /// its labels show, kept by that office and replaced whole by its next word, within bounds; a
+  /// WHAT A RUNNING VIEW SAYS ITS WIRING NAMES, as its own role: the messages its buttons say and
+  /// its labels show, kept by that role and replaced whole by its next word, within bounds; a
   /// name too long or not plain ASCII is left out. An editor naming a message shows it at once.
   void on(const zengine::view::ViewWiring &said, loom::Mail &mail) {
-    const std::string office(mail.authored_role());
-    if (office.empty() || office == pane::kRole)
+    const std::string role(mail.authored_role());
+    if (role.empty() || role == pane::kRole)
       return;
-    if (model_.known.count(office) == 0 && model_.known.size() >= pane::Model::kMaxKnownViews)
+    if (model_.known.count(role) == 0 && model_.known.size() >= pane::Model::kMaxKnownViews)
       return;
     std::vector<pane::Known> names;
     const auto keep = [&](const std::string &name, bool shown) {
@@ -1158,7 +1158,7 @@ public:
       keep(intent.shape, false);
     for (const auto &field : said.fields)
       keep(field.shape, true);
-    model_.known[office] = std::move(names);
+    model_.known[role] = std::move(names);
     if (model_.dialog && pane::names_message(*model_.dialog, model_.dialog->selected))
       show(mail);
   }
@@ -1404,7 +1404,7 @@ private:
     drop_writing();
   }
   /// ASK EVERY RUNNING VIEW WHAT ITS WIRING NAMES, afresh: what they said before is let go, and each
-  /// answers as its own office.
+  /// answers as its own role.
   void ask_views(loom::Mail &mail) {
     model_.known.clear();
     (void)mail.as_role(pane::kRole).publish(zengine::view::ViewWiringRequested{});
@@ -2394,7 +2394,7 @@ private:
       drag_.reset();
     }
   }
-  /// Ask the discovery door this pane's question as this office, when it differs from the last
+  /// Ask the discovery door this pane's question as this role, when it differs from the last
   /// one asked or `again` wants a fresh look. A newer ask replaces the correlation, so the answer
   /// to a question the maker has moved past is dropped.
   void find(loom::Mail &mail, bool again = false) {
@@ -2407,7 +2407,7 @@ private:
     const auto shape = ws::find_powers_schema();
     (void)asks().ask_with(ws::kPowersRole, shape->name(), shape->version(),
                           asking(FlowAsk::Kind::kFind), [&](std::uint64_t correlation) {
-                            return mail.bus().office_send_to_role(
+                            return mail.bus().role_send_to_role(
                                 pane::kRole, ws::kPowersRole,
                                 loom::Message(std::move(question), self_, loom::WeaveId{},
                                               correlation));

@@ -127,9 +127,9 @@ Red in `zengine-workshop-load-tests`:
 - an optional row that refused stays `unavailable` in the owner's own answers -- never `authored` --
   with its reason, the next step and its optional flag
 
-## office-never-pending
+## role-never-pending
 
-`office_pending` answers false whatever the rows' states.
+`role_pending` answers false whatever the rows' states.
 
 In `workshop/load_execute.hpp`:
 
@@ -142,5 +142,5 @@ In `workshop/load_execute.hpp`:
 
 Red in `zengine-workshop-load-tests`:
 
-- an office is still to come while a plan row loading it has not settled, and is owed nothing once
+- a role is still to come while a plan row loading it has not settled, and is owed nothing once
   every such row resolved or was stepped over

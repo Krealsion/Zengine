@@ -6,7 +6,7 @@
 
 // Where a running bus spends its time, off Loom's own stamps: each weave's handler time
 // (`BusEvent::handler_elapsed_ns`), and each input's way to its paint -- a key, text, press or
-// wheel a window gave an area, or the input office published, marks every weave its dispatch
+// wheel a window gave an area, or the input role published, marks every weave its dispatch
 // ancestry reaches (`BusEvent::dispatch_parent`), and that weave's next painted drawing is the
 // input's paint, however many turns later. A host's observer: no weave reads the stamps, and it
 // changes nothing it observes.
@@ -29,7 +29,7 @@
 
 namespace zengine::workshop {
 
-/// ONE WEAVE'S HANDLERS, as the bus timed them: named by the office it held when it was first
+/// ONE WEAVE'S HANDLERS, as the bus timed them: named by the role it held when it was first
 /// seen, else by its weave id.
 struct HandlerRow {
     std::string who;
@@ -147,16 +147,16 @@ private:
     }
 
     std::string who(loom::WeaveId id) const {
-        const std::string office = bus_->role_of(id);
-        return office.empty() ? "weave " + std::to_string(id.value) : office;
+        const std::string role = bus_->role_of(id);
+        return role.empty() ? "weave " + std::to_string(id.value) : role;
     }
 
     /// The kind of input this delivery is, or empty: a release, a move and everything else are not.
     static std::string input_kind(const loom::BusEvent& e) {
         namespace g = zengine::graphics;
         namespace in = zengine::input;
-        const auto either = [&e](const char* window, const char* office) {
-            return e.schema_name == window || e.schema_name == office;
+        const auto either = [&e](const char* window, const char* role) {
+            return e.schema_name == window || e.schema_name == role;
         };
         if (either(g::AreaKeyPressed::zen_name, in::KeyPressed::zen_name)) {
             return "key";

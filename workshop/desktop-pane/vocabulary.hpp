@@ -4,7 +4,7 @@
 #ifndef ZENGINE_DESKTOP_PANE_VOCABULARY_HPP
 #define ZENGINE_DESKTOP_PANE_VOCABULARY_HPP
 
-// The Desktop's durable names: the office it holds, the panes it offers, the ids its declared
+// The Desktop's durable names: the role it holds, the panes it offers, the ids its declared
 // actions answer to, and the state a same-shape reload keeps. It owns the behaviour an
 // application supplies by default, holds no authority the host did not grant it, and is an
 // ordinary weave: built by a recipe, loaded by a plan row, reachable from Edit Code and
@@ -19,7 +19,7 @@
 
 namespace zengine::desktop_pane {
 
-/// THE OFFICE THIS WEAVE HOLDS. It is spelled in the host too
+/// THE ROLE THIS WEAVE HOLDS. It is spelled in the host too
 /// (`workshop/desktop_seam_vocabulary.hpp`'s `kDesktopRole`), because the host must know which
 /// role to ask for a declared row -- and a suite pins the two spellings against each other.
 inline constexpr const char* kDesktopRole = "zengine.desktop";
@@ -51,7 +51,7 @@ inline constexpr const char* kManualPane = "manual";
 inline constexpr const char* kManualName = "Manual";
 inline constexpr const char* kManualSummary = "the manual of the pane whose ? you pressed";
 
-/// THE LIBRARY STEM A HOST BOOTS. Not part of any protocol and not durable the way the office
+/// THE LIBRARY STEM A HOST BOOTS. Not part of any protocol and not durable the way the role
 /// is -- it is a file name, here because the host's boot plan and the suite's loader must agree.
 inline constexpr const char* kDesktopStem = "zengine-desktop-pane";
 
@@ -137,7 +137,7 @@ inline constexpr const char* kKeysCaptureMode = "capture";
 inline constexpr const char* kKeysSpellMode = "spell";
 inline constexpr const char* kManualMode = "read";
 
-/// WHAT A PANE MANAGER ROW'S PART IS NAMED BY: this, then the row's pane as `<office>/<pane>`.
+/// WHAT A PANE MANAGER ROW'S PART IS NAMED BY: this, then the row's pane as `<role>/<pane>`.
 inline constexpr const char* kLauncherRowPrefix = "pane:";
 
 /// THE ROWS THE PANE MANAGER OFFERS ON A ROW'S MENU, and the ones the Hotkeys pane offers on a
@@ -155,8 +155,8 @@ inline constexpr const char* kMenuRemove = "hotkeys.remove";
 inline constexpr const char* kMenuDisable = "hotkeys.disable";
 inline constexpr const char* kMenuReset = "hotkeys.reset";
 
-/// THE INSPECTOR'S OFFICE, for the Pane Manager's `inspect` row -- an application choice, spelled
-/// in the weave a weaver replaces, as the Terminal's office is.
+/// THE INSPECTOR'S ROLE, for the Pane Manager's `inspect` row -- an application choice, spelled
+/// in the weave a weaver replaces, as the Terminal's role is.
 inline constexpr const char* kInfoRole = "zengine.info";
 
 /// The state a same-shape reload keeps: the weaver's position, and which of the Hotkeys pane's
@@ -166,10 +166,10 @@ inline constexpr const char* kInfoRole = "zengine.info";
 /// reloaded image still knows the choice is lost; both keys empty means nothing was ever chosen.
 struct DesktopState {
     std::int64_t cursor = 0;   ///< which inventory row the marker is on
-    std::string cursor_office; ///< the pane chosen, by its two durable keys -- kept when it leaves
+    std::string cursor_role; ///< the pane chosen, by its two durable keys -- kept when it leaves
     std::string cursor_pane;   ///< the list; both empty until the first row is held
     std::vector<std::string> hotkeys_open = {}; ///< the Hotkeys pane's open sections, by identity
-    ZEN_SHAPE(DesktopState, 3, ZEN_FIELD(cursor), ZEN_FIELD(cursor_office),
+    ZEN_SHAPE(DesktopState, 3, ZEN_FIELD(cursor), ZEN_FIELD(cursor_role),
               ZEN_FIELD(cursor_pane), ZEN_FIELD(hotkeys_open));
 };
 

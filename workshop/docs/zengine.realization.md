@@ -2,7 +2,7 @@
 
 **Manual.** The realization owner makes your project run: it performs the project's load plan, and
 it decides what becomes of a build offered to the running project. It is Workshop's plan booter,
-the weave that answers to the office `zengine.realization` (an office is the name a weave answers
+the weave that answers to the role `zengine.realization` (a role is the name a weave answers
 to). The Builder offers it what it built, and the Builder pane asks it to promote or revert; it says
 what came of each. Workshop mounts it; it is not a file you load.
 
@@ -10,7 +10,7 @@ what came of each. Workshop mounts it; it is not a file you load.
 
 A *load plan* says which artifacts your project is made of and how each takes part
 ([the load plan](load-plan.md)). The owner performs its rows in the order you wrote them: it mounts
-an artifact's operators, then asks the Weave Manager to load its weave into its office, one row at
+an artifact's operators, then asks the Weave Manager to load its weave into its role, one row at
 a time. It stops at the first row it cannot perform. A row whose artifact is not built yet, and
 which a recipe can build, is not a failure: realization waits there, and the rows behind it wait
 too, because the order you wrote is the order things happen in.
@@ -98,7 +98,7 @@ reload: same weave id, state kept.
   revert to: it has not been reloaded in this run, or a promotion wrote over the image before its
   last reload`; `artifact 'oven' is not part of this running project`; `artifact 'oven' also
   supplies operators to the catalog; ...`; `artifact 'oven' loaded no weave in this run: ...`;
-  `artifact 'oven' is not running: its office example.oven is held by the authored choice 'tally';
+  `artifact 'oven' is not running: its role example.oven is held by the authored choice 'tally';
   switch back to it before reloading it`; and, as an offer is, a realization not between rows.
 - **Example:** the Builder pane's `builder.revert` publishes
   `zengine::builder::RevertArtifact{"oven"}`.

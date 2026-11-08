@@ -180,10 +180,10 @@ touches the file.
 
 `zengine-app` composes the [Flow host](../../flow/docs/zengine.flow.host.md) and the
 [view host](../../view/docs/zengine.view.host.md) as Workshop does. The app's own weave,
-`zengine-app-weave` in the office `zengine.app`, is a row of the plan like any other:
+`zengine-app-weave` in the role `zengine.app`, is a row of the plan like any other:
 
 - it asks the host where the app's folder is (`zengine.app.host`), reads `app.json`, and runs each
-  flow, then each view, in its own session, as its office;
+  flow, then each view, in its own session, as its role;
 - on the graphics directory's start and the window's offer, it offers the palette `app.json`
   names and chooses it for each area, then places each view's area where `app.json` says, hearing
   the window's keys and pointer; once its own line has its room in a window it

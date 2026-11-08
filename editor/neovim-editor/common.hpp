@@ -7,13 +7,13 @@
 // What the Neovim-backed Editor's weave and the two files that complete it share: the bounds and
 // names it works by, the arithmetic of its paths, rows, pictures and clipboard, and the records of
 // its own conversations -- a candidate, a transfer's snapshot and aim, a change Neovim holds --
-// beside what both Editors keep alike (`editor/office_seam.hpp`). Private to
+// beside what both Editors keep alike (`editor/role_seam.hpp`). Private to
 // `zengine-neovim-editor`, whose pane.cpp reads it whole (`using namespace`).
 // Workshop law: agents/workshop/neovim.md
 
 #include "editor/neovim/document.hpp"
 #include "editor/neovim/host.hpp"
-#include "editor/office_seam.hpp"
+#include "editor/role_seam.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -58,23 +58,23 @@ using ws::EditorTransfer;
 using ws::pane_text::printable;
 using ws::pane_text::fit;
 
-namespace office = zengine::editor_office;
+namespace role = zengine::editor_role;
 
-// What both Editors keep and say alike (`editor/office_seam.hpp`), named as this weave's own.
+// What both Editors keep and say alike (`editor/role_seam.hpp`), named as this weave's own.
 // `kCaretCols` is why Neovim is given one column less than the room: an Insert caret after the
 // last cell still has a cell to be drawn in.
-using office::file_name;
-using office::Holding;
-using office::kCaretCols;
-using office::kDropSubject;
-using office::kWorkshopRole;
-using office::not_prepared;
-using office::offer_refusal;
-using office::Pickup;
-using office::Relay;
-using office::same_identity;
-using office::tail_of_path;
-using office::Take;
+using role::file_name;
+using role::Holding;
+using role::kCaretCols;
+using role::kDropSubject;
+using role::kWorkshopRole;
+using role::not_prepared;
+using role::offer_refusal;
+using role::Pickup;
+using role::Relay;
+using role::same_identity;
+using role::tail_of_path;
+using role::Take;
 
 /// THE ROW ABOVE NEOVIM'S SCREEN: what the Editor says about itself -- the mode, whether the buffer
 /// is saved, the file -- or a standing notice in its place. A layout keeping `status` off gives
@@ -91,7 +91,7 @@ inline constexpr std::int64_t kMinUiCols = 12;
 inline constexpr std::int64_t kDefaultRows = 24;
 inline constexpr std::int64_t kDefaultCols = 80;
 
-/// THE BEAT this weave asks of the Timer while it holds the office.
+/// THE BEAT this weave asks of the Timer while it holds the role.
 inline constexpr const char* kBeatId = "zengine.neovim-editor.beat";
 inline constexpr std::int64_t kBeatMs = 10;
 
@@ -114,7 +114,7 @@ inline constexpr const char* kLocationRow = "neovim.location";
 inline constexpr const char* kNeovimMenuRow = "neovim.menu";
 
 /// A PATH AS THE STANDARD EDITOR SPELLS ONE: absolute, lexically normal, forward slashes -- so the
-/// office's two implementations name one file one way and a same-path open is recognised.
+/// role's two implementations name one file one way and a same-path open is recognised.
 inline std::string spelled(const std::string& name) {
     return zengine::persist::resolved_against(std::string(), name);
 }
@@ -391,7 +391,7 @@ struct Dropped {
 
 /// A DROPPED LOCATION, judged against the changedtick of the buffer Neovim held when the open was
 /// asked.
-using Locate = office::LocateOf<std::int64_t>;
+using Locate = role::LocateOf<std::int64_t>;
 
 /// WHAT NEOVIM SAID OF A CHANGE (WL-NVIM-13): the module's answer, which may carry its own
 /// refusal (`why`); or no answer -- never sent (`why`), answered with an error (`why`), or

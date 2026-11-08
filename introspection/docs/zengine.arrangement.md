@@ -1,9 +1,9 @@
 # zengine.arrangement -- the arrangement door
 
-**Manual.** The office that says what your project asked for and what came of it, answering to
-`zengine.arrangement` (an office is the name a weave answers to). Workshop mounts it in its own
+**Manual.** The role that says what your project asked for and what came of it, answering to
+`zengine.arrangement` (a role is the name a weave answers to). Workshop mounts it in its own
 process before it performs your project's plan; it is not a file you load. The `Project` pane of
-[`zengine.introspection`](zengine.introspection.md#arrangement) shows its answer, and any office may
+[`zengine.introspection`](zengine.introspection.md#arrangement) shows its answer, and any role may
 ask it the same question.
 
 ## About
@@ -16,15 +16,15 @@ keeps no copy and no answer between asks, publishes nothing and runs nothing: it
 load, unload, reload or replace anything, and its grant is its answers.
 
 The answer pairs what was authored with what resolved, and never merges them. `authored_role` is
-the office the plan asks a weave to hold, and `provider` is the identity the artifact declared for
-itself when it was mounted: two facts that may read alike. There is no resolved office: the office
+the role the plan asks a weave to hold, and `provider` is the identity the artifact declared for
+itself when it was mounted: two facts that may read alike. There is no resolved role: the role
 the kernel bound is `zen.ListLoaded`'s answer.
 
 A host that mounts no such door holds no `zengine.arrangement`, and an ask reaches nobody.
 
 ## Use
 
-Ask [`ArrangementRequested`](#arrangementrequested) as an office you hold, and read the answer that
+Ask [`ArrangementRequested`](#arrangementrequested) as a role you hold, and read the answer that
 comes to you alone: Loom marks it as the answer to your ask, so no other sender can supply it.
 
 ## Commands
@@ -35,7 +35,7 @@ comes to you alone: Loom marks it as the answer to your ask, so no other sender 
 row.
 
 - **Takes:** nothing.
-- **Answers:** to the asker alone, `ResolvedArrangement` v2 when the asking office's holder accepts
+- **Answers:** to the asker alone, `ResolvedArrangement` v2 when the asking role's holder accepts
   it, else v1: `plan`, the file the host read, and `artifacts`, one a plan row in plan order, then
   each authored choice a switch loaded that is not a row. Each has `artifact` (the stem),
   `authored_provider` (`normal` or `overlay`), `authored_role` and `state`: `authored` (not
@@ -47,7 +47,7 @@ row.
   relaunch Workshop -- this run stepped over it and will not return to it`, `fix what the refusal
   names, then relaunch -- the project stopped at this row` or `build it; its authored participation
   is performed then`.
-- **Refuses:** an ask authored as no office, personal speech or a root's send, is not answered; the
+- **Refuses:** an ask authored as no role, personal speech or a root's send, is not answered; the
   door counts it (`refused`).
 - **Example:** from a weave holding `zengine.introspection`,
   `mail.as_role("zengine.introspection").send_to_role("zengine.arrangement", ArrangementRequested{}, 7);`,

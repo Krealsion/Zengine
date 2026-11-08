@@ -1,14 +1,14 @@
 # zengine.build-runner -- the build runner
 
 **Manual.** The build runner: the weave that starts and holds a build's process, answering to the
-office `zengine.build-runner` (an office is the name a weave answers to). It runs a recipe the
+role `zengine.build-runner` (a role is the name a weave answers to). It runs a recipe the
 [Builder](zengine.builder.md) orders, follows the process without stopping the desk, and tells the
 Builder what it sees. Workshop mounts it; it is not a file you load, and no pane speaks to it.
 
 ## About
 
 The runner is the weave in Workshop that holds a build's command and starts its process; the
-Neovim editor, when it holds the editor's office, starts `nvim` too
+Neovim editor, when it holds the editor's role, starts `nvim` too
 ([Neovim](../../editor/docs/neovim.md)), and the launcher starts an app or a demo that outlives
 Workshop ([`zengine.launcher`](../../launcher/docs/zengine.launcher.md)). The runner is `BuildRunnerWeave`, in
 [`builder/runner.hpp`](../runner.hpp), mounted by Workshop's host itself. It reads two things the
@@ -34,9 +34,9 @@ When the runner is destroyed it ends and reaps every process it holds, and says 
 ## Use
 
 In Workshop the Builder, `zengine.builder`, is the one weave granted [`RunBuild`](#runbuild) to this
-office, and the runner reports to it alone; nothing else may order a build. A suite, a diagnostic,
+role, and the runner reports to it alone; nothing else may order a build. A suite, a diagnostic,
 or a host with no Timer may send [`LookAtBuilds`](#lookatbuilds) to have it look now instead of
-waiting for its beat. Any weave granted `ShapeDocumentRequested` to this office may ask what a shape
+waiting for its beat. Any weave granted `ShapeDocumentRequested` to this role may ask what a shape
 it accepts does, and is answered from this page.
 
 ## Commands
@@ -97,7 +97,7 @@ What a weaver follows is the Builder's own account, [its Follow](zengine.builder
 
 ## See also
 
-- [`zengine.builder`](zengine.builder.md), the office that orders builds and keeps their account.
+- [`zengine.builder`](zengine.builder.md), the role that orders builds and keeps their account.
 - [`zengine.builder-pane`](zengine.builder-pane.md), the pane.
 - [The recipe file](recipes.md).
 - [`builder/vocabulary.hpp`](../vocabulary.hpp), the shapes.

@@ -7,9 +7,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | part | what it is |
 |---|---|
-| `introspection.cpp` | the loadable weave `zengine-introspection`: office `zengine.introspection`, each delivery routed to its pane's seat |
+| `introspection.cpp` | the loadable weave `zengine-introspection`: role `zengine.introspection`, each delivery routed to its pane's seat |
 | `seats.hpp` | the weave's three panes: `PaneSeat` (a room, its question, its pictures), `LoadedSeat`, `ArrangementSeat`, `PowersSeat` |
-| `vocabulary.hpp` | durable names: office, pane keys, Powers action ids, stem, `LoadedSelected` |
+| `vocabulary.hpp` | durable names: role, pane keys, Powers action ids, stem, `LoadedSelected` |
 | `loaded.hpp` | the Loaded pane's pure view: `parse_loaded`, `project_loaded`, `mark_selected` |
 | `resolved.hpp` | the Project pane's pure view, `project_arrangement`; the budget Powers shares |
 | `powers.hpp` | the Powers pane's pure half: `PowersUi`, `powers_question`, `project_powers_ui` |
@@ -39,7 +39,7 @@ a Compose target picked on the Loaded pane).
 
 ## Host side
 
-- Booted by `workshop/default-load-plan.json` (an optional row, office `zengine.introspection`); staged and listed as a pane weave in
+- Booted by `workshop/default-load-plan.json` (an optional row, role `zengine.introspection`); staged and listed as a pane weave in
   `workshop/CMakeLists.txt`.
 - Its panes cross the external pane protocol: `workshop/pane_vocabulary.hpp` and the
   `workshop/pane_*.hpp` parts `introspection.cpp` includes.

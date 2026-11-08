@@ -70,7 +70,7 @@ QuitDeliveryWatch::~QuitDeliveryWatch() { bus_.remove_observer(tap_); }
 // WL-SESSION-19 -- agents/workshop/session.md
 std::string undelivered_quit_words(const UndeliveredQuit& one) {
     const std::string weave = "weave " + std::to_string(one.participant.value);
-    return (one.office.empty() ? weave : one.office + " (" + weave + ")") + " -- " +
+    return (one.role.empty() ? weave : one.role + " (" + weave + ")") + " -- " +
            refusal_meaning(one.reason) + " (" + loom::name_of(one.reason) + ")";
 }
 

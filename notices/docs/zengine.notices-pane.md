@@ -3,7 +3,7 @@
 **Manual.** The pane that shows what Workshop said, the newest at the bottom: each saved file, each
 refusal, each thing a command of yours did. It is a *weave*: a piece of Workshop that is loaded,
 replaced and spoken to by messages, built as `zengine-notices-pane`. Other weaves reach it by its
-*office*, the name it answers to, `zengine.notices-pane`. The notices are the
+*role*, the name it answers to, `zengine.notices-pane`. The notices are the
 [notices record](zengine.notices.md)'s; the pane keeps only where you are reading.
 
 ## About
@@ -89,5 +89,5 @@ keeps nothing.
 
 - [The notices record](zengine.notices.md): what it keeps, for how long, and its `keep` setting.
 - [Attention](../../attention/docs/zengine.attention.md): what is true right now.
-- [`notices/notices-pane/vocabulary.hpp`](../notices-pane/vocabulary.hpp): the office, the pane
+- [`notices/notices-pane/vocabulary.hpp`](../notices-pane/vocabulary.hpp): the role, the pane
   and the ids its keys answer to.

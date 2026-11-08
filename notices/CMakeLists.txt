@@ -7,7 +7,7 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-# Its manual is compiled in: the office answers a shape's section from this page
+# Its manual is compiled in: the role answers a shape's section from this page
 # (`ShapeDocumentRequested`, manual/vocabulary.hpp).
 zengine_weave(zengine-notices notices.cpp MANUAL docs/zengine.notices.md)
 target_link_libraries(zengine-notices PRIVATE zengine-workshop-vocabulary zengine-activation)

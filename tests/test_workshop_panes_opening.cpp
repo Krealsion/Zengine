@@ -3,12 +3,12 @@
 
 // THE OPENING MANAGER'S OWN WITNESSES (WL-OPEN, agents/workshop/opening.md): the record it
 // retains and retires, the latest result and whose request it answers, the authority it holds,
-// and the host's turn when a NATIVE owner cannot apply a publication. The Editor's office is held
+// and the host's turn when a NATIVE owner cannot apply a publication. The Editor's role is held
 // by a native stand-in (test instrumentation) that prepares and offers like the real image; the
 // real Editor is test_workshop_panes_editor.cpp's. Proved here: manager bookkeeping, the
 // capability's binding and the host's showing boundary, over the real desk, manager and pump.
 
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "workshop_support.hpp"
 
 #include <algorithm>
@@ -147,7 +147,7 @@ class CanvasEditor
 public:
     std::vector<gfx::AreaRoom> rooms;
     std::vector<std::string> heard; ///< "settings" or "room", in the order they came
-    std::vector<std::string> handed_by; ///< the office each hand-off was authored as
+    std::vector<std::string> handed_by; ///< the role each hand-off was authored as
     std::vector<WindowPointer> pointers;
     std::string row = "no document";
     bool hold_prepare = false;
@@ -226,7 +226,7 @@ public:
         }
         (void)mail.answer(said);
     }
-    /// THE COMMITMENT'S `apply` WORD, which shows this office its published claim: the document
+    /// THE COMMITMENT'S `apply` WORD, which shows this role its published claim: the document
     /// opened, drawn in its area.
     void on(const ManagedOpenProgress& said, loom::Mail& mail) {
         if (said.stage == "apply") draw(mail);
@@ -347,7 +347,7 @@ struct Slots {
 // ---- The rig ------------------------------------------------------------------------------
 
 /// THE REAL DESK, THE REAL MANAGER, THE REAL PUMP SEAM, and a native stand-in in the Editor's
-/// office. Every turn of the bus goes through `serve_until_idle`, the seam under test.
+/// role. Every turn of the bus goes through `serve_until_idle`, the seam under test.
 struct OpeningRig {
     TempDir dir;
     std::filesystem::path root;
@@ -388,16 +388,16 @@ struct OpeningRig {
         mount_asker();
     }
 
-    void mount_asker() { asker = mount_requester(kDoorAskerOffice); }
+    void mount_asker() { asker = mount_requester(kDoorAskerRole); }
 
-    /// A REQUESTER IN AN OFFICE OF ITS OWN, granted the one ask -- how a case tells who asked.
-    DoorAsker* mount_requester(const char* office) {
-        auto held = std::make_unique<DoorAsker>(std::string(office));
+    /// A REQUESTER IN AN ROLE OF ITS OWN, granted the one ask -- how a case tells who asked.
+    DoorAsker* mount_requester(const char* role) {
+        auto held = std::make_unique<DoorAsker>(std::string(role));
         DoorAsker* raw = held.get();
         loom::Grant grant;
         grant.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
         const loom::WeaveId id =
-            r.bus.register_weave(std::move(held), std::move(grant), std::string(office));
+            r.bus.register_weave(std::move(held), std::move(grant), std::string(role));
         raw->zen_set_self(id);
         raw->id = id;
         return raw;
@@ -564,7 +564,7 @@ TEST_CASE("the latest terminal result names the request it answers -- a refusal 
     CHECK(o.opening().last_path == "/x/a.cpp");
     CHECK(o.opening().last_requester == first);
     CHECK(o.opening().last_outcome == "committed");
-    // A SECOND REQUESTER, in an office of its own, so the record has to say which one asked.
+    // A SECOND REQUESTER, in a role of its own, so the record has to say which one asked.
     DoorAsker* second = o.mount_requester("zengine.test.second-asker");
     const std::int64_t other = static_cast<std::int64_t>(second->id.value);
     REQUIRE(other != first);
@@ -731,7 +731,7 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
         }
         REQUIRE(failures.size() == 1);
         CHECK(failures[0].owner == o.editor_id);
-        CHECK(failures[0].office == kEditorRole);
+        CHECK(failures[0].role == kEditorRole);
         CHECK(failures[0].held);
         const std::string expected =
             held_sentence(o, "test instrumentation: the stand-in Editor could not apply /x/b.cpp");
@@ -755,7 +755,7 @@ TEST_CASE("a native owner's failed showing is told in the words its own boundary
         CHECK_FALSE(o.r.bus.has_failed_application(o.r.workshop_id));
         // THE BUS SERVES ON, and nothing more is told.
         const SourceOpened later = o.open_and_serve("/x/c.cpp");
-        CHECK_FALSE(later.accepted); // the Editor's office is held: its preparation never runs
+        CHECK_FALSE(later.accepted); // the Editor's role is held: its preparation never runs
         CHECK(o.told.size() == 1);
     }
     SUBCASE("a native owner that declines inside its boundary gave an answer, not a failure: nothing is told or held, and the open settles as not applied") {
@@ -1000,11 +1000,11 @@ struct PictureOpen {
         const RuntimePane* row = r.session().panes.runtime.find(kEditorRole, "editor");
         REQUIRE(row != nullptr);
         kind = row->kind;
-        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerOffice));
+        auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerRole));
         asker = held.get();
         loom::Grant asking;
         asking.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
-        asker->id = r.bus.register_weave(std::move(held), std::move(asking), std::string(kDoorAskerOffice));
+        asker->id = r.bus.register_weave(std::move(held), std::move(asking), std::string(kDoorAskerRole));
         asker->zen_set_self(asker->id);
         b_path = (dir.path() / "b.cpp").generic_string();
     }
@@ -1238,12 +1238,12 @@ TEST_CASE("a setting written while an opening prepares survives its publication"
     CHECK(seat->handed.back().settings == row->settings);
 }
 
-TEST_CASE("the opening office answers what each shape it accepts does from its manual, and its page "
+TEST_CASE("the opening role answers what each shape it accepts does from its manual, and its page "
           "describes no shape it does not accept") {
     // MOUNTED AS THE HOST MOUNTS IT, beside Workshop and an Editor, and asked as any weave asks.
     OpeningRig o("open-manual");
     o.open();
-    CHECK(check_office_manual(o.r.bus, kOpeningRole) >= 4);
+    CHECK(check_role_manual(o.r.bus, kOpeningRole) >= 4);
     check_page_names_accepted(zengine::manual::pages::zengine_opening::kManual,
                               described_shapes_of(o.r.bus, o.r.opening_id));
 }

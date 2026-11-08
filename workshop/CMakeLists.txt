@@ -19,7 +19,7 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-voc
                                                             zengine-persist
                                                             loom::core
                                                             loom::terminal)
-# ...and the manuals of the host's own offices compiled into it, each office answering a shape's
+# ...and the manuals of the host's own roles compiled into it, each role answering a shape's
 # section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp): Workshop's own weave
 # (its header, workshop/weave.hpp), the opening manager (`opening.hpp`), and the door a pane asks
 # about the project.
@@ -127,7 +127,7 @@ target_sources(zengine-workshop-logic PRIVATE grant.cpp)
 
 target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
                                              PRIVATE zengine-warnings zengine-sanitize)
-# The editor switch's manual, compiled into whatever mounts the office
+# The editor switch's manual, compiled into whatever mounts the role
 # (`editor_switch.hpp`): it answers a shape's section from this page (`ShapeDocumentRequested`).
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../editor/docs/zengine.editor-switch.md)
 

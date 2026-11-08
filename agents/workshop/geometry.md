@@ -155,7 +155,7 @@ LAW — A desk and a pane's words are answered in canvas pixels, each where the 
 
 MEANS
 - a canvas pane's labels and runs are words as a text pane's rows are, and so are a menu's lines;
-- a word's point is resolved by the measurer a press is, and a reading's place and text measure give any cell; a pane whose office nobody holds gives none;
+- a word's point is resolved by the measurer a press is, and a reading's place and text measure give any cell; a pane whose role nobody holds gives none;
 - reading grants nothing and moves nothing: a press is ordinary input.
 
 DOES NOT MEAN
@@ -306,7 +306,7 @@ column of the character it shows" "a row as wide as its pane with a caret in it 
 character, at a place inside the pane, the caret past its end on its last cell" "a row with nothing
 on it but the caret says no word, and a press on the caret's own cell reaches the pane, in a text row
 and in a canvas field at the body's right edge" "a part whose one cell holds the caret at the body's right edge has a point
-there, and a press on it reaches the pane" "a canvas picture its office's holder no longer
+there, and a press on it reaches the pane" "a canvas picture its role's holder no longer
 holds says its words and parts with no point, gives none, and a press where one was reaches nothing"
 
 ### WL-GEO-14

@@ -69,7 +69,7 @@ const std::vector<std::string> kRoleLineIds = {pane::kActionCommit, pane::kActio
 // BLD-WEAVE — the pane arrives, and it is a stranger
 // ============================================================================
 
-TEST_CASE("the Builder arrives by a plan row, under an office of its own") {
+TEST_CASE("the Builder arrives by a plan row, under a role of its own") {
     // Workshop compiled nothing for this pane, minted no kind for it and holds no branch on it:
     // what puts it on a weaver's screen is a row in an editable file naming an artifact, and an
     // offer this host learns about at runtime like any other.
@@ -506,10 +506,10 @@ TEST_CASE("a build-and-load is said twice: the build's ending, then the load's a
     }
 }
 
-TEST_CASE("a build-and-load refused at dispatch is said with the office and Loom's reason, and "
+TEST_CASE("a build-and-load refused at dispatch is said with the role and Loom's reason, and "
           "nothing stays armed") {
-    // THE OFFICE GOES BEFORE DELIVERY: Workshop approves the build, the ask is queued to the
-    // tool's office with a valid ticket, and the office is gone when Loom would deliver it.
+    // THE ROLE GOES BEFORE DELIVERY: Workshop approves the build, the ask is queued to the
+    // tool's role with a valid ticket, and the role is gone when Loom would deliver it.
     BuilderRig b("bld-build-refused");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.open(240, 60);
@@ -523,7 +523,7 @@ TEST_CASE("a build-and-load refused at dispatch is said with the office and Loom
                   b.text());
     CHECK_MESSAGE(b.text().find("waiting for it to start") == std::string::npos, b.text());
 
-    // THE OFFICE COMES BACK, and a load it then answers was asked by nobody here.
+    // THE ROLE COMES BACK, and a load it then answers was asked by nobody here.
     REQUIRE(b.r.bus.swap_state(b.tool_id, bytes).revived);
     CHECK(b.tool->asked.empty());
     b.tool->next.recipe = "snake";
@@ -684,7 +684,7 @@ TEST_CASE("Escape abandons the line, and nothing is written") {
 }
 
 TEST_CASE("an artifact the plan already names is refused before the line") {
-    // THE READ AND THE ACT ARE TWO OFFICES, and this is the read: the pane asks
+    // THE READ AND THE ACT ARE TWO ROLES, and this is the read: the pane asks
     // `zengine.project` whether the plan names the stem and opens the line only if it does
     // not, so a weaver never types a role for a row that cannot be written.
     BuilderRig b("bld-load-dup");
@@ -724,7 +724,7 @@ TEST_CASE("a row whose product is built finishes with the button's act") {
     b.r.text("zengine.oven");
     b.r.key(input::scan::kReturn);
     // THE INTENT FINISHES: the finished build's recipe asked for again with the second
-    // intention aboard, to the same office, under the same grant. No new route.
+    // intention aboard, to the same role, under the same grant. No new route.
     REQUIRE(b.tool->asked.size() == 1);
     CHECK(b.tool->asked[0] == "snake");
     CHECK(b.tool->realize_asked[0] == true);
@@ -741,7 +741,7 @@ TEST_CASE("a row whose product is built finishes with the button's act") {
 TEST_CASE("`e` opens the chosen recipe's source, resolved by the host") {
     // THE PANE NAMES A RECIPE AND NEVER A PATH. `RecipeSummary` is `{recipe, artifact}` on
     // purpose, so the sentence that crosses is the recipe's own name and the host's read-only
-    // project office resolves it against the catalog IT owns -- a pane that could spell the
+    // project role resolves it against the catalog IT owns -- a pane that could spell the
     // path would already have been handed the build procedure. The pane then carries the one
     // path the door named to the Editor's own door, and the Editor asks to be shown.
     BuilderRig b("bld-edit");
@@ -832,9 +832,9 @@ TEST_CASE("closing the pane forgets its copy; the TOOL keeps its own count") {
     CHECK(b.text().find("recipe   snake") != std::string::npos);
 }
 
-TEST_CASE("the office the migration writes is the one this pane holds") {
+TEST_CASE("the role the migration writes is the one this pane holds") {
     // THE TWO SPELLINGS, CHECKED AGAINST EACH OTHER. `pane_migration.hpp` names the new
-    // office as a literal because the host does not link this weave; this is the seam where
+    // role as a literal because the host does not link this weave; this is the seam where
     // a divergence between the two would actually be caught.
     CHECK(std::string(pane_migration::kBuilderProvider) == std::string(pane::kBuilderPaneRole));
     CHECK(std::string(pane_migration::kBuilderPane) == std::string(pane::kBuilderPane));
@@ -857,7 +857,7 @@ TEST_CASE("the office the migration writes is the one this pane holds") {
 }
 
 TEST_CASE("the package links no kernel and mounts nothing") {
-    // THE BUILD GRAPH, READ AS TEXT. This pane asks offices and hears answers; it never touches
+    // THE BUILD GRAPH, READ AS TEXT. This pane asks roles and hears answers; it never touches
     // the control door or the Manager, and the five names a presentation may not spell are as
     // forbidden in its own image as they are in this host's sources.
     const std::string cmake = file_source(BUILDER_PANE_CMAKE);
@@ -921,12 +921,12 @@ struct HeldLookupState {
     ZEN_SHAPE(HeldLookupState, 1, ZEN_FIELD(asked));
 };
 
-/// A PROJECT OFFICE THAT HOLDS ITS ANSWER TO A SOURCE LOOKUP until a case releases it (test
+/// A PROJECT ROLE THAT HOLDS ITS ANSWER TO A SOURCE LOOKUP until a case releases it (test
 /// instrumentation). The real door answers inside the delivery that asked, so while it holds
-/// the office no forgery can be delivered between the lookup and its answer; this office keeps
+/// the role no forgery can be delivered between the lookup and its answer; this role keeps
 /// the lookup genuinely outstanding for exactly as long as a case needs, and then answers as
 /// the real door would, through the answer right Loom kept for the ask.
-class HeldLookupOffice : public loom::WeaveBase<HeldLookupOffice, HeldLookupState,
+class HeldLookupRole : public loom::WeaveBase<HeldLookupRole, HeldLookupState,
                                                 loom::Accept<RecipeSourceRequested, SeatDo>,
                                                 loom::Emit<RecipeSourceSaid>> {
 public:
@@ -951,12 +951,12 @@ public:
 // BLD-WEAVE -- a refusal at enqueue, at dispatch, and a forgery are three facts (WL-OPEN-07)
 // ============================================================================
 
-TEST_CASE("a lookup queued to a project office nobody holds and an open queued to an opening "
-          "office nobody holds are each refused at dispatch by that attempt, in words, and a fresh "
-          "e takes once each office is present") {
-    // THE FIRST DOOR REACHES NOBODY: no project office is held. The pane declares
+TEST_CASE("a lookup queued to a project role nobody holds and an open queued to an opening "
+          "role nobody holds are each refused at dispatch by that attempt, in words, and a fresh "
+          "e takes once each role is present") {
+    // THE FIRST DOOR REACHES NOBODY: no project role is held. The pane declares
     // `RecipeSourceRequested` in its `Emit<...>`, and a declared shape is registered by its
-    // emitter at load, so the lookup is queued to the unheld office, refused at dispatch, and the
+    // emitter at load, so the lookup is queued to the unheld role, refused at dispatch, and the
     // pane says in words that the lookup failed. Its branch for a ticket that is not valid is not
     // reachable through a declared shape and stays source-traced (`edit_source`,
     // builder/builder-pane/pane.cpp).
@@ -973,13 +973,13 @@ TEST_CASE("a lookup queued to a project office nobody holds and an open queued t
     CHECK_MESSAGE(a.text().find("nothing was queued") == std::string::npos, a.text());
     CHECK_FALSE(a.r.session().panes.has(a.editor_kind()));
     CHECK(a.r.opening->state().op == 0); // the manager was never asked
-    // ...AND A FRESH `e` TAKES once the office is held: the same rig, the door mounted late.
+    // ...AND A FRESH `e` TAKES once the role is held: the same rig, the door mounted late.
     a.mount_doors(true);
     a.letter(input::scan::kE, "e");
     CHECK_MESSAGE(a.text().find("could not be looked up") == std::string::npos, a.text());
 
     // THE SECOND DOOR REACHES NOBODY: the project answers, the open is queued to an opening
-    // office nobody holds and refused at dispatch, and the pane names the open as the stage
+    // role nobody holds and refused at dispatch, and the pane names the open as the stage
     // that failed; nothing moves on the desk.
     BuilderRig b("bld-open-refused");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
@@ -995,7 +995,7 @@ TEST_CASE("a lookup queued to a project office nobody holds and an open queued t
     CHECK_MESSAGE(b.text().find("NoSuchTarget") != std::string::npos, b.text());
     CHECK_FALSE(b.r.session().panes.has(b.editor_kind()));
     CHECK(b.r.session().panes.keyboard == b.kind);
-    // ...AND A FRESH `e` TAKES once the office is held.
+    // ...AND A FRESH `e` TAKES once the role is held.
     b.r.mount_opening();
     b.letter(input::scan::kE, "e");
     REQUIRE(b.r.session().panes.has(b.editor_kind()));
@@ -1003,9 +1003,9 @@ TEST_CASE("a lookup queued to a project office nobody holds and an open queued t
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
 }
 
-TEST_CASE("`o` and the frontier action asked of a project office nobody holds are each refused at "
+TEST_CASE("`o` and the frontier action asked of a project role nobody holds are each refused at "
           "dispatch, in words") {
-    // BOTH ASKS ARE QUEUED WITH A VALID TICKET to an office nobody holds, and Loom refuses each by
+    // BOTH ASKS ARE QUEUED WITH A VALID TICKET to a role nobody holds, and Loom refuses each by
     // that attempt. The frontier the pane asks for its own picture at the grant is refused the same
     // way, and it is no act of the weaver's: nothing is said for it.
     BuilderRig a("bld-asks-refused");
@@ -1025,16 +1025,16 @@ TEST_CASE("`o` and the frontier action asked of a project office nobody holds ar
                   a.text());
     CHECK(a.tool->asked.empty());
 
-    // ...AND A FRESH `o` TAKES once the office is held.
+    // ...AND A FRESH `o` TAKES once the role is held.
     a.mount_doors(true);
     a.letter(input::scan::kO, "o");
     CHECK_MESSAGE(a.text().find("role for zengine-snake") != std::string::npos, a.text());
 }
 
-TEST_CASE("a role line's row refused at dispatch by the project office is said, and nothing is "
+TEST_CASE("a role line's row refused at dispatch by the project role is said, and nothing is "
           "written or built") {
-    // THE OFFICE GOES BEFORE DELIVERY: Workshop approves the commit, the row is queued to the
-    // project office with a valid ticket, and the office is gone when Loom would deliver it.
+    // THE ROLE GOES BEFORE DELIVERY: Workshop approves the commit, the row is queued to the
+    // project role with a valid ticket, and the role is gone when Loom would deliver it.
     BuilderRig b("bld-row-refused");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.open();
@@ -1052,11 +1052,11 @@ TEST_CASE("a role line's row refused at dispatch by the project office is said, 
     CHECK(b.tool->asked.empty());
 }
 
-TEST_CASE("a lookup queued to the project office and refused at dispatch -- the office gone before "
+TEST_CASE("a lookup queued to the project role and refused at dispatch -- the role gone before "
           "delivery -- is said by that exact attempt at the lookup stage, opens nothing, and a "
-          "fresh e takes once the office is back") {
-    // LOOM'S LATER WORD, NOT THE IMMEDIATE ONE. The office is held and the shape declared when `e`
-    // asks, so the lookup is QUEUED with a valid ticket; the office is then killed between the
+          "fresh e takes once the role is back") {
+    // LOOM'S LATER WORD, NOT THE IMMEDIATE ONE. The role is held and the shape declared when `e`
+    // asks, so the lookup is QUEUED with a valid ticket; the role is then killed between the
     // turn that queued it and the turn that would deliver it, so Loom refuses that attempt at
     // dispatch and tells the pane by it (`zen.DispatchRefused`). The enqueue refusal is the case
     // above and a forged notice the case below; none of the three proves another.
@@ -1122,12 +1122,12 @@ TEST_CASE("a lookup queued to the project office and refused at dispatch -- the 
     CHECK(bus.pending() > 0);
     CHECK(refused_seq == 0);
     CHECK(b.text().find("could not be looked up") == std::string::npos);
-    // THE OFFICE GOES BEFORE ITS DELIVERY.
+    // THE ROLE GOES BEFORE ITS DELIVERY.
     bus.kill(b.project_id);
     bus.drain_until_idle();
     bus.remove_observer(tap);
     // LOOM'S WORD: that queued attempt, authored in the delivery the turn ended on, refused at
-    // dispatch for the office it was addressed to -- a reason no enqueue can give.
+    // dispatch for the role it was addressed to -- a reason no enqueue can give.
     REQUIRE(refused_seq != 0);
     CHECK(refused_seq > action);
     CHECK(refused_parent == action);
@@ -1139,7 +1139,7 @@ TEST_CASE("a lookup queued to the project office and refused at dispatch -- the 
     CHECK(notice_from_bus);
     CHECK(notice_parent == refused_seq);
     CHECK(notice_attempt == refused_seq);
-    // THE WEAVER READS THE RECIPE, THE STAGE, THE OFFICE AND THE REASON -- not the enqueue
+    // THE WEAVER READS THE RECIPE, THE STAGE, THE ROLE AND THE REASON -- not the enqueue
     // refusal's words -- and nothing was opened.
     CHECK_MESSAGE(b.text().find("`snake`: the source could not be looked up -- it could not "
                                 "reach zengine.project (TargetUnavailable)") != std::string::npos,
@@ -1151,7 +1151,7 @@ TEST_CASE("a lookup queued to the project office and refused at dispatch -- the 
     CHECK(b.r.opening->state().committed == 0);
     CHECK(bus.resolve_schema(RecipeSourceRequested::zen_name,
                              RecipeSourceRequested::zen_version) != nullptr);
-    // THE OFFICE COMES BACK -- revived in place, the same office -- and a fresh `e` takes.
+    // THE ROLE COMES BACK -- revived in place, the same role -- and a fresh `e` takes.
     const std::string bytes = bus.snapshot_bytes(b.project_id);
     REQUIRE(bus.swap_state(b.project_id, bytes).revived);
     b.letter(input::scan::kE, "e");
@@ -1173,29 +1173,29 @@ TEST_CASE("the Builder's refusal leaves its published rows at the weaver's next 
     const std::string src = (b.root / "snake.cpp").generic_string();
     put_source(b.root / "snake.cpp", "int main() {}\n");
     b.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/false);
-    // A STANDING REFUSAL: `e` with no project office, so nothing could be queued.
+    // A STANDING REFUSAL: `e` with no project role, so nothing could be queued.
     b.letter(input::scan::kE, "e");
     REQUIRE_MESSAGE(b.text().find("could not be looked up") != std::string::npos, b.text());
     // ...AND A REPAINT THE WEAVER DID NOT MAKE KEEPS IT: the tool republishes, the pane says again.
     b.tool_says();
     CHECK_MESSAGE(b.text().find("could not be looked up") != std::string::npos, b.text());
-    // THE OFFICE ARRIVES HOLDING ITS ANSWER, and the weaver presses `e` again.
-    auto held = std::make_unique<HeldLookupOffice>();
-    HeldLookupOffice* office = held.get();
-    office->answer_with = RecipeSourceSaid{"snake", true, std::string(), src};
+    // THE ROLE ARRIVES HOLDING ITS ANSWER, and the weaver presses `e` again.
+    auto held = std::make_unique<HeldLookupRole>();
+    HeldLookupRole* role = held.get();
+    role->answer_with = RecipeSourceSaid{"snake", true, std::string(), src};
     loom::Grant say;
     say.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
-    const loom::WeaveId office_id =
+    const loom::WeaveId role_id =
         b.r.bus.register_weave(std::move(held), std::move(say), std::string(kProjectRole));
-    office->zen_set_self(office_id);
-    const auto release = [&b, office_id] {
-        (void)b.r.bus.send(office_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+    role->zen_set_self(role_id);
+    const auto release = [&b, role_id] {
+        (void)b.r.bus.send(role_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
         b.r.bus.drain_until_idle();
     };
     b.letter(input::scan::kE, "e");
     // THE LOOKUP IS UNANSWERED -- and the refusal it spent is already gone from the rows.
-    REQUIRE(office->held.valid());
+    REQUIRE(role->held.valid());
     CHECK_FALSE(b.r.session().panes.has(b.editor_kind()));
     CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
     // THE ANSWER, released: the source opens, and the rows stay clean.
@@ -1203,11 +1203,11 @@ TEST_CASE("the Builder's refusal leaves its published rows at the weaver's next 
     REQUIRE(b.r.session().panes.has(b.editor_kind()));
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos);
     CHECK_MESSAGE(b.text().find("could not be looked up") == std::string::npos, b.text());
-    // A NEW REFUSAL, from the office's own words, stands through an unrelated repaint...
+    // A NEW REFUSAL, from the role's own words, stands through an unrelated repaint...
     b.focus();
-    office->answer_with = RecipeSourceSaid{"snake", false, "`snake` names no file here", ""};
+    role->answer_with = RecipeSourceSaid{"snake", false, "`snake` names no file here", ""};
     b.letter(input::scan::kE, "e");
-    REQUIRE(office->held.valid());
+    REQUIRE(role->held.valid());
     release();
     REQUIRE_MESSAGE(b.text().find("`snake` names no file here") != std::string::npos, b.text());
     b.tool_says();
@@ -1254,8 +1254,8 @@ TEST_CASE("an id the Builder does not declare in the mode it is in is no act: an
         CHECK(b.authored.empty());
     };
 
-    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN OFFICE.
-    const PaneRig::OfficeAction unknown =
+    // AN ID NOBODY DECLARED, SAID BY WORKSHOP'S OWN ROLE.
+    const PaneRig::RoleAction unknown =
         b.r.workshop_action(pane::kBuilderPaneRole, pane::kBuilderPane, "builder.no-such-action");
     REQUIRE(unknown.authored);
     REQUIRE(unknown.delivered);
@@ -1265,7 +1265,7 @@ TEST_CASE("an id the Builder does not declare in the mode it is in is no act: an
     line_stands();
 
     // AN ID THE PANE DECLARES WHEN BROWSING, DELIVERED WHILE THE LINE IS OPEN.
-    const PaneRig::OfficeAction build =
+    const PaneRig::RoleAction build =
         b.r.workshop_action(pane::kBuilderPaneRole, pane::kBuilderPane, pane::kActionBuild);
     REQUIRE(build.delivered);
     line_stands();
@@ -1273,7 +1273,7 @@ TEST_CASE("an id the Builder does not declare in the mode it is in is no act: an
     line_stands();
 
     // A DECLARED ID THROUGH THE SAME DOOR IS AN ACT: the line closes and its own answer stands.
-    const PaneRig::OfficeAction cancel =
+    const PaneRig::RoleAction cancel =
         b.r.workshop_action(pane::kBuilderPaneRole, pane::kBuilderPane, pane::kActionCancel);
     REQUIRE(cancel.delivered);
     CHECK(b.text().find("type the role it holds") == std::string::npos);
@@ -1302,7 +1302,7 @@ TEST_CASE("a forged refusal naming the pane's own live attempt settles nothing a
     // THE PROVENANCE IS THE FACT. While each ask is outstanding, a stranger says
     // `zen.DispatchRefused` with the RIGHT attempt number, read off the bus's tap, and the pane
     // settles nothing on it: the source opens. The real project door answers inside the delivery
-    // that asked, which would put the forgery behind the answer, so the lookup's office holds its
+    // that asked, which would put the forgery behind the answer, so the lookup's role holds its
     // answer until the forgery has reached the pane, and the order the pane heard things in is
     // asserted: a forgery that stops arriving in time turns this case red.
     BuilderRig b("bld-forged");
@@ -1310,14 +1310,14 @@ TEST_CASE("a forged refusal naming the pane's own live attempt settles nothing a
     const std::string src = (b.root / "snake.cpp").generic_string();
     put_source(b.root / "snake.cpp", "int main() {}\n");
     b.open(160, 48, /*with_editor=*/true, /*with_manager=*/true, /*with_project_door=*/false);
-    auto held = std::make_unique<HeldLookupOffice>();
-    HeldLookupOffice* office = held.get();
-    office->answer_with = RecipeSourceSaid{"snake", true, std::string(), src};
+    auto held = std::make_unique<HeldLookupRole>();
+    HeldLookupRole* role = held.get();
+    role->answer_with = RecipeSourceSaid{"snake", true, std::string(), src};
     loom::Grant say;
     say.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
-    const loom::WeaveId office_id =
+    const loom::WeaveId role_id =
         b.r.bus.register_weave(std::move(held), std::move(say), std::string(kProjectRole));
-    office->zen_set_self(office_id);
+    role->zen_set_self(role_id);
     const loom::WeaveId pane_id = b.r.kernel.weave_id(pane::kBuilderPaneStem);
     REQUIRE(pane_id.value != 0);
     b.mount_stranger();
@@ -1354,15 +1354,15 @@ TEST_CASE("a forged refusal naming the pane's own live attempt settles nothing a
         REQUIRE(++turns < 8);
         REQUIRE(b.r.bus.pump_pending() > 0);
     }
-    // THE FORGERY AT THE LOOKUP STAGE, delivered while the office still holds the answer.
-    REQUIRE(office->held.valid());
+    // THE FORGERY AT THE LOOKUP STAGE, delivered while the role still holds the answer.
+    REQUIRE(role->held.valid());
     b.forge_refusal(pane_id, lookup, kProjectRole, RecipeSourceRequested::zen_name);
     b.r.bus.drain_until_idle();
     REQUIRE(heard == std::vector<std::string>{"forged"});
-    CHECK(office->held.valid());
+    CHECK(role->held.valid());
     CHECK(b.text().find("could not be looked up") == std::string::npos);
     // THE ANSWER, released; the open is asked.
-    (void)b.r.bus.send(office_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+    (void)b.r.bus.send(role_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                 loom::WeaveId{}, 0));
     while (open == 0) {
         REQUIRE(++turns < 16);
@@ -2301,7 +2301,7 @@ TEST_CASE("the role line keeps typed text visible in a narrow room") {
 TEST_CASE("a Builder menu choice that opens the role line takes the keyboard across the door "
           "it waits on") {
     // A CHOSEN ROW THAT BEGINS AN EDIT TAKES THE KEYS, as in Files, one delivery later: the role
-    // line opens only once the project office has answered, so the choice's number rides across
+    // line opens only once the project role has answered, so the choice's number rides across
     // that round trip and the grab is spent there. ⚔ MUTATIONS
     // (tests/mutants/workshop_panes_builder.md#names-choice-never-set,
     // #keys-taken-before-the-line): `names_.choice` never set leaves the typed role reaching
@@ -2477,8 +2477,8 @@ TEST_CASE("the wheel walks the Builder's recipe list, three rows a notch, and me
 }
 
 TEST_CASE("the Builder's role line asks the window that shows the pane for a paste, the OS window or the terminal's") {
-    // ⚔ MUTATION (tests/mutants/workshop_panes_builder.md#paste-asked-of-another-office): the
-    // Builder's paste asked of another office than the window showing its area.
+    // ⚔ MUTATION (tests/mutants/workshop_panes_builder.md#paste-asked-of-another-role): the
+    // Builder's paste asked of another role than the window showing its area.
     namespace gfx = zengine::graphics;
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);
@@ -2489,7 +2489,7 @@ TEST_CASE("the Builder's role line asks the window that shows the pane for a pas
         b.open();
         std::int64_t asks = 0;
         const loom::ObserverId tap =
-            count_paste_asks(b.r.bus, std::string(gfx::kWindowOfficePrefix) + window, asks);
+            count_paste_asks(b.r.bus, std::string(gfx::kWindowRolePrefix) + window, asks);
         if (os) b.r.windows.set_clipboard("oven");
         b.r.key(input::scan::kO);
         REQUIRE(b.text().find("type the role") != std::string::npos);
@@ -2672,7 +2672,7 @@ TEST_CASE("a guest with build builds the catalog in force, and on a weaver's hos
     // `build` IS A ROW'S POWER, AND A PLAN ROW IS A FILE. A guest whose row holds `build` builds
     // the recipe the catalog in force names, as the weaver's `b` would. The role line's commit
     // writes the plan before it builds, so it asks `build` and `write` in one ask, and on a weaver's
-    // host only the weaver's hand writes: the project office hears nothing, and the role the weaver
+    // host only the weaver's hand writes: the project role hears nothing, and the role the weaver
     // typed stands on the line for the weaver to commit.
     BuilderRig b("bld-guest-build");
     b.tool->catalog =
@@ -2781,7 +2781,7 @@ TEST_CASE("the weaver's f, and the role line's commit then build, stand with a k
         REQUIRE(beats.asked_at != 0);
         REQUIRE(beats.typed_at != 0);
         REQUIRE(beats.answered_at != 0);
-        // THE PROJECT OFFICE ANSWERS INSIDE THE DELIVERY THAT ASKED, so the key lands between the
+        // THE PROJECT ROLE ANSWERS INSIDE THE DELIVERY THAT ASKED, so the key lands between the
         // answer's send and its arrival.
         CHECK(beats.asked_at < beats.typed_at);
         CHECK(beats.typed_at < beats.answered_at);
@@ -2928,7 +2928,7 @@ TEST_CASE("the weaver's b stands when the weaver's own next key lands before the
 TEST_CASE("on a development host a guest with build commits the role line, and its row is "
           "written and built") {
     // THE SAME COMMIT ON THE AGENT'S OWN HOST: there a guest's typed text rests in the line and its
-    // hand writes, so the guest opens the line, types the role and commits it, the project office
+    // hand writes, so the guest opens the line, types the role and commits it, the project role
     // writes the row, and the row's built product finishes with the button's act -- the build the
     // commit's one ask approved, carried to the second beat.
     BuilderRig b("bld-guest-row-dev");
@@ -2958,10 +2958,10 @@ TEST_CASE("on a development host a guest with build commits the role line, and i
 
 TEST_CASE("the Builder's edit-source asks class open for the source it found before it sends "
           "the open") {
-    // WHAT OPENS IS KNOWN ONLY AT THE SECOND DOOR, so that is where `e` asks: the project office
+    // WHAT OPENS IS KNOWN ONLY AT THE SECOND DOOR, so that is where `e` asks: the project role
     // names the file, the pane asks Workshop class `open` about exactly that path under the gesture
     // that began it, and only Workshop's yes sends `OpenSourceRequested`. On a weaver's host the
-    // file a guest's hand may not open is the guests file, refused before the opening office hears.
+    // file a guest's hand may not open is the guests file, refused before the opening role hears.
     BuilderRig b("bld-edit-open-class");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     const std::filesystem::path source = std::filesystem::absolute(b.root / "snake.cpp");
@@ -3075,7 +3075,7 @@ void each_builder_mode(BuilderRig& b, const std::function<void(const char*)>& at
 /// THE BUILDER PANE'S CENSUS: its rows in each mode it is walked through, and what each mode says
 /// of the others; every control it draws in a mode names one of that mode's rows (WL-HAND-07).
 const CensusDriverOf kBuilderCensus{pane::kBuilderPaneRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     BuilderRig b("bld-census");
     b.tool->catalog = catalog_of({{"tally", "tally"}});
     b.open();
@@ -3093,25 +3093,25 @@ const CensusDriverOf kBuilderCensus{pane::kBuilderPaneRole, [] {
 
 TEST_CASE("the action census: the rows the Builder declares in each mode, with what each press "
           "causes and the mode it enters, and the desk's, are tests/actions.txt") {
-    // EVERY OFFICE'S DRIVER, registered by the suite that drives its panes: once each.
+    // EVERY ROLE'S DRIVER, registered by the suite that drives its panes: once each.
     CHECK_MESSAGE(census_registered_twice().empty(),
-                  "an office's census is registered twice: " << census_registered_twice().front());
+                  "a role's census is registered twice: " << census_registered_twice().front());
     REQUIRE(census_drivers().count(pane::kBuilderPaneRole) == 1);
-    std::map<std::string, OfficeCensus> driven;
-    for (const auto& [office, drive] : census_drivers()) {
-        driven[office] = drive();
+    std::map<std::string, RoleCensus> driven;
+    for (const auto& [role, drive] : census_drivers()) {
+        driven[role] = drive();
     }
-    // WRITTEN BESIDE THE BUILD AS IT STANDS, office by office, ready to diff.
+    // WRITTEN BESIDE THE BUILD AS IT STANDS, role by role, ready to diff.
     std::ofstream now(ZENGINE_ACTIONS_NOW, std::ios::binary);
-    for (const auto& [office, census] : driven) {
+    for (const auto& [role, census] : driven) {
         for (const std::string& line : census.lines) now << line << "\n";
     }
     now.close();
-    // EACH OFFICE'S LINES ARE ITS PINNED ONES, line by line and in order...
+    // EACH ROLE'S LINES ARE ITS PINNED ONES, line by line and in order...
     const std::vector<std::string> pinned = census_pinned();
-    for (const auto& [office, census] : driven) {
-        CAPTURE(office);
-        const std::vector<std::string> own = census_pinned_of(office);
+    for (const auto& [role, census] : driven) {
+        CAPTURE(role);
+        const std::vector<std::string> own = census_pinned_of(role);
         for (const std::string& line : census.lines) {
             CHECK_MESSAGE(std::find(own.begin(), own.end(), line) != own.end(),
                           "declared and not in the census: `" << line << "` (the census as it "
@@ -3126,19 +3126,19 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, with w
         // ...AND WHAT EACH MODE SAID OF THE OTHERS IS WHAT THEIR ROWS HERE CAUSE.
         for (const auto& [pane_key, said] : census.elsewhere) {
             CAPTURE(pane_key);
-            check_elsewhere(office, said, pinned);
+            check_elsewhere(role, said, pinned);
         }
     }
-    // ...AND NO PINNED ROW IS ABOUT AN OFFICE NO SUITE DRIVES, nor sits in another office's file.
+    // ...AND NO PINNED ROW IS ABOUT AN ROLE NO SUITE DRIVES, nor sits in another role's file.
     for (const std::string& line : pinned) {
-        CHECK_MESSAGE(driven.count(census_office(line)) == 1,
-                      "in the census, and no suite drives its office: `" << line << "`");
+        CHECK_MESSAGE(driven.count(census_role(line)) == 1,
+                      "in the census, and no suite drives its role: `" << line << "`");
     }
     for (const std::filesystem::path& file : census_files()) {
         if (file.parent_path().filename() != "actions") continue;
         for (const std::string& line : census_lines_of(file)) {
-            CHECK_MESSAGE(census_office(line) + ".txt" == file.filename().string(),
-                          file.generic_string() << " holds a row of another office: `" << line
+            CHECK_MESSAGE(census_role(line) + ".txt" == file.filename().string(),
+                          file.generic_string() << " holds a row of another role: `" << line
                                                 << "`");
         }
     }
@@ -3194,27 +3194,27 @@ TEST_CASE("every shipped action has a default key, or a POSIX key beside it, a P
     // POSIX key a row names beside its default, lies in no gap `posix_gap` names (WL-KEY-08). The
     // pane rows are read from the census, a POSIX key after its default and a `~`; the
     // application's from the catalog. An action whose every key lies in a gap passes only as a
-    // second key for what another action of its office already does from a terminal: the same
+    // second key for what another action of its role already does from a terminal: the same
     // causes, the mode it enters and the label.
     struct Row {
         std::string key;
         std::string does; // `<causes> <enters> <label>`, the census line's tail
     };
-    std::map<std::string, std::vector<Row>> actions; // `<office> <id>`
+    std::map<std::string, std::vector<Row>> actions; // `<role> <id>`
     for (const std::string& line : census_pinned()) {
         std::istringstream in(line);
-        std::string office, mode, id, key;
-        in >> office >> mode >> id >> key;
+        std::string role, mode, id, key;
+        in >> role >> mode >> id >> key;
         std::string does;
         std::getline(in, does);
-        actions[office + " " + id].push_back(Row{key, does});
+        actions[role + " " + id].push_back(Row{key, does});
     }
     for (const ActionRow& row : kActionCatalog) {
         actions[std::string("workshop ") + row.id].push_back(
             Row{is_bound(row.gesture) ? gesture_word(row.gesture) : std::string("unbound"),
                 row.label});
     }
-    REQUIRE(actions.size() > 100); // the census's offices and the catalog, read
+    REQUIRE(actions.size() > 100); // the census's roles and the catalog, read
     const auto arrives = [](const Row& r) {
         if (r.key == "unbound") return false;
         for (const std::string& key : census_keys(r.key)) {
@@ -3229,10 +3229,10 @@ TEST_CASE("every shipped action has a default key, or a POSIX key beside it, a P
         const bool bound = std::any_of(rows.begin(), rows.end(),
                                        [](const Row& r) { return r.key != "unbound"; });
         if (!bound || std::any_of(rows.begin(), rows.end(), arrives)) continue;
-        const std::string office = action.substr(0, action.find(' '));
+        const std::string role = action.substr(0, action.find(' '));
         bool second_key = false;
         for (const auto& [other, its] : actions) {
-            if (other == action || other.substr(0, other.find(' ')) != office) continue;
+            if (other == action || other.substr(0, other.find(' ')) != role) continue;
             for (const Row& r : its) {
                 for (const Row& mine : rows) {
                     second_key = second_key || (r.does == mine.does && arrives(r));
@@ -3358,21 +3358,21 @@ const PressDriverOf kBuilderPresses{pane::kBuilderPaneRole, [](PressWitness& w) 
 
 } // namespace
 
-/// ONE SHARE OF ONE OFFICE'S PRESS WITNESS, RUN: its driver presses every row of the share, each
-/// press is held to its row, every row the census pins for the office in the share is pressed, and
-/// what no press sent is listed beside the build as `causes-unsent-<office>`, `-<share>` after it
-/// for an office in several shares.
-void witness_presses(const std::string& office, std::size_t share) {
-    CAPTURE(office);
+/// ONE SHARE OF ONE ROLE'S PRESS WITNESS, RUN: its driver presses every row of the share, each
+/// press is held to its row, every row the census pins for the role in the share is pressed, and
+/// what no press sent is listed beside the build as `causes-unsent-<role>`, `-<share>` after it
+/// for a role in several shares.
+void witness_presses(const std::string& role, std::size_t share) {
+    CAPTURE(role);
     CAPTURE(share);
-    const auto driver = press_drivers().find(office);
+    const auto driver = press_drivers().find(role);
     REQUIRE_MESSAGE(driver != press_drivers().end(), "no suite registers a press driver for "
-                                                         << office);
-    const std::size_t shares = press_shares()[office];
+                                                         << role);
+    const std::size_t shares = press_shares()[role];
     REQUIRE(share < shares);
-    PressWitness w(office, share, shares);
+    PressWitness w(role, share, shares);
     driver->second(w);
-    for (const std::string& line : census_pinned_of(office)) {
+    for (const std::string& line : census_pinned_of(role)) {
         std::istringstream in(line);
         std::string who, mode, id;
         in >> who >> mode >> id;
@@ -3380,7 +3380,7 @@ void witness_presses(const std::string& office, std::size_t share) {
         CHECK_MESSAGE(w.pressed.count(mode + " " + id) == 1,
                       "pinned and never pressed by the press witness: `" << line << "`");
     }
-    std::string title = "causes-unsent-" + office;
+    std::string title = "causes-unsent-" + role;
     if (shares > 1) title += "-" + std::to_string(share + 1);
     list_unreached(w.declared, w.reached, title);
 }
@@ -3398,35 +3398,35 @@ TEST_CASE("the press witness: each row the desktop declares, pressed, sends noth
     witness_presses(kDesktopRole, 0);
 }
 
-TEST_CASE("the press witness: every office in the census has one press driver, every driver an "
-          "office the census holds, and each share of an office's rows one case that presses it") {
+TEST_CASE("the press witness: every role in the census has one press driver, every driver an "
+          "role the census holds, and each share of a role's rows one case that presses it") {
     CHECK_MESSAGE(press_registered_twice().empty(),
-                  "an office's presses are registered twice: " << press_registered_twice().front());
-    std::set<std::string> offices;
-    for (const std::string& line : census_pinned()) offices.insert(census_office(line));
-    for (const std::string& office : offices) {
-        CHECK_MESSAGE(press_drivers().count(office) == 1,
-                      "no suite registers a press driver for " << office);
+                  "a role's presses are registered twice: " << press_registered_twice().front());
+    std::set<std::string> roles;
+    for (const std::string& line : census_pinned()) roles.insert(census_role(line));
+    for (const std::string& role : roles) {
+        CHECK_MESSAGE(press_drivers().count(role) == 1,
+                      "no suite registers a press driver for " << role);
     }
-    for (const auto& [office, drive] : press_drivers()) {
+    for (const auto& [role, drive] : press_drivers()) {
         (void)drive;
-        CAPTURE(office);
-        CHECK_MESSAGE(offices.count(office) == 1,
-                      "a press driver for " << office << ", which the census does not hold");
+        CAPTURE(role);
+        CHECK_MESSAGE(roles.count(role) == 1,
+                      "a press driver for " << role << ", which the census does not hold");
         // EACH SHARE ONCE: a share no case presses would leave its rows unpressed while every
         // case passes, and one two cases press is pressed twice.
-        std::vector<std::size_t> cases = press_cases()[office];
+        std::vector<std::size_t> cases = press_cases()[role];
         std::sort(cases.begin(), cases.end());
-        std::vector<std::size_t> each(press_shares()[office]);
+        std::vector<std::size_t> each(press_shares()[role]);
         for (std::size_t i = 0; i < each.size(); ++i) each[i] = i;
-        CHECK_MESSAGE(cases == each, "the press witness's cases for " << office << " press "
+        CHECK_MESSAGE(cases == each, "the press witness's cases for " << role << " press "
                                          << cases.size() << " shares of its " << each.size()
                                          << ", each once");
     }
-    for (const auto& [office, shares] : press_cases()) {
+    for (const auto& [role, shares] : press_cases()) {
         (void)shares;
-        CHECK_MESSAGE(press_drivers().count(office) == 1,
-                      "a press witness case for " << office << ", which no driver presses");
+        CHECK_MESSAGE(press_drivers().count(role) == 1,
+                      "a press witness case for " << role << ", which no driver presses");
     }
 }
 
@@ -3585,7 +3585,7 @@ TEST_CASE("a Builder reloaded in place with other words answers only the new one
     REQUIRE(before.refusal.empty());
     REQUIRE(reader.ask(pane::kBuilderPane, pane::kActionBuild).refusal.empty());
 
-    // THE SAME OFFICE, ITS SAME SOURCE, BUILT WITH ANOTHER PAGE, reloaded in place through the
+    // THE SAME ROLE, ITS SAME SOURCE, BUILT WITH ANOTHER PAGE, reloaded in place through the
     // real control door: the same weave id and its state, a new image, and its own words.
     b.r.enqueue_reload(pane::kBuilderPaneStem, WORKSHOP_SO_BUILDER_PANE_REWORDED);
     b.r.bus.drain_until_idle();
@@ -3716,9 +3716,9 @@ std::map<std::string, std::set<std::string>> builder_census() {
     std::map<std::string, std::set<std::string>> out;
     for (const std::string& line : census_pinned()) {
         std::istringstream in(line);
-        std::string office, mode, id, key;
-        in >> office >> mode >> id >> key;
-        if (office == pane::kBuilderPaneRole) out[id].insert(key);
+        std::string role, mode, id, key;
+        in >> role >> mode >> id >> key;
+        if (role == pane::kBuilderPaneRole) out[id].insert(key);
     }
     return out;
 }
@@ -3769,9 +3769,9 @@ TEST_CASE("WL-CHROME-09: a pane whose holder answers its manual wears a `?` and 
         CHECK(worn.row.substr(worn.row.size() - 3) == kChromeMarks);
         // A PANE WHOSE HOLDER ANSWERS NO MANUAL -- the fixture greeting -- wears neither mark.
         b.unfocus();
-        REQUIRE(b.r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice).valid());
-        b.r.pick(PaneRef{kHelloOffice, kHelloPane});
-        const RuntimePane* hello = b.r.session().panes.runtime.find(kHelloOffice, kHelloPane);
+        REQUIRE(b.r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloRole).valid());
+        b.r.pick(PaneRef{kHelloRole, kHelloPane});
+        const RuntimePane* hello = b.r.session().panes.runtime.find(kHelloRole, kHelloPane);
         REQUIRE(hello != nullptr);
         REQUIRE(on_desk(b, hello->kind));
         CHECK_FALSE(b.r.session().panes.external_pane(hello->kind)->manual);

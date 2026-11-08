@@ -3,11 +3,11 @@
 #ifndef ZENGINE_WORKSHOP_PANE_SEAT_HPP
 #define ZENGINE_WORKSHOP_PANE_SEAT_HPP
 
-// What an office offering several panes keeps for each one, and the conversation it holds with
+// What a role offering several panes keeps for each one, and the conversation it holds with
 // Workshop and the graphics windows about all of them: the window that shows one pane's area and
-// the rows drawn there (`PaneCanvasSeat`), and the office's activation, catalog answer, manual and
-// window rooms (`MultiPaneFacet`, composed with `zengine::With`, activation/activation.hpp). An
-// office of one pane composes workshop/pane_facets.hpp instead.
+// the rows drawn there (`PaneCanvasSeat`), and the role's activation, catalog answer, manual and
+// window rooms (`MultiPaneFacet`, composed with `zengine::With`, activation/activation.hpp). A
+// role of one pane composes workshop/pane_facets.hpp instead.
 
 #include "activation/activation.hpp"
 #include "graphics/canvas.hpp"
@@ -31,32 +31,32 @@
 
 namespace zengine::workshop {
 
-/// ONE PANE'S AREA, AS AN OFFICE OF SEVERAL PANES KEEPS IT: the graphics window that shows it, the
+/// ONE PANE'S AREA, AS AN ROLE OF SEVERAL PANES KEEPS IT: the graphics window that shows it, the
 /// rows and columns the pane composes for there -- a row a line of the window's text and a
 /// character an advance of it -- and the rows last drawn there with their parts and caret. Named
-/// by its pane and the office it speaks as. Transient, as every room is.
+/// by its pane and the role it speaks as. Transient, as every room is.
 class PaneCanvasSeat {
 public:
     PaneCanvasSeat() = default;
-    PaneCanvasSeat(std::string pane, std::string office)
-        : pane_(std::move(pane)), office_(std::move(office)),
-          window_(office_, area_of(office_, pane_)) {}
+    PaneCanvasSeat(std::string pane, std::string role)
+        : pane_(std::move(pane)), role_(std::move(role)),
+          window_(role_, area_of(role_, pane_)) {}
 
-    /// THE AREA A GRAPHICS WINDOW SHOWS A PANE IN: its office and its key, as
+    /// THE AREA A GRAPHICS WINDOW SHOWS A PANE IN: its role and its key, as
     /// `zengine.desktop.launcher`.
-    static std::string area_of(const std::string& office, const std::string& pane) {
-        return office + "." + pane;
+    static std::string area_of(const std::string& role, const std::string& pane) {
+        return role + "." + pane;
     }
 
     const std::string& pane() const noexcept { return pane_; }
-    const std::string& office() const noexcept { return office_; }
+    const std::string& role() const noexcept { return role_; }
     const std::string& area() const noexcept { return window_.area(); }
 
     /// A graphics window shows the pane's area, and gave it a room.
     bool granted() const noexcept { return in_window(); }
     bool in_window() const noexcept { return window_.shown(); }
-    /// The office a paste is asked of: the window showing the area, none while no window does.
-    std::string clipboard_office() const { return window_.clipboard_office(); }
+    /// The role a paste is asked of: the window showing the area, none while no window does.
+    std::string clipboard_role() const { return window_.clipboard_role(); }
     /// The rows and columns the pane composes for: the window room's.
     std::int64_t rows() const noexcept { return rows_; }
     std::int64_t columns() const noexcept { return columns_; }
@@ -65,7 +65,7 @@ public:
     RowsRoom room() const { return window_.rows_room(); }
 
     /// THE ROOM A GRAPHICS WINDOW GIVES THE PANE, said by the window that shows its area as that
-    /// window's office: true when the window, its incarnation, its size or its measure changed or
+    /// window's role: true when the window, its incarnation, its size or its measure changed or
     /// the area is empty, so the window holds none of the pane's rows.
     bool window_room(const graphics::AreaRoom& r, const loom::Mail& mail) {
         if (!window_.room(r, mail)) {
@@ -84,7 +84,7 @@ public:
         return window_.refused(refused, mail);
     }
 
-    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: the
+    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its role: the
     /// place of the part named `asked.action` in the rows last drawn there. None for any other
     /// asker or area, or an action those rows name no part by: no act, and nothing spent.
     std::optional<RowCell> window_part(const graphics::ActionRequested& asked,
@@ -101,7 +101,7 @@ public:
         return window_.from_window(about, mail);
     }
 
-    /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's office, read onto the
+    /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's role, read onto the
     /// rows last drawn there (`WindowDrawing::pointer`). None for another area or speaker.
     template <class Moment>
     std::optional<WindowPointer> window_pointer(const Moment& moment,
@@ -142,11 +142,11 @@ public:
     /// The cell the pointer rests on, as the weave was last handed it, if it rests there.
     const std::optional<RowCell>& resting() const noexcept { return rest_; }
 
-    /// THE ROOM ASKED OF THE GRAPHICS DIRECTORY, as the office, while no window has said it: a
+    /// THE ROOM ASKED OF THE GRAPHICS DIRECTORY, as the role, while no window has said it: a
     /// pane reloaded into a window draws there again.
     void ask_room(loom::Mail& mail) const {
         if (!in_window()) {
-            (void)mail.as_role(office_).send_to_role(graphics::kGraphicsRole,
+            (void)mail.as_role(role_).send_to_role(graphics::kGraphicsRole,
                                                      graphics::RoomAsked{area()});
         }
     }
@@ -186,7 +186,7 @@ public:
     }
 
 private:
-    std::string pane_, office_;
+    std::string pane_, role_;
     std::int64_t rows_ = 0, columns_ = 0;
     WindowDrawing window_{std::string(), std::string()};
     /// The rows, parts and caret last said, and where a press in the window reaches each named
@@ -201,12 +201,12 @@ private:
     std::optional<RowCell> rest_;
 };
 
-/// THE OFFICE OF SEVERAL PANES AS WORKSHOP AND THE WINDOWS HEAR IT: its activation, its offers on
+/// THE ROLE OF SEVERAL PANES AS WORKSHOP AND THE WINDOWS HEAR IT: its activation, its offers on
 /// each one and on Workshop's catalog request (the weave's `announce`, or its `on_activated`), its
 /// manual from `Page` about any pane it offers (`known_pane`), answered about `DefaultPane` for a
 /// key it does not, which the answer refuses by name, and each pane's window room, refusals and
 /// presses, found by area among the seats the weave's `each_seat` visits.
-template <const char* const& Office, const char* const& DefaultPane, const manual::Manual& Page,
+template <const char* const& Role, const char* const& DefaultPane, const manual::Manual& Page,
           bool HearsRest = false>
 class MultiPaneFacet {
 public:
@@ -224,7 +224,7 @@ public:
     using Emit = loom::Emit<PaneDocumentShown, graphics::Drawn, graphics::RoomAsked>;
 
     /// An accepted activation offers the panes, or is the weave's `on_activated`, which does; then
-    /// each pane's window room is asked, once a life, so a reloaded office draws there again.
+    /// each pane's window room is asked, once a life, so a reloaded role draws there again.
     template <class Self>
     void on(Self& self, const loom::Activated& activated, loom::Mail& mail) {
         if (!activation_.accept(mail, activated)) {
@@ -272,7 +272,7 @@ public:
     }
 
     /// THE POINTER IN A WINDOW, given by the window that shows one of the panes' areas as its
-    /// office, a hold it ended included: the moment read onto the rows drawn there, to the weave's
+    /// role, a hold it ended included: the moment read onto the rows drawn there, to the weave's
     /// `on_window_pointer(pane, pointer, keys_went_here, mail)` where it has one -- else a
     /// first-button press on a shown cell to its `on_window_press`. Whether the keys were already
     /// the pane's is the last `PaneKeys` Workshop said about it.
@@ -280,7 +280,7 @@ public:
     void on(Self& self, const graphics::AreaButtonChanged& b, loom::Mail& mail) {
         window_moment(self, b.area, b, mail);
     }
-    /// ...A MOVE, and where the medium reports one, for an office whose panes hear it
+    /// ...A MOVE, and where the medium reports one, for a role whose panes hear it
     /// (`kHearsRest`), the pointer resting on the rows: a move with no button held is also the
     /// weave's `on_window_rest(pane, cell, mail)`, once each time the cell under it changes.
     template <class Self>
@@ -352,13 +352,13 @@ public:
         (void)mail.answer(pane_document(ask, pane, Page));
     }
 
-    /// Whether this delivery is Workshop's own word, as its office.
+    /// Whether this delivery is Workshop's own word, as its role.
     static bool from_workshop(const loom::Mail& mail) {
         return mail.authored_from_role(pane_menu::kWorkshopRole);
     }
 
-    /// The office whose panes these are.
-    static const char* office() noexcept { return Office; }
+    /// The role whose panes these are.
+    static const char* role() noexcept { return Role; }
     const ActivationCursor& activation() const noexcept { return activation_; }
 
 private:

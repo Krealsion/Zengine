@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // Suite `workshop_neovim`: the Neovim-backed Editor (`editor/neovim-editor/`) holding the Editor's
-// office in a LIVE Workshop, through the switch suite's rig (`workshop_switch_rig.hpp`).
+// role in a LIVE Workshop, through the switch suite's rig (`workshop_switch_rig.hpp`).
 // Always: no Neovim, and a fake one (`neovim-fixture`) failing at start each way a real one
 // can. Behind the `neovim` gate: a real Neovim, documents crossing both ways exactly. A case
 // hands the coordinator and the Neovim holder their beats (no Timer is mounted), and every
@@ -41,7 +41,7 @@ inline std::vector<load::ChoiceIntent> standard_and_neovim() {
             load::ChoiceIntent{pane::kEditorPaneRole, "neovim", nve::kNeovimEditorStem}};
 }
 
-/// Whether the office's holder now hears a Timer firing: the Neovim-backed Editor does, from its
+/// Whether the role's holder now hears a Timer firing: the Neovim-backed Editor does, from its
 /// activation on, as it orders its beat; the standard Editor does not.
 bool holder_hears_beats(SwitchRig& s) {
     for (const auto& schema : s.r.bus.accepted_schemas(s.holder())) {
@@ -52,7 +52,7 @@ bool holder_hears_beats(SwitchRig& s) {
     return false;
 }
 
-/// ONE BEAT, AS THE TIMER WOULD GIVE IT: to the switch coordinator, and to the office's holder when
+/// ONE BEAT, AS THE TIMER WOULD GIVE IT: to the switch coordinator, and to the role's holder when
 /// it hears one -- the Neovim-backed Editor, from its activation, so also while a switch proves
 /// it. Then drain.
 void beat(SwitchRig& s) {
@@ -93,13 +93,13 @@ EditorSwitchAnswered switch_live(SwitchRig& s, const std::string& destination, i
     return s.asker->answers.back();
 }
 
-/// ASK THE OFFICE TO OPEN A FILE, and hand back what the opening came to.
-SourceOpened open_through_office(SwitchRig& s, const char* name, const std::string& bytes) {
+/// ASK THE ROLE TO OPEN A FILE, and hand back what the opening came to.
+SourceOpened open_through_role(SwitchRig& s, const char* name, const std::string& bytes) {
     put_bytes(s.root / name, bytes);
     const std::string path = spelled(s.root / name);
     const std::size_t before = s.asker->opens.size();
     s.enqueue([path](SwitchAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kSwitchAskerOffice).send_to_role(kOpeningRole, OpenSourceRequested{path});
+        (void)mail.as_role(kSwitchAskerRole).send_to_role(kOpeningRole, OpenSourceRequested{path});
     });
     s.r.bus.drain_until_idle();
     (void)beat_until(s, [&] { return s.asker->opens.size() > before; });
@@ -120,7 +120,7 @@ std::string file_text(const std::filesystem::path& at) {
 void focus(SwitchRig& s) { press_pane(s.r, s.kind, 0, 0); }
 #endif
 
-/// A CONSOLE, reduced to what the baseline case needs: it asks the office one sentence from inside
+/// A CONSOLE, reduced to what the baseline case needs: it asks the role one sentence from inside
 /// its own delivery -- an ask, with the answer right Loom gives an ask -- and keeps what came back.
 class ConsoleSeat : public loom::WeaveBase<ConsoleSeat, SeenState,
                                            loom::Accept<SeatDo, loom::Result, loom::Refused>,
@@ -187,7 +187,7 @@ TimerSeat* mount_timer(SwitchRig& s) {
     return raw;
 }
 
-/// THE IDS THE OFFICE'S HOLDER DECLARES NOW, as Workshop holds its rows.
+/// THE IDS THE ROLE'S HOLDER DECLARES NOW, as Workshop holds its rows.
 std::set<std::string> declared_ids(SwitchRig& s) {
     const RuntimePane* row = s.r.session().panes.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
     REQUIRE(row != nullptr);
@@ -253,7 +253,7 @@ TEST_CASE("a profile that is neither clean nor user and names no init file refus
     const std::string here =
         (std::filesystem::current_path() / "User").generic_string();
     CHECK(answered.detail.find(here) != std::string::npos);
-    // ...AND THE STANDARD EDITOR KEPT THE OFFICE AND THE DOCUMENT.
+    // ...AND THE STANDARD EDITOR KEPT THE ROLE AND THE DOCUMENT.
     CHECK(s.r.plan_->choice_holder(pane::kEditorPaneRole) == pane::kEditorPaneStem);
     CHECK(s.read("text") == "one\n");
 }
@@ -293,7 +293,7 @@ TEST_CASE("a Neovim that never answers keeps the switch pending and cancellable,
     CHECK(s.r.kernel.is_loaded(nve::kNeovimEditorStem));
     const std::int64_t op = s.switcher->op();
     s.enqueue([op](SwitchAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchCancelled{op});
+        (void)mail.as_role(kSwitchAskerRole).send_to_role(kEditorSwitchRole, EditorSwitchCancelled{op});
     });
     s.r.bus.drain_until_idle();
     REQUIRE(s.asker->answers.size() == before + 2);
@@ -322,12 +322,12 @@ TEST_CASE("a Neovim that never answers a question holds no handler: the rest of 
     ConsoleSeat* console = held.get();
     loom::Grant may_ask;
     may_ask.allow_to_role(nve::NeovimStatusRequested::zen_name, nve::NeovimStatusRequested::zen_version,
-                          nve::kEditorOffice);
+                          nve::kEditorRole);
     const loom::WeaveId console_id =
         s.r.bus.register_weave(std::move(held), std::move(may_ask), std::string("zengine.test.console"));
     console->zen_set_self(console_id);
     console->next = [](loom::Mail& mail) {
-        (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorOffice, nve::NeovimStatusRequested{});
+        (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorRole, nve::NeovimStatusRequested{});
     };
     const auto began = std::chrono::steady_clock::now();
     (void)s.r.bus.send(console_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -348,19 +348,19 @@ TEST_CASE("a Neovim that never answers a question holds no handler: the rest of 
     s.r.bus.remove_observer(watching);
 }
 
-TEST_CASE("the Neovim editor holding the office with no Neovim says so on its pane, refuses an open in words, and permits the quit") {
+TEST_CASE("the Neovim editor holding the role with no Neovim says so on its pane, refuses an open in words, and permits the quit") {
     SwitchRig s("nvim-absent-holder");
     NeovimEnvironment env(s.root, (s.root / "no-such-dir" / "nvim").string());
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     CHECK(s.read("running") == "false");
     CHECK_MESSAGE(s.shows("Neovim is not available"), s.status());
-    const SourceOpened opened = open_through_office(s, "a.cpp", "a\n");
+    const SourceOpened opened = open_through_role(s, "a.cpp", "a\n");
     CHECK_FALSE(opened.accepted);
     CHECK_MESSAGE(opened.refusal.find("Neovim is not available") != std::string::npos, opened.refusal);
     CHECK(quit_by_key(s));
 }
 
-TEST_CASE("the Neovim editor holding the office under a profile it refuses says so, and a press on the row "
+TEST_CASE("the Neovim editor holding the role under a profile it refuses says so, and a press on the row "
           "saying it moves nothing") {
     // THE PROFILE IS JUDGED BEFORE ANY NEOVIM IS MADE: no host stands behind the pane at all.
     SwitchRig s("nvim-profile-holder");
@@ -435,16 +435,16 @@ TEST_CASE("the Neovim editor declares `profile` and `status`: `status` off gives
     ConsoleSeat* console = held.get();
     loom::Grant may_ask;
     may_ask.allow_to_role(nve::NeovimStartRequested::zen_name, nve::NeovimStartRequested::zen_version,
-                          nve::kEditorOffice);
+                          nve::kEditorRole);
     may_ask.allow_to_role(nve::NeovimStopRequested::zen_name, nve::NeovimStopRequested::zen_version,
-                          nve::kEditorOffice);
+                          nve::kEditorRole);
     const loom::WeaveId console_id = s.r.bus.register_weave(std::move(held), std::move(may_ask),
                                                             std::string("zengine.test.console"));
     console->zen_set_self(console_id);
     const auto ask = [&](auto shape) {
         const std::size_t before = console->answers.size();
         console->next = [shape](loom::Mail& mail) {
-            (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorOffice, shape);
+            (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorRole, shape);
         };
         (void)s.r.bus.send(console_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
         s.r.bus.drain_until_idle();
@@ -462,20 +462,20 @@ TEST_CASE("the Neovim editor declares `profile` and `status`: `status` off gives
 }
 
 TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing of Neovim's screen") {
-    SUBCASE("a graphics window that shows the office's area is drawn the rows Workshop is told, "
+    SUBCASE("a graphics window that shows the role's area is drawn the rows Workshop is told, "
             "naming only the status row: whole first, then what changed; a press there moves "
             "nothing; a refused change is followed once by the whole, a refused whole by nothing "
             "until the rows change") {
         namespace gfx = zengine::graphics;
         namespace pw = zengine::testing::pane_window;
-        const char* office = nve::kEditorOffice;
-        const std::string area = pane_area(office, nve::kEditorPane);
+        const char* role = nve::kEditorRole;
+        const std::string area = pane_area(role, nve::kEditorPane);
         SwitchRig w("nvim-names-window");
         NeovimEnvironment env(w.root, (w.root / "no-such-dir" / "nvim").string());
         RoomAsks directory(w.r.bus);
         w.open(standard_and_neovim(), nve::kNeovimEditorStem);
-        // THE ROOM IS ASKED ONCE, on the holder's activation, as the office.
-        CHECK(directory.times(area, office) == 1);
+        // THE ROOM IS ASKED ONCE, on the holder's activation, as the role.
+        CHECK(directory.times(area, role) == 1);
         // A NOTICE THE PANE SAYS, as a refused beat makes one: each reason a change of its rows.
         const auto refuse_beat = [&w](const std::string& why) {
             (void)w.r.bus.send(w.holder(), loom::Message(loom::to_value(zengine::timer::TimerResolution{
@@ -486,7 +486,7 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
         };
         pw::Window window(w.r.bus);
         pw::PaneWindow& seen = window.weave();
-        window.room(area, office, 60, 8);
+        window.room(area, role, 60, 8);
         REQUIRE(seen.heard.size() == 1);
         CHECK(seen.heard[0].whole);
         CHECK(seen.refusals.empty());
@@ -519,7 +519,7 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
         // ...AND A REFUSED WHOLE BY NOTHING, until the rows change.
         seen.refuse_next = true;
         mark = seen.heard.size();
-        window.room(area, office, 60, 8, 2); // the window started again, holding nothing
+        window.room(area, role, 60, 8, 2); // the window started again, holding nothing
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK(seen.heard[mark].whole);
         CHECK(seen.refusals.size() == 2);
@@ -586,9 +586,9 @@ TEST_CASE("a reload of the Neovim editor is refused while its Neovim runs, said 
     CHECK_MESSAGE(s.shows("a reload of the Neovim editor was refused"), s.status());
 }
 
-TEST_CASE("the manual the Neovim editor answers is the Editor office's page, naming exactly the "
-          "commands both holders of the office declare") {
-    // THE STANDARD EDITOR'S IDS, from the office's other holder...
+TEST_CASE("the manual the Neovim editor answers is the Editor role's page, naming exactly the "
+          "commands both holders of the role declare") {
+    // THE STANDARD EDITOR'S IDS, from the role's other holder...
     std::set<std::string> declared;
     {
         SwitchRig other("nvim-manual-standard");
@@ -648,7 +648,7 @@ TEST_CASE("standard to Neovim and back carries the unsaved document and its care
 
     const EditorSwitchAnswered back = switch_live(s, "standard");
     REQUIRE_MESSAGE(back.outcome == switch_outcome::kSwitched, back.detail);
-    // ...and the standard Editor's passes Neovim's, drawn in the office's area
+    // ...and the standard Editor's passes Neovim's, drawn in the role's area
     CHECK(std::stoll(s.read("doc_epoch")) > neovim_generation);
     REQUIRE(s.seat() != nullptr);
     CHECK(shows_canvas(*s.seat()));
@@ -699,7 +699,7 @@ TEST_CASE("Escape in the Neovim pane is Neovim's and leaves the pane selected") 
     SwitchRig s("nvim-escape");
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
     s.open(standard_and_neovim());
-    const SourceOpened opened = open_through_office(s, "esc.txt", "alpha\nbeta\n");
+    const SourceOpened opened = open_through_role(s, "esc.txt", "alpha\nbeta\n");
     REQUIRE_MESSAGE(opened.accepted, opened.refusal);
     const EditorSwitchAnswered answered = switch_live(s, "neovim");
     REQUIRE_MESSAGE(answered.outcome == switch_outcome::kSwitched, answered.detail);
@@ -750,12 +750,12 @@ TEST_CASE("a selection crosses to Neovim as Visual and comes back as the same ra
     CHECK(s.read("caret_byte") == caret_byte);
 }
 
-TEST_CASE("an open through the office shows the file in Neovim, and the save chord writes it") {
+TEST_CASE("an open through the role shows the file in Neovim, and the save chord writes it") {
     SwitchRig s("nvim-open");
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
-    const SourceOpened opened = open_through_office(s, "open.txt", "first line\n");
+    const SourceOpened opened = open_through_role(s, "open.txt", "first line\n");
     REQUIRE_MESSAGE(opened.accepted, opened.refusal);
     CHECK(s.read("path") == spelled(s.root / "open.txt"));
     REQUIRE(beat_until(s, [&] { return s.shows("first line"); }));
@@ -774,7 +774,7 @@ TEST_CASE("an open in Neovim shows the opened file's picture at the commitment, 
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
-    REQUIRE(open_through_office(s, "alpha.txt", "alpha one\nalpha two\n").accepted);
+    REQUIRE(open_through_role(s, "alpha.txt", "alpha one\nalpha two\n").accepted);
     REQUIRE(beat_until(s, [&] { return s.shows("alpha one"); }));
     // EVERY DRAWING THE WINDOW HEARS FROM THE EDITOR ONCE THE OPEN HAS COMMITTED, its words.
     bool committed = false;
@@ -788,7 +788,7 @@ TEST_CASE("an open in Neovim shows the opened file's picture at the commitment, 
         if (e.target == s.r.workshop_id && e.schema_name == ManagedOpenProgress::zen_name) {
             committed = committed || loom::from_value<ManagedOpenProgress>(*e.payload).stage == "apply";
         } else if (committed && e.schema_name == gfx::Drawn::zen_name &&
-                   e.authored_role == nve::kEditorOffice) {
+                   e.authored_role == nve::kEditorRole) {
             const gfx::Drawn drawn = loom::from_value<gfx::Drawn>(*e.payload);
             std::string text;
             for (const gfx::Node& n : drawn.put) {
@@ -798,7 +798,7 @@ TEST_CASE("an open in Neovim shows the opened file's picture at the commitment, 
             after.push_back(text);
         }
     })};
-    const SourceOpened opened = open_through_office(s, "bravo.txt", "bravo one\nbravo two\n");
+    const SourceOpened opened = open_through_role(s, "bravo.txt", "bravo one\nbravo two\n");
     REQUIRE_MESSAGE(opened.accepted, opened.refusal);
     // AT THE COMMITMENT THE DESK SHOWS THE OPENED FILE'S PICTURE, as Neovim prepared it.
     REQUIRE(s.seat() != nullptr);
@@ -823,7 +823,7 @@ TEST_CASE("Neovim's cursor on an empty line, and after blanks it typed, is drawn
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
-    REQUIRE(open_through_office(s, "cells.txt", "one\n\nthree\n").accepted);
+    REQUIRE(open_through_role(s, "cells.txt", "one\n\nthree\n").accepted);
     REQUIRE(beat_until(s, [&] { return s.shows("three"); }));
     focus(s);
     // THE BLOCK CURSOR ON THE EMPTY SECOND LINE: its one cell is the range, drawn on that row.
@@ -841,7 +841,7 @@ TEST_CASE("Neovim's cursor on an empty line, and after blanks it typed, is drawn
     s.r.key(input::scan::kEscape);
 }
 
-TEST_CASE("after a switch to Neovim, an open through the office shows another file in Neovim, beside the unsaved one") {
+TEST_CASE("after a switch to Neovim, an open through the role shows another file in Neovim, beside the unsaved one") {
     SwitchRig s("nvim-open-after-switch");
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
     s.open(standard_and_neovim());
@@ -850,7 +850,7 @@ TEST_CASE("after a switch to Neovim, an open through the office shows another fi
     s.type("x");
     REQUIRE(switch_live(s, "neovim").outcome == switch_outcome::kSwitched);
     REQUIRE(beat_until(s, [&] { return s.shows("xfirst"); }));
-    // THE TIMER DOES NOT WAIT FOR AN OPEN: a beat reaches the office between every turn of the
+    // THE TIMER DOES NOT WAIT FOR AN OPEN: a beat reaches the role between every turn of the
     // opening's conversation, as it does in a running Workshop. Loading the file hidden must not
     // move the document's claim while the opening binds it (measured: it did, and every such open
     // was refused as "the desk changed").
@@ -858,7 +858,7 @@ TEST_CASE("after a switch to Neovim, an open through the office shows another fi
     const std::string second = spelled(s.root / "second.txt");
     const std::size_t before = s.asker->opens.size();
     s.enqueue([second](SwitchAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kSwitchAskerOffice).send_to_role(kOpeningRole, OpenSourceRequested{second});
+        (void)mail.as_role(kSwitchAskerRole).send_to_role(kOpeningRole, OpenSourceRequested{second});
     });
     for (int turn = 0; turn < 400 && s.asker->opens.size() == before; ++turn) {
         (void)s.r.bus.pump_pending();
@@ -884,7 +884,7 @@ TEST_CASE("the orderly quit is refused while Neovim holds unsaved changes, namin
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
-    REQUIRE(open_through_office(s, "quit.txt", "text\n").accepted);
+    REQUIRE(open_through_role(s, "quit.txt", "text\n").accepted);
     focus(s);
     s.type("x");
     REQUIRE(beat_until(s, [&] { return s.read("modified") == "true"; }));
@@ -904,12 +904,12 @@ TEST_CASE("a switch away from Neovim names another modified buffer for consent, 
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
-    REQUIRE(open_through_office(s, "first.txt", "first\n").accepted);
+    REQUIRE(open_through_role(s, "first.txt", "first\n").accepted);
     focus(s);
     s.type("x");
     s.r.key(input::scan::kEscape);
     REQUIRE(beat_until(s, [&] { return s.read("modified") == "true"; }));
-    REQUIRE(open_through_office(s, "second.txt", "second\n").accepted);
+    REQUIRE(open_through_role(s, "second.txt", "second\n").accepted);
     REQUIRE(beat_until(s, [&] { return s.read("path") == spelled(s.root / "second.txt"); }));
 
     const EditorSwitchAnswered asked = switch_live(s, "standard");
@@ -921,7 +921,7 @@ TEST_CASE("a switch away from Neovim names another modified buffer for consent, 
     const std::int64_t op = asked.op;
     const std::string consent = asked.consent;
     s.enqueue([op, consent](SwitchAsker&, loom::Mail& mail) {
-        (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchConfirmed{op, consent});
+        (void)mail.as_role(kSwitchAskerRole).send_to_role(kEditorSwitchRole, EditorSwitchConfirmed{op, consent});
     });
     REQUIRE(beat_until(s, [&] { return s.asker->answers.size() > before; }));
     const EditorSwitchAnswered done = s.asker->answers.back();
@@ -931,7 +931,7 @@ TEST_CASE("a switch away from Neovim names another modified buffer for consent, 
     CHECK(file_text(s.root / "first.txt") == "first\n"); // the consented loss was not written anywhere
 }
 
-TEST_CASE("Neovim ended from inside leaves the office held with no document, said so, and switching back carries nothing") {
+TEST_CASE("Neovim ended from inside leaves the role held with no document, said so, and switching back carries nothing") {
     SwitchRig s("nvim-qa");
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
@@ -952,7 +952,7 @@ TEST_CASE("a copy in Neovim reaches its medium, and a paste in Neovim asks it") 
     s.r.on_os_window(); // the medium whose platform clipboard a paste reads
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
-    REQUIRE(open_through_office(s, "clip.txt", "copy me\n").accepted);
+    REQUIRE(open_through_role(s, "clip.txt", "copy me\n").accepted);
     focus(s);
     // A LINEWISE COPY is its line and its newline -- once.
     s.type("\"+yy");
@@ -970,7 +970,7 @@ TEST_CASE("an unfinished command in Neovim is reset by a switch and said, and a 
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
-    REQUIRE(open_through_office(s, "pending.txt", "keep\n").accepted);
+    REQUIRE(open_through_role(s, "pending.txt", "keep\n").accepted);
 
     // A COUNT NOBODY FINISHED holds every question Neovim is asked; the switch cancels it with
     // Escape, carries the document, and lists the reset.
@@ -1007,7 +1007,7 @@ TEST_CASE("an unfinished command in Neovim is reset by a switch and said, and a 
 }
 
 TEST_CASE("from a Loom with no Workshop, Neovim listens for a second terminal, says where, and stops only when nothing is lost") {
-    // THE BASELINE JOURNEY'S OWN WIRING: the weave loaded by a plan into the Editor's office and
+    // THE BASELINE JOURNEY'S OWN WIRING: the weave loaded by a plan into the Editor's role and
     // nothing else -- no desk, no pane, no switch -- asked the three sentences a console sends.
     TempDir dir("nvim-baseline");
     const std::filesystem::path root = dir.path();
@@ -1016,7 +1016,7 @@ TEST_CASE("from a Loom with no Workshop, Neovim listens for a second terminal, s
     load::LoadPlan plan;
     load::ArtifactIntent seat;
     seat.stem = nve::kNeovimEditorStem;
-    seat.weave = load::WeaveIntent{nve::kEditorOffice};
+    seat.weave = load::WeaveIntent{nve::kEditorRole};
     plan.artifacts.push_back(seat);
     const load::Executed done = r.run_plan(plan);
     REQUIRE_MESSAGE(done.ok, done.refusal);
@@ -1024,18 +1024,18 @@ TEST_CASE("from a Loom with no Workshop, Neovim listens for a second terminal, s
     ConsoleSeat* console = held.get();
     loom::Grant may_ask;
     may_ask.allow_to_role(nve::NeovimStartRequested::zen_name, nve::NeovimStartRequested::zen_version,
-                          nve::kEditorOffice);
+                          nve::kEditorRole);
     may_ask.allow_to_role(nve::NeovimStopRequested::zen_name, nve::NeovimStopRequested::zen_version,
-                          nve::kEditorOffice);
+                          nve::kEditorRole);
     may_ask.allow_to_role(nve::NeovimStatusRequested::zen_name, nve::NeovimStatusRequested::zen_version,
-                          nve::kEditorOffice);
+                          nve::kEditorRole);
     const loom::WeaveId console_id = r.bus.register_weave(std::move(held), std::move(may_ask),
                                                           std::string("zengine.test.console"));
     console->zen_set_self(console_id);
     const auto ask = [&](auto shape) {
         const std::size_t before = console->answers.size();
         console->next = [shape](loom::Mail& mail) {
-            (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorOffice, shape);
+            (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorRole, shape);
         };
         (void)r.bus.send(console_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
         r.bus.drain_until_idle();
@@ -1043,7 +1043,7 @@ TEST_CASE("from a Loom with no Workshop, Neovim listens for a second terminal, s
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
         while (console->answers.size() == before && std::chrono::steady_clock::now() < deadline) {
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            (void)r.bus.send(r.bus.role_holder(nve::kEditorOffice),
+            (void)r.bus.send(r.bus.role_holder(nve::kEditorRole),
                              loom::Message(loom::to_value(zengine::timer::TimerFired{"zengine.neovim-editor.beat"}),
                                            loom::WeaveId{}, loom::WeaveId{}, 0));
             r.bus.drain_until_idle();

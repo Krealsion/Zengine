@@ -13,11 +13,11 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `translate_sdl_core.hpp` | SDL events to moments, pure, for the OS window, which reads SDL's queue |
 | `window_claim.hpp` | a window's claim on the terminal's input, or on SDL's queue: the reader yields the terminal to either |
 | `input_weave.hpp` | the weave over an injected reader: publish, beat, sessions, motion, facets |
-| `office_page.hpp` | `OfficePage`: the office manual both loadable weaves answer from; not installed |
+| `role_page.hpp` | `RolePage`: the role manual both loadable weaves answer from; not installed |
 | `terminal_reader.hpp` | the terminal and console readers, the platform's input edge |
 | `input.cpp` | loadable weave `zengine-input` over the platform's reader |
 | `CMakeLists.txt` | `zengine-input-vocabulary` (header-only, alias `zengine::input`), the weave, carrying the manual |
-| `docs/zengine.input.md` | the manual of the office the weave holds |
+| `docs/zengine.input.md` | the manual of the role the weave holds |
 | `docs/input.md` | the package reference: the vocabulary, the backends, the weave over a reader |
 
 ## Law

@@ -3,7 +3,7 @@
 **Manual.** What the desk does by default: the keys that open the Terminal, the Pane Manager, the
 Hotkeys pane and a pane's manual wherever you are, and those three panes. It is a *weave*, a piece
 of Workshop that is loaded, replaced and spoken to by messages, built as `zengine-desktop-pane`;
-other weaves reach it by its *office*, the name it answers to, `zengine.desktop`. Workshop itself,
+other weaves reach it by its *role*, the name it answers to, `zengine.desktop`. Workshop itself,
 which owns the room, the keys and the desk these panes sit on, is
 [`zengine.workshop`](zengine.workshop.md).
 
@@ -104,14 +104,14 @@ pane holding your keys.
 
 - **Takes:** the pane the press was on. Default key <!-- key desktop.manual -->`ctrl+f`<!-- /key -->;
   the `?` at a pane's top right.
-- **Answers:** asks that pane's office for its whole manual
+- **Answers:** asks that pane's role for its whole manual
   ([`PaneDocumentRequested`](../pane_document.hpp)), under a number of the desk's own so only that
   answer is shown, and asks Workshop to show the Manual
   ([`PaneLaunchRequested`](zengine.workshop.md#panelaunchrequested)), which Workshop opens over that
   pane, a little of it showing on every edge. The Manual says `asking
   zengine.builder-pane for its manual` until the answer comes.
 - **Refuses:** `no pane was named: press the ? at the top right of a pane, or the manual key while a
-  pane holds your keys`; `the ask for the manual of <office> was not sent`; `the manual of <office>
+  pane holds your keys`; `the ask for the manual of <role> was not sent`; `the manual of <role>
   could not be asked (<Loom's reason>)`; and the pane's own refusal, as `zengine.files offers no
   pane `x``.
 - **Example:** press the `?` on the Builder pane; the Manual shows `MANUAL --
@@ -175,7 +175,7 @@ Moves your choice down one row.
 
 Shows the chosen pane, or focuses it and brings it to the front when it is already shown.
 
-- **Takes:** the pane your marker holds, by its office and key, not its place in the list. Default
+- **Takes:** the pane your marker holds, by its role and key, not its place in the list. Default
   key <!-- key launcher.open -->`return`<!-- /key -->; a second press on the chosen row's name while
   the Pane Manager holds your keys.
 - **Answers:** asks Workshop to show that pane
@@ -428,7 +428,7 @@ Closes the Manual; its words go with it.
 
 ### `PaneShortcuts`
 
-`PaneShortcuts` v1, from any office: the keys that office wants to act everywhere, each naming one of
+`PaneShortcuts` v1, from any role: the keys that role wants to act everywhere, each naming one of
 its panes and one of that pane's actions. The desk adds each as an application key, asks Workshop to
 admit them with its own, and answers `PaneShortcutsAnswered` once Workshop has judged them, one
 declaration at a time and within a bound. A press of one is sent to Workshop as
@@ -447,14 +447,14 @@ about; one withdrawn, `keys withdrawn: <its reason>`. The desk tells the layouts
 
 ### `pane`
 
-A Pane Manager row, named `pane:<office>/<pane>`: `> [open] Builder`, under the heading `PANES --
+A Pane Manager row, named `pane:<role>/<pane>`: `> [open] Builder`, under the heading `PANES --
 12` (`PANES (waiting)` until Workshop has said anything). The marker is `>` on your choice, and `?`
 when the pane you chose has left the list. Under the list stand the latest notice and what stays
 true, as `Info left the list -- choose a row before Return shows anything`.
 
 ### `mark`
 
-A row's mark, named `mark:<office>/<pane>`: `[open]` (on the desk), `[    ]` (not on it), `[load]`
+A row's mark, named `mark:<role>/<pane>`: `[open]` (on the desk), `[    ]` (not on it), `[load]`
 (this run is still loading its provider) or `[gone]` (nothing provides it now: build its provider,
 then launch again). A press on it shows or hides the pane.
 
@@ -471,7 +471,7 @@ The spelling line, `key for <id>: `, while [`hotkeys.commit`](#hotkeyscommit) wa
 
 ### `manual.text`
 
-The Manual's text in a window, under the heading `MANUAL -- <office>/<pane>`: wrapped to the pane's
+The Manual's text in a window, under the heading `MANUAL -- <role>/<pane>`: wrapped to the pane's
 width, scrolled smoothly, the selection on a quiet ground. A press puts the start of a selection
 there and a drag extends it. In a terminal the same text stands on rows, `3 more above...` atop and
 `... 3 more below` at the foot where lines are hidden.

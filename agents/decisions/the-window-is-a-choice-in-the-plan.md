@@ -18,14 +18,14 @@ among the plan's windows and refuses a plan offering none. The choice is the lau
 project's plan carries the row as read.
 
 **Alternatives considered.**
-- *Argued: the windows as `choices`* — refused: choices switch one office and a session remembers
-  them; the two windows are two offices, and nothing switches or remembers a window.
+- *Argued: the windows as `choices`* — refused: choices switch one role and a session remembers
+  them; the two windows are two roles, and nothing switches or remembers a window.
 - *Argued: a `windows` list outside the rows* — refused: the window's place in authored order,
   between the directory and the input row, is the plan's meaning.
 - *Argued: the window loaded, then unloaded when it says it has no window* — refused: the plan's
   booter holds no unload, and a window that loads and then leaves is one a desk can have offered
   itself to; pinned by case `"the OS window SDL cannot open, told a video driver it lacks, is
-  refused at its load and leaves no window, no SDL, no office held and no claim on SDL's queue"`.
+  refused at its load and leaves no window, no SDL, no role held and no claim on SDL's queue"`.
 
 **Consequences.** One plan, one launcher per window, one project for both; a fallback is said
 where a weaver reads it, in SDL's own words, which the refused making carries through the Loom. A

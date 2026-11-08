@@ -138,7 +138,7 @@ private:
         if (worker_.valid() || state_.state == "unavailable") return;
         state_.note = state_.state.empty()
             ? "Start the demo's ELH service"
-            : "The demo's office was reloaded; start the demo's ELH service again";
+            : "The demo's role was reloaded; start the demo's ELH service again";
         state_.state = "unavailable";
     }
     void reset(loom::Mail& m, bool answering) {

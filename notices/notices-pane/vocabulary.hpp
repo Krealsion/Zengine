@@ -4,9 +4,9 @@
 #ifndef ZENGINE_NOTICES_PANE_VOCABULARY_HPP
 #define ZENGINE_NOTICES_PANE_VOCABULARY_HPP
 
-// The Notices pane's durable names: the office it holds, the one pane it offers, the action ids its
+// The Notices pane's durable names: the role it holds, the one pane it offers, the action ids its
 // keys answer to, and the state a same-shape reload keeps. The record it walks is the notices
-// office's (notices/vocabulary.hpp).
+// role's (notices/vocabulary.hpp).
 // Workshop law: agents/workshop/notices.md
 
 #include <zen/weave/shape.hpp>
@@ -15,10 +15,10 @@
 
 namespace zengine::notices_pane {
 
-/// THE OFFICE THIS PANE HOLDS, and the only address anything reaches it by.
+/// THE ROLE THIS PANE HOLDS, and the only address anything reaches it by.
 inline constexpr const char* kNoticesPaneRole = "zengine.notices-pane";
 
-/// THE PANE KEY, in this office's namespace.
+/// THE PANE KEY, in this role's namespace.
 inline constexpr const char* kNoticesPane = "notices";
 
 /// ITS NAME IN THE PANE MANAGER'S LIST AND ITS SUMMARY IN INFO, inside Workshop's admission bounds:

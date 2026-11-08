@@ -19,7 +19,7 @@
 #include "editor/editor-pane/common.hpp"
 
 #include "editor/editor-pane/editor.hpp"
-#include "editor/office_seam.hpp"
+#include "editor/role_seam.hpp"
 #include "editor/source-transfer/cpp.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -321,14 +321,14 @@ inline void EditorPaneWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail& 
 }
 
 /// WORKSHOP'S WORD ON WHETHER THIS GESTURE'S ACTOR MAY DO WHAT THIS PANE ASKED: carry a copy
-/// (a pickup), or open a dropped location (`office::answer_operation`). An approved open is
+/// (a pickup), or open a dropped location (`role::answer_operation`). An approved open is
 /// settled against whether it names this document, and this document's mark now.
 inline void EditorPaneWeave::on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
     const auto stamp = [this](Locate& l) {
         l.same_path = e_.open_document() && e_.path == l.loc.path;
         l.snapshot = mark_now();
     };
-    if (office::answer_operation(answer, mail, pane::kEditorPaneRole, pane::kEditorPane, asked_,
+    if (role::answer_operation(answer, mail, pane::kEditorPaneRole, pane::kEditorPane, asked_,
                                  pickup_, locate_, stamp, noticing())) {
         say(mail);
     }
@@ -336,7 +336,7 @@ inline void EditorPaneWeave::on(const ws::PaneOperationAnswered& answer, loom::M
 
 /// WORKSHOP TOOK THE COPY, OR SAID WHY NOT. The document was never touched either way.
 inline void EditorPaneWeave::on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
-    if (office::settle_carry(answer, mail, pickup_, "this document is unchanged", noticing())) {
+    if (role::settle_carry(answer, mail, pickup_, "this document is unchanged", noticing())) {
         say(mail);
     }
 }
@@ -489,7 +489,7 @@ inline void EditorPaneWeave::acquire(Take what, bool drag, std::uint64_t gesture
         what_words = "the location of " + file_name(e_.path) + " at line " + std::to_string(row + 1);
         label = file_name(e_.path) + ":" + std::to_string(row + 1) + " (location)";
     }
-    office::begin_pickup(pair, drag, gesture, label, std::move(what_words), mail, pane::kEditorPaneRole,
+    role::begin_pickup(pair, drag, gesture, label, std::move(what_words), mail, pane::kEditorPaneRole,
                          pane::kEditorPane, asked_, pickup_, noticing());
 }
 
@@ -630,7 +630,7 @@ inline void EditorPaneWeave::insert_command(const st::Material& m, const Landing
     if (!insert_lines(t.line, at, "the Terminal line for " + m.what, false)) {
         return; // refused: its sentence stands
     }
-    notice(notice_ + office::terminal_line_after(t, m), !t.missing.empty());
+    notice(notice_ + role::terminal_line_after(t, m), !t.missing.empty());
 }
 
 inline void EditorPaneWeave::choose_drop(const Dropped& d, const std::string& chosen) {
@@ -666,21 +666,21 @@ inline void EditorPaneWeave::insert_cpp(const st::Material& m, const Landing& at
     if (!insert_lines(st::join_lf(g.lines) + "\n", whole, "C++ for " + m.what, true)) {
         return; // refused: its sentence stands
     }
-    notice(office::generated_cpp_words(g, m.what, ", selected for review") +
+    notice(role::generated_cpp_words(g, m.what, ", selected for review") +
                " -- ctrl+z removes it; nothing was sent, saved or built",
            !g.holes.empty());
 }
 
 /// A DROPPED LOCATION: ask Workshop whether this gesture's actor may open a file, then ask the
-/// opening office as this Editor's office (WL-EDIT-21). A locator is never inserted as text.
+/// opening role as this Editor's role (WL-EDIT-21). A locator is never inserted as text.
 // WL-EDIT-21 -- agents/workshop/editor-transfers.md
 inline void EditorPaneWeave::open_location(const st::Material& m, loom::Mail& mail) {
-    const std::string refused = office::location_refusal(m.location, locate_);
+    const std::string refused = role::location_refusal(m.location, locate_);
     if (!refused.empty()) {
         notice(refused, true);
         return;
     }
-    office::ask_location(m, mail, pane::kEditorPaneRole, pane::kEditorPane, asked_, locate_, noticing());
+    role::ask_location(m, mail, pane::kEditorPaneRole, pane::kEditorPane, asked_, locate_, noticing());
 }
 
 /// THE OPEN CAME TO SOMETHING. A refusal is said with the location's own context; a success
@@ -689,16 +689,16 @@ inline void EditorPaneWeave::open_location(const st::Material& m, loom::Mail& ma
 inline void EditorPaneWeave::settle_location(const SourceOpened& said) {
     Locate l = std::move(locate_);
     locate_ = Locate{};
-    const office::Roots roots = office::roots_of(l.ctx, project_root());
+    const role::Roots roots = role::roots_of(l.ctx, project_root());
     if (!said.accepted) {
-        notice(office::open_refused_words(l.loc.path, said.refusal, roots), true);
+        notice(role::open_refused_words(l.loc.path, said.refusal, roots), true);
         return;
     }
     if (!e_.open_document() || e_.path != l.loc.path) {
         notice("the location's file was shown, but the Editor holds another document now -- the caret was not moved", false);
         return;
     }
-    const std::string opened = office::opened_words(shown_path(), roots);
+    const std::string opened = role::opened_words(shown_path(), roots);
     if (l.loc.line <= 0) {
         notice(opened, false);
         return;

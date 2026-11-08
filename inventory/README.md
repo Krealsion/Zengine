@@ -8,7 +8,7 @@ collection as a toolbox file for another session.**
 A program gets the same collection as a library and a loadable weave that keeps it. It links
 `zengine::inventory` and spells the format of one entry `#include "inventory/codec.hpp"`, the
 messages that add, list, read and capture entries `#include "inventory/vocabulary.hpp"`, the
-permissions a host may give the Inventory office `#include "inventory/grant.hpp"`, and the pane's
+permissions a host may give the Inventory role `#include "inventory/grant.hpp"`, and the pane's
 own messages `#include "inventory/inventory-pane/vocabulary.hpp"`.
 
 ## Manuals
@@ -16,7 +16,7 @@ own messages `#include "inventory/inventory-pane/vocabulary.hpp"`.
 - [The Inventory pane](docs/zengine.inventory-pane.md), `zengine.inventory-pane`: every command,
   by its key: browsing folders, picking up and filing entries, portable views and hotkeys, toolbox
   files
-- [Inventory](docs/zengine.inventory.md), `zengine.inventory`: the office that keeps the entries,
+- [Inventory](docs/zengine.inventory.md), `zengine.inventory`: the role that keeps the entries,
   and the messages another weave sends it
 
 ![Inventory wearing its ? at its top right, and the Manual showing its manual](docs/images/zengine.inventory-pane-manual.png)
@@ -35,8 +35,8 @@ own messages `#include "inventory/inventory-pane/vocabulary.hpp"`.
 |---|---|
 | `weave.hpp`, `inventory.cpp` | the weave that keeps the collection (`zengine-inventory`) |
 | `codec.hpp` | the byte format of one entry: an item and its metadata |
-| `vocabulary.hpp` | the messages, and the office name `zengine.inventory` |
-| `grant.hpp` | the bounded permissions a host may give the Inventory office |
+| `vocabulary.hpp` | the messages, and the role name `zengine.inventory` |
+| `grant.hpp` | the bounded permissions a host may give the Inventory role |
 | `folders.hpp`, `archive.hpp` | the rules for folders and for a saved collection |
 | `observation.hpp`, `pane_client.hpp` | helpers other panes share with Inventory |
 | `read.cpp` | `zengine-inventory-read`, a program that prints an entry saved to a file as JSON |

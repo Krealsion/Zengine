@@ -62,7 +62,7 @@ and `--tui` takes the terminal window alone. Workshop's own code is identical in
 | `--setup <path>` | `workshop-setup.json`, in the directory you launched from | a pane arrangement you named and saved |
 | `--session <path>` | `workshop-session.json`, in your **per-user state folder** | every layout you last used, and which one was live — written on close, read on start; the window's size and position are in the window file beside it, `workshop-session.window.json` |
 | `--keymap <path>` | `workshop-keymap.json`, in your **per-user config folder** | your hand-edited binding overrides ([hotkeys](hotkeys.md)) |
-| `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | office-wide settings, such as pane titles (`t`), and the locks and pins that hold in every layout — written by the layouts' owner when you change one |
+| `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | role-wide settings, such as pane titles (`t`), and the locks and pins that hold in every layout — written by the layouts' owner when you change one |
 | `--isolated` | off | this run reads and writes **none** of your per-user config or session state but the files named on its command line (`--session`, `--prefs` and the others still win) — for tests, scratch experiments and clean-start diagnosis |
 | `--load-plan <path>` | `workshop-plan.json` in the directory you launched from when there is one, else `default-load-plan.json` beside the binary | which artifacts this run is made of |
 | `--recipes <path>` | `build-recipes.json` in the directory you launched from when there is one, else `default-build-recipes.json` beside the binary | what this run can build ([the recipe file](../../builder/docs/recipes.md)) |

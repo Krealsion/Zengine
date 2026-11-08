@@ -7,7 +7,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | part | what it is |
 |---|---|
-| `vocabulary.hpp` | a build's shapes and offices: `zengine.builder`, `zengine.build-runner` |
+| `vocabulary.hpp` | a build's shapes and roles: `zengine.builder`, `zengine.build-runner` |
 | `recipe.hpp` | an authored recipe as pure data: a name, its artifact, one CMake mechanism |
 | `generate.hpp` | a recipe as one `cmake -P` driver, and a single source's generated project |
 | `run.hpp` | process custody: `start_recipe`, `RunningRecipe`; not a shell |
@@ -15,7 +15,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `weave.hpp` | `BuilderWeave`, the tool: recipe names, artifacts, `BuildStatus`; starts nothing |
 | `CMakeLists.txt` | `zengine-builder-vocabulary`, one header-only INTERFACE target; no weave |
 | `builder-pane/` | the pane: `zengine-builder-pane`, a loadable weave (needs `loom::kernel`) |
-| `builder-pane/vocabulary.hpp` | its office `zengine.builder-pane`, pane key, action ids, state |
+| `builder-pane/vocabulary.hpp` | its role `zengine.builder-pane`, pane key, action ids, state |
 | `builder-pane/pane.cpp` | `BuilderPaneWeave`: its rows, its keys, its asks of the tool and host; it declares every member and includes the three parts below, which define the rest |
 | `builder-pane/output_reader.hpp` | the output reader: one build's lines, paged from the tool, and the controls under them |
 | `builder-pane/modes.hpp` | the pane's two modes: the recipe list, and the role line `load it` opens |
@@ -57,15 +57,15 @@ Its cases in shared suites: `workshop_panes_project` (`tests/test_workshop_panes
   `workshop/staging.hpp` places a built product, a reload's copy and a promotion
 - the pane: a row in `workshop/default-load-plan.json`, staged by `workshop/CMakeLists.txt`; it asks through `workshop/builder_seam_vocabulary.hpp`,
   answered by `ProjectDoor` in `workshop/pane_doors.hpp`
-- the rest: `workshop/pane_migration.hpp` moves an old desk's Builder pane to its office;
+- the rest: `workshop/pane_migration.hpp` moves an old desk's Builder pane to its role;
   `workshop/guests.cpp` lets a guest that sees `BuildStatus` ask for it
 
 ## Pages
 
 - [The Builder pane](docs/zengine.builder-pane.md), a manual, compiled into the pane
   (`MANUAL` in `builder-pane/CMakeLists.txt`) and answered on ask (`PaneDocumentRequested`)
-- [The Builder](docs/zengine.builder.md), a manual, compiled into whatever mounts the office
-  (`zengine_manual` in `CMakeLists.txt`); the office answers a shape's section from it
+- [The Builder](docs/zengine.builder.md), a manual, compiled into whatever mounts the role
+  (`zengine_manual` in `CMakeLists.txt`); the role answers a shape's section from it
 - [The build runner](docs/zengine.build-runner.md), a manual, compiled in beside it; the runner
   answers a shape's section from it
 - [The recipe file](docs/recipes.md)

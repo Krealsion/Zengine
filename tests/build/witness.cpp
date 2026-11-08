@@ -61,15 +61,15 @@ namespace recipe_persist = zengine::workshop::recipe_persist;
 namespace workshop = zengine::workshop;
 namespace timer = zengine::timer;
 
-/// Mount an in-process weave into an OFFICE, with the grant this host chose --
+/// Mount an in-process weave into an ROLE, with the grant this host chose --
 /// `workshop.cpp`'s helper, copied because the claim is that the wiring is the same.
 template <class Weave, class... Args>
-loom::WeaveId mount_in_office(loom::Switchboard& bus, loom::Grant grant, const char* office,
+loom::WeaveId mount_in_role(loom::Switchboard& bus, loom::Grant grant, const char* role,
                               Weave** out, Args&&... args) {
     auto weave = std::make_unique<Weave>(std::forward<Args>(args)...);
     Weave* raw = weave.get();
     const loom::WeaveId id =
-        bus.register_weave(std::move(weave), std::move(grant), std::string(office));
+        bus.register_weave(std::move(weave), std::move(grant), std::string(role));
     raw->zen_set_self(id);
     if (out != nullptr) {
         *out = raw;
@@ -258,7 +258,7 @@ private:
     }
 };
 
-/// THE WEAVER'S HAND, AFTER THE BUILD: Workshop's office, as the one a pane answers, pressing one
+/// THE WEAVER'S HAND, AFTER THE BUILD: Workshop's role, as the one a pane answers, pressing one
 /// declared action of a pane the build loaded a number of times and then reading one field of its
 /// weave's state through Loom's poke door -- so the lane can ask a loaded product to answer, the
 /// native image and the module alike. A host's stand-in for Workshop, holding nothing else.
@@ -266,8 +266,8 @@ struct PressNow {
     ZEN_SHAPE(PressNow, 1);
 };
 
-/// The office the hand holds, and speaks as.
-constexpr const char* kWorkshopOffice = "zengine.workshop";
+/// The role the hand holds, and speaks as.
+constexpr const char* kWorkshopRole = "zengine.workshop";
 
 struct HandState {
     std::int64_t pressed = 0;
@@ -278,16 +278,16 @@ class Hand : public loom::WeaveBase<Hand, HandState,
                                     loom::Accept<PressNow, loom::Result, loom::Refused>,
                                     loom::Emit<workshop::PaneActionRequested, loom::PokeRead>> {
 public:
-    Hand(std::string office, std::string pane, std::string action, std::int64_t times,
+    Hand(std::string role, std::string pane, std::string action, std::int64_t times,
          std::string field, std::function<void()> stop)
-        : office_(std::move(office)), pane_(std::move(pane)), action_(std::move(action)),
+        : role_(std::move(role)), pane_(std::move(pane)), action_(std::move(action)),
           times_(times), field_(std::move(field)), stop_(std::move(stop)) {}
 
     void on(const PressNow&, loom::Mail& mail) {
         for (std::int64_t i = 0; i < times_; ++i) {
-            // AS WORKSHOP'S OFFICE: a pane answers what that office authored, and nothing else.
-            if (mail.as_role(kWorkshopOffice)
-                    .send_to_role(office_, workshop::PaneActionRequested{pane_, action_})
+            // AS WORKSHOP'S ROLE: a pane answers what that role authored, and nothing else.
+            if (mail.as_role(kWorkshopRole)
+                    .send_to_role(role_, workshop::PaneActionRequested{pane_, action_})
                     .valid()) {
                 ++state_.pressed;
             }
@@ -296,7 +296,7 @@ public:
             finish();
             return;
         }
-        if (!mail.send_to_role(office_, loom::PokeRead{field_}, kRead).valid()) {
+        if (!mail.send_to_role(role_, loom::PokeRead{field_}, kRead).valid()) {
             said = "the read of `" + field_ + "` was not sent";
             finish();
         }
@@ -327,7 +327,7 @@ private:
     }
 
     static constexpr std::uint64_t kRead = 1;
-    std::string office_;
+    std::string role_;
     std::string pane_;
     std::string action_;
     std::int64_t times_ = 0;
@@ -342,8 +342,8 @@ struct Arguments {
     std::string recipe;    ///< which recipe to build
     std::string product;   ///< which of its products, by stem ("" = the recipe's first)
     bool realize = false;  ///< BUILD, or BUILD & REALIZE
-    /// After a realization: `<office>/<pane>/<action>/<times>`, pressed as Workshop presses it,
-    /// then `read`, one field of that office's weave state, read back.
+    /// After a realization: `<role>/<pane>/<action>/<times>`, pressed as Workshop presses it,
+    /// then `read`, one field of that role's weave state, read back.
     std::string press;
     std::string read;
     bool then_promote = false; ///< after a realization: promote the running image
@@ -446,7 +446,7 @@ int main(int argc, char** argv) {
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
 
-    // ---- The Builder's two offices, with the host's own grants ------------------
+    // ---- The Builder's two roles, with the host's own grants ------------------
     loom::Grant run_builds;
     run_builds.allow_to_role(builder::BuildStarted::zen_name, builder::BuildStarted::zen_version,
                              builder::kBuilderRole);
@@ -461,7 +461,7 @@ int main(int argc, char** argv) {
     run_builds.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version,
                              timer::kTimerRole);
     builder::BuildRunnerWeave* runner = nullptr;
-    (void)mount_in_office<builder::BuildRunnerWeave>(bus, std::move(run_builds),
+    (void)mount_in_role<builder::BuildRunnerWeave>(bus, std::move(run_builds),
                                                      builder::kBuildRunnerRole, &runner,
                                                      current_recipes.all(),
                                                      std::string(ZENGINE_BUILDER_CMAKE),
@@ -477,7 +477,7 @@ int main(int argc, char** argv) {
                               builder::OfferArtifact::zen_version);
     order_builds.allow_to_any(builder::BuildOutputSaid::zen_name,
                               builder::BuildOutputSaid::zen_version);
-    (void)mount_in_office<builder::BuilderWeave>(bus, std::move(order_builds),
+    (void)mount_in_role<builder::BuilderWeave>(bus, std::move(order_builds),
                                                  builder::kBuilderRole,
                                                  static_cast<builder::BuilderWeave**>(nullptr),
                                                  current_recipes.views(),
@@ -548,14 +548,14 @@ int main(int argc, char** argv) {
     speak.allow_to_any(builder::PromoteArtifact::zen_name, builder::PromoteArtifact::zen_version);
     speak.allow_to_any(builder::RevertArtifact::zen_name, builder::RevertArtifact::zen_version);
     Reporter* reporter = nullptr;
-    (void)mount_in_office<Reporter>(bus, std::move(speak), "zengine.witness", &reporter,
+    (void)mount_in_role<Reporter>(bus, std::move(speak), "zengine.witness", &reporter,
                                     args.recipe, args.product, args.realize, args.then_promote,
                                     args.then_revert, [&bus] { bus.stop(); });
 
-    // ---- The weaver's hand, where the lane asks for one: Workshop's office ------------
+    // ---- The weaver's hand, where the lane asks for one: Workshop's role ------------
     Hand* hand = nullptr;
     loom::WeaveId hand_id{};
-    std::string press_office;
+    std::string press_role;
     if (!args.press.empty()) {
         std::vector<std::string> parts;
         std::string part;
@@ -568,15 +568,15 @@ int main(int argc, char** argv) {
             }
         }
         if (parts.size() != 4) {
-            std::printf("witness: --press is <office>/<pane>/<action>/<times>\n");
+            std::printf("witness: --press is <role>/<pane>/<action>/<times>\n");
             return 2;
         }
-        press_office = parts[0];
+        press_role = parts[0];
         loom::Grant press;
         press.allow_to_role(workshop::PaneActionRequested::zen_name,
-                            workshop::PaneActionRequested::zen_version, press_office);
-        press.allow_to_role(loom::PokeRead::zen_name, loom::PokeRead::zen_version, press_office);
-        hand_id = mount_in_office<Hand>(bus, std::move(press), kWorkshopOffice, &hand,
+                            workshop::PaneActionRequested::zen_version, press_role);
+        press.allow_to_role(loom::PokeRead::zen_name, loom::PokeRead::zen_version, press_role);
+        hand_id = mount_in_role<Hand>(bus, std::move(press), kWorkshopRole, &hand,
                                         parts[0], parts[1], parts[2],
                                         std::stoll(parts[3]), args.read, [&bus] { bus.stop(); });
     }

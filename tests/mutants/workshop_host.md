@@ -137,8 +137,8 @@ In `workshop/weave_session.cpp`:
 
 ```diff
 -    apply_setup(mail);
--    // THE PALETTE PUT DOWN, by whichever close took its row -- this desk's own or an office's,
-+    // THE PALETTE PUT DOWN, by whichever close took its row -- this desk's own or an office's,
+-    // THE PALETTE PUT DOWN, by whichever close took its row -- this desk's own or a role's,
++    // THE PALETTE PUT DOWN, by whichever close took its row -- this desk's own or a role's,
 ```
 
 Red in `zengine-workshop-host-tests`:

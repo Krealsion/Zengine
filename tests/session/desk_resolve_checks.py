@@ -34,8 +34,8 @@ def cause(shape, version, subject=""):
     return {"shape": shape, "version": version, "subject": subject}
 
 
-def binding(office, pane, ident, key, causes=(), enters=""):
-    return {"office": office, "pane": pane, "id": ident, "gesture": key, "shown": key,
+def binding(role, pane, ident, key, causes=(), enters=""):
+    return {"role": role, "pane": pane, "id": ident, "gesture": key, "shown": key,
             "causes": list(causes), "enters": enters, "label": ident}
 
 
@@ -76,9 +76,9 @@ class Scripted(object):
         self.parts = {}
 
     def desk(self, resolve):
-        def read_view(office, pane):
-            return {"provider": office, "pane": pane, "parts": self.parts.get((office, pane), [])}
-        inventory = {"panes": [{"office": o, "pane": p, "name": p.title(), "open": (o, p) in self.on_desk,
+        def read_view(role, pane):
+            return {"provider": role, "pane": pane, "parts": self.parts.get((role, pane), [])}
+        inventory = {"panes": [{"role": o, "pane": p, "name": p.title(), "open": (o, p) in self.on_desk,
                                 "available": True} for o, p in self.offered]}
         desk = {"panes": [{"provider": o, "pane": p, "name": p.title(), "state": "open"}
                           for o, p in self.on_desk]}
@@ -90,8 +90,8 @@ class FakeAsker(object):
     def __init__(self, answer):
         self.answer, self.asked = answer, []
 
-    def ask(self, office, shape, version, fields):
-        self.asked.append((office, shape, version, fields))
+    def ask(self, role, shape, version, fields):
+        self.asked.append((role, shape, version, fields))
         return self.answer, None
 
 
@@ -173,7 +173,7 @@ def make_checks(resolve):
             s = Scripted()
             s.on_desk = [BUILDER]
             s.rows = APP_ROWS + OUTPUT
-            s.modes = [{"office": BUILDER[0], "pane": BUILDER[1], "mode": "output",
+            s.modes = [{"role": BUILDER[0], "pane": BUILDER[1], "mode": "output",
                         "elsewhere": [{"mode": "browse", "causes": [cause("BuildRequested", 2)]}]}]
             s.parts[BUILDER] = [part("control:builder.output-close")]
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
@@ -253,7 +253,7 @@ def make_checks(resolve):
             r = resolve.resolve(s.desk(resolve), "BuildRequested", 2, "")
 
             class Refusing(FakeAsker):
-                def ask(self, office, shape, version, fields):
+                def ask(self, role, shape, version, fields):
                     return None, "dispatch-refused: CapabilityDenied"
             line, address = resolve.mark(Refusing(None), r, "")
             self.assertIsNone(address)
@@ -315,8 +315,8 @@ class GuideCtx(FakeCtx):
         FakeCtx.__init__(self, inputs)
         self.answer, self.refusal, self.asked = answer, refusal, []
 
-    def ask(self, office, shape, fields=None, version=1, via=None, settle=False, timeout=60.0):
-        self.asked.append((office, shape, version, fields, via))
+    def ask(self, role, shape, fields=None, version=1, via=None, settle=False, timeout=60.0):
+        self.asked.append((role, shape, version, fields, via))
         if self.refusal is not None:
             raise self.refusal
         return self.answer

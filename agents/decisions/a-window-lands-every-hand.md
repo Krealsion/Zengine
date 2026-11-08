@@ -5,10 +5,10 @@ supports are in [guests](../workshop/guests.md).
 
 **Context.** The window is the one judge of the pointer: it lands each press on what it drew and
 gives the moment to the owner of the area hearing it. A participant's press, injected by the input
-office, reached Workshop instead, which landed it on its own picture and relayed it into the pane.
+role, reached Workshop instead, which landed it on its own picture and relayed it into the pane.
 
-**Decision.** The window takes the input office's attributed moments (`input::AttributedInput`) as
-moments of the hand they name, from that office alone, lands a pointer moment by its own judge as it
+**Decision.** The window takes the input role's attributed moments (`input::AttributedInput`) as
+moments of the hand they name, from that role alone, lands a pointer moment by its own judge as it
 lands the platform's, and says the hand on every moment it gives (`AreaButtonChanged`,
 `AreaPointerMoved`, `AreaWheelTurned`, `AreaPressed`, each v2), a key, its release and its text too
 (`AreaKeyPressed`, `AreaKeyReleased`, `AreaTextEntered`): `local`, the platform's own. An area its
@@ -17,8 +17,8 @@ injected press or wheel, and tells the arranger (`AreaHandRefused`), who says wh
 the editor's, the Terminal's and the Hotkeys pane's areas so on a weaver's host where a guest door
 listens, and reads the hand on `AreaPressed`: a guest's press ends no guide mark, and moves the keys
 and the selection as the weaver's does, so the keys it then types reach the pane it pressed.
-Workshop takes a key's hand from the office of the window that shows its area, as a press's, so the
-weaver's own keys ask sends. A guest's keys come from the input office, attributed, and a batch
+Workshop takes a key's hand from the role of the window that shows its area, as a press's, so the
+weaver's own keys ask sends. A guest's keys come from the input role, attributed, and a batch
 keeps its order: a key behind a pointer moment the window may not have landed waits until the window
 answers an ask Workshop sends after it.
 
@@ -27,9 +27,9 @@ answers an ask Workshop sends after it.
   keeps taking the bare pointer moments and relays every injected one.
 - *Agents pressing a part by name* -- argued against: no moment is injected, and a drag or a wheel
   then needs asks of its own.
-- *The window's keys through the input office* -- argued against: a guest's press and the key it
-  types after keep their order on one road, and an exported app loads no input office.
-- *A hand on the input package's key shapes* -- argued against: the input office says those
+- *The window's keys through the input role* -- argued against: a guest's press and the key it
+  types after keep their order on one road, and an exported app loads no input role.
+- *A hand on the input package's key shapes* -- argued against: the input role says those
   unattributed beside their attributed companion; a window says its own moments, as the pointer's.
 
 **Consequences.** Four graphics shapes take a version and four are new; the window keeps a hand

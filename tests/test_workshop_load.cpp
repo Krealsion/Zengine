@@ -10,7 +10,7 @@
 
 #include "doctest.h"
 
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "pane_window.hpp"
 #include "video_driver.hpp"
 #include "weavelib/legacy_pane_protocol.hpp"
@@ -229,9 +229,9 @@ private:
 };
 
 // ---- the asker the observation door answers ------------------------------------
-// A participant, not a call: the door is a weave in an office and answers through Loom's own
+// A participant, not a call: the door is a weave in a role and answers through Loom's own
 // answer path, as it does for the loaded Introspection artifact. It speaks both ways on purpose:
-// `ask` authors as an office and `ask_personally` does not, because the claim is that the DOOR
+// `ask` authors as a role and `ask_personally` does not, because the claim is that the DOOR
 // refuses anonymous speech -- a refusal the bus made unreachable would prove nothing.
 
 struct Nudge {
@@ -246,7 +246,7 @@ struct AskerState {
 /// What an asker heard back, and whether Loom ATTESTED each answer.
 struct Answered {
     std::vector<workshop::ResolvedArrangement> arrangements;
-    /// ...and the version 2 answers, which the door sends only to an office that accepts them.
+    /// ...and the version 2 answers, which the door sends only to a role that accepts them.
     std::vector<workshop::v2::ResolvedArrangement> arrangements_v2;
     std::vector<workshop::PowersFound> found;
     std::vector<workshop::PowerDescribed> described;
@@ -291,8 +291,8 @@ public:
         into_->attested.push_back(mail.answers_ask());
     }
 
-    /// The office this asker holds, so a case can drive both authorship spellings.
-    static constexpr const char* kOffice = "zengine.test.asker";
+    /// The role this asker holds, so a case can drive both authorship spellings.
+    static constexpr const char* kRole = "zengine.test.asker";
 
     std::function<void(Asker&, loom::Mail&)> next;
 
@@ -484,7 +484,7 @@ struct PlanRig {
     }
 
     /// THE SAME DOOR, WIRED AS THE HOST WIRES IT: it reads, off this bus, whether the asking
-    /// office accepts the later answer -- `holder_accepts_on`'s question, spelled here because
+    /// role accepts the later answer -- `holder_accepts_on`'s question, spelled here because
     /// this suite does not link the host's weave.
     loom::WeaveId mount_door_answering_versions(std::string plan_path = std::string()) {
         return mount_door_over(
@@ -504,7 +504,7 @@ struct PlanRig {
             });
     }
 
-    /// MOUNT AN ASKER IN AN OFFICE OF ITS OWN, granted exactly the arrangement's question and the
+    /// MOUNT AN ASKER IN AN ROLE OF ITS OWN, granted exactly the arrangement's question and the
     /// discovery door's two.
     loom::WeaveId mount_asker() {
         auto seat = std::make_unique<Asker>(projected);
@@ -514,7 +514,7 @@ struct PlanRig {
                            workshop::ArrangementRequested::zen_version);
         workshop::allow_finding_powers(grant);
         asker_seat_ = raw;
-        asker_ = bus.register_weave(std::move(seat), std::move(grant), std::string(Asker::kOffice));
+        asker_ = bus.register_weave(std::move(seat), std::move(grant), std::string(Asker::kRole));
         raw->zen_set_self(asker_);
         return asker_;
     }
@@ -533,7 +533,7 @@ struct PlanRig {
     /// so it leaves through the bus as one.
     void ask_arrangement() {
         drive_asker([](Asker&, loom::Mail& m) {
-            (void)m.as_role(Asker::kOffice)
+            (void)m.as_role(Asker::kRole)
                 .send_to_role(workshop::kArrangementRole, workshop::ArrangementRequested{});
         });
     }
@@ -544,8 +544,8 @@ struct PlanRig {
     }
     void find_powers(workshop::FindPowers asked = {}) {
         drive_asker([asked](Asker& a, loom::Mail& m) {
-            (void)m.bus().office_send_to_role(
-                Asker::kOffice, workshop::kPowersRole,
+            (void)m.bus().role_send_to_role(
+                Asker::kRole, workshop::kPowersRole,
                 loom::Message(workshop::find_powers_value(asked), a.self(), loom::WeaveId{}, 0));
         });
     }
@@ -558,7 +558,7 @@ struct PlanRig {
     }
     void describe_power(std::string identity) {
         drive_asker([identity](Asker&, loom::Mail& m) {
-            (void)m.as_role(Asker::kOffice)
+            (void)m.as_role(Asker::kRole)
                 .send_to_role(workshop::kPowersRole, workshop::DescribePower{identity});
         });
     }
@@ -1260,7 +1260,7 @@ TEST_CASE("the shipped default plan is a legal plan, and it opens the OS window,
         CAPTURE(p.artifacts[i].stem);
         CHECK(p.artifacts[i].optional);
     }
-    // ...AND THE EDITOR'S OFFICE HAS TWO AUTHORED CHOICES: the standard Editor, which starts in it,
+    // ...AND THE EDITOR'S ROLE HAS TWO AUTHORED CHOICES: the standard Editor, which starts in it,
     // and the Neovim-backed one, which is loaded only when a weaver switches to it.
     REQUIRE(p.choices.size() == 2);
     CHECK(p.choices[0] == load::ChoiceIntent{"zengine.editor", "standard", "zengine-editor-pane"});
@@ -1324,7 +1324,7 @@ TEST_CASE("the shipped plan's window row is the OS window, otherwise the termina
           "other row names anything in its place") {
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
-    const std::string window = zengine::graphics::kWindowOfficePrefix;
+    const std::string window = zengine::graphics::kWindowRolePrefix;
     for (std::size_t i = 0; i < got.plan.artifacts.size(); ++i) {
         const load::ArtifactIntent& row = got.plan.artifacts[i];
         CAPTURE(row.stem);
@@ -1367,7 +1367,7 @@ TEST_CASE("the default plan's medium is two rows, the directory and the window, 
     REQUIRE(rows[6].weave.has_value());
     CHECK(rows[6].weave->role == tmr::kTimerRole);
 
-    // THE MEDIUM'S TWO ROWS: the directory and the window, each a required weave in the office
+    // THE MEDIUM'S TWO ROWS: the directory and the window, each a required weave in the role
     // its own code answers to, and neither a provider.
     const load::ArtifactIntent& directory = rows[3];
     const load::ArtifactIntent& window = rows[4];
@@ -1384,9 +1384,9 @@ TEST_CASE("the default plan's medium is two rows, the directory and the window, 
     // ...AND WITH THE TERMINAL WINDOW TAKEN ALONE, as `--tui` takes it (`take_role`), THEY REALIZE
     // AS THE PLAN NAMES THEM, between the basic provider before them and the input weave and the
     // Timer after them, whose beat the window reads its terminal on: four weaves loaded, at their
-    // offices, by the real Kernel from the staged artifacts.
+    // roles, by the real Kernel from the staged artifacts.
     const std::string terminal =
-        std::string(zengine::graphics::kWindowOfficePrefix) + zengine::graphics::kTerminalWindow;
+        std::string(zengine::graphics::kWindowRolePrefix) + zengine::graphics::kTerminalWindow;
     load::LoadPlan taken = plan_of({rows[0], directory, window, rows[5], rows[6]});
     REQUIRE(load::take_role(taken, terminal).accepted);
     CHECK(taken.artifacts[2] == weaves("zengine-window-terminal", terminal.c_str()));
@@ -1536,7 +1536,7 @@ TEST_CASE("the terminal window taken alone: the row loading it keeps it, a row n
     CHECK(alone == before);
 }
 
-TEST_CASE("what a row loads in its place is a weave, named once, into an office no other row and "
+TEST_CASE("what a row loads in its place is a weave, named once, into a role no other row and "
           "no choice holds") {
     const auto with = [](load::ArtifactIntent row, const char* stem, const char* role) {
         row.otherwise.push_back(load::AlternativeIntent{stem, load::WeaveIntent{role}});
@@ -1655,7 +1655,7 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
         return done;
     };
     const std::string window =
-        std::string(zengine::graphics::kWindowOfficePrefix) + zengine::graphics::kTerminalWindow;
+        std::string(zengine::graphics::kWindowRolePrefix) + zengine::graphics::kTerminalWindow;
 
     // THE MEDIUM THAT TAKES THE TERMINAL: the terminal window.
     for (const load::ResolvedArtifact& medium : {loaded("zengine-window-terminal", window)}) {
@@ -1679,7 +1679,7 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
 
     // THE OS WINDOW paints a window of its own and leaves the terminal it was started from alone.
     CHECK_FALSE(load::medium_holds_terminal(
-        settled(loaded("zengine-window-sdl", std::string(zengine::graphics::kWindowOfficePrefix) +
+        settled(loaded("zengine-window-sdl", std::string(zengine::graphics::kWindowRolePrefix) +
                                                  zengine::graphics::kSdlWindow)),
         true));
 
@@ -1688,7 +1688,7 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
     gone.weave_loaded = false;
     CHECK_FALSE(load::medium_holds_terminal(settled(gone), true));
 
-    // ...nor does a terminal-sounding stem in another office, or a project with no medium at all.
+    // ...nor does a terminal-sounding stem in another role, or a project with no medium at all.
     CHECK_FALSE(load::medium_holds_terminal(
         settled(loaded("zengine-window-terminal", "zengine.input")), true));
     load::Executed bare;
@@ -2989,13 +2989,13 @@ TEST_CASE("an ask past a bound is refused in words, and nothing is found") {
 
 // ---- the doors: who may ask, what crosses, and what they keep -------------------
 
-TEST_CASE("the arrangement door answers an OFFICE, and answers anonymous speech nothing") {
+TEST_CASE("the arrangement door answers an ROLE, and answers anonymous speech nothing") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     rig.mount_door("plan.json");
     rig.mount_asker();
 
-    // PERSONAL SPEECH FROM A WEAVE THAT HOLDS AN OFFICE. Holding is not speaking-for,
+    // PERSONAL SPEECH FROM A WEAVE THAT HOLDS AN ROLE. Holding is not speaking-for,
     // and the door has nobody nameable to be answerable to.
     rig.ask_arrangement_personally();
     CHECK(rig.projected.arrangements.empty());
@@ -3013,14 +3013,14 @@ TEST_CASE("the arrangement door answers an OFFICE, and answers anonymous speech 
     CHECK(rig.projected.attested[0]);
 }
 
-TEST_CASE("the discovery door answers whoever asked -- an office, or one speaking for itself -- "
+TEST_CASE("the discovery door answers whoever asked -- a role, or one speaking for itself -- "
           "and a root's send nothing") {
     PlanRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     const loom::WeaveId finder = rig.mount_finder();
     rig.mount_asker();
 
-    // AN OFFICE, AND A PARTICIPANT SPEAKING FOR ITSELF AS THE TERMINAL DOES: both are somebody
+    // AN ROLE, AND A PARTICIPANT SPEAKING FOR ITSELF AS THE TERMINAL DOES: both are somebody
     // an answer can go to, and both get the same rows -- one question, one answer.
     workshop::FindPowers asked;
     asked.text = "larger";
@@ -3560,7 +3560,7 @@ TEST_CASE("the load record SPENDS the reusable book, and the book says what it a
     const loom::PendingAsk& mine = answers.book().entries().front();
     CHECK(mine.correlation == first);
     CHECK(mine.respondent == slow);
-    CHECK_FALSE(mine.to_role()); // a load is asked of ONE Manager, never of an office
+    CHECK_FALSE(mine.to_role()); // a load is asked of ONE Manager, never of a role
     CHECK(mine.shape == loom::LoadWeave::zen_name);
     CHECK(mine.version == loom::LoadWeave::zen_version);
 
@@ -4401,7 +4401,7 @@ TEST_CASE("after a refusal the arrangement says which row stopped it, and which 
 
 TEST_CASE("the DOOR answers `loading` across the real seam, mid-flight") {
     // THE PROJECTION ABOVE IS READ DIRECTLY; this is the same fact crossing the bus to
-    // a participant in an office, which is how the loaded Introspection artifact gets
+    // a participant in a role, which is how the loaded Introspection artifact gets
     // it. The row is held open by a respondent that defers, so the ask genuinely lands
     // in the middle rather than at a moment a turn count happened to produce.
     PlanRig rig;
@@ -5170,7 +5170,7 @@ HelloCounters hello_state(loom::Switchboard& bus, loom::WeaveId id) {
     return out;
 }
 
-/// AN AREA'S ROOM NOBODY AUTHORED AS A WINDOW'S OFFICE. The plain weave refuses it and
+/// AN AREA'S ROOM NOBODY AUTHORED AS A WINDOW'S ROLE. The plain weave refuses it and
 /// counts the refusal -- state made by this run, in the running instance, that a
 /// freshly constructed instance would not have.
 void forge_room(loom::Switchboard& bus, loom::WeaveId id) {
@@ -5688,7 +5688,7 @@ TEST_CASE("the row is `reloading` while the conversation is open, keeps its reso
 
 TEST_CASE("the realization owner answers what each shape it accepts does from its manual, and its "
           "page describes no shape it does not accept") {
-    // MOUNTED AS THE HOST MOUNTS IT: in its office, beside a real Manager, under the grant
+    // MOUNTED AS THE HOST MOUNTS IT: in its role, beside a real Manager, under the grant
     // workshop.cpp writes -- its two lifecycle rules, its three observations and its page's answer.
     loom::Switchboard bus;
     loom::Kernel kernel{bus, loom::trust_every_artifact(
@@ -5712,7 +5712,7 @@ TEST_CASE("the realization owner answers what each shape it accepts does from it
                                                    zengine::builder::kRealizationRole);
     voice.zen_set_self(booter);
     // ...ASKED AS ANY WEAVE ASKS: every shape its gate accepts beside Loom's answers.
-    CHECK(check_office_manual(bus, zengine::builder::kRealizationRole) == 3);
+    CHECK(check_role_manual(bus, zengine::builder::kRealizationRole) == 3);
     check_page_names_accepted(zengine::manual::pages::zengine_realization::kManual,
                               described_shapes_of(bus, booter));
 }
@@ -6340,7 +6340,7 @@ class HostSeat
                      workshop::v3::PresentationTrial, workshop::PresentationAdmitted>,
           loom::Claims<workshop::PanePresentation>> {
 public:
-    static constexpr const char* kOffice = "zengine.workshop";
+    static constexpr const char* kRole = "zengine.workshop";
     /// THE STAND-IN DESK'S BOOK: trials and admissions answered, showings received, and the room
     /// it says every trial's area will have, in rows and columns of cells.
     int trials = 0;
@@ -6488,8 +6488,8 @@ struct EditorReloadRig {
         say.allow_to_any(workshop::PresentationAdmitted::zen_name,
                          workshop::PresentationAdmitted::zen_version);
         host_id = rig.bus.register_weave(std::move(seat), std::move(say),
-                                         std::string(HostSeat::kOffice));
-        // ...AND THE LAYOUTS' OFFICE BESIDE IT, so the Editor holds a row and draws.
+                                         std::string(HostSeat::kRole));
+        // ...AND THE LAYOUTS' ROLE BESIDE IT, so the Editor holds a row and draws.
         (void)zengine::testing::mount_layouts_stand_in(rig.bus);
         host->zen_set_self(host_id);
         auto reader = std::make_unique<LoadPokeSeat>();
@@ -6499,7 +6499,7 @@ struct EditorReloadRig {
         file = rig.products() / "witness.txt";
         // THE OPENING MANAGER, MOUNTED THE WAY THE HOST MOUNTS IT (WL-OPEN-01): the source door
         // this rig asks relays to it, and it coordinates the real Editor with this stand-in desk.
-        // Its authority is minted by this rig's bus over exactly the two offices, as
+        // Its authority is minted by this rig's bus over exactly the two roles, as
         // `workshop.cpp` mints it.
         drive([](HostSeat& h, loom::Mail& m) { h.claim_desk(m); });
         mount_opening();
@@ -6509,16 +6509,16 @@ struct EditorReloadRig {
     loom::WeaveId opening_id{};
     void mount_opening() {
         auto opener = std::make_unique<workshop::OpeningManager>(
-            std::string(workshop::kEditorRole), std::string(HostSeat::kOffice),
+            std::string(workshop::kEditorRole), std::string(HostSeat::kRole),
             workshop::PaneRef{"zengine.editor", "editor"});
         opening = opener.get();
         loom::Grant arrange;
         arrange.allow_to_role(workshop::PresentationTrialRequested::zen_name,
-                              workshop::PresentationTrialRequested::zen_version, HostSeat::kOffice);
+                              workshop::PresentationTrialRequested::zen_version, HostSeat::kRole);
         arrange.allow_to_role(workshop::ManagedOpenProgress::zen_name,
-                              workshop::ManagedOpenProgress::zen_version, HostSeat::kOffice);
+                              workshop::ManagedOpenProgress::zen_version, HostSeat::kRole);
         arrange.allow_to_role(workshop::ManagedOpenSettled::zen_name,
-                              workshop::ManagedOpenSettled::zen_version, HostSeat::kOffice);
+                              workshop::ManagedOpenSettled::zen_version, HostSeat::kRole);
         arrange.allow_to_role(workshop::ManagedOpenSettled::zen_name,
                               workshop::ManagedOpenSettled::zen_version, workshop::kEditorRole);
         arrange.allow_to_role(workshop::ManagedOpenProgress::zen_name,
@@ -6526,14 +6526,14 @@ struct EditorReloadRig {
         arrange.allow_to_role(workshop::v3::PrepareSourceRequested::zen_name,
                               workshop::v3::PrepareSourceRequested::zen_version, workshop::kEditorRole);
         arrange.allow_to_role(workshop::v3::PresentationAdmitRequested::zen_name,
-                              workshop::v3::PresentationAdmitRequested::zen_version, HostSeat::kOffice);
+                              workshop::v3::PresentationAdmitRequested::zen_version, HostSeat::kRole);
         arrange.allow_to_any(workshop::SourceOpened::zen_name, workshop::SourceOpened::zen_version);
         loom::allow_poke_answers(arrange);
         opening_id = rig.bus.register_weave(std::move(opener), std::move(arrange),
                                             std::string(workshop::kOpeningRole));
         opening->zen_set_self(opening_id);
         opening->set_authority(rig.bus.mint_joint_authority(
-            opening_id, {std::string(workshop::kEditorRole), std::string(HostSeat::kOffice)}));
+            opening_id, {std::string(workshop::kEditorRole), std::string(HostSeat::kRole)}));
     }
 
     void drive(std::function<void(HostSeat&, loom::Mail&)> what) {
@@ -6556,10 +6556,10 @@ struct EditorReloadRig {
         REQUIRE(rig.realize(plan_of({weaves("zengine-editor-pane", "zengine.editor")})).ok);
         editor = rig.kernel.weave_id("zengine-editor-pane");
         REQUIRE(editor.value != 0);
-        // THE PANE OFFERED ITSELF AT ACTIVATION, to an office that answered; ask once more the
+        // THE PANE OFFERED ITSELF AT ACTIVATION, to a role that answered; ask once more the
         // way the host does at boot, and give its area a room in the window.
         drive([](HostSeat&, loom::Mail& m) {
-            (void)m.as_role(HostSeat::kOffice).publish(workshop::PaneCatalogRequested{});
+            (void)m.as_role(HostSeat::kRole).publish(workshop::PaneCatalogRequested{});
         });
         REQUIRE_FALSE(host->offers.empty());
         CHECK(host->offers.back().pane == "editor");
@@ -6586,7 +6586,7 @@ struct EditorReloadRig {
     workshop::SourceOpened open(const std::string& path) {
         const std::size_t before = host->opens.size();
         drive([path](HostSeat&, loom::Mail& m) {
-            (void)m.as_role(HostSeat::kOffice)
+            (void)m.as_role(HostSeat::kRole)
                 .send_to_role("zengine.editor", workshop::OpenSourceRequested{path});
         });
         REQUIRE(host->opens.size() == before + 1);
@@ -6595,14 +6595,14 @@ struct EditorReloadRig {
 
     void type(const std::string& text) {
         drive([text](HostSeat&, loom::Mail& m) {
-            (void)m.as_role(HostSeat::kOffice)
+            (void)m.as_role(HostSeat::kRole)
                 .send_to_role("zengine.editor", workshop::PaneTextInput{"editor", text});
         });
     }
 
     void key(std::int64_t sc, std::int64_t mods = 0) {
         drive([sc, mods](HostSeat&, loom::Mail& m) {
-            (void)m.as_role(HostSeat::kOffice)
+            (void)m.as_role(HostSeat::kRole)
                 .send_to_role("zengine.editor", workshop::PaneKey{"editor", sc, mods});
         });
     }
@@ -6631,7 +6631,7 @@ struct EditorReloadRig {
     workshop::PaneQuitAnswered ask_quit() {
         const std::size_t before = host->quits.size();
         drive([](HostSeat&, loom::Mail& m) {
-            (void)m.as_role(HostSeat::kOffice).publish(workshop::PaneQuitRequested{});
+            (void)m.as_role(HostSeat::kRole).publish(workshop::PaneQuitRequested{});
         });
         REQUIRE(host->quits.size() == before + 1);
         return host->quits.back();
@@ -6957,7 +6957,7 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
     const loom::WeaveId old_pane = w.rig.kernel.weave_id("zengine-legacy-pane");
     REQUIRE(old_pane.value != 0);
     w.drive([](HostSeat&, loom::Mail& m) {
-        (void)m.as_role(HostSeat::kOffice).publish(workshop::PaneCatalogRequested{});
+        (void)m.as_role(HostSeat::kRole).publish(workshop::PaneCatalogRequested{});
     });
     REQUIRE_FALSE(w.host->offers.empty());
     CHECK(w.host->offers.back().pane == "old");
@@ -6967,14 +6967,14 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
     CHECK(w.host->declared.back().rows[1].id == "old.mark");
     const std::size_t declared_before = w.host->declared.size();
     w.drive([](HostSeat&, loom::Mail& m) {
-        (void)m.as_role(HostSeat::kOffice)
+        (void)m.as_role(HostSeat::kRole)
             .send_to_role("zengine.test.legacy", legacy_protocol::PaneRoom{"old", 4, 40});
     });
     REQUIRE(w.host->rows().size() == 2);
     CHECK(w.host->rows()[0].rfind("an old pane", 0) == 0);
     CHECK(w.host->rows()[1] == "acted 0");
     w.drive([](HostSeat&, loom::Mail& m) {
-        (void)m.as_role(HostSeat::kOffice)
+        (void)m.as_role(HostSeat::kRole)
             .send_to_role("zengine.test.legacy", workshop::PaneActionRequested{"old", "old.mark"});
     });
     REQUIRE(w.host->rows().size() == 2);
@@ -6992,13 +6992,13 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
     CHECK(w.host->declared.size() > declared_before);
     CHECK(w.host->declared.back().rows.size() == 2);
     w.drive([](HostSeat&, loom::Mail& m) {
-        (void)m.as_role(HostSeat::kOffice)
+        (void)m.as_role(HostSeat::kRole)
             .send_to_role("zengine.test.legacy", legacy_protocol::PaneRoom{"old", 4, 40});
     });
     REQUIRE(w.host->rows().size() == 2);
     CHECK(w.host->rows()[1] == "acted 1: old.mark");
     w.drive([](HostSeat&, loom::Mail& m) {
-        (void)m.as_role(HostSeat::kOffice)
+        (void)m.as_role(HostSeat::kRole)
             .send_to_role("zengine.test.legacy", workshop::PaneActionRequested{"old", "old.up"});
     });
     REQUIRE(w.host->rows().size() == 2);
@@ -7007,7 +7007,7 @@ TEST_CASE("a pane provider built against the published protocol alone loads and 
 }
 
 // =============================================================================
-// 16. CHOICES -- an office a weaver can switch, authored as alternatives in the plan
+// 16. CHOICES -- a role a weaver can switch, authored as alternatives in the plan
 // =============================================================================
 
 TEST_CASE("a plan authoring no choices is written as version 1, byte for byte what it always was") {
@@ -7080,12 +7080,12 @@ TEST_CASE("a version-2 file with no choices is refused, and a version-1 file can
     CHECK(crossed.outcome.refusal.find("load plan version 1") != std::string::npos);
 }
 
-TEST_CASE("the choice law: one start holder that is a choice, one office per artifact, one spelling per word") {
+TEST_CASE("the choice law: one start holder that is a choice, one role per artifact, one spelling per word") {
     const load::ArtifactIntent start = weaves("zengine-editor-pane", "zengine.editor");
     const load::ChoiceIntent standard{"zengine.editor", "standard", "zengine-editor-pane"};
     const load::ChoiceIntent neovim{"zengine.editor", "neovim", "zengine-neovim-editor"};
     CHECK(load::check_plan(choosing(plan_of({start}), {standard, neovim})).accepted);
-    // One choice alone is legal: an office with one authored holder has nothing to switch to.
+    // One choice alone is legal: a role with one authored holder has nothing to switch to.
     CHECK(load::check_plan(choosing(plan_of({start}), {standard})).accepted);
 
     struct Refused {
@@ -7104,15 +7104,15 @@ TEST_CASE("the choice law: one start holder that is a choice, one office per art
         {"a name twice",
          choosing(plan_of({start}), {standard, load::ChoiceIntent{"zengine.editor", "standard", "zengine-x"}}),
          "authored twice"},
-        {"an artifact twice for one office",
+        {"an artifact twice for one role",
          choosing(plan_of({start}), {standard, load::ChoiceIntent{"zengine.editor", "again", "zengine-editor-pane"}}),
          "authored twice as a choice"},
-        {"an artifact for two offices",
+        {"an artifact for two roles",
          choosing(plan_of({start, weaves("zengine-files", "zengine.files")}),
                   {standard, load::ChoiceIntent{"zengine.files", "files", "zengine-files"},
                    load::ChoiceIntent{"zengine.files", "twin", "zengine-editor-pane"}}),
          "a choice for both"},
-        {"a choice loaded into another office",
+        {"a choice loaded into another role",
          choosing(plan_of({start, weaves("zengine-neovim-editor", "zengine.other")}), {standard, neovim}),
          "loaded into something else"},
         {"a choice that supplies operators", choosing(plan_of({providing_start}), {standard}),
@@ -7132,7 +7132,7 @@ TEST_CASE("the choice law: one start holder that is a choice, one office per art
     }
 }
 
-TEST_CASE("a recorded switch moves an office between its authored choices, and every reader follows the weave") {
+TEST_CASE("a recorded switch moves a role between its authored choices, and every reader follows the weave") {
     PlanRig rig;
     const load::LoadPlan plan = choosing(
         plan_of({weaves("zengine-plain-weave", "test.plain")}),
@@ -7146,7 +7146,7 @@ TEST_CASE("a recorded switch moves an office between its authored choices, and e
     CHECK(rig.executor.choice_holder("test.plain") == "zengine-plain-weave");
     CHECK(rig.executor.image_of("zengine-other-weave") == stage().so("zengine-other-weave"));
 
-    // AWAY: the office moves to a choice the plan names only as a choice.
+    // AWAY: the role moves to a choice the plan names only as a choice.
     const load::PlanExecutor::Recorded away = rig.executor.record_choice_holder(
         "test.plain", "zengine-other-weave", loom::WeaveId{first.value + 100}, "/staged/other");
     REQUIRE_MESSAGE(away.accepted, away.refusal);
@@ -7186,7 +7186,7 @@ TEST_CASE("a recorded switch moves an office between its authored choices, and e
     CHECK(said.artifacts[1].state == std::string(workshop::kResolvedToken));
     CHECK(said.artifacts[1].weave == static_cast<std::int64_t>(first.value + 100));
 
-    // EDIT CODE JOINS BY THE WEAVE THAT HOLDS THE OFFICE, so it names the choice now running.
+    // EDIT CODE JOINS BY THE WEAVE THAT HOLDS THE ROLE, so it names the choice now running.
     const workshop::HostContext::CodeSource code = workshop::provenance::code_source_of(
         "test.plain", loom::WeaveId{first.value + 100}, rig.executor.resolved(), {});
     CHECK(code.artifact == "zengine-other-weave");
@@ -7209,7 +7209,7 @@ TEST_CASE("a recorded switch moves an office between its authored choices, and e
         "test.plain", loom::WeaveId{first.value + 200}, rig.executor.resolved(), {});
     CHECK(back_code.artifact == "zengine-plain-weave");
 
-    // AND ON TO A THIRD: every row the office left names where it is now -- the one a switch
+    // AND ON TO A THIRD: every row the role left names where it is now -- the one a switch
     // left earlier as much as the one it leaves this time.
     const load::PlanExecutor::Recorded onward = rig.executor.record_choice_holder(
         "test.plain", "zengine-third-weave", loom::WeaveId{first.value + 300}, "/staged/third");
@@ -7233,9 +7233,9 @@ TEST_CASE("a switch is recorded only for an authored choice, and a refused recor
         "test.plain", "zengine-not-authored", loom::WeaveId{999}, "/x");
     CHECK_FALSE(stranger.accepted);
     CHECK(stranger.refusal.find("authors no choice 'zengine-not-authored'") != std::string::npos);
-    const load::PlanExecutor::Recorded wrong_office = rig.executor.record_choice_holder(
+    const load::PlanExecutor::Recorded wrong_role = rig.executor.record_choice_holder(
         "test.other", "zengine-plain-weave", loom::WeaveId{999}, "/x");
-    CHECK_FALSE(wrong_office.accepted);
+    CHECK_FALSE(wrong_role.accepted);
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
     CHECK(rig.executor.choice_holder("test.plain") == "zengine-plain-weave");
     CHECK(rig.executor.resolved().size() == 1);
@@ -7349,9 +7349,9 @@ TEST_CASE("an optional row that refused stays `unavailable` in the owner's own a
     CHECK(unavailable);
 }
 
-TEST_CASE("an office is still to come while a plan row loading it has not settled, and is owed "
+TEST_CASE("a role is still to come while a plan row loading it has not settled, and is owed "
           "nothing once every such row resolved or was stepped over") {
-    // ⚔ MUTATION (tests/mutants/workshop_load.md#office-never-pending): `office_pending` answering
+    // ⚔ MUTATION (tests/mutants/workshop_load.md#role-never-pending): `role_pending` answering
     // false whatever the rows' states -- the first half fails before the walk has reached the
     // timer's rows.
     PlanRig rig;
@@ -7359,13 +7359,13 @@ TEST_CASE("an office is still to come while a plan row loading it has not settle
                                 weaves("zengine-plain-weave", tmr::kTimerRole),
                                 optional(both("zengine-timer", tmr::kTimerRole)),
                                 provides("zengine-provider-a")}));
-    CHECK(rig.executor.office_pending(tmr::kTimerRole)); // authored, and not settled yet
-    CHECK_FALSE(rig.executor.office_pending("zengine.nobody")); // no row loads it at all
+    CHECK(rig.executor.role_pending(tmr::kTimerRole)); // authored, and not settled yet
+    CHECK_FALSE(rig.executor.role_pending("zengine.nobody")); // no row loads it at all
     rig.drain(24);
     REQUIRE(rig.executor.state() == load::Realization::Complete);
     // ONE ROW RESOLVED INTO IT AND ONE WAS STEPPED OVER: both settled, so nothing is owed.
     CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Unavailable);
-    CHECK_FALSE(rig.executor.office_pending(tmr::kTimerRole));
+    CHECK_FALSE(rig.executor.role_pending(tmr::kTimerRole));
 }
 
 TEST_CASE("a refused required row names its reason and next step through the same projection") {

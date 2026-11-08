@@ -26,7 +26,7 @@ LAW — A pane's reading names its stamp, the place it shows in and its text mea
 MEANS
 - a page asked under a stamp the pane no longer stands on is refused as stale;
 - a cover moving between pages leaves the stamp alone: a reader compares `total` and `covered`, and a `from` past a shrunk reading is refused;
-- in flight is a window waiting for the pane's drawing, or a reading asked and not yet answered, said so at any page; a pane whose office nobody holds is no reading, and says it waits.
+- in flight is a window waiting for the pane's drawing, or a reading asked and not yet answered, said so at any page; a pane whose role nobody holds is no reading, and says it waits.
 
 WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 
@@ -61,7 +61,7 @@ LAW — Workshop publishes `DeskStamps`, the desk number and each presented pane
 
 MEANS
 - an unchanged repaint publishes nothing; a desk read finding the number moved publishes; the window saying an area settled past what Workshop took asks it again (`AreaSettled`);
-- it is the office's own, to any listener: a guest follows it through the relay as `latest`, with `capture` (WL-GUEST-11);
+- it is the role's own, to any listener: a guest follows it through the relay as `latest`, with `capture` (WL-GUEST-11);
 - a notice's `cause` stands only until a later notice replaces it.
 
 DOES NOT MEAN
@@ -99,7 +99,7 @@ WHY — `agents/decisions/a-pane-is-read-from-the-window-that-shows-it.md`
 - That a reading is consistent across panes: each pane's stands on its own stamp, and the desk on
   its number; the reader says which panes were read on another picture than the desk read named.
 - That a fingerprint orders pictures: it says whether two are the same, never which came later.
-- That the window's words are a pane's own: what another office draws in front is left out, what
+- That the window's words are a pane's own: what another role draws in front is left out, what
   Workshop draws in front is Workshop's cover.
 
 ## Proven by

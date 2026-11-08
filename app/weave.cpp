@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Joshua DeMoss
 
-// zengine-app-weave, the office `zengine.app`: an app's own weave, its runner and its arranger
+// zengine-app-weave, the role `zengine.app`: an app's own weave, its runner and its arranger
 // (app/docs/app.md). It asks the host where the app is, reads `app.json`, runs each flow through
-// the Flow host and each view through the view host as its office, and arranges the window that
+// the Flow host and each view through the view host as its role, and arranges the window that
 // offers itself: the palette its file names offered and chosen, each view's area placed to hear
 // the window's keys, and a line of its own at the window's foot where it says what went wrong.
 
@@ -48,7 +48,7 @@ std::optional<gfx::PaletteOffered> shipped_palette(const std::string& name) {
     return std::nullopt;
 }
 
-/// The app's own line, at the window's foot: its area, which is its office.
+/// The app's own line, at the window's foot: its area, which is its role.
 constexpr const char* kStatusArea = app::kAppRole;
 
 struct AppWeaveState {
@@ -59,7 +59,7 @@ struct AppWeaveState {
 
 /// One view the app runs, as it stands in the window.
 struct Placed {
-    std::string view; ///< the view's name, which is its office
+    std::string view; ///< the view's name, which is its role
     std::string area; ///< the area it draws in, its pane's: `<name>.view`
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     std::int64_t notice_rows = 0;
@@ -114,10 +114,10 @@ public:
         arrange(mail);
     }
 
-    /// A window offered itself, as its office: the first is the app's, and its size places the
+    /// A window offered itself, as its role: the first is the app's, and its size places the
     /// app's line at its foot.
     void on(const gfx::WindowOffered& w, loom::Mail& mail) {
-        if (!mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + w.window) ||
+        if (!mail.authored_from_role(std::string(gfx::kWindowRolePrefix) + w.window) ||
             (!window_.window.empty() && w.window != window_.window)) {
             return;
         }
@@ -150,7 +150,7 @@ public:
             return;
         }
         (void)mail.as_role(app::kAppRole)
-            .send_to_role(std::string(gfx::kWindowOfficePrefix) + r.window,
+            .send_to_role(std::string(gfx::kWindowRolePrefix) + r.window,
                           gfx::WindowShaped{r.window, w.title, w.width, w.height});
     }
 
@@ -163,7 +163,7 @@ public:
 private:
     void say(std::string words) { state_.status = "[app] " + std::move(words); }
 
-    /// Each flow, then each view, as this office: the flow first, so the view's intent has a
+    /// Each flow, then each view, as this role: the flow first, so the view's intent has a
     /// listener when it is first said. A file that cannot be read is said and skipped.
     void run(loom::Mail& mail) {
         for (const app::ZengineAppFlow& f : file_.flows) {

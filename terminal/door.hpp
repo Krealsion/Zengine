@@ -6,7 +6,7 @@
 
 // The door onto the terminal participant, composed onto Workshop's weave: the picture of its
 // record said when it changed, the one act that authors, and the read that says what could be
-// said next, all at the office Workshop holds. Compiled into Workshop; the pane's image includes
+// said next, all at the role Workshop holds. Compiled into Workshop; the pane's image includes
 // none of it (WL-TERM-08).
 // Workshop law: agents/workshop/terminal.md
 
@@ -30,7 +30,7 @@
 namespace zengine::workshop {
 
 /// The host's answer to `destinations`, read off `bus` at the call: every weave that is not a
-/// sealed candidate, its office, accepted shapes and liveness, and `self` marked. A reading, not a
+/// sealed candidate, its role, accepted shapes and liveness, and `self` marked. A reading, not a
 /// registry.
 // WL-TERM-16 -- agents/workshop/terminal.md
 inline std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self) {
@@ -41,7 +41,7 @@ inline std::vector<Destination> bus_destinations(const loom::Switchboard& bus, l
         }
         Destination d;
         d.id = id.value;
-        d.office = bus.role_of(id);
+        d.role = bus.role_of(id);
         d.alive = bus.alive(id);
         d.self = self.valid() && id == self;
         for (const std::shared_ptr<const loom::Schema>& door : bus.accepted_schemas(id)) {
@@ -82,7 +82,7 @@ public:
     /// `self`, the weave composing this door, repaints its desk so the picture follows the answer.
     template <class Self>
     void on(Self& self, const TerminalActRequested& asked, loom::Mail& mail) {
-        // AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT -- `on(DocumentActRequested)`'s rule, and
+        // AN ROLE MAY ASK; ANONYMOUS SPEECH MAY NOT -- `on(DocumentActRequested)`'s rule, and
         // the reason it names nobody: a second presentation of this participant asks with no
         // edit here.
         if (mail.authored_role().empty()) {
@@ -162,7 +162,7 @@ public:
         }
         said_transcript_ = now;
         transcript_said_ = true;
-        // `to_any`, NOT ADDRESSED, AND SAID AS THE OFFICE -- `say_conditions`' own three
+        // `to_any`, NOT ADDRESSED, AND SAID AS THE ROLE -- `say_conditions`' own three
         // reasons, unchanged one shape over.
         (void)mail.as_role(kWorkshopProvider).publish(std::move(now));
     }
@@ -211,7 +211,7 @@ private:
         // a question about the GRAMMAR and never about the furniture.
         me.record_notice("this pane speaks two verbs, and `ask` takes the same form as `send`: "
                          "send <addr> <Shape> <version> [args] -- an address is #12 for one "
-                         "weave, @office for whoever holds a role, or * for everyone");
+                         "weave, @role for whoever holds a role, or * for everyone");
     }
 
     /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and

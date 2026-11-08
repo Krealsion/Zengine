@@ -11,7 +11,7 @@
 
 // Every present field in declaration order, named; an absent field stays absent, so the
 // Terminal's composer asks for a missing required one. Text is always quoted. The address is
-// written only when the value's capture supplied one that still means something (an office or a
+// written only when the value's capture supplied one that still means something (a role or a
 // publish), else `<address>`, which the Terminal refuses. What the grammar cannot spell (a quote
 // or control byte in a text, a non-finite number, bytes, a list, a nested message) is refused,
 // and the line is proved by reading it back through the lexer, cell for cell.
@@ -146,7 +146,7 @@ inline bool reads_back(const loom::Field& f, const loom::Cell& cell, const loom:
 
 } // namespace detail
 
-/// THE TERMINAL LINE FOR `value`, addressed to `address` when the capture supplied one (`@office`
+/// THE TERMINAL LINE FOR `value`, addressed to `address` when the capture supplied one (`@role`
 /// or `*`) and to `kAddressPlaceholder` otherwise.
 inline TerminalLine terminal_line(const loom::Value& value, std::string_view address) {
     TerminalLine out;

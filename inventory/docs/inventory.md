@@ -4,13 +4,13 @@
 entry a toolbox file holds is one *pair*: an *item*, the value itself, and its *metadata*, a list
 of typed facts about how it was captured, in one byte envelope that carries its own schemas.
 `inventory/codec.hpp` is the format (`encode_pair`, `decode_pair`); link `zengine::inventory`. The
-office that keeps pairs is [`zengine.inventory`](zengine.inventory.md), and its pane
+role that keeps pairs is [`zengine.inventory`](zengine.inventory.md), and its pane
 [`zengine.inventory-pane`](zengine.inventory-pane.md).
 
 ## The envelope
 
 An item's schema, and each metadata entry's, are never compiled into Inventory: a pair is one
-`Bytes` field to the office, and what it decodes to is the bytes' own business. That is what lets
+`Bytes` field to the role, and what it decodes to is the bytes' own business. That is what lets
 an unrelated schema be stored beside the others with nothing rebuilt. The envelope is the shape
 `zengine.inventory.Pair` v1, `codec.hpp`'s `pair_schema()`:
 
@@ -59,7 +59,7 @@ a file place as a `SourceLocation`, each with its observation
 
 ## An incomplete command
 
-The office admits every item and metadata value completely. A partial command travels inside the
+The role admits every item and metadata value completely. A partial command travels inside the
 complete `StoredDraft` envelope of [message drafts](../../message-draft/docs/message-drafts.md),
 which keeps its original schema closure and its missing fields. Info unwraps it for editing;
 Compose checks it against the receiver it is dropped on, and requires complete admission before

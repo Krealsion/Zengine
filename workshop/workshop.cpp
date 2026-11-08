@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // zengine-workshop: the Workshop host's `main`. It resolves the weaver's files, composes the
-// process's offices and grants, realizes the authored load plan and runs the bus.
+// process's roles and grants, realizes the authored load plan and runs the bus.
 // Workshop law: agents/workshop/project.md (+2 registers; agents/workshop.md routes)
 
 #include "arrangement.hpp"
@@ -29,7 +29,7 @@
 #include "editor_switch.hpp"  // the editor switch this host mounts
 #include "terminal_speech.hpp" // what the Terminal participant this host mounts may say
 #include "pane_migration.hpp" // the retired references this host converts, one of which it manages
-#include "provenance.hpp"     // what stands behind an office's running code, from three owners
+#include "provenance.hpp"     // what stands behind a role's running code, from three owners
 #include "guest_door.hpp"     // the other hosts this Workshop admits, and the door they come through
 #include "guests.hpp"         // ...and the file that says who they are
 #include "admission.hpp"
@@ -95,15 +95,15 @@ namespace op = zengine::op;
 namespace gfx = zengine::graphics;
 namespace timer = zengine::timer;
 
-/// Mount an in-process weave into an office with the grant the host chose: `mount_granted` plus
-/// the role binding, so a grant can name whoever holds the office rather than a WeaveId.
+/// Mount an in-process weave into a role with the grant the host chose: `mount_granted` plus
+/// the role binding, so a grant can name whoever holds the role rather than a WeaveId.
 template <class Weave, class... Args>
-loom::WeaveId mount_in_office(loom::Switchboard& bus, loom::Grant grant, const char* office,
+loom::WeaveId mount_in_role(loom::Switchboard& bus, loom::Grant grant, const char* role,
                               Args&&... args) {
     auto weave = std::make_unique<Weave>(std::forward<Args>(args)...);
     Weave* raw = weave.get();
     const loom::WeaveId id =
-        bus.register_weave(std::move(weave), std::move(grant), std::string(office));
+        bus.register_weave(std::move(weave), std::move(grant), std::string(role));
     raw->zen_set_self(id);
     return id;
 }
@@ -512,7 +512,7 @@ int main(int argc, char** argv) {
     load::LoadPlan launched = read_plan.plan;
     if (args.tui) {
         const std::string terminal =
-            std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+            std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
         if (const Written taken = load::take_role(launched, terminal); !taken.accepted) {
             return refuse_plan("--tui opens the terminal window, and " + plan_path +
                                " offers none (" + taken.refusal +
@@ -659,7 +659,7 @@ int main(int argc, char** argv) {
 
     op::OperatorHostSurface operator_host(operators);
 
-    // The host decides what each loaded office may say. Inventory keeps its bounded
+    // The host decides what each loaded role may say. Inventory keeps its bounded
     // grant; the broader plan-authority policy remains explicit in admission.hpp.
     loom::Kernel kernel(bus, zengine::workshop::artifact_admission());
     const loom::WeaveId control = loom::mount_control(kernel, bus);
@@ -684,9 +684,9 @@ int main(int argc, char** argv) {
     std::fflush(stdout);
 
     // ---- The Builder tool, and the one thing that may start a process ---------------------------
-    // Two weaves, two offices, two grants. The runner is the only weave that starts a process: it
+    // Two weaves, two roles, two grants. The runner is the only weave that starts a process: it
     // holds the catalog and a program fixed at configure time that no message can reach, reports
-    // to the Builder office, and may ask the Timer for a beat. The tool holds names only and orders
+    // to the Builder role, and may ask the Timer for a beat. The tool holds names only and orders
     // the runner. The grants bound what these weaves may say, not what they touch: no containment.
     loom::Grant run_builds;
     run_builds.allow_to_role(builder::BuildStarted::zen_name, builder::BuildStarted::zen_version,
@@ -703,7 +703,7 @@ int main(int argc, char** argv) {
                              timer::kTimerRole);
     run_builds.allow_to_any(manual::ShapeDocumentShown::zen_name,
                             manual::ShapeDocumentShown::zen_version);
-    const loom::WeaveId runner = mount_in_office<builder::BuildRunnerWeave>(
+    const loom::WeaveId runner = mount_in_role<builder::BuildRunnerWeave>(
         bus, std::move(run_builds), builder::kBuildRunnerRole, current_recipes.all(),
         std::string(ZENGINE_BUILDER_CMAKE), std::string(ZENGINE_BUILDER_WASI_SDK));
 
@@ -727,7 +727,7 @@ int main(int argc, char** argv) {
     // ...and what a shape it accepts does, from its own page, to the one who asked.
     order_builds.allow_to_any(manual::ShapeDocumentShown::zen_name,
                               manual::ShapeDocumentShown::zen_version);
-    const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
+    const loom::WeaveId builder_tool = mount_in_role<builder::BuilderWeave>(
         bus, std::move(order_builds), builder::kBuilderRole, current_recipes.views(),
         current_recipes.source());
 
@@ -757,9 +757,9 @@ int main(int argc, char** argv) {
     std::fflush(stdout);
 
     // Workshop's own grant (`workshop_grant`, workshop/grant.cpp): its screen, its answers, and the
-    // pane sentences to offices resolved at runtime -- no lifecycle, no Manager. It is mounted in
+    // pane sentences to roles resolved at runtime -- no lifecycle, no Manager. It is mounted in
     // `kWorkshopProvider`, the built-in rows' own provider string rather than a credential, so a
-    // provider can verify its asks; holding the office is not a super-grant (Loom MSG-07).
+    // provider can verify its asks; holding the role is not a super-grant (Loom MSG-07).
     host.role_holder = [&bus](std::string_view role) { return bus.role_holder(role); };
     host.incarnation_of = [&bus](loom::WeaveId id) {
         return static_cast<std::int64_t>(bus.participant(id).incarnation);
@@ -778,14 +778,14 @@ int main(int argc, char** argv) {
     host.destinations = [&bus, &host] {
         return bus_destinations(bus, host.terminal != nullptr ? host.terminal->id() : loom::WeaveId{});
     };
-    // ---- The layouts' owner, in its own office (workshop/layouts/owner.hpp) ---------------------
-    // Every layout and what each keeps, the office-wide settings, the locks and the pins: one
+    // ---- The layouts' owner, in its own role (workshop/layouts/owner.hpp) ---------------------
+    // Every layout and what each keeps, the role-wide settings, the locks and the pins: one
     // writer and one judge, never replaced. Mounted before Workshop, whose first ask restores the
     // session; it reads this host's paths and readings at each ask.
-    mount_in_office<LayoutsOwner>(bus, layouts_grant(), kLayoutsRole, layouts_owner_host(host));
+    mount_in_role<LayoutsOwner>(bus, layouts_grant(), kLayoutsRole, layouts_owner_host(host));
     auto speak = workshop_grant();
     const loom::WeaveId workshop_id =
-        mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
+        mount_in_role<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // ---- The guest door: other hosts, admitted deliberately (workshop/guest_door.hpp) -----------
     // Only with a `--guests` file: without one this Workshop cannot be connected to, the honest
@@ -896,7 +896,7 @@ int main(int argc, char** argv) {
     const QuitDeliveryWatch quit_watch(bus, workshop_id, host.undelivered_quits);
 
     // ---- The opening manager (WL-OPEN-01, WL-OPEN-08) -------------------------------------------
-    // Mounted in its own office with exactly the conversation it carries. Its joint authority is
+    // Mounted in its own role with exactly the conversation it carries. Its joint authority is
     // minted by this host for its own id: one replaced at that address commits nothing it did not
     // begin.
     loom::Grant arrange_openings;
@@ -957,7 +957,7 @@ int main(int argc, char** argv) {
     load::BootAnswers answers;
     auto speaker = std::make_unique<load::PlanBooter>(answers);
     load::PlanBooter& voice = *speaker;
-    // In the realization owner's office, so its words can be followed by name (builder/vocabulary.hpp).
+    // In the realization owner's role, so its words can be followed by name (builder/vocabulary.hpp).
     const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate),
                                                     builder::kRealizationRole);
     voice.zen_set_self(booter);
@@ -1123,15 +1123,15 @@ int main(int argc, char** argv) {
         });
     }
 
-    // ---- What stands behind an office's running code --------------------------------------------
+    // ---- What stands behind a role's running code --------------------------------------------
     // Three owners read at the ask (`provenance.hpp`): the bus, the realization owner and the
     // catalog in force. It opens nothing, and chooses nothing when several recipes answer.
-    host.code_source = [&bus, &executor, &current_recipes](const std::string& office) {
-        return provenance::code_source_of(office, bus, executor, current_recipes);
+    host.code_source = [&bus, &executor, &current_recipes](const std::string& role) {
+        return provenance::code_source_of(role, bus, executor, current_recipes);
     };
-    // ...and whether an office is still to come: pending in the inventory, never unavailable.
-    host.office_pending = [&executor](std::string_view office) {
-        return executor.office_pending(office);
+    // ...and whether a role is still to come: pending in the inventory, never unavailable.
+    host.role_pending = [&executor](std::string_view role) {
+        return executor.role_pending(role);
     };
 
     // ---- The two authored files gain a writer: the weaver's own act -----------------------------
@@ -1165,7 +1165,7 @@ int main(int argc, char** argv) {
                               v2::ResolvedArrangement::zen_version);
     say_resolved.allow_to_any(manual::ShapeDocumentShown::zen_name,
                               manual::ShapeDocumentShown::zen_version);
-    mount_in_office<ArrangementDoor>(
+    mount_in_role<ArrangementDoor>(
         bus, std::move(say_resolved), kArrangementRole, executor, plan_path,
         [&bus](std::string_view role, const loom::Schema& shape) {
             return holder_accepts_on(bus, role, shape);
@@ -1180,20 +1180,20 @@ int main(int argc, char** argv) {
     say_found.allow_to_any(PowerDescribed::zen_name, PowerDescribed::zen_version);
     say_found.allow_to_any(manual::ShapeDocumentShown::zen_name,
                            manual::ShapeDocumentShown::zen_version);
-    mount_in_office<PowersDoor>(bus, std::move(say_found), kPowersRole, operators);
+    mount_in_role<PowersDoor>(bus, std::move(say_found), kPowersRole, operators);
 
-    // ---- ...and the one office that may run a Source --------------------------------------------
-    // A door of its own, so which office can cause evaluation keeps a one-word answer. One shape in
+    // ---- ...and the one role that may run a Source --------------------------------------------
+    // A door of its own, so which role can cause evaluation keeps a one-word answer. One shape in
     // and one out, beside its page's section for a shape; it caches nothing, and the catalog,
     // declared far above, outlives it.
     loom::Grant say_sampled;
     say_sampled.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
     say_sampled.allow_to_any(manual::ShapeDocumentShown::zen_name,
                              manual::ShapeDocumentShown::zen_version);
-    mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
+    mount_in_role<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
 
     // ---- ...and the project door the pane weaves ask (workshop/pane_doors.hpp) -----------------
-    // One office: its readings derive at the ask, and each act spends a closure already wired
+    // One role: its readings derive at the ask, and each act spends a closure already wired
     // (WL-PROJ-04, WL-AUTH-01, WL-AUTH-02). It captures `host.frontier`, `host.plan_names`,
     // `host.recipe_source` and the acts' closures by value, so it is mounted after they are wired.
     loom::Grant say_project;
@@ -1205,19 +1205,19 @@ int main(int argc, char** argv) {
     say_project.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
     say_project.allow_to_any(manual::ShapeDocumentShown::zen_name,
                              manual::ShapeDocumentShown::zen_version);
-    mount_in_office<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
+    mount_in_role<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
                                  marks_path, host.frontier, host.plan_names, host.recipe_source,
                                  host.use_recipes, host.author_recipe, host.append_plan_row);
 
     // ---- The editor switch (WL-SWITCH-03, WL-SWITCH-07) -----------------------------------------
-    // One native coordinator in its own office, switching the managed pane's office between the
-    // choices the plan authors. Handed the bus, the Kernel, the office and four readings of the
+    // One native coordinator in its own role, switching the managed pane's role between the
+    // choices the plan authors. Handed the bus, the Kernel, the role and four readings of the
     // realization owner, it names no artifact; its grant is its conversation.
     {
         EditorSwitchHost switch_host;
         switch_host.bus = &bus;
         switch_host.kernel = &kernel;
-        switch_host.office = kEditorRole;
+        switch_host.role = kEditorRole;
         switch_host.choices = [&executor] { return executor.plan().choices; };
         switch_host.holder = [&executor] { return executor.choice_holder(kEditorRole); };
         switch_host.image_of = [&executor](const std::string& stem) { return executor.image_of(stem); };
@@ -1243,7 +1243,7 @@ int main(int argc, char** argv) {
     zengine::view::Host view_host(bus);
     view_host.mount();
 
-    // THE CHOICE THE LAST SESSION REMEMBERED (WL-SWITCH-08): each switchable office starts on the
+    // THE CHOICE THE LAST SESSION REMEMBERED (WL-SWITCH-08): each switchable role starts on the
     // authored choice that held it at quit, while the plan still authors it; the project's plan
     // file is never changed, and a run with no session file reads none.
     load::LoadPlan begun = launched;
@@ -1271,7 +1271,7 @@ int main(int argc, char** argv) {
     };
     executor.begin(std::move(begun));
 
-    // The loop: a turn, then one wait on every source the plan's offices and the guest door say
+    // The loop: a turn, then one wait on every source the plan's roles and the guest door say
     // they wait on, for as long as the Timer's beat allows (timer/rest.hpp), until `q`. A turn
     // that ends with an empty queue means nothing will speak again: say so and leave. A native
     // owner's showing runs inside the host's boundary (workshop/host_pump.hpp), so a throw there is
@@ -1279,8 +1279,8 @@ int main(int argc, char** argv) {
     zengine::timer::MonotonicClock clock;
     zengine::timer::Rest<zengine::timer::MonotonicClock> rest(clock);
     loom::host::Reactor wait(bus);
-    for (const std::string& office : load::plan_offices(executor.plan())) {
-        wait.trust(office);
+    for (const std::string& role : load::plan_roles(executor.plan())) {
+        wait.trust(role);
     }
     if (guest_door != nullptr) {
         wait.trust(kGuestsRole);

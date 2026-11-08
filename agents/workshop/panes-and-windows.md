@@ -133,13 +133,13 @@ LAW — An open pane carries a kind and nothing else; a kind is open once or not
 
 MEANS
 - a second copy of a tool's status in each instance would need a policy about several instances;
-- removing a pane touches nothing behind it: no message reaches the office.
+- removing a pane touches nothing behind it: no message reaches the role.
 
 WHY — `agents/decisions/three-places.md`
 
 ## WL-PANE-16 — A pane with no drawing says waiting, never unavailable
 
-LAW — A pane's frame says `waiting for <name>` behind its area until the pane draws there, or `<name> draws in no window` for an office taking no room in one; `unavailable` is never said.
+LAW — A pane's frame says `waiting for <name>` behind its area until the pane draws there, or `<name> draws in no window` for a role taking no room in one; `unavailable` is never said.
 
 MEANS
 - the pane's ground covers the words once it draws; silence proves no fate, as Loom tells no unload;
@@ -291,7 +291,7 @@ offer"
 
 ### WL-PANE-13
 `workshop/panes.hpp` OpenPane Panes::has open_kind close_kind
-`tests/test_workshop_host.cpp` "a built-in pane needs no weave, and opening one speaks to no office"
+`tests/test_workshop_host.cpp` "a built-in pane needs no weave, and opening one speaks to no role"
 `tests/test_workshop_panes_actions.cpp` "WL-DESK-12: a close takes a pane off the desk and leaves
 its provider holding; a close of a pane that is not there is refused and opens nothing"
 
@@ -302,7 +302,7 @@ its provider holding; a close of a pane that is not there is refused and opens n
 `tests/test_workshop_panes_seam.cpp` "silence is waiting, and Workshop never says unavailable"
 `tests/test_workshop_screen.cpp` "unload and reload -- waiting is said, and a reload recovers the
 view"
-`tests/test_workshop_desk.cpp` "a pane whose office draws in no graphics window has no area there,
+`tests/test_workshop_desk.cpp` "a pane whose role draws in no graphics window has no area there,
 and its frame says so; one that does is placed its area, titled, and nothing is drawn over it while
 arranging"
 

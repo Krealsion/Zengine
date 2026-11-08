@@ -21,7 +21,7 @@ version of each shape stands: `DeskRead` v3, `PaneView` v7, `PanePoint` v3, `Des
 **Alternatives considered.**
 - *The window publishing what each area shows after every showing* -- argued against: a message an
   area a showing, and Workshop holding a copy of every picture again.
-- *Each office answering its own reading* -- argued against: the owner's word, not what the weaver
+- *Each role answering its own reading* -- argued against: the owner's word, not what the weaver
   sees; a pane covered by another reads whole until Workshop cuts it.
 
 **Consequences.** A read is a conversation: it waits for one answer a presented pane, at most a few

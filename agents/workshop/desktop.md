@@ -10,15 +10,15 @@ Retired: WL-DESK-05.
 
 ## WL-DESK-01 — The application's defaults are a weave, and the host keeps four things
 
-LAW — One office, `zengine.desktop`, holds the application's default behaviour; the host keeps room, focus, realization and roots, and compiles none of what that office decides.
+LAW — One role, `zengine.desktop`, holds the application's default behaviour; the host keeps room, focus, realization and roots, and compiles none of what that role decides.
 
 MEANS
 - a Workshop whose desktop did not load has no launch bindings, key list or default Escape;
 - the weave is built, loaded, edited and reloaded by the means every pane weave is.
 
 DOES NOT MEAN
-- that the office is privileged: it opens nothing the inventory lacks and loads no artifact;
-- that holding the office is speaking for it — a personal declaration registers nothing.
+- that the role is privileged: it opens nothing the inventory lacks and loads no artifact;
+- that holding the role is speaking for it — a personal declaration registers nothing.
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
@@ -58,7 +58,7 @@ LAW — The host publishes `inventory_rows`' answer whenever it changes, with au
 
 MEANS
 - a pane can be authored-open and unavailable, or still owed by the run: two states, one verdict;
-- presence is asked of the office's current holder at every reading, never read off a past offer;
+- presence is asked of the role's current holder at every reading, never read off a past offer;
 - the publication is compared before it is sent, so an unchanged reading is silence.
 
 DOES NOT MEAN
@@ -74,7 +74,7 @@ LAW — Workshop answers each action declaration it judges with its verdict, num
 MEANS
 - the verdict is Loom's answer: it echoes the declaration's correlation, to its incarnation only;
 - a keymap file that displaces a pane's or the application's declaration withdraws it whole;
-- only a holder whose office accepts the shape is told; the band says a refusal either way.
+- only a holder whose role accepts the shape is told; the band says a refusal either way.
 
 DOES NOT MEAN
 - that silence is a verdict: an answer can be refused at the gate or dropped with its asker;
@@ -84,7 +84,7 @@ WHY — `agents/decisions/a-verdict-answers-its-declaration.md`
 
 ## WL-DESK-07 — An application row is one declaration in two precedence classes
 
-LAW — The declaring office's rows join the one keymap under the one collision law; each row declares whether it is answered above the modes or last, and there are exactly two such places.
+LAW — The declaring role's rows join the one keymap under the one collision law; each row declares whether it is answered above the modes or last, and there are exactly two such places.
 
 MEANS
 - an above-the-modes row is asked before any pane, meets every host row, and takes no text key;
@@ -233,15 +233,15 @@ closes, holding the keys, and no later start opens it again"
 ### WL-DESK-04
 `workshop/desktop_seam_vocabulary.hpp` InventoryPane PaneInventory
 `workshop/weave.hpp` publish_inventory inventory_reading provider_present
-HostContext::office_pending
+HostContext::role_pending
 `workshop/weave_desktop.cpp` publish_inventory inventory_reading provider_present
-`workshop/load_execute.hpp` office_pending
+`workshop/load_execute.hpp` role_pending
 `workshop/setup_reconcile.hpp` inventory_rows
 `tests/test_workshop_panes_actions.cpp` "a pane whose provider left is unavailable in the launcher
 and refused at launch, while its identity and the desk row naming it stay" "a pane the run is still
 loading is pending, not unavailable: the launcher marks it `[load]`, names nothing to build, and a
 launch says it is not here yet"
-`tests/test_workshop_load.cpp` "an office is still to come while a plan row loading it has not
+`tests/test_workshop_load.cpp` "a role is still to come while a plan row loading it has not
 settled, and is owed nothing once every such row resolved or was stepped over"
 
 ### WL-DESK-06
@@ -349,7 +349,7 @@ Workshop asked for the hand of its row's key, then the launcher, the palette say
 answered"
 `tests/test_workshop_panes_palette.cpp` "WL-DESK-18: ctrl+space shows the palette over the pane
 holding the keys, its Return runs the entry chosen by its key's path as that hand, and Escape puts
-it down with the keys given back" "WL-DESK-18: the palette closed by an office, through the layouts'
+it down with the keys given back" "WL-DESK-18: the palette closed by a role, through the layouts'
 owner, is put down with the keys given back, as its own Escape puts it down"
 `tests/test_workshop_panes_palette.cpp` "WL-DESK-18: a run is refused under any number but the
-palette's own unspent row and from any office but the palette's, and nothing is run"
+palette's own unspent row and from any role but the palette's, and nothing is run"

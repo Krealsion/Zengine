@@ -78,7 +78,7 @@ private:
     std::string due_;
 };
 
-/// A pane that hears the input office's key and draws on its next beat.
+/// A pane that hears the input role's key and draws on its next beat.
 class HeardPane
     : public loom::WeaveBase<HeardPane, TallySuiteState,
                              loom::Accept<zengine::input::KeyPressed, TallyBeat>,
@@ -186,7 +186,7 @@ TEST_CASE("a key reaches its paint when the weave it reached draws, turns after 
     bus.drain_until_idle();
     CHECK(tally.paints().front().count == 1);
 
-    // A KEY THE INPUT OFFICE PUBLISHES is an input too: the weave it reaches paints it later.
+    // A KEY THE INPUT ROLE PUBLISHES is an input too: the weave it reaches paints it later.
     const loom::WeaveId hearer = mount_role<HeardPane>(bus, "suite.hearer");
     (void)hearer;
     (void)bus.publish(loom::Message(loom::to_value(zengine::input::KeyPressed{})));

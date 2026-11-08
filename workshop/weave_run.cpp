@@ -111,8 +111,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     const auto to_directory = [&mail](const auto& said) {
         (void)mail.as_role(kWorkshopProvider).send_to_role(graphics::kGraphicsRole, said);
     };
-    const auto accepts = [this](const std::string& office, const loom::Schema& shape) {
-        return host_->holder_accepts && host_->holder_accepts(office, shape);
+    const auto accepts = [this](const std::string& role, const loom::Schema& shape) {
+        return host_->holder_accepts && host_->holder_accepts(role, shape);
     };
     // A DIRECTORY NOT PLACED WITH YET -- another holder, a reload, or one that said it started
     // afresh -- holds none of this desk's areas: the palettes are offered and everything placed
@@ -136,10 +136,10 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         }
     }
     // EACH OPEN PANE AT ITS DEPTH in the desk's order, above Workshop's own area: its frame in an
-    // area of Workshop's over its bounds, and, where its office draws in a window, the pane's own
+    // area of Workshop's over its bounds, and, where its role draws in a window, the pane's own
     // area just in front under its title rows; else the frame says it draws in no window. The
     // window's keys are Workshop's alone, its keymap deciding first, and a pane hears them as
-    // `PaneKey` and `PaneTextInput`; its pointer is the pane's where its office hears the window's.
+    // `PaneKey` and `PaneTextInput`; its pointer is the pane's where its role hears the window's.
     const Screen sc = screen_of(session_);
     const std::vector<std::int64_t> order =
         effective_pane_order(session_.setup.active, session_.panes);
@@ -232,7 +232,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     const bool menu_placed = session_.presented.open && !menu.empty();
     if (menu_placed) {
         const RuntimePane* about =
-            session_.panes.runtime.find(session_.presented.office, session_.presented.pane);
+            session_.panes.runtime.find(session_.presented.role, session_.presented.pane);
         next[session_.presented.area] = graphics::AreaPlaced{
             session_.presented.area, window_name_, kPresenterRole, menu.x, menu.y, menu.w, menu.h,
             panes_order + 2, false, true, about != nullptr && weaver_only_pane(*about)};
@@ -378,10 +378,10 @@ void WorkshopWeave::say_conditions(const ProjectFrontier& frontier, loom::Mail& 
     }
     said_conditions_ = now;
     conditions_said_ = true;
-    // `to_any`, NOT ADDRESSED, AND SAID AS THE OFFICE. Which weave presents this is the load
+    // `to_any`, NOT ADDRESSED, AND SAID AS THE ROLE. Which weave presents this is the load
     // plan's business, and a host that addressed one would be a host with a pane compiled
     // into it again -- but a reader still has to be able to tell this host's reading from
-    // any weave's opinion, so the publication carries the office stamp and the pane refuses
+    // any weave's opinion, so the publication carries the role stamp and the pane refuses
     // an unstamped one. `as_role` adds provenance, never a capability (MSG-07).
     (void)mail.as_role(kWorkshopProvider).publish(StandingConditions{std::move(now)});
 }
@@ -408,13 +408,13 @@ void WorkshopWeave::quit(loom::Mail& mail) {
     // host's book and refuses the quit (`quit_delivery.hpp`). The ask's number is minted by the
     // paste book, so an answer to it can never settle a paste.
     quit_ask_ = paste_asks_.mint_correlation();
-    const loom::OfficePublication asked =
+    const loom::RolePublication asked =
         mail.as_role(kWorkshopProvider).publish(PaneQuitRequested{}, quit_ask_);
     if (!asked.authored) {
-        // THIS WEAVE DOES NOT HOLD ITS OWN OFFICE, so it cannot ask and cannot know. A host
+        // THIS WEAVE DOES NOT HOLD ITS OWN ROLE, so it cannot ask and cannot know. A host
         // composed that way is a defect worth reading, not a reason to lose a weaver's work.
         say("Workshop could not ask its panes whether they hold unsaved work -- it does not "
-            "hold its own office; Workshop stays open",
+            "hold its own role; Workshop stays open",
             true);
         return;
     }

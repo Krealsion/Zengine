@@ -7,14 +7,14 @@
 // its own participant from its description, granted only what the description declares, applies
 // a change at the same shapes in place, and registers a change of shapes afresh. It owns no
 // Kernel, rendering policy or file policy. Law: agents/view.md. Reference: view/docs/view.md;
-// its office's manual is view/docs/zengine.view.host.md.
+// its role's manual is view/docs/zengine.view.host.md.
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 #include "view/view.hpp"
 #include "view/vocabulary.hpp"
 
-#include "manuals/zengine.view.host.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.view.host.hpp" // this role's manual, compiled in from its page
 
 #include <zen/switchboard/switchboard.hpp>
 
@@ -36,7 +36,7 @@ struct ViewRetire {
     ZEN_SHAPE(ViewRetire, 1, ZEN_FIELD(subject));
 };
 
-/// The state of the host's office: none. Its sessions and views are the host's, never reload-kept
+/// The state of the host's role: none. Its sessions and views are the host's, never reload-kept
 /// state.
 struct ViewHostState {
     ZEN_SHAPE(ViewHostState, 1);
@@ -95,27 +95,27 @@ private:
     std::map<std::string, std::shared_ptr<Presenter>> presenters_; ///< by the name of the view
 
     /// REGISTER ONE VIEW from an admitted description: its own participant, holding its name as
-    /// its office, granted what the description implies. `succeeding` names the running view it
+    /// its role, granted what the description implies. `succeeding` names the running view it
     /// replaces, which the bound does not count. Loom's registration is the step that can refuse,
     /// and it is taken while that view still runs, so a refusal changes nothing. At the same
-    /// name the successor stands sealed to the host's office until the office moves to it, with
+    /// name the successor stands sealed to the host's role until the role moves to it, with
     /// no delivery between; the caller then retires the view it succeeds.
     std::uint64_t create(Description description, std::uint64_t succeeding = 0) {
         if (views_.size() - views_.count(succeeding) >= kMaxViews)
             throw std::invalid_argument("the view host already runs " + std::to_string(kMaxViews) + " views");
         const auto name = description.name;
         const View* incumbent = view(succeeding);
-        const bool same_office = incumbent && incumbent->description().name == name;
-        if (!same_office && bus_.role_holder(name).valid())
+        const bool same_role = incumbent && incumbent->description().name == name;
+        if (!same_role && bus_.role_holder(name).valid())
             throw std::invalid_argument("`" + name + "` is already held by a running participant");
         auto grant = view_grant(description);
         const auto paired = presenters_.find(name);
         auto view = std::make_unique<View>(std::move(description),
                                            paired == presenters_.end() ? nullptr : paired->second);
         View* raw = view.get();
-        const auto id = same_office ? bus_.register_weave(std::move(view), std::move(grant))
+        const auto id = same_role ? bus_.register_weave(std::move(view), std::move(grant))
                                     : bus_.register_weave(std::move(view), std::move(grant), name);
-        if (same_office && !(bus_.seal_weave(id, manager_) &&
+        if (same_role && !(bus_.seal_weave(id, manager_) &&
                              bus_.commit_candidate(id, loom::WeaveId{succeeding}, name))) {
             bus_.unregister_weave(id);
             throw std::invalid_argument("`" + name + "` could not pass to its successor");
@@ -138,20 +138,20 @@ private:
         bus_.send(loom::WeaveId{id}, loom::Message(loom::to_value(detail::ViewRedraw{})));
     }
 
-    /// STOP ONE VIEW: its last picture says why in its area's window, queued as its office while it
+    /// STOP ONE VIEW: its last picture says why in its area's window, queued as its role while it
     /// still holds it, and the participant is unregistered once that picture has been delivered.
     void stop(std::uint64_t id, const std::string& why) {
         View* live = view(id);
         if (!live) return;
         if (auto last = live->window_farewell(why))
-            (void)bus_.office_send_to_role_as(loom::WeaveId{id}, live->description().name, last->first,
+            (void)bus_.role_send_to_role_as(loom::WeaveId{id}, live->description().name, last->first,
                                               loom::Message(loom::to_value(last->second), loom::WeaveId{id}));
         retiring_[id] = true;
         (void)bus_.send_as_to_role(manager_, kViewHostRole,
                                    loom::Message(loom::to_value(detail::ViewRetire{static_cast<std::int64_t>(id)}), manager_));
     }
 
-    /// Unregister at once: its successor already holds the office.
+    /// Unregister at once: its successor already holds the role.
     void remove(std::uint64_t id) {
         if (!views_.count(id)) return;
         views_.erase(id);
@@ -164,7 +164,7 @@ private:
     }
 };
 
-/// THE VIEW HOST'S OFFICE: run, resume, apply and stop, each for the asker's own session; and
+/// THE VIEW HOST'S ROLE: run, resume, apply and stop, each for the asker's own session; and
 /// what a shape it accepts does, from its page.
 class Manager final
     : public zengine::With<manual::ManualFacet<manual::pages::zengine_view_host::kManual>>::Weave<
@@ -186,7 +186,7 @@ public:
             auto next = read(apply.description);
             if (same_shapes(live->description(), next)) {
                 host_.apply(found->second, std::move(next));
-                answer.reason = "applied in place: " + answer.office + " tells and says the same shapes";
+                answer.reason = "applied in place: " + answer.role + " tells and says the same shapes";
                 return;
             }
             // A NEW SURFACE IS A NEW PARTICIPANT: Loom fixes what a weave accepts and emits when it
@@ -194,16 +194,16 @@ public:
             // once its successor stands.
             const bool renamed = next.name != live->description().name;
             const auto told = told_words(next);
-            answer.office = next.name;
+            answer.role = next.name;
             const auto successor = host_.create(std::move(next), found->second);
-            if (renamed) host_.stop(found->second, "was renamed " + answer.office);
+            if (renamed) host_.stop(found->second, "was renamed " + answer.role);
             else host_.remove(found->second);
             found->second = successor;
             // A successor at the same name asks nothing of the desk: its pane stands where it stood
             // and the keys stay where they are. Renamed, it is a new pane, and asks as a run does.
             host_.start(successor, renamed);
             answer.fresh = true;
-            answer.reason = "registered " + answer.office + " afresh: its shapes changed" + told;
+            answer.reason = "registered " + answer.role + " afresh: its shapes changed" + told;
         });
     }
     void on(const ViewStop& stop, loom::Mail& mail) {
@@ -211,7 +211,7 @@ public:
             running(answer, found);
             host_.stop(found->second, "stopped; run it again from the View Builder");
             owned_.erase(found);
-            answer.reason = "stopped " + answer.office;
+            answer.reason = "stopped " + answer.role;
         });
     }
     /// The host's note to itself; one from any other sender is ignored.
@@ -219,7 +219,7 @@ public:
         if (mail.sender() == self_) host_.retire(static_cast<std::uint64_t>(retire.subject));
     }
 
-    /// No crash revival and no fall back to a last good state: the office is the host's own,
+    /// No crash revival and no fall back to a last good state: the role is the host's own,
     /// mounted once, and its views are the host's to keep.
     loom::LifecyclePolicy policy_config() const { return {0, false}; }
     void revive(const loom::Value&) override {}
@@ -240,10 +240,10 @@ private:
             answer.session = session;
             if (answer.session.empty() || answer.session.size() > 128)
                 throw std::invalid_argument("a session name is 1 to 128 bytes");
-            const std::string office(mail.authored_role());
-            if (!office.empty() && host_.bus_.role_holder(office) != mail.sender())
-                throw std::invalid_argument("the request's authored office has moved to another participant");
-            const Key key{office.empty() ? "id/" + std::to_string(mail.sender().value) : "office/" + office,
+            const std::string role(mail.authored_role());
+            if (!role.empty() && host_.bus_.role_holder(role) != mail.sender())
+                throw std::invalid_argument("the request's authored role has moved to another participant");
+            const Key key{role.empty() ? "id/" + std::to_string(mail.sender().value) : "role/" + role,
                           answer.session};
             act(answer, key, owned_.find(key));
             answer.ok = true;
@@ -261,14 +261,14 @@ private:
                 throw std::invalid_argument("this session already runs a view; apply a change or stop it first");
             auto admitted = read(description);
             const auto told = told_words(admitted);
-            answer.office = admitted.name;
+            answer.role = admitted.name;
             const auto id = host_.create(std::move(admitted));
             owned_.emplace(key, id);
             // A RESUMED VIEW ASKS NOTHING OF THE DESK: the desk a weaver left says where its pane
             // stands, or that it is hidden.
             host_.start(id, !resume);
             answer.fresh = true;
-            answer.reason = "registered " + answer.office + told;
+            answer.reason = "registered " + answer.role + told;
         });
     }
 
@@ -277,7 +277,7 @@ private:
         if (found == owned_.end()) throw std::invalid_argument("no view runs in this session for this participant");
         View* live = host_.view(found->second);
         if (!live) throw std::invalid_argument("the view is no longer running");
-        answer.office = live->description().name;
+        answer.role = live->description().name;
         return live;
     }
 
@@ -299,7 +299,7 @@ private:
 
 inline loom::WeaveId Host::mount() {
     if (manager_.valid()) return manager_;
-    if (bus_.role_holder(kViewHostRole).valid()) throw std::invalid_argument("the view host's office is already held");
+    if (bus_.role_holder(kViewHostRole).valid()) throw std::invalid_argument("the view host's role is already held");
     loom::Grant grant;
     grant.allow_to_any(ViewAnswer::zen_name, ViewAnswer::zen_version);
     grant.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);

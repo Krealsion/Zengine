@@ -34,8 +34,8 @@ lost guest's session, never that it closed anything.
 
 from loom_session.tool import LinkOutcome, Refused
 
-from workshop_steps import (capture_office, chord, chord_moments, clear_moments, click_moments,
-                            link_session, moment, name_capture_office, open_input_session,
+from workshop_steps import (capture_role, chord, chord_moments, clear_moments, click_moments,
+                            link_session, moment, name_capture_role, open_input_session,
                             own_row, picture, point)
 
 
@@ -109,7 +109,7 @@ def journey(ctx):
     status = link_session(ctx, link)
     ctx.step("inspect")
     inv, row = own_row(ctx, link, status)
-    name_capture_office(ctx, link, row)  # the desk names the window office, where the row reads it
+    name_capture_role(ctx, link, row)  # the desk names the window role, where the row reads it
     if bug_after == "inspect":
         raise RuntimeError("a deliberate tool bug after 'inspect'")
 
@@ -151,10 +151,10 @@ def journey(ctx):
     armed = None
     if ctx.inputs.get("arm"):
         ctx.step("arm the next picture")
-        office = capture_office(ctx)  # the office that answered the picture before
-        armed = ctx.ask_async(office, "SurfaceCaptureRequested",
+        role = capture_role(ctx)  # the role that answered the picture before
+        armed = ctx.ask_async(role, "SurfaceCaptureRequested",
                               {"after_frame": before["frame"]}, via=link)
-        ctx.note("capture armed at %s for the first frame after %d" % (office, before["frame"]))
+        ctx.note("capture armed at %s for the first frame after %d" % (role, before["frame"]))
 
     if ctx.inputs.get("hold"):
         ctx.hold(ctx.inputs["hold"], "held before the batch")

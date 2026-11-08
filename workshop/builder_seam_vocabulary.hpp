@@ -8,7 +8,7 @@
 // with a second tenant. Every ask goes to `zengine.project`: the readings, and appending a plan
 // row, which writes the load plan (which artifacts run) through its own owner, apart from the
 // recipes (how one is produced). A frontier is a reading, not a power: realizing an artifact still
-// goes through `BuildRequested` to the Builder office.
+// goes through `BuildRequested` to the Builder role.
 
 // `kProjectRole` and `SourceOpened` are the files seam's, included and never respelled.
 #include "pane_seam_vocabulary.hpp"

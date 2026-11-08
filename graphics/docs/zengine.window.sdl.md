@@ -2,7 +2,7 @@
 
 **Manual.** A window on the desktop, drawn in light through SDL3: the weave that does the whole
 job of showing what its areas' owners draw, as the terminal window does on a terminal. It answers
-to the office `zengine.window.sdl` (a window's office is `zengine.window.` and its name, `sdl`)
+to the role `zengine.window.sdl` (a window's role is `zengine.window.` and its name, `sdl`)
 and is built as `zengine-window-sdl`, a file a host loads, where the build has SDL. It keeps what
 each owner drew, paints it in pixels in the colours of the palette its area wears, draws the whole
 picture again when
@@ -62,7 +62,7 @@ hand ([`AttributedInput`](#attributedinput)), a press its clicks
 ([`PointerTimingSaid`](#pointertimingsaid)).
 
 Who may send: whoever the host's grant lets reach the window. It takes a drawing
-or an element only from the area's owner, as that office, and the directory's words only from
+or an element only from the area's owner, as that role, and the directory's words only from
 `zengine.graphics`. Every bound is
 judged before anything changes, and a drawing past one is refused whole, in words, to its drawer
 (`DrawnRefused`), what the window shows unchanged. The bounds are
@@ -145,7 +145,7 @@ back.
 
 ### `AreaShowAsked`
 
-`AreaShowAsked` v1 asks what one area shows, of the office that placed it.
+`AreaShowAsked` v1 asks what one area shows, of the role that placed it.
 
 - **Takes:** `area`; `since`, the `version` of the last answer the asker took, or 0.
 - **Answers:** `AreaShown` v1, to the asker alone: the window's name, `sdl`, and incarnation; the
@@ -162,7 +162,7 @@ back.
   points shows is not said. What the window holds painted is what it shows at its next picture at
   the latest.
 - **Refuses:** in `zen.Refused`: `window 'sdl' shows no area '<area>'`; `area '<area>' is read only
-  by the office that placed it`; `area '<area>' shows more than <bound> runs of text`
+  by the role that placed it`; `area '<area>' shows more than <bound> runs of text`
   (`kMaxAreaWords`).
 - **Example:** Workshop reads the area of a pane it placed, `AreaShowAsked{"zengine.info", 0}`, and
   then asks again since the version it took.
@@ -231,7 +231,7 @@ judged against the displays there are now.
 
 ### `WindowShaped`
 
-`WindowShaped` v1 names the window and sizes it, said by an office that arranges an area in it.
+`WindowShaped` v1 names the window and sizes it, said by a role that arranges an area in it.
 
 - **Takes:** `window`, `sdl`; `title`, at most `kMaxWindowTitleBytes` bytes, a longer one cut
   where a character begins and each control character made a space, an empty one keeping the
@@ -240,7 +240,7 @@ judged against the displays there are now.
   display's usable area with its frame, and a size it changed is the next `WindowOffered`. What its
   areas reached before does not grow it back; an area placed further out still does. A maximized
   window takes the title and keeps its size.
-- **Refuses:** nothing in words: from an office that arranges no area here, or naming another
+- **Refuses:** nothing in words: from a role that arranges no area here, or naming another
   window, it changes nothing.
 - **Example:** an app's weave, which arranges the app's areas, says `WindowShaped{"sdl", "tally",
   320, 260}`; Workshop, restoring a session, says `WindowShaped{"sdl", "", 1180, 760}`, the room
@@ -328,7 +328,7 @@ The window asks it at each activation (`PointerTimingAsked`); until told, it cou
 
 ## Follow
 
-As its own office the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
+As its own role the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
 and at each new size: its name, its pixels, its incarnation, `kCellPx` pixels in a cell and its
 face's measure; the directory keeps it. It publishes `SurfacePlacement` v1 when its place changed,
 before `WindowOffered` when both did; and `SurfaceCloseRequested` v1 for each close asked. To an

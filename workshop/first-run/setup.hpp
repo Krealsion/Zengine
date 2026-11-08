@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_FIRST_RUN_SETUP_HPP
 #define ZENGINE_WORKSHOP_FIRST_RUN_SETUP_HPP
 
-// The quick setup's names and what its pane says, pure: the office and its pane, the one setting
+// The quick setup's names and what its pane says, pure: the role and its pane, the one setting
 // it keeps, its rows, and the lines drawn for a given moment, each line with the item a press on
 // it chooses. The weave (first_run.cpp) holds the moment; a suite reads the lines without a bus.
 // Reference: workshop/docs/zengine.first-run.md; law: agents/workshop/first-run.md.
@@ -20,11 +20,11 @@
 
 namespace zengine::first_run {
 
-/// The office and its one pane.
+/// The role and its one pane.
 inline constexpr const char* kFirstRunRole = "zengine.first-run";
 inline constexpr const char* kSetupPane = "setup";
 
-/// THE ONE SETTING IT KEEPS, office-wide in Workshop's settings file: the quick setup was answered
+/// THE ONE SETTING IT KEEPS, role-wide in Workshop's settings file: the quick setup was answered
 /// or skipped. Cleared in the gear, it shows again at the next start.
 inline constexpr const char* kAnsweredKey = "answered";
 
@@ -33,10 +33,10 @@ inline constexpr const char* kAnsweredKey = "answered";
 /// opened.
 // WL-FIRST-01 -- agents/workshop/first-run.md
 inline bool fresh_desk(const std::vector<std::pair<std::string, std::string>>& open) {
-    for (const auto& [office, pane] : open) {
-        const bool layouts = office == "zengine.workshop" && pane == "layouts";
-        const bool info = office == "zengine.info" && pane == "info";
-        const bool notices = office == "zengine.notices-pane" && pane == "notices";
+    for (const auto& [role, pane] : open) {
+        const bool layouts = role == "zengine.workshop" && pane == "layouts";
+        const bool info = role == "zengine.info" && pane == "info";
+        const bool notices = role == "zengine.notices-pane" && pane == "notices";
         if (!layouts && !info && !notices) {
             return false;
         }

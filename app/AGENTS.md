@@ -10,7 +10,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `CMakeLists.txt` | `zengine-app-vocabulary`, `zengine-app-folder` and `zengine-app-host` (header-only), `zengine-app`, `zengine-app-weave`; the artifacts staged beside the program |
 | `main.cpp` | `zengine-app`: the folder, the artifact directory, the console's loop of turns and lines |
 | `host.hpp` | `app::AppHost`: the composition, the operator seat, the place door, the close, the console |
-| `weave.cpp` | `zengine-app-weave`, office `zengine.app`: runs flows then views, arranges the window |
+| `weave.cpp` | `zengine-app-weave`, role `zengine.app`: runs flows then views, arranges the window |
 | `files.hpp` | `app.json` read through the compat codec, and the app's files, bounded |
 | `folder.hpp` | an app's folder written from a saved view and its flow, all judged first: the View Builder's Export app |
 | `program.hpp` | where the running program stands, and `zengine-app` beside it |

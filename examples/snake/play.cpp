@@ -73,7 +73,7 @@ namespace timer = zengine::timer;
 
 // ---- the operator ------------------------------------------------------------
 
-/// The operator's office, the owner of the status line's area.
+/// The operator's role, the owner of the status line's area.
 constexpr const char* kOperatorRole = "snake.operator";
 constexpr const char* kStatusArea = "snake.operator";
 constexpr const char* kWindowRole = "zengine.window.terminal";

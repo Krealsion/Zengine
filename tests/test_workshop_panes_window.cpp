@@ -1359,7 +1359,7 @@ TEST_CASE("outside arrangement, an addressed pane behind another clicks through 
     Live t;
     t.extent_px(cells_px(200), cells_px(60), 0, 0);
     // THE PANE THIS ONE HIDES BEHIND IS OPENED FIRST: Info is a weave and arrives with its
-    // office, so a case that needs two panes on the desk opens both.
+    // role, so a case that needs two panes on the desk opens both.
     open_pane(t, ref_of(second::kKind));
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
@@ -1748,7 +1748,7 @@ TEST_CASE("stepping names the pane, its state and its authored window in words")
 TEST_CASE("a place-only change publishes no room, and a size change publishes one") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.extent(200, 60);
     r.pick(hello_ref());
@@ -1800,7 +1800,7 @@ TEST_CASE("a right press over a provider's pane crosses the seam not at all") {
     // and in the case above this one), no key, no text, no room change.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -1820,7 +1820,7 @@ TEST_CASE("a right press over a provider's pane crosses the seam not at all") {
     CHECK(r.session().panes.keyboard == keyboard_before);
 
     // The population offered ABOUT it is Workshop's arrangement vocabulary and Edit Code --
-    // rows that act on the rectangle, or ask the host what code stands behind the office, and
+    // rows that act on the rectangle, or ask the host what code stands behind the role, and
     // never on the provider's content.
     const std::vector<ContextEntry> rows = context_population(context_subject::kPane, "");
     REQUIRE(rows.size() == 8);
@@ -1831,7 +1831,7 @@ TEST_CASE("a right press over a provider's pane crosses the seam not at all") {
 TEST_CASE("input spent on the open surface reaches no provider") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -1870,7 +1870,7 @@ TEST_CASE("the one-pane scope is bound -- another pane cannot be drawn into it")
     Live t;
     t.extent_px(cells_px(200), cells_px(60), 0, 0);
     // THE OTHER PANE IS OPENED, NOT INHERITED. This case needs a second pane with a
-    // rectangle of its own to press into; the desk's Info row is a weave with no office
+    // rectangle of its own to press into; the desk's Info row is a weave with no role
     // here, and an unresolved row has no rectangle.
     open_pane(t, ref_of(second::kKind));
     open_pane(t, ref_of(stock::kKind));
@@ -1925,7 +1925,7 @@ TEST_CASE("the desk manipulates panes directly, and a press is its own targeting
     PaneRig r;
     r.mount_workshop();
     admit_stock(r.session().panes); // the stand-in, first, as a `Live` would have it
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.extent(200, 60);
     r.pick(hello_ref());
@@ -1934,7 +1934,7 @@ TEST_CASE("the desk manipulates panes directly, and a press is its own targeting
     REQUIRE(has_pane(r.session().setup.active, ref_of(stock::kKind)));
 
     // Two overlay panes on one desk; spread them so each has its own cells.
-    const std::int64_t hello_kind = r.session().panes.runtime.find(kHelloOffice, kHelloPane)->kind;
+    const std::int64_t hello_kind = r.session().panes.runtime.find(kHelloRole, kHelloPane)->kind;
     stage_desk(r, [&](Setup& desk) {
         REQUIRE(author_pane_place(desk, hello_ref(), cells_px(4), cells_px(4))
                     .accepted);
@@ -2050,7 +2050,7 @@ TEST_CASE("on the shipped face the border is chrome and the first body pixel is 
     // row 0 (check 1), or refuses the first real body pixel as border (check 2).
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -2136,7 +2136,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     SUBCASE("a pane a graphics window shows asks that window for a paste, the OS window or the "
             "terminal's") {
         // ⚔ MUTATION (tests/mutants/workshop_panes_window.md#paste-asked-elsewhere): the Terminal
-        // pane's paste asked of another office than the window showing it.
+        // pane's paste asked of another role than the window showing it.
         namespace term = zengine::terminal_pane;
         for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
             CAPTURE(window);
@@ -2167,7 +2167,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
             // THE WINDOW THAT SHOWS THE PANE'S AREA IS ASKED, and only it.
             std::int64_t asks = 0;
             const loom::ObserverId tap =
-                count_paste_asks(p.bus, std::string(gfx::kWindowOfficePrefix) + window, asks);
+                count_paste_asks(p.bus, std::string(gfx::kWindowRolePrefix) + window, asks);
             if (os) p.windows.set_clipboard("WINDOW");
             p.key(input::scan::kV, input::mod::kCtrl);
             p.bus.remove_observer(tap);
@@ -2192,7 +2192,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     // the moment they pointed at it.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -2280,7 +2280,7 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
     // authored; a selection reaching the authored order.
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -2380,7 +2380,7 @@ SeatRows hello_rows(const std::vector<std::string>& lines) {
 TEST_CASE("a pane in two layouts is one pane, one provider, one room") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -2426,7 +2426,7 @@ TEST_CASE("a pane in two layouts is one pane, one provider, one room") {
 TEST_CASE("leaving a layout withdraws a presentation and unloads nothing") {
     PaneRig r;
     r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -2482,12 +2482,12 @@ TEST_CASE("an inactive layout's rows are dormant, not maintained") {
 
     // THE PROVIDER ARRIVES while its layout is on the shelf. Only the LIVE layout
     // reconciles; the shelved value is a value, and nothing walks it.
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* seat = r.mount_provider(kHelloRole);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     CHECK(r.session().panes.runtime.entries.size() == 1);
     CHECK(layout_at(r.run(), 1) == waiting);
     // THE LIVE DESK IS UNMOVED BY THE OFFER, AND ITS TWO UNRESOLVED ROWS NAME WHY. Every
-    // desk here carries the Info and Notices weaves, which no office in this rig offers -- so
+    // desk here carries the Info and Notices weaves, which no role in this rig offers -- so
     // the live layout's open panes plus those rows are the whole of it, and an offer resolves
     // the row that NAMES it and no other.
     const std::vector<PaneRef> live_left =
@@ -2506,7 +2506,7 @@ TEST_CASE("an inactive layout's rows are dormant, not maintained") {
     CHECK(r.session().panes.runtime.entries.size() == 2);
     for (std::size_t i = 0; i < layout_count(r.session().setup); ++i) {
         CAPTURE(i);
-        CHECK_FALSE(has_pane(layout_at(r.run(), i), PaneRef{kHelloOffice, "second"}));
+        CHECK_FALSE(has_pane(layout_at(r.run(), i), PaneRef{kHelloRole, "second"}));
     }
     CHECK(layout_at(r.run(), 1) == waiting);
 

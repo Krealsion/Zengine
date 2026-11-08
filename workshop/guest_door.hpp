@@ -18,7 +18,7 @@
 #include "manual/vocabulary.hpp"
 #include "timer/binding.hpp"
 
-#include "manuals/zengine.guests.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.guests.hpp" // this role's manual, compiled in from its page
 
 #include <zen/bridge/server.hpp>
 #include <zen/weave.hpp>
@@ -179,11 +179,11 @@ public:
         held_.push_back(HeldPlanAsk{mail.sender(), std::move(reply)});
     }
 
-    /// WHETHER A SENDER'S HAND MAY ACT IN THE CLASSES `asked` NAMES, asked in its office's name by an
+    /// WHETHER A SENDER'S HAND MAY ACT IN THE CLASSES `asked` NAMES, asked in its role's name by an
     /// owner the sender reached directly, as the Inventory pane asks before a toolbox save: judged
     /// against the row this door admitted the session under and the file's host, as Workshop judges
     /// a gesture's hand. A participant this door never admitted, the weaver's own, is not narrowed;
-    /// nothing is remembered. Speech in no office's name hears nothing, and no guest holds an office.
+    /// nothing is remembered. Speech in no role's name hears nothing, and no guest holds a role.
     // WL-GUEST-04 -- agents/workshop/guests.md
     void on(const ActorScopeRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
@@ -416,7 +416,7 @@ private:
         server_->service();
         for (const loom::WeaveId& session : gone_) {
             // THE GUEST IS GONE; WHATEVER INPUT SESSION IT HELD ENDS WITH IT, closed on its behalf
-            // by this office -- the one closer the Input weave accepts beside the holder itself.
+            // by this role -- the one closer the Input weave accepts beside the holder itself.
             // A guest that held none is told nothing: the refusal comes back to this door and
             // is data, not a fault.
             input::InputSessionClosed close;
@@ -461,7 +461,7 @@ private:
         let_go_.clear();
     }
 
-    /// What the crossing waits on claimed as this office after every delivery (Loom's
+    /// What the crossing waits on claimed as this role after every delivery (Loom's
     /// `BridgeServer::wait_set`: the listener, every guest and what the crossing owes), and the
     /// beat run as the host's wait leaves it: stopped while the wait holds the claim, running while
     /// it does not and while an ask waits for the plan to come to rest, which only a look can see.
@@ -474,7 +474,7 @@ private:
     std::shared_ptr<guests::AdmittedRows> admitted_;
     std::unique_ptr<loom::BridgeServer> server_;
     GuestDoorBase::Handle beat_;
-    zengine::timer::HeldBeat waited_; ///< whether a host's one wait holds this office's claim
+    zengine::timer::HeldBeat waited_; ///< whether a host's one wait holds this role's claim
     bool dirty_ = true; ///< the first beat says the inventory once, empty or not
     std::vector<loom::WeaveId> gone_;
     std::function<void(loom::WeaveId)> when_gone_;
@@ -490,7 +490,7 @@ private:
 };
 
 /// THE DOOR'S GRANT: its beat, its inventory, an asker's own row, where the plan is, a sender's
-/// scope judged, a refusal, what a shape it accepts does, and one word to the Input office.
+/// scope judged, a refusal, what a shape it accepts does, and one word to the Input role.
 /// Nothing else.
 inline loom::Grant guest_door_grant() {
     loom::Grant g;

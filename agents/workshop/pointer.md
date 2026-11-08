@@ -15,7 +15,7 @@ MEANS
 - `HostContext::interaction_now` is the host's steady reading for what it still times: Shift's taps, the desk reads' rate.
 
 DOES NOT MEAN
-- that the time is a constant of Workshop's: it is input's office-wide setting, 200 to 2000 ms.
+- that the time is a constant of Workshop's: it is input's role-wide setting, 200 to 2000 ms.
 
 WHY — `agents/decisions/the-double-click-time-is-inputs.md`
 

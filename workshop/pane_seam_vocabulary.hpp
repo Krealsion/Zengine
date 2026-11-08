@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_PANE_SEAM_VOCABULARY_HPP
 
 // What a pane weave asks the host, and what it hears back: the shared half of the pane seam. Each
-// host fact a loaded image needs is an ask to an office and an answer, split by whether answering
+// host fact a loaded image needs is an ask to a role and an answer, split by whether answering
 // acts. Values only: knowing a path is not permission to read, write or delete under it.
 
 #include <zen/weave/shape.hpp>
@@ -20,22 +20,22 @@ namespace zengine::workshop {
 /// where it lives and answers it through `ProjectRoot`; the pane owns the file.
 inline constexpr const char* kDefaultMarksFileName = "workshop-marks.json";
 
-/// The project office: it answers where this run began and which places file it owns, and it is
-/// the one office that may change which recipes this project means and which artifacts it loads.
-/// A host that mounts no such door holds no such office, and an ask reaches nobody.
+/// The project role: it answers where this run began and which places file it owns, and it is
+/// the one role that may change which recipes this project means and which artifacts it loads.
+/// A host that mounts no such door holds no such role, and an ask reaches nobody.
 inline constexpr const char* kProjectRole = "zengine.project";
 
-/// The office that holds the one source document. A literal rather than
+/// The role that holds the one source document. A literal rather than
 /// `editor/editor-pane/vocabulary.hpp`'s constant: neither asker links the weave, and a case checks the
 /// two spellings agree.
 inline constexpr const char* kEditorRole = "zengine.editor";
 
-/// The office that holds the Terminal's line, and the desktop's pane that edits the keymap: literals
+/// The role that holds the Terminal's line, and the desktop's pane that edits the keymap: literals
 /// for the same reason, each checked by a case against the weave that declares it.
 inline constexpr const char* kTerminalRole = "zengine.terminal";
 inline constexpr const char* kHotkeysPane = "hotkeys";
 inline constexpr const char* kManualPane = "manual";
-/// The office that shows who is connected, a literal for the same reason: only the weaver's hand
+/// The role that shows who is connected, a literal for the same reason: only the weaver's hand
 /// reads or points there.
 inline constexpr const char* kConnectionsRole = "zengine.connections";
 
@@ -119,15 +119,15 @@ struct SourceOpened {
 
 /// The source behind a pane's running code is open, because a weaver asked from that pane: said
 /// once, when the open Edit Code asked for was accepted and the host still names the same code.
-/// Published to any, as Workshop's office. A reading, not an order: it starts no build.
+/// Published to any, as Workshop's role. A reading, not an order: it starts no build.
 struct PaneSourceOpened {
-    std::string office;   ///< the pane's provider office, as Loom stamped its offer
-    std::string pane;     ///< the pane key, in that office's namespace
+    std::string role;   ///< the pane's provider role, as Loom stamped its offer
+    std::string pane;     ///< the pane key, in that role's namespace
     std::string name;     ///< what the weaver sees the pane called
-    std::string artifact; ///< the artifact the office's running code was realized from
+    std::string artifact; ///< the artifact the role's running code was realized from
     std::string recipe;   ///< the one authored recipe that produces it
     std::string source;   ///< the file now open: that recipe's single source
-    ZEN_SHAPE(PaneSourceOpened, 1, ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(name),
+    ZEN_SHAPE(PaneSourceOpened, 1, ZEN_FIELD(role), ZEN_FIELD(pane), ZEN_FIELD(name),
               ZEN_FIELD(artifact), ZEN_FIELD(recipe), ZEN_FIELD(source));
 };
 

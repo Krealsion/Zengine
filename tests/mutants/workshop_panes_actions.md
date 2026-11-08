@@ -170,7 +170,7 @@ In `workshop/weave_desktop.cpp`:
 ```diff
 -    (void)mail.answer(verdict);
 -}
-+    (void)mail.as_role(kWorkshopProvider).send_to_role(office, verdict);
++    (void)mail.as_role(kWorkshopProvider).send_to_role(role, verdict);
 +}
 ```
 
@@ -226,7 +226,7 @@ The inventory never says a pane is still to come.
 In `workshop/weave_desktop.cpp`:
 
 ```diff
--        p.pending = !p.available && host_->office_pending && host_->office_pending(p.office);
+-        p.pending = !p.available && host_->role_pending && host_->role_pending(p.role);
 +        p.pending = false;
 ```
 
@@ -302,9 +302,9 @@ In `workshop/layouts/owner.cpp`:
 
 ```diff
 -    if (mail.authored_role().empty()) {
--        // AN OFFICE, AND ONLY AN OFFICE, changes who is on the desk -- the seam's rule -- and the
+-        // AN ROLE, AND ONLY AN ROLE, changes who is on the desk -- the seam's rule -- and the
 +    if (false) {
-+        // AN OFFICE, AND ONLY AN OFFICE, changes who is on the desk -- the seam's rule -- and the
++        // AN ROLE, AND ONLY AN ROLE, changes who is on the desk -- the seam's rule -- and the
 ```
 
 Red in `zengine-workshop-panes-tests`:
@@ -338,7 +338,7 @@ The Pane Manager's `n` launches the Hotkeys pane.
 In `workshop/desktop-pane/launcher_view.hpp`:
 
 ```diff
--            launch(mail, kViewBuilderOffice, kViewBuilderPane, launches);
+-            launch(mail, kViewBuilderRole, kViewBuilderPane, launches);
 +            launch(mail, "zengine.desktop", "hotkeys", launches);
 ```
 
@@ -354,7 +354,7 @@ The Pane Manager's `n` launches nothing.
 In `workshop/desktop-pane/launcher_view.hpp`:
 
 ```diff
--            launch(mail, kViewBuilderOffice, kViewBuilderPane, launches);
+-            launch(mail, kViewBuilderRole, kViewBuilderPane, launches);
 +            (void)launches;
 ```
 

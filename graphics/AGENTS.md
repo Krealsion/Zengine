@@ -42,7 +42,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   given to the area hearing the pointer it lands in, a press held for its area until its release
   or a hold's end, the arranger told where presses land, an area deaf to the pointer letting it
   through, every bound refused in words,
-  and each office's manual answering for every shape it accepts; every part in `elements/` drawn,
+  and each role's manual answering for every shape it accepts; every part in `elements/` drawn,
   changed and painted, and pressed through the window, its action asked or nothing sent; the
   Attention and Connections panes Workshop loads drawn, pressed and reloaded in a window, and a
   pane's refused drawing followed by a whole one; the OS window over the suite's own pixel
@@ -75,7 +75,7 @@ rows; it shares the rig.
   shipped palettes, and `cmake/ZengineInstall.cmake` installs them as artifacts, all but the OS
   window, whose SDL the install does not own, with the generator and the pool's and themes' JSON.
 - Grants: the snake host grants its operator `AreaPlaced`, `PaletteOffered`, `PaletteChosen`,
-  `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's office.
+  `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's role.
 - Beyond the snake: the terminal window reads its terminal with `input/terminal_reader.hpp` and
   claims its output with `window/terminal_io.hpp`; the OS window reads SDL's queue with
   `input/translate_sdl_core.hpp` over the SDL `cmake/ZengineSdl.cmake` acquires; each claims its

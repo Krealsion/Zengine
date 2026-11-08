@@ -1,13 +1,13 @@
 # Workshop law — a pane's menu and the participant that presents it
 
-Register `WL-CTX`, the presenter's half: the menu a pane asks the host to present, the office
+Register `WL-CTX`, the presenter's half: the menu a pane asks the host to present, the role
 that shows it in an area of its own, reads it and answers it, and what the host does when no image
 can. The contextual surface's own laws — pointing, the popup, the catalog, spending, the mode — are
 in [`contextual.md`](contextual.md), and the ids are one series. One law per heading; cite by ID.
 
 ## WL-CTX-09 — A pane's menu is judged where it opens and handed to the presenter
 
-LAW — A pane's menu request is judged where it would open and granted to the presenter's office; it moves no keys or selection, and the host answers only asks it refused or no presenter can.
+LAW — A pane's menu request is judged where it would open and granted to the presenter's role; it moves no keys or selection, and the host answers only asks it refused or no presenter can.
 
 MEANS
 - a continuation of one gesture: a secondary press, a declared key, or a PRIMARY press -- in a graphics window numbered by the window;
@@ -23,13 +23,13 @@ WHY — `agents/decisions/pointing-is-not-selection.md`
 
 ## WL-CTX-10 — The presenter owns a menu's showing and lifetime; replacing it is ordinary
 
-LAW — The presenter's office draws a granted menu, reads its acts, ends it and answers once; a reload keeping `HeldMenu` hands an open menu over, and an interaction no image holds goes back to the host.
+LAW — The presenter's role draws a granted menu, reads its acts, ends it and answers once; a reload keeping `HeldMenu` hands an open menu over, and an interaction no image holds goes back to the host.
 
 MEANS
 - the shipped presenter chooses on the press; the numbered example on a digit or the release.
 Both refuse labels over <!-- value kMaxPaneMenuLabelLen -->64<!-- /value --> bytes before fitting accepted labels to the available display width;
 - it says what its area takes (`MenuShown`), losing the menu in words past its room or in another area; a moment in another menu's area moves nothing;
-- a requester takes a choice only from this office, under its own ask's number, once (`Asked`); gone, not carrying it, or giving it
+- a requester takes a choice only from this role, under its own ask's number, once (`Asked`); gone, not carrying it, or giving it
 back (`MenuReturned`): the host answers, open or withdrawn.
 
 DOES NOT MEAN
@@ -97,7 +97,7 @@ pane's menu ends it, the presenter answering in the host's words, and reaches no
 release in a menu's area carries its own press's number when another hand acts between, and
 chooses the row its press armed" "WL-CTX-09: a late request is refused where the menu opens -- a
 newer primary press elsewhere keeps the keys it took; the review's second integration finding"
-"WL-CTX-09: an offer echoing no gesture and one from an office that never offered the pane are
+"WL-CTX-09: an offer echoing no gesture and one from a role that never offered the pane are
 refused or dropped by the host; an empty offer is the presenter's to refuse, and it spends the
 gesture" "WL-CTX-09: a newer menu replaces an open one, which its presenter answers unchosen in the
 host's words; one menu at a time" "WL-CTX-09: a pane that leaves the desk while its menu is open has
@@ -142,7 +142,7 @@ on(WithdrawalFence) on(MenuReturned) forget_withdrawn
 by the presenter, and every row is still reachable" "WL-CTX-09: a presenter that shows its menu in
 an area it was not granted, or wider than its room, loses the menu in words" "WL-CTX-10: a
 requester's record of its ask settles on the presenter's answer or the host's refusal -- once, and
-on nothing another office says under its number" "WL-CTX-10: a withdrawal the presenter cannot
+on nothing another role says under its number" "WL-CTX-10: a withdrawal the presenter cannot
 receive is answered by the host, once, under the ask's number" "WL-CTX-10: a refused act settles its
 withdrawn menu, though the withdrawal reaches a fresh presenter that cannot answer it" "WL-CTX-10:
 an older menu's refused withdrawal ends and answers nothing newer; the newer menu is shown and
@@ -152,20 +152,20 @@ withdrawn menu's record is forgotten when its fence comes round twice, and ordin
 "WL-CTX-10: a withdrawal a fresh holder does not carry is given back, and the host settles who
 asked" "WL-CTX-10: an act reaching an image that refused the grant is given back and takes nothing"
 "WL-CTX-10: a menu its image answered is not reopened by a give-back behind it" "WL-CTX-10: a
-give-back is one office's word about one menu, and settles no other" "WL-CTX-10: the shipped
+give-back is one role's word about one menu, and settles no other" "WL-CTX-10: the shipped
 presenter reloaded in its own place while a menu is open draws it again where it stands, and a key
 moves it there"
 `tests/test_workshop_panes_desktop.cpp` "WL-CTX-10: a reloaded desktop cancels its predecessor's
 menu -- withdrawn when the successor offers its pane again, and a choice about it acts on nothing"
 "WL-CTX-10: the desktop acts only on the presenter's answer to an ask of this image's own -- not the
 host's choice, not another subject, not another number, not a predecessor's, and not twice"
-"WL-CTX-10: an ordinary replacement presenter holds the office -- the Pane Manager and Hotkeys keep
+"WL-CTX-10: an ordinary replacement presenter holds the role -- the Pane Manager and Hotkeys keep
 their own operations while it presents their menus its way: numbered, a digit chooses, a release
 chooses" "WL-CTX-10: the replacement presenter presents the Pane Manager's menu too, and a digit
 opens the row -- through the desktop's own launch" "WL-CTX-10: the presenter reloaded in place by
 another image while a menu is open hands the menu over -- shown again the new way with its cursor,
 answered under the same number, and the Hotkeys edit completes" "WL-CTX-10: a presenter that leaves
-ends its menu, answered by the host; with none in the office a menu is refused in words and the
+ends its menu, answered by the host; with none in the role a menu is refused in words and the
 host's own menu still opens; one loaded afresh does not carry the old menu, which ends answered"
 
 ### WL-CTX-11

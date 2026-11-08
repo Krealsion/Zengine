@@ -12,7 +12,7 @@
 #include "workshop_support.hpp"
 
 #include "census.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "pane_window.hpp"
 
 #include "manuals/zengine.arrangement.hpp"
@@ -1453,7 +1453,7 @@ TEST_CASE("the Arrangement pane shows what THIS host actually resolved") {
     // BOTH KINDS OF FACT, LABELLED, WHERE A WEAVER READS THEM.
     CHECK(any_row(shown, "authored  provider normal"));
     CHECK(any_row(shown, "resolved  provider zengine.operators.basic, 5 powers"));
-    CHECK(any_row(shown, "authored  weave " + std::string(kIntroOffice)));
+    CHECK(any_row(shown, "authored  weave " + std::string(kIntroRole)));
     // AND THE FACT IS BOUNDED, AND ITS SOURCE NAMED.
     CHECK(any_row(shown, intro::kNotAuthored));
     CHECK(any_row(shown, "plan: default-load-plan.json"));
@@ -1474,7 +1474,7 @@ TEST_CASE("Project scrolls: the wheel over it and its Up and Down bring every ar
         REQUIRE(admitted);
         return loom::from_value<ArrangementDoorState>(admitted.value()).arrangements;
     };
-    const loom::WeaveId who = r.bus.role_holder(kIntroOffice);
+    const loom::WeaveId who = r.bus.role_holder(kIntroRole);
     std::vector<std::string> said;
     const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
         if (e.sender == who && !e.schema_name.empty()) said.push_back(e.schema_name);
@@ -1579,7 +1579,7 @@ TEST_CASE("the Project pane shows the words a plan and its loader carry as writt
     r.ready();
     r.extent(160, 48);
     REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
-    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    r.pick(PaneRef{kIntroRole, intro::kArrangementPane});
     const std::int64_t kind = intro_row(r, intro::kArrangementPane)->kind;
     // The whole project and the plan line, in a room wide enough for the loader's sentence to
     // reach the path it quotes on either platform.
@@ -1628,7 +1628,7 @@ TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
     CHECK_FALSE(any_row(loaded, "zengine-operators-basic"));
     // ...and the Loaded pane is still exactly what it always was: the KERNEL's map.
     CHECK(loaded[0] == loaded_heading("3"));
-    CHECK(any_row(loaded, std::string(intro::kIntrospectionStem) + " @" + kIntroOffice));
+    CHECK(any_row(loaded, std::string(intro::kIntrospectionStem) + " @" + kIntroRole));
     CHECK(any_row(loaded, intro::kNotInProcess));
     CHECK_FALSE(r.kernel.is_loaded("zengine-operators-basic"));
 }
@@ -1642,7 +1642,7 @@ TEST_CASE("two lists of loaded weaves are two meanings whatever their names hold
     DrawnNumbers numbers(r.bus);
     r.mount_workshop();
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(r.load("a\nb", WORKSHOP_SO_HELLO, "test.one").valid());
     REQUIRE(r.load("c", WORKSHOP_SO_GUARD, "test.two").valid());
     r.ready();
@@ -1686,7 +1686,7 @@ TEST_CASE("the Loaded pane shows a weave's name and role as written, and its pic
     PaneRig r;
     r.mount_workshop();
     (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(r.load("plain-caf\xC3\xA9", WORKSHOP_SO_HELLO, "test.pl\xC3\xA9in").valid());
     r.ready();
     r.extent(160, 48);
@@ -1718,16 +1718,16 @@ TEST_CASE("the Loaded pane shows a weave's name and role as written, and its pic
     CHECK(ears.heard[0].role == "test.pl\xC3\xA9in");
 }
 
-TEST_CASE("Loaded's search: typed text narrows its rows to the weaves whose name or office holds it, ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing is sent but the Manager's question and the selection") {
-    // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#search-ignores-the-office,
-    // #search-minds-case, #search-unasked): a search blind to offices, one that minds case, and one
+TEST_CASE("Loaded's search: typed text narrows its rows to the weaves whose name or role holds it, ignoring case, Backspace widens them, a press on a narrowed row selects that weave, and nothing is sent but the Manager's question and the selection") {
+    // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#search-ignores-the-role,
+    // #search-minds-case, #search-unasked): a search blind to roles, one that minds case, and one
     // that asks the Manager nothing.
     Ears ears;
     PaneRig r;
     (void)loom::mount<SelectionListener>(r.bus, ears);
     const std::int64_t kind = open_intro_pane(r, kIntroPane);
     make_taller(r, kIntroPane, 16);
-    const loom::WeaveId who = r.bus.role_holder(kIntroOffice);
+    const loom::WeaveId who = r.bus.role_holder(kIntroRole);
     std::vector<std::string> said;
     const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
         if (e.sender == who && !e.schema_name.empty()) said.push_back(e.schema_name);
@@ -1768,7 +1768,7 @@ TEST_CASE("Loaded's search: typed text narrows its rows to the weaves whose name
     for (int i = 0; i < 5; ++i) r.key(input::scan::kBackspace);
     CHECK(weaves() == everyone);
     CHECK(loaded_rows(r, kind).at(0) == loaded_heading(population));
-    // BY OFFICE: the plain weave's office is test.plain.
+    // BY ROLE: the plain weave's role is test.plain.
     r.text("test.p");
     CHECK(weaves() == std::vector<std::string>{"zengine-plain-weave"});
     // A PRESS ON THE NARROWED ROW selects the weave it shows.
@@ -2017,7 +2017,7 @@ TEST_CASE("knowing a power is still not authority to change it") {
     // keys at the Powers pane, and a half that read the rows of a pane never seated would walk an
     // empty vector in zero steps and pass.
     r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1);
-    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    r.pick(PaneRef{kIntroRole, intro::kArrangementPane});
     REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
     const std::int64_t project = intro_row(r, intro::kArrangementPane)->kind;
     const std::vector<std::string> rows = pane_rows(r, project);
@@ -2066,7 +2066,7 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
     CHECK(asked.empty());
     CHECK(answered.empty());
 
-    r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    r.pick(PaneRef{kIntroRole, intro::kPowersPane});
     const std::size_t after_open = asked.size();
     CHECK(after_open >= 1);
     for (int turn = 0; turn < 40; ++turn) {
@@ -2080,15 +2080,15 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
     SUBCASE("a graphics window's room asks a pane's owner once where Workshop seats it nowhere, "
             "and a press there is the pane's own press") {
         namespace pw = zengine::testing::pane_window;
-        const auto area = [](const char* pane) { return std::string(kIntroOffice) + "." + pane; };
+        const auto area = [](const char* pane) { return std::string(kIntroRole) + "." + pane; };
         const auto trimmed = [](std::vector<std::string> rows) {
             for (std::string& row : rows) row.erase(row.find_last_not_of(' ') + 1);
             return rows;
         };
-        const loom::WeaveId office = r.bus.role_holder(kIntroOffice);
+        const loom::WeaveId role = r.bus.role_holder(kIntroRole);
         std::size_t questions = 0, carries = 0;
         const loom::ObserverId watch = r.bus.add_observer([&](const loom::BusEvent& e) {
-            if (e.kind != loom::EventKind::Delivered || e.sender != office) return;
+            if (e.kind != loom::EventKind::Delivered || e.sender != role) return;
             if (e.schema_name == "ArrangementRequested" ||
                 e.schema_name == loom::ListLoaded::zen_name ||
                 e.schema_name == ws::kFindPowersName || e.schema_name == "DescribePower") {
@@ -2099,7 +2099,7 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
         pw::Window w(r.bus);
         // A PANE WORKSHOP SEATS NOWHERE: the window's room asks its owner once, and the answer
         // is drawn there whole.
-        w.room(area(intro::kArrangementPane), kIntroOffice, 90, 30);
+        w.room(area(intro::kArrangementPane), kIntroRole, 90, 30);
         CHECK(questions == 1);
         REQUIRE_FALSE(w.weave().heard.empty());
         CHECK(w.weave().heard.back().whole);
@@ -2107,7 +2107,7 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
         REQUIRE_FALSE(project.empty());
         CHECK(project[0].find("artifacts resolved") != std::string::npos);
         CHECK(w.actions(area(intro::kArrangementPane)).empty()); // read-only: nothing to press
-        w.room(area(intro::kLoadedPane), kIntroOffice, 90, 30);
+        w.room(area(intro::kLoadedPane), kIntroRole, 90, 30);
         CHECK(questions == 2);
         const std::vector<std::string> loaded = w.rows(area(intro::kLoadedPane));
         REQUIRE_FALSE(loaded.empty());
@@ -2119,7 +2119,7 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
         // A PANE WORKSHOP SEATS is drawn in a second window as in the first.
         make_taller(r, intro::kPowersPane, 16);
         const std::int64_t powers = intro_row(r, intro::kPowersPane)->kind;
-        w.room(area(intro::kPowersPane), kIntroOffice, 120, 40);
+        w.room(area(intro::kPowersPane), kIntroRole, 120, 40);
         CHECK(w.rows(area(intro::kPowersPane)) == trimmed(pane_rows(r, powers)));
         // A PRESS ON A LOADED WEAVE'S ROW selects it, as a press on Workshop's would: the row is
         // drawn on its ground beneath its text, still asking the same weave.
@@ -2164,8 +2164,8 @@ TEST_CASE("all three panes may be open at once, each answering its own room") {
     r.ready();
     r.extent(240, 60);
     r.pick(intro_ref());
-    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
-    r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    r.pick(PaneRef{kIntroRole, intro::kArrangementPane});
+    r.pick(PaneRef{kIntroRole, intro::kPowersPane});
 
     // THREE ROOMS, THREE QUESTIONS, THREE ANSWERS -- and each projected against ITS
     // OWN budget. One shared room would have made the last grant decide how the other
@@ -2245,7 +2245,7 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
     // Read as Workshop paints the desk (`paint`), and in the window showing it, whose frame says it.
     PaneRig r;
     r.mount_workshop();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     r.ready();
     r.extent(160, 48); // room for two stacked panes, so both are really on the canvas
     r.come_up();
@@ -2267,7 +2267,7 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
         while (!out.empty() && out.back().empty()) out.pop_back();
         return out;
     };
-    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    r.pick(PaneRef{kIntroRole, intro::kArrangementPane});
     // ...AND WHAT THE WINDOW SHOWING THE DESK SHOWS THERE: the pane's frame says it waits.
     const auto window_says = [&r](const std::string& words) {
         for (const std::string& row : r.windows.shown().rows) {
@@ -2279,7 +2279,7 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
     REQUIRE(shown.size() == 1);
     CHECK(shown[0] == std::string(kExternalWaiting) + "Project");
     CHECK(window_says(std::string(kExternalWaiting) + "Project"));
-    r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    r.pick(PaneRef{kIntroRole, intro::kPowersPane});
     const std::vector<std::string> powers = painted_under("Powers @");
     REQUIRE(powers.size() == 1);
     CHECK(powers[0] == std::string(kExternalWaiting) + "Powers");
@@ -2296,22 +2296,22 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
 
 namespace {
 
-/// THE INTROSPECTION OFFICE'S CENSUS: each pane it offers, in the one mode each declares -- the
+/// THE INTROSPECTION ROLE'S CENSUS: each pane it offers, in the one mode each declares -- the
 /// Powers pane's rows, and none for Loaded or Project.
-const CensusDriverOf kIntrospectionCensus{kIntroOffice, [] {
-    OfficeCensus census;
+const CensusDriverOf kIntrospectionCensus{kIntroRole, [] {
+    RoleCensus census;
     PaneRig r;
     (void)open_powers(r);
     for (const char* pane : {intro::kLoadedPane, intro::kArrangementPane, intro::kPowersPane}) {
         const RuntimePane* held = intro_row(r, pane);
         REQUIRE(held != nullptr);
-        census_take(census, kIntroOffice, *held);
+        census_take(census, kIntroRole, *held);
     }
     return census;
 }};
 
-/// THE INTROSPECTION OFFICE'S PRESSES: each row its panes declare, with the Powers pane open.
-const PressDriverOf kIntrospectionPresses{kIntroOffice, [](PressWitness& w) {
+/// THE INTROSPECTION ROLE'S PRESSES: each row its panes declare, with the Powers pane open.
+const PressDriverOf kIntrospectionPresses{kIntroRole, [](PressWitness& w) {
     press_each_state<PaneRig>(
         w,
         [] {
@@ -2327,7 +2327,7 @@ const PressDriverOf kIntrospectionPresses{kIntroOffice, [](PressWitness& w) {
         });
 }};
 
-ZEN_PRESS_WITNESS_CASE(kIntroOffice, 0, "Introspection's rows")
+ZEN_PRESS_WITNESS_CASE(kIntroRole, 0, "Introspection's rows")
 
 } // namespace
 
@@ -2336,7 +2336,7 @@ TEST_CASE("Powers declares its chrome row's widths as settings, and a layout's w
     // at `kViewWidth` and `kGap` whatever the layout keeps -- the wide picture is the default one.
     PaneRig r;
     const std::int64_t kind = open_powers(r);
-    const PaneRef powers{kIntroOffice, intro::kPowersPane};
+    const PaneRef powers{kIntroRole, intro::kPowersPane};
 
     // THE THREE SETTINGS, AS WORKSHOP COUNTS THEM: a control's column never narrower than its label.
     namespace d = intro::detail;
@@ -2377,19 +2377,19 @@ TEST_CASE("Powers declares its chrome row's widths as settings, and a layout's w
     CHECK(pane_rows(r, kind).at(0) == shown);
 }
 
-TEST_CASE("the manual the introspection office answers for each of its panes is the page its build "
+TEST_CASE("the manual the introspection role answers for each of its panes is the page its build "
           "embedded, and names exactly the commands its panes declare") {
     PaneRig r;
     (void)open_powers(r);
     const char* const panes[] = {intro::kLoadedPane, intro::kArrangementPane, intro::kPowersPane};
-    // EVERY ID ANY OF ITS PANES DECLARES: the page is the office's, so each pane answers it whole.
+    // EVERY ID ANY OF ITS PANES DECLARES: the page is the role's, so each pane answers it whole.
     std::set<std::string> declared;
     for (const char* pane : panes) {
         const RuntimePane* held = intro_row(r, pane);
         REQUIRE(held != nullptr);
         for (const v4::PaneActionRow& a : held->actions) declared.insert(a.id);
     }
-    ManualReader reader(r, kIntroOffice);
+    ManualReader reader(r, kIntroRole);
     for (const char* pane : panes) {
         INFO("pane ", std::string(pane));
         check_answered_manual(reader, pane, declared);
@@ -2399,7 +2399,7 @@ TEST_CASE("the manual the introspection office answers for each of its panes is 
               std::string(zengine::manual::pages::zengine_introspection::kManual.content_id));
         CHECK(whole.pane == pane);
     }
-    // A PANE THIS OFFICE DOES NOT OFFER is refused, naming it, with no words.
+    // A PANE THIS ROLE DOES NOT OFFER is refused, naming it, with no words.
     const PaneDocumentShown other = reader.ask("elsewhere", "");
     CHECK(other.refusal == "zengine.introspection offers no pane `elsewhere`");
     CHECK(other.sections.empty());
@@ -2411,7 +2411,7 @@ TEST_CASE("the arrangement door answers its page for every shape it accepts") {
     const load::Executed done = r.run_plan(pane_plan());
     REQUIRE_MESSAGE(done.ok, done.refusal);
     r.mount_arrangement("default-load-plan.json");
-    CHECK(check_office_manual(r.bus, kArrangementRole) >= 1);
+    CHECK(check_role_manual(r.bus, kArrangementRole) >= 1);
     check_page_names_accepted(zengine::manual::pages::zengine_arrangement::kManual,
                               described_shapes_of(r.bus, r.bus.role_holder(kArrangementRole)));
 }
@@ -2441,7 +2441,7 @@ TEST_CASE("Workshop knows no pane, and the two new ones are no exception") {
     // is a runtime one, minted from a live offer.
     PaneRig r;
     r.mount_workshop();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroRole);
     REQUIRE(r.session().panes.runtime.entries.size() == kIntroPaneCount);
     for (const RuntimePane& row : r.session().panes.runtime.entries) {
         CHECK(is_runtime_kind(row.kind));
@@ -2489,7 +2489,7 @@ TEST_CASE("the browser this host used to compile is named by no presentation sou
 
 TEST_CASE("Powers asks the window that shows it for a paste into its query, the OS window or the terminal's") {
     // ⚔ MUTATION (tests/mutants/workshop_panes_introspection.md#paste-asked-elsewhere): Powers'
-    // paste asked of another office than the window showing its area.
+    // paste asked of another role than the window showing its area.
     namespace gfx = zengine::graphics;
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);
@@ -2502,7 +2502,7 @@ TEST_CASE("Powers asks the window that shows it for a paste into its query, the 
         REQUIRE(r.session().panes.keyboard == kind);
         std::int64_t asks = 0;
         const loom::ObserverId tap =
-            count_paste_asks(r.bus, std::string(gfx::kWindowOfficePrefix) + window, asks);
+            count_paste_asks(r.bus, std::string(gfx::kWindowRolePrefix) + window, asks);
         if (os) r.windows.set_clipboard("recipe");
         r.key(input::scan::kV, input::mod::kCtrl);
         r.bus.remove_observer(tap);
@@ -2558,7 +2558,7 @@ TEST_CASE("the Builder pane this host used to compile is named by no presentatio
         CHECK_MESSAGE(row_of_id(id) == nullptr, "the host still declares an action row for `",
                       id, "`");
     }
-    // ...AND THE TOOL IS STILL THIS HOST'S, which is the other half of the claim: the office,
+    // ...AND THE TOOL IS STILL THIS HOST'S, which is the other half of the claim: the role,
     // its grant and the catalog it reads are `workshop.cpp`'s, and nothing above forbids them.
     CHECK(file_source(WORKSHOP_HOST_CPP).find("builder::kBuilderRole") != std::string::npos);
 }
@@ -2566,8 +2566,8 @@ TEST_CASE("the Builder pane this host used to compile is named by no presentatio
 TEST_CASE("the presentation holds no realization or build-runner reach") {
     // THE PRESENTATION IS AWARE OF REALIZATION AND NOT IN CHARGE OF IT: the weave holds one
     // host-wired READING (`HostContext::frontier`), and the one route from a gesture to a realized
-    // artifact is `BuildRequested` to the Builder office. The forbidden identifiers -- the owner's
-    // type, its file, the offer only the TOOL may make, the runner's order and office -- would put
+    // artifact is `BuildRequested` to the Builder role. The forbidden identifiers -- the owner's
+    // type, its file, the offer only the TOOL may make, the runner's order and role -- would put
     // a presentation one edit from building on its own authority; the population is the
     // presentation's sources, walked (`presentation_sources`).
     for (const std::string& path : presentation_sources()) {
@@ -2586,8 +2586,8 @@ TEST_CASE("the host mounts a door and injects no host-owned object into an artif
     // BOTH DOORS ARE MOUNTED BEFORE THE PLAN IS PERFORMED, because the tool that asks is
     // an artifact THIS PLAN LOADS: a door mounted afterwards would be absent during the
     // window in which a pane might first be granted room.
-    const std::size_t door = host.find("mount_in_office<ArrangementDoor>");
-    const std::size_t finder = host.find("mount_in_office<PowersDoor>");
+    const std::size_t door = host.find("mount_in_role<ArrangementDoor>");
+    const std::size_t finder = host.find("mount_in_role<PowersDoor>");
     const std::size_t begin = host.find("executor.begin(std::move(begun))");
     REQUIRE(door != std::string::npos);
     REQUIRE(finder != std::string::npos);

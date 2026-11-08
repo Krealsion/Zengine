@@ -175,8 +175,8 @@ WHY — `agents/decisions/the-editor-is-the-custodian.md`
 `editor/editor-pane/pane.cpp` EditorPaneWeave e_
 `editor/editor-pane/vocabulary.hpp` kEditorPaneRole kEditorPane
 `workshop/default-load-plan.json`
-`tests/test_workshop_panes_editor.cpp` "the Editor is an ordinary arranged pane, offered by an
-office" "the editor this host used to compile is named by no presentation source"
+`tests/test_workshop_panes_editor.cpp` "the Editor is an ordinary arranged pane, offered by a
+role" "the editor this host used to compile is named by no presentation source"
 
 ### WL-EDIT-02
 `editor/editor-pane/editor.hpp` EditorBuffer kEditorVocabulary EditorBuffer::consume

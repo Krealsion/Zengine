@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // A MESSAGE TIMELINE: what an operation a case drives exchanged on the case's own bus, in order,
-// one readable line a delivery or refusal -- who to whom, the shape, the office it was said as,
+// one readable line a delivery or refusal -- who to whom, the shape, the role it was said as,
 // and its fields -- so a change to a conversation shows in review as a diff of a kept file. It is
 // the test rig's: an observer on the rig's own in-process bus, which no guest can reach.
 
@@ -38,12 +38,12 @@ public:
     Timeline(const Timeline&) = delete;
     Timeline& operator=(const Timeline&) = delete;
 
-    /// A weave with no office, said by the name a case gives it.
+    /// A weave with no role, said by the name a case gives it.
     void name(loom::WeaveId id, std::string label) { labels_[id.value] = std::move(label); }
 
-    /// AN OFFICE LEFT OUT: nothing it says or is said is kept -- a window and its directory, which
+    /// AN ROLE LEFT OUT: nothing it says or is said is kept -- a window and its directory, which
     /// every repaint speaks to, in a conversation about something else.
-    void without(std::string office) { left_out_.push_back(std::move(office)); }
+    void without(std::string role) { left_out_.push_back(std::move(role)); }
 
     /// A FIELD SAID AS `<varies>` wherever it stands, at any depth: a number a run draws afresh, as
     /// a window's incarnation is, which no kept conversation could hold.
@@ -129,10 +129,10 @@ private:
     }
 
     bool left_out(const loom::BusEvent& ev) const {
-        for (const std::string& office : left_out_) {
-            if (ev.authored_role == office || ev.addressed_role == office ||
-                (bus_ != nullptr && (bus_->role_of(ev.sender) == office ||
-                                     (ev.target.valid() && bus_->role_of(ev.target) == office)))) {
+        for (const std::string& role : left_out_) {
+            if (ev.authored_role == role || ev.addressed_role == role ||
+                (bus_ != nullptr && (bus_->role_of(ev.sender) == role ||
+                                     (ev.target.valid() && bus_->role_of(ev.target) == role)))) {
                 return true;
             }
         }

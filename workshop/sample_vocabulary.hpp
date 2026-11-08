@@ -5,7 +5,7 @@
 #define ZENGINE_WORKSHOP_SAMPLE_VOCABULARY_HPP
 
 // The two sentences an explicit sample costs: `SampleRequested` to `zengine.sources`, and
-// `SourceSampled` back (workshop/sample_door.hpp). An office apart from the arrangement door,
+// `SourceSampled` back (workshop/sample_door.hpp). A role apart from the arrangement door,
 // because this one causes evaluation. The answer is rendered lines, never a value, and promises
 // nothing about freshness: a retained sample is history.
 
@@ -16,7 +16,7 @@
 
 namespace zengine::workshop {
 
-/// The office that may cause a Source to be evaluated. A host that mounts no sample door holds
+/// The role that may cause a Source to be evaluated. A host that mounts no sample door holds
 /// none, and an ask reaches nobody.
 inline constexpr const char* kSampleRole = "zengine.sources";
 

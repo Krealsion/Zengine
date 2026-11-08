@@ -13,7 +13,7 @@ the rule still needs, with a button that does it.
 
 Build and launch [development Workshop](../../workshop/docs/develop-workshop.md), open Pane Manager, and choose
 **Flow**. The shipped plans include the optional `zengine-flow-pane` artifact in the `zengine.flow`
-office. Enlarge its pane for the graph; room for roughly 100 text columns is comfortable. A host
+role. Enlarge its pane for the graph; room for roughly 100 text columns is comfortable. A host
 without the optional canvas protocol receives a textual summary. The independent
 [Flow workbench](flow-guide.md) remains available without Workshop. Every command, dialog and
 refusal named here is in [the pane's manual](zengine.flow.md).
@@ -325,7 +325,7 @@ Try quitting again after the result arrives. Saving an older snapshot while a se
 does not bypass that refusal. Save unsaved Flow work, or choose **File > Discard** and type
 `discard` to allow closing without saving, or choose `discard unsaved work and quit` in the box
 Workshop opens when the quit is refused. Pane reload restores the workspace and reconnects to
-the session through its office. The selected page, unconfirmed dialog text and selection, and
+the session through its role. The selected page, unconfirmed dialog text and selection, and
 the distinction between a deliberate initial-state edit and observed live state also survive
 reload. Unconfirmed dialog text is separate from a saved workspace. Drawing grants and hit maps
 are reacquired; a held drag ends rather than resuming in the replacement pane.

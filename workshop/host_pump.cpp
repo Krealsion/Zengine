@@ -14,7 +14,7 @@ namespace {
 std::string spelled(loom::WeaveId id) { return std::to_string(id.value); }
 
 /// TELL WHAT THE BOUNDARIES WROTE, each failure against Loom's record as it stands now: the
-/// owner is named by the office it holds, and "held" is said only while the record says so --
+/// owner is named by the role it holds, and "held" is said only while the record says so --
 /// an owner reloaded or removed later in the same turn is not held any more.
 ServedTurn tell_failures(loom::Switchboard& bus, ShowingFailures& book,
                          const std::function<void(const std::string&)>& tell) {
@@ -22,12 +22,12 @@ ServedTurn tell_failures(loom::Switchboard& bus, ShowingFailures& book,
     for (ShowingFailure& failure : book.take()) {
         ServedTurn::Failed one;
         one.owner = failure.owner;
-        one.office = bus.role_of(failure.owner);
+        one.role = bus.role_of(failure.owner);
         one.held = bus.has_failed_application(failure.owner);
         one.diagnostic =
             "a published claim could not be applied by " +
-            (one.office.empty() ? "weave " + spelled(one.owner)
-                                : one.office + " (weave " + spelled(one.owner) + ")") +
+            (one.role.empty() ? "weave " + spelled(one.owner)
+                                : one.role + " (weave " + spelled(one.owner) + ")") +
             (one.held ? " -- it is held until it is reloaded or removed"
                       : " -- it is not held now") +
             "; its own words: " + failure.words;

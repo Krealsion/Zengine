@@ -89,8 +89,8 @@ public:
     /// Whether a window is up, and which: `terminal` or `sdl`, empty when none.
     bool up() const;
     std::string window() const;
-    /// The office of the window up, `zengine.window.<window>`.
-    std::string office() const;
+    /// The role of the window up, `zengine.window.<window>`.
+    std::string role() const;
     loom::WeaveId id() const;
 
     /// WHAT THE WINDOW UP SHOWS NOW, read off its device as a weaver reads a screen: the cells the
@@ -145,7 +145,7 @@ public:
     /// offers itself again.
     void restart();
 
-    /// The directory's office holder, once loaded.
+    /// The directory's role holder, once loaded.
     loom::WeaveId directory() const;
 
 private:

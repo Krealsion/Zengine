@@ -59,7 +59,7 @@ class GuestVocabulary final
                      // The desk read whole, a pane's reading paged under one stamp and a point in
                      // it, and the notice that the desk moved, which a `capture` row may observe;
                      // a guide mark on a control and its answer, and a pane's manual, asked of the
-                     // pane's own office.
+                     // pane's own role.
                      zengine::workshop::DeskReadRequested, zengine::workshop::DeskRead,
                      zengine::workshop::PaneViewRequested, zengine::workshop::PaneView,
                      zengine::workshop::PanePointRequested, zengine::workshop::PanePoint,
@@ -110,16 +110,16 @@ class GuestVocabulary final
                      // it, answered to one observer (notices/vocabulary.hpp).
                      zengine::workshop::NoticeSaid, zengine::notices::NoticesMoved,
                      zengine::notices::NoticesRequested, zengine::notices::NoticesShown,
-                     // One pane's settings on the live layout and one office's, a pane's pin list,
+                     // One pane's settings on the live layout and one role's, a pane's pin list,
                      // a lock, and every layout's rows read and written in one batch, asked of the
                      // layouts' owner, which the `settings` power reaches.
                      zengine::workshop::PaneSettingsRequested, zengine::workshop::PaneSettingsAnswered,
                      zengine::workshop::PaneSettingCommitRequested,
                      zengine::workshop::PaneSettingCommitAnswered,
-                     zengine::workshop::OfficeSettingsRequested,
-                     zengine::workshop::OfficeSettingsAnswered,
-                     zengine::workshop::OfficeSettingCommitRequested,
-                     zengine::workshop::OfficeSettingCommitAnswered,
+                     zengine::workshop::RoleSettingsRequested,
+                     zengine::workshop::RoleSettingsAnswered,
+                     zengine::workshop::RoleSettingCommitRequested,
+                     zengine::workshop::RoleSettingCommitAnswered,
                      zengine::workshop::PaneSettingPinRequested,
                      zengine::workshop::PaneSettingPinAnswered,
                      zengine::workshop::PaneSettingLockRequested,

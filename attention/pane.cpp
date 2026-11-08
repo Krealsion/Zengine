@@ -51,7 +51,7 @@ using ws::v2::PaneOffered;
 using ws::StandingCondition;
 using ws::StandingConditions;
 
-/// WHO THIS PANE IS TALKING TO. The host's office, spelled as a literal exactly as
+/// WHO THIS PANE IS TALKING TO. The host's role, spelled as a literal exactly as
 /// `files.cpp` and `builder/builder-pane/pane.cpp` spell it: a provider is a stranger to Workshop's
 /// internals and says who it is talking to the way a third party would.
 constexpr const char* kWorkshopRole = "zengine.workshop";
@@ -135,7 +135,7 @@ public:
 
     /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15), OR A PRESS ON A
     /// CONDITION'S ROW. Workshop resolved the keystroke against the effective keymap -- the
-    /// weaver's override where one is authored, this office's declared default otherwise -- so
+    /// weaver's override where one is authored, this role's declared default otherwise -- so
     /// what arrives is the id, one `answers` admits; a press on a row, in Workshop or in a window,
     /// asks `condition:<key>`, which puts the cursor on it. Every act says its rows below, so what
     /// an act spends is always published.

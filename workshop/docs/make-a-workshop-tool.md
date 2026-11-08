@@ -15,7 +15,7 @@ Read Tally in this order:
 
 1. `TallyState` owns the count. Room dimensions and pending interactions are image-local.
 2. `Accept` and `Emit` declare schema vocabulary; they confer no authority.
-3. `offer()` announces the pane and its named action from its actual office.
+3. `offer()` announces the pane and its named action from its actual role.
 4. `on(AreaRoom)` takes the room the window gives its area, and `show` draws the rows there.
 5. `on(PaneActionRequested)` checks authorship and pane identity before changing the count.
 
@@ -73,7 +73,7 @@ These are the relevant parts of a handler, with application-specific types:
 // Members: loom::RoleRequest pending; std::uint64_t next_correlation = 0;
 if (!pending.pending()) {
     const bool queued = pending.send_to_role(
-        mail.as_role(my_office), destination_role, request, ++next_correlation);
+        mail.as_role(my_role), destination_role, request, ++next_correlation);
     // A false result means this call did not establish a new queued request.
 }
 

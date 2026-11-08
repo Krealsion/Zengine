@@ -2,7 +2,7 @@
 
 **Manual.** The palette lists everything you can do by name -- every action in force, every pane,
 each layout, each open pane's manual, and each setup and app you can start -- and runs the one you
-choose. It is the weave in the office `zengine.palette`, built as
+choose. It is the weave in the role `zengine.palette`, built as
 `zengine-palette` and loaded by a row of the shipped plans that load a window. Open it from
 anywhere with <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, the desktop's
 [`desktop.palette`](zengine.desktop.md#desktoppalette); in the OS window by tapping Shift twice,

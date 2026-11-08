@@ -249,7 +249,7 @@ zen_find_program_in(pane_menu witness-pane-menu "${stranger_bin}")
 zen_run("a stranger uses the pane menu and list helpers" "${pane_menu}")
 
 zen_find_program_in(pane_settings witness-pane-settings "${stranger_bin}")
-zen_run("a stranger's pane declares its settings and takes its row from the layouts' office" "${pane_settings}")
+zen_run("a stranger's pane declares its settings and takes its row from the layouts' role" "${pane_settings}")
 
 zen_find_program_in(pane_window witness-pane-window "${stranger_bin}")
 zen_run("a stranger's pane draws its rows in a window and hears a press there" "${pane_window}")
@@ -335,7 +335,7 @@ endif()
 # ---- ...and the same program's genuine failure --------------------------------------------
 # The arm above passes only if the successful run reported no refusal, which diagnostics that had
 # stopped working would also satisfy. So the same program without the Timer service fails for
-# real and must still name the shape and the office it was addressed to: together, the pair tells
+# real and must still name the shape and the role it was addressed to: together, the pair tells
 # a quieter runtime from a blinder one.
 zen_run("a genuine failure in the same program is still reported, with its destination"
         "${kitchen}" "${kitchen_dir}" --no-timer)

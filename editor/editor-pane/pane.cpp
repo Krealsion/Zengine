@@ -135,7 +135,7 @@ public:
         ask_project_root(mail);
         // THE KEYS ITS MENU SHOWS, asked of the keymap as it is in force now, once each life.
         (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, ws::KeymapRequested{});
-        // THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, asked for its room once each life; a
+        // THE GRAPHICS WINDOW THAT SHOWS THE ROLE'S AREA, asked for its room once each life; a
         // room it said before this activation is drawn now.
         window_.ask_room(mail);
         if (window_.in_window()) {
@@ -150,7 +150,7 @@ public:
         announce(mail);
     }
 
-    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA GIVES, from that window's office:
+    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE ROLE'S AREA GIVES, from that window's role:
     /// the rows and columns the Editor composes for.
     void on(const graphics::AreaRoom& r, loom::Mail& mail) {
         if (!window_.room(r, mail)) {
@@ -170,7 +170,7 @@ public:
         (void)window_.refused(refused, mail);
     }
 
-    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office and read
+    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its role and read
     /// onto the rows drawn there (`pointer`): its press, moves and release under the window's
     /// number for the press, and a hold the window ended a loss.
     void on(const graphics::AreaButtonChanged& b, loom::Mail& mail) { on_window(window_.pointer(b, mail), mail); }
@@ -262,7 +262,7 @@ public:
         }
         keys_in_force_.clear();
         for (const ws::ShownBinding& b : said.rows) {
-            if (b.office != pane::kEditorPaneRole || b.pane != pane::kEditorPane || b.shown.empty()) {
+            if (b.role != pane::kEditorPaneRole || b.pane != pane::kEditorPane || b.shown.empty()) {
                 continue;
             }
             (void)keys_in_force_.emplace(b.id, b.shown); // the rows come in the authored order
@@ -288,7 +288,7 @@ public:
     /// and no read can find the mirror stale.
     void after_delivery(loom::Mail& mail) {
         mirror_state();
-        // A SEALED CANDIDATE HOLDS NO OFFICE AND IS NOBODY'S PANE YET: it may speak only to its
+        // A SEALED CANDIDATE HOLDS NO ROLE AND IS NOBODY'S PANE YET: it may speak only to its
         // coordinator, so it says no rows and claims nothing until its admission activates it.
         if (!activation_.activated()) {
             return;
@@ -731,7 +731,7 @@ private:
         paste_.revision = e_.buffer.revision();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kEditorPaneRole)
-            .send_to_role(window_.clipboard_office(), graphics::ClipboardTextRequested{},
+            .send_to_role(window_.clipboard_role(), graphics::ClipboardTextRequested{},
                           paste_.pending);
     }
 
@@ -796,7 +796,7 @@ private:
         notice_bad_ = bad;
     }
 
-    /// `notice`, as the office's shared steps say one (`editor/office_seam.hpp`).
+    /// `notice`, as the role's shared steps say one (`editor/role_seam.hpp`).
     auto noticing() {
         return [this](std::string text, bool bad) { notice(std::move(text), bad); };
     }
@@ -1211,8 +1211,8 @@ private:
     /// THE PRIMARY PRESS WHOSE MOTION SWEEPS, by the window's number for it. Not reload state.
     std::int64_t held_ = 0;
 
-    /// THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, and the rows drawn there. Not reload state.
-    office::EditorWindow window_{pane::kEditorPaneRole, pane::kEditorPane};
+    /// THE GRAPHICS WINDOW THAT SHOWS THE ROLE'S AREA, and the rows drawn there. Not reload state.
+    role::EditorWindow window_{pane::kEditorPaneRole, pane::kEditorPane};
 
     /// THE SWITCH HOLDING THIS EDITOR STILL, while one does (`Holding`).
     Holding holding_;

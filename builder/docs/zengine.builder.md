@@ -1,6 +1,6 @@
 # zengine.builder -- the Builder
 
-**Manual.** The Builder: the weave that builds, answering to the office `zengine.builder` (an office
+**Manual.** The Builder: the weave that builds, answering to the role `zengine.builder` (a role
 is the name a weave answers to). It knows your project's recipes by name, asks its runner to run one,
 follows the build without stopping the desk, and says how it went. Workshop hosts it; it is not a
 file you load. Its pane is [`zengine.builder-pane`](zengine.builder-pane.md); another weave, or an
@@ -16,7 +16,7 @@ its file is `NO ARTIFACT`, said in those words. Asked to, the Builder offers a b
 the running project, whose realization owner, `zengine.realization`, decides whether to load it; the
 Builder shows that second answer beside the first, never merged into it.
 
-The Builder is two weaves Workshop mounts: this office, which answers for recipes and outcomes, and
+The Builder is two weaves Workshop mounts: this role, which answers for recipes and outcomes, and
 a runner, [`zengine.build-runner`](zengine.build-runner.md), the one weave in Workshop that starts
 a process. A build is an ordinary child process of Workshop, exactly as privileged as Workshop, run
 with the CMake fixed when Workshop was built. A build runs one at a time, and there is no cancel and no time limit: it runs
@@ -58,7 +58,7 @@ running project.
   published with the outcome `unknown recipe` when no build runs; `a build was already asked for
   and has not started yet`; `a build is already running: operation #4`. A build that cannot start
   ends `did not start`, its reason in `BuildStatus.detail`.
-- **Example:** from a weave the project loads, holding its office,
+- **Example:** from a weave the project loads, holding its role,
   `mail.as_role("example.tally").send_to_role("zengine.builder", zengine::builder::BuildRequested{"tally", true});`,
   as the pane's [`builder.build`](zengine.builder-pane.md#builderbuild) does.
 

@@ -23,7 +23,7 @@ namespace {
 
 namespace pane = zengine::attention_pane;
 
-/// The office and pane a saved setup names, spelled through the package's own header --
+/// The role and pane a saved setup names, spelled through the package's own header --
 /// the durable names, not literals, so a case cannot agree with a typo.
 inline PaneRef attention_ref() {
     return PaneRef{pane::kAttentionPaneRole, pane::kAttentionPane};
@@ -156,7 +156,7 @@ inline Condition thing(const char* key, const char* compact, const char* detail,
 
 /// THE ATTENTION PANE'S CENSUS: its rows in the one mode it has, which it declares by no name.
 const CensusDriverOf kAttentionCensus{pane::kAttentionPaneRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     AttentionRig f;
     f.open();
     const RuntimePane* held = f.row();
@@ -188,7 +188,7 @@ ZEN_PRESS_WITNESS_CASE(pane::kAttentionPaneRole, 0, "Attention's rows")
 // ATTN-WEAVE — the view arrives, and it is a stranger
 // ============================================================================
 
-TEST_CASE("the view arrives by a plan row, under an office of its own") {
+TEST_CASE("the view arrives by a plan row, under a role of its own") {
     // Workshop compiled nothing for this view, minted no kind for it and holds no branch on it:
     // what puts it on a weaver's screen is a row in an editable file naming an artifact, and an
     // offer this host learns about at runtime like any other.
@@ -200,7 +200,7 @@ TEST_CASE("the view arrives by a plan row, under an office of its own") {
     CHECK(is_runtime_kind(f.kind));
     CHECK(std::string(f.row()->name) == pane::kAttentionPaneName);
 
-    // ...AND THE INVENTORY LISTS IT UNDER THE OFFICE THAT OFFERED IT, which is the only answer
+    // ...AND THE INVENTORY LISTS IT UNDER THE ROLE THAT OFFERED IT, which is the only answer
     // to "whose pane is this" (WL-CAT-03) -- a view a weaver can CHOOSE.
     bool listed = false;
     for (const CatalogRow& row : combined_catalog(f.r.session().panes)) {
@@ -574,7 +574,7 @@ TEST_CASE("a dismissal does not outlive the condition it was about") {
 
 TEST_CASE("an id the Attention pane never declared is no act: the notice, the hiding and both conditions stand through a new room, and spending the notice un-says nothing true") {
     // THE THREE ROWS NEVER CHANGE, so an undeclared id reaches this pane only from Workshop's own
-    // office with no key behind it; a pane that spent its notice before asking what the id meant
+    // role with no key behind it; a pane that spent its notice before asking what the id meant
     // left `hidden -- ... is still true` painted over a private clear. Three lifetimes: the notice
     // ends at the weaver's next act, the hiding with its condition, the condition when its owner
     // retracts it -- an ignored id ends none, and the act that ends the first ends neither other.
@@ -590,7 +590,7 @@ TEST_CASE("an id the Attention pane never declared is no act: the notice, the hi
     REQUIRE(f.text().find("hidden -- the first thing is still true") != std::string::npos);
     REQUIRE_FALSE(f.listed("the first thing"));
 
-    const PaneRig::OfficeAction unknown = f.r.workshop_action(
+    const PaneRig::RoleAction unknown = f.r.workshop_action(
         pane::kAttentionPaneRole, pane::kAttentionPane, "attention.no-such-action");
     REQUIRE(unknown.authored);
     REQUIRE(unknown.delivered);
@@ -608,7 +608,7 @@ TEST_CASE("an id the Attention pane never declared is no act: the notice, the hi
 
     // A DECLARED ID THROUGH THE SAME DOOR IS AN ACT, and spends the notice -- so the provenance
     // was never the reason for the silence above.
-    const PaneRig::OfficeAction up =
+    const PaneRig::RoleAction up =
         f.r.workshop_action(pane::kAttentionPaneRole, pane::kAttentionPane, pane::kActionUp);
     REQUIRE(up.delivered);
     CHECK(f.text().find("hidden -- the first thing") == std::string::npos);
@@ -768,7 +768,7 @@ TEST_CASE("the pane never publishes more rows than the room it was granted") {
 
 TEST_CASE("a pane whose holder has no door for a key is put down by Escape, and nothing is sent") {
     // ESCAPE-TO-DESELECT IS THE DESKTOP'S DECLARED ROW (WL-DESK-02), so this case supplies the
-    // declarer. ⚠ NOT SILENCE, A DECLARATION: Workshop reads the office holder's accept-set -- the
+    // declarer. ⚠ NOT SILENCE, A DECLARATION: Workshop reads the role holder's accept-set -- the
     // answer it reads to choose a press's version -- and a holder with no `PaneKey` door could not
     // have spent this Escape. Attention is such a pane: three declared rows, none of them Escape's,
     // and no key accepted.

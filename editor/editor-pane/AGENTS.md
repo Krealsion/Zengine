@@ -9,11 +9,11 @@ feature's router, [`editor/AGENTS.md`](../AGENTS.md).
 | file | what it holds |
 |---|---|
 | `pane.cpp` | `EditorPaneWeave`, the weave: it declares every member and holds its lifecycle and revival, the room, the keys, the clipboard and the exit, save and discard, and the rows, caret and mirror it composes |
-| `common.hpp` | what the weave and its two aspect headers share: the constants, the records of a candidate, a view, a composition and a transfer in flight, the pure helpers over them, and the names it takes from `editor/office_seam.hpp` |
+| `common.hpp` | what the weave and its two aspect headers share: the constants, the records of a candidate, a view, a composition and a transfer in flight, the pure helpers over them, and the names it takes from `editor/role_seam.hpp` |
 | `transfers.hpp` | the pointer on the canvas, the highlight or this file's location carried out, material dropped in (as text, a Terminal line or generated C++), and a dropped location opened |
 | `opening_switch.hpp` | the two open doors, relayed and managed, the candidate a publication installs, and a switch's doors as the incumbent and as the sealed candidate |
 | `editor.hpp` | the document as values: `EditorBuffer`, `EditorState`, source-byte admission and tab geometry |
-| `vocabulary.hpp` | the office `zengine.editor`, the pane key, the action ids, and `EditorPaneState` |
+| `vocabulary.hpp` | the role `zengine.editor`, the pane key, the action ids, and `EditorPaneState` |
 | `CMakeLists.txt` | the loadable weave target, `zengine-editor-pane` |
 
 ## How the pieces meet
@@ -24,8 +24,8 @@ feature's router, [`editor/AGENTS.md`](../AGENTS.md).
 - Every record, helper and member `pane.cpp` and its three headers define stands in one unnamed
   namespace; past this translation unit, only the weave's export (`ZEN_EXPORT_WEAVE`) is named.
 - What the Neovim-backed Editor keeps and says alike -- the relayed open, the hold, the carry and
-  the dropped location's steps -- is `editor/office_seam.hpp` (`zengine::editor_office`), which
-  `common.hpp` names into the unnamed namespace and the aspect headers call as `office::`.
+  the dropped location's steps -- is `editor/role_seam.hpp` (`zengine::editor_role`), which
+  `common.hpp` names into the unnamed namespace and the aspect headers call as `role::`.
 - `tests/CMakeLists.txt` builds `pane.cpp` six more times under other names: five under one test
   switch each, and one plain; each switch's block stands in the member it changes.
 - The `workshop_panes_editor` case "the image that holds a document cannot reach the host" reads

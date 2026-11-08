@@ -4,7 +4,7 @@
 #ifndef ZENGINE_APP_VOCABULARY_HPP
 #define ZENGINE_APP_VOCABULARY_HPP
 
-// The app host's words (app/docs/app.md): the offices it and an app's own weave hold, the two
+// The app host's words (app/docs/app.md): the roles it and an app's own weave hold, the two
 // asks of the host's place door, and `app.json`, the file that says what an app runs. Portable:
 // no kernel, no loader.
 
@@ -16,11 +16,11 @@
 
 namespace zengine::app {
 
-/// The office of the app's own weave (`zengine-app-weave`): it reads `app.json`, runs the app's
+/// The role of the app's own weave (`zengine-app-weave`): it reads `app.json`, runs the app's
 /// flows and views, and arranges the window.
 inline constexpr const char* kAppRole = "zengine.app";
 
-/// The office of the host's place door: where the app's folder and the artifacts are.
+/// The role of the host's place door: where the app's folder and the artifacts are.
 inline constexpr const char* kAppHostRole = "zengine.app.host";
 
 /// The files an app's folder holds, by their names there.

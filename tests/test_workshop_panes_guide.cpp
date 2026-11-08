@@ -132,7 +132,7 @@ struct TutorDesk {
         b.tool->catalog = catalog_of({{"tally", "tally"}});
         // A MARK IS A POOL COLOUR, so the desk wears the look a terminal draws each pool colour in: `block`.
         prefs_persist::Prefs prefs;
-        prefs_persist::put_office_value(prefs, kWorkshopProvider, "workshop.skin",
+        prefs_persist::put_role_value(prefs, kWorkshopProvider, "workshop.skin",
                                         PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
                                                     std::string("block")});
         b.r.host.prefs_path = (b.root / "workshop-prefs.json").generic_string();
@@ -166,20 +166,20 @@ struct TutorDesk {
         return t.weave->guides.back();
     }
 
-    std::string read_refused(Tutor& t, const std::string& office, const std::string& pane_key) {
+    std::string read_refused(Tutor& t, const std::string& role, const std::string& pane_key) {
         const std::size_t views = t.weave->views.size(), refused = t.weave->refusals.size();
         t.act(b.r.bus, [&](TutorWeave&, loom::Mail& mail) {
-            (void)mail.send_to_role(kWorkshopProvider, PaneViewRequested{office, pane_key, 0, {}});
+            (void)mail.send_to_role(kWorkshopProvider, PaneViewRequested{role, pane_key, 0, {}});
         });
         if (t.weave->views.size() > views) return {};
         REQUIRE(t.weave->refusals.size() == refused + 1);
         return t.weave->refusals.back();
     }
 
-    PaneView read(Tutor& t, const std::string& office, const std::string& pane_key) {
+    PaneView read(Tutor& t, const std::string& role, const std::string& pane_key) {
         const std::size_t views = t.weave->views.size();
         t.act(b.r.bus, [&](TutorWeave&, loom::Mail& mail) {
-            (void)mail.send_to_role(kWorkshopProvider, PaneViewRequested{office, pane_key, 0, {}});
+            (void)mail.send_to_role(kWorkshopProvider, PaneViewRequested{role, pane_key, 0, {}});
         });
         REQUIRE_MESSAGE(t.weave->views.size() == views + 1,
                         (t.weave->refusals.empty() ? std::string() : t.weave->refusals.back()));
@@ -239,12 +239,12 @@ bool mark_drawn(TutorDesk& d) {
                                                        : !guide_cells(d).empty();
 }
 
-/// THE OFFICE THAT HOLDS INPUT, as a case needs one: it counts what reaches it.
-class InputOffice
-    : public loom::WeaveBase<InputOffice, TutorState,
+/// THE ROLE THAT HOLDS INPUT, as a case needs one: it counts what reaches it.
+class InputRole
+    : public loom::WeaveBase<InputRole, TutorState,
                              loom::Accept<input::InputSessionRequested, input::InjectInput>, loom::Emit<>> {
 public:
-    explicit InputOffice(std::int64_t& heard) : heard_(&heard) {}
+    explicit InputRole(std::int64_t& heard) : heard_(&heard) {}
     void on(const input::InputSessionRequested&, loom::Mail&) { ++*heard_; }
     void on(const input::InjectInput&, loom::Mail&) { ++*heard_; }
 
@@ -263,11 +263,11 @@ struct Watching {
 
 /// THE WEAVER OPENS ONE FILE IN THE EDITOR, through the Editor's own door, as Files' Return does.
 SourceOpened open_in_editor(PaneRig& r, const std::string& path) {
-    auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerOffice));
+    auto held = std::make_unique<DoorAsker>(std::string(kDoorAskerRole));
     DoorAsker* asker = held.get();
     loom::Grant grant;
     grant.allow_to_any(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version);
-    asker->id = r.bus.register_weave(std::move(held), std::move(grant), std::string(kDoorAskerOffice));
+    asker->id = r.bus.register_weave(std::move(held), std::move(grant), std::string(kDoorAskerRole));
     asker->zen_set_self(asker->id);
     asker->next = [path](DoorAsker& a, loom::Mail& mail) { a.ask(mail, kEditorRole, OpenSourceRequested{path}); };
     (void)r.bus.send(asker->id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -498,12 +498,12 @@ TEST_CASE("a mark ends when its guest's session ends, and a guest's own press re
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*"}, {"zengine.builder-pane/" "*"}));
     REQUIRE(d.mark(tutor, builder_door(), pane::kActionBuild).shown);
     // THE TUTOR'S OWN PRESS: its row holds no input, so the bus refuses the session and the press
-    // before the office that holds input hears either.
+    // before the role that holds input hears either.
     std::int64_t heard = 0;
     {
-        auto office = std::make_unique<InputOffice>(heard);
-        InputOffice* raw = office.get();
-        raw->zen_set_self(d.b.r.bus.register_weave(std::move(office), loom::emit_default_grant(*raw),
+        auto role = std::make_unique<InputRole>(heard);
+        InputRole* raw = role.get();
+        raw->zen_set_self(d.b.r.bus.register_weave(std::move(role), loom::emit_default_grant(*raw),
                                                    std::string(input::kInputRole)));
     }
     std::size_t refused = 0;
@@ -627,13 +627,13 @@ TEST_CASE("a row that reads by pane reads the Builder's words and the Editor's p
     REQUIRE_FALSE(tutor.weave->keys.empty());
     bool builders = false, above = false;
     for (const ShownBinding& row : tutor.weave->keys.back().rows) {
-        CHECK(row.office != "zengine.editor");
-        builders = builders || row.office == pane::kBuilderPaneRole;
-        above = above || (row.office == kDesktopRole && row.pane.empty());
+        CHECK(row.role != "zengine.editor");
+        builders = builders || row.role == pane::kBuilderPaneRole;
+        above = above || (row.role == kDesktopRole && row.pane.empty());
     }
     CHECK(builders);
     CHECK(above);
-    for (const ShownModes& m : tutor.weave->keys.back().modes) CHECK(m.office != "zengine.editor");
+    for (const ShownModes& m : tutor.weave->keys.back().modes) CHECK(m.role != "zengine.editor");
     // ITS DOORS ARE LOOM'S: widened by a rule the row did not have, the Editor reads.
     Tutor& wider = d.admit(tutor_row("wider", {"zengine.builder-pane/" "*", "zengine.editor/editor"},
                                      {"zengine.builder-pane/" "*"}));
@@ -660,7 +660,7 @@ TEST_CASE("every guest is refused the words of the Hotkeys pane and of an editor
     CHECK(d.read_refused(whole, "zengine.editor", "editor").empty());
 }
 
-TEST_CASE("a pane's manual is answered to a guest under its capture doors, and another office's manual is refused at the bus") {
+TEST_CASE("a pane's manual is answered to a guest under its capture doors, and another role's manual is refused at the bus") {
     TutorDesk d("guide-manual");
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*"}, {"zengine.builder-pane/" "*"}));
     tutor.act(d.b.r.bus, [](TutorWeave&, loom::Mail& mail) {
@@ -669,7 +669,7 @@ TEST_CASE("a pane's manual is answered to a guest under its capture doors, and a
     REQUIRE_FALSE(tutor.weave->docs.empty());
     CHECK(tutor.weave->docs.back().refusal.empty());
     CHECK_FALSE(tutor.weave->docs.back().sections.empty());
-    // THE DESKTOP'S MANUAL: no door of the row names that office.
+    // THE DESKTOP'S MANUAL: no door of the row names that role.
     const std::size_t docs = tutor.weave->docs.size();
     tutor.act(d.b.r.bus, [](TutorWeave& w, loom::Mail& mail) {
         w.sent.push_back(mail.send_to_role(kDesktopRole, PaneDocumentRequested{"launcher", ""}).valid());

@@ -142,7 +142,7 @@ WHY — `agents/decisions/escape-is-back.md`
 
 ## WL-ARR-15 — A pane may say the Escape it was sent was unspent, and is put down
 
-LAW — `PaneEscapeUnspent{pane}` from the office that offered it, echoing the number its Escape was sent under, puts that pane down while it is still selected, still where the keys go, and still last.
+LAW — `PaneEscapeUnspent{pane}` from the role that offered it, echoing the number its Escape was sent under, puts that pane down while it is still selected, still where the keys go, and still last.
 
 MEANS
 - what is shed is `unselect_pane`'s two lines: nothing closes, and no arrangement moves;
@@ -156,7 +156,7 @@ WHY — `agents/decisions/escape-is-back.md`
 
 ## WL-ARR-16 — An Escape no holder could take crosses as nothing, and the last meaning answers
 
-LAW — A bare Escape no pane row claims is not sent when the office's holder accepts no `PaneKey` or declares no `PaneEscapeUnspent`; nothing crosses, and the selection is shed as in command mode.
+LAW — A bare Escape no pane row claims is not sent when the role's holder accepts no `PaneKey` or declares no `PaneEscapeUnspent`; nothing crosses, and the selection is shed as in command mode.
 
 MEANS
 - the accept-set and emit-set are the holder's declarations, read off the bus at the keystroke;

@@ -4,7 +4,7 @@
  "space": 2,
  "menu": {
   "open": true,
-  "office": "zengine.workshop",
+  "role": "zengine.workshop",
   "pane": "",
   "picture": 0,
   "place": {

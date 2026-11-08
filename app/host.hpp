@@ -177,9 +177,9 @@ struct AppCloseState {
     ZEN_SHAPE(AppCloseState, 1, ZEN_FIELD(heard));
 };
 
-/// THE CLOSE: the app's window is the first window that offers itself, as its office, and the
-/// app's weave arranges in that one. Its `SurfaceCloseRequested`, said as that office, ends the
-/// run; a close any other office says, or one said with no office, ends nothing.
+/// THE CLOSE: the app's window is the first window that offers itself, as its role, and the
+/// app's weave arranges in that one. Its `SurfaceCloseRequested`, said as that role, ends the
+/// run; a close any other role says, or one said with no role, ends nothing.
 class CloseDoor final
     : public loom::WeaveBase<CloseDoor, AppCloseState,
                              loom::Accept<zengine::graphics::WindowOffered,
@@ -187,9 +187,9 @@ class CloseDoor final
 public:
     explicit CloseDoor(std::function<void()> close) : close_(std::move(close)) {}
     void on(const zengine::graphics::WindowOffered& w, loom::Mail& mail) {
-        const std::string office = std::string(zengine::graphics::kWindowOfficePrefix) + w.window;
-        if (window_.empty() && mail.authored_from_role(office)) {
-            window_ = office;
+        const std::string role = std::string(zengine::graphics::kWindowRolePrefix) + w.window;
+        if (window_.empty() && mail.authored_from_role(role)) {
+            window_ = role;
         }
     }
     void on(const zengine::graphics::SurfaceCloseRequested&, loom::Mail& mail) {
@@ -200,7 +200,7 @@ public:
     }
 
 private:
-    std::string window_; ///< the office of the app's window, once one offered itself
+    std::string window_; ///< the role of the app's window, once one offered itself
     std::function<void()> close_;
 };
 
@@ -234,7 +234,7 @@ public:
             return false;
         }
         if (!loaded.plan.choices.empty()) {
-            *why = "the plan " + plan_path + " authors choices for an office; an app's plan " +
+            *why = "the plan " + plan_path + " authors choices for a role; an app's plan " +
                    "names each artifact it runs";
             return false;
         }

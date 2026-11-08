@@ -108,7 +108,7 @@ struct InventoryStory {
         }
         if (composer) {
             load::ArtifactIntent artifact;
-            artifact.stem = "zengine-composer"; artifact.weave = load::WeaveIntent{kComposerOffice};
+            artifact.stem = "zengine-composer"; artifact.weave = load::WeaveIntent{kComposerRole};
             plan.artifacts.push_back(artifact);
             load::ArtifactIntent desktop;
             desktop.stem = "zengine-desktop-pane"; desktop.weave = load::WeaveIntent{"zengine.desktop"};

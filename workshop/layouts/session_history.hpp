@@ -774,7 +774,7 @@ inline v8::WorkshopSession session_v7_to_v8(const v7::WorkshopSession& old) {
 }
 
 /// A SESSION OF VERSION 8 AS ONE OF VERSION 9: every field as it was, and no choice remembered,
-/// so the next start loads each office's row the plan names.
+/// so the next start loads each role's row the plan names.
 // WL-MIG-02 -- agents/workshop/migration.md
 inline v9::WorkshopSession session_v8_to_v9(const v8::WorkshopSession& old) {
     if (old.format_version != kV8FormatVersion) {

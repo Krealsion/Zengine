@@ -40,9 +40,9 @@ void WorkshopWeave::refresh_inspected() {
 // WL-INFO-14 -- agents/workshop/info-body.md
 void WorkshopWeave::on(const InspectPaneRequested& asked, loom::Mail& mail) {
     if (mail.authored_role().empty()) {
-        return; // an office asks; personal speech is answered by nobody
+        return; // a role asks; personal speech is answered by nobody
     }
-    const PaneRef ref{asked.office, asked.pane};
+    const PaneRef ref{asked.role, asked.pane};
     bool known = false;
     for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
         if (row.ref == ref) {

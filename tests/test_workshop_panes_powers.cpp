@@ -13,7 +13,7 @@
 #include "workshop_support.hpp"
 #include "census.hpp"
 
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 
 #include "flow/flow-pane/vocabulary.hpp"
 #include "manuals/zengine.powers.hpp"
@@ -23,7 +23,7 @@
 
 namespace {
 
-inline constexpr const char* kLineOffice = "zengine.test.line-typer";
+inline constexpr const char* kLineRole = "zengine.test.line-typer";
 
 /// A PARTY THAT TYPES LINES, the way the Terminal pane hands Workshop a whole line to run.
 class LineTyper : public loom::WeaveBase<LineTyper, DoorAskerState,
@@ -33,7 +33,7 @@ public:
     std::string line;
     std::vector<TerminalActed> acted;
     void on(const SeatDo&, loom::Mail& mail) {
-        (void)mail.as_role(kLineOffice)
+        (void)mail.as_role(kLineRole)
             .send_to_role(kWorkshopProvider, TerminalActRequested{kTerminalSubmitAct, line});
     }
     void on(const TerminalActed& said, loom::Mail&) { acted.push_back(said); }
@@ -67,7 +67,7 @@ struct FindingRig {
         loom::Grant may;
         may.allow_to_role(TerminalActRequested::zen_name, TerminalActRequested::zen_version,
                           kWorkshopProvider);
-        typer_id = r.bus.register_weave(std::move(seat), std::move(may), std::string(kLineOffice));
+        typer_id = r.bus.register_weave(std::move(seat), std::move(may), std::string(kLineRole));
         typer->zen_set_self(typer_id);
         r.ready();
     }
@@ -88,7 +88,7 @@ struct FindingRig {
         if (now.size() == answers_before) {
             return std::nullopt;
         }
-        CHECK(now.back().authored_role.empty()); // the door answers; it speaks as no office
+        CHECK(now.back().authored_role.empty()); // the door answers; it speaks as no role
         const std::optional<loom::ReceivedMessage> held = terminal->received(now.back().message);
         REQUIRE(held.has_value());
         return held->value;
@@ -137,7 +137,7 @@ TEST_CASE("the documented discovery lines, typed through Workshop's own door, an
 }
 
 TEST_CASE("the Terminal may ask the discovery door its two questions, and nothing more") {
-    // THE WIDENING IS EXACTLY THREE RULES, all to the door's office -- the two versions of the
+    // THE WIDENING IS EXACTLY THREE RULES, all to the door's role -- the two versions of the
     // finding question and the describing one: asking describes, and grants nothing to send,
     // mount or open anywhere.
     loom::TerminalVocabulary vocab;
@@ -147,16 +147,16 @@ TEST_CASE("the Terminal may ask the discovery door its two questions, and nothin
     CHECK(grant.permits_role(kFindPowersName, 1, kPowersRole));
     CHECK(grant.permits_role(kFindPowersName, kFindPowersVersion, kPowersRole));
     CHECK(grant.permits_role(DescribePower::zen_name, DescribePower::zen_version, kPowersRole));
-    for (const char* office : {kArrangementRole, kSampleRole, kWorkshopProvider}) {
-        CHECK_FALSE(grant.permits_role(kFindPowersName, kFindPowersVersion, office));
-        CHECK_FALSE(grant.permits_role(DescribePower::zen_name, DescribePower::zen_version, office));
+    for (const char* role : {kArrangementRole, kSampleRole, kWorkshopProvider}) {
+        CHECK_FALSE(grant.permits_role(kFindPowersName, kFindPowersVersion, role));
+        CHECK_FALSE(grant.permits_role(DescribePower::zen_name, DescribePower::zen_version, role));
     }
     CHECK_FALSE(grant.permits_role(SampleRequested::zen_name, SampleRequested::zen_version,
                                    kSampleRole));
     CHECK_FALSE(grant.permits_role(ArrangementRequested::zen_name,
                                    ArrangementRequested::zen_version, kArrangementRole));
 
-    // ...AND THE LIVE PARTICIPANT AGREES: the same question aimed at another office is refused at
+    // ...AND THE LIVE PARTICIPANT AGREES: the same question aimed at another role is refused at
     // delivery, and nothing answers it.
     FindingRig s;
     (void)s.r.mount_sampler();
@@ -172,9 +172,9 @@ TEST_CASE("the Terminal may ask the discovery door its two questions, and nothin
     CHECK(denied[0].reason == loom::RefusalReason::CapabilityDenied);
 }
 
-TEST_CASE("the host's Terminal finds powers as its ordinary verb, speaks only to the offices that "
+TEST_CASE("the host's Terminal finds powers as its ordinary verb, speaks only to the roles that "
           "widen it, and draws in no window") {
-    // WHAT THE HOST GRANTS: every rule to one of the four offices that widen it -- none to a
+    // WHAT THE HOST GRANTS: every rule to one of the four roles that widen it -- none to a
     // medium, a window or everyone.
     loom::TerminalVocabulary vocab;
     loom::Grant grant;
@@ -233,14 +233,14 @@ TEST_CASE("the host's Terminal finds powers as its ordinary verb, speaks only to
 TEST_CASE("the discovery door answers its page for every shape it accepts, in every version") {
     FindingRig s;
     // BOTH VERSIONS OF THE FINDING QUESTION AND THE DESCRIBING ONE, each from its section.
-    CHECK(check_office_manual(s.r.bus, kPowersRole) >= 3);
+    CHECK(check_role_manual(s.r.bus, kPowersRole) >= 3);
     check_page_names_accepted(zengine::manual::pages::zengine_powers::kManual,
                               described_shapes_of(s.r.bus, s.r.bus.role_holder(kPowersRole)));
 }
 
 namespace {
 
-/// The panes tier's arrangement with Flow's pane loaded in its office beside the tool.
+/// The panes tier's arrangement with Flow's pane loaded in its role beside the tool.
 load::LoadPlan plan_with_flow() {
     load::LoadPlan plan = pane_plan();
     load::ArtifactIntent flow;
@@ -285,7 +285,7 @@ TEST_CASE("one question gives the same rows to Flow, Powers and the Terminal") {
     // bus itself, not off any of them.
     FindingRig s(plan_with_flow());
     const loom::WeaveId flow = s.r.bus.role_holder(zengine::flow_pane::kRole);
-    const loom::WeaveId tool = s.r.bus.role_holder(kIntroOffice);
+    const loom::WeaveId tool = s.r.bus.role_holder(kIntroRole);
     REQUIRE(flow.valid());
     REQUIRE(tool.valid());
     std::vector<Said> asked;
@@ -304,7 +304,7 @@ TEST_CASE("one question gives the same rows to Flow, Powers and the Terminal") {
 
     // FLOW: a maker types into its search line, the text Workshop hands the pane that holds the keys.
     REQUIRE(s.r.bus
-                .office_send_to_role_as(
+                .role_send_to_role_as(
                     s.r.workshop_id, kWorkshopProvider, zengine::flow_pane::kRole,
                     loom::Message(loom::to_value(PaneTextInput{zengine::flow_pane::kPane, "larger"}),
                                   s.r.workshop_id, loom::WeaveId{}, 0))
@@ -314,7 +314,7 @@ TEST_CASE("one question gives the same rows to Flow, Powers and the Terminal") {
     // POWERS: a weaver opens it, moves to the Operators and types the same word.
     s.r.extent(160, 48);
     REQUIRE(intro_row(s.r, intro::kPowersPane) != nullptr);
-    s.r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    s.r.pick(PaneRef{kIntroRole, intro::kPowersPane});
     const std::int64_t kind = intro_row(s.r, intro::kPowersPane)->kind;
     focus_pane(s.r, kind);
     s.r.key(input::scan::kTab);
@@ -355,7 +355,7 @@ TEST_CASE("one question gives the same rows to Flow, Powers and the Terminal") {
 
 namespace {
 
-/// FLOW'S ROWS AS WORKSHOP HOLDS THEM, for the one pane its office offers.
+/// FLOW'S ROWS AS WORKSHOP HOLDS THEM, for the one pane its role offers.
 const RuntimePane* flow_rows(PaneRig& r) {
     return r.session().panes.runtime.find(zengine::flow_pane::kRole, zengine::flow_pane::kPane);
 }
@@ -391,7 +391,7 @@ void each_flow_state(FindingRig& s, const std::function<void(const RuntimePane&)
 
 /// FLOW'S CENSUS: its rows with no dialog open, then the rows a dialog adds, each id once.
 const CensusDriverOf kFlowCensus{zengine::flow_pane::kRole, [] {
-    OfficeCensus census;
+    RoleCensus census;
     FindingRig s(plan_with_flow());
     std::set<std::string> taken;
     each_flow_state(s, [&](const RuntimePane& held) {

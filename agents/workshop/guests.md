@@ -49,9 +49,9 @@ WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 LAW — An owner sent a classed act a guest's grant names, directly past Workshop's dispatch, asks the guest door `ActorScopeRequested` about its sender first, and acts only as `ActorScopeJudged` allows.
 
 MEANS
-- the door judges the sender as Workshop judges a gesture's hand, by its admitted row and the file's host, for an asker in an office's name;
-- the toolbox save sent to the Inventory pane asks it; a refusal answers the sender in words; with no one holding the door's office, no guest;
-- a send a pane relays as its own office is judged at its approval, as the classes its shape is.
+- the door judges the sender as Workshop judges a gesture's hand, by its admitted row and the file's host, for an asker in a role's name;
+- the toolbox save sent to the Inventory pane asks it; a refusal answers the sender in words; with no one holding the door's role, no guest;
+- a send a pane relays as its own role is judged at its approval, as the classes its shape is.
 
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
@@ -74,7 +74,7 @@ WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 LAW — On a weaver's host a guest's keys, text, presses, wheels and drops toward the editor, Terminal, Hotkeys pane or quick setup, its typed text anywhere and any carry it would begin are refused in words.
 
 MEANS
-- by office, whichever implementation holds it; a refused press moves neither keys nor selection;
+- by role, whichever implementation holds it; a refused press moves neither keys nor selection;
 - no buffer, field or line holds a guest's typed text or carried item for the weaver to commit as the weaver's own;
 - on a development host a guest's hand reaches them as the weaver's does.
 
@@ -144,7 +144,7 @@ LAW — While a window shows the desk it lands an injected pointer moment as the
 MEANS
 - an injected press or wheel there reaches nobody, and Workshop says why in WL-GUEST-06's words (`AreaHandRefused`): the window, telling no guest from another participant, refuses every one;
 - Workshop takes every moment's hand, a key's as a press's: the weaver's key asks a send as the weaver's; a guest's press moves keys and selection as the weaver's, ending no guide mark;
-- a guest's keys come from the input office, attributed, each behind a pointer moment the window may not have landed waiting for it, so a batch is taken in order.
+- a guest's keys come from the input role, attributed, each behind a pointer moment the window may not have landed waiting for it, so a batch is taken in order.
 
 DOES NOT MEAN
 - that a press in a window is aimed at the picture it was read with: the window lands it by what it shows when it reads it; where no window shows the desk, Workshop lands it;
@@ -204,10 +204,10 @@ through Files is refused, and another file opens"
 guest door: on a weaver's host a guest's is refused in words, and a sender that is no guest saves with
 a door and without one" "on a development host the guest door lets a guest's toolbox save sent
 straight to the Inventory pane write its file" "a toolbox save sent straight to the Inventory pane is
-refused in words when its ask of the guest door's office is refused, and no file is written" "on a
+refused in words when its ask of the guest door's role is refused, and no file is written" "on a
 weaver's host a guest's Submit of a toolbox save in the Composer is refused, and no file is written"
 `tests/test_workshop_guests.cpp` "action classes: a guest's send is its shape's classes -- a toolbox
-save and a quit write, and an open shows no path" "door: asked in an owner's office -- the Inventory
+save and a quit write, and an open shows no path" "door: asked in an owner's role -- the Inventory
 pane's, Workshop's -- the door judges a sender by the row it admitted it under, and narrows neither
 the weaver nor a participant it never admitted"
 
@@ -310,9 +310,9 @@ and a key no window named is refused the save" "inventory Info: the weaver's own
 from the window's platform, saves a new entry"
 `tests/test_workshop_inventory_folders.cpp` "inventory folders: a queued press aimed at an earlier
 picture never acts on the row's next occupant"
-`tests/test_graphics.cpp` "a participant's press the input office injects lands in the window as
+`tests/test_graphics.cpp` "a participant's press the input role injects lands in the window as
 that hand's: its owner and its arranger hear the hand, its release ends its own hold, the weaver's
-press beside it holds its own, and a moment the platform gave or another office said is not taken"
+press beside it holds its own, and a moment the platform gave or another role said is not taken"
 "a key, its release and the text it types go from the window to the owner of each area placed to
 hear that moment, and to no other, each naming that area and the weaver's own hand; an owner placed
 for keys alone is given nothing else, and nothing is refused" "keys, their text and their releases

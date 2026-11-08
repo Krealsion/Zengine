@@ -4,7 +4,7 @@
 #ifndef ZENGINE_WORKSHOP_SAMPLE_DOOR_HPP
 #define ZENGINE_WORKSHOP_SAMPLE_DOOR_HPP
 
-// The one office that may cause a Source to be evaluated, `zengine.sources` (its manual, which it
+// The one role that may cause a Source to be evaluated, `zengine.sources` (its manual, which it
 // carries and answers: introspection/docs/zengine.sources.md): `SampleRequested{identity}` in, then
 // `op::sample`, `render_value` and `SourceSampled` out. Not the arrangement door, which runs
 // nothing and must be able to say so, and not a generic host-RPC door. It holds a const reference
@@ -16,7 +16,7 @@
 
 #include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.sources.hpp" // this office's manual, compiled in from its page
+#include "manuals/zengine.sources.hpp" // this role's manual, compiled in from its page
 #include "operator/catalog.hpp"
 #include "operator/operator.hpp"
 #include "operator/source.hpp"
@@ -33,7 +33,7 @@ namespace zengine::workshop {
 struct SampleDoorState {
     std::int64_t spent = 0;
     std::int64_t refusals = 0; ///< samples the catalog or the Source seam declined
-    std::int64_t refused = 0;  ///< asks that were not authored as any office
+    std::int64_t refused = 0;  ///< asks that were not authored as any role
     ZEN_EXPOSE();
     ZEN_SHAPE(SampleDoorState, 1, ZEN_FIELD(spent), ZEN_FIELD(refusals), ZEN_FIELD(refused));
 };
@@ -53,7 +53,7 @@ public:
         if (mail.authored_role().empty()) {
             // Anonymous speech may not cause evaluation. The rule names nobody and is not
             // containment (the loader binds `allow_any()` to every library it opens); it makes
-            // every body this office ran one run for a named office.
+            // every body this role ran one run for a named role.
             ++state_.refused;
             return;
         }

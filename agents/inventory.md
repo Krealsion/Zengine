@@ -8,7 +8,7 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
 - `zengine::inventory` exports the codec, vocabulary and explicit `inventory_grant()` helper.
   `zengine-inventory` is an ordinary
   loadable artifact, installed and selected by Workshop's authored load plans. No native host
-  mount owns its office. Unload/load starts empty; an explicit toolbox restore repopulates it.
+  mount owns its role. Unload/load starts empty; an explicit toolbox restore repopulates it.
 - `inventory/codec.hpp` carries complete item and metadata schema roots plus their dependency
   closure and separately serialized values. Every inner value admits against its declared
   root; malformed replacement retains the old pair. Draft presence relaxation does not apply.
@@ -23,7 +23,7 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
 - Capture metadata is separate from the pure structure: `CaptureContext` records observations;
   `CaptureRequest` retains the nested typed request. Stored claims confer no authority. A target
   that does not answer may leave the capture pending; a second link does not free this slot.
-- `workshop/admission.hpp` preserves the inventory office's bounded grant when loading its
+- `workshop/admission.hpp` preserves the inventory role's bounded grant when loading its
   artifact. Emit declarations do not grant authority. This grant is separate from a guest's
   `inventory` power, owned by `workshop/guests.hpp` and `guests.cpp`; see
   [external-host](../external-host/docs/external-host.md).
@@ -98,7 +98,7 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
   weave-wide monotonic correlations plus answer provenance let only the asking view settle.
   Retiring drops the records, so an old incarnation's late answer settles nothing; the slot keeps
   only a watch request Workshop has not answered, to end the lease it grants. Only `info` keeps
-  pane-property inspection (Workshop holds one subject per office).
+  pane-property inspection (Workshop holds one subject per role).
 - A view has one owner operation in flight, and its purpose (refresh, link, save, save of a copy
   as a new entry, save copy) is one record set at the start and settled on every outcome --
   answer, owner refusal, denied permission, undelivered or unqueued -- so no later operation

@@ -56,24 +56,24 @@ HELD = ".desk-watch"
 
 
 def watched_of(ctx, given):
-    """The panes a watch of some panes writes, as a set of (office, pane); None for the desk."""
+    """The panes a watch of some panes writes, as a set of (role, pane); None for the desk."""
     text = (given or "").strip()
     if not text:
         return None
     try:
         refs = json.loads(text)
     except ValueError as err:
-        ctx.fail("refused: `panes` is not JSON (%s): name each pane as [\"<office>\", \"<pane>\"]"
+        ctx.fail("refused: `panes` is not JSON (%s): name each pane as [\"<role>\", \"<pane>\"]"
                  % err)
     ctx.check(isinstance(refs, list) and refs and all(
         isinstance(r, list) and len(r) == 2 and all(isinstance(p, str) and p for p in r)
         for r in refs),
-        "refused: `panes` is a JSON list of [\"<office>\", \"<pane>\"] pairs, each two names")
+        "refused: `panes` is a JSON list of [\"<role>\", \"<pane>\"] pairs, each two names")
     return set((r[0], r[1]) for r in refs)
 
 
 def stamps_of(reading):
-    """{(office, pane): the stamp each pane's reading stands on, or the desk read named}."""
+    """{(role, pane): the stamp each pane's reading stands on, or the desk read named}."""
     out = {}
     for read_one in (reading.get("panes") or {}).values():
         view = read_one.get("view")
@@ -89,7 +89,7 @@ def notice_stamps(notice):
 
 
 def moved(reading, notice):
-    """What a notice says moved since `reading`: (whether the desk moved, [(office, pane)] whose
+    """What a notice says moved since `reading`: (whether the desk moved, [(role, pane)] whose
     stamp moved). Nothing, for a notice the reading already stands on or one older than it."""
     if reading.get("desk") is None:
         return True, []

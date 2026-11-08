@@ -310,7 +310,7 @@ void pane_surface() {
     ws::v3::PaneActions said_causes{offer.pane, "count", {}, {}};
     said_causes.rows.push_back(ws::v3::PaneActionRow{
         "tally.add", "add one", zengine::input::scan::kSpace, 0, {},
-        {ws::cause_of<zengine::timer::StartTimer>(ws::to_pane("tally.office", "tally"))}, {}});
+        {ws::cause_of<zengine::timer::StartTimer>(ws::to_pane("tally.role", "tally"))}, {}});
     check(ws::pane_declaration_problem(said_causes).empty(),
           "a press's causes are said beside its keys, in the form Workshop admits");
     said_causes.rows.front().causes.push_back(ws::ActionCause{"Bad Name", 1, ""});
@@ -348,7 +348,7 @@ void neovim_surface() {
           "the ask is spelled as a console types it");
     const nve::NeovimStopRequested stop{true};
     check(stop.discard, "a stop can say to lose unsaved work");
-    check(std::string(nve::kEditorOffice) == "zengine.editor", "it answers at the Editor's office");
+    check(std::string(nve::kEditorRole) == "zengine.editor", "it answers at the Editor's role");
     check(std::string(nve::kActionExtract) != nve::kActionLocation, "its two carries are two actions");
 }
 
@@ -397,8 +397,8 @@ void graphics_surface() {
     room.w = 20 * gfx::kCellPx;
     room.h = 2 * gfx::kCellPx;
     check(canvas.room(room) && canvas.width() == room.w &&
-              canvas.window_office() == "zengine.window.terminal",
-          "a canvas keeps the room its window told, and names that window's office");
+              canvas.window_role() == "zengine.window.terminal",
+          "a canvas keeps the room its window told, and names that window's role");
     check(!canvas.room(room), "and the same room told again changes nothing");
 
     // A painter is handed exact colours, one for each a node's operands carry, as a window hands
@@ -483,7 +483,7 @@ int main() {
           "installed panes can request value dragging");
     check(loom::schema_of<zengine::workshop::PaneCanvasValueDrop>()->find("area") != nullptr,
           "installed panes receive copy drops at a point of their area, separately from references");
-    check(loom::schema_of<zengine::workshop::PaneCanvasValueDrop>()->find("source_office") != nullptr,
+    check(loom::schema_of<zengine::workshop::PaneCanvasValueDrop>()->find("source_role") != nullptr,
           "installed copy drops preserve attributed source separately from pure bytes");
     check(loom::schema_of<zengine::workshop::PaneShortcuts>()->find("rows") != nullptr,
           "installed panes can propose shortcuts through Desktop");
@@ -522,7 +522,7 @@ int main() {
     check(loom::schema_of<zengine::inventory::v2::InventoryAdd>()->find("folder") != nullptr &&
           loom::schema_of<zengine::inventory::InventoryFolderMove>()->find("into") != nullptr,
           "installed stores can add into and move between named folders");
-    check(inventory_grant_answers_folders(), "the inventory office may answer folder requests");
+    check(inventory_grant_answers_folders(), "the inventory role may answer folder requests");
     const auto reference_pair = zengine::inventory::encode_pair(loom::to_value(reference), {});
     const auto restored_reference = loom::from_value<zengine::inventory::InventoryReference>(
         zengine::inventory::decode_pair(reference_pair).item);

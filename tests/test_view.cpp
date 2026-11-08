@@ -6,7 +6,7 @@
 #include "graphics/window/store.hpp"
 #include "maker/weave.hpp"
 #include "maker_fixture.hpp"
-#include "office_manual.hpp"
+#include "role_manual.hpp"
 #include "view/host.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_picture.hpp"
@@ -80,7 +80,7 @@ std::string first_version_bytes(const view::Description& d) {
     return loom::serialize(v);
 }
 
-/// Stands in for Workshop's office: hears what a pane says, and speaks to a view as Workshop.
+/// Stands in for Workshop's role: hears what a pane says, and speaks to a view as Workshop.
 class Desk final : public loom::Weave {
 public:
     std::vector<loom::Message> heard;
@@ -148,7 +148,7 @@ private:
     std::optional<loom::DeferredAnswer> owed_;
 };
 
-/// What a view said of its wiring, as one hearer heard it: each saying in order, with the office
+/// What a view said of its wiring, as one hearer heard it: each saying in order, with the role
 /// Loom stamped on it.
 struct Wirings {
     std::vector<std::pair<std::string, view::ViewWiring>> said;
@@ -157,26 +157,26 @@ struct Wirings {
             if (loom::same_identity(m.payload.schema(), *loom::schema_of<view::ViewWiring>()))
                 said.emplace_back(std::string(m.provenance.authored_role()), loom::from_value<view::ViewWiring>(m.payload));
     }
-    std::size_t count(const std::string& office) const {
-        return static_cast<std::size_t>(std::count_if(said.begin(), said.end(), [&](const auto& s) { return s.first == office; }));
+    std::size_t count(const std::string& role) const {
+        return static_cast<std::size_t>(std::count_if(said.begin(), said.end(), [&](const auto& s) { return s.first == role; }));
     }
-    /// The last that `office` said, which it must have said, with a row for each of its intents and
+    /// The last that `role` said, which it must have said, with a row for each of its intents and
     /// fields.
-    view::ViewWiring last(const std::string& office) const {
+    view::ViewWiring last(const std::string& role) const {
         for (auto it = said.rbegin(); it != said.rend(); ++it)
-            if (it->first == office) {
+            if (it->first == role) {
                 REQUIRE_FALSE(it->second.intents.size() + it->second.fields.size() == 0);
                 return it->second;
             }
-        FAIL(office << " said nothing of its wiring");
+        FAIL(role << " said nothing of its wiring");
         return {};
     }
 };
 
-/// The terminal window's office, where a window shows a view's area.
-const std::string kWindowOffice = std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+/// The terminal window's role, where a window shows a view's area.
+const std::string kWindowRole = std::string(gfx::kWindowRolePrefix) + gfx::kTerminalWindow;
 
-/// Stands in for the graphics window that shows one view's area: holds the window's office, admits
+/// Stands in for the graphics window that shows one view's area: holds the window's role, admits
 /// each drawing by the window's own judge and keeps it as the window keeps it (graphics/window/
 /// store.hpp), and speaks to the view as that window.
 class Window final : public loom::Weave {
@@ -282,7 +282,7 @@ struct Rig {
     }
     template <class T> view::ViewAnswer ask(const T& request) {
         const auto corr = ++correlation;
-        (void)bus.office_send_to_role_as(client_id, "viewtest.builder", view::kViewHostRole,
+        (void)bus.role_send_to_role_as(client_id, "viewtest.builder", view::kViewHostRole,
                                          loom::Message(loom::to_value(request), client_id, {}, corr));
         pump();
         for (auto it = client->heard.rbegin(); it != client->heard.rend(); ++it)
@@ -293,8 +293,8 @@ struct Rig {
         FAIL("no answer from the view host");
         return {};
     }
-    template <class T> void tell(const std::string& office, const T& value) {
-        (void)bus.office_send_to_role_as(desk_id, view::kWorkshopRole, office,
+    template <class T> void tell(const std::string& role, const T& value) {
+        (void)bus.role_send_to_role_as(desk_id, view::kWorkshopRole, role,
                                          loom::Message(loom::to_value(value), desk_id, {}, ++correlation));
         pump();
     }
@@ -303,40 +303,40 @@ struct Rig {
         if (window == nullptr) {
             auto w = std::make_unique<Window>(view);
             window = w.get();
-            window_id = bus.register_weave(std::move(w), loom::Grant{}.allow_any(), kWindowOffice);
+            window_id = bus.register_weave(std::move(w), loom::Grant{}.allow_any(), kWindowRole);
         }
         return *window;
     }
-    /// `value` said to the view `office` as the window's office, under `number` (a fresh one when
+    /// `value` said to the view `role` as the window's role, under `number` (a fresh one when
     /// none).
-    template <class T> void as_window(const std::string& office, const T& value, std::uint64_t number = 0) {
-        (void)window_for(office);
-        (void)bus.office_send_to_role_as(window_id, kWindowOffice, office,
+    template <class T> void as_window(const std::string& role, const T& value, std::uint64_t number = 0) {
+        (void)window_for(role);
+        (void)bus.role_send_to_role_as(window_id, kWindowRole, role,
                                          loom::Message(loom::to_value(value), window_id, {},
                                                        number != 0 ? number : ++correlation));
         pump();
     }
     /// THE WINDOW'S ROOM FOR A VIEW'S AREA, `width` by `height` pixels: a window that shows every
     /// pixel, setting text in a face 8 by 16, or a terminal's cells.
-    void room_px(const std::string& office, std::int64_t width, std::int64_t height, bool terminal = false) {
-        const gfx::window::WinArea* held = window_for(office).find(office);
-        gfx::AreaRoom r{area_of(office), gfx::kTerminalWindow, 1, width, height, {},
+    void room_px(const std::string& role, std::int64_t width, std::int64_t height, bool terminal = false) {
+        const gfx::window::WinArea* held = window_for(role).find(role);
+        gfx::AreaRoom r{area_of(role), gfx::kTerminalWindow, 1, width, height, {},
                         held == nullptr || held->nodes.empty()};
         if (!terminal) {
             r.cell_px = gfx::kCellPx;
             r.text_advance_px = 8;
             r.text_line_px = 16;
         }
-        rooms[office] = r;
-        as_window(office, r);
+        rooms[role] = r;
+        as_window(role, r);
     }
-    void room(const std::string& office, bool terminal = false) { room_px(office, 12 * 40, 12 * 16, terminal); }
+    void room(const std::string& role, bool terminal = false) { room_px(role, 12 * 40, 12 * 16, terminal); }
     /// THE PICTURE THE WINDOW HOLDS OF A VIEW'S AREA, read back as the view drew it: its rectangles
     /// and runs of text in the order drawn, each run where its box stands.
-    const ws::CanvasPicture* latest(const std::string& office) const {
+    const ws::CanvasPicture* latest(const std::string& role) const {
         static ws::CanvasPicture kept;
-        const auto room = rooms.find(office);
-        const gfx::window::WinArea* a = window == nullptr ? nullptr : window->find(office);
+        const auto room = rooms.find(role);
+        const gfx::window::WinArea* a = window == nullptr ? nullptr : window->find(role);
         if (a == nullptr || a->nodes.empty() || room == rooms.end()) return nullptr;
         const auto inset = ws::canvas_text_metrics(
             view::window_room(room->second.w, room->second.h, room->second.cell_px, room->second.measure())).inset;
@@ -359,9 +359,9 @@ struct Rig {
         return &kept;
     }
     /// The latest actions a view declared, or none.
-    std::optional<ws::v3::PaneActions> declared(const std::string& office) const {
+    std::optional<ws::v3::PaneActions> declared(const std::string& role) const {
         for (auto it = desk->heard.rbegin(); it != desk->heard.rend(); ++it) {
-            if (it->provenance.authored_role() == office &&
+            if (it->provenance.authored_role() == role &&
                 loom::same_identity(it->payload.schema(), *loom::schema_of<ws::v3::PaneActions>()))
                 return loom::from_value<ws::v3::PaneActions>(it->payload);
         }
@@ -369,36 +369,36 @@ struct Rig {
     }
     /// Every line of the latest picture, as a weaver reads it: its characters without the blanks
     /// after the last (where a caret after a value stands), each closed by `|`.
-    std::string words(const std::string& office) const {
+    std::string words(const std::string& role) const {
         std::string out;
-        if (const auto* p = latest(office))
+        if (const auto* p = latest(role))
             for (const auto& t : p->texts) out += t.text.substr(0, t.text.find_last_not_of(' ') + 1) + "|";
         return out;
     }
     /// Every line of the latest picture as one sentence, a wrapped notice whole again.
-    std::string said(const std::string& office) const {
+    std::string said(const std::string& role) const {
         std::string out;
-        if (const auto* p = latest(office))
+        if (const auto* p = latest(role))
             for (const auto& t : p->texts) out += (out.empty() ? "" : " ") + t.text;
         return out;
     }
     /// A PRESS AND ITS RELEASE AT A POINT OF A VIEW'S AREA, in its pixels, as the window gives one.
-    void press_at(const std::string& office, std::int64_t x, std::int64_t y, std::int64_t button = 1) {
-        REQUIRE(latest(office) != nullptr);
+    void press_at(const std::string& role, std::int64_t x, std::int64_t y, std::int64_t button = 1) {
+        REQUIRE(latest(role) != nullptr);
         const auto number = ++correlation;
-        as_window(office, gfx::AreaButtonChanged{area_of(office), button, true, x, y, 0}, number);
-        as_window(office, gfx::AreaButtonChanged{area_of(office), button, false, x, y, 0}, number);
+        as_window(role, gfx::AreaButtonChanged{area_of(role), button, true, x, y, 0}, number);
+        as_window(role, gfx::AreaButtonChanged{area_of(role), button, false, x, y, 0}, number);
     }
     /// ...at the middle of an element.
-    void press(const std::string& office, const view::Element& e, std::int64_t button = 1) {
-        press_at(office, e.x + e.w / 2, e.y + e.h / 2, button);
+    void press(const std::string& role, const view::Element& e, std::int64_t button = 1) {
+        press_at(role, e.x + e.w / 2, e.y + e.h / 2, button);
     }
     /// Replace a number field's text: press it, clear it, type.
-    void fill(const std::string& office, const view::Element& e, const std::string& text) {
-        press(office, e);
+    void fill(const std::string& role, const view::Element& e, const std::string& text) {
+        press(role, e);
         for (int i = 0; i < 12; ++i)
-            tell(office, ws::PaneKey{view::kPane, zengine::input::scan::kBackspace, 0});
-        tell(office, ws::PaneTextInput{view::kPane, text});
+            tell(role, ws::PaneKey{view::kPane, zengine::input::scan::kBackspace, 0});
+        tell(role, ws::PaneTextInput{view::kPane, text});
     }
     std::int64_t total() const { return tally.weave->state().get("total")->as_int(); }
 };
@@ -410,18 +410,18 @@ struct Shown {
     WeaveId id{};
 };
 
-/// The window that shows the area of the view named `view`, holding the terminal window's office:
+/// The window that shows the area of the view named `view`, holding the terminal window's role:
 /// the rig's own, mounted if none is.
 Shown mount_window(Rig& rig, const std::string& view) {
     Window& w = rig.window_for(view);
     return {&w, rig.window_id};
 }
 
-/// `value` said to the view `view` as the window's office.
+/// `value` said to the view `view` as the window's role.
 template <class T>
 void window_says(Rig& rig, const Shown& w, const std::string& view, const T& value) {
     if constexpr (std::is_same_v<T, gfx::AreaRoom>) rig.rooms[view] = value;
-    (void)rig.bus.office_send_to_role_as(w.id, kWindowOffice, view,
+    (void)rig.bus.role_send_to_role_as(w.id, kWindowRole, view,
                                          loom::Message(loom::to_value(value), w.id, {}, ++rig.correlation));
     rig.pump();
 }
@@ -636,7 +636,7 @@ TEST_CASE("a resumed view offers its pane and asks nothing of the desk; a run as
     REQUIRE_MESSAGE(resumed.ok, resumed.reason);
     CHECK(resumed.action == "resume");
     CHECK(resumed.fresh);
-    CHECK(resumed.office == "tally.panel");
+    CHECK(resumed.role == "tally.panel");
     bool offered = false, seat = false;
     for (const auto& m : rig.desk->heard) {
         if (m.provenance.authored_role() != "tally.panel") continue;
@@ -666,10 +666,10 @@ TEST_CASE("a view registered afresh at its own name asks nothing of the desk, so
     // and takes its keys; the first check goes red.
     Rig rig;
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel(false))}).ok);
-    const auto asked = [&rig](const std::string& office) {
+    const auto asked = [&rig](const std::string& role) {
         bool seat = false;
         for (const auto& m : rig.desk->heard)
-            if (m.provenance.authored_role() == office)
+            if (m.provenance.authored_role() == role)
                 seat |= loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneRevealRequested>());
         return seat;
     };
@@ -694,7 +694,7 @@ TEST_CASE("the view host registers a view as its own participant, granted only i
     const auto run = rig.ask(view::ViewRun{"builder", bytes_of(panel())});
     REQUIRE_MESSAGE(run.ok, run.reason);
     CHECK(run.fresh);
-    CHECK(run.office == "tally.panel");
+    CHECK(run.role == "tally.panel");
     CHECK(has(run.reason, "it waits until told tally.Total"));
     const auto id = rig.bus.role_holder("tally.panel");
     REQUIRE(id.valid());
@@ -702,7 +702,7 @@ TEST_CASE("the view host registers a view as its own participant, granted only i
     CHECK(id != rig.client_id);
     REQUIRE(rig.views.view(id.value) != nullptr);
 
-    // It offered its pane as its own office, and asked for a seat.
+    // It offered its pane as its own role, and asked for a seat.
     bool offered = false, seat = false;
     for (const auto& m : rig.desk->heard) {
         if (m.provenance.authored_role() != "tally.panel") continue;
@@ -722,9 +722,9 @@ TEST_CASE("the view host registers a view as its own participant, granted only i
     CHECK_FALSE(grant.permits(view::ViewRun::zen_name, view::ViewRun::zen_version, rig.views.id()));
     // ...its drawing to a window, which takes an area's drawing from its owner alone, and the ask
     // for its room to the graphics directory alone.
-    CHECK(grant.permits_role(gfx::Drawn::zen_name, gfx::Drawn::zen_version, kWindowOffice));
+    CHECK(grant.permits_role(gfx::Drawn::zen_name, gfx::Drawn::zen_version, kWindowRole));
     CHECK(grant.permits_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole));
-    CHECK_FALSE(grant.permits_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, kWindowOffice));
+    CHECK_FALSE(grant.permits_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, kWindowRole));
 
     // Bytes that are no description are refused in the reader's words, and nothing registers.
     const auto garbage = rig.ask(view::ViewRun{"other", loom::Bytes{1, 2, 3}});
@@ -951,7 +951,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
 
     SUBCASE("the window that shows the view's area is drawn the same picture and a focused field's caret, its changes as changes, and a press on a button there uses it") {
         Rig shown;
-        // STARTED, it asks the graphics directory its area's room once, as its office.
+        // STARTED, it asks the graphics directory its area's room once, as its role.
         auto directory = std::make_unique<Listener>(std::vector{loom::schema_of<gfx::RoomAsked>()});
         auto* asked = directory.get();
         (void)shown.bus.register_weave(std::move(directory), loom::Grant{}, gfx::kGraphicsRole);
@@ -963,7 +963,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         auto* counted = ears.get();
         (void)shown.bus.register_weave(std::move(ears), loom::Grant{});
         const auto w = mount_window(shown, "tally.panel");
-        // A ROOM is the window's word alone: said by Workshop's office it draws nothing.
+        // A ROOM is the window's word alone: said by Workshop's role it draws nothing.
         shown.tell("tally.panel", area_room("tally.panel", 40, 16));
         CHECK(w.window->drawn.empty());
         window_says(shown, w, "tally.panel", area_room("tally.panel", 40, 16));
@@ -982,12 +982,12 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK(w.window->action("text:total").empty());
         CHECK(w.window->action("box:start").empty());
 
-        // A PRESS THERE, asked by the window's office, uses the button as a press in Workshop does.
+        // A PRESS THERE, asked by the window's role, uses the button as a press in Workshop does.
         window_says(shown, w, "tally.panel", gfx::ActionRequested{area_of("tally.panel"), "count"});
         CHECK(shown.total() == 45);
         CHECK(counted->heard.size() == 1);
         CHECK(w.window->words("text:total") == "Total: 45");
-        // ...an action no button drawn there names, another area's, or one another office asks, is no act.
+        // ...an action no button drawn there names, another area's, or one another role asks, is no act.
         window_says(shown, w, "tally.panel", gfx::ActionRequested{area_of("tally.panel"), "total"});
         window_says(shown, w, "tally.panel", gfx::ActionRequested{area_of("tally.panel"), "control:count"});
         window_says(shown, w, "tally.panel", gfx::ActionRequested{"other", "count"});
@@ -1056,7 +1056,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK(w.window->words("text:total") == "Total: 99");
 
         // A REFUSED CHANGE is drawn again whole at once; a refused whole drawing is said in the
-        // picture drawn next, whole, once. Another office's refusal is not heard.
+        // picture drawn next, whole, once. Another role's refusal is not heard.
         shown.tell("tally.panel", gfx::DrawnRefused{area_of("tally.panel"), "not the window's word"});
         CHECK(w.window->drawn.size() == before + 1);
         window_says(shown, w, "tally.panel", gfx::DrawnRefused{area_of("tally.panel"), "a change against nothing held"});
@@ -1103,7 +1103,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
     }
 }
 
-TEST_CASE("a view takes the keys and the text of the window that shows its area as it takes Workshop's, and the same from any other office changes nothing") {
+TEST_CASE("a view takes the keys and the text of the window that shows its area as it takes Workshop's, and the same from any other role changes nothing") {
     Rig rig;
     const auto d = panel();
     REQUIRE(rig.ask(view::ViewRun{"app", bytes_of(d)}).ok);
@@ -1140,21 +1140,21 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
     CHECK(rig.total() == 30);
     CHECK(w.window->words("text:total") == "Total: 30");
 
-    // THE SAME FROM ANY OTHER OFFICE changes nothing: another window's, Workshop's, a stranger's.
+    // THE SAME FROM ANY OTHER ROLE changes nothing: another window's, Workshop's, a stranger's.
     const auto drawn = w.window->drawn.size();
-    const std::string sdl = std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow;
+    const std::string sdl = std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow;
     auto other = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
     const auto other_id = rig.bus.register_weave(std::move(other), loom::Grant{}.allow_any(), sdl);
     auto stranger = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
     const auto stranger_id =
         rig.bus.register_weave(std::move(stranger), loom::Grant{}.allow_any(), "viewtest.stranger");
-    for (const auto& [id, office] : {std::pair{other_id, sdl}, std::pair{stranger_id, std::string("viewtest.stranger")},
+    for (const auto& [id, role] : {std::pair{other_id, sdl}, std::pair{stranger_id, std::string("viewtest.stranger")},
                                      std::pair{rig.desk_id, std::string(view::kWorkshopRole)}}) {
         for (const auto& said : {loom::to_value(gfx::AreaKeyPressed{area_of("tally.panel"),
                                                                     in::scan::kBackspace, "",
                                                                     in::mod::kNone}),
                                  loom::to_value(gfx::AreaTextEntered{area_of("tally.panel"), "7"})})
-            (void)rig.bus.office_send_to_role_as(id, office, "tally.panel",
+            (void)rig.bus.role_send_to_role_as(id, role, "tally.panel",
                                                  loom::Message(said, id, {}, ++rig.correlation));
         rig.pump();
     }
@@ -1203,7 +1203,7 @@ TEST_CASE("a press the window landed on a view where it now draws another elemen
     CHECK(rig.total() != total);
 }
 
-TEST_CASE("a view hears the pointer of the window that shows its area: a field pressed takes the focus and what is typed, a button pressed is used once, and the same from any other office changes nothing") {
+TEST_CASE("a view hears the pointer of the window that shows its area: a field pressed takes the focus and what is typed, a button pressed is used once, and the same from any other role changes nothing") {
     // MUTATION (tests/mutants/view.md#deaf-to-the-pointer): a view that hears no pointer of its
     // window -- a press on a field there focuses nothing.
     Rig rig;
@@ -1277,18 +1277,18 @@ TEST_CASE("a view hears the pointer of the window that shows its area: a field p
     REQUIRE(passes() == before + 1);
     CHECK(rig.desk->heard.back().correlation == press_number);
 
-    // THE SAME FROM ANY OTHER OFFICE changes nothing: another window's, Workshop's, a stranger's.
-    const std::string sdl = std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow;
+    // THE SAME FROM ANY OTHER ROLE changes nothing: another window's, Workshop's, a stranger's.
+    const std::string sdl = std::string(gfx::kWindowRolePrefix) + gfx::kSdlWindow;
     auto other = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
     const auto other_id = rig.bus.register_weave(std::move(other), loom::Grant{}.allow_any(), sdl);
     auto stranger = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
     const auto stranger_id =
         rig.bus.register_weave(std::move(stranger), loom::Grant{}.allow_any(), "viewtest.stranger");
     const auto count = element("count");
-    for (const auto& [id, office] : {std::pair{other_id, sdl}, std::pair{stranger_id, std::string("viewtest.stranger")},
+    for (const auto& [id, role] : {std::pair{other_id, sdl}, std::pair{stranger_id, std::string("viewtest.stranger")},
                                      std::pair{rig.desk_id, std::string(view::kWorkshopRole)}}) {
         for (const auto& [x, y] : {std::pair{limit.x + 4, limit.y + 4}, std::pair{count.x + 4, count.y + 4}})
-            (void)rig.bus.office_send_to_role_as(id, office, "tally.panel",
+            (void)rig.bus.role_send_to_role_as(id, role, "tally.panel",
                                                  loom::Message(loom::to_value(button(1, true, x, y)), id, {},
                                                                ++rig.correlation));
         rig.pump();
@@ -1465,16 +1465,16 @@ TEST_CASE("a refusal reaches the notice row only when Loom attests it answers th
                                        "a step of 0 never moves the count from 0 toward 10"));
 }
 
-TEST_CASE("a running view says what its wiring has done, as its own office: each intent's last send accepted or refused, each field told, and again only when a row changes") {
+TEST_CASE("a running view says what its wiring has done, as its own role: each intent's last send accepted or refused, each field told, and again only when a row changes") {
     // ⚔ MUTATION (tests/mutants/view.md#grant-without-wiring): the grant without `ViewWiring` --
-    // Loom refuses the office's publication and no hearer hears a word; the first check goes red.
+    // Loom refuses the role's publication and no hearer hears a word; the first check goes red.
     Rig rig;
     auto ear = std::make_unique<Listener>(std::vector{loom::schema_of<view::ViewWiring>()});
     auto* hearer = ear.get();
     (void)rig.bus.register_weave(std::move(ear), loom::Grant{});
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).ok);
 
-    // AT ITS START: nothing sent, nothing told, said once as the view's office by publication.
+    // AT ITS START: nothing sent, nothing told, said once as the view's role by publication.
     auto heard = Wirings(*hearer);
     REQUIRE(heard.count("tally.panel") == 1);
     CHECK(heard.said.size() == 1);
@@ -1537,7 +1537,7 @@ TEST_CASE("a running view says what its wiring has done, as its own office: each
     CHECK(Wirings(*hearer).count("tally.panel") == after_refused + 1);
 }
 
-TEST_CASE("a view's intent that nothing accepts is said unheard, a refusal of an earlier send changes nothing of the last, and an office that arrives later asks and is answered alone") {
+TEST_CASE("a view's intent that nothing accepts is said unheard, a refusal of an earlier send changes nothing of the last, and a role that arrives later asks and is answered alone") {
     // ⚔ MUTATION (tests/mutants/view.md#refusal-of-any-send): a refusal counted against whatever
     // send of the intent it answers -- the late refusal of the first send turns the second's
     // `accepted`; the late-refusal check goes red.
@@ -1589,7 +1589,7 @@ TEST_CASE("a view's intent that nothing accepts is said unheard, a refusal of an
     CHECK(Wirings(*hearer).count("tally.panel") == before_late);
     CHECK(Wirings(*hearer).last("tally.panel").intents[0].accepted);
 
-    // AN OFFICE THAT ARRIVES LATER asks, and every running view answers it alone, as its office,
+    // AN ROLE THAT ARRIVES LATER asks, and every running view answers it alone, as its role,
     // under the ask's correlation, with what it would say now; the hearer hears nothing more.
     auto other = panel();
     other.name = "other.panel";
@@ -1685,7 +1685,7 @@ TEST_CASE("a replacement that cannot register leaves the running view and its se
     CHECK(rig.total() == 6);
 
     // Renamed into a name whose intent another participant means otherwise: the same, and the
-    // view keeps its office and its picture.
+    // view keeps its role and its picture.
     (void)rig.bus.register_weave(std::make_unique<Listener>(std::vector{
                                      loom::SchemaBuilder("tally.other.Count", 1).field("n", loom::Kind::Text).build()}),
                                  loom::Grant{});
@@ -1713,7 +1713,7 @@ TEST_CASE("a replacement that cannot register leaves the running view and its se
     const auto moved = rig.ask(view::ViewApply{"builder", bytes_of(renamed)});
     REQUIRE_MESSAGE(moved.ok, moved.reason);
     CHECK(moved.fresh);
-    CHECK(moved.office == "tally.renamed");
+    CHECK(moved.role == "tally.renamed");
     CHECK(rig.bus.role_holder("tally.renamed").valid());
     CHECK_FALSE(rig.bus.role_holder("tally.panel").valid());
     CHECK(rig.views.view(first.value) == nullptr);
@@ -1725,7 +1725,7 @@ TEST_CASE("a replacement that cannot register leaves the running view and its se
     // ...and the session names the view it runs.
     const auto stop = rig.ask(view::ViewStop{"builder"});
     REQUIRE_MESSAGE(stop.ok, stop.reason);
-    CHECK(stop.office == "tally.renamed");
+    CHECK(stop.role == "tally.renamed");
 
     SUBCASE("a presenter paired with a view whose replacement cannot register goes on telling the view that runs") {
         Rig kept;
@@ -1741,7 +1741,7 @@ TEST_CASE("a replacement that cannot register leaves the running view and its se
     }
 }
 
-TEST_CASE("a stopped view leaves a picture that says it stopped, and its office is released after it") {
+TEST_CASE("a stopped view leaves a picture that says it stopped, and its role is released after it") {
     Rig rig;
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).ok);
     rig.room("tally.panel");
@@ -1755,7 +1755,7 @@ TEST_CASE("a stopped view leaves a picture that says it stopped, and its office 
     REQUIRE(last->texts.size() == 1);
     CHECK(has(last->texts[0].text, "tally.panel stopped"));
     CHECK(last->rects.size() == 1); // its ground alone: no field or control is left looking live
-    // Its last picture was taken while it still held the office.
+    // Its last picture was taken while it still held the role.
     CHECK(rig.window->refused.empty());
     // A refusal names the ask it refuses, so the asker can settle it.
     const auto again = rig.ask(view::ViewStop{"builder"});
@@ -1874,7 +1874,7 @@ TEST_CASE("the view host answers a shape's section from its own page, and its pa
               "zengine.view.host does not accept `ViewAnswer` v1");
     }
     // Four asks and the host's note to itself, each described; the page names no other.
-    CHECK(check_office_manual(rig.bus, view::kViewHostRole) >= 5);
+    CHECK(check_role_manual(rig.bus, view::kViewHostRole) >= 5);
     check_page_names_accepted(page, described_shapes_of(rig.bus, rig.bus.role_holder(view::kViewHostRole)));
     // ...and asking is not a session: no view answer, and nothing on the desk.
     rig.pump();

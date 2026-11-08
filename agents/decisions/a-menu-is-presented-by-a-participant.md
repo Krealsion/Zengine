@@ -4,7 +4,7 @@
 it supports are in [pane-menu](../workshop/pane-menu.md).
 
 **Context.** A pane's own menu was presented by the host: `ContextMenu::foreign` held the rows,
-the cursor, the office and the request's number, and the host's key and press handlers walked
+the cursor, the role and the request's number, and the host's key and press handlers walked
 it and answered. It worked and could not be replaced, and two reviews found what that cost: a
 click's own release defeated the keyboard grab its choice asked for, a raw click queued behind
 new content chose the row that moved in, and a reloaded desktop acted on its predecessor's menu
@@ -14,7 +14,7 @@ keeping their own operations. Fixed hosting machinery need not move.
 
 **Decision.** Three parties, and no question with two owners. The REQUESTER asks Workshop for a
 menu as today and keeps, in its image and never in reload-kept state, a record of that ask
-(`pane_menu::Asked`): a choice counts only from the presenter's office, under this image's own
+(`pane_menu::Asked`): a choice counts only from the presenter's role, under this image's own
 pending number, once, about the pane and subject asked. WORKSHOP keeps input custody and
 display: it judges the ask where the menu would open, grants one menu at a time to whoever holds
 `zengine.presenter` (`MenuGranted`), forwards the weaver's keys and a press outside numbered as
@@ -30,14 +30,14 @@ presenter that leaves, or a holder that does not carry the menu, ends it answere
 subject that moved is judged by the requester when the choice arrives.
 
 **Alternatives considered.**
-- *Tried: the host presents (`ContextMenu::foreign`)* — replaced. Nothing could hold the office
+- *Tried: the host presents (`ContextMenu::foreign`)* — replaced. Nothing could hold the role
   instead, and its answer path claimed a discard it never implemented: the review's reload probe
   opened Alpha's menu, reloaded the real desktop, chose, and Alpha opened.
 - *Tried: counting a button's release as an act* — refused. The review's batched click chose
   Modify on the press and advanced the count on the release before the keyboard request
   arrived; the request was refused as late. A release completes its press; the fixed case and a
   matrix over capture, typed spelling and delivery pin it, and a newer key still defeats a grab.
-- *Tried: forgetting the asker when the menu leaves the screen, and settling a refusal by office*
+- *Tried: forgetting the asker when the menu leaves the screen, and settling a refusal by role*
   — replaced. The review unloaded the presenter, closed the pane, and the ask stayed pending:
   the withdrawal's refusal found nothing to settle. A pane asking under its press's number before
   hearing the press, with the presenter killed and revived around the older withdrawal, saw that

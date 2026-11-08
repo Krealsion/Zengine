@@ -13,7 +13,7 @@ loom-tool.json says ``"uses": ["workshop"]`` and its tool's ``run(ctx)`` is
 
 A POLICY is an object with:
 
-  producer, shapes, latest   the office watched, its shapes ``[("Name", version)]``, and which of
+  producer, shapes, latest   the role watched, its shapes ``[("Name", version)]``, and which of
                              them are whole state (the relay may keep only the newest)
   build                      optional: a workshop/builder act's inputs, done before play
   play(m)                    acts through ``m`` and waits for what the owner says; returns its
@@ -246,10 +246,10 @@ class Monitor(object):
         if self.holder is None:
             self.holder = who
             self.record["holder"] = {"producer": item.producer, "incarnation": item.incarnation,
-                                     "office": item.office, "link": item.link, "epoch": item.epoch,
+                                     "role": item.role, "link": item.link, "epoch": item.epoch,
                                      "session": item.session, "seq": item.seq}
         elif who != self.holder:
-            raise Inconclusive("the office %s is held by another participant now (participant %d "
+            raise Inconclusive("the role %s is held by another participant now (participant %d "
                                "incarnation %d, not %d/%d): what it says is not the game this "
                                "monitor watched" % (self.policy.producer, item.producer,
                                                     item.incarnation, self.holder[0], self.holder[1]))
@@ -340,7 +340,7 @@ class Monitor(object):
                                        "holder": self.sub.holder, "incarnation": self.sub.incarnation,
                                        "window": self.sub.window}
         if self.sub.holder == 0:
-            ctx.fail("nobody holds the office %s: the application is not running here%s"
+            ctx.fail("nobody holds the role %s: the application is not running here%s"
                      % (p.producer, "" if build else ", and this monitor was not asked to build or "
                         "load it (its prerequisite)"))
         outcome, words, trigger = None, "", []

@@ -302,7 +302,7 @@ std::string read_file(const std::string& path) {
     return ss.str();
 }
 
-/// The office of the window the default plan shows the desk in, which takes the picture.
+/// The role of the window the default plan shows the desk in, which takes the picture.
 constexpr const char* kMedium = "zengine.window.terminal";
 
 /// The picture a capture answered, fetched by chunk; empty when any chunk did not come whole.
@@ -471,7 +471,7 @@ int main(int argc, char** argv) {
     const std::optional<loom::Value> shapes = g.answer_as(inspect, loom::accepted_shapes_schema());
     const std::size_t accepted = shapes.has_value() ? shapes->get("accepted")->as_list().size() : 0;
     check(shapes.has_value() && accepted > 0,
-          "the desktop office described what it accepts (" + std::to_string(accepted) + " shapes)");
+          "the desktop role described what it accepts (" + std::to_string(accepted) + " shapes)");
 
     // A picture asked for NOW, after the settlement: every paint the chord caused is behind it.
     const std::uint64_t capture = g.ask(kMedium, gfx::SurfaceCaptureRequested{});

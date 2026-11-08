@@ -13,7 +13,7 @@ pane's canvas and in a graphics window. A view is made and run in the
 
 | part | what it holds |
 |---|---|
-| `name` | the view's name: its office, its pane's name in the Pane Manager, and its intents' namespace; at most `view::kMaxNameBytes` bytes of letters, digits, `_`, `-` and inner dots |
+| `name` | the view's name: its role, its pane's name in the Pane Manager, and its intents' namespace; at most `view::kMaxNameBytes` bytes of letters, digits, `_`, `-` and inner dots |
 | `width`, `height` | the view's size in whole pixels, from `view::kMinWidthPx` by `view::kMinHeightPx` to `view::kMaxSizePx` each way: what its elements sit in, with its notice rows beneath it |
 | `elements` | at most `view::kMaxElements`, each an `id` (an identifier, since an intent field is named by it), a kind (`label`, `number` field or `button`), a printable `label`, and `x`, `y`, `w`, `h` in whole pixels, inside the view's size; a number field may hold the `text` it starts with |
 | `shows` | a label showing one field of a view-model shape: the shape, closure and all, and a scalar field of it |
@@ -36,17 +36,17 @@ reach, and is written again as the current version. `view::save_description` and
 
 ## The view host
 
-`view::Host` mounts in the office [`zengine.view.host`](zengine.view.host.md) over the host's own
-bus. A participant asks it, as its office or as itself:
+`view::Host` mounts in the role [`zengine.view.host`](zengine.view.host.md) over the host's own
+bus. A participant asks it, as its role or as itself:
 
 | ask | answer |
 |---|---|
-| `ViewRun{session, description}` | registers the view as a participant of its own, holding its name as its office, and tells it to offer its pane |
+| `ViewRun{session, description}` | registers the view as a participant of its own, holding its name as its role, and tells it to offer its pane |
 | `ViewApply{session, description}` | the same name and shapes: adopted in place, the field text, focus and told values kept. Any other change: registered afresh, and `fresh` says so. The successor registers while the running view still runs, which retires only once it stands; a successor Loom refuses (a changed intent at the same name and version, say) changes nothing, and the answer says why. A rename counts as one view against `view::kMaxViews` |
 | `ViewStop{session}` | the view's last picture says it stopped, in Workshop and in the window that shows its area, then the participant is unregistered; Workshop, seeing its provider gone, then shows the pane waiting for one |
 
-`ViewAnswer{session, action, ok, reason, office, fresh}` is the one answer. A session belongs to
-the office that asked, or to the asker's bus identity, and a host runs at most `view::kMaxViews`.
+`ViewAnswer{session, action, ok, reason, role, fresh}` is the one answer. A session belongs to
+the role that asked, or to the asker's bus identity, and a host runs at most `view::kMaxViews`.
 A view's grant is `view::view_grant(description)`: each intent and its wiring to any accepter, its pane
 conversation to `zengine.workshop` alone, and its drawing to a graphics window, which takes an
 area's drawing only from that area's owner, with the ask for its room to `zengine.graphics` alone.
@@ -60,7 +60,7 @@ the pane conversation and a graphics window's, the window's keys and text among 
 `view::ViewWiringRequested`; it emits its intents and those conversations, its actions among them,
 and `view::ViewWiring`.
 
-- It offers one pane, `view`, as its office, asking for its size in canvas pixels, never more
+- It offers one pane, `view`, as its role, asking for its size in canvas pixels, never more
   than `workshop::kMaxPaneBodyPx` of either, and its notice rows of text beneath
   (`view::offered`), and asks for a seat when it starts. Workshop grants that body exactly: a
   window's pane is the size to the pixel, and a terminal's the cells that hold it.
@@ -91,7 +91,7 @@ and `view::ViewWiring`.
   `zen.Refused` that Loom attests answers one of its own intents (`answers_ask()`, with that
   intent's correlation) is shown on its notice row; what it was told stays as it was. Anyone
   else's refusal, whatever correlation it carries, is not.
-- It says what its wiring has done, `view::ViewWiring`, as its office (the view's name, which Loom
+- It says what its wiring has done, `view::ViewWiring`, as its role (the view's name, which Loom
   stamps on the delivery), to every participant accepting it: when it starts, and again whenever
   a row changes, never when none did. One row per intent, in the description's order -- its
   button, its shape and version, `sent` once a button said it, and of its last send `heard`, the
@@ -101,8 +101,8 @@ and `view::ViewWiring`.
   acted on it, and a refusal arriving later can turn it; a refusal answering an earlier send
   changes nothing of the intent. One row per field a label shows: its label, its shape and version,
   its field, and `told` once the view was told that shape; what a presenter tells is said when the
-  view draws it (`refresh`). An office that arrives later asks with
-  `view::ViewWiringRequested`, and every running view answers it alone, as its office, under the
+  view draws it (`refresh`). A role that arrives later asks with
+  `view::ViewWiringRequested`, and every running view answers it alone, as its role, under the
   ask's correlation, with what it would say now.
 - A prose room, from a host with no canvas, gets one row saying the view needs a canvas.
 - In a [graphics window](../../graphics/docs/graphics.md) whose area bears the view's name, it
@@ -113,7 +113,7 @@ and `view::ViewWiring`.
   and `notice` for the notice's lines -- and each button's nodes asking its id. A focused number
   field's caret is drawn there as Workshop's panes draw theirs: `caret`, a bar in the accent role
   at the left of the character it stands before, in front of the rest. It hears that window's
-  pointer (`graphics::AreaButtonChanged`), from the window's office alone, read against the picture
+  pointer (`graphics::AreaButtonChanged`), from the window's role alone, read against the picture
   it last sent there as a press in Workshop is: a left press focuses a number field, uses a button,
   or takes the focus away, a right press is handed back to Workshop, and a move or the wheel changes
   nothing. A window showing the area deaf to the pointer asks instead for a press on a button the
@@ -123,9 +123,9 @@ and `view::ViewWiring`.
   until the picture changes.
 - A window gives its keys only to an area placed to hear them, as an app's own weave places a view's
   ([running an app on its own](../../app/docs/app.md)); Workshop places none so. A view takes
-  `AreaKeyPressed` and `AreaTextEntered` naming its area, from the office of the window that shows
+  `AreaKeyPressed` and `AreaTextEntered` naming its area, from the role of the window that shows
   it, as it takes Workshop's `PaneKey` and `PaneTextInput`: Tab moves the focus between its number
-  fields, keys edit the focused one, and Return uses its control. The same from any other office
+  fields, keys edit the focused one, and Return uses its control. The same from any other role
   changes nothing, and an Escape it has no use for goes nowhere, since Workshop did not send it.
 
 `view::picture(description, told, presentation, room, number)` is the one drawing of a view and

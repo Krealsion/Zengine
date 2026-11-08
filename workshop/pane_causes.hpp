@@ -42,7 +42,7 @@ inline const char* pane_mode_problem(std::string_view mode) noexcept {
 
 namespace detail {
 
-/// Printable ASCII with no space: a shape's name, an office, a pane key.
+/// Printable ASCII with no space: a shape's name, a role, a pane key.
 inline bool cause_word(std::string_view s) noexcept {
     if (s.empty()) return false;
     for (const char c : s) {
@@ -56,7 +56,7 @@ inline bool cause_word(std::string_view s) noexcept {
 
 /// WHAT IS WRONG WITH ONE CAUSE, or "": a shape's name of 1 to `kMaxCauseShapeLen` printable bytes
 /// and no space, a version Loom can carry (1 or more), and a subject that is empty, `on <prefix>`
-/// with a prefix a part's name could open with, or `to <office>/<pane>`.
+/// with a prefix a part's name could open with, or `to <role>/<pane>`.
 // WL-CAUSE-01 -- agents/workshop/action-causes.md
 inline std::string action_cause_problem(const ActionCause& c) {
     if (c.shape.size() > kMaxCauseShapeLen || !detail::cause_word(c.shape)) {
@@ -84,11 +84,11 @@ inline std::string action_cause_problem(const ActionCause& c) {
         if (slash == std::string_view::npos || !detail::cause_word(pair.substr(0, slash)) ||
             !detail::cause_word(pair.substr(slash + 1)) ||
             pair.substr(slash + 1).find('/') != std::string_view::npos) {
-            return "`" + c.shape + "`: `to` names one pane, `<office>/<pane>`";
+            return "`" + c.shape + "`: `to` names one pane, `<role>/<pane>`";
         }
         return std::string();
     }
-    return "`" + c.shape + "`: a cause's subject is empty, `on <prefix>` or `to <office>/<pane>`";
+    return "`" + c.shape + "`: a cause's subject is empty, `on <prefix>` or `to <role>/<pane>`";
 }
 
 /// WHAT IS WRONG WITH ONE LIST OF CAUSES, or "": at most `bound`, each in form, none twice.
@@ -176,8 +176,8 @@ inline std::string on_part(std::string_view prefix) {
 }
 
 /// The subject of a send always about one pane.
-inline std::string to_pane(std::string_view office, std::string_view pane) {
-    return std::string(kCauseToPane) + std::string(office) + "/" + std::string(pane);
+inline std::string to_pane(std::string_view role, std::string_view pane) {
+    return std::string(kCauseToPane) + std::string(role) + "/" + std::string(pane);
 }
 
 /// WHAT EACH OTHER MODE MAY CAUSE, from the rows each mode declares: for every mode of `modes` but

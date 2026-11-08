@@ -65,28 +65,28 @@ const char* unapplied_outcome(loom::JointApplication application) {
 
 } // namespace
 
-OpeningManager::OpeningManager(std::string editor_office, std::string presentation_office,
+OpeningManager::OpeningManager(std::string editor_role, std::string presentation_role,
                                PaneRef pane)
-    : editor_office_(std::move(editor_office)), presentation_office_(std::move(presentation_office)),
+    : editor_role_(std::move(editor_role)), presentation_role_(std::move(presentation_role)),
       pane_(std::move(pane)) {
     state_.stage = "idle";
 }
 
 template <class Shape>
-bool OpeningManager::ask(loom::Mail& mail, const std::string& office, const Shape& shape,
+bool OpeningManager::ask(loom::Mail& mail, const std::string& role, const Shape& shape,
                          const char* stage) {
     flight_.stage = stage;
-    flight_.awaiting = office;
-    flight_.attempt = mail.as_role(kOpeningRole).send_to_role(office, shape, flight_.op);
+    flight_.awaiting = role;
+    flight_.attempt = mail.as_role(kOpeningRole).send_to_role(role, shape, flight_.op);
     state_.stage = stage;
-    state_.awaiting = office;
+    state_.awaiting = role;
     state_.attempt = static_cast<std::int64_t>(flight_.attempt.seq);
     return flight_.attempt.valid();
 }
 
 void OpeningManager::progress(loom::Mail& mail, bool pending) {
     (void)mail.as_role(kOpeningRole)
-        .send_to_role(presentation_office_,
+        .send_to_role(presentation_role_,
                       ManagedOpenProgress{static_cast<std::int64_t>(flight_.op), flight_.path,
                                           flight_.stage, flight_.awaiting, pending});
 }
@@ -137,8 +137,8 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
         state_.last_outcome = "superseded";
     }
     const loom::JointBegin begun = mail.begin_joint(
-        authority_, {loom::claim_key<EditorDocument>(std::string_view(editor_office_)),
-                     loom::claim_key<PanePresentation>(std::string_view(presentation_office_))});
+        authority_, {loom::claim_key<EditorDocument>(std::string_view(editor_role_)),
+                     loom::claim_key<PanePresentation>(std::string_view(presentation_role_))});
     if (!begun.ok) {
         // NO OPERATION WAS ALLOCATED, so the request is refused as itself (`refuse_request`).
         refuse_request(asked.path, refusal_words(asked.path, begun.why), mail);
@@ -155,13 +155,13 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
     state_.op = static_cast<std::int64_t>(begun.op);
     state_.path = asked.path;
     state_.requester = flight_.requester;
-    if (!ask(mail, presentation_office_,
+    if (!ask(mail, presentation_role_,
              PresentationTrialRequested{static_cast<std::int64_t>(begun.op), pane_.provider,
                                         pane_.pane},
              "trial")) {
         // NOTHING WAS QUEUED: this weave could not author the ask (it does not hold the
-        // opening office it speaks as). Not silence, and not a standalone mode: a refusal,
-        // now, in words. (An unheld desk office is a DISPATCH refusal, heard later through
+        // opening role it speaks as). Not silence, and not a standalone mode: a refusal,
+        // now, in words. (An unheld desk role is a DISPATCH refusal, heard later through
         // `zen.DispatchRefused`; `begin_joint` already refused it as NoClaim before this.)
         (void)mail.cancel_joint(authority_, flight_.op);
         settle(false, false, "the desk could not be asked to show " + asked.path, mail);
@@ -181,7 +181,7 @@ void OpeningManager::on(const v3::PresentationTrial& said, loom::Mail& mail) {
         settle(false, false, said.refusal, mail);
         return;
     }
-    if (!ask(mail, editor_office_,
+    if (!ask(mail, editor_role_,
              v3::PrepareSourceRequested{static_cast<std::int64_t>(flight_.op), flight_.path,
                                         said.room},
              "prepare")) {
@@ -203,7 +203,7 @@ void OpeningManager::on(const v3::SourcePrepared& said, loom::Mail& mail) {
         settle(false, false, words, mail);
         return;
     }
-    if (!ask(mail, presentation_office_,
+    if (!ask(mail, presentation_role_,
              v3::PresentationAdmitRequested{static_cast<std::int64_t>(flight_.op), pane_.provider,
                                             pane_.pane, said.generation},
              "admit")) {
@@ -238,15 +238,15 @@ void OpeningManager::on(const PresentationAdmitted& said, loom::Mail& mail) {
     // needs is this progress word, said to both; the requester is answered from the bus's
     // record, afterwards, and never from the commit alone (WL-OPEN-02).
     flight_.stage = "apply";
-    flight_.awaiting = editor_office_ + " and " + presentation_office_;
+    flight_.awaiting = editor_role_ + " and " + presentation_role_;
     flight_.attempt = loom::Ticket{};
     state_.stage = "apply";
     state_.awaiting = flight_.awaiting;
     state_.attempt = 0;
     const ManagedOpenProgress applying{static_cast<std::int64_t>(flight_.op), flight_.path,
                                        flight_.stage, flight_.awaiting, true};
-    (void)mail.as_role(kOpeningRole).send_to_role(editor_office_, applying);
-    (void)mail.as_role(kOpeningRole).send_to_role(presentation_office_, applying);
+    (void)mail.as_role(kOpeningRole).send_to_role(editor_role_, applying);
+    (void)mail.as_role(kOpeningRole).send_to_role(presentation_role_, applying);
 }
 
 void OpeningManager::on(const loom::JointApplied& said, loom::Mail& mail) {
@@ -369,8 +369,8 @@ void OpeningManager::settle(bool committed, bool applied, const std::string& ref
     // shown its published claim before this arrives; on a refusal each drops what it
     // prepared; an owner that could not apply is held by the bus and hears nothing, which
     // is exactly right. Neither message is the commitment.
-    (void)mail.as_role(kOpeningRole).send_to_role(editor_office_, outcome);
-    (void)mail.as_role(kOpeningRole).send_to_role(presentation_office_, outcome);
+    (void)mail.as_role(kOpeningRole).send_to_role(editor_role_, outcome);
+    (void)mail.as_role(kOpeningRole).send_to_role(presentation_role_, outcome);
     progress(mail, false);
     // A NEWER REQUEST SETTLING RETIRES THE RECORD KEPT FOR AN OLDER ONE'S LATE WORD (WL-OPEN-06).
     retire(mail, op);

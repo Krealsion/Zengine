@@ -594,7 +594,7 @@ private:
         paste_.epoch = line_.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(room().clipboard_office(), gfx::ClipboardTextRequested{},
+            .send_to_role(room().clipboard_role(), gfx::ClipboardTextRequested{},
                           paste_.pending);
     }
 

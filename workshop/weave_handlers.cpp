@@ -165,9 +165,9 @@ void WorkshopWeave::start_desk(loom::Mail& mail) {
     // The desk's first picture is at its floor, the smallest room it is honest in, and the room the
     // last session restores comes after it.
     load_keymap(mail);
-    // WORKSHOP'S OWN SETTINGS, declared to the office that keeps them, which hands them back.
+    // WORKSHOP'S OWN SETTINGS, declared to the role that keeps them, which hands them back.
     declare_own_settings(mail);
-    // ...and the double-click time asked of the input office, which says it again when it changes.
+    // ...and the double-click time asked of the input role, which says it again when it changes.
     (void)mail.as_role(kWorkshopProvider)
         .send_to_role(input::kInputRole, input::PointerTimingAsked{});
     // ...and whatever the host already knew was standing, so the first picture
@@ -188,7 +188,7 @@ void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
 // WL-GEO-08 -- agents/workshop/geometry.md
 void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if ((w.window != graphics::kTerminalWindow && w.window != graphics::kSdlWindow) ||
-        !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + w.window)) {
+        !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + w.window)) {
         return;
     }
     // THE WINDOW THE DESK IS PLACED ON: the one that offered itself, the terminal's or the OS's.
@@ -292,7 +292,7 @@ struct WindowMoment {
 } // namespace
 
 // A KEY, ITS RELEASE OR ITS TEXT, FROM THE WINDOW THAT SHOWS WORKSHOP'S OWN AREA, as that window's
-// office: answered under the hand it names. A key no window named names no hand.
+// role: answered under the hand it names. A key no window named names no hand.
 // WL-GUEST-13 -- agents/workshop/guests.md
 void WorkshopWeave::on(const graphics::AreaKeyPressed& k, loom::Mail& mail) {
     if (!window_.from_window(k.area, mail)) {
@@ -367,7 +367,7 @@ void WorkshopWeave::on(const graphics::AreaWheelTurned& w, loom::Mail& mail) {
 // WL-CTX-08 -- agents/workshop/contextual.md; WL-GUIDE-06 -- agents/workshop/guide.md
 void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     if (p.window != window_name_ ||
-        !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + p.window) ||
+        !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + p.window) ||
         p.button < 1 || p.button > 3) {
         return;
     }
@@ -504,7 +504,7 @@ void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
         repaint(mail);
         return;
     }
-    if (!mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + window_name_)) {
+    if (!mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + window_name_)) {
         return;
     }
     WindowHold& held = pane_holds_[slot];
@@ -524,14 +524,14 @@ void WorkshopWeave::on(const graphics::AreaPointerLeft& l, loom::Mail& mail) {
 // WL-GUEST-06 -- agents/workshop/guests.md
 void WorkshopWeave::on(const graphics::AreaHandRefused& r, loom::Mail& mail) {
     if (r.window != window_name_ ||
-        !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window) ||
+        !mail.authored_from_role(std::string(graphics::kWindowRolePrefix) + r.window) ||
         r.actor <= 0 || quitting_) {
         return;
     }
     // A MENU ABOUT A PANE ONLY THE WEAVER'S HAND REACHES is placed for that hand alone too.
     if (session_.presented.open && r.area == session_.presented.area) {
         const RuntimePane* about =
-            session_.panes.runtime.find(session_.presented.office, session_.presented.pane);
+            session_.panes.runtime.find(session_.presented.role, session_.presented.pane);
         const InputActor guest{true, false, loom::WeaveId{static_cast<std::uint64_t>(r.actor)}};
         std::string why = about != nullptr ? refused_toward(guest, about->kind) : std::string();
         if (why.empty()) {
@@ -564,12 +564,12 @@ void WorkshopWeave::on(const zengine::graphics::SurfacePlacement& p, loom::Mail&
     session_.place_maximized = p.maximized;
 }
 
-// THE CLOSE IS THE WINDOW'S: a close said as the office of the window that shows the desk, or
+// THE CLOSE IS THE WINDOW'S: a close said as the role of the window that shows the desk, or
 // before it shows it of the one that offered itself, is the weaver closing that window, and
-// reaches the quit. A close any other office says, or one said with no office, ends nothing.
+// reaches the quit. A close any other role says, or one said with no role, ends nothing.
 // WL-SESSION-13 -- agents/workshop/session.md
 void WorkshopWeave::on(const zengine::graphics::SurfaceCloseRequested&, loom::Mail& mail) {
-    const std::string window = medium_office();
+    const std::string window = medium_role();
     if (window.empty() || !mail.authored_from_role(window)) {
         return;
     }
