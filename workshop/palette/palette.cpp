@@ -16,6 +16,7 @@
 #include "workshop/pane_drawing.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_rows_block.hpp"
+#include "workshop/pane_text.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/actor_scope.hpp"
@@ -507,8 +508,10 @@ private:
             count += " -- " + std::to_string(listing_.left_out) + " " + listing_.left_from +
                      " left out past " + std::to_string(pal::kMaxEntries);
         }
+        // Fitted, so a start the row cannot hold is cut with a mark instead of dropped at the area's edge.
+        const std::string started = ws::pane_text::fit(started_, columns());
         (void)head.push(!notice_.empty()    ? ws::TextRow{notice_, gfx::colors::alert}
-                        : !started_.empty() ? ws::TextRow{started_, gfx::colors::accent}
+                        : !started_.empty() ? ws::TextRow{started, gfx::colors::accent}
                                             : ws::TextRow{count, gfx::colors::quiet});
         head.caret().row = 0;
         head.caret().column = static_cast<std::int64_t>(prefix.size() + filter_.caret());

@@ -17,6 +17,9 @@
 #include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/palette/entries.hpp"
+#include "workshop/pane_text.hpp"
+
+#include "component/text.hpp"
 
 #include "launcher/vocabulary.hpp"
 
@@ -814,4 +817,60 @@ TEST_CASE("WL-DESK-18: a setup or an app chosen in the palette is started as Fil
     CHECK(std::any_of(refused.begin(), refused.end(), [](const std::string& line) {
         return line.find("nothing was started --") != std::string::npos;
     }));
+}
+
+TEST_CASE("the palette's start line fits its row or is cut with a mark at its default width in both windows") {
+    // MUTATION (tests/mutants/workshop_panes_palette.md#start-line-unmarked): the start drawn
+    // whole, so the window drops what passes the row and the line reads as if it ended there.
+    namespace gfx = zengine::graphics;
+    // The sentence the palette says of a started demo, and the process the stand-in answers.
+    const std::string full =
+        "started the demo `values`, process 4242: it goes on without Workshop";
+    for (const char* window : {gfx::kSdlWindow, gfx::kTuiWindow}) {
+        const std::string which = window;
+        CAPTURE(which);
+        PaneRig r;
+        if (std::string(window) == gfx::kSdlWindow) {
+            r.on_gui_window();
+        }
+        ProviderSeat* tools = nullptr;
+        start(r, tools);
+        PaletteLauncher* launcher = mount_launcher(r);
+        launcher->entries = {{"demo", "values", "Value inspection", "Inventory and Info", false}};
+        REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+        REQUIRE(r.load_refusals.empty());
+        r.key(input::scan::kSpace, input::mod::kCtrl);
+        REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+        const std::int64_t palette = kind_of(r, kPaletteRole, kPalettePane);
+        const RuntimePane* held = r.session().panes.runtime.find(kPaletteRole, kPalettePane);
+        const ExternalPane* area = r.session().panes.external_pane(palette);
+        REQUIRE(held != nullptr);
+        REQUIRE(area != nullptr);
+        const DeskShown shown = r.shown();
+        REQUIRE(shown.window == window);
+        REQUIRE(shown.advance > 0);
+        // THE DEFAULT WIDTH: the columns the offer asked, granted, not a size the case authored.
+        const auto columns = area->placed_w / shown.advance;
+        REQUIRE(columns == held->preferred_columns);
+        REQUIRE(columns > 0);
+        r.text("value inspection");
+        r.key(input::scan::kReturn);
+        REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+        std::string line;
+        for (const std::string& row : pane_rows(r, palette)) {
+            if (row.find("started the demo") != std::string::npos) {
+                line = row;
+            }
+        }
+        REQUIRE_FALSE(line.empty());
+        CAPTURE(line);
+        CAPTURE(columns);
+        const auto width = static_cast<std::size_t>(columns);
+        CHECK(zengine::component::text_columns(line) <= width);
+        if (zengine::component::text_columns(full) <= width) {
+            CHECK(line == full);
+        } else {
+            CHECK(line == zengine::workshop::pane_text::fit(full, columns));
+        }
+    }
 }

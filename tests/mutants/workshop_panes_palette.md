@@ -75,6 +75,22 @@ Red in `zengine-workshop-panes-tests`:
 - WL-DESK-18: a layout chosen in the palette is switched to as a press on its tab, and a pane's
   manual is asked of the desktop as its ? asks it, each as the hand that chose it
 
+## start-line-unmarked
+
+The palette draws a start whole, so the window drops what passes the row.
+
+In `workshop/palette/palette.cpp`:
+
+```diff
+         // Fitted, so a start the row cannot hold is cut with a mark instead of dropped at the area's edge.
+-        const std::string started = ws::pane_text::fit(started_, columns());
++        const std::string started = started_;
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- the palette's start line fits its row or is cut with a mark at its default width in both windows
+
 ## start-without-approval
 
 The palette's start reaches the launcher whatever Workshop answers for the hand.
