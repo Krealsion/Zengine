@@ -188,6 +188,7 @@ copy  zengine.connections        workshop/pane_seam_vocabulary.hpp      kConnect
 name  zengine.demo               external-host/demo-control/vocabulary.hpp kRole
 name  zengine.desktop            workshop/desktop_seam_vocabulary.hpp   kDesktopRole
 name  zengine.editor             editor/editor-pane/vocabulary.hpp      kEditorPaneRole
+copy  zengine.editor             editor/neovim-editor/vocabulary.hpp    kEditorRole
 copy  zengine.editor             workshop/pane_seam_vocabulary.hpp      kEditorRole
 name  zengine.editor-switch      workshop/editor_switch_vocabulary.hpp  kEditorSwitchRole
 name  zengine.files              files/vocabulary.hpp                   kFilesRole
