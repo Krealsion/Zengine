@@ -78,7 +78,7 @@ In `workshop/screen_compose.cpp`:
 -        if (b.w <= 0 || b.h <= 0) {
 -            continue;
 -        }
--        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
+-        const graphics::Color chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
 +        PixelRect b = bounds_of(panes, s.setup.active, p.kind, sc).rect;
 +        if (p.kind == lifted) {
 +            b = pane_interior(b, chrome_grain(sc));
@@ -86,7 +86,7 @@ In `workshop/screen_compose.cpp`:
 +        if (b.w <= 0 || b.h <= 0) {
 +            continue;
 +        }
-+        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
++        const graphics::Color chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
 ```
 
 Red in `zengine-workshop-panes-tests`:
@@ -119,7 +119,7 @@ In `workshop/screen_compose.cpp`:
 -        if (b.w <= 0 || b.h <= 0) {
 -            continue;
 -        }
--        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
+-        const graphics::Color chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
 +        PixelRect b = bounds_of(panes, s.setup.active, p.kind, sc).rect;
 +        if (p.kind == lifted) {
 +            b = pane_interior(b, chrome_grain(sc));
@@ -127,7 +127,7 @@ In `workshop/screen_compose.cpp`:
 +        if (b.w <= 0 || b.h <= 0) {
 +            continue;
 +        }
-+        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
++        const graphics::Color chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
 ```
 
 Red in `zengine-workshop-panes-tests`:

@@ -240,14 +240,16 @@ Red in `zengine-workshop-host-tests`:
 In `workshop/screen.hpp`:
 
 ```diff
--inline constexpr Screen screen_of(const Session& s) noexcept {
--    return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px,
--                     s.stack_rows);
+-inline Screen screen_of(const Session& s) noexcept {
+-    return with_strips(screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px,
+-                                 s.cell_px, s.stack_rows),
+-                       s.setup.active);
 -}
 +inline Screen screen_of(const Session& s) noexcept {
 +    const SetupPane* layouts = pane_of(s.setup.active, pane_ref_of(pane_kind::kLayouts));
-+    return screen_of(s.screen_w, s.screen_h - (layouts != nullptr ? layouts->place.y : 0),
-+                     s.text_advance_px, s.text_line_px, s.cell_px, s.stack_rows);
++    return with_strips(screen_of(s.screen_w, s.screen_h - (layouts != nullptr ? layouts->place.y : 0),
++                                 s.text_advance_px, s.text_line_px, s.cell_px, s.stack_rows),
++                       s.setup.active);
 +}
 ```
 

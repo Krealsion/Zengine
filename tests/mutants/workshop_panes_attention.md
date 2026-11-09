@@ -58,8 +58,8 @@ The glance counts the conditions the list shows, the hidden ones left out.
 In `attention/pane.cpp`:
 
 ```diff
--        push(ws::attention_glance(known_), known_.front().role);
-+        push(ws::attention_glance(visible()), known_.front().role);
+-        push(ws::attention_glance(known_), known_.front().ink);
++        push(ws::attention_glance(visible()), known_.front().ink);
 ```
 
 Red in `zengine-workshop-panes-tests`:

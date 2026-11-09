@@ -294,22 +294,6 @@ Red in `zengine-workshop-panes-tests`:
 - WL-DESK-12: a close takes a pane off the desk and leaves its provider holding; a close of a pane
   that is not there is refused and opens nothing
 
-## close-names-no-lock
-
-The owner's close answers naming no lock.
-
-In `workshop/layouts/store.cpp`:
-
-```diff
--    out.locks = taken.unlocked;
-+    out.locks = {};
-```
-
-Red in `zengine-workshop-panes-tests`:
-
-- WL-DESK-12: a close is the layouts' owner's: the row leaves the live layout whole, its settings
-  and this layout's locks named in the answer and on the band, and the presenter takes no close
-
 ## personal-speech-closes
 
 The owner takes a row off for personal speech's close too.
@@ -325,8 +309,8 @@ In `workshop/layouts/owner.cpp`:
 
 Red in `zengine-workshop-panes-tests`:
 
-- WL-DESK-12: a close is the layouts' owner's: the row leaves the live layout whole, its settings
-  and this layout's locks named in the answer and on the band, and the presenter takes no close
+- WL-DESK-12: a close is the layouts' owner's: the row stays in the live layout, hidden, its
+  settings and this layout's locks kept, and the presenter takes no close
 
 ## lost-choice-cleared
 
