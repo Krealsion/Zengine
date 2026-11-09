@@ -442,18 +442,36 @@ struct AreaPlaced {
               ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text));
 };
 
-/// One named colour of a palette: its 0xRRGGBBAA; what a terminal shows where it cannot show that
-/// colour (`terminal default`, the terminal's default ink, or one of its sixteen, perhaps `bright`, perhaps `bold`;
-/// "" its nearest); and the character a terminal fills a shape with in it ("" the palette's `text`
-/// fill).
+/// One named colour of a palette, as a window of light paints it: its 0xRRGGBBAA. What a terminal
+/// shows for it is the palette's terminal look's.
 struct PaletteColor {
     std::string name;
     std::int64_t rgba = 0;
-    std::string cells;
-    std::string fill;
-    ZEN_SHAPE(PaletteColor, 1, ZEN_FIELD(name), ZEN_FIELD(rgba), ZEN_FIELD(cells),
-              ZEN_FIELD(fill));
+    /// Version 2: a colour is its colour alone; its ink and fill are the terminal look's.
+    ZEN_SHAPE(PaletteColor, 2, ZEN_FIELD(name), ZEN_FIELD(rgba));
     friend bool operator==(const PaletteColor&, const PaletteColor&) = default;
+};
+
+/// One colour of a terminal look, by its name: the ink a terminal shows it in (`terminal default`,
+/// the terminal's default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`;
+/// "" the nearest of the sixteen to the colour the window paints it) and the character it fills a
+/// shape with ("" the look's `text` fill).
+struct TerminalInk {
+    std::string name;
+    std::string ink;
+    std::string fill;
+    ZEN_SHAPE(TerminalInk, 1, ZEN_FIELD(name), ZEN_FIELD(ink), ZEN_FIELD(fill));
+    friend bool operator==(const TerminalInk&, const TerminalInk&) = default;
+};
+
+/// A TERMINAL'S LOOK, its own and nothing of a window of light's: each colour's ink and fill by the
+/// colour's name, and the border characters, a corner, across and down ("" the terminal's own).
+/// What it names none of, the terminal window's defaults give.
+struct TerminalLook {
+    std::vector<TerminalInk> inks;
+    std::string borders;
+    ZEN_SHAPE(TerminalLook, 1, ZEN_FIELD(inks), ZEN_FIELD(borders));
+    friend bool operator==(const TerminalLook&, const TerminalLook&) = default;
 };
 
 /// One text size of a palette: its name and the points it stands at.
@@ -537,10 +555,9 @@ struct OwnValuesAsked {
 };
 
 /// Whoever offers palettes -> the directory, and the directory -> each window: a palette, whole,
-/// at a revision -- its pool colours, fonts, sizes and styles, each role's own values, and a terminal's
-/// outline characters (a corner, across and down). Offered again whole at a higher revision when
-/// anything in it changes: a window repaints every area wearing it from what it keeps, and no owner
-/// is told.
+/// at a revision -- its pool colours, fonts, sizes and styles, each role's own values, and the
+/// terminal's look. Offered again whole at a higher revision when anything in it changes: a window
+/// repaints every area wearing it from what it keeps, and no owner is told.
 struct PaletteOffered {
     std::string palette;
     std::int64_t revision = 0;
@@ -549,11 +566,12 @@ struct PaletteOffered {
     std::vector<PaletteSize> sizes{};
     std::vector<PaletteStyle> styles{};
     std::vector<OwnValues> own;
-    std::string outline = "+-|";
-    /// Version 4: a palette carries the pool's styles, and each role's own values.
+    TerminalLook terminal{};
+    /// Version 4: a palette carries the pool's styles, each role's own values, and the terminal's
+    /// look of its own.
     ZEN_SHAPE(PaletteOffered, 4, ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(colors),
               ZEN_FIELD(fonts), ZEN_FIELD(sizes), ZEN_FIELD(styles), ZEN_FIELD(own),
-              ZEN_FIELD(outline));
+              ZEN_FIELD(terminal));
     friend bool operator==(const PaletteOffered&, const PaletteOffered&) = default;
 };
 

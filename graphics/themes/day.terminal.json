@@ -1,0 +1,7 @@
+{
+  "format": "zengine-terminal",
+  "format_version": 1,
+  "name": "day",
+  "summary": "the terminal's own look: text and grounds in its default colours, each other colour the nearest ink to day's",
+  "inks": []
+}

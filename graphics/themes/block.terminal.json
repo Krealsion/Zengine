@@ -1,0 +1,32 @@
+{
+  "format": "zengine-terminal",
+  "format_version": 1,
+  "name": "block",
+  "summary": "solid fill characters, a rule of '=' for every edge, and each colour in its own ink",
+  "borders": "===",
+  "inks": [
+    { "name": "ground", "ink": "terminal default", "fill": "#" },
+    { "name": "background", "ink": "black", "fill": " " },
+    { "name": "text", "ink": "terminal default", "fill": "#" },
+    { "name": "quiet", "ink": "bright black", "fill": ":" },
+    { "name": "accent", "ink": "cyan", "fill": "@" },
+    { "name": "alert", "ink": "red bold", "fill": "%" },
+    { "name": "guide", "ink": "bright magenta", "fill": "#" },
+    { "name": "edge", "ink": "bright black", "fill": "#" },
+    { "name": "surface", "ink": "black", "fill": " " },
+    { "name": "field", "ink": "black", "fill": " " },
+    { "name": "chosen", "ink": "black", "fill": " " },
+    { "name": "veil", "ink": "terminal default", "fill": " " },
+    { "name": "soft", "ink": "white", "fill": "." },
+    { "name": "faint", "ink": "bright black", "fill": ":" },
+    { "name": "warn", "ink": "yellow", "fill": "%" },
+    { "name": "done", "ink": "green", "fill": "#" },
+    { "name": "frame", "ink": "bright black", "fill": "#" },
+    { "name": "frame_selected", "ink": "cyan", "fill": "@" },
+    { "name": "frame_transient", "ink": "bright black", "fill": ":" },
+    { "name": "primary", "ink": "cyan", "fill": "@" },
+    { "name": "on_primary", "ink": "black", "fill": "#" },
+    { "name": "secondary", "ink": "cyan", "fill": "@" },
+    { "name": "background_alt", "ink": "black", "fill": " " }
+  ]
+}

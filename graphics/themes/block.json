@@ -1,32 +1,7 @@
 {
   "format": "zengine-theme",
-  "format_version": 2,
+  "format_version": 3,
   "name": "block",
-  "summary": "classic's light; in a terminal, solid fill characters, a rule of '=' for every edge, and each colour in its own ink",
-  "outline": "===",
-  "colors": [
-    { "name": "ground", "cells": "terminal default", "fill": "#" },
-    { "name": "background", "cells": "black", "fill": " " },
-    { "name": "text", "cells": "terminal default", "fill": "#" },
-    { "name": "quiet", "cells": "bright black", "fill": ":" },
-    { "name": "accent", "cells": "cyan", "fill": "@" },
-    { "name": "alert", "cells": "red bold", "fill": "%" },
-    { "name": "guide", "cells": "bright magenta", "fill": "#" },
-    { "name": "edge", "cells": "bright black", "fill": "#" },
-    { "name": "surface", "cells": "black", "fill": " " },
-    { "name": "field", "cells": "black", "fill": " " },
-    { "name": "chosen", "cells": "black", "fill": " " },
-    { "name": "veil", "cells": "terminal default", "fill": " " },
-    { "name": "soft", "cells": "white", "fill": "." },
-    { "name": "faint", "cells": "bright black", "fill": ":" },
-    { "name": "warn", "cells": "yellow", "fill": "%" },
-    { "name": "done", "cells": "green", "fill": "#" },
-    { "name": "frame", "cells": "bright black", "fill": "#" },
-    { "name": "frame_selected", "cells": "cyan", "fill": "@" },
-    { "name": "frame_transient", "cells": "bright black", "fill": ":" },
-    { "name": "primary", "cells": "cyan", "fill": "@" },
-    { "name": "on_primary", "cells": "black", "fill": "#" },
-    { "name": "secondary", "cells": "cyan", "fill": "@" },
-    { "name": "background_alt", "cells": "black", "fill": " " }
-  ]
+  "summary": "the pool's own colours in a window; its look is its terminal file's",
+  "colors": []
 }

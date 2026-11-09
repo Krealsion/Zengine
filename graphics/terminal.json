@@ -1,0 +1,31 @@
+{
+  "format": "zengine-terminal",
+  "format_version": 1,
+  "about": "The terminal's own look, which a terminal window paints where no theme sets it: for each of the pool's colours, the ink a terminal shows it in -- `terminal default`, its default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for the nearest of the sixteen to the colour the window paints -- and the character it fills a shape with; and the border characters, a corner, across and down. Text and every ground show in the terminal's default colours, a pane's frame in grey (`bright black`).",
+  "borders": "+-|",
+  "inks": [
+    { "name": "ground", "ink": "terminal default", "fill": "#" },
+    { "name": "background", "ink": "terminal default", "fill": " " },
+    { "name": "text", "ink": "terminal default", "fill": "o" },
+    { "name": "quiet", "fill": "." },
+    { "name": "accent", "fill": "O" },
+    { "name": "alert", "fill": "*" },
+    { "name": "guide", "fill": "#" },
+    { "name": "edge", "fill": "#" },
+    { "name": "surface", "ink": "terminal default", "fill": " " },
+    { "name": "field", "ink": "terminal default", "fill": " " },
+    { "name": "chosen", "ink": "terminal default", "fill": " " },
+    { "name": "veil", "ink": "terminal default", "fill": " " },
+    { "name": "soft", "fill": "." },
+    { "name": "faint", "fill": "." },
+    { "name": "warn", "fill": "*" },
+    { "name": "done", "fill": "o" },
+    { "name": "frame", "ink": "bright black", "fill": "o" },
+    { "name": "frame_selected", "fill": "O" },
+    { "name": "frame_transient", "fill": "." },
+    { "name": "primary", "fill": "O" },
+    { "name": "on_primary", "fill": "o" },
+    { "name": "secondary", "fill": "O" },
+    { "name": "background_alt", "ink": "terminal default", "fill": " " }
+  ]
+}

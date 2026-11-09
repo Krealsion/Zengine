@@ -133,8 +133,9 @@ std::vector<std::string> painted(const gfx::Sketch& s, const gfx::PaletteOffered
 /// The window's own palette, every colour filling with '#' but accent, with '@'.
 gfx::PaletteOffered plain_palette() {
     gfx::PaletteOffered p = gfx::window::built_in_palette();
-    for (gfx::PaletteColor& c : p.colors) {
-        c.fill = c.name == gfx::colors::accent.name ? "@" : "#";
+    p.terminal.inks.clear();
+    for (const gfx::PaletteColor& c : p.colors) {
+        p.terminal.inks.push_back({c.name, {}, c.name == gfx::colors::accent.name ? "@" : "#"});
     }
     return p;
 }
@@ -4973,7 +4974,7 @@ TEST_CASE("the shipped palettes are the pool's colours over its defaults: day an
         }
     }
     CHECK(gfx::themes::night().colors == pool.colors); // classic is the pool's own
-    CHECK(gfx::themes::block().outline == "===");
+    CHECK(gfx::themes::block().terminal.borders == "===");
 
     gfx::Sketch s;
     s.fill_rect("r", 0, 0, 24, 12, gfx::colors::text);
@@ -5341,24 +5342,20 @@ std::string ink_of_glyph(const TermLog& term, std::size_t from, char glyph) {
 
 } // namespace
 
-TEST_CASE("every palette paints in a terminal: a colour with no terminal word shows the nearest ink "
-          "the terminal can show, and one with a word shows that word's") {
+TEST_CASE("every palette paints in a terminal: a colour its terminal look gives no ink shows the "
+          "nearest ink the terminal can show, and one with an ink shows that ink") {
     TypedWindow t;
     OwnerHeard heard;
     const loom::WeaveId owner = mount_owner(t.r, heard, kOwner);
     gfx::PaletteOffered unworded = gfx::themes::day(); // a palette of light, as every one is
     unworded.palette = "unworded";
-    for (gfx::PaletteColor& c : unworded.colors) {
-        c.cells.clear();
-    }
+    unworded.terminal = gfx::TerminalLook{};
     for (gfx::PaletteColor& c : unworded.colors) {
         if (c.name == gfx::colors::accent.name) {
             c.rgba = 0xcd0000ff; // red, as a terminal shows its red
         }
-        if (c.name == gfx::colors::alert.name) {
-            c.cells = "bright cyan";
-        }
     }
+    unworded.terminal.inks.push_back({gfx::colors::alert.name, "bright cyan", {}});
     t.r.to_role(gfx::kGraphicsRole, unworded);
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "unworded"});
     t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTuiWindow, kOwner, 0, 0,
@@ -5397,13 +5394,14 @@ TEST_CASE("in a terminal night and day show their text and grounds in the termin
     // THE POOL'S WORDS: `terminal default` for text and grounds alone, and grey for a pane's frame:
     // day's frame is dark, and as its nearest ink it would be black and vanish on a dark terminal.
     for (const gfx::PaletteColor& c : gfx::themes::night().colors) {
+        const gfx::TerminalInk ink = gw::terminal_ink_of(c.name, gfx::themes::night());
         const bool own = c.name == gfx::colors::text.name || c.name == gfx::colors::ground.name ||
                          c.name == gfx::colors::background.name ||
                          c.name == gfx::colors::background_alt.name ||
                          c.name == gfx::colors::surface.name || c.name == gfx::colors::field.name ||
                          c.name == gfx::colors::chosen.name || c.name == gfx::colors::veil.name;
         const bool grey = c.name == gfx::colors::frame.name;
-        CHECK_MESSAGE(c.cells == (own ? gw::kTerminalDefault : grey ? "bright black" : ""), c.name);
+        CHECK_MESSAGE(ink.ink == (own ? gw::kTerminalDefault : grey ? "bright black" : ""), c.name);
     }
     // ...AND WHAT A TERMINAL WRITES FOR THEM.
     TypedWindow t;
@@ -5444,9 +5442,10 @@ TEST_CASE("in a terminal night and day show their text and grounds in the termin
     CHECK(ink_of_glyph(t.term, day_from, 'S') == gw::sgr_for("", 0xd08700ff));
     // BLOCK, the terminal look: every colour its own ink, as its theme writes it.
     for (const gfx::PaletteColor& c : gfx::themes::block().colors) {
-        CHECK_MESSAGE(!c.cells.empty(), c.name);
+        const gfx::TerminalInk ink = gw::terminal_ink_of(c.name, gfx::themes::block());
+        CHECK_MESSAGE(!ink.ink.empty(), c.name);
         if (c.name == gfx::colors::frame.name) {
-            CHECK(c.cells == "bright black");
+            CHECK(ink.ink == "bright black");
         }
     }
 }
@@ -5568,8 +5567,8 @@ TEST_CASE("an own value paints the palette's colour for the role that declares i
     LitWindow t;
     gfx::PaletteOffered slotted = gfx::themes::night();
     slotted.palette = "slotted";
-    slotted.own.push_back(gfx::OwnValues{"test.slotted", {{"card", 0x010203ff, "", ""}}, {}, {}});
-    slotted.own.push_back(gfx::OwnValues{"test.other", {{"badge", 0x040506ff, "", ""}}, {}, {}});
+    slotted.own.push_back(gfx::OwnValues{"test.slotted", {{"card", 0x010203ff}}, {}, {}});
+    slotted.own.push_back(gfx::OwnValues{"test.other", {{"badge", 0x040506ff}}, {}, {}});
     t.r.to_role(gfx::kGraphicsRole, slotted);
     t.r.drain();
     t.own("test.slotted", 0, 0, 100, 50, "slotted");
@@ -5635,10 +5634,10 @@ TEST_CASE("an own value declared where it is used, with a pool colour, size or s
     CHECK(text_of(2, day).weight == gfx::text_weight::kBold);
     // ...UNTIL A PALETTE SETS IT FOR ITS ROLE, and another role's setting is not its.
     day.own.push_back(gfx::OwnValues{"test.owner",
-                                     {{"ring", 0x0a0b0cff, "", ""}},
+                                     {{"ring", 0x0a0b0cff}},
                                      {{"note", 30}},
                                      {{"title", "text", "huge", "alert", gfx::text_weight::kRegular}}});
-    day.own.push_back(gfx::OwnValues{"test.other", {{"ring", 0x0d0e0fff, "", ""}}, {}, {}});
+    day.own.push_back(gfx::OwnValues{"test.other", {{"ring", 0x0d0e0fff}}, {}, {}});
     CHECK(inks(day)[0].rgba == 0x0a0b0cff);
     CHECK(text_of(1, day).size.points == 30);
     CHECK(text_of(2, day).size.name == "huge");

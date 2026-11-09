@@ -17,16 +17,23 @@ add_library(zengine::graphics ALIAS zengine-graphics-vocabulary)
 target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-activation
     zengine-component)
 
-# The pool's names (`zengine::graphics::colors`, graphics/colors.hpp) and the shipped themes as
-# palettes (`zengine::graphics::themes`, graphics/themes.hpp): generated, and installed beside the
-# vocabulary with the JSON they come from.
+# The pool's names (`zengine::graphics::colors`, graphics/colors.hpp), the terminal's own look and
+# the shipped themes as palettes (`zengine::graphics::themes`, graphics/themes.hpp): generated, and
+# installed beside the vocabulary with the JSON they come from. A theme is its window file and its
+# terminal file beside it.
 set(ZENGINE_GRAPHICS_POOL ${CMAKE_CURRENT_SOURCE_DIR}/pool.json)
+set(ZENGINE_GRAPHICS_TERMINAL ${CMAKE_CURRENT_SOURCE_DIR}/terminal.json)
 set(ZENGINE_GRAPHICS_THEMES ${CMAKE_CURRENT_SOURCE_DIR}/themes/night.json
     ${CMAKE_CURRENT_SOURCE_DIR}/themes/day.json ${CMAKE_CURRENT_SOURCE_DIR}/themes/block.json)
+set(ZENGINE_GRAPHICS_THEME_FILES ${ZENGINE_GRAPHICS_THEMES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/themes/night.terminal.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/themes/day.terminal.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/themes/block.terminal.json)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${ZENGINE_GRAPHICS_THEME_FILES})
 zengine_names(zengine-graphics-vocabulary JSON ${ZENGINE_GRAPHICS_POOL}
               NAMESPACE zengine::graphics::colors HEADER graphics/colors.hpp)
 zengine_palettes(zengine-graphics-vocabulary POOL ${ZENGINE_GRAPHICS_POOL}
-                 THEMES ${ZENGINE_GRAPHICS_THEMES}
+                 TERMINAL ${ZENGINE_GRAPHICS_TERMINAL} THEMES ${ZENGINE_GRAPHICS_THEMES}
                  NAMESPACE zengine::graphics::themes HEADER graphics/themes.hpp)
 set(ZENGINE_GRAPHICS_GENERATED
     ${CMAKE_CURRENT_BINARY_DIR}/zengine-names/zengine-graphics-vocabulary/graphics/colors.hpp
@@ -36,6 +43,8 @@ set_property(GLOBAL APPEND PROPERTY ZENGINE_GENERATED_INCLUDES
              ${CMAKE_CURRENT_BINARY_DIR}/zengine-names/zengine-graphics-vocabulary)
 set(ZENGINE_GRAPHICS_POOL ${ZENGINE_GRAPHICS_POOL} PARENT_SCOPE)
 set(ZENGINE_GRAPHICS_THEMES ${ZENGINE_GRAPHICS_THEMES} PARENT_SCOPE)
+set(ZENGINE_GRAPHICS_TERMINAL ${ZENGINE_GRAPHICS_TERMINAL} PARENT_SCOPE)
+set(ZENGINE_GRAPHICS_THEME_FILES ${ZENGINE_GRAPHICS_THEME_FILES} PARENT_SCOPE)
 
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: graphics weaves skipped — this Loom cannot host loadable weaves (no loom::kernel)")

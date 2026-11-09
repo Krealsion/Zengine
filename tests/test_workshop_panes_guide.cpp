@@ -351,7 +351,8 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide colour: eve
     const gfx::PaletteOffered block = gfx::themes::block();
     const gfx::PaletteColor* guide = gfx::window::pool_color(block, gfx::colors::guide.name);
     REQUIRE(guide != nullptr);
-    const std::string ink = gfx::window::sgr_for(guide->cells, guide->rgba);
+    const std::string ink =
+        gfx::window::sgr_for(gfx::window::terminal_ink_of(guide->name, block).ink, guide->rgba);
     REQUIRE(ink.rfind("\x1b[", 0) == 0);
     const std::string params = ink.substr(2, ink.size() - 3);
     for (std::size_t at = 0; at <= params.size();) {

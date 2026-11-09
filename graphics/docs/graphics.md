@@ -211,17 +211,27 @@ zengine_names(my-pane JSON own.json NAMESPACE counter::colors HEADER counter/col
 ## Palettes
 
 A **palette** (`PaletteOffered`) is a theme resolved for the window: each pool colour's
-`0xRRGGBBAA`, what a terminal shows where it cannot show it (`cells`: `terminal default`, the
-terminal's default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for its nearest) and the
-character it fills a shape with (`fill`); each role's own values; and a terminal's outline, a corner,
-across and down. Whoever arranges the window offers palettes and chooses the one each area wears
-(`PaletteChosen`) through the directory; an area wearing none, or one nobody offered, wears the
-window's own, the pool's defaults, which are night's. The three shipped themes are
-`graphics::themes::night()`, `day()` and `block()` (`graphics/themes.hpp`), each generated with
-`zengine_palettes()` from its JSON in `graphics/themes/`. In a terminal the pool shows text and
-every ground in the terminal's default colours, a pane's frame in grey (`bright black`), and each
-other colour as the nearest of its sixteen
-inks; `block` gives every colour an ink and a fill character of its own.
+`0xRRGGBBAA`, its fonts, sizes and styles, each role's own values, and the terminal's look (below).
+Whoever arranges the window offers palettes and chooses the one each area wears (`PaletteChosen`)
+through the directory; an area wearing none, or one nobody offered, wears the window's own, the
+pool's defaults, which are night's. The three shipped themes are `graphics::themes::night()`,
+`day()` and `block()` (`graphics/themes.hpp`), each generated with `zengine_palettes()` from its
+window file and its terminal file in `graphics/themes/`.
+
+## The terminal's look
+
+A terminal has a look of its own, nothing of a window of light's (`TerminalLook`, a palette's
+`terminal`): for each pool colour by name, the ink a terminal shows it in -- `terminal default`, the
+terminal's default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`; none for
+the nearest of the sixteen to the colour the window paints it -- and the character it fills a shape
+with; and the border characters, a corner, across and down. What a palette's look names none of,
+the terminal's own look gives (`graphics/terminal.json`, format `zengine-terminal`): text and every
+ground in the terminal's default colours, a pane's frame in grey (`bright black`), each other
+colour its nearest. `block`'s terminal file gives every colour an ink and a fill character of its
+own and a rule of `=` for every edge; `night`'s and `day`'s give none, so they show as the
+terminal's own over their colours. The sixteen inks, the nearest of them to a colour
+(`nearest_terminal_ink`) and the colour xterm shows each in (`kTerminalInkColors`, `ink_rgba`) are
+`graphics/terminal_inks.hpp`'s.
 
 An exact colour can name the pool colour a medium that cannot show it shows in its place
 (`rgb(0x2e7d5b, colors::accent)`); where only the pool's colours are shown, any colour shows as

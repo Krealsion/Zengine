@@ -141,10 +141,12 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - **A palette is offered whole, at a revision**, through the directory, and kept by every window: a
   higher revision paints every area wearing it again from what the window keeps, and no owner is
   told. A palette chosen before its area is placed is kept for it, so the area is introduced once.
-- **A terminal shows a colour's word, else its nearest**: its `cells` word, else the nearest of the
-  sixteen inks, never the terminal's default unless a word asks for it; a shape fills with its colour's
-  fill character, and an exact colour or an own value's exact default shows as the pool colour it
-  is `like`.
+- **A terminal shows a colour's ink, else its nearest**: the ink the palette's terminal look names
+  for it, else the terminal's own look's (`TerminalLook`; `graphics/terminal.json`), else the
+  nearest of the sixteen inks, never the terminal's default unless an ink asks for it; a shape fills
+  with its colour's fill character there, and an exact colour or an own value's exact default shows
+  as the pool colour it is `like`. A terminal's look holds nothing of a window of light's, and a
+  palette's colours nothing of a terminal's.
 - **A drawer names a colour, never a role**: a pool name, an own value of its own, or an exact value
   beside the pool colour it is `like`; where only the pool's colours are shown, a colour shows as
   its pool colour (`pool_color_of`, `graphics/ops.hpp`).

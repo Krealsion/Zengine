@@ -45,34 +45,57 @@ inline const PaletteColor* pool_color(const PaletteOffered& palette, std::string
     return find_color(built_in_palette().colors, name);
 }
 
-/// A colour the palette holds, as a painter takes it: a fill character it names none of is its
-/// palette's `text` fill.
-inline PaintInk ink_of(const PaletteColor& c, const PaletteOffered& palette) {
-    PaintInk ink{c.rgba, c.cells, c.fill};
-    if (ink.fill.empty()) {
-        if (const PaletteColor* text = pool_color(palette, colors::text.name)) {
-            ink.fill = text->fill;
-        }
-    }
-    return ink;
+/// The terminal's own look where no palette sets one: graphics/terminal.json's.
+inline const TerminalLook& terminal_defaults() {
+    static const TerminalLook kDefaults = themes::terminal();
+    return kDefaults;
 }
 
-/// A colour of the draw's own (an exact one, or a slot no theme sets), as a painter takes it: what
-/// a terminal shows of it is the pool colour it is `like`, else the terminal's nearest, filled with
-/// the palette's `text` fill.
-inline PaintInk own_ink(std::int64_t rgba, std::string_view like, const PaletteOffered& palette) {
-    PaintInk ink{rgba, {}, {}};
-    const PaletteColor* stand_in = like.empty() ? nullptr : pool_color(palette, like);
-    if (stand_in != nullptr) {
-        ink.cells = stand_in->cells;
-        ink.fill = stand_in->fill;
-    }
-    if (ink.fill.empty()) {
-        if (const PaletteColor* text = pool_color(palette, colors::text.name)) {
-            ink.fill = text->fill;
+namespace detail {
+inline const TerminalInk* ink_entry(const std::vector<TerminalInk>& inks, std::string_view name) {
+    for (const TerminalInk& i : inks) {
+        if (i.name == name) {
+            return &i;
         }
     }
-    return ink;
+    return nullptr;
+}
+} // namespace detail
+
+/// A COLOUR'S INK AND FILL IN A TERMINAL, as `palette`'s terminal look says, each field else as
+/// the terminal's defaults say; a fill named by neither is the `text` colour's.
+inline TerminalInk terminal_ink_of(std::string_view name, const PaletteOffered& palette) {
+    TerminalInk out{std::string(name), {}, {}};
+    for (const std::vector<TerminalInk>* inks : {&palette.terminal.inks, &terminal_defaults().inks}) {
+        if (const TerminalInk* i = detail::ink_entry(*inks, name)) {
+            if (out.ink.empty()) {
+                out.ink = i->ink;
+            }
+            if (out.fill.empty()) {
+                out.fill = i->fill;
+            }
+        }
+    }
+    if (out.fill.empty() && name != colors::text.name) {
+        out.fill = terminal_ink_of(colors::text.name, palette).fill;
+    }
+    return out;
+}
+
+/// A colour the palette holds, as a painter takes it: its colour, and its terminal look's ink and
+/// fill.
+inline PaintInk ink_of(const PaletteColor& c, const PaletteOffered& palette) {
+    TerminalInk t = terminal_ink_of(c.name, palette);
+    return PaintInk{c.rgba, std::move(t.ink), std::move(t.fill)};
+}
+
+/// A colour of the draw's own (an exact one, or an own value's exact default), as a painter takes
+/// it: what a terminal shows of it is the pool colour it is `like`, else the terminal's nearest,
+/// filled with the `text` colour's fill.
+inline PaintInk own_ink(std::int64_t rgba, std::string_view like, const PaletteOffered& palette) {
+    TerminalInk t = terminal_ink_of(like.empty() ? std::string_view(colors::text.name) : like,
+                                    palette);
+    return PaintInk{rgba, like.empty() ? std::string() : std::move(t.ink), std::move(t.fill)};
 }
 
 /// The own values `palette` sets for `role`; none where it sets none.
@@ -280,12 +303,13 @@ inline std::vector<PaintInk> inks_of(const std::string& op, const loom::Bytes& a
     return out;
 }
 
-/// A task's own colours and outline, as `palette` gives them for an area `role` owns: its text,
+/// A task's own colours and border characters, as `palette` gives them for an area `role` owns: its text,
 /// its quiet, and a terminal's corner, across and down.
 inline void dress(PaintTask& task, const PaletteOffered& palette, const std::string& role) {
     task.plain = resolve(colors::text, palette, role);
     task.quiet = resolve(colors::quiet, palette, role);
-    task.outline = palette.outline;
+    task.outline = !palette.terminal.borders.empty() ? palette.terminal.borders
+                                                     : terminal_defaults().borders;
 }
 
 /// The colour the medium shows where nothing is drawn, in `palette`: its `ground`.
