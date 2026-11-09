@@ -13,6 +13,8 @@
 // a resize is a console input record, which wakes it the same way. Reference:
 // graphics/docs/zengine.window.tui.md.
 
+#include "graphics/terminal_inks.hpp"
+
 #include <array>
 #include <cstdlib>
 #include <cstdint>
@@ -173,71 +175,6 @@ private:
 };
 
 #endif
-
-/// The sixteen inks a terminal shows, by name, in the order their codes count (30 to 37, then the
-/// bright ones, 90 to 97), each with the colour a terminal shows it in by default (xterm's).
-/// The `cells` word for the terminal's default colours: its default ink (SGR 39) and ground (49).
-inline constexpr std::string_view kTerminalDefault = "terminal default";
-inline constexpr std::array<const char*, 8> kTerminalInkNames = {
-    "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"};
-inline constexpr std::array<std::uint32_t, 16> kTerminalInkColors = {
-    0x000000, 0xcd0000, 0x00cd00, 0xcdcd00, 0x0000ee, 0xcd00cd, 0x00cdcd, 0xe5e5e5,
-    0x7f7f7f, 0xff0000, 0x00ff00, 0xffff00, 0x5c5cff, 0xff00ff, 0x00ffff, 0xffffff};
-
-/// The ink a `cells` word names, as SGR's codes: `terminal default`, the terminal's default ink (39), or one
-/// of its sixteen (`red` 31, `bright red` 91), each perhaps `bold` (`;1`); "" where the word names
-/// none of them.
-inline std::string sgr_codes_of_word(std::string_view word) {
-    std::string codes;
-    bool bold = false;
-    constexpr std::string_view kBold = " bold";
-    if (word.size() > kBold.size() && word.substr(word.size() - kBold.size()) == kBold) {
-        bold = true;
-        word.remove_suffix(kBold.size());
-    }
-    if (word == kTerminalDefault) {
-        codes = "39";
-    } else {
-        int base = 30;
-        constexpr std::string_view kBright = "bright ";
-        if (word.substr(0, kBright.size()) == kBright) {
-            base = 90;
-            word.remove_prefix(kBright.size());
-        }
-        for (std::size_t i = 0; i < kTerminalInkNames.size(); ++i) {
-            if (word == kTerminalInkNames[i]) {
-                codes = std::to_string(base + static_cast<int>(i));
-            }
-        }
-    }
-    if (codes.empty()) {
-        return {};
-    }
-    return bold ? codes + ";1" : codes;
-}
-
-/// Which of the sixteen inks is nearest a colour (0xRRGGBBAA, its alpha not counted), by the
-/// colours a terminal shows them in by default: its SGR code, 30 to 37 or 90 to 97.
-inline int nearest_terminal_ink(std::int64_t rgba) noexcept {
-    const auto channel = [](std::uint32_t c, int shift) {
-        return static_cast<std::int64_t>((c >> shift) & 0xffu);
-    };
-    const auto rgb = static_cast<std::uint32_t>((static_cast<std::uint64_t>(rgba) >> 8) & 0xffffffu);
-    int best = 0;
-    std::int64_t best_distance = -1;
-    for (std::size_t i = 0; i < kTerminalInkColors.size(); ++i) {
-        const std::uint32_t c = kTerminalInkColors[i];
-        const std::int64_t dr = channel(rgb, 16) - channel(c, 16);
-        const std::int64_t dg = channel(rgb, 8) - channel(c, 8);
-        const std::int64_t db = channel(rgb, 0) - channel(c, 0);
-        const std::int64_t d = dr * dr + dg * dg + db * db;
-        if (best_distance < 0 || d < best_distance) {
-            best_distance = d;
-            best = static_cast<int>(i);
-        }
-    }
-    return best < 8 ? 30 + best : 90 + (best - 8);
-}
 
 /// What a terminal is written to show a colour, regular or `bold`: the ink its `cells` word names,
 /// else the nearest of the sixteen to the colour itself, and its weight said every time (`22`

@@ -205,7 +205,7 @@ In `workshop/layouts/session_history.hpp`:
 -    edges.push_back(op::make_migration(
 -        loom::schema_of<v5::WorkshopSession>(), current, [](const loom::Value& old) {
 -            return loom::Cell::message(
--                loom::to_value(session_v5_to_v13(loom::from_value<v5::WorkshopSession>(old))));
+-                loom::to_value(session_v5_to_v14(loom::from_value<v5::WorkshopSession>(old))));
 -        }));
 ```
 
@@ -350,3 +350,19 @@ In `workshop/layouts/store.cpp`:
 Red in `zengine-workshop-persistence-tests`:
 
 - a hidden pane keeps its row and comes back where it was after a save and a load
+
+## baseline-dropped
+
+A version-7 desk read forward leaves its baseline behind, so its layout wears no theme.
+
+In `workshop/setup_persist.hpp`:
+
+```diff
+-        made.themes.push_back(old.theme.name);
++        (void)old.theme.name;
+```
+
+Red in `zengine-workshop-persistence-tests`:
+
+- a version-13 session reads each layout's baseline as the bottom of its themes and each row's
+  `workshop.skin` as its theme, and saves as the current version

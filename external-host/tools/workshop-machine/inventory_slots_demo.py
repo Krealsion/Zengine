@@ -83,7 +83,7 @@ def run(ctx):
                           "place": {"mode": "pixels", "x": str(x * 12), "y": str(y * 12)},
                           "width": {"mode": "pixels", "amount": str(width * 12)},
                           "height": {"mode": "pixels", "amount": str(height * 12)}, "front": str(len(panes)),
-                          "settings": [], "fold": "open", "dock": "none"})
+                          "settings": [], "fold": "open", "dock": "none", "theme": ""})
         for i, p in enumerate(panes):
             p["front"] = str(i)
         hand.ask("zengine.layouts", "SetupApplyRequested", {"setup": json.dumps(setup)}, settle=True)

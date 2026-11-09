@@ -6,7 +6,7 @@
 
 // How a key is written and read back -- a file's spelling, the band's and a legend's -- and
 // what a backend cannot produce: one gesture, a named scancode and its modifier bits, and its
-// grammar, read by the keymap (`workshop/keymap.hpp`) and by a theme's keys (`settings/`).
+// grammar, read by the keymap (`workshop/keymap.hpp`).
 // Workshop law: agents/workshop/key-spelling.md (+2 registers; agents/workshop.md routes)
 
 #include "vocabulary.hpp"

@@ -168,12 +168,13 @@ set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.
 # arithmetic; the windows and the directory are artifacts. Beside them, the terminal's claim and
 # size.
 set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/color.hpp
-                                    graphics/text_style.hpp
+                                    graphics/text_style.hpp graphics/own.hpp
     graphics/ops.hpp graphics/implied.hpp graphics/painting.hpp graphics/term_paint.hpp
     graphics/light_paint.hpp graphics/canvas.hpp graphics/drawing.hpp graphics/elements.hpp
     graphics/element_abi.h graphics/element_export.hpp graphics/pixels.hpp
     ${ZENGINE_GRAPHICS_GENERATED})
 set(zengine_public_headers_graphics/window graphics/window/terminal_io.hpp)
+list(APPEND zengine_public_headers_graphics graphics/terminal_inks.hpp)
 set(zengine_public_headers_graphics/elements graphics/elements/button.hpp
     graphics/elements/checkbox.hpp graphics/elements/grid.hpp graphics/elements/icon.hpp
     graphics/elements/image.hpp graphics/elements/list.hpp graphics/elements/scroll_view.hpp
@@ -472,9 +473,11 @@ install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineNames.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zengine)
 
-# The pool and the shipped themes, as the JSON the names and palettes above were generated from.
-install(FILES ${ZENGINE_GRAPHICS_POOL} DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/graphics)
-install(FILES ${ZENGINE_GRAPHICS_THEMES}
+# The pool, the terminal's own look and the shipped themes, as the JSON the names and palettes above
+# were generated from.
+install(FILES ${ZENGINE_GRAPHICS_POOL} ${ZENGINE_GRAPHICS_TERMINAL}
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/graphics)
+install(FILES ${ZENGINE_GRAPHICS_THEME_FILES}
         DESTINATION ${CMAKE_INSTALL_DATADIR}/zengine/graphics/themes)
 
 # ---- what is deliberately not in the package -----------------------------------------------

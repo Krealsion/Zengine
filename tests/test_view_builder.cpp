@@ -2498,7 +2498,7 @@ TEST_CASE("Export app writes the app's folder from the saved view and its flow: 
     REQUIRE_MESSAGE(app.ok, app.refusal);
     CHECK(app.app.name == "tally");
     CHECK(app.app.window.title == "tally");
-    CHECK(app.app.window.skin == "day");
+    CHECK(app.app.window.theme == "day");
     REQUIRE(app.app.views.size() == 1);
     CHECK(app.app.views[0].file == "tally.view");
     CHECK(app.app.views[0].session == "tally.panel");

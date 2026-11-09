@@ -84,7 +84,7 @@ reading the terminal.
 - **Answers:** nothing; the window paints what changed and, unless `more`, shows it: text a
   character a cell, a wide one over two, one size, bold through its ink; as itself where the
   terminal's encoding carries UTF-8 (a console's code page, else `LC_ALL`, `LC_CTYPE` or `LANG`),
-  else `?` a character ([text](graphics.md#text-sizes-fonts-weight)).
+  else `?` a character ([text](graphics.md#text-styles-sizes-fonts-weight)).
 - **Refuses:** in `DrawnRefused` to the sender, the whole drawing: `window 'terminal' shows no area
   '<area>'`; `area '<area>' is drawn only by its owner, <owner>`; `'<path>' is not the sender's to
   draw` (or `to remove`), where an element the window presents lies; `'<path>' is drawn in

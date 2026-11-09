@@ -4,12 +4,12 @@
 #ifndef ZENGINE_GRAPHICS_COLOR_HPP
 #define ZENGINE_GRAPHICS_COLOR_HPP
 
-// A colour a draw carries: an exact value, a name from the shared pool, or a slot the drawing's
-// pane exposes. The window turns a name into a colour when it paints, from the palette the area
-// wears; nothing before it knows what a name looks like. The names are C++ names generated from
-// JSON (cmake/ZengineNames.cmake): the pool's are `zengine::graphics::colors`, generated from
-// graphics/pool.json, and a pane's slots are its own namespace's, so a name nobody declared does
-// not build. Reference: graphics/docs/graphics.md, "Colours by name".
+// A colour a draw carries: an exact value, a name from the shared pool, or an own value the
+// drawing's pane declares where it uses it. The window turns a name into a colour when it paints,
+// from the palette the area wears; nothing before it knows what a name looks like. The pool's names
+// are C++ names generated from JSON (cmake/ZengineNames.cmake), `zengine::graphics::colors` from
+// graphics/pool.json, so a name nobody declared does not build; a pane declares its own with
+// `own()` (graphics/own.hpp). Reference: graphics/docs/graphics.md, "Colours by name".
 
 #include <zen/weave/shape.hpp>
 
@@ -24,14 +24,18 @@ namespace color_from {
 inline constexpr std::int64_t kNone = 0;  ///< no paint at all
 inline constexpr std::int64_t kExact = 1; ///< `rgba`, as it is
 inline constexpr std::int64_t kPool = 2;  ///< the shared pool's `name`, as the area's palette says
-/// The slot `name` the area's owner exposes, as the area's palette says for that owner; `rgba`
-/// where the palette sets none.
-inline constexpr std::int64_t kSlot = 3;
+/// The own value `name` the area's owner declares, as the area's palette says for that owner; else
+/// its default, the exact `rgba`.
+inline constexpr std::int64_t kOwn = 3;
+/// The own value `name` the area's owner declares, as the area's palette says for that owner; else
+/// its default, the pool colour `like`.
+inline constexpr std::int64_t kOwnPool = 4;
 } // namespace color_from
 
-/// A COLOUR A DRAW CARRIES: none, an exact 0xRRGGBBAA, a pool colour or a slot, by name. `like`
-/// names the pool colour a medium that cannot show an exact colour or a slot's own shows in its
-/// place (a terminal's ink and fill character); "" leaves the medium its nearest.
+/// A COLOUR A DRAW CARRIES: none, an exact 0xRRGGBBAA, a pool colour or an own value, by name.
+/// `like` names the pool colour a medium that cannot show an exact colour or an own value's exact
+/// default shows in its place (a terminal's ink and fill character), "" leaving the medium its
+/// nearest; for an own value defaulting to a pool colour, it is that colour.
 struct Color {
     std::int64_t from = color_from::kNone;
     std::string name;
@@ -76,18 +80,30 @@ inline Color rgb(std::uint32_t value, PoolColor like) {
     return c;
 }
 
-/// A SLOT A PANE EXPOSES, as its own generated header declares it: its name, the colour it paints
-/// where no theme sets it (0xRRGGBBAA), and the pool colour a medium that cannot show that colour
-/// shows instead.
-struct SlotColor {
+/// AN OWN COLOUR A PANE DECLARES, as a header generated from its own values' JSON declares it: its
+/// name, the colour it paints where no theme sets it (0xRRGGBBAA), and the pool colour a medium
+/// that cannot show that colour shows instead.
+struct OwnColor {
     const char* name;
     std::uint32_t rgba;
     const char* like;
 
     operator Color() const {
-        return Color{color_from::kSlot, name, static_cast<std::int64_t>(rgba), like};
+        return Color{color_from::kOwn, name, static_cast<std::int64_t>(rgba), like};
     }
 };
+
+/// AN OWN COLOUR DECLARED WHERE IT IS USED: `name`, painted as the pool colour `root` where no
+/// theme sets it (`own("wire", colors::guide)`).
+inline Color own(const char* name, PoolColor root) {
+    return Color{color_from::kOwnPool, name, 0, root.name};
+}
+
+/// ...painted as an exact colour where no theme sets it, shown in a medium that cannot show it as
+/// the pool colour it is `like` (`own("kept", rgb(0x8fbcbb, colors::accent))`).
+inline Color own(const char* name, const Color& exact) {
+    return Color{color_from::kOwn, name, exact.rgba, exact.like};
+}
 
 } // namespace zengine::graphics
 

@@ -51,6 +51,7 @@
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "workshop/screen_planes.hpp"
 #include "graphics/vocabulary.hpp"
+#include "theme/vocabulary.hpp" // where the themes are and what is worn, told to the theme role
 #include "terminal/door.hpp" // the door onto the terminal participant, composed below
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
@@ -265,6 +266,11 @@ struct HostContext {
     /// The one file this Workshop's presentation PREFERENCES live in.
     // WL-FOCUS-11 -- agents/workshop/focus.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string prefs_path;
+
+    /// WHERE THE THEMES ARE, as the theme role is told: the weaver's own folder, empty where this
+    /// launch keeps none, and the folder of the themes shipped beside this host.
+    std::string themes_path;
+    std::string shipped_themes_path;
 
     /// WHICH CONVERSIONS THIS RUN ACTUALLY HAS, or nothing.
     // WL-MIG-08 -- agents/workshop/migration.md
@@ -513,7 +519,11 @@ class WorkshopWeave
                                           // that what an area shows settled, unasked
                                           zengine::graphics::AreaSettled,
                                           // the double-click time the input role says
-                                          zengine::input::PointerTimingSaid>,
+                                          zengine::input::PointerTimingSaid,
+                                          // the theme role asking where the themes are, and
+                                          // what laying a stack said
+                                          zengine::theme::ThemesPlacedRequested,
+                                          zengine::theme::StackSaid>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneCanvasValueDrop, PaneCanvasDrop,
                                         zengine::workshop::PaneCanvasHover,
                                         zengine::graphics::ClipboardCopy,
@@ -556,8 +566,9 @@ class WorkshopWeave
                                         zengine::workshop::MenuWithdrawn,
                                         zengine::workshop::WithdrawalFence,
                                         zengine::graphics::AreaPlaced,
-                                        zengine::graphics::PaletteOffered,
                                         zengine::graphics::PaletteChosen,
+                                        zengine::theme::ThemesPlaced,
+                                        zengine::theme::ThemesWorn,
                                         zengine::graphics::RoomAsked,
                                         zengine::graphics::Drawn,
                                         zengine::workshop::PaneKeys,
@@ -1203,6 +1214,11 @@ public:
     /// A GRAPHICS DIRECTORY STARTED AFRESH: the palettes offered, every area placed and its palette
     /// chosen again, and Workshop's own room asked.
     void on(const graphics::GraphicsReady&, loom::Mail& mail);
+    /// THE THEME ROLE ASKS WHERE THE THEMES ARE: told again, with what the desk wears.
+    void on(const theme::ThemesPlacedRequested&, loom::Mail& mail);
+    /// WHAT LAYING A STACK SAID: a theme of the other medium alone, converted, or a theme left out,
+    /// said on the band.
+    void on(const theme::StackSaid& said, loom::Mail& mail);
     /// THE TUI WINDOW OFFERED ITSELF, as its own role: Workshop comes up in it while no
     /// surface has, and lays its screen out in the window's room while no medium has named its
     /// unit.
@@ -1741,6 +1757,9 @@ private:
     void guide_pressed(loom::Mail& mail, const PointedAt& at);
 
     void repaint(loom::Mail& mail);
+    /// WHAT THE DESK'S AREAS WEAR, told to the theme role where it changed or the role's holder
+    /// did, after where the themes are.
+    void wear_themes(loom::Mail& mail, std::vector<theme::ThemeStack> stacks);
 
     /// WHETHER A GRAPHICS DIRECTORY IS THERE TO PLACE AREAS WITH: its role's holder takes
     /// `AreaPlaced`. With none, nothing is said to `zengine.graphics`.
@@ -1790,6 +1809,11 @@ private:
     std::map<std::string, std::string> palettes_chosen_;
     /// The directory placed with -- its holder and incarnation -- and whether one is known.
     bool graphics_known_ = false;
+    /// The theme role told, by its holder and incarnation, and what it was told.
+    std::uint64_t themes_holder_ = 0;
+    std::int64_t themes_incarnation_ = 0;
+    theme::ThemesPlaced themes_placed_;
+    theme::ThemesWorn themes_worn_;
     /// The double-click time the input role last said, which two Shift taps are one double
     /// Shift within.
     std::int64_t double_click_ms_ = zengine::input::kDefaultDoubleClickMs;

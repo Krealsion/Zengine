@@ -877,9 +877,6 @@ struct Session {
     /// than in the accent's two: `workshop.focus.ring`.
     // WL-FOCUS-12 -- agents/workshop/focus.md
     bool selection_ring_plain = false;
-    /// THE PALETTE WORKSHOP'S OWN AREA WEARS, and every pane's whose row names none:
-    /// `workshop.skin`.
-    std::string skin = kSkinNight;
     /// WHETHER THE TERMINAL'S COMPLETION OFFERS A SHAPE'S REQUIRED FIELDS FIRST:
     /// `workshop.completion-order`.
     // WL-TERM-04 -- agents/workshop/terminal.md

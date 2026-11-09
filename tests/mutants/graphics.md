@@ -155,3 +155,19 @@ Red in `zengine-graphics-tests`:
 - a participant's clicks are counted as the weaver's are, for its own hand: its double click
   reaches the owner as one, named as its own, and its click beside the weaver's stays two single
   clicks
+
+## remeasure-never-said
+
+A palette offered anew with a size changed is repainted, and no owner is told its room again.
+
+In `graphics/window/window.hpp`:
+
+```diff
+-                if (sets_text_anew) {
++                if (sets_text_anew && false) {
+```
+
+Red in `zengine-graphics-tests`:
+
+- a palette offered anew with a size, a font or a style changed tells each owner of an area
+  wearing it its room again, with the measures it now sets text at; a colour alone tells none

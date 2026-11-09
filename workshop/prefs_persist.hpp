@@ -73,14 +73,16 @@ using zengine::workshop::pane_menu::kWorkshopRole;
 
 /// Workshop's own keys: whether the arrangeable panes wear their titles, how the band and the
 /// Hotkeys view spell a key, which pin list an editor edits, how the keyboard's selection is
-/// ringed, the palette graphics areas wear, the order the Terminal offers a shape's fields in, the
+/// ringed, the order the Terminal offers a shape's fields in, the
 /// arrangement's measures, and where a pane first opens.
 inline constexpr const char* kPaneTitlesKey = "workshop.pane-titles";
 inline constexpr const char* kBandKeysKey = "workshop.band-keys";
 inline constexpr const char* kHotkeysKeysKey = "workshop.hotkeys-keys";
 inline constexpr const char* kPinnedScopeKey = "workshop.pinned-scope";
 inline constexpr const char* kFocusRingKey = "workshop.focus.ring";
-inline constexpr const char* kSkinKey = kWorkshopSkinKey;
+/// The palette Workshop's own areas wore, as an older file kept it: read once into each layout
+/// wearing no theme, and never written.
+inline constexpr const char* kRetiredSkinKey = "workshop.skin";
 inline constexpr const char* kCompletionOrderKey = "workshop.completion-order";
 inline constexpr const char* kArrangeStepKey = "workshop.arrange-step";
 inline constexpr const char* kSnapReachKey = "workshop.snap-reach";
@@ -163,7 +165,6 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_role_rows() {
                  {"chrome", "settings"}, true, "pin order scope: workshop-wide or per-layout"),
             text(kFocusRingKey, kRingAccent, {kRingAccent, kRingPlain}, {"chrome", "focus"}, false,
                  "command-mode selection ring style: accent or plain"),
-            workshop_skin_setting_row(),
             text(kCompletionOrderKey, kCompletionDeclared,
                  {kCompletionDeclared, kCompletionRequiredFirst}, {"completion", "input"}, false,
                  "argument completion field order: declared or required-first"),
@@ -179,7 +180,7 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_role_rows() {
 
 /// WORKSHOP'S SETTINGS AS THE SESSION SPENDS THEM: whether the arrangeable panes wear their
 /// titles, how the band and the Hotkeys view each spell a key, whether pins are kept per layout,
-/// whether the selection's ring is plain, the palette graphics areas wear, whether the completion
+/// whether the selection's ring is plain, whether the completion
 /// offers required fields first, the arrangement's measures, and where a pane first opens.
 struct Presentation {
     bool titles_shown = kTitlesDefaultValue;
@@ -187,7 +188,6 @@ struct Presentation {
     KeySpelling hotkeys_keys = kHotkeysKeysDefaultValue;
     bool pins_per_layout = false;
     bool ring_plain = false;
-    std::string skin = kSkinNight;
     bool completion_required_first = false;
     std::int64_t arrange_step_cells = kCoarseStepCells;
     std::int64_t snap_reach_px = kPaneSnapReachPx;
@@ -558,9 +558,6 @@ inline Presentation presentation_of(const Prefs& p) {
     out.pins_per_layout = scope.text && *scope.text == kPinsPerLayout;
     const PaneSetting ring = workshop_value(p, kFocusRingKey);
     out.ring_plain = ring.text && *ring.text == kRingPlain;
-    const PaneSetting skin = workshop_value(p, kSkinKey);
-    out.skin = skin.text && is_workshop_skin_choice(*skin.text) ? workshop_palette_of(*skin.text)
-                                                                : std::string(kSkinNight);
     const PaneSetting order = workshop_value(p, kCompletionOrderKey);
     out.completion_required_first = order.text && *order.text == kCompletionRequiredFirst;
     // A NUMBER OUTSIDE ITS BOUNDS NEVER REACHES HERE from a file or a commit, both judged against
@@ -771,7 +768,7 @@ inline std::string kept_problem(const Prefs& p, bool layout_entries = false) {
                        std::string(kLayoutThemeFingerprintKey) + "` (a number) and `" +
                        kLayoutThemeNameKey + "` (a text), in that order, and nothing else";
             }
-            if (std::string wrong = layout_theme_name_problem(*name->text); !wrong.empty()) {
+            if (std::string wrong = theme_name_problem(*name->text); !wrong.empty()) {
                 return "the baseline of layout `" + layout + "`: " + wrong;
             }
             continue;

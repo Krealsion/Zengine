@@ -7,7 +7,7 @@ Retired: WL-SETUP-06.
 
 ## WL-SETUP-01 — A setup row is a reference plus the smallest authored difference
 
-LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->7<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}`, `front`, `settings`, `fold` and `dock`, and nothing else.
+LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->8<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}`, `front`, `settings`, `fold` and `dock`, and nothing else.
 
 MEANS
 - a fresh setup is sparse: the developer's defaults are absent, not written;
@@ -144,10 +144,10 @@ kind's field" "every place and size word survives the setup file and the session
 ### WL-SETUP-02
 `workshop/setup_persist.hpp` v2 v3 v4 setup_in from_text setup_in_v2 v3::to_v4 v4::to_current
 v3::kSubsPerPixel at_least_a_cell kCanvasRoomTopPx room_place_of_canvas px_of_saved_cells v5
-to_current to_v5 lifted v6 v6::to_current to_v6
+to_current to_v5 lifted v6 v6::to_current to_v6 v7 v7::to_current
 `workshop/setup.hpp` kSavedCellPx
 `workshop/layouts/session_history.hpp` place_v2_to_v3 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5
-desk_v5_to_v6 desk_v6_to_v7
+desk_v5_to_v6 desk_v6_to_current desk_v7_to_current
 `tests/test_workshop_screen.cpp` "a version-2 whole-cell setup loads at exactly its old picture" "a
 fine setup opens where the window painted it, its place in the room" "a place in an older file keeps
 its place in the room"
@@ -155,7 +155,7 @@ its place in the room"
 judged"
 `tests/test_workshop_persistence.cpp` "a version-4 setup file reads with no settings, and the next
 save writes the current version" "a version-6 setup file reads with every row open and undocked, and
-saves as version 7"
+saves as the current version"
 
 ### WL-SETUP-03
 `workshop/setup.hpp` check_pane_place check_pane_size check_pane_place_coord pane_unit::kDefault
@@ -224,6 +224,6 @@ open_row seat_row
 `workshop/setup_persist.hpp` WorkshopSetupPane fold_in dock_in setup_in v6::to_current to_current
 `workshop/setup_reconcile.hpp` seat_panes
 `tests/test_workshop_persistence.cpp` "a version-6 setup file reads with every row open and undocked,
-and saves as version 7" "a fold and a dock survive the setup file and the session, a hidden row kept
+and saves as the current version" "a fold and a dock survive the setup file and the session, a hidden row kept
 whole" "a fold or a dock no word names is refused by its word, and nothing is read" "a hidden pane
 keeps its row and comes back where it was after a save and a load"

@@ -1022,6 +1022,9 @@ struct Live {
         windows.clock([this] { return clock.read(); });
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
         host.dir = WORKSHOP_SKINS_DIR;
+#ifdef WORKSHOP_THEMES_DIR
+        host.shipped_themes_path = WORKSHOP_THEMES_DIR; // the shipped themes, as the build has them
+#endif
         // THE HOST'S VERSION ANSWER, as workshop.cpp wires it (the grant is the Emit set's) --
         // with ONE fixture statement: the stack's stand-in (`stock`) is answered as present for
         // a ROOM, so the launch door (which asks exactly that) seats it as it seats any offered
@@ -1900,7 +1903,7 @@ inline setup_persist::v6::WorkshopSetup v6_desk(const Setup& s) {
         out.panes.push_back(setup_persist::v6::WorkshopSetupPane{
             p.provider, p.pane, p.place, p.width, p.height, p.front, p.settings});
     }
-    out.theme = now.theme;
+    out.theme = LayoutTheme{now.themes.empty() ? std::string() : now.themes.front(), 0};
     out.locks = now.locks;
     out.pins = now.pins;
     return out;
@@ -1931,6 +1934,57 @@ v12_session(const std::vector<Layout>& run, std::size_t active,
 }
 
 /// ...AS WORKSHOP WROTE ITS FILE AT VERSION 12: the header's line, then a layout a line.
+/// A setup of version 7 of `s`: its rows without their theme, its themes' bottom as its baseline.
+inline setup_persist::v7::WorkshopSetup v7_desk(const Setup& s) {
+    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
+    setup_persist::v7::WorkshopSetup out;
+    out.format = now.format;
+    out.format_version = setup_persist::v7::kRetainedVersion;
+    out.name = now.name;
+    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
+        out.panes.push_back(setup_persist::v7::WorkshopSetupPane{
+            p.provider, p.pane, p.place, p.width, p.height, p.front, p.settings, p.fold, p.dock});
+    }
+    out.theme = LayoutTheme{now.themes.empty() ? std::string() : now.themes.front(), 0};
+    out.locks = now.locks;
+    out.pins = now.pins;
+    return out;
+}
+
+/// A version-13 session of `run`, standing on `active`: each layout's id, its desk and remembered
+/// value at setup version 7, and the next id after them.
+inline session_history::v13::WorkshopSession v13_session(const std::vector<Layout>& run,
+                                                         std::size_t active) {
+    session_history::v13::WorkshopSession out;
+    out.format = session_persist::kFormat;
+    out.format_version = session_history::kV13FormatVersion;
+    std::int64_t top = 0;
+    for (const Layout& l : run) {
+        session_history::v13::WorkshopLayout layout;
+        layout.id = l.id;
+        layout.desk = v7_desk(l.desk);
+        layout.link.path = l.link.path;
+        layout.link.known = v7_desk(l.link.known);
+        out.layouts.push_back(std::move(layout));
+        top = std::max(top, l.id);
+    }
+    out.active = static_cast<std::int64_t>(active);
+    out.next_id = top + 1;
+    return out;
+}
+
+/// ...as its file's lines.
+inline std::string v13_lines(const session_history::v13::WorkshopSession& s) {
+    const session_history::v13::WorkshopSessionHeader head{
+        s.format, s.format_version, static_cast<std::int64_t>(s.layouts.size()), s.active,
+        s.next_id, s.choices};
+    std::string out = loom::compat::serialize(loom::to_value(head)) + '\n';
+    for (const session_history::v13::WorkshopLayout& l : s.layouts) {
+        out += loom::compat::serialize(loom::to_value(l)) + '\n';
+    }
+    return out;
+}
+
 inline std::string v12_lines(const session_history::v12::WorkshopSession& s) {
     const session_history::v12::WorkshopSessionHeader head{
         s.format, s.format_version, static_cast<std::int64_t>(s.layouts.size()), s.active,
@@ -3390,6 +3444,9 @@ struct PaneRig {
         windows.clock([this] { return clock.read(); });
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
         host.dir = WORKSHOP_SKINS_DIR;
+#ifdef WORKSHOP_THEMES_DIR
+        host.shipped_themes_path = WORKSHOP_THEMES_DIR; // the shipped themes, as the build has them
+#endif
         painter_id = loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
         (void)count_desk_drawings(bus, workshop_id, pictures);
     }
@@ -4055,6 +4112,11 @@ struct PaneRig {
 #ifdef WORKSHOP_SO_EDITOR_PANE
         if (stem == "zengine-editor-pane") {
             return WORKSHOP_SO_EDITOR_PANE;
+        }
+#endif
+#ifdef WORKSHOP_SO_THEME
+        if (stem == "zengine-theme") {
+            return WORKSHOP_SO_THEME;
         }
 #endif
 #ifdef WORKSHOP_SO_LEGACY_PANE

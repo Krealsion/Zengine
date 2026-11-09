@@ -147,6 +147,9 @@ struct BuilderRig {
     /// read-only project role, each left out a door that reaches nobody -- the
     /// refusal-at-dispatch cases' subject. `with_presenter` puts the shipped presenter in the plan,
     /// as a plan row, and `with_desktop` the shipped desktop, whose Manual a pane's `?` shows.
+    /// Whether `open` loads the theme weave beside the pane, which lays the stacks the desk wears.
+    bool with_themes = false;
+
     void open(std::int64_t width = 160, std::int64_t height = 48, bool with_editor = false,
               bool with_manager = true, bool with_project_door = true,
               bool with_presenter = false, bool with_desktop = false) {
@@ -178,6 +181,12 @@ struct BuilderRig {
             desktop.stem = zengine::desktop_pane::kDesktopStem;
             desktop.weave = load::WeaveIntent{kDesktopRole};
             plan.artifacts.push_back(desktop);
+        }
+        if (with_themes) {
+            load::ArtifactIntent themes;
+            themes.stem = "zengine-theme";
+            themes.weave = load::WeaveIntent{"zengine.theme"};
+            plan.artifacts.push_back(themes);
         }
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);

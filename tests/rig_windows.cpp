@@ -92,7 +92,7 @@ std::int64_t pool_of_ink(const std::string& sgr) {
     const gfx::PaletteOffered block = gfx::themes::block();
     for (std::int64_t r = 0; r < kPoolSize; ++r) {
         const gfx::PaletteColor* c = color_of_pool(block, r);
-        if (c != nullptr && sgr == gfx::window::sgr_for(c->cells, c->rgba)) {
+        if (c != nullptr && sgr == gfx::window::sgr_for(gfx::window::terminal_ink_of(c->name, block).ink, c->rgba)) {
             return r;
         }
     }

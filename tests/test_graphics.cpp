@@ -35,6 +35,8 @@
 #include "graphics/window/palette.hpp"
 #include "graphics_suite/colors.hpp" // generated from tests/graphics_slots.json
 #include "graphics_suite/colors_v1.hpp" // ...and from a version-1 file, tests/graphics_slots_v1.json
+#include "graphics_suite/colors_own.hpp" // ...and from an own values file, tests/graphics_own.json
+#include "graphics/own.hpp"
 #include "graphics/window/terminal_io.hpp"
 #include "graphics/window/window_sdl.hpp"
 #include "graphics/window/window_tui.hpp"
@@ -131,8 +133,9 @@ std::vector<std::string> painted(const gfx::Sketch& s, const gfx::PaletteOffered
 /// The window's own palette, every colour filling with '#' but accent, with '@'.
 gfx::PaletteOffered plain_palette() {
     gfx::PaletteOffered p = gfx::window::built_in_palette();
-    for (gfx::PaletteColor& c : p.colors) {
-        c.fill = c.name == gfx::colors::accent.name ? "@" : "#";
+    p.terminal.inks.clear();
+    for (const gfx::PaletteColor& c : p.colors) {
+        p.terminal.inks.push_back({c.name, {}, c.name == gfx::colors::accent.name ? "@" : "#"});
     }
     return p;
 }
@@ -4971,7 +4974,7 @@ TEST_CASE("the shipped palettes are the pool's colours over its defaults: day an
         }
     }
     CHECK(gfx::themes::night().colors == pool.colors); // classic is the pool's own
-    CHECK(gfx::themes::block().outline == "===");
+    CHECK(gfx::themes::block().terminal.borders == "===");
 
     gfx::Sketch s;
     s.fill_rect("r", 0, 0, 24, 12, gfx::colors::text);
@@ -5339,24 +5342,20 @@ std::string ink_of_glyph(const TermLog& term, std::size_t from, char glyph) {
 
 } // namespace
 
-TEST_CASE("every palette paints in a terminal: a colour with no terminal word shows the nearest ink "
-          "the terminal can show, and one with a word shows that word's") {
+TEST_CASE("every palette paints in a terminal: a colour its terminal look gives no ink shows the "
+          "nearest ink the terminal can show, and one with an ink shows that ink") {
     TypedWindow t;
     OwnerHeard heard;
     const loom::WeaveId owner = mount_owner(t.r, heard, kOwner);
     gfx::PaletteOffered unworded = gfx::themes::day(); // a palette of light, as every one is
     unworded.palette = "unworded";
-    for (gfx::PaletteColor& c : unworded.colors) {
-        c.cells.clear();
-    }
+    unworded.terminal = gfx::TerminalLook{};
     for (gfx::PaletteColor& c : unworded.colors) {
         if (c.name == gfx::colors::accent.name) {
             c.rgba = 0xcd0000ff; // red, as a terminal shows its red
         }
-        if (c.name == gfx::colors::alert.name) {
-            c.cells = "bright cyan";
-        }
     }
+    unworded.terminal.inks.push_back({gfx::colors::alert.name, "bright cyan", {}});
     t.r.to_role(gfx::kGraphicsRole, unworded);
     t.r.to_role(gfx::kGraphicsRole, gfx::PaletteChosen{kOwner, "unworded"});
     t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTuiWindow, kOwner, 0, 0,
@@ -5395,13 +5394,14 @@ TEST_CASE("in a terminal night and day show their text and grounds in the termin
     // THE POOL'S WORDS: `terminal default` for text and grounds alone, and grey for a pane's frame:
     // day's frame is dark, and as its nearest ink it would be black and vanish on a dark terminal.
     for (const gfx::PaletteColor& c : gfx::themes::night().colors) {
+        const gfx::TerminalInk ink = gw::terminal_ink_of(c.name, gfx::themes::night());
         const bool own = c.name == gfx::colors::text.name || c.name == gfx::colors::ground.name ||
                          c.name == gfx::colors::background.name ||
                          c.name == gfx::colors::background_alt.name ||
                          c.name == gfx::colors::surface.name || c.name == gfx::colors::field.name ||
                          c.name == gfx::colors::chosen.name || c.name == gfx::colors::veil.name;
         const bool grey = c.name == gfx::colors::frame.name;
-        CHECK_MESSAGE(c.cells == (own ? gw::kTerminalDefault : grey ? "bright black" : ""), c.name);
+        CHECK_MESSAGE(ink.ink == (own ? gw::kTerminalDefault : grey ? "bright black" : ""), c.name);
     }
     // ...AND WHAT A TERMINAL WRITES FOR THEM.
     TypedWindow t;
@@ -5442,9 +5442,10 @@ TEST_CASE("in a terminal night and day show their text and grounds in the termin
     CHECK(ink_of_glyph(t.term, day_from, 'S') == gw::sgr_for("", 0xd08700ff));
     // BLOCK, the terminal look: every colour its own ink, as its theme writes it.
     for (const gfx::PaletteColor& c : gfx::themes::block().colors) {
-        CHECK_MESSAGE(!c.cells.empty(), c.name);
+        const gfx::TerminalInk ink = gw::terminal_ink_of(c.name, gfx::themes::block());
+        CHECK_MESSAGE(!ink.ink.empty(), c.name);
         if (c.name == gfx::colors::frame.name) {
-            CHECK(c.cells == "bright black");
+            CHECK(ink.ink == "bright black");
         }
     }
 }
@@ -5561,13 +5562,61 @@ TEST_CASE("a pane naming a pool colour paints its palette's colour, and a new re
     CHECK(t.shown().painter_calls == calls + 2);
 }
 
-TEST_CASE("a slot paints the palette's colour for the role that exposes it, else the default "
-          "its pane generated, and a terminal shows it as the pool colour it is like") {
+TEST_CASE("a palette offered anew with a size, a font or a style changed tells each owner of an area "
+          "wearing it its room again, with the measures it now sets text at; a colour alone tells "
+          "none") {
+    // ⚔ MUTATION (tests/mutants/graphics.md#remeasure-never-said): a size changed, no room said.
+    LitWindow t;
+    gfx::PaletteOffered mine = gfx::themes::night();
+    mine.palette = "mine";
+    t.r.to_role(gfx::kGraphicsRole, mine);
+    t.r.drain();
+    LitHeard& first = t.own("test.first", 0, 0, 100, 50, "mine");
+    LitHeard& other = t.own("test.other", 0, 60, 100, 50, "night", 1);
+    REQUIRE_FALSE(first.rooms.empty());
+    const gfx::AreaRoom before = first.rooms.back();
+    const std::size_t first_rooms = first.rooms.size();
+    const std::size_t other_rooms = other.rooms.size();
+    // A COLOUR ALONE: repainted, and no owner told.
+    for (gfx::PaletteColor& c : mine.colors) {
+        if (c.name == gfx::colors::accent.name) c.rgba = 0x123456ff;
+    }
+    mine.revision = 2;
+    t.r.to_role(gfx::kGraphicsRole, mine);
+    t.r.drain();
+    CHECK(first.rooms.size() == first_rooms);
+    // A SIZE: the room again, its text set at the new points; the area wearing another palette
+    // is told nothing.
+    for (gfx::PaletteSize& z : mine.sizes) {
+        if (z.name == "medium") z.points = 20;
+    }
+    mine.revision = 3;
+    t.r.to_role(gfx::kGraphicsRole, mine);
+    t.r.drain();
+    REQUIRE(first.rooms.size() == first_rooms + 1);
+    CHECK(other.rooms.size() == other_rooms);
+    const gfx::AreaRoom after = first.rooms.back();
+    CHECK(after.epoch == before.epoch);
+    CHECK(after.measures != before.measures); // medium, which body stands at, now 20 points
+    // A STYLE: told again.
+    for (gfx::PaletteStyle& st : mine.styles) {
+        if (st.name == gfx::styles::heading.name) st.size = "huge";
+    }
+    mine.revision = 4;
+    t.r.to_role(gfx::kGraphicsRole, mine);
+    t.r.drain();
+    REQUIRE(first.rooms.size() == first_rooms + 2);
+    CHECK(first.rooms.back().measure_style(gfx::styles::heading.name) ==
+          first.rooms.back().measure(gfx::sizes::huge.name));
+}
+
+TEST_CASE("an own value paints the palette's colour for the role that declares it, else the "
+          "default its pane generated, and a terminal shows it as the pool colour it is like") {
     LitWindow t;
     gfx::PaletteOffered slotted = gfx::themes::night();
     slotted.palette = "slotted";
-    slotted.slots.push_back(gfx::PaletteSlots{"test.slotted", {{"card", 0x010203ff, "", ""}}, {}});
-    slotted.slots.push_back(gfx::PaletteSlots{"test.other", {{"badge", 0x040506ff, "", ""}}, {}});
+    slotted.own.push_back(gfx::OwnValues{"test.slotted", {{"card", 0x010203ff}}, {}, {}});
+    slotted.own.push_back(gfx::OwnValues{"test.other", {{"badge", 0x040506ff}}, {}, {}});
     t.r.to_role(gfx::kGraphicsRole, slotted);
     t.r.drain();
     t.own("test.slotted", 0, 0, 100, 50, "slotted");
@@ -5584,7 +5633,7 @@ TEST_CASE("a slot paints the palette's colour for the role that exposes it, else
     CHECK(own->nodes[0].quads[0].rgba == 0x010203ffu);   // the palette's, for its role
     CHECK(own->nodes[1].quads[0].rgba == 0xf2a541ffu);   // another role's setting is not its
     CHECK(plain->nodes[0].quads[0].rgba == 0x24324affu); // the default its pane generated
-    // IN A TERMINAL, a slot's default is filled and inked as the pool colour it is like.
+    // IN A TERMINAL, an own value's default is filled and inked as the pool colour it is like.
     gfx::Sketch cells;
     cells.fill_rect("card", 0, 0, 2 * gfx::kCellPx, gfx::kCellPx, graphics_suite::colors::card);
     cells.fill_rect("badge", 2 * gfx::kCellPx, 0, 2 * gfx::kCellPx, gfx::kCellPx,
@@ -5592,12 +5641,65 @@ TEST_CASE("a slot paints the palette's colour for the role that exposes it, else
     CHECK(painted(cells, gfx::themes::night())[0] == "  OO");
 }
 
-TEST_CASE("a version-1 slots file, which names its role office, generates its pane's colours as a "
-          "version-2 file does") {
-    const gfx::SlotColor plate = graphics_suite_v1::colors::plate;
+TEST_CASE("a version-1 slots file, which names its role office, generates its pane's own colours "
+          "as a version-2 file and an own values file do") {
+    const gfx::OwnColor plate = graphics_suite_v1::colors::plate;
     CHECK(std::string(plate.name) == "plate");
     CHECK(plate.rgba == 0x3a4b62ffu);
     CHECK(std::string(plate.like) == "background");
+    const gfx::OwnColor rim = graphics_suite_own::colors::rim;
+    CHECK(std::string(rim.name) == "rim");
+    CHECK(rim.rgba == 0x5a6b7cffu);
+    CHECK(std::string(rim.like) == "quiet");
+    const gfx::Color drawn = rim;
+    CHECK(drawn.from == gfx::color_from::kOwn);
+}
+
+TEST_CASE("an own value declared where it is used, with a pool colour, size or style for its "
+          "default, paints its default until a palette sets it for its role, and is declared as "
+          "it is drawn") {
+    const gfx::Color ring = gfx::own("ring", gfx::colors::accent);
+    const gfx::TextSize note = gfx::own("note", gfx::sizes::small_);
+    const gfx::TextLook title = gfx::own("title", gfx::styles::heading);
+    gfx::Sketch s;
+    s.fill_rect("ring", 0, 0, 2 * gfx::kCellPx, gfx::kCellPx, ring);
+    s.text("note", 0, 0, "n", gfx::colors::text, note);
+    s.text("title", 0, 0, "t", title);
+    const auto inks = [&](const gfx::PaletteOffered& p) {
+        return gfx::window::inks_of(s.nodes()[0].op, s.nodes()[0].args, p, "test.owner");
+    };
+    const auto text_of = [&](std::size_t i, const gfx::PaletteOffered& p) {
+        return gfx::window::resolve_text(*gfx::from_body<gfx::TextArgs>(s.nodes()[i].args), p,
+                                         "test.owner");
+    };
+    // ITS DEFAULT: the pool colour, size and style it names, as the palette says for them.
+    gfx::PaletteOffered day = gfx::themes::day();
+    const gfx::PaletteColor* accent = gfx::window::pool_color(day, "accent");
+    REQUIRE(accent != nullptr);
+    CHECK(inks(day)[0].rgba == accent->rgba);
+    CHECK(text_of(1, day).size.points == gfx::window::root_size("small", day).points);
+    CHECK(text_of(2, day).size.name == "large");
+    CHECK(text_of(2, day).weight == gfx::text_weight::kBold);
+    // ...UNTIL A PALETTE SETS IT FOR ITS ROLE, and another role's setting is not its.
+    day.own.push_back(gfx::OwnValues{"test.owner",
+                                     {{"ring", 0x0a0b0cff}},
+                                     {{"note", 30}},
+                                     {{"title", "text", "huge", "alert", gfx::text_weight::kRegular}}});
+    day.own.push_back(gfx::OwnValues{"test.other", {{"ring", 0x0d0e0fff}}, {}, {}});
+    CHECK(inks(day)[0].rgba == 0x0a0b0cff);
+    CHECK(text_of(1, day).size.points == 30);
+    CHECK(text_of(2, day).size.name == "huge");
+    CHECK(text_of(2, day).color.name == "alert");
+    CHECK(text_of(2, day).weight == gfx::text_weight::kRegular);
+    // DECLARED AS IT IS DRAWN: each name, its kind and its default.
+    const gfx::OwnValuesDeclared d =
+        gfx::declared({ring, gfx::own("kept", gfx::rgb(0x8fbcbb, gfx::colors::accent))}, {note},
+                      {title});
+    REQUIRE(d.values.size() == 4);
+    CHECK(d.values[0] == gfx::OwnDeclared{"ring", "color", "accent", 0, 0});
+    CHECK(d.values[1] == gfx::OwnDeclared{"kept", "color", "", 0x8fbcbbff, 0});
+    CHECK(d.values[2] == gfx::OwnDeclared{"note", "size", "small", 0, 0});
+    CHECK(d.values[3] == gfx::OwnDeclared{"title", "style", "heading", 0, 0});
 }
 
 namespace {
@@ -7803,7 +7905,7 @@ TEST_CASE("a terminal shows bold where a text asks it, and says each ink's weigh
     t.r.drain();
     const std::size_t from = t.term.written.size();
     gfx::Sketch s;
-    s.text("b", 0, 0, "B", gfx::colors::accent, gfx::sizes::heading, gfx::text_weight::kBold);
+    s.text("b", 0, 0, "B", gfx::colors::accent, gfx::sizes::large, gfx::text_weight::kBold);
     s.text("r", gfx::kCellPx, 0, "R", gfx::colors::accent);
     t.r.bus.role_send_to_role_as(owner, kOwner, window_role(),
                                    loom::Message(loom::to_value(whole(kOwner, s))));
@@ -7857,8 +7959,8 @@ TEST_CASE("the GUI window draws a line of an accented letter, a Cyrillic one, an
     CHECK(marked_rows.first < e_rows.first);
 }
 
-TEST_CASE("the GUI window measures each of the pool's sizes in the room it says, and draws a heading "
-          "in bold at that height") {
+TEST_CASE("the GUI window measures each of the pool's sizes and styles in the room it says, and "
+          "draws a heading in its style's bold at that height") {
     sdl_video_driver("dummy");
     embedded_faces_only();
     RealLit t;
@@ -7867,20 +7969,27 @@ TEST_CASE("the GUI window measures each of the pool's sizes in the room it says,
     REQUIRE_FALSE(t.heard.rooms.empty());
     const gfx::AreaRoom room = t.heard.rooms.back();
     const gfx::TextMeasure body = room.measure();
-    const gfx::TextMeasure heading = room.measure(gfx::sizes::heading.name);
-    const gfx::TextMeasure caption = room.measure(gfx::sizes::caption.name);
-    // EVERY SIZE OF THE POOL IS IN THE ROOM, measured before the owner lays its text out.
-    CHECK(room.measures.size() == gfx::window::built_in_palette().sizes.size());
+    const gfx::TextMeasure heading = room.measure_style(gfx::styles::heading.name);
+    const gfx::TextMeasure caption = room.measure_style(gfx::styles::caption.name);
+    // EVERY SIZE AND STYLE OF THE POOL IS IN THE ROOM, measured before the owner lays its text out;
+    // a style's is its size's in its font.
+    CHECK(room.measures.size() == gfx::window::built_in_palette().sizes.size() +
+                                      gfx::window::built_in_palette().styles.size());
+    CHECK(heading == room.measure(gfx::sizes::large.name));
+    CHECK(caption == room.measure(gfx::sizes::small_.name));
+    CHECK(room.measure_style(gfx::styles::body.name) == body);
     CHECK(heading.line > body.line);
     CHECK(heading.advance > body.advance);
     CHECK(caption.line < body.line);
     CHECK(room.measure("no such size") == body);
+    CHECK(room.measure_style("no such style") == body);
 
     gfx::Sketch s;
     s.text("body", 0, 0, "M", gfx::rgb(0x000000));
-    s.text("heading", 0, 60, "M", gfx::rgb(0x000000), gfx::sizes::heading,
-           gfx::text_weight::kBold);
-    s.text("plain", 100, 60, "M", gfx::rgb(0x000000), gfx::sizes::heading);
+    s.text("heading", 0, 60, "M", gfx::styles::heading.with_color(gfx::rgb(0x000000)));
+    s.text("plain", 100, 60, "M",
+           gfx::styles::heading.with_color(gfx::rgb(0x000000))
+               .with_weight(gfx::text_weight::kRegular));
     t.draw(s);
     t.pump();
     const Picture p = picture_of(t);

@@ -264,7 +264,7 @@ public:
             }
         } else if (op == op::kText) {
             if (auto a = from_body<TextArgs>(args)) {
-                bold_ = a->weight == text_weight::kBold;
+                bold_ = node.weight_of(a->weight) == text_weight::kBold;
                 text(a->x, a->y, a->text, 0);
                 bold_ = false;
             }

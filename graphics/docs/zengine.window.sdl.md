@@ -29,7 +29,7 @@ keyboard and opens behind every window on Windows. Where it cannot open (no disp
 driver) it says why on standard error and its load fails.
 
 **Text.** Every character, at its columns, its palette's sizes, regular or bold
-([text](graphics.md#text-sizes-fonts-weight)).
+([text](graphics.md#text-styles-sizes-fonts-weight)).
 
 **Painting.** A node is painted once, when it changes, into pixel primitives -- rectangles, lines,
 runs of text in the face, images -- in its area's palette, each name it carries turned into a

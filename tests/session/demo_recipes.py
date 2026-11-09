@@ -541,9 +541,10 @@ class Recipes(unittest.TestCase):
         root = make(self.tmp, "saved")
         desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
         desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
-        desk["fields"].update(theme={"name": "", "fingerprint": "0"}, locks=[], pins=[])
+        desk["fields"].pop("theme", None)
+        desk["fields"].update(themes=[], locks=[], pins=[])
         for row in desk["fields"]["panes"]:
-            row.update(settings=[], fold="open", dock="none")
+            row.update(settings=[], fold="open", dock="none", theme="")
         desk["fields"]["panes"][0]["settings"] = [{"key": "title", "text": "a b"},
                                                   {"key": "zoom", "number": "3"}]
         (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
@@ -607,9 +608,10 @@ class Recipes(unittest.TestCase):
         root = make(self.tmp, "slotted", view_slots=[{"x": 2, "y": 3, "width": 30, "height": 9}])
         desk = json.loads((root / "desk.json").read_text(encoding="utf-8"))
         desk["version"], desk["fields"]["format_version"] = setup_version, str(setup_version)
-        desk["fields"].update(theme={"name": "", "fingerprint": "0"}, locks=[], pins=[])
+        desk["fields"].pop("theme", None)
+        desk["fields"].update(themes=[], locks=[], pins=[])
         for row in desk["fields"]["panes"]:
-            row.update(settings=[], fold="open", dock="none")
+            row.update(settings=[], fold="open", dock="none", theme="")
         (root / "desk.json").write_text(json.dumps(desk), encoding="utf-8")
         seated = described.Setup(root).desk(["my-view"])
         self.assertEqual(seated["fields"]["panes"][-1]["pane"], "my-view")

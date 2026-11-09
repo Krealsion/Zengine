@@ -10,8 +10,9 @@
 #include "pane_settings.hpp"
 #include "panes.hpp"
 #include "property.hpp"
-#include "settings_seam_vocabulary.hpp" // a layout's baseline, and how long a pin list is
+#include "settings_seam_vocabulary.hpp" // how long a pin list is
 
+#include "theme/stack_name.hpp" // how many themes a layout wears
 #include "ui/vocabulary.hpp"
 
 #include <algorithm>
@@ -196,6 +197,9 @@ struct SetupPane {
     std::vector<PaneSetting> settings;
     std::int64_t fold = pane_fold::kOpen;
     std::int64_t dock = pane_dock::kNone;
+    /// The theme laid over the layout's stack for this pane alone, kept beside its row and never
+    /// among its settings; "" for none.
+    std::string theme = {};
 
     friend bool operator==(const SetupPane&, const SetupPane&) = default;
 };
@@ -221,13 +225,13 @@ struct SetupPins {
 };
 
 /// A setup: what a weaver calls this arrangement, which panes it has, in order, and what this
-/// layout keeps for itself -- the theme it was last given, its locks and its pins.
+/// layout keeps for itself -- the themes it wears, bottom first, its locks and its pins.
 // WL-LAYOUT-01, WL-LAYOUT-06 -- agents/workshop/layouts.md
 // WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Setup {
     std::string name;
     std::vector<SetupPane> panes;
-    LayoutTheme theme;
+    std::vector<std::string> themes;
     std::vector<SetupLock> locks;
     std::vector<SetupPins> pins;
 
@@ -465,9 +469,9 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
 }
 
 /// WHAT A ROW'S SETTINGS MAY BE, judged by form alone: each one a setting (`pane_setting_problem`),
-/// in key order and once each, at most `kMaxPaneSettingsPerRow`, and none under `workshop.` but
-/// `workshop.skin`, which takes what its setting takes: a newer Workshop's word this one does not
-/// know would be dropped unread.
+/// in key order and once each, at most `kMaxPaneSettingsPerRow`, and none under `workshop.`: a
+/// newer Workshop's word this one does not know would be dropped unread, and a row's theme is kept
+/// beside its settings.
 // WL-SETTING-02 -- agents/workshop/settings.md
 inline Written check_pane_settings(const PaneRef& ref, const std::vector<PaneSetting>& settings) {
     const std::string whose = "`" + ref_text(ref) + "`";
@@ -483,15 +487,8 @@ inline Written check_pane_settings(const PaneRef& ref, const std::vector<PaneSet
             return Written::no(whose + ": " + wrong);
         }
         if (is_desk_setting_key(s.key)) {
-            if (s.key != kWorkshopSkinKey) {
-                return Written::no(whose + ": `" + s.key +
-                                   "` is a Workshop setting this Workshop does not know");
-            }
-            if (const std::string refused =
-                    pane_setting_refused_by(narrow_setting_row(workshop_skin_setting_row()), s);
-                !refused.empty()) {
-                return Written::no(whose + ": " + refused);
-            }
+            return Written::no(whose + ": `" + s.key +
+                               "` is a Workshop setting this Workshop does not know");
         }
         if (i > 0 && !(settings[i - 1].key < s.key)) {
             return Written::no(whose + ": a row keeps its settings in key order, once each -- `" +
@@ -549,33 +546,55 @@ inline std::size_t desk_units(const Setup& s) noexcept {
     return n;
 }
 
-/// WHAT IS WRONG WITH A BASELINE'S THEME NAME, or empty: 1 to `kMaxPaneSettingTextLen` bytes of
-/// `a`-`z`, `0`-`9` and `-`, as a theme's file is named.
+/// WHAT IS WRONG WITH A THEME'S NAME, or empty: 1 to `kMaxPaneSettingTextLen` bytes of `a`-`z`,
+/// `0`-`9` and `-`, as a theme's files are named.
 // WL-LOCK-03 -- agents/workshop/setting-locks.md
-inline std::string layout_theme_name_problem(std::string_view name) {
+inline std::string theme_name_problem(std::string_view name) {
     if (name.empty() || name.size() > kMaxPaneSettingTextLen) {
-        return "a baseline's theme name is 1 to " + std::to_string(kMaxPaneSettingTextLen) +
-               " bytes";
+        return "a theme's name is 1 to " + std::to_string(kMaxPaneSettingTextLen) + " bytes";
     }
     for (const char c : name) {
         if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) {
-            return "a baseline's theme name is `a`-`z`, `0`-`9` and `-` -- `" + std::string(name) +
+            return "a theme's name is `a`-`z`, `0`-`9` and `-` -- `" + std::string(name) +
                    "` is not";
         }
     }
     return std::string();
 }
 
-/// WHAT A LAYOUT KEEPS FOR ITSELF, judged: its baseline a theme's name or none, and each lock and
-/// pin list on a row the desk seats, once each, with keys a setting may have.
+/// WHAT IS WRONG WITH A LAYOUT'S THEMES, or empty: at most `theme::kMaxStackThemes`, each a
+/// theme's name, once each.
+inline std::string layout_themes_problem(const std::vector<std::string>& themes) {
+    if (themes.size() > theme::kMaxStackThemes) {
+        return "a layout wears at most " + std::to_string(theme::kMaxStackThemes) +
+               " themes -- this one names " + std::to_string(themes.size());
+    }
+    for (std::size_t i = 0; i < themes.size(); ++i) {
+        if (const std::string wrong = theme_name_problem(themes[i]); !wrong.empty()) {
+            return wrong;
+        }
+        for (std::size_t j = 0; j < i; ++j) {
+            if (themes[j] == themes[i]) {
+                return "a layout wears `" + themes[i] + "` twice";
+            }
+        }
+    }
+    return std::string();
+}
+
+/// WHAT A LAYOUT KEEPS FOR ITSELF, judged: the themes it wears, each row's theme a theme's name or
+/// none, and each lock and pin list on a row the desk seats, once each, with keys a setting may
+/// have.
 // WL-LAYOUT-06 -- agents/workshop/layouts.md
 inline Written check_layout_own(const Setup& s) {
-    if (s.theme.name.empty() && s.theme.fingerprint != 0) {
-        return Written::no("a baseline of no theme has no fingerprint");
+    if (const std::string wrong = layout_themes_problem(s.themes); !wrong.empty()) {
+        return Written::no(wrong);
     }
-    if (!s.theme.name.empty()) {
-        if (const std::string wrong = layout_theme_name_problem(s.theme.name); !wrong.empty()) {
-            return Written::no(wrong);
+    for (const SetupPane& row : s.panes) {
+        if (!row.theme.empty()) {
+            if (const std::string wrong = theme_name_problem(row.theme); !wrong.empty()) {
+                return Written::no("`" + ref_text(row.ref) + "`'s theme: " + wrong);
+            }
         }
     }
     for (std::size_t i = 0; i < s.locks.size(); ++i) {

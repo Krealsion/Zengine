@@ -1,6 +1,6 @@
 {
   "format": "zengine-theme",
-  "format_version": 2,
+  "format_version": 3,
   "name": "day",
   "summary": "dark ink on a light ground",
   "colors": [

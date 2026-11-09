@@ -80,14 +80,14 @@ from the window's own role, and `RoomAsked` only from the area's owner.
 
 ### `PaletteOffered`
 
-`PaletteOffered` v1 offers a palette, whole, at a revision: its pool colours, each role's slots
-and a terminal's outline characters.
+`PaletteOffered` v4 offers a palette, whole, at a revision: its pool colours, fonts, sizes and
+styles, each role's own values, and the terminal's look.
 
 - **Takes:** `palette`, its name; `revision`, which a later offer of the same palette raises;
-  `colors`, each a `PaletteColor` -- a pool colour's `name`, its `rgba` (0xRRGGBBAA), `cells`, what
-  a terminal shows where it cannot show the colour ("" its nearest), and `fill`, the character a
-  terminal fills a shape with in it; `slots`, each role's colours for the slots it exposes; and
-  `outline`, a terminal's corner, across and down.
+  `colors`, each a `PaletteColor` -- a pool colour's `name` and its `rgba` (0xRRGGBBAA); `fonts`,
+  `sizes` and `styles`, each by its pool name; `own`, each role's values for the own values it
+  declares; and `terminal`, the terminal's look: each colour's `ink` ("" its nearest) and `fill`,
+  the character a terminal fills a shape with in it, and its `borders`, a corner, across and down.
 - **Answers:** nothing to the sender. The palette is kept and passed on to every window that has
   offered itself, as `PaletteOffered` from `zengine.graphics`, and each window paints every area
   wearing it again from what it keeps: no owner is told, and nothing is drawn again on the bus. A

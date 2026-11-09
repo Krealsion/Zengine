@@ -1,0 +1,7 @@
+{
+  "format": "zengine-terminal",
+  "format_version": 1,
+  "name": "night",
+  "summary": "the terminal's own look: text and grounds in its default colours",
+  "inks": []
+}

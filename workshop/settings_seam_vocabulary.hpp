@@ -324,9 +324,8 @@ struct LayoutSettingsRequested {
     ZEN_SHAPE(LayoutSettingsRequested, 1);
 };
 
-/// A LAYOUT'S BASELINE: the theme it was last given and that theme's fingerprint then; a name of
-/// "" for none. The layouts' owner keeps it and judges its form; what the theme holds is the
-/// theme owner's.
+/// A LAYOUT'S BASELINE AS AN OLDER FILE KEPT IT: the theme it was last given and that theme's
+/// fingerprint then. Read from such a file as the bottom of the layout's themes, and never written.
 struct LayoutTheme {
     std::string name;
     std::int64_t fingerprint = 0;
@@ -334,33 +333,36 @@ struct LayoutTheme {
     friend bool operator==(const LayoutTheme&, const LayoutTheme&) = default;
 };
 
-/// ONE ROW OF ONE LAYOUT: the pane it seats, the settings it keeps, and the keys locked on it there.
+/// ONE ROW OF ONE LAYOUT: the pane it seats, the settings it keeps, the keys locked on it there,
+/// and the theme laid over the layout's for that pane alone ("" none).
 struct LayoutPaneSettings {
     std::string provider;
     std::string pane;
     std::vector<PaneSetting> settings = {};
     std::vector<std::string> locked = {};
-    ZEN_SHAPE(LayoutPaneSettings, 1, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(settings),
-              ZEN_FIELD(locked));
+    std::string theme = {};
+    /// Version 2: a row says the theme kept beside it.
+    ZEN_SHAPE(LayoutPaneSettings, 2, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(settings),
+              ZEN_FIELD(locked), ZEN_FIELD(theme));
     friend bool operator==(const LayoutPaneSettings&, const LayoutPaneSettings&) = default;
 };
 
-/// ONE LAYOUT: the id a door names it by, its place on the shelf, its name, its baseline and its
-/// rows.
+/// ONE LAYOUT: the id a door names it by, its place on the shelf, its name, the themes it wears,
+/// bottom first, and its rows.
 struct LayoutSettings {
     std::int64_t id = 0;
     std::int64_t position = 0;
     std::string name;
-    LayoutTheme theme;
+    std::vector<std::string> themes = {};
     std::vector<LayoutPaneSettings> panes = {};
-    /// Version 2: each layout says its id beside its place.
-    ZEN_SHAPE(LayoutSettings, 2, ZEN_FIELD(id), ZEN_FIELD(position), ZEN_FIELD(name),
-              ZEN_FIELD(theme), ZEN_FIELD(panes));
+    /// Version 3: a layout says the themes it wears, where version 2 said its baseline.
+    ZEN_SHAPE(LayoutSettings, 3, ZEN_FIELD(id), ZEN_FIELD(position), ZEN_FIELD(name),
+              ZEN_FIELD(themes), ZEN_FIELD(panes));
     friend bool operator==(const LayoutSettings&, const LayoutSettings&) = default;
 };
 
-/// WHAT A PANE OR A ROLE TAKES: a pane's counted declaration with `workshop.skin` first, or, with
-/// `pane` empty, a role's role-wide rows.
+/// WHAT A PANE OR A ROLE TAKES: a pane's counted declaration, or, with `pane` empty, a role's
+/// role-wide rows.
 struct DeclaredSettings {
     std::string provider;
     std::string pane;
@@ -377,7 +379,8 @@ struct LayoutSettingsAnswered {
     std::vector<LayoutSettings> layouts = {};
     std::vector<DeclaredSettings> declared = {};
     std::vector<SettingLock> everywhere = {};
-    ZEN_SHAPE(LayoutSettingsAnswered, 1, ZEN_FIELD(revision), ZEN_FIELD(active),
+    /// Version 2: each layout says the themes it wears and each row the theme beside it.
+    ZEN_SHAPE(LayoutSettingsAnswered, 2, ZEN_FIELD(revision), ZEN_FIELD(active),
               ZEN_FIELD(layouts), ZEN_FIELD(declared), ZEN_FIELD(everywhere));
     friend bool operator==(const LayoutSettingsAnswered&, const LayoutSettingsAnswered&) = default;
 };
@@ -398,25 +401,34 @@ struct SettingWrite {
               ZEN_FIELD(flag), ZEN_FIELD(number), ZEN_FIELD(text), ZEN_FIELD(clear));
 };
 
-/// ONE LAYOUT'S BASELINE, written to the layout whose id is `layout` (0 the live one): a name of ""
-/// removes it.
-struct LayoutThemeWrite {
+/// THE THEMES ONE LAYOUT WEARS, bottom first, written whole to the layout whose id is `layout` (0
+/// the live one): none wears the pool's own look.
+struct LayoutThemesWrite {
     std::int64_t layout = 0;
-    LayoutTheme theme;
-    /// Version 2: `layout` is a layout's id, 0 the live one; version 1 named its place.
-    ZEN_SHAPE(LayoutThemeWrite, 2, ZEN_FIELD(layout), ZEN_FIELD(theme));
+    std::vector<std::string> themes = {};
+    ZEN_SHAPE(LayoutThemesWrite, 1, ZEN_FIELD(layout), ZEN_FIELD(themes));
 };
 
-/// MANY WRITES AND BASELINES AT THE REVISION THE LAYOUTS WERE READ AT, judged whole before
-/// anything is written; `cause` is what the band says they were.
+/// THE THEME ONE ROW KEEPS BESIDE IT, laid over its layout's for that pane alone, written to row
+/// `<role>/<pane>` of the layout whose id is `layout` (0 the live one): "" removes it.
+struct RowThemeWrite {
+    std::int64_t layout = 0;
+    std::string target;
+    std::string theme;
+    ZEN_SHAPE(RowThemeWrite, 1, ZEN_FIELD(layout), ZEN_FIELD(target), ZEN_FIELD(theme));
+};
+
+/// MANY WRITES, LAYOUTS' THEMES AND ROWS' THEMES AT THE REVISION THE LAYOUTS WERE READ AT, judged
+/// whole before anything is written; `cause` is what the band says they were.
 struct SettingsWriteRequested {
     std::int64_t revision = 0;
     std::vector<SettingWrite> writes = {};
-    std::vector<LayoutThemeWrite> baselines = {};
+    std::vector<LayoutThemesWrite> themes = {};
+    std::vector<RowThemeWrite> rows = {};
     std::string cause;
-    /// Version 2: its writes and baselines name layouts by id.
-    ZEN_SHAPE(SettingsWriteRequested, 2, ZEN_FIELD(revision), ZEN_FIELD(writes),
-              ZEN_FIELD(baselines), ZEN_FIELD(cause));
+    /// Version 3: a layout's themes and a row's theme, where version 2 wrote a baseline.
+    ZEN_SHAPE(SettingsWriteRequested, 3, ZEN_FIELD(revision), ZEN_FIELD(writes),
+              ZEN_FIELD(themes), ZEN_FIELD(rows), ZEN_FIELD(cause));
 };
 
 /// What one write came to, by its word.

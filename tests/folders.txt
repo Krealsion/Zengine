@@ -32,8 +32,8 @@ notices           feature
 operator          library
 persist           library
 quarry            quarry
-settings          feature
 terminal          feature
+theme             feature
 tests             tests
 timer             library
 tools             tools

@@ -36,12 +36,10 @@ namespace gfx = zengine::graphics;
 namespace view = zengine::view;
 namespace flow_host = zengine::flow_host;
 
-/// The palette of the shipped theme `app.json` names, if it names one; `classic` is another name
-/// for `night`.
+/// The palette of the shipped theme `app.json` names, if it names one.
 std::optional<gfx::PaletteOffered> shipped_palette(const std::string& name) {
-    const std::string wanted = name == "classic" ? std::string("night") : name;
     for (gfx::PaletteOffered& p : gfx::themes::shipped()) {
-        if (p.palette == wanted) {
+        if (p.palette == name) {
             return std::move(p);
         }
     }
@@ -206,14 +204,14 @@ private:
         const auto to_directory = [&mail](const auto& said) {
             (void)mail.as_role(app::kAppRole).send_to_role(gfx::kGraphicsRole, said);
         };
-        // The palette app.json names, or, where it names none of the shipped themes or could not be
+        // The theme app.json names, or, where it names none of the shipped themes or could not be
         // read, the one its window's medium reads best in, so the app's line can still say why.
-        const std::string& named = file_.window.skin;
+        const std::string& named = file_.window.theme;
         std::optional<gfx::PaletteOffered> palette = shipped_palette(named);
         if (!palette) {
             palette = shipped_palette(window_.window == gfx::kTuiWindow ? "night" : "day");
             if (read_) {
-                say("app.json names the palette '" + named + "'; a window wears night, day " +
+                say("app.json names the theme '" + named + "'; a window wears night, day " +
                     "or block");
             }
         }

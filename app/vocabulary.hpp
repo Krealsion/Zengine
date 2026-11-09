@@ -58,15 +58,16 @@ struct AppPlaceSaid {
 // ---- app.json ------------------------------------------------------------------------------
 
 /// The app's window as `app.json` writes it: its title and its size in pixels, which the app's
-/// weave says to the window it arranges in (`WindowShaped`), and `skin`, the shipped palette its
-/// areas wear (`night`, `day` or `block`; `classic` is another name for `night`).
+/// weave says to the window it arranges in (`WindowShaped`), and `theme`, the shipped theme its
+/// areas wear (`night`, `day` or `block`).
 struct ZengineAppWindow {
     std::string title;
     std::int64_t width = 0;
     std::int64_t height = 0;
-    std::string skin;
-    ZEN_SHAPE(ZengineAppWindow, 1, ZEN_FIELD(title), ZEN_FIELD(width), ZEN_FIELD(height),
-              ZEN_FIELD(skin));
+    std::string theme;
+    /// Version 2: the window names the theme its areas wear, where version 1 named a skin.
+    ZEN_SHAPE(ZengineAppWindow, 2, ZEN_FIELD(title), ZEN_FIELD(width), ZEN_FIELD(height),
+              ZEN_FIELD(theme));
 };
 
 /// One view the app runs: its description's file in the app's folder, the session it runs in, and
@@ -93,9 +94,44 @@ struct ZengineAppFile {
     ZengineAppWindow window;
     std::vector<ZengineAppView> views;
     std::vector<ZengineAppFlow> flows;
+    /// Version 2: its window names a theme.
+    ZEN_SHAPE(ZengineAppFile, 2, ZEN_FIELD(name), ZEN_FIELD(window), ZEN_FIELD(views),
+              ZEN_FIELD(flows));
+};
+
+namespace v1 {
+
+/// The window as version 1 wrote it: a skin where version 2 names a theme, `classic` another
+/// name for `night`.
+struct ZengineAppWindow {
+    std::string title;
+    std::int64_t width = 0;
+    std::int64_t height = 0;
+    std::string skin;
+    ZEN_SHAPE(ZengineAppWindow, 1, ZEN_FIELD(title), ZEN_FIELD(width), ZEN_FIELD(height),
+              ZEN_FIELD(skin));
+};
+
+/// `app.json` as version 1 wrote it, read as version 2 holds it.
+struct ZengineAppFile {
+    std::string name;
+    ZengineAppWindow window;
+    std::vector<app::ZengineAppView> views;
+    std::vector<app::ZengineAppFlow> flows;
     ZEN_SHAPE(ZengineAppFile, 1, ZEN_FIELD(name), ZEN_FIELD(window), ZEN_FIELD(views),
               ZEN_FIELD(flows));
 };
+
+/// Version 1's file as version 2 holds it: its skin the theme its areas wear.
+inline app::ZengineAppFile to_current(const ZengineAppFile& old) {
+    return app::ZengineAppFile{
+        old.name,
+        app::ZengineAppWindow{old.window.title, old.window.width, old.window.height,
+                              old.window.skin == "classic" ? std::string("night") : old.window.skin},
+        old.views, old.flows};
+}
+
+} // namespace v1
 
 } // namespace zengine::app
 

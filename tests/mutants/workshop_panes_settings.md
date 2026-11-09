@@ -150,3 +150,27 @@ Red in `zengine-workshop-panes-tests`:
 
 - a layout is named by its id: a lock by id lands on it after it moved, and two layouts of one name
   keep their own
+
+## skin-still-taken
+
+The retired key is taken among a row's settings again, so a commit of it is written.
+
+In `workshop/setup.hpp`:
+
+```diff
+-        if (is_desk_setting_key(s.key)) {
++        if (is_desk_setting_key(s.key) && s.key != "workshop.skin") {
+```
+
+In `workshop/layouts/store.cpp`:
+
+```diff
+-    return row_named(counted(ref), key);
++    static const v2::PaneSettingRow skin = [] { v2::PaneSettingRow r{}; r.key = "workshop.skin"; return r; }();
++    return key == "workshop.skin" ? &skin : row_named(counted(ref), key);
+```
+
+Red in `zengine-workshop-panes-tests`:
+
+- a row keeps no `workshop.` key among its settings: its theme stands beside them, a commit of
+  `workshop.skin` is refused, and a version-7 setup's is read as the row's theme

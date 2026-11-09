@@ -1,14 +1,14 @@
 {
   "zen": 1,
   "schema": "ZengineAppFile",
-  "version": 1,
+  "version": 2,
   "fields": {
     "name": "tally",
     "window": {
       "title": "tally",
       "width": "320",
       "height": "260",
-      "skin": "day"
+      "theme": "day"
     },
     "views": [
       {

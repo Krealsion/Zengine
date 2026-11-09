@@ -58,27 +58,42 @@ struct TextMeasure {
 };
 
 /// HOW A WINDOW SETS TEXT IN ONE FONT AT ONE SIZE: the pool font's and size's names (or a slot's,
-/// for its owner), the points the size stands at, and the advance from one column to the next and
-/// the height of a line, in pixels. A window of characters sets every size in its cell.
+/// for its owner), the style it is the measure of ("" for a size alone), the points the size stands
+/// at, and the advance from one column to the next and the height of a line, in pixels. A window of
+/// characters sets every size in its cell.
 struct TextMeasured {
     std::string font;
     std::string size;
+    std::string style{};
     std::int64_t points = 0;
     std::int64_t advance = 0, line = 0;
-    ZEN_SHAPE(TextMeasured, 1, ZEN_FIELD(font), ZEN_FIELD(size), ZEN_FIELD(points),
-              ZEN_FIELD(advance), ZEN_FIELD(line));
+    /// Version 2: a measure names the style it is the measure of.
+    ZEN_SHAPE(TextMeasured, 2, ZEN_FIELD(font), ZEN_FIELD(size), ZEN_FIELD(style),
+              ZEN_FIELD(points), ZEN_FIELD(advance), ZEN_FIELD(line));
     TextMeasure measure() const { return TextMeasure{advance, line}; }
     friend bool operator==(const TextMeasured&, const TextMeasured&) = default;
 };
 
-/// The measure a list says for a pool size (`size`, "" the pool's `body`) in the pool's `text`
-/// font, or `otherwise` where it says none.
+/// The measure a list says for a pool size in the pool's `text` font, or `otherwise` where it says
+/// none (or `size` is "").
 inline TextMeasure measure_of_size(const std::vector<TextMeasured>& measures,
                                    const std::string& size, const TextMeasure& otherwise) {
-    const std::string want = size.empty() ? std::string("body") : size;
     for (const TextMeasured& m : measures) {
-        if (m.size == want && (m.font.empty() || m.font == "text") && m.advance > 0 &&
-            m.line > 0) {
+        if (!size.empty() && m.style.empty() && m.size == size &&
+            (m.font.empty() || m.font == "text") && m.advance > 0 && m.line > 0) {
+            return m.measure();
+        }
+    }
+    return otherwise;
+}
+
+/// The measure a list says for a pool style (`style`, "" the pool's `body`), or `otherwise` where
+/// it says none.
+inline TextMeasure measure_of_style(const std::vector<TextMeasured>& measures,
+                                    const std::string& style, const TextMeasure& otherwise) {
+    const std::string want = style.empty() ? std::string("body") : style;
+    for (const TextMeasured& m : measures) {
+        if (m.style == want && m.advance > 0 && m.line > 0) {
             return m.measure();
         }
     }
@@ -371,7 +386,8 @@ struct WindowOffered {
     std::int64_t cell_px = 0;
     std::int64_t text_advance_px = 0, text_line_px = 0;
     std::vector<TextMeasured> measures{};
-    ZEN_SHAPE(WindowOffered, 4, ZEN_FIELD(window), ZEN_FIELD(width), ZEN_FIELD(height),
+    /// Version 5: its measures name the style each measures.
+    ZEN_SHAPE(WindowOffered, 5, ZEN_FIELD(window), ZEN_FIELD(width), ZEN_FIELD(height),
               ZEN_FIELD(epoch), ZEN_FIELD(cell_px), ZEN_FIELD(text_advance_px),
               ZEN_FIELD(text_line_px), ZEN_FIELD(measures));
 };
@@ -426,18 +442,36 @@ struct AreaPlaced {
               ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text));
 };
 
-/// One named colour of a palette: its 0xRRGGBBAA; what a terminal shows where it cannot show that
-/// colour (`terminal default`, the terminal's default ink, or one of its sixteen, perhaps `bright`, perhaps `bold`;
-/// "" its nearest); and the character a terminal fills a shape with in it ("" the palette's `text`
-/// fill).
+/// One named colour of a palette, as a window of light paints it: its 0xRRGGBBAA. What a terminal
+/// shows for it is the palette's terminal look's.
 struct PaletteColor {
     std::string name;
     std::int64_t rgba = 0;
-    std::string cells;
-    std::string fill;
-    ZEN_SHAPE(PaletteColor, 1, ZEN_FIELD(name), ZEN_FIELD(rgba), ZEN_FIELD(cells),
-              ZEN_FIELD(fill));
+    /// Version 2: a colour is its colour alone; its ink and fill are the terminal look's.
+    ZEN_SHAPE(PaletteColor, 2, ZEN_FIELD(name), ZEN_FIELD(rgba));
     friend bool operator==(const PaletteColor&, const PaletteColor&) = default;
+};
+
+/// One colour of a terminal look, by its name: the ink a terminal shows it in (`terminal default`,
+/// the terminal's default ink and ground, or one of its sixteen, perhaps `bright`, perhaps `bold`;
+/// "" the nearest of the sixteen to the colour the window paints it) and the character it fills a
+/// shape with ("" the look's `text` fill).
+struct TerminalInk {
+    std::string name;
+    std::string ink;
+    std::string fill;
+    ZEN_SHAPE(TerminalInk, 1, ZEN_FIELD(name), ZEN_FIELD(ink), ZEN_FIELD(fill));
+    friend bool operator==(const TerminalInk&, const TerminalInk&) = default;
+};
+
+/// A TERMINAL'S LOOK, its own and nothing of a window of light's: each colour's ink and fill by the
+/// colour's name, and the border characters, a corner, across and down ("" the terminal's own).
+/// What it names none of, the terminal window's defaults give.
+struct TerminalLook {
+    std::vector<TerminalInk> inks;
+    std::string borders;
+    ZEN_SHAPE(TerminalLook, 1, ZEN_FIELD(inks), ZEN_FIELD(borders));
+    friend bool operator==(const TerminalLook&, const TerminalLook&) = default;
 };
 
 /// One text size of a palette: its name and the points it stands at.
@@ -457,30 +491,87 @@ struct PaletteFont {
     friend bool operator==(const PaletteFont&, const PaletteFont&) = default;
 };
 
-/// One role's slots in a palette: the colours and the text sizes it sets for the slots that
-/// role exposes.
-struct PaletteSlots {
+/// One style of a palette: its name, the font, size and colour it sets text in, each a root's name,
+/// and its weight (`text_weight::kRegular` or `kBold`).
+struct PaletteStyle {
+    std::string name;
+    std::string font;
+    std::string size;
+    std::string color;
+    std::int64_t weight = 0;
+    ZEN_SHAPE(PaletteStyle, 1, ZEN_FIELD(name), ZEN_FIELD(font), ZEN_FIELD(size),
+              ZEN_FIELD(color), ZEN_FIELD(weight));
+    friend bool operator==(const PaletteStyle&, const PaletteStyle&) = default;
+};
+
+/// One role's own values in a palette: the colours, text sizes and styles it sets for the own
+/// values that role declares.
+struct OwnValues {
     std::string role;
     std::vector<PaletteColor> colors;
     std::vector<PaletteSize> sizes{};
-    ZEN_SHAPE(PaletteSlots, 3, ZEN_FIELD(role), ZEN_FIELD(colors), ZEN_FIELD(sizes));
-    friend bool operator==(const PaletteSlots&, const PaletteSlots&) = default;
+    std::vector<PaletteStyle> styles{};
+    ZEN_SHAPE(OwnValues, 1, ZEN_FIELD(role), ZEN_FIELD(colors), ZEN_FIELD(sizes),
+              ZEN_FIELD(styles));
+    friend bool operator==(const OwnValues&, const OwnValues&) = default;
+};
+
+/// What kind of value an own value is.
+namespace own_kind {
+inline constexpr const char* kColor = "color";
+inline constexpr const char* kSize = "size";
+inline constexpr const char* kStyle = "style";
+} // namespace own_kind
+
+/// ONE OWN VALUE AS ITS PANE DECLARES IT: its name, its kind (`own_kind::`), and its default --
+/// a pool root's or style's name, or an exact colour (`rgba`) or size (`points`) where it names
+/// none.
+struct OwnDeclared {
+    std::string name;
+    std::string kind;
+    std::string default_name;
+    std::int64_t rgba = 0;
+    std::int64_t points = 0;
+    ZEN_SHAPE(OwnDeclared, 1, ZEN_FIELD(name), ZEN_FIELD(kind), ZEN_FIELD(default_name),
+              ZEN_FIELD(rgba), ZEN_FIELD(points));
+    friend bool operator==(const OwnDeclared&, const OwnDeclared&) = default;
+};
+
+/// The most own values one role declares.
+inline constexpr std::size_t kMaxOwnValues = 64;
+
+/// A pane -> whoever offers palettes, published as the pane's role on each activation and when
+/// asked: the own values it declares, whole, so a theme naming them is judged. A window needs none
+/// of it: each draw carries its own value's default.
+struct OwnValuesDeclared {
+    std::vector<OwnDeclared> values;
+    ZEN_SHAPE(OwnValuesDeclared, 1, ZEN_FIELD(values));
+    friend bool operator==(const OwnValuesDeclared&, const OwnValuesDeclared&) = default;
+};
+
+/// Whoever offers palettes -> any, on each of its activations: say your own values again.
+struct OwnValuesAsked {
+    ZEN_SHAPE(OwnValuesAsked, 1);
 };
 
 /// Whoever offers palettes -> the directory, and the directory -> each window: a palette, whole,
-/// at a revision -- its pool colours, each role's slots, and a terminal's outline characters
-/// (a corner, across and down). Offered again whole at a higher revision when anything in it
-/// changes: a window repaints every area wearing it from what it keeps, and no owner is told.
+/// at a revision -- its pool colours, fonts, sizes and styles, each role's own values, and the
+/// terminal's look. Offered again whole at a higher revision when anything in it changes: a window
+/// repaints every area wearing it from what it keeps, and no owner is told.
 struct PaletteOffered {
     std::string palette;
     std::int64_t revision = 0;
     std::vector<PaletteColor> colors;
     std::vector<PaletteFont> fonts{};
     std::vector<PaletteSize> sizes{};
-    std::vector<PaletteSlots> slots;
-    std::string outline = "+-|";
-    ZEN_SHAPE(PaletteOffered, 3, ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(colors),
-              ZEN_FIELD(fonts), ZEN_FIELD(sizes), ZEN_FIELD(slots), ZEN_FIELD(outline));
+    std::vector<PaletteStyle> styles{};
+    std::vector<OwnValues> own;
+    TerminalLook terminal{};
+    /// Version 4: a palette carries the pool's styles, each role's own values, and the terminal's
+    /// look of its own.
+    ZEN_SHAPE(PaletteOffered, 4, ZEN_FIELD(palette), ZEN_FIELD(revision), ZEN_FIELD(colors),
+              ZEN_FIELD(fonts), ZEN_FIELD(sizes), ZEN_FIELD(styles), ZEN_FIELD(own),
+              ZEN_FIELD(terminal));
     friend bool operator==(const PaletteOffered&, const PaletteOffered&) = default;
 };
 
@@ -551,20 +642,26 @@ struct AreaRoom {
     std::int64_t cell_px = 0;
     std::int64_t text_advance_px = kCellPx, text_line_px = kCellPx;
     std::vector<TextMeasured> measures{};
-    ZEN_SHAPE(AreaRoom, 5, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
+    /// Version 6: its measures name the style each measures.
+    ZEN_SHAPE(AreaRoom, 6, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
               ZEN_FIELD(h), ZEN_FIELD(elements), ZEN_FIELD(empty), ZEN_FIELD(cell_px),
               ZEN_FIELD(text_advance_px), ZEN_FIELD(text_line_px), ZEN_FIELD(measures));
 
-    /// How the window sets text at the pool's `body`: its measure, or the cell's where it said
-    /// none.
+    /// How the window sets text in the pool's `body` style: its measure, or the cell's where it
+    /// said none.
     TextMeasure measure() const {
         return TextMeasure{text_advance_px > 0 ? text_advance_px : kCellPx,
                            text_line_px > 0 ? text_line_px : kCellPx};
     }
-    /// ...and at the pool size `size` ("" the pool's `body`), in the pool's `text` font: the
-    /// measure the window said for it, or the body's where it said none.
+    /// ...and at the pool size `size`, in the pool's `text` font: the measure the window said for
+    /// it, or the body's where it said none.
     TextMeasure measure(const std::string& size) const {
         return measure_of_size(measures, size, measure());
+    }
+    /// ...and in the pool style `style` ("" the pool's `body`): the measure the window said for it,
+    /// or the body's where it said none.
+    TextMeasure measure_style(const std::string& style) const {
+        return measure_of_style(measures, style, measure());
     }
 };
 

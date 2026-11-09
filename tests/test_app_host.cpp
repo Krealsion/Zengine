@@ -257,7 +257,7 @@ TEST_CASE("the tally app's view and flow are the bytes its tool writes from the 
     const app::ReadApp read = app::read_app((fs::path(TALLY_APP_DIR) / app::kAppFileName).string());
     REQUIRE_MESSAGE(read.ok, read.refusal);
     CHECK(read.app.name == "tally");
-    CHECK(read.app.window.skin == "day");
+    CHECK(read.app.window.theme == "day");
     REQUIRE(read.app.views.size() == 1);
     CHECK(read.app.views[0].file == "tally.view");
     CHECK(read.app.views[0].x == 8);
@@ -273,6 +273,12 @@ TEST_CASE("app.json names files in the app's own folder, and a file it cannot re
                R"(","session":"s","x":"0","y":"0"}],"flows":[]}})";
     };
     CHECK(app::app_from_text(with_view("ok.view")).ok);
+    // A FILE OF VERSION 1 names a skin: read as the theme its areas wear, `classic` as `night`.
+    CHECK(app::app_from_text(with_view("ok.view")).app.window.theme == "day");
+    const std::string classic = R"({"zen":1,"schema":"ZengineAppFile","version":1,"fields":{"name":"x",)"
+                                R"("window":{"title":"","width":"0","height":"0","skin":"classic"},)"
+                                R"("views":[],"flows":[]}})";
+    CHECK(app::app_from_text(classic).app.window.theme == "night");
     for (const char* outside : {"../x.view", "a/b.view", "C:x.view", "..", ""}) {
         const app::ReadApp read = app::app_from_text(with_view(outside));
         CHECK_FALSE(read.ok);

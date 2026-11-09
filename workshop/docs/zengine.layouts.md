@@ -1,7 +1,7 @@
 # zengine.layouts -- the layouts
 
 **Manual.** The role that holds every layout of the run, the live one included, and what each
-keeps for itself -- its rows' settings, its locks, its pins and its theme baseline -- beside what
+keeps for itself -- its rows' settings and themes, its locks, its pins and the themes it wears -- beside what
 holds in every layout: each role's role-wide settings, the everywhere locks and the
 Workshop-wide pin lists. It is the one writer and the one judge of all of it. Workshop mounts it in
 its own process, answering to the role `zengine.layouts`, and never replaces it; it is not a file
@@ -66,8 +66,8 @@ the layouts have moved past is refused, `stale revision <n> -- ... stands at <m>
 revision the asker read.
 
 - **Takes:** `provider`, `pane`, `revision`, `key`, and the value in its kind's one field --
-  `flag`, `number` or `text` -- or `clear` and no field for the setting's default. Every row takes
-  `workshop.skin`, the skin of the pane's graphics area, which the pane is never handed.
+  `flag`, `number` or `text` -- or `clear` and no field for the setting's default. A row's theme
+  is no setting: [`SettingsWriteRequested`](#settingswriterequested) writes it.
 - **Answers:** `PaneSettingCommitAnswered{accepted, refusal, revision, handed}`, to the asker alone:
   the row's revision after the write, or as it stood. Workshop's band says `committed <key> of
   <pane> = <value>` and how far the hand-off got.
@@ -154,31 +154,34 @@ order.
 
 - **Takes:** nothing.
 - **Answers:** `LayoutSettingsAnswered{revision, active, layouts, declared, everywhere}`, to the
-  asker alone: each layout's `id`, place, name, baseline theme (`name` and `fingerprint`, a name of
-  "" for none) and rows, each row's `settings` and `locked` keys there; what each pane's counted
-  declaration takes, `workshop.skin` first, and each role's role-wide rows, with `pane` empty;
+  asker alone: each layout's `id`, place, name, the `themes` it wears, bottom first, and rows,
+  each row's `settings`, `locked` keys and `theme` there; what each pane's counted declaration
+  takes, and each role's role-wide rows, with `pane` empty;
   the everywhere locks; the live layout's place; and the `revision` it all stands at.
 - **Refuses:** an empty reading at `revision` 0, to an asker the settings doors do not serve.
 - **Example:** `ask @zengine.layouts LayoutSettingsRequested 1`.
 
 ### `SettingsWriteRequested`
 
-`SettingsWriteRequested` v2 writes many settings across layouts, and layouts' baselines, at the
-revision the asker read.
+`SettingsWriteRequested` v3 writes many settings across layouts, layouts' themes and rows'
+themes, at the revision the asker read.
 
 - **Takes:** `revision`; `writes`, each a `layout` (an id, `0` the live one; not read for a
-  role), `target`, `key` and a value in its kind's one field or `clear`; `baselines`, each a
-  `layout` and a `theme`, a name of "" removing it; `cause`, what the band says the batch was.
+  role), `target`, `key` and a value in its kind's one field or `clear`; `themes`, each a `layout`
+  and the `themes` it wears, bottom first, none for the pool's own look; `rows`, each a `layout`, a
+  `target` `<role>/<pane>` and the `theme` laid over the layout's for that pane, "" removing it;
+  `cause`, what the band says the batch was.
 - **Answers:** `SettingsWriteAnswered{accepted, refusal, revision, results, handed}`, to the asker
   alone: each write's `outcome` -- `written`, `unchanged`, or passed over as `locked`, `not-taken`
   or `not-in-layout` -- with why; the revision after it; and the live rows and roles handed or
-  applied. A baseline is kept in its layout.
+  applied. A layout's themes are kept in its layout, and a row's theme beside its row.
 - **Refuses:** whole, writing nothing: `settings writes withheld: <why>`; `stale revision <n> --
   the layouts stand at <m>; read them again`; a batch past its bound; `write <i>: <why>`;
-  `baseline <i>: <why>`; `nothing written: Workshop's settings file was not written -- <why>`.
-- **Example:** a script applying a theme to every layout reads
+  `themes <i>: <why>`; `row theme <i>: <why>`; `nothing written: Workshop's settings file was
+  not written -- <why>`.
+- **Example:** a script wearing `block` over every layout's themes reads
   [`LayoutSettingsRequested`](#layoutsettingsrequested), then sends one batch naming the revision
-  it read, a write per row the theme names and a baseline per layout.
+  it read, a `themes` entry per layout.
 
 ### `SetupApplyRequested`
 

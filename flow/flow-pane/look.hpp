@@ -12,7 +12,7 @@
 #include "graphics/ops.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
-#include "flow/flow-pane/slots.hpp" // generated from slots.json: Flow's own colours
+#include "graphics/own.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_picture.hpp"
@@ -32,10 +32,24 @@ namespace gfx = zengine::graphics;
 namespace ink = zengine::graphics::colors;
 
 /// FLOW'S COLOURS, by use: each a name the window paints as the area's palette says. The three parts
-/// of a rule's sentence and their outlines are Flow's own slots (`slots.json`); every other colour
-/// is the shared pool's, so a theme that sets the pool sets Flow with every other pane.
+/// of a rule's sentence and their outlines are Flow's own values, declared here with their
+/// defaults; every other colour is the shared pool's, so a theme that sets the pool sets Flow with
+/// every other pane.
 namespace hue {
-namespace own = zengine::flow_pane::slots;
+namespace own {
+/// a message, in the rule and on the graph
+inline const gfx::Color message = gfx::own("message", gfx::rgb(0xebcb8b, ink::accent));
+/// what the rule keeps
+inline const gfx::Color kept = gfx::own("kept", gfx::rgb(0x8fbcbb, ink::accent));
+/// wires, ports and steps
+inline const gfx::Color wire = gfx::own("wire", gfx::rgb(0x88c0d0, ink::accent));
+/// a message part's outline
+inline const gfx::Color message_rim = gfx::own("message_rim", gfx::rgb(0x8b7e63, ink::quiet));
+/// a kept part's outline
+inline const gfx::Color kept_rim = gfx::own("kept_rim", gfx::rgb(0x5d767b, ink::quiet));
+/// a step part's outline
+inline const gfx::Color step_rim = gfx::own("step_rim", gfx::rgb(0x5a7886, ink::quiet));
+} // namespace own
 inline gfx::Color body() { return ink::background; }  ///< the pane's ground
 inline gfx::Color field() { return ink::field; }      ///< a field, a chip, the Next line
 inline gfx::Color well() { return ink::field; }       ///< the graph's ground
@@ -72,6 +86,12 @@ inline gfx::Color warn() { return ink::warn; }       ///< what must come first
 inline gfx::Color gold() { return ink::primary; }
 inline gfx::Color on_gold() { return ink::on_primary; }
 inline gfx::Color gilt() { return ink::secondary; }
+
+/// FLOW'S OWN VALUES, as it declares them to whoever offers palettes.
+inline gfx::OwnValuesDeclared declared() {
+    return gfx::declared(
+        {own::message, own::kept, own::wire, own::message_rim, own::kept_rim, own::step_rim});
+}
 } // namespace hue
 
 /// THE ROOM'S MEASURES, as a picture is laid out in them: a character's advance and a line's

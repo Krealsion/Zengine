@@ -9,6 +9,7 @@
 // canonical bytes, never as messages: an event for an element's code and what came of it.
 // Reference: graphics/docs/graphics.md.
 
+#include "graphics/text_style.hpp"
 #include "graphics/vocabulary.hpp"
 
 #include <zen/value.hpp>
@@ -36,8 +37,9 @@ struct PaintInk {
 /// A node as a painter needs it: its place in the area's paint order (its ancestors' ranks, then
 /// its own), its operator and operands' body, the colours its operands name as the window resolved
 /// them, in the order `colors_of` gives (graphics/ops.hpp), and for a text the font, size and
-/// measure the window resolved its size and font to (`face`, the face's family; none, all zero,
-/// where the task's measure stands). A painter reads its colours from `inks` alone, and a text's
+/// measure the window resolved its style, size and font to (`face`, the face's family; none, all
+/// zero, where the task's measure stands) and its weight (`text_weight::kOfStyle` where the window
+/// resolved none: the operands' own). A painter reads its colours from `inks` alone, and a text's
 /// measure from `text` where it holds one.
 struct PaintNode {
     std::string path;
@@ -47,8 +49,15 @@ struct PaintNode {
     std::vector<PaintInk> inks;
     TextMeasured text{};
     std::string face{};
-    ZEN_SHAPE(PaintNode, 3, ZEN_FIELD(path), ZEN_FIELD(key), ZEN_FIELD(op), ZEN_FIELD(args),
-              ZEN_FIELD(inks), ZEN_FIELD(text), ZEN_FIELD(face));
+    std::int64_t weight = text_weight::kOfStyle;
+    /// Version 4: a text says the weight its style resolved to.
+    ZEN_SHAPE(PaintNode, 4, ZEN_FIELD(path), ZEN_FIELD(key), ZEN_FIELD(op), ZEN_FIELD(args),
+              ZEN_FIELD(inks), ZEN_FIELD(text), ZEN_FIELD(face), ZEN_FIELD(weight));
+
+    /// The weight a text is set at: the one the window resolved, else the operands' own.
+    std::int64_t weight_of(std::int64_t operands) const {
+        return weight != text_weight::kOfStyle ? weight : operands;
+    }
 };
 
 /// Window -> painter: paint these nodes, each with every ancestor present, at this many pixels a
@@ -64,7 +73,7 @@ struct PaintTask {
     PaintInk plain;
     PaintInk quiet;
     std::string outline = "+-|";
-    ZEN_SHAPE(PaintTask, 4, ZEN_FIELD(nodes), ZEN_FIELD(grain), ZEN_FIELD(text_advance),
+    ZEN_SHAPE(PaintTask, 5, ZEN_FIELD(nodes), ZEN_FIELD(grain), ZEN_FIELD(text_advance),
               ZEN_FIELD(text_line), ZEN_FIELD(plain), ZEN_FIELD(quiet), ZEN_FIELD(outline));
 };
 

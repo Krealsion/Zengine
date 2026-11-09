@@ -131,22 +131,25 @@ kPreparedClaimBeats             timer/vocabulary.hpp                      kPrepa
 kMaxHandoffEntries              timer/vocabulary.hpp                      kMaxHandoffEntries
 kBeatCapMs                      timer/vocabulary.hpp                      kBeatCapMs
 
-# ---- settings: the theme file
-# What one theme file holds and what one resolution may spend: the version the file and its
-# envelope share, a name's, a summary's and a target's length, the settings, keys and includes in a
-# file and its bytes, and the themes, include depth and entries of one resolution. Each is read
-# from settings/theme_persist.hpp, the one place it is set; settings/README.md marks the bounds.
-kThemeFormatVersion             settings/theme_persist.hpp                kThemeFormatVersion
-kMaxThemeNameLen                settings/theme_persist.hpp                kMaxThemeNameLen
-kMaxThemeSummaryLen             settings/theme_persist.hpp                kMaxThemeSummaryLen
-kMaxThemeTargetLen              settings/theme_persist.hpp                kMaxThemeTargetLen
-kMaxThemeSettings               settings/theme_persist.hpp                kMaxThemeSettings
-kMaxThemeKeys                   settings/theme_persist.hpp                kMaxThemeKeys
-kMaxThemeIncludes               settings/theme_persist.hpp                kMaxThemeIncludes
-kMaxThemesResolved              settings/theme_persist.hpp                kMaxThemesResolved
-kMaxThemeDepth                  settings/theme_persist.hpp                kMaxThemeDepth
-kMaxResolvedEntries             settings/theme_persist.hpp                kMaxResolvedEntries
-kMaxThemeBytes                  settings/theme_persist.hpp                kMaxThemeBytes
+# ---- theme: a theme's files and a stack
+# What one theme's files hold and what one resolution and one stack may spend: each file's entries,
+# includes and bytes, a name's length, the themes and include depth of one resolution, and a stack's
+# themes and the stacks a host's areas wear. Each is read from theme/theme_persist.hpp or
+# theme/vocabulary.hpp, the one place it is set; theme/README.md marks the bounds.
+kMaxThemeColors                 theme/theme_persist.hpp                   kMaxThemeColors
+kMaxThemeFonts                  theme/theme_persist.hpp                   kMaxThemeFonts
+kMaxThemeSizes                  theme/theme_persist.hpp                   kMaxThemeSizes
+kMaxThemeStyles                 theme/theme_persist.hpp                   kMaxThemeStyles
+kMaxThemeOwnRoles               theme/theme_persist.hpp                   kMaxThemeOwnRoles
+kMaxThemeOwnEntries             theme/theme_persist.hpp                   kMaxThemeOwnEntries
+kMaxThemeInks                   theme/theme_persist.hpp                   kMaxThemeInks
+kMaxThemeIncludes               theme/theme_persist.hpp                   kMaxThemeIncludes
+kMaxThemeBytes                  theme/theme_persist.hpp                   kMaxThemeBytes
+kMaxThemeNameLen                theme/theme_persist.hpp                   kMaxThemeNameLen
+kMaxThemesResolved              theme/theme_persist.hpp                   kMaxThemesResolved
+kMaxThemeDepth                  theme/theme_persist.hpp                   kMaxThemeDepth
+kMaxStackThemes                 theme/stack_name.hpp                      kMaxStackThemes
+kMaxStacksWorn                  theme/stack_name.hpp                      kMaxStacksWorn
 
 # ---- carrying text
 kMaxCarryBytes                  workshop/pane_carry.hpp                   kMaxCarryBytes
@@ -217,10 +220,10 @@ name  zengine.powers             workshop/powers_vocabulary.hpp         kPowersR
 name  zengine.presenter          workshop/pane_vocabulary.hpp           kPresenterRole
 name  zengine.project            workshop/pane_seam_vocabulary.hpp      kProjectRole
 name  zengine.realization        builder/vocabulary.hpp                 kRealizationRole
-name  zengine.settings           settings/vocabulary.hpp                kSettingsRole
 name  zengine.sources            workshop/sample_vocabulary.hpp         kSampleRole
 name  zengine.terminal           terminal/vocabulary.hpp                kTerminalPaneRole
 copy  zengine.terminal           workshop/pane_seam_vocabulary.hpp      kTerminalRole
+name  zengine.theme              theme/vocabulary.hpp                   kThemeRole
 name  zengine.timer              timer/vocabulary.hpp                   kTimerRole
 name  zengine.view.builder       view/view-builder/vocabulary.hpp       kRole
 copy  zengine.view.builder       workshop/desktop-pane/desktop_common.hpp kViewBuilderRole

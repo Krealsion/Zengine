@@ -101,11 +101,21 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-12 — Version 13 gave each row its fold and dock, and a converted desk is open
 
-LAW — A version-12 session lands on version 13 by one direct edge, every desk and remembered value with each row open and undocked; version 12's shapes are copied verbatim into the history.
+LAW — A version-12 session lands on the current version by one direct edge, every desk and remembered value with each row open and undocked; version 12's shapes are copied verbatim into the history.
 
 MEANS
 - its ids, its next id and its choices cross as they were;
 - every older edge ends in the same step, so every vintage arrives open and undocked.
+
+WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
+
+## WL-MIG-13 — Version 14 gave each layout its themes and each row its theme
+
+LAW — A version-13 session lands on version 14 by one direct edge: each desk's baseline the bottom of the themes it wears, its fingerprint gone, and each row's `workshop.skin` its theme, `classic` as `night`.
+
+MEANS
+- its ids, its next id, its choices and every other field cross as they were;
+- every older edge ends in the same step, so no vintage keeps a baseline or a palette among a row's settings.
 
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
@@ -115,8 +125,8 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
   one version is admitted; an older file opens exactly when a conversion is mounted
   (WL-MIG-01, WL-MIG-06).
 - That a session format move implies a desk format move: the session is
-  <!-- value session_persist::kFormatVersion -->13<!-- /value --> and the desk is
-  <!-- value setup_persist::kFormatVersion -->7<!-- /value --> (WL-MIG-03).
+  <!-- value session_persist::kFormatVersion -->14<!-- /value --> and the desk is
+  <!-- value setup_persist::kFormatVersion -->8<!-- /value --> (WL-MIG-03).
 
 ## Proven by
 
@@ -134,7 +144,8 @@ session_v3_to_v4 session_v4_to_v5 session_v5_to_v6 session_v6_to_v7 session_v7_t
 session_v8_to_v9 session_v9_to_v10 session_v10_to_v11 v3::WorkshopSession v4::WorkshopSession
 v5::WorkshopSession v6::WorkshopSession v7::WorkshopSession v8::WorkshopSession v9::WorkshopSession
 v10::WorkshopSession session_v2_to_v3 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5 WorkshopSession
-desk_v5_to_v6 session_v11_to_v12 session_v11_to_v13 session_v12_to_v13 v12 v12::WorkshopSession
+desk_v5_to_v6 session_v11_to_v12 session_v11_to_v14 session_v12_to_v14 session_v13_to_v14 v12
+v12::WorkshopSession v13 v13::WorkshopSession
 `tests/test_workshop_persistence.cpp` "a retired shape's wire identity is the identity it was
 written at" "three DIRECT edges, and no chain to walk even if one wanted to" "a conversion owns
 yesterday's semantics and does not rewrite history" "a version-8 session converts with every field
@@ -203,8 +214,16 @@ v7::WorkshopSession WorkshopSession
 value keeping no settings"
 
 ### WL-MIG-12
-`workshop/layouts/session_history.hpp` v12 session_v12_to_v13 desk_v6_to_v7 v12::WorkshopSession
+`workshop/layouts/session_history.hpp` v12 session_v12_to_v14 desk_v6_to_current v12::WorkshopSession
 WorkshopSession kV12FormatVersion conversions
 `workshop/setup_persist.hpp` v6::to_current
 `tests/test_workshop_persistence.cpp` "a version-12 session reads with every row open and undocked,
-and saves as version 13" "the shipped artifact supplies exactly the conventional edges"
+and saves as the current version" "the shipped artifact supplies exactly the conventional edges"
+
+### WL-MIG-13
+`workshop/layouts/session_history.hpp` v13 session_v13_to_v14 desk_v7_to_current
+v13::WorkshopSession kV13FormatVersion conversions
+`workshop/setup_persist.hpp` v7 v7::to_current kRetiredSkinKey kRetiredClassic
+`tests/test_workshop_persistence.cpp` "a version-13 session reads each layout's baseline as the
+bottom of its themes and each row's `workshop.skin` as its theme, and saves as the current version"
+"the shipped artifact supplies exactly the conventional edges"

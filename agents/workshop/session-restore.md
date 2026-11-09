@@ -9,7 +9,7 @@ Retired: WL-SESSION-11, WL-SESSION-12.
 
 ## WL-SESSION-05 — The session holds the run of layouts, each with its id and association
 
-LAW — Version <!-- value session_persist::kFormatVersion -->13<!-- /value --> holds the weaver's order whole, each entry the id the layouts' owner minted, a desk and its link, the live layout's position, and the next id; the owner alone writes it.
+LAW — Version <!-- value session_persist::kFormatVersion -->14<!-- /value --> holds the weaver's order whole, each entry the id the layouts' owner minted, a desk and its link, the live layout's position, and the next id; the owner alone writes it.
 
 MEANS
 - an empty path is the absence with exactly one spelling; `link_in` refuses the half-association;

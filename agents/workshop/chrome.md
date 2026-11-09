@@ -102,13 +102,13 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
 
-## WL-CHROME-10 — Night, day and block are offered, and `classic` is night
+## WL-CHROME-10 — Night, day and block ship beside Workshop, and a layout of none wears night's look
 
-LAW — Workshop offers the directory three palettes, `night`, `day` and `block`, and its setting offers the same three; a `workshop.skin` naming `classic` is taken and wears night.
+LAW — `night`, `day` and `block` ship as themes beside Workshop, each a window file and a terminal file, which the theme role reads; a layout wearing no theme wears the pool's own look, night's.
 
 MEANS
-- a file that names `classic` reads as before, and a choice between `classic` and `night` moves no area;
-- `night` is the pool's own and Workshop's default; in a terminal its text and grounds are the terminal's default colours, a pane's frame grey, any other the nearest ink.
+- an older file naming `workshop.skin` reads as a theme: a row's as its row's theme, Workshop's own as the theme of each layout wearing none, `classic` as `night`;
+- in a terminal night's and day's text and grounds are the terminal's default colours, a pane's frame grey, any other the nearest ink; block gives each its own ink.
 
 DOES NOT MEAN
 - that `classic` is offered: no row, menu or directory lists it.
@@ -216,11 +216,14 @@ neither" "WL-KEY-16: the band's spelling and the Hotkeys view's are set apart fr
 each changing only its own surface, the `?` spelling as the Hotkeys view does"
 
 ### WL-CHROME-10
-`workshop/pane_settings.hpp` kSkinClassic workshop_palette_of is_workshop_skin_choice
-workshop_skin_setting_row pane_setting_refused_by
+`workshop/setup_persist.hpp` kRetiredSkinKey kRetiredClassic
+`workshop/prefs_persist.hpp` kRetiredSkinKey
 `workshop/weave_run.cpp` arrange_graphics
-`tests/test_workshop_desk.cpp` "each graphics area wears the palette its row's `workshop.skin` names,
-else Workshop's own, and a palette is said only when an area's moved"
+`tests/test_workshop_desk.cpp` "each graphics area wears the palette named for the live
+layout's themes, a pane's row's theme laid over them for its area and its frame alone, and a
+palette is said only when an area's moved"
+`tests/test_theme.cpp` "each shipped theme laid alone is the palette the build compiled from its
+two files, so no look changes when the theme weave paints it"
 `tests/test_graphics.cpp` "in a terminal night and day show their text and grounds in the terminal's
 default colours, a pane's frame grey and every other colour as the nearest of its sixteen inks; block
 keeps an ink of its own for each, its frame grey too"

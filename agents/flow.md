@@ -95,7 +95,7 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane menu
   opens where it landed.
 - Flow draws its own look (`flow/flow-pane/look.hpp`): its rule's three parts and their outlines
-  in slots of its own (`flow/flow-pane/slots.json`), every other colour a pool name, only the marks the graphics library draws, a part the rule still lacks dashed, and
+  in own values of its own (declared in `flow/flow-pane/look.hpp`), every other colour a pool name, only the marks the graphics library draws, a part the rule still lacks dashed, and
   in cells each medium's fallback. The rule's sentence and the Next line are read from the draft
   (`next.hpp`); the Events lines and the values on wires from the host's journal, read against
   the definition that runs (`observed.hpp`).
