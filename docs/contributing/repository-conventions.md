@@ -241,8 +241,12 @@ co-author line or an AI credit, for anyone. The reason:
 > you used. Take care in the work you do, and consider the reasons and outcomes of the choices
 > you make.
 
-`tests/check_commit_attribution.cmake` refuses every co-author line and the credit line on every
-commit it reads, and its refusal gives the same reason.
+`tests/check_commit_attribution.cmake` refuses, on every commit it reads, an author or
+committer that is an AI agent, every co-author line, and an assistant's credit: Claude
+Code's line, and a footer of links to an assistant's own pages, Cursor's among them.
+Prose that names an assistant passes. On a pull request the same check reads the title
+and the description, the text the merge copies into a commit. Its refusal names the
+commit and the identity, and gives the same reason.
 
 ## Licensing
 

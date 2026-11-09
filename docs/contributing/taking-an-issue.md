@@ -235,11 +235,11 @@ gh pr create --base main --title "<what is true now>" --body-file <file outside 
 - **Each commit is one coherent step**, its subject a sentence saying what is true after it, as
   the title does. The merge keeps every commit on `main`. A commit that changes a case a law cites
   lists the laws it re-verified ([ongoing rules](../../agents/workshop.md#ongoing-rules)).
-- **Each commit is authored by the person who makes it**, never by the AI agent they use, and no
-  commit or body carries a co-author line or an AI credit
-  ([attribution](repository-conventions.md#attribution)). The body becomes the merge commit's
-  message, which [the attribution guard](../../tests/check_commit_attribution.cmake) reads on
-  `main`.
+- **Each commit is authored by the person who makes it**, never by the AI agent they use as
+  its author or its committer, and no commit or body carries a co-author line or an AI
+  credit ([attribution](repository-conventions.md#attribution)). The guard reads the pull
+  request's title and description before the merge, and the merge commit's message on
+  `main` ([the attribution guard](../../tests/check_commit_attribution.cmake)).
 - **The issue gets its `Fix pushed, awaiting CI` comment**, with the pull request (step 1).
 - **You do not merge.** Leave the pull request open once it is ready.
 
