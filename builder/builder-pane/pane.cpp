@@ -13,6 +13,7 @@
 
 #include "workshop/actor_scope.hpp" // the action classes each act asks Workshop about
 #include "workshop/builder_seam_vocabulary.hpp"
+#include "workshop/notice_seam_vocabulary.hpp" // a refusal said whole, beside the painted row
 #include "workshop/open_seam_vocabulary.hpp" // the opening role the open is asked of
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_facets.hpp"
@@ -205,7 +206,8 @@ class BuilderPaneWeave
                      builder::RevertArtifact, ProjectFrontierRequested, PlanNamesRequested,
                      PlanRowRequested, RecipeSourceRequested, OpenSourceRequested,
                      ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
-                     gfx::ClipboardTextRequested, builder::BuildOutputRequested>> {
+                     gfx::ClipboardTextRequested, builder::BuildOutputRequested,
+                     ws::PaneRefusalRequested>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{pane::kBuilderPane, pane::kBuilderPaneName, pane::kBuilderPaneSummary,
@@ -1144,9 +1146,13 @@ private:
     }
 
     /// AN ACT WORKSHOP REFUSED, OR NEVER HEARD, DID NOT HAPPEN AT ALL: nothing was sent and
-    /// nothing the pane holds moved, and the row says what did not happen, then why.
+    /// nothing the pane holds moved, and the row says what did not happen, then why. The row is
+    /// cut at the pane's width, so the same sentence is asked of Workshop whole: the notices
+    /// record keeps it, and a reading of the refusal is that notice.
     void say_undone(const BuilderAsk& a, const std::string& why, loom::Mail& mail) {
         notice_ = a.undone + " -- " + why;
+        (void)mail.as_role(pane::kBuilderPaneRole)
+            .send_to_role(kWorkshopRole, ws::PaneRefusalRequested{notice_});
         say(mail);
     }
 

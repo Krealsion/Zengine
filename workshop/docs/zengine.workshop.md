@@ -627,6 +627,14 @@ whole, answered `ActionsJudged`; every pane's rows are joined again, a pane that
 `ActionsWithdrawn`. Another role is refused: ``application actions are declared by
 `zengine.desktop` -- ...``.
 
+### `PaneRefusalRequested`
+
+`PaneRefusalRequested` v1, from any pane seated on the desk, as its role: the whole sentence of a
+refusal its row paints cut at the pane's width.
+
+Workshop says that sentence as a notice marked a refusal, numbered with the others, and answers
+nothing. An empty sentence, or one from a role that holds no seated pane, is not said.
+
 ### `PaneEscapeUnspent`
 
 `PaneEscapeUnspent`, from any pane's role under the correlation the Escape came on: that Escape

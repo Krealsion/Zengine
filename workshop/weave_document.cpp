@@ -29,6 +29,27 @@ void WorkshopWeave::say(std::string text, bool bad) {
     notices_owed_.push_back(std::move(said));
 }
 
+// A SEATED PANE'S REFUSAL, SAID WHOLE. The pane's row paints the same sentence cut at its width;
+// this is the notice the record keeps, and the one a reading of the refusal is.
+void WorkshopWeave::on(const PaneRefusalRequested& asked, loom::Mail& mail) {
+    const std::string role(mail.authored_role());
+    if (asked.text.empty() || role.empty() || !host_->role_holder ||
+        host_->role_holder(role) != mail.sender()) {
+        return;
+    }
+    bool seated = false;
+    for (const RuntimePane& row : session_.panes.runtime.entries) {
+        if (row.provider == role && session_.panes.has(row.kind)) {
+            seated = true;
+            break;
+        }
+    }
+    if (!seated) {
+        return;
+    }
+    say(asked.text, true);
+}
+
 // WL-NOTE-01 -- agents/workshop/notices.md
 void WorkshopWeave::publish_notices(loom::Mail& mail) {
     std::vector<NoticeSaid> said;
