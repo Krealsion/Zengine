@@ -20,7 +20,7 @@ WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
 ## WL-GUEST-02 — Admission records the row it admitted, per connection
 
-LAW — Admission records the row whose credential a connection presented, at admit and at defer, keyed by the connection; a session's row is read from that record, never found by name.
+LAW — Admission records the row whose credential a connection presented, at admit, keyed by the connection; a session's row is read from that record, never found by name.
 
 MEANS
 - two rows of one name stay two: each session holds the row its credential named;
@@ -151,6 +151,20 @@ DOES NOT MEAN
 - that a key no window gave is the weaver's: it names no hand, and a send it asks is refused.
 
 WHY — `agents/decisions/a-window-lands-every-hand.md`
+
+## WL-GUEST-14 — A row written admit ask is refused when the file is read
+
+LAW — A guests-file row written `"admit": "ask"` is refused when the file is read, in words naming the row, and no connection is left waiting: nothing decides one.
+
+MEANS
+- a row that omits `admit`, or writes `now`, is admitted as that row when its credential is presented;
+- any other word for `admit` is refused in words naming the row.
+
+DOES NOT MEAN
+- that a weaver is shown a box and asked to admit or refuse: no such asking is built;
+- that a credential no row presents is refused in different words.
+
+WHY — `agents/decisions/a-row-written-admit-ask-is-refused-at-the-file.md`
 
 ## Do not assume
 
@@ -323,3 +337,10 @@ wheel, its arranger told, drops the moves and the release after, and takes the w
 the Editor are refused, and the Editor hears neither"
 `tests/test_workshop_panes_guests.cpp` "on a development host the same guest types into the Editor
 and saves, types a Terminal line, and toggles titles"
+
+### WL-GUEST-14
+`workshop/guests.cpp` read_guests_file
+`tests/test_workshop_guests.cpp` "door: a row written admit ask is refused when the file is read,
+naming the row, and no connection is left waiting" "a word for admit other than now is refused,
+naming the row" "door: a credential admits as its row, and the inventory says both names" "door: a
+wrong credential is refused in words and leaves no session; nothing acts"

@@ -72,8 +72,7 @@ answers a presenter that asks. It reads `GuestConnections` v2: beneath each conn
 guests-file row admitted, it says that row's version and what its powers do not reach here
 (`version N -- not here: <losses>`, or `version N -- all its powers reach here`), and its heading
 ends `-- a development host` when an admitted connection's row stands on one: the inventory says
-the file's host with each row it describes. It holds no copy, declares no actions and makes no decision;
-the admission seam a per-connection prompt will attach to is the door's
+the file's host with each row it describes. It holds no copy, declares no actions and makes no decision
 ([external host](../../external-host/docs/external-host.md)).
 
 `pane == weave` is deliberately **not** an architectural rule, and `Info` is what pays for

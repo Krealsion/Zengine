@@ -3,10 +3,10 @@
 
 // The guests suite: WHO MAY CONNECT TO THIS WORKSHOP, AND WHAT EACH MAY THEN SAY -- the guest
 // door and the file that becomes its policy (workshop/guests.hpp, workshop/guest_door.hpp): a
-// credential admits AS THE ROW, an "ask" row waits for the host's decision, a grant reaches
-// exactly its powers, and a session ends with its socket. The crossing is Loom's (suite
-// `bridge`); here is the Workshop side, over a REAL loopback socket and the real Input weave.
-// The capture door is the windows'; here, only that `capture` reaches a window's role.
+// credential admits AS THE ROW, a row written "admit": "ask" is refused when the file is read,
+// a grant reaches exactly its powers, and a session ends with its socket. The crossing is Loom's
+// (suite `bridge`); here is the Workshop side, over a REAL loopback socket and the real Input
+// weave. The capture door is the windows'; here, only that `capture` reaches a window's role.
 
 #include "doctest.h"
 #include "role_manual.hpp"
@@ -87,7 +87,7 @@ struct Scratch {
 const char* kTwoGuests =
     R"({"listen":"127.0.0.1:0","guests":[)"
     R"({"name":"agent","credential":"open-sesame","may":["input","capture","inspect"]},)"
-    R"({"name":"watcher","credential":"later","admit":"ask","may":["inspect"]}]})";
+    R"({"name":"watcher","credential":"later","may":["inspect"]}]})";
 
 // ---- the rig: a bus with the real Input weave, ears, and the door over a real socket --------
 
@@ -323,8 +323,9 @@ TEST_CASE("guests file: rows read back whole, and the refusals name the row and 
     CHECK(file.rows[0].name == "agent");
     CHECK(file.rows[0].credential == "open-sesame");
     CHECK(file.rows[0].may.size() == 3);
-    CHECK_FALSE(file.rows[0].ask);
-    CHECK(file.rows[1].ask);
+    CHECK(file.rows[1].name == "watcher");
+    CHECK(file.rows[1].credential == "later");
+    CHECK(file.rows[1].may.size() == 1);
 
     SUBCASE("a missing file is an error, not an empty policy") {
         guests::GuestsFile none;
@@ -351,9 +352,10 @@ TEST_CASE("guests file: rows read back whole, and the refusals name the row and 
         CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
         CHECK(why.find("loopback") != std::string::npos);
     }
-    SUBCASE("a word for admit that is neither now nor ask") {
+    SUBCASE("a word for admit other than now is refused, naming the row") {
         f.write(R"({"guests":[{"name":"a","credential":"x","admit":"maybe"}]})");
         CHECK_FALSE(guests::read_guests_file(f.path, &file, &why));
+        CHECK(why.find("guest 'a'") != std::string::npos);
         CHECK(why.find("'maybe'") != std::string::npos);
     }
 }
@@ -709,56 +711,35 @@ TEST_CASE("door: a wrong credential is refused in words and leaves no session; n
     CHECK(again.answered<input::InputSessionOpened>(1)->session == 1);
 }
 
-TEST_CASE("door: an `ask` row waits on the host's decision, acting on nothing meanwhile") {
+TEST_CASE("door: a row written admit ask is refused when the file is read, naming the row, and no connection is left waiting") {
     Scratch f("ask");
-    f.write(kTwoGuests);
+    f.write(R"({"listen":"127.0.0.1:0","guests":[{"name":"watcher","credential":"later","admit":"ask","may":["inspect"]}]})");
     guests::GuestsFile file;
     std::string why;
-    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
-    Rig r(file);
-    Guest g(r.port, "watcher", "later");
-    std::int64_t waiting = 0;
-    REQUIRE(r.beat_until([&] {
-        g.poll();
-        for (const ws::GuestConnection& c : r.door->inventory().rows) {
-            if (c.state == "awaiting-decision") {
-                waiting = c.connection;
+    const bool read = guests::read_guests_file(f.path, &file, &why);
+    // Refused at the read, in words naming the row. A file the reader still accepts must
+    // admit or refuse the connection: awaiting-decision fails the case.
+    CHECK_FALSE(read);
+    if (!read) {
+        CHECK(why.find("guest 'watcher'") != std::string::npos);
+        CHECK(why.find("admit 'ask'") != std::string::npos);
+        CHECK(why.find("nothing decides") != std::string::npos);
+    } else {
+        Rig r(file);
+        Guest g(r.port, "watcher", "later");
+        bool waiting = false;
+        bool decided = false;
+        REQUIRE(r.beat_until([&] {
+            g.poll();
+            decided = decided || g.client->admitted() || g.client->denied();
+            for (const ws::GuestConnection& c : r.door->inventory().rows) {
+                waiting = waiting || c.state == "awaiting-decision";
             }
-        }
-        return waiting != 0;
-    }));
-    CHECK_FALSE(g.client->admitted());
-    CHECK_FALSE(g.client->denied());
-    g.ask(input::kInputRole, 1, input::InputSessionRequested{"too early"});
-    REQUIRE(r.beat_until([&] {
-        g.poll();
-        return g.last(loom::BridgeEvent::Kind::SendRefused) != nullptr;
-    }));
-    CHECK(g.last(loom::BridgeEvent::Kind::SendRefused)->reason.find("not admitted") !=
-          std::string::npos);
-    // THE HOST DECIDES -- the seam a popup attaches to -- and the grant is the host's word.
-    loom::ConnectionAdmitted a;
-    a.grant = guests::grant_for(file.rows[1]);
-    a.established_name = "watcher";
-    REQUIRE(r.door->decide(static_cast<std::uint64_t>(waiting), loom::ConnectionVerdict::admit(a)));
-    REQUIRE(r.beat_until([&] {
-        g.poll();
-        return g.client->admitted();
-    }));
-    CHECK(g.client->established_name() == "watcher");
-    // The watcher may inspect and may not inject: the far bus refuses, and the guest is told.
-    g.ask(input::kInputRole, 2, input::InputSessionRequested{"still not mine"});
-    REQUIRE(r.beat_until([&] {
-        g.poll();
-        const loom::BridgeEvent* d = g.last(loom::BridgeEvent::Kind::Delivered);
-        return d != nullptr && d->correlation == 2 && d->dispatch_refused;
-    }));
-    g.ask(input::kInputRole, 3, loom::DescribeAccepted{});
-    REQUIRE(r.beat_until([&] {
-        g.poll();
-        return g.answered_as(3, loom::accepted_shapes_schema()).has_value();
-    }));
-    CHECK_FALSE(g.answered_as(3, loom::accepted_shapes_schema())->get("accepted")->as_list().empty());
+            return decided || waiting;
+        }));
+        CHECK(decided);
+        CHECK_FALSE(waiting);
+    }
 }
 
 TEST_CASE("door: a guest injects through the real Input weave, and its socket's end ends its session") {

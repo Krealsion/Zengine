@@ -194,6 +194,7 @@ bool split_listen(const std::string& listen, std::string* host, std::uint16_t* p
     return true;
 }
 
+// WL-GUEST-14 -- agents/workshop/guests.md
 bool read_guests_file(const std::string& path, GuestsFile* out, std::string* error) {
     *out = GuestsFile{};
     out->path = path;
@@ -381,10 +382,11 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
         }
         const std::string admit = text_or(r, "admit", "now");
         if (admit == "ask") {
-            row.ask = true;
-        } else if (admit != "now") {
-            *error = "guests file '" + path + "': guest '" + row.name + "' has admit '" + admit +
-                     "'; it must be 'now' or 'ask'";
+            *error = who + " has admit 'ask', and nothing decides it: write 'now' or omit admit";
+            return false;
+        }
+        if (admit != "now") {
+            *error = who + " has admit '" + admit + "'; it must be 'now'";
             return false;
         }
         out->rows.push_back(std::move(row));
@@ -712,12 +714,9 @@ loom::BridgeAdmission admission_of(const GuestsFile& file, std::shared_ptr<Admit
             if (row.credential != r.credential) {
                 continue;
             }
-            // THE ROW IS RECORDED AGAINST THE CONNECTION before any verdict, so whatever later
+            // THE ROW IS RECORDED AGAINST THE CONNECTION before the verdict, so whatever later
             // asks which row a session holds reads this row, whatever its name.
             if (admitted) admitted->record(r.connection, i);
-            if (row.ask) {
-                return loom::ConnectionVerdict::defer();
-            }
             loom::ConnectionAdmitted a;
             a.grant = grant_for(row);
             a.accept = loom::AcceptMode::AnyRegistered;

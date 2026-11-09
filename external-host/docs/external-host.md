@@ -89,10 +89,10 @@ weaver's host refuses a guest. It grants no execution or input authority. The on
 [`workshop/toolbox` tool](../../inventory/docs/toolboxes.md#restore-an-executors-test-fixture) uses this power; injected
 input also needs it to operate those file controls. Ordinary `inventory` permission is insufficient.
 The Inventory → Info interaction requires both `input` and `inventory`: Workshop checks the
-initiating input actor for each acquisition, read, and save. A reference grants no authority. A row
-may also say `"admit": "ask"`: such a guest waits for Workshop to decide, able to act on
-nothing until it does — that is the seam a per-connection prompt will attach to; today the
-decision is a suite's or a host's.
+initiating input actor for each acquisition, read, and save. A reference grants no authority. A row that
+omits `admit`, or writes `"admit": "now"`, is admitted when its credential is presented.
+A row written `"admit": "ask"` is refused when the file is read, in words naming the row:
+nothing decides such a connection, so Workshop does not listen.
 
 ### Whose host this is, and what each power reaches there
 
@@ -930,9 +930,6 @@ late answer to the old one reaches nobody.
 
 ## What this does not do yet
 
-- **No prompt per connection.** An `"admit": "ask"` row waits; the surface that will show a
-  weaver the waiting connection and let them decide is later work. The decision seam is real
-  and enforced now.
 - **No transport security.** A credential crosses the loopback socket in the clear, which is
   why the guests file refuses any listener but loopback.
 - **No arbitration between a hand and an agent** beyond one session at a time: a person at the

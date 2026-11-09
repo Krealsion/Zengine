@@ -204,8 +204,8 @@ public:
     using PlanReading = std::function<GuestPlanSaid()>;
     void reads_plan(PlanReading reading) { plan_ = std::move(reading); }
 
-    /// THE DECISION SEAM, after the fact: a connection the policy deferred is admitted or
-    /// refused here. Called by the host (a console command, a suite, tomorrow a popup).
+    /// Settles a connection the server has left deferred. This host's guests file never defers
+    /// one: a row written `"admit": "ask"` is refused when the file is read (WL-GUEST-14).
     bool decide(std::uint64_t connection, const loom::ConnectionVerdict& verdict) {
         return server_->decide(connection, verdict);
     }

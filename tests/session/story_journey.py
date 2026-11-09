@@ -161,13 +161,21 @@ def unresolved_runs(rig):
         late = "returned"
     except story.Unresolved as why:
         late = str(why)
-    time.sleep(4.0)
-    s = status_of(rig, root)
-    entry = [r for r in json.loads((Path(root) / "story-status.json").read_text())["runs"]
+    # The tool can still be inside its 3s wait when a few seconds have passed: a loaded
+    # machine can take that long to reach the wait, as U2 already waits out. `status` is
+    # what writes the ending down, so it is asked until the run has settled.
+    seen = []
+
+    def wrote_down():
+        seen.append(status_of(rig, root).get("current_run_now", ""))
+        return "settled" in seen[-1]
+
+    reached = wait_until(wrote_down, 30.0)
+    entry = [r for r in json.loads((Path(root) / "story-status.json").read_text(encoding="utf-8"))["runs"]
              if r["name"] == "01-late"]
     check("U7 a late result is read by `status` and written down; the handle is let go",
-          late.startswith("run 01-late") and "settled" in s.get("current_run_now", "") and
-          held(root) is None and entry and entry[0]["state"] == "passed", (late, s.get("current_run_now")))
+          late.startswith("run 01-late") and reached and held(root) is None and
+          entry and entry[0]["state"] == "passed", (late, seen[-1] if seen else None))
 
     # ---- a session that does not answer is not an ending ----------------------------------------
     try:

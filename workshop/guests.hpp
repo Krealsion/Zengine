@@ -99,7 +99,6 @@ struct GuestRow {
     std::string credential;
     std::vector<std::string> may;      ///< the row's powers, its role's expanded among them
     std::vector<ObserveScope> observe; ///< what it may observe; empty: nothing
-    bool ask = false; ///< admitted only when the host decides (`"admit": "ask"`)
     std::string role;                  ///< the role it names, a version-3 word; empty: none
     /// WHETHER IT READS AND POINTS BY DOOR, a row of version 3 or later: then `capture` reads only
     /// the panes `capture` names and `guide` marks only within `guide`; a row of an earlier version
@@ -187,8 +186,8 @@ private:
 
 /// THE POLICY: the file's rows as a `loom::BridgeAdmission`. A presented credential that
 /// matches a row admits AS THAT ROW (its name, its grant, no observation) and records the row
-/// against the connection in `admitted`; a row marked "ask" defers, recorded the same way; anything
-/// else is refused in words. An empty credential never matches.
+/// against the connection in `admitted`; anything else is refused in words. An empty credential
+/// never matches. A row written `"admit": "ask"` never reaches here: the file reader refuses it.
 loom::BridgeAdmission admission_of(const GuestsFile& file, std::shared_ptr<AdmittedRows> admitted);
 
 /// WHAT EACH GUEST MAY OBSERVE, as the relay's policy: a subscriber is judged by the row its
