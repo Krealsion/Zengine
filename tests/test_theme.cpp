@@ -400,6 +400,7 @@ TEST_CASE("the theme weave asks on its activation for where the themes are and f
     CHECK(night->colors == gfx::themes::night().colors);
     CHECK(both->terminal.borders == "===");
     const std::size_t offers = r.graphics->offered.size();
+    const std::int64_t night_revision = night->revision; // `offered` grows below
     // THE SAME STACKS SAID AGAIN: nothing offered.
     // ⚔ MUTATION (tests/mutants/theme.md#offer-unchanged): every stack offered again whatever changed.
     r.say(r.host_id, "test.host", th::ThemesWorn{{th::ThemeStack{{"night"}}, th::ThemeStack{{"night", "block"}}}});
@@ -410,7 +411,7 @@ TEST_CASE("the theme weave asks on its activation for where the themes are and f
     const gfx::PaletteOffered* mine = r.last("night");
     REQUIRE(mine != nullptr);
     CHECK(color_named(*mine, "accent")->rgba == 0x123456ff);
-    CHECK(mine->revision > night->revision);
+    CHECK(mine->revision > night_revision);
 }
 
 TEST_CASE("the theme weave judges a stack's own values against what a pane's role declares once it "
