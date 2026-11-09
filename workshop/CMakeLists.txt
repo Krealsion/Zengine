@@ -17,6 +17,7 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-voc
                                                             zengine-manual
                                                             zengine-operator
                                                             zengine-persist
+                                                            zengine-theme-vocabulary
                                                             loom::core
                                                             loom::terminal)
 # ...and the manuals of the host's own roles compiled into it, each role answering a shape's
@@ -265,7 +266,7 @@ set(zengine_workshop_artifacts zengine-input zengine-timer zengine-inventory zen
                                zengine-editor-pane zengine-neovim-editor
                                zengine-operators-basic
                                zengine-workshop-session-history
-                               zengine-graphics zengine-window-tui)
+                               zengine-graphics zengine-window-tui zengine-theme)
 if(TARGET zengine-window-sdl)
     list(APPEND zengine_workshop_artifacts zengine-window-sdl)
 endif()
@@ -315,6 +316,22 @@ foreach(plan IN LISTS zengine_workshop_plans)
         COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${plan}
         COMMENT "workshop: staging ${plan} beside the host")
+    list(APPEND zengine_workshop_staged ${stamp})
+endforeach()
+
+# ---- The shipped themes, which the theme weave reads ---------------------------------
+#
+# Each theme's window file and terminal file (graphics/themes/), staged in `themes/` beside the
+# host, which Workshop names to the theme weave as the shipped folder.
+foreach(theme IN LISTS ZENGINE_GRAPHICS_THEME_FILES)
+    get_filename_component(theme_name ${theme} NAME)
+    set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-theme-${theme_name}.stamp)
+    add_custom_command(OUTPUT ${stamp}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${zengine_workshop_dir}/themes
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${theme} ${zengine_workshop_dir}/themes
+        COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
+        DEPENDS ${theme}
+        COMMENT "workshop: staging the theme file ${theme_name} beside the host")
     list(APPEND zengine_workshop_staged ${stamp})
 endforeach()
 

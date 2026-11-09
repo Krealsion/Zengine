@@ -350,3 +350,19 @@ In `workshop/layouts/store.cpp`:
 Red in `zengine-workshop-persistence-tests`:
 
 - a hidden pane keeps its row and comes back where it was after a save and a load
+
+## baseline-dropped
+
+A version-7 desk read forward leaves its baseline behind, so its layout wears no theme.
+
+In `workshop/setup_persist.hpp`:
+
+```diff
+-        made.themes.push_back(old.theme.name);
++        (void)old.theme.name;
+```
+
+Red in `zengine-workshop-persistence-tests`:
+
+- a version-13 session reads each layout's baseline as the bottom of its themes and each row's
+  `workshop.skin` as its theme, and saves as the current version

@@ -99,8 +99,10 @@ loom::Grant workshop_grant() {
     // THE DESK IN A GRAPHICS WINDOW: where each area stands and which palette it wears, said to the
     // directory, and Workshop's own drawing, to the window that shows its area.
     speak.allow_to_role(graphics::AreaPlaced::zen_name, graphics::AreaPlaced::zen_version, graphics::kGraphicsRole);
-    speak.allow_to_role(graphics::PaletteOffered::zen_name, graphics::PaletteOffered::zen_version, graphics::kGraphicsRole);
     speak.allow_to_role(graphics::PaletteChosen::zen_name, graphics::PaletteChosen::zen_version, graphics::kGraphicsRole);
+    // ...AND THE STACKS ITS LAYOUTS WEAR, with where their files are, to the weave that lays them.
+    speak.allow_to_role(theme::ThemesPlaced::zen_name, theme::ThemesPlaced::zen_version, theme::kThemeRole);
+    speak.allow_to_role(theme::ThemesWorn::zen_name, theme::ThemesWorn::zen_version, theme::kThemeRole);
     speak.allow_to_role(graphics::RoomAsked::zen_name, graphics::RoomAsked::zen_version, graphics::kGraphicsRole);
     speak.allow_to_any(graphics::Drawn::zen_name, graphics::Drawn::zen_version);
     return speak;

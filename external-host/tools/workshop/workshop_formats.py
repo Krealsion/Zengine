@@ -7,10 +7,11 @@ SETUP_VERSION and SESSION_VERSION are the setup file's and the session file's `k
 (workshop/setup_persist.hpp, workshop/layouts/session_persist.hpp). tests/code_values.txt reads
 both owners and workshop/docs/demo-setups.md marks one value for each pair, so a Workshop that
 moves either file's version is a red until this module moves with it. A desk a launcher is handed
-is lifted to SETUP_VERSION before anything is written around it: a version-4, version-5 or
-version-6 desk keeps every field, each coordinate and amount written only where its word reads one,
-each row open and undocked, and gains no settings, locks, pins or baseline it did not have; another
-version is refused, naming what to do.
+is lifted to SETUP_VERSION before anything is written around it: a desk of version 4 to 7 keeps
+every field, each coordinate and amount written only where its word reads one, each row open and
+undocked, its baseline the bottom of the themes it wears and a row's `workshop.skin` that row's
+theme, and gains no settings, locks, pins or themes it did not have; another version is refused,
+naming what to do.
 The room a session opens in is the window file's, written beside it (`window_path`).
 
 GUESTS_VERSION is the guests file's `kGuestsFileVersion` (workshop/guests.hpp), tied to it the same
@@ -20,14 +21,14 @@ launcher's row that may capture or guide names every pane, `*`, written and neve
 import copy
 import json
 
-SETUP_VERSION = 7
-SESSION_VERSION = 13
+SETUP_VERSION = 8
+SESSION_VERSION = 14
 GUESTS_VERSION = 3
 WINDOW_VERSION = 1
 
-# The shape of each layout line in a session file, `WorkshopLayout` v5: a shape's identity, frozen
+# The shape of each layout line in a session file, `WorkshopLayout` v6: a shape's identity, frozen
 # once published, which the session's lines carry as they are.
-LAYOUT_VERSION = 5
+LAYOUT_VERSION = 6
 
 # The guests file's `host`: a weaver's, where a guest writes no file, types into no pane and
 # reaches none of the editor, the Terminal and the Hotkeys pane; or a development host, an
@@ -44,9 +45,14 @@ WORKSHOP_SAID = {"producer": "zengine.workshop", "shape": "NoticeSaid", "version
 
 # The setup versions a desk is lifted from: version 4, whose rows hold every field of version 5's
 # but the settings; version 5, which writes every coordinate and amount, zero where its word reads
-# none; and version 6, whose rows hold every field of version 7's but the fold and the dock
-# (`setup_persist::v4`, `v5` and `v6` in workshop/setup_persist.hpp).
-LIFTED_SETUP_VERSIONS = (4, 5, 6)
+# none; version 6, whose rows hold every field of version 7's but the fold and the dock; and version
+# 7, which keeps a baseline where version 8 keeps the themes a layout wears, and a row's palette
+# among its settings (`setup_persist::v4` to `v7` in workshop/setup_persist.hpp).
+LIFTED_SETUP_VERSIONS = (4, 5, 6, 7)
+
+# The key a row of version 7 kept its area's palette under, and the other name it gave `night`.
+RETIRED_SKIN_KEY = "workshop.skin"
+RETIRED_CLASSIC = "classic"
 
 # A row's fold and dock where it names none: open, and docked on no edge (`kFoldWords` and
 # `kDockWords` in workshop/setup.hpp).
@@ -59,12 +65,22 @@ WINDOW_FORMAT = "zengine-workshop-window"
 
 
 def _by_words(row):
-    """`row` at version 7: a place's `x` and `y` present only where its word is `pixels`, a size's
+    """`row` at version 8: a place's `x` and `y` present only where its word is `pixels`, a size's
     `amount` only where its word is `pixels` -- an older row's zero where the word reads none is
-    the absence it meant -- and its fold and dock, open and undocked where it names none."""
+    the absence it meant -- its fold and dock, open and undocked where it names none, and its theme,
+    the one an older row kept among its settings as `workshop.skin`, else none."""
     row = copy.deepcopy(row)
     row.setdefault("fold", OPEN)
     row.setdefault("dock", UNDOCKED)
+    kept = []
+    for setting in row.get("settings", []):
+        if setting.get("key") == RETIRED_SKIN_KEY:
+            text = setting.get("text", "")
+            row.setdefault("theme", "night" if text == RETIRED_CLASSIC else text)
+        else:
+            kept.append(setting)
+    row["settings"] = kept
+    row.setdefault("theme", "")
     place = dict(row.get("place") or {"mode": "default"})
     if place.get("mode") != "pixels":
         place.pop("x", None)
@@ -78,15 +94,14 @@ def _by_words(row):
     return row
 
 
-def setup(name, panes, theme=None, locks=(), pins=()):
+def setup(name, panes, themes=(), locks=(), pins=()):
     """A WorkshopSetup file at SETUP_VERSION named `name`, its rows `panes` as given by their words,
-    each keeping the settings it names or none; the layout's baseline, locks and pins as given, or
-    none."""
+    each keeping the settings it names or none; the themes the layout wears, bottom first, its locks
+    and pins as given, or none."""
     rows = [_by_words(dict(p, settings=list(p.get("settings", [])))) for p in panes]
     return {"zen": 1, "schema": "WorkshopSetup", "version": SETUP_VERSION, "fields": {
         "format": SETUP_FORMAT, "format_version": str(SETUP_VERSION), "name": name, "panes": rows,
-        "theme": dict(theme or {"name": "", "fingerprint": "0"}), "locks": list(locks),
-        "pins": list(pins)}}
+        "themes": list(themes), "locks": list(locks), "pins": list(pins)}}
 
 
 def current(desk):
@@ -105,8 +120,9 @@ def current(desk):
         return copy.deepcopy(desk)
     if version in LIFTED_SETUP_VERSIONS and claimed == str(version):
         fields = copy.deepcopy(desk["fields"])
-        return setup(fields["name"], fields["panes"], fields.get("theme"), fields.get("locks", ()),
-                     fields.get("pins", ()))
+        baseline = (fields.get("theme") or {}).get("name", "")
+        return setup(fields["name"], fields["panes"], [baseline] if baseline else [],
+                     fields.get("locks", ()), fields.get("pins", ()))
     lifted = [str(v) for v in LIFTED_SETUP_VERSIONS]
     raise ValueError("the desk is setup version %s; a launcher lifts versions %s and writes %d -- "
                      "open it in Workshop and save it (`s`) to write version %d"

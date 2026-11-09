@@ -3226,7 +3226,7 @@ TEST_CASE("a version-2 whole-cell setup loads at exactly its old picture") {
 
     // AND THE NEXT SAVE WRITES THE CURRENT VERSION, WHICH ROUND-TRIPS BYTE-IDENTICALLY.
     const std::string saved = setup_persist::to_text(read.setup);
-    CHECK(saved.find("\"format_version\":\"7\"") != std::string::npos);
+    CHECK(saved.find("\"format_version\":\"8\"") != std::string::npos);
     CHECK(saved.find("\"mode\":\"pixels\"") != std::string::npos);
     const setup_persist::LoadedSetup back = setup_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
@@ -3299,8 +3299,8 @@ TEST_CASE("a version-1 session restores a whole-cell desk through a conversion")
     // number is what is asserted: the nested desk carries a `format_version` of its OWN at a
     // different number, and a search for the bare field would find that one.
     const std::string saved = session_text(read.layouts, read.active);
-    CHECK(saved.find("\"version\":13") != std::string::npos);
-    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"13\"") !=
+    CHECK(saved.find("\"version\":14") != std::string::npos);
+    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"14\"") !=
           std::string::npos);
     const session_persist::LoadedSession back = session_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);

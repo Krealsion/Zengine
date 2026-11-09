@@ -8,6 +8,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | | |
 |---|---|
 | `file.hpp` | `read_file`, `write_file`, `write_file_making_room`, `pending_path`, `resolved_against`, `json::` |
+| `json.hpp` | plain JSON, read into a tree of nodes and written back: `json::parse`, `json::to_text`, bounded in depth and values |
 | `written.hpp` | `Written` |
 | `CMakeLists.txt` | `zengine-persist`: INTERFACE |
 
@@ -20,13 +21,12 @@ routed by [workshop/AGENTS.md](../workshop/AGENTS.md).
 ## Suites
 
 None of its own: `workshop_persistence` (`tests/test_workshop_persistence.cpp`) writes and reads
-every file Workshop keeps through it, and `settings_themes` (`tests/test_settings_themes.cpp`) a
-theme's.
+every file Workshop keeps through it, and `theme` (`tests/test_theme.cpp`) a theme's files.
 
 ## Host side
 
 Workshop's files (`workshop/*_persist.hpp`, the session's, the layouts'), the Editors' and Files'
-reads and writes, and the theme reader (`settings/theme_persist.hpp`) read and write through it.
+reads and writes, and the theme reader (`theme/theme_persist.hpp`) read and write through it.
 
 ## Pages
 

@@ -114,7 +114,7 @@ sanitizer_lane                    script            always
 flow                              doctest           always  82
 
 message_draft                     doctest           always  11
-settings_themes                   doctest           always  18
+theme                             doctest           always  10
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  41

@@ -42,7 +42,7 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 /// The ONE session format version this build writes and admits.
 // WL-MIG-01, WL-MIG-04, WL-MIG-06 -- agents/workshop/migration.md
 // WL-SESSION-05 -- agents/workshop/session-restore.md
-inline constexpr std::int64_t kFormatVersion = 13;
+inline constexpr std::int64_t kFormatVersion = 14;
 
 /// Where the last session lives when the host does not say otherwise.
 inline constexpr const char* kDefaultSessionFileName = "workshop-session.json";
@@ -72,7 +72,8 @@ struct WorkshopSetupLink {
     std::string path;
     setup_persist::WorkshopSetup known;
 
-    ZEN_SHAPE(WorkshopSetupLink, 5, ZEN_FIELD(path), ZEN_FIELD(known));
+    /// Version 6: its desk at setup version 8.
+    ZEN_SHAPE(WorkshopSetupLink, 6, ZEN_FIELD(path), ZEN_FIELD(known));
 };
 
 /// ONE SAVED LAYOUT: the id the owner minted for it, the desk, and the artifact it is associated
@@ -84,7 +85,8 @@ struct WorkshopLayout {
     setup_persist::WorkshopSetup desk;
     WorkshopSetupLink link;
 
-    ZEN_SHAPE(WorkshopLayout, 5, ZEN_FIELD(id), ZEN_FIELD(desk), ZEN_FIELD(link));
+    /// Version 6: its desk at setup version 8.
+    ZEN_SHAPE(WorkshopLayout, 6, ZEN_FIELD(id), ZEN_FIELD(desk), ZEN_FIELD(link));
 };
 
 /// WHICH AUTHORED CHOICE HELD A ROLE AT QUIT, by the role and the choice's name: what the
@@ -116,7 +118,7 @@ struct WorkshopSession {
     // WL-SWITCH-08 -- agents/workshop/editor-switch.md
     std::vector<WorkshopChoice> choices;
 
-    ZEN_SHAPE(WorkshopSession, 13, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    ZEN_SHAPE(WorkshopSession, 14, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(layouts), ZEN_FIELD(active), ZEN_FIELD(next_id), ZEN_FIELD(choices));
 };
 
@@ -131,7 +133,7 @@ struct WorkshopSessionHeader {
     std::int64_t next_id = 0;
     std::vector<WorkshopChoice> choices;
 
-    ZEN_SHAPE(WorkshopSessionHeader, 13, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    ZEN_SHAPE(WorkshopSessionHeader, 14, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(layout_count), ZEN_FIELD(active), ZEN_FIELD(next_id), ZEN_FIELD(choices));
 };
 
@@ -144,7 +146,7 @@ static_assert(WorkshopSession::zen_version == static_cast<std::uint32_t>(kFormat
               "fields are judged against this version's shape");
 
 /// AND THE DESK'S VERSION IS PINNED HERE ON PURPOSE.
-static_assert(setup_persist::WorkshopSetup::zen_version == 7,
+static_assert(setup_persist::WorkshopSetup::zen_version == 8,
               "the session file nests the setup's own shape: when the desk's version moves, "
               "this format's version moves with it, and the refusal is worded here rather "
               "than left to the gate");

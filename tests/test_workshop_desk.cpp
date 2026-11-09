@@ -3218,25 +3218,12 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     CHECK(overlay().order == d.panes_on_desk() + 2);
     CHECK_FALSE(overlay().keys);
     CHECK_FALSE(overlay().pointer);
-    // ALL OF IT SAID AS WORKSHOP'S ROLE: the three palettes offered once, each area's chosen
-    // once, and Workshop's room asked once.
+    // ALL OF IT SAID AS WORKSHOP'S ROLE: no palette offered -- the theme role offers them -- and
+    // none chosen, since a layout wearing no theme wears the window's own; Workshop's room asked
+    // once.
     CHECK(d.directory->arrangers == std::set<std::string>{kWorkshopProvider});
-    REQUIRE(d.directory->offered.size() == 3);
-    CHECK(d.directory->offered[0] == gfx::themes::night());
-    CHECK(d.directory->offered[1] == gfx::themes::day());
-    CHECK(d.directory->offered[2] == gfx::themes::block());
-    std::map<std::string, int> chosen;
-    for (const gfx::PaletteChosen& c : d.directory->chosen) {
-        CHECK(c.palette == "night");
-        ++chosen[c.area];
-    }
-    std::map<std::string, int> every;
-    for (const auto& [area, placed_area] : d.directory->areas) {
-        every[area] = 1;
-    }
-    CHECK(chosen == every);
-    CHECK(chosen.count(kAttentionArea) == 1);
-    CHECK(chosen.count(frame) == 1);
+    CHECK(d.directory->offered.empty());
+    CHECK(d.directory->chosen.empty());
     const std::string own_room = std::string(kWorkshopProvider) + " by " + kWorkshopProvider;
     const std::string overlay_room =
         std::string(kWorkshopOverlayArea) + " by " + kWorkshopProvider;
@@ -3266,11 +3253,11 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     REQUIRE_FALSE(d.r.session().context.open);
     CHECK(desk().order == 0);
 
-    // A DIRECTORY THAT STARTS AFRESH is offered, placed and chosen again, and asked the room.
-    const std::size_t offered = d.directory->offered.size();
+    // A DIRECTORY THAT STARTS AFRESH is placed again and asked the room; Workshop offers it no
+    // palette, and chooses none while the layout wears no theme.
     const std::size_t again = d.directory->placed.size();
     d.directory_does();
-    CHECK(d.directory->offered.size() == offered + 3);
+    CHECK(d.directory->offered.empty());
     CHECK(d.directory->placed.size() == again + d.directory->areas.size());
     CHECK(std::count(d.directory->asked.begin(), d.directory->asked.end(), own_room) == 2);
     // ...AND SO IS ANOTHER HOLDER OF ITS ROLE, at the next repaint, though it says nothing.
@@ -3279,10 +3266,10 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     d.mount_directory();
     REQUIRE(d.directory_id.value != before);
     d.r.key(input::scan::kGrave);
-    CHECK(d.directory->offered.size() == 3);
+    CHECK(d.directory->offered.empty());
     CHECK(d.directory->areas.count(kWorkshopProvider) == 1);
     CHECK(d.directory->areas.count(kAttentionArea) == 1);
-    CHECK(d.directory->chosen.size() == d.directory->areas.size());
+    CHECK(d.directory->chosen.empty());
     CHECK(std::count(d.directory->asked.begin(), d.directory->asked.end(), own_room) == 1);
 
     // CLOSING THE PANE WITHDRAWS ITS AREA: placed in no window, nowhere.
@@ -3295,37 +3282,29 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     CHECK(d.refused.empty());
 }
 
-TEST_CASE("a host with no folder of artifacts offers the shipped palettes, chooses each area's and "
-          "places its areas all the same") {
+TEST_CASE("a host with no folder of artifacts offers no palette, chooses none while its layout wears "
+          "no theme, and places its areas all the same") {
     WindowDesk bare(true, false);
-    CHECK(bare.directory->offered.size() == gfx::themes::shipped().size());
-    CHECK(bare.directory->chosen.size() == bare.directory->areas.size());
+    CHECK(bare.directory->offered.empty()); // the theme role offers palettes, never Workshop
+    CHECK(bare.directory->chosen.empty());
     CHECK(bare.directory->areas.count(kWorkshopProvider) == 1);
     CHECK(bare.directory->areas.count(kAttentionArea) == 1);
 }
 
 namespace {
 
-/// AN EDITOR'S ROLE AT THE SETTINGS DOORS: it reads and writes Workshop's own settings and a
-/// pane's row by message, and keeps the answers.
-class SkinEditor
-    : public loom::WeaveBase<SkinEditor, ArrangedDirectoryState,
-                             loom::Accept<RoleSettingsAnswered, PaneSettingsAnswered, PaneSettingCommitAnswered,
-                                          RoleSettingCommitAnswered, SeatDo>,
-                             loom::Emit<RoleSettingsRequested, RoleSettingCommitRequested,
-                                        PaneSettingsRequested, PaneSettingCommitRequested>> {
+/// AN EDITOR'S ROLE AT THE LAYOUTS' DOORS: it reads every layout and writes a layout's themes and
+/// a row's theme by message, and keeps the answers.
+class ThemeEditor
+    : public loom::WeaveBase<ThemeEditor, ArrangedDirectoryState,
+                             loom::Accept<LayoutSettingsAnswered, SettingsWriteAnswered, SeatDo>,
+                             loom::Emit<LayoutSettingsRequested, SettingsWriteRequested>> {
 public:
-    void on(const RoleSettingsAnswered& s, loom::Mail& mail) {
-        if (mail.answers_ask()) role.push_back(s);
+    void on(const LayoutSettingsAnswered& s, loom::Mail& mail) {
+        if (mail.answers_ask()) read.push_back(s);
     }
-    void on(const PaneSettingsAnswered& s, loom::Mail& mail) {
-        if (mail.answers_ask()) rows.push_back(s);
-    }
-    void on(const PaneSettingCommitAnswered& a, loom::Mail& mail) {
-        if (mail.answers_ask()) acted.push_back(a);
-    }
-    void on(const RoleSettingCommitAnswered& a, loom::Mail& mail) {
-        if (mail.answers_ask()) role_acted.push_back(a);
+    void on(const SettingsWriteAnswered& a, loom::Mail& mail) {
+        if (mail.answers_ask()) written.push_back(a);
     }
     void on(const SeatDo&, loom::Mail& mail) {
         auto run = std::move(next);
@@ -3334,77 +3313,61 @@ public:
     }
 
     std::function<void(loom::Mail&)> next;
-    std::vector<RoleSettingsAnswered> role;
-    std::vector<PaneSettingsAnswered> rows;
-    std::vector<PaneSettingCommitAnswered> acted;
-    std::vector<RoleSettingCommitAnswered> role_acted;
+    std::vector<LayoutSettingsAnswered> read;
+    std::vector<SettingsWriteAnswered> written;
 };
 
-constexpr const char* kSkinEditorRole = "test.skin-editor";
+constexpr const char* kThemeEditorRole = "test.theme-editor";
 
-/// THE WINDOW DESK WITH AN EDITOR BESIDE IT, which writes Workshop's skin and the Attention pane's.
-struct SkinDesk : WindowDesk {
-    SkinEditor* editor = nullptr;
+/// THE WINDOW DESK WITH AN EDITOR BESIDE IT, which writes the live layout's themes and the
+/// Attention pane's row's theme.
+struct ThemeDesk : WindowDesk {
+    ThemeEditor* editor = nullptr;
     loom::WeaveId editor_id{};
 
-    SkinDesk() : WindowDesk(true) {
-        auto made = std::make_unique<SkinEditor>();
+    ThemeDesk() : WindowDesk(true) {
+        auto made = std::make_unique<ThemeEditor>();
         editor = made.get();
         loom::Grant grant;
-        grant.allow_to_role(RoleSettingsRequested::zen_name, RoleSettingsRequested::zen_version,
+        grant.allow_to_role(LayoutSettingsRequested::zen_name, LayoutSettingsRequested::zen_version,
                             kLayoutsRole);
-        grant.allow_to_role(RoleSettingCommitRequested::zen_name,
-                            RoleSettingCommitRequested::zen_version, kLayoutsRole);
-        grant.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
+        grant.allow_to_role(SettingsWriteRequested::zen_name, SettingsWriteRequested::zen_version,
                             kLayoutsRole);
-        grant.allow_to_role(PaneSettingCommitRequested::zen_name,
-                            PaneSettingCommitRequested::zen_version, kLayoutsRole);
-        editor_id = r.bus.register_weave(std::move(made), std::move(grant), kSkinEditorRole);
+        editor_id = r.bus.register_weave(std::move(made), std::move(grant), kThemeEditorRole);
         editor->zen_set_self(editor_id);
     }
 
     template <class Shape> void ask(const Shape& asked) {
         editor->next = [asked](loom::Mail& mail) {
-            (void)mail.as_role(kSkinEditorRole).send_to_role(door_of<Shape>(), asked);
+            (void)mail.as_role(kThemeEditorRole).send_to_role(kLayoutsRole, asked);
         };
         (void)r.bus.send(editor_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
         r.bus.drain_until_idle();
     }
-    PaneSettingCommitAnswered acted() {
-        REQUIRE_FALSE(editor->acted.empty());
-        return editor->acted.back();
+    /// A batch at the revision the layouts are read at now.
+    SettingsWriteAnswered write(SettingsWriteRequested batch) {
+        ask(LayoutSettingsRequested{});
+        REQUIRE_FALSE(editor->read.empty());
+        batch.revision = editor->read.back().revision;
+        batch.cause = "the suite's themes";
+        ask(batch);
+        REQUIRE_FALSE(editor->written.empty());
+        return editor->written.back();
     }
-    /// Workshop's own palette word, written at the revision read now.
-    RoleSettingCommitAnswered workshop_skin(const char* skin) {
-        ask(RoleSettingsRequested{kWorkshopProvider});
-        REQUIRE_FALSE(editor->role.empty());
-        RoleSettingCommitRequested c;
-        c.role = kWorkshopProvider;
-        c.revision = editor->role.back().revision;
-        c.key = "workshop.skin";
-        c.text = std::string(skin);
-        ask(c);
-        REQUIRE_FALSE(editor->role_acted.empty());
-        return editor->role_acted.back();
+    /// The live layout's themes, bottom first.
+    SettingsWriteAnswered wear(std::vector<std::string> themes) {
+        SettingsWriteRequested batch;
+        batch.themes.push_back(LayoutThemesWrite{0, std::move(themes)});
+        return write(std::move(batch));
     }
-    /// ...and the Attention pane's row's, or its clear for none.
-    PaneSettingCommitAnswered pane_skin(const char* skin) {
-        ask(PaneSettingsRequested{apane::kAttentionPaneRole, apane::kAttentionPane});
-        REQUIRE_FALSE(editor->rows.empty());
-        PaneSettingCommitRequested c;
-        c.provider = apane::kAttentionPaneRole;
-        c.pane = apane::kAttentionPane;
-        c.revision = editor->rows.back().revision;
-        c.key = "workshop.skin";
-        if (skin != nullptr) {
-            c.text = std::string(skin);
-        } else {
-            c.clear = true;
-        }
-        ask(c);
-        return acted();
+    /// ...and the Attention pane's row's theme, "" for none.
+    SettingsWriteAnswered row(const char* theme) {
+        SettingsWriteRequested batch;
+        batch.rows.push_back(RowThemeWrite{
+            0, std::string(apane::kAttentionPaneRole) + "/" + apane::kAttentionPane, theme});
+        return write(std::move(batch));
     }
-    /// The skins said to the directory since `from`, by area.
+    /// The palettes said to the directory since `from`, by area.
     std::map<std::string, std::string> chosen_since(std::size_t from, std::size_t* count = nullptr) {
         std::map<std::string, std::string> out;
         for (std::size_t i = from; i < directory->chosen.size(); ++i) {
@@ -3417,37 +3380,37 @@ struct SkinDesk : WindowDesk {
     }
 };
 
-using Skins = std::map<std::string, std::string>;
+using Palettes = std::map<std::string, std::string>;
 
 } // namespace
 
-TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names, else Workshop's "
-          "own, and a palette is said only when an area's moved") {
-    // ⚔ MUTATION (tests/mutants/workshop_desk.md#every-area-night): every area given `night`
-    // whatever is kept -- Workshop's `block` never reaches the directory, and neither does the
-    // row's.
-    SkinDesk d;
+TEST_CASE("each graphics area wears the palette named for the live layout's themes, a pane's row's "
+          "theme laid over them for its area and its frame alone, and a palette is said only when "
+          "an area's moved") {
+    // ⚔ MUTATION (tests/mutants/workshop_desk.md#every-area-night): every area given the pool's own
+    // whatever the layout and the row keep.
+    ThemeDesk d;
     const std::string pane = kAttentionArea;
     REQUIRE(d.directory->areas.count(pane) == 1);
     REQUIRE(d.directory->areas.count(kWorkshopProvider) == 1);
     std::size_t said = 0;
 
-    // WORKSHOP'S OWN, `block`: every area wears it, each said once.
+    // THE LAYOUT WEARS `block`: every area wears it, each said once.
     std::size_t from = d.directory->chosen.size();
-    const RoleSettingCommitAnswered wide = d.workshop_skin("block");
+    const SettingsWriteAnswered wide = d.wear({"block"});
     REQUIRE_MESSAGE(wide.accepted, wide.refusal);
-    CHECK(d.r.session().skin == "block");
+    CHECK(d.r.session().setup.active.themes == std::vector<std::string>{"block"});
     const std::string frame = pane_frame_area(d.r.session().panes, d.kind);
     const std::string layouts = pane_frame_area(d.r.session().panes, pane_kind::kLayouts);
-    CHECK(d.chosen_since(from, &said) == Skins{{kWorkshopProvider, "block"},
-                                               {kWorkshopOverlayArea, "block"},
-                                               {pane, "block"},
-                                               {frame, "block"},
-                                               {layouts, "block"}});
+    CHECK(d.chosen_since(from, &said) == Palettes{{kWorkshopProvider, "block"},
+                                                  {kWorkshopOverlayArea, "block"},
+                                                  {pane, "block"},
+                                                  {frame, "block"},
+                                                  {layouts, "block"}});
     CHECK(said == 5);
 
-    // THE PANE'S ROW, `classic`, another name for `night`: its area and its frame alone move, to
-    // night, and the pane is handed none of it.
+    // THE PANE'S ROW, `night`, laid over the layout's: its area and its frame alone move, and the
+    // pane is handed none of it -- a row's theme is kept beside its settings.
     from = d.directory->chosen.size();
     std::vector<v2::PaneSettings> rows_handed;
     const loom::ObserverId tap = d.r.bus.add_observer([&rows_handed](const loom::BusEvent& ev) {
@@ -3456,61 +3419,55 @@ TEST_CASE("each graphics area wears the palette its row's `workshop.skin` names,
             rows_handed.push_back(loom::from_value<v2::PaneSettings>(*ev.payload));
         }
     });
-    const PaneSettingCommitAnswered own = d.pane_skin("classic");
+    const SettingsWriteAnswered own = d.row("night");
     d.r.bus.remove_observer(tap);
     REQUIRE_MESSAGE(own.accepted, own.refusal);
-    CHECK(own.handed == "stored and handed");
-    CHECK(d.chosen_since(from, &said) == Skins{{pane, "night"}, {frame, "night"}});
+    CHECK(rows_handed.empty());
+    CHECK(d.chosen_since(from, &said) == Palettes{{pane, "block+night"}, {frame, "block+night"}});
     CHECK(said == 2);
-    // ...THE ROW'S NEW REVISION HANDED BY ITS OWNER, without Workshop's own word on it.
-    REQUIRE_FALSE(rows_handed.empty());
-    for (const v2::PaneSettings& h : rows_handed) {
-        CHECK(find_pane_setting(h.settings, "workshop.skin") == nullptr);
-    }
+    CHECK(d.r.session().setup.active.panes.size() > 0);
 
-    // WORKSHOP'S OWN, `classic`, moves Workshop's areas alone, to night: the row already wears it.
+    // THE LAYOUT WEARS NONE: Workshop's areas move to the pool's own, the row's to `night` alone.
     from = d.directory->chosen.size();
-    REQUIRE(d.workshop_skin("classic").accepted);
-    CHECK(d.r.session().skin == "night");
-    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "night"},
-                                        {kWorkshopOverlayArea, "night"},
-                                        {layouts, "night"}});
-    // ...A CLEARED ROW TAKES WORKSHOP'S, night too, so nothing more is said...
+    REQUIRE(d.wear({}).accepted);
+    CHECK(d.chosen_since(from) == Palettes{{kWorkshopProvider, ""},
+                                           {kWorkshopOverlayArea, ""},
+                                           {layouts, ""},
+                                           {pane, "night"},
+                                           {frame, "night"}});
+    // ...A ROW'S THEME CLEARED WEARS THE LAYOUT'S...
     from = d.directory->chosen.size();
-    REQUIRE(d.pane_skin(nullptr).accepted);
+    REQUIRE(d.row("").accepted);
+    CHECK(d.chosen_since(from) == Palettes{{pane, ""}, {frame, ""}});
+    // ...AND A ROW SAYING `block` MOVES ITS AREA AND ITS FRAME ALONE.
+    from = d.directory->chosen.size();
+    REQUIRE(d.row("block").accepted);
+    CHECK(d.chosen_since(from) == Palettes{{pane, "block"}, {frame, "block"}});
+    // A ROW'S THEME THE LAYOUT ALREADY ENDS WITH IS NOT LAID TWICE.
+    from = d.directory->chosen.size();
+    REQUIRE(d.wear({"day", "block"}).accepted);
+    CHECK(d.chosen_since(from) == Palettes{{kWorkshopProvider, "day+block"},
+                                           {kWorkshopOverlayArea, "day+block"},
+                                           {layouts, "day+block"},
+                                           {pane, "day+block"},
+                                           {frame, "day+block"}});
+    // A THEME'S NAME THAT IS NO NAME IS REFUSED, and nothing moves.
+    from = d.directory->chosen.size();
+    CHECK_FALSE(d.wear({"No Such"}).accepted);
     CHECK(d.chosen_since(from).empty());
-    // ...AND A ROW SAYING `block` UNDER IT MOVES ITS AREA AND ITS FRAME ALONE.
-    from = d.directory->chosen.size();
-    REQUIRE(d.pane_skin("block").accepted);
-    CHECK(d.chosen_since(from) == Skins{{pane, "block"}, {frame, "block"}});
-    // `night` IS WHAT `classic` NAMED: Workshop's own said by its name moves no area.
-    from = d.directory->chosen.size();
-    const RoleSettingCommitAnswered night = d.workshop_skin("night");
-    REQUIRE_MESSAGE(night.accepted, night.refusal);
-    CHECK(d.r.session().skin == "night");
-    CHECK(d.chosen_since(from).empty());
-    // `day` IS A PALETTE AS THE OTHER TWO ARE: the row's reaches its pane's area.
-    from = d.directory->chosen.size();
-    const PaneSettingCommitAnswered day = d.pane_skin("day");
-    REQUIRE_MESSAGE(day.accepted, day.refusal);
-    CHECK(d.chosen_since(from) == Skins{{pane, "day"}, {frame, "day"}});
-    from = d.directory->chosen.size();
-    REQUIRE(d.workshop_skin("classic").accepted);
-    REQUIRE(d.pane_skin("block").accepted);
-    CHECK(d.chosen_since(from) == Skins{{pane, "block"}, {frame, "block"}});
 
-    // A REPAINT THAT MOVED NOTHING SAYS NO SKIN.
+    // A REPAINT THAT MOVED NOTHING SAYS NO PALETTE.
     from = d.directory->chosen.size();
     d.r.key(input::scan::kGrave);
     CHECK(d.chosen_since(from).empty());
-    // A DIRECTORY THAT STARTS AFRESH HEARS EVERY AREA'S SKIN AGAIN, the row's included.
+    // A DIRECTORY THAT STARTS AFRESH HEARS EVERY AREA'S PALETTE AGAIN, the row's included.
     from = d.directory->chosen.size();
     d.directory_does();
-    CHECK(d.chosen_since(from, &said) == Skins{{kWorkshopProvider, "night"},
-                                               {kWorkshopOverlayArea, "night"},
-                                               {layouts, "night"},
-                                               {pane, "block"},
-                                               {frame, "block"}});
+    CHECK(d.chosen_since(from, &said) == Palettes{{kWorkshopProvider, "day+block"},
+                                                  {kWorkshopOverlayArea, "day+block"},
+                                                  {layouts, "day+block"},
+                                                  {pane, "day+block"},
+                                                  {frame, "day+block"}});
     CHECK(said == 5);
     CHECK(d.refused.empty());
 }
@@ -4257,12 +4214,8 @@ TEST_CASE("the TUI window offered brings Workshop up in it, the last session res
         CHECK(os->offered[0].x == 40);
         CHECK(os->offered[0].y == 60);
         CHECK_FALSE(os->offered[0].maximized);
-        // ...EVERY PALETTE OFFERED THE DIRECTORY, and Workshop's area placed on the GUI window.
-        std::vector<std::string> offered;
-        for (const gfx::PaletteOffered& s : directory->offered) {
-            offered.push_back(s.palette);
-        }
-        CHECK(offered == std::vector<std::string>{"night", "day", "block"});
+        // ...NO PALETTE OFFERED THE DIRECTORY BY WORKSHOP, and its area placed on the GUI window.
+        CHECK(directory->offered.empty());
         REQUIRE(directory->areas.count(kWorkshopProvider) == 1);
         CHECK(directory->areas.at(kWorkshopProvider).window == gfx::kSdlWindow);
         // ...AND A PANE WHOSE ROLE DRAWS IN A WINDOW, opened, placed on it too.

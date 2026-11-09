@@ -34,21 +34,21 @@ WHY — `agents/decisions/a-lock-holds-a-setting-in-a-layout-or-everywhere.md`
 
 ## WL-LOCK-03 — Every layout's rows are read at one revision and written in one batch judged whole
 
-LAW — `LayoutSettingsRequested` reads every layout's rows, locks and baseline at one revision; `SettingsWriteRequested` at that revision is judged whole, then each write is written or passed over and said.
+LAW — `LayoutSettingsRequested` reads every layout's rows, locks and themes at one revision; `SettingsWriteRequested` at that revision is judged whole, then each write is written or passed over and said.
 
 MEANS
-- the revision moves when anything the reading says moves: a row, a layout added, removed, moved or renamed, the live one, a declaration, a lock, a baseline;
-- refused whole, nothing written: the asker, a stale revision, the bounds, a write's form, target, layout or value, a baseline's name, a row's or the file's bound, a file not written;
+- the revision moves when anything the reading says moves: a row, a layout added, removed, moved or renamed, the live one, a declaration, a lock, a layout's or a row's theme;
+- refused whole, nothing written: the asker, a stale revision, the bounds, a write's form, target, layout or value, a theme's name, a row's or the file's bound, a file not written;
 - passed over and said: `locked`, `not-taken` (no counted declaration takes the key), `not-in-layout`; the live rows moved are handed, Workshop's own applied.
 
 WHY — `agents/decisions/a-lock-holds-a-setting-in-a-layout-or-everywhere.md`
 
-## WL-LOCK-05 — A layout's locks, pins and baseline are its desk's, and a replaced desk keeps its locks
+## WL-LOCK-05 — A layout's locks, pins and themes are its desk's, and a replaced desk keeps its locks
 
-LAW — A layout keeps its locks, its pin lists and its baseline in its desk; `r` and `SetupApplyRequested` never take a lock away, and are refused whole when they would change a locked value, naming each.
+LAW — A layout keeps its locks, pin lists and themes in its desk; `r` and `SetupApplyRequested` never take a lock away, and are refused whole when they would change a locked value, naming each.
 
 MEANS
-- a rename keeps them, a copy takes its own, a removal takes them away; a layout's lock holds no value, and a baseline keeps a theme's name and its fingerprint alone;
+- a rename keeps them, a copy takes its own, a removal takes them away; a layout's lock holds no value, and its themes are themes' names alone;
 - a replacing desk keeps every lock the live one holds, a lock it brings joining them; a row it drops that a lock in this layout holds is a change.
 
 DOES NOT MEAN
@@ -86,19 +86,19 @@ unlocks it, and reads every layout"
 
 ### WL-LOCK-03
 `workshop/settings_seam_vocabulary.hpp` LayoutSettingsRequested LayoutSettingsAnswered LayoutSettings
-LayoutPaneSettings DeclaredSettings LayoutTheme SettingsWriteRequested SettingWrite LayoutThemeWrite
-SettingsWriteAnswered SettingWriteResult
+LayoutPaneSettings DeclaredSettings SettingsWriteRequested SettingWrite LayoutThemesWrite
+RowThemeWrite SettingsWriteAnswered SettingWriteResult
 `workshop/layouts/owner.cpp` on(LayoutSettingsRequested) on(SettingsWriteRequested)
 `workshop/layouts/store.cpp` layout_settings_reading layout_settings_revision read_layouts write
-`workshop/setup.hpp` layout_theme_name_problem
+`workshop/setup.hpp` layout_themes_problem theme_name_problem
 `tests/test_workshop_panes_settings.cpp` "every layout is read at once: each row with its locks, what
 each pane and role takes, the everywhere locks, the live one and one revision" "a batch is judged
-whole at its revision: a stale one, a value not taken, a layout not held or a bad baseline writes
-nothing" "a batch writes what it can across layouts, says each write's outcome, keeps baselines, and
-hands the live rows and roles it moved"
+whole at its revision: a stale one, a value not taken, a layout not held or a bad theme writes
+nothing" "a batch writes what it can across layouts, says each write's outcome, keeps a layout's
+themes and a row's theme, and hands the live rows and roles it moved"
 
 ### WL-LOCK-05
-`workshop/setup.hpp` SetupLock SetupPins Setup::locks Setup::pins Setup::theme
+`workshop/setup.hpp` SetupLock SetupPins Setup::locks Setup::pins Setup::themes
 `workshop/layouts/store.cpp` replacement_refused kept_locks
 `tests/test_workshop_panes_settings.cpp` "what a layout keeps for itself is its desk's: a rename keeps
 it, a copy takes its own, a removal takes it away" "a layout is named by its id: a lock by id lands

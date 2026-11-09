@@ -64,9 +64,8 @@ struct LiveLayout {
     std::string session_refused; ///< the session file the owner would not read, why; held all run
     std::string settings_refused; ///< ...and the settings file
     std::vector<RowSettingUnused> unused; ///< what each live row's pane said it cannot use
-    /// Version 3: no row's settings revision, which is the owner's to hand; a row's own settings
-    /// stay with the owner; what a pane cannot use is said; the desk at setup version 7.
-    ZEN_SHAPE(LiveLayout, 3, ZEN_FIELD(revision), ZEN_FIELD(put_live), ZEN_FIELD(id),
+    /// Version 4: the desk at setup version 8, its themes and each row's theme.
+    ZEN_SHAPE(LiveLayout, 4, ZEN_FIELD(revision), ZEN_FIELD(put_live), ZEN_FIELD(id),
               ZEN_FIELD(position), ZEN_FIELD(desk), ZEN_FIELD(link_path), ZEN_FIELD(tabs),
               ZEN_FIELD(said), ZEN_FIELD(bad), ZEN_FIELD(restored), ZEN_FIELD(restore_tail),
               ZEN_FIELD(session_refused), ZEN_FIELD(settings_refused), ZEN_FIELD(unused));

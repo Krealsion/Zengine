@@ -847,14 +847,18 @@ target_link_libraries(zengine-message-draft-tests PRIVATE zengine-message-draft 
 target_include_directories(zengine-message-draft-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_doctest_test(message_draft zengine-message-draft-tests)
 
-# ---- THE SETTINGS THEMES SUITE: a theme file's form, its reading and writing, and resolution ---
-# Header-only (settings/theme_persist.hpp, settings/vocabulary.hpp): every file it writes is under a
-# temporary directory of its own.
-add_executable(zengine-settings-themes-tests test_settings_themes.cpp doctest_main.cpp)
-target_link_libraries(zengine-settings-themes-tests
-    PRIVATE zengine-settings-vocabulary loom::core zengine-warnings zengine-sanitize)
-target_include_directories(zengine-settings-themes-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-zengine_doctest_test(settings_themes zengine-settings-themes-tests)
+# ---- THE THEME SUITE: a theme's two files, resolution, a stack laid, and the weave over a kernel --
+# Every file it writes is under a temporary folder of its own; the shipped themes are read where
+# the build stages them, and the weave is the built artifact.
+add_executable(zengine-theme-tests test_theme.cpp doctest_main.cpp)
+target_link_libraries(zengine-theme-tests
+    PRIVATE zengine-theme-vocabulary zengine-activation loom::kernel zengine-warnings zengine-sanitize)
+target_include_directories(zengine-theme-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_test_definitions(zengine-theme-tests
+    "THEME_ARTIFACT=\"$<TARGET_FILE:zengine-theme>\""
+    "THEME_SHIPPED_DIR=\"${CMAKE_SOURCE_DIR}/graphics/themes\"")
+add_dependencies(zengine-theme-tests zengine-theme)
+zengine_doctest_test(theme zengine-theme-tests)
 
 # ---- THE SOURCE-TRANSFER SUITE: the material editors exchange with Inventory, as pure functions --
 # The byte laws, the Terminal line (proved by Loom's lexer), reading a dropped pair, the capture
@@ -995,6 +999,9 @@ set(ZENGINE_WORKSHOP_DEFS
     # (`default_setup`).
     "WORKSHOP_SO_NOTICES=\"$<TARGET_FILE:zengine-notices>\""
     "WORKSHOP_SO_NOTICES_PANE=\"$<TARGET_FILE:zengine-notices-pane>\""
+    # The theme weave, which lays what the desk wears, and the shipped themes it reads.
+    "WORKSHOP_SO_THEME=\"$<TARGET_FILE:zengine-theme>\""
+    "WORKSHOP_THEMES_DIR=\"${CMAKE_SOURCE_DIR}/graphics/themes\""
     # The Info pane: the shipped desk names it (`default_setup`), so here a fresh Workshop's
     # own second pane resolves.
     "WORKSHOP_SO_INFO_PANE=\"$<TARGET_FILE:zengine-info-pane>\""
@@ -1027,7 +1034,7 @@ set(ZENGINE_WORKSHOP_DEFS
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-graphics zengine-workshop-staging
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
-    zengine-attention-pane zengine-notices zengine-notices-pane
+    zengine-attention-pane zengine-notices zengine-notices-pane zengine-theme
     zengine-info-pane zengine-desktop-pane zengine-terminal-pane
     zengine-connections-pane zengine-flow-pane zengine-view-builder
     zengine-legacy-pane
@@ -1273,7 +1280,7 @@ file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt"
 # It links the guests library, the view package and the app host, whose doors and hosts
 # tests/census_headers.hpp includes, each with the manual its role answers from.
 zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_census.cpp
-    LINKS zengine-workshop-guests zengine-view zengine-settings-vocabulary zengine-app-host
+    LINKS zengine-workshop-guests zengine-view zengine-theme-vocabulary zengine-app-host
     DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "ZENGINE_CENSUS_WEAVES=\"${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt\""
                 "ZENGINE_CENSUS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/shapes-now-$<CONFIG>.txt\""

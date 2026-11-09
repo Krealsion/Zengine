@@ -50,4 +50,5 @@ close-time save.
 [WL-MIG-05](../workshop/migration.md), [WL-MIG-06](../workshop/migration.md),
 [WL-MIG-07](../workshop/migration.md), [WL-MIG-08](../workshop/migration.md),
 [WL-MIG-09](../workshop/migration.md), [WL-MIG-10](../workshop/migration.md),
-[WL-MIG-11](../workshop/migration.md), [WL-MIG-12](../workshop/migration.md).
+[WL-MIG-11](../workshop/migration.md), [WL-MIG-12](../workshop/migration.md),
+[WL-MIG-13](../workshop/migration.md).

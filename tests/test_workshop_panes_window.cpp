@@ -52,10 +52,10 @@ TEST_CASE("a fresh setup is the current version, sparse, and carries the identit
         CHECK(fresh.panes[i].front == static_cast<std::int64_t>(i));
     }
     CHECK(is_permutation(fresh));
-    CHECK(setup_persist::kFormatVersion == 7);
+    CHECK(setup_persist::kFormatVersion == 8);
     const std::string text = setup_persist::to_text(fresh);
     INFO(text);
-    CHECK(text.find("\"format_version\":\"7\"") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"8\"") != std::string::npos);
     CHECK(text.find("\"mode\":\"default\"") != std::string::npos);
     CHECK(text.find("\"front\":\"0\"") != std::string::npos);
 }
@@ -318,7 +318,7 @@ TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
     INFO(refused.outcome.refusal);
     // BY ITS NUMBER, and in Workshop's own words.
     CHECK(refused.outcome.refusal.find("setup version 1") != std::string::npos);
-    CHECK(refused.outcome.refusal.find("reads versions 2, 3, 4, 5, 6 and 7") != std::string::npos);
+    CHECK(refused.outcome.refusal.find("reads versions 2, 3, 4, 5, 6, 7 and 8") != std::string::npos);
     // AND NOT BY A ROW FIELD. That sentence would be true and would name the wrong cause --
     // a weaver fixing a missing `place` would never find out their file is a version old.
     CHECK(refused.outcome.refusal.find("place") == std::string::npos);
@@ -329,7 +329,7 @@ TEST_CASE("a version-1 file is refused BY NUMBER, before its rows are judged") {
     // THE FIELD IS STILL CHECKED TOO, for the forgery that only a reader of this format
     // would produce: a version-3 envelope whose own stated version is not 3.
     const setup_persist::LoadedSetup forged = setup_persist::from_text(
-        forged_setup(two_overlays(), "\"format_version\":\"7\"", "\"format_version\":\"1\""));
+        forged_setup(two_overlays(), "\"format_version\":\"8\"", "\"format_version\":\"1\""));
     CHECK_FALSE(forged.outcome.accepted);
     CHECK(forged.outcome.refusal.find("setup version 1") != std::string::npos);
 }

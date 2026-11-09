@@ -73,9 +73,10 @@ rows; it shares the rig.
   board's code beside the snake's host; `examples/snake/play.cpp` loads the directory and the
   window, and its console weave is the arranger, offering two of the shipped palettes.
   `workshop/CMakeLists.txt` stages the window and the directory beside `zengine-workshop` (and the
-  GUI window where the build has SDL), whose weave arranges when they are loaded and offers the three
-  shipped palettes, and `cmake/ZengineInstall.cmake` installs them as artifacts, all but the GUI
-  window, whose SDL the install does not own, with the generator and the pool's and themes' JSON.
+  GUI window where the build has SDL), whose weave arranges when they are loaded and names each
+  area's palette by the stack of themes it wears, which the theme role (`theme/`) lays and offers;
+  `cmake/ZengineInstall.cmake` installs them as artifacts, all but the GUI window, whose SDL the
+  install does not own, with the generator and the pool's, the terminal's and the themes' JSON.
 - Grants: the snake host grants its console `AreaPlaced`, `PaletteOffered`, `PaletteChosen`,
   `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's role.
 - Beyond the snake: the TUI window reads its terminal with `input/terminal_reader.hpp` and

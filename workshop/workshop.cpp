@@ -405,6 +405,11 @@ int main(int argc, char** argv) {
     // The Files pane learns this path by asking `zengine.project`.
     const std::string marks_path = user_paths::resolve_durable_path(
         args.marks, args.isolated, state_root, kDefaultMarksFileName);
+    // The weaver's own themes stand in a folder under the per-user configuration root, and the
+    // shipped ones beside this host; an isolated launch keeps none of its own.
+    host.themes_path =
+        user_paths::resolve_durable_path("", args.isolated, config_root, zengine::theme::kThemesSubdir);
+    host.shipped_themes_path = host.dir + "/" + zengine::theme::kThemesSubdir;
 
     // ---- ...and the one-time legacy import, for defaulted files only --------------------------
     // The rule is `user_paths.hpp`'s. An import is an event, said on the notice row; a shadowed

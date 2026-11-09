@@ -8,7 +8,7 @@
 #include "weave.hpp"
 #include "screen_canvas.hpp"
 
-#include "graphics/themes.hpp" // generated: the shipped themes, as palettes
+#include "theme/stack_name.hpp" // the palette a stack of themes is named by
 
 #include <algorithm>
 #include <vector>
@@ -115,8 +115,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         return host_->holder_accepts && host_->holder_accepts(role, shape);
     };
     // A DIRECTORY NOT PLACED WITH YET -- another holder, a reload, or one that said it started
-    // afresh -- holds none of this desk's areas: the palettes are offered and everything placed
-    // again.
+    // afresh -- holds none of this desk's areas: everything is placed again. The palettes are the
+    // theme role's to offer; Workshop names the one each area wears.
     const loom::WeaveId holder =
         host_->role_holder ? host_->role_holder(graphics::kGraphicsRole) : loom::WeaveId{};
     const std::int64_t incarnation =
@@ -131,9 +131,6 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         graphics_asked_ = false;
         frames_.clear();
         frames_asked_.clear();
-        for (const graphics::PaletteOffered& palette : graphics::themes::shipped()) {
-            to_directory(palette);
-        }
     }
     // EACH OPEN PANE AT ITS DEPTH in the desk's order, above Workshop's own area: its frame in an
     // area of Workshop's over its bounds, and, where its role draws in a window, the pane's own
@@ -144,8 +141,20 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     const std::vector<std::int64_t> order =
         effective_pane_order(session_.setup.active, session_.panes);
     std::map<std::string, graphics::AreaPlaced> next;
-    // EACH AREA'S PALETTE: the one its pane's row's `workshop.skin` names, else Workshop's own.
+    // EACH AREA'S PALETTE, named for the stack it wears: the live layout's themes, and a pane's
+    // row's theme laid over them for that pane alone.
+    const std::vector<std::string>& stack = session_.setup.active.themes;
+    const std::string worn = theme::stack_palette(stack);
     std::map<std::string, std::string> skins;
+    std::vector<theme::ThemeStack> stacks;
+    const auto wears = [&stacks](const std::vector<std::string>& themes) {
+        if (!themes.empty() &&
+            std::find(stacks.begin(), stacks.end(), theme::ThemeStack{themes}) == stacks.end()) {
+            stacks.push_back(theme::ThemeStack{themes});
+        }
+        return theme::stack_palette(themes);
+    };
+    (void)wears(stack);
     std::set<std::int64_t> kinds;
     std::map<std::string, std::int64_t> frames;
     for (std::size_t i = 0; i < order.size(); ++i) {
@@ -163,7 +172,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         if (!is_runtime_kind(order[i]) || row == nullptr || ext == nullptr ||
             !accepts(row->provider, *loom::schema_of<graphics::AreaRoom>())) {
             if (frames.count(pane_frame_area(session_.panes, order[i])) != 0) {
-                skins[pane_frame_area(session_.panes, order[i])] = session_.skin;
+                skins[pane_frame_area(session_.panes, order[i])] = worn;
             }
             continue;
         }
@@ -201,11 +210,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         next[area].followed = true; // presses raise it; what it shows moves the desk's notice
         const SetupPane* seat =
             pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
-        const PaneSetting* own =
-            seat != nullptr ? find_pane_setting(seat->settings, kWorkshopSkinKey) : nullptr;
-        skins[area] = own != nullptr && own->text && is_workshop_skin_choice(*own->text)
-                          ? workshop_palette_of(*own->text)
-                          : session_.skin;
+        skins[area] = seat != nullptr ? wears(theme::stack_over(stack, seat->theme)) : worn;
         if (frames.count(pane_frame_area(session_.panes, order[i])) != 0) {
             // its frame wears its palette
             skins[pane_frame_area(session_.panes, order[i])] = skins[area];
@@ -227,7 +232,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         desk_in_front(session_) || carried_.data.empty(), !menu_alone};
     next[kWorkshopProvider].releases = true; // a shift tapped alone is read at its release
     next[kWorkshopProvider].text = true;
-    skins[kWorkshopProvider] = session_.skin;
+    skins[kWorkshopProvider] = worn;
     const PixelRect menu = presented_area_place(session_, sc);
     const bool menu_placed = session_.presented.open && !menu.empty();
     if (menu_placed) {
@@ -237,12 +242,13 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
             session_.presented.area, window_name_, kPresenterRole, menu.x, menu.y, menu.w, menu.h,
             panes_order + 2, false, true, about != nullptr && weaver_only_pane(*about)};
         next[session_.presented.area].followed = true;
-        skins[session_.presented.area] = session_.skin;
+        skins[session_.presented.area] = worn;
     }
     next[kWorkshopOverlayArea] = graphics::AreaPlaced{
         kWorkshopOverlayArea, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h,
         panes_order + (menu_placed ? 3 : 2), false, false};
-    skins[kWorkshopOverlayArea] = session_.skin;
+    skins[kWorkshopOverlayArea] = worn;
+    wear_themes(mail, std::move(stacks));
     for (const auto& [area, was] : areas_placed_) {
         if (next.count(area) == 0) {
             to_directory(graphics::AreaPlaced{area, "", was.owner, 0, 0, 0, 0, 0, false, false});
@@ -644,6 +650,62 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
         case HeldInput::Kind::kWheel: pointer_wheel(held.wheel, mail); break;
         case HeldInput::Kind::kAreaPress: area_pressed(held.area_press, held.press, mail); break;
         }
+    }
+}
+
+} // namespace zengine::workshop
+
+namespace zengine::workshop {
+
+void WorkshopWeave::wear_themes(loom::Mail& mail, std::vector<theme::ThemeStack> stacks) {
+    const loom::WeaveId holder =
+        host_->role_holder ? host_->role_holder(theme::kThemeRole) : loom::WeaveId{};
+    if (!holder.valid()) {
+        themes_holder_ = 0;
+        return;
+    }
+    const std::int64_t incarnation = host_->incarnation_of ? host_->incarnation_of(holder) : 0;
+    const bool fresh = holder.value != themes_holder_ || incarnation != themes_incarnation_;
+    const theme::ThemesPlaced placed{host_->themes_path, host_->shipped_themes_path};
+    const theme::ThemesWorn worn{std::move(stacks)};
+    if (fresh || !(placed == themes_placed_)) {
+        (void)mail.as_role(kWorkshopProvider).send_to_role(theme::kThemeRole, placed);
+    }
+    if (fresh || !(worn == themes_worn_)) {
+        (void)mail.as_role(kWorkshopProvider).send_to_role(theme::kThemeRole, worn);
+    }
+    themes_holder_ = holder.value;
+    themes_incarnation_ = incarnation;
+    themes_placed_ = placed;
+    themes_worn_ = worn;
+}
+
+void WorkshopWeave::on(const theme::ThemesPlacedRequested&, loom::Mail& mail) {
+    if (!mail.authored_from_role(theme::kThemeRole)) {
+        return;
+    }
+    themes_holder_ = 0; // told afresh
+    repaint(mail);
+}
+
+void WorkshopWeave::on(const theme::StackSaid& said, loom::Mail& mail) {
+    if (!mail.authored_from_role(theme::kThemeRole)) {
+        return;
+    }
+    std::string words;
+    for (const theme::ThemeLink& link : said.laid.links) {
+        if (!link.refusal.empty()) {
+            words += (words.empty() ? "" : "; ") + ("theme " + link.theme + " left out: " + link.refusal);
+        } else if (!link.warning.empty()) {
+            words += (words.empty() ? "" : "; ") + ("theme " + link.theme + ": " + link.warning);
+        }
+    }
+    for (const theme::OwnSkipped& s : said.laid.skipped) {
+        words += (words.empty() ? "" : "; ") + ("theme " + s.theme + " left out " + s.name + ": " + s.why);
+    }
+    if (!words.empty()) {
+        say(words, false);
+        repaint(mail);
     }
 }
 

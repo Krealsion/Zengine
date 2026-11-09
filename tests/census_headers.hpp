@@ -28,8 +28,6 @@
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
 #include "editor/source-transfer/vocabulary.hpp"
-#include "settings/theme_persist.hpp"
-#include "settings/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 #include "ui/vocabulary.hpp"
@@ -139,7 +137,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::LayoutsOwnerState>(), // LayoutsOwnerState v1
         shape<::zengine::workshop::LiveTab>(), // LiveTab v1
         shape<::zengine::workshop::RowSettingUnused>(), // RowSettingUnused v1
-        shape<::zengine::workshop::LiveLayout>(), // LiveLayout v3
+        shape<::zengine::workshop::LiveLayout>(), // LiveLayout v4
         shape<::zengine::workshop::LayoutEdit>(), // LayoutEdit v1
         shape<::zengine::workshop::LayoutEditRequested>(), // LayoutEditRequested v1
         shape<::zengine::workshop::LayoutEditAnswered>(), // LayoutEditAnswered v2
@@ -240,6 +238,10 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::session_history::v12::WorkshopLayout>(), // WorkshopLayout v4
         shape<::zengine::workshop::session_history::v12::WorkshopSession>(), // WorkshopSession v12
         shape<::zengine::workshop::session_history::v12::WorkshopSessionHeader>(), // WorkshopSessionHeader v12
+        shape<::zengine::workshop::session_history::v13::WorkshopSession>(), // WorkshopSession v13
+        shape<::zengine::workshop::session_history::v13::WorkshopSessionHeader>(), // WorkshopSessionHeader v13
+        shape<::zengine::workshop::session_history::v13::WorkshopLayout>(), // WorkshopLayout v5
+        shape<::zengine::workshop::session_history::v13::WorkshopSetupLink>(), // WorkshopSetupLink v5
         shape<::zengine::workshop::session_history::v12::WorkshopSetupLink>(), // WorkshopSetupLink v4
         shape<::zengine::workshop::session_persist::WorkshopChoice>(), // WorkshopChoice v1
         shape<::zengine::workshop::session_persist::WorkshopLayout>(), // WorkshopLayout v5
@@ -262,6 +264,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::setup_persist::v4::WorkshopSetup>(), // WorkshopSetup v4
         shape<::zengine::workshop::setup_persist::v5::WorkshopSetup>(), // WorkshopSetup v5
         shape<::zengine::workshop::setup_persist::v6::WorkshopSetup>(), // WorkshopSetup v6
+        shape<::zengine::workshop::setup_persist::v7::WorkshopSetup>(), // WorkshopSetup v7
         shape<::zengine::workshop::setup_persist::WorkshopSetup>(), // WorkshopSetup v7
         shape<::zengine::workshop::setup_persist::WorkshopSetupLock>(), // WorkshopSetupLock v1
         shape<::zengine::workshop::setup_persist::v2::WorkshopSetupPane>(), // WorkshopSetupPane v2
@@ -269,6 +272,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::setup_persist::v4::WorkshopSetupPane>(), // WorkshopSetupPane v4
         shape<::zengine::workshop::setup_persist::v5::WorkshopSetupPane>(), // WorkshopSetupPane v5
         shape<::zengine::workshop::setup_persist::v6::WorkshopSetupPane>(), // WorkshopSetupPane v6
+        shape<::zengine::workshop::setup_persist::v7::WorkshopSetupPane>(), // WorkshopSetupPane v7
         shape<::zengine::workshop::setup_persist::WorkshopSetupPane>(), // WorkshopSetupPane v7
         shape<::zengine::workshop::setup_persist::WorkshopSetupPinList>(), // WorkshopSetupPinList v1
         shape<::zengine::workshop::PaneSettingsDeclared>(), // PaneSettingsDeclared v1
@@ -320,27 +324,6 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::snake::SnakeStep>(), // SnakeStep v1
         shape<::zengine::snake::SnakeNewGame>(), // SnakeNewGame v1
         shape<::zengine::snake::SnakeBoardState>(), // SnakeBoardState v1
-        // The theme file and the settings role's doors, which no weave declares.
-        shape<::zengine::settings::ThemeSetting>(), // ThemeSetting v1
-        shape<::zengine::settings::ThemeKey>(), // ThemeKey v1
-        shape<::zengine::settings::ThemeFile>(), // ThemeFile v1
-        shape<::zengine::settings::ResolvedThemeSetting>(), // ResolvedThemeSetting v1
-        shape<::zengine::settings::ResolvedThemeKey>(), // ResolvedThemeKey v1
-        shape<::zengine::settings::ThemeResolved>(), // ThemeResolved v1
-        shape<::zengine::settings::ThemeSummary>(), // ThemeSummary v1
-        shape<::zengine::settings::ThemeApplyRequested>(), // ThemeApplyRequested v1
-        shape<::zengine::settings::ThemeSkip>(), // ThemeSkip v1
-        shape<::zengine::settings::ThemeActed>(), // ThemeActed v1
-        shape<::zengine::settings::ThemeSaveRequested>(), // ThemeSaveRequested v1
-        shape<::zengine::settings::ThemeSnapshotRequested>(), // ThemeSnapshotRequested v1
-        shape<::zengine::settings::ThemePromoteRequested>(), // ThemePromoteRequested v1
-        shape<::zengine::settings::ThemeSaved>(), // ThemeSaved v1
-        shape<::zengine::settings::ThemesRequested>(), // ThemesRequested v1
-        shape<::zengine::settings::ThemesShown>(), // ThemesShown v1
-        shape<::zengine::settings::ThemeResolveRequested>(), // ThemeResolveRequested v1
-        shape<::zengine::settings::ThemeProvenanceRequested>(), // ThemeProvenanceRequested v1
-        shape<::zengine::settings::ThemeProvenanceEntry>(), // ThemeProvenanceEntry v1
-        shape<::zengine::settings::ThemeProvenanceShown>(), // ThemeProvenanceShown v1
         // Said by the GUI window, which a build without SDL has no manifest of.
         shape<zengine::graphics::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
     };

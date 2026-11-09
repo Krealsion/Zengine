@@ -51,7 +51,7 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
 ## WL-LAYOUT-06 — Per-layout is the value's own fields and nothing else
 
-LAW — Participation, place, extent, front order, a pane's settings, the name, the locks, pins and baseline are per-layout; all else is one Workshop-global truth a switch does not copy, clear or revalidate.
+LAW — Participation, place, extent, front order, a row's settings and theme, the name, locks, pins and themes are per-layout; all else is one Workshop-global truth a switch does not copy, clear or revalidate.
 
 MEANS
 - the catalog, providers and their state (the Editor's document among them), the marks;

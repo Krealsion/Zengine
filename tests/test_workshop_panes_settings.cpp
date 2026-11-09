@@ -1480,11 +1480,11 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
     }
     CHECK(keys == std::vector<std::string>{
                       "workshop.pane-titles", "workshop.band-keys", "workshop.hotkeys-keys",
-                      "workshop.pinned-scope", "workshop.focus.ring", "workshop.skin",
+                      "workshop.pinned-scope", "workshop.focus.ring",
                       "workshop.completion-order", "workshop.arrange-step", "workshop.snap-reach",
                       "workshop.stack-rows", "workshop.open-at"});
     CHECK(shown.rows == prefs_persist::workshop_role_rows());
-    // THREE PINNED BY DEFAULT, the most a declaration pins, and every row sound by a pane
+    // TWO PINNED BY DEFAULT, short of the most a declaration pins, and every row sound by a pane
     // declaration's rules but its `workshop.` key.
     std::vector<std::string> pinned;
     std::vector<std::string> tags;
@@ -1501,8 +1501,7 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
             }
         }
     }
-    CHECK(pinned == std::vector<std::string>{"workshop.pane-titles", "workshop.pinned-scope",
-                                             "workshop.skin"});
+    CHECK(pinned == std::vector<std::string>{"workshop.pane-titles", "workshop.pinned-scope"});
     CHECK(pinned.size() <= kMaxDefaultPins);
     CHECK(tags.size() <= kMaxDeclaredTags);
     const auto row_of = [&shown](const char* key) {
@@ -1514,8 +1513,6 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
         FAIL("no row ", key);
         return v2::PaneSettingRow{};
     };
-    CHECK(row_of("workshop.skin").text == std::string("night"));
-    CHECK(row_of("workshop.skin").choices == std::vector<std::string>{"night", "day", "block"});
     CHECK(row_of("workshop.completion-order").text == std::string("declared"));
     CHECK(row_of("workshop.completion-order").choices ==
           std::vector<std::string>{"declared", "required-first"});
@@ -1946,81 +1943,44 @@ TEST_CASE("Workshop's measures and its completion order apply when committed, ar
     CHECK_MESSAGE(carried.outcome.accepted, carried.outcome.refusal);
 }
 
-TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken on every row, kept as written, shown in Info, and never handed to the pane") {
+TEST_CASE("a row keeps no `workshop.` key among its settings: its theme stands beside them, a commit "
+          "of `workshop.skin` is refused, and a version-7 setup's is read as the row's theme") {
     RevisionRig t;
     t.open();
     const PaneSettingsAnswered before = t.read();
-    // A ROW TAKES IT, whatever its pane declares, and the pane is handed none of it.
-    const PaneSettingCommitAnswered block = t.commit(text_at(before.revision, "workshop.skin", "block"));
-    REQUIRE_MESSAGE(block.accepted, block.refusal);
-    CHECK(block.handed == "stored and handed");
-    CHECK(t.stored() ==
-          std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
-                                               std::string("block")}});
-    REQUIRE_FALSE(t.seat->handed.empty());
-    CHECK(t.seat->handed.back().revision == block.revision);
-    CHECK(t.seat->handed.back().settings.empty());
-    const PaneSettingsAnswered shown = t.read();
-    CHECK(shown.settings == t.stored());
-    CHECK(shown.said == "stored and handed");
-    for (const v2::PaneSettingRow& row : shown.rows) {
-        CHECK(row.key != "workshop.skin"); // the pane's declaration, as the pane declared it
-    }
-    // INFO SHOWS IT AS A SETTING THE ROW TAKES, not a key kept for nobody.
-    REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
-    CHECK(info_value(t.r, dial_ref(), "workshop.skin") == "block");
-
-    // `classic` IS KEPT AS WRITTEN: its absence is Workshop's own palette, which may be `block`.
-    const PaneSettingCommitAnswered classic = t.commit(text_at(block.revision, "workshop.skin", "classic"));
-    REQUIRE_MESSAGE(classic.accepted, classic.refusal);
-    CHECK(t.stored() ==
-          std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
-                                               std::string("classic")}});
-    CHECK(t.seat->handed.back().settings.empty());
-    // `day` AND `night` ARE TAKEN AS THE OTHER TWO ARE, kept as written and handed to no pane.
-    std::int64_t at = classic.revision;
-    for (const char* painter : {"day", "night"}) {
-        CAPTURE(painter);
-        const PaneSettingCommitAnswered kept = t.commit(text_at(at, "workshop.skin", painter));
-        REQUIRE_MESSAGE(kept.accepted, kept.refusal);
-        CHECK(t.stored() == std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt,
-                                                                 std::nullopt,
-                                                                 std::string(painter)}});
-        CHECK(t.seat->handed.back().settings.empty());
-        CHECK(check_pane_settings(dial_ref(), t.stored()).accepted);
-        at = kept.revision;
-    }
-    // A SKIN IT DOES NOT TAKE, AND ANY OTHER `workshop.` KEY, ARE REFUSED, nothing written.
-    PaneSettingCommitAnswered a = t.commit(text_at(at, "workshop.skin", "plain"));
-    CHECK_FALSE(a.accepted);
-    CHECK(a.refusal == "workshop.skin takes one of night, day, block, not a text `plain`");
-    a = t.commit(text_at(at, "workshop.text", "x"));
-    CHECK_FALSE(a.accepted);
-    CHECK(a.refusal.find("has no counted setting `workshop.text`") != std::string::npos);
-    CHECK(t.stored().size() == 1);
-    // ...AND A CLEAR GIVES THE AREA BACK TO WORKSHOP'S OWN.
-    PaneSettingCommitRequested clear;
-    clear.revision = at;
-    clear.key = "workshop.skin";
-    clear.clear = true;
-    const PaneSettingCommitAnswered cleared = t.commit(clear);
-    REQUIRE_MESSAGE(cleared.accepted, cleared.refusal);
+    // ⚔ MUTATION (tests/mutants/workshop_panes_settings.md#skin-still-taken): the retired key taken
+    // as a row's setting.
+    const PaneSettingCommitAnswered skin =
+        t.commit(text_at(before.revision, "workshop.skin", "block"));
+    CHECK_FALSE(skin.accepted);
+    CHECK(skin.refusal.find("has no counted setting `workshop.skin`") != std::string::npos);
     CHECK(t.stored().empty());
-
-    // THE SETUP FILE'S CHECK READS A ROW KEEPING IT, and refuses one it does not take by name.
-    const PaneSetting skin_block{"workshop.skin", std::nullopt, std::nullopt, std::string("block")};
-    CHECK(check_pane_settings(dial_ref(), {skin_block}).accepted);
-    const Written plain = check_pane_settings(
-        dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, std::nullopt, std::string("plain")}});
-    CHECK_FALSE(plain.accepted);
-    CHECK(plain.refusal ==
-          "`" + ref_text(dial_ref()) +
-              "`: workshop.skin takes one of night, day, block, not a text `plain`");
-    CHECK(check_pane_settings(dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, 1,
-                                                       std::nullopt}})
-              .refusal.find(
-                  "workshop.skin takes one of night, day, block, not a number `1`") !=
+    // THE SETUP FILE'S CHECK REFUSES A ROW KEEPING ONE, by name.
+    const Written kept = check_pane_settings(
+        dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, std::nullopt, std::string("block")}});
+    CHECK_FALSE(kept.accepted);
+    CHECK(kept.refusal.find("`workshop.skin` is a Workshop setting this Workshop does not know") !=
           std::string::npos);
+    // A SETUP OF VERSION 7 KEPT IT AMONG THE ROW'S SETTINGS: read as the row's theme, `classic` as
+    // `night`, and the layout's baseline as the bottom of its themes.
+    setup_persist::v7::WorkshopSetup old;
+    old.format = setup_persist::kFormat;
+    old.format_version = 7;
+    old.name = "old";
+    old.theme = LayoutTheme{"evening", 7};
+    old.panes.push_back(setup_persist::v7::WorkshopSetupPane{
+        dial_ref().provider, dial_ref().pane, {"default", std::nullopt, std::nullopt},
+        {"default", std::nullopt}, {"default", std::nullopt}, 0,
+        {PaneSetting{"workshop.skin", std::nullopt, std::nullopt, std::string("classic")},
+         PaneSetting{"wheel-rows", std::nullopt, 5, std::nullopt}},
+        "open", "none"});
+    setup_persist::WorkshopSetup now;
+    REQUIRE(setup_persist::v7::to_current(old, now).accepted);
+    CHECK(now.themes == std::vector<std::string>{"evening"});
+    REQUIRE(now.panes.size() == 1);
+    CHECK(now.panes[0].theme == "night");
+    CHECK(now.panes[0].settings ==
+          std::vector<PaneSetting>{PaneSetting{"wheel-rows", std::nullopt, 5, std::nullopt}});
 }
 
 namespace {
@@ -2230,10 +2190,6 @@ TEST_CASE("a lock act is refused in words with nothing changed: an act or a scop
     away.target = "test.dial/other";
     CHECK(t.lock(away).refusal == "test.dial/other neither declares nor keeps `legend` in layout " +
                                       quoted_setup_name(t.r.session().setup.active.name));
-    away.key = kWorkshopSkinKey;
-    CHECK(t.lock(away).refusal == "test.dial/other is not in layout " +
-                                      quoted_setup_name(t.r.session().setup.active.name) +
-                                      " -- a layout's lock holds its row");
     CHECK(t.r.owner->layouts().prefs().locks.empty());
     // ...AND TO AN ASKER THE SETTINGS DOORS DO NOT SERVE.
     PaneSettingLockAnswered withheld;
@@ -2279,7 +2235,7 @@ TEST_CASE("a role-wide setting is locked everywhere alone, and its lock freezes 
     CHECK(file.kept.locks[0].target == kWorkshopProvider);
     // A FILE ANOTHER HAND CHANGED SINCE IS NEVER WRITTEN OVER, so the act is refused, nothing changed.
     REQUIRE(prefs_persist::save_file(t.r.host.prefs_path, prefs_persist::Prefs{}).accepted);
-    ring.key = kWorkshopSkinKey;
+    ring.key = "workshop.band-keys";
     a = t.lock(ring);
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal.rfind("nothing changed: Workshop's settings file was not written -- the "
@@ -2340,7 +2296,7 @@ TEST_CASE("a version-3 settings file keeps layouts' locks, pins and baselines by
     REQUIRE(prefs_persist::put_role_value(bad, "@Layout 2", "theme",
                                             PaneSetting{"theme", std::nullopt, std::nullopt,
                                                         std::string("Evening!")}));
-    CHECK(prefs_persist::kept_problem(bad, true).find("a baseline's theme name") !=
+    CHECK(prefs_persist::kept_problem(bad, true).find("a theme's name") !=
           std::string::npos);
     // WITHOUT THEM THE FILE IS VERSION 5: what holds in every layout, alone.
     const prefs_persist::Prefs wide = prefs_persist::without_layout_entries(p);
@@ -2360,7 +2316,7 @@ TEST_CASE("what a layout keeps for itself is its desk's: a rename keeps it, a co
     REQUIRE(t.lock(dial_lock("legend", "lock", "layout")).accepted);
     SettingsWriteRequested b;
     b.revision = t.layouts().revision;
-    b.baselines = {LayoutThemeWrite{0, LayoutTheme{"evening", 7}}};
+    b.themes = {LayoutThemesWrite{0, {"evening"}}};
     REQUIRE(t.batch(b).accepted);
     // THE SETTINGS FILE KEEPS NONE OF IT.
     CHECK_FALSE(prefs_persist::has_layout_entries(t.r.owner->layouts().prefs()));
@@ -2368,14 +2324,14 @@ TEST_CASE("what a layout keeps for itself is its desk's: a rename keeps it, a co
     const std::vector<SetupLock> legend{SetupLock{dial_ref(), "legend"}};
     CHECK(live_desk(t.r.owner->layouts().run()).name == "Night Desk");
     CHECK(live_desk(t.r.owner->layouts().run()).locks == legend);
-    CHECK(live_desk(t.r.owner->layouts().run()).theme == LayoutTheme{"evening", 7});
-    CHECK(t.layouts().layouts[1].theme == LayoutTheme{"evening", 7});
+    CHECK(live_desk(t.r.owner->layouts().run()).themes == std::vector<std::string>{"evening"});
+    CHECK(t.layouts().layouts[1].themes == std::vector<std::string>{"evening"});
     CHECK(t.read().locks.size() == 1);
     // A COPY TAKES ITS OWN, and a lock on one is a lock on that one alone.
     duplicate_live_layout(t.r);
     REQUIRE(layout_count(t.r.session().setup) == 3);
     CHECK(live_desk(t.r.owner->layouts().run()).locks == legend);
-    CHECK(live_desk(t.r.owner->layouts().run()).theme == LayoutTheme{"evening", 7});
+    CHECK(live_desk(t.r.owner->layouts().run()).themes == std::vector<std::string>{"evening"});
     // A REMOVED LAYOUT TAKES WHAT IT KEPT; the one it was copied from keeps its own.
     layout_key(t.r, Act::kLayoutRemove);
     REQUIRE(layout_count(t.r.session().setup) == 2);
@@ -2400,13 +2356,13 @@ TEST_CASE("every layout is read at once: each row with its locks, what each pane
     CHECK(s.layouts[0].position == 0);
     CHECK(s.layouts[1].position == 1);
     CHECK(s.layouts[1].name == "Layout 2");
-    CHECK(s.layouts[1].theme.name.empty());
+    CHECK(s.layouts[1].themes.empty());
     REQUIRE(dial_in(s.layouts[0]) != nullptr);
     REQUIRE(dial_in(s.layouts[1]) != nullptr);
     CHECK(dial_in(s.layouts[0])->settings == std::vector<PaneSetting>{legend_off()});
     CHECK(dial_in(s.layouts[0])->locked == std::vector<std::string>{"mode"});
     CHECK(dial_in(s.layouts[1])->locked == std::vector<std::string>{"mode", "step"});
-    // WHAT EACH PANE TAKES, WORKSHOP'S WORD FOR ITS AREA FIRST, AND WHAT EACH ROLE TAKES.
+    // WHAT EACH PANE TAKES, AS IT DECLARED IT, AND WHAT EACH ROLE TAKES.
     const DeclaredSettings* dial = nullptr;
     const DeclaredSettings* workshop = nullptr;
     for (const DeclaredSettings& d : s.declared) {
@@ -2414,9 +2370,8 @@ TEST_CASE("every layout is read at once: each row with its locks, what each pane
         workshop = d.provider == kWorkshopProvider && d.pane.empty() ? &d : workshop;
     }
     REQUIRE(dial != nullptr);
-    REQUIRE(dial->rows.size() == 4);
-    CHECK(dial->rows[0].key == kWorkshopSkinKey);
-    CHECK(dial->rows[1].key == "legend");
+    REQUIRE(dial->rows.size() == 3);
+    CHECK(dial->rows[0].key == "legend");
     REQUIRE(workshop != nullptr);
     CHECK(workshop->rows == prefs_persist::workshop_role_rows());
     REQUIRE(s.everywhere.size() == 1);
@@ -2440,7 +2395,7 @@ TEST_CASE("every layout is read at once: each row with its locks, what each pane
     CHECK(none.declared.empty());
 }
 
-TEST_CASE("a batch is judged whole at its revision: a stale one, a value not taken, a layout not held or a bad baseline writes nothing") {
+TEST_CASE("a batch is judged whole at its revision: a stale one, a value not taken, a layout not held or a bad theme writes nothing") {
     TempDir dir("batch-refused");
     RevisionRig t;
     t.r.host.prefs_path = dir.file("workshop-prefs.json");
@@ -2478,10 +2433,16 @@ TEST_CASE("a batch is judged whole at its revision: a stale one, a value not tak
     b.writes[0].clear = true;
     CHECK(t.batch(b).refusal == "write 0: a clear takes no value -- name the key alone");
     b.writes = {number_write(1, "test.dial/dial", "step", 3)};
-    b.baselines = {LayoutThemeWrite{1, LayoutTheme{"Evening!", 3}}};
-    CHECK(t.batch(b).refusal.rfind("baseline 0: a baseline's theme name", 0) == 0);
-    b.baselines = {LayoutThemeWrite{1, LayoutTheme{"", 3}}};
-    CHECK(t.batch(b).refusal == "baseline 0: a baseline of no theme has no fingerprint");
+    b.themes = {LayoutThemesWrite{1, {"Evening!"}}};
+    CHECK(t.batch(b).refusal.rfind("themes 0: a theme's name", 0) == 0);
+    b.themes = {LayoutThemesWrite{1, {"evening", "evening"}}};
+    CHECK(t.batch(b).refusal == "themes 0: a layout wears `evening` twice");
+    b.themes = {};
+    b.rows = {RowThemeWrite{1, "test.dial/other", "evening"}};
+    CHECK(t.batch(b).refusal.rfind("row theme 0: test.dial/other is not in layout ", 0) == 0);
+    b.rows = {RowThemeWrite{1, "test.dial/dial", "Evening!"}};
+    CHECK(t.batch(b).refusal.rfind("row theme 0: a theme's name", 0) == 0);
+    b.rows = {};
     // NOTHING WAS WRITTEN, AND THE LAYOUTS STAND WHERE THEY WERE READ.
     CHECK(dial_settings_at(t.r, 0).empty());
     CHECK(dial_settings_at(t.r, 1).empty());
@@ -2494,10 +2455,10 @@ TEST_CASE("a batch is judged whole at its revision: a stale one, a value not tak
     CHECK(w.refusal.rfind("settings writes withheld: ", 0) == 0);
     CHECK(w.revision == 0);
     // A SETTINGS FILE ANOTHER HAND WROTE SINCE IS NEVER WRITTEN OVER: a batch writing a
-    // role-wide setting is refused whole, and the layout's baseline beside it is not written.
+    // role-wide setting is refused whole, and the layout's themes beside it are not written.
     REQUIRE(prefs_persist::save_file(t.r.host.prefs_path, prefs_persist::Prefs{}).accepted);
     b.writes = {text_write(0, kWorkshopProvider, "workshop.focus.ring", "plain")};
-    b.baselines = {LayoutThemeWrite{1, LayoutTheme{"evening", 3}}};
+    b.themes = {LayoutThemesWrite{1, {"evening"}}};
     w = t.batch(b);
     CHECK_FALSE(w.accepted);
     CHECK(w.refusal.rfind("nothing written: Workshop's settings file was not written -- ", 0) == 0);
@@ -2505,7 +2466,7 @@ TEST_CASE("a batch is judged whole at its revision: a stale one, a value not tak
     CHECK(t.r.owner->layouts().prefs() == kept);
 }
 
-TEST_CASE("a batch writes what it can across layouts, says each write's outcome, keeps baselines, and hands the live rows and roles it moved") {
+TEST_CASE("a batch writes what it can across layouts, says each write's outcome, keeps a layout's themes and a row's theme, and hands the live rows and roles it moved") {
     TempDir dir("batch-written");
     RevisionRig t;
     t.r.host.prefs_path = dir.file("workshop-prefs.json");
@@ -2525,7 +2486,8 @@ TEST_CASE("a batch writes what it can across layouts, says each write's outcome,
                 number_write(0, "test.dial/dial", "step", 6),
                 text_write(0, kWorkshopProvider, "workshop.focus.ring", "plain"),
                 text_write(1, "test.dial/dial", "mode", "narrow")};
-    b.baselines = {LayoutThemeWrite{1, LayoutTheme{"evening", 42}}};
+    b.themes = {LayoutThemesWrite{1, {"night", "evening"}}};
+    b.rows = {RowThemeWrite{1, "test.dial/dial", "block"}};
     const SettingsWriteAnswered w = t.batch(b);
     REQUIRE_MESSAGE(w.accepted, w.refusal);
     REQUIRE(w.results.size() == 7);
@@ -2546,9 +2508,14 @@ TEST_CASE("a batch writes what it can across layouts, says each write's outcome,
               PaneSetting{"mode", std::nullopt, std::nullopt, std::string("narrow")}});
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{step_of(6)});
     CHECK(t.r.session().selection_ring_plain);
-    CHECK(t.r.last_notice() == "theme evening: 3 of 7 written, baselines set");
-    // WORKSHOP'S OWN IS KEPT IN THE SETTINGS FILE, AND THE BASELINE IN ITS LAYOUT.
-    CHECK(layout_at(t.r.owner->layouts().run(), 0).theme == LayoutTheme{"evening", 42});
+    CHECK(t.r.last_notice() == "theme evening: 3 of 7 written, themes set");
+    // WORKSHOP'S OWN IS KEPT IN THE SETTINGS FILE, THE THEMES IN THEIR LAYOUT AND THE ROW'S BESIDE IT.
+    CHECK(layout_at(t.r.owner->layouts().run(), 0).themes ==
+          std::vector<std::string>{"night", "evening"});
+    CHECK(pane_of(layout_at(t.r.owner->layouts().run(), 0), dial_ref())->theme == "block");
+    CHECK(pane_of(layout_at(t.r.owner->layouts().run(), 0), dial_ref())->settings ==
+          std::vector<PaneSetting>{
+              PaneSetting{"mode", std::nullopt, std::nullopt, std::string("narrow")}});
     CHECK_FALSE(prefs_persist::has_layout_entries(t.r.owner->layouts().prefs()));
     const prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
     REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
@@ -2556,14 +2523,19 @@ TEST_CASE("a batch writes what it can across layouts, says each write's outcome,
     CHECK(file.prefs.ring_plain);
     const LayoutSettingsAnswered after = t.layouts();
     CHECK(after.revision == w.revision);
-    CHECK(after.layouts[0].theme == LayoutTheme{"evening", 42});
-    // A BASELINE OF NO THEME REMOVES IT; a batch that moves nothing mints nothing.
+    CHECK(after.layouts[0].themes == std::vector<std::string>{"night", "evening"});
+    REQUIRE(dial_in(after.layouts[0]) != nullptr);
+    CHECK(dial_in(after.layouts[0])->theme == "block");
+    // A LAYOUT'S THEMES WRITTEN AS NONE, AND A ROW'S AS "", REMOVE THEM; a batch that moves nothing
+    // mints nothing.
     SettingsWriteRequested gone;
     gone.revision = after.revision;
-    gone.baselines = {LayoutThemeWrite{1, LayoutTheme{}}};
+    gone.themes = {LayoutThemesWrite{1, {}}};
+    gone.rows = {RowThemeWrite{1, "test.dial/dial", ""}};
     const SettingsWriteAnswered removed = t.batch(gone);
     REQUIRE_MESSAGE(removed.accepted, removed.refusal);
-    CHECK(layout_at(t.r.owner->layouts().run(), 0).theme.name.empty());
+    CHECK(layout_at(t.r.owner->layouts().run(), 0).themes.empty());
+    CHECK(pane_of(layout_at(t.r.owner->layouts().run(), 0), dial_ref())->theme.empty());
     SettingsWriteRequested same;
     same.revision = removed.revision;
     same.writes = {number_write(2, "test.dial/dial", "step", 6)};

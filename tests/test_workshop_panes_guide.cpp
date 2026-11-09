@@ -130,14 +130,14 @@ struct TutorDesk {
             return scope::GuestRowFacts{};
         };
         b.tool->catalog = catalog_of({{"tally", "tally"}});
-        // A MARK IS A POOL COLOUR, so the desk wears the look a terminal draws each pool colour in: `block`.
-        prefs_persist::Prefs prefs;
-        prefs_persist::put_role_value(prefs, kWorkshopProvider, "workshop.skin",
-                                        PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
-                                                    std::string("block")});
-        b.r.host.prefs_path = (b.root / "workshop-prefs.json").generic_string();
-        REQUIRE(prefs_persist::save_file(b.r.host.prefs_path, prefs).accepted);
+        // A MARK IS A POOL COLOUR, so the desk wears the look a terminal draws each pool colour in:
+        // `block`, which the theme weave lays.
+        // ⚔ MUTATION (tests/mutants/workshop_panes_guide.md#stacks-never-sent): Workshop's stacks
+        // refused on their way to the theme weave.
+        b.with_themes = true;
         b.open(160, 48, with_editor, true, true, false, /*with_desktop=*/true);
+        stage_desk(b.r, [](Setup& desk) { desk.themes = {"block"}; });
+        b.settle();
     }
 
     /// THE SAME DESK ON THE GUI WINDOW.

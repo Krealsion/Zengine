@@ -19,7 +19,7 @@ def exercise_desk(role, view):
         width=dict(mode="pixels", amount=str(50 * 12)),
         height=dict(mode="pixels", amount=str(11 * 12)),
         front=str(max((int(p["front"]) for p in panes), default=-1) + 1), settings=[], fold="open",
-        dock="none"))
+        dock="none", theme=""))
     return setup
 
 

@@ -738,10 +738,6 @@ void LayoutStore::settle_live() { (void)pin_everywhere_locks(live_desk(run_)); }
 
 const v2::PaneSettingRow* LayoutStore::declared_row(const PaneRef& ref,
                                                     const std::string& key) const {
-    static const v2::PaneSettingRow skin_row = workshop_skin_setting_row();
-    if (key == kWorkshopSkinKey) {
-        return &skin_row;
-    }
     return row_named(counted(ref), key);
 }
 
@@ -827,11 +823,6 @@ PaneSettingCommitAnswered LayoutStore::commit_pane(const std::string& refused,
         const PaneSettingRow* declared = nullptr;
         for (std::size_t i = 0; rows != nullptr && i < rows->size(); ++i) {
             declared = (*rows)[i].key == asked.key ? &(*rows)[i] : declared;
-        }
-        // WORKSHOP'S OWN WORD FOR THE PANE'S AREA, whatever the pane declares.
-        const PaneSettingRow skin_row = narrow_setting_row(workshop_skin_setting_row());
-        if (asked.key == kWorkshopSkinKey) {
-            declared = &skin_row;
         }
         if (declared == nullptr) {
             return refuse(ref_text(ref) + " has no counted setting `" + asked.key +
@@ -1329,9 +1320,9 @@ LayoutSettingsAnswered LayoutStore::layout_settings_reading() const {
         layout.id = run[i].id;
         layout.position = static_cast<std::int64_t>(i);
         layout.name = run[i].desk.name;
-        layout.theme = run[i].desk.theme;
+        layout.themes = run[i].desk.themes;
         for (const SetupPane& p : run[i].desk.panes) {
-            LayoutPaneSettings row{p.ref.provider, p.ref.pane, p.settings, {}};
+            LayoutPaneSettings row{p.ref.provider, p.ref.pane, p.settings, {}, p.theme};
             for (const SettingLockShown& l : locks_on(p.ref, i)) {
                 row.locked.push_back(l.key);
             }
@@ -1339,19 +1330,13 @@ LayoutSettingsAnswered LayoutStore::layout_settings_reading() const {
         }
         out.layouts.push_back(std::move(layout));
     }
-    // WHAT EACH PANE TAKES, Workshop's word for its area first, and what each role takes.
+    // WHAT EACH PANE TAKES, and what each role takes.
     for (const PaneDeclaration& p : pane_declarations_) {
         const std::vector<v2::PaneSettingRow>* rows = counted(p.ref);
         if (rows == nullptr) {
             continue;
         }
-        DeclaredSettings d{p.ref.provider, p.ref.pane, {workshop_skin_setting_row()}};
-        for (const v2::PaneSettingRow& row : *rows) {
-            if (row.key != kWorkshopSkinKey) {
-                d.rows.push_back(row);
-            }
-        }
-        out.declared.push_back(std::move(d));
+        out.declared.push_back(DeclaredSettings{p.ref.provider, p.ref.pane, *rows});
     }
     out.declared.push_back(
         DeclaredSettings{kWorkshopProvider, std::string(), *role_rows(kWorkshopProvider)});
@@ -1397,7 +1382,7 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
         return SettingsWriteAnswered{false, std::move(why), revision, {}, {}};
     };
     // JUDGED WHOLE, NOTHING WRITTEN ON A REFUSAL: the asker, the revision, the bounds, then every
-    // write's form, target, layout and value, and every baseline's.
+    // write's form, target, layout and value, and every layout's and row's theme.
     if (!refused.empty()) {
         return refuse("settings writes withheld: " + refused, 0);
     }
@@ -1409,10 +1394,11 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
                       current);
     }
     if (asked.writes.size() > kMaxLayouts * kMaxPaneSettingsPerDesk ||
-        asked.baselines.size() > kMaxLayouts) {
+        asked.themes.size() > kMaxLayouts || asked.rows.size() > kMaxLayouts * kMaxSetupPanes) {
         return refuse("a batch holds at most " +
-                          std::to_string(kMaxLayouts * kMaxPaneSettingsPerDesk) + " writes and " +
-                          std::to_string(kMaxLayouts) + " baselines",
+                          std::to_string(kMaxLayouts * kMaxPaneSettingsPerDesk) + " writes, " +
+                          std::to_string(kMaxLayouts) + " layouts' themes and " +
+                          std::to_string(kMaxLayouts * kMaxSetupPanes) + " rows' themes",
                       current);
     }
     for (std::size_t i = 0; i < asked.writes.size(); ++i) {
@@ -1458,19 +1444,29 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
             return refuse(at + wrong, current);
         }
     }
-    for (std::size_t i = 0; i < asked.baselines.size(); ++i) {
-        const LayoutThemeWrite& b = asked.baselines[i];
-        const std::string at = "baseline " + std::to_string(i) + ": ";
+    for (std::size_t i = 0; i < asked.themes.size(); ++i) {
+        const LayoutThemesWrite& t = asked.themes[i];
+        std::string wrong = !place_of(t.layout) ? gone(t.layout) : layout_themes_problem(t.themes);
+        if (!wrong.empty()) {
+            return refuse("themes " + std::to_string(i) + ": " + wrong, current);
+        }
+    }
+    for (std::size_t i = 0; i < asked.rows.size(); ++i) {
+        const RowThemeWrite& r = asked.rows[i];
         std::string wrong;
-        if (!place_of(b.layout)) {
-            wrong = gone(b.layout);
-        } else if (b.theme.name.empty() && b.theme.fingerprint != 0) {
-            wrong = "a baseline of no theme has no fingerprint";
-        } else if (!b.theme.name.empty()) {
-            wrong = layout_theme_name_problem(b.theme.name);
+        const std::optional<PaneRef> ref = pane_of_target(r.target);
+        if (!ref || r.target.find('@') != std::string::npos) {
+            wrong = "a row's theme names its row `<role>/<pane>`";
+        } else if (!place_of(r.layout)) {
+            wrong = gone(r.layout);
+        } else if (pane_of(desk_at(run_, *place_of(r.layout)), *ref) == nullptr) {
+            wrong = r.target + " is not in layout " +
+                    quoted_setup_name(desk_at(run_, *place_of(r.layout)).name);
+        } else if (!r.theme.empty()) {
+            wrong = theme_name_problem(r.theme);
         }
         if (!wrong.empty()) {
-            return refuse(at + wrong, current);
+            return refuse("row theme " + std::to_string(i) + ": " + wrong, current);
         }
     }
     // WRITTEN TOGETHER, ON COPIES: a write a lock holds, a key nothing takes, or a pane its layout
@@ -1552,12 +1548,21 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
             note(live_moved, w.target);
         }
     }
-    // A LAYOUT'S BASELINE IS ITS DESK'S.
-    bool baselines_moved = false;
-    for (const LayoutThemeWrite& b : asked.baselines) {
-        Setup& desk = desk_at(next, *place_of(b.layout));
-        baselines_moved = baselines_moved || !(desk.theme == b.theme);
-        desk.theme = b.theme;
+    // A LAYOUT'S THEMES ARE ITS DESK'S, and a row's theme its row's.
+    bool themes_moved = false;
+    for (const LayoutThemesWrite& t : asked.themes) {
+        Setup& desk = desk_at(next, *place_of(t.layout));
+        themes_moved = themes_moved || desk.themes != t.themes;
+        desk.themes = t.themes;
+    }
+    for (const RowThemeWrite& r : asked.rows) {
+        Setup& desk = desk_at(next, *place_of(r.layout));
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == *pane_of_target(r.target)) {
+                themes_moved = themes_moved || row.theme != r.theme;
+                row.theme = r.theme;
+            }
+        }
     }
     if (const std::string wrong = prefs_persist::kept_problem(kept);
         !(kept == prefs_) && !wrong.empty()) {
@@ -1583,7 +1588,7 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
         role_moved(role);
         handed.push_back(role);
     }
-    if (any_desk || baselines_moved) {
+    if (any_desk || themes_moved) {
         moved();
     }
     std::size_t written = 0;
@@ -1592,7 +1597,7 @@ SettingsWriteAnswered LayoutStore::write(const std::string& refused, const Setti
     }
     say((asked.cause.empty() ? std::string("settings") : asked.cause) + ": " +
             std::to_string(written) + " of " + std::to_string(results.size()) + " written" +
-            (baselines_moved ? std::string(", baselines set") : std::string()),
+            (themes_moved ? std::string(", themes set") : std::string()),
         false);
     return SettingsWriteAnswered{true, std::string(), layout_settings_revision(), std::move(results),
                            std::move(handed)};
@@ -2183,6 +2188,23 @@ RestoredRun LayoutStore::restore() {
         out.folded = fold_layout_entries();
         folded = true;
     }
+    // THE PALETTE WORKSHOP'S OWN AREAS WORE, AS AN OLDER FILE KEPT IT: the theme of each layout
+    // that wears none; `night` is the pool's own look, which a layout wearing none already wears.
+    if (const PaneSetting* skin =
+            prefs_persist::role_value(prefs_, kWorkshopProvider, prefs_persist::kRetiredSkinKey)) {
+        const std::string theme =
+            skin->text ? (*skin->text == "classic" ? std::string("night") : *skin->text) : std::string();
+        if (!theme.empty() && theme != "night" && theme_name_problem(theme).empty()) {
+            for (std::size_t i = 0; i < layout_run(run_).size(); ++i) {
+                if (desk_at(run_, i).themes.empty()) {
+                    desk_at(run_, i).themes = {theme};
+                }
+            }
+        }
+        (void)prefs_persist::put_role_value(prefs_, kWorkshopProvider,
+                                            prefs_persist::kRetiredSkinKey, std::nullopt);
+        folded = true;
+    }
     if (last.present || folded) {
         settle_live();
         moved();
@@ -2234,9 +2256,13 @@ std::string LayoutStore::fold_layout_entries() {
         }
         const std::string name = o.role.substr(1);
         const LayoutTheme theme = prefs_persist::layout_theme_of(prefs_, name);
+        // A BASELINE IS THE BOTTOM OF THE LAYOUT'S THEMES, its fingerprint gone with it.
         fold(name, "the baseline of layout " + quoted_setup_name(name) + " (" + theme.name + ")",
              [&theme](Setup& desk) {
-                 desk.theme = theme;
+                 if (theme.name.empty() || holds(desk.themes, theme.name)) {
+                     return !theme.name.empty();
+                 }
+                 desk.themes.insert(desk.themes.begin(), theme.name);
                  return true;
              });
     }

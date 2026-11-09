@@ -753,8 +753,8 @@ its outcome is said on the band, `editor switch <op>: <outcome>`.
 
 `GraphicsReady`, from `zengine.graphics`
 ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): a directory started afresh. Workshop,
-its arranger, offers the four shipped palettes, chooses each area's (the one `workshop.skin` names),
-and places each open pane's frame (`zengine.workshop.frame.<role>.<pane>`) at its depth with the
+its arranger, chooses each area's palette, named for the layout's themes and the row's, and places
+each open pane's frame (`zengine.workshop.frame.<role>.<pane>`) at its depth with the
 pane's own area over its body in front where its role draws there; its own area, taking the keys;
 and `zengine.workshop.overlay` in front, deaf. It asks its rooms.
 
@@ -860,6 +860,19 @@ one hand are a double Shift within. Workshop asks it when the desk starts (`Poin
 and is told again when it changes; until it is told, it times taps by
 <!-- value kDefaultDoubleClickMs -->400<!-- /value --> ms. From anyone else it is nothing.
 
+### `ThemesPlacedRequested`
+
+`ThemesPlacedRequested` v1, from `zengine.theme` ([the theme
+reader](../../theme/docs/zengine.theme.md)), published on each of its activations: Workshop tells it again where the
+themes are (`ThemesPlaced`: the weaver's own folder, none for an isolated launch, and the shipped
+one beside Workshop) and every stack its areas wear (`ThemesWorn`). From anyone else it is nothing.
+
+### `StackSaid`
+
+`StackSaid` v1, from `zengine.theme`, published when it laid a stack with something to say: Workshop
+says on its band each theme of the other medium alone it converted, with its warning, each theme it
+left out, and each own value nothing took. From anyone else it is nothing.
+
 ## Follow
 
 Workshop publishes as `zengine.workshop`, to whoever follows it, each only when it differs from
@@ -869,9 +882,10 @@ thing it says; `DeskStamps` v3 when the desk or a
 pane's stamp moved, the newest standing for all before it
 ([the desk, said whole](workshop-panes.md#the-desk-said-whole)); `PaneSubjectShown` once a pane is
 inspected; `TranscriptShown`, the terminal's record; `PaneSourceOpened` after an Edit Code open;
-and `PaneQuitRequested`, the question a quit asks. To a graphics directory it says `PaletteOffered`,
+and `PaneQuitRequested`, the question a quit asks. To a graphics directory it says
 `PaletteChosen`, `AreaPlaced` and `RoomAsked`, each only when it moved, and to the window that shows
-its area, `Drawn`, and `AreaShowAsked` for each pane's area that settled. To a pane's role it
+its area, `Drawn`, and `AreaShowAsked` for each pane's area that settled; to `zengine.theme`,
+`ThemesPlaced` and `ThemesWorn`, when moved. To a pane's role it
 says `PaneKeys` when the keys come or go, and after each primary press in its area.
 
 ## Files

@@ -11,7 +11,7 @@ need one owner that judges every write against what it would change.
 everywhere lock on a pane pins the value its layout holds into every row that seats the pane, and
 into each row seated later; a role-wide setting's lock holds everywhere. Every write door refuses
 a locked key, a batch passes it over and says so, and only the weaver's hand unlocks: the Terminal,
-or a pane naming the weaver's own current act. A layout's locks, pin lists and baseline theme are
+or a pane naming the weaver's own current act. A layout's locks, pin lists and themes are
 its desk's, in the setup file and the session; the everywhere locks and Workshop-wide pin lists stay
 in Workshop's settings file. A desk put live keeps every lock and is refused where it would change a
 locked value. Every layout is read at one revision and written in one batch judged whole against it.

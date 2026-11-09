@@ -1135,18 +1135,24 @@ TEST_CASE("the shipped default plan is a legal plan, and it opens the GUI window
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 26); // includes the storage owner and its separate presentation
+    REQUIRE(p.artifacts.size() == 27); // includes the storage owner and its separate presentation
 
     // THE QUICK SETUP LAST, optional: a Workshop without it starts on the desk alone.
-    CHECK(p.artifacts[25].stem == "zengine-first-run");
-    REQUIRE(p.artifacts[25].weave.has_value());
-    CHECK(p.artifacts[25].weave->role == "zengine.first-run");
-    CHECK(p.artifacts[25].optional);
+    CHECK(p.artifacts[26].stem == "zengine-first-run");
+    REQUIRE(p.artifacts[26].weave.has_value());
+    CHECK(p.artifacts[26].weave->role == "zengine.first-run");
+    CHECK(p.artifacts[26].optional);
     // THE PALETTE BEFORE IT, optional: a Workshop without it finds nothing by name and
     // keeps every key.
-    CHECK(p.artifacts[24].stem == "zengine-palette");
+    CHECK(p.artifacts[25].stem == "zengine-palette");
+    REQUIRE(p.artifacts[25].weave.has_value());
+    CHECK(p.artifacts[25].weave->role == "zengine.palette");
+    CHECK(p.artifacts[25].optional);
+    // THE THEME READER BEFORE IT, optional: a Workshop without it paints every area in the pool's
+    // own look.
+    CHECK(p.artifacts[24].stem == "zengine-theme");
     REQUIRE(p.artifacts[24].weave.has_value());
-    CHECK(p.artifacts[24].weave->role == "zengine.palette");
+    CHECK(p.artifacts[24].weave->role == "zengine.theme");
     CHECK(p.artifacts[24].optional);
     // THE LAUNCHER BEFORE IT, optional: a Workshop without it starts no app and no demo.
     CHECK(p.artifacts[23].stem == "zengine-launcher");
